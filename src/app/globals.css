@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 220 20% 4%;
+  --foreground: 0 0% 95%;
+  --card: 220 18% 7%;
+  --card-foreground: 0 0% 95%;
+  --popover: 220 18% 7%;
+  --popover-foreground: 0 0% 95%;
+  --primary: 142 71% 45%;
+  --primary-foreground: 220 20% 4%;
+  --secondary: 220 14% 12%;
+  --secondary-foreground: 0 0% 95%;
+  --muted: 220 13% 20%;
+  --muted-foreground: 220 10% 55%;
+  --accent: 217 91% 60%;
+  --accent-foreground: 0 0% 95%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 95%;
+  --border: 220 13% 15%;
+  --input: 220 13% 15%;
+  --ring: 142 71% 45%;
+  --radius: 0.5rem;
+
+  --chart-green: 142 71% 45%;
+  --chart-blue: 217 91% 60%;
+  --chart-amber: 38 92% 50%;
+  --chart-red: 0 84% 60%;
+  --chart-purple: 270 70% 60%;
+
+  --sidebar-width: 240px;
+  --topbar-height: 48px;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted));
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
+
+/* Premium Utilities */
+.glow-green {
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.15), 0 0 60px rgba(34, 197, 94, 0.05);
+}
+.glow-red {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.15), 0 0 60px rgba(239, 68, 68, 0.05);
+}
+.glow-blue {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.15), 0 0 60px rgba(59, 130, 246, 0.05);
+}
+.glow-amber {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.15);
+}
+
+.gradient-card {
+  background: linear-gradient(135deg, hsl(220 14% 12%), hsl(220 20% 4%));
+}
+.glass-card {
+  background: linear-gradient(135deg, hsl(220 18% 8% / 0.8), hsl(220 20% 5% / 0.6));
+  backdrop-filter: blur(12px);
+  border: 1px solid hsl(220 13% 15% / 0.6);
+}
+
+.text-positive { color: hsl(142, 71%, 45%); }
+.text-negative { color: hsl(0, 84%, 60%); }
+.text-neutral-accent { color: hsl(38, 92%, 50%); }
+
+.badge-bullish {
+  background: hsl(142 71% 45% / 0.12);
+  color: hsl(142, 71%, 50%);
+  border: 1px solid hsl(142 71% 45% / 0.2);
+}
+.badge-bearish {
+  background: hsl(0 84% 60% / 0.12);
+  color: hsl(0, 84%, 65%);
+  border: 1px solid hsl(0 84% 60% / 0.2);
+}
+.badge-neutral {
+  background: hsl(38 92% 50% / 0.12);
+  color: hsl(38, 92%, 55%);
+  border: 1px solid hsl(38 92% 50% / 0.2);
+}
+
+/* Pulse animation for live indicators */
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.pulse-live {
+  animation: pulse-live 2s ease-in-out infinite;
+}
+
+/* Skeleton loading */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, hsl(220 14% 12%) 25%, hsl(220 13% 18%) 50%, hsl(220 14% 12%) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
