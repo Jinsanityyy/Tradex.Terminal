@@ -28,7 +28,7 @@ export interface Settings {
   autoRefreshInterval: RefreshInterval;
 }
 
-const DEFAULTS: Settings = {
+export const DEFAULTS: Settings = {
   theme: "dark",
   density: "default",
   animations: true,
@@ -49,89 +49,61 @@ const DEFAULTS: Settings = {
 
 interface SettingsContextValue {
   settings: Settings;
-  set: <K extends keyof Settings>(key: K, value: Settings[K]) => void;
-  setNotification: (key: keyof Settings["notifications"], value: boolean) => void;
-  toggleAsset: (asset: string) => void;
-  toggleFeedCategory: (category: string) => void;
-  reset: () => void;
+  saveSettings: (next: Settings) => void;
+  applyVisual: (theme: Theme, density: Density, animations: boolean) => void;
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
-function applyTheme(theme: Theme, animations: boolean, density: Density) {
+export function applyVisualSettings(theme: Theme, density: Density, animations: boolean) {
   const root = document.documentElement;
   root.setAttribute("data-theme", theme);
   root.setAttribute("data-density", density);
-  if (!animations) {
-    root.classList.add("no-animations");
-  } else {
+  if (animations) {
     root.classList.remove("no-animations");
+  } else {
+    root.classList.add("no-animations");
   }
 }
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const [settings, setSettings] = useState<Settings>(() => {
-    if (typeof window === "undefined") return DEFAULTS;
-    try {
-      const saved = localStorage.getItem("tradex_settings");
-      if (saved) return { ...DEFAULTS, ...JSON.parse(saved) };
-    } catch {}
-    return DEFAULTS;
-  });
+  // Always start with DEFAULTS on server, load from localStorage on client
+  const [settings, setSettings] = useState<Settings>(DEFAULTS);
+  const [loaded, setLoaded] = useState(false);
 
-  // Apply theme/density/animations to DOM on mount + change
-  useEffect(() => {
-    applyTheme(settings.theme, settings.animations, settings.density);
-  }, [settings.theme, settings.animations, settings.density]);
-
-  // Persist to localStorage on every change
   useEffect(() => {
     try {
-      localStorage.setItem("tradex_settings", JSON.stringify(settings));
-    } catch {}
-  }, [settings]);
-
-  const set = useCallback(<K extends keyof Settings>(key: K, value: Settings[K]) => {
-    setSettings((prev) => ({ ...prev, [key]: value }));
-  }, []);
-
-  const setNotification = useCallback(async (key: keyof Settings["notifications"], value: boolean) => {
-    // Request browser notification permission when enabling
-    if (value && typeof Notification !== "undefined" && Notification.permission === "default") {
-      await Notification.requestPermission();
+      const raw = localStorage.getItem("tradex_settings");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const merged = { ...DEFAULTS, ...parsed, notifications: { ...DEFAULTS.notifications, ...parsed.notifications } };
+        setSettings(merged);
+        applyVisualSettings(merged.theme, merged.density, merged.animations);
+      } else {
+        applyVisualSettings(DEFAULTS.theme, DEFAULTS.density, DEFAULTS.animations);
+      }
+    } catch {
+      applyVisualSettings(DEFAULTS.theme, DEFAULTS.density, DEFAULTS.animations);
     }
-    setSettings((prev) => ({
-      ...prev,
-      notifications: { ...prev.notifications, [key]: value },
-    }));
+    setLoaded(true);
   }, []);
 
-  const toggleAsset = useCallback((asset: string) => {
-    setSettings((prev) => {
-      const current = prev.trackedAssets;
-      const next = current.includes(asset)
-        ? current.filter((a) => a !== asset)
-        : [...current, asset];
-      return { ...prev, trackedAssets: next };
-    });
+  const saveSettings = useCallback((next: Settings) => {
+    setSettings(next);
+    applyVisualSettings(next.theme, next.density, next.animations);
+    try {
+      localStorage.setItem("tradex_settings", JSON.stringify(next));
+    } catch {}
   }, []);
 
-  const toggleFeedCategory = useCallback((category: string) => {
-    setSettings((prev) => {
-      const current = prev.feedCategories;
-      const next = current.includes(category)
-        ? current.filter((c) => c !== category)
-        : [...current, category];
-      return { ...prev, feedCategories: next };
-    });
+  const applyVisual = useCallback((theme: Theme, density: Density, animations: boolean) => {
+    applyVisualSettings(theme, density, animations);
   }, []);
 
-  const reset = useCallback(() => {
-    setSettings(DEFAULTS);
-  }, []);
+  if (!loaded) return null;
 
   return (
-    <SettingsContext.Provider value={{ settings, set, setNotification, toggleAsset, toggleFeedCategory, reset }}>
+    <SettingsContext.Provider value={{ settings, saveSettings, applyVisual }}>
       {children}
     </SettingsContext.Provider>
   );
