@@ -2,21 +2,28 @@
 
 import { useState, useEffect } from "react";
 
+const STORAGE_KEY = "tradex_native";
+
 function detectMobile(): boolean {
   if (typeof window === "undefined") return false;
 
-  // 1. Capacitor native app (Android/iOS APK)
+  // 1. Check URL for ?native=1 (set in capacitor.config.ts)
+  //    Store in localStorage so it persists across SPA navigation
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("native") === "1") {
+    try { localStorage.setItem(STORAGE_KEY, "1"); } catch {}
+    return true;
+  }
+
+  // 2. localStorage flag (persists after ?native=1 is lost from URL)
   try {
-    const cap = (window as any).Capacitor;
-    if (cap?.isNativePlatform?.()) return true;
-    if (cap?.platform === "android" || cap?.platform === "ios") return true;
+    if (localStorage.getItem(STORAGE_KEY) === "1") return true;
   } catch {}
 
-  // 2. User-agent check for mobile browsers
-  const ua = navigator.userAgent;
-  if (/android|iphone|ipad|ipod|mobile|phone/i.test(ua)) return true;
+  // 3. Mobile user-agent fallback (for regular mobile browsers)
+  if (/android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent)) return true;
 
-  // 3. Touch-only device with small screen
+  // 4. Narrow screen fallback
   if (window.innerWidth < 768) return true;
 
   return false;
@@ -27,11 +34,6 @@ export function useIsMobile() {
 
   useEffect(() => {
     setIsMobile(detectMobile());
-
-    const mq = window.matchMedia("(max-width: 767px)");
-    const handler = () => setIsMobile(detectMobile());
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
   }, []);
 
   return isMobile;
