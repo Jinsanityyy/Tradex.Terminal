@@ -2,12 +2,22 @@
 
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopStatusBar } from "@/components/layout/TopStatusBar";
+import { MobileLayout } from "@/components/layout/MobileLayout";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const isMobile = useIsMobile();
+
+  // Mobile: full-screen native-style app
+  if (isMobile) {
+    return <MobileLayout />;
+  }
+
+  // Desktop: sidebar layout
   return (
     <div className="flex min-h-screen">
       <Sidebar />
