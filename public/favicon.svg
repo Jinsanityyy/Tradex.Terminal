@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Background -->
+  <rect width="32" height="32" rx="5" fill="#0a0e1a"/>
+
+  <!-- Left candle: bullish (green) -->
+  <!-- wick top -->
+  <line x1="7.5" y1="7" x2="7.5" y2="10" stroke="#5fc77a" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- body -->
+  <rect x="4.5" y="10" width="6" height="10" rx="1" fill="#5fc77a"/>
+  <!-- wick bottom -->
+  <line x1="7.5" y1="20" x2="7.5" y2="23" stroke="#5fc77a" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Middle candle: bearish (red) -->
+  <!-- wick top -->
+  <line x1="16" y1="5" x2="16" y2="9" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- body -->
+  <rect x="13" y="9" width="6" height="12" rx="1" fill="#ef4444"/>
+  <!-- wick bottom -->
+  <line x1="16" y1="21" x2="16" y2="25" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Right candle: bullish tall (green) -->
+  <!-- wick top -->
+  <line x1="24.5" y1="3" x2="24.5" y2="7" stroke="#5fc77a" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- body -->
+  <rect x="21.5" y="7" width="6" height="15" rx="1" fill="#5fc77a"/>
+  <!-- wick bottom -->
+  <line x1="24.5" y1="22" x2="24.5" y2="26" stroke="#5fc77a" stroke-width="1.5" stroke-linecap="round"/>
+</svg>

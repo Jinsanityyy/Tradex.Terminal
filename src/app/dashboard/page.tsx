@@ -22,9 +22,10 @@ import {
 import { cn } from "@/lib/utils";
 import {
   BarChart3, Zap, CalendarDays, ArrowRight,
-  Maximize2, Minimize2, RefreshCw, Wifi, WifiOff, Sparkles,
+  Maximize2, Minimize2, RefreshCw, Wifi, WifiOff, Sparkles, TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
+import { TradingViewChart } from "@/components/shared/TradingViewChart";
 
 export default function DashboardPage() {
   const { quotes } = useQuotes();
@@ -134,7 +135,32 @@ export default function DashboardPage() {
         </p>
       )}
 
-      {/* Row 1: Bias + Support + Invalidation */}
+      {/* Gold Chart — full width */}
+      <Card className="overflow-hidden border-[hsl(var(--border))]">
+        <CardHeader className="pb-0 px-4 pt-3 flex flex-row items-center justify-between border-b border-[hsl(var(--border))]/50">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-[hsl(var(--primary))]" />
+            <span className="text-sm font-semibold text-[hsl(var(--foreground))]">XAU/USD</span>
+            <span className="text-[10px] text-[hsl(var(--muted-foreground))]">Gold Spot · 1H · New York</span>
+          </div>
+          <div className="flex items-center gap-3">
+            {goldBias && (
+              <span className={`text-[10px] font-bold px-2.5 py-1 rounded ${
+                goldBias.bias === "bullish" ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20" :
+                goldBias.bias === "bearish" ? "bg-red-500/15 text-red-400 border border-red-500/20" :
+                "bg-zinc-500/15 text-zinc-400 border border-zinc-500/20"
+              }`}>
+                {goldBias.bias.toUpperCase()} · {goldBias.confidence}% CONVICTION
+              </span>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <TradingViewChart symbol="OANDA:XAUUSD" interval="60" height={900} />
+        </CardContent>
+      </Card>
+
+      {/* Bias Panel — below chart, 3 cols */}
       {goldBias && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <BiasCard asset={goldBias.asset} bias={goldBias.bias} confidence={goldBias.confidence} />
@@ -143,14 +169,14 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Row 2: All asset bias mini cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+      {/* Bias mini cards — all assets */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {biasData.map((b) => (
           <BiasCard key={b.asset} asset={b.asset} bias={b.bias} confidence={b.confidence} compact />
         ))}
       </div>
 
-      {/* Row 3: Narrative + Conviction — ALL LIVE */}
+      {/* Narrative + Conviction */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <div className="lg:col-span-2">
           <MarketNarrativePanel narrative={narrative} />
