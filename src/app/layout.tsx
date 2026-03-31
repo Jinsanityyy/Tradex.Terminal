@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { SWRProvider } from "@/components/providers/SWRProvider";
+import { SettingsProvider } from "@/contexts/SettingsContext";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -52,7 +53,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen antialiased">
-        <SWRProvider>{children}</SWRProvider>
+        <SettingsProvider>
+          <SWRProvider>{children}</SWRProvider>
+        </SettingsProvider>
       </body>
     </html>
   );

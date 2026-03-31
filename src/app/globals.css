@@ -114,6 +114,46 @@ body {
   animation: pulse-live 2s ease-in-out infinite;
 }
 
+/* ── Theme variants ─────────────────────────────────── */
+[data-theme="midnight"] {
+  --background: 230 25% 6%;
+  --card: 230 22% 9%;
+  --popover: 230 22% 9%;
+  --secondary: 230 18% 14%;
+  --muted: 230 15% 22%;
+  --muted-foreground: 230 12% 58%;
+  --border: 230 16% 16%;
+  --input: 230 16% 16%;
+  --sidebar-bg: 230 25% 4%;
+}
+
+[data-theme="oled"] {
+  --background: 0 0% 0%;
+  --card: 0 0% 4%;
+  --popover: 0 0% 4%;
+  --secondary: 0 0% 8%;
+  --muted: 0 0% 14%;
+  --muted-foreground: 0 0% 52%;
+  --border: 0 0% 11%;
+  --input: 0 0% 11%;
+  --sidebar-bg: 0 0% 0%;
+}
+
+/* ── Layout density ─────────────────────────────────── */
+[data-density="compact"] main { padding: 0.75rem !important; }
+[data-density="compact"] .space-y-5 > * + * { margin-top: 0.5rem !important; }
+[data-density="compact"] .p-5 { padding: 0.75rem !important; }
+[data-density="compact"] .p-4 { padding: 0.625rem !important; }
+[data-density="expanded"] main { padding: 1.75rem !important; }
+[data-density="expanded"] .space-y-5 > * + * { margin-top: 1.5rem !important; }
+
+/* ── Animations off ─────────────────────────────────── */
+.no-animations *, .no-animations *::before, .no-animations *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
 /* Skeleton loading */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
