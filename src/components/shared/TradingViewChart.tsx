@@ -51,6 +51,7 @@ function TradingViewChartInner({
         hide_side_toolbar: false,
         allow_symbol_change: false,
         save_image: false,
+        show_countdown: true,  // bar close countdown timer
         studies: [],           // no indicators
         backgroundColor: "rgba(0,0,0,1)",
         gridColor: "rgba(30,30,30,0.6)",
