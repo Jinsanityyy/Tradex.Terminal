@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: "TradeX",
   webDir: "out",
   server: {
-    url: "https://tradex-ten.vercel.app/dashboard?native=1",
+    url: "https://tradex-ten.vercel.app/m",
     cleartext: false,
   },
   android: {
