@@ -356,16 +356,16 @@ export function FloatingChat() {
       )}
 
       {/* Floating button */}
-      <button onClick={() => { setOpen(!open); setUnread(0); }} className="fixed bottom-5 right-5 z-50 h-12 w-12 rounded-full bg-[hsl(142,71%,45%)] shadow-lg hover:bg-[hsl(142,71%,50%)] transition-all hover:scale-105 flex items-center justify-center relative">
+      <button onClick={() => { setOpen(!open); setUnread(0); }} className="fixed bottom-5 right-5 z-50 h-12 w-12 rounded-full bg-[hsl(142,71%,45%)] shadow-lg hover:bg-[hsl(142,71%,50%)] transition-all hover:scale-105 flex items-center justify-center">
         {open ? <X className="h-5 w-5 text-[#0a0e1a]" /> : (
-          <>
+          <span className="relative flex items-center justify-center">
             <MessageCircle className="h-5 w-5 text-[#0a0e1a]" />
             {unread > 0 && (
-              <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center">
+              <span className="absolute -top-3 -right-3 h-5 w-5 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center">
                 {unread > 9 ? "9+" : unread}
               </span>
             )}
-          </>
+          </span>
         )}
       </button>
     </>
