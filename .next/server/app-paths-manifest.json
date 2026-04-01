@@ -1,6 +1,9 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
+  "/api/stripe/checkout/route": "app/api/stripe/checkout/route.js",
+  "/login/page": "app/login/page.js",
   "/page": "app/page.js",
+  "/pricing/page": "app/pricing/page.js",
   "/api/market/catalysts/route": "app/api/market/catalysts/route.js",
   "/api/market/calendar/route": "app/api/market/calendar/route.js",
   "/api/market/analysis/route": "app/api/market/analysis/route.js",
@@ -10,14 +13,15 @@
   "/api/market/quotes/route": "app/api/market/quotes/route.js",
   "/api/market/trump/route": "app/api/market/trump/route.js",
   "/api/market/sessions/route": "app/api/market/sessions/route.js",
-  "/dashboard/ai-briefing/page": "app/dashboard/ai-briefing/page.js",
   "/dashboard/asset-matrix/page": "app/dashboard/asset-matrix/page.js",
-  "/dashboard/catalysts/page": "app/dashboard/catalysts/page.js",
-  "/dashboard/economic-calendar/page": "app/dashboard/economic-calendar/page.js",
   "/dashboard/market-bias/page": "app/dashboard/market-bias/page.js",
-  "/dashboard/session-intelligence/page": "app/dashboard/session-intelligence/page.js",
+  "/dashboard/ai-briefing/page": "app/dashboard/ai-briefing/page.js",
+  "/dashboard/catalysts/page": "app/dashboard/catalysts/page.js",
   "/dashboard/news-flow/page": "app/dashboard/news-flow/page.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/dashboard/trump-monitor/page": "app/dashboard/trump-monitor/page.js",
-  "/dashboard/settings/page": "app/dashboard/settings/page.js"
+  "/dashboard/economic-calendar/page": "app/dashboard/economic-calendar/page.js",
+  "/dashboard/session-intelligence/page": "app/dashboard/session-intelligence/page.js",
+  "/dashboard/settings/page": "app/dashboard/settings/page.js",
+  "/m/page": "app/m/page.js",
+  "/dashboard/trump-monitor/page": "app/dashboard/trump-monitor/page.js"
 }

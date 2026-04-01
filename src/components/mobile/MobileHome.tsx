@@ -144,12 +144,12 @@ export function MobileHome() {
             {levels.slice(0, 4).map((lvl, i) => (
               <div key={i} className="bg-[hsl(var(--card))] rounded-xl px-4 py-3 border border-white/5 flex items-center justify-between">
                 <div>
-                  <p className="text-[9px] text-[hsl(var(--muted-foreground))] uppercase tracking-wider">{lvl.type}</p>
-                  <p className="text-xs font-semibold text-[hsl(var(--foreground))] font-mono">{lvl.label}</p>
+                  <p className="text-[9px] text-[hsl(var(--muted-foreground))] uppercase tracking-wider">{lvl.bias}</p>
+                  <p className="text-xs font-semibold text-[hsl(var(--foreground))] font-mono">{lvl.asset}</p>
                 </div>
                 <span className={cn(
                   "text-sm font-bold font-mono",
-                  lvl.type === "resistance" ? "text-red-400" : lvl.type === "support" ? "text-emerald-400" : "text-amber-400"
+                  lvl.bias === "bearish" ? "text-red-400" : lvl.bias === "bullish" ? "text-emerald-400" : "text-amber-400"
                 )}>
                   {lvl.price?.toLocaleString()}
                 </span>
@@ -170,14 +170,14 @@ export function MobileHome() {
                   <p className="text-xs text-[hsl(var(--foreground))] leading-snug flex-1">{c.title}</p>
                   <span className={cn(
                     "text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0",
-                    c.impact === "high" ? "bg-red-500/15 text-red-400" :
-                    c.impact === "medium" ? "bg-amber-500/15 text-amber-400" :
+                    c.importance === "high" ? "bg-red-500/15 text-red-400" :
+                    c.importance === "medium" ? "bg-amber-500/15 text-amber-400" :
                     "bg-zinc-500/15 text-zinc-400"
                   )}>
-                    {c.impact?.toUpperCase()}
+                    {c.importance?.toUpperCase()}
                   </span>
                 </div>
-                {c.asset && <p className="text-[9px] text-[hsl(var(--muted-foreground))] mt-1">{c.asset}</p>}
+                {c.affectedMarkets?.[0] && <p className="text-[9px] text-[hsl(var(--muted-foreground))] mt-1">{c.affectedMarkets[0]}</p>}
               </div>
             ))}
           </div>

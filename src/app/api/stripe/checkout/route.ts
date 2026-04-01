@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe, PLANS } from "@/lib/stripe";
+import Stripe from "stripe";
+import { PLANS } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest) {
   try {
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-03-25.dahlia" as any });
     const { plan, billing } = await req.json() as { plan: keyof typeof PLANS; billing: "monthly" | "yearly" };
 
     if (plan === "free") {

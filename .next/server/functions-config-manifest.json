@@ -1,1 +1,1 @@
-{"version":1,"functions":{"/api/market/catalysts":{},"/api/market/analysis":{},"/api/market/bias":{},"/api/market/calendar":{},"/api/market/news":{},"/api/market/keylevels":{},"/api/market/trump":{},"/api/market/quotes":{},"/api/market/sessions":{}}}
+{"version":1,"functions":{"/api/market/keylevels":{},"/api/market/catalysts":{},"/api/market/analysis":{},"/api/market/bias":{},"/api/market/news":{},"/api/market/trump":{},"/api/market/quotes":{},"/api/market/sessions":{},"/api/market/calendar":{}}}

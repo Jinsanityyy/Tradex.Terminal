@@ -95,13 +95,13 @@ export function MobileBias() {
             {levels.slice(0, 6).map((lvl, i) => (
               <div key={i} className="bg-[hsl(var(--card))] rounded-xl px-4 py-3 border border-white/5 flex items-center justify-between">
                 <div>
-                  <p className="text-[9px] text-[hsl(var(--muted-foreground))] uppercase tracking-wider">{lvl.type}</p>
-                  <p className="text-xs font-medium text-[hsl(var(--foreground))]">{lvl.label}</p>
+                  <p className="text-[9px] text-[hsl(var(--muted-foreground))] uppercase tracking-wider">{lvl.asset}</p>
+                  <p className="text-xs font-medium text-[hsl(var(--foreground))]">{lvl.bias}</p>
                 </div>
                 <span className={cn(
                   "text-sm font-bold font-mono",
-                  lvl.type === "resistance" ? "text-red-400" :
-                  lvl.type === "support" ? "text-emerald-400" :
+                  lvl.bias === "bearish" ? "text-red-400" :
+                  lvl.bias === "bullish" ? "text-emerald-400" :
                   "text-amber-400"
                 )}>
                   {lvl.price?.toLocaleString()}
@@ -113,21 +113,21 @@ export function MobileBias() {
       )}
 
       {/* Trade Context */}
-      {tradeContext?.summary && (
+      {tradeContext?.condition && (
         <section>
           <p className="text-[11px] font-semibold text-[hsl(var(--foreground))] uppercase tracking-wider mb-3">Trade Context</p>
           <div className="bg-[hsl(var(--card))] rounded-xl p-4 border border-white/5">
-            <p className="text-xs text-[hsl(var(--foreground))]/80 leading-relaxed">{tradeContext.summary}</p>
-            {tradeContext.bias && (
+            <p className="text-xs text-[hsl(var(--foreground))]/80 leading-relaxed">{tradeContext.condition}</p>
+            {tradeContext.directionalLean && (
               <div className="mt-3 pt-3 border-t border-white/5 flex items-center gap-2">
-                <span className="text-[9px] text-[hsl(var(--muted-foreground))] uppercase">Bias</span>
+                <span className="text-[9px] text-[hsl(var(--muted-foreground))] uppercase">Lean</span>
                 <span className={cn(
                   "text-[10px] font-bold",
-                  tradeContext.bias === "long" ? "text-emerald-400" :
-                  tradeContext.bias === "short" ? "text-red-400" :
+                  tradeContext.directionalLean?.toLowerCase().includes("long") ? "text-emerald-400" :
+                  tradeContext.directionalLean?.toLowerCase().includes("short") ? "text-red-400" :
                   "text-zinc-400"
                 )}>
-                  {tradeContext.bias?.toUpperCase()}
+                  {tradeContext.directionalLean?.toUpperCase()}
                 </span>
               </div>
             )}
@@ -145,7 +145,7 @@ export function MobileBias() {
                 <span className="text-xs font-semibold text-[hsl(var(--foreground))]">{s.session}</span>
                 <span className="text-[9px] bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded-full font-medium">ACTIVE</span>
               </div>
-              {s.notes && <p className="text-[10px] text-[hsl(var(--muted-foreground))]">{s.notes}</p>}
+              {s.liquidityNotes && <p className="text-[10px] text-[hsl(var(--muted-foreground))]">{s.liquidityNotes}</p>}
             </div>
           ))}
         </section>

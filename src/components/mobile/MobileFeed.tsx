@@ -53,17 +53,17 @@ export function MobileFeed() {
                   <p className="text-xs font-medium text-[hsl(var(--foreground))] leading-snug flex-1">{c.title}</p>
                   <span className={cn(
                     "text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 uppercase",
-                    c.impact === "high" ? "bg-red-500/15 text-red-400" :
-                    c.impact === "medium" ? "bg-amber-500/15 text-amber-400" :
+                    c.importance === "high" ? "bg-red-500/15 text-red-400" :
+                    c.importance === "medium" ? "bg-amber-500/15 text-amber-400" :
                     "bg-zinc-500/15 text-zinc-400"
                   )}>
-                    {c.impact}
+                    {c.importance}
                   </span>
                 </div>
-                {c.description && <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-relaxed">{c.description}</p>}
+                {c.explanation && <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-relaxed">{c.explanation}</p>}
                 <div className="flex items-center gap-2 mt-2">
-                  {c.asset && <span className="text-[9px] text-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 px-1.5 py-0.5 rounded">{c.asset}</span>}
-                  {c.source && <span className="text-[9px] text-[hsl(var(--muted-foreground))]">{c.source}</span>}
+                  {c.affectedMarkets?.[0] && <span className="text-[9px] text-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 px-1.5 py-0.5 rounded">{c.affectedMarkets[0]}</span>}
+                  {c.status && <span className="text-[9px] text-[hsl(var(--muted-foreground))]">{c.status}</span>}
                 </div>
               </div>
             ))
@@ -76,7 +76,7 @@ export function MobileFeed() {
             : events.map((e, i) => (
               <div key={i} className="bg-[hsl(var(--card))] rounded-xl p-4 border border-white/5">
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  <p className="text-xs font-medium text-[hsl(var(--foreground))] leading-snug flex-1">{e.name}</p>
+                  <p className="text-xs font-medium text-[hsl(var(--foreground))] leading-snug flex-1">{e.event}</p>
                   <span className={cn(
                     "text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 uppercase",
                     e.impact === "high" ? "bg-red-500/15 text-red-400" :
@@ -132,14 +132,14 @@ export function MobileFeed() {
                 <p className="text-xs text-[hsl(var(--foreground))] leading-relaxed mb-2">{p.content}</p>
                 <div className="flex items-center justify-between">
                   <span className="text-[9px] text-[hsl(var(--muted-foreground))]">{p.timestamp}</span>
-                  {p.marketImpact && (
+                  {p.sentimentClassification && (
                     <span className={cn(
                       "text-[9px] font-bold px-1.5 py-0.5 rounded uppercase",
-                      p.marketImpact === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
-                      p.marketImpact === "bearish" ? "bg-red-500/15 text-red-400" :
+                      p.sentimentClassification === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
+                      p.sentimentClassification === "bearish" ? "bg-red-500/15 text-red-400" :
                       "bg-amber-500/15 text-amber-400"
                     )}>
-                      {p.marketImpact}
+                      {p.sentimentClassification}
                     </span>
                   )}
                 </div>
