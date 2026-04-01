@@ -47,19 +47,26 @@ body {
 }
 
 /* Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #1e2535 transparent;
+}
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted));
-  border-radius: 3px;
+  background: #1e2535;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground));
+  background: #2a3348;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Premium Utilities */
