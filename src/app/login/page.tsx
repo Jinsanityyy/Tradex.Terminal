@@ -28,21 +28,25 @@ export default function LoginPage() {
 
     try {
       if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        router.push("/dashboard");
-        router.refresh();
+        if (data.session) {
+          window.location.href = "/dashboard";
+        }
       } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: `${window.location.origin}/dashboard` },
-        });
+        const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        setSuccess("Check your email to confirm your account.");
+        // If session exists immediately = email confirmation disabled, go straight to dashboard
+        if (data.session) {
+          window.location.href = "/dashboard";
+        } else {
+          // Email confirmation required
+          setSuccess("Account created! Check your email to confirm, then sign in.");
+          setMode("login");
+        }
       }
     } catch (err: any) {
-      setError(err.message ?? "Something went wrong");
+      setError(err.message ?? "Something went wrong. Check your Supabase config.");
     } finally {
       setLoading(false);
     }
