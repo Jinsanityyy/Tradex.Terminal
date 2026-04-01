@@ -74,11 +74,12 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
         locale: "en",
         toolbar_bg: "#000000",
         enable_publishing: false,
-        hide_top_toolbar: false,
+        hide_top_toolbar: true,
         hide_side_toolbar: false,
         allow_symbol_change: false,
         save_image: false,
         studies: [],
+        disabled_features: ["create_volume_indicator_by_default"],
         backgroundColor: "rgba(0,0,0,1)",
         gridColor: "rgba(0,0,0,0)",
         overrides: {
