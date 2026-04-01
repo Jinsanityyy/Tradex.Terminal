@@ -115,24 +115,23 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
       widgetRef.current.onChartReady(() => {
         readyRef.current = true;
 
-        // Restore saved drawings from localStorage
+        // Restore saved drawings
         try {
           const saved = localStorage.getItem(storageKey);
-          if (saved) {
-            widgetRef.current.load(JSON.parse(saved));
-          }
+          if (saved) widgetRef.current.load(JSON.parse(saved));
         } catch {}
 
-        // Auto-save whenever user draws / adds indicator / modifies chart
-        try {
-          widgetRef.current.subscribe("onAutoSaveNeeded", () => {
-            widgetRef.current.save((state: any) => {
-              try {
-                localStorage.setItem(storageKey, JSON.stringify(state));
-              } catch {}
+        // Periodic auto-save every 10s — no event subscription needed
+        const saveId = setInterval(() => {
+          try {
+            widgetRef.current?.save((state: any) => {
+              try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch {}
             });
-          });
-        } catch {}
+          } catch {}
+        }, 10_000);
+
+        // Store timer id on widget so cleanup can cancel it
+        widgetRef.current.__saveTimer = saveId;
       });
     }
 
@@ -147,16 +146,15 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
     }
 
     return () => {
-      // Save state before destroying (e.g. tab switch)
-      if (widgetRef.current && readyRef.current) {
-        try {
+      try { clearInterval(widgetRef.current?.__saveTimer); } catch {}
+      // Save before destroying
+      try {
+        if (widgetRef.current && readyRef.current) {
           widgetRef.current.save((state: any) => {
-            try {
-              localStorage.setItem(storageKey, JSON.stringify(state));
-            } catch {}
+            try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch {}
           });
-        } catch {}
-      }
+        }
+      } catch {}
       readyRef.current = false;
       widgetRef.current = null;
       if (el) el.innerHTML = "";
