@@ -60,10 +60,7 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
     div.style.width = "100%";
     el.appendChild(div);
 
-    const script = document.createElement("script");
-    script.src = "https://s3.tradingview.com/tv.js";
-    script.async = true;
-    script.onload = () => {
+    function createWidget() {
       if (!(window as any).TradingView) return;
       widgetRef.current = new (window as any).TradingView.widget({
         container_id: containerId,
@@ -77,7 +74,7 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
         locale: "en",
         toolbar_bg: "#000000",
         enable_publishing: false,
-        hide_top_toolbar: true,   // hide TV's own toolbar — use our custom bar
+        hide_top_toolbar: true,
         hide_side_toolbar: false,
         allow_symbol_change: false,
         save_image: false,
@@ -103,8 +100,20 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
           "mainSeriesProperties.showVolume": false,
         },
       });
-    };
-    el.appendChild(script);
+    }
+
+    // If tv.js is already loaded (cached from a prior interval switch), create widget directly.
+    // Otherwise load the script first.
+    if ((window as any).TradingView) {
+      createWidget();
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://s3.tradingview.com/tv.js";
+      script.async = true;
+      script.onload = createWidget;
+      el.appendChild(script);
+    }
+
     return () => { if (el) el.innerHTML = ""; };
   }, [symbol, active.value, uid]);
 
