@@ -46,7 +46,7 @@ export function MobileLayout() {
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-[#0a0e1a]">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 pt-safe-top pb-2 bg-[#0a0e1a] border-b border-white/5 shrink-0">
+      <div className="flex items-center justify-between px-4 pt-10 pb-2 bg-[#0a0e1a] border-b border-white/5 shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 rounded bg-[hsl(var(--primary))]/20 flex items-center justify-center">
             <TrendingUp className="w-3 h-3 text-[hsl(var(--primary))]" />
@@ -69,7 +69,7 @@ export function MobileLayout() {
       </div>
 
       {/* Bottom tab bar */}
-      <div className="shrink-0 border-t border-white/5 bg-[#080b14] pb-safe-bottom">
+      <div className="shrink-0 border-t border-white/5 bg-[#080b14] pb-4">
         <div className="grid grid-cols-5">
           {TABS.map(({ id, label, Icon }) => {
             const isActive = active === id;
