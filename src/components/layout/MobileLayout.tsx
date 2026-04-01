@@ -44,7 +44,7 @@ export function MobileLayout() {
   }
 
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden bg-[#0a0e1a]">
+    <div className="flex flex-col h-screen w-full overflow-hidden" style={{ background: "#0a0e1a" }}>
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 pt-10 pb-2 bg-[#0a0e1a] border-b border-white/5 shrink-0">
         <div className="flex items-center gap-2">
