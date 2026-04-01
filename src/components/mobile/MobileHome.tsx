@@ -1,9 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useQuotes, useMarketBias, useKeyLevels, useCatalysts, useMarketAnalysis } from "@/hooks/useMarketData";
 import { TrendingUp, TrendingDown, Minus, Target, Zap, RefreshCw, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DetailModal } from "@/components/shared/DetailModal";
+import type { Catalyst } from "@/types";
 
 function LiveBadge() {
   return (
@@ -38,7 +40,8 @@ export function MobileHome() {
   const { levels } = useKeyLevels();
   const { catalysts } = useCatalysts();
   const { narrative, sentiment, generateFresh } = useMarketAnalysis();
-  const [generating, setGenerating] = React.useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [selectedCatalyst, setSelectedCatalyst] = useState<Catalyst | null>(null);
 
   const goldBias = biasData.find((b) => b.asset?.toLowerCase().includes("gold")) ?? biasData[0];
 
@@ -165,7 +168,7 @@ export function MobileHome() {
           <p className="text-[11px] font-semibold text-[hsl(var(--foreground))] uppercase tracking-wider mb-3">Top Catalysts</p>
           <div className="space-y-2">
             {catalysts.slice(0, 3).map((c, i) => (
-              <div key={i} className="bg-[hsl(var(--card))] rounded-xl px-4 py-3 border border-white/5">
+              <div key={i} onClick={() => setSelectedCatalyst(c)} className="bg-[hsl(var(--card))] rounded-xl px-4 py-3 border border-white/5 active:bg-[hsl(var(--secondary))] cursor-pointer">
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-xs text-[hsl(var(--foreground))] leading-snug flex-1">{c.title}</p>
                   <span className={cn(
@@ -183,6 +186,49 @@ export function MobileHome() {
           </div>
         </section>
       )}
+
+      <DetailModal open={!!selectedCatalyst} onClose={() => setSelectedCatalyst(null)} title={selectedCatalyst?.title}>
+        {selectedCatalyst && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full uppercase",
+                selectedCatalyst.importance === "high" ? "bg-red-500/15 text-red-400" :
+                selectedCatalyst.importance === "medium" ? "bg-amber-500/15 text-amber-400" :
+                "bg-zinc-500/15 text-zinc-400"
+              )}>{selectedCatalyst.importance}</span>
+              <span className={cn("text-[9px] font-semibold uppercase px-2 py-0.5 rounded-full",
+                selectedCatalyst.status === "live" ? "bg-amber-500/15 text-amber-400" :
+                selectedCatalyst.status === "completed" ? "bg-emerald-500/15 text-emerald-400" :
+                "bg-blue-500/15 text-blue-400"
+              )}>{selectedCatalyst.status}</span>
+            </div>
+            <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--primary))]">Why High Impact</p>
+              <p className="text-xs text-[hsl(var(--foreground))] leading-relaxed">{selectedCatalyst.explanation}</p>
+            </div>
+            {selectedCatalyst.affectedMarkets?.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Affected Markets</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedCatalyst.affectedMarkets.map((m) => (
+                    <span key={m} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))]">{m}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 mb-1">Market Effect</p>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                {selectedCatalyst.importance === "high"
+                  ? "High-impact catalyst — expect increased volatility and potential trend acceleration. Monitor price action closely near key levels."
+                  : selectedCatalyst.importance === "medium"
+                  ? "Medium-impact catalyst — may cause short-term volatility. Watch for confirmation before entering positions."
+                  : "Low-impact catalyst — limited directional effect expected. Use as secondary context only."}
+              </p>
+            </div>
+          </div>
+        )}
+      </DetailModal>
     </div>
   );
 }
