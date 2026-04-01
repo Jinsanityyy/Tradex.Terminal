@@ -89,7 +89,11 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
         allow_symbol_change: false,
         save_image: false,
         studies: [],
-        disabled_features: ["create_volume_indicator_by_default"],
+        disabled_features: [
+          "create_volume_indicator_by_default",
+          "header_fullscreen_button",
+          "left_toolbar",
+        ],
         backgroundColor: "rgba(0,0,0,1)",
         gridColor: "rgba(0,0,0,0)",
         overrides: {
@@ -233,7 +237,7 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
       </div>
 
       {/* Chart */}
-      <div ref={containerRef} className="flex-1 w-full min-h-0" />
+      <div ref={containerRef} className="flex-1 w-full min-h-0" style={{ background: "#000000" }} />
     </div>
   );
 }
