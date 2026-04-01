@@ -118,23 +118,24 @@ export function FloatingChat() {
       .channel("chat_realtime")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
         const msg = payload.new as Message;
+        const isFromMe = msg.user_id === userId;
+
         if (!msg.recipient_id) {
-          setGroupMessages((prev) => [...prev, msg]);
-          if (!open || view !== "group") setUnread((n) => n + 1);
-        } else if (
-          userId &&
-          (msg.recipient_id === userId || msg.user_id === userId)
-        ) {
-          setDmMessages((prev) => {
-            if (
-              dmTarget &&
-              (msg.user_id === dmTarget.id || msg.recipient_id === dmTarget.id)
-            ) {
-              return [...prev, msg];
-            }
-            return prev;
-          });
-          if (!open || view !== "dm") setUnread((n) => n + 1);
+          // Group message — skip if from me (already added optimistically)
+          if (!isFromMe) {
+            setGroupMessages((prev) => [...prev, msg]);
+            if (!open || view !== "group") setUnread((n) => n + 1);
+          }
+        } else if (userId && (msg.recipient_id === userId || msg.user_id === userId)) {
+          if (!isFromMe) {
+            setDmMessages((prev) => {
+              if (dmTarget && (msg.user_id === dmTarget.id || msg.recipient_id === dmTarget.id)) {
+                return [...prev, msg];
+              }
+              return prev;
+            });
+            if (!open || view !== "dm") setUnread((n) => n + 1);
+          }
         }
       })
       .subscribe();
@@ -159,12 +160,38 @@ export function FloatingChat() {
     if (!text || !userId || sending) return;
     setSending(true);
     setInput("");
-    await supabase.from("messages").insert({
+
+    const optimistic: Message = {
+      id: `tmp_${Date.now()}`,
+      user_id: userId,
+      display_name: traderName,
+      content: text,
+      created_at: new Date().toISOString(),
+      recipient_id: view === "dm" ? dmTarget?.id ?? null : null,
+    };
+
+    if (view === "dm") {
+      setDmMessages((prev) => [...prev, optimistic]);
+    } else {
+      setGroupMessages((prev) => [...prev, optimistic]);
+    }
+
+    const { data } = await supabase.from("messages").insert({
       user_id: userId,
       display_name: traderName,
       content: text,
       recipient_id: view === "dm" ? dmTarget?.id ?? null : null,
-    });
+    }).select().single();
+
+    // Replace optimistic with real record
+    if (data) {
+      if (view === "dm") {
+        setDmMessages((prev) => prev.map((m) => m.id === optimistic.id ? data as Message : m));
+      } else {
+        setGroupMessages((prev) => prev.map((m) => m.id === optimistic.id ? data as Message : m));
+      }
+    }
+
     setSending(false);
   }
 
