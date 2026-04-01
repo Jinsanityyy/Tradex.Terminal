@@ -24,6 +24,13 @@ export default function LoginPage() {
     setSuccess("");
     setLoading(true);
 
+    // Guard: Supabase not configured yet
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      setError("Authentication is not configured yet. Please add Supabase environment variables in Vercel.");
+      setLoading(false);
+      return;
+    }
+
     const supabase = createClient();
 
     try {
