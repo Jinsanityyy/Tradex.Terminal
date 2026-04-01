@@ -150,7 +150,7 @@ export default function DashboardPage() {
                 goldBias.bias === "bearish" ? "bg-red-500/15 text-red-400 border border-red-500/20" :
                 "bg-zinc-500/15 text-zinc-400 border border-zinc-500/20"
               }`}>
-                {goldBias.bias.toUpperCase()} · {goldBias.confidence}% CONVICTION
+                {goldBias.bias?.toUpperCase()} · {goldBias.confidence}% CONVICTION
               </span>
             )}
           </div>
@@ -164,8 +164,8 @@ export default function DashboardPage() {
       {goldBias && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <BiasCard asset={goldBias.asset} bias={goldBias.bias} confidence={goldBias.confidence} />
-          <SupportInvalidationCard type="support" items={goldBias.supportingFactors.slice(0, 4)} />
-          <SupportInvalidationCard type="invalidation" items={goldBias.invalidationFactors.slice(0, 4)} />
+          <SupportInvalidationCard type="support" items={(goldBias.supportingFactors ?? []).slice(0, 4)} />
+          <SupportInvalidationCard type="invalidation" items={(goldBias.invalidationFactors ?? []).slice(0, 4)} />
         </div>
       )}
 
