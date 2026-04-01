@@ -91,9 +91,13 @@ function PlanCard({ planKey }: { planKey: keyof typeof PLANS }) {
               label: "subscribe",
               height: 40,
             }}
-            createSubscription={(_data, actions) =>
-              actions.subscription.create({ plan_id: plan.planId as string })
-            }
+            createSubscription={(_data, actions) => {
+              if (!plan.planId) {
+                alert("Plan ID missing — check Vercel env vars");
+                throw new Error("Missing plan ID");
+              }
+              return actions.subscription.create({ plan_id: plan.planId });
+            }}
             onApprove={async () => {
               window.location.href = "/dashboard?subscribed=1";
             }}
