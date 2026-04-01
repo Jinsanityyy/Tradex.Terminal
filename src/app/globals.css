@@ -54,14 +54,14 @@ body {
 /* Scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #1e2535 transparent;
+  scrollbar-color: #1e2535 #0a0e1a;
 }
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #0a0e1a;
 }
 ::-webkit-scrollbar-thumb {
   background: #1e2535;
@@ -71,7 +71,7 @@ body {
   background: #2a3348;
 }
 ::-webkit-scrollbar-corner {
-  background: transparent;
+  background: #0a0e1a;
 }
 
 /* Fullscreen scrollbar fix */
