@@ -33,27 +33,62 @@ function fmt(secs: number) {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+// localStorage adapter so TradingView saves drawings/indicators per symbol
+function makeSaveLoadAdapter(symbol: string) {
+  const key = `tradex_chart_${symbol.replace(/[^a-z0-9]/gi, "_")}`;
+
+  function readAll(): any[] {
+    try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; }
+  }
+  function writeAll(charts: any[]) {
+    try { localStorage.setItem(key, JSON.stringify(charts)); } catch {}
+  }
+
+  return {
+    getAllCharts: () => Promise.resolve(readAll()),
+    saveChart: (data: any) => {
+      const charts = readAll();
+      const id = data.id || Date.now();
+      const idx = charts.findIndex((c: any) => c.id === id);
+      const entry = { ...data, id };
+      if (idx >= 0) charts[idx] = entry; else charts.push(entry);
+      writeAll(charts);
+      return Promise.resolve(id);
+    },
+    getChartContent: (id: number) => {
+      const chart = readAll().find((c: any) => c.id === id);
+      return Promise.resolve(chart?.content ?? "");
+    },
+    removeChart: (id: number) => {
+      writeAll(readAll().filter((c: any) => c.id !== id));
+      return Promise.resolve();
+    },
+  };
+}
+
 function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: TradingViewChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<any>(null);
+  const readyRef = useRef(false);
   const uid = useId().replace(/:/g, "");
   const [active, setActive] = useState(INTERVALS[4]); // default 1H
   const [secs, setSecs] = useState(() => secondsToClose(60));
 
-  // Update countdown every second based on active interval
+  // Countdown — updates every second
   useEffect(() => {
     setSecs(secondsToClose(active.minutes));
     const id = setInterval(() => setSecs(secondsToClose(active.minutes)), 1000);
     return () => clearInterval(id);
   }, [active.minutes]);
 
-  // Rebuild widget when interval changes
+  // Build widget once per symbol — drawings are kept across interval switches
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     el.innerHTML = "";
+    readyRef.current = false;
 
-    const containerId = `tv_${uid}_${active.value}`;
+    const containerId = `tv_${uid}`;
     const div = document.createElement("div");
     div.id = containerId;
     div.style.height = "100%";
@@ -80,6 +115,12 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
         save_image: false,
         studies: [],
         disabled_features: ["create_volume_indicator_by_default"],
+        // Persist drawings & indicators to localStorage
+        client_id: "tradex_app",
+        user_id: "tradex_user",
+        auto_save_delay: 3,
+        load_last_chart: true,
+        save_load_adapter: makeSaveLoadAdapter(symbol),
         backgroundColor: "rgba(0,0,0,1)",
         gridColor: "rgba(0,0,0,0)",
         overrides: {
@@ -101,10 +142,12 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
           "mainSeriesProperties.showVolume": false,
         },
       });
+
+      widgetRef.current.onChartReady(() => {
+        readyRef.current = true;
+      });
     }
 
-    // If tv.js is already loaded (cached from a prior interval switch), create widget directly.
-    // Otherwise load the script first.
     if ((window as any).TradingView) {
       createWidget();
     } else {
@@ -116,13 +159,34 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
     }
 
     return () => { if (el) el.innerHTML = ""; };
-  }, [symbol, active.value, uid]);
+  // Only rebuild when symbol changes — NOT on interval change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbol, uid]);
+
+  // Change interval without rebuilding (preserves all drawings)
+  useEffect(() => {
+    if (!widgetRef.current) return;
+    const apply = () => {
+      try {
+        widgetRef.current.chart().setResolution(active.value, () => {});
+      } catch {}
+    };
+    if (readyRef.current) {
+      apply();
+    } else {
+      // widget not ready yet — wait for it
+      const poll = setInterval(() => {
+        if (readyRef.current) { clearInterval(poll); apply(); }
+      }, 200);
+      return () => clearInterval(poll);
+    }
+  }, [active.value]);
 
   const urgent = secs <= 60;
 
   return (
     <div className="w-full flex flex-col" style={{ height }}>
-      {/* ── Custom toolbar: interval buttons + countdown timer ── */}
+      {/* Custom toolbar: interval buttons + countdown */}
       <div
         className="flex items-center justify-between px-3 shrink-0"
         style={{
@@ -131,7 +195,6 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
           borderBottom: "1px solid rgba(255,255,255,0.06)",
         }}
       >
-        {/* Interval pills */}
         <div className="flex items-center gap-0.5">
           {INTERVALS.map((iv) => (
             <button
@@ -149,7 +212,6 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
           ))}
         </div>
 
-        {/* Countdown timer — same row, right side */}
         <div
           className="flex items-center gap-1.5 rounded-md px-2.5 py-1"
           style={{
