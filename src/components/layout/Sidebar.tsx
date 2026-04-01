@@ -27,6 +27,24 @@ export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
+  // Auto-collapse on small screens
+  React.useEffect(() => {
+    function check() {
+      setCollapsed(window.innerWidth < 1280);
+    }
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  // Sync CSS variable so layout margin tracks collapse state
+  React.useEffect(() => {
+    document.documentElement.style.setProperty(
+      "--sidebar-current-width",
+      collapsed ? "60px" : "var(--sidebar-width)"
+    );
+  }, [collapsed]);
+
   return (
     <aside
       className={cn(
