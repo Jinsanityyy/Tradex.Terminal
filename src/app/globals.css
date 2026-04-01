@@ -74,6 +74,29 @@ body {
   background: transparent;
 }
 
+/* Fullscreen scrollbar fix */
+:fullscreen ::-webkit-scrollbar,
+:-webkit-full-screen ::-webkit-scrollbar,
+:-moz-full-screen ::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+:fullscreen ::-webkit-scrollbar-track,
+:-webkit-full-screen ::-webkit-scrollbar-track {
+  background: #0a0e1a;
+}
+:fullscreen ::-webkit-scrollbar-thumb,
+:-webkit-full-screen ::-webkit-scrollbar-thumb {
+  background: #1e2535;
+  border-radius: 4px;
+}
+:fullscreen,
+:-webkit-full-screen,
+:-moz-full-screen {
+  background: #0a0e1a !important;
+  scrollbar-color: #1e2535 #0a0e1a;
+}
+
 /* TradingView dark background fix */
 iframe,
 [id^="tradingview_"],
