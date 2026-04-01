@@ -99,7 +99,7 @@ function PlanCard({ planKey }: { planKey: keyof typeof PLANS }) {
             }}
             onError={(err) => {
               console.error("PayPal error", err);
-              alert("Payment error. Please try again.");
+              alert("PayPal error: " + JSON.stringify(err));
             }}
           />
         )}
@@ -134,6 +134,8 @@ export default function PricingPage() {
       clientId,
       vault: true,
       intent: "subscription",
+      components: "buttons",
+      currency: "USD",
     }}>
       <div className="min-h-screen bg-[#0a0e1a] px-4 py-16">
         {/* Background glow */}
