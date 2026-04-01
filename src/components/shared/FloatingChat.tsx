@@ -356,7 +356,7 @@ export function FloatingChat() {
       )}
 
       {/* Floating button */}
-      <button onClick={() => { setOpen(!open); setUnread(0); }} className="fixed bottom-5 right-5 z-50 h-12 w-12 rounded-full bg-[hsl(142,71%,45%)] shadow-lg hover:bg-[hsl(142,71%,50%)] transition-all hover:scale-105 flex items-center justify-center">
+      <button onClick={() => { setOpen(!open); setUnread(0); }} className="fixed bottom-5 right-5 z-50 h-12 w-12 rounded-full bg-[hsl(142,71%,45%)] shadow-lg hover:bg-[hsl(142,71%,50%)] transition-all hover:scale-105 flex items-center justify-center relative">
         {open ? <X className="h-5 w-5 text-[#0a0e1a]" /> : (
           <>
             <MessageCircle className="h-5 w-5 text-[#0a0e1a]" />
