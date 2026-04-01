@@ -152,8 +152,11 @@ function TradingViewChartInner({
 
   return (
     <div className="relative w-full overflow-hidden" style={{ height, minHeight: height }}>
-      <CandleCountdown interval={interval} />
       <div ref={containerRef} className="w-full h-full" />
+      {/* Countdown overlaid on top of chart — right side above price scale */}
+      <div className="absolute top-12 right-16 z-10 pointer-events-none">
+        <CandleCountdown interval={interval} />
+      </div>
     </div>
   );
 }

@@ -56,16 +56,33 @@ function MiniAssetTicker({ symbol, price, changePercent }: { symbol: string; pri
   );
 }
 
+const TRADER_NAME_KEY = "tradex_trader_name";
+
 function UserMenu() {
   const [email, setEmail] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [traderName, setTraderName] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
 
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       setEmail(data.user?.email ?? null);
     });
+    const saved = localStorage.getItem(TRADER_NAME_KEY);
+    if (saved) setTraderName(saved);
   }, []);
+
+  function saveName() {
+    const trimmed = draft.trim();
+    if (trimmed) {
+      setTraderName(trimmed);
+      localStorage.setItem(TRADER_NAME_KEY, trimmed);
+    }
+    setEditing(false);
+    setOpen(false);
+  }
 
   async function handleLogout() {
     const supabase = createClient();
@@ -75,29 +92,69 @@ function UserMenu() {
 
   if (!email) return null;
 
+  const displayName = traderName || email.split("@")[0];
+
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 rounded-md bg-[hsl(var(--secondary))] px-2 py-1 hover:bg-[hsl(var(--muted))] transition-colors"
+        onClick={() => { setOpen(!open); setDraft(traderName); setEditing(false); }}
+        className="flex items-center gap-1.5 rounded-md bg-[hsl(var(--secondary))] px-2.5 py-1 hover:bg-[hsl(var(--muted))] transition-colors"
       >
         <User className="h-3 w-3 text-[hsl(var(--primary))]" />
-        <span className="text-[10px] font-medium text-[hsl(var(--foreground))] max-w-[120px] truncate hidden sm:block">
-          {email}
+        <span className="text-[10px] font-semibold text-[hsl(var(--foreground))] max-w-[120px] truncate hidden sm:block uppercase tracking-wider">
+          {displayName}
         </span>
       </button>
 
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-8 z-50 min-w-[180px] rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-xl p-1">
-            <div className="px-3 py-2 border-b border-[hsl(var(--border))]">
-              <p className="text-[10px] text-[hsl(var(--muted-foreground))]">Signed in as</p>
-              <p className="text-xs font-medium text-[hsl(var(--foreground))] truncate">{email}</p>
+          <div className="absolute right-0 top-9 z-50 min-w-[200px] rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-2xl p-2">
+            {/* Trader Name */}
+            <div className="px-2 py-2">
+              <p className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-wider mb-1.5">Trader Name</p>
+              {editing ? (
+                <div className="flex gap-1.5">
+                  <input
+                    autoFocus
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && saveName()}
+                    maxLength={20}
+                    placeholder="Your name..."
+                    className="flex-1 rounded-md bg-[hsl(var(--secondary))] border border-[hsl(var(--primary))]/30 px-2 py-1 text-xs text-white outline-none placeholder-gray-600"
+                  />
+                  <button
+                    onClick={saveName}
+                    className="rounded-md bg-[hsl(var(--primary))]/20 border border-[hsl(var(--primary))]/30 px-2 py-1 text-[10px] text-[hsl(var(--primary))] font-semibold"
+                  >
+                    Save
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setDraft(traderName); setEditing(true); }}
+                  className="flex items-center justify-between w-full rounded-md bg-[hsl(var(--secondary))] px-2.5 py-1.5 hover:bg-[hsl(var(--muted))] transition-colors"
+                >
+                  <span className="text-xs font-semibold text-[hsl(var(--foreground))] uppercase tracking-wide">{displayName}</span>
+                  <span className="text-[10px] text-[hsl(var(--primary))]">Edit</span>
+                </button>
+              )}
             </div>
+
+            <div className="border-t border-[hsl(var(--border))] my-1.5" />
+
+            {/* Email */}
+            <div className="px-2 pb-1">
+              <p className="text-[10px] text-[hsl(var(--muted-foreground))]">{email}</p>
+            </div>
+
+            <div className="border-t border-[hsl(var(--border))] my-1.5" />
+
+            {/* Logout */}
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 rounded-md transition-colors mt-1"
+              className="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
             >
               <LogOut className="h-3.5 w-3.5" />
               Sign out
