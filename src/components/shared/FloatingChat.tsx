@@ -72,7 +72,15 @@ export function FloatingChat() {
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const typingTimer = useRef<NodeJS.Timeout | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const dmTargetRef = useRef<Member | null>(null);
+  const viewRef = useRef<View>("list");
+  const openRef = useRef(false);
   const supabase = createClient();
+
+  // Keep refs in sync
+  useEffect(() => { dmTargetRef.current = dmTarget; }, [dmTarget]);
+  useEffect(() => { viewRef.current = view; }, [view]);
+  useEffect(() => { openRef.current = open; }, [open]);
 
   // Auth + name
   useEffect(() => {
@@ -110,22 +118,25 @@ export function FloatingChat() {
       .then(({ data }) => { if (data) setDmMessages(data as Message[]); });
   }, [dmTarget, userId]);
 
-  // Real-time messages + typing broadcast
+  // Real-time messages + typing broadcast — runs once per userId
   useEffect(() => {
     if (!userId) return;
 
     const channel = supabase.channel("chat_room", { config: { broadcast: { self: false } } })
-      // New messages
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
         const msg = payload.new as Message;
         const isFromMe = msg.user_id === userId;
-        if (isFromMe) return;
+        if (isFromMe) return; // already added optimistically
 
         const senderName = msg.display_name ?? "Trader";
+        const currentDmTarget = dmTargetRef.current;
+        const currentView = viewRef.current;
+        const currentOpen = openRef.current;
 
         if (!msg.recipient_id) {
+          // Group message
           setGroupMessages((prev) => [...prev, msg]);
-          if (!open || view !== "group") {
+          if (!currentOpen || currentView !== "group") {
             setUnread((n) => n + 1);
             playPing();
             toast(`💬 ${senderName}`, { description: msg.content.slice(0, 60), duration: 4000 });
@@ -134,10 +145,13 @@ export function FloatingChat() {
             }
           }
         } else if (msg.recipient_id === userId || msg.user_id === userId) {
-          if (dmTarget && (msg.user_id === dmTarget.id || msg.recipient_id === dmTarget.id)) {
+          // DM — always add to dmMessages; it'll render if we're in the right DM
+          const involvesCurrent = currentDmTarget &&
+            (msg.user_id === currentDmTarget.id || msg.recipient_id === currentDmTarget.id);
+          if (involvesCurrent) {
             setDmMessages((prev) => [...prev, msg]);
           }
-          if (!open || view !== "dm" || msg.user_id !== dmTarget?.id) {
+          if (!currentOpen || currentView !== "dm" || !involvesCurrent) {
             setUnread((n) => n + 1);
             playPing();
             toast(`💬 ${senderName}`, { description: msg.content.slice(0, 60), duration: 4000 });
@@ -147,7 +161,6 @@ export function FloatingChat() {
           }
         }
       })
-      // Typing indicator
       .on("broadcast", { event: "typing" }, ({ payload }) => {
         if (payload.user_id === userId) return;
         const name = payload.display_name as string;
@@ -157,7 +170,7 @@ export function FloatingChat() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [open, view, userId, dmTarget]);
+  }, [userId]); // stable — uses refs for open/view/dmTarget
 
   // Scroll to bottom
   useEffect(() => {
