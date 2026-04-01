@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { TradingViewChart } from "@/components/shared/TradingViewChart";
 import { cn } from "@/lib/utils";
 
@@ -13,10 +13,14 @@ const SYMBOLS = [
 
 export function MobileChart() {
   const [symbol, setSymbol] = useState("OANDA:XAUUSD");
+  const [chartHeight, setChartHeight] = useState(500);
 
-  const chartHeight = typeof window !== "undefined"
-    ? Math.max(300, window.innerHeight - 180)
-    : 500;
+  useEffect(() => {
+    const update = () => setChartHeight(Math.max(300, window.innerHeight - 180));
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   return (
     <div className="flex flex-col h-full">
