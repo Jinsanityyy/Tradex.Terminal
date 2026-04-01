@@ -156,7 +156,7 @@ export default function DashboardPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <TradingViewChart symbol="OANDA:XAUUSD" interval="60" height={900} />
+          <TradingViewChart symbol="OANDA:XAUUSD" height={900} />
         </CardContent>
       </Card>
 

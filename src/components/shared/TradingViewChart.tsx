@@ -2,20 +2,27 @@
 
 import React, { useEffect, useRef, memo, useId, useState } from "react";
 import { Timer } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface TradingViewChartProps {
   symbol?: string;
-  interval?: string;
   height?: number;
 }
 
-// Given interval in minutes, compute seconds remaining until next candle close
-// All candles align to UTC epoch boundaries (e.g. 1H closes at :00 every hour)
-function secondsToClose(intervalMinutes: number): number {
+const INTERVALS: { label: string; value: string; minutes: number }[] = [
+  { label: "1m",  value: "1",   minutes: 1 },
+  { label: "5m",  value: "5",   minutes: 5 },
+  { label: "15m", value: "15",  minutes: 15 },
+  { label: "30m", value: "30",  minutes: 30 },
+  { label: "1H",  value: "60",  minutes: 60 },
+  { label: "4H",  value: "240", minutes: 240 },
+  { label: "1D",  value: "D",   minutes: 1440 },
+];
+
+function secondsToClose(mins: number): number {
   const nowMs = Date.now();
-  const intervalMs = intervalMinutes * 60 * 1000;
-  const elapsed = nowMs % intervalMs;
-  return Math.floor((intervalMs - elapsed) / 1000);
+  const intervalMs = mins * 60 * 1000;
+  return Math.floor((intervalMs - (nowMs % intervalMs)) / 1000);
 }
 
 function formatCountdown(secs: number): string {
@@ -26,66 +33,55 @@ function formatCountdown(secs: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function CandleCountdown({ interval }: { interval: string }) {
-  const mins = parseInt(interval, 10) || 60;
-  const [secs, setSecs] = useState(() => secondsToClose(mins));
+function CandleCountdown({ minutes }: { minutes: number }) {
+  const [secs, setSecs] = useState(() => secondsToClose(minutes));
 
   useEffect(() => {
-    setSecs(secondsToClose(mins));
-    const id = setInterval(() => setSecs(secondsToClose(mins)), 1000);
+    setSecs(secondsToClose(minutes));
+    const id = setInterval(() => setSecs(secondsToClose(minutes)), 1000);
     return () => clearInterval(id);
-  }, [mins]);
+  }, [minutes]);
 
-  // Flash red in last 60s
   const urgent = secs <= 60;
 
   return (
     <div
-      className="absolute top-3 right-3 z-10 flex items-center gap-1.5 rounded-md px-2.5 py-1.5"
+      className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5"
       style={{
-        background: "rgba(0,0,0,0.72)",
-        border: `1px solid ${urgent ? "rgba(239,68,68,0.5)" : "rgba(255,255,255,0.08)"}`,
+        background: "rgba(0,0,0,0.75)",
+        border: `1px solid ${urgent ? "rgba(239,68,68,0.5)" : "rgba(255,255,255,0.1)"}`,
         backdropFilter: "blur(4px)",
       }}
     >
-      <Timer
-        className="h-3 w-3"
-        style={{ color: urgent ? "#ef4444" : "#6b7280" }}
-      />
+      <Timer className="h-3 w-3" style={{ color: urgent ? "#ef4444" : "#6b7280" }} />
       <span
-        className="font-mono text-xs font-semibold tabular-nums"
-        style={{ color: urgent ? "#ef4444" : "#9ca3af", letterSpacing: "0.04em" }}
+        className="font-mono text-xs font-bold tabular-nums"
+        style={{ color: urgent ? "#ef4444" : "#e5e7eb" }}
       >
         {formatCountdown(secs)}
       </span>
-      <span
-        className="text-[9px] uppercase tracking-widest"
-        style={{ color: urgent ? "rgba(239,68,68,0.7)" : "rgba(156,163,175,0.5)" }}
-      >
+      <span className="text-[9px] uppercase tracking-widest" style={{ color: "rgba(156,163,175,0.6)" }}>
         close
       </span>
     </div>
   );
 }
 
-function TradingViewChartInner({
-  symbol = "OANDA:XAUUSD",
-  interval = "60",
-  height = 400,
-}: TradingViewChartProps) {
+function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: TradingViewChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const uid = useId().replace(/:/g, "");
+  const [activeInterval, setActiveInterval] = useState(INTERVALS[4]); // default 1H
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-
     el.innerHTML = "";
 
-    const containerId = `tv_${uid}`;
+    const containerId = `tv_${uid}_${activeInterval.value}`;
     const div = document.createElement("div");
     div.id = containerId;
-    div.style.height = `${height}px`;
+    div.style.height = `100%`;
+    div.style.width = `100%`;
     el.appendChild(div);
 
     const script = document.createElement("script");
@@ -97,12 +93,12 @@ function TradingViewChartInner({
       new (window as any).TradingView.widget({
         container_id: containerId,
         width: "100%",
-        height,
+        height: "100%",
         symbol,
-        interval,
+        interval: activeInterval.value,
         timezone: "America/New_York",
         theme: "dark",
-        style: "8",           // 8 = Heikin Ashi
+        style: "8",
         locale: "en",
         toolbar_bg: "#000000",
         enable_publishing: false,
@@ -144,19 +140,40 @@ function TradingViewChartInner({
     };
 
     el.appendChild(script);
-
-    return () => {
-      if (el) el.innerHTML = "";
-    };
-  }, [symbol, interval, height, uid]);
+    return () => { if (el) el.innerHTML = ""; };
+  }, [symbol, activeInterval.value, uid]);
 
   return (
-    <div className="relative w-full overflow-hidden" style={{ height, minHeight: height }}>
-      <div ref={containerRef} className="w-full h-full" />
-      {/* Countdown overlaid on top of chart — right side above price scale */}
-      <div className="absolute top-12 right-16 z-10 pointer-events-none">
-        <CandleCountdown interval={interval} />
+    <div className="w-full flex flex-col" style={{ height }}>
+      {/* Interval selector + countdown bar */}
+      <div
+        className="flex items-center justify-between px-3 py-1.5 shrink-0"
+        style={{ background: "#000", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+      >
+        {/* Interval buttons */}
+        <div className="flex items-center gap-0.5">
+          {INTERVALS.map((iv) => (
+            <button
+              key={iv.value}
+              onClick={() => setActiveInterval(iv)}
+              className={cn(
+                "px-2.5 py-1 rounded text-[11px] font-semibold transition-all",
+                activeInterval.value === iv.value
+                  ? "bg-[hsl(142,71%,45%)]/15 text-[hsl(142,71%,45%)] border border-[hsl(142,71%,45%)]/30"
+                  : "text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent"
+              )}
+            >
+              {iv.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Countdown timer */}
+        <CandleCountdown minutes={activeInterval.minutes} />
       </div>
+
+      {/* Chart */}
+      <div ref={containerRef} className="flex-1 w-full" />
     </div>
   );
 }
