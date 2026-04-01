@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { LayoutDashboard, TrendingUp, Zap, BarChart3, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MobileHome } from "@/components/mobile/MobileHome";
@@ -8,6 +8,7 @@ import { MobileChart } from "@/components/mobile/MobileChart";
 import { MobileFeed } from "@/components/mobile/MobileFeed";
 import { MobileBias } from "@/components/mobile/MobileBias";
 import { MobileSettings } from "@/components/mobile/MobileSettings";
+import { createClient } from "@/lib/supabase/client";
 
 const TABS = [
   { id: "home",     label: "Home",     Icon: LayoutDashboard },
@@ -21,6 +22,26 @@ type TabId = (typeof TABS)[number]["id"];
 
 export function MobileLayout() {
   const [active, setActive] = useState<TabId>("home");
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        window.location.href = "/login";
+      } else {
+        setReady(true);
+      }
+    });
+  }, []);
+
+  if (!ready) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-[#0a0e1a]">
+        <div className="h-6 w-6 rounded-full border-2 border-[hsl(var(--primary))] border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-[#0a0e1a]">
