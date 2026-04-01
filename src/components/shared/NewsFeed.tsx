@@ -98,6 +98,17 @@ export function NewsFeed({ items, limit, compact = false }: NewsFeedProps) {
   const displayed = limit ? items.slice(0, limit) : items;
   const [selected, setSelected] = useState<NewsItem | null>(null);
 
+  if (displayed.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] py-10 gap-3">
+        <div className="h-10 w-10 rounded-full bg-[hsl(var(--secondary))] flex items-center justify-center">
+          <Newspaper className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+        </div>
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">No posts matching this filter.</p>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="space-y-1.5">

@@ -107,7 +107,16 @@ export default function NewsFlowPage() {
         </TabsContent>
 
         <TabsContent value="raw">
-          <NewsFeed items={filtered} />
+          {filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] py-14 gap-3">
+              <div className="h-12 w-12 rounded-full bg-[hsl(var(--secondary))] flex items-center justify-center">
+                <Newspaper className="h-5 w-5 text-[hsl(var(--muted-foreground))]" />
+              </div>
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">No posts matching this filter.</p>
+            </div>
+          ) : (
+            <NewsFeed items={filtered} />
+          )}
         </TabsContent>
       </Tabs>
     </div>
