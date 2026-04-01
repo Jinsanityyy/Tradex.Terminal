@@ -10,7 +10,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen overflow-x-hidden">
+    <div className="flex min-h-screen" style={{ overflowX: "clip" }}>
       <Sidebar />
       <div className="flex flex-1 flex-col min-w-0 transition-all duration-300" style={{ marginLeft: "var(--sidebar-current-width, var(--sidebar-width))" }}>
         <TopStatusBar />

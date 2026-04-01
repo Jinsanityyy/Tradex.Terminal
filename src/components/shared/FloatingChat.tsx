@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { MessageCircle, X, Send, Loader2, ArrowLeft, Users, Hash } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -236,11 +235,7 @@ export function FloatingChat() {
   const otherMembers = members.filter((m) => m.id !== userId);
   const headerTitle = view === "list" ? "Members" : view === "group" ? "Group Chat" : dmTarget?.display_name ?? dmTarget?.email ?? "DM";
 
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  if (!mounted) return null;
-
-  return createPortal(
+  return (
     <>
       {open && (
         <div className="fixed bottom-20 right-5 z-50 w-[340px] flex flex-col rounded-2xl border border-[hsl(var(--border))] bg-[hsl(220,18%,6%)] shadow-2xl overflow-hidden" style={{ maxHeight: "520px" }}>
@@ -373,7 +368,6 @@ export function FloatingChat() {
           </span>
         )}
       </button>
-    </>,
-    document.body
+    </>
   );
 }
