@@ -277,7 +277,7 @@ export function FloatingChat() {
                     <Avatar userId={member.id} name={member.display_name} email={member.email} size="md" />
                     <div className="text-left min-w-0">
                       <p className="text-xs font-semibold text-white truncate">{member.display_name ?? member.email?.split("@")[0] ?? "Trader"}</p>
-                      <p className="text-[10px] text-gray-500 truncate">{member.email}</p>
+                      <p className="text-[10px] text-gray-500">Member</p>
                     </div>
                     <span className="ml-auto text-[10px] text-[hsl(var(--primary))]">DM</span>
                   </button>
