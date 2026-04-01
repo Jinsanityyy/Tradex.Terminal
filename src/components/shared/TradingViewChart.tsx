@@ -41,7 +41,7 @@ function CandleCountdown({ interval }: { interval: string }) {
 
   return (
     <div
-      className="absolute top-3 left-3 z-10 flex items-center gap-1.5 rounded-md px-2.5 py-1.5"
+      className="absolute top-3 right-3 z-10 flex items-center gap-1.5 rounded-md px-2.5 py-1.5"
       style={{
         background: "rgba(0,0,0,0.72)",
         border: `1px solid ${urgent ? "rgba(239,68,68,0.5)" : "rgba(255,255,255,0.08)"}`,

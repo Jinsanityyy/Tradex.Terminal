@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { cn, formatNumber, formatPercent, getCurrentSession } from "@/lib/utils";
 import { useQuotes } from "@/hooks/useMarketData";
-import { TrendingUp, TrendingDown, Clock, Wifi, WifiOff } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, Wifi, WifiOff, LogOut, User } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 function SessionClock({ label, timezone }: { label: string; timezone: string }) {
   const [time, setTime] = useState("");
@@ -55,9 +56,62 @@ function MiniAssetTicker({ symbol, price, changePercent }: { symbol: string; pri
   );
 }
 
+function UserMenu() {
+  const [email, setEmail] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setEmail(data.user?.email ?? null);
+    });
+  }, []);
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  }
+
+  if (!email) return null;
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 rounded-md bg-[hsl(var(--secondary))] px-2 py-1 hover:bg-[hsl(var(--muted))] transition-colors"
+      >
+        <User className="h-3 w-3 text-[hsl(var(--primary))]" />
+        <span className="text-[10px] font-medium text-[hsl(var(--foreground))] max-w-[120px] truncate hidden sm:block">
+          {email}
+        </span>
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-8 z-50 min-w-[180px] rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-xl p-1">
+            <div className="px-3 py-2 border-b border-[hsl(var(--border))]">
+              <p className="text-[10px] text-[hsl(var(--muted-foreground))]">Signed in as</p>
+              <p className="text-xs font-medium text-[hsl(var(--foreground))] truncate">{email}</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 rounded-md transition-colors mt-1"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Sign out
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function TopStatusBar() {
   const session = getCurrentSession();
-  const { quotes, isLive } = useQuotes(15_000); // refresh every 15s
+  const { quotes, isLive } = useQuotes(15_000);
   const topAssets = quotes.slice(0, 8);
 
   return (
@@ -97,6 +151,8 @@ export function TopStatusBar() {
             </>
           )}
         </div>
+
+        <UserMenu />
       </div>
     </header>
   );
