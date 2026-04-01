@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { SWRProvider } from "@/components/providers/SWRProvider";
 import { SettingsProvider } from "@/contexts/SettingsContext";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -56,6 +57,7 @@ export default function RootLayout({
         <SettingsProvider>
           <SWRProvider>{children}</SWRProvider>
         </SettingsProvider>
+        <Toaster theme="dark" position="top-right" richColors />
       </body>
     </html>
   );
