@@ -33,37 +33,8 @@ function fmt(secs: number) {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-// localStorage adapter so TradingView saves drawings/indicators per symbol
-function makeSaveLoadAdapter(symbol: string) {
-  const key = `tradex_chart_${symbol.replace(/[^a-z0-9]/gi, "_")}`;
-
-  function readAll(): any[] {
-    try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; }
-  }
-  function writeAll(charts: any[]) {
-    try { localStorage.setItem(key, JSON.stringify(charts)); } catch {}
-  }
-
-  return {
-    getAllCharts: () => Promise.resolve(readAll()),
-    saveChart: (data: any) => {
-      const charts = readAll();
-      const id = data.id || Date.now();
-      const idx = charts.findIndex((c: any) => c.id === id);
-      const entry = { ...data, id };
-      if (idx >= 0) charts[idx] = entry; else charts.push(entry);
-      writeAll(charts);
-      return Promise.resolve(id);
-    },
-    getChartContent: (id: number) => {
-      const chart = readAll().find((c: any) => c.id === id);
-      return Promise.resolve(chart?.content ?? "");
-    },
-    removeChart: (id: number) => {
-      writeAll(readAll().filter((c: any) => c.id !== id));
-      return Promise.resolve();
-    },
-  };
+function chartStorageKey(symbol: string) {
+  return `tradex_chart_${symbol.replace(/[^a-z0-9]/gi, "_")}`;
 }
 
 function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: TradingViewChartProps) {
@@ -74,19 +45,20 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
   const [active, setActive] = useState(INTERVALS[4]); // default 1H
   const [secs, setSecs] = useState(() => secondsToClose(60));
 
-  // Countdown — updates every second
+  // Countdown — ticks every second
   useEffect(() => {
     setSecs(secondsToClose(active.minutes));
     const id = setInterval(() => setSecs(secondsToClose(active.minutes)), 1000);
     return () => clearInterval(id);
   }, [active.minutes]);
 
-  // Build widget once per symbol — drawings are kept across interval switches
+  // Build widget once per symbol
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     el.innerHTML = "";
     readyRef.current = false;
+    widgetRef.current = null;
 
     const containerId = `tv_${uid}`;
     const div = document.createElement("div");
@@ -95,8 +67,11 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
     div.style.width = "100%";
     el.appendChild(div);
 
+    const storageKey = chartStorageKey(symbol);
+
     function createWidget() {
       if (!(window as any).TradingView) return;
+
       widgetRef.current = new (window as any).TradingView.widget({
         container_id: containerId,
         width: "100%",
@@ -115,12 +90,6 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
         save_image: false,
         studies: [],
         disabled_features: ["create_volume_indicator_by_default"],
-        // Persist drawings & indicators to localStorage
-        client_id: "tradex_app",
-        user_id: "tradex_user",
-        auto_save_delay: 3,
-        load_last_chart: true,
-        save_load_adapter: makeSaveLoadAdapter(symbol),
         backgroundColor: "rgba(0,0,0,1)",
         gridColor: "rgba(0,0,0,0)",
         overrides: {
@@ -145,6 +114,25 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
 
       widgetRef.current.onChartReady(() => {
         readyRef.current = true;
+
+        // Restore saved drawings from localStorage
+        try {
+          const saved = localStorage.getItem(storageKey);
+          if (saved) {
+            widgetRef.current.load(JSON.parse(saved));
+          }
+        } catch {}
+
+        // Auto-save whenever user draws / adds indicator / modifies chart
+        try {
+          widgetRef.current.subscribe("onAutoSaveNeeded", () => {
+            widgetRef.current.save((state: any) => {
+              try {
+                localStorage.setItem(storageKey, JSON.stringify(state));
+              } catch {}
+            });
+          });
+        } catch {}
       });
     }
 
@@ -158,23 +146,37 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
       el.appendChild(script);
     }
 
-    return () => { if (el) el.innerHTML = ""; };
-  // Only rebuild when symbol changes — NOT on interval change
+    return () => {
+      // Save state before destroying (e.g. tab switch)
+      if (widgetRef.current && readyRef.current) {
+        try {
+          widgetRef.current.save((state: any) => {
+            try {
+              localStorage.setItem(storageKey, JSON.stringify(state));
+            } catch {}
+          });
+        } catch {}
+      }
+      readyRef.current = false;
+      widgetRef.current = null;
+      if (el) el.innerHTML = "";
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol, uid]);
 
-  // Change interval without rebuilding (preserves all drawings)
+  // Switch interval without rebuilding (drawings stay intact)
   useEffect(() => {
     if (!widgetRef.current) return;
+
     const apply = () => {
       try {
         widgetRef.current.chart().setResolution(active.value, () => {});
       } catch {}
     };
+
     if (readyRef.current) {
       apply();
     } else {
-      // widget not ready yet — wait for it
       const poll = setInterval(() => {
         if (readyRef.current) { clearInterval(poll); apply(); }
       }, 200);
@@ -186,7 +188,7 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
 
   return (
     <div className="w-full flex flex-col" style={{ height }}>
-      {/* Custom toolbar: interval buttons + countdown */}
+      {/* Custom toolbar */}
       <div
         className="flex items-center justify-between px-3 shrink-0"
         style={{
