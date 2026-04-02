@@ -7,8 +7,9 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Target, Zap, CalendarDays, UserCircle,
   Grid3X3, Clock, Newspaper, BrainCircuit, Settings,
-  ChevronLeft, Activity,
+  ChevronLeft,
 } from "lucide-react";
+import { TradeXLogo } from "@/components/shared/TradeXLogo";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -55,16 +56,13 @@ export function Sidebar() {
       {/* Logo */}
       <div className="flex h-[var(--topbar-height)] items-center justify-between border-b border-[hsl(var(--border))] px-3">
         {!collapsed && (
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <Activity className="h-5 w-5 text-[hsl(var(--primary))]" />
-            <span className="text-sm font-bold tracking-wide text-[hsl(var(--foreground))]">
-              TRADE<span className="text-[hsl(var(--primary))]">X</span>
-            </span>
+          <Link href="/dashboard" className="flex items-center">
+            <TradeXLogo variant="wordmark" size="xs" />
           </Link>
         )}
         {collapsed && (
           <Link href="/dashboard" className="mx-auto">
-            <Activity className="h-5 w-5 text-[hsl(var(--primary))]" />
+            <TradeXLogo variant="icon" size="xs" />
           </Link>
         )}
         <button

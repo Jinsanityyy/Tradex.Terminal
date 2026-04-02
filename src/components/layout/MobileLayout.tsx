@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { LayoutDashboard, TrendingUp, Zap, BarChart3, Settings } from "lucide-react";
+import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import { cn } from "@/lib/utils";
 import { MobileHome } from "@/components/mobile/MobileHome";
 import { MobileChart } from "@/components/mobile/MobileChart";
@@ -47,11 +48,8 @@ export function MobileLayout() {
     <div className="flex flex-col h-screen w-full overflow-hidden" style={{ background: "#0a0e1a" }}>
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 pt-10 pb-2 bg-[#0a0e1a] border-b border-white/5 shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded bg-[hsl(var(--primary))]/20 flex items-center justify-center">
-            <TrendingUp className="w-3 h-3 text-[hsl(var(--primary))]" />
-          </div>
-          <span className="text-xs font-bold tracking-widest text-[hsl(var(--foreground))] uppercase">TradeX</span>
+        <div className="flex items-center">
+          <TradeXLogo variant="wordmark" size="xs" />
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--primary))] animate-pulse" />

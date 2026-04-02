@@ -232,11 +232,29 @@ export default function LandingPage() {
         }
         .nav-brand { display: flex; align-items: center; gap: 9px; text-decoration: none; }
         .nav-mark {
-          width: 26px; height: 26px; background: var(--g); border-radius: 6px;
+          width: 26px; height: 26px;
+          background: linear-gradient(135deg, #00C853, #69F0AE);
+          border-radius: 6px;
           display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+          animation: tradex-glow 3s ease-in-out infinite;
         }
-        .nav-wordmark { font-size: 14px; font-weight: 700; letter-spacing: -0.3px; color: var(--t1); }
-        .nav-wordmark em { color: var(--g); font-style: normal; }
+        @keyframes tradex-glow {
+          0%, 100% { filter: drop-shadow(0 0 6px #00C85360) drop-shadow(0 0 14px #00C85330); }
+          50%       { filter: drop-shadow(0 0 12px #00C85390) drop-shadow(0 0 28px #00C85350); }
+        }
+        .nav-wordmark {
+          font-size: 15px; letter-spacing: -0.04em; color: var(--t1);
+          display: inline-flex; align-items: center;
+        }
+        .nav-wordmark .wm-trade { font-weight: 300; }
+        .nav-wordmark .wm-x {
+          font-weight: 800;
+          background: linear-gradient(135deg, #00C853 0%, #69F0AE 50%, #00E676 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: tradex-glow 3s ease-in-out infinite;
+        }
         .nav-links { display: flex; gap: 30px; }
         .nav-links a { font-size: 13px; color: var(--t3); transition: color .15s; }
         .nav-links a:hover { color: var(--t1); }
@@ -422,9 +440,18 @@ export default function LandingPage() {
           display: flex; align-items: center; gap: 6px;
           padding-right: 16px; border-right: 1px solid var(--border); margin-right: 14px;
         }
-        .tn-mark { width: 17px; height: 17px; background: var(--g); border-radius: 4px; display: flex; align-items: center; justify-content: center; }
-        .tn-name { font-size: 11px; font-weight: 700; }
-        .tn-name em { color: var(--g); font-style: normal; }
+        .tn-mark {
+          width: 17px; height: 17px;
+          background: linear-gradient(135deg, #00C853, #69F0AE);
+          border-radius: 4px; display: flex; align-items: center; justify-content: center;
+        }
+        .tn-name { font-size: 11px; letter-spacing: -0.03em; display: inline-flex; align-items: center; }
+        .tn-name .wm-trade { font-weight: 300; color: #fff; }
+        .tn-name .wm-x {
+          font-weight: 800;
+          background: linear-gradient(135deg, #00C853, #69F0AE);
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
         .tn-prices { display: flex; overflow: hidden; flex: 1; }
         .tn-tick {
           padding: 0 12px; border-right: 1px solid var(--border);
@@ -636,9 +663,18 @@ export default function LandingPage() {
           display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;
         }
         .ft-brand { display: flex; align-items: center; gap: 8px; }
-        .ft-mark { width: 18px; height: 18px; background: var(--g); border-radius: 4px; display: flex; align-items: center; justify-content: center; }
-        .ft-name { font-size: 13px; font-weight: 700; letter-spacing: -0.2px; }
-        .ft-name em { color: var(--g); font-style: normal; }
+        .ft-mark {
+          width: 18px; height: 18px;
+          background: linear-gradient(135deg, #00C853, #69F0AE);
+          border-radius: 4px; display: flex; align-items: center; justify-content: center;
+        }
+        .ft-name { font-size: 13px; letter-spacing: -0.04em; display: inline-flex; align-items: center; }
+        .ft-name .wm-trade { font-weight: 300; color: #fff; }
+        .ft-name .wm-x {
+          font-weight: 800;
+          background: linear-gradient(135deg, #00C853, #69F0AE);
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
         .ft-links { display: flex; gap: 22px; list-style: none; }
         .ft-links a { font-size: 12px; color: var(--t3); transition: color .15s; }
         .ft-links a:hover { color: var(--t1); }
@@ -670,11 +706,9 @@ export default function LandingPage() {
       <nav className="nav">
         <a href="/" className="nav-brand">
           <div className="nav-mark">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#07080d" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
-            </svg>
+            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 900, color: "#080808", lineHeight: 1 }}>X</span>
           </div>
-          <span className="nav-wordmark">trade<em>X</em></span>
+          <span className="nav-wordmark"><span className="wm-trade">trade</span><span className="wm-x">X</span></span>
         </a>
         <div className="nav-links">
           <a href="#features">Features</a>
@@ -762,11 +796,9 @@ export default function LandingPage() {
             <div className="term-nav">
               <div className="tn-brand">
                 <div className="tn-mark">
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#07080d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
-                  </svg>
+                  <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, fontWeight: 900, color: "#080808", lineHeight: 1 }}>X</span>
                 </div>
-                <span className="tn-name">trade<em>X</em></span>
+                <span className="tn-name"><span className="wm-trade">trade</span><span className="wm-x">X</span></span>
               </div>
               <div className="tn-prices">
                 {[['XAUUSD','4,731','up','+1.65%'],['BTCUSD','67,144','dn','−1.06%'],['EURUSD','1.1551','up','+0.12%'],['DXY','99.79','dn','−0.22%']].map(([s,p,d,c]) => (
@@ -974,11 +1006,9 @@ export default function LandingPage() {
       <footer>
         <div className="ft-brand">
           <div className="ft-mark">
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#07080d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
-            </svg>
+            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, fontWeight: 900, color: "#080808", lineHeight: 1 }}>X</span>
           </div>
-          <span className="ft-name">trade<em>X</em></span>
+          <span className="ft-name"><span className="wm-trade">trade</span><span className="wm-x">X</span></span>
         </div>
         <ul className="ft-links">
           <li><a href="#features">Features</a></li>

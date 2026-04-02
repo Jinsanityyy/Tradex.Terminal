@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { Check, X, TrendingUp, Zap, Shield, Crown } from "lucide-react";
+import { Check, X, Zap, Shield, Crown } from "lucide-react";
+import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import Link from "next/link";
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import { PLANS } from "@/lib/plans";
@@ -151,11 +152,8 @@ export default function PricingPage() {
         <div className="max-w-5xl mx-auto relative z-10">
           {/* Header */}
           <div className="text-center mb-12">
-            <Link href="/" className="inline-flex items-center gap-2 mb-8">
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[hsl(142,71%,45%)]/10 border border-[hsl(142,71%,45%)]/20">
-                <TrendingUp className="h-4 w-4 text-[hsl(142,71%,45%)]" />
-              </div>
-              <span className="text-base font-bold text-white">TRADEX</span>
+            <Link href="/" className="inline-flex items-center mb-8">
+              <TradeXLogo variant="banner" size="sm" tagline />
             </Link>
             <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">
               One terminal. <span className="text-[hsl(142,71%,45%)]">All the edge.</span>

@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, TrendingUp, Loader2, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
+import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import Link from "next/link";
 
 type Mode = "login" | "signup";
@@ -61,11 +62,8 @@ export default function LoginPage() {
 
       <div className="w-full max-w-sm relative z-10">
         {/* Logo */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-[hsl(142,71%,45%)]/10 border border-[hsl(142,71%,45%)]/20">
-            <TrendingUp className="h-5 w-5 text-[hsl(142,71%,45%)]" />
-          </div>
-          <span className="text-xl font-bold tracking-tight text-white">TRADEX</span>
+        <div className="flex items-center justify-center mb-8">
+          <TradeXLogo variant="banner" size="md" tagline />
         </div>
 
         {/* Card */}
