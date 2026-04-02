@@ -1,14 +1,16 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import {
   ChevronLeft, ChevronRight, RefreshCw, Plus, Trash2,
   TrendingUp, TrendingDown, Trophy, Activity, Loader2,
-  X, Eye, EyeOff, CheckCircle2, AlertCircle,
+  X, Eye, EyeOff, CheckCircle2, AlertCircle, BookOpen,
+  ImagePlus, FileText, Save, Maximize2, Pencil,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DailyPnL, MonthlyPnL } from "@/app/api/pnl/route";
+import { toast } from "sonner";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -18,6 +20,12 @@ interface Connection {
   label: string;
   is_active?: boolean;
   last_synced_at?: string;
+}
+
+interface JournalEntry {
+  date: string;
+  note: string;
+  screenshot_urls: string[];
 }
 
 type ExchangeKey = "binance" | "bybit" | "okx" | "mt5";
@@ -40,9 +48,243 @@ function fmt(n: number): string {
   const s = abs >= 1000 ? `$${(abs / 1000).toFixed(1)}k` : `$${abs.toFixed(2)}`;
   return n < 0 ? `-${s}` : `+${s}`;
 }
-
 function fmtFull(n: number): string {
   return (n >= 0 ? "+" : "") + n.toFixed(2);
+}
+
+// ── Day Journal Modal ──────────────────────────────────────────────────────────
+
+function DayJournalModal({
+  date,
+  pnlData,
+  initial,
+  onClose,
+  onSaved,
+}: {
+  date: string;
+  pnlData: DailyPnL | undefined;
+  initial: JournalEntry | undefined;
+  onClose: () => void;
+  onSaved: (entry: JournalEntry) => void;
+}) {
+  const [note, setNote] = useState(initial?.note ?? "");
+  const [screenshots, setScreenshots] = useState<string[]>(initial?.screenshot_urls ?? []);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [lightbox, setLightbox] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const dateLabel = new Date(date + "T12:00:00").toLocaleDateString("en-US", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
+  });
+
+  async function save() {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/journal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, note, screenshot_urls: screenshots }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      const saved: JournalEntry = { date, note, screenshot_urls: screenshots };
+      onSaved(saved);
+      toast.success("Journal saved");
+      onClose();
+    } catch {
+      toast.error("Failed to save journal");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleFileUpload(file: File) {
+    if (!file.type.startsWith("image/")) { toast.error("Images only"); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error("Max 10MB per image"); return; }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/journal/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setScreenshots(prev => [...prev, data.url]);
+    } catch {
+      toast.error("Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileUpload(file);
+  }
+
+  const hasPnl = pnlData && pnlData.trades > 0;
+
+  return (
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div
+          className="w-full max-w-2xl rounded-2xl border border-[hsl(var(--border))] bg-[hsl(220,18%,6%)] shadow-2xl flex flex-col"
+          style={{ maxHeight: "90vh" }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-[hsl(var(--border))] shrink-0">
+            <div className="flex items-center gap-3">
+              <BookOpen className="h-4 w-4 text-[hsl(var(--primary))]" />
+              <div>
+                <h2 className="text-sm font-bold text-[hsl(var(--foreground))]">Trade Journal</h2>
+                <p className="text-[10px] text-[hsl(var(--muted-foreground))]">{dateLabel}</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="rounded-md p-1 hover:bg-[hsl(var(--secondary))] transition-colors">
+              <X className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-5 space-y-5">
+            {/* PnL Summary */}
+            {hasPnl ? (
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { label: "P&L", value: `${pnlData.pnl >= 0 ? "+" : ""}$${pnlData.pnl.toFixed(2)}`, color: pnlData.pnl >= 0 ? "text-emerald-400" : "text-red-400" },
+                  { label: "Trades", value: String(pnlData.trades), color: "text-[hsl(var(--foreground))]" },
+                  { label: "Wins", value: String(pnlData.wins), color: "text-emerald-400" },
+                  { label: "Fees", value: `-$${pnlData.fees.toFixed(2)}`, color: "text-red-400/70" },
+                ].map(({ label, value, color }) => (
+                  <div key={label} className="rounded-lg bg-[hsl(var(--secondary))] p-2.5 text-center">
+                    <p className="text-[9px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1">{label}</p>
+                    <p className={cn("text-sm font-bold font-mono", color)}>{value}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg bg-[hsl(var(--secondary))]/50 border border-[hsl(var(--border))]/50 p-3 text-center">
+                <p className="text-xs text-[hsl(var(--muted-foreground))]">No trade data for this day — you can still add journal notes.</p>
+              </div>
+            )}
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <FileText className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Notes & Reflection</p>
+              </div>
+              <textarea
+                value={note}
+                onChange={e => setNote(e.target.value)}
+                placeholder={"What happened today? Describe your setups, entries, exits...\n\nEmotions: Were you patient or did you FOMO?\nMistakes: What would you do differently?\nLessons: What did the market teach you?"}
+                rows={7}
+                className="w-full rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3.5 py-3 text-xs text-[hsl(var(--foreground))] placeholder-[hsl(var(--muted-foreground))]/40 outline-none focus:border-[hsl(var(--primary))]/40 resize-none leading-relaxed transition-colors font-mono"
+              />
+            </div>
+
+            {/* Screenshots */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <ImagePlus className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Trade Screenshots</p>
+                <span className="text-[9px] text-[hsl(var(--muted-foreground))]/50">{screenshots.length} attached</span>
+              </div>
+
+              {/* Drop zone */}
+              <div
+                onDrop={handleDrop}
+                onDragOver={e => e.preventDefault()}
+                onClick={() => fileRef.current?.click()}
+                className="rounded-xl border-2 border-dashed border-[hsl(var(--border))] hover:border-[hsl(var(--primary))]/40 p-5 text-center cursor-pointer transition-all hover:bg-[hsl(var(--primary))]/[0.02] group"
+              >
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={e => {
+                    const files = Array.from(e.target.files ?? []);
+                    files.forEach(f => handleFileUpload(f));
+                    e.target.value = "";
+                  }}
+                />
+                {uploading
+                  ? <Loader2 className="h-5 w-5 animate-spin mx-auto text-[hsl(var(--primary))]" />
+                  : (
+                    <>
+                      <ImagePlus className="h-5 w-5 mx-auto mb-2 text-[hsl(var(--muted-foreground))]/40 group-hover:text-[hsl(var(--primary))]/60 transition-colors" />
+                      <p className="text-[11px] text-[hsl(var(--muted-foreground))]">Drop chart screenshots here or <span className="text-[hsl(var(--primary))]">click to browse</span></p>
+                      <p className="text-[10px] text-[hsl(var(--muted-foreground))]/50 mt-0.5">PNG, JPG, WEBP · max 10MB each</p>
+                    </>
+                  )
+                }
+              </div>
+
+              {/* Screenshot grid */}
+              {screenshots.length > 0 && (
+                <div className="grid grid-cols-2 gap-2">
+                  {screenshots.map((url, i) => (
+                    <div key={i} className="relative group rounded-xl overflow-hidden border border-[hsl(var(--border))]" style={{ height: 140 }}>
+                      <img src={url} alt={`Screenshot ${i + 1}`} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                        <button
+                          onClick={e => { e.stopPropagation(); setLightbox(url); }}
+                          className="rounded-full bg-white/20 p-2 text-white hover:bg-white/30 transition-all"
+                        >
+                          <Maximize2 className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={e => { e.stopPropagation(); setScreenshots(prev => prev.filter((_, j) => j !== i)); }}
+                          className="rounded-full bg-red-500/30 p-2 text-red-400 hover:bg-red-500/50 transition-all"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="shrink-0 border-t border-[hsl(var(--border))] px-5 py-3 flex items-center justify-between bg-[hsl(220,18%,7%)]">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={save}
+              disabled={saving}
+              className="flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))]/15 border border-[hsl(var(--primary))]/30 px-5 py-2 text-xs font-semibold text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/25 disabled:opacity-50 transition-all"
+            >
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+              {saving ? "Saving…" : "Save Journal"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 cursor-zoom-out"
+          onClick={() => setLightbox(null)}
+        >
+          <img src={lightbox} alt="Screenshot" className="max-w-[92vw] max-h-[92vh] rounded-xl object-contain shadow-2xl" />
+          <button
+            className="absolute top-4 right-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20 transition-all"
+            onClick={() => setLightbox(null)}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+    </>
+  );
 }
 
 // ── Connect Exchange Modal ─────────────────────────────────────────────────────
@@ -76,7 +318,8 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
       const res = await fetch("/api/exchanges/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ exchange, label: label.trim(), apiKey, apiSecret,
+        body: JSON.stringify({
+          exchange, label: label.trim(), apiKey, apiSecret,
           apiPassphrase: passphrase || undefined,
           metaapiToken: metaapiToken || undefined,
           metaapiAccountId: metaapiAccountId || undefined,
@@ -84,7 +327,6 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to connect — check your API keys and try again");
-      // Pass the new connection back immediately so the parent doesn't flash empty state
       onConnected({ id: data.data.id, exchange, label: label.trim(), is_active: true });
       onClose();
     } catch (e: any) {
@@ -97,14 +339,12 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="w-full max-w-md rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-2xl">
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[hsl(var(--border))]">
           <h2 className="text-sm font-bold text-[hsl(var(--foreground))]">Connect Exchange</h2>
           <button onClick={onClose}><X className="h-4 w-4 text-[hsl(var(--muted-foreground))]" /></button>
         </div>
 
         <div className="p-5 space-y-4">
-          {/* Exchange selector */}
           <div>
             <p className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-2">Exchange</p>
             <div className="grid grid-cols-4 gap-2">
@@ -127,23 +367,19 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
             </div>
           </div>
 
-          {/* Label */}
           <div>
             <label className="block text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1.5">Label</label>
-            <input value={label} onChange={e => setLabel(e.target.value)} placeholder={`My ${EXCHANGE_META[exchange].name} Account`}
+            <input value={label} onChange={e => setLabel(e.target.value)} placeholder={`My ${meta.name} Account`}
               className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-2 text-sm text-[hsl(var(--foreground))] placeholder-[hsl(var(--muted-foreground))] outline-none focus:border-[hsl(var(--primary))]/50" />
           </div>
 
           {exchange !== "mt5" ? (
             <>
-              {/* API Key */}
               <div>
                 <label className="block text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1.5">API Key (Read-Only)</label>
                 <input value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="Paste your read-only API key"
                   className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-2 text-xs font-mono text-[hsl(var(--foreground))] placeholder-[hsl(var(--muted-foreground))] outline-none focus:border-[hsl(var(--primary))]/50" />
               </div>
-
-              {/* API Secret */}
               <div>
                 <label className="block text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1.5">API Secret</label>
                 <div className="relative">
@@ -154,8 +390,6 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
                   </button>
                 </div>
               </div>
-
-              {/* OKX Passphrase */}
               {exchange === "okx" && (
                 <div>
                   <label className="block text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1.5">API Passphrase (OKX)</label>
@@ -165,13 +399,12 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
               )}
             </>
           ) : (
-            /* MT5 via MetaApi */
             <>
               <div className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-3">
                 <p className="text-[10px] text-purple-400 font-semibold mb-1">MT5 requires MetaApi</p>
                 <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-relaxed">
-                  1. Create a free account at <span className="text-purple-400">app.metaapi.cloud</span><br/>
-                  2. Connect your MT5 broker account there<br/>
+                  1. Create a free account at <span className="text-purple-400">app.metaapi.cloud</span><br />
+                  2. Connect your MT5 broker account there<br />
                   3. Copy your API Token + Account ID below
                 </p>
               </div>
@@ -188,7 +421,6 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
             </>
           )}
 
-          {/* Security note */}
           <div className="flex items-start gap-2 rounded-lg bg-[hsl(var(--secondary))]/50 p-2.5">
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
             <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-relaxed">
@@ -206,7 +438,7 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
           <button onClick={handleConnect} disabled={loading}
             className="w-full rounded-lg bg-[hsl(var(--primary))]/15 border border-[hsl(var(--primary))]/30 py-2.5 text-sm font-semibold text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {loading ? "Connecting..." : `Connect ${EXCHANGE_META[exchange].name}`}
+            {loading ? "Connecting..." : `Connect ${meta.name}`}
           </button>
         </div>
       </div>
@@ -228,14 +460,16 @@ export default function PnLCalendarPage() {
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth()); // 0-indexed
 
-  // Build daily lookup map
+  // Journal state
+  const [journalDate, setJournalDate] = useState<string | null>(null);
+  const [journalEntries, setJournalEntries] = useState<Map<string, JournalEntry>>(new Map());
+
   const dailyMap = useMemo(() => {
     const m = new Map<string, DailyPnL>();
     daily.forEach(d => m.set(d.date, d));
     return m;
   }, [daily]);
 
-  // Current month stats
   const monthStats = useMemo(() => {
     const key = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`;
     let trades = 0, wins = 0, pnl = 0, fees = 0;
@@ -248,7 +482,6 @@ export default function PnLCalendarPage() {
     return { trades, wins, pnl, fees, winPct };
   }, [daily, viewYear, viewMonth]);
 
-  // Calendar days for current view
   const calDays = useMemo(() => {
     const first = new Date(viewYear, viewMonth, 1);
     const last = new Date(viewYear, viewMonth + 1, 0);
@@ -260,7 +493,6 @@ export default function PnLCalendarPage() {
     return days;
   }, [viewYear, viewMonth]);
 
-  // Weekly totals
   const weeklyTotals = useMemo(() => {
     const weeks: number[] = [];
     for (let i = 0; i < calDays.length; i += 7) {
@@ -294,14 +526,26 @@ export default function PnLCalendarPage() {
     }
   }
 
-  // Called immediately after a successful connect — injects the connection
-  // without waiting for a round-trip, preventing the flash-to-empty-state bug
+  async function loadJournalEntries() {
+    const month = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`;
+    try {
+      const res = await fetch(`/api/journal?month=${month}`);
+      const data = await res.json();
+      if (Array.isArray(data.data)) {
+        setJournalEntries(prev => {
+          const next = new Map(prev);
+          data.data.forEach((e: JournalEntry) => next.set(e.date, e));
+          return next;
+        });
+      }
+    } catch {}
+  }
+
   function handleConnected(newConn: Connection) {
     setConnections(prev => {
       if (prev.find(c => c.id === newConn.id)) return prev;
       return [...prev, newConn];
     });
-    // Background re-fetch to get full data + auto-sync trades
     loadData();
     setTimeout(() => syncAll(), 800);
   }
@@ -324,6 +568,7 @@ export default function PnLCalendarPage() {
   }
 
   useEffect(() => { loadData(); }, [selectedConn]);
+  useEffect(() => { loadJournalEntries(); }, [viewYear, viewMonth]);
 
   function prevMonth() {
     if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11); }
@@ -336,7 +581,7 @@ export default function PnLCalendarPage() {
 
   const todayStr = now.toISOString().split("T")[0];
 
-  // ── No connections state ────────────────────────────────────────────────────
+  // ── No connections ──────────────────────────────────────────────────────────
   if (!loading && connections.length === 0) {
     return (
       <div className="space-y-5 max-w-5xl">
@@ -351,12 +596,11 @@ export default function PnLCalendarPage() {
             <Plus className="h-3.5 w-3.5" /> Connect Exchange
           </button>
         </div>
-
         <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-12 text-center">
           <Activity className="h-10 w-10 text-[hsl(var(--muted-foreground))]/30 mx-auto mb-4" />
           <h2 className="text-sm font-semibold text-[hsl(var(--foreground))] mb-2">No exchanges connected</h2>
           <p className="text-xs text-[hsl(var(--muted-foreground))] mb-6 max-w-sm mx-auto">
-            Connect Binance, Bybit, OKX, or MT5 to automatically import your trade history and track daily P&amp;L.
+            Connect Binance, Bybit, OKX, or MT5 to automatically import your trade history and track daily P&L.
           </p>
           <div className="flex items-center justify-center gap-3 mb-8">
             {(Object.keys(EXCHANGE_META) as ExchangeKey[]).map(ex => {
@@ -377,10 +621,23 @@ export default function PnLCalendarPage() {
     );
   }
 
-  // ── Main calendar view ──────────────────────────────────────────────────────
+  // ── Main View ───────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-5 max-w-7xl">
+    <div className="space-y-4">
       {showConnect && <ConnectModal onClose={() => setShowConnect(false)} onConnected={handleConnected} />}
+
+      {journalDate && (
+        <DayJournalModal
+          date={journalDate}
+          pnlData={dailyMap.get(journalDate)}
+          initial={journalEntries.get(journalDate)}
+          onClose={() => setJournalDate(null)}
+          onSaved={(entry) => {
+            setJournalEntries(prev => new Map(prev).set(entry.date, entry));
+            setJournalDate(null);
+          }}
+        />
+      )}
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -389,7 +646,6 @@ export default function PnLCalendarPage() {
           <p className="text-xs text-[hsl(var(--muted-foreground))]">Track daily performance across all your exchanges</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Exchange filter */}
           <select value={selectedConn} onChange={e => setSelectedConn(e.target.value)}
             className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-1.5 text-xs text-[hsl(var(--foreground))] outline-none">
             <option value="all">All Exchanges</option>
@@ -397,15 +653,11 @@ export default function PnLCalendarPage() {
               <option key={c.id} value={c.id}>{EXCHANGE_META[c.exchange]?.name} — {c.label}</option>
             ))}
           </select>
-
-          {/* Sync */}
           <button onClick={syncAll} disabled={syncing}
             className="flex items-center gap-1.5 rounded-lg border border-[hsl(var(--border))] px-3 py-1.5 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] transition-all disabled:opacity-60">
             <RefreshCw className={cn("h-3 w-3", syncing && "animate-spin")} />
             {syncing ? "Syncing…" : "Sync"}
           </button>
-
-          {/* Add connection */}
           <button onClick={() => setShowConnect(true)}
             className="flex items-center gap-1.5 rounded-lg border border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/10 px-3 py-1.5 text-xs font-semibold text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/20 transition-all">
             <Plus className="h-3 w-3" /> Add Exchange
@@ -434,27 +686,25 @@ export default function PnLCalendarPage() {
         })}
       </div>
 
-      {/* ── Calendar + Stats grid ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-5">
+      {/* ── Calendar + Right Panel ── */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4">
 
         {/* ── Calendar ── */}
         <Card className="overflow-hidden">
           {/* Month nav + stats bar */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-[hsl(var(--border))]">
-            <div className="flex items-center gap-3">
-              <button onClick={prevMonth} className="rounded-md p-1 hover:bg-[hsl(var(--secondary))] transition-colors">
+            <div className="flex items-center gap-2">
+              <button onClick={prevMonth} className="rounded-md p-1.5 hover:bg-[hsl(var(--secondary))] transition-colors">
                 <ChevronLeft className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
               </button>
-              <span className="text-sm font-bold text-[hsl(var(--foreground))] min-w-[130px] text-center">
+              <span className="text-sm font-bold text-[hsl(var(--foreground))] min-w-[120px] text-center">
                 {MONTHS[viewMonth]} {viewYear}
               </span>
-              <button onClick={nextMonth} className="rounded-md p-1 hover:bg-[hsl(var(--secondary))] transition-colors">
+              <button onClick={nextMonth} className="rounded-md p-1.5 hover:bg-[hsl(var(--secondary))] transition-colors">
                 <ChevronRight className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
               </button>
             </div>
-
-            {/* Month stats */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-5">
               {[
                 { label: "Trades", value: monthStats.trades },
                 { label: "Wins",   value: monthStats.wins },
@@ -471,6 +721,10 @@ export default function PnLCalendarPage() {
                   )}>{value}</p>
                 </div>
               ))}
+              <div className="flex items-center gap-1 text-[10px] text-[hsl(var(--muted-foreground))]/60 ml-2">
+                <Pencil className="h-2.5 w-2.5" />
+                <span>click date to journal</span>
+              </div>
             </div>
           </div>
 
@@ -480,7 +734,7 @@ export default function PnLCalendarPage() {
               {DAYS.map(d => (
                 <div key={d} className="px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">{d}</div>
               ))}
-              <div className="px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Total</div>
+              <div className="px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Week</div>
             </div>
 
             {/* Weeks */}
@@ -489,38 +743,53 @@ export default function PnLCalendarPage() {
               const weekTotal = weeklyTotals[wi] ?? 0;
 
               return (
-                <div key={wi} className="grid grid-cols-8 border-b border-[hsl(var(--border))]/50 last:border-0" style={{ minHeight: 72 }}>
+                <div key={wi} className="grid grid-cols-8 border-b border-[hsl(var(--border))]/50 last:border-0" style={{ minHeight: 100 }}>
                   {weekDays.map((day, di) => {
                     if (!day) return <div key={di} className="border-r border-[hsl(var(--border))]/30 bg-[hsl(var(--secondary))]/20" />;
+
                     const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                     const data = dailyMap.get(dateStr);
                     const isToday = dateStr === todayStr;
                     const isFuture = dateStr > todayStr;
                     const pnl = data?.pnl ?? 0;
                     const hasTrades = (data?.trades ?? 0) > 0;
+                    const hasJournal = journalEntries.has(dateStr);
 
                     return (
                       <div
                         key={di}
+                        onClick={() => !isFuture && setJournalDate(dateStr)}
                         className={cn(
-                          "border-r border-[hsl(var(--border))]/30 p-2 flex flex-col transition-all",
-                          isToday && "ring-1 ring-inset ring-[hsl(var(--primary))]/40",
-                          hasTrades && pnl > 0 && "bg-emerald-500/[0.07]",
-                          hasTrades && pnl < 0 && "bg-red-500/[0.07]",
-                          !hasTrades && !isFuture && "bg-transparent",
-                          isFuture && "opacity-30",
+                          "border-r border-[hsl(var(--border))]/30 p-2 flex flex-col transition-all relative",
+                          !isFuture && "cursor-pointer hover:bg-[hsl(var(--secondary))]/60 group",
+                          isToday && "ring-1 ring-inset ring-[hsl(var(--primary))]/50",
+                          hasTrades && pnl > 0 && "bg-emerald-500/[0.08]",
+                          hasTrades && pnl < 0 && "bg-red-500/[0.08]",
+                          isFuture && "opacity-25 cursor-default",
                         )}
                       >
-                        <span className={cn(
-                          "text-[11px] font-semibold leading-none",
-                          isToday ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]"
-                        )}>
-                          {day}
-                        </span>
+                        {/* Day number + journal indicator */}
+                        <div className="flex items-center justify-between">
+                          <span className={cn(
+                            "text-[11px] font-semibold leading-none",
+                            isToday
+                              ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary))]/15 rounded px-1 py-0.5"
+                              : "text-[hsl(var(--muted-foreground))]"
+                          )}>
+                            {day}
+                          </span>
+                          {hasJournal && (
+                            <span title="Has journal entry">
+                              <BookOpen className="h-2.5 w-2.5 text-[hsl(var(--primary))]/60" />
+                            </span>
+                          )}
+                        </div>
+
+                        {/* PnL + trade stats */}
                         {hasTrades && (
-                          <>
+                          <div className="mt-auto">
                             <span className={cn(
-                              "text-[11px] font-bold font-mono mt-auto",
+                              "text-[12px] font-bold font-mono block",
                               pnl >= 0 ? "text-emerald-400" : "text-red-400"
                             )}>
                               {fmt(pnl)}
@@ -528,7 +797,16 @@ export default function PnLCalendarPage() {
                             <span className="text-[9px] text-[hsl(var(--muted-foreground))]">
                               {data!.trades}T · {data!.wins}W
                             </span>
-                          </>
+                          </div>
+                        )}
+
+                        {/* Write prompt on hover (no trades, not future) */}
+                        {!hasTrades && !isFuture && (
+                          <div className="mt-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="text-[9px] text-[hsl(var(--muted-foreground))]/50 flex items-center gap-0.5">
+                              <Pencil className="h-2 w-2" /> note
+                            </span>
+                          </div>
                         )}
                       </div>
                     );
@@ -540,15 +818,16 @@ export default function PnLCalendarPage() {
                     weekTotal > 0 && "bg-emerald-500/5",
                     weekTotal < 0 && "bg-red-500/5",
                   )}>
-                    {weekTotal !== 0 && (
+                    {weekTotal !== 0 ? (
                       <>
-                        <span className={cn("text-[10px] font-bold font-mono", weekTotal >= 0 ? "text-emerald-400" : "text-red-400")}>
+                        <span className={cn("text-[11px] font-bold font-mono", weekTotal >= 0 ? "text-emerald-400" : "text-red-400")}>
                           {fmt(weekTotal)}
                         </span>
                         <span className="text-[9px] text-[hsl(var(--muted-foreground))]">week</span>
                       </>
+                    ) : (
+                      <span className="text-[10px] text-[hsl(var(--muted-foreground))]/30">—</span>
                     )}
-                    {weekTotal === 0 && <span className="text-[10px] text-[hsl(var(--muted-foreground))]/30">—</span>}
                   </div>
                 </div>
               );
@@ -556,9 +835,9 @@ export default function PnLCalendarPage() {
           </CardContent>
         </Card>
 
-        {/* ── Right panel ── */}
+        {/* ── Right Panel ── */}
         <div className="space-y-4">
-          {/* Win Rate */}
+          {/* Monthly Performance */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-xs flex items-center gap-2">
@@ -567,7 +846,7 @@ export default function PnLCalendarPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {/* Win rate arc */}
-              <div className="text-center py-2">
+              <div className="text-center py-1">
                 <div className="relative inline-flex items-center justify-center">
                   <svg width="120" height="65" viewBox="0 0 120 65">
                     <path d="M 10 60 A 50 50 0 0 1 110 60" fill="none" stroke="hsl(var(--muted))" strokeWidth="8" strokeLinecap="round" />
@@ -601,14 +880,14 @@ export default function PnLCalendarPage() {
                 </div>
               ))}
 
-              <div className="pt-1 border-t border-[hsl(var(--border))]/50">
+              <div className="pt-1 border-t border-[hsl(var(--border))]/50 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] text-[hsl(var(--muted-foreground))]">Net P&L</span>
                   <span className={cn("text-sm font-bold font-mono", monthStats.pnl >= 0 ? "text-emerald-400" : "text-red-400")}>
                     {monthStats.pnl >= 0 ? "+" : ""}{monthStats.pnl.toFixed(2)}
                   </span>
                 </div>
-                <div className="flex items-center justify-between mt-1">
+                <div className="flex items-center justify-between">
                   <span className="text-[11px] text-[hsl(var(--muted-foreground))]">Fees</span>
                   <span className="text-[11px] font-mono text-red-400/70">-{monthStats.fees.toFixed(2)}</span>
                 </div>
@@ -616,7 +895,7 @@ export default function PnLCalendarPage() {
             </CardContent>
           </Card>
 
-          {/* Day P&L bar chart (last 14 days) */}
+          {/* Daily P&L bar chart */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-xs flex items-center gap-2">
@@ -640,13 +919,10 @@ export default function PnLCalendarPage() {
                       const isPos = v >= 0;
                       return (
                         <div key={i} className="flex-1 flex flex-col items-center justify-end h-full" title={`${last14[i]}: ${fmtFull(v)}`}>
-                          {v !== 0 && (
-                            <div
-                              className={cn("w-full rounded-sm min-h-[2px]", isPos ? "bg-emerald-500/70" : "bg-red-500/70")}
-                              style={{ height: `${Math.max(pct * 100, 4)}%` }}
-                            />
-                          )}
-                          {v === 0 && <div className="w-full h-[2px] bg-[hsl(var(--muted))]/30 rounded-sm" />}
+                          {v !== 0
+                            ? <div className={cn("w-full rounded-sm min-h-[2px]", isPos ? "bg-emerald-500/70" : "bg-red-500/70")} style={{ height: `${Math.max(pct * 100, 4)}%` }} />
+                            : <div className="w-full h-[2px] bg-[hsl(var(--muted))]/30 rounded-sm" />
+                          }
                         </div>
                       );
                     })}
@@ -657,6 +933,35 @@ export default function PnLCalendarPage() {
                 <span className="text-[9px] text-[hsl(var(--muted-foreground))]">14 days ago</span>
                 <span className="text-[9px] text-[hsl(var(--muted-foreground))]">Today</span>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Journal quick stats */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs flex items-center gap-2">
+                <BookOpen className="h-3.5 w-3.5 text-[hsl(var(--primary))]" /> Journal
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-[hsl(var(--muted-foreground))]">Entries this month</span>
+                <span className="text-[11px] font-semibold text-[hsl(var(--foreground))] font-mono">
+                  {Array.from(journalEntries.values()).filter(e => {
+                    const key = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`;
+                    return e.date.startsWith(key) && (e.note?.trim() || e.screenshot_urls?.length > 0);
+                  }).length}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-[hsl(var(--muted-foreground))]">Screenshots</span>
+                <span className="text-[11px] font-semibold text-[hsl(var(--foreground))] font-mono">
+                  {Array.from(journalEntries.values()).reduce((s, e) => s + (e.screenshot_urls?.length ?? 0), 0)}
+                </span>
+              </div>
+              <p className="text-[10px] text-[hsl(var(--muted-foreground))]/60 leading-relaxed pt-1">
+                Click any past date on the calendar to add notes and screenshots.
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -673,8 +978,9 @@ export default function PnLCalendarPage() {
               {ALL_YEARS.map(y => (
                 <button key={y} onClick={() => setViewYear(y)}
                   className={cn("px-2 py-0.5 rounded text-[10px] font-semibold transition-all",
-                    y === viewYear ? "bg-[hsl(var(--primary))]/15 text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30"
-                    : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
+                    y === viewYear
+                      ? "bg-[hsl(var(--primary))]/15 text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30"
+                      : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
                   )}>
                   {y}
                 </button>
@@ -685,9 +991,9 @@ export default function PnLCalendarPage() {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             {[viewYear, viewYear - 1].map(year => {
-              const monthData = Array.from({ length: 12 }, (_, mi) => {
-                return monthly.find(m => m.year === year && m.month === mi + 1) ?? null;
-              });
+              const monthData = Array.from({ length: 12 }, (_, mi) =>
+                monthly.find(m => m.year === year && m.month === mi + 1) ?? null
+              );
               const ytd = monthData.reduce((s, m) => s + (m?.pnl ?? 0), 0);
               const ytdTrades = monthData.reduce((s, m) => s + (m?.trades ?? 0), 0);
 
@@ -717,7 +1023,6 @@ export default function PnLCalendarPage() {
                       )}
                     </button>
                   ))}
-                  {/* YTD */}
                   <div className={cn(
                     "px-3 py-2 text-center border-l border-[hsl(var(--border))]/50",
                     ytd > 0 && "bg-emerald-500/5",
