@@ -63,39 +63,48 @@ function calculateLevels(
   const resistance = roundToStep(Math.max(r1, high), config.step);
 
   // Entry, SL, TP based on bias
+  // SL uses config.slMultiplier for a realistic tight stop.
+  // TPs are projected from actual risk so R:R is always ≥ 1.5:1 (TP1) and ≥ 2.5:1 (TP2).
   let entry: number, stopLoss: number, tp1: number, tp2: number;
 
   if (bias === "bullish") {
-    // Buy setup: entry near support/pullback, SL below support, TP at resistance+
-    entry = roundToStep(price - price * 0.002, config.step); // slight pullback entry
-    stopLoss = roundToStep(support - config.step, config.step);
-    tp1 = roundToStep(resistance, config.step);
-    tp2 = roundToStep(resistance + (resistance - support) * 0.5, config.step);
+    entry    = roundToStep(price - price * 0.001, config.step);
+    stopLoss = roundToStep(entry  - entry  * config.slMultiplier, config.step);
+    const riskBull = Math.abs(entry - stopLoss);
+    tp1 = roundToStep(entry + riskBull * 1.5, config.step);
+    tp2 = roundToStep(entry + riskBull * 2.5, config.step);
   } else if (bias === "bearish") {
-    // Sell setup: entry near resistance/pullback, SL above resistance, TP at support-
-    entry = roundToStep(price + price * 0.002, config.step);
-    stopLoss = roundToStep(resistance + config.step, config.step);
-    tp1 = roundToStep(support, config.step);
-    tp2 = roundToStep(support - (resistance - support) * 0.5, config.step);
+    entry    = roundToStep(price + price * 0.001, config.step);
+    stopLoss = roundToStep(entry  + entry  * config.slMultiplier, config.step);
+    const riskBear = Math.abs(stopLoss - entry);
+    tp1 = roundToStep(entry - riskBear * 1.5, config.step);
+    tp2 = roundToStep(entry - riskBear * 2.5, config.step);
   } else {
-    // Neutral: range trade
-    entry = roundToStep(price, config.step);
+    // Neutral: range trade, TP still guaranteed ≥ 1.5:1
+    entry    = roundToStep(price, config.step);
     stopLoss = roundToStep(price - price * config.slMultiplier, config.step);
-    tp1 = roundToStep(price + price * config.tpMultiplier * 0.7, config.step);
-    tp2 = roundToStep(price + price * config.tpMultiplier, config.step);
+    const riskNeut = Math.abs(entry - stopLoss);
+    tp1 = roundToStep(entry + riskNeut * 1.5, config.step);
+    tp2 = roundToStep(entry + riskNeut * 2.5, config.step);
   }
 
-  // Risk/Reward calculation
-  const risk = Math.abs(entry - stopLoss);
-  const reward = Math.abs(tp1 - entry);
+  // Risk/Reward calculation (always based on TP1)
+  const risk   = Math.abs(entry - stopLoss);
+  const reward = Math.abs(tp1   - entry);
   const rr = risk > 0 ? (reward / risk).toFixed(1) : "—";
+
+  const dec = config.step < 1 ? 4 : 0;
+  const riskAmt  = risk.toFixed(dec);
+  const tp1Amt   = reward.toFixed(dec);
+  const tp2Amt   = Math.abs(tp2 - entry).toFixed(dec);
+  const rrLabel  = `${rr}:1 R:R`;
 
   // Generate note
   const note = bias === "bullish"
-    ? `Buy on pullback to ${entry.toFixed(config.step < 1 ? 4 : 0)}. Pivot at ${roundToStep(pivot, config.step).toFixed(config.step < 1 ? 4 : 0)} acts as intraday support.`
+    ? `Buy on pullback to ${entry.toFixed(dec)}. Risk ${riskAmt} to SL with ${tp1Amt} reward to TP1 (${rrLabel}). Pivot ${roundToStep(pivot, config.step).toFixed(dec)} is key intraday support.`
     : bias === "bearish"
-    ? `Sell on rally to ${entry.toFixed(config.step < 1 ? 4 : 0)}. Pivot at ${roundToStep(pivot, config.step).toFixed(config.step < 1 ? 4 : 0)} acts as resistance.`
-    : `Range-bound. Wait for break of ${support.toFixed(config.step < 1 ? 4 : 0)}-${resistance.toFixed(config.step < 1 ? 4 : 0)} for directional conviction.`;
+    ? `Sell rally to ${entry.toFixed(dec)}. Risk ${riskAmt} to SL with ${tp1Amt} reward to TP1 (${rrLabel}). Pivot ${roundToStep(pivot, config.step).toFixed(dec)} acts as resistance.`
+    : `Range-bound between ${support.toFixed(dec)}–${resistance.toFixed(dec)}. Wait for a confirmed break before committing. Risk ${riskAmt} if entering at midpoint.`;
 
   return {
     asset: config.display,
