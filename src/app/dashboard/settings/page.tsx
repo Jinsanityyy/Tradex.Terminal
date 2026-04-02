@@ -13,12 +13,12 @@ import { cn } from "@/lib/utils";
 
 function SettingRow({ label, description, children }: { label: string; description: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-6 py-3.5 border-b border-[hsl(var(--border))]/50 last:border-0">
-      <div className="min-w-0">
+    <div className="flex items-start justify-between gap-4 py-3.5 border-b border-[hsl(var(--border))]/50 last:border-0 overflow-hidden">
+      <div className="min-w-0 flex-1">
         <p className="text-xs font-medium text-[hsl(var(--foreground))]">{label}</p>
         <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5">{description}</p>
       </div>
-      <div className="shrink-0">{children}</div>
+      <div className="shrink-0 max-w-[55%] flex flex-wrap justify-end gap-1">{children}</div>
     </div>
   );
 }
@@ -48,13 +48,13 @@ function Pills<T extends string>({
   options: T[]; value: T; onChange: (v: T) => void; labels?: Record<string, string>;
 }) {
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="flex flex-wrap gap-1 justify-end">
       {options.map((o) => (
         <button
           key={o}
           onClick={() => onChange(o)}
           className={cn(
-            "rounded-md px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider transition-all border",
+            "rounded-md px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider transition-all border whitespace-nowrap",
             value === o
               ? "border-[hsl(var(--primary))]/50 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
               : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"

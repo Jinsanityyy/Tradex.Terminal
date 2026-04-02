@@ -172,7 +172,7 @@ export function TopStatusBar() {
   const topAssets = quotes.slice(0, 8);
 
   return (
-    <header className="sticky top-0 z-30 flex h-[var(--topbar-height)] items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(220,20%,4%)]/95 backdrop-blur-md px-4">
+    <header className="sticky top-0 z-30 flex h-[var(--topbar-height)] items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 backdrop-blur-md px-4">
       {/* Left: Asset Ticker Tape */}
       <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
         {topAssets.map((a) => (
