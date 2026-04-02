@@ -10,18 +10,18 @@
       "page": "/",
       "matchers": [
         {
-          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?(?:\\/((?!_next\\/static|_next\\/image|favicon|icon|apple-touch|manifest|.*\\.png|.*\\.svg|.*\\.ico).*))(.json)?[\\/#\\?]?$",
-          "originalSource": "/((?!_next/static|_next/image|favicon|icon|apple-touch|manifest|.*\\.png|.*\\.svg|.*\\.ico).*)"
+          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?(?:\\/((?!_next\\/static|_next\\/image|favicon|.*\\.png|.*\\.svg|.*\\.ico).*))(.json)?[\\/#\\?]?$",
+          "originalSource": "/((?!_next/static|_next/image|favicon|.*\\.png|.*\\.svg|.*\\.ico).*)"
         }
       ],
       "wasm": [],
       "assets": [],
       "env": {
-        "__NEXT_BUILD_ID": "Mu8_NR_5Y2fldEr1VpyQD",
-        "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "D+9MVdACrjA+stePBP7QDOS5mDeNAh5CZ/5u2q+HgWw=",
-        "__NEXT_PREVIEW_MODE_ID": "4d352ed822eb742db542cc21d2b82b2b",
-        "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "970da6d420d1add8f3b0256230e38590280f771387dd647325ee7fb371924586",
-        "__NEXT_PREVIEW_MODE_SIGNING_KEY": "d0637ffee52a0b47bdaa6f68906987ddd99327c50acf4800837ee184412de914"
+        "__NEXT_BUILD_ID": "VYt2SUCjz82DVE7sSiKuE",
+        "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "zssaTIUQoPkzSaaQ/3y7SF20TG5g1HJ8TytDWXXgKBY=",
+        "__NEXT_PREVIEW_MODE_ID": "744370f9cb901f82fe4f3d4a010a8b02",
+        "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "d910886c1a22489a7103041fc150ce80209732363d29d61e050e2b270781223d",
+        "__NEXT_PREVIEW_MODE_SIGNING_KEY": "9f93186a5fdf074951e31ca619b2c70b1a83671cb4e5327fc034e44c16eb9af8"
       }
     }
   },
