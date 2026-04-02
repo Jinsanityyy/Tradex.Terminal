@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useId, useState, memo } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,58 +37,52 @@ function chartStorageKey(symbol: string) {
   return `tradex_chart_${symbol.replace(/[^a-z0-9]/gi, "_")}`;
 }
 
-function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: TradingViewChartProps) {
+// Incrementing counter to guarantee unique container IDs across remounts
+let widgetCounter = 0;
+
+export function TradingViewChart({ symbol = "OANDA:XAUUSD", height = 400 }: TradingViewChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const widgetRef = useRef<any>(null);
-  const readyRef = useRef(false);
-  const uid = useId().replace(/:/g, "");
-  const [active, setActive] = useState(INTERVALS[4]); // default 1H
+  const [activeInterval, setActiveInterval] = useState(INTERVALS[4]); // 1H default
   const [secs, setSecs] = useState(() => secondsToClose(60));
 
-  // Countdown — ticks every second
+  // Countdown timer
   useEffect(() => {
-    setSecs(secondsToClose(active.minutes));
-    const id = setInterval(() => setSecs(secondsToClose(active.minutes)), 1000);
+    setSecs(secondsToClose(activeInterval.minutes));
+    const id = setInterval(() => setSecs(secondsToClose(activeInterval.minutes)), 1000);
     return () => clearInterval(id);
-  }, [active.minutes]);
+  }, [activeInterval.minutes]);
 
-  // Rebuild widget on symbol OR interval change
+  // Chart rebuild — fires on symbol OR interval change
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
-    // Save drawings before destroying previous widget
-    try {
-      if (widgetRef.current && readyRef.current) {
-        widgetRef.current.save((state: any) => {
-          try { localStorage.setItem(chartStorageKey(symbol), JSON.stringify(state)); } catch {}
-        });
-      }
-    } catch {}
+    let isCancelled = false;
+    let saveTimer: ReturnType<typeof setInterval> | null = null;
+    let widget: any = null;
 
-    try { clearInterval(widgetRef.current?.__saveTimer); } catch {}
-    readyRef.current = false;
-    widgetRef.current = null;
-    el.innerHTML = "";
-
-    const containerId = `tv_${uid}_${active.value}`;
-    const div = document.createElement("div");
-    div.id = containerId;
-    div.style.height = "100%";
-    div.style.width = "100%";
-    el.appendChild(div);
-
+    // Give a unique ID every rebuild so TradingView never reuses a stale container
+    const containerId = `tv_widget_${++widgetCounter}`;
     const storageKey = chartStorageKey(symbol);
 
-    function createWidget() {
-      if (!(window as any).TradingView) return;
+    // Wipe previous content
+    el.innerHTML = "";
 
-      widgetRef.current = new (window as any).TradingView.widget({
+    const div = document.createElement("div");
+    div.id = containerId;
+    div.style.width = "100%";
+    div.style.height = "100%";
+    el.appendChild(div);
+
+    function buildWidget() {
+      if (isCancelled || !(window as any).TradingView) return;
+
+      widget = new (window as any).TradingView.widget({
         container_id: containerId,
         width: "100%",
         height: "100%",
         symbol,
-        interval: active.value,
+        interval: activeInterval.value,
         timezone: "America/New_York",
         theme: "dark",
         style: "8",
@@ -127,59 +121,72 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
         },
       });
 
-      widgetRef.current.onChartReady(() => {
-        readyRef.current = true;
+      widget.onChartReady(() => {
+        if (isCancelled) return;
 
         // Restore saved drawings
         try {
           const saved = localStorage.getItem(storageKey);
-          if (saved) widgetRef.current.load(JSON.parse(saved));
+          if (saved) widget.load(JSON.parse(saved));
         } catch {}
 
-        // Periodic auto-save every 10s
-        const saveId = setInterval(() => {
+        // Auto-save every 10s
+        saveTimer = setInterval(() => {
+          if (isCancelled) return;
           try {
-            widgetRef.current?.save((state: any) => {
+            widget?.save((state: any) => {
               try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch {}
             });
           } catch {}
         }, 10_000);
-
-        widgetRef.current.__saveTimer = saveId;
       });
     }
 
     if ((window as any).TradingView) {
-      createWidget();
+      buildWidget();
     } else {
-      const script = document.createElement("script");
-      script.src = "https://s3.tradingview.com/tv.js";
-      script.async = true;
-      script.onload = createWidget;
-      el.appendChild(script);
+      // Load tv.js once, then build
+      const existing = document.querySelector('script[src*="tradingview.com/tv.js"]');
+      if (existing) {
+        // Script tag exists but TradingView not ready yet — poll briefly
+        let attempts = 0;
+        const poll = setInterval(() => {
+          attempts++;
+          if ((window as any).TradingView) {
+            clearInterval(poll);
+            buildWidget();
+          } else if (attempts > 50) {
+            clearInterval(poll);
+          }
+        }, 100);
+      } else {
+        const script = document.createElement("script");
+        script.src = "https://s3.tradingview.com/tv.js";
+        script.async = true;
+        script.onload = buildWidget;
+        document.head.appendChild(script);
+      }
     }
 
     return () => {
-      try { clearInterval(widgetRef.current?.__saveTimer); } catch {}
+      isCancelled = true;
+      if (saveTimer) clearInterval(saveTimer);
+      // Save drawings before unmount
       try {
-        if (widgetRef.current && readyRef.current) {
-          widgetRef.current.save((state: any) => {
-            try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch {}
-          });
-        }
+        widget?.save((state: any) => {
+          try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch {}
+        });
       } catch {}
-      readyRef.current = false;
-      widgetRef.current = null;
+      widget = null;
       if (el) el.innerHTML = "";
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbol, active.value, uid]);
+  }, [symbol, activeInterval.value]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const urgent = secs <= 60;
 
   return (
     <div className="w-full flex flex-col" style={{ height }}>
-      {/* Custom toolbar */}
+      {/* Toolbar */}
       <div
         className="flex items-center justify-between px-3 shrink-0"
         style={{
@@ -192,10 +199,10 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
           {INTERVALS.map((iv) => (
             <button
               key={iv.value}
-              onClick={() => setActive(iv)}
+              onClick={() => setActiveInterval(iv)}
               className={cn(
                 "px-2.5 py-1 rounded text-[11px] font-semibold transition-all",
-                active.value === iv.value
+                activeInterval.value === iv.value
                   ? "bg-[hsl(142,71%,45%)]/15 text-[hsl(142,71%,45%)] border border-[hsl(142,71%,45%)]/30"
                   : "text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent"
               )}
@@ -220,15 +227,13 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
             {fmt(secs)}
           </span>
           <span className="text-[9px] uppercase tracking-widest text-gray-600">
-            {active.label} close
+            {activeInterval.label} close
           </span>
         </div>
       </div>
 
-      {/* Chart */}
+      {/* Chart container */}
       <div ref={containerRef} className="flex-1 w-full min-h-0" style={{ background: "#000000" }} />
     </div>
   );
 }
-
-export const TradingViewChart = memo(TradingViewChartInner);
