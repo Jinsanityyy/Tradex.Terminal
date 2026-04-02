@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Target, Zap, CalendarDays, UserCircle,
   Grid3X3, Clock, Newspaper, BrainCircuit, Settings,
-  ChevronLeft,
+  ChevronLeft, BarChart2,
 } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 
@@ -21,6 +21,7 @@ const navItems = [
   { label: "Session Intelligence", href: "/dashboard/session-intelligence", icon: Clock },
   { label: "News Flow", href: "/dashboard/news-flow", icon: Newspaper },
   { label: "AI Briefing", href: "/dashboard/ai-briefing", icon: BrainCircuit },
+  { label: "PnL Calendar", href: "/dashboard/pnl-calendar", icon: BarChart2, accent2: true },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
@@ -102,7 +103,8 @@ export function Sidebar() {
                   className={cn(
                     "h-[18px] w-[18px] shrink-0 transition-colors",
                     isActive ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--foreground))]",
-                    item.accent && !isActive && "text-amber-500/70"
+                    item.accent && !isActive && "text-amber-500/70",
+                    (item as any).accent2 && !isActive && "text-emerald-400/80"
                   )}
                 />
                 {!collapsed && (
