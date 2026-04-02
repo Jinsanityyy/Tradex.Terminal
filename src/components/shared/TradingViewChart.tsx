@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import { Timer } from "lucide-react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import { Timer, Search, X, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TradingViewChartProps {
@@ -18,6 +18,53 @@ const INTERVALS = [
   { label: "4H",  value: "240", minutes: 240 },
   { label: "1D",  value: "D",   minutes: 1440 },
 ];
+
+const QUICK_SYMBOLS = [
+  { group: "Metals",  items: [
+    { label: "XAU/USD", value: "OANDA:XAUUSD" },
+    { label: "XAG/USD", value: "OANDA:XAGUSD" },
+  ]},
+  { group: "Forex", items: [
+    { label: "EUR/USD", value: "OANDA:EURUSD" },
+    { label: "GBP/USD", value: "OANDA:GBPUSD" },
+    { label: "USD/JPY", value: "OANDA:USDJPY" },
+    { label: "AUD/USD", value: "OANDA:AUDUSD" },
+    { label: "USD/CAD", value: "OANDA:USDCAD" },
+    { label: "USD/CHF", value: "OANDA:USDCHF" },
+    { label: "NZD/USD", value: "OANDA:NZDUSD" },
+    { label: "EUR/GBP", value: "OANDA:EURGBP" },
+  ]},
+  { group: "Crypto", items: [
+    { label: "BTC/USD", value: "COINBASE:BTCUSD" },
+    { label: "ETH/USD", value: "COINBASE:ETHUSD" },
+    { label: "SOL/USD", value: "COINBASE:SOLUSD" },
+    { label: "XRP/USD", value: "BITSTAMP:XRPUSD" },
+    { label: "BNB/USD", value: "BINANCE:BNBUSDT" },
+    { label: "ADA/USD", value: "COINBASE:ADAUSD" },
+    { label: "DOGE/USD","value": "BINANCE:DOGEUSDT" },
+    { label: "AVAX/USD", value: "COINBASE:AVAXUSD" },
+  ]},
+  { group: "Indices", items: [
+    { label: "US500",   value: "SP:SPX" },
+    { label: "NAS100",  value: "NASDAQ:NDX" },
+    { label: "US30",    value: "DJ:DJI" },
+    { label: "GER40",   value: "XETR:DAX" },
+    { label: "UK100",   value: "SPREADEX:UK100" },
+  ]},
+  { group: "Commodities", items: [
+    { label: "WTI Oil", value: "TVC:USOIL" },
+    { label: "Brent",   value: "TVC:UKOIL" },
+    { label: "Nat Gas", value: "TVC:NATURALGAS" },
+  ]},
+];
+
+// Flat list for search
+const ALL_SYMBOLS = QUICK_SYMBOLS.flatMap(g => g.items.map(i => ({ ...i, group: g.group })));
+
+function getLabel(tvSymbol: string) {
+  const found = ALL_SYMBOLS.find(s => s.value === tvSymbol);
+  return found ? found.label : tvSymbol.split(":")[1] ?? tvSymbol;
+}
 
 function secondsToClose(mins: number): number {
   const nowMs = Date.now();
@@ -37,13 +84,46 @@ function chartStorageKey(symbol: string) {
   return `tradex_chart_${symbol.replace(/[^a-z0-9]/gi, "_")}`;
 }
 
-// Incrementing counter to guarantee unique container IDs across remounts
 let widgetCounter = 0;
 
-export function TradingViewChart({ symbol = "OANDA:XAUUSD", height = 400 }: TradingViewChartProps) {
+export function TradingViewChart({ symbol: initialSymbol = "OANDA:XAUUSD", height = 400 }: TradingViewChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [activeInterval, setActiveInterval] = useState(INTERVALS[4]); // 1H default
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const [activeSymbol, setActiveSymbol] = useState(initialSymbol);
+  const [activeInterval, setActiveInterval] = useState(INTERVALS[4]); // 1H
   const [secs, setSecs] = useState(() => secondsToClose(60));
+
+  // Symbol picker state
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const filtered = query.trim()
+    ? ALL_SYMBOLS.filter(s =>
+        s.label.toLowerCase().includes(query.toLowerCase()) ||
+        s.value.toLowerCase().includes(query.toLowerCase()) ||
+        s.group.toLowerCase().includes(query.toLowerCase())
+      )
+    : null;
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!pickerOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setPickerOpen(false);
+        setQuery("");
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [pickerOpen]);
+
+  const selectSymbol = useCallback((value: string) => {
+    setActiveSymbol(value);
+    setPickerOpen(false);
+    setQuery("");
+  }, []);
 
   // Countdown timer
   useEffect(() => {
@@ -52,7 +132,7 @@ export function TradingViewChart({ symbol = "OANDA:XAUUSD", height = 400 }: Trad
     return () => clearInterval(id);
   }, [activeInterval.minutes]);
 
-  // Chart rebuild — fires on symbol OR interval change
+  // Chart rebuild on symbol OR interval change
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -61,13 +141,10 @@ export function TradingViewChart({ symbol = "OANDA:XAUUSD", height = 400 }: Trad
     let saveTimer: ReturnType<typeof setInterval> | null = null;
     let widget: any = null;
 
-    // Give a unique ID every rebuild so TradingView never reuses a stale container
     const containerId = `tv_widget_${++widgetCounter}`;
-    const storageKey = chartStorageKey(symbol);
+    const storageKey = chartStorageKey(activeSymbol);
 
-    // Wipe previous content
     el.innerHTML = "";
-
     const div = document.createElement("div");
     div.id = containerId;
     div.style.width = "100%";
@@ -82,7 +159,7 @@ export function TradingViewChart({ symbol = "OANDA:XAUUSD", height = 400 }: Trad
           container_id: containerId,
           width: "100%",
           height: "100%",
-          symbol,
+          symbol: activeSymbol,
           interval: activeInterval.value,
           timezone: "America/New_York",
           theme: "dark",
@@ -133,14 +210,11 @@ export function TradingViewChart({ symbol = "OANDA:XAUUSD", height = 400 }: Trad
 
       widget.onChartReady(() => {
         if (isCancelled) return;
-
-        // Restore saved drawings
         try {
           const saved = localStorage.getItem(storageKey);
           if (saved && typeof widget?.load === "function") widget.load(JSON.parse(saved));
         } catch {}
 
-        // Auto-save every 10s
         saveTimer = setInterval(() => {
           if (isCancelled) return;
           try {
@@ -157,19 +231,13 @@ export function TradingViewChart({ symbol = "OANDA:XAUUSD", height = 400 }: Trad
     if ((window as any).TradingView) {
       buildWidget();
     } else {
-      // Load tv.js once, then build
       const existing = document.querySelector('script[src*="tradingview.com/tv.js"]');
       if (existing) {
-        // Script tag exists but TradingView not ready yet — poll briefly
         let attempts = 0;
         const poll = setInterval(() => {
           attempts++;
-          if ((window as any).TradingView) {
-            clearInterval(poll);
-            buildWidget();
-          } else if (attempts > 50) {
-            clearInterval(poll);
-          }
+          if ((window as any).TradingView) { clearInterval(poll); buildWidget(); }
+          else if (attempts > 50) clearInterval(poll);
         }, 100);
       } else {
         const script = document.createElement("script");
@@ -183,16 +251,17 @@ export function TradingViewChart({ symbol = "OANDA:XAUUSD", height = 400 }: Trad
     return () => {
       isCancelled = true;
       if (saveTimer) clearInterval(saveTimer);
-      // Save drawings before unmount
       try {
-        widget?.save((state: any) => {
-          try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch {}
-        });
+        if (typeof widget?.save === "function") {
+          widget.save((state: any) => {
+            try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch {}
+          });
+        }
       } catch {}
       widget = null;
       if (el) el.innerHTML = "";
     };
-  }, [symbol, activeInterval.value]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeSymbol, activeInterval.value]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const urgent = secs <= 60;
 
@@ -200,20 +269,113 @@ export function TradingViewChart({ symbol = "OANDA:XAUUSD", height = 400 }: Trad
     <div className="w-full flex flex-col" style={{ height }}>
       {/* Toolbar */}
       <div
-        className="flex items-center justify-between px-3 shrink-0"
+        className="flex items-center justify-between px-3 shrink-0 gap-2"
         style={{
-          height: 38,
+          height: 42,
           background: "#0a0e1a",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
         }}
       >
-        <div className="flex items-center gap-0.5">
+        {/* Left: Symbol picker + intervals */}
+        <div className="flex items-center gap-1.5 min-w-0">
+          {/* Symbol picker button */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setPickerOpen(v => !v)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-semibold border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all text-white"
+            >
+              <span>{getLabel(activeSymbol)}</span>
+              <ChevronDown className="h-3 w-3 text-gray-400" />
+            </button>
+
+            {pickerOpen && (
+              <div
+                className="absolute top-full left-0 mt-1.5 z-50 rounded-lg overflow-hidden"
+                style={{
+                  width: 260,
+                  background: "#0d1117",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  boxShadow: "0 16px 40px rgba(0,0,0,0.7)",
+                }}
+              >
+                {/* Search input */}
+                <div className="flex items-center gap-2 px-3 py-2 border-b border-white/8">
+                  <Search className="h-3.5 w-3.5 text-gray-500 shrink-0" />
+                  <input
+                    autoFocus
+                    type="text"
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    placeholder="Search symbol..."
+                    className="flex-1 bg-transparent text-[12px] text-white placeholder-gray-600 outline-none"
+                  />
+                  {query && (
+                    <button onClick={() => setQuery("")}>
+                      <X className="h-3 w-3 text-gray-500 hover:text-white" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Results */}
+                <div style={{ maxHeight: 280, overflowY: "auto" }}>
+                  {filtered ? (
+                    filtered.length === 0 ? (
+                      <div className="px-4 py-6 text-center text-[11px] text-gray-600">No results for "{query}"</div>
+                    ) : (
+                      <div className="py-1">
+                        {filtered.map(s => (
+                          <button
+                            key={s.value}
+                            onClick={() => selectSymbol(s.value)}
+                            className={cn(
+                              "w-full flex items-center justify-between px-3 py-2 text-[12px] transition-colors hover:bg-white/5",
+                              activeSymbol === s.value ? "text-[hsl(142,71%,45%)] bg-[hsl(142,71%,45%)]/8" : "text-gray-300"
+                            )}
+                          >
+                            <span className="font-medium">{s.label}</span>
+                            <span className="text-[10px] text-gray-600 font-mono">{s.group}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )
+                  ) : (
+                    // Grouped browse
+                    QUICK_SYMBOLS.map(group => (
+                      <div key={group.group}>
+                        <div className="px-3 py-1.5 text-[9px] font-semibold uppercase tracking-widest text-gray-600 border-b border-white/5">
+                          {group.group}
+                        </div>
+                        {group.items.map(s => (
+                          <button
+                            key={s.value}
+                            onClick={() => selectSymbol(s.value)}
+                            className={cn(
+                              "w-full flex items-center justify-between px-3 py-2 text-[12px] transition-colors hover:bg-white/5",
+                              activeSymbol === s.value ? "text-[hsl(142,71%,45%)] bg-[hsl(142,71%,45%)]/8" : "text-gray-300"
+                            )}
+                          >
+                            <span className="font-medium">{s.label}</span>
+                            <span className="text-[10px] text-gray-500 font-mono">{s.value.split(":")[1]}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="w-px h-4 bg-white/10 mx-0.5" />
+
+          {/* Interval buttons */}
           {INTERVALS.map((iv) => (
             <button
               key={iv.value}
               onClick={() => setActiveInterval(iv)}
               className={cn(
-                "px-2.5 py-1 rounded text-[11px] font-semibold transition-all",
+                "px-2 py-1 rounded text-[11px] font-semibold transition-all",
                 activeInterval.value === iv.value
                   ? "bg-[hsl(142,71%,45%)]/15 text-[hsl(142,71%,45%)] border border-[hsl(142,71%,45%)]/30"
                   : "text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent"
@@ -224,8 +386,9 @@ export function TradingViewChart({ symbol = "OANDA:XAUUSD", height = 400 }: Trad
           ))}
         </div>
 
+        {/* Right: Candle close timer */}
         <div
-          className="flex items-center gap-1.5 rounded-md px-2.5 py-1"
+          className="flex items-center gap-1.5 rounded-md px-2.5 py-1 shrink-0"
           style={{
             background: urgent ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.04)",
             border: `1px solid ${urgent ? "rgba(239,68,68,0.35)" : "rgba(255,255,255,0.08)"}`,
