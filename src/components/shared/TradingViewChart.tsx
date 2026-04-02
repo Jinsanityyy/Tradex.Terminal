@@ -77,49 +77,59 @@ export function TradingViewChart({ symbol = "OANDA:XAUUSD", height = 400 }: Trad
     function buildWidget() {
       if (isCancelled || !(window as any).TradingView) return;
 
-      widget = new (window as any).TradingView.widget({
-        container_id: containerId,
-        width: "100%",
-        height: "100%",
-        symbol,
-        interval: activeInterval.value,
-        timezone: "America/New_York",
-        theme: "dark",
-        style: "8",
-        locale: "en",
-        toolbar_bg: "#000000",
-        enable_publishing: false,
-        hide_top_toolbar: true,
-        hide_side_toolbar: false,
-        allow_symbol_change: false,
-        save_image: false,
-        studies: [],
-        disabled_features: [
-          "create_volume_indicator_by_default",
-          "header_fullscreen_button",
-          "left_toolbar",
-        ],
-        backgroundColor: "rgba(0,0,0,1)",
-        gridColor: "rgba(0,0,0,0)",
-        overrides: {
-          "mainSeriesProperties.haStyle.upColor": "#5fc77a",
-          "mainSeriesProperties.haStyle.downColor": "#ef4444",
-          "mainSeriesProperties.haStyle.wickUpColor": "#5fc77a",
-          "mainSeriesProperties.haStyle.wickDownColor": "#ef4444",
-          "mainSeriesProperties.haStyle.borderUpColor": "#5fc77a",
-          "mainSeriesProperties.haStyle.borderDownColor": "#ef4444",
-          "paneProperties.background": "#000000",
-          "paneProperties.backgroundType": "solid",
-          "paneProperties.vertGridProperties.color": "#000000",
-          "paneProperties.vertGridProperties.style": 0,
-          "paneProperties.horzGridProperties.color": "#000000",
-          "paneProperties.horzGridProperties.style": 0,
-          "scalesProperties.textColor": "#6b7280",
-          "scalesProperties.fontSize": 11,
-          "scalesProperties.backgroundColor": "#000000",
-          "mainSeriesProperties.showVolume": false,
-        },
-      });
+      try {
+        widget = new (window as any).TradingView.widget({
+          container_id: containerId,
+          width: "100%",
+          height: "100%",
+          symbol,
+          interval: activeInterval.value,
+          timezone: "America/New_York",
+          theme: "dark",
+          style: "8",
+          locale: "en",
+          toolbar_bg: "#000000",
+          enable_publishing: false,
+          hide_top_toolbar: true,
+          hide_side_toolbar: false,
+          allow_symbol_change: false,
+          save_image: false,
+          studies: [],
+          disabled_features: [
+            "create_volume_indicator_by_default",
+            "header_fullscreen_button",
+            "left_toolbar",
+          ],
+          backgroundColor: "rgba(0,0,0,1)",
+          gridColor: "rgba(0,0,0,0)",
+          overrides: {
+            "mainSeriesProperties.haStyle.upColor": "#5fc77a",
+            "mainSeriesProperties.haStyle.downColor": "#ef4444",
+            "mainSeriesProperties.haStyle.wickUpColor": "#5fc77a",
+            "mainSeriesProperties.haStyle.wickDownColor": "#ef4444",
+            "mainSeriesProperties.haStyle.borderUpColor": "#5fc77a",
+            "mainSeriesProperties.haStyle.borderDownColor": "#ef4444",
+            "paneProperties.background": "#000000",
+            "paneProperties.backgroundType": "solid",
+            "paneProperties.vertGridProperties.color": "#000000",
+            "paneProperties.vertGridProperties.style": 0,
+            "paneProperties.horzGridProperties.color": "#000000",
+            "paneProperties.horzGridProperties.style": 0,
+            "scalesProperties.textColor": "#6b7280",
+            "scalesProperties.fontSize": 11,
+            "scalesProperties.backgroundColor": "#000000",
+            "mainSeriesProperties.showVolume": false,
+          },
+        });
+      } catch (e) {
+        console.warn("[TradingView] widget constructor failed:", e);
+        return;
+      }
+
+      if (!widget || typeof widget.onChartReady !== "function") {
+        console.warn("[TradingView] widget missing onChartReady — skipping");
+        return;
+      }
 
       widget.onChartReady(() => {
         if (isCancelled) return;
@@ -127,16 +137,18 @@ export function TradingViewChart({ symbol = "OANDA:XAUUSD", height = 400 }: Trad
         // Restore saved drawings
         try {
           const saved = localStorage.getItem(storageKey);
-          if (saved) widget.load(JSON.parse(saved));
+          if (saved && typeof widget?.load === "function") widget.load(JSON.parse(saved));
         } catch {}
 
         // Auto-save every 10s
         saveTimer = setInterval(() => {
           if (isCancelled) return;
           try {
-            widget?.save((state: any) => {
-              try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch {}
-            });
+            if (typeof widget?.save === "function") {
+              widget.save((state: any) => {
+                try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch {}
+              });
+            }
           } catch {}
         }, 10_000);
       });
