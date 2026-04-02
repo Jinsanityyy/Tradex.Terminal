@@ -52,15 +52,26 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
     return () => clearInterval(id);
   }, [active.minutes]);
 
-  // Build widget once per symbol
+  // Rebuild widget on symbol OR interval change
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    el.innerHTML = "";
+
+    // Save drawings before destroying previous widget
+    try {
+      if (widgetRef.current && readyRef.current) {
+        widgetRef.current.save((state: any) => {
+          try { localStorage.setItem(chartStorageKey(symbol), JSON.stringify(state)); } catch {}
+        });
+      }
+    } catch {}
+
+    try { clearInterval(widgetRef.current?.__saveTimer); } catch {}
     readyRef.current = false;
     widgetRef.current = null;
+    el.innerHTML = "";
 
-    const containerId = `tv_${uid}`;
+    const containerId = `tv_${uid}_${active.value}`;
     const div = document.createElement("div");
     div.id = containerId;
     div.style.height = "100%";
@@ -125,7 +136,7 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
           if (saved) widgetRef.current.load(JSON.parse(saved));
         } catch {}
 
-        // Periodic auto-save every 10s — no event subscription needed
+        // Periodic auto-save every 10s
         const saveId = setInterval(() => {
           try {
             widgetRef.current?.save((state: any) => {
@@ -134,7 +145,6 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
           } catch {}
         }, 10_000);
 
-        // Store timer id on widget so cleanup can cancel it
         widgetRef.current.__saveTimer = saveId;
       });
     }
@@ -151,7 +161,6 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
 
     return () => {
       try { clearInterval(widgetRef.current?.__saveTimer); } catch {}
-      // Save before destroying
       try {
         if (widgetRef.current && readyRef.current) {
           widgetRef.current.save((state: any) => {
@@ -164,27 +173,7 @@ function TradingViewChartInner({ symbol = "OANDA:XAUUSD", height = 400 }: Tradin
       if (el) el.innerHTML = "";
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbol, uid]);
-
-  // Switch interval without rebuilding (drawings stay intact)
-  useEffect(() => {
-    if (!widgetRef.current) return;
-
-    const apply = () => {
-      try {
-        widgetRef.current.chart().setResolution(active.value, () => {});
-      } catch {}
-    };
-
-    if (readyRef.current) {
-      apply();
-    } else {
-      const poll = setInterval(() => {
-        if (readyRef.current) { clearInterval(poll); apply(); }
-      }, 200);
-      return () => clearInterval(poll);
-    }
-  }, [active.value]);
+  }, [symbol, active.value, uid]);
 
   const urgent = secs <= 60;
 
