@@ -21,7 +21,12 @@ export default function DashboardError({
       </div>
       <div className="text-center">
         <p className="text-sm font-semibold text-white mb-1">Something went wrong</p>
-        <p className="text-xs text-gray-500 max-w-xs">A component failed to load. Try reloading the page.</p>
+        <p className="text-xs text-gray-500 max-w-xs mb-2">A component failed to load. Try reloading the page.</p>
+        {error?.message && (
+          <p className="text-[10px] text-red-400 font-mono bg-red-500/10 border border-red-500/20 rounded px-3 py-1.5 max-w-sm break-all">
+            {error.message}
+          </p>
+        )}
       </div>
       <button
         onClick={reset}
