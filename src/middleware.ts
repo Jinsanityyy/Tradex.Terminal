@@ -1,3 +1,4 @@
+import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
 const MOBILE_UA = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/i;
@@ -10,25 +11,47 @@ function isMobile(req: NextRequest) {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Skip static assets, API routes, and auth pages
+  // ── Supabase session refresh ────────────────────────────────────────────────
+  // REQUIRED by @supabase/ssr: refreshes the JWT so server-side getUser() works.
+  // Without this, all API routes return "Unauthorized" even when logged in.
+  let response = NextResponse.next({ request: req });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return req.cookies.getAll(); },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => req.cookies.set(name, value));
+          response = NextResponse.next({ request: req });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
+  // Refreshes the session token — do not remove
+  await supabase.auth.getUser();
+
+  // ── Mobile redirect ─────────────────────────────────────────────────────────
   const isStatic = pathname.startsWith("/_next") || pathname.startsWith("/api") || pathname.startsWith("/favicon");
   const isLoginPage = pathname === "/login";
-  if (isStatic || isLoginPage) return NextResponse.next();
+  if (!isStatic && !isLoginPage) {
+    const mobile = isMobile(req);
+    const onMobileRoute = pathname.startsWith("/m");
 
-  const mobile = isMobile(req);
-  const onMobileRoute = pathname.startsWith("/m");
-
-  // Mobile device visiting desktop → redirect to /m
-  if (mobile && !onMobileRoute) {
-    return NextResponse.redirect(new URL("/m", req.url));
+    if (mobile && !onMobileRoute) {
+      return NextResponse.redirect(new URL("/m", req.url));
+    }
+    if (!mobile && onMobileRoute) {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
   }
 
-  // Desktop browser visiting /m → redirect to /dashboard
-  if (!mobile && onMobileRoute) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
-  }
-
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {
