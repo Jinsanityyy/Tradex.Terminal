@@ -208,6 +208,131 @@ function analyzeEvent(
   };
 }
 
+// ── Post-event narrative (completed events only) ──────────────────────────────
+function generatePostEvent(title: string, forecast: string, previous: string): {
+  postEventSummary: string;
+  postEventBullets: string[];
+} {
+  const t = title.toLowerCase();
+
+  // ── Fed Chair / Fed Speaker ──
+  if (t.includes("powell") || (t.includes("fed") && (t.includes("speak") || t.includes("chair") || t.includes("press")))) {
+    return {
+      postEventSummary:
+        "Powell's remarks have concluded. The market will now price in the directional tone of the speech over the next 30–60 minutes. A hawkish tone (inflation concern, delayed cuts, rate-hike talk) is bearish for Gold and bullish for USD. A dovish tone (growth concern, cooling inflation, rate-cut hints) is bullish for Gold and bearish for USD. The first 15 minutes after a Fed speech often sees the sharpest move — check whether Gold extended or reversed from pre-speech levels to confirm market interpretation.",
+      postEventBullets: [
+        "Check Gold's 15-min chart vs pre-speech price — direction of move = market's read on Powell",
+        "If Gold dropped → hawkish tone interpreted → sell rallies, watch DXY for further strength",
+        "If Gold rallied → dovish tone interpreted → buy dips, watch DXY for weakness",
+        "Look for a 30-min retest after the initial spike — that's often the best entry",
+        "Watch USDJPY: rising = hawkish, falling = dovish (confirms Gold direction)",
+      ],
+    };
+  }
+
+  // ── FOMC Rate Decision ──
+  if (t.includes("fomc") || (t.includes("rate") && t.includes("decision"))) {
+    return {
+      postEventSummary:
+        "The FOMC rate decision has been released. The outcome is now priced into markets. Key focus shifts to the statement language and any projected rate path changes. If the committee signaled fewer cuts ahead (hawkish hold), Gold faces downward pressure and USD strengthens. If the statement indicated concern about growth or opened the door to cuts (dovish), Gold should be rallying and USD selling off. Any surprise deviation from the expected path creates multi-session trending moves.",
+      postEventBullets: [
+        "Compare Gold price now vs 1 hour before decision — this tells you how the market read it",
+        "Check if DXY broke above or below its pre-decision level",
+        "If rates held and statement was neutral: expect range-bound for 1–2 sessions before next catalyst",
+        "Rate cut = strong Gold buy signal — hold longs for multi-day move",
+        "Rate hike (rare): strong sell Gold, strong buy USD across the board",
+      ],
+    };
+  }
+
+  // ── CPI / PCE / Inflation ──
+  if (t.includes("cpi") || t.includes("pce") || t.includes("inflation")) {
+    const fc = parseFloat(forecast), pr = parseFloat(previous);
+    const hot = !isNaN(fc) && !isNaN(pr) && fc > pr;
+    const cold = !isNaN(fc) && !isNaN(pr) && fc < pr;
+    return {
+      postEventSummary: hot
+        ? `Inflation came in hotter than previous (${forecast} vs ${previous}). This reinforces the Fed's hawkish stance — rate cuts are pushed further out. Gold is under pressure as real yields rise. USD is likely bid. Any Gold bounce from here should be treated as a sell opportunity until the next data point shows cooling.`
+        : cold
+        ? `Inflation printed softer than previous (${forecast} vs ${previous}). This increases rate-cut expectations, which is bullish for Gold and bearish for USD. Watch for Gold to break above the pre-release resistance level. This is a buy-the-dips environment for Gold in the near term.`
+        : `Inflation printed in line with expectations. Markets will re-anchor around the current Fed narrative. With no major surprise, Gold may consolidate before the next catalyst. Watch for the Fed's next commentary for direction.`,
+      postEventBullets: hot
+        ? [
+            "Sell Gold rallies — hot CPI = no rate cuts soon",
+            "Watch DXY: should strengthen on CPI beat",
+            "Look for Gold to test support — a break lower opens next major S level",
+            "USDJPY likely rising — USD bids dominant",
+            "Avoid long Gold until next month's CPI or dovish Fed commentary",
+          ]
+        : cold
+        ? [
+            "Buy Gold dips — cooling inflation = rate cuts getting closer",
+            "DXY likely falling — USD weakness across the board",
+            "Gold may break above key resistance — watch for breakout setup",
+            "EURUSD, GBPUSD should rally vs USD",
+            "This is a multi-session bullish Gold signal — hold longs with patience",
+          ]
+        : [
+            "No major surprise — avoid overtrading",
+            "Watch the Fed's next speech for fresh direction",
+            "Gold likely to consolidate in the current range",
+            "Only trade confirmed breakout above resistance or below support",
+          ],
+    };
+  }
+
+  // ── NFP ──
+  if (t.includes("nonfarm") || t.includes("non-farm") || t.includes("nfp") || t.includes("payroll")) {
+    const fc = parseFloat(forecast), pr = parseFloat(previous);
+    const strong = !isNaN(fc) && !isNaN(pr) && fc > pr;
+    return {
+      postEventSummary: strong
+        ? `Jobs data came in strong (${forecast}K vs previous ${previous}K). A robust labor market signals the economy can handle higher rates for longer — this is bearish for Gold and bullish for USD. The initial NFP spike in Gold is often faded. Watch for Gold to roll over from the pre-release level and continue lower.`
+        : `Jobs data printed weaker or in line (${forecast}K vs previous ${previous}K). Softer employment raises recession concerns and boosts rate-cut expectations — bullish for Gold. Any sell-off in Gold on the print should be bought, especially if the number is a significant miss.`,
+      postEventBullets: strong
+        ? [
+            "Sell Gold on any bounce — strong NFP = delayed rate cuts",
+            "DXY likely bid — look for long USD setups across pairs",
+            "Gold first-hour rejection = confirmation of bearish bias",
+            "Watch USDJPY: strong NFP = USDJPY rising",
+            "Key risk: if jobs are strong but wages soft, Gold may recover",
+          ]
+        : [
+            "Buy Gold dips — weak jobs = rate cut bets rising",
+            "First 15 min spike often retraces — buy the dip, not the spike",
+            "DXY should weaken — EURUSD, Gold, GBPUSD benefit",
+            "Watch Gold's next resistance level for breakout confirmation",
+          ],
+    };
+  }
+
+  // ── GDP ──
+  if (t.includes("gdp")) {
+    const fc = parseFloat(forecast), pr = parseFloat(previous);
+    const beat = !isNaN(fc) && !isNaN(pr) && fc > pr;
+    return {
+      postEventSummary: beat
+        ? `GDP printed strong (${forecast}% vs ${previous}%). A growing economy reduces safe-haven demand and supports the Fed's higher-for-longer stance. Gold faces downward pressure in the short term while USD benefits.`
+        : `GDP came in soft or as expected (${forecast}% vs ${previous}%). Slowing growth increases recession risk and rate-cut bets — this environment is typically bullish for Gold. Watch for sustained Gold buying.`,
+      postEventBullets: beat
+        ? ["Sell Gold on rallies — strong growth = risk-on", "Watch DXY for further USD strength"]
+        : ["Buy Gold dips — slow growth = Fed cuts closer", "Risk-off sentiment should support Gold multi-session"],
+    };
+  }
+
+  // ── Default completed event ──
+  return {
+    postEventSummary:
+      `This event has concluded. The market impact is now priced in. Compare the current price of Gold and DXY against their pre-event levels to gauge the market's interpretation. A significant deviation from forecast typically produces 30–90 minute directional moves that can extend into the next session.`,
+    postEventBullets: [
+      "Check Gold price now vs 1 hour before the event",
+      "If Gold moved >$10: a directional trend is confirmed — trade in that direction",
+      "If Gold barely moved: event was in-line with expectations — wait for next catalyst",
+      "Watch DXY for USD strength/weakness confirmation",
+    ],
+  };
+}
+
 export async function GET() {
   if (cache.data.length > 0 && Date.now() - cache.ts < CACHE_TTL) {
     return NextResponse.json({ data: cache.data, timestamp: cache.ts, cached: true });
@@ -246,6 +371,7 @@ export async function GET() {
         }
 
         const analysis = analyzeEvent(e.title, e.forecast, e.previous, isPast);
+        const post = isPast ? generatePostEvent(e.title, e.forecast, e.previous) : null;
 
         return {
           id: `ec-${i}`,
@@ -271,6 +397,8 @@ export async function GET() {
           usdImpact: analysis.usdImpact,
           usdReasoning: analysis.usdReasoning,
           tradeImplication: analysis.tradeImplication,
+          postEventSummary: post?.postEventSummary,
+          postEventBullets: post?.postEventBullets,
         };
       });
 

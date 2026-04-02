@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus, Target, Shield } from "lucide-react";
+import { Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus, Target, Shield, BookOpen, ChevronRight } from "lucide-react";
 import type { EconomicEvent } from "@/types";
 import { DetailModal } from "./DetailModal";
 
@@ -30,12 +30,19 @@ function ImpactBadge({ impact, label }: { impact?: "bullish" | "bearish" | "neut
 }
 
 function EventDetail({ ev }: { ev: EconomicEvent }) {
+  const isCompleted = ev.status === "completed";
+
   return (
     <div className="space-y-4">
-      {/* Time + numbers */}
+      {/* Time + status */}
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-[11px] font-mono text-[hsl(var(--muted-foreground))]">{ev.time} ET</span>
         <Badge variant="high" className="text-[9px]">HIGH IMPACT</Badge>
+        {isCompleted && (
+          <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-400">
+            <CheckCircle2 className="h-2.5 w-2.5" /> COMPLETED
+          </span>
+        )}
       </div>
 
       {/* Forecast / Previous / Actual */}
@@ -52,6 +59,38 @@ function EventDetail({ ev }: { ev: EconomicEvent }) {
         ))}
       </div>
 
+      {/* ── POST-EVENT SECTION (completed only) ─────────────────────────────── */}
+      {isCompleted && ev.postEventSummary && (
+        <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.05] overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-amber-500/15">
+            <BookOpen className="h-3.5 w-3.5 text-amber-400" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400">Post-Event Analysis</span>
+            <span className="ml-auto text-[9px] text-amber-400/50 uppercase tracking-wider">Event Concluded</span>
+          </div>
+
+          {/* Summary */}
+          <div className="px-3.5 py-3">
+            <p className="text-[12px] text-[hsl(var(--foreground))] leading-relaxed">{ev.postEventSummary}</p>
+          </div>
+
+          {/* Now Watch bullets */}
+          {ev.postEventBullets && ev.postEventBullets.length > 0 && (
+            <div className="px-3.5 pb-3.5 space-y-2">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-amber-400/70">Now Watch</p>
+              <ul className="space-y-1.5">
+                {ev.postEventBullets.map((b, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <ChevronRight className="h-3 w-3 text-amber-400/60 mt-0.5 shrink-0" />
+                    <span className="text-[11px] text-[hsl(var(--muted-foreground))] leading-snug">{b}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Impact badges */}
       <div className="flex gap-2 flex-wrap">
         <ImpactBadge impact={ev.goldImpact} label="GOLD" />
@@ -63,7 +102,9 @@ function EventDetail({ ev }: { ev: EconomicEvent }) {
         <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
           <div className="flex items-center gap-1.5">
             <Target className="h-3.5 w-3.5 text-amber-400" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Gold Analysis</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">
+              {isCompleted ? "Gold Context" : "Gold Analysis"}
+            </span>
           </div>
           <p className="text-xs text-[hsl(var(--foreground))] leading-relaxed">{ev.goldReasoning}</p>
         </div>
@@ -74,14 +115,16 @@ function EventDetail({ ev }: { ev: EconomicEvent }) {
         <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
           <div className="flex items-center gap-1.5">
             <Shield className="h-3.5 w-3.5 text-blue-400" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">USD Analysis</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">
+              {isCompleted ? "USD Context" : "USD Analysis"}
+            </span>
           </div>
           <p className="text-xs text-[hsl(var(--foreground))] leading-relaxed">{ev.usdReasoning}</p>
         </div>
       )}
 
-      {/* Trade implication */}
-      {ev.tradeImplication && (
+      {/* Trade implication — hide for completed if we have post-event (already covered) */}
+      {ev.tradeImplication && !isCompleted && (
         <div className="rounded-lg border border-[hsl(var(--primary))]/20 bg-[hsl(var(--primary))]/5 p-3.5">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--primary))] mb-1.5">Trade Implication</p>
           <p className="text-xs text-[hsl(var(--foreground))] leading-relaxed">{ev.tradeImplication}</p>

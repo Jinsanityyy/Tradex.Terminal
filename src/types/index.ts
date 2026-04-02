@@ -74,6 +74,8 @@ export interface EconomicEvent {
   usdImpact?: "bullish" | "bearish" | "neutral";
   usdReasoning?: string;
   tradeImplication?: string;
+  postEventSummary?: string;   // AI narrative for completed events
+  postEventBullets?: string[]; // "Now watch" checklist for completed events
 }
 
 // Extended news item with optional URL/image from live feeds
