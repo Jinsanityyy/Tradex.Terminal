@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useEffect } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopStatusBar } from "@/components/layout/TopStatusBar";
 import { FloatingChat } from "@/components/shared/FloatingChat";
@@ -9,6 +10,12 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  useEffect(() => {
+    const block = (e: MouseEvent) => e.preventDefault();
+    document.addEventListener("contextmenu", block);
+    return () => document.removeEventListener("contextmenu", block);
+  }, []);
+
   return (
     <div className="flex min-h-screen bg-[hsl(var(--background))]" style={{ overflowX: "clip" }}>
       <Sidebar />

@@ -217,15 +217,21 @@ function generatePostEvent(title: string, forecast: string, previous: string): {
 
   // ── Fed Chair / Fed Speaker ──
   if (t.includes("powell") || (t.includes("fed") && (t.includes("speak") || t.includes("chair") || t.includes("press")))) {
+    const isPressConference = t.includes("press") || t.includes("conference");
     return {
       postEventSummary:
-        "Powell's remarks have concluded. The market will now price in the directional tone of the speech over the next 30–60 minutes. A hawkish tone (inflation concern, delayed cuts, rate-hike talk) is bearish for Gold and bullish for USD. A dovish tone (growth concern, cooling inflation, rate-cut hints) is bullish for Gold and bearish for USD. The first 15 minutes after a Fed speech often sees the sharpest move — check whether Gold extended or reversed from pre-speech levels to confirm market interpretation.",
+        isPressConference
+          ? "Powell's press conference has concluded. In these sessions, Powell typically covers 5 core themes: (1) Current inflation trajectory and whether it's convincingly returning to 2%; (2) Labor market resilience — whether job growth is cooling or staying hot; (3) Rate path guidance — any hint of cuts, holds, or hikes and the timeline; (4) Balance sheet policy (QT pace); (5) External risks such as tariffs, geopolitics, or banking stress. The press conference Q&A often moves markets more than the prepared statement — reporters press Powell on rate cut timing, which creates the clearest directional signals. Watch how Gold behaved: if it fell sharply during Q&A, hawkish language dominated. If it rallied, dovish signals emerged."
+          : "Powell's speech has concluded. In this type of appearance, Powell typically addresses: (1) Whether inflation is on track to return to 2% — this is the primary gold driver; (2) The strength of the labor market and whether it's slowing; (3) The appropriate level of rates and how long they'll stay there; (4) Any concern about economic slowdown or financial stability. The market's reaction in the first 15 minutes post-speech reveals how it was interpreted. A Gold drop signals hawkish read; a Gold rally signals dovish read. The 30-minute retest after the initial move is often the cleaner entry.",
       postEventBullets: [
-        "Check Gold's 15-min chart vs pre-speech price — direction of move = market's read on Powell",
-        "If Gold dropped → hawkish tone interpreted → sell rallies, watch DXY for further strength",
-        "If Gold rallied → dovish tone interpreted → buy dips, watch DXY for weakness",
-        "Look for a 30-min retest after the initial spike — that's often the best entry",
-        "Watch USDJPY: rising = hawkish, falling = dovish (confirms Gold direction)",
+        "Key Topic 1 — INFLATION: If Powell said inflation is 'still elevated' or 'not confident' → hawkish → sell Gold on bounces",
+        "Key Topic 2 — LABOR: If Powell said jobs market is 'solid' or 'resilient' → delayed cuts → bearish Gold near-term",
+        "Key Topic 3 — RATE PATH: Any mention of 'two cuts this year' or 'further progress needed' is the single biggest price mover",
+        "Key Topic 4 — RISKS: Tariff/trade war mention = bullish Gold (safe haven demand spikes), watch for immediate Gold bid",
+        "Read Gold's 15-min chart: direction of move vs pre-speech levels = market's verdict on hawkish vs dovish",
+        "Watch DXY: rising = hawkish interpretation confirmed, falling = dovish confirmed",
+        "USDJPY rising post-speech = rate differential bets favor USD = sell Gold rallies",
+        "Best entry: wait for the 30-min retest after the initial spike — that move is cleaner and more sustained",
       ],
     };
   }

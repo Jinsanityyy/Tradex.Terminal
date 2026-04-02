@@ -47,7 +47,7 @@ function fmtFull(n: number): string {
 
 // ── Connect Exchange Modal ─────────────────────────────────────────────────────
 
-function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnected: () => void }) {
+function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnected: (conn: Connection) => void }) {
   const [exchange, setExchange] = useState<ExchangeKey>("binance");
   const [label, setLabel] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -83,8 +83,9 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      onConnected();
+      if (!res.ok) throw new Error(data.error ?? "Failed to connect — check your API keys and try again");
+      // Pass the new connection back immediately so the parent doesn't flash empty state
+      onConnected({ id: data.data.id, exchange, label: label.trim(), is_active: true });
       onClose();
     } catch (e: any) {
       setError(e.message);
@@ -285,12 +286,24 @@ export default function PnLCalendarPage() {
       ]);
       const pnlData = await pnlRes.json();
       const connData = await connRes.json();
+      if (Array.isArray(connData.data)) setConnections(connData.data);
       setDaily(pnlData.daily ?? []);
       setMonthly(pnlData.monthly ?? []);
-      setConnections(connData.data ?? []);
     } finally {
       setLoading(false);
     }
+  }
+
+  // Called immediately after a successful connect — injects the connection
+  // without waiting for a round-trip, preventing the flash-to-empty-state bug
+  function handleConnected(newConn: Connection) {
+    setConnections(prev => {
+      if (prev.find(c => c.id === newConn.id)) return prev;
+      return [...prev, newConn];
+    });
+    // Background re-fetch to get full data + auto-sync trades
+    loadData();
+    setTimeout(() => syncAll(), 800);
   }
 
   async function syncAll() {
@@ -305,6 +318,7 @@ export default function PnLCalendarPage() {
 
   async function deleteConnection(id: string) {
     if (!confirm("Remove this exchange connection?")) return;
+    setConnections(prev => prev.filter(c => c.id !== id));
     await fetch(`/api/exchanges/${id}`, { method: "DELETE" });
     await loadData();
   }
@@ -326,7 +340,7 @@ export default function PnLCalendarPage() {
   if (!loading && connections.length === 0) {
     return (
       <div className="space-y-5 max-w-5xl">
-        {showConnect && <ConnectModal onClose={() => setShowConnect(false)} onConnected={loadData} />}
+        {showConnect && <ConnectModal onClose={() => setShowConnect(false)} onConnected={handleConnected} />}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold text-[hsl(var(--foreground))]">PnL Calendar</h1>
@@ -366,7 +380,7 @@ export default function PnLCalendarPage() {
   // ── Main calendar view ──────────────────────────────────────────────────────
   return (
     <div className="space-y-5 max-w-7xl">
-      {showConnect && <ConnectModal onClose={() => setShowConnect(false)} onConnected={loadData} />}
+      {showConnect && <ConnectModal onClose={() => setShowConnect(false)} onConnected={handleConnected} />}
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
