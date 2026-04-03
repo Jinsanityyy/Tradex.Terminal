@@ -1,35 +1,61 @@
 "use client";
 
 import React, { useState } from "react";
-import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronUp, AlertTriangle, Zap } from "lucide-react";
+import { ChevronDown, ChevronUp, AlertTriangle, Zap, Settings2 } from "lucide-react";
 import type { KeyLevel } from "@/app/api/market/keylevels/route";
+
+// ── MT5 Pip Config per asset ──────────────────────────────────────────────────
+// pipMultiplier: how many pips per 1 price unit
+// pipVal01: USD value of 1 pip at 0.01 lot
+// maxPips: if SL pips exceed this, flag as unrealistic
+const PIP_CONFIG: Record<string, { multiplier: number; pipVal01: number; maxPips: number }> = {
+  XAUUSD: { multiplier: 100,   pipVal01: 0.10, maxPips: 1000 },
+  EURUSD: { multiplier: 10000, pipVal01: 0.10, maxPips: 500  },
+  GBPUSD: { multiplier: 10000, pipVal01: 0.10, maxPips: 500  },
+  USDJPY: { multiplier: 100,   pipVal01: 0.10, maxPips: 500  },
+  USDCAD: { multiplier: 10000, pipVal01: 0.10, maxPips: 500  },
+  BTCUSD: { multiplier: 1,     pipVal01: 0.10, maxPips: 10000 },
+};
+
+// ── Pip calculation ───────────────────────────────────────────────────────────
+
+function calcPips(a: number, b: number, asset: string): number {
+  const cfg = PIP_CONFIG[asset] ?? { multiplier: 100, pipVal01: 0.10, maxPips: 500 };
+  return Math.round(Math.abs(a - b) * cfg.multiplier);
+}
+
+function calcDollar(pips: number, lotSize: number, asset: string): number {
+  const cfg = PIP_CONFIG[asset] ?? { multiplier: 100, pipVal01: 0.10, maxPips: 500 };
+  return parseFloat((pips * (lotSize / 0.01) * cfg.pipVal01).toFixed(2));
+}
+
+function isUnrealistic(slPips: number, asset: string): boolean {
+  const cfg = PIP_CONFIG[asset] ?? { multiplier: 100, pipVal01: 0.10, maxPips: 500 };
+  return slPips > cfg.maxPips;
+}
 
 // ── Format helpers ────────────────────────────────────────────────────────────
 
 function fmt(price: number, asset: string): string {
   if (asset === "BTCUSD") return `$${price.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
-  if (asset === "XAUUSD") return price.toFixed(0);
+  if (asset === "XAUUSD") return price.toFixed(2);
   if (asset.includes("JPY")) return price.toFixed(2);
   return price.toFixed(4);
 }
 
-function dist(a: number, b: number, asset: string): string {
-  const d = Math.abs(a - b);
-  if (asset === "BTCUSD") return `$${d.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
-  if (asset === "XAUUSD") return `$${d.toFixed(0)}`;
-  if (asset.includes("JPY")) return `${d.toFixed(2)}`;
-  return `${Math.round(d * 10000)}p`;
+function fmtDollar(n: number, sign: "+" | "-"): string {
+  const s = n.toFixed(2);
+  return sign === "+" ? `+$${s}` : `-$${s}`;
 }
 
 function setupLabel(q: string): { label: string; color: string; glow: boolean } {
-  if (q === "A+") return { label: "A+", color: "#00C896", glow: true };
-  if (q === "A")  return { label: "A",  color: "#00C896", glow: false };
-  if (q === "B")  return { label: "B",  color: "#8B949E", glow: false };
-  return          { label: "NO TRADE", color: "#FF4D4F", glow: false };
+  if (q === "A+") return { label: "A+",      color: "#00C896", glow: true  };
+  if (q === "A")  return { label: "A",       color: "#00C896", glow: false };
+  if (q === "B")  return { label: "B",       color: "#8B949E", glow: false };
+  return                 { label: "NO TRADE", color: "#FF4D4F", glow: false };
 }
 
-function rrLabel(rr: number): { label: string; color: string } {
+function rrQuality(rr: number): { label: string; color: string } {
   if (rr >= 3.0) return { label: "STRONG",   color: "#00C896" };
   if (rr >= 2.5) return { label: "GOOD",     color: "#00C896" };
   if (rr >= 2.0) return { label: "FAIR",     color: "#8B949E" };
@@ -37,58 +63,85 @@ function rrLabel(rr: number): { label: string; color: string } {
   return               { label: "POOR",      color: "#FF4D4F" };
 }
 
-// ── Gradient R:R Bar ──────────────────────────────────────────────────────────
+// ── Gradient R:R Line ─────────────────────────────────────────────────────────
 
-function RRLine({
-  entry, sl, tp1, tp2, asset
-}: { entry: number; sl: number; tp1: number; tp2: number; asset: string }) {
-  const risk    = Math.abs(entry - sl);
-  const reward  = Math.abs(tp2 - entry);
-  const total   = risk + reward;
+function RRLine({ entry, sl, tp1, tp2, asset, lotSize }: {
+  entry: number; sl: number; tp1: number; tp2: number; asset: string; lotSize: number;
+}) {
+  const slPips   = calcPips(entry, sl,  asset);
+  const tp1Pips  = calcPips(entry, tp1, asset);
+  const tp2Pips  = calcPips(entry, tp2, asset);
+  const total    = slPips + tp2Pips;
   if (total === 0) return null;
 
-  const slPct    = (risk / total) * 100;
+  const slPct    = (slPips  / total) * 100;
   const entryPct = slPct;
-  const tp1Pct   = ((Math.abs(tp1 - entry) / total) * 100) + entryPct;
+  const tp1Pct   = ((tp1Pips / total) * 100) + entryPct;
+
+  const slDollar  = calcDollar(slPips,  lotSize, asset);
+  const tp1Dollar = calcDollar(tp1Pips, lotSize, asset);
+  const tp2Dollar = calcDollar(tp2Pips, lotSize, asset);
 
   return (
-    <div className="relative mt-3 mb-1">
+    <div className="relative mt-4">
+      <p className="text-[9px] uppercase tracking-widest mb-2" style={{ color: "#8B949E" }}>Risk / Reward</p>
+
       {/* Gradient bar */}
       <div
         className="h-[3px] w-full rounded-full"
         style={{
-          background: `linear-gradient(to right, #FF4D4F 0%, #FF4D4F ${slPct}%, #1a1f26 ${slPct}%, #1a1f26 ${entryPct}%, #00C896 ${entryPct}%, #00C89640 100%)`,
+          background: `linear-gradient(to right,
+            #FF4D4F 0%, #FF4D4F ${slPct.toFixed(1)}%,
+            #1a1f26 ${slPct.toFixed(1)}%, #1a1f26 ${entryPct.toFixed(1)}%,
+            #00C896 ${entryPct.toFixed(1)}%, #00C89650 100%)`,
         }}
       />
 
       {/* Entry marker */}
       <div
-        className="absolute top-1/2 -translate-y-1/2 w-[2px] h-3 rounded-full bg-white"
-        style={{ left: `${entryPct}%` }}
-        title="Entry"
+        className="absolute top-0 -translate-y-[2px] w-[2px] h-[7px] bg-white rounded-full"
+        style={{ left: `${entryPct.toFixed(1)}%` }}
       />
 
       {/* TP1 tick */}
       <div
-        className="absolute top-1/2 -translate-y-1/2 w-[2px] h-2 rounded-full"
-        style={{ left: `${Math.min(tp1Pct, 98)}%`, background: "#00C896" }}
-        title="TP1"
+        className="absolute top-0 -translate-y-[1px] w-[2px] h-[5px] rounded-full"
+        style={{ left: `${Math.min(tp1Pct, 97).toFixed(1)}%`, background: "#00C896" }}
       />
 
       {/* Labels */}
-      <div className="flex justify-between mt-1.5">
-        <span className="text-[9px] font-mono" style={{ color: "#FF4D4F" }}>
-          SL {dist(entry, sl, asset)}
-        </span>
-        <span className="text-[9px] font-mono" style={{ color: "#8B949E" }}>
-          ENTRY
-        </span>
-        <span className="text-[9px] font-mono" style={{ color: "#00C896" }}>
-          TP1 {dist(entry, tp1, asset)}
-        </span>
-        <span className="text-[9px] font-mono" style={{ color: "#00C89680" }}>
-          TP2 {dist(entry, tp2, asset)}
-        </span>
+      <div className="flex justify-between mt-2">
+        <div className="text-left">
+          <p className="text-[9px] font-mono" style={{ color: "#FF4D4F" }}>SL</p>
+          <p className="text-[9px] font-mono font-semibold" style={{ color: "#FF4D4F" }}>
+            -{slPips} pips
+          </p>
+          <p className="text-[9px] font-mono" style={{ color: "#FF4D4F80" }}>
+            -${slDollar.toFixed(2)}
+          </p>
+        </div>
+        <div className="text-center">
+          <p className="text-[9px] font-mono" style={{ color: "#8B949E" }}>ENTRY</p>
+          <p className="text-[9px] font-mono" style={{ color: "#8B949E" }}>{fmt(entry, asset)}</p>
+        </div>
+        <div className="text-center">
+          <p className="text-[9px] font-mono" style={{ color: "#00C896" }}>TP1</p>
+          <p className="text-[9px] font-mono font-semibold" style={{ color: "#00C896" }}>
+            +{tp1Pips} pips
+          </p>
+          <p className="text-[9px] font-mono" style={{ color: "#00C89680" }}>
+            +${tp1Dollar.toFixed(2)}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-[9px] font-mono" style={{ color: "#00C89680" }}>TP2</p>
+          <p className="text-[9px] font-mono font-semibold" style={{ color: "#00C89680" }}>
+            +{tp2Pips} pips
+          </p>
+          <p className="text-[9px] font-mono" style={{ color: "#00C89650" }}>
+            +${tp2Dollar.toFixed(2)}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -101,10 +154,10 @@ function RangeDot({ price, support, resistance, pivot, asset }: {
 }) {
   const range = resistance - support;
   if (range <= 0) return null;
-  const pos     = Math.max(2, Math.min(98, ((price - support) / range) * 100));
+  const pos      = Math.max(2, Math.min(98, ((price - support) / range) * 100));
   const pivotPos = Math.max(2, Math.min(98, ((pivot - support) / range) * 100));
-  const zone    = pos < 33 ? "NEAR SUPPORT" : pos > 67 ? "NEAR RESISTANCE" : "MID RANGE";
-  const zoneCol = pos < 33 ? "#00C896" : pos > 67 ? "#FF4D4F" : "#8B949E";
+  const zone     = pos < 33 ? "NEAR SUPPORT" : pos > 67 ? "NEAR RESISTANCE" : "MID RANGE";
+  const zoneCol  = pos < 33 ? "#00C896" : pos > 67 ? "#FF4D4F" : "#8B949E";
 
   return (
     <div className="mt-3">
@@ -113,20 +166,12 @@ function RangeDot({ price, support, resistance, pivot, asset }: {
         <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: zoneCol }}>{zone}</span>
       </div>
       <div className="relative h-[3px] w-full rounded-full" style={{ background: "#1a1f26" }}>
-        <div
-          className="absolute inset-0 rounded-full"
-          style={{ background: "linear-gradient(to right, #00C89630, #8B949E20, #FF4D4F30)" }}
-        />
-        {/* Pivot tick */}
-        <div
-          className="absolute top-1/2 -translate-y-1/2 w-[2px] h-2"
-          style={{ left: `${pivotPos}%`, background: "#8B949E60" }}
-        />
-        {/* Price dot */}
-        <div
-          className="absolute top-1/2 -translate-y-1/2 h-2.5 w-2.5 rounded-full border border-[#0B0F14]"
-          style={{ left: `calc(${pos}% - 5px)`, background: "#fff" }}
-        />
+        <div className="absolute inset-0 rounded-full"
+          style={{ background: "linear-gradient(to right, #00C89630, #8B949E20, #FF4D4F30)" }} />
+        <div className="absolute top-1/2 -translate-y-1/2 w-[2px] h-2"
+          style={{ left: `${pivotPos}%`, background: "#8B949E50" }} />
+        <div className="absolute top-1/2 -translate-y-1/2 h-2.5 w-2.5 rounded-full border border-[#0B0F14]"
+          style={{ left: `calc(${pos}% - 5px)`, background: "#fff" }} />
       </div>
       <div className="flex justify-between mt-1">
         <span className="text-[9px] font-mono" style={{ color: "#00C896" }}>S {fmt(support, asset)}</span>
@@ -137,28 +182,68 @@ function RangeDot({ price, support, resistance, pivot, asset }: {
   );
 }
 
+// ── Single level line (SL / TP) ───────────────────────────────────────────────
+
+function LevelLine({ label, price, entry, asset, lotSize, direction }: {
+  label: string; price: number; entry: number; asset: string; lotSize: number;
+  direction: "risk" | "reward" | "reward2";
+}) {
+  const pips   = calcPips(entry, price, asset);
+  const dollar = calcDollar(pips, lotSize, asset);
+  const isRisk = direction === "risk";
+  const color  = isRisk ? "#FF4D4F" : direction === "reward" ? "#00C896" : "#00C89670";
+  const sign   = isRisk ? "-" : "+";
+
+  return (
+    <div className="flex items-center justify-between py-1.5" style={{ borderBottom: "1px solid #1a1f26" }}>
+      <span className="text-[10px] font-semibold uppercase tracking-wider w-8" style={{ color }}>
+        {label}
+      </span>
+      <span className="text-[13px] font-mono font-bold flex-1 text-center" style={{ color: isRisk ? "#FF4D4F" : "#E6EDF3" }}>
+        {fmt(price, asset)}
+      </span>
+      <div className="text-right">
+        <span className="text-[10px] font-mono font-semibold" style={{ color }}>
+          {sign}{pips} pips
+        </span>
+        <span className="text-[10px] font-mono ml-2" style={{ color: `${color}90` }}>
+          {fmtDollar(dollar, isRisk ? "-" : "+")}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // ── Single asset row ──────────────────────────────────────────────────────────
 
-function AssetRow({ level, defaultOpen }: { level: KeyLevel; defaultOpen: boolean }) {
+function AssetRow({ level, defaultOpen, lotSize }: {
+  level: KeyLevel; defaultOpen: boolean; lotSize: number;
+}) {
   const [open, setOpen] = useState(defaultOpen);
 
   const isBull = level.bias === "bullish";
   const isBear = level.bias === "bearish";
-  const isNT   = level.setupQuality === "NO TRADE";
 
-  const sq    = setupLabel(level.setupQuality);
-  const rr    = rrLabel(level.rrRatio ?? 0);
-  const biasColor = isBull ? "#00C896" : isBear ? "#FF4D4F" : "#8B949E";
+  const sq         = setupLabel(level.setupQuality);
+  const rr         = rrQuality(level.rrRatio ?? 0);
+  const biasColor  = isBull ? "#00C896" : isBear ? "#FF4D4F" : "#8B949E";
 
-  // Low quality dims the card
-  const dimmed = isNT || level.rrRatio < 2.0;
+  // Check realism
+  const slPips        = calcPips(level.entry, level.stopLoss, level.asset);
+  const unrealistic   = isUnrealistic(slPips, level.asset);
+  const isNT          = level.setupQuality === "NO TRADE" || unrealistic;
+  const dimmed        = isNT || level.rrRatio < 2.0;
+
+  // TP3 pips for display
+  const tp3Pips  = level.takeProfit3 ? calcPips(level.entry, level.takeProfit3, level.asset) : 0;
+  const tp3Dollar = level.takeProfit3 ? calcDollar(tp3Pips, lotSize, level.asset) : 0;
 
   return (
     <div
       className="rounded-xl overflow-hidden transition-all duration-200"
       style={{
         background: "#11161C",
-        border: `1px solid ${sq.glow ? "#00C89620" : "#1e2530"}`,
+        border: `1px solid ${sq.glow ? "#00C89622" : "#1e2530"}`,
         boxShadow: sq.glow ? "0 0 16px rgba(0,200,150,0.06)" : "none",
         opacity: dimmed ? 0.55 : 1,
       }}
@@ -168,18 +253,13 @@ function AssetRow({ level, defaultOpen }: { level: KeyLevel; defaultOpen: boolea
         onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-white/[0.015] transition-colors"
       >
-        {/* Left: symbol + bias */}
         <div className="flex items-center gap-3">
           <span className="text-[13px] font-bold tracking-wide" style={{ color: "#E6EDF3" }}>
             {level.asset}
           </span>
           <span
             className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded"
-            style={{
-              color: biasColor,
-              background: `${biasColor}12`,
-              border: `1px solid ${biasColor}25`,
-            }}
+            style={{ color: biasColor, background: `${biasColor}12`, border: `1px solid ${biasColor}25` }}
           >
             {level.bias}
           </span>
@@ -191,19 +271,15 @@ function AssetRow({ level, defaultOpen }: { level: KeyLevel; defaultOpen: boolea
           )}
         </div>
 
-        {/* Right: price + R:R + quality */}
         <div className="flex items-center gap-4">
           <span className="text-[12px] font-mono font-semibold" style={{ color: "#E6EDF3" }}>
-            {level.asset.includes("BTC") ? "$" : ""}{fmt(level.price, level.asset)}
+            {fmt(level.price, level.asset)}
           </span>
           <span className="text-[10px] font-mono font-bold hidden sm:block" style={{ color: rr.color }}>
             1:{level.rrRatio} <span style={{ color: "#8B949E", fontWeight: 400 }}>R:R</span>
           </span>
-          <span
-            className="text-[9px] font-bold uppercase tracking-wider hidden md:block"
-            style={{ color: sq.color }}
-          >
-            {sq.label}
+          <span className="text-[9px] font-bold uppercase tracking-wider hidden md:block" style={{ color: sq.color }}>
+            {unrealistic ? "UNREALISTIC" : sq.label}
           </span>
           {open
             ? <ChevronUp className="h-3.5 w-3.5" style={{ color: "#8B949E" }} />
@@ -212,105 +288,83 @@ function AssetRow({ level, defaultOpen }: { level: KeyLevel; defaultOpen: boolea
         </div>
       </button>
 
-      {/* ── EXPANDED DETAIL ────────────────────────────────────── */}
+      {/* ── EXPANDED ───────────────────────────────────────────── */}
       {open && (
-        <div
-          className="px-4 pb-4 pt-1 space-y-4"
-          style={{ borderTop: "1px solid #1e2530" }}
-        >
+        <div className="px-4 pb-4 pt-1 space-y-4" style={{ borderTop: "1px solid #1e2530" }}>
 
-          {/* NO TRADE banner */}
+          {/* NO TRADE / Unrealistic banner */}
           {isNT && (
-            <div
-              className="flex items-center gap-2 rounded-lg px-3 py-2"
-              style={{ background: "#FF4D4F10", border: "1px solid #FF4D4F20" }}
-            >
+            <div className="flex items-center gap-2 rounded-lg px-3 py-2"
+              style={{ background: "#FF4D4F10", border: "1px solid #FF4D4F20" }}>
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" style={{ color: "#FF4D4F" }} />
               <p className="text-[11px]" style={{ color: "#FF4D4F" }}>
-                {level.note}
+                {unrealistic
+                  ? `SL is ${slPips} pips — unrealistic distance. Wait for a tighter structure.`
+                  : level.note}
               </p>
             </div>
           )}
 
-          {/* ── TRADE FLOW: Entry → SL → TP1 → TP2 ────────────── */}
           {!isNT && (
             <>
+              {/* ── TRADE SETUP: Entry price ──────────────────────── */}
               <div>
-                <p className="text-[9px] uppercase tracking-widest mb-2.5" style={{ color: "#8B949E" }}>
-                  Trade Setup
-                </p>
+                <p className="text-[9px] uppercase tracking-widest mb-2" style={{ color: "#8B949E" }}>Trade Setup</p>
 
-                {/* Flow row */}
-                <div className="flex items-center gap-0">
-                  {/* Entry */}
-                  <div className="flex-1 text-center">
-                    <p className="text-[9px] uppercase tracking-widest mb-1" style={{ color: "#8B949E" }}>Entry</p>
-                    <p className="text-[15px] font-mono font-bold" style={{ color: "#E6EDF3" }}>
-                      {fmt(level.entry, level.asset)}
-                    </p>
-                  </div>
-
-                  {/* Arrow */}
-                  <div className="text-[#1e2530] text-lg font-thin px-1">→</div>
-
-                  {/* SL */}
-                  <div className="flex-1 text-center">
-                    <p className="text-[9px] uppercase tracking-widest mb-1" style={{ color: "#FF4D4F90" }}>Stop Loss</p>
-                    <p className="text-[15px] font-mono font-bold" style={{ color: "#FF4D4F" }}>
-                      {fmt(level.stopLoss, level.asset)}
-                    </p>
-                  </div>
-
-                  <div className="text-[#1e2530] text-lg font-thin px-1">→</div>
-
-                  {/* TP1 */}
-                  <div className="flex-1 text-center">
-                    <p className="text-[9px] uppercase tracking-widest mb-1" style={{ color: "#00C89690" }}>TP 1</p>
-                    <p className="text-[15px] font-mono font-bold" style={{ color: "#00C896" }}>
-                      {fmt(level.takeProfit1, level.asset)}
-                    </p>
-                  </div>
-
-                  <div className="text-[#1e2530] text-lg font-thin px-1">→</div>
-
-                  {/* TP2 */}
-                  <div className="flex-1 text-center">
-                    <p className="text-[9px] uppercase tracking-widest mb-1" style={{ color: "#00C89660" }}>TP 2</p>
-                    <p className="text-[15px] font-mono font-bold" style={{ color: "#00C89670" }}>
-                      {fmt(level.takeProfit2, level.asset)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Risk/Reward under flow */}
-                <div className="flex justify-between mt-2 px-1">
-                  <span className="text-[9px] font-mono" style={{ color: "#8B949E" }}>
-                    Risk: <span style={{ color: "#FF4D4F" }}>{dist(level.entry, level.stopLoss, level.asset)}</span>
+                {/* Entry row */}
+                <div className="flex items-center justify-between py-2 mb-1"
+                  style={{ borderBottom: "1px solid #1e2530" }}>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider w-8" style={{ color: "#8B949E" }}>
+                    ENTRY
                   </span>
-                  <span className="text-[9px] font-mono" style={{ color: "#8B949E" }}>
-                    Reward: <span style={{ color: "#00C896" }}>{dist(level.entry, level.takeProfit1, level.asset)}</span>
-                    <span style={{ color: "#8B949E" }}> / </span>
-                    <span style={{ color: "#00C89680" }}>{dist(level.entry, level.takeProfit2, level.asset)}</span>
+                  <span className="text-[15px] font-mono font-bold flex-1 text-center" style={{ color: "#E6EDF3" }}>
+                    {fmt(level.entry, level.asset)}
+                  </span>
+                  <span className="text-[10px] font-mono text-right" style={{ color: "#8B949E" }}>
+                    at {level.marketStructure?.premiumDiscount ?? "—"}
                   </span>
                 </div>
+
+                {/* SL */}
+                <LevelLine label="SL"  price={level.stopLoss}    entry={level.entry} asset={level.asset} lotSize={lotSize} direction="risk"    />
+                {/* TP1 */}
+                <LevelLine label="TP1" price={level.takeProfit1} entry={level.entry} asset={level.asset} lotSize={lotSize} direction="reward"  />
+                {/* TP2 */}
+                <LevelLine label="TP2" price={level.takeProfit2} entry={level.entry} asset={level.asset} lotSize={lotSize} direction="reward2" />
+                {/* TP3 (runner) */}
+                {level.takeProfit3 && tp3Pips > 0 && (
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider w-8" style={{ color: "#00C89650" }}>TP3</span>
+                    <span className="text-[13px] font-mono font-bold flex-1 text-center" style={{ color: "#E6EDF380" }}>
+                      {fmt(level.takeProfit3!, level.asset)}
+                    </span>
+                    <div className="text-right">
+                      <span className="text-[10px] font-mono font-semibold" style={{ color: "#00C89650" }}>
+                        +{tp3Pips} pips
+                      </span>
+                      <span className="text-[10px] font-mono ml-2" style={{ color: "#00C89640" }}>
+                        +${tp3Dollar.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* ── GRADIENT R:R LINE ─────────────────────────────── */}
+              {/* ── R:R GRADIENT LINE ─────────────────────────────── */}
               <RRLine
                 entry={level.entry}
                 sl={level.stopLoss}
                 tp1={level.takeProfit1}
                 tp2={level.takeProfit2}
                 asset={level.asset}
+                lotSize={lotSize}
               />
             </>
           )}
 
           {/* ── KEY LEVELS INLINE ─────────────────────────────────── */}
-          <div
-            className="flex items-center gap-5 py-2 px-3 rounded-lg"
-            style={{ background: "#0B0F14", border: "1px solid #1e2530" }}
-          >
+          <div className="flex items-center gap-5 py-2 px-3 rounded-lg flex-wrap"
+            style={{ background: "#0B0F14", border: "1px solid #1e2530" }}>
             <div>
               <span className="text-[8px] uppercase tracking-widest" style={{ color: "#8B949E" }}>S</span>
               <span className="text-[11px] font-mono font-semibold ml-1.5" style={{ color: "#00C896" }}>
@@ -346,12 +400,8 @@ function AssetRow({ level, defaultOpen }: { level: KeyLevel; defaultOpen: boolea
             {level.marketStructure?.premiumDiscount !== "equilibrium" && (
               <>
                 <div style={{ width: 1, height: 12, background: "#1e2530" }} />
-                <span
-                  className="text-[8px] font-semibold uppercase tracking-wider"
-                  style={{
-                    color: level.marketStructure.premiumDiscount === "discount" ? "#00C896" : "#FF4D4F"
-                  }}
-                >
+                <span className="text-[8px] font-semibold uppercase tracking-wider"
+                  style={{ color: level.marketStructure.premiumDiscount === "discount" ? "#00C896" : "#FF4D4F" }}>
                   {level.marketStructure.premiumDiscount}
                 </span>
               </>
@@ -384,15 +434,17 @@ function AssetRow({ level, defaultOpen }: { level: KeyLevel; defaultOpen: boolea
             </div>
           )}
 
-          {/* ── SESSION + LIQUIDITY ───────────────────────────────── */}
+          {/* ── SESSION + SETUP ───────────────────────────────────── */}
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-lg px-3 py-2" style={{ background: "#0B0F14", border: "1px solid #1e2530" }}>
               <p className="text-[8px] uppercase tracking-widest mb-1" style={{ color: "#8B949E" }}>Session</p>
               <p className="text-[10px] font-semibold" style={{ color: "#E6EDF3" }}>{level.sessionContext}</p>
             </div>
             <div className="rounded-lg px-3 py-2" style={{ background: "#0B0F14", border: "1px solid #1e2530" }}>
-              <p className="text-[8px] uppercase tracking-widest mb-1" style={{ color: "#8B949E" }}>Setup</p>
-              <p className="text-[10px] font-bold" style={{ color: sq.color }}>{level.setupQuality}</p>
+              <p className="text-[8px] uppercase tracking-widest mb-1" style={{ color: "#8B949E" }}>Setup Quality</p>
+              <p className="text-[10px] font-bold" style={{ color: sq.color }}>
+                {unrealistic ? "UNREALISTIC SL" : sq.label}
+              </p>
             </div>
           </div>
 
@@ -418,40 +470,100 @@ interface KeyLevelsCardProps {
 }
 
 export function KeyLevelsCard({ levels, compact = false }: KeyLevelsCardProps) {
+  const [lotSize, setLotSize] = useState(0.01);
+  const [showLotInput, setShowLotInput] = useState(false);
+
   if (levels.length === 0) return null;
 
-  const display = levels.slice(0, compact ? 4 : 8);
-  const aPlus   = display.filter(l => l.setupQuality === "A+" || l.setupQuality === "A").length;
+  const display  = levels.slice(0, compact ? 4 : 8);
+  const quality  = display.filter(l => l.setupQuality === "A+" || l.setupQuality === "A").length;
+
+  const LOT_PRESETS = [0.01, 0.05, 0.10, 0.25, 0.50, 1.00];
 
   return (
-    <div
-      className="rounded-2xl overflow-hidden"
-      style={{ background: "#0B0F14", border: "1px solid #1e2530" }}
-    >
-      {/* Header */}
-      <div
-        className="flex items-center justify-between px-5 py-3.5"
-        style={{ borderBottom: "1px solid #1e2530" }}
-      >
+    <div className="rounded-2xl overflow-hidden" style={{ background: "#0B0F14", border: "1px solid #1e2530" }}>
+
+      {/* ── Header ───────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: "1px solid #1e2530" }}>
         <div className="flex items-center gap-2.5">
           <Zap className="h-4 w-4" style={{ color: "#00C896" }} />
           <span className="text-[13px] font-bold tracking-wide" style={{ color: "#E6EDF3" }}>Key Levels</span>
-          <span className="text-[10px]" style={{ color: "#8B949E" }}>Entry · SL · TP · S/R · R:R</span>
+          <span className="text-[10px]" style={{ color: "#8B949E" }}>Entry · SL · TP · Pips · P&L</span>
         </div>
-        {aPlus > 0 && (
-          <span
-            className="text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded"
-            style={{ color: "#00C896", background: "#00C89612", border: "1px solid #00C89625" }}
+
+        <div className="flex items-center gap-3">
+          {quality > 0 && (
+            <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded"
+              style={{ color: "#00C896", background: "#00C89612", border: "1px solid #00C89625" }}>
+              {quality} A-setup{quality > 1 ? "s" : ""}
+            </span>
+          )}
+
+          {/* Lot size control */}
+          <button
+            onClick={() => setShowLotInput(v => !v)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors hover:bg-white/5"
+            style={{ border: "1px solid #1e2530" }}
           >
-            {aPlus} quality setup{aPlus > 1 ? "s" : ""}
-          </span>
-        )}
+            <Settings2 className="h-3 w-3" style={{ color: "#8B949E" }} />
+            <span className="text-[10px] font-mono font-semibold" style={{ color: "#E6EDF3" }}>
+              {lotSize.toFixed(2)} lot
+            </span>
+          </button>
+        </div>
       </div>
 
-      {/* Rows */}
+      {/* ── Lot Size Panel ────────────────────────────────────── */}
+      {showLotInput && (
+        <div className="px-5 py-3 flex items-center gap-3 flex-wrap" style={{ borderBottom: "1px solid #1e2530", background: "#0e1318" }}>
+          <span className="text-[9px] uppercase tracking-widest" style={{ color: "#8B949E" }}>Lot Size</span>
+
+          {/* Presets */}
+          {LOT_PRESETS.map(l => (
+            <button
+              key={l}
+              onClick={() => setLotSize(l)}
+              className="px-2.5 py-1 rounded text-[10px] font-mono font-semibold transition-all"
+              style={{
+                background: lotSize === l ? "#00C89615" : "#1a1f26",
+                border: `1px solid ${lotSize === l ? "#00C89640" : "#1e2530"}`,
+                color: lotSize === l ? "#00C896" : "#8B949E",
+              }}
+            >
+              {l.toFixed(2)}
+            </button>
+          ))}
+
+          {/* Custom input */}
+          <input
+            type="number"
+            min={0.01}
+            max={100}
+            step={0.01}
+            value={lotSize}
+            onChange={e => {
+              const v = parseFloat(e.target.value);
+              if (!isNaN(v) && v > 0) setLotSize(parseFloat(v.toFixed(2)));
+            }}
+            className="w-20 rounded px-2 py-1 text-[10px] font-mono outline-none"
+            style={{
+              background: "#1a1f26",
+              border: "1px solid #1e2530",
+              color: "#E6EDF3",
+            }}
+          />
+          <span className="text-[9px]" style={{ color: "#8B949E" }}>
+            Pip value: <span style={{ color: "#E6EDF3" }}>
+              ${(lotSize / 0.01 * 0.10).toFixed(2)}/pip
+            </span>
+          </span>
+        </div>
+      )}
+
+      {/* ── Asset Rows ───────────────────────────────────────── */}
       <div className="p-3 space-y-2">
         {display.map((level, i) => (
-          <AssetRow key={level.asset} level={level} defaultOpen={i === 0} />
+          <AssetRow key={level.asset} level={level} defaultOpen={i === 0} lotSize={lotSize} />
         ))}
       </div>
     </div>
