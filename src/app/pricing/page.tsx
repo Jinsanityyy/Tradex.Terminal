@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Check, X, Zap, Shield, Crown } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import Link from "next/link";
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import { PLANS } from "@/lib/plans";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 const ICONS = {
   free: Shield,
@@ -32,7 +33,7 @@ const GLOW = {
   elite: "shadow-[0_0_40px_rgba(245,158,11,0.08)]",
 };
 
-function PlanCard({ planKey }: { planKey: keyof typeof PLANS }) {
+function PlanCard({ planKey, userId }: { planKey: keyof typeof PLANS; userId: string | null }) {
   const plan = PLANS[planKey];
   const Icon = ICONS[planKey];
   const isPro = planKey === "pro";
@@ -97,7 +98,14 @@ function PlanCard({ planKey }: { planKey: keyof typeof PLANS }) {
                 alert("Plan ID missing — check Vercel env vars");
                 throw new Error("Missing plan ID");
               }
-              return actions.subscription.create({ plan_id: plan.planId });
+              if (!userId) {
+                window.location.href = "/login";
+                throw new Error("Not logged in");
+              }
+              return actions.subscription.create({
+                plan_id: plan.planId,
+                custom_id: userId,
+              });
             }}
             onApprove={async () => {
               window.location.href = "/dashboard?subscribed=1";
@@ -133,6 +141,14 @@ function PlanCard({ planKey }: { planKey: keyof typeof PLANS }) {
 
 export default function PricingPage() {
   const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ?? "";
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setUserId(data.user?.id ?? null);
+    });
+  }, []);
 
   return (
     <PayPalScriptProvider options={{
@@ -166,7 +182,7 @@ export default function PricingPage() {
           {/* Plans */}
           <div className="grid md:grid-cols-3 gap-5">
             {(Object.keys(PLANS) as Array<keyof typeof PLANS>).map((key) => (
-              <PlanCard key={key} planKey={key} />
+              <PlanCard key={key} planKey={key} userId={userId} />
             ))}
           </div>
 

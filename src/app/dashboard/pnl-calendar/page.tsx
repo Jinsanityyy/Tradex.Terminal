@@ -66,7 +66,7 @@ function fmtFull(n: number): string {
 
 // ── Image compression (client-side, no storage bucket required) ───────────────
 
-function compressImageToBase64(file: File, maxWidth = 1400, quality = 0.82): Promise<string> {
+function compressImageToBase64(file: File, maxWidth = 900, quality = 0.65): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -125,13 +125,19 @@ function DayJournalModal({
         headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ date, note, screenshot_urls: screenshots }),
       });
-      if (!res.ok) throw new Error("Save failed");
+      const json = await res.json();
+      if (!res.ok) {
+        console.error("Journal save error:", json);
+        toast.error(`Save failed: ${json.error ?? res.status}`);
+        return;
+      }
       const saved: JournalEntry = { date, note, screenshot_urls: screenshots };
       onSaved(saved);
       toast.success("Journal saved");
       onClose();
-    } catch {
-      toast.error("Failed to save journal");
+    } catch (err) {
+      console.error("Journal save exception:", err);
+      toast.error("Failed to save journal — check console");
     } finally {
       setSaving(false);
     }

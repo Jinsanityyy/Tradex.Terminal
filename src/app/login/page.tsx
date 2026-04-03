@@ -3,11 +3,11 @@
 import React, { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import Link from "next/link";
 
-type Mode = "login" | "signup";
+type Mode = "login" | "signup" | "forgot";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,6 +19,12 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  function switchMode(next: Mode) {
+    setMode(next);
+    setError("");
+    setSuccess("");
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -28,7 +34,13 @@ export default function LoginPage() {
     const supabase = createClient();
 
     try {
-      if (mode === "login") {
+      if (mode === "forgot") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) throw error;
+        setSuccess("Password reset link sent! Check your email.");
+      } else if (mode === "login") {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         if (data.session) {
@@ -37,45 +49,54 @@ export default function LoginPage() {
       } else {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        // If session exists immediately = email confirmation disabled, go straight to dashboard
         if (data.session) {
           window.location.href = "/dashboard";
         } else {
-          // Email confirmation required
           setSuccess("Account created! Check your email to confirm, then sign in.");
-          setMode("login");
+          switchMode("login");
         }
       }
     } catch (err: any) {
-      setError(err.message ?? "Something went wrong. Check your Supabase config.");
+      setError(err.message ?? "Something went wrong.");
     } finally {
       setLoading(false);
     }
   }
 
+  const titles: Record<Mode, string> = {
+    login: "Welcome back",
+    signup: "Create account",
+    forgot: "Reset password",
+  };
+  const subtitles: Record<Mode, string> = {
+    login: "Sign in to your trading terminal",
+    signup: "Start your free trial — no card required",
+    forgot: "Enter your email and we'll send a reset link",
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#0a0e1a] px-4">
-      {/* Background glow */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-[hsl(142,71%,45%)] opacity-[0.04] blur-[120px]" />
       </div>
 
       <div className="w-full max-w-sm relative z-10">
-        {/* Logo */}
         <div className="flex items-center justify-center mb-8">
           <TradeXLogo variant="banner" size="md" tagline />
         </div>
 
-        {/* Card */}
         <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-8">
-          <h1 className="text-lg font-semibold text-white mb-1">
-            {mode === "login" ? "Welcome back" : "Create account"}
-          </h1>
-          <p className="text-xs text-gray-500 mb-6">
-            {mode === "login"
-              ? "Sign in to your trading terminal"
-              : "Start your free trial — no card required"}
-          </p>
+          {mode === "forgot" && (
+            <button
+              onClick={() => switchMode("login")}
+              className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-gray-300 mb-4 transition-colors"
+            >
+              <ArrowLeft className="h-3 w-3" /> Back to sign in
+            </button>
+          )}
+
+          <h1 className="text-lg font-semibold text-white mb-1">{titles[mode]}</h1>
+          <p className="text-xs text-gray-500 mb-6">{subtitles[mode]}</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email */}
@@ -93,40 +114,43 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* Password */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-[11px] font-medium text-gray-400 uppercase tracking-wider">
-                  Password
-                </label>
-                {mode === "login" && (
+            {/* Password — hidden on forgot mode */}
+            {mode !== "forgot" && (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[11px] font-medium text-gray-400 uppercase tracking-wider">
+                    Password
+                  </label>
+                  {mode === "login" && (
+                    <button
+                      type="button"
+                      onClick={() => switchMode("forgot")}
+                      className="text-[11px] text-[hsl(142,71%,45%)] hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type={showPass ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    minLength={6}
+                    className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3.5 py-2.5 pr-10 text-sm text-white placeholder-gray-600 outline-none focus:border-[hsl(142,71%,45%)]/50 focus:ring-1 focus:ring-[hsl(142,71%,45%)]/20 transition-all"
+                  />
                   <button
                     type="button"
-                    className="text-[11px] text-[hsl(142,71%,45%)] hover:underline"
+                    onClick={() => setShowPass(!showPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
                   >
-                    Forgot password?
+                    {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
-                )}
+                </div>
               </div>
-              <div className="relative">
-                <input
-                  type={showPass ? "text" : "password"}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  minLength={6}
-                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3.5 py-2.5 pr-10 text-sm text-white placeholder-gray-600 outline-none focus:border-[hsl(142,71%,45%)]/50 focus:ring-1 focus:ring-[hsl(142,71%,45%)]/20 transition-all"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
-                >
-                  {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
+            )}
 
             {/* Error / Success */}
             {error && (
@@ -148,30 +172,31 @@ export default function LoginPage() {
               className="w-full flex items-center justify-center gap-2 rounded-lg bg-[hsl(142,71%,45%)] py-2.5 text-sm font-semibold text-[#0a0e1a] hover:bg-[hsl(142,71%,50%)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {mode === "login" ? "Sign In" : "Create Account"}
+              {mode === "login" ? "Sign In" : mode === "signup" ? "Create Account" : "Send Reset Link"}
             </button>
           </form>
 
-          {/* Divider */}
-          <div className="flex items-center gap-3 my-5">
-            <div className="flex-1 h-px bg-white/[0.06]" />
-            <span className="text-[10px] text-gray-600 uppercase tracking-wider">or</span>
-            <div className="flex-1 h-px bg-white/[0.06]" />
-          </div>
+          {mode !== "forgot" && (
+            <>
+              <div className="flex items-center gap-3 my-5">
+                <div className="flex-1 h-px bg-white/[0.06]" />
+                <span className="text-[10px] text-gray-600 uppercase tracking-wider">or</span>
+                <div className="flex-1 h-px bg-white/[0.06]" />
+              </div>
 
-          {/* Toggle mode */}
-          <p className="text-center text-xs text-gray-500">
-            {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
-            <button
-              onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); setSuccess(""); }}
-              className="text-[hsl(142,71%,45%)] font-medium hover:underline"
-            >
-              {mode === "login" ? "Sign up free" : "Sign in"}
-            </button>
-          </p>
+              <p className="text-center text-xs text-gray-500">
+                {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
+                <button
+                  onClick={() => switchMode(mode === "login" ? "signup" : "login")}
+                  className="text-[hsl(142,71%,45%)] font-medium hover:underline"
+                >
+                  {mode === "login" ? "Sign up free" : "Sign in"}
+                </button>
+              </p>
+            </>
+          )}
         </div>
 
-        {/* Pricing link */}
         <p className="text-center text-[11px] text-gray-600 mt-5">
           Want to see plans?{" "}
           <Link href="/pricing" className="text-gray-400 hover:text-white underline underline-offset-2">
