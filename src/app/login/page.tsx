@@ -3,11 +3,11 @@
 import React, { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Loader2, AlertCircle, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Loader2, AlertCircle, ArrowLeft, Smartphone } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import Link from "next/link";
 
-type Mode = "login" | "signup" | "forgot";
+type Mode = "login" | "signup" | "forgot" | "mfa";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,6 +18,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -34,7 +36,17 @@ export default function LoginPage() {
     const supabase = createClient();
 
     try {
-      if (mode === "forgot") {
+      if (mode === "mfa") {
+        // Verify the MFA code
+        const { data: factors } = await supabase.auth.mfa.listFactors();
+        const totp = factors?.totp?.find((f) => f.status === "verified");
+        const fId = mfaFactorId ?? totp?.id;
+        if (!fId) throw new Error("No authenticator found");
+        const { data: challenge } = await supabase.auth.mfa.challenge({ factorId: fId });
+        const { error } = await supabase.auth.mfa.verify({ factorId: fId, challengeId: challenge!.id, code: mfaCode });
+        if (error) throw error;
+        window.location.href = "/dashboard";
+      } else if (mode === "forgot") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/reset-password`,
         });
@@ -43,6 +55,17 @@ export default function LoginPage() {
       } else if (mode === "login") {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        // Check if MFA is required
+        const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (aal?.nextLevel === "aal2" && aal.nextLevel !== aal.currentLevel) {
+          // MFA enrolled — need to verify
+          const { data: factors } = await supabase.auth.mfa.listFactors();
+          const totp = factors?.totp?.find((f) => f.status === "verified");
+          setMfaFactorId(totp?.id ?? null);
+          setMfaCode("");
+          setMode("mfa");
+          return;
+        }
         if (data.session) {
           window.location.href = "/dashboard";
         }
@@ -67,11 +90,13 @@ export default function LoginPage() {
     login: "Welcome back",
     signup: "Create account",
     forgot: "Reset password",
+    mfa: "Two-factor verification",
   };
   const subtitles: Record<Mode, string> = {
     login: "Sign in to your trading terminal",
     signup: "Start your free trial — no card required",
     forgot: "Enter your email and we'll send a reset link",
+    mfa: "Enter the 6-digit code from your authenticator app",
   };
 
   return (
@@ -86,7 +111,7 @@ export default function LoginPage() {
         </div>
 
         <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-8">
-          {mode === "forgot" && (
+          {(mode === "forgot" || mode === "mfa") && (
             <button
               onClick={() => switchMode("login")}
               className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-gray-300 mb-4 transition-colors"
@@ -99,7 +124,33 @@ export default function LoginPage() {
           <p className="text-xs text-gray-500 mb-6">{subtitles[mode]}</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email */}
+            {/* MFA code input */}
+            {mode === "mfa" && (
+              <div>
+                <div className="flex items-center justify-center mb-4">
+                  <div className="flex items-center justify-center w-12 h-12 rounded-xl border border-[hsl(142,71%,45%)]/30 bg-[hsl(142,71%,45%)]/10">
+                    <Smartphone className="h-5 w-5 text-[hsl(142,71%,45%)]" />
+                  </div>
+                </div>
+                <label className="block text-[11px] font-medium text-gray-400 mb-1.5 uppercase tracking-wider text-center">
+                  Authenticator Code
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  required
+                  autoFocus
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="000000"
+                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3.5 py-2.5 text-lg text-white placeholder-gray-600 outline-none focus:border-[hsl(142,71%,45%)]/50 focus:ring-1 focus:ring-[hsl(142,71%,45%)]/20 transition-all font-mono tracking-[0.4em] text-center"
+                />
+              </div>
+            )}
+
+            {/* Email — hidden on MFA mode */}
+            {mode !== "mfa" && (
             <div>
               <label className="block text-[11px] font-medium text-gray-400 mb-1.5 uppercase tracking-wider">
                 Email
@@ -113,9 +164,10 @@ export default function LoginPage() {
                 className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3.5 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[hsl(142,71%,45%)]/50 focus:ring-1 focus:ring-[hsl(142,71%,45%)]/20 transition-all"
               />
             </div>
+            )}
 
-            {/* Password — hidden on forgot mode */}
-            {mode !== "forgot" && (
+            {/* Password — hidden on forgot and mfa mode */}
+            {mode !== "forgot" && mode !== "mfa" && (
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="block text-[11px] font-medium text-gray-400 uppercase tracking-wider">
@@ -172,11 +224,11 @@ export default function LoginPage() {
               className="w-full flex items-center justify-center gap-2 rounded-lg bg-[hsl(142,71%,45%)] py-2.5 text-sm font-semibold text-[#0a0e1a] hover:bg-[hsl(142,71%,50%)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {mode === "login" ? "Sign In" : mode === "signup" ? "Create Account" : "Send Reset Link"}
+              {mode === "login" ? "Sign In" : mode === "signup" ? "Create Account" : mode === "mfa" ? "Verify" : "Send Reset Link"}
             </button>
           </form>
 
-          {mode !== "forgot" && (
+          {mode !== "forgot" && mode !== "mfa" && (
             <>
               <div className="flex items-center gap-3 my-5">
                 <div className="flex-1 h-px bg-white/[0.06]" />

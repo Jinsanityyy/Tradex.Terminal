@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Palette, BarChart3, Globe, Bell, Filter, RotateCcw, Save, CheckCircle2 } from "lucide-react";
+import { Palette, BarChart3, Globe, Bell, Filter, RotateCcw, Save, CheckCircle2, ShieldCheck, ShieldOff, Smartphone, Loader2, AlertCircle } from "lucide-react";
 import {
   useSettings, applyVisualSettings, DEFAULTS,
   Settings, Theme, Density, TimeZone, DateFormat, RefreshInterval, ImpactThreshold,
 } from "@/contexts/SettingsContext";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
+import Image from "next/image";
 
 // ── Atoms ────────────────────────────────────────────────────────────────────
 
@@ -96,6 +98,198 @@ function MultiSelect({ options, selected, onToggle }: { options: string[]; selec
 
 const ALL_ASSETS = ["Gold", "DXY", "SPX", "NDX", "BTC", "EURUSD", "Oil", "ETH", "Silver"];
 const ALL_CATEGORIES = ["Central Banks", "Inflation", "Tariffs", "Geopolitics", "Crypto", "Energy", "Earnings"];
+
+// ── MFA Section ───────────────────────────────────────────────────────────────
+
+function MFASection() {
+  const [status, setStatus] = useState<"loading" | "enabled" | "disabled">("loading");
+  const [factorId, setFactorId] = useState<string | null>(null);
+  const [step, setStep] = useState<"idle" | "enrolling" | "verifying" | "removing">("idle");
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [secret, setSecret] = useState<string | null>(null);
+  const [enrollFactorId, setEnrollFactorId] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => { checkMFA(); }, []);
+
+  async function checkMFA() {
+    setStatus("loading");
+    const supabase = createClient();
+    const { data } = await supabase.auth.mfa.listFactors();
+    const totp = data?.totp?.find((f) => f.status === "verified");
+    if (totp) { setStatus("enabled"); setFactorId(totp.id); }
+    else setStatus("disabled");
+  }
+
+  async function startEnroll() {
+    setError(""); setCode("");
+    setStep("enrolling"); setLoading(true);
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp" });
+      if (error) throw error;
+      setQrCode(data.totp.qr_code);
+      setSecret(data.totp.secret);
+      setEnrollFactorId(data.id);
+      setStep("verifying");
+    } catch (err: any) {
+      setError(err.message ?? "Failed to start enrollment");
+      setStep("idle");
+    } finally { setLoading(false); }
+  }
+
+  async function verifyEnroll() {
+    if (!enrollFactorId || code.length !== 6) return;
+    setError(""); setLoading(true);
+    try {
+      const supabase = createClient();
+      const { data: c } = await supabase.auth.mfa.challenge({ factorId: enrollFactorId });
+      const { error } = await supabase.auth.mfa.verify({ factorId: enrollFactorId, challengeId: c!.id, code });
+      if (error) throw error;
+      setStep("idle"); setQrCode(null); setSecret(null); setCode("");
+      await checkMFA();
+    } catch (err: any) {
+      setError("Invalid code — try again");
+    } finally { setLoading(false); }
+  }
+
+  async function removeMFA() {
+    if (!factorId) return;
+    setError(""); setLoading(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.mfa.unenroll({ factorId });
+      if (error) throw error;
+      setFactorId(null); setStep("idle");
+      await checkMFA();
+    } catch (err: any) {
+      setError(err.message ?? "Failed to remove authenticator");
+    } finally { setLoading(false); }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-sm">
+          <ShieldCheck className="h-4 w-4 text-emerald-400" /> Security
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {status === "loading" ? (
+          <div className="flex items-center gap-2 py-3">
+            <Loader2 className="h-4 w-4 animate-spin text-[hsl(var(--muted-foreground))]" />
+            <span className="text-xs text-[hsl(var(--muted-foreground))]">Checking MFA status...</span>
+          </div>
+        ) : status === "enabled" ? (
+          <div className="py-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Smartphone className="h-4 w-4 text-emerald-400" />
+                  <p className="text-xs font-medium text-[hsl(var(--foreground))]">Authenticator App</p>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-400/10 border border-emerald-400/30 px-2 py-0.5 rounded-full">Active</span>
+                </div>
+                <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5 ml-6">Your account is protected with 2-step verification.</p>
+              </div>
+              <button
+                onClick={removeMFA}
+                disabled={loading}
+                className="flex items-center gap-1.5 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-[10px] font-semibold text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50"
+              >
+                {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShieldOff className="h-3 w-3" />}
+                Remove
+              </button>
+            </div>
+            {error && <p className="text-[10px] text-red-400">{error}</p>}
+          </div>
+        ) : step === "idle" ? (
+          <div className="py-3 flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <Smartphone className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+                <p className="text-xs font-medium text-[hsl(var(--foreground))]">Authenticator App</p>
+                <span className="text-[10px] text-[hsl(var(--muted-foreground))] bg-[hsl(var(--secondary))] border border-[hsl(var(--border))] px-2 py-0.5 rounded-full">Not enabled</span>
+              </div>
+              <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5 ml-6">Use Google Authenticator or Authy for login verification.</p>
+            </div>
+            <button
+              onClick={startEnroll}
+              disabled={loading}
+              className="flex items-center gap-1.5 rounded-md border border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/10 px-3 py-1.5 text-[10px] font-semibold text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/20 transition-all disabled:opacity-50"
+            >
+              {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShieldCheck className="h-3 w-3" />}
+              Enable 2FA
+            </button>
+          </div>
+        ) : (
+          <div className="py-3 space-y-4">
+            <p className="text-xs font-medium text-[hsl(var(--foreground))]">Set up Authenticator App</p>
+            <ol className="space-y-3 text-[11px] text-[hsl(var(--muted-foreground))] list-decimal list-inside">
+              <li>Install <span className="text-[hsl(var(--foreground))] font-medium">Google Authenticator</span> or <span className="text-[hsl(var(--foreground))] font-medium">Authy</span> on your phone</li>
+              <li>Scan the QR code below</li>
+              <li>Enter the 6-digit code to confirm</li>
+            </ol>
+
+            {qrCode && (
+              <div className="flex flex-col items-center gap-3">
+                <div className="rounded-xl border border-[hsl(var(--border))] bg-white p-3">
+                  <img src={qrCode} alt="QR Code" className="w-40 h-40" />
+                </div>
+                {secret && (
+                  <div className="w-full rounded-lg bg-[hsl(var(--secondary))] border border-[hsl(var(--border))] px-3 py-2 text-center">
+                    <p className="text-[9px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1">Manual entry key</p>
+                    <p className="text-xs font-mono text-[hsl(var(--foreground))] break-all select-all">{secret}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="block text-[11px] font-medium text-[hsl(var(--muted-foreground))] uppercase tracking-wider">
+                6-digit verification code
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="000000"
+                className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3.5 py-2.5 text-sm text-[hsl(var(--foreground))] placeholder-[hsl(var(--muted-foreground))]/40 outline-none focus:border-[hsl(var(--primary))]/50 font-mono tracking-widest text-center"
+              />
+            </div>
+
+            {error && (
+              <div className="flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2">
+                <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
+                <p className="text-xs text-red-400">{error}</p>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setStep("idle"); setQrCode(null); setCode(""); setError(""); }}
+                className="flex-1 rounded-lg border border-[hsl(var(--border))] py-2 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={verifyEnroll}
+                disabled={loading || code.length !== 6}
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-[hsl(var(--primary))] py-2 text-xs font-semibold text-[#0a0e1a] hover:brightness-110 disabled:opacity-50 transition-all"
+              >
+                {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                Verify & Enable
+              </button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function SettingsPage() {
   const { settings, saveSettings, applyVisual } = useSettings();
@@ -337,6 +531,9 @@ export default function SettingsPage() {
           </SettingRow>
         </CardContent>
       </Card>
+
+      {/* Security / MFA */}
+      <MFASection />
 
       {/* Sticky Save Bar — appears when there are unsaved changes */}
       {isDirty && (
