@@ -163,7 +163,16 @@ export default function DashboardPage() {
       {/* Bias Panel — below chart, 3 cols */}
       {goldBias && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          <BiasCard asset={goldBias.asset} bias={goldBias.bias} confidence={goldBias.confidence} />
+          <BiasCard
+            asset={goldBias.asset}
+            bias={goldBias.bias}
+            confidence={goldBias.confidence}
+            supportingFactors={goldBias.supportingFactors}
+            invalidationFactors={goldBias.invalidationFactors}
+            smcContext={(goldBias as any).smcContext}
+            sessionBehavior={goldBias.sessionBehavior}
+            macroDrivers={goldBias.macroDrivers}
+          />
           <SupportInvalidationCard type="support" items={(goldBias.supportingFactors ?? []).slice(0, 4)} />
           <SupportInvalidationCard type="invalidation" items={(goldBias.invalidationFactors ?? []).slice(0, 4)} />
         </div>
@@ -172,7 +181,18 @@ export default function DashboardPage() {
       {/* Bias mini cards — all assets */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {biasData.map((b) => (
-          <BiasCard key={b.asset} asset={b.asset} bias={b.bias} confidence={b.confidence} compact />
+          <BiasCard
+            key={b.asset}
+            asset={b.asset}
+            bias={b.bias}
+            confidence={b.confidence}
+            compact
+            supportingFactors={b.supportingFactors}
+            invalidationFactors={b.invalidationFactors}
+            smcContext={(b as any).smcContext}
+            sessionBehavior={b.sessionBehavior}
+            macroDrivers={b.macroDrivers}
+          />
         ))}
       </div>
 
@@ -181,10 +201,13 @@ export default function DashboardPage() {
         <div className="lg:col-span-2">
           <MarketNarrativePanel narrative={narrative} />
         </div>
-        <Card className="gradient-card flex flex-col items-center justify-center p-6 gap-3">
-          <ConvictionMeter value={narrative.conviction} label="Conviction" size="md" />
+        <Card className="gradient-card flex flex-col items-center justify-center p-6 gap-2">
+          <ConvictionMeter value={narrative.conviction} label="Geo Risk" size="md" />
           <p className="text-[10px] text-center text-[hsl(var(--muted-foreground))] uppercase tracking-wider">
             {narrative.dominantTheme}
+          </p>
+          <p className="text-[9px] text-center text-[hsl(var(--muted-foreground))]/60 leading-relaxed max-w-[140px]">
+            Geopolitical impact score — one sub-factor of overall bias conviction
           </p>
         </Card>
       </div>

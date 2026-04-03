@@ -41,10 +41,15 @@ export function MarketNarrativePanel({ narrative }: MarketNarrativePanelProps) {
           </Badge>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Conviction</span>
-          <Progress value={narrative.conviction} className="flex-1 h-1.5" />
-          <span className="text-xs font-mono font-semibold text-[hsl(var(--primary))]">{narrative.conviction}%</span>
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Geo Risk Score</span>
+            <Progress value={narrative.conviction} className="flex-1 h-1.5" />
+            <span className="text-xs font-mono font-semibold text-[hsl(var(--primary))]">{narrative.conviction}%</span>
+          </div>
+          <p className="text-[9px] text-[hsl(var(--muted-foreground))]/60 mt-0.5 italic">
+            Geopolitical impact on this regime — not the same as asset bias conviction
+          </p>
         </div>
       </CardContent>
     </Card>
