@@ -64,6 +64,32 @@ function fmtFull(n: number): string {
   return (n >= 0 ? "+" : "") + n.toFixed(2);
 }
 
+// ── Image compression (client-side, no storage bucket required) ───────────────
+
+function compressImageToBase64(file: File, maxWidth = 1400, quality = 0.82): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxWidth / img.width);
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = e.target!.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 // ── Day Journal Modal ──────────────────────────────────────────────────────────
 
 function DayJournalModal({
@@ -113,18 +139,14 @@ function DayJournalModal({
 
   async function handleFileUpload(file: File) {
     if (!file.type.startsWith("image/")) { toast.error("Images only"); return; }
-    if (file.size > 10 * 1024 * 1024) { toast.error("Max 10MB per image"); return; }
+    if (file.size > 15 * 1024 * 1024) { toast.error("Max 15MB per image"); return; }
     setUploading(true);
     try {
-      const authHeaders = await getAuthHeaders();
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/journal/upload", { method: "POST", headers: authHeaders, body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setScreenshots(prev => [...prev, data.url]);
+      // Compress + convert to base64 entirely client-side — no storage bucket needed
+      const base64 = await compressImageToBase64(file);
+      setScreenshots(prev => [...prev, base64]);
     } catch {
-      toast.error("Upload failed");
+      toast.error("Failed to process image");
     } finally {
       setUploading(false);
     }
@@ -132,8 +154,7 @@ function DayJournalModal({
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file) handleFileUpload(file);
+    Array.from(e.dataTransfer.files).forEach(f => handleFileUpload(f));
   }
 
   const hasPnl = pnlData && pnlData.trades > 0;
