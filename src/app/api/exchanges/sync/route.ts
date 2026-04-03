@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helper";
 import { decrypt } from "@/lib/exchanges/encrypt";
 import { syncExchange } from "@/lib/exchanges";
 import type { ExchangeCredentials } from "@/lib/exchanges/types";
@@ -8,14 +8,12 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { user, supabase } = await getAuthUser(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json().catch(() => ({}));
     const connectionId: string | undefined = body.connectionId;
 
-    // Fetch connection(s) for this user
     let query = supabase
       .from("exchange_connections")
       .select("*")
@@ -33,7 +31,6 @@ export async function POST(req: NextRequest) {
     const results = [];
 
     for (const conn of connections) {
-      // Figure out last synced time (sync 90 days on first sync, otherwise from last sync)
       const lastSynced = conn.last_synced_at
         ? new Date(conn.last_synced_at).getTime()
         : Date.now() - 90 * 24 * 60 * 60 * 1000;
@@ -53,9 +50,8 @@ export async function POST(req: NextRequest) {
       results.push({ connectionId: conn.id, exchange: conn.exchange, count: result.trades.length, error: result.error });
 
       if (result.trades.length > 0) {
-        // Upsert trades (ignore duplicates via UNIQUE constraint)
         const rows = result.trades.map((t) => ({
-          user_id: user.id,
+          user_id: user!.id,
           connection_id: conn.id,
           exchange: conn.exchange,
           trade_id: t.tradeId,
@@ -66,14 +62,12 @@ export async function POST(req: NextRequest) {
           closed_at: t.closedAt.toISOString(),
         }));
 
-        // Batch insert in chunks of 500
         for (let i = 0; i < rows.length; i += 500) {
           await supabase
             .from("trades")
             .upsert(rows.slice(i, i + 500), { onConflict: "connection_id,trade_id", ignoreDuplicates: true });
         }
 
-        // Update last_synced_at
         await supabase
           .from("exchange_connections")
           .update({ last_synced_at: new Date().toISOString() })

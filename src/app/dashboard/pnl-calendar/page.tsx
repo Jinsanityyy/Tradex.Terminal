@@ -11,6 +11,18 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DailyPnL, MonthlyPnL } from "@/app/api/pnl/route";
 import { toast } from "sonner";
+import { createClient } from "@/lib/supabase/client";
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  try {
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      return { "Authorization": `Bearer ${session.access_token}` };
+    }
+  } catch {}
+  return {};
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -81,9 +93,10 @@ function DayJournalModal({
   async function save() {
     setSaving(true);
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch("/api/journal", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ date, note, screenshot_urls: screenshots }),
       });
       if (!res.ok) throw new Error("Save failed");
@@ -103,9 +116,10 @@ function DayJournalModal({
     if (file.size > 10 * 1024 * 1024) { toast.error("Max 10MB per image"); return; }
     setUploading(true);
     try {
+      const authHeaders = await getAuthHeaders();
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/journal/upload", { method: "POST", body: fd });
+      const res = await fetch("/api/journal/upload", { method: "POST", headers: authHeaders, body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setScreenshots(prev => [...prev, data.url]);
@@ -315,9 +329,10 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
 
     setLoading(true);
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch("/api/exchanges/connect", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           exchange, label: label.trim(), apiKey, apiSecret,
           apiPassphrase: passphrase || undefined,
@@ -511,10 +526,11 @@ export default function PnLCalendarPage() {
   async function loadData() {
     setLoading(true);
     try {
+      const authHeaders = await getAuthHeaders();
       const qs = selectedConn !== "all" ? `?connectionId=${selectedConn}` : "";
       const [pnlRes, connRes] = await Promise.all([
-        fetch(`/api/pnl${qs}`),
-        fetch("/api/exchanges/list"),
+        fetch(`/api/pnl${qs}`, { headers: authHeaders }),
+        fetch("/api/exchanges/list", { headers: authHeaders }),
       ]);
       const pnlData = await pnlRes.json();
       const connData = await connRes.json();
@@ -529,7 +545,8 @@ export default function PnLCalendarPage() {
   async function loadJournalEntries() {
     const month = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`;
     try {
-      const res = await fetch(`/api/journal?month=${month}`);
+      const authHeaders = await getAuthHeaders();
+      const res = await fetch(`/api/journal?month=${month}`, { headers: authHeaders });
       const data = await res.json();
       if (Array.isArray(data.data)) {
         setJournalEntries(prev => {
@@ -553,7 +570,8 @@ export default function PnLCalendarPage() {
   async function syncAll() {
     setSyncing(true);
     try {
-      await fetch("/api/exchanges/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+      const authHeaders = await getAuthHeaders();
+      await fetch("/api/exchanges/sync", { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders }, body: JSON.stringify({}) });
       await loadData();
     } finally {
       setSyncing(false);
@@ -563,7 +581,8 @@ export default function PnLCalendarPage() {
   async function deleteConnection(id: string) {
     if (!confirm("Remove this exchange connection?")) return;
     setConnections(prev => prev.filter(c => c.id !== id));
-    await fetch(`/api/exchanges/${id}`, { method: "DELETE" });
+    const authHeaders = await getAuthHeaders();
+    await fetch(`/api/exchanges/${id}`, { method: "DELETE", headers: authHeaders });
     await loadData();
   }
 

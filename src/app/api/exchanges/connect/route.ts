@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helper";
 import { encrypt } from "@/lib/exchanges/encrypt";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { user, supabase } = await getAuthUser(req);
+    if (!user) return NextResponse.json({ error: "Unauthorized — please log out and log back in" }, { status: 401 });
 
     const body = await req.json();
     const { exchange, label, apiKey, apiSecret, apiPassphrase, metaapiToken, metaapiAccountId } = body;
@@ -17,7 +16,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "exchange and label are required" }, { status: 400 });
     }
 
-    // Validate exchange-specific required fields
     if (exchange === "mt5") {
       if (!metaapiToken || !metaapiAccountId) {
         return NextResponse.json({ error: "MetaApi token and account ID required for MT5" }, { status: 400 });

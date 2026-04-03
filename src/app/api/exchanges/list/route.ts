@@ -1,13 +1,12 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/supabase/auth-helper";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { user, supabase } = await getAuthUser(req);
+    if (!user) return NextResponse.json({ data: [] }); // return empty, not 401, so the page doesn't break
 
     const { data, error } = await supabase
       .from("exchange_connections")
@@ -18,6 +17,6 @@ export async function GET() {
     if (error) throw error;
     return NextResponse.json({ data: data ?? [] });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ data: [], error: err.message });
   }
 }

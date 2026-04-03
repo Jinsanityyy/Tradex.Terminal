@@ -1,36 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helper";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/journal?date=2025-12-15  OR  ?month=2025-12
 export async function GET(req: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { user, supabase } = await getAuthUser(req);
+  if (!user) return NextResponse.json({ data: [] });
 
   const { searchParams } = new URL(req.url);
   const date  = searchParams.get("date");
-  const month = searchParams.get("month"); // "YYYY-MM"
+  const month = searchParams.get("month");
 
   let query = supabase.from("journal_entries").select("*").eq("user_id", user.id);
   if (date) {
     query = query.eq("date", date);
   } else if (month) {
-    query = query
-      .gte("date", `${month}-01`)
-      .lte("date", `${month}-31`);
+    query = query.gte("date", `${month}-01`).lte("date", `${month}-31`);
   }
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ data: [], error: error.message });
   return NextResponse.json({ data });
 }
 
 // POST /api/journal  { date, note, screenshot_urls }
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { user, supabase } = await getAuthUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
