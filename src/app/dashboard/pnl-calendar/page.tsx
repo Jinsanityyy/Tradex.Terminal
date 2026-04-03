@@ -600,46 +600,6 @@ export default function PnLCalendarPage() {
 
   const todayStr = now.toISOString().split("T")[0];
 
-  // ── No connections ──────────────────────────────────────────────────────────
-  if (!loading && connections.length === 0) {
-    return (
-      <div className="space-y-5 max-w-5xl">
-        {showConnect && <ConnectModal onClose={() => setShowConnect(false)} onConnected={handleConnected} />}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold text-[hsl(var(--foreground))]">PnL Calendar</h1>
-            <p className="text-xs text-[hsl(var(--muted-foreground))]">Connect your exchange to track your trading performance</p>
-          </div>
-          <button onClick={() => setShowConnect(true)}
-            className="flex items-center gap-2 rounded-lg border border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/10 px-4 py-2 text-xs font-semibold text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/20 transition-all">
-            <Plus className="h-3.5 w-3.5" /> Connect Exchange
-          </button>
-        </div>
-        <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-12 text-center">
-          <Activity className="h-10 w-10 text-[hsl(var(--muted-foreground))]/30 mx-auto mb-4" />
-          <h2 className="text-sm font-semibold text-[hsl(var(--foreground))] mb-2">No exchanges connected</h2>
-          <p className="text-xs text-[hsl(var(--muted-foreground))] mb-6 max-w-sm mx-auto">
-            Connect Binance, Bybit, OKX, or MT5 to automatically import your trade history and track daily P&L.
-          </p>
-          <div className="flex items-center justify-center gap-3 mb-8">
-            {(Object.keys(EXCHANGE_META) as ExchangeKey[]).map(ex => {
-              const m = EXCHANGE_META[ex];
-              return (
-                <div key={ex} className={cn("rounded-lg border px-3 py-2 text-center", m.bg)}>
-                  <p className={cn("text-xs font-bold", m.color)}>{m.name}</p>
-                </div>
-              );
-            })}
-          </div>
-          <button onClick={() => setShowConnect(true)}
-            className="rounded-lg bg-[hsl(var(--primary))]/15 border border-[hsl(var(--primary))]/30 px-6 py-2.5 text-sm font-semibold text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/25 transition-all">
-            Connect Your First Exchange
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   // ── Main View ───────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
@@ -683,6 +643,33 @@ export default function PnLCalendarPage() {
           </button>
         </div>
       </div>
+
+      {/* ── Connect exchange banner (no connections yet) ── */}
+      {!loading && connections.length === 0 && (
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-[hsl(var(--primary))]/20 bg-[hsl(var(--primary))]/[0.04] px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Activity className="h-4 w-4 text-[hsl(var(--primary))]/60 shrink-0" />
+            <div>
+              <p className="text-xs font-semibold text-[hsl(var(--foreground))]">No exchange connected</p>
+              <p className="text-[11px] text-[hsl(var(--muted-foreground))]">Connect Binance, Bybit, OKX, or MT5 to populate the calendar with your real trade data.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {(Object.keys(EXCHANGE_META) as ExchangeKey[]).map(ex => {
+              const m = EXCHANGE_META[ex];
+              return (
+                <span key={ex} className={cn("hidden sm:block text-[9px] font-bold px-2 py-1 rounded border", m.bg, m.color)}>{m.name}</span>
+              );
+            })}
+            <button
+              onClick={() => setShowConnect(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-[hsl(var(--primary))]/15 border border-[hsl(var(--primary))]/30 px-3 py-1.5 text-xs font-semibold text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/25 transition-all"
+            >
+              <Plus className="h-3 w-3" /> Connect
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Connected exchanges ── */}
       <div className="flex items-center gap-2 flex-wrap">
