@@ -65,7 +65,7 @@ export function PaywallGate({ children, requiredPlan }: PaywallGateProps) {
   );
 
   // Check access
-  const hasAccess = canAccess(subscription.plan, pathname) && subscription.isActive;
+  const hasAccess = canAccess(subscription.plan, pathname, subscription.isTrialing) && subscription.isActive;
   if (hasAccess) return <>{children}</>;
 
   // ── Locked UI ────────────────────────────────────────────────────────────────
