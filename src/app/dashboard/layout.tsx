@@ -4,12 +4,15 @@ import React, { useEffect } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopStatusBar } from "@/components/layout/TopStatusBar";
 import { FloatingChat } from "@/components/shared/FloatingChat";
+import { useAnalytics } from "@/hooks/useAnalytics";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  useAnalytics(); // auto-tracks sessions, page views, screen time
+
   useEffect(() => {
     const block = (e: MouseEvent) => e.preventDefault();
     document.addEventListener("contextmenu", block);
