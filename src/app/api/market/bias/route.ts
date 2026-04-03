@@ -51,48 +51,70 @@ function deriveBiasFromIndicators(
   price: number,
   high52w: number,
   low52w: number,
-  macdHist: number
-): { bias: "bullish" | "bearish" | "neutral"; confidence: number } {
-  let score = 0; // -100 to +100
+  macdHist: number,
+  high: number,
+  low: number,
+  open: number,
+  prevClose: number
+): { bias: "bullish" | "bearish" | "neutral"; confidence: number; smcContext: string } {
+  let score = 0;
 
-  // RSI contribution (weight: 30)
-  if (rsi > 70) score -= 15; // overbought = bearish signal
-  else if (rsi > 60) score += 20;
-  else if (rsi > 50) score += 10;
-  else if (rsi > 40) score -= 10;
-  else if (rsi > 30) score -= 20;
-  else score += 15; // oversold = bullish reversal signal
+  // ── Price Action / Structure (primary — SMC priority) ──
+  const range52 = high52w - low52w;
+  const pos52 = range52 > 0 ? (price - low52w) / range52 : 0.5;
+  const equilibrium = (high + low) / 2;
+  const inDiscount = price < equilibrium;
+  const inPremium  = price > equilibrium;
+  const posInRange = (high - low) > 0 ? (price - low) / (high - low) : 0.5;
 
-  // Price change contribution (weight: 25)
-  if (pctChange > 1.5) score += 25;
-  else if (pctChange > 0.5) score += 15;
-  else if (pctChange > 0) score += 5;
-  else if (pctChange > -0.5) score -= 5;
-  else if (pctChange > -1.5) score -= 15;
-  else score -= 25;
+  // BOS detection: significant break of previous close
+  const bosUp   = pctChange > 0.4;
+  const bosDown = pctChange < -0.4;
+  const choch   = (pos52 > 0.6 && pctChange < -0.6) || (pos52 < 0.4 && pctChange > 0.6);
 
-  // MACD histogram contribution (weight: 25)
-  if (macdHist > 0) score += Math.min(25, macdHist * 50);
-  else score += Math.max(-25, macdHist * 50);
+  if (bosUp)   score += 30;
+  if (bosDown) score -= 30;
+  if (choch)   score  = choch && pctChange > 0 ? Math.max(score, 20) : Math.min(score, -20);
 
-  // 52-week range position (weight: 20)
-  const range = high52w - low52w;
-  if (range > 0) {
-    const position = (price - low52w) / range; // 0 = at low, 1 = at high
-    if (position > 0.8) score += 10; // near highs = momentum
-    else if (position > 0.6) score += 15;
-    else if (position > 0.4) score += 5;
-    else if (position > 0.2) score -= 10;
-    else score -= 15; // near lows = bearish
-  }
+  // Premium/Discount alignment
+  if (pctChange > 0 && inDiscount) score += 15; // buy in discount = institutional
+  if (pctChange < 0 && inPremium)  score -= 15; // sell in premium = institutional
+  if (pctChange > 0 && inPremium)  score -= 5;  // buying premium = risky
+  if (pctChange < 0 && inDiscount) score += 5;  // selling discount = risky
 
-  // Clamp score
+  // ── RSI (secondary — confirms, not primary) ──
+  if (rsi > 70) score -= 10;
+  else if (rsi > 60) score += 12;
+  else if (rsi > 50) score += 6;
+  else if (rsi > 40) score -= 6;
+  else if (rsi > 30) score -= 12;
+  else score += 10; // deeply oversold = reversal potential
+
+  // ── 52-week structural position ──
+  if (pos52 > 0.8) score += 8;
+  else if (pos52 > 0.6) score += 12;
+  else if (pos52 > 0.4) score += 3;
+  else if (pos52 > 0.2) score -= 8;
+  else score -= 12;
+
+  // ── MACD secondary ──
+  if (macdHist > 0) score += Math.min(15, macdHist * 30);
+  else score += Math.max(-15, macdHist * 30);
+
   score = Math.max(-100, Math.min(100, score));
 
   const bias = score > 15 ? "bullish" : score < -15 ? "bearish" : "neutral";
   const confidence = Math.min(95, Math.max(25, 50 + Math.abs(score) * 0.45));
 
-  return { bias, confidence: Math.round(confidence) };
+  // SMC context string
+  const smcContext = [
+    bosUp   ? "BOS to upside detected" : bosDown ? "BOS to downside detected" : "No clear BOS",
+    choch   ? "CHoCH in play — potential trend reversal" : "",
+    inDiscount ? "Price in discount zone (buy area)" : inPremium ? "Price in premium zone (sell area)" : "Price at equilibrium",
+    `52w position: ${(pos52 * 100).toFixed(0)}% of annual range`,
+  ].filter(Boolean).join(" | ");
+
+  return { bias, confidence: Math.round(confidence), smcContext };
 }
 
 function generateSupportingFactors(
@@ -103,31 +125,43 @@ function generateSupportingFactors(
   high52w: number,
   low52w: number,
   macdHist: number,
-  assetName: string
+  assetName: string,
+  high: number,
+  low: number,
+  prevClose: number
 ): string[] {
   const factors: string[] = [];
-  const range = high52w - low52w;
-  const position = range > 0 ? (price - low52w) / range : 0.5;
+  const range52 = high52w - low52w;
+  const pos52 = range52 > 0 ? (price - low52w) / range52 : 0.5;
+  const equilibrium = (high + low) / 2;
+  const inDiscount = price < equilibrium;
+  const inPremium  = price > equilibrium;
+  const bosUp   = pctChange > 0.4;
+  const bosDown = pctChange < -0.4;
 
-  if (bias === "bullish" || bias === "neutral") {
-    if (pctChange > 0) factors.push(`${assetName} up ${Math.abs(pctChange).toFixed(2)}% — positive momentum in current session`);
-    if (rsi > 50 && rsi < 70) factors.push(`RSI at ${rsi.toFixed(0)} — bullish territory without overbought risk`);
-    if (rsi <= 35) factors.push(`RSI at ${rsi.toFixed(0)} — deeply oversold, reversal potential building`);
-    if (macdHist > 0) factors.push(`MACD histogram positive (${macdHist.toFixed(4)}) — upward momentum confirmed`);
-    if (position > 0.6) factors.push(`Trading in upper ${Math.round(position * 100)}% of 52-week range — structural uptrend intact`);
-    if (position < 0.3) factors.push(`Near 52-week lows — mean reversion opportunity developing`);
+  if (bias === "bullish") {
+    if (bosUp) factors.push(`BOS to upside — ${assetName} broke ${prevClose.toFixed(2)} with ${Math.abs(pctChange).toFixed(2)}% momentum`);
+    if (inDiscount) factors.push(`Price in discount zone below EQ ${equilibrium.toFixed(2)} — institutional buy area`);
+    if (rsi > 50 && rsi < 70) factors.push(`RSI ${rsi.toFixed(0)} — momentum positive, not yet overbought`);
+    if (rsi < 35) factors.push(`RSI ${rsi.toFixed(0)} — deeply oversold, smart money accumulation likely`);
+    if (macdHist > 0) factors.push(`MACD histogram positive — upside momentum confirmed`);
+    if (pos52 > 0.6) factors.push(`Upper ${Math.round(pos52 * 100)}% of 52w range — structural HTF uptrend`);
+    if (pos52 < 0.3) factors.push(`Near 52w lows — potential liquidity sweep before reversal`);
+  } else if (bias === "bearish") {
+    if (bosDown) factors.push(`BOS to downside — ${assetName} broke ${prevClose.toFixed(2)}, ${Math.abs(pctChange).toFixed(2)}% selling pressure`);
+    if (inPremium) factors.push(`Price in premium zone above EQ ${equilibrium.toFixed(2)} — institutional sell area`);
+    if (rsi > 70) factors.push(`RSI ${rsi.toFixed(0)} — overbought, distribution phase likely`);
+    if (rsi < 50) factors.push(`RSI ${rsi.toFixed(0)} — below midline, sellers in control`);
+    if (macdHist < 0) factors.push(`MACD histogram negative — downward momentum building`);
+    if (pos52 < 0.4) factors.push(`Lower ${Math.round(pos52 * 100)}% of 52w range — structural HTF downtrend`);
   } else {
-    if (pctChange < 0) factors.push(`${assetName} down ${Math.abs(pctChange).toFixed(2)}% — selling pressure dominant`);
-    if (rsi > 70) factors.push(`RSI at ${rsi.toFixed(0)} — overbought, correction risk elevated`);
-    if (rsi < 50) factors.push(`RSI at ${rsi.toFixed(0)} — bearish territory, sellers in control`);
-    if (macdHist < 0) factors.push(`MACD histogram negative (${macdHist.toFixed(4)}) — downward momentum building`);
-    if (position < 0.4) factors.push(`Trading in lower ${Math.round(position * 100)}% of 52-week range — weakness persists`);
+    factors.push(`Price at equilibrium ${equilibrium.toFixed(2)} — no clear directional bias`);
+    factors.push(`RSI ${rsi.toFixed(0)} near midline — neither buyers nor sellers in control`);
+    factors.push(`Wait for BOS above ${high.toFixed(2)} or below ${low.toFixed(2)} before committing`);
   }
 
-  // Pad with generic context-aware factors
   if (factors.length < 3) {
-    if (rsi > 40 && rsi < 60) factors.push(`RSI near neutral at ${rsi.toFixed(0)} — waiting for directional catalyst`);
-    factors.push(`Price at ${price.toFixed(2)} within 52-week range of ${low52w.toFixed(2)}–${high52w.toFixed(2)}`);
+    factors.push(`52w range: ${low52w.toFixed(2)}–${high52w.toFixed(2)}, price at ${(pos52 * 100).toFixed(0)}% of range`);
   }
 
   return factors.slice(0, 5);
@@ -230,6 +264,10 @@ export async function GET() {
       }
 
       const price = parseFloat(quote.close) || 0;
+      const high = parseFloat(quote.high || quote.close) || price;
+      const low = parseFloat(quote.low || quote.close) || price;
+      const open = parseFloat(quote.open || quote.close) || price;
+      const prevClose = parseFloat(quote.previous_close || quote.close) || price;
       const pctChange = parseFloat(quote.percent_change) || 0;
       const high52w = parseFloat(quote.fifty_two_week?.high ?? String(price * 1.1));
       const low52w = parseFloat(quote.fifty_two_week?.low ?? String(price * 0.9));
@@ -239,10 +277,15 @@ export async function GET() {
       const effectivePctChange = invertBias ? -pctChange : pctChange;
       const effectiveMacdHist = invertBias ? -macdHist : macdHist;
       const effectiveRsi = invertBias ? (100 - rsi) : rsi;
+      const effectiveHigh = invertBias ? price * 2 - low : high;
+      const effectiveLow  = invertBias ? price * 2 - high : low;
 
-      const { bias, confidence } = deriveBiasFromIndicators(effectiveRsi, effectivePctChange, price, high52w, low52w, effectiveMacdHist);
+      const { bias, confidence, smcContext } = deriveBiasFromIndicators(
+        effectiveRsi, effectivePctChange, price, high52w, low52w, effectiveMacdHist,
+        effectiveHigh, effectiveLow, open, prevClose
+      );
       const keyLevels = deriveKeyLevels(price, high52w, low52w);
-      const supportingFactors = generateSupportingFactors(bias, rsi, pctChange, price, high52w, low52w, macdHist, asset.display);
+      const supportingFactors = generateSupportingFactors(bias, rsi, pctChange, price, high52w, low52w, macdHist, asset.display, high, low, prevClose);
       const invalidationFactors = generateInvalidationFactors(bias, rsi, price, high52w, low52w, keyLevels.support, keyLevels.resistance);
 
       const macroDrivers = [...asset.macroBase];
@@ -259,6 +302,7 @@ export async function GET() {
         macroDrivers: macroDrivers.slice(0, 5),
         correlatedAssets: asset.correlatedAssets,
         sessionBehavior: asset.sessionBehavior,
+        smcContext,
       };
     });
 
