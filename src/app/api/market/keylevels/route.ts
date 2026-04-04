@@ -33,12 +33,16 @@ export interface AlignmentContext {
   confidenceAdjustment: number; // applied to setupQuality scoring
 }
 
+export type TradeStatus = "TRADE READY" | "WATCHLIST" | "NO TRADE";
+
 export interface KeyLevel {
   asset: string;
   price: number;
   bias: "bullish" | "bearish" | "neutral";  // LTF Setup direction
   htfBias: "bullish" | "bearish" | "neutral"; // Higher Timeframe Bias
   alignment: AlignmentContext;
+  tradeStatus: TradeStatus;
+  tradeStatusReason: string;
   setupQuality: "A+" | "A" | "B" | "NO TRADE";
   marketStructure: MarketStructure;
   orderBlock: OrderBlock;
@@ -401,6 +405,84 @@ function buildConfluences(
   return c;
 }
 
+// ── Trade Status ─────────────────────────────────────────────────────────────
+// Three-state signal derived from the combination of:
+//   HTF bias (macro direction) + LTF confirmation (intraday setup) + quality filters
+
+function computeTradeStatus(
+  htfBias: "bullish" | "bearish" | "neutral",
+  ltfBias: "bullish" | "bearish" | "neutral",
+  alignment: AlignmentContext,
+  setupQuality: "A+" | "A" | "B" | "NO TRADE",
+  rrRatio: number,
+  confluenceCount: number,
+  session: string
+): { status: TradeStatus; reason: string } {
+
+  // ── NO TRADE ──────────────────────────────────────────────────────────────
+  // Market is ranging or there is no usable directional edge
+  if (htfBias === "neutral" || ltfBias === "neutral") {
+    return {
+      status: "NO TRADE",
+      reason: "No directional bias on either timeframe — market is ranging. Stand aside and wait for a structural break.",
+    };
+  }
+  if (alignment.type === "ranging") {
+    return {
+      status: "NO TRADE",
+      reason: "HTF and LTF signals are inconclusive — consolidation phase. Mark the range highs/lows and wait for BOS.",
+    };
+  }
+  if (setupQuality === "NO TRADE") {
+    const why = confluenceCount < 3
+      ? `Only ${confluenceCount} confluence${confluenceCount === 1 ? "" : "s"} found (minimum 3 required)`
+      : rrRatio < 2.0
+      ? `R:R is 1:${rrRatio} — below the 1:2 minimum threshold`
+      : "Setup does not meet quality criteria";
+    return {
+      status: "NO TRADE",
+      reason: `${why}. Wait for price to reach a higher-quality OB or FVG entry.`,
+    };
+  }
+
+  // ── TRADE READY ───────────────────────────────────────────────────────────
+  // HTF bias exists + LTF confirms same direction + quality gate passed
+  const isAligned = alignment.type === "continuation";
+  const qualityGate = setupQuality === "A+" || setupQuality === "A";
+  const rrGate = rrRatio >= 2.0;
+  const sessionBoost = session === "London" || session === "New York";
+
+  if (isAligned && qualityGate && rrGate) {
+    const sessionNote = sessionBoost ? ` ${session} session active — optimal timing.` : " Wait for London/NY session for best execution.";
+    return {
+      status: "TRADE READY",
+      reason: `HTF ${htfBias} bias confirmed. LTF ${ltfBias} setup aligns. ${confluenceCount} confluences, 1:${rrRatio} R:R (grade ${setupQuality}).${sessionNote}`,
+    };
+  }
+
+  // ── WATCHLIST ─────────────────────────────────────────────────────────────
+  // HTF bias is clear but LTF entry is not yet confirmed
+  const watchReasons: string[] = [];
+
+  if (!isAligned) {
+    watchReasons.push(`LTF ${ltfBias} setup is ${alignment.type} against HTF ${htfBias} trend`);
+  }
+  if (!qualityGate) {
+    watchReasons.push(`setup quality is ${setupQuality} — wait for a cleaner OB or FVG entry`);
+  }
+  if (!rrGate) {
+    watchReasons.push(`R:R is 1:${rrRatio} — needs to reach at least 1:2 at entry`);
+  }
+  if (confluenceCount < 3) {
+    watchReasons.push(`only ${confluenceCount} confluence${confluenceCount === 1 ? "" : "s"} — need 3+ for confirmation`);
+  }
+
+  return {
+    status: "WATCHLIST",
+    reason: `HTF ${htfBias} bias present. Waiting: ${watchReasons.join("; ")}.`,
+  };
+}
+
 // ── SMC Entry / SL / TP ───────────────────────────────────────────────────────
 
 function calculateSMCLevels(
@@ -527,6 +609,11 @@ function calculateSMCLevels(
     setupQuality = alignment.type === "counter-trend" && confluenceCount < 4 ? "NO TRADE" : "B";
   }
 
+  // ── Trade Status ──
+  const { status: tradeStatus, reason: tradeStatusReason } = computeTradeStatus(
+    htfBias, bias, alignment, setupQuality, rrRatio, confluenceCount, session
+  );
+
   // ── Liquidity Target ──
   const liquidityTarget = bias === "bullish"
     ? `Equal highs at ${pdHigh.toFixed(2)} and resistance ${resistance.toFixed(2)} — price targeting sell-side above structure`
@@ -548,9 +635,11 @@ function calculateSMCLevels(
   return {
     asset: config.display,
     price,
-    bias,          // LTF Setup direction
-    htfBias,       // Higher Timeframe Bias
-    alignment,     // HTF vs LTF reconciliation
+    bias,             // LTF Setup direction
+    htfBias,          // Higher Timeframe Bias
+    alignment,        // HTF vs LTF reconciliation
+    tradeStatus,      // TRADE READY | WATCHLIST | NO TRADE
+    tradeStatusReason,
     setupQuality,
     marketStructure: ms,
     orderBlock: ob,

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ChevronDown, ChevronUp, AlertTriangle, Zap, Settings2, TrendingUp, TrendingDown, Minus, Filter } from "lucide-react";
+import { ChevronDown, ChevronUp, AlertTriangle, Zap, Settings2, Filter, CheckCircle2, Clock, XCircle } from "lucide-react";
 import type { KeyLevel } from "@/app/api/market/keylevels/route";
 
 // ── MT5 Pip Config per asset ──────────────────────────────────────────────────
@@ -71,6 +71,32 @@ function alignmentConfig(type: AlignType): {
     case "ranging":
     default:
       return { label: "Ranging / No Bias", shortLabel: "Ranging", color: "#8B949E", bg: "transparent", border: "var(--t-border-sub)", icon: "—" };
+  }
+}
+
+import type { TradeStatus } from "@/app/api/market/keylevels/route";
+
+function tradeStatusConfig(status: TradeStatus): {
+  label: string; color: string; bg: string; border: string;
+  glow: string; icon: typeof CheckCircle2;
+} {
+  switch (status) {
+    case "TRADE READY":
+      return {
+        label: "TRADE READY", color: "#00C896", bg: "#00C89612", border: "#00C89635",
+        glow: "0 0 20px rgba(0,200,150,0.10)", icon: CheckCircle2,
+      };
+    case "WATCHLIST":
+      return {
+        label: "WATCHLIST", color: "#F59E0B", bg: "#F59E0B10", border: "#F59E0B30",
+        glow: "0 0 16px rgba(245,158,11,0.06)", icon: Clock,
+      };
+    case "NO TRADE":
+    default:
+      return {
+        label: "NO TRADE", color: "#8B949E", bg: "transparent", border: "var(--t-border-sub)",
+        glow: "none", icon: XCircle,
+      };
   }
 }
 
@@ -243,13 +269,17 @@ function AssetRow({ level, defaultOpen, lotSize }: {
   const ltfColor   = isBull ? "#00C896" : isBear ? "#FF4D4F" : "#8B949E";
   const htfColor   = level.htfBias === "bullish" ? "#00C896" : level.htfBias === "bearish" ? "#FF4D4F" : "#8B949E";
   const align      = alignmentConfig(level.alignment?.type ?? "ranging");
+  const tsc        = tradeStatusConfig(level.tradeStatus ?? "NO TRADE");
+  const StatusIcon = tsc.icon;
   const isCounterTrend = level.alignment?.type === "counter-trend";
   const isReversal     = level.alignment?.type === "reversal";
+  const isTradeReady   = level.tradeStatus === "TRADE READY";
+  const isWatchlist    = level.tradeStatus === "WATCHLIST";
 
   const slPips        = calcPips(level.entry, level.stopLoss, level.asset);
   const unrealistic   = isUnrealistic(slPips, level.asset);
-  const isNT          = level.setupQuality === "NO TRADE" || unrealistic;
-  const dimmed        = isNT || level.rrRatio < 2.0;
+  const isNT          = (level.tradeStatus === "NO TRADE") || unrealistic;
+  const dimmed        = level.tradeStatus === "NO TRADE" && !unrealistic;
 
   const tp3Pips   = level.takeProfit3 ? calcPips(level.entry, level.takeProfit3, level.asset) : 0;
   const tp3Dollar = level.takeProfit3 ? calcDollar(tp3Pips, lotSize, level.asset) : 0;
@@ -259,9 +289,9 @@ function AssetRow({ level, defaultOpen, lotSize }: {
       className="rounded-xl overflow-hidden transition-all duration-200"
       style={{
         background: "var(--t-card)",
-        border: `1px solid ${sq.glow ? "#00C89622" : isCounterTrend ? "#F59E0B20" : "var(--t-border-sub)"}`,
-        boxShadow: sq.glow ? "0 0 16px rgba(0,200,150,0.06)" : isCounterTrend ? "0 0 12px rgba(245,158,11,0.04)" : "none",
-        opacity: dimmed ? 0.55 : 1,
+        border: `1px solid ${tsc.border}`,
+        boxShadow: tsc.glow,
+        opacity: dimmed ? 0.50 : 1,
       }}
     >
       {/* ── TOP STRIP ──────────────────────────────────────────── */}
@@ -269,13 +299,23 @@ function AssetRow({ level, defaultOpen, lotSize }: {
         onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 text-left hover:bg-white/[0.015] transition-colors"
       >
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap min-w-0">
+          {/* Trade Status — leading badge */}
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg shrink-0"
+            style={{ background: tsc.bg, border: `1px solid ${tsc.border}` }}>
+            <StatusIcon className="h-3 w-3 shrink-0" style={{ color: tsc.color }} />
+            <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: tsc.color }}>
+              {tsc.label}
+            </span>
+          </div>
+
+          {/* Asset name */}
           <span className="text-[13px] font-bold tracking-wide" style={{ color: "var(--t-text)" }}>
             {level.asset}
           </span>
 
           {/* HTF → LTF direction pair */}
-          <div className="flex items-center gap-1">
+          <div className="hidden sm:flex items-center gap-1">
             <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded"
               style={{ color: htfColor, background: `${htfColor}12`, border: `1px solid ${htfColor}25` }}>
               HTF {level.htfBias}
@@ -287,19 +327,11 @@ function AssetRow({ level, defaultOpen, lotSize }: {
             </span>
           </div>
 
-          {/* Alignment badge — short on mobile, full on sm+ */}
-          <span className="text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
+          {/* Alignment badge — hidden on mobile */}
+          <span className="hidden md:inline text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
             style={{ color: align.color, background: align.bg, border: `1px solid ${align.border}` }}>
-            <span className="sm:hidden">{align.icon} {align.shortLabel}</span>
-            <span className="hidden sm:inline">{align.icon} {align.label}</span>
+            {align.icon} {align.shortLabel}
           </span>
-
-          {level.marketStructure?.bos && (
-            <span className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded hidden sm:inline"
-              style={{ color: ltfColor, background: `${ltfColor}10`, border: `1px solid ${ltfColor}20` }}>
-              BOS
-            </span>
-          )}
         </div>
 
         <div className="flex items-center gap-3 shrink-0 ml-2">
@@ -322,6 +354,17 @@ function AssetRow({ level, defaultOpen, lotSize }: {
       {/* ── EXPANDED ───────────────────────────────────────────── */}
       {open && (
         <div className="px-3 sm:px-4 pb-4 pt-1 space-y-3 sm:space-y-4" style={{ borderTop: "1px solid var(--t-border-sub)" }}>
+
+          {/* ── TRADE STATUS REASON ──────────────────────────────── */}
+          {level.tradeStatusReason && (
+            <div className="flex items-start gap-2.5 rounded-lg px-3 py-2.5"
+              style={{ background: tsc.bg, border: `1px solid ${tsc.border}` }}>
+              <StatusIcon className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: tsc.color }} />
+              <p className="text-[10px] leading-relaxed" style={{ color: "var(--t-muted)" }}>
+                {level.tradeStatusReason}
+              </p>
+            </div>
+          )}
 
           {/* ── ALIGNMENT CONTEXT PANEL ─────────────────────────── */}
           {level.alignment && level.alignment.type !== "ranging" && (
@@ -567,12 +610,13 @@ export function KeyLevelsCard({ levels, compact = false }: KeyLevelsCardProps) {
   if (levels.length === 0) return null;
 
   const allLevels = levels.slice(0, compact ? 4 : 8);
-  // Strict mode: only show setups that align with HTF bias
+  // Strict mode: only show TRADE READY and WATCHLIST (hide NO TRADE)
   const display = strictMode
-    ? allLevels.filter(l => l.alignment?.type === "continuation" || l.alignment?.type === "ranging")
+    ? allLevels.filter(l => l.tradeStatus === "TRADE READY")
     : allLevels;
 
-  const quality       = display.filter(l => l.setupQuality === "A+" || l.setupQuality === "A").length;
+  const readyCount    = allLevels.filter(l => l.tradeStatus === "TRADE READY").length;
+  const watchCount    = allLevels.filter(l => l.tradeStatus === "WATCHLIST").length;
   const counterCount  = allLevels.filter(l => l.alignment?.type === "counter-trend").length;
 
   const LOT_PRESETS = [0.01, 0.05, 0.10, 0.25, 0.50, 1.00];
@@ -589,18 +633,27 @@ export function KeyLevelsCard({ levels, compact = false }: KeyLevelsCardProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          {quality > 0 && (
-            <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded"
-              style={{ color: "#00C896", background: "#00C89612", border: "1px solid #00C89625" }}>
-              {quality} A-setup{quality > 1 ? "s" : ""}
-            </span>
+          {/* Status summary pills */}
+          {readyCount > 0 && (
+            <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded"
+              style={{ background: "#00C89612", border: "1px solid #00C89630" }}>
+              <CheckCircle2 className="h-2.5 w-2.5" style={{ color: "#00C896" }} />
+              <span className="text-[9px] font-bold" style={{ color: "#00C896" }}>{readyCount}</span>
+            </div>
+          )}
+          {watchCount > 0 && (
+            <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded"
+              style={{ background: "#F59E0B10", border: "1px solid #F59E0B30" }}>
+              <Clock className="h-2.5 w-2.5" style={{ color: "#F59E0B" }} />
+              <span className="text-[9px] font-bold" style={{ color: "#F59E0B" }}>{watchCount}</span>
+            </div>
           )}
 
-          {/* Strict mode toggle */}
+          {/* Strict mode — show TRADE READY only */}
           <button
             onClick={() => setStrictMode(v => !v)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors"
-            title={strictMode ? "Strict mode ON — showing HTF-aligned only" : "Strict mode OFF — showing all setups"}
+            title={strictMode ? "Showing TRADE READY only" : "Showing all assets"}
             style={{
               border: `1px solid ${strictMode ? "#00C89640" : "var(--t-border-sub)"}`,
               background: strictMode ? "#00C89610" : "transparent",
@@ -608,7 +661,7 @@ export function KeyLevelsCard({ levels, compact = false }: KeyLevelsCardProps) {
           >
             <Filter className="h-3 w-3" style={{ color: strictMode ? "#00C896" : "var(--t-muted)" }} />
             <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: strictMode ? "#00C896" : "var(--t-muted)" }}>
-              {strictMode ? "HTF Only" : counterCount > 0 ? `${counterCount} CT` : "All"}
+              {strictMode ? "Ready Only" : "All"}
             </span>
           </button>
 
@@ -626,11 +679,12 @@ export function KeyLevelsCard({ levels, compact = false }: KeyLevelsCardProps) {
       </div>
 
       {/* Strict mode info bar */}
-      {strictMode && counterCount > 0 && (
-        <div className="px-5 py-2 flex items-center gap-2" style={{ background: "#00C89608", borderBottom: "1px solid #00C89620" }}>
-          <Filter className="h-3 w-3 shrink-0" style={{ color: "#00C896" }} />
+      {strictMode && (
+        <div className="px-4 sm:px-5 py-2 flex items-center gap-2" style={{ background: "#00C89608", borderBottom: "1px solid #00C89620" }}>
+          <CheckCircle2 className="h-3 w-3 shrink-0" style={{ color: "#00C896" }} />
           <p className="text-[10px]" style={{ color: "#00C896" }}>
-            Strict mode: showing only trend-aligned setups. {counterCount} counter-trend setup{counterCount > 1 ? "s" : ""} hidden.
+            Showing {readyCount} TRADE READY asset{readyCount !== 1 ? "s" : ""} only.
+            {watchCount > 0 && ` ${watchCount} on WATCHLIST — toggle off to view.`}
           </p>
         </div>
       )}
