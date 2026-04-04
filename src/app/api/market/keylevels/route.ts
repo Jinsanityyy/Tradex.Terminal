@@ -25,10 +25,20 @@ export interface MarketStructure {
   equilibrium: number;    // 50% of daily range
 }
 
+export interface AlignmentContext {
+  type: "continuation" | "counter-trend" | "reversal" | "ranging";
+  phase: "pullback" | "continuation" | "reversal" | "accumulation" | "ranging";
+  explanation: string;
+  riskMultiplier: number;    // 1.0 = normal, 1.3 = elevated risk
+  confidenceAdjustment: number; // applied to setupQuality scoring
+}
+
 export interface KeyLevel {
   asset: string;
   price: number;
-  bias: "bullish" | "bearish" | "neutral";
+  bias: "bullish" | "bearish" | "neutral";  // LTF Setup direction
+  htfBias: "bullish" | "bearish" | "neutral"; // Higher Timeframe Bias
+  alignment: AlignmentContext;
   setupQuality: "A+" | "A" | "B" | "NO TRADE";
   marketStructure: MarketStructure;
   orderBlock: OrderBlock;
@@ -43,8 +53,8 @@ export interface KeyLevel {
   support: number;
   resistance: number;
   pivot: number;
-  pdHigh: number;   // Previous Day High (approx)
-  pdLow: number;    // Previous Day Low (approx)
+  pdHigh: number;
+  pdLow: number;
   liquidityTarget: string;
   confluences: string[];
   confluenceCount: number;
@@ -105,6 +115,87 @@ function getSessionNote(session: string, bias: string): string {
     },
   };
   return notes[session]?.[bias] ?? "Monitor price action for session confirmation.";
+}
+
+// ── HTF Bias (Higher Timeframe) ──────────────────────────────────────────────
+// Derived from 52w structural position — represents macro/weekly directional bias
+// LTF bias is the intraday setup direction; these can (and often do) diverge.
+
+function computeHTFBias(
+  price: number,
+  high52w: number,
+  low52w: number,
+  pctChange: number,
+  rsi: number
+): "bullish" | "bearish" | "neutral" {
+  const range52 = high52w - low52w;
+  const pos52 = range52 > 0 ? (price - low52w) / range52 : 0.5;
+
+  // HTF bullish: upper half of 52w range + not in severe downtrend
+  if (pos52 > 0.55 && pctChange > -2.0 && rsi > 40) return "bullish";
+  // HTF bearish: lower half of 52w range + not in strong recovery
+  if (pos52 < 0.45 && pctChange < 2.0 && rsi < 60) return "bearish";
+  return "neutral";
+}
+
+// ── Alignment Context ─────────────────────────────────────────────────────────
+
+function computeAlignment(
+  htfBias: "bullish" | "bearish" | "neutral",
+  ltfBias: "bullish" | "bearish" | "neutral",
+  ms: MarketStructure
+): AlignmentContext {
+
+  // Ranging / no HTF context
+  if (htfBias === "neutral" || ltfBias === "neutral") {
+    return {
+      type: "ranging",
+      phase: "ranging",
+      explanation: "No clear higher timeframe bias. Price is in consolidation — both longs and shorts carry equal risk. Wait for a structural break before committing.",
+      riskMultiplier: 1.0,
+      confidenceAdjustment: -5,
+    };
+  }
+
+  // Matching direction — trend continuation
+  if (htfBias === ltfBias) {
+    // Check if CHoCH confirms a possible reversal in the same direction
+    const isFreshReversal = ms.choch && !ms.bos;
+    return {
+      type: "continuation",
+      phase: "continuation",
+      explanation: isFreshReversal
+        ? `LTF setup aligns with HTF ${htfBias} bias. CHoCH detected — early-stage continuation. BOS confirmation preferred before full size entry.`
+        : `LTF setup aligns with HTF ${htfBias} trend. Trend continuation setup — highest probability configuration. Full size appropriate at OB/FVG entry.`,
+      riskMultiplier: 1.0,
+      confidenceAdjustment: 5,
+    };
+  }
+
+  // Opposing direction — counter-trend
+  const htfDir = htfBias === "bullish" ? "bullish (uptrend)" : "bearish (downtrend)";
+  const ltfDir = ltfBias === "bullish" ? "bullish bounce" : "bearish pullback";
+
+  // CHoCH in the LTF direction could mean actual reversal
+  const isReversal = ms.choch && ms.bos;
+
+  if (isReversal) {
+    return {
+      type: "reversal",
+      phase: "reversal",
+      explanation: `LTF ${ltfDir} is challenging the HTF ${htfDir}. Both BOS and CHoCH detected — this may be a genuine trend reversal, not just a pullback. Treat with elevated caution until HTF structure confirms the shift.`,
+      riskMultiplier: 1.2,
+      confidenceAdjustment: -10,
+    };
+  }
+
+  return {
+    type: "counter-trend",
+    phase: ltfBias === "bearish" ? "pullback" : "accumulation",
+    explanation: `LTF ${ltfDir} is a short-term retracement against the HTF ${htfDir}. This is a counter-trend trade — reduce position size (0.5× normal), use a tighter stop, and do not move SL to break-even prematurely. The HTF trend is your adversary.`,
+    riskMultiplier: 1.3,
+    confidenceAdjustment: -15,
+  };
 }
 
 // ── SMC Market Structure ──────────────────────────────────────────────────────
@@ -327,15 +418,21 @@ function calculateSMCLevels(
   const { step, atr } = config;
   const session = getSession();
 
-  // Bias from price action + structure (not just pct change)
+  // LTF Bias from intraday price action + structure
   const posInRange = (high - low) > 0 ? (price - low) / (high - low) : 0.5;
   let bias: "bullish" | "bearish" | "neutral";
   if (pctChange > 0.25 && posInRange > 0.5) bias = "bullish";
   else if (pctChange < -0.25 && posInRange < 0.5) bias = "bearish";
   else bias = "neutral";
 
+  // HTF Bias from 52w structural position (macro view)
+  const htfBias = computeHTFBias(price, high52w, low52w, pctChange, rsi);
+
   // Market structure
   const ms = analyzeMarketStructure(price, open, high, low, prevClose, high52w, low52w, pctChange);
+
+  // Alignment between HTF and LTF
+  const alignment = computeAlignment(htfBias, bias, ms);
 
   // Previous Day High/Low approx (using today's high/low as reference; true PDH/PDL requires historical feed)
   const pdHigh = roundTo(high, step);
@@ -413,16 +510,21 @@ function calculateSMCLevels(
   const confluenceCount = confluences.length;
 
   // ── Setup Quality Filter ──
-  // Minimum: 3 confluences + 1:2 R:R
+  // Minimum: 3 confluences + 1:2 R:R. Counter-trend setups are capped at A (never A+).
+  const effectiveConfluences = confluenceCount + alignment.confidenceAdjustment / 5;
   let setupQuality: "A+" | "A" | "B" | "NO TRADE";
   if (bias === "neutral" || rrRatio < 2.0 || confluenceCount < 3) {
     setupQuality = "NO TRADE";
-  } else if (confluenceCount >= 5 && rrRatio >= 3.0 && (session === "London" || session === "New York")) {
+  } else if (
+    alignment.type === "continuation" &&
+    effectiveConfluences >= 5 && rrRatio >= 3.0 &&
+    (session === "London" || session === "New York")
+  ) {
     setupQuality = "A+";
-  } else if (confluenceCount >= 4 && rrRatio >= 2.5) {
-    setupQuality = "A";
+  } else if (effectiveConfluences >= 4 && rrRatio >= 2.5) {
+    setupQuality = alignment.type === "counter-trend" ? "B" : "A";
   } else {
-    setupQuality = "B";
+    setupQuality = alignment.type === "counter-trend" && confluenceCount < 4 ? "NO TRADE" : "B";
   }
 
   // ── Liquidity Target ──
@@ -446,7 +548,9 @@ function calculateSMCLevels(
   return {
     asset: config.display,
     price,
-    bias,
+    bias,          // LTF Setup direction
+    htfBias,       // Higher Timeframe Bias
+    alignment,     // HTF vs LTF reconciliation
     setupQuality,
     marketStructure: ms,
     orderBlock: ob,

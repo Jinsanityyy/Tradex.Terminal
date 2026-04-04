@@ -187,12 +187,12 @@ function DrillDownModal({
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: tier.color }}>
-                  {tier.label} CONVICTION
+                  {tier.label} HTF CONVICTION
                 </span>
               </div>
               <p className="text-[11px] leading-relaxed" style={{ color: "var(--t-muted)" }}>{tier.description}</p>
               <p className="text-[10px] mt-1.5 italic" style={{ color: "var(--t-muted)", opacity: 0.5 }}>
-                Bias conviction = weighted score across all factors below
+                HTF bias conviction = weighted score across all factors below. LTF setups may differ — see Key Levels.
               </p>
             </div>
           </div>
@@ -408,10 +408,10 @@ export function BiasCard({
               <div className="flex items-center justify-between mb-0.5">
                 <div>
                   <span className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
-                    Bias Conviction
+                    HTF Bias Conviction
                   </span>
                   <p className="text-[9px] text-[hsl(var(--muted-foreground))]/60">
-                    Overall confidence across all factors
+                    Higher timeframe directional confidence
                   </p>
                 </div>
                 <div className="text-right">

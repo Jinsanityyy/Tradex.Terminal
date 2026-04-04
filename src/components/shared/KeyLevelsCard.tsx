@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ChevronDown, ChevronUp, AlertTriangle, Zap, Settings2 } from "lucide-react";
+import { ChevronDown, ChevronUp, AlertTriangle, Zap, Settings2, TrendingUp, TrendingDown, Minus, Filter } from "lucide-react";
 import type { KeyLevel } from "@/app/api/market/keylevels/route";
 
 // ── MT5 Pip Config per asset ──────────────────────────────────────────────────
@@ -54,6 +54,22 @@ function rrQuality(rr: number): { label: string; color: string } {
   if (rr >= 2.0) return { label: "FAIR",     color: "#8B949E" };
   if (rr >= 1.5) return { label: "MARGINAL", color: "#8B949E" };
   return               { label: "POOR",      color: "#FF4D4F" };
+}
+
+type AlignType = "continuation" | "counter-trend" | "reversal" | "ranging";
+
+function alignmentConfig(type: AlignType): { label: string; color: string; bg: string; border: string; icon: string } {
+  switch (type) {
+    case "continuation":
+      return { label: "Trend Continuation", color: "#00C896", bg: "#00C89610", border: "#00C89630", icon: "↑↑" };
+    case "counter-trend":
+      return { label: "Counter-Trend Pullback", color: "#F59E0B", bg: "#F59E0B10", border: "#F59E0B30", icon: "⇅" };
+    case "reversal":
+      return { label: "Potential Reversal", color: "#FF6B35", bg: "#FF6B3510", border: "#FF6B3530", icon: "⟳" };
+    case "ranging":
+    default:
+      return { label: "Ranging / No Bias", color: "#8B949E", bg: "transparent", border: "var(--t-border-sub)", icon: "—" };
+  }
 }
 
 // ── Gradient R:R Line ─────────────────────────────────────────────────────────
@@ -221,7 +237,11 @@ function AssetRow({ level, defaultOpen, lotSize }: {
 
   const sq         = setupLabel(level.setupQuality);
   const rr         = rrQuality(level.rrRatio ?? 0);
-  const biasColor  = isBull ? "#00C896" : isBear ? "#FF4D4F" : "#8B949E";
+  const ltfColor   = isBull ? "#00C896" : isBear ? "#FF4D4F" : "#8B949E";
+  const htfColor   = level.htfBias === "bullish" ? "#00C896" : level.htfBias === "bearish" ? "#FF4D4F" : "#8B949E";
+  const align      = alignmentConfig(level.alignment?.type ?? "ranging");
+  const isCounterTrend = level.alignment?.type === "counter-trend";
+  const isReversal     = level.alignment?.type === "reversal";
 
   const slPips        = calcPips(level.entry, level.stopLoss, level.asset);
   const unrealistic   = isUnrealistic(slPips, level.asset);
@@ -236,8 +256,8 @@ function AssetRow({ level, defaultOpen, lotSize }: {
       className="rounded-xl overflow-hidden transition-all duration-200"
       style={{
         background: "var(--t-card)",
-        border: `1px solid ${sq.glow ? "#00C89622" : "var(--t-border-sub)"}`,
-        boxShadow: sq.glow ? "0 0 16px rgba(0,200,150,0.06)" : "none",
+        border: `1px solid ${sq.glow ? "#00C89622" : isCounterTrend ? "#F59E0B20" : "var(--t-border-sub)"}`,
+        boxShadow: sq.glow ? "0 0 16px rgba(0,200,150,0.06)" : isCounterTrend ? "0 0 12px rgba(245,158,11,0.04)" : "none",
         opacity: dimmed ? 0.55 : 1,
       }}
     >
@@ -246,32 +266,46 @@ function AssetRow({ level, defaultOpen, lotSize }: {
         onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-white/[0.015] transition-colors"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <span className="text-[13px] font-bold tracking-wide" style={{ color: "var(--t-text)" }}>
             {level.asset}
           </span>
-          <span
-            className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded"
-            style={{ color: biasColor, background: `${biasColor}12`, border: `1px solid ${biasColor}25` }}
-          >
-            {level.bias}
+
+          {/* HTF → LTF direction pair */}
+          <div className="flex items-center gap-1">
+            <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded"
+              style={{ color: htfColor, background: `${htfColor}12`, border: `1px solid ${htfColor}25` }}>
+              HTF {level.htfBias}
+            </span>
+            <span className="text-[9px]" style={{ color: "var(--t-muted)" }}>→</span>
+            <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded"
+              style={{ color: ltfColor, background: `${ltfColor}12`, border: `1px solid ${ltfColor}25` }}>
+              LTF {level.bias}
+            </span>
+          </div>
+
+          {/* Alignment badge */}
+          <span className="text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
+            style={{ color: align.color, background: align.bg, border: `1px solid ${align.border}` }}>
+            {align.icon} {align.label}
           </span>
+
           {level.marketStructure?.bos && (
-            <span className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded"
-              style={{ color: biasColor, background: `${biasColor}10`, border: `1px solid ${biasColor}20` }}>
+            <span className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded hidden sm:inline"
+              style={{ color: ltfColor, background: `${ltfColor}10`, border: `1px solid ${ltfColor}20` }}>
               BOS
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 shrink-0 ml-2">
           <span className="text-[12px] font-mono font-semibold" style={{ color: "var(--t-text)" }}>
             {fmt(level.price, level.asset)}
           </span>
           <span className="text-[10px] font-mono font-bold hidden sm:block" style={{ color: rr.color }}>
             1:{level.rrRatio} <span style={{ color: "var(--t-muted)", fontWeight: 400 }}>R:R</span>
           </span>
-          <span className="text-[9px] font-bold uppercase tracking-wider hidden md:block" style={{ color: sq.color }}>
+          <span className="text-[9px] font-bold uppercase tracking-wider hidden lg:block" style={{ color: sq.color }}>
             {unrealistic ? "UNREALISTIC" : sq.label}
           </span>
           {open
@@ -284,6 +318,69 @@ function AssetRow({ level, defaultOpen, lotSize }: {
       {/* ── EXPANDED ───────────────────────────────────────────── */}
       {open && (
         <div className="px-4 pb-4 pt-1 space-y-4" style={{ borderTop: "1px solid var(--t-border-sub)" }}>
+
+          {/* ── ALIGNMENT CONTEXT PANEL ─────────────────────────── */}
+          {level.alignment && level.alignment.type !== "ranging" && (
+            <div className="rounded-lg px-3 py-2.5"
+              style={{ background: `${align.color}08`, border: `1px solid ${align.color}20` }}>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: align.color }}>
+                  {align.icon} {align.label}
+                </span>
+                {isCounterTrend && (
+                  <span className="text-[8px] font-bold px-1.5 py-0.5 rounded"
+                    style={{ background: "#FF4D4F15", color: "#FF4D4F", border: "1px solid #FF4D4F30" }}>
+                    HIGHER RISK
+                  </span>
+                )}
+                {isReversal && (
+                  <span className="text-[8px] font-bold px-1.5 py-0.5 rounded"
+                    style={{ background: "#FF6B3515", color: "#FF6B35", border: "1px solid #FF6B3530" }}>
+                    ELEVATED RISK
+                  </span>
+                )}
+              </div>
+
+              {/* HTF vs LTF explanation */}
+              <div className="flex items-center gap-4 mb-2">
+                <div className="flex flex-col">
+                  <span className="text-[8px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>HTF Bias</span>
+                  <span className="text-[10px] font-bold uppercase" style={{ color: htfColor }}>{level.htfBias}</span>
+                  <span className="text-[8px]" style={{ color: "var(--t-muted)" }}>52w structure</span>
+                </div>
+                <span className="text-[16px]" style={{ color: "var(--t-muted)" }}>⟷</span>
+                <div className="flex flex-col">
+                  <span className="text-[8px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>LTF Setup</span>
+                  <span className="text-[10px] font-bold uppercase" style={{ color: ltfColor }}>{level.bias}</span>
+                  <span className="text-[8px]" style={{ color: "var(--t-muted)" }}>intraday price action</span>
+                </div>
+                <div className="flex flex-col ml-auto">
+                  <span className="text-[8px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>Phase</span>
+                  <span className="text-[10px] font-bold uppercase" style={{ color: align.color }}>
+                    {level.alignment.phase}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-[10px] leading-relaxed italic" style={{ color: "var(--t-muted)" }}>
+                {level.alignment.explanation}
+              </p>
+
+              {isCounterTrend && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <span className="text-[9px] px-2 py-0.5 rounded" style={{ background: "#F59E0B10", color: "#F59E0B", border: "1px solid #F59E0B20" }}>
+                    Reduce size to 0.5×
+                  </span>
+                  <span className="text-[9px] px-2 py-0.5 rounded" style={{ background: "#F59E0B10", color: "#F59E0B", border: "1px solid #F59E0B20" }}>
+                    Tighter stop loss
+                  </span>
+                  <span className="text-[9px] px-2 py-0.5 rounded" style={{ background: "#F59E0B10", color: "#F59E0B", border: "1px solid #F59E0B20" }}>
+                    Target TP1 only
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* NO TRADE / Unrealistic banner */}
           {isNT && (
@@ -300,9 +397,9 @@ function AssetRow({ level, defaultOpen, lotSize }: {
 
           {!isNT && (
             <>
-              {/* ── TRADE SETUP: Entry price ──────────────────────── */}
+              {/* ── LTF SETUP: Entry price ────────────────────────── */}
               <div>
-                <p className="text-[9px] uppercase tracking-widest mb-2" style={{ color: "var(--t-muted)" }}>Trade Setup</p>
+                <p className="text-[9px] uppercase tracking-widest mb-2" style={{ color: "var(--t-muted)" }}>LTF Setup</p>
 
                 {/* Entry row */}
                 <div className="flex items-center justify-between py-2 mb-1"
@@ -410,12 +507,12 @@ function AssetRow({ level, defaultOpen, lotSize }: {
           {level.confluences && level.confluences.length > 0 && (
             <div>
               <p className="text-[9px] uppercase tracking-widest mb-2" style={{ color: "var(--t-muted)" }}>
-                Confluences <span style={{ color: biasColor }}>({level.confluenceCount})</span>
+                Confluences <span style={{ color: ltfColor }}>({level.confluenceCount})</span>
               </p>
               <div className="space-y-1">
                 {level.confluences.slice(0, 4).map((c, i) => (
                   <div key={i} className="flex items-start gap-2">
-                    <div className="mt-1 h-1.5 w-1.5 rounded-full shrink-0" style={{ background: biasColor }} />
+                    <div className="mt-1 h-1.5 w-1.5 rounded-full shrink-0" style={{ background: ltfColor }} />
                     <p className="text-[10px] leading-relaxed" style={{ color: "var(--t-muted)" }}>{c}</p>
                   </div>
                 ))}
@@ -461,11 +558,18 @@ interface KeyLevelsCardProps {
 export function KeyLevelsCard({ levels, compact = false }: KeyLevelsCardProps) {
   const [lotSize, setLotSize] = useState(0.01);
   const [showLotInput, setShowLotInput] = useState(false);
+  const [strictMode, setStrictMode] = useState(false);
 
   if (levels.length === 0) return null;
 
-  const display  = levels.slice(0, compact ? 4 : 8);
-  const quality  = display.filter(l => l.setupQuality === "A+" || l.setupQuality === "A").length;
+  const allLevels = levels.slice(0, compact ? 4 : 8);
+  // Strict mode: only show setups that align with HTF bias
+  const display = strictMode
+    ? allLevels.filter(l => l.alignment?.type === "continuation" || l.alignment?.type === "ranging")
+    : allLevels;
+
+  const quality       = display.filter(l => l.setupQuality === "A+" || l.setupQuality === "A").length;
+  const counterCount  = allLevels.filter(l => l.alignment?.type === "counter-trend").length;
 
   const LOT_PRESETS = [0.01, 0.05, 0.10, 0.25, 0.50, 1.00];
 
@@ -477,16 +581,32 @@ export function KeyLevelsCard({ levels, compact = false }: KeyLevelsCardProps) {
         <div className="flex items-center gap-2.5">
           <Zap className="h-4 w-4" style={{ color: "#00C896" }} />
           <span className="text-[13px] font-bold tracking-wide" style={{ color: "var(--t-text)" }}>Key Levels</span>
-          <span className="text-[10px]" style={{ color: "var(--t-muted)" }}>Entry · SL · TP · Pips · P&amp;L</span>
+          <span className="text-[10px]" style={{ color: "var(--t-muted)" }}>HTF Bias · LTF Setup · Entry · SL · TP</span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {quality > 0 && (
             <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded"
               style={{ color: "#00C896", background: "#00C89612", border: "1px solid #00C89625" }}>
               {quality} A-setup{quality > 1 ? "s" : ""}
             </span>
           )}
+
+          {/* Strict mode toggle */}
+          <button
+            onClick={() => setStrictMode(v => !v)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors"
+            title={strictMode ? "Strict mode ON — showing HTF-aligned only" : "Strict mode OFF — showing all setups"}
+            style={{
+              border: `1px solid ${strictMode ? "#00C89640" : "var(--t-border-sub)"}`,
+              background: strictMode ? "#00C89610" : "transparent",
+            }}
+          >
+            <Filter className="h-3 w-3" style={{ color: strictMode ? "#00C896" : "var(--t-muted)" }} />
+            <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: strictMode ? "#00C896" : "var(--t-muted)" }}>
+              {strictMode ? "HTF Only" : counterCount > 0 ? `${counterCount} CT` : "All"}
+            </span>
+          </button>
 
           <button
             onClick={() => setShowLotInput(v => !v)}
@@ -500,6 +620,16 @@ export function KeyLevelsCard({ levels, compact = false }: KeyLevelsCardProps) {
           </button>
         </div>
       </div>
+
+      {/* Strict mode info bar */}
+      {strictMode && counterCount > 0 && (
+        <div className="px-5 py-2 flex items-center gap-2" style={{ background: "#00C89608", borderBottom: "1px solid #00C89620" }}>
+          <Filter className="h-3 w-3 shrink-0" style={{ color: "#00C896" }} />
+          <p className="text-[10px]" style={{ color: "#00C896" }}>
+            Strict mode: showing only trend-aligned setups. {counterCount} counter-trend setup{counterCount > 1 ? "s" : ""} hidden.
+          </p>
+        </div>
+      )}
 
       {/* ── Lot Size Panel ────────────────────────────────────── */}
       {showLotInput && (
