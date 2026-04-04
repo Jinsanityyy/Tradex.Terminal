@@ -140,13 +140,13 @@ function DrillDownModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
       <div
         className="w-full max-w-lg rounded-2xl overflow-hidden flex flex-col shadow-2xl"
-        style={{ background: "#0B0F14", border: "1px solid #1e2530", maxHeight: "90vh" }}
+        style={{ background: "var(--t-bg)", border: "1px solid var(--t-border-sub)", maxHeight: "90vh" }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #1e2530" }}>
+        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid var(--t-border-sub)" }}>
           <div className="flex items-center gap-3">
-            <span className="text-[15px] font-bold tracking-wide" style={{ color: "#E6EDF3" }}>{asset}</span>
+            <span className="text-[15px] font-bold tracking-wide" style={{ color: "var(--t-text)" }}>{asset}</span>
             <span
               className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded"
               style={{ color: biasColor, background: `${biasColor}15`, border: `1px solid ${biasColor}30` }}
@@ -155,7 +155,7 @@ function DrillDownModal({
             </span>
           </div>
           <button onClick={onClose} className="rounded-md p-1 hover:bg-white/5 transition-colors">
-            <X className="h-4 w-4" style={{ color: "#8B949E" }} />
+            <X className="h-4 w-4" style={{ color: "var(--t-muted)" }} />
           </button>
         </div>
 
@@ -166,7 +166,7 @@ function DrillDownModal({
             {/* Circular gauge */}
             <div className="relative flex-shrink-0 flex items-center justify-center" style={{ width: 80, height: 80 }}>
               <svg className="absolute inset-0 -rotate-90" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="36" fill="none" stroke="#1e2530" strokeWidth="7" />
+                <circle cx="50" cy="50" r="36" fill="none" stroke="var(--t-border-sub)" strokeWidth="7" />
                 <circle
                   cx="50" cy="50" r="36" fill="none"
                   stroke={biasColor}
@@ -178,8 +178,8 @@ function DrillDownModal({
                 />
               </svg>
               <div className="text-center z-10">
-                <span className="text-[18px] font-bold font-mono" style={{ color: "#E6EDF3" }}>{confidence}</span>
-                <span className="block text-[8px] uppercase tracking-wider" style={{ color: "#8B949E" }}>%</span>
+                <span className="text-[18px] font-bold font-mono" style={{ color: "var(--t-text)" }}>{confidence}</span>
+                <span className="block text-[8px] uppercase tracking-wider" style={{ color: "var(--t-muted)" }}>%</span>
               </div>
             </div>
 
@@ -190,8 +190,8 @@ function DrillDownModal({
                   {tier.label} CONVICTION
                 </span>
               </div>
-              <p className="text-[11px] leading-relaxed" style={{ color: "#8B949E" }}>{tier.description}</p>
-              <p className="text-[10px] mt-1.5 italic" style={{ color: "#8B949E60" }}>
+              <p className="text-[11px] leading-relaxed" style={{ color: "var(--t-muted)" }}>{tier.description}</p>
+              <p className="text-[10px] mt-1.5 italic" style={{ color: "var(--t-muted)", opacity: 0.5 }}>
                 Bias conviction = weighted score across all factors below
               </p>
             </div>
@@ -199,15 +199,15 @@ function DrillDownModal({
 
           {/* SMC Context */}
           {smcContext && (
-            <div className="rounded-lg px-3 py-2.5" style={{ background: "#11161C", border: "1px solid #1e2530" }}>
-              <p className="text-[9px] uppercase tracking-widest mb-1" style={{ color: "#8B949E" }}>SMC Structure</p>
-              <p className="text-[11px]" style={{ color: "#E6EDF3" }}>{smcContext}</p>
+            <div className="rounded-lg px-3 py-2.5" style={{ background: "var(--t-card)", border: "1px solid var(--t-border-sub)" }}>
+              <p className="text-[9px] uppercase tracking-widest mb-1" style={{ color: "var(--t-muted)" }}>SMC Structure</p>
+              <p className="text-[11px]" style={{ color: "var(--t-text)" }}>{smcContext}</p>
             </div>
           )}
 
           {/* Factor breakdown */}
           <div>
-            <p className="text-[9px] uppercase tracking-widest mb-3" style={{ color: "#8B949E" }}>
+            <p className="text-[9px] uppercase tracking-widest mb-3" style={{ color: "var(--t-muted)" }}>
               Factor Breakdown — what drives this conviction score
             </p>
             <div className="space-y-2.5">
@@ -219,7 +219,7 @@ function DrillDownModal({
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
                         <Icon className="h-3 w-3 shrink-0" style={{ color: f.color }} />
-                        <span className="text-[10px] font-medium" style={{ color: "#E6EDF3" }}>{f.label}</span>
+                        <span className="text-[10px] font-medium" style={{ color: "var(--t-text)" }}>{f.label}</span>
                         {f.label === "Geopolitical Risk" && (
                           <span className="text-[8px] px-1.5 py-0.5 rounded"
                             style={{ background: "#F59E0B15", color: "#F59E0B", border: "1px solid #F59E0B30" }}>
@@ -228,25 +228,25 @@ function DrillDownModal({
                         )}
                         {f.label === "RSI (Secondary)" && (
                           <span className="text-[8px] px-1.5 py-0.5 rounded"
-                            style={{ background: "#8B949E15", color: "#8B949E", border: "1px solid #8B949E30" }}>
+                            style={{ background: "var(--t-border-sub)", color: "var(--t-muted)", border: "1px solid var(--t-border-sub)" }}>
                             confirming
                           </span>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono" style={{ color: "#8B949E" }}>{f.weight}% weight</span>
+                        <span className="text-[10px] font-mono" style={{ color: "var(--t-muted)" }}>{f.weight}% weight</span>
                         <span className="text-[10px] font-mono font-bold w-6 text-right" style={{ color: f.color }}>
                           {f.score}
                         </span>
                       </div>
                     </div>
-                    <div className="h-[3px] w-full rounded-full" style={{ background: "#1e2530" }}>
+                    <div className="h-[3px] w-full rounded-full" style={{ background: "var(--t-border-sub)" }}>
                       <div
                         className="h-full rounded-full transition-all duration-500"
                         style={{ width: `${barPct}%`, background: f.color, opacity: 0.7 }}
                       />
                     </div>
-                    <p className="text-[9px] mt-0.5 italic" style={{ color: "#8B949E70" }}>{f.note}</p>
+                    <p className="text-[9px] mt-0.5 italic" style={{ color: "var(--t-muted)", opacity: 0.6 }}>{f.note}</p>
                   </div>
                 );
               })}
@@ -263,7 +263,7 @@ function DrillDownModal({
                 {supportingFactors.slice(0, 4).map((f, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <div className="mt-1.5 h-1 w-1 rounded-full shrink-0" style={{ background: "#00C896" }} />
-                    <p className="text-[11px] leading-relaxed" style={{ color: "#8B949E" }}>{f}</p>
+                    <p className="text-[11px] leading-relaxed" style={{ color: "var(--t-muted)" }}>{f}</p>
                   </div>
                 ))}
               </div>
@@ -280,7 +280,7 @@ function DrillDownModal({
                 {invalidationFactors.slice(0, 4).map((f, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <div className="mt-1.5 h-1 w-1 rounded-full shrink-0" style={{ background: "#FF4D4F" }} />
-                    <p className="text-[11px] leading-relaxed" style={{ color: "#8B949E" }}>{f}</p>
+                    <p className="text-[11px] leading-relaxed" style={{ color: "var(--t-muted)" }}>{f}</p>
                   </div>
                 ))}
               </div>
@@ -293,7 +293,7 @@ function DrillDownModal({
               <p className="text-[9px] uppercase tracking-widest mb-1.5" style={{ color: "#00C896" }}>
                 ↑ Would Increase Conviction
               </p>
-              <p className="text-[10px] leading-relaxed" style={{ color: "#8B949E" }}>
+              <p className="text-[10px] leading-relaxed" style={{ color: "var(--t-muted)" }}>
                 {bias === "bullish"
                   ? "BOS above prior high, London open continuation, RSI holding above 55, DXY weakness confirmed"
                   : bias === "bearish"
@@ -305,7 +305,7 @@ function DrillDownModal({
               <p className="text-[9px] uppercase tracking-widest mb-1.5" style={{ color: "#FF4D4F" }}>
                 ↓ Would Weaken Conviction
               </p>
-              <p className="text-[10px] leading-relaxed" style={{ color: "#8B949E" }}>
+              <p className="text-[10px] leading-relaxed" style={{ color: "var(--t-muted)" }}>
                 {bias === "bullish"
                   ? "Failure to break prior high, DXY strength spike, risk-off catalyst, price returning to discount"
                   : bias === "bearish"
@@ -318,9 +318,9 @@ function DrillDownModal({
           {/* Session behavior */}
           {sessionBehavior && (
             <div className="flex items-start gap-2 rounded-lg px-3 py-2.5"
-              style={{ background: "#11161C", border: "1px solid #1e2530" }}>
-              <Info className="h-3 w-3 shrink-0 mt-0.5" style={{ color: "#8B949E" }} />
-              <p className="text-[10px] leading-relaxed italic" style={{ color: "#8B949E" }}>
+              style={{ background: "var(--t-card)", border: "1px solid var(--t-border-sub)" }}>
+              <Info className="h-3 w-3 shrink-0 mt-0.5" style={{ color: "var(--t-muted)" }} />
+              <p className="text-[10px] leading-relaxed italic" style={{ color: "var(--t-muted)" }}>
                 {sessionBehavior}
               </p>
             </div>

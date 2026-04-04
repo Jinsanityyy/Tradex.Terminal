@@ -5,9 +5,6 @@ import { ChevronDown, ChevronUp, AlertTriangle, Zap, Settings2 } from "lucide-re
 import type { KeyLevel } from "@/app/api/market/keylevels/route";
 
 // ── MT5 Pip Config per asset ──────────────────────────────────────────────────
-// pipMultiplier: how many pips per 1 price unit
-// pipVal01: USD value of 1 pip at 0.01 lot
-// maxPips: if SL pips exceed this, flag as unrealistic
 const PIP_CONFIG: Record<string, { multiplier: number; pipVal01: number; maxPips: number }> = {
   XAUUSD: { multiplier: 100,   pipVal01: 0.10, maxPips: 1000 },
   EURUSD: { multiplier: 10000, pipVal01: 0.10, maxPips: 500  },
@@ -16,8 +13,6 @@ const PIP_CONFIG: Record<string, { multiplier: number; pipVal01: number; maxPips
   USDCAD: { multiplier: 10000, pipVal01: 0.10, maxPips: 500  },
   BTCUSD: { multiplier: 1,     pipVal01: 0.10, maxPips: 10000 },
 };
-
-// ── Pip calculation ───────────────────────────────────────────────────────────
 
 function calcPips(a: number, b: number, asset: string): number {
   const cfg = PIP_CONFIG[asset] ?? { multiplier: 100, pipVal01: 0.10, maxPips: 500 };
@@ -34,8 +29,6 @@ function isUnrealistic(slPips: number, asset: string): boolean {
   return slPips > cfg.maxPips;
 }
 
-// ── Format helpers ────────────────────────────────────────────────────────────
-
 function fmt(price: number, asset: string): string {
   if (asset === "BTCUSD") return `$${price.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
   if (asset === "XAUUSD") return price.toFixed(2);
@@ -49,9 +42,9 @@ function fmtDollar(n: number, sign: "+" | "-"): string {
 }
 
 function setupLabel(q: string): { label: string; color: string; glow: boolean } {
-  if (q === "A+") return { label: "A+",      color: "#00C896", glow: true  };
-  if (q === "A")  return { label: "A",       color: "#00C896", glow: false };
-  if (q === "B")  return { label: "B",       color: "#8B949E", glow: false };
+  if (q === "A+") return { label: "A+",       color: "#00C896", glow: true  };
+  if (q === "A")  return { label: "A",        color: "#00C896", glow: false };
+  if (q === "B")  return { label: "B",        color: "#8B949E", glow: false };
   return                 { label: "NO TRADE", color: "#FF4D4F", glow: false };
 }
 
@@ -84,7 +77,7 @@ function RRLine({ entry, sl, tp1, tp2, asset, lotSize }: {
 
   return (
     <div className="relative mt-4">
-      <p className="text-[9px] uppercase tracking-widest mb-2" style={{ color: "#8B949E" }}>Risk / Reward</p>
+      <p className="text-[9px] uppercase tracking-widest mb-2" style={{ color: "var(--t-muted)" }}>Risk / Reward</p>
 
       {/* Gradient bar */}
       <div
@@ -92,7 +85,7 @@ function RRLine({ entry, sl, tp1, tp2, asset, lotSize }: {
         style={{
           background: `linear-gradient(to right,
             #FF4D4F 0%, #FF4D4F ${slPct.toFixed(1)}%,
-            #1a1f26 ${slPct.toFixed(1)}%, #1a1f26 ${entryPct.toFixed(1)}%,
+            var(--t-card-2) ${slPct.toFixed(1)}%, var(--t-card-2) ${entryPct.toFixed(1)}%,
             #00C896 ${entryPct.toFixed(1)}%, #00C89650 100%)`,
         }}
       />
@@ -121,8 +114,8 @@ function RRLine({ entry, sl, tp1, tp2, asset, lotSize }: {
           </p>
         </div>
         <div className="text-center">
-          <p className="text-[9px] font-mono" style={{ color: "#8B949E" }}>ENTRY</p>
-          <p className="text-[9px] font-mono" style={{ color: "#8B949E" }}>{fmt(entry, asset)}</p>
+          <p className="text-[9px] font-mono" style={{ color: "var(--t-muted)" }}>ENTRY</p>
+          <p className="text-[9px] font-mono" style={{ color: "var(--t-muted)" }}>{fmt(entry, asset)}</p>
         </div>
         <div className="text-center">
           <p className="text-[9px] font-mono" style={{ color: "#00C896" }}>TP1</p>
@@ -157,25 +150,27 @@ function RangeDot({ price, support, resistance, pivot, asset }: {
   const pos      = Math.max(2, Math.min(98, ((price - support) / range) * 100));
   const pivotPos = Math.max(2, Math.min(98, ((pivot - support) / range) * 100));
   const zone     = pos < 33 ? "NEAR SUPPORT" : pos > 67 ? "NEAR RESISTANCE" : "MID RANGE";
-  const zoneCol  = pos < 33 ? "#00C896" : pos > 67 ? "#FF4D4F" : "#8B949E";
+  const zoneCol  = pos < 33 ? "#00C896" : pos > 67 ? "#FF4D4F" : "var(--t-muted)";
 
   return (
     <div className="mt-3">
       <div className="flex justify-between items-center mb-1.5">
-        <span className="text-[9px] uppercase tracking-widest" style={{ color: "#8B949E" }}>Price in Range</span>
+        <span className="text-[9px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>Price in Range</span>
         <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: zoneCol }}>{zone}</span>
       </div>
-      <div className="relative h-[3px] w-full rounded-full" style={{ background: "#1a1f26" }}>
+      <div className="relative h-[3px] w-full rounded-full" style={{ background: "var(--t-card-2)" }}>
         <div className="absolute inset-0 rounded-full"
           style={{ background: "linear-gradient(to right, #00C89630, #8B949E20, #FF4D4F30)" }} />
         <div className="absolute top-1/2 -translate-y-1/2 w-[2px] h-2"
           style={{ left: `${pivotPos}%`, background: "#8B949E50" }} />
-        <div className="absolute top-1/2 -translate-y-1/2 h-2.5 w-2.5 rounded-full border border-[#0B0F14]"
-          style={{ left: `calc(${pos}% - 5px)`, background: "#fff" }} />
+        <div
+          className="absolute top-1/2 -translate-y-1/2 h-2.5 w-2.5 rounded-full border"
+          style={{ left: `calc(${pos}% - 5px)`, background: "#fff", borderColor: "var(--t-bg)" }}
+        />
       </div>
       <div className="flex justify-between mt-1">
         <span className="text-[9px] font-mono" style={{ color: "#00C896" }}>S {fmt(support, asset)}</span>
-        <span className="text-[9px] font-mono" style={{ color: "#8B949E" }}>P {fmt(pivot, asset)}</span>
+        <span className="text-[9px] font-mono" style={{ color: "var(--t-muted)" }}>P {fmt(pivot, asset)}</span>
         <span className="text-[9px] font-mono" style={{ color: "#FF4D4F" }}>R {fmt(resistance, asset)}</span>
       </div>
     </div>
@@ -195,11 +190,11 @@ function LevelLine({ label, price, entry, asset, lotSize, direction }: {
   const sign   = isRisk ? "-" : "+";
 
   return (
-    <div className="flex items-center justify-between py-1.5" style={{ borderBottom: "1px solid #1a1f26" }}>
+    <div className="flex items-center justify-between py-1.5" style={{ borderBottom: "1px solid var(--t-border-sub)" }}>
       <span className="text-[10px] font-semibold uppercase tracking-wider w-8" style={{ color }}>
         {label}
       </span>
-      <span className="text-[13px] font-mono font-bold flex-1 text-center" style={{ color: isRisk ? "#FF4D4F" : "#E6EDF3" }}>
+      <span className="text-[13px] font-mono font-bold flex-1 text-center" style={{ color: isRisk ? "#FF4D4F" : "var(--t-text)" }}>
         {fmt(price, asset)}
       </span>
       <div className="text-right">
@@ -228,22 +223,20 @@ function AssetRow({ level, defaultOpen, lotSize }: {
   const rr         = rrQuality(level.rrRatio ?? 0);
   const biasColor  = isBull ? "#00C896" : isBear ? "#FF4D4F" : "#8B949E";
 
-  // Check realism
   const slPips        = calcPips(level.entry, level.stopLoss, level.asset);
   const unrealistic   = isUnrealistic(slPips, level.asset);
   const isNT          = level.setupQuality === "NO TRADE" || unrealistic;
   const dimmed        = isNT || level.rrRatio < 2.0;
 
-  // TP3 pips for display
-  const tp3Pips  = level.takeProfit3 ? calcPips(level.entry, level.takeProfit3, level.asset) : 0;
+  const tp3Pips   = level.takeProfit3 ? calcPips(level.entry, level.takeProfit3, level.asset) : 0;
   const tp3Dollar = level.takeProfit3 ? calcDollar(tp3Pips, lotSize, level.asset) : 0;
 
   return (
     <div
       className="rounded-xl overflow-hidden transition-all duration-200"
       style={{
-        background: "#11161C",
-        border: `1px solid ${sq.glow ? "#00C89622" : "#1e2530"}`,
+        background: "var(--t-card)",
+        border: `1px solid ${sq.glow ? "#00C89622" : "var(--t-border-sub)"}`,
         boxShadow: sq.glow ? "0 0 16px rgba(0,200,150,0.06)" : "none",
         opacity: dimmed ? 0.55 : 1,
       }}
@@ -254,7 +247,7 @@ function AssetRow({ level, defaultOpen, lotSize }: {
         className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-white/[0.015] transition-colors"
       >
         <div className="flex items-center gap-3">
-          <span className="text-[13px] font-bold tracking-wide" style={{ color: "#E6EDF3" }}>
+          <span className="text-[13px] font-bold tracking-wide" style={{ color: "var(--t-text)" }}>
             {level.asset}
           </span>
           <span
@@ -272,25 +265,25 @@ function AssetRow({ level, defaultOpen, lotSize }: {
         </div>
 
         <div className="flex items-center gap-4">
-          <span className="text-[12px] font-mono font-semibold" style={{ color: "#E6EDF3" }}>
+          <span className="text-[12px] font-mono font-semibold" style={{ color: "var(--t-text)" }}>
             {fmt(level.price, level.asset)}
           </span>
           <span className="text-[10px] font-mono font-bold hidden sm:block" style={{ color: rr.color }}>
-            1:{level.rrRatio} <span style={{ color: "#8B949E", fontWeight: 400 }}>R:R</span>
+            1:{level.rrRatio} <span style={{ color: "var(--t-muted)", fontWeight: 400 }}>R:R</span>
           </span>
           <span className="text-[9px] font-bold uppercase tracking-wider hidden md:block" style={{ color: sq.color }}>
             {unrealistic ? "UNREALISTIC" : sq.label}
           </span>
           {open
-            ? <ChevronUp className="h-3.5 w-3.5" style={{ color: "#8B949E" }} />
-            : <ChevronDown className="h-3.5 w-3.5" style={{ color: "#8B949E" }} />
+            ? <ChevronUp className="h-3.5 w-3.5" style={{ color: "var(--t-muted)" }} />
+            : <ChevronDown className="h-3.5 w-3.5" style={{ color: "var(--t-muted)" }} />
           }
         </div>
       </button>
 
       {/* ── EXPANDED ───────────────────────────────────────────── */}
       {open && (
-        <div className="px-4 pb-4 pt-1 space-y-4" style={{ borderTop: "1px solid #1e2530" }}>
+        <div className="px-4 pb-4 pt-1 space-y-4" style={{ borderTop: "1px solid var(--t-border-sub)" }}>
 
           {/* NO TRADE / Unrealistic banner */}
           {isNT && (
@@ -309,33 +302,29 @@ function AssetRow({ level, defaultOpen, lotSize }: {
             <>
               {/* ── TRADE SETUP: Entry price ──────────────────────── */}
               <div>
-                <p className="text-[9px] uppercase tracking-widest mb-2" style={{ color: "#8B949E" }}>Trade Setup</p>
+                <p className="text-[9px] uppercase tracking-widest mb-2" style={{ color: "var(--t-muted)" }}>Trade Setup</p>
 
                 {/* Entry row */}
                 <div className="flex items-center justify-between py-2 mb-1"
-                  style={{ borderBottom: "1px solid #1e2530" }}>
-                  <span className="text-[10px] font-semibold uppercase tracking-wider w-8" style={{ color: "#8B949E" }}>
+                  style={{ borderBottom: "1px solid var(--t-border-sub)" }}>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider w-8" style={{ color: "var(--t-muted)" }}>
                     ENTRY
                   </span>
-                  <span className="text-[15px] font-mono font-bold flex-1 text-center" style={{ color: "#E6EDF3" }}>
+                  <span className="text-[15px] font-mono font-bold flex-1 text-center" style={{ color: "var(--t-text)" }}>
                     {fmt(level.entry, level.asset)}
                   </span>
-                  <span className="text-[10px] font-mono text-right" style={{ color: "#8B949E" }}>
+                  <span className="text-[10px] font-mono text-right" style={{ color: "var(--t-muted)" }}>
                     at {level.marketStructure?.premiumDiscount ?? "—"}
                   </span>
                 </div>
 
-                {/* SL */}
                 <LevelLine label="SL"  price={level.stopLoss}    entry={level.entry} asset={level.asset} lotSize={lotSize} direction="risk"    />
-                {/* TP1 */}
                 <LevelLine label="TP1" price={level.takeProfit1} entry={level.entry} asset={level.asset} lotSize={lotSize} direction="reward"  />
-                {/* TP2 */}
                 <LevelLine label="TP2" price={level.takeProfit2} entry={level.entry} asset={level.asset} lotSize={lotSize} direction="reward2" />
-                {/* TP3 (runner) */}
                 {level.takeProfit3 && tp3Pips > 0 && (
                   <div className="flex items-center justify-between py-1.5">
                     <span className="text-[10px] font-semibold uppercase tracking-wider w-8" style={{ color: "#00C89650" }}>TP3</span>
-                    <span className="text-[13px] font-mono font-bold flex-1 text-center" style={{ color: "#E6EDF380" }}>
+                    <span className="text-[13px] font-mono font-bold flex-1 text-center" style={{ color: "var(--t-text)", opacity: 0.5 }}>
                       {fmt(level.takeProfit3!, level.asset)}
                     </span>
                     <div className="text-right">
@@ -364,32 +353,32 @@ function AssetRow({ level, defaultOpen, lotSize }: {
 
           {/* ── KEY LEVELS INLINE ─────────────────────────────────── */}
           <div className="flex items-center gap-5 py-2 px-3 rounded-lg flex-wrap"
-            style={{ background: "#0B0F14", border: "1px solid #1e2530" }}>
+            style={{ background: "var(--t-bg)", border: "1px solid var(--t-border-sub)" }}>
             <div>
-              <span className="text-[8px] uppercase tracking-widest" style={{ color: "#8B949E" }}>S</span>
+              <span className="text-[8px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>S</span>
               <span className="text-[11px] font-mono font-semibold ml-1.5" style={{ color: "#00C896" }}>
                 {fmt(level.support, level.asset)}
               </span>
             </div>
-            <div style={{ width: 1, height: 12, background: "#1e2530" }} />
+            <div style={{ width: 1, height: 12, background: "var(--t-border-sub)" }} />
             <div>
-              <span className="text-[8px] uppercase tracking-widest" style={{ color: "#8B949E" }}>P</span>
-              <span className="text-[11px] font-mono font-semibold ml-1.5" style={{ color: "#8B949E" }}>
+              <span className="text-[8px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>P</span>
+              <span className="text-[11px] font-mono font-semibold ml-1.5" style={{ color: "var(--t-muted)" }}>
                 {fmt(level.pivot, level.asset)}
               </span>
             </div>
-            <div style={{ width: 1, height: 12, background: "#1e2530" }} />
+            <div style={{ width: 1, height: 12, background: "var(--t-border-sub)" }} />
             <div>
-              <span className="text-[8px] uppercase tracking-widest" style={{ color: "#8B949E" }}>R</span>
+              <span className="text-[8px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>R</span>
               <span className="text-[11px] font-mono font-semibold ml-1.5" style={{ color: "#FF4D4F" }}>
                 {fmt(level.resistance, level.asset)}
               </span>
             </div>
             {level.fvg && !level.fvg.filled && (
               <>
-                <div style={{ width: 1, height: 12, background: "#1e2530" }} />
+                <div style={{ width: 1, height: 12, background: "var(--t-border-sub)" }} />
                 <div>
-                  <span className="text-[8px] uppercase tracking-widest" style={{ color: "#8B949E" }}>FVG</span>
+                  <span className="text-[8px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>FVG</span>
                   <span className="text-[11px] font-mono font-semibold ml-1.5"
                     style={{ color: level.fvg.direction === "bullish" ? "#00C896" : "#FF4D4F" }}>
                     {fmt(level.fvg.midpoint, level.asset)}
@@ -399,7 +388,7 @@ function AssetRow({ level, defaultOpen, lotSize }: {
             )}
             {level.marketStructure?.premiumDiscount !== "equilibrium" && (
               <>
-                <div style={{ width: 1, height: 12, background: "#1e2530" }} />
+                <div style={{ width: 1, height: 12, background: "var(--t-border-sub)" }} />
                 <span className="text-[8px] font-semibold uppercase tracking-wider"
                   style={{ color: level.marketStructure.premiumDiscount === "discount" ? "#00C896" : "#FF4D4F" }}>
                   {level.marketStructure.premiumDiscount}
@@ -420,14 +409,14 @@ function AssetRow({ level, defaultOpen, lotSize }: {
           {/* ── CONFLUENCES ──────────────────────────────────────── */}
           {level.confluences && level.confluences.length > 0 && (
             <div>
-              <p className="text-[9px] uppercase tracking-widest mb-2" style={{ color: "#8B949E" }}>
+              <p className="text-[9px] uppercase tracking-widest mb-2" style={{ color: "var(--t-muted)" }}>
                 Confluences <span style={{ color: biasColor }}>({level.confluenceCount})</span>
               </p>
               <div className="space-y-1">
                 {level.confluences.slice(0, 4).map((c, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <div className="mt-1 h-1.5 w-1.5 rounded-full shrink-0" style={{ background: biasColor }} />
-                    <p className="text-[10px] leading-relaxed" style={{ color: "#8B949E" }}>{c}</p>
+                    <p className="text-[10px] leading-relaxed" style={{ color: "var(--t-muted)" }}>{c}</p>
                   </div>
                 ))}
               </div>
@@ -436,12 +425,12 @@ function AssetRow({ level, defaultOpen, lotSize }: {
 
           {/* ── SESSION + SETUP ───────────────────────────────────── */}
           <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-lg px-3 py-2" style={{ background: "#0B0F14", border: "1px solid #1e2530" }}>
-              <p className="text-[8px] uppercase tracking-widest mb-1" style={{ color: "#8B949E" }}>Session</p>
-              <p className="text-[10px] font-semibold" style={{ color: "#E6EDF3" }}>{level.sessionContext}</p>
+            <div className="rounded-lg px-3 py-2" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border-sub)" }}>
+              <p className="text-[8px] uppercase tracking-widest mb-1" style={{ color: "var(--t-muted)" }}>Session</p>
+              <p className="text-[10px] font-semibold" style={{ color: "var(--t-text)" }}>{level.sessionContext}</p>
             </div>
-            <div className="rounded-lg px-3 py-2" style={{ background: "#0B0F14", border: "1px solid #1e2530" }}>
-              <p className="text-[8px] uppercase tracking-widest mb-1" style={{ color: "#8B949E" }}>Setup Quality</p>
+            <div className="rounded-lg px-3 py-2" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border-sub)" }}>
+              <p className="text-[8px] uppercase tracking-widest mb-1" style={{ color: "var(--t-muted)" }}>Setup Quality</p>
               <p className="text-[10px] font-bold" style={{ color: sq.color }}>
                 {unrealistic ? "UNREALISTIC SL" : sq.label}
               </p>
@@ -450,8 +439,8 @@ function AssetRow({ level, defaultOpen, lotSize }: {
 
           {/* ── CONTEXT MESSAGE ──────────────────────────────────── */}
           <div className="flex items-start gap-2">
-            <span className="mt-0.5 text-[10px] shrink-0" style={{ color: "#8B949E" }}>⚠</span>
-            <p className="text-[10px] italic leading-relaxed" style={{ color: "#8B949E" }}>
+            <span className="mt-0.5 text-[10px] shrink-0" style={{ color: "var(--t-muted)" }}>⚠</span>
+            <p className="text-[10px] italic leading-relaxed" style={{ color: "var(--t-muted)" }}>
               {level.sessionNote || level.note}
             </p>
           </div>
@@ -481,14 +470,14 @@ export function KeyLevelsCard({ levels, compact = false }: KeyLevelsCardProps) {
   const LOT_PRESETS = [0.01, 0.05, 0.10, 0.25, 0.50, 1.00];
 
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: "#0B0F14", border: "1px solid #1e2530" }}>
+    <div className="rounded-2xl overflow-hidden" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border-sub)" }}>
 
       {/* ── Header ───────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: "1px solid #1e2530" }}>
+      <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: "1px solid var(--t-border-sub)" }}>
         <div className="flex items-center gap-2.5">
           <Zap className="h-4 w-4" style={{ color: "#00C896" }} />
-          <span className="text-[13px] font-bold tracking-wide" style={{ color: "#E6EDF3" }}>Key Levels</span>
-          <span className="text-[10px]" style={{ color: "#8B949E" }}>Entry · SL · TP · Pips · P&L</span>
+          <span className="text-[13px] font-bold tracking-wide" style={{ color: "var(--t-text)" }}>Key Levels</span>
+          <span className="text-[10px]" style={{ color: "var(--t-muted)" }}>Entry · SL · TP · Pips · P&amp;L</span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -499,14 +488,13 @@ export function KeyLevelsCard({ levels, compact = false }: KeyLevelsCardProps) {
             </span>
           )}
 
-          {/* Lot size control */}
           <button
             onClick={() => setShowLotInput(v => !v)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors hover:bg-white/5"
-            style={{ border: "1px solid #1e2530" }}
+            style={{ border: "1px solid var(--t-border-sub)" }}
           >
-            <Settings2 className="h-3 w-3" style={{ color: "#8B949E" }} />
-            <span className="text-[10px] font-mono font-semibold" style={{ color: "#E6EDF3" }}>
+            <Settings2 className="h-3 w-3" style={{ color: "var(--t-muted)" }} />
+            <span className="text-[10px] font-mono font-semibold" style={{ color: "var(--t-text)" }}>
               {lotSize.toFixed(2)} lot
             </span>
           </button>
@@ -515,26 +503,25 @@ export function KeyLevelsCard({ levels, compact = false }: KeyLevelsCardProps) {
 
       {/* ── Lot Size Panel ────────────────────────────────────── */}
       {showLotInput && (
-        <div className="px-5 py-3 flex items-center gap-3 flex-wrap" style={{ borderBottom: "1px solid #1e2530", background: "#0e1318" }}>
-          <span className="text-[9px] uppercase tracking-widest" style={{ color: "#8B949E" }}>Lot Size</span>
+        <div className="px-5 py-3 flex items-center gap-3 flex-wrap"
+          style={{ borderBottom: "1px solid var(--t-border-sub)", background: "var(--t-card-2)" }}>
+          <span className="text-[9px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>Lot Size</span>
 
-          {/* Presets */}
           {LOT_PRESETS.map(l => (
             <button
               key={l}
               onClick={() => setLotSize(l)}
               className="px-2.5 py-1 rounded text-[10px] font-mono font-semibold transition-all"
               style={{
-                background: lotSize === l ? "#00C89615" : "#1a1f26",
-                border: `1px solid ${lotSize === l ? "#00C89640" : "#1e2530"}`,
-                color: lotSize === l ? "#00C896" : "#8B949E",
+                background: lotSize === l ? "#00C89615" : "var(--t-card)",
+                border: `1px solid ${lotSize === l ? "#00C89640" : "var(--t-border-sub)"}`,
+                color: lotSize === l ? "#00C896" : "var(--t-muted)",
               }}
             >
               {l.toFixed(2)}
             </button>
           ))}
 
-          {/* Custom input */}
           <input
             type="number"
             min={0.01}
@@ -547,13 +534,13 @@ export function KeyLevelsCard({ levels, compact = false }: KeyLevelsCardProps) {
             }}
             className="w-20 rounded px-2 py-1 text-[10px] font-mono outline-none"
             style={{
-              background: "#1a1f26",
-              border: "1px solid #1e2530",
-              color: "#E6EDF3",
+              background: "var(--t-card)",
+              border: "1px solid var(--t-border-sub)",
+              color: "var(--t-text)",
             }}
           />
-          <span className="text-[9px]" style={{ color: "#8B949E" }}>
-            Pip value: <span style={{ color: "#E6EDF3" }}>
+          <span className="text-[9px]" style={{ color: "var(--t-muted)" }}>
+            Pip value: <span style={{ color: "var(--t-text)" }}>
               ${(lotSize / 0.01 * 0.10).toFixed(2)}/pip
             </span>
           </span>

@@ -163,6 +163,23 @@ iframe,
 .scrollbar-none::-webkit-scrollbar { display: none; }
 
 /* ── Theme variants ─────────────────────────────────── */
+
+/* Default dark — TradingView style, slightly elevated surfaces */
+:root,
+[data-theme="dark"] {
+  --t-bg:           #0B0F14;
+  --t-card:         #11161C;
+  --t-card-2:       #161C24;
+  --t-border:       rgba(255,255,255,0.06);
+  --t-border-sub:   #1e2530;
+  --t-text:         #E6EDF3;
+  --t-muted:        #8B949E;
+  --t-glow-green:   rgba(0,200,150,0.10);
+  --t-glow-red:     rgba(255,77,79,0.10);
+  --t-glow-amber:   rgba(245,158,11,0.10);
+  --t-glow-mul:     1;
+}
+
 [data-theme="midnight"] {
   --background: 230 25% 6%;
   --card: 230 22% 9%;
@@ -173,8 +190,21 @@ iframe,
   --border: 230 16% 16%;
   --input: 230 16% 16%;
   --sidebar-bg: 230 25% 4%;
+
+  --t-bg:           #0D1117;
+  --t-card:         #161B22;
+  --t-card-2:       #1C2330;
+  --t-border:       rgba(255,255,255,0.08);
+  --t-border-sub:   #21262d;
+  --t-text:         #E6EDF3;
+  --t-muted:        #8B949E;
+  --t-glow-green:   rgba(0,200,150,0.10);
+  --t-glow-red:     rgba(255,77,79,0.10);
+  --t-glow-amber:   rgba(245,158,11,0.10);
+  --t-glow-mul:     1;
 }
 
+/* OLED — pure black, flat, ultra-clean, high-end terminal */
 [data-theme="oled"] {
   --background: 0 0% 0%;
   --card: 0 0% 4%;
@@ -185,7 +215,27 @@ iframe,
   --border: 0 0% 11%;
   --input: 0 0% 11%;
   --sidebar-bg: 0 0% 0%;
+
+  --t-bg:           #000000;
+  --t-card:         #0A0A0A;
+  --t-card-2:       #111111;
+  --t-border:       rgba(255,255,255,0.08);
+  --t-border-sub:   rgba(255,255,255,0.06);
+  --t-text:         #F0F6FC;
+  --t-muted:        #9198A1;
+  --t-glow-green:   rgba(0,200,150,0.04);  /* reduced glows for OLED */
+  --t-glow-red:     rgba(255,77,79,0.04);
+  --t-glow-amber:   rgba(245,158,11,0.04);
+  --t-glow-mul:     0.4;
 }
+
+/* ── Theme-aware utility classes ────────────────────── */
+.t-bg       { background: var(--t-bg); }
+.t-card     { background: var(--t-card); }
+.t-card-2   { background: var(--t-card-2); }
+.t-border   { border-color: var(--t-border); }
+.t-text     { color: var(--t-text); }
+.t-muted    { color: var(--t-muted); }
 
 /* ── Layout density ─────────────────────────────────── */
 [data-density="compact"] main { padding: 0.75rem !important; }
