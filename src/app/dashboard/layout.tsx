@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopStatusBar } from "@/components/layout/TopStatusBar";
 import { FloatingChat } from "@/components/shared/FloatingChat";
+import { AIAnalysisPanel } from "@/components/shared/AIAnalysisPanel";
 import { PaywallGate } from "@/components/shared/PaywallGate";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { useSubscription, canAccess } from "@/hooks/useSubscription";
@@ -55,6 +56,7 @@ export default function DashboardLayout({
         </main>
       </div>
       <FloatingChat />
+      <AIAnalysisPanel />
     </div>
   );
 }

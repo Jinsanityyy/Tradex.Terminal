@@ -62,37 +62,59 @@ function generateSupportingFactors(
   prevClose: number
 ): string[] {
   const factors: string[] = [];
-  const range52 = high52w - low52w;
-  const pos52 = range52 > 0 ? (price - low52w) / range52 : 0.5;
+  const range52   = high52w - low52w;
+  const pos52     = range52 > 0 ? (price - low52w) / range52 : 0.5;
   const equilibrium = (high + low) / 2;
-  const inDiscount = price < equilibrium;
-  const inPremium  = price > equilibrium;
-  const bosUp   = pctChange > 0.4;
-  const bosDown = pctChange < -0.4;
+  const inDiscount  = price < equilibrium;
+  const inPremium   = price > equilibrium;
+  const bosUp       = pctChange > 0.4;
+  const bosDown     = pctChange < -0.4;
+  const choch       = (pos52 > 0.6 && pctChange < -0.6) || (pos52 < 0.4 && pctChange > 0.6);
+  const nearHigh52  = pos52 > 0.85;
+  const nearLow52   = pos52 < 0.15;
 
   if (bias === "bullish") {
-    if (bosUp) factors.push(`BOS to upside — ${assetName} broke ${prevClose.toFixed(2)} with ${Math.abs(pctChange).toFixed(2)}% momentum`);
-    if (inDiscount) factors.push(`Price in discount zone below EQ ${equilibrium.toFixed(2)} — institutional buy area`);
-    if (rsi > 50 && rsi < 70) factors.push(`RSI ${rsi.toFixed(0)} — momentum positive, not yet overbought`);
-    if (rsi < 35) factors.push(`RSI ${rsi.toFixed(0)} — deeply oversold, smart money accumulation likely`);
-    if (macdHist > 0) factors.push(`MACD histogram positive — upside momentum confirmed`);
-    if (pos52 > 0.6) factors.push(`Upper ${Math.round(pos52 * 100)}% of 52w range — structural HTF uptrend`);
-    if (pos52 < 0.3) factors.push(`Near 52w lows — potential liquidity sweep before reversal`);
+    if (bosUp)
+      factors.push(`BOS to upside — ${assetName} displaced ${Math.abs(pctChange).toFixed(2)}% above ${prevClose.toFixed(2)}, institutional order flow confirmed`);
+    if (choch && pctChange > 0)
+      factors.push(`CHoCH detected — trend reversal from bearish structure, smart money repositioning to long`);
+    if (inDiscount)
+      factors.push(`Price trading in discount (below EQ ${equilibrium.toFixed(2)}) — optimal institutional buy zone, OB/FVG entries valid`);
+    if (rsi > 50 && rsi < 65)
+      factors.push(`RSI ${rsi.toFixed(0)} — momentum above midline with room to expand, not yet overbought`);
+    if (rsi < 35)
+      factors.push(`RSI ${rsi.toFixed(0)} — extreme oversold, stop hunts likely complete, reversal accumulation forming`);
+    if (nearLow52)
+      factors.push(`Price near 52-week low liquidity pool — equal lows below offering high-probability reversal zone`);
+    if (pos52 > 0.6 && !nearHigh52)
+      factors.push(`Upper ${Math.round(pos52 * 100)}% of annual range — HTF structural uptrend intact, buy pullbacks`);
+    if (macdHist > 0)
+      factors.push(`Momentum expansion confirmed — displacement candle structure supports continuation`);
   } else if (bias === "bearish") {
-    if (bosDown) factors.push(`BOS to downside — ${assetName} broke ${prevClose.toFixed(2)}, ${Math.abs(pctChange).toFixed(2)}% selling pressure`);
-    if (inPremium) factors.push(`Price in premium zone above EQ ${equilibrium.toFixed(2)} — institutional sell area`);
-    if (rsi > 70) factors.push(`RSI ${rsi.toFixed(0)} — overbought, distribution phase likely`);
-    if (rsi < 50) factors.push(`RSI ${rsi.toFixed(0)} — below midline, sellers in control`);
-    if (macdHist < 0) factors.push(`MACD histogram negative — downward momentum building`);
-    if (pos52 < 0.4) factors.push(`Lower ${Math.round(pos52 * 100)}% of 52w range — structural HTF downtrend`);
+    if (bosDown)
+      factors.push(`BOS to downside — ${assetName} displaced ${Math.abs(pctChange).toFixed(2)}% below ${prevClose.toFixed(2)}, distribution confirmed`);
+    if (choch && pctChange < 0)
+      factors.push(`CHoCH detected — failed attempt at new highs, smart money distributing into retail longs`);
+    if (inPremium)
+      factors.push(`Price in premium zone (above EQ ${equilibrium.toFixed(2)}) — institutional sell area, OB/FVG shorts valid`);
+    if (rsi > 70)
+      factors.push(`RSI ${rsi.toFixed(0)} — overbought extreme, distribution phase active, stop hunts above highs probable`);
+    if (rsi > 55 && rsi <= 70)
+      factors.push(`RSI ${rsi.toFixed(0)} — elevated but not extreme, bearish momentum confirmed below midline`);
+    if (nearHigh52)
+      factors.push(`Price near 52-week high sell-side liquidity — equal highs and stop clusters above, sweep-and-reverse risk high`);
+    if (pos52 < 0.4 && !nearLow52)
+      factors.push(`Lower ${Math.round(pos52 * 100)}% of annual range — HTF structural downtrend, sell rallies into OBs`);
+    if (macdHist < 0)
+      factors.push(`Negative momentum expansion — bearish order flow dominant, no reversal candle structure visible`);
   } else {
-    factors.push(`Price at equilibrium ${equilibrium.toFixed(2)} — no clear directional bias`);
-    factors.push(`RSI ${rsi.toFixed(0)} near midline — neither buyers nor sellers in control`);
-    factors.push(`Wait for BOS above ${high.toFixed(2)} or below ${low.toFixed(2)} before committing`);
+    factors.push(`Price at equilibrium ${equilibrium.toFixed(2)} — institutional buy/sell pressure balanced, no edge`);
+    factors.push(`No BOS confirmed — wait for decisive break above ${high.toFixed(2)} or below ${low.toFixed(2)}`);
+    factors.push(`Ranging between session high/low — liquidity building on both sides for expansion move`);
   }
 
   if (factors.length < 3) {
-    factors.push(`52w range: ${low52w.toFixed(2)}–${high52w.toFixed(2)}, price at ${(pos52 * 100).toFixed(0)}% of range`);
+    factors.push(`Annual range ${low52w.toFixed(2)}–${high52w.toFixed(2)}, price at ${(pos52 * 100).toFixed(0)}% — ${pos52 > 0.5 ? "premium" : "discount"} territory`);
   }
 
   return factors.slice(0, 5);
@@ -110,19 +132,19 @@ function generateInvalidationFactors(
   const factors: string[] = [];
 
   if (bias === "bullish") {
-    factors.push(`Break below ${support.toFixed(2)} support would negate bullish structure`);
-    if (rsi > 65) factors.push(`RSI approaching overbought — momentum exhaustion possible above 70`);
-    factors.push(`Failure to hold above ${(price * 0.985).toFixed(2)} intraday suggests sellers stepping in`);
-    factors.push(`Sudden risk-off event or USD strength could reverse gains`);
+    factors.push(`CHoCH to downside — break and close below ${support.toFixed(2)} structure low negates bullish thesis`);
+    factors.push(`Failure auction above ${resistance.toFixed(2)} with immediate reversal signals distribution, not accumulation`);
+    if (rsi > 68) factors.push(`RSI ${rsi.toFixed(0)} approaching overbought — momentum divergence could precede pullback`);
+    factors.push(`USD strength spike or risk-off macro catalyst would invalidate near-term bullish flow`);
   } else if (bias === "bearish") {
-    factors.push(`Break above ${resistance.toFixed(2)} resistance would invalidate bearish thesis`);
-    if (rsi < 35) factors.push(`RSI nearing oversold — snapback rally risk increasing`);
-    factors.push(`Reclaim of ${(price * 1.015).toFixed(2)} would signal potential reversal`);
-    factors.push(`Dovish policy surprise or risk-on catalyst could trigger short squeeze`);
+    factors.push(`Reclaim above ${resistance.toFixed(2)} with displacement candle — bullish CHoCH, shorts must exit`);
+    factors.push(`Stop run above session high without continuation = manipulation trap, not BOS`);
+    if (rsi < 32) factors.push(`RSI ${rsi.toFixed(0)} deeply oversold — liquidity sweep complete, reversal risk elevated`);
+    factors.push(`Dovish Fed pivot or geopolitical safe-haven demand could flip order flow bullish`);
   } else {
-    factors.push(`Decisive break above ${resistance.toFixed(2)} would tilt bias bullish`);
-    factors.push(`Break below ${support.toFixed(2)} would shift bias bearish`);
-    factors.push(`Consolidation may continue until next macro catalyst`);
+    factors.push(`Expansion BOS above ${resistance.toFixed(2)} — confirms bullish order flow, bias shifts`);
+    factors.push(`Expansion BOS below ${support.toFixed(2)} — confirms bearish distribution, bias shifts`);
+    factors.push(`Avoid entries during range — both sides of liquidity are valid targets for manipulation`);
   }
 
   return factors.slice(0, 4);

@@ -42,6 +42,10 @@ export interface KeyLevel {
   bias: "bullish" | "bearish" | "neutral";    // LTF Setup direction (structure-based)
   htfBias: "bullish" | "bearish" | "neutral"; // HTF Bias (conviction-based, same engine as BiasCard)
   htfConfidence: number;                       // conviction score that produced htfBias
+  smcContext: string;                          // SMC narrative from conviction engine (BOS/CHoCH/zone)
+  pctChange: number;                           // 24h % change — passed through for AI panel
+  high52w: number;
+  low52w: number;
   alignment: AlignmentContext;
   tradeStatus: TradeStatus;
   tradeStatusReason: string;
@@ -630,9 +634,13 @@ function calculateSMCLevels(
   return {
     asset: config.display,
     price,
+    pctChange,
+    high52w,
+    low52w,
     bias,             // LTF Setup direction (structure-based)
     htfBias,          // HTF Bias (conviction engine — matches BiasCard)
     htfConfidence,    // conviction score
+    smcContext: htfSmcContext,  // BOS/CHoCH/zone context for AI panel
     alignment,        // HTF vs LTF reconciliation
     tradeStatus,      // TRADE READY | WATCHLIST | NO TRADE
     tradeStatusReason,
