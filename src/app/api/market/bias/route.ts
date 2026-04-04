@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { BiasData } from "@/types";
 import { TRACKED_ASSETS } from "@/lib/api/market-data";
+import { deriveConvictionBias } from "@/lib/api/conviction";
 
 export const dynamic = "force-dynamic";
 
@@ -43,79 +44,9 @@ const BIAS_ASSETS = [
   },
 ];
 
-// ── Technical analysis templates based on RSI + price action ──
-
-function deriveBiasFromIndicators(
-  rsi: number,
-  pctChange: number,
-  price: number,
-  high52w: number,
-  low52w: number,
-  macdHist: number,
-  high: number,
-  low: number,
-  open: number,
-  prevClose: number
-): { bias: "bullish" | "bearish" | "neutral"; confidence: number; smcContext: string } {
-  let score = 0;
-
-  // ── Price Action / Structure (primary — SMC priority) ──
-  const range52 = high52w - low52w;
-  const pos52 = range52 > 0 ? (price - low52w) / range52 : 0.5;
-  const equilibrium = (high + low) / 2;
-  const inDiscount = price < equilibrium;
-  const inPremium  = price > equilibrium;
-  const posInRange = (high - low) > 0 ? (price - low) / (high - low) : 0.5;
-
-  // BOS detection: significant break of previous close
-  const bosUp   = pctChange > 0.4;
-  const bosDown = pctChange < -0.4;
-  const choch   = (pos52 > 0.6 && pctChange < -0.6) || (pos52 < 0.4 && pctChange > 0.6);
-
-  if (bosUp)   score += 30;
-  if (bosDown) score -= 30;
-  if (choch)   score  = choch && pctChange > 0 ? Math.max(score, 20) : Math.min(score, -20);
-
-  // Premium/Discount alignment
-  if (pctChange > 0 && inDiscount) score += 15; // buy in discount = institutional
-  if (pctChange < 0 && inPremium)  score -= 15; // sell in premium = institutional
-  if (pctChange > 0 && inPremium)  score -= 5;  // buying premium = risky
-  if (pctChange < 0 && inDiscount) score += 5;  // selling discount = risky
-
-  // ── RSI (secondary — confirms, not primary) ──
-  if (rsi > 70) score -= 10;
-  else if (rsi > 60) score += 12;
-  else if (rsi > 50) score += 6;
-  else if (rsi > 40) score -= 6;
-  else if (rsi > 30) score -= 12;
-  else score += 10; // deeply oversold = reversal potential
-
-  // ── 52-week structural position ──
-  if (pos52 > 0.8) score += 8;
-  else if (pos52 > 0.6) score += 12;
-  else if (pos52 > 0.4) score += 3;
-  else if (pos52 > 0.2) score -= 8;
-  else score -= 12;
-
-  // ── MACD secondary ──
-  if (macdHist > 0) score += Math.min(15, macdHist * 30);
-  else score += Math.max(-15, macdHist * 30);
-
-  score = Math.max(-100, Math.min(100, score));
-
-  const bias = score > 15 ? "bullish" : score < -15 ? "bearish" : "neutral";
-  const confidence = Math.min(95, Math.max(25, 50 + Math.abs(score) * 0.45));
-
-  // SMC context string
-  const smcContext = [
-    bosUp   ? "BOS to upside detected" : bosDown ? "BOS to downside detected" : "No clear BOS",
-    choch   ? "CHoCH in play — potential trend reversal" : "",
-    inDiscount ? "Price in discount zone (buy area)" : inPremium ? "Price in premium zone (sell area)" : "Price at equilibrium",
-    `52w position: ${(pos52 * 100).toFixed(0)}% of annual range`,
-  ].filter(Boolean).join(" | ");
-
-  return { bias, confidence: Math.round(confidence), smcContext };
-}
+// ── Conviction engine ─────────────────────────────────────────────────────────
+// Imported from shared lib — same function used by /api/market/keylevels
+// to guarantee consistent HTF Bias output across the entire app.
 
 function generateSupportingFactors(
   bias: "bullish" | "bearish" | "neutral",
@@ -280,7 +211,7 @@ export async function GET() {
       const effectiveHigh = invertBias ? price * 2 - low : high;
       const effectiveLow  = invertBias ? price * 2 - high : low;
 
-      const { bias, confidence, smcContext } = deriveBiasFromIndicators(
+      const { bias, confidence, smcContext } = deriveConvictionBias(
         effectiveRsi, effectivePctChange, price, high52w, low52w, effectiveMacdHist,
         effectiveHigh, effectiveLow, open, prevClose
       );

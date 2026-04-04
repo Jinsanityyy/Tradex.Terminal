@@ -388,24 +388,33 @@ function AssetRow({ level, defaultOpen, lotSize }: {
                 )}
               </div>
 
-              {/* HTF vs LTF explanation */}
-              <div className="flex items-center gap-3 mb-2 flex-wrap">
-                <div className="flex items-center gap-3 px-2.5 py-1.5 rounded-lg" style={{ background: "var(--t-bg)" }}>
-                  <div className="flex flex-col items-center">
-                    <span className="text-[8px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>HTF</span>
-                    <span className="text-[11px] font-bold uppercase" style={{ color: htfColor }}>{level.htfBias}</span>
-                  </div>
-                  <span style={{ color: "var(--t-muted)" }}>→</span>
-                  <div className="flex flex-col items-center">
-                    <span className="text-[8px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>LTF</span>
-                    <span className="text-[11px] font-bold uppercase" style={{ color: ltfColor }}>{level.bias}</span>
-                  </div>
+              {/* 4-field summary: HTF Bias | LTF Setup | Phase | State */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+                <div className="rounded-lg px-2.5 py-2" style={{ background: "var(--t-bg)", border: `1px solid ${htfColor}25` }}>
+                  <span className="text-[8px] uppercase tracking-widest block mb-0.5" style={{ color: "var(--t-muted)" }}>HTF Bias</span>
+                  <span className="text-[11px] font-bold uppercase" style={{ color: htfColor }}>{level.htfBias}</span>
+                  {level.htfConfidence != null && (
+                    <span className="text-[8px] font-mono ml-1.5" style={{ color: `${htfColor}80` }}>{level.htfConfidence}%</span>
+                  )}
+                  <span className="text-[8px] block mt-0.5" style={{ color: "var(--t-muted)" }}>conviction</span>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-[8px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>Phase</span>
-                  <span className="text-[10px] font-bold uppercase" style={{ color: align.color }}>
-                    {level.alignment.phase}
+                <div className="rounded-lg px-2.5 py-2" style={{ background: "var(--t-bg)", border: `1px solid ${ltfColor}25` }}>
+                  <span className="text-[8px] uppercase tracking-widest block mb-0.5" style={{ color: "var(--t-muted)" }}>LTF Setup</span>
+                  <span className="text-[11px] font-bold uppercase" style={{ color: ltfColor }}>{level.bias}</span>
+                  <span className="text-[8px] block mt-0.5" style={{ color: "var(--t-muted)" }}>structure</span>
+                </div>
+                <div className="rounded-lg px-2.5 py-2" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border-sub)" }}>
+                  <span className="text-[8px] uppercase tracking-widest block mb-0.5" style={{ color: "var(--t-muted)" }}>Phase</span>
+                  <span className="text-[10px] font-bold uppercase" style={{ color: align.color }}>{level.alignment.phase}</span>
+                  <span className="text-[8px] block mt-0.5" style={{ color: "var(--t-muted)" }}>market cycle</span>
+                </div>
+                <div className="rounded-lg px-2.5 py-2" style={{ background: tsc.bg, border: `1px solid ${tsc.border}` }}>
+                  <span className="text-[8px] uppercase tracking-widest block mb-0.5" style={{ color: "var(--t-muted)" }}>State</span>
+                  <span className="text-[10px] font-bold uppercase" style={{ color: tsc.color }}>
+                    {level.tradeStatus === "TRADE READY" ? "Ready" :
+                     level.tradeStatus === "WATCHLIST"   ? "Watch" : "No Trade"}
                   </span>
+                  <span className="text-[8px] block mt-0.5" style={{ color: "var(--t-muted)" }}>signal</span>
                 </div>
               </div>
 

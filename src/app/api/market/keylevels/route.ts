@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { deriveConvictionBias } from "@/lib/api/conviction";
 
 export const dynamic = "force-dynamic";
 
@@ -38,8 +39,9 @@ export type TradeStatus = "TRADE READY" | "WATCHLIST" | "NO TRADE";
 export interface KeyLevel {
   asset: string;
   price: number;
-  bias: "bullish" | "bearish" | "neutral";  // LTF Setup direction
-  htfBias: "bullish" | "bearish" | "neutral"; // Higher Timeframe Bias
+  bias: "bullish" | "bearish" | "neutral";    // LTF Setup direction (structure-based)
+  htfBias: "bullish" | "bearish" | "neutral"; // HTF Bias (conviction-based, same engine as BiasCard)
+  htfConfidence: number;                       // conviction score that produced htfBias
   alignment: AlignmentContext;
   tradeStatus: TradeStatus;
   tradeStatusReason: string;
@@ -121,26 +123,10 @@ function getSessionNote(session: string, bias: string): string {
   return notes[session]?.[bias] ?? "Monitor price action for session confirmation.";
 }
 
-// ── HTF Bias (Higher Timeframe) ──────────────────────────────────────────────
-// Derived from 52w structural position — represents macro/weekly directional bias
-// LTF bias is the intraday setup direction; these can (and often do) diverge.
-
-function computeHTFBias(
-  price: number,
-  high52w: number,
-  low52w: number,
-  pctChange: number,
-  rsi: number
-): "bullish" | "bearish" | "neutral" {
-  const range52 = high52w - low52w;
-  const pos52 = range52 > 0 ? (price - low52w) / range52 : 0.5;
-
-  // HTF bullish: upper half of 52w range + not in severe downtrend
-  if (pos52 > 0.55 && pctChange > -2.0 && rsi > 40) return "bullish";
-  // HTF bearish: lower half of 52w range + not in strong recovery
-  if (pos52 < 0.45 && pctChange < 2.0 && rsi < 60) return "bearish";
-  return "neutral";
-}
+// ── HTF Bias ──────────────────────────────────────────────────────────────────
+// Derived from the shared conviction engine (same as /api/market/bias route).
+// Rule: confidence >= 55 → directional; < 55 → neutral.
+// Structure (BOS/OB/FVG) determines LTF setup readiness — NOT this bias.
 
 // ── Alignment Context ─────────────────────────────────────────────────────────
 
@@ -500,15 +486,24 @@ function calculateSMCLevels(
   const { step, atr } = config;
   const session = getSession();
 
-  // LTF Bias from intraday price action + structure
+  // ── HTF Bias — conviction engine (same source as BiasCard) ─────────────────
+  // confidence >= 55 → directional bias; < 55 → neutral (no tradeable edge)
+  const macdHist = pctChange * 0.01; // same proxy used by bias route
+  const { bias: htfRawBias, confidence: htfConfidence, smcContext: htfSmcContext } =
+    deriveConvictionBias(rsi, pctChange, price, high52w, low52w, macdHist, high, low, open, prevClose);
+  const htfBias = htfRawBias; // threshold already applied inside deriveConvictionBias
+
+  // ── LTF Bias — intraday structure analysis ───────────────────────────────
+  // Determines setup readiness only. Does NOT affect HTF Bias direction.
   const posInRange = (high - low) > 0 ? (price - low) / (high - low) : 0.5;
   let bias: "bullish" | "bearish" | "neutral";
-  if (pctChange > 0.25 && posInRange > 0.5) bias = "bullish";
+  if      (pctChange > 0.25 && posInRange > 0.5) bias = "bullish";
   else if (pctChange < -0.25 && posInRange < 0.5) bias = "bearish";
   else bias = "neutral";
 
-  // HTF Bias from 52w structural position (macro view)
-  const htfBias = computeHTFBias(price, high52w, low52w, pctChange, rsi);
+  // If HTF has a directional bias but LTF structure is unclear → keep HTF,
+  // mark LTF as neutral (ranging). Never downgrade HTF due to LTF being unclear.
+  // (alignment + tradeStatus will reflect this as WATCHLIST or NO TRADE)
 
   // Market structure
   const ms = analyzeMarketStructure(price, open, high, low, prevClose, high52w, low52w, pctChange);
@@ -635,8 +630,9 @@ function calculateSMCLevels(
   return {
     asset: config.display,
     price,
-    bias,             // LTF Setup direction
-    htfBias,          // Higher Timeframe Bias
+    bias,             // LTF Setup direction (structure-based)
+    htfBias,          // HTF Bias (conviction engine — matches BiasCard)
+    htfConfidence,    // conviction score
     alignment,        // HTF vs LTF reconciliation
     tradeStatus,      // TRADE READY | WATCHLIST | NO TRADE
     tradeStatusReason,
