@@ -58,17 +58,19 @@ function rrQuality(rr: number): { label: string; color: string } {
 
 type AlignType = "continuation" | "counter-trend" | "reversal" | "ranging";
 
-function alignmentConfig(type: AlignType): { label: string; color: string; bg: string; border: string; icon: string } {
+function alignmentConfig(type: AlignType): {
+  label: string; shortLabel: string; color: string; bg: string; border: string; icon: string;
+} {
   switch (type) {
     case "continuation":
-      return { label: "Trend Continuation", color: "#00C896", bg: "#00C89610", border: "#00C89630", icon: "↑↑" };
+      return { label: "Trend Continuation", shortLabel: "Continuation", color: "#00C896", bg: "#00C89610", border: "#00C89630", icon: "↑↑" };
     case "counter-trend":
-      return { label: "Counter-Trend Pullback", color: "#F59E0B", bg: "#F59E0B10", border: "#F59E0B30", icon: "⇅" };
+      return { label: "Counter-Trend Pullback", shortLabel: "Counter-Trend", color: "#F59E0B", bg: "#F59E0B10", border: "#F59E0B30", icon: "⇅" };
     case "reversal":
-      return { label: "Potential Reversal", color: "#FF6B35", bg: "#FF6B3510", border: "#FF6B3530", icon: "⟳" };
+      return { label: "Potential Reversal", shortLabel: "Reversal?", color: "#FF6B35", bg: "#FF6B3510", border: "#FF6B3530", icon: "⟳" };
     case "ranging":
     default:
-      return { label: "Ranging / No Bias", color: "#8B949E", bg: "transparent", border: "var(--t-border-sub)", icon: "—" };
+      return { label: "Ranging / No Bias", shortLabel: "Ranging", color: "#8B949E", bg: "transparent", border: "var(--t-border-sub)", icon: "—" };
   }
 }
 
@@ -123,20 +125,21 @@ function RRLine({ entry, sl, tp1, tp2, asset, lotSize }: {
         <div className="text-left">
           <p className="text-[9px] font-mono" style={{ color: "#FF4D4F" }}>SL</p>
           <p className="text-[9px] font-mono font-semibold" style={{ color: "#FF4D4F" }}>
-            -{slPips} pips
+            -{slPips}p
           </p>
           <p className="text-[9px] font-mono" style={{ color: "#FF4D4F80" }}>
             -${slDollar.toFixed(2)}
           </p>
         </div>
-        <div className="text-center">
+        {/* ENTRY hidden on very small screens */}
+        <div className="text-center hidden xs:block sm:block">
           <p className="text-[9px] font-mono" style={{ color: "var(--t-muted)" }}>ENTRY</p>
           <p className="text-[9px] font-mono" style={{ color: "var(--t-muted)" }}>{fmt(entry, asset)}</p>
         </div>
         <div className="text-center">
           <p className="text-[9px] font-mono" style={{ color: "#00C896" }}>TP1</p>
           <p className="text-[9px] font-mono font-semibold" style={{ color: "#00C896" }}>
-            +{tp1Pips} pips
+            +{tp1Pips}p
           </p>
           <p className="text-[9px] font-mono" style={{ color: "#00C89680" }}>
             +${tp1Dollar.toFixed(2)}
@@ -145,7 +148,7 @@ function RRLine({ entry, sl, tp1, tp2, asset, lotSize }: {
         <div className="text-right">
           <p className="text-[9px] font-mono" style={{ color: "#00C89680" }}>TP2</p>
           <p className="text-[9px] font-mono font-semibold" style={{ color: "#00C89680" }}>
-            +{tp2Pips} pips
+            +{tp2Pips}p
           </p>
           <p className="text-[9px] font-mono" style={{ color: "#00C89650" }}>
             +${tp2Dollar.toFixed(2)}
@@ -264,9 +267,9 @@ function AssetRow({ level, defaultOpen, lotSize }: {
       {/* ── TOP STRIP ──────────────────────────────────────────── */}
       <button
         onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-white/[0.015] transition-colors"
+        className="w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 text-left hover:bg-white/[0.015] transition-colors"
       >
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <span className="text-[13px] font-bold tracking-wide" style={{ color: "var(--t-text)" }}>
             {level.asset}
           </span>
@@ -284,10 +287,11 @@ function AssetRow({ level, defaultOpen, lotSize }: {
             </span>
           </div>
 
-          {/* Alignment badge */}
+          {/* Alignment badge — short on mobile, full on sm+ */}
           <span className="text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
             style={{ color: align.color, background: align.bg, border: `1px solid ${align.border}` }}>
-            {align.icon} {align.label}
+            <span className="sm:hidden">{align.icon} {align.shortLabel}</span>
+            <span className="hidden sm:inline">{align.icon} {align.label}</span>
           </span>
 
           {level.marketStructure?.bos && (
@@ -317,7 +321,7 @@ function AssetRow({ level, defaultOpen, lotSize }: {
 
       {/* ── EXPANDED ───────────────────────────────────────────── */}
       {open && (
-        <div className="px-4 pb-4 pt-1 space-y-4" style={{ borderTop: "1px solid var(--t-border-sub)" }}>
+        <div className="px-3 sm:px-4 pb-4 pt-1 space-y-3 sm:space-y-4" style={{ borderTop: "1px solid var(--t-border-sub)" }}>
 
           {/* ── ALIGNMENT CONTEXT PANEL ─────────────────────────── */}
           {level.alignment && level.alignment.type !== "ranging" && (
@@ -342,19 +346,19 @@ function AssetRow({ level, defaultOpen, lotSize }: {
               </div>
 
               {/* HTF vs LTF explanation */}
-              <div className="flex items-center gap-4 mb-2">
-                <div className="flex flex-col">
-                  <span className="text-[8px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>HTF Bias</span>
-                  <span className="text-[10px] font-bold uppercase" style={{ color: htfColor }}>{level.htfBias}</span>
-                  <span className="text-[8px]" style={{ color: "var(--t-muted)" }}>52w structure</span>
+              <div className="flex items-center gap-3 mb-2 flex-wrap">
+                <div className="flex items-center gap-3 px-2.5 py-1.5 rounded-lg" style={{ background: "var(--t-bg)" }}>
+                  <div className="flex flex-col items-center">
+                    <span className="text-[8px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>HTF</span>
+                    <span className="text-[11px] font-bold uppercase" style={{ color: htfColor }}>{level.htfBias}</span>
+                  </div>
+                  <span style={{ color: "var(--t-muted)" }}>→</span>
+                  <div className="flex flex-col items-center">
+                    <span className="text-[8px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>LTF</span>
+                    <span className="text-[11px] font-bold uppercase" style={{ color: ltfColor }}>{level.bias}</span>
+                  </div>
                 </div>
-                <span className="text-[16px]" style={{ color: "var(--t-muted)" }}>⟷</span>
                 <div className="flex flex-col">
-                  <span className="text-[8px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>LTF Setup</span>
-                  <span className="text-[10px] font-bold uppercase" style={{ color: ltfColor }}>{level.bias}</span>
-                  <span className="text-[8px]" style={{ color: "var(--t-muted)" }}>intraday price action</span>
-                </div>
-                <div className="flex flex-col ml-auto">
                   <span className="text-[8px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>Phase</span>
                   <span className="text-[10px] font-bold uppercase" style={{ color: align.color }}>
                     {level.alignment.phase}
@@ -577,11 +581,11 @@ export function KeyLevelsCard({ levels, compact = false }: KeyLevelsCardProps) {
     <div className="rounded-2xl overflow-hidden" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border-sub)" }}>
 
       {/* ── Header ───────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: "1px solid var(--t-border-sub)" }}>
-        <div className="flex items-center gap-2.5">
-          <Zap className="h-4 w-4" style={{ color: "#00C896" }} />
+      <div className="flex items-center justify-between px-3 sm:px-5 py-3" style={{ borderBottom: "1px solid var(--t-border-sub)" }}>
+        <div className="flex items-center gap-2">
+          <Zap className="h-4 w-4 shrink-0" style={{ color: "#00C896" }} />
           <span className="text-[13px] font-bold tracking-wide" style={{ color: "var(--t-text)" }}>Key Levels</span>
-          <span className="text-[10px]" style={{ color: "var(--t-muted)" }}>HTF Bias · LTF Setup · Entry · SL · TP</span>
+          <span className="text-[10px] hidden sm:inline" style={{ color: "var(--t-muted)" }}>HTF Bias · LTF Setup · Entry · SL · TP</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -633,7 +637,7 @@ export function KeyLevelsCard({ levels, compact = false }: KeyLevelsCardProps) {
 
       {/* ── Lot Size Panel ────────────────────────────────────── */}
       {showLotInput && (
-        <div className="px-5 py-3 flex items-center gap-3 flex-wrap"
+        <div className="px-3 sm:px-5 py-3 flex items-center gap-2 sm:gap-3 flex-wrap"
           style={{ borderBottom: "1px solid var(--t-border-sub)", background: "var(--t-card-2)" }}>
           <span className="text-[9px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>Lot Size</span>
 

@@ -144,7 +144,7 @@ function DrillDownModal({
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid var(--t-border-sub)" }}>
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4" style={{ borderBottom: "1px solid var(--t-border-sub)" }}>
           <div className="flex items-center gap-3">
             <span className="text-[15px] font-bold tracking-wide" style={{ color: "var(--t-text)" }}>{asset}</span>
             <span
@@ -159,10 +159,10 @@ function DrillDownModal({
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1 p-5 space-y-5">
+        <div className="overflow-y-auto flex-1 p-4 sm:p-5 space-y-4 sm:space-y-5">
 
           {/* Conviction + tier */}
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-4 sm:gap-5">
             {/* Circular gauge */}
             <div className="relative flex-shrink-0 flex items-center justify-center" style={{ width: 80, height: 80 }}>
               <svg className="absolute inset-0 -rotate-90" viewBox="0 0 100 100">
@@ -288,7 +288,7 @@ function DrillDownModal({
           )}
 
           {/* Increase / Weaken conviction */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
             <div className="rounded-lg p-3" style={{ background: "#00C89608", border: "1px solid #00C89620" }}>
               <p className="text-[9px] uppercase tracking-widest mb-1.5" style={{ color: "#00C896" }}>
                 ↑ Would Increase Conviction
