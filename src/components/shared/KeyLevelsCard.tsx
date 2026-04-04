@@ -6,13 +6,22 @@ import type { KeyLevel } from "@/app/api/market/keylevels/route";
 
 // ── MT5 Pip Config per asset ──────────────────────────────────────────────────
 const PIP_CONFIG: Record<string, { multiplier: number; pipVal01: number; maxPips: number }> = {
-  XAUUSD: { multiplier: 100,   pipVal01: 0.10, maxPips: 1000 },
   EURUSD: { multiplier: 10000, pipVal01: 0.10, maxPips: 500  },
   GBPUSD: { multiplier: 10000, pipVal01: 0.10, maxPips: 500  },
   USDJPY: { multiplier: 100,   pipVal01: 0.10, maxPips: 500  },
   USDCAD: { multiplier: 10000, pipVal01: 0.10, maxPips: 500  },
   BTCUSD: { multiplier: 1,     pipVal01: 0.10, maxPips: 10000 },
 };
+
+// Assets where traders use price distance, not pips (gold, crypto with $ value per point)
+// XAUUSD: 1 point move on 0.01 lot = $0.10 risk
+const DISTANCE_ASSETS: Record<string, { dollarPer01: number; maxDistance: number; decimals: number }> = {
+  XAUUSD: { dollarPer01: 0.10, maxDistance: 500, decimals: 1 },
+};
+
+function isDistanceAsset(asset: string): boolean {
+  return asset in DISTANCE_ASSETS;
+}
 
 function calcPips(a: number, b: number, asset: string): number {
   const cfg = PIP_CONFIG[asset] ?? { multiplier: 100, pipVal01: 0.10, maxPips: 500 };
@@ -24,9 +33,27 @@ function calcDollar(pips: number, lotSize: number, asset: string): number {
   return parseFloat((pips * (lotSize / 0.01) * cfg.pipVal01).toFixed(2));
 }
 
-function isUnrealistic(slPips: number, asset: string): boolean {
+// For distance-based assets (XAUUSD): returns raw price distance rounded to N decimals
+function calcDistance(a: number, b: number, asset: string): number {
+  const cfg = DISTANCE_ASSETS[asset];
+  const decimals = cfg?.decimals ?? 1;
+  return parseFloat(Math.abs(a - b).toFixed(decimals));
+}
+
+// Dollar risk/reward for distance-based assets (XAUUSD: distance × 0.1 per 0.01 lot)
+function calcDollarFromDistance(distance: number, lotSize: number, asset: string): number {
+  const cfg = DISTANCE_ASSETS[asset];
+  if (!cfg) return 0;
+  return parseFloat((distance * (lotSize / 0.01) * cfg.dollarPer01).toFixed(2));
+}
+
+function isUnrealistic(slValue: number, asset: string): boolean {
+  if (isDistanceAsset(asset)) {
+    const cfg = DISTANCE_ASSETS[asset]!;
+    return slValue > cfg.maxDistance;
+  }
   const cfg = PIP_CONFIG[asset] ?? { multiplier: 100, pipVal01: 0.10, maxPips: 500 };
-  return slPips > cfg.maxPips;
+  return slValue > cfg.maxPips;
 }
 
 function fmt(price: number, asset: string): string {
@@ -228,11 +255,18 @@ function LevelLine({ label, price, entry, asset, lotSize, direction }: {
   label: string; price: number; entry: number; asset: string; lotSize: number;
   direction: "risk" | "reward" | "reward2";
 }) {
-  const pips   = calcPips(entry, price, asset);
-  const dollar = calcDollar(pips, lotSize, asset);
-  const isRisk = direction === "risk";
-  const color  = isRisk ? "#FF4D4F" : direction === "reward" ? "#00C896" : "#00C89670";
-  const sign   = isRisk ? "-" : "+";
+  const isRisk   = direction === "risk";
+  const color    = isRisk ? "#FF4D4F" : direction === "reward" ? "#00C896" : "#00C89670";
+  const sign     = isRisk ? "-" : "+";
+  const usesDist = isDistanceAsset(asset);
+
+  const moveLabel = usesDist
+    ? `${sign}${calcDistance(entry, price, asset).toFixed(1)}`
+    : `${sign}${calcPips(entry, price, asset)} pips`;
+
+  const dollar = usesDist
+    ? calcDollarFromDistance(calcDistance(entry, price, asset), lotSize, asset)
+    : calcDollar(calcPips(entry, price, asset), lotSize, asset);
 
   return (
     <div className="flex items-center justify-between py-1.5" style={{ borderBottom: "1px solid var(--t-border-sub)" }}>
@@ -244,7 +278,7 @@ function LevelLine({ label, price, entry, asset, lotSize, direction }: {
       </span>
       <div className="text-right">
         <span className="text-[10px] font-mono font-semibold" style={{ color }}>
-          {sign}{pips} pips
+          {moveLabel}
         </span>
         <span className="text-[10px] font-mono ml-2" style={{ color: `${color}90` }}>
           {fmtDollar(dollar, isRisk ? "-" : "+")}
@@ -276,13 +310,31 @@ function AssetRow({ level, defaultOpen, lotSize }: {
   const isTradeReady   = level.tradeStatus === "TRADE READY";
   const isWatchlist    = level.tradeStatus === "WATCHLIST";
 
-  const slPips        = calcPips(level.entry, level.stopLoss, level.asset);
-  const unrealistic   = isUnrealistic(slPips, level.asset);
+  const usesDist      = isDistanceAsset(level.asset);
+  const slMeasure     = usesDist
+    ? calcDistance(level.entry, level.stopLoss, level.asset)
+    : calcPips(level.entry, level.stopLoss, level.asset);
+  const unrealistic   = isUnrealistic(slMeasure, level.asset);
   const isNT          = (level.tradeStatus === "NO TRADE") || unrealistic;
   const dimmed        = level.tradeStatus === "NO TRADE" && !unrealistic;
 
-  const tp3Pips   = level.takeProfit3 ? calcPips(level.entry, level.takeProfit3, level.asset) : 0;
-  const tp3Dollar = level.takeProfit3 ? calcDollar(tp3Pips, lotSize, level.asset) : 0;
+  const slBannerLabel = usesDist
+    ? `SL distance ${slMeasure.toFixed(1)} — unrealistic. Wait for a tighter structure.`
+    : `SL is ${slMeasure} pips — unrealistic distance. Wait for a tighter structure.`;
+
+  const tp3Move   = level.takeProfit3
+    ? (usesDist
+        ? calcDistance(level.entry, level.takeProfit3, level.asset)
+        : calcPips(level.entry, level.takeProfit3, level.asset))
+    : 0;
+  const tp3Dollar = level.takeProfit3
+    ? (usesDist
+        ? calcDollarFromDistance(tp3Move, lotSize, level.asset)
+        : calcDollar(tp3Move, lotSize, level.asset))
+    : 0;
+  const tp3Label  = tp3Move > 0
+    ? (usesDist ? `+${tp3Move.toFixed(1)}` : `+${tp3Move} pips`)
+    : "";
 
   return (
     <div
@@ -445,7 +497,7 @@ function AssetRow({ level, defaultOpen, lotSize }: {
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" style={{ color: "#FF4D4F" }} />
               <p className="text-[11px]" style={{ color: "#FF4D4F" }}>
                 {unrealistic
-                  ? `SL is ${slPips} pips — unrealistic distance. Wait for a tighter structure.`
+                  ? slBannerLabel
                   : level.note}
               </p>
             </div>
@@ -474,7 +526,7 @@ function AssetRow({ level, defaultOpen, lotSize }: {
                 <LevelLine label="SL"  price={level.stopLoss}    entry={level.entry} asset={level.asset} lotSize={lotSize} direction="risk"    />
                 <LevelLine label="TP1" price={level.takeProfit1} entry={level.entry} asset={level.asset} lotSize={lotSize} direction="reward"  />
                 <LevelLine label="TP2" price={level.takeProfit2} entry={level.entry} asset={level.asset} lotSize={lotSize} direction="reward2" />
-                {level.takeProfit3 && tp3Pips > 0 && (
+                {level.takeProfit3 && tp3Move > 0 && (
                   <div className="flex items-center justify-between py-1.5">
                     <span className="text-[10px] font-semibold uppercase tracking-wider w-8" style={{ color: "#00C89650" }}>TP3</span>
                     <span className="text-[13px] font-mono font-bold flex-1 text-center" style={{ color: "var(--t-text)", opacity: 0.5 }}>
@@ -482,7 +534,7 @@ function AssetRow({ level, defaultOpen, lotSize }: {
                     </span>
                     <div className="text-right">
                       <span className="text-[10px] font-mono font-semibold" style={{ color: "#00C89650" }}>
-                        +{tp3Pips} pips
+                        {tp3Label}
                       </span>
                       <span className="text-[10px] font-mono ml-2" style={{ color: "#00C89640" }}>
                         +${tp3Dollar.toFixed(2)}
