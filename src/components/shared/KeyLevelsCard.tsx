@@ -4,56 +4,60 @@ import React, { useState } from "react";
 import { ChevronDown, ChevronUp, AlertTriangle, Zap, Settings2, Filter, CheckCircle2, Clock, XCircle } from "lucide-react";
 import type { KeyLevel } from "@/app/api/market/keylevels/route";
 
-// ── MT5 Pip Config per asset ──────────────────────────────────────────────────
+// ── Calculation config — SINGLE SOURCE OF TRUTH ──────────────────────────────
+//
+// DIRECT_DOLLAR_ASSETS: dollar = |entry - price|, exactly, no scaling.
+//   XAUUSD: Entry 4713, SL 4882 → distance 169 → display -$169
+//
+// Pip assets (forex): dollar = pips × (lotSize/0.01) × pipVal01
+
+const DIRECT_DOLLAR_ASSETS = new Set(["XAUUSD"]);
+
 const PIP_CONFIG: Record<string, { multiplier: number; pipVal01: number; maxPips: number }> = {
-  EURUSD: { multiplier: 10000, pipVal01: 0.10, maxPips: 500  },
-  GBPUSD: { multiplier: 10000, pipVal01: 0.10, maxPips: 500  },
-  USDJPY: { multiplier: 100,   pipVal01: 0.10, maxPips: 500  },
-  USDCAD: { multiplier: 10000, pipVal01: 0.10, maxPips: 500  },
-  BTCUSD: { multiplier: 1,     pipVal01: 0.10, maxPips: 10000 },
+  EURUSD: { multiplier: 10000, pipVal01: 0.10, maxPips: 500   },
+  GBPUSD: { multiplier: 10000, pipVal01: 0.10, maxPips: 500   },
+  USDJPY: { multiplier: 100,   pipVal01: 0.10, maxPips: 500   },
+  USDCAD: { multiplier: 10000, pipVal01: 0.10, maxPips: 500   },
+  BTCUSD: { multiplier: 1,     pipVal01: 1.00, maxPips: 10000 },
 };
 
-// Assets where traders use price distance, not pips (gold, crypto with $ value per point)
-// XAUUSD: 1 point move on 0.01 lot = $0.10 risk
-const DISTANCE_ASSETS: Record<string, { dollarPer01: number; maxDistance: number; decimals: number }> = {
-  XAUUSD: { dollarPer01: 0.10, maxDistance: 500, decimals: 1 },
+const MAX_SL_DISTANCE: Record<string, number> = {
+  XAUUSD: 800, // $800 max SL — beyond this the setup is considered unrealistic
+  BTCUSD: 5000,
 };
 
-function isDistanceAsset(asset: string): boolean {
-  return asset in DISTANCE_ASSETS;
+// ── Single dollar calculation — use everywhere, no exceptions ─────────────────
+// Returns the dollar value for the move from entry to price.
+// XAUUSD: dollar = Math.round(|entry - price|)  (1:1, ignores lotSize)
+// Forex:  dollar = pips × (lotSize/0.01) × pipVal01
+function levelDollar(entry: number, price: number, lotSize: number, asset: string): number {
+  if (DIRECT_DOLLAR_ASSETS.has(asset)) {
+    return Math.round(Math.abs(entry - price));
+  }
+  const cfg = PIP_CONFIG[asset] ?? { multiplier: 100, pipVal01: 0.10, maxPips: 500 };
+  const pips = Math.round(Math.abs(entry - price) * cfg.multiplier);
+  return parseFloat((pips * (lotSize / 0.01) * cfg.pipVal01).toFixed(2));
 }
 
+// Pip count — only used for forex display labels
 function calcPips(a: number, b: number, asset: string): number {
   const cfg = PIP_CONFIG[asset] ?? { multiplier: 100, pipVal01: 0.10, maxPips: 500 };
   return Math.round(Math.abs(a - b) * cfg.multiplier);
 }
 
-function calcDollar(pips: number, lotSize: number, asset: string): number {
+// Unrealistic SL check
+function isUnrealistic(entry: number, sl: number, asset: string): boolean {
+  const distance = Math.abs(entry - sl);
+  const maxDist = MAX_SL_DISTANCE[asset];
+  if (maxDist !== undefined) return distance > maxDist;
   const cfg = PIP_CONFIG[asset] ?? { multiplier: 100, pipVal01: 0.10, maxPips: 500 };
-  return parseFloat((pips * (lotSize / 0.01) * cfg.pipVal01).toFixed(2));
+  return Math.round(distance * cfg.multiplier) > cfg.maxPips;
 }
 
-// For distance-based assets (XAUUSD): returns raw price distance rounded to N decimals
-function calcDistance(a: number, b: number, asset: string): number {
-  const cfg = DISTANCE_ASSETS[asset];
-  const decimals = cfg?.decimals ?? 1;
-  return parseFloat(Math.abs(a - b).toFixed(decimals));
-}
-
-// Dollar risk/reward for distance-based assets (XAUUSD: distance × 0.1 per 0.01 lot)
-function calcDollarFromDistance(distance: number, lotSize: number, asset: string): number {
-  const cfg = DISTANCE_ASSETS[asset];
-  if (!cfg) return 0;
-  return parseFloat((distance * (lotSize / 0.01) * cfg.dollarPer01).toFixed(2));
-}
-
-function isUnrealistic(slValue: number, asset: string): boolean {
-  if (isDistanceAsset(asset)) {
-    const cfg = DISTANCE_ASSETS[asset]!;
-    return slValue > cfg.maxDistance;
-  }
-  const cfg = PIP_CONFIG[asset] ?? { multiplier: 100, pipVal01: 0.10, maxPips: 500 };
-  return slValue > cfg.maxPips;
+// Format dollar value — XAUUSD uses whole numbers, forex uses 2 decimals
+function fmtDollar(n: number, sign: "+" | "-", asset: string): string {
+  const s = DIRECT_DOLLAR_ASSETS.has(asset) ? Math.round(n).toString() : n.toFixed(2);
+  return sign === "+" ? `+$${s}` : `-$${s}`;
 }
 
 function fmt(price: number, asset: string): string {
@@ -63,10 +67,7 @@ function fmt(price: number, asset: string): string {
   return price.toFixed(4);
 }
 
-function fmtDollar(n: number, sign: "+" | "-"): string {
-  const s = n.toFixed(2);
-  return sign === "+" ? `+$${s}` : `-$${s}`;
-}
+// (fmtDollar is defined above in the calc section)
 
 function setupLabel(q: string): { label: string; color: string; glow: boolean } {
   if (q === "A+") return { label: "A+",       color: "#00C896", glow: true  };
@@ -132,19 +133,23 @@ function tradeStatusConfig(status: TradeStatus): {
 function RRLine({ entry, sl, tp1, tp2, asset, lotSize }: {
   entry: number; sl: number; tp1: number; tp2: number; asset: string; lotSize: number;
 }) {
-  const slPips   = calcPips(entry, sl,  asset);
-  const tp1Pips  = calcPips(entry, tp1, asset);
-  const tp2Pips  = calcPips(entry, tp2, asset);
-  const total    = slPips + tp2Pips;
+  // All calculations go through levelDollar — single source of truth
+  const isDirect  = DIRECT_DOLLAR_ASSETS.has(asset);
+  const slDollar  = levelDollar(entry, sl,  lotSize, asset);
+  const tp1Dollar = levelDollar(entry, tp1, lotSize, asset);
+  const tp2Dollar = levelDollar(entry, tp2, lotSize, asset);
+
+  const total = slDollar + tp2Dollar;
   if (total === 0) return null;
 
-  const slPct    = (slPips  / total) * 100;
+  const slPct    = (slDollar  / total) * 100;
   const entryPct = slPct;
-  const tp1Pct   = ((tp1Pips / total) * 100) + entryPct;
+  const tp1Pct   = ((tp1Dollar / total) * 100) + entryPct;
 
-  const slDollar  = calcDollar(slPips,  lotSize, asset);
-  const tp1Dollar = calcDollar(tp1Pips, lotSize, asset);
-  const tp2Dollar = calcDollar(tp2Pips, lotSize, asset);
+  // Pip labels only shown for forex assets
+  const slPips  = !isDirect ? calcPips(entry, sl,  asset) : 0;
+  const tp1Pips = !isDirect ? calcPips(entry, tp1, asset) : 0;
+  const tp2Pips = !isDirect ? calcPips(entry, tp2, asset) : 0;
 
   return (
     <div className="relative mt-4">
@@ -173,38 +178,37 @@ function RRLine({ entry, sl, tp1, tp2, asset, lotSize }: {
         style={{ left: `${Math.min(tp1Pct, 97).toFixed(1)}%`, background: "#00C896" }}
       />
 
-      {/* Labels */}
+      {/* Labels — dollar only for XAUUSD, pips + dollar for forex */}
       <div className="flex justify-between mt-2">
         <div className="text-left">
           <p className="text-[9px] font-mono" style={{ color: "#FF4D4F" }}>SL</p>
-          <p className="text-[9px] font-mono font-semibold" style={{ color: "#FF4D4F" }}>
-            -{slPips}p
-          </p>
-          <p className="text-[9px] font-mono" style={{ color: "#FF4D4F80" }}>
-            -${slDollar.toFixed(2)}
+          {!isDirect && (
+            <p className="text-[9px] font-mono font-semibold" style={{ color: "#FF4D4F" }}>-{slPips}p</p>
+          )}
+          <p className="text-[9px] font-mono font-semibold" style={{ color: "#FF4D4F80" }}>
+            {fmtDollar(slDollar, "-", asset)}
           </p>
         </div>
-        {/* ENTRY hidden on very small screens */}
         <div className="text-center hidden xs:block sm:block">
           <p className="text-[9px] font-mono" style={{ color: "var(--t-muted)" }}>ENTRY</p>
           <p className="text-[9px] font-mono" style={{ color: "var(--t-muted)" }}>{fmt(entry, asset)}</p>
         </div>
         <div className="text-center">
           <p className="text-[9px] font-mono" style={{ color: "#00C896" }}>TP1</p>
-          <p className="text-[9px] font-mono font-semibold" style={{ color: "#00C896" }}>
-            +{tp1Pips}p
-          </p>
-          <p className="text-[9px] font-mono" style={{ color: "#00C89680" }}>
-            +${tp1Dollar.toFixed(2)}
+          {!isDirect && (
+            <p className="text-[9px] font-mono font-semibold" style={{ color: "#00C896" }}>+{tp1Pips}p</p>
+          )}
+          <p className="text-[9px] font-mono font-semibold" style={{ color: "#00C89680" }}>
+            {fmtDollar(tp1Dollar, "+", asset)}
           </p>
         </div>
         <div className="text-right">
           <p className="text-[9px] font-mono" style={{ color: "#00C89680" }}>TP2</p>
-          <p className="text-[9px] font-mono font-semibold" style={{ color: "#00C89680" }}>
-            +{tp2Pips}p
-          </p>
-          <p className="text-[9px] font-mono" style={{ color: "#00C89650" }}>
-            +${tp2Dollar.toFixed(2)}
+          {!isDirect && (
+            <p className="text-[9px] font-mono font-semibold" style={{ color: "#00C89680" }}>+{tp2Pips}p</p>
+          )}
+          <p className="text-[9px] font-mono font-semibold" style={{ color: "#00C89650" }}>
+            {fmtDollar(tp2Dollar, "+", asset)}
           </p>
         </div>
       </div>
@@ -255,18 +259,17 @@ function LevelLine({ label, price, entry, asset, lotSize, direction }: {
   label: string; price: number; entry: number; asset: string; lotSize: number;
   direction: "risk" | "reward" | "reward2";
 }) {
-  const isRisk   = direction === "risk";
-  const color    = isRisk ? "#FF4D4F" : direction === "reward" ? "#00C896" : "#00C89670";
-  const sign     = isRisk ? "-" : "+";
-  const usesDist = isDistanceAsset(asset);
+  const isRisk    = direction === "risk";
+  const color     = isRisk ? "#FF4D4F" : direction === "reward" ? "#00C896" : "#00C89670";
+  const sign      = isRisk ? "-" as const : "+" as const;
+  const isDirect  = DIRECT_DOLLAR_ASSETS.has(asset);
 
-  const moveLabel = usesDist
-    ? `${sign}${calcDistance(entry, price, asset).toFixed(1)}`
-    : `${sign}${calcPips(entry, price, asset)} pips`;
+  // Single dollar value — the only number shown on the right
+  const dollar    = levelDollar(entry, price, lotSize, asset);
+  const dollarStr = fmtDollar(dollar, sign, asset);
 
-  const dollar = usesDist
-    ? calcDollarFromDistance(calcDistance(entry, price, asset), lotSize, asset)
-    : calcDollar(calcPips(entry, price, asset), lotSize, asset);
+  // Pip count — only for forex, shown as secondary label
+  const pipsLabel = !isDirect ? `${sign}${calcPips(entry, price, asset)} pips` : null;
 
   return (
     <div className="flex items-center justify-between py-1.5" style={{ borderBottom: "1px solid var(--t-border-sub)" }}>
@@ -277,11 +280,13 @@ function LevelLine({ label, price, entry, asset, lotSize, direction }: {
         {fmt(price, asset)}
       </span>
       <div className="text-right">
-        <span className="text-[10px] font-mono font-semibold" style={{ color }}>
-          {moveLabel}
-        </span>
-        <span className="text-[10px] font-mono ml-2" style={{ color: `${color}90` }}>
-          {fmtDollar(dollar, isRisk ? "-" : "+")}
+        {pipsLabel && (
+          <span className="text-[10px] font-mono font-semibold" style={{ color }}>
+            {pipsLabel}
+          </span>
+        )}
+        <span className={`text-[10px] font-mono font-semibold${pipsLabel ? " ml-2" : ""}`} style={{ color: pipsLabel ? `${color}90` : color }}>
+          {dollarStr}
         </span>
       </div>
     </div>
@@ -310,31 +315,19 @@ function AssetRow({ level, defaultOpen, lotSize }: {
   const isTradeReady   = level.tradeStatus === "TRADE READY";
   const isWatchlist    = level.tradeStatus === "WATCHLIST";
 
-  const usesDist      = isDistanceAsset(level.asset);
-  const slMeasure     = usesDist
-    ? calcDistance(level.entry, level.stopLoss, level.asset)
-    : calcPips(level.entry, level.stopLoss, level.asset);
-  const unrealistic   = isUnrealistic(slMeasure, level.asset);
+  // SL unrealistic check uses raw distance
+  const unrealistic   = isUnrealistic(level.entry, level.stopLoss, level.asset);
   const isNT          = (level.tradeStatus === "NO TRADE") || unrealistic;
   const dimmed        = level.tradeStatus === "NO TRADE" && !unrealistic;
 
-  const slBannerLabel = usesDist
-    ? `SL distance ${slMeasure.toFixed(1)} — unrealistic. Wait for a tighter structure.`
-    : `SL is ${slMeasure} pips — unrealistic distance. Wait for a tighter structure.`;
+  const slDist        = Math.round(Math.abs(level.entry - level.stopLoss));
+  const slBannerLabel = `SL distance $${slDist} — too large for current structure. Wait for tighter setup.`;
 
-  const tp3Move   = level.takeProfit3
-    ? (usesDist
-        ? calcDistance(level.entry, level.takeProfit3, level.asset)
-        : calcPips(level.entry, level.takeProfit3, level.asset))
-    : 0;
+  // TP3 dollar via same levelDollar function
   const tp3Dollar = level.takeProfit3
-    ? (usesDist
-        ? calcDollarFromDistance(tp3Move, lotSize, level.asset)
-        : calcDollar(tp3Move, lotSize, level.asset))
+    ? levelDollar(level.entry, level.takeProfit3, lotSize, level.asset)
     : 0;
-  const tp3Label  = tp3Move > 0
-    ? (usesDist ? `+${tp3Move.toFixed(1)}` : `+${tp3Move} pips`)
-    : "";
+  const tp3Str    = tp3Dollar > 0 ? fmtDollar(tp3Dollar, "+", level.asset) : "";
 
   return (
     <div
@@ -507,7 +500,15 @@ function AssetRow({ level, defaultOpen, lotSize }: {
             <>
               {/* ── LTF SETUP: Entry price ────────────────────────── */}
               <div>
-                <p className="text-[9px] uppercase tracking-widest mb-2" style={{ color: "var(--t-muted)" }}>LTF Setup</p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[9px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>LTF Setup</p>
+                  {isWatchlist && (
+                    <span className="text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
+                      style={{ background: "#F59E0B12", color: "#F59E0B", border: "1px solid #F59E0B30" }}>
+                      PROJECTED LEVELS
+                    </span>
+                  )}
+                </div>
 
                 {/* Entry row */}
                 <div className="flex items-center justify-between py-2 mb-1"
@@ -526,20 +527,15 @@ function AssetRow({ level, defaultOpen, lotSize }: {
                 <LevelLine label="SL"  price={level.stopLoss}    entry={level.entry} asset={level.asset} lotSize={lotSize} direction="risk"    />
                 <LevelLine label="TP1" price={level.takeProfit1} entry={level.entry} asset={level.asset} lotSize={lotSize} direction="reward"  />
                 <LevelLine label="TP2" price={level.takeProfit2} entry={level.entry} asset={level.asset} lotSize={lotSize} direction="reward2" />
-                {level.takeProfit3 && tp3Move > 0 && (
+                {level.takeProfit3 && tp3Dollar > 0 && (
                   <div className="flex items-center justify-between py-1.5">
                     <span className="text-[10px] font-semibold uppercase tracking-wider w-8" style={{ color: "#00C89650" }}>TP3</span>
                     <span className="text-[13px] font-mono font-bold flex-1 text-center" style={{ color: "var(--t-text)", opacity: 0.5 }}>
                       {fmt(level.takeProfit3!, level.asset)}
                     </span>
-                    <div className="text-right">
-                      <span className="text-[10px] font-mono font-semibold" style={{ color: "#00C89650" }}>
-                        {tp3Label}
-                      </span>
-                      <span className="text-[10px] font-mono ml-2" style={{ color: "#00C89640" }}>
-                        +${tp3Dollar.toFixed(2)}
-                      </span>
-                    </div>
+                    <span className="text-[10px] font-mono font-semibold" style={{ color: "#00C89650" }}>
+                      {tp3Str}
+                    </span>
                   </div>
                 )}
               </div>
@@ -789,9 +785,10 @@ export function KeyLevelsCard({ levels, compact = false }: KeyLevelsCardProps) {
             }}
           />
           <span className="text-[9px]" style={{ color: "var(--t-muted)" }}>
-            Pip value: <span style={{ color: "var(--t-text)" }}>
+            Pip value (forex): <span style={{ color: "var(--t-text)" }}>
               ${(lotSize / 0.01 * 0.10).toFixed(2)}/pip
             </span>
+            <span className="ml-2" style={{ color: "#8B949E60" }}>· Gold: $1/point</span>
           </span>
         </div>
       )}
