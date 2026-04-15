@@ -103,10 +103,10 @@ export function TrumpFeedPanel({ posts, limit, compact = false }: TrumpFeedPanel
 
   if (items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
+      <div className="flex flex-col items-center justify-center py-10 gap-2 text-center rounded-xl border border-white/6 bg-[hsl(var(--secondary))]/30">
         <UserCircle className="h-6 w-6 text-[hsl(var(--muted-foreground))]/30" />
-        <p className="text-xs text-[hsl(var(--muted-foreground))]">No Trump-related market signals detected</p>
-        <p className="text-[10px] text-[hsl(var(--muted-foreground))]/60">Refreshes every 2 minutes</p>
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">No posts matching this filter</p>
+        <p className="text-[10px] text-[hsl(var(--muted-foreground))]/50">Try selecting a different category or <span className="text-amber-400">ALL</span></p>
       </div>
     );
   }

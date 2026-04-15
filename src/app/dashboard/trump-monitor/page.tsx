@@ -8,7 +8,7 @@ import { TrumpFeedPanel } from "@/components/shared/TrumpFeedPanel";
 import { ConvictionMeter } from "@/components/shared/ConvictionMeter";
 import { useTrumpPosts } from "@/hooks/useMarketData";
 import { cn } from "@/lib/utils";
-import { UserCircle, Filter, Flame, BarChart3, Hash, TrendingUp, AlertTriangle, Wifi, WifiOff } from "lucide-react";
+import { UserCircle, Filter, Hash, TrendingUp, Wifi, WifiOff } from "lucide-react";
 
 const filterTags = ["all", "tariffs", "china", "fed", "crypto", "oil", "trade-policy", "geopolitics"];
 
@@ -150,15 +150,6 @@ export default function TrumpMonitorPage() {
 
       {/* Feed */}
       <TrumpFeedPanel posts={filtered} />
-
-      {filtered.length === 0 && (
-        <Card className="gradient-card">
-          <CardContent className="p-8 text-center">
-            <UserCircle className="h-8 w-8 text-[hsl(var(--muted-foreground))] mx-auto mb-3" />
-            <p className="text-xs text-[hsl(var(--muted-foreground))]">No posts matching this filter.</p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

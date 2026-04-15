@@ -108,52 +108,49 @@ async function fetchForexRates(): Promise<Record<string, any>> {
   return results;
 }
 
-// ── fawazahmed0 currency API: gold/silver/oil (daily, CDN-cached) ──
+// ── Yahoo Finance: gold/silver/oil (near real-time, updates every ~1 min) ──
 async function fetchMetals(): Promise<Record<string, any>> {
   const results: Record<string, any> = {};
+
+  const parseYahoo = (data: any, symbol: string, name: string) => {
+    const meta = data?.chart?.result?.[0]?.meta;
+    if (!meta?.regularMarketPrice) return null;
+    const price = meta.regularMarketPrice as number;
+    const prev = (meta.chartPreviousClose || meta.regularMarketOpen || price) as number;
+    const change = price - prev;
+    const pct = prev ? (change / prev) * 100 : 0;
+    return {
+      symbol, name,
+      close: price.toFixed(2),
+      previous_close: prev.toFixed(2),
+      open: (meta.regularMarketOpen || price).toFixed(2),
+      high: (meta.regularMarketDayHigh || price).toFixed(2),
+      low: (meta.regularMarketDayLow || price).toFixed(2),
+      change: change.toFixed(2),
+      percent_change: pct.toFixed(4),
+      is_market_open: true,
+    };
+  };
+
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    const res = await fetch(
-      "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json",
-      { signal: controller.signal, cache: "no-store" }
-    );
-    clearTimeout(timer);
-    if (!res.ok) return results;
-    const data = await res.json();
-    const rates = data.usd;
+    const [goldRes, silverRes, oilRes] = await Promise.all([
+      fetch("https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=5d", { cache: "no-store" })
+        .then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch("https://query1.finance.yahoo.com/v8/finance/chart/SI=F?interval=1d&range=5d", { cache: "no-store" })
+        .then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch("https://query1.finance.yahoo.com/v8/finance/chart/CL=F?interval=1d&range=5d", { cache: "no-store" })
+        .then(r => r.ok ? r.json() : null).catch(() => null),
+    ]);
 
-    // Gold (XAU/USD)
-    if (rates.xau) {
-      const goldPrice = 1 / rates.xau;
-      const prev = rawCache["XAU/USD"];
-      const prevPrice = prev ? parseFloat(prev.close) : goldPrice;
-      const change = goldPrice - prevPrice;
-      const pct = prevPrice ? (change / prevPrice) * 100 : 0;
-      results["XAU/USD"] = {
-        symbol: "XAU/USD", name: "Gold",
-        close: goldPrice.toFixed(2), previous_close: prevPrice.toString(),
-        change: change.toFixed(2), percent_change: pct.toFixed(4),
-        is_market_open: true,
-      };
-    }
+    const gold = parseYahoo(goldRes, "XAU/USD", "Gold");
+    if (gold) results["XAU/USD"] = gold;
 
-    // Silver (XAG/USD)
-    if (rates.xag) {
-      const silverPrice = 1 / rates.xag;
-      const prev = rawCache["XAG/USD"];
-      const prevPrice = prev ? parseFloat(prev.close) : silverPrice;
-      const change = silverPrice - prevPrice;
-      const pct = prevPrice ? (change / prevPrice) * 100 : 0;
-      results["XAG/USD"] = {
-        symbol: "XAG/USD", name: "Silver",
-        close: silverPrice.toFixed(2), previous_close: prevPrice.toString(),
-        change: change.toFixed(2), percent_change: pct.toFixed(4),
-        is_market_open: true,
-      };
-    }
+    const silver = parseYahoo(silverRes, "XAG/USD", "Silver");
+    if (silver) results["XAG/USD"] = silver;
 
-    // Oil — not available here, skip (will use Twelve Data when available)
+    const oil = parseYahoo(oilRes, "CL", "Crude Oil");
+    if (oil) results["CL"] = oil;
+
   } catch { /* ignore */ }
   return results;
 }
@@ -253,11 +250,9 @@ export async function GET() {
       newQuotes++;
     }
     for (const [sym, quote] of Object.entries(metalsData)) {
-      // Only use metals data if we don't have it from Twelve Data
-      if (!rawCache[sym]) {
-        rawCache[sym] = quote;
-        newQuotes++;
-      }
+      // Always apply Yahoo Finance metals — real-time data overwrites stale cache
+      rawCache[sym] = quote;
+      newQuotes++;
     }
 
     // Try Twelve Data for missing symbols (oil, metals real-time)
@@ -275,22 +270,6 @@ export async function GET() {
       for (const [sym, quote] of Object.entries(tdData)) {
         rawCache[sym] = quote;
         newQuotes++;
-      }
-    }
-
-    // Also try Twelve Data for gold/oil to get real-time prices
-    // (only if credits available — this check is built into fetchTwelveData)
-    if (apiKey && cycle % 3 === 0) {
-      const realTimeSymbols = ["XAU/USD", "CL", "XAG/USD"].filter(s => {
-        const cached = rawCache[s];
-        // Refresh if data is from metals API (no high/low)
-        return !cached?.high;
-      });
-      if (realTimeSymbols.length > 0) {
-        const tdData = await fetchTwelveData(realTimeSymbols, apiKey);
-        for (const [sym, quote] of Object.entries(tdData)) {
-          rawCache[sym] = quote;
-        }
       }
     }
 

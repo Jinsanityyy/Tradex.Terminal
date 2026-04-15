@@ -225,11 +225,15 @@ export async function GET() {
 
     if (posts.length > 0) {
       cache = { data: posts, ts: Date.now() };
+      return NextResponse.json({ data: posts, timestamp: Date.now(), count: posts.length });
     }
 
-    return NextResponse.json({ data: posts, timestamp: Date.now(), count: posts.length });
+    // No Trump news found from live feed — use fallback
+    return NextResponse.json({ data: FALLBACK_POSTS, timestamp: Date.now(), fallback: true });
   } catch (error) {
     console.error("Trump API error:", error);
-    return NextResponse.json({ data: cache.data, timestamp: Date.now(), error: "fetch failed" });
+    // On error return fallback if cache is empty
+    const fallback = cache.data.length > 0 ? cache.data : FALLBACK_POSTS;
+    return NextResponse.json({ data: fallback, timestamp: Date.now(), error: "fetch failed" });
   }
 }
