@@ -113,23 +113,23 @@ export default function LoginPage() {
       />
 
       {/* ── Left panel ── */}
-      <div className="hidden lg:flex lg:w-[52%] flex-col justify-center p-14 relative z-10 overflow-hidden">
+      <div className="hidden lg:flex lg:w-[52%] flex-col justify-center pl-14 pr-10 py-14 relative z-10 overflow-hidden">
 
-        {/* Hero copy — full vertical center, logo lives here */}
-        <div className="relative z-10 max-w-[480px]">
+        {/* Hero content stack */}
+        <div className="relative z-10 max-w-[500px]" style={{ marginTop: 100 }}>
 
-          {/* Logo — brand anchor, above headline */}
-          <div className="relative mb-8" style={{ width: 340 }}>
-            {/* Glow halo */}
+          {/* Logo — hero anchor */}
+          <div className="relative mb-10" style={{ width: 400 }}>
+            {/* Radial glow behind logo */}
             <div
               className="absolute pointer-events-none"
               style={{
-                top: "50%", left: "40%",
+                top: "50%", left: "50%",
                 transform: "translate(-50%, -50%)",
-                width: 420, height: 420,
+                width: 520, height: 520,
                 borderRadius: "50%",
-                background: "radial-gradient(circle, rgba(0,200,83,0.22) 0%, transparent 65%)",
-                filter: "blur(60px)",
+                background: "radial-gradient(circle, rgba(0,200,83,0.30) 0%, rgba(0,200,83,0.10) 40%, transparent 70%)",
+                filter: "blur(90px)",
               }}
             />
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -137,17 +137,24 @@ export default function LoginPage() {
               src="/logo.png"
               alt="TradeX"
               style={{
-                width: 340,
+                width: 400,
                 height: "auto",
                 objectFit: "contain",
                 display: "block",
                 position: "relative",
-                filter: "drop-shadow(0 0 24px rgba(0,200,83,0.28)) drop-shadow(0 4px 16px rgba(0,0,0,0.6))",
+                filter: "drop-shadow(0 0 32px rgba(0,200,83,0.32)) drop-shadow(0 6px 20px rgba(0,0,0,0.65))",
+                animation: "logo-float 4s ease-in-out infinite",
               }}
             />
           </div>
 
           {/* Live badge */}
+          <style>{`
+            @keyframes logo-float {
+              0%, 100% { transform: scale(1); }
+              50%       { transform: scale(1.02); }
+            }
+          `}</style>
           <div className="inline-flex items-center gap-2 rounded-full border border-[#00C853]/25 bg-[#00C853]/[0.07] px-3.5 py-1.5 mb-9">
             <span className="h-1.5 w-1.5 rounded-full bg-[#00C853] animate-pulse" />
             <span className="text-[11px] font-semibold text-[#69F0AE] uppercase tracking-widest">Live Market Intelligence</span>
