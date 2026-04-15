@@ -12,8 +12,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "TradeX — Market Intelligence Terminal",
-  description: "Real-time market intelligence. Gold, forex, crypto — live prices, bias analysis, economic calendar, and trade context.",
+  title: "TradeX Terminal",
+  description: "Real-time trading terminal. Gold, forex, crypto — live prices, bias analysis, economic calendar and trade context.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
