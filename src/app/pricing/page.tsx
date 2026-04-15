@@ -169,7 +169,7 @@ export default function PricingPage() {
           {/* Header */}
           <div className="text-center mb-12">
             <Link href="/" className="inline-flex items-center mb-8">
-              <TradeXLogo variant="banner" size="sm" tagline />
+              <TradeXLogo variant="banner" size="md" tagline />
             </Link>
             <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">
               One terminal. <span className="text-[hsl(142,71%,45%)]">All the edge.</span>

@@ -19,6 +19,15 @@ const SIZE_PX = {
   xl: 96,
 } as const;
 
+// Banner sizes are larger — used on login/pricing/reset pages
+const BANNER_SIZE_PX = {
+  xs: 80,
+  sm: 120,
+  md: 180,
+  lg: 240,
+  xl: 300,
+} as const;
+
 export function TradeXLogo({
   variant = "wordmark",
   size = "sm",
@@ -63,7 +72,7 @@ export function TradeXLogo({
   }
 
   // banner — large centered logo (login, pricing, reset password)
-  const bannerPx = SIZE_PX[size] * 1.8;
+  const bannerPx = BANNER_SIZE_PX[size];
   return (
     <div
       className={className}
