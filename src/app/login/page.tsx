@@ -119,7 +119,7 @@ export default function LoginPage() {
         <div className="relative z-10 max-w-[500px]" style={{ marginTop: 100 }}>
 
           {/* Logo — hero anchor */}
-          <div className="relative mb-10" style={{ width: 400 }}>
+          <div className="relative mb-4" style={{ width: 400 }}>
             {/* Radial glow behind logo */}
             <div
               className="absolute pointer-events-none"
@@ -155,13 +155,13 @@ export default function LoginPage() {
               50%       { transform: scale(1.02); }
             }
           `}</style>
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#00C853]/25 bg-[#00C853]/[0.07] px-3.5 py-1.5 mb-9">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#00C853]/25 bg-[#00C853]/[0.07] px-3.5 py-1.5 mb-3">
             <span className="h-1.5 w-1.5 rounded-full bg-[#00C853] animate-pulse" />
             <span className="text-[11px] font-semibold text-[#69F0AE] uppercase tracking-widest">Live Market Intelligence</span>
           </div>
 
           {/* Headline — larger, more impact */}
-          <h1 className="text-[2.75rem] font-extrabold text-white leading-[1.1] tracking-tight mb-5">
+          <h1 className="text-[2.75rem] font-extrabold text-white leading-[1.1] tracking-tight mb-4">
             The market context<br />
             <span
               style={{
@@ -176,7 +176,7 @@ export default function LoginPage() {
             </span>
           </h1>
 
-          <p className="text-[0.9rem] text-gray-400 leading-[1.7] mb-10 max-w-[400px]">
+          <p className="text-[0.9rem] text-gray-400 leading-[1.7] mb-5 max-w-[400px]">
             Real-time AI analysis, live news catalysts, and institutional-grade
             data — built for Forex, Gold, and Crypto traders who want to
             understand the market, not just react to it.
