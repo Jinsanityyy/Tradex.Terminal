@@ -22,12 +22,15 @@ import { getSessionScore } from "./market-snapshot";
 function computeVolatilityScore(snapshot: MarketSnapshot): number {
   const { atrProxy } = snapshot.indicators;
 
-  // Low: < 0.2% | Moderate: 0.2-0.8% | High: 0.8-1.5% | Extreme: > 1.5%
-  if (atrProxy > 1.5) return 90;
-  if (atrProxy > 1.0) return 75;
-  if (atrProxy > 0.5) return 55;
-  if (atrProxy > 0.2) return 35;
-  return 20;
+  // Calibrated for XAUUSD (gold moves 0.5–2% daily on normal days)
+  // Low: < 0.3% | Moderate: 0.3–1.0% | High: 1.0–2.0% | Extreme: > 2.5%
+  if (atrProxy > 2.5) return 92;  // truly extreme — news shock / circuit breaker
+  if (atrProxy > 2.0) return 82;  // very high — war/fed decision day
+  if (atrProxy > 1.5) return 70;  // elevated — active gold session (normal range)
+  if (atrProxy > 1.0) return 55;  // moderate-high
+  if (atrProxy > 0.5) return 38;  // moderate
+  if (atrProxy > 0.3) return 22;  // low-moderate
+  return 12;                       // low / quiet session
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -74,10 +77,14 @@ export async function runRiskAgent(snapshot: MarketSnapshot): Promise<RiskAgentO
     const warnings: string[] = [];
 
     // ── Volatility checks ─────────────────────────────────────────────────
-    if (snapshot.volatilityHigh) {
-      warnings.push(`Extreme volatility: ${Math.abs(changePercent).toFixed(2)}% move — widen stops 50%, reduce position size to 0.5% max`);
-    } else if (atrProxy > 0.5) {
-      warnings.push(`Elevated volatility: ${Math.abs(changePercent).toFixed(2)}% — use wider stops and standard size`);
+    if (atrProxy > 2.5) {
+      warnings.push(`Extreme volatility: ${Math.abs(changePercent).toFixed(2)}% move — news/macro shock, avoid new positions`);
+    } else if (atrProxy > 2.0) {
+      warnings.push(`Very high volatility: ${Math.abs(changePercent).toFixed(2)}% move — widen stops 50%, reduce size to 0.5%`);
+    } else if (atrProxy > 1.5) {
+      warnings.push(`Elevated volatility: ${Math.abs(changePercent).toFixed(2)}% move — active gold session, use standard stops`);
+    } else if (atrProxy > 1.0) {
+      warnings.push(`Moderate-high volatility: ${Math.abs(changePercent).toFixed(2)}% — normal range, standard parameters`);
     }
 
     // ── Session checks ────────────────────────────────────────────────────
@@ -116,20 +123,21 @@ export async function runRiskAgent(snapshot: MarketSnapshot): Promise<RiskAgentO
     }
 
     // ── Valid / Invalid decision ──────────────────────────────────────────
-    // Trade is invalid if: session closed OR extreme volatility OR too many warnings
-    const isClosed = session === "Closed";
-    const extremeVol = volatilityScore >= 90;
-    const tooManyWarnings = warnings.length >= 4;
-    const rrTooLow = rrEstimate !== null && rrEstimate < 1.0;
+    // Hard blocks: session closed, truly extreme volatility (>2.5%), or RR < 1:1
+    // High volatility (1.5–2.5%) is a warning only — adjust size, don't block
+    const isClosed    = session === "Closed";
+    const extremeVol  = volatilityScore >= 92;   // only blocks on >2.5% moves
+    const tooManyWarnings = warnings.length >= 5; // raised from 4 → 5
+    const rrTooLow    = rrEstimate !== null && rrEstimate < 1.0;
 
     const valid = !isClosed && !extremeVol && !tooManyWarnings && !rrTooLow;
 
     // ── Max risk ──────────────────────────────────────────────────────────
     let maxRiskPercent = 1.0; // default 1% account risk
-    if (volatilityScore > 70) maxRiskPercent = 0.5;
-    if (volatilityScore > 85) maxRiskPercent = 0.25;
-    if (sessionScore < 50)    maxRiskPercent = Math.min(maxRiskPercent, 0.75);
-    if (warnings.length >= 2) maxRiskPercent = Math.min(maxRiskPercent, 0.5);
+    if (volatilityScore > 82) maxRiskPercent = 0.5;   // very high vol (>2%)
+    if (volatilityScore > 92) maxRiskPercent = 0.25;  // extreme vol (>2.5%)
+    if (sessionScore < 40)    maxRiskPercent = Math.min(maxRiskPercent, 0.75);
+    if (warnings.length >= 3) maxRiskPercent = Math.min(maxRiskPercent, 0.5);
 
     const grade = evaluateRiskGrade(
       volatilityScore, sessionScore, true, rrEstimate, warnings
