@@ -150,6 +150,12 @@ export default function PricingPage() {
     });
   }, []);
 
+  useEffect(() => {
+    const block = (e: MouseEvent) => e.preventDefault();
+    document.addEventListener("contextmenu", block);
+    return () => document.removeEventListener("contextmenu", block);
+  }, []);
+
   return (
     <PayPalScriptProvider options={{
       clientId,
