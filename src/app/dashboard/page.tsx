@@ -57,11 +57,24 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Generate fresh analysis
+  // Generate fresh analysis — triggers both market analysis + multi-agent brain
   const handleGenerateAnalysis = useCallback(async () => {
     setIsGenerating(true);
     try {
-      await generateFresh();
+      // Run market analysis + multi-agent brain in parallel
+      await Promise.allSettled([
+        generateFresh(),
+        fetch("/api/agents/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ symbol: "XAUUSD", timeframe: "H1", forceRefresh: true }),
+        }),
+        fetch("/api/agents/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ symbol: "EURUSD", timeframe: "H1", forceRefresh: true }),
+        }),
+      ]);
     } catch (e) {
       console.error("Failed to generate analysis:", e);
     } finally {
