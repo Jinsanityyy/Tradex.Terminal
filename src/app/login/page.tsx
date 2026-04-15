@@ -9,6 +9,12 @@ import { TradingChartBg } from "@/components/shared/TradingChartBg";
 
 type Mode = "login" | "signup" | "forgot" | "mfa";
 
+const STATUS_ITEMS = [
+  { label: "System online" },
+  { label: "7 AI agents active" },
+  { label: "Market feed synced" },
+];
+
 export default function LoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("login");
@@ -32,9 +38,7 @@ export default function LoginPage() {
     setError("");
     setSuccess("");
     setLoading(true);
-
     const supabase = createClient();
-
     try {
       if (mode === "mfa") {
         const { data: factors } = await supabase.auth.mfa.listFactors();
@@ -63,9 +67,7 @@ export default function LoginPage() {
           setMode("mfa");
           return;
         }
-        if (data.session) {
-          window.location.href = "/dashboard";
-        }
+        if (data.session) window.location.href = "/dashboard";
       } else {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
@@ -98,75 +100,126 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex bg-[#07080d]">
-      {/* ── Animated chart background ── */}
+      {/* ── Ambient animated background ── */}
       <TradingChartBg />
 
-      {/* ── Left panel (hidden on mobile) ── */}
-      <div className="hidden lg:flex lg:w-[52%] flex-col justify-between p-12 relative z-10 overflow-hidden">
-        {/* Ambient glows */}
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full bg-[#00C853] opacity-[0.06] blur-[120px]" />
-          <div className="absolute bottom-[-10%] right-[-5%] w-[400px] h-[400px] rounded-full bg-[#69F0AE] opacity-[0.04] blur-[100px]" />
-        </div>
+      {/* ── Center depth glow (between panels) ── */}
+      <div
+        className="pointer-events-none fixed inset-0"
+        style={{
+          zIndex: 1,
+          background: "radial-gradient(ellipse 55% 60% at 52% 50%, rgba(0,180,80,0.055) 0%, transparent 70%)",
+        }}
+      />
 
-        {/* Logo */}
+      {/* ── Left panel ── */}
+      <div className="hidden lg:flex lg:w-[52%] flex-col justify-between p-14 relative z-10 overflow-hidden">
+
+        {/* Logo — anchored top left, aligned with content */}
         <div className="relative z-10">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="TradeX" style={{ height: 120, width: "auto", objectFit: "contain" }} />
+          <img
+            src="/logo.png"
+            alt="TradeX"
+            style={{ height: 136, width: "auto", objectFit: "contain", display: "block" }}
+          />
         </div>
 
-        {/* Hero copy */}
-        <div className="relative z-10 max-w-md">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#00C853]/20 bg-[#00C853]/08 px-3 py-1 mb-8">
+        {/* Hero copy — center vertical mass */}
+        <div className="relative z-10 max-w-[460px]">
+          {/* Live badge */}
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#00C853]/25 bg-[#00C853]/[0.07] px-3.5 py-1.5 mb-9">
             <span className="h-1.5 w-1.5 rounded-full bg-[#00C853] animate-pulse" />
-            <span className="text-[11px] font-medium text-[#69F0AE] uppercase tracking-wider">Live Market Intelligence</span>
+            <span className="text-[11px] font-semibold text-[#69F0AE] uppercase tracking-widest">Live Market Intelligence</span>
           </div>
-          <h1 className="text-4xl font-bold text-white leading-[1.15] mb-5">
+
+          {/* Headline — larger, more impact */}
+          <h1 className="text-[2.75rem] font-extrabold text-white leading-[1.1] tracking-tight mb-5">
             The market context<br />
-            <span style={{
-              background: "linear-gradient(135deg, #00C853 0%, #69F0AE 60%, #00E676 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}>
+            <span
+              style={{
+                background: "linear-gradient(120deg, #00C853 0%, #69F0AE 55%, #00E676 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                filter: "drop-shadow(0 0 28px rgba(0,200,83,0.35))",
+              }}
+            >
               serious traders rely on.
             </span>
           </h1>
-          <p className="text-sm text-gray-400 leading-relaxed mb-10">
-            Real-time AI analysis, live news catalysts, and institutional-grade data — built for Forex, Gold, and Crypto traders who want to understand the market, not just react to it.
+
+          <p className="text-[0.9rem] text-gray-400 leading-[1.7] mb-10 max-w-[400px]">
+            Real-time AI analysis, live news catalysts, and institutional-grade
+            data — built for Forex, Gold, and Crypto traders who want to
+            understand the market, not just react to it.
           </p>
 
-          {/* Feature bullets */}
-          <div className="space-y-3">
+          {/* Feature bullets — with left accent */}
+          <div className="space-y-4">
             {[
               "7-agent AI consensus engine",
               "Live news flow and macro catalysts",
               "HTF bias + Price Action analysis",
               "Session intelligence and trade timing",
             ].map((f) => (
-              <div key={f} className="flex items-center gap-3">
-                <div className="flex-shrink-0 h-5 w-5 rounded-full bg-[#00C853]/15 border border-[#00C853]/30 flex items-center justify-center">
+              <div key={f} className="flex items-center gap-3.5">
+                <div
+                  className="flex-shrink-0 h-5 w-5 rounded-full flex items-center justify-center"
+                  style={{
+                    background: "rgba(0,200,83,0.10)",
+                    border: "1px solid rgba(0,200,83,0.28)",
+                    boxShadow: "0 0 8px rgba(0,200,83,0.12)",
+                  }}
+                >
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#00C853" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="20 6 9 17 4 12"/>
                   </svg>
                 </div>
-                <span className="text-sm text-gray-300">{f}</span>
+                <span className="text-[0.875rem] text-gray-300 font-medium">{f}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Bottom testimonial */}
-        <div className="relative z-10 border border-white/[0.06] rounded-xl bg-white/[0.02] p-4 backdrop-blur-sm">
-          <p className="text-sm text-gray-300 italic leading-relaxed mb-3">
-            "TradeX is the first tool that actually gives me context before I enter — not just more indicators."
-          </p>
-          <div className="flex items-center gap-2.5">
-            <div className="h-7 w-7 rounded-full bg-gradient-to-br from-[#00C853] to-[#69F0AE] flex items-center justify-center text-[11px] font-bold text-[#07080d]">J</div>
-            <div>
-              <p className="text-xs font-medium text-white">James R.</p>
-              <p className="text-[10px] text-gray-500">Forex & Gold trader, 6 years</p>
+        {/* Bottom block — testimonial + system status */}
+        <div className="relative z-10 space-y-4">
+          {/* Testimonial */}
+          <div
+            className="rounded-xl p-4 backdrop-blur-sm"
+            style={{
+              background: "rgba(255,255,255,0.02)",
+              border: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <p className="text-[0.85rem] text-gray-300 italic leading-relaxed mb-3">
+              "TradeX is the first tool that actually gives me context before I enter — not just more indicators."
+            </p>
+            <div className="flex items-center gap-2.5">
+              <div
+                className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold text-[#07080d]"
+                style={{ background: "linear-gradient(135deg, #00C853, #69F0AE)" }}
+              >
+                J
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-white">James R.</p>
+                <p className="text-[10px] text-gray-500">Forex & Gold trader, 6 years</p>
+              </div>
             </div>
+          </div>
+
+          {/* System status bar */}
+          <div className="flex items-center gap-5">
+            {STATUS_ITEMS.map((s) => (
+              <div key={s.label} className="flex items-center gap-1.5">
+                <span
+                  className="h-1.5 w-1.5 rounded-full animate-pulse"
+                  style={{ background: "#00C853", boxShadow: "0 0 5px rgba(0,200,83,0.7)" }}
+                />
+                <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">{s.label}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -174,163 +227,175 @@ export default function LoginPage() {
       {/* ── Right panel — form ── */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 relative z-10">
         {/* Mobile logo */}
-        <div className="lg:hidden mb-8">
+        <div className="lg:hidden mb-10">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="TradeX" style={{ height: 100, width: "auto", objectFit: "contain" }} />
         </div>
 
-        {/* Ambient glow on right */}
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-[#00C853] opacity-[0.03] blur-[100px]" />
-        </div>
-
         <div className="w-full max-w-[380px] relative z-10">
-          {/* Back button for secondary modes */}
           {(mode === "forgot" || mode === "mfa") && (
             <button
               onClick={() => switchMode("login")}
               className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-gray-300 mb-6 transition-colors group"
             >
-              <ArrowLeft className="h-3 w-3 transition-transform group-hover:-translate-x-0.5" /> Back to sign in
+              <ArrowLeft className="h-3 w-3 transition-transform group-hover:-translate-x-0.5" />
+              Back to sign in
             </button>
           )}
 
-          <h2 className="text-2xl font-bold text-white mb-1">{titles[mode]}</h2>
-          <p className="text-sm text-gray-500 mb-8">{subtitles[mode]}</p>
+          {/* Form card */}
+          <div
+            className="rounded-2xl p-8"
+            style={{
+              background: "rgba(255,255,255,0.025)",
+              border: "1px solid rgba(255,255,255,0.07)",
+              boxShadow: "0 0 0 1px rgba(0,200,83,0.06), 0 24px 60px rgba(0,0,0,0.5), 0 0 40px rgba(0,200,83,0.04)",
+              backdropFilter: "blur(16px)",
+            }}
+          >
+            <h2 className="text-2xl font-bold text-white mb-1 tracking-tight">{titles[mode]}</h2>
+            <p className="text-[0.8125rem] text-gray-500 mb-7">{subtitles[mode]}</p>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* MFA */}
-            {mode === "mfa" && (
-              <div>
-                <div className="flex items-center justify-center mb-6">
-                  <div className="flex items-center justify-center w-14 h-14 rounded-2xl border border-[#00C853]/25 bg-[#00C853]/08">
-                    <Smartphone className="h-6 w-6 text-[#00C853]" />
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* MFA */}
+              {mode === "mfa" && (
+                <div>
+                  <div className="flex items-center justify-center mb-6">
+                    <div
+                      className="flex items-center justify-center w-14 h-14 rounded-2xl"
+                      style={{ border: "1px solid rgba(0,200,83,0.25)", background: "rgba(0,200,83,0.07)" }}
+                    >
+                      <Smartphone className="h-6 w-6 text-[#00C853]" />
+                    </div>
                   </div>
-                </div>
-                <label className="block text-[11px] font-semibold text-gray-400 mb-2 uppercase tracking-wider text-center">
-                  Authenticator Code
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  required
-                  autoFocus
-                  value={mfaCode}
-                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="000000"
-                  style={{ colorScheme: "dark" }}
-                  className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-xl text-white placeholder-gray-700 outline-none focus:border-[#00C853]/40 focus:ring-2 focus:ring-[#00C853]/10 transition-all font-mono tracking-[0.5em] text-center"
-                />
-              </div>
-            )}
-
-            {/* Email */}
-            {mode !== "mfa" && (
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-400 mb-2 uppercase tracking-wider">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  style={{ colorScheme: "dark" }}
-                  className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-sm text-white placeholder-gray-600 outline-none focus:border-[#00C853]/40 focus:ring-2 focus:ring-[#00C853]/10 transition-all"
-                />
-              </div>
-            )}
-
-            {/* Password */}
-            {mode !== "forgot" && mode !== "mfa" && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                    Password
+                  <label className="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest text-center">
+                    Authenticator Code
                   </label>
-                  {mode === "login" && (
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    required
+                    autoFocus
+                    value={mfaCode}
+                    onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="000000"
+                    style={{ colorScheme: "dark" }}
+                    className="w-full rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 py-3 text-xl text-white placeholder-gray-700 outline-none focus:border-[#00C853]/50 focus:ring-2 focus:ring-[#00C853]/10 transition-all font-mono tracking-[0.5em] text-center"
+                  />
+                </div>
+              )}
+
+              {/* Email */}
+              {mode !== "mfa" && (
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    style={{ colorScheme: "dark" }}
+                    className="w-full rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#00C853]/50 focus:ring-2 focus:ring-[#00C853]/10 transition-all"
+                  />
+                </div>
+              )}
+
+              {/* Password */}
+              {mode !== "forgot" && mode !== "mfa" && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                      Password
+                    </label>
+                    {mode === "login" && (
+                      <button
+                        type="button"
+                        onClick={() => switchMode("forgot")}
+                        className="text-[11px] text-[#69F0AE] hover:text-[#00C853] transition-colors"
+                      >
+                        Forgot password?
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showPass ? "text" : "password"}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      minLength={6}
+                      style={{ colorScheme: "dark" }}
+                      className="w-full rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 py-2.5 pr-11 text-sm text-white placeholder-gray-600 outline-none focus:border-[#00C853]/50 focus:ring-2 focus:ring-[#00C853]/10 transition-all"
+                    />
                     <button
                       type="button"
-                      onClick={() => switchMode("forgot")}
-                      className="text-[11px] text-[#69F0AE] hover:text-[#00C853] transition-colors"
+                      onClick={() => setShowPass(!showPass)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
                     >
-                      Forgot password?
+                      {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
-                  )}
+                  </div>
                 </div>
-                <div className="relative">
-                  <input
-                    type={showPass ? "text" : "password"}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    minLength={6}
-                    style={{ colorScheme: "dark" }}
-                    className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 pr-11 text-sm text-white placeholder-gray-600 outline-none focus:border-[#00C853]/40 focus:ring-2 focus:ring-[#00C853]/10 transition-all"
-                  />
+              )}
+
+              {/* Error / Success */}
+              {error && (
+                <div className="flex items-center gap-2.5 rounded-xl bg-red-500/[0.08] border border-red-500/20 px-3.5 py-3">
+                  <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
+                  <p className="text-xs text-red-400">{error}</p>
+                </div>
+              )}
+              {success && (
+                <div className="rounded-xl bg-[#00C853]/[0.07] border border-[#00C853]/20 px-3.5 py-3">
+                  <p className="text-xs text-[#69F0AE]">{success}</p>
+                </div>
+              )}
+
+              {/* Submit */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-[#07080d] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                style={{
+                  background: loading
+                    ? "#00C853"
+                    : "linear-gradient(135deg, #00C853 0%, #69F0AE 100%)",
+                  boxShadow: loading
+                    ? "none"
+                    : "0 0 28px rgba(0,200,83,0.30), 0 4px 16px rgba(0,0,0,0.3)",
+                }}
+              >
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                {mode === "login" ? "Sign In" : mode === "signup" ? "Create Account" : mode === "mfa" ? "Verify" : "Send Reset Link"}
+              </button>
+            </form>
+
+            {mode !== "forgot" && mode !== "mfa" && (
+              <>
+                <div className="flex items-center gap-3 my-5">
+                  <div className="flex-1 h-px bg-white/[0.06]" />
+                  <span className="text-[10px] text-gray-600 uppercase tracking-widest">or</span>
+                  <div className="flex-1 h-px bg-white/[0.06]" />
+                </div>
+                <p className="text-center text-sm text-gray-500">
+                  {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
                   <button
-                    type="button"
-                    onClick={() => setShowPass(!showPass)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                    onClick={() => switchMode(mode === "login" ? "signup" : "login")}
+                    className="text-[#69F0AE] font-semibold hover:text-[#00C853] transition-colors"
                   >
-                    {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {mode === "login" ? "Sign up free" : "Sign in"}
                   </button>
-                </div>
-              </div>
+                </p>
+              </>
             )}
+          </div>
 
-            {/* Error / Success */}
-            {error && (
-              <div className="flex items-center gap-2.5 rounded-xl bg-red-500/08 border border-red-500/20 px-4 py-3">
-                <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
-                <p className="text-xs text-red-400">{error}</p>
-              </div>
-            )}
-            {success && (
-              <div className="rounded-xl bg-[#00C853]/08 border border-[#00C853]/20 px-4 py-3">
-                <p className="text-xs text-[#69F0AE]">{success}</p>
-              </div>
-            )}
-
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-[#07080d] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              style={{
-                background: loading ? "#00C853" : "linear-gradient(135deg, #00C853 0%, #69F0AE 100%)",
-                boxShadow: loading ? "none" : "0 0 24px rgba(0,200,83,0.25)",
-              }}
-            >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {mode === "login" ? "Sign In" : mode === "signup" ? "Create Account" : mode === "mfa" ? "Verify" : "Send Reset Link"}
-            </button>
-          </form>
-
-          {mode !== "forgot" && mode !== "mfa" && (
-            <>
-              <div className="flex items-center gap-3 my-6">
-                <div className="flex-1 h-px bg-white/[0.06]" />
-                <span className="text-[10px] text-gray-600 uppercase tracking-widest">or</span>
-                <div className="flex-1 h-px bg-white/[0.06]" />
-              </div>
-
-              <p className="text-center text-sm text-gray-500">
-                {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
-                <button
-                  onClick={() => switchMode(mode === "login" ? "signup" : "login")}
-                  className="text-[#69F0AE] font-semibold hover:text-[#00C853] transition-colors"
-                >
-                  {mode === "login" ? "Sign up free" : "Sign in"}
-                </button>
-              </p>
-            </>
-          )}
-
-          <p className="text-center text-[11px] text-gray-600 mt-8">
+          <p className="text-center text-[11px] text-gray-600 mt-5">
             Want to see plans?{" "}
             <Link href="/pricing" className="text-gray-400 hover:text-gray-200 transition-colors underline underline-offset-2">
               View pricing
