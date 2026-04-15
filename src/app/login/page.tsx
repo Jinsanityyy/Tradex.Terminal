@@ -115,13 +115,32 @@ export default function LoginPage() {
       {/* ── Left panel ── */}
       <div className="hidden lg:flex lg:w-[52%] flex-col justify-between p-14 relative z-10 overflow-hidden">
 
-        {/* Logo — anchored top left, aligned with content */}
+        {/* Logo — brand anchor, top of left column */}
         <div className="relative z-10">
+          {/* Glow halo behind logo */}
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              top: "50%", left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: 320, height: 320,
+              borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(0,200,83,0.13) 0%, transparent 70%)",
+              filter: "blur(32px)",
+            }}
+          />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo.png"
             alt="TradeX"
-            style={{ height: 136, width: "auto", objectFit: "contain", display: "block" }}
+            style={{
+              height: 260,
+              width: "auto",
+              objectFit: "contain",
+              display: "block",
+              position: "relative",
+              filter: "drop-shadow(0 0 18px rgba(0,200,83,0.22)) drop-shadow(0 2px 12px rgba(0,0,0,0.5))",
+            }}
           />
         </div>
 
