@@ -39,7 +39,10 @@ export default function DashboardPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  const upcomingEvents  = events.filter(e => e.status === "upcoming" || e.status === "live");
   const completedEvents = events.filter(e => e.status === "completed");
+  // Show upcoming first; if nothing upcoming yet, fall back to most-recent completed
+  const calendarPreview = upcomingEvents.length > 0 ? upcomingEvents.slice(0, 5) : completedEvents.slice(0, 5);
   const goldBias = biasData.length > 0 ? biasData[0] : null;
   const activeSessions = sessions.filter(s => s.status === "active" || s.status === "closed");
 
@@ -183,7 +186,7 @@ export default function DashboardPage() {
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <CalendarDays className="h-4 w-4 text-blue-400" />
-                <span>Completed Events</span>
+                <span>{upcomingEvents.length > 0 ? "Upcoming Events" : "Recent Events"}</span>
               </div>
               <Link href="/dashboard/economic-calendar" className="text-[10px] text-[hsl(var(--primary))] hover:underline flex items-center gap-1">
                 Calendar <ArrowRight className="h-3 w-3" />
@@ -191,7 +194,7 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <EconomicEventTable events={completedEvents.length > 0 ? completedEvents.slice(0, 5) : events.slice(0, 5)} compact />
+            <EconomicEventTable events={calendarPreview} compact />
           </CardContent>
         </Card>
       </div>

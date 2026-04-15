@@ -339,26 +339,37 @@ function generatePostEvent(title: string, forecast: string, previous: string): {
   };
 }
 
+async function fetchFFWeek(url: string): Promise<FFEvent[]> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    const res = await fetch(url, { signal: controller.signal, cache: "no-store" });
+    clearTimeout(timer);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    clearTimeout(timer);
+    return [];
+  }
+}
+
 export async function GET() {
   if (cache.data.length > 0 && Date.now() - cache.ts < CACHE_TTL) {
     return NextResponse.json({ data: cache.data, timestamp: cache.ts, cached: true });
   }
 
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10000);
+    // Fetch both this week AND next week so upcoming events are always visible
+    const [thisWeek, nextWeek] = await Promise.all([
+      fetchFFWeek("https://nfs.faireconomy.media/ff_calendar_thisweek.json"),
+      fetchFFWeek("https://nfs.faireconomy.media/ff_calendar_nextweek.json"),
+    ]);
 
-    const res = await fetch(
-      "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
-      { signal: controller.signal, cache: "no-store" }
-    );
-    clearTimeout(timer);
+    const events: FFEvent[] = [...thisWeek, ...nextWeek];
 
-    if (!res.ok) {
-      return NextResponse.json({ data: cache.data, timestamp: Date.now(), error: `Calendar API ${res.status}` });
+    if (events.length === 0) {
+      return NextResponse.json({ data: cache.data, timestamp: Date.now(), error: "Calendar API returned no events" });
     }
-
-    const events: FFEvent[] = await res.json();
     const now = new Date();
 
     // FILTER: Only HIGH impact + USD currency (which directly affects XAU/USD)

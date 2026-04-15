@@ -73,6 +73,16 @@ export function CatalystFeed({ catalysts, limit, compact = false }: CatalystFeed
   const items = limit ? catalysts.slice(0, limit) : catalysts;
   const [selected, setSelected] = useState<Catalyst | null>(null);
 
+  if (items.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
+        <Zap className="h-6 w-6 text-[hsl(var(--muted-foreground))]/30" />
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">No catalysts at the moment</p>
+        <p className="text-[10px] text-[hsl(var(--muted-foreground))]/60">Refreshes automatically every 3 minutes</p>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="space-y-2">

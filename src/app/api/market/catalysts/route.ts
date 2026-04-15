@@ -95,6 +95,54 @@ function deriveStatus(datetime: number): "live" | "completed" {
   return ageHours < 4 ? "live" : "completed";
 }
 
+// ── Static fallback when Finnhub key is unavailable ────────────────────────
+const FALLBACK_CATALYSTS: Catalyst[] = [
+  {
+    id: "fallback-1",
+    title: "Fed Interest Rate Decision — Next FOMC Meeting",
+    timestamp: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+    affectedMarkets: ["DXY", "XAUUSD", "US10Y", "SPX"],
+    importance: "high",
+    status: "upcoming",
+    explanation: "Federal Open Market Committee meeting where rate decision and forward guidance will be announced. Gold and USD will move sharply on outcome.",
+    marketImplication: "Hawkish hold = USD bid, Gold pressured. Rate cut signal = USD sell, Gold rally.",
+    sentimentTag: "neutral",
+  },
+  {
+    id: "fallback-2",
+    title: "US CPI Inflation Data Release",
+    timestamp: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+    affectedMarkets: ["DXY", "XAUUSD", "US10Y"],
+    importance: "high",
+    status: "upcoming",
+    explanation: "Consumer Price Index — the most important gold driver. Hot CPI = bearish gold (hawkish Fed). Cold CPI = bullish gold (rate cuts).",
+    marketImplication: "CPI beat = sell Gold rallies. CPI miss = buy Gold dips aggressively.",
+    sentimentTag: "neutral",
+  },
+  {
+    id: "fallback-3",
+    title: "US Non-Farm Payrolls Report",
+    timestamp: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    affectedMarkets: ["DXY", "XAUUSD", "SPX", "EURUSD"],
+    importance: "high",
+    status: "upcoming",
+    explanation: "Monthly employment report — strong jobs = delayed rate cuts = bearish Gold. Weak jobs = recession fears + rate cuts = bullish Gold.",
+    marketImplication: "Strong NFP = sell Gold. Weak NFP = buy Gold. Trade the 30-min retest for cleaner entry.",
+    sentimentTag: "neutral",
+  },
+  {
+    id: "fallback-4",
+    title: "US-China Trade Tensions — Tariff Developments",
+    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    affectedMarkets: ["SPX", "DXY", "XAUUSD", "USDCNH"],
+    importance: "high",
+    status: "live",
+    explanation: "Ongoing trade war developments continue to drive safe-haven demand for Gold. Any escalation boosts Gold; any deal progress weighs on it.",
+    marketImplication: "Trade escalation = buy Gold dips. Trade deal progress = risk-on, sell Gold rallies.",
+    sentimentTag: "bearish",
+  },
+];
+
 export async function GET() {
   if (cache.data.length > 0 && Date.now() - cache.ts < CACHE_TTL) {
     return NextResponse.json({ data: cache.data, timestamp: cache.ts, cached: true });
@@ -103,7 +151,8 @@ export async function GET() {
   try {
     const key = process.env.FINNHUB_API_KEY;
     if (!key) {
-      return NextResponse.json({ data: [], timestamp: Date.now(), error: "No API key" });
+      // Return static fallback — better than empty when API key not configured
+      return NextResponse.json({ data: FALLBACK_CATALYSTS, timestamp: Date.now(), fallback: true });
     }
 
     const controller = new AbortController();
