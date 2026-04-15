@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { LayoutDashboard, TrendingUp, Zap, BarChart3, Settings } from "lucide-react";
+import { LayoutDashboard, TrendingUp, Zap, BarChart3, Settings, Users } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import { cn } from "@/lib/utils";
 import { MobileHome } from "@/components/mobile/MobileHome";
@@ -9,14 +9,16 @@ import { MobileChart } from "@/components/mobile/MobileChart";
 import { MobileFeed } from "@/components/mobile/MobileFeed";
 import { MobileBias } from "@/components/mobile/MobileBias";
 import { MobileSettings } from "@/components/mobile/MobileSettings";
+import { MobileAgentDebate } from "@/components/mobile/MobileAgentDebate";
 import { createClient } from "@/lib/supabase/client";
 
 const TABS = [
-  { id: "home",     label: "Home",     Icon: LayoutDashboard },
-  { id: "chart",    label: "Chart",    Icon: TrendingUp },
-  { id: "feed",     label: "Feed",     Icon: Zap },
-  { id: "bias",     label: "Bias",     Icon: BarChart3 },
-  { id: "settings", label: "Settings", Icon: Settings },
+  { id: "home",     label: "Home",    Icon: LayoutDashboard },
+  { id: "chart",    label: "Chart",   Icon: TrendingUp },
+  { id: "feed",     label: "Feed",    Icon: Zap },
+  { id: "bias",     label: "Bias",    Icon: BarChart3 },
+  { id: "debate",   label: "Debate",  Icon: Users },
+  { id: "settings", label: "More",    Icon: Settings },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -63,12 +65,13 @@ export function MobileLayout() {
         {active === "chart"    && <MobileChart />}
         {active === "feed"     && <MobileFeed />}
         {active === "bias"     && <MobileBias />}
+        {active === "debate"   && <MobileAgentDebate />}
         {active === "settings" && <MobileSettings />}
       </div>
 
       {/* Bottom tab bar */}
       <div className="shrink-0 border-t border-white/5 bg-[#080b14] pb-4">
-        <div className="grid grid-cols-5">
+        <div className="grid grid-cols-6">
           {TABS.map(({ id, label, Icon }) => {
             const isActive = active === id;
             return (

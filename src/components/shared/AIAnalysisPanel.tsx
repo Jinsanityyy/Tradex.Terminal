@@ -222,8 +222,6 @@ function DebateStageIndicator({ activeStage }: { activeStage: number }) {
                   current && "ring-2 ring-offset-1")}
                 style={{
                   background: done || current ? `${s.color}25` : "rgba(255,255,255,0.05)",
-                  borderColor: s.color,
-                  ringColor: s.color,
                   border: `1px solid ${done || current ? s.color : "rgba(255,255,255,0.1)"}`,
                 }}>
                 {current
