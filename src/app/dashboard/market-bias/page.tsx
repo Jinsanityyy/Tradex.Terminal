@@ -311,7 +311,7 @@ export default function MarketBiasPage() {
                   <span className="text-[11px] text-zinc-500">Price</span>
                   <div className="text-right">
                     <span className="text-sm font-mono font-bold text-zinc-100">
-                      {(liveQuote ? parseFloat(liveQuote.price) : snap.price.current).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {(liveQuote ? liveQuote.price : snap.price.current).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                     {liveQuote && <span className="block text-[9px] text-emerald-500/70">LIVE</span>}
                   </div>
