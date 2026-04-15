@@ -1,21 +1,24 @@
 "use client";
 import { useEffect, useRef } from "react";
 
-interface Candle {
-  open: number;
-  close: number;
-  high: number;
-  low: number;
+interface Dot {
+  x: number; y: number;
+  vx: number; vy: number;
+  r: number; a: number;
+  life: number; maxLife: number;
 }
 
-function nextCandle(prev: number): Candle {
-  const vol = 3 + Math.random() * 7;
-  const change = (Math.random() - 0.48) * vol;
-  const open  = prev;
-  const close = Math.max(60, Math.min(240, prev + change));
-  const high  = Math.max(open, close) + Math.random() * vol * 0.7;
-  const low   = Math.min(open, close) - Math.random() * vol * 0.7;
-  return { open, close, high, low };
+function makeDot(w: number, h: number, fromBottom = false): Dot {
+  return {
+    x: Math.random() * w,
+    y: fromBottom ? h + 4 : Math.random() * h,
+    vx: (Math.random() - 0.5) * 0.035,
+    vy: -(Math.random() * 0.04 + 0.012),
+    r: Math.random() * 1.1 + 0.35,
+    a: Math.random() * 0.16 + 0.04,
+    life: fromBottom ? 0 : Math.random() * 600,
+    maxLife: 600 + Math.random() * 500,
+  };
 }
 
 export function TradingChartBg() {
@@ -36,128 +39,44 @@ export function TradingChartBg() {
     resize();
     window.addEventListener("resize", resize);
 
-    const CANDLE_W = 10;
-    const GAP      = 6;
-    const STEP     = CANDLE_W + GAP;
-    const SPEED    = 0.22; // px/ms — very slow drift
+    const N = 28;
+    const dots: Dot[] = Array.from({ length: N }, () =>
+      makeDot(window.innerWidth, window.innerHeight)
+    );
 
-    // Seed candles
-    let seedPrice = 130;
-    const candles: Candle[] = [];
-    const seedCount = Math.ceil(window.innerWidth / STEP) + 20;
-    for (let i = 0; i < seedCount; i++) {
-      const c = nextCandle(seedPrice);
-      candles.push(c);
-      seedPrice = c.close;
-    }
-
-    let offsetX = 0;
-    let lastTs  = performance.now();
+    let lastTs = performance.now();
 
     function frame(ts: number) {
       if (!ctx || !canvas) return;
-
       const dt = Math.min(ts - lastTs, 50);
       lastTs = ts;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Advance scroll
-      offsetX += SPEED * dt;
-      while (offsetX >= STEP) {
-        offsetX -= STEP;
-        candles.shift();
-        candles.push(nextCandle(candles[candles.length - 1].close));
-      }
+      for (const d of dots) {
+        d.x    += d.vx * dt;
+        d.y    += d.vy * dt;
+        d.life += dt * 0.035;
 
-      const W = canvas.width;
-      const H = canvas.height;
-      ctx.clearRect(0, 0, W, H);
+        if (d.life >= d.maxLife || d.y < -8) {
+          Object.assign(d, makeDot(canvas.width, canvas.height, true));
+          continue;
+        }
 
-      // Price range
-      const maxP  = Math.max(...candles.map(c => c.high));
-      const minP  = Math.min(...candles.map(c => c.low));
-      const range = maxP - minP || 1;
+        // Smooth fade-in / fade-out envelope
+        const t    = d.life / d.maxLife;
+        const fade = t < 0.12 ? t / 0.12 : t > 0.82 ? (1 - t) / 0.18 : 1;
+        const alpha = (d.a * fade).toFixed(3);
 
-      const padV  = H * 0.15;
-      const chartH = H - padV * 2;
-      const toY = (p: number) => padV + chartH - ((p - minP) / range) * chartH;
-
-      // ── Horizontal grid ──────────────────────────────────────────
-      ctx.strokeStyle = "rgba(255,255,255,0.022)";
-      ctx.lineWidth   = 1;
-      for (let g = 0; g <= 5; g++) {
-        const y = padV + (chartH / 5) * g;
         ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(W, y);
-        ctx.stroke();
+        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0,200,83,${alpha})`;
+        ctx.fill();
       }
-
-      // ── Vertical grid (every ~80px) ───────────────────────────────
-      ctx.strokeStyle = "rgba(255,255,255,0.015)";
-      for (let x = 0; x < W; x += 80) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, H);
-        ctx.stroke();
-      }
-
-      // ── Price line (connect close prices) ────────────────────────
-      ctx.beginPath();
-      ctx.strokeStyle = "rgba(0,200,83,0.09)";
-      ctx.lineWidth   = 1.5;
-      candles.forEach((c, i) => {
-        const x = i * STEP - offsetX + CANDLE_W / 2;
-        const y = toY(c.close);
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      });
-      ctx.stroke();
-
-      // ── Area fill under price line ────────────────────────────────
-      const lastX = (candles.length - 1) * STEP - offsetX + CANDLE_W / 2;
-      const grad = ctx.createLinearGradient(0, padV, 0, padV + chartH);
-      grad.addColorStop(0, "rgba(0,200,83,0.04)");
-      grad.addColorStop(1, "rgba(0,200,83,0)");
-      ctx.lineTo(lastX, padV + chartH);
-      ctx.lineTo(0 - offsetX + CANDLE_W / 2, padV + chartH);
-      ctx.closePath();
-      ctx.fillStyle = grad;
-      ctx.fill();
-
-      // ── Candles ───────────────────────────────────────────────────
-      candles.forEach((c, i) => {
-        const x = i * STEP - offsetX;
-        if (x + CANDLE_W < -4 || x > W + 4) return;
-
-        const bull = c.close >= c.open;
-        const bodyFill   = bull ? "rgba(0,200,83,0.14)"  : "rgba(239,68,68,0.12)";
-        const wickStroke = bull ? "rgba(0,200,83,0.09)"  : "rgba(239,68,68,0.08)";
-
-        const openY  = toY(c.open);
-        const closeY = toY(c.close);
-        const highY  = toY(c.high);
-        const lowY   = toY(c.low);
-        const bodyTop = Math.min(openY, closeY);
-        const bodyH   = Math.max(Math.abs(closeY - openY), 1.5);
-        const cx      = x + CANDLE_W / 2;
-
-        // Wick
-        ctx.strokeStyle = wickStroke;
-        ctx.lineWidth   = 1;
-        ctx.beginPath();
-        ctx.moveTo(cx, highY);
-        ctx.lineTo(cx, lowY);
-        ctx.stroke();
-
-        // Body
-        ctx.fillStyle = bodyFill;
-        ctx.fillRect(x, bodyTop, CANDLE_W, bodyH);
-      });
 
       raf = requestAnimationFrame(frame);
     }
 
     raf = requestAnimationFrame(frame);
-
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
@@ -165,10 +84,78 @@ export function TradingChartBg() {
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="pointer-events-none fixed inset-0"
-      style={{ zIndex: 0 }}
-    />
+    <>
+      {/* ── Layer 1: CSS grid ──────────────────────────────────── */}
+      <div
+        className="pointer-events-none fixed inset-0"
+        style={{
+          zIndex: 0,
+          backgroundImage: `
+            linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px)
+          `,
+          backgroundSize: "80px 80px",
+        }}
+      />
+
+      {/* ── Layer 2: Aurora blobs (CSS-animated, GPU) ─────────── */}
+      <div className="pointer-events-none fixed inset-0" style={{ zIndex: 0 }}>
+        <div className="__aurora __au1" />
+        <div className="__aurora __au2" />
+        <div className="__aurora __au3" />
+      </div>
+
+      {/* ── Layer 3: Particle canvas ───────────────────────────── */}
+      <canvas
+        ref={canvasRef}
+        className="pointer-events-none fixed inset-0"
+        style={{ zIndex: 0 }}
+      />
+
+      <style>{`
+        .__aurora {
+          position: absolute;
+          border-radius: 50%;
+          will-change: transform;
+        }
+        .__au1 {
+          top: -22%; left: -10%;
+          width: 680px; height: 680px;
+          background: radial-gradient(circle, rgba(0,200,83,0.09) 0%, transparent 65%);
+          filter: blur(88px);
+          animation: __au1 22s ease-in-out infinite;
+        }
+        .__au2 {
+          bottom: -20%; right: -10%;
+          width: 580px; height: 580px;
+          background: radial-gradient(circle, rgba(0,160,95,0.07) 0%, transparent 65%);
+          filter: blur(100px);
+          animation: __au2 28s ease-in-out infinite;
+          animation-delay: -11s;
+        }
+        .__au3 {
+          top: 32%; left: 36%;
+          width: 440px; height: 440px;
+          background: radial-gradient(circle, rgba(0,200,83,0.04) 0%, transparent 65%);
+          filter: blur(110px);
+          animation: __au3 36s ease-in-out infinite;
+          animation-delay: -20s;
+        }
+        @keyframes __au1 {
+          0%,100% { transform: translate(0,0)    scale(1);    }
+          30%     { transform: translate(4%,7%)   scale(1.04); }
+          65%     { transform: translate(-2%,3%)  scale(0.97); }
+        }
+        @keyframes __au2 {
+          0%,100% { transform: translate(0,0)    scale(1);    }
+          35%     { transform: translate(-5%,-6%) scale(1.06); }
+          70%     { transform: translate(3%,-3%)  scale(0.94); }
+        }
+        @keyframes __au3 {
+          0%,100% { transform: translate(0,0)    scale(1);    opacity: 0.65; }
+          50%     { transform: translate(-5%,4%)  scale(1.09); opacity: 1;    }
+        }
+      `}</style>
+    </>
   );
 }
