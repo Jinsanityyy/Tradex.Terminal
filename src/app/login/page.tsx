@@ -137,7 +137,7 @@ export default function LoginPage() {
             {[
               "7-agent AI consensus engine",
               "Live news flow and macro catalysts",
-              "HTF bias + SMC structure analysis",
+              "HTF bias + Price Action analysis",
               "Session intelligence and trade timing",
             ].map((f) => (
               <div key={f} className="flex items-center gap-3">
