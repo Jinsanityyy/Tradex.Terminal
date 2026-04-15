@@ -108,7 +108,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="relative z-10">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="TradeX" style={{ height: 52, width: "auto", objectFit: "contain" }} />
+          <img src="/logo.png" alt="TradeX" style={{ height: 120, width: "auto", objectFit: "contain" }} />
         </div>
 
         {/* Hero copy */}
@@ -172,7 +172,7 @@ export default function LoginPage() {
         {/* Mobile logo */}
         <div className="lg:hidden mb-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="TradeX" style={{ height: 64, width: "auto", objectFit: "contain" }} />
+          <img src="/logo.png" alt="TradeX" style={{ height: 100, width: "auto", objectFit: "contain" }} />
         </div>
 
         {/* Ambient glow on right */}
