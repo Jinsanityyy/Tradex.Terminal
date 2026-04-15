@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2, AlertCircle, ArrowLeft, Smartphone } from "lucide-react";
 import Link from "next/link";
+import { TradingChartBg } from "@/components/shared/TradingChartBg";
 
 type Mode = "login" | "signup" | "forgot" | "mfa";
 
@@ -97,8 +98,11 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex bg-[#07080d]">
+      {/* ── Animated chart background ── */}
+      <TradingChartBg />
+
       {/* ── Left panel (hidden on mobile) ── */}
-      <div className="hidden lg:flex lg:w-[52%] flex-col justify-between p-12 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-[52%] flex-col justify-between p-12 relative z-10 overflow-hidden">
         {/* Ambient glows */}
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full bg-[#00C853] opacity-[0.06] blur-[120px]" />
@@ -168,7 +172,7 @@ export default function LoginPage() {
       </div>
 
       {/* ── Right panel — form ── */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 relative">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 relative z-10">
         {/* Mobile logo */}
         <div className="lg:hidden mb-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}
