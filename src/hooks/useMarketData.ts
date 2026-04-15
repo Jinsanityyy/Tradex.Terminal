@@ -4,6 +4,7 @@ import useSWR, { mutate } from "swr";
 import { useCallback } from "react";
 import type { AssetSnapshot, NewsItem, EconomicEvent, TrumpPost, BiasData, Catalyst, SessionSummary, MarketNarrative, TradeContext, Sentiment, AssetAIAnalysis } from "@/types";
 import type { KeyLevel } from "@/app/api/market/keylevels/route";
+import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 
 const fetcher = async (url: string) => {
   const res = await fetch(url);
@@ -268,5 +269,40 @@ export function useMarketAnalysis(refreshInterval = 180_000) {
     isLoading,
     error,
     generateFresh,
+  };
+}
+
+// ── Single Agent Run (for Market Bias page) ─────────────
+export function useAgentResult(symbol: Symbol, timeframe: Timeframe = "H1", refreshInterval = 300_000) {
+  const { data, error, isLoading, mutate: revalidate } = useSWR<AgentRunResult>(
+    `/api/agents/run?symbol=${symbol}&timeframe=${timeframe}`,
+    fetcher,
+    {
+      refreshInterval,
+      revalidateOnFocus: false,
+      dedupingInterval: 120_000,
+      errorRetryCount: 2,
+      errorRetryInterval: 30_000,
+    }
+  );
+
+  const refresh = useCallback(async () => {
+    const res = await fetch("/api/agents/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol, timeframe, forceRefresh: true }),
+    });
+    if (!res.ok) throw new Error("Failed");
+    const fresh = await res.json();
+    revalidate(fresh, false);
+    return fresh as AgentRunResult;
+  }, [symbol, timeframe, revalidate]);
+
+  return {
+    result: data ?? null,
+    isLoading,
+    isLive: !!data && !data.cached,
+    error,
+    refresh,
   };
 }
