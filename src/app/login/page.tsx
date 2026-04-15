@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2, AlertCircle, ArrowLeft, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { TradingChartBg } from "@/components/shared/TradingChartBg";
+import { AmbientParticles } from "@/components/shared/AmbientParticles";
 
 type Mode = "login" | "signup" | "forgot" | "mfa";
 
@@ -138,8 +139,9 @@ export default function LoginPage() {
           `,
         }}
       >
-        {/* ── Ambient particle + grid layer ── */}
+        {/* ── Ambient layers (login-only) ── */}
         <TradingChartBg />
+        <AmbientParticles />
 
         {/* ── Left panel ── */}
         <div className="hidden lg:flex lg:w-[55%] flex-col justify-center relative z-10 overflow-hidden" style={{ paddingLeft: 72, paddingRight: 48, paddingTop: 48, paddingBottom: 48 }}>

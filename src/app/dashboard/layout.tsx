@@ -8,7 +8,6 @@ import { FloatingChat } from "@/components/shared/FloatingChat";
 import { PaywallGate } from "@/components/shared/PaywallGate";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { useSubscription, canAccess } from "@/hooks/useSubscription";
-import { AmbientParticles } from "@/components/shared/AmbientParticles";
 import { Clock } from "lucide-react";
 import Link from "next/link";
 
@@ -31,7 +30,6 @@ export default function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-[hsl(var(--background))]" style={{ overflowX: "clip" }}>
-      <AmbientParticles />
       <Sidebar />
       <div className="flex flex-1 flex-col min-w-0 transition-all duration-300" style={{ marginLeft: "var(--sidebar-current-width, var(--sidebar-width))" }}>
         <TopStatusBar />
