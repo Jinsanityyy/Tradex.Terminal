@@ -110,8 +110,34 @@ function buildSupports(
   finalBias: string
 ): string[] {
   const supports: string[] = [];
+  const isNoTrade = finalBias === "no-trade";
   const isBull = finalBias === "bullish";
 
+  // ── No-trade: show what each agent is actually seeing ──────────────────
+  if (isNoTrade) {
+    if (trend.reasons.length > 0) {
+      supports.push(`Trend (${trend.bias.toUpperCase()} ${trend.confidence}%): ${trend.reasons[0]}`);
+    } else {
+      supports.push(`Trend Agent sees ${trend.bias.toUpperCase()} at ${trend.confidence}% — phase: ${trend.marketPhase}`);
+    }
+
+    if (smc.reasons.length > 0) {
+      supports.push(`Price Action (${smc.bias.toUpperCase()} ${smc.confidence}%): ${smc.reasons[0]}`);
+    } else {
+      supports.push(`PA Agent: ${smc.setupType} setup — ${smc.premiumDiscount} zone`);
+    }
+
+    if (news.reasons.length > 0) {
+      supports.push(`News/Macro (${news.impact.toUpperCase()} ${news.confidence}%): ${news.reasons[0]}`);
+    } else {
+      supports.push(`Macro: ${news.dominantCatalyst.slice(0, 90)}`);
+    }
+
+    supports.push(`Market phase: ${trend.marketPhase} — ${trend.momentumDirection} momentum, ${smc.premiumDiscount} zone`);
+    return supports.slice(0, 4);
+  }
+
+  // ── Directional: original logic ────────────────────────────────────────
   if (trend.bias === finalBias && trend.confidence >= 55) {
     supports.push(`Trend Agent ${trend.confidence}%: ${trend.reasons[0] ?? "momentum confirmed"}`);
   }
@@ -133,6 +159,11 @@ function buildSupports(
   }
   if (smc.premiumDiscount === "PREMIUM" && !isBull) {
     supports.push("Price at PREMIUM zone — institutional sell pressure zone, optimal short entry territory");
+  }
+
+  // Fallback: always include at least the dominant trend reason
+  if (supports.length === 0 && trend.reasons.length > 0) {
+    supports.push(`Trend Agent ${trend.confidence}%: ${trend.reasons[0]}`);
   }
 
   return supports.slice(0, 5);

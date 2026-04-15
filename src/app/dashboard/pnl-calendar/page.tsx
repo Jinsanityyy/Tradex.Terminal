@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight, RefreshCw, Plus, Trash2,
   TrendingUp, TrendingDown, Trophy, Activity, Loader2,
   X, Eye, EyeOff, CheckCircle2, AlertCircle, BookOpen,
-  ImagePlus, FileText, Save, Maximize2, Pencil,
+  ImagePlus, FileText, Save, Maximize2, Pencil, DollarSign,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DailyPnL, MonthlyPnL } from "@/app/api/pnl/route";
@@ -39,6 +39,18 @@ interface JournalEntry {
   note: string;
   screenshot_urls: string[];
 }
+
+interface ManualTrade {
+  id: string;
+  date: string;         // YYYY-MM-DD
+  symbol: string;
+  direction: "long" | "short";
+  pnl: number;
+  fees: number;
+  notes?: string;
+}
+
+const MANUAL_TRADES_KEY = "tradex_manual_trades";
 
 type ExchangeKey = "binance" | "bybit" | "okx" | "mt5";
 
@@ -328,6 +340,195 @@ function DayJournalModal({
   );
 }
 
+// ── Manual Trade Modal ────────────────────────────────────────────────────────
+
+const SYMBOLS = ["XAUUSD", "EURUSD", "GBPUSD", "BTCUSD", "USDJPY", "GBPJPY", "USDCAD", "AUDUSD", "Other"];
+
+function ManualTradeModal({
+  onClose,
+  onSaved,
+}: {
+  onClose: () => void;
+  onSaved: (trade: ManualTrade) => void;
+}) {
+  const today = new Date().toISOString().split("T")[0];
+  const [date, setDate] = useState(today);
+  const [symbol, setSymbol] = useState("XAUUSD");
+  const [direction, setDirection] = useState<"long" | "short">("long");
+  const [pnlStr, setPnlStr] = useState("");
+  const [feesStr, setFeesStr] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const pnlNum = parseFloat(pnlStr);
+  const feesNum = parseFloat(feesStr) || 0;
+  const isValidPnl = pnlStr !== "" && !isNaN(pnlNum);
+  const isWin = isValidPnl && pnlNum > 0;
+
+  function save() {
+    if (!isValidPnl || !date) {
+      toast.error("Date and P&L are required");
+      return;
+    }
+    const trade: ManualTrade = {
+      id: `mt_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      date,
+      symbol,
+      direction,
+      pnl: parseFloat(pnlNum.toFixed(2)),
+      fees: parseFloat(feesNum.toFixed(2)),
+      notes: notes.trim() || undefined,
+    };
+    onSaved(trade);
+    toast.success(`Trade logged: ${pnlNum >= 0 ? "+" : ""}$${Math.abs(pnlNum).toFixed(2)}`);
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-2xl border border-[hsl(var(--border))] bg-[hsl(220,18%,6%)] shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[hsl(var(--border))]">
+          <div className="flex items-center gap-2.5">
+            <DollarSign className="h-4 w-4 text-[hsl(var(--primary))]" />
+            <div>
+              <h2 className="text-sm font-bold text-[hsl(var(--foreground))]">Log Trade Manually</h2>
+              <p className="text-[10px] text-[hsl(var(--muted-foreground))]">Adds to calendar + monthly stats</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="rounded-md p-1 hover:bg-[hsl(var(--secondary))] transition-colors">
+            <X className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Date */}
+          <div>
+            <label className="block text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1.5">Date</label>
+            <input
+              type="date"
+              value={date}
+              onChange={e => setDate(e.target.value)}
+              max={today}
+              className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-2 text-sm text-[hsl(var(--foreground))] outline-none focus:border-[hsl(var(--primary))]/50 [color-scheme:dark]"
+            />
+          </div>
+
+          {/* Symbol + Direction */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1.5">Symbol</label>
+              <select
+                value={symbol}
+                onChange={e => setSymbol(e.target.value)}
+                className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-2 text-sm text-[hsl(var(--foreground))] outline-none focus:border-[hsl(var(--primary))]/50"
+              >
+                {SYMBOLS.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1.5">Direction</label>
+              <div className="grid grid-cols-2 gap-1.5">
+                {(["long", "short"] as const).map(d => (
+                  <button
+                    key={d}
+                    onClick={() => setDirection(d)}
+                    className={cn(
+                      "rounded-lg border py-2 text-[11px] font-bold uppercase tracking-wider transition-all",
+                      direction === d && d === "long"
+                        ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-400"
+                        : direction === d && d === "short"
+                        ? "border-red-500/50 bg-red-500/15 text-red-400"
+                        : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
+                    )}
+                  >
+                    {d === "long" ? "▲ Long" : "▼ Short"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* P&L */}
+          <div>
+            <label className="block text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1.5">
+              P&L ($) <span className="normal-case text-[hsl(var(--muted-foreground))]/50">— use negative for a loss</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-[hsl(var(--muted-foreground))]">$</span>
+              <input
+                type="number"
+                step="0.01"
+                value={pnlStr}
+                onChange={e => setPnlStr(e.target.value)}
+                placeholder="e.g. 120.00 or -45.50"
+                className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] pl-8 pr-3 py-2.5 text-sm text-[hsl(var(--foreground))] placeholder-[hsl(var(--muted-foreground))]/40 outline-none focus:border-[hsl(var(--primary))]/50"
+              />
+            </div>
+            {isValidPnl && (
+              <div className={cn(
+                "mt-1.5 flex items-center gap-1.5 text-[11px] font-bold",
+                isWin ? "text-emerald-400" : "text-red-400"
+              )}>
+                {isWin ? "✓ WIN" : "✗ LOSS"} · {isWin ? "+" : ""}${pnlNum.toFixed(2)}
+              </div>
+            )}
+          </div>
+
+          {/* Fees */}
+          <div>
+            <label className="block text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1.5">
+              Fees / Commission ($) <span className="normal-case text-[hsl(var(--muted-foreground))]/50">optional</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-[hsl(var(--muted-foreground))]">$</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={feesStr}
+                onChange={e => setFeesStr(e.target.value)}
+                placeholder="0.00"
+                className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] pl-8 pr-3 py-2.5 text-sm text-[hsl(var(--foreground))] placeholder-[hsl(var(--muted-foreground))]/40 outline-none focus:border-[hsl(var(--primary))]/50"
+              />
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1.5">
+              Notes <span className="normal-case text-[hsl(var(--muted-foreground))]/50">optional</span>
+            </label>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Setup, entry reason, outcome…"
+              rows={2}
+              className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-2 text-xs text-[hsl(var(--foreground))] placeholder-[hsl(var(--muted-foreground))]/40 outline-none focus:border-[hsl(var(--primary))]/50 resize-none"
+            />
+          </div>
+
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={onClose}
+              className="flex-1 rounded-lg border border-[hsl(var(--border))] py-2.5 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={save}
+              disabled={!isValidPnl || !date}
+              className="flex-[2] flex items-center justify-center gap-2 rounded-lg bg-[hsl(var(--primary))]/15 border border-[hsl(var(--primary))]/30 py-2.5 text-sm font-semibold text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/25 disabled:opacity-40 transition-all"
+            >
+              <Plus className="h-4 w-4" />
+              Log Trade
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Connect Exchange Modal ─────────────────────────────────────────────────────
 
 function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnected: (conn: Connection) => void }) {
@@ -498,6 +699,7 @@ export default function PnLCalendarPage() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
+  const [showAddTrade, setShowAddTrade] = useState(false);
   const [now] = useState(new Date());
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth()); // 0-indexed
@@ -506,23 +708,64 @@ export default function PnLCalendarPage() {
   const [journalDate, setJournalDate] = useState<string | null>(null);
   const [journalEntries, setJournalEntries] = useState<Map<string, JournalEntry>>(new Map());
 
+  // Manual trades — stored in localStorage, merged with exchange data
+  const [manualTrades, setManualTrades] = useState<ManualTrade[]>([]);
+
+  // Load manual trades from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(MANUAL_TRADES_KEY);
+      if (raw) setManualTrades(JSON.parse(raw));
+    } catch {}
+  }, []);
+
+  function saveManualTrades(updated: ManualTrade[]) {
+    setManualTrades(updated);
+    try { localStorage.setItem(MANUAL_TRADES_KEY, JSON.stringify(updated)); } catch {}
+  }
+
+  function addManualTrade(trade: ManualTrade) {
+    saveManualTrades([...manualTrades, trade]);
+  }
+
+  function deleteManualTrade(id: string) {
+    saveManualTrades(manualTrades.filter(t => t.id !== id));
+  }
+
+  // Merge exchange daily data with manual trades → single source of truth for calendar/stats
+  const mergedDaily = useMemo(() => {
+    const map = new Map<string, DailyPnL>();
+    daily.forEach(d => map.set(d.date, { ...d }));
+    for (const t of manualTrades) {
+      const existing = map.get(t.date) ?? { date: t.date, pnl: 0, trades: 0, wins: 0, fees: 0 };
+      map.set(t.date, {
+        ...existing,
+        pnl: parseFloat((existing.pnl + t.pnl).toFixed(4)),
+        fees: parseFloat((existing.fees + t.fees).toFixed(4)),
+        trades: existing.trades + 1,
+        wins: existing.wins + (t.pnl > 0 ? 1 : 0),
+      });
+    }
+    return Array.from(map.values());
+  }, [daily, manualTrades]);
+
   const dailyMap = useMemo(() => {
     const m = new Map<string, DailyPnL>();
-    daily.forEach(d => m.set(d.date, d));
+    mergedDaily.forEach(d => m.set(d.date, d));
     return m;
-  }, [daily]);
+  }, [mergedDaily]);
 
   const monthStats = useMemo(() => {
     const key = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`;
     let trades = 0, wins = 0, pnl = 0, fees = 0;
-    daily.forEach(d => {
+    mergedDaily.forEach(d => {
       if (d.date.startsWith(key)) {
         trades += d.trades; wins += d.wins; pnl += d.pnl; fees += d.fees;
       }
     });
     const winPct = trades > 0 ? Math.round((wins / trades) * 100) : 0;
     return { trades, wins, pnl, fees, winPct };
-  }, [daily, viewYear, viewMonth]);
+  }, [mergedDaily, viewYear, viewMonth]);
 
   const calDays = useMemo(() => {
     const first = new Date(viewYear, viewMonth, 1);
@@ -631,6 +874,12 @@ export default function PnLCalendarPage() {
   return (
     <div className="space-y-4">
       {showConnect && <ConnectModal onClose={() => setShowConnect(false)} onConnected={handleConnected} />}
+      {showAddTrade && (
+        <ManualTradeModal
+          onClose={() => setShowAddTrade(false)}
+          onSaved={addManualTrade}
+        />
+      )}
 
       {journalDate && (
         <DayJournalModal
@@ -664,35 +913,41 @@ export default function PnLCalendarPage() {
             <RefreshCw className={cn("h-3 w-3", syncing && "animate-spin")} />
             {syncing ? "Syncing…" : "Sync"}
           </button>
+          <button
+            onClick={() => setShowAddTrade(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/10 px-3 py-1.5 text-xs font-semibold text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/20 transition-all"
+          >
+            <DollarSign className="h-3 w-3" /> Log Trade
+          </button>
           <button onClick={() => setShowConnect(true)}
-            className="flex items-center gap-1.5 rounded-lg border border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/10 px-3 py-1.5 text-xs font-semibold text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/20 transition-all">
+            className="flex items-center gap-1.5 rounded-lg border border-[hsl(var(--border))] px-3 py-1.5 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] transition-all">
             <Plus className="h-3 w-3" /> Add Exchange
           </button>
         </div>
       </div>
 
       {/* ── Connect exchange banner (no connections yet) ── */}
-      {!loading && connections.length === 0 && (
+      {!loading && connections.length === 0 && manualTrades.length === 0 && (
         <div className="flex items-center justify-between gap-4 rounded-xl border border-[hsl(var(--primary))]/20 bg-[hsl(var(--primary))]/[0.04] px-4 py-3">
           <div className="flex items-center gap-3">
             <Activity className="h-4 w-4 text-[hsl(var(--primary))]/60 shrink-0" />
             <div>
-              <p className="text-xs font-semibold text-[hsl(var(--foreground))]">No exchange connected</p>
-              <p className="text-[11px] text-[hsl(var(--muted-foreground))]">Connect Binance, Bybit, OKX, or MT5 to populate the calendar with your real trade data.</p>
+              <p className="text-xs font-semibold text-[hsl(var(--foreground))]">Calendar is empty</p>
+              <p className="text-[11px] text-[hsl(var(--muted-foreground))]">Log trades manually or connect an exchange to populate the calendar.</p>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {(Object.keys(EXCHANGE_META) as ExchangeKey[]).map(ex => {
-              const m = EXCHANGE_META[ex];
-              return (
-                <span key={ex} className={cn("hidden sm:block text-[9px] font-bold px-2 py-1 rounded border", m.bg, m.color)}>{m.name}</span>
-              );
-            })}
             <button
-              onClick={() => setShowConnect(true)}
+              onClick={() => setShowAddTrade(true)}
               className="flex items-center gap-1.5 rounded-lg bg-[hsl(var(--primary))]/15 border border-[hsl(var(--primary))]/30 px-3 py-1.5 text-xs font-semibold text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/25 transition-all"
             >
-              <Plus className="h-3 w-3" /> Connect
+              <DollarSign className="h-3 w-3" /> Log Trade
+            </button>
+            <button
+              onClick={() => setShowConnect(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-[hsl(var(--border))] px-3 py-1.5 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] transition-all"
+            >
+              <Plus className="h-3 w-3" /> Exchange
             </button>
           </div>
         </div>
@@ -995,6 +1250,80 @@ export default function PnLCalendarPage() {
               <p className="text-[10px] text-[hsl(var(--muted-foreground))]/60 leading-relaxed pt-1">
                 Click any past date on the calendar to add notes and screenshots.
               </p>
+            </CardContent>
+          </Card>
+
+          {/* Manual Trades */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-2">
+                  <DollarSign className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />
+                  Manual Trades
+                  {manualTrades.length > 0 && (
+                    <span className="ml-1 rounded-full bg-[hsl(var(--primary))]/20 px-1.5 py-0.5 text-[9px] font-bold text-[hsl(var(--primary))]">
+                      {manualTrades.length}
+                    </span>
+                  )}
+                </span>
+                <button
+                  onClick={() => setShowAddTrade(true)}
+                  className="flex items-center gap-1 text-[10px] font-semibold text-[hsl(var(--primary))] hover:underline"
+                >
+                  <Plus className="h-3 w-3" /> Add
+                </button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {manualTrades.length === 0 ? (
+                <div className="text-center py-4">
+                  <DollarSign className="h-5 w-5 mx-auto mb-2 text-[hsl(var(--muted-foreground))]/30" />
+                  <p className="text-[11px] text-[hsl(var(--muted-foreground))]">No manual trades yet.</p>
+                  <button
+                    onClick={() => setShowAddTrade(true)}
+                    className="mt-2 text-[11px] text-[hsl(var(--primary))] hover:underline"
+                  >
+                    + Log your first trade
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {[...manualTrades]
+                    .sort((a, b) => b.date.localeCompare(a.date))
+                    .map(t => (
+                      <div
+                        key={t.id}
+                        className={cn(
+                          "flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-[11px] group",
+                          t.pnl >= 0
+                            ? "border-emerald-500/15 bg-emerald-500/[0.04]"
+                            : "border-red-500/15 bg-red-500/[0.04]"
+                        )}
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className={cn("font-bold tabular-nums", t.pnl >= 0 ? "text-emerald-400" : "text-red-400")}>
+                              {t.pnl >= 0 ? "+" : ""}${Math.abs(t.pnl).toFixed(2)}
+                            </span>
+                            <span className="text-zinc-600">·</span>
+                            <span className="font-semibold text-zinc-300">{t.symbol}</span>
+                            <span className={cn("text-[9px] font-bold uppercase", t.direction === "long" ? "text-emerald-500/70" : "text-red-500/70")}>
+                              {t.direction}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-zinc-600 mt-0.5">{t.date}</div>
+                        </div>
+                        <button
+                          onClick={() => deleteManualTrade(t.id)}
+                          className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-zinc-600 hover:text-red-400"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))
+                  }
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
