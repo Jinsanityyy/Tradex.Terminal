@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAgentResult, useQuotes } from "@/hooks/useMarketData";
@@ -8,9 +8,76 @@ import { cn } from "@/lib/utils";
 import {
   Target, TrendingUp, TrendingDown, Minus, Shield, Zap,
   Activity, RefreshCw, Wifi, WifiOff, AlertTriangle,
-  ChevronRight, BarChart3, Clock, Brain, ArrowRight,
+  ChevronRight, Clock, Brain, ArrowRight, History,
 } from "lucide-react";
 import type { Symbol } from "@/lib/agents/schemas";
+
+// ── Data age indicator ────────────────────────────────────
+function useDataAge(timestamp?: string) {
+  const [ageMs, setAgeMs] = useState<number | null>(null);
+  useEffect(() => {
+    if (!timestamp) { setAgeMs(null); return; }
+    const tick = () => setAgeMs(Date.now() - new Date(timestamp).getTime());
+    tick();
+    const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
+  }, [timestamp]);
+  return ageMs;
+}
+
+function DataAgeBar({ timestamp, cached }: { timestamp?: string; cached?: boolean }) {
+  const ageMs = useDataAge(timestamp);
+  if (!timestamp || ageMs === null) return null;
+
+  const ageSec   = Math.floor(ageMs / 1000);
+  const ageMin   = Math.floor(ageSec / 60);
+  const CACHE_TTL_MIN = 5;
+  const pct      = Math.min(100, (ageMs / (CACHE_TTL_MIN * 60_000)) * 100);
+
+  const isStale  = ageMin >= CACHE_TTL_MIN;
+  const isFresh  = ageMin < 1;
+
+  const label = isFresh
+    ? `Analysis just now (${ageSec}s ago)`
+    : ageMin < 60
+    ? `Analysis from ${ageMin} min ${ageSec % 60}s ago`
+    : `Analysis from ${Math.floor(ageMin / 60)}h ${ageMin % 60}m ago`;
+
+  const barColor  = isStale  ? "bg-red-500"    : ageMin >= 3 ? "bg-amber-500" : "bg-emerald-500";
+  const textColor = isStale  ? "text-red-400"  : ageMin >= 3 ? "text-amber-400" : "text-emerald-400";
+  const bgColor   = isStale  ? "bg-red-500/8 border-red-500/15" : ageMin >= 3 ? "bg-amber-500/8 border-amber-500/15" : "bg-emerald-500/8 border-emerald-500/15";
+
+  // PHT formatted time
+  const phtTime = new Date(timestamp).toLocaleTimeString("en-PH", {
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: true, timeZone: "Asia/Manila",
+  });
+
+  return (
+    <div className={cn("rounded-lg border px-4 py-2.5 flex items-center gap-4", bgColor)}>
+      <History className={cn("h-3.5 w-3.5 shrink-0", textColor)} />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className={cn("text-[11px] font-semibold", textColor)}>{label}</span>
+          <span className="text-[10px] text-zinc-500 shrink-0 ml-3">
+            {cached ? "Cached" : "Live"} · Generated {phtTime} PHT
+          </span>
+        </div>
+        <div className="h-1.5 w-full rounded-full bg-white/5 overflow-hidden">
+          <div
+            className={cn("h-full rounded-full transition-all duration-1000", barColor)}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <div className="flex justify-between mt-1">
+          <span className="text-[9px] text-zinc-600">Fresh</span>
+          <span className="text-[9px] text-zinc-600">Refreshes every {CACHE_TTL_MIN} min</span>
+          <span className="text-[9px] text-zinc-600">Stale</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── Asset tabs ────────────────────────────────────────────
 const ASSETS: { symbol: Symbol; label: string; sub: string }[] = [
@@ -153,6 +220,11 @@ export default function MarketBiasPage() {
           </button>
         ))}
       </div>
+
+      {/* Data age indicator — always show when result exists */}
+      {result && (
+        <DataAgeBar timestamp={result.timestamp} cached={result.cached} />
+      )}
 
       {/* Loading / Error state */}
       {(isLoading || !result) && (

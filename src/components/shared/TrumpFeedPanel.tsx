@@ -101,6 +101,16 @@ export function TrumpFeedPanel({ posts, limit, compact = false }: TrumpFeedPanel
   const items = limit ? posts.slice(0, limit) : posts;
   const [selected, setSelected] = useState<TrumpPost | null>(null);
 
+  if (items.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
+        <UserCircle className="h-6 w-6 text-[hsl(var(--muted-foreground))]/30" />
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">No Trump-related market signals detected</p>
+        <p className="text-[10px] text-[hsl(var(--muted-foreground))]/60">Refreshes every 2 minutes</p>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="space-y-2">

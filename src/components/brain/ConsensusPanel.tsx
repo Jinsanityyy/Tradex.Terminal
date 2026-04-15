@@ -17,7 +17,7 @@ interface ConsensusPanelProps {
 
 const AGENT_LABELS: Record<string, string> = {
   trend:      "Trend",
-  smc:        "SMC",
+  smc:        "Price Action",
   news:       "News",
   execution:  "Execution",
   contrarian: "Contrarian",
@@ -91,9 +91,7 @@ function AgentBar({ item }: { item: AgentConsensusItem }) {
     ? "bg-orange-500"
     : isBull ? "bg-emerald-500" : isNeg ? "bg-red-500" : "bg-zinc-600";
 
-  const biasText = item.agentId === "contrarian"
-    ? item.bias
-    : item.bias === "bullish" ? "↑" : item.bias === "bearish" ? "↓" : "–";
+  const biasText = item.bias === "bullish" ? "↑" : item.bias === "bearish" ? "↓" : "–";
 
   return (
     <div className="flex items-center gap-3">
