@@ -99,338 +99,377 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#07080d]">
-      {/* ── Ambient animated background ── */}
-      <TradingChartBg />
+    <>
+      <style>{`
+        @keyframes logo-pulse {
+          0%, 100% { transform: scale(1); }
+          50%       { transform: scale(1.02); }
+        }
+        .login-logo {
+          animation: logo-pulse 4s ease-in-out infinite;
+        }
+        .login-card {
+          backdrop-filter: blur(12px);
+          border: 1px solid rgba(255,255,255,0.08);
+          box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+          transition: transform .2s ease, box-shadow .2s ease;
+        }
+        .login-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 16px 60px rgba(16,185,129,0.15);
+        }
+        .login-input:focus {
+          outline: none;
+          box-shadow: 0 0 0 1px rgba(16,185,129,0.5), 0 0 12px rgba(16,185,129,0.2);
+          border-color: rgba(16,185,129,0.5) !important;
+        }
+        .login-btn:hover:not(:disabled) {
+          box-shadow: 0 8px 24px rgba(16,185,129,0.35) !important;
+        }
+      `}</style>
 
-      {/* ── Center depth glow (between panels) ── */}
       <div
-        className="pointer-events-none fixed inset-0"
+        className="min-h-screen flex"
         style={{
-          zIndex: 1,
-          background: "radial-gradient(ellipse 55% 60% at 52% 50%, rgba(0,180,80,0.055) 0%, transparent 70%)",
+          background: `
+            radial-gradient(600px 400px at 10% 20%, rgba(16,185,129,0.28), transparent 60%),
+            radial-gradient(800px 500px at 40% 30%, rgba(16,185,129,0.10), transparent 65%),
+            #020617
+          `,
         }}
-      />
+      >
+        {/* ── Ambient particle + grid layer ── */}
+        <TradingChartBg />
 
-      {/* ── Left panel ── */}
-      <div className="hidden lg:flex lg:w-[52%] flex-col justify-center pl-14 pr-10 py-14 relative z-10 overflow-hidden">
+        {/* ── Left panel ── */}
+        <div className="hidden lg:flex lg:w-[52%] flex-col justify-center pl-14 pr-10 relative z-10 overflow-hidden">
+          <div className="max-w-[500px]" style={{ marginTop: 96 }}>
 
-        {/* Hero content stack */}
-        <div className="relative z-10 max-w-[500px]" style={{ marginTop: 100 }}>
-
-          {/* Logo — hero anchor */}
-          <div className="relative mb-4" style={{ width: 400 }}>
-            {/* Radial glow behind logo */}
-            <div
-              className="absolute pointer-events-none"
-              style={{
-                top: "50%", left: "50%",
-                transform: "translate(-50%, -50%)",
-                width: 520, height: 520,
-                borderRadius: "50%",
-                background: "radial-gradient(circle, rgba(0,200,83,0.30) 0%, rgba(0,200,83,0.10) 40%, transparent 70%)",
-                filter: "blur(90px)",
-              }}
-            />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/logo.png"
-              alt="TradeX"
-              style={{
-                width: 400,
-                height: "auto",
-                objectFit: "contain",
-                display: "block",
-                position: "relative",
-                filter: "drop-shadow(0 0 32px rgba(0,200,83,0.32)) drop-shadow(0 6px 20px rgba(0,0,0,0.65))",
-                animation: "logo-float 4s ease-in-out infinite",
-              }}
-            />
-          </div>
-
-          {/* Live badge */}
-          <style>{`
-            @keyframes logo-float {
-              0%, 100% { transform: scale(1); }
-              50%       { transform: scale(1.02); }
-            }
-          `}</style>
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#00C853]/25 bg-[#00C853]/[0.07] px-3.5 py-1.5 mb-3">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#00C853] animate-pulse" />
-            <span className="text-[11px] font-semibold text-[#69F0AE] uppercase tracking-widest">Live Market Intelligence</span>
-          </div>
-
-          {/* Headline — larger, more impact */}
-          <h1 className="text-[2.75rem] font-extrabold text-white leading-[1.1] tracking-tight mb-4">
-            The market context<br />
-            <span
-              style={{
-                background: "linear-gradient(120deg, #00C853 0%, #69F0AE 55%, #00E676 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-                filter: "drop-shadow(0 0 28px rgba(0,200,83,0.35))",
-              }}
-            >
-              serious traders rely on.
-            </span>
-          </h1>
-
-          <p className="text-[0.9rem] text-gray-400 leading-[1.7] mb-5 max-w-[400px]">
-            Real-time AI analysis, live news catalysts, and institutional-grade
-            data — built for Forex, Gold, and Crypto traders who want to
-            understand the market, not just react to it.
-          </p>
-
-          {/* Feature bullets — with left accent */}
-          <div className="space-y-4">
-            {[
-              "7-agent AI consensus engine",
-              "Live news flow and macro catalysts",
-              "HTF bias + Price Action analysis",
-              "Session intelligence and trade timing",
-            ].map((f) => (
-              <div key={f} className="flex items-center gap-3.5">
-                <div
-                  className="flex-shrink-0 h-5 w-5 rounded-full flex items-center justify-center"
-                  style={{
-                    background: "rgba(0,200,83,0.10)",
-                    border: "1px solid rgba(0,200,83,0.28)",
-                    boxShadow: "0 0 8px rgba(0,200,83,0.12)",
-                  }}
-                >
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#00C853" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                </div>
-                <span className="text-[0.875rem] text-gray-300 font-medium">{f}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Bottom block — testimonial + system status */}
-          <div className="mt-10 space-y-4">
-          {/* Testimonial */}
-          <div
-            className="rounded-xl p-4 backdrop-blur-sm"
-            style={{
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(255,255,255,0.06)",
-            }}
-          >
-            <p className="text-[0.85rem] text-gray-300 italic leading-relaxed mb-3">
-              "TradeX is the first tool that actually gives me context before I enter — not just more indicators."
-            </p>
-            <div className="flex items-center gap-2.5">
+            {/* Logo */}
+            <div className="logo-wrap relative mb-4" style={{ width: 400 }}>
+              {/* Glow halo */}
               <div
-                className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold text-[#07080d]"
-                style={{ background: "linear-gradient(135deg, #00C853, #69F0AE)" }}
-              >
-                J
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-white">James R.</p>
-                <p className="text-[10px] text-gray-500">Forex & Gold trader, 6 years</p>
-              </div>
-            </div>
-          </div>
-
-          {/* System status bar */}
-          <div className="flex items-center gap-5">
-            {STATUS_ITEMS.map((s) => (
-              <div key={s.label} className="flex items-center gap-1.5">
-                <span
-                  className="h-1.5 w-1.5 rounded-full animate-pulse"
-                  style={{ background: "#00C853", boxShadow: "0 0 5px rgba(0,200,83,0.7)" }}
-                />
-                <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">{s.label}</span>
-              </div>
-            ))}
-          </div>
-
-          </div>{/* end bottom block */}
-        </div>{/* end hero content */}
-      </div>{/* end left panel */}
-
-      {/* ── Right panel — form ── */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 relative z-10">
-        {/* Mobile logo */}
-        <div className="lg:hidden mb-10">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="TradeX" style={{ height: 100, width: "auto", objectFit: "contain" }} />
-        </div>
-
-        <div className="w-full max-w-[380px] relative z-10">
-          {(mode === "forgot" || mode === "mfa") && (
-            <button
-              onClick={() => switchMode("login")}
-              className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-gray-300 mb-6 transition-colors group"
-            >
-              <ArrowLeft className="h-3 w-3 transition-transform group-hover:-translate-x-0.5" />
-              Back to sign in
-            </button>
-          )}
-
-          {/* Form card */}
-          <div
-            className="rounded-2xl p-8"
-            style={{
-              background: "rgba(255,255,255,0.025)",
-              border: "1px solid rgba(255,255,255,0.07)",
-              boxShadow: "0 0 0 1px rgba(0,200,83,0.06), 0 24px 60px rgba(0,0,0,0.5), 0 0 40px rgba(0,200,83,0.04)",
-              backdropFilter: "blur(16px)",
-            }}
-          >
-            <h2 className="text-2xl font-bold text-white mb-1 tracking-tight">{titles[mode]}</h2>
-            <p className="text-[0.8125rem] text-gray-500 mb-7">{subtitles[mode]}</p>
-
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* MFA */}
-              {mode === "mfa" && (
-                <div>
-                  <div className="flex items-center justify-center mb-6">
-                    <div
-                      className="flex items-center justify-center w-14 h-14 rounded-2xl"
-                      style={{ border: "1px solid rgba(0,200,83,0.25)", background: "rgba(0,200,83,0.07)" }}
-                    >
-                      <Smartphone className="h-6 w-6 text-[#00C853]" />
-                    </div>
-                  </div>
-                  <label className="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest text-center">
-                    Authenticator Code
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    required
-                    autoFocus
-                    value={mfaCode}
-                    onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    placeholder="000000"
-                    style={{ colorScheme: "dark" }}
-                    className="w-full rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 py-3 text-xl text-white placeholder-gray-700 outline-none focus:border-[#00C853]/50 focus:ring-2 focus:ring-[#00C853]/10 transition-all font-mono tracking-[0.5em] text-center"
-                  />
-                </div>
-              )}
-
-              {/* Email */}
-              {mode !== "mfa" && (
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    style={{ colorScheme: "dark" }}
-                    className="w-full rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#00C853]/50 focus:ring-2 focus:ring-[#00C853]/10 transition-all"
-                  />
-                </div>
-              )}
-
-              {/* Password */}
-              {mode !== "forgot" && mode !== "mfa" && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                      Password
-                    </label>
-                    {mode === "login" && (
-                      <button
-                        type="button"
-                        onClick={() => switchMode("forgot")}
-                        className="text-[11px] text-[#69F0AE] hover:text-[#00C853] transition-colors"
-                      >
-                        Forgot password?
-                      </button>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <input
-                      type={showPass ? "text" : "password"}
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      minLength={6}
-                      style={{ colorScheme: "dark" }}
-                      className="w-full rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 py-2.5 pr-11 text-sm text-white placeholder-gray-600 outline-none focus:border-[#00C853]/50 focus:ring-2 focus:ring-[#00C853]/10 transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPass(!showPass)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-                    >
-                      {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Error / Success */}
-              {error && (
-                <div className="flex items-center gap-2.5 rounded-xl bg-red-500/[0.08] border border-red-500/20 px-3.5 py-3">
-                  <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
-                  <p className="text-xs text-red-400">{error}</p>
-                </div>
-              )}
-              {success && (
-                <div className="rounded-xl bg-[#00C853]/[0.07] border border-[#00C853]/20 px-3.5 py-3">
-                  <p className="text-xs text-[#69F0AE]">{success}</p>
-                </div>
-              )}
-
-              {/* Submit */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-[#07080d] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="absolute pointer-events-none"
                 style={{
-                  background: loading
-                    ? "#00C853"
-                    : "linear-gradient(135deg, #00C853 0%, #69F0AE 100%)",
-                  boxShadow: loading
-                    ? "none"
-                    : "0 0 28px rgba(0,200,83,0.30), 0 4px 16px rgba(0,0,0,0.3)",
+                  inset: -40,
+                  borderRadius: "50%",
+                  background: "radial-gradient(circle, rgba(16,185,129,0.35), transparent 60%)",
+                  filter: "blur(90px)",
+                  zIndex: 0,
+                }}
+              />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/logo.png"
+                alt="TradeX"
+                className="login-logo"
+                style={{
+                  width: 400,
+                  height: "auto",
+                  objectFit: "contain",
+                  display: "block",
+                  position: "relative",
+                  zIndex: 1,
+                  filter: "drop-shadow(0 0 32px rgba(16,185,129,0.32)) drop-shadow(0 6px 20px rgba(0,0,0,0.65))",
+                }}
+              />
+            </div>
+
+            {/* Live badge — mb: 12px */}
+            <div
+              className="inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5"
+              style={{
+                marginBottom: 12,
+                borderColor: "rgba(16,185,129,0.25)",
+                background: "rgba(16,185,129,0.07)",
+              }}
+            >
+              <span
+                className="h-1.5 w-1.5 rounded-full animate-pulse"
+                style={{ background: "#10b981" }}
+              />
+              <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "#6ee7b7" }}>
+                Live Market Intelligence
+              </span>
+            </div>
+
+            {/* Headline — mb: 16px */}
+            <h1
+              className="font-extrabold text-white leading-[1.1] tracking-tight"
+              style={{ fontSize: "2.75rem", marginBottom: 16 }}
+            >
+              The market context<br />
+              <span
+                style={{
+                  background: "linear-gradient(120deg, #10b981 0%, #6ee7b7 55%, #34d399 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                  filter: "drop-shadow(0 0 28px rgba(16,185,129,0.35))",
                 }}
               >
-                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                {mode === "login" ? "Sign In" : mode === "signup" ? "Create Account" : mode === "mfa" ? "Verify" : "Send Reset Link"}
-              </button>
-            </form>
+                serious traders rely on.
+              </span>
+            </h1>
 
-            {mode !== "forgot" && mode !== "mfa" && (
-              <>
-                <div className="flex items-center gap-3 my-5">
-                  <div className="flex-1 h-px bg-white/[0.06]" />
-                  <span className="text-[10px] text-gray-600 uppercase tracking-widest">or</span>
-                  <div className="flex-1 h-px bg-white/[0.06]" />
-                </div>
-                <p className="text-center text-sm text-gray-500">
-                  {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
-                  <button
-                    onClick={() => switchMode(mode === "login" ? "signup" : "login")}
-                    className="text-[#69F0AE] font-semibold hover:text-[#00C853] transition-colors"
+            {/* Paragraph — mb: 20px */}
+            <p
+              className="text-gray-400 leading-[1.7]"
+              style={{ fontSize: "0.9rem", marginBottom: 20, maxWidth: 400 }}
+            >
+              Real-time AI analysis, live news catalysts, and institutional-grade
+              data — built for Forex, Gold, and Crypto traders who want to
+              understand the market, not just react to it.
+            </p>
+
+            {/* Feature bullets */}
+            <div className="space-y-4">
+              {[
+                "7-agent AI consensus engine",
+                "Live news flow and macro catalysts",
+                "HTF bias + Price Action analysis",
+                "Session intelligence and trade timing",
+              ].map((f) => (
+                <div key={f} className="flex items-center gap-3.5">
+                  <div
+                    className="flex-shrink-0 h-5 w-5 rounded-full flex items-center justify-center"
+                    style={{
+                      background: "rgba(16,185,129,0.10)",
+                      border: "1px solid rgba(16,185,129,0.28)",
+                      boxShadow: "0 0 8px rgba(16,185,129,0.12)",
+                    }}
                   >
-                    {mode === "login" ? "Sign up free" : "Sign in"}
-                  </button>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                  <span className="text-gray-300 font-medium" style={{ fontSize: "0.875rem" }}>{f}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Bottom block */}
+            <div className="mt-10 space-y-4">
+              {/* Testimonial */}
+              <div
+                className="rounded-xl p-4 backdrop-blur-sm"
+                style={{
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                }}
+              >
+                <p className="text-gray-300 italic leading-relaxed mb-3" style={{ fontSize: "0.85rem" }}>
+                  "TradeX is the first tool that actually gives me context before I enter — not just more indicators."
                 </p>
-              </>
-            )}
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold"
+                    style={{ background: "linear-gradient(135deg, #10b981, #6ee7b7)", color: "#020617" }}
+                  >
+                    J
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-white">James R.</p>
+                    <p className="text-gray-500" style={{ fontSize: "10px" }}>Forex & Gold trader, 6 years</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* System status */}
+              <div className="flex items-center gap-5">
+                {STATUS_ITEMS.map((s) => (
+                  <div key={s.label} className="flex items-center gap-1.5">
+                    <span
+                      className="h-1.5 w-1.5 rounded-full animate-pulse"
+                      style={{ background: "#10b981", boxShadow: "0 0 5px rgba(16,185,129,0.7)" }}
+                    />
+                    <span className="font-mono text-gray-500 uppercase tracking-widest" style={{ fontSize: "10px" }}>
+                      {s.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* ── Right panel — form ── */}
+        <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 relative z-10">
+          {/* Mobile logo */}
+          <div className="lg:hidden mb-10">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="TradeX" style={{ height: 100, width: "auto", objectFit: "contain" }} />
           </div>
 
-          <p className="text-center text-[11px] text-gray-600 mt-5">
-            Want to see plans?{" "}
-            <Link href="/pricing" className="text-gray-400 hover:text-gray-200 transition-colors underline underline-offset-2">
-              View pricing
-            </Link>
-          </p>
+          <div className="w-full max-w-[380px] relative z-10">
+            {(mode === "forgot" || mode === "mfa") && (
+              <button
+                onClick={() => switchMode("login")}
+                className="flex items-center gap-1.5 text-gray-500 hover:text-gray-300 mb-6 transition-colors group"
+                style={{ fontSize: "11px" }}
+              >
+                <ArrowLeft className="h-3 w-3 transition-transform group-hover:-translate-x-0.5" />
+                Back to sign in
+              </button>
+            )}
+
+            {/* Form card */}
+            <div className="login-card rounded-2xl p-8">
+              <h2 className="text-2xl font-bold text-white mb-1 tracking-tight">{titles[mode]}</h2>
+              <p className="text-gray-500 mb-7" style={{ fontSize: "0.8125rem" }}>{subtitles[mode]}</p>
+
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {/* MFA */}
+                {mode === "mfa" && (
+                  <div>
+                    <div className="flex items-center justify-center mb-6">
+                      <div
+                        className="flex items-center justify-center w-14 h-14 rounded-2xl"
+                        style={{ border: "1px solid rgba(16,185,129,0.25)", background: "rgba(16,185,129,0.07)" }}
+                      >
+                        <Smartphone className="h-6 w-6" style={{ color: "#10b981" }} />
+                      </div>
+                    </div>
+                    <label className="block font-bold text-gray-500 mb-2 uppercase tracking-widest text-center" style={{ fontSize: "10px" }}>
+                      Authenticator Code
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      required
+                      autoFocus
+                      value={mfaCode}
+                      onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="000000"
+                      style={{ colorScheme: "dark" }}
+                      className="login-input w-full rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 py-3 text-xl text-white placeholder-gray-700 font-mono tracking-[0.5em] text-center transition-all"
+                    />
+                  </div>
+                )}
+
+                {/* Email */}
+                {mode !== "mfa" && (
+                  <div>
+                    <label className="block font-bold text-gray-500 mb-2 uppercase tracking-widest" style={{ fontSize: "10px" }}>
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      style={{ colorScheme: "dark" }}
+                      className="login-input w-full rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-gray-600 transition-all"
+                    />
+                  </div>
+                )}
+
+                {/* Password */}
+                {mode !== "forgot" && mode !== "mfa" && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block font-bold text-gray-500 uppercase tracking-widest" style={{ fontSize: "10px" }}>
+                        Password
+                      </label>
+                      {mode === "login" && (
+                        <button
+                          type="button"
+                          onClick={() => switchMode("forgot")}
+                          className="transition-colors"
+                          style={{ fontSize: "11px", color: "#6ee7b7" }}
+                          onMouseEnter={e => (e.currentTarget.style.color = "#10b981")}
+                          onMouseLeave={e => (e.currentTarget.style.color = "#6ee7b7")}
+                        >
+                          Forgot password?
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <input
+                        type={showPass ? "text" : "password"}
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        minLength={6}
+                        style={{ colorScheme: "dark" }}
+                        className="login-input w-full rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 py-2.5 pr-11 text-sm text-white placeholder-gray-600 transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPass(!showPass)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                      >
+                        {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Error / Success */}
+                {error && (
+                  <div className="flex items-center gap-2.5 rounded-xl px-3.5 py-3" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.20)" }}>
+                    <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
+                    <p className="text-xs text-red-400">{error}</p>
+                  </div>
+                )}
+                {success && (
+                  <div className="rounded-xl px-3.5 py-3" style={{ background: "rgba(16,185,129,0.07)", border: "1px solid rgba(16,185,129,0.20)" }}>
+                    <p className="text-xs" style={{ color: "#6ee7b7" }}>{success}</p>
+                  </div>
+                )}
+
+                {/* Submit */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="login-btn w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  style={{
+                    background: "linear-gradient(135deg, #10b981 0%, #6ee7b7 100%)",
+                    color: "#020617",
+                    boxShadow: "0 4px 20px rgba(16,185,129,0.25)",
+                  }}
+                >
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {mode === "login" ? "Sign In" : mode === "signup" ? "Create Account" : mode === "mfa" ? "Verify" : "Send Reset Link"}
+                </button>
+              </form>
+
+              {mode !== "forgot" && mode !== "mfa" && (
+                <>
+                  <div className="flex items-center gap-3 my-5">
+                    <div className="flex-1 h-px bg-white/[0.06]" />
+                    <span className="text-gray-600 uppercase tracking-widest" style={{ fontSize: "10px" }}>or</span>
+                    <div className="flex-1 h-px bg-white/[0.06]" />
+                  </div>
+                  <p className="text-center text-sm text-gray-500">
+                    {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
+                    <button
+                      onClick={() => switchMode(mode === "login" ? "signup" : "login")}
+                      className="font-semibold transition-colors"
+                      style={{ color: "#6ee7b7" }}
+                      onMouseEnter={e => (e.currentTarget.style.color = "#10b981")}
+                      onMouseLeave={e => (e.currentTarget.style.color = "#6ee7b7")}
+                    >
+                      {mode === "login" ? "Sign up free" : "Sign in"}
+                    </button>
+                  </p>
+                </>
+              )}
+            </div>
+
+            <p className="text-center text-gray-600 mt-5" style={{ fontSize: "11px" }}>
+              Want to see plans?{" "}
+              <Link href="/pricing" className="text-gray-400 hover:text-gray-200 transition-colors underline underline-offset-2">
+                View pricing
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
