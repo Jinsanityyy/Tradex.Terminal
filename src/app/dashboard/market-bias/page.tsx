@@ -87,9 +87,8 @@ export default function MarketBiasPage() {
   const { result, isLoading, isLive, error, refresh } = useAgentResult(selected, "H1");
   const { quotes } = useQuotes();
 
-  // Live price from quotes (refreshes every 30s) — overrides stale snapshot price
-  const SYMBOL_TO_QUOTE: Record<Symbol, string> = { XAUUSD: "XAU/USD", EURUSD: "EUR/USD", GBPUSD: "GBP/USD", BTCUSD: "BTC/USD" };
-  const liveQuote = quotes.find(q => q.symbol === SYMBOL_TO_QUOTE[selected]);
+  // Live price from quotes (refreshes every 30s) — symbol matches directly e.g. "XAUUSD"
+  const liveQuote = quotes.find(q => q.symbol === selected);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
