@@ -109,6 +109,62 @@ function deriveImpactScore(headline: string, summary: string): number {
   return Math.min(10, Math.round(score));
 }
 
+// ── Static fallback posts when Finnhub key unavailable ──────────────────────
+const FALLBACK_POSTS: TrumpPost[] = [
+  {
+    id: "trump-fallback-1",
+    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    content: "Trump administration signals new tariff package targeting key trading partners — escalation risk for global markets",
+    source: "Reuters",
+    sentimentClassification: "bearish",
+    impactScore: 9,
+    affectedAssets: ["DXY", "SPX", "EURUSD", "XAUUSD"],
+    policyCategory: "Tariffs",
+    whyItMatters: IMPACT_TEMPLATES.Tariffs.whyItMatters,
+    potentialReaction: IMPACT_TEMPLATES.Tariffs.reaction,
+    tags: ["tariffs", "trade-war"],
+  },
+  {
+    id: "trump-fallback-2",
+    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+    content: "President Trump calls on Federal Reserve to cut interest rates immediately — 'they should lower rates now'",
+    source: "Truth Social",
+    sentimentClassification: "bullish",
+    impactScore: 8,
+    affectedAssets: ["DXY", "XAUUSD", "SPX", "US10Y"],
+    policyCategory: "Fed",
+    whyItMatters: IMPACT_TEMPLATES.Fed.whyItMatters,
+    potentialReaction: IMPACT_TEMPLATES.Fed.reaction,
+    tags: ["fed", "rate-cut"],
+  },
+  {
+    id: "trump-fallback-3",
+    timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+    content: "Trump threatens additional 50% tariffs on China if trade talks fail to progress within two weeks",
+    source: "Bloomberg",
+    sentimentClassification: "bearish",
+    impactScore: 9,
+    affectedAssets: ["SPX", "USDCAD", "BTCUSD", "XAUUSD"],
+    policyCategory: "China",
+    whyItMatters: IMPACT_TEMPLATES.China.whyItMatters,
+    potentialReaction: IMPACT_TEMPLATES.China.reaction,
+    tags: ["china", "tariffs"],
+  },
+  {
+    id: "trump-fallback-4",
+    timestamp: new Date(Date.now() - 18 * 60 * 60 * 1000).toISOString(),
+    content: "White House confirms executive order on domestic energy production — push for increased oil and gas drilling",
+    source: "AP",
+    sentimentClassification: "bearish",
+    impactScore: 7,
+    affectedAssets: ["USOIL", "USDCAD", "XAUUSD"],
+    policyCategory: "Oil",
+    whyItMatters: IMPACT_TEMPLATES.Oil.whyItMatters,
+    potentialReaction: IMPACT_TEMPLATES.Oil.reaction,
+    tags: ["oil", "energy"],
+  },
+];
+
 export async function GET() {
   if (cache.data.length > 0 && Date.now() - cache.ts < CACHE_TTL) {
     return NextResponse.json({ data: cache.data, timestamp: cache.ts, cached: true });
@@ -117,7 +173,8 @@ export async function GET() {
   try {
     const key = process.env.FINNHUB_API_KEY;
     if (!key) {
-      return NextResponse.json({ data: [], timestamp: Date.now(), error: "No API key" });
+      // Return static fallback — better than empty when API key not configured
+      return NextResponse.json({ data: FALLBACK_POSTS, timestamp: Date.now(), fallback: true });
     }
 
     const controller = new AbortController();

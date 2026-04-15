@@ -16,6 +16,8 @@ export interface CachedQuote {
 }
 
 const quotesMap: Map<string, CachedQuote> = new Map();
+let lastWarmTs = 0;
+const WARM_TTL = 120_000; // re-fetch every 2 minutes — keeps agent snapshot fresh
 
 export function getCachedQuotes(): Map<string, CachedQuote> {
   return quotesMap;
@@ -23,7 +25,9 @@ export function getCachedQuotes(): Map<string, CachedQuote> {
 
 let warming = false;
 export async function ensureCacheWarm(): Promise<void> {
-  if (quotesMap.size > 0) return;
+  const now = Date.now();
+  // Re-fetch if empty OR if data is older than WARM_TTL (was: never refreshed)
+  if (quotesMap.size > 0 && now - lastWarmTs < WARM_TTL) return;
   if (warming) {
     await new Promise(r => setTimeout(r, 3000));
     return;
@@ -49,7 +53,6 @@ export async function ensureCacheWarm(): Promise<void> {
       const change = price - prev;
       const pct = prev ? (change / prev) * 100 : 0;
 
-      // Extract 52-week range when available from Yahoo meta
       const w52high = meta.fiftyTwoWeekHigh || meta.regularMarketDayHigh || null;
       const w52low  = meta.fiftyTwoWeekLow  || meta.regularMarketDayLow  || null;
 
@@ -91,7 +94,8 @@ export async function ensureCacheWarm(): Promise<void> {
       if (parsed) quotesMap.set(sym, { symbol: sym, name: "", ...parsed });
     }
 
-    console.log(`[quotes-cache] Warmed with ${quotesMap.size} quotes`);
+    lastWarmTs = Date.now();
+    console.log(`[quotes-cache] Refreshed ${quotesMap.size} quotes`);
   } catch (e: any) {
     console.warn("[quotes-cache] Warm-up failed:", e?.message || e);
   } finally {

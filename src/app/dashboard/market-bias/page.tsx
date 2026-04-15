@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useAgentResult } from "@/hooks/useMarketData";
+import { useAgentResult, useQuotes } from "@/hooks/useMarketData";
 import { cn } from "@/lib/utils";
 import {
   Target, TrendingUp, TrendingDown, Minus, Shield, Zap,
@@ -85,6 +85,11 @@ export default function MarketBiasPage() {
   const [selected, setSelected] = useState<Symbol>("XAUUSD");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { result, isLoading, isLive, error, refresh } = useAgentResult(selected, "H1");
+  const { quotes } = useQuotes();
+
+  // Live price from quotes (refreshes every 30s) — overrides stale snapshot price
+  const SYMBOL_TO_QUOTE: Record<Symbol, string> = { XAUUSD: "XAU/USD", EURUSD: "EUR/USD", GBPUSD: "GBP/USD", BTCUSD: "BTC/USD" };
+  const liveQuote = quotes.find(q => q.symbol === SYMBOL_TO_QUOTE[selected]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -233,14 +238,17 @@ export default function MarketBiasPage() {
               <CardContent className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-[11px] text-zinc-500">Price</span>
-                  <span className="text-sm font-mono font-bold text-zinc-100">
-                    {snap.price.current.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
+                  <div className="text-right">
+                    <span className="text-sm font-mono font-bold text-zinc-100">
+                      {(liveQuote ? parseFloat(liveQuote.price) : snap.price.current).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                    {liveQuote && <span className="block text-[9px] text-emerald-500/70">LIVE</span>}
+                  </div>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[11px] text-zinc-500">Change</span>
-                  <span className={cn("text-sm font-mono font-bold", snap.price.changePercent >= 0 ? "text-emerald-400" : "text-red-400")}>
-                    {snap.price.changePercent >= 0 ? "+" : ""}{snap.price.changePercent.toFixed(2)}%
+                  <span className={cn("text-sm font-mono font-bold", (liveQuote ? liveQuote.changePercent : snap.price.changePercent) >= 0 ? "text-emerald-400" : "text-red-400")}>
+                    {(liveQuote ? liveQuote.changePercent : snap.price.changePercent) >= 0 ? "+" : ""}{(liveQuote ? liveQuote.changePercent : snap.price.changePercent).toFixed(2)}%
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
