@@ -170,42 +170,56 @@ function UserMenu() {
 export function TopStatusBar() {
   const session = getCurrentSession();
   const { quotes, isLive } = useQuotes(15_000);
-  const topAssets = quotes.slice(0, 8);
+  // Show fewer assets on mobile — 4, full 8 on desktop
+  const mobileAssets = quotes.slice(0, 4);
+  const desktopAssets = quotes.slice(0, 8);
 
   return (
-    <header className="sticky top-0 z-30 flex h-[var(--topbar-height)] items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 backdrop-blur-md px-4">
+    <header className="sticky top-0 z-30 flex h-[var(--topbar-height)] items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 backdrop-blur-md px-3 md:px-4 gap-2">
       {/* Left: Asset Ticker Tape */}
-      <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
-        {topAssets.map((a) => (
-          <MiniAssetTicker key={a.symbol} symbol={a.symbol} price={a.price} changePercent={a.changePercent} />
-        ))}
+      <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-none flex-1 min-w-0">
+        {/* Mobile: 4 assets */}
+        <div className="flex md:hidden items-center gap-0.5">
+          {mobileAssets.map((a) => (
+            <MiniAssetTicker key={a.symbol} symbol={a.symbol} price={a.price} changePercent={a.changePercent} />
+          ))}
+        </div>
+        {/* Desktop: 8 assets */}
+        <div className="hidden md:flex items-center gap-0.5">
+          {desktopAssets.map((a) => (
+            <MiniAssetTicker key={a.symbol} symbol={a.symbol} price={a.price} changePercent={a.changePercent} />
+          ))}
+        </div>
       </div>
 
       {/* Right: Session + Clocks */}
-      <div className="flex items-center gap-4 shrink-0">
+      <div className="flex items-center gap-2 md:gap-4 shrink-0">
+        {/* Clocks — desktop only */}
         <div className="hidden lg:flex items-center gap-4">
           <SessionClock label="TYO" timezone="Asia/Tokyo" />
           <SessionClock label="LDN" timezone="Europe/London" />
           <SessionClock label="NYC" timezone="America/New_York" />
         </div>
 
-        <div className="flex items-center gap-1.5 rounded-md bg-[hsl(var(--secondary))] px-2 py-1">
+        {/* Session badge — hidden on smallest screens */}
+        <div className="hidden sm:flex items-center gap-1.5 rounded-md bg-[hsl(var(--secondary))] px-2 py-1">
           <Clock className="h-3 w-3 text-[hsl(var(--primary))]" />
           <span className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--foreground))]">
             {session}
           </span>
         </div>
 
+        {/* Live / Delayed indicator */}
         <div className="flex items-center gap-1">
           {isLive ? (
             <>
               <Wifi className="h-3 w-3 text-emerald-500" />
-              <span className="text-[10px] text-emerald-500 font-medium">LIVE</span>
+              <span className="hidden sm:inline text-[10px] text-emerald-500 font-medium">LIVE</span>
             </>
           ) : (
             <>
               <WifiOff className="h-3 w-3 text-amber-500" />
-              <span className="text-[10px] text-amber-500 font-medium">DELAYED</span>
+              <span className="hidden sm:inline text-[10px] text-amber-500 font-medium">DELAYED</span>
             </>
           )}
         </div>

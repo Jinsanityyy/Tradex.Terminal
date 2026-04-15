@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CatalystFeed } from "@/components/shared/CatalystFeed";
 import { AssetSnapshotGrid } from "@/components/shared/AssetSnapshotGrid";
@@ -38,6 +38,16 @@ export default function DashboardPage() {
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [chartHeight, setChartHeight] = useState(900);
+
+  useEffect(() => {
+    function updateHeight() {
+      setChartHeight(window.innerWidth < 768 ? 400 : 900);
+    }
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+    return () => window.removeEventListener("resize", updateHeight);
+  }, []);
 
   const upcomingEvents  = events.filter(e => e.status === "upcoming" || e.status === "live");
   const completedEvents = events.filter(e => e.status === "completed");
@@ -168,7 +178,7 @@ export default function DashboardPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <TradingViewChart symbol="OANDA:XAUUSD" height={900} />
+          <TradingViewChart symbol="OANDA:XAUUSD" height={chartHeight} />
         </CardContent>
       </Card>
 

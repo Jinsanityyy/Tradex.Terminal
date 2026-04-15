@@ -980,7 +980,7 @@ export default function PnLCalendarPage() {
         {/* ── Calendar ── */}
         <Card className="overflow-hidden">
           {/* Month nav + stats bar */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[hsl(var(--border))]">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 py-3 border-b border-[hsl(var(--border))]">
             <div className="flex items-center gap-2">
               <button onClick={prevMonth} className="rounded-md p-1.5 hover:bg-[hsl(var(--secondary))] transition-colors">
                 <ChevronLeft className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
@@ -992,7 +992,7 @@ export default function PnLCalendarPage() {
                 <ChevronRight className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
               </button>
             </div>
-            <div className="flex items-center gap-5">
+            <div className="flex items-center gap-4 flex-wrap">
               {[
                 { label: "Trades", value: monthStats.trades },
                 { label: "Wins",   value: monthStats.wins },
@@ -1009,14 +1009,15 @@ export default function PnLCalendarPage() {
                   )}>{value}</p>
                 </div>
               ))}
-              <div className="flex items-center gap-1 text-[10px] text-[hsl(var(--muted-foreground))]/60 ml-2">
+              <div className="hidden sm:flex items-center gap-1 text-[10px] text-[hsl(var(--muted-foreground))]/60">
                 <Pencil className="h-2.5 w-2.5" />
                 <span>click date to journal</span>
               </div>
             </div>
           </div>
 
-          <CardContent className="p-0">
+          <CardContent className="p-0 overflow-x-auto">
+            <div className="min-w-[560px]">
             {/* Day headers */}
             <div className="grid grid-cols-8 border-b border-[hsl(var(--border))]">
               {DAYS.map(d => (
@@ -1120,6 +1121,7 @@ export default function PnLCalendarPage() {
                 </div>
               );
             })}
+            </div>
           </CardContent>
         </Card>
 

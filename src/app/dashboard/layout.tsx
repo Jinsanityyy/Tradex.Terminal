@@ -50,7 +50,7 @@ export default function DashboardLayout({
           </div>
         )}
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full p-5">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full p-4 md:p-5 pb-20 md:pb-5">
           {hasAccess ? children : <PaywallGate>{children}</PaywallGate>}
         </main>
       </div>

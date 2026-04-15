@@ -327,7 +327,7 @@ export default function LoginPage() {
         </div>
 
         {/* ── Right panel — form ── */}
-        <div className="flex-1 flex flex-col items-center justify-center relative z-10" style={{ paddingLeft: 48, paddingRight: 64, paddingTop: 48, paddingBottom: 48 }}>
+        <div className="flex-1 flex flex-col items-center justify-center relative z-10 px-6 py-10 sm:px-10 lg:px-12" style={{ paddingRight: undefined }}>
           {/* Mobile logo */}
           <div className="lg:hidden mb-10">
             {/* eslint-disable-next-line @next/next/no-img-element */}
