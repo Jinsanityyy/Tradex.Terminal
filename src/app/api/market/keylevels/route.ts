@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { deriveConvictionBias } from "@/lib/api/conviction";
+import { getAIAnalysisCache, getLastAIUpdateTs } from "@/lib/api/ai-analysis-cache";
+import type { AssetAIAnalysis } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -39,11 +41,11 @@ export type TradeStatus = "TRADE READY" | "WATCHLIST" | "NO TRADE";
 export interface KeyLevel {
   asset: string;
   price: number;
-  bias: "bullish" | "bearish" | "neutral";    // LTF Setup direction (structure-based)
-  htfBias: "bullish" | "bearish" | "neutral"; // HTF Bias (conviction-based, same engine as BiasCard)
-  htfConfidence: number;                       // conviction score that produced htfBias
-  smcContext: string;                          // SMC narrative from conviction engine (BOS/CHoCH/zone)
-  pctChange: number;                           // 24h % change — passed through for AI panel
+  bias: "bullish" | "bearish" | "neutral";    // LTF Setup direction
+  htfBias: "bullish" | "bearish" | "neutral"; // HTF Bias (AI structural or conviction engine)
+  htfConfidence: number;
+  smcContext: string;
+  pctChange: number;
   high52w: number;
   low52w: number;
   alignment: AlignmentContext;
@@ -55,9 +57,15 @@ export interface KeyLevel {
   fvg: FVG | null;
   entry: number;
   stopLoss: number;
-  takeProfit1: number;
-  takeProfit2: number;
-  takeProfit3: number;
+  // null = no valid liquidity target identified for this level (AI warm path only)
+  takeProfit1: number | null;
+  takeProfit2: number | null;
+  takeProfit3: number | null;
+  // Zone labels — WHY each level is where it is (from AI when warm)
+  entryZoneLabel: string;
+  slZoneLabel: string;
+  tp1ZoneLabel: string;
+  tp2ZoneLabel: string;
   riskReward: string;
   rrRatio: number;
   support: number;
@@ -77,12 +85,13 @@ let cache: { data: KeyLevel[]; ts: number } = { data: [], ts: 0 };
 const CACHE_TTL = 300_000; // 5 min
 
 const ASSETS = [
-  { symbol: "XAU/USD", display: "XAUUSD", step: 1,   pip: 1.0,   atr: 15 },
-  { symbol: "EUR/USD", display: "EURUSD", step: 0.0001, pip: 0.0001, atr: 0.0060 },
-  { symbol: "USD/JPY", display: "USDJPY", step: 0.01, pip: 0.01,  atr: 0.60 },
-  { symbol: "BTC/USD", display: "BTCUSD", step: 10,   pip: 10,    atr: 800 },
-  { symbol: "GBP/USD", display: "GBPUSD", step: 0.0001, pip: 0.0001, atr: 0.0080 },
-  { symbol: "USD/CAD", display: "USDCAD", step: 0.0001, pip: 0.0001, atr: 0.0060 },
+  // minSL: minimum SL distance in price units (prevents absurdly tight stops on low-volatility days)
+  { symbol: "XAU/USD", display: "XAUUSD", step: 1,      pip: 1.0,    atr: 15,   minSL: 12    },
+  { symbol: "EUR/USD", display: "EURUSD", step: 0.0001,  pip: 0.0001, atr: 0.006, minSL: 0.0025 },
+  { symbol: "USD/JPY", display: "USDJPY", step: 0.01,    pip: 0.01,   atr: 0.60,  minSL: 0.25  },
+  { symbol: "BTC/USD", display: "BTCUSD", step: 10,      pip: 10,     atr: 800,   minSL: 400   },
+  { symbol: "GBP/USD", display: "GBPUSD", step: 0.0001,  pip: 0.0001, atr: 0.008, minSL: 0.0025 },
+  { symbol: "USD/CAD", display: "USDCAD", step: 0.0001,  pip: 0.0001, atr: 0.006, minSL: 0.0025 },
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -473,6 +482,21 @@ function computeTradeStatus(
   };
 }
 
+// ── AI Phase Mapper ───────────────────────────────────────────────────────────
+// Maps Claude's market phase labels to the AlignmentContext.phase union type.
+
+function mapAIPhase(aiPhase: string): AlignmentContext["phase"] {
+  switch (aiPhase) {
+    case "Expansion": return "continuation";
+    case "Pullback":  return "pullback";
+    case "Accumulation":
+    case "Manipulation": return "accumulation";
+    case "Distribution": return "reversal";
+    case "Range":     return "ranging";
+    default:          return "continuation";
+  }
+}
+
 // ── SMC Entry / SL / TP ───────────────────────────────────────────────────────
 
 function calculateSMCLevels(
@@ -485,29 +509,38 @@ function calculateSMCLevels(
   high52w: number,
   low52w: number,
   rsi: number,
-  config: typeof ASSETS[0]
+  config: typeof ASSETS[0],
+  aiOverride?: AssetAIAnalysis   // Claude's analysis for this asset (may be undefined)
 ): KeyLevel {
-  const { step, atr } = config;
+  const { step, minSL } = config;
   const session = getSession();
 
-  // ── HTF Bias — conviction engine (same source as BiasCard) ─────────────────
-  // confidence >= 55 → directional bias; < 55 → neutral (no tradeable edge)
-  const macdHist = pctChange * 0.01; // same proxy used by bias route
+  // Dynamic ATR: use the larger of the hardcoded baseline or 50% of today's real range.
+  // This prevents absurdly tight stops on low-volatility narrow-range days.
+  const dailyRange = high - low;
+  const atr = Math.max(config.atr, dailyRange * 0.5);
+
+  // ── HTF Bias ──────────────────────────────────────────────────────────────
+  // When AI is warm: use Claude's structural HTF assessment.
+  // When cold: fall back to conviction engine (same as BiasCard).
+  const macdHist = pctChange * 0.01;
   const { bias: htfRawBias, confidence: htfConfidence, smcContext: htfSmcContext } =
     deriveConvictionBias(rsi, pctChange, price, high52w, low52w, macdHist, high, low, open, prevClose);
-  const htfBias = htfRawBias; // threshold already applied inside deriveConvictionBias
+  const htfBias: "bullish" | "bearish" | "neutral" =
+    aiOverride?.structuralBias ?? htfRawBias;
 
-  // ── LTF Bias — intraday structure analysis ───────────────────────────────
-  // Determines setup readiness only. Does NOT affect HTF Bias direction.
+  // ── LTF Bias (direction of the current setup) ─────────────────────────────
+  // AI warm: use Claude's setupBias.
+  // AI cold: heuristic from % change + position in day range.
   const posInRange = (high - low) > 0 ? (price - low) / (high - low) : 0.5;
   let bias: "bullish" | "bearish" | "neutral";
-  if      (pctChange > 0.25 && posInRange > 0.5) bias = "bullish";
-  else if (pctChange < -0.25 && posInRange < 0.5) bias = "bearish";
-  else bias = "neutral";
-
-  // If HTF has a directional bias but LTF structure is unclear → keep HTF,
-  // mark LTF as neutral (ranging). Never downgrade HTF due to LTF being unclear.
-  // (alignment + tradeStatus will reflect this as WATCHLIST or NO TRADE)
+  if (aiOverride) {
+    bias = aiOverride.setupBias;
+  } else {
+    if      (pctChange > 0.25 && posInRange > 0.5) bias = "bullish";
+    else if (pctChange < -0.25 && posInRange < 0.5) bias = "bearish";
+    else bias = "neutral";
+  }
 
   // Market structure
   const ms = analyzeMarketStructure(price, open, high, low, prevClose, high52w, low52w, pctChange);
@@ -533,58 +566,74 @@ function calculateSMCLevels(
   // FVG
   const fvg = detectFVG(price, open, high, low, prevClose, step);
 
-  // ── SMC Entry Logic ──
-  // Entry: at OB or FVG, NOT at current price
-  // SL: beyond structure (swing high/low), NOT fixed %
-  let entry: number, stopLoss: number, tp1: number, tp2: number, tp3: number;
+  // ── Entry / SL / TP ─────────────────────────────────────────────────────────
+  // Three paths:
+  //   A. AI warm + entry present  → use Claude's structural prices directly
+  //   B. AI warm + entry null     → Claude found no setup; mark NO TRADE at equilibrium
+  //   C. AI cold (no override)    → deterministic formula fallback (offline only)
+  let entry: number, stopLoss: number;
+  let tp1: number | null, tp2: number | null, tp3: number | null;
 
-  if (bias === "bullish") {
-    // Buy at OB/FVG in discount zone
-    const entryBase = ob.valid && ms.premiumDiscount === "discount"
-      ? ob.zone[1]                       // top of bullish OB
-      : fvg?.direction === "bullish" && fvg.midpoint < price
-      ? fvg.midpoint                     // FVG midpoint
-      : roundTo(ms.equilibrium * 0.998, step); // just below EQ
+  const aiHasLevels = aiOverride != null && aiOverride.entry != null;
+  const aiNoTrade   = aiOverride != null && aiOverride.entry == null;
 
-    entry    = roundTo(entryBase, step);
-    // SL: below structure swing low (beyond liquidity, not arbitrary %)
-    stopLoss = roundTo(Math.min(low - atr * 0.5, s1 - atr * 0.2), step);
-    const risk = Math.abs(entry - stopLoss);
-    // TP based on liquidity pools
-    tp1 = roundTo(entry + risk * 2.0, step);   // internal range high
-    tp2 = roundTo(entry + risk * 3.5, step);   // previous day high / resistance
-    tp3 = roundTo(entry + risk * 5.0, step);   // external liquidity / 52w high area
+  if (aiHasLevels) {
+    // ── PATH A: full AI ───────────────────────────────────────────────────────
+    // Claude placed entry/SL/TP from real market structure.
+    // TP1/TP2/TP3 are liquidity-based — null means no valid target was found.
+    // We pass them through as-is. No caps, no substitution, no R-multiple fallback.
+    entry    = aiOverride!.entry!;
+    stopLoss = aiOverride!.stopLoss ?? roundTo(
+      bias === "bullish" ? entry - minSL * 3 : entry + minSL * 3, step
+    );
+    tp1 = aiOverride!.tp1;
+    tp2 = aiOverride!.tp2;
+    tp3 = aiOverride!.tp3 ?? null;
 
-  } else if (bias === "bearish") {
-    // Sell at OB/FVG in premium zone
-    const entryBase = ob.valid && ms.premiumDiscount === "premium"
-      ? ob.zone[0]                       // bottom of bearish OB
-      : fvg?.direction === "bearish" && fvg.midpoint > price
-      ? fvg.midpoint                     // FVG midpoint
-      : roundTo(ms.equilibrium * 1.002, step); // just above EQ
-
-    entry    = roundTo(entryBase, step);
-    // SL: above structure swing high
-    stopLoss = roundTo(Math.max(high + atr * 0.5, r1 + atr * 0.2), step);
-    const risk = Math.abs(stopLoss - entry);
-    tp1 = roundTo(entry - risk * 2.0, step);
-    tp2 = roundTo(entry - risk * 3.5, step);
-    tp3 = roundTo(entry - risk * 5.0, step);
+  } else if (aiNoTrade) {
+    // ── PATH B: AI found no setup ─────────────────────────────────────────────
+    entry    = roundTo(ms.equilibrium, step);
+    stopLoss = entry;
+    tp1 = tp2 = tp3 = null;
 
   } else {
-    // Neutral: no directional trade, mark range
-    entry    = roundTo(ms.equilibrium, step);
-    stopLoss = roundTo(low - atr * 0.3, step);
-    const risk = Math.abs(entry - stopLoss);
-    tp1 = roundTo(entry + risk * 2.0, step);
-    tp2 = roundTo(entry + risk * 3.5, step);
-    tp3 = roundTo(entry + risk * 5.0, step);
+    // ── PATH C: cold cache — formula fallback (used before AI has run) ────────
+    if (bias === "bullish") {
+      const entryBase = ob.valid
+        ? ob.zone[1]
+        : fvg?.direction === "bullish" && !fvg.filled ? fvg.midpoint
+        : roundTo(ms.equilibrium * 0.998, step);
+      entry    = roundTo(entryBase, step);
+      const rawSL = roundTo(Math.min(low - atr * 0.7, s1 - atr * 0.3), step);
+      stopLoss = roundTo(Math.min(rawSL, entry - minSL), step);
+      const r  = Math.abs(entry - stopLoss);
+      tp1 = roundTo(entry + r * 1.5, step);
+      tp2 = roundTo(entry + r * 2.5, step);
+      tp3 = roundTo(entry + r * 4.0, step);
+
+    } else if (bias === "bearish") {
+      const entryBase = ob.valid
+        ? ob.zone[0]
+        : fvg?.direction === "bearish" && !fvg.filled ? fvg.midpoint
+        : roundTo(ms.equilibrium * 1.002, step);
+      entry    = roundTo(entryBase, step);
+      const rawSL = roundTo(Math.max(high + atr * 0.7, r1 + atr * 0.3), step);
+      stopLoss = roundTo(Math.max(rawSL, entry + minSL), step);
+      const r  = Math.abs(stopLoss - entry);
+      tp1 = roundTo(entry - r * 1.5, step);
+      tp2 = roundTo(entry - r * 2.5, step);
+      tp3 = roundTo(entry - r * 4.0, step);
+
+    } else {
+      entry = stopLoss = roundTo(ms.equilibrium, step);
+      tp1 = tp2 = tp3 = null;
+    }
   }
 
-  // R:R calculation
-  const risk   = Math.abs(entry - stopLoss);
-  const reward = Math.abs(tp1 - entry);
-  const rrRatio = risk > 0 ? parseFloat((reward / risk).toFixed(1)) : 0;
+  // R:R — computed against TP1 when available; null TP1 means R:R is not yet defined
+  const riskAmt  = Math.abs(entry - stopLoss);
+  const rewardAmt = tp1 != null ? Math.abs(tp1 - entry) : 0;
+  const rrRatio  = riskAmt > 0 && rewardAmt > 0 ? parseFloat((rewardAmt / riskAmt).toFixed(1)) : 0;
 
   // ── Confluence Scoring ──
   const confluences = buildConfluences(bias, ms, ob, fvg, session, rsi, price, pivot);
@@ -625,11 +674,30 @@ function calculateSMCLevels(
 
   // ── Note ──
   const dec = step < 0.001 ? 5 : step < 0.01 ? 4 : step < 1 ? 2 : 0;
+  const tp1Str = tp1 != null ? tp1.toFixed(dec) : "pending";
   const note = setupQuality === "NO TRADE"
     ? `NO TRADE — ${confluenceCount < 3 ? "insufficient confluences" : bias === "neutral" ? "no directional bias" : "R:R below 1:2"}. Wait for structure to develop.`
     : bias === "bullish"
-    ? `${setupQuality} LONG — Entry at OB/FVG ${entry.toFixed(dec)}, SL below structure ${stopLoss.toFixed(dec)}, TP1 ${tp1.toFixed(dec)} (1:${rrRatio} R:R). ${confluenceCount} confluences. ${session} session.`
-    : `${setupQuality} SHORT — Entry at OB/FVG ${entry.toFixed(dec)}, SL above structure ${stopLoss.toFixed(dec)}, TP1 ${tp1.toFixed(dec)} (1:${rrRatio} R:R). ${confluenceCount} confluences. ${session} session.`;
+    ? `${setupQuality} LONG — Entry ${entry.toFixed(dec)}, SL ${stopLoss.toFixed(dec)}, TP1 ${tp1Str}${rrRatio > 0 ? ` (1:${rrRatio} R:R)` : ""}. ${confluenceCount} confluences. ${session} session.`
+    : `${setupQuality} SHORT — Entry ${entry.toFixed(dec)}, SL ${stopLoss.toFixed(dec)}, TP1 ${tp1Str}${rrRatio > 0 ? ` (1:${rrRatio} R:R)` : ""}. ${confluenceCount} confluences. ${session} session.`;
+
+  // ── AI Override — replace qualitative outputs with Claude's analysis ────────
+  const finalTradeStatus       = aiOverride ? aiOverride.tradeStatus           : tradeStatus;
+  const finalTradeStatusReason = aiOverride ? aiOverride.setupNarrative         : tradeStatusReason;
+  const finalConfluences       = aiOverride ? aiOverride.supportingFactors      : confluences;
+  const finalConfluenceCount   = aiOverride ? aiOverride.supportingFactors.length : confluenceCount;
+  const finalSessionNote       = aiOverride ? aiOverride.waitFor                : sessionNote;
+  const finalNote              = aiOverride
+    ? `${aiOverride.confirms} | Invalidated if: ${aiOverride.invalidates}`
+    : note;
+  const finalAlignment: AlignmentContext = aiOverride
+    ? { ...alignment, phase: mapAIPhase(aiOverride.marketPhase), explanation: aiOverride.narrative }
+    : alignment;
+  // Level zone descriptions — from AI when warm, structural fallback when cold
+  const entryZoneLabel = aiOverride?.entryZone ?? (bias === "neutral" ? "Range equilibrium — no directional setup" : ob.valid ? `${bias} OB zone ${ob.zone[0].toFixed(2)}–${ob.zone[1].toFixed(2)}` : fvg && !fvg.filled ? `${fvg.direction} FVG midpoint ${fvg.midpoint.toFixed(4)}` : "Equilibrium zone");
+  const slZoneLabel    = aiOverride?.slZone    ?? (bias === "bullish" ? `Below swing low — structural invalidation` : bias === "bearish" ? `Above swing high — structural invalidation` : "Range bound — no directional SL");
+  const tp1ZoneLabel   = aiOverride?.tp1Zone   ?? (bias === "bullish" ? `Session high / resistance ${resistance.toFixed(2)}` : bias === "bearish" ? `Session low / support ${support.toFixed(2)}` : "Range reference only");
+  const tp2ZoneLabel   = aiOverride?.tp2Zone   ?? (bias !== "neutral" ? `52-week ${bias === "bullish" ? "high " + high52w.toFixed(2) : "low " + low52w.toFixed(2)} — external liquidity` : "Range reference only");
 
   return {
     asset: config.display,
@@ -637,13 +705,13 @@ function calculateSMCLevels(
     pctChange,
     high52w,
     low52w,
-    bias,             // LTF Setup direction (structure-based)
-    htfBias,          // HTF Bias (conviction engine — matches BiasCard)
-    htfConfidence,    // conviction score
-    smcContext: htfSmcContext,  // BOS/CHoCH/zone context for AI panel
-    alignment,        // HTF vs LTF reconciliation
-    tradeStatus,      // TRADE READY | WATCHLIST | NO TRADE
-    tradeStatusReason,
+    bias,
+    htfBias,
+    htfConfidence,
+    smcContext: htfSmcContext,
+    alignment: finalAlignment,
+    tradeStatus: finalTradeStatus,
+    tradeStatusReason: finalTradeStatusReason,
     setupQuality,
     marketStructure: ms,
     orderBlock: ob,
@@ -653,6 +721,10 @@ function calculateSMCLevels(
     takeProfit1: tp1,
     takeProfit2: tp2,
     takeProfit3: tp3,
+    entryZoneLabel,
+    slZoneLabel,
+    tp1ZoneLabel,
+    tp2ZoneLabel,
     riskReward: `1:${rrRatio}`,
     rrRatio,
     support,
@@ -661,18 +733,23 @@ function calculateSMCLevels(
     pdHigh,
     pdLow,
     liquidityTarget,
-    confluences,
-    confluenceCount,
+    confluences: finalConfluences,
+    confluenceCount: finalConfluenceCount,
     sessionContext: session,
-    sessionNote,
-    note,
+    sessionNote: finalSessionNote,
+    note: finalNote,
   };
 }
 
 // ── Route ─────────────────────────────────────────────────────────────────────
 
 export async function GET() {
-  if (cache.data.length > 0 && Date.now() - cache.ts < CACHE_TTL) {
+  // Serve cached response only if:
+  //   1. Cache is warm (data exists + within TTL), AND
+  //   2. The AI analysis has NOT been updated since we last computed
+  //      (if AI ran after our last cache → bust and re-compute with AI overrides)
+  const aiUpdatedAfterCache = getLastAIUpdateTs() > cache.ts;
+  if (cache.data.length > 0 && Date.now() - cache.ts < CACHE_TTL && !aiUpdatedAfterCache) {
     return NextResponse.json({ data: cache.data, timestamp: cache.ts, cached: true });
   }
 
@@ -704,6 +781,11 @@ export async function GET() {
       })
     );
 
+    // Read shared AI analysis cache (populated by /api/market/ai-analysis).
+    // Returns null when the AI route has not run yet in this process cycle.
+    // In that case every asset falls back to pure heuristic logic.
+    const aiCache = getAIAnalysisCache();
+
     const levels: KeyLevel[] = [];
 
     for (let i = 0; i < ASSETS.length; i++) {
@@ -721,8 +803,11 @@ export async function GET() {
       const low52w    = parseFloat(quote.fifty_two_week?.low  ?? String(price * 0.9));
       const rsi       = rsiResults[i];
 
+      // config.display is the AI cache key ("XAUUSD", "EURUSD", etc.)
+      const aiOverride = aiCache?.[config.display] ?? undefined;
+
       if (price > 0) {
-        levels.push(calculateSMCLevels(price, high, low, open, prevClose, pctChange, high52w, low52w, rsi, config));
+        levels.push(calculateSMCLevels(price, high, low, open, prevClose, pctChange, high52w, low52w, rsi, config, aiOverride));
       }
     }
 

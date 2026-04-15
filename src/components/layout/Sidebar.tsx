@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Target, Zap, CalendarDays, UserCircle,
   Grid3X3, Clock, Newspaper, BrainCircuit, Settings,
-  ChevronLeft, BarChart2, Users,
+  ChevronLeft, BarChart2, Users, Brain,
 } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 
@@ -21,6 +21,7 @@ const navItems = [
   { label: "Session Intelligence", href: "/dashboard/session-intelligence", icon: Clock },
   { label: "News Flow", href: "/dashboard/news-flow", icon: Newspaper },
   { label: "AI Briefing", href: "/dashboard/ai-briefing", icon: BrainCircuit },
+  { label: "Multi-Agent Brain", href: "/dashboard/brain", icon: Brain, accent2: true },
   { label: "Agent Debate", href: "/dashboard/agent-debate", icon: Users, accent: true },
   { label: "PnL Calendar", href: "/dashboard/pnl-calendar", icon: BarChart2, accent2: true },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },

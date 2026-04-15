@@ -30,6 +30,55 @@ export interface AssetSnapshot {
   momentum: "strong" | "moderate" | "weak";
 }
 
+// ── AI Analysis (per asset, from /api/market/ai-analysis) ──────────────────────
+export interface AssetAIAnalysis {
+  // Action callout
+  action: string;               // "Look for BUY Setups" | "Look for SELL Setups" | "Wait for Confirmation" | "Avoid Trading"
+  actionSub: string;            // one-line description
+  actionIntent: "buy" | "sell" | "wait" | "avoid";
+
+  // Market phase
+  marketPhase: string;          // "Accumulation" | "Expansion" | "Distribution" | "Pullback" | "Manipulation" | "Range"
+  phaseDescription: string;     // one sentence
+
+  // Narrative
+  narrative: string;            // 2-3 sentence macro + price action analysis
+
+  // Factors
+  supportingFactors: string[];  // 3-5 SMC/macro bullet points
+  invalidationFactors: string[]; // 3-5 bullet points
+
+  // Execution guidance
+  waitFor: string;
+  confirms: string;
+  invalidates: string;
+
+  // Trade status
+  tradeStatus: "TRADE READY" | "WATCHLIST" | "NO TRADE";
+  setupNarrative: string;       // 1-2 sentence setup rationale
+
+  // ── Structural bias (Claude's own structural assessment) ─────────────────────
+  // structuralBias: HTF trend read from price structure (52w position, displacement)
+  // setupBias: direction of the current LTF setup
+  structuralBias: "bullish" | "bearish" | "neutral";
+  setupBias: "bullish" | "bearish" | "neutral";
+
+  // ── AI-derived price levels ──────────────────────────────────────────────────
+  // Claude places these based on market structure, OB/FVG/liquidity — NOT formulas.
+  // null = no clean setup exists (NO TRADE) or too uncertain to specify (WATCHLIST).
+  entry: number | null;
+  stopLoss: number | null;
+  tp1: number | null;
+  tp2: number | null;
+  tp3: number | null;
+
+  // Reasoning for each level — shown in the expanded Key Levels card view
+  entryZone: string;   // e.g. "Bullish OB 2678–2682 — last bearish candle before rally"
+  slZone: string;      // e.g. "Below swing low 2661 — thesis invalid on close below"
+  tp1Zone: string;     // e.g. "Equal highs 2710 — prior session liquidity pool"
+  tp2Zone: string;     // e.g. "Weekly resistance 2735 — external liquidity"
+}
+
 export interface BiasData {
   asset: string;
   bias: Bias;

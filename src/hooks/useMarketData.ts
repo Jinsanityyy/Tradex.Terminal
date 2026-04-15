@@ -2,7 +2,7 @@
 
 import useSWR, { mutate } from "swr";
 import { useCallback } from "react";
-import type { AssetSnapshot, NewsItem, EconomicEvent, TrumpPost, BiasData, Catalyst, SessionSummary, MarketNarrative, TradeContext, Sentiment } from "@/types";
+import type { AssetSnapshot, NewsItem, EconomicEvent, TrumpPost, BiasData, Catalyst, SessionSummary, MarketNarrative, TradeContext, Sentiment, AssetAIAnalysis } from "@/types";
 import type { KeyLevel } from "@/app/api/market/keylevels/route";
 
 const fetcher = async (url: string) => {
@@ -193,6 +193,24 @@ export function useKeyLevels(refreshInterval = 300_000) {
     isLive: hasLive,
     isLoading,
     error,
+  };
+}
+
+// ── AI Analysis (Claude-powered per-asset) ──────────────────
+export function useAIAnalysis(refreshInterval = 600_000) {
+  const { data, isLoading } = useSWR<{
+    data: Record<string, AssetAIAnalysis>;
+    timestamp: number;
+    cached?: boolean;
+  }>("/api/market/ai-analysis", fetcher, {
+    refreshInterval,
+    revalidateOnFocus: false,
+    dedupingInterval: 300_000,
+  });
+
+  return {
+    aiData: data?.data ?? {} as Record<string, AssetAIAnalysis>,
+    aiLoading: isLoading,
   };
 }
 

@@ -34,11 +34,11 @@ export async function ensureCacheWarm(): Promise<void> {
     // Warm from CoinGecko (crypto) + Yahoo (forex/commodities)
     const [cryptoRes, goldRes, eurRes, gbpRes, jpyRes, oilRes] = await Promise.all([
       fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,litecoin&vs_currencies=usd&include_24hr_change=true", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch("https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=2d", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch("https://query1.finance.yahoo.com/v8/finance/chart/EURUSD=X?interval=1d&range=2d", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch("https://query1.finance.yahoo.com/v8/finance/chart/GBPUSD=X?interval=1d&range=2d", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch("https://query1.finance.yahoo.com/v8/finance/chart/JPY=X?interval=1d&range=2d", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch("https://query1.finance.yahoo.com/v8/finance/chart/CL=F?interval=1d&range=2d", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch("https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=5d", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch("https://query1.finance.yahoo.com/v8/finance/chart/EURUSD=X?interval=1d&range=5d", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch("https://query1.finance.yahoo.com/v8/finance/chart/GBPUSD=X?interval=1d&range=5d", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch("https://query1.finance.yahoo.com/v8/finance/chart/JPY=X?interval=1d&range=5d", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch("https://query1.finance.yahoo.com/v8/finance/chart/CL=F?interval=1d&range=5d", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
 
     const parseYahoo = (data: any) => {
@@ -48,6 +48,11 @@ export async function ensureCacheWarm(): Promise<void> {
       const prev = meta.chartPreviousClose || price;
       const change = price - prev;
       const pct = prev ? (change / prev) * 100 : 0;
+
+      // Extract 52-week range when available from Yahoo meta
+      const w52high = meta.fiftyTwoWeekHigh || meta.regularMarketDayHigh || null;
+      const w52low  = meta.fiftyTwoWeekLow  || meta.regularMarketDayLow  || null;
+
       return {
         close: price.toString(), previous_close: prev.toString(),
         open: (meta.regularMarketOpen || price).toString(),
@@ -55,6 +60,9 @@ export async function ensureCacheWarm(): Promise<void> {
         low: (meta.regularMarketDayLow || price).toString(),
         change: change.toString(), percent_change: pct.toString(),
         is_market_open: true,
+        ...(w52high && w52low ? {
+          fifty_two_week: { high: w52high.toString(), low: w52low.toString() }
+        } : {}),
       };
     };
 

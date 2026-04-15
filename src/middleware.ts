@@ -14,12 +14,14 @@ export async function middleware(req: NextRequest) {
   // ── Supabase session refresh ────────────────────────────────────────────────
   // REQUIRED by @supabase/ssr: refreshes the JWT so server-side getUser() works.
   // Without this, all API routes return "Unauthorized" even when logged in.
+  // Guard: skip entirely when Supabase env vars are not configured (local dev without auth).
   let response = NextResponse.next({ request: req });
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (supabaseUrl && supabaseKey) {
+    const supabase = createServerClient(supabaseUrl, supabaseKey, {
       cookies: {
         getAll() { return req.cookies.getAll(); },
         setAll(cookiesToSet) {
@@ -30,11 +32,10 @@ export async function middleware(req: NextRequest) {
           );
         },
       },
-    }
-  );
-
-  // Refreshes the session token — do not remove
-  await supabase.auth.getUser();
+    });
+    // Refreshes the session token — do not remove
+    await supabase.auth.getUser();
+  }
 
   // ── Mobile redirect ─────────────────────────────────────────────────────────
   const isStatic = pathname.startsWith("/_next") || pathname.startsWith("/api") || pathname.startsWith("/favicon");

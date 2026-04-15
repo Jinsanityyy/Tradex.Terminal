@@ -2,18 +2,22 @@
 
 import React, { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BiasCard } from "@/components/shared/BiasCard";
+import { SupportInvalidationCard } from "@/components/shared/SupportInvalidationCard";
 import { CatalystFeed } from "@/components/shared/CatalystFeed";
 import { AssetSnapshotGrid } from "@/components/shared/AssetSnapshotGrid";
+import { MarketNarrativePanel } from "@/components/shared/MarketNarrativePanel";
 import { SessionSummaryCard } from "@/components/shared/SessionSummaryCard";
 import { TradeContextBox } from "@/components/shared/TradeContextBox";
 import { EconomicEventTable } from "@/components/shared/EconomicEventTable";
 import { TrumpImpactPreview } from "@/components/shared/TrumpFeedPanel";
 import { SentimentBadge, RegimeBadge } from "@/components/shared/RegimeBadge";
-import { BrainTerminal } from "@/components/brain/BrainTerminal";
+import { ConvictionMeter } from "@/components/shared/ConvictionMeter";
+import { KeyLevelsCard } from "@/components/shared/KeyLevelsCard";
 import {
   useQuotes, useEconomicCalendar, useTrumpPosts,
-  useMarketBias, useCatalysts, useSessions,
-  useMarketAnalysis,
+  useMarketBias, useCatalysts, useSessions, useKeyLevels,
+  useMarketAnalysis, useAIAnalysis,
 } from "@/hooks/useMarketData";
 import { cn } from "@/lib/utils";
 import {
@@ -30,10 +34,12 @@ export default function DashboardPage() {
   const { biasData } = useMarketBias();
   const { catalysts } = useCatalysts();
   const { sessions } = useSessions();
+  const { levels } = useKeyLevels();
+  const { aiData } = useAIAnalysis();
   const {
-    tradeContext, sentiment,
+    narrative, tradeContext, sentiment,
     generatedAt, isLive: isAnalysisLive,
-    generateFresh, narrative,
+    generateFresh,
   } = useMarketAnalysis();
 
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -42,6 +48,14 @@ export default function DashboardPage() {
   const completedEvents = events.filter(e => e.status === "completed");
   const goldBias = biasData.length > 0 ? biasData[0] : null;
   const activeSessions = sessions.filter(s => s.status === "active" || s.status === "closed");
+
+  // Map from BiasData display names → AI analysis symbol keys
+  const DISPLAY_TO_SYMBOL: Record<string, string> = {
+    "Gold (XAUUSD)":                   "XAUUSD",
+    "EUR/USD (DXY Proxy)":             "EURUSD",
+    "S&P 500 Risk Proxy (USDJPY)":     "USDJPY",
+    "Bitcoin (BTC)":                   "BTCUSD",
+  };
 
   // Fullscreen toggle
   const toggleFullscreen = useCallback(() => {
@@ -72,9 +86,8 @@ export default function DashboardPage() {
     : null;
 
   return (
-    <div className="w-full space-y-5">
-
-      {/* ── COMMAND CENTER HEADER ─────────────────────────────────────────────── */}
+    <div className="space-y-5">
+      {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold text-[hsl(var(--foreground))]">Command Center</h1>
@@ -156,10 +169,61 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Multi-Agent Brain — below chart */}
-      <BrainTerminal />
+      {/* Bias Panel — below chart, 3 cols */}
+      {goldBias && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <BiasCard
+            asset={goldBias.asset}
+            bias={goldBias.bias}
+            confidence={goldBias.confidence}
+            supportingFactors={goldBias.supportingFactors}
+            invalidationFactors={goldBias.invalidationFactors}
+            smcContext={(goldBias as any).smcContext}
+            sessionBehavior={goldBias.sessionBehavior}
+            macroDrivers={goldBias.macroDrivers}
+            aiAnalysis={aiData[DISPLAY_TO_SYMBOL[goldBias.asset]]}
+          />
+          <SupportInvalidationCard type="support" items={(goldBias.supportingFactors ?? []).slice(0, 4)} />
+          <SupportInvalidationCard type="invalidation" items={(goldBias.invalidationFactors ?? []).slice(0, 4)} />
+        </div>
+      )}
 
-      {/* Catalysts + Events */}
+      {/* Bias mini cards — all assets */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {biasData.map((b) => (
+          <BiasCard
+            key={b.asset}
+            asset={b.asset}
+            bias={b.bias}
+            confidence={b.confidence}
+            compact
+            supportingFactors={b.supportingFactors}
+            invalidationFactors={b.invalidationFactors}
+            smcContext={(b as any).smcContext}
+            sessionBehavior={b.sessionBehavior}
+            macroDrivers={b.macroDrivers}
+            aiAnalysis={aiData[DISPLAY_TO_SYMBOL[b.asset]]}
+          />
+        ))}
+      </div>
+
+      {/* Narrative + Conviction */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        <div className="lg:col-span-2">
+          <MarketNarrativePanel narrative={narrative} />
+        </div>
+        <Card className="gradient-card flex flex-col items-center justify-center p-6 gap-2">
+          <ConvictionMeter value={narrative.conviction} label="Geo Risk" size="md" />
+          <p className="text-[10px] text-center text-[hsl(var(--muted-foreground))] uppercase tracking-wider">
+            {narrative.dominantTheme}
+          </p>
+          <p className="text-[9px] text-center text-[hsl(var(--muted-foreground))]/60 leading-relaxed max-w-[140px]">
+            Geopolitical impact score — one sub-factor of overall bias conviction
+          </p>
+        </Card>
+      </div>
+
+      {/* Row 4: Catalysts + Events */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Card>
           <CardHeader className="pb-2">
@@ -196,7 +260,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Cross-Asset Snapshot */}
+      {/* Row 5: Asset Snapshot */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center justify-between">
@@ -214,7 +278,12 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Sessions + Trump + AI Trade Context */}
+      {/* Row 6: Key Levels — Entry / SL / TP */}
+      {levels.length > 0 && (
+        <KeyLevelsCard levels={levels} compact aiAnalysisMap={aiData} />
+      )}
+
+      {/* Row 7: Sessions + Trump + AI Trade Context — ALL LIVE */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <div className="lg:col-span-1 space-y-3">
           <TrumpImpactPreview posts={trumpPosts} />
@@ -229,7 +298,6 @@ export default function DashboardPage() {
           ))}
         </div>
       </div>
-
     </div>
   );
 }

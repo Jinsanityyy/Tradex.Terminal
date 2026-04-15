@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { ChevronDown, ChevronUp, AlertTriangle, Zap, Settings2, Filter, CheckCircle2, Clock, XCircle } from "lucide-react";
 import type { KeyLevel } from "@/app/api/market/keylevels/route";
+import type { AssetAIAnalysis } from "@/types";
 
 // ── Calculation config — SINGLE SOURCE OF TRUTH ──────────────────────────────
 //
@@ -11,7 +12,9 @@ import type { KeyLevel } from "@/app/api/market/keylevels/route";
 //
 // Pip assets (forex): dollar = pips × (lotSize/0.01) × pipVal01
 
-const DIRECT_DOLLAR_ASSETS = new Set(["XAUUSD"]);
+// DIRECT_DOLLAR_ASSETS: dollar value = raw price distance (no pip scaling).
+// Gold: $4676 move 169pts → -$169  |  BTC: $67,000 move $800 → -$800
+const DIRECT_DOLLAR_ASSETS = new Set(["XAUUSD", "BTCUSD"]);
 
 const PIP_CONFIG: Record<string, { multiplier: number; pipVal01: number; maxPips: number }> = {
   EURUSD: { multiplier: 10000, pipVal01: 0.10, maxPips: 500   },
@@ -22,8 +25,8 @@ const PIP_CONFIG: Record<string, { multiplier: number; pipVal01: number; maxPips
 };
 
 const MAX_SL_DISTANCE: Record<string, number> = {
-  XAUUSD: 800, // $800 max SL — beyond this the setup is considered unrealistic
-  BTCUSD: 5000,
+  XAUUSD: 150,   // >$150 SL per oz is unrealistic for intraday gold
+  BTCUSD: 5000,  // >$5000 SL per BTC is unrealistic for intraday
 };
 
 // ── Single dollar calculation — use everywhere, no exceptions ─────────────────
@@ -131,13 +134,13 @@ function tradeStatusConfig(status: TradeStatus): {
 // ── Gradient R:R Line ─────────────────────────────────────────────────────────
 
 function RRLine({ entry, sl, tp1, tp2, asset, lotSize }: {
-  entry: number; sl: number; tp1: number; tp2: number; asset: string; lotSize: number;
+  entry: number; sl: number; tp1: number | null; tp2: number | null; asset: string; lotSize: number;
 }) {
-  // All calculations go through levelDollar — single source of truth
+  if (tp1 == null) return null; // no liquidity target identified — skip R:R line
   const isDirect  = DIRECT_DOLLAR_ASSETS.has(asset);
   const slDollar  = levelDollar(entry, sl,  lotSize, asset);
   const tp1Dollar = levelDollar(entry, tp1, lotSize, asset);
-  const tp2Dollar = levelDollar(entry, tp2, lotSize, asset);
+  const tp2Dollar = tp2 != null ? levelDollar(entry, tp2, lotSize, asset) : tp1Dollar * 1.5;
 
   const total = slDollar + tp2Dollar;
   if (total === 0) return null;
@@ -149,7 +152,7 @@ function RRLine({ entry, sl, tp1, tp2, asset, lotSize }: {
   // Pip labels only shown for forex assets
   const slPips  = !isDirect ? calcPips(entry, sl,  asset) : 0;
   const tp1Pips = !isDirect ? calcPips(entry, tp1, asset) : 0;
-  const tp2Pips = !isDirect ? calcPips(entry, tp2, asset) : 0;
+  const tp2Pips = !isDirect && tp2 != null ? calcPips(entry, tp2, asset) : 0;
 
   return (
     <div className="relative mt-4">
@@ -203,12 +206,12 @@ function RRLine({ entry, sl, tp1, tp2, asset, lotSize }: {
           </p>
         </div>
         <div className="text-right">
-          <p className="text-[9px] font-mono" style={{ color: "#00C89680" }}>TP2</p>
-          {!isDirect && (
+          <p className="text-[9px] font-mono" style={{ color: "#00C89680" }}>{tp2 != null ? "TP2" : "~TP2"}</p>
+          {!isDirect && tp2 != null && (
             <p className="text-[9px] font-mono font-semibold" style={{ color: "#00C89680" }}>+{tp2Pips}p</p>
           )}
           <p className="text-[9px] font-mono font-semibold" style={{ color: "#00C89650" }}>
-            {fmtDollar(tp2Dollar, "+", asset)}
+            {tp2 != null ? fmtDollar(tp2Dollar, "+", asset) : "—"}
           </p>
         </div>
       </div>
@@ -295,8 +298,8 @@ function LevelLine({ label, price, entry, asset, lotSize, direction }: {
 
 // ── Single asset row ──────────────────────────────────────────────────────────
 
-function AssetRow({ level, defaultOpen, lotSize }: {
-  level: KeyLevel; defaultOpen: boolean; lotSize: number;
+function AssetRow({ level, defaultOpen, lotSize, aiAnalysis }: {
+  level: KeyLevel; defaultOpen: boolean; lotSize: number; aiAnalysis?: AssetAIAnalysis;
 }) {
   const [open, setOpen] = useState(defaultOpen);
 
@@ -511,27 +514,80 @@ function AssetRow({ level, defaultOpen, lotSize }: {
                 </div>
 
                 {/* Entry row */}
-                <div className="flex items-center justify-between py-2 mb-1"
-                  style={{ borderBottom: "1px solid var(--t-border-sub)" }}>
-                  <span className="text-[10px] font-semibold uppercase tracking-wider w-8" style={{ color: "var(--t-muted)" }}>
-                    ENTRY
-                  </span>
-                  <span className="text-[15px] font-mono font-bold flex-1 text-center" style={{ color: "var(--t-text)" }}>
-                    {fmt(level.entry, level.asset)}
-                  </span>
-                  <span className="text-[10px] font-mono text-right" style={{ color: "var(--t-muted)" }}>
-                    at {level.marketStructure?.premiumDiscount ?? "—"}
-                  </span>
+                <div className="py-2 mb-1" style={{ borderBottom: "1px solid var(--t-border-sub)" }}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider w-8" style={{ color: "var(--t-muted)" }}>
+                      ENTRY
+                    </span>
+                    <span className="text-[15px] font-mono font-bold flex-1 text-center" style={{ color: "var(--t-text)" }}>
+                      {fmt(level.entry, level.asset)}
+                    </span>
+                    <span className="text-[10px] font-mono text-right" style={{ color: "var(--t-muted)" }}>
+                      at {level.marketStructure?.premiumDiscount ?? "—"}
+                    </span>
+                  </div>
+                  {level.entryZoneLabel && (
+                    <p className="text-[9px] mt-1 pl-10 leading-relaxed" style={{ color: "var(--t-muted)", opacity: 0.7 }}>
+                      {level.entryZoneLabel}
+                    </p>
+                  )}
                 </div>
 
-                <LevelLine label="SL"  price={level.stopLoss}    entry={level.entry} asset={level.asset} lotSize={lotSize} direction="risk"    />
-                <LevelLine label="TP1" price={level.takeProfit1} entry={level.entry} asset={level.asset} lotSize={lotSize} direction="reward"  />
-                <LevelLine label="TP2" price={level.takeProfit2} entry={level.entry} asset={level.asset} lotSize={lotSize} direction="reward2" />
-                {level.takeProfit3 && tp3Dollar > 0 && (
+                {/* SL with zone label */}
+                <div>
+                  <LevelLine label="SL" price={level.stopLoss} entry={level.entry} asset={level.asset} lotSize={lotSize} direction="risk" />
+                  {level.slZoneLabel && (
+                    <p className="text-[9px] pb-1.5 pl-10 leading-relaxed" style={{ color: "#FF4D4F", opacity: 0.55 }}>
+                      {level.slZoneLabel}
+                    </p>
+                  )}
+                </div>
+
+                {/* TP1 with zone label — null = no liquidity target identified */}
+                <div>
+                  {level.takeProfit1 != null
+                    ? <LevelLine label="TP1" price={level.takeProfit1} entry={level.entry} asset={level.asset} lotSize={lotSize} direction="reward" />
+                    : (
+                      <div className="flex items-center justify-between py-1.5" style={{ borderBottom: "1px solid var(--t-border-sub)" }}>
+                        <span className="text-[10px] font-semibold uppercase tracking-wider w-8" style={{ color: "#00C89660" }}>TP1</span>
+                        <span className="text-[11px] flex-1 text-center italic" style={{ color: "var(--t-muted)" }}>
+                          No liquidity target identified
+                        </span>
+                      </div>
+                    )
+                  }
+                  {level.tp1ZoneLabel && level.takeProfit1 != null && (
+                    <p className="text-[9px] pb-1.5 pl-10 leading-relaxed" style={{ color: "#00C896", opacity: 0.55 }}>
+                      {level.tp1ZoneLabel}
+                    </p>
+                  )}
+                </div>
+
+                {/* TP2 with zone label */}
+                <div>
+                  {level.takeProfit2 != null
+                    ? <LevelLine label="TP2" price={level.takeProfit2} entry={level.entry} asset={level.asset} lotSize={lotSize} direction="reward2" />
+                    : (
+                      <div className="flex items-center justify-between py-1.5" style={{ borderBottom: "1px solid var(--t-border-sub)" }}>
+                        <span className="text-[10px] font-semibold uppercase tracking-wider w-8" style={{ color: "#00C89640" }}>TP2</span>
+                        <span className="text-[11px] flex-1 text-center italic" style={{ color: "var(--t-muted)", opacity: 0.5 }}>
+                          —
+                        </span>
+                      </div>
+                    )
+                  }
+                  {level.tp2ZoneLabel && level.takeProfit2 != null && (
+                    <p className="text-[9px] pb-0.5 pl-10 leading-relaxed" style={{ color: "#00C89670", opacity: 0.55 }}>
+                      {level.tp2ZoneLabel}
+                    </p>
+                  )}
+                </div>
+
+                {level.takeProfit3 != null && tp3Dollar > 0 && (
                   <div className="flex items-center justify-between py-1.5">
                     <span className="text-[10px] font-semibold uppercase tracking-wider w-8" style={{ color: "#00C89650" }}>TP3</span>
                     <span className="text-[13px] font-mono font-bold flex-1 text-center" style={{ color: "var(--t-text)", opacity: 0.5 }}>
-                      {fmt(level.takeProfit3!, level.asset)}
+                      {fmt(level.takeProfit3, level.asset)}
                     </span>
                     <span className="text-[10px] font-mono font-semibold" style={{ color: "#00C89650" }}>
                       {tp3Str}
@@ -624,6 +680,39 @@ function AssetRow({ level, defaultOpen, lotSize }: {
             </div>
           )}
 
+          {/* ── AI NARRATIVE ─────────────────────────────────────── */}
+          {aiAnalysis && (
+            <div className="rounded-lg px-3 py-3 space-y-2"
+              style={{ background: "var(--t-card)", border: "1px solid var(--t-border-sub)" }}>
+              <p className="text-[9px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>
+                AI Analysis
+              </p>
+              <p className="text-[10px] leading-relaxed" style={{ color: "var(--t-muted)" }}>
+                {aiAnalysis.narrative}
+              </p>
+              {aiAnalysis.setupNarrative && (
+                <p className="text-[10px] leading-relaxed italic border-t pt-2"
+                  style={{ color: "#F59E0B", opacity: 0.85, borderColor: "var(--t-border-sub)" }}>
+                  {aiAnalysis.setupNarrative}
+                </p>
+              )}
+              <div className="grid grid-cols-1 gap-1 border-t pt-2" style={{ borderColor: "var(--t-border-sub)" }}>
+                <div className="flex items-start gap-1.5">
+                  <span className="text-[8px] uppercase tracking-wider shrink-0 pt-0.5" style={{ color: "#F59E0B" }}>Wait</span>
+                  <p className="text-[10px] leading-relaxed" style={{ color: "var(--t-muted)" }}>{aiAnalysis.waitFor}</p>
+                </div>
+                <div className="flex items-start gap-1.5">
+                  <span className="text-[8px] uppercase tracking-wider shrink-0 pt-0.5" style={{ color: "#00C896" }}>Confirms</span>
+                  <p className="text-[10px] leading-relaxed" style={{ color: "var(--t-muted)" }}>{aiAnalysis.confirms}</p>
+                </div>
+                <div className="flex items-start gap-1.5">
+                  <span className="text-[8px] uppercase tracking-wider shrink-0 pt-0.5" style={{ color: "#FF4D4F" }}>Invalidates</span>
+                  <p className="text-[10px] leading-relaxed" style={{ color: "var(--t-muted)" }}>{aiAnalysis.invalidates}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ── SESSION + SETUP ───────────────────────────────────── */}
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-lg px-3 py-2" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border-sub)" }}>
@@ -657,9 +746,10 @@ function AssetRow({ level, defaultOpen, lotSize }: {
 interface KeyLevelsCardProps {
   levels: KeyLevel[];
   compact?: boolean;
+  aiAnalysisMap?: Record<string, AssetAIAnalysis>;
 }
 
-export function KeyLevelsCard({ levels, compact = false }: KeyLevelsCardProps) {
+export function KeyLevelsCard({ levels, compact = false, aiAnalysisMap = {} }: KeyLevelsCardProps) {
   const [lotSize, setLotSize] = useState(0.01);
   const [showLotInput, setShowLotInput] = useState(false);
   const [strictMode, setStrictMode] = useState(false);
@@ -796,7 +886,7 @@ export function KeyLevelsCard({ levels, compact = false }: KeyLevelsCardProps) {
       {/* ── Asset Rows ───────────────────────────────────────── */}
       <div className="p-3 space-y-2">
         {display.map((level, i) => (
-          <AssetRow key={level.asset} level={level} defaultOpen={i === 0} lotSize={lotSize} />
+          <AssetRow key={level.asset} level={level} defaultOpen={i === 0} lotSize={lotSize} aiAnalysis={aiAnalysisMap[level.asset]} />
         ))}
       </div>
     </div>

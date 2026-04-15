@@ -10,7 +10,7 @@ import {
   Info, X, ShieldCheck, Zap, Globe, Activity, BarChart3,
   ArrowRight, AlertOctagon, Clock, Crosshair, Layers,
 } from "lucide-react";
-import type { Bias } from "@/types";
+import type { Bias, AssetAIAnalysis } from "@/types";
 
 interface BiasCardProps {
   asset: string;
@@ -22,6 +22,7 @@ interface BiasCardProps {
   smcContext?: string;
   sessionBehavior?: string;
   macroDrivers?: string[];
+  aiAnalysis?: AssetAIAnalysis;
 }
 
 // ── Action Bias ───────────────────────────────────────────────────────────────
@@ -208,6 +209,37 @@ function deriveExecutionSteps(
   ];
 }
 
+// ── AI data adapters ──────────────────────────────────────────────────────────
+
+function getActionFromAI(ai: AssetAIAnalysis): {
+  action: string; sub: string; color: string; bg: string; border: string; icon: typeof Crosshair;
+} {
+  const map: Record<string, { color: string; bg: string; border: string; icon: typeof Crosshair }> = {
+    buy:   { color: "#00C896", bg: "#00C8960A", border: "#00C89625", icon: Crosshair },
+    sell:  { color: "#FF4D4F", bg: "#FF4D4F0A", border: "#FF4D4F25", icon: Crosshair },
+    wait:  { color: "#F59E0B", bg: "#F59E0B0A", border: "#F59E0B25", icon: Clock },
+    avoid: { color: "#FF4D4F", bg: "#FF4D4F0A", border: "#FF4D4F25", icon: AlertOctagon },
+  };
+  const c = map[ai.actionIntent] ?? map.avoid;
+  return { action: ai.action, sub: ai.actionSub, ...c };
+}
+
+function getPhaseFromAI(ai: AssetAIAnalysis): { phase: string; description: string; color: string } {
+  const colors: Record<string, string> = {
+    Expansion: "#00C896", Accumulation: "#8B949E", Distribution: "#FF4D4F",
+    Manipulation: "#F59E0B", Pullback: "#F59E0B", Range: "#8B949E", Trend: "#8B949E", Reversal: "#FF6B35",
+  };
+  return { phase: ai.marketPhase, description: ai.phaseDescription, color: colors[ai.marketPhase] ?? "#8B949E" };
+}
+
+function getStepsFromAI(ai: AssetAIAnalysis): { step: string; detail: string }[] {
+  return [
+    { step: "Wait For",       detail: ai.waitFor    },
+    { step: "Entry Confirms", detail: ai.confirms   },
+    { step: "Invalidated By", detail: ai.invalidates },
+  ];
+}
+
 // ── Bias Alignment Note ───────────────────────────────────────────────────────
 
 function deriveBiasAlignmentNote(
@@ -317,15 +349,17 @@ function convictionTier(confidence: number): { label: string; color: string; des
 
 function DrillDownModal({
   asset, bias, confidence, supportingFactors, invalidationFactors,
-  smcContext, sessionBehavior, macroDrivers, onClose,
+  smcContext, sessionBehavior, macroDrivers, aiAnalysis, onClose,
 }: BiasCardProps & { onClose: () => void }) {
   const [showFactors, setShowFactors] = useState(false);
 
   const biasColor   = bias === "bullish" ? "#00C896" : bias === "bearish" ? "#FF4D4F" : "#8B949E";
-  const actionBias  = deriveActionBias(bias, confidence, smcContext);
-  const phase       = deriveMarketPhase(bias, confidence, smcContext);
-  const steps       = deriveExecutionSteps(bias, confidence, smcContext);
+  const actionBias  = aiAnalysis ? getActionFromAI(aiAnalysis) : deriveActionBias(bias, confidence, smcContext);
+  const phase       = aiAnalysis ? getPhaseFromAI(aiAnalysis) : deriveMarketPhase(bias, confidence, smcContext);
+  const steps       = aiAnalysis ? getStepsFromAI(aiAnalysis) : deriveExecutionSteps(bias, confidence, smcContext);
   const alignNote   = deriveBiasAlignmentNote(bias, smcContext);
+  const resolvedSupporting   = aiAnalysis?.supportingFactors   ?? supportingFactors   ?? [];
+  const resolvedInvalidation = aiAnalysis?.invalidationFactors ?? invalidationFactors ?? [];
   const tier        = convictionTier(confidence);
   const factors     = deriveFactors(confidence, bias, smcContext);
   const ActionIcon  = actionBias.icon;
@@ -462,14 +496,50 @@ function DrillDownModal({
             </div>
           </div>
 
+          {/* ── AI NARRATIVE ───────────────────────────────────────── */}
+          {aiAnalysis?.narrative && (
+            <div className="rounded-xl px-4 py-3"
+              style={{ background: "var(--t-card)", border: "1px solid var(--t-border-sub)" }}>
+              <p className="text-[9px] uppercase tracking-widest mb-1.5" style={{ color: "var(--t-muted)" }}>
+                AI Analysis
+              </p>
+              <p className="text-[10px] leading-relaxed" style={{ color: "var(--t-muted)" }}>
+                {aiAnalysis.narrative}
+              </p>
+              {aiAnalysis.setupNarrative && (
+                <p className="text-[10px] leading-relaxed mt-1.5 italic" style={{ color: "#F59E0B", opacity: 0.85 }}>
+                  {aiAnalysis.setupNarrative}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ── SUPPORTING FACTORS ─────────────────────────────────── */}
+          {resolvedSupporting.length > 0 && (
+            <div className="rounded-xl px-4 py-3"
+              style={{ background: "#00C89608", border: "1px solid #00C89620" }}>
+              <p className="text-[9px] uppercase tracking-widest mb-2" style={{ color: "#00C896" }}>
+                Supporting Factors
+              </p>
+              <div className="space-y-1.5">
+                {resolvedSupporting.slice(0, 4).map((f, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <div className="mt-1.5 h-1 w-1 rounded-full shrink-0" style={{ background: "#00C896" }} />
+                    <p className="text-[10px] leading-relaxed" style={{ color: "var(--t-muted)" }}>{f}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* ── INVALIDATION ───────────────────────────────────────── */}
-          {invalidationFactors && invalidationFactors.length > 0 && (
+          {resolvedInvalidation.length > 0 && (
             <div className="rounded-xl px-4 py-3" style={{ background: "#FF4D4F08", border: "1px solid #FF4D4F20" }}>
               <p className="text-[9px] uppercase tracking-widest mb-2" style={{ color: "#FF4D4F" }}>
                 Bias is Invalidated If…
               </p>
               <div className="space-y-1.5">
-                {invalidationFactors.slice(0, 3).map((f, i) => (
+                {resolvedInvalidation.slice(0, 3).map((f, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <div className="mt-1.5 h-1 w-1 rounded-full shrink-0" style={{ background: "#FF4D4F" }} />
                     <p className="text-[10px] leading-relaxed" style={{ color: "var(--t-muted)" }}>{f}</p>
@@ -556,7 +626,7 @@ function DrillDownModal({
 
 export function BiasCard({
   asset, bias, confidence, compact = false,
-  supportingFactors, invalidationFactors, smcContext, sessionBehavior, macroDrivers,
+  supportingFactors, invalidationFactors, smcContext, sessionBehavior, macroDrivers, aiAnalysis,
 }: BiasCardProps) {
   const [showDrill, setShowDrill] = useState(false);
 
@@ -569,8 +639,8 @@ export function BiasCard({
   const config     = biasConfig[bias];
   const Icon       = config.icon;
   const tier       = convictionTier(confidence);
-  const actionBias = deriveActionBias(bias, confidence, smcContext);
-  const phase      = deriveMarketPhase(bias, confidence, smcContext);
+  const actionBias = aiAnalysis ? getActionFromAI(aiAnalysis) : deriveActionBias(bias, confidence, smcContext);
+  const phase      = aiAnalysis ? getPhaseFromAI(aiAnalysis) : deriveMarketPhase(bias, confidence, smcContext);
   const ActionIcon = actionBias.icon;
 
   // ── Compact ──────────────────────────────────────────────────────────────────
@@ -600,6 +670,7 @@ export function BiasCard({
             asset={asset} bias={bias} confidence={confidence}
             supportingFactors={supportingFactors} invalidationFactors={invalidationFactors}
             smcContext={smcContext} sessionBehavior={sessionBehavior} macroDrivers={macroDrivers}
+            aiAnalysis={aiAnalysis}
             onClose={() => setShowDrill(false)}
           />
         )}
@@ -674,6 +745,7 @@ export function BiasCard({
           asset={asset} bias={bias} confidence={confidence}
           supportingFactors={supportingFactors} invalidationFactors={invalidationFactors}
           smcContext={smcContext} sessionBehavior={sessionBehavior} macroDrivers={macroDrivers}
+          aiAnalysis={aiAnalysis}
           onClose={() => setShowDrill(false)}
         />
       )}
