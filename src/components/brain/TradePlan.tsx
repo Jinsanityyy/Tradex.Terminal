@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
-import { ArrowRight, Target, Shield, TrendingUp, TrendingDown, Info, ChevronRight, Calculator } from "lucide-react";
+import { ArrowRight, Target, Shield, TrendingUp, TrendingDown, ChevronRight, ChevronDown, Calculator } from "lucide-react";
 import type { TradePlan as TradePlanType } from "@/lib/agents/schemas";
 
 interface TradePlanProps {
@@ -70,7 +70,8 @@ function LotSizeCalculator({
           type="number"
           value={accountSize}
           onChange={e => setAccountSize(Math.max(100, Number(e.target.value)))}
-          className="px-2 py-1 rounded bg-white/4 border border-white/8 text-[10px] text-zinc-300 w-20 text-right focus:outline-none focus:border-violet-500/40"
+          className="px-2 py-1 rounded border border-white/8 text-[10px] text-zinc-300 w-20 text-right focus:outline-none focus:border-violet-500/40"
+          style={{ backgroundColor: "rgba(255,255,255,0.04)", colorScheme: "dark" }}
           placeholder="Custom"
         />
       </div>
@@ -94,6 +95,13 @@ function LotSizeCalculator({
   );
 }
 
+const PRICE_ROW_EXPLANATIONS: Record<string, string> = {
+  "Entry": "The exact price zone where you execute the trade. Wait for price to reach this level — do NOT chase. Entry is based on post-sweep confirmation or structure break retest.",
+  "Stop Loss": "Your invalidation level. If price closes below this point, the trade setup is broken — exit immediately. Sized to the sweep low/high so lows/highs must hold for the thesis to remain valid.",
+  "Take Profit 1": "First partial target (50% position). Closes half your trade to lock in profit and eliminate risk. After TP1 is hit, move your stop loss to breakeven on the remaining position.",
+  "Take Profit 2": "Final target for the remainder of your position. Based on the next major structural level. Trail your stop as price approaches to protect gains.",
+};
+
 function PriceRow({
   label, value, sublabel, color, icon,
 }: {
@@ -103,21 +111,43 @@ function PriceRow({
   color: string;
   icon?: React.ReactNode;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const explanation = PRICE_ROW_EXPLANATIONS[label];
+
   return (
-    <div className="flex items-center justify-between py-3 border-b border-white/4 last:border-0">
-      <div className="flex items-center gap-2.5">
-        {icon && <div className={cn(color, "opacity-80")}>{icon}</div>}
-        <div>
-          <div className="text-[11px] text-zinc-400 uppercase tracking-wider font-medium">{label}</div>
-          {sublabel && <div className="text-[11px] text-zinc-500 mt-0.5 max-w-52 truncate">{sublabel}</div>}
+    <div className="border-b border-white/4 last:border-0">
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="w-full flex items-center justify-between py-3 hover:bg-white/2 rounded transition-colors px-1 -mx-1 group"
+      >
+        <div className="flex items-center gap-2.5">
+          {icon && <div className={cn(color, "opacity-80")}>{icon}</div>}
+          <div className="text-left">
+            <div className="text-[11px] text-zinc-400 uppercase tracking-wider font-medium">{label}</div>
+            {sublabel && <div className="text-[11px] text-zinc-500 mt-0.5 max-w-52 truncate">{sublabel}</div>}
+          </div>
         </div>
-      </div>
-      <div className={cn("text-base font-mono font-bold", color)}>
-        {value.toLocaleString(undefined, {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: value > 100 ? 2 : 5,
-        })}
-      </div>
+        <div className="flex items-center gap-2">
+          <div className={cn("text-base font-mono font-bold", color)}>
+            {value.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: value > 100 ? 2 : 5,
+            })}
+          </div>
+          {explanation && (
+            expanded
+              ? <ChevronDown className="h-3 w-3 text-zinc-600 group-hover:text-zinc-400 transition-colors shrink-0" />
+              : <ChevronRight className="h-3 w-3 text-zinc-600 group-hover:text-zinc-400 transition-colors shrink-0" />
+          )}
+        </div>
+      </button>
+      {expanded && explanation && (
+        <div className="pb-3 px-1">
+          <div className="rounded-lg bg-white/3 border border-white/6 px-3 py-2.5">
+            <p className="text-[11px] text-zinc-400 leading-relaxed">{explanation}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
