@@ -58,12 +58,12 @@ export function Sidebar() {
       <div className="flex h-[var(--topbar-height)] items-center justify-between border-b border-[hsl(var(--border))] px-3">
         {!collapsed && (
           <Link href="/dashboard" className="flex items-center">
-            <TradeXLogo variant="wordmark" size="xs" />
+            <TradeXLogo variant="wordmark" size="sm" />
           </Link>
         )}
         {collapsed && (
           <Link href="/dashboard" className="mx-auto">
-            <TradeXLogo variant="icon" size="xs" />
+            <TradeXLogo variant="icon" size="sm" />
           </Link>
         )}
         <button

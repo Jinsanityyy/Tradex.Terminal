@@ -166,6 +166,25 @@ function UserMenu() {
   );
 }
 
+function LogoutButton() {
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  }
+
+  return (
+    <button
+      onClick={handleLogout}
+      title="Sign out"
+      className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[hsl(var(--muted-foreground))] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+    >
+      <LogOut className="h-3.5 w-3.5" />
+      <span className="text-[10px] font-semibold uppercase tracking-wider hidden sm:block">Logout</span>
+    </button>
+  );
+}
+
 export function TopStatusBar() {
   const session = getCurrentSession();
   const { quotes, isLive } = useQuotes(15_000);
@@ -210,6 +229,7 @@ export function TopStatusBar() {
         </div>
 
         <UserMenu />
+        <LogoutButton />
       </div>
     </header>
   );
