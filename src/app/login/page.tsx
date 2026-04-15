@@ -142,11 +142,11 @@ export default function LoginPage() {
         <TradingChartBg />
 
         {/* ── Left panel ── */}
-        <div className="hidden lg:flex lg:w-[52%] flex-col justify-center pl-14 pr-10 relative z-10 overflow-hidden">
-          <div className="max-w-[500px]" style={{ marginTop: 96 }}>
+        <div className="hidden lg:flex lg:w-[55%] flex-col justify-center relative z-10 overflow-hidden" style={{ paddingLeft: 72, paddingRight: 48, paddingTop: 48, paddingBottom: 48 }}>
+          <div style={{ maxWidth: 520 }}>
 
             {/* Logo */}
-            <div className="logo-wrap relative mb-4" style={{ width: 400 }}>
+            <div className="logo-wrap relative" style={{ width: 380, marginBottom: 28 }}>
               {/* Glow halo */}
               <div
                 className="absolute pointer-events-none"
@@ -164,7 +164,7 @@ export default function LoginPage() {
                 alt="TradeX"
                 className="login-logo"
                 style={{
-                  width: 400,
+                  width: 380,
                   height: "auto",
                   objectFit: "contain",
                   display: "block",
@@ -223,7 +223,7 @@ export default function LoginPage() {
             </p>
 
             {/* Feature bullets */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               {[
                 "7-agent AI consensus engine",
                 "Live news flow and macro catalysts",
@@ -249,7 +249,7 @@ export default function LoginPage() {
             </div>
 
             {/* Bottom block */}
-            <div className="mt-10 space-y-4">
+            <div className="mt-8 space-y-3">
               {/* Testimonial */}
               <div
                 className="rounded-xl p-4 backdrop-blur-sm"
@@ -294,15 +294,39 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {/* ── Vertical divider ── */}
+        <div
+          className="hidden lg:block self-stretch relative z-10 shrink-0"
+          style={{ width: 1 }}
+          aria-hidden="true"
+        >
+          <div
+            className="absolute inset-0"
+            style={{
+              background: "linear-gradient(to bottom, transparent 0%, rgba(16,185,129,0.18) 25%, rgba(16,185,129,0.28) 50%, rgba(16,185,129,0.18) 75%, transparent 100%)",
+            }}
+          />
+          {/* Center glow dot */}
+          <div
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+            style={{
+              width: 6, height: 6,
+              borderRadius: "50%",
+              background: "#10b981",
+              boxShadow: "0 0 12px 4px rgba(16,185,129,0.5)",
+            }}
+          />
+        </div>
+
         {/* ── Right panel — form ── */}
-        <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 relative z-10">
+        <div className="flex-1 flex flex-col items-center justify-center relative z-10" style={{ paddingLeft: 48, paddingRight: 64, paddingTop: 48, paddingBottom: 48 }}>
           {/* Mobile logo */}
           <div className="lg:hidden mb-10">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.png" alt="TradeX" style={{ height: 100, width: "auto", objectFit: "contain" }} />
           </div>
 
-          <div className="w-full max-w-[380px] relative z-10">
+          <div className="w-full relative z-10" style={{ maxWidth: 400 }}>
             {(mode === "forgot" || mode === "mfa") && (
               <button
                 onClick={() => switchMode("login")}
