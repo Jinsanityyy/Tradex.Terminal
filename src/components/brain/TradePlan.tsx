@@ -1,13 +1,97 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { cn } from "@/lib/utils";
-import { ArrowRight, Target, Shield, TrendingUp, TrendingDown, Info, ChevronRight } from "lucide-react";
+import { ArrowRight, Target, Shield, TrendingUp, TrendingDown, Info, ChevronRight, Calculator } from "lucide-react";
 import type { TradePlan as TradePlanType } from "@/lib/agents/schemas";
 
 interface TradePlanProps {
   tradePlan: TradePlanType | null;
   loading?: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Lot Size Calculator
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ACCOUNT_PRESETS = [1000, 5000, 10000, 25000, 50000, 100000];
+
+function LotSizeCalculator({
+  entry, stopLoss, riskPercent,
+}: {
+  entry: number;
+  stopLoss: number;
+  riskPercent: number;
+}) {
+  const [accountSize, setAccountSize] = useState(10000);
+
+  const slPoints = Math.abs(entry - stopLoss);
+
+  // XAUUSD: $100 per point per standard lot (100 oz × $1/oz/point)
+  // Other pairs with price > 100: similar scale; FX pairs: $10 per pip per lot
+  const pointValue = entry > 100 ? 100 : 10; // gold/indices vs FX
+  const riskAmount = accountSize * (riskPercent / 100);
+  const rawLots = slPoints > 0 ? riskAmount / (slPoints * pointValue) : 0;
+
+  // Round to nearest valid lot step
+  const lots = rawLots >= 1
+    ? parseFloat(rawLots.toFixed(2))
+    : rawLots >= 0.1
+    ? parseFloat(rawLots.toFixed(2))
+    : parseFloat(rawLots.toFixed(3));
+
+  const displayLots = lots < 0.01 ? "< 0.01" : lots.toFixed(lots >= 1 ? 2 : lots >= 0.1 ? 2 : 3);
+
+  return (
+    <div className="mx-5 mb-5 rounded-lg bg-white/3 border border-white/6 p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Calculator className="h-3.5 w-3.5 text-violet-400" />
+        <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">Lot Size Calculator</span>
+        <span className="text-[10px] text-zinc-600 ml-auto">@ {riskPercent}% risk</span>
+      </div>
+
+      {/* Account size selector */}
+      <div className="flex gap-1.5 mb-3 flex-wrap">
+        {ACCOUNT_PRESETS.map(preset => (
+          <button
+            key={preset}
+            onClick={() => setAccountSize(preset)}
+            className={cn(
+              "px-2 py-1 rounded text-[10px] font-semibold transition-all",
+              accountSize === preset
+                ? "bg-violet-500/20 border border-violet-500/30 text-violet-300"
+                : "bg-white/4 border border-white/8 text-zinc-500 hover:text-zinc-300"
+            )}
+          >
+            ${preset >= 1000 ? `${preset / 1000}k` : preset}
+          </button>
+        ))}
+        <input
+          type="number"
+          value={accountSize}
+          onChange={e => setAccountSize(Math.max(100, Number(e.target.value)))}
+          className="px-2 py-1 rounded bg-white/4 border border-white/8 text-[10px] text-zinc-300 w-20 text-right focus:outline-none focus:border-violet-500/40"
+          placeholder="Custom"
+        />
+      </div>
+
+      {/* Result */}
+      <div className="flex items-end justify-between">
+        <div>
+          <div className="text-[10px] text-zinc-500 mb-0.5">Recommended lot size</div>
+          <div className="text-2xl font-black font-mono text-violet-300">{displayLots}
+            <span className="text-sm font-normal text-zinc-500 ml-1.5">lots</span>
+          </div>
+        </div>
+        <div className="text-right space-y-0.5">
+          <div className="text-[10px] text-zinc-600">Risk amount</div>
+          <div className="text-sm font-mono font-semibold text-zinc-300">${riskAmount.toFixed(0)}</div>
+          <div className="text-[10px] text-zinc-600">SL distance</div>
+          <div className="text-xs font-mono text-zinc-400">{slPoints.toFixed(entry > 100 ? 1 : 4)} pts</div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function PriceRow({
@@ -140,6 +224,13 @@ export function TradePlan({ tradePlan, loading }: TradePlanProps) {
           />
         )}
       </div>
+
+      {/* Lot Size Calculator */}
+      <LotSizeCalculator
+        entry={tradePlan.entry}
+        stopLoss={tradePlan.stopLoss}
+        riskPercent={tradePlan.maxRiskPercent}
+      />
 
       {/* Trigger condition */}
       <div className="px-5 pb-4">
