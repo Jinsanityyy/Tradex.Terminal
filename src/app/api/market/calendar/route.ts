@@ -4,7 +4,7 @@ import type { EconomicEvent } from "@/types";
 export const dynamic = "force-dynamic";
 
 let cache: { data: EconomicEvent[]; ts: number } = { data: [], ts: 0 };
-const CACHE_TTL = 600_000; // 10 min — avoid hitting FF rate limit
+const CACHE_TTL = 300_000; // 5 min — avoid hitting FF rate limit
 
 interface FFEvent {
   title: string;
@@ -372,9 +372,10 @@ export async function GET() {
     }
     const now = new Date();
 
-    // FILTER: Only HIGH impact + USD currency (which directly affects XAU/USD)
+    // FILTER: HIGH + MEDIUM impact USD events (Medium catches Flash PMIs, retail sales etc.
+    // on weeks where there are no HIGH impact events)
     const mapped: EconomicEvent[] = events
-      .filter((e) => e.impact === "High" && e.country === "USD")
+      .filter((e) => (e.impact === "High" || e.impact === "Medium") && e.country === "USD")
       .map((e, i) => {
         const eventTime = new Date(e.date);
         const isPast = eventTime < now;
@@ -386,6 +387,9 @@ export async function GET() {
           const diffMin = (eventTime.getTime() - now.getTime()) / 60_000;
           status = diffMin <= 30 ? "live" : "upcoming";
         }
+
+        // Map FairFX impact string to our Impact type
+        const impact: "high" | "medium" = e.impact === "High" ? "high" : "medium";
 
         const analysis = analyzeEvent(e.title, e.forecast, e.previous, isPast);
         const post = isPast ? generatePostEvent(e.title, e.forecast, e.previous) : null;
@@ -402,7 +406,7 @@ export async function GET() {
           currency: "USD",
           country: "US",
           event: e.title,
-          impact: "high" as const,
+          impact,
           forecast: e.forecast !== "" ? e.forecast : "—",
           previous: e.previous !== "" ? e.previous : "—",
           actual: isPast && e.forecast !== "" ? e.forecast : undefined,
