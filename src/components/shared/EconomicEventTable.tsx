@@ -1,11 +1,59 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus, Target, Shield, BookOpen, ChevronRight } from "lucide-react";
+import { Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus, Target, Shield, BookOpen, ChevronRight, Timer } from "lucide-react";
 import type { EconomicEvent } from "@/types";
 import { DetailModal } from "./DetailModal";
+
+// ── Countdown Timer ──────────────────────────────────────────────────────────
+function useCountdown(utcTimestamp?: number) {
+  const [diff, setDiff] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!utcTimestamp) return;
+    const tick = () => setDiff(utcTimestamp - Date.now());
+    tick();
+    // Update every second if < 5 min away, else every 30s
+    const ms = (utcTimestamp - Date.now()) < 5 * 60_000 ? 1000 : 30_000;
+    const id = setInterval(tick, ms);
+    return () => clearInterval(id);
+  }, [utcTimestamp]);
+
+  return diff;
+}
+
+function Countdown({ utcTimestamp, compact }: { utcTimestamp?: number; compact?: boolean }) {
+  const diff = useCountdown(utcTimestamp);
+
+  if (diff === null || diff <= 0) return null;
+
+  const totalSeconds = Math.floor(diff / 1000);
+  const hours   = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const label = hours > 0
+    ? `${hours}h ${minutes}m`
+    : minutes > 0
+    ? `${minutes}m ${seconds}s`
+    : `${seconds}s`;
+
+  const urgent = diff < 30 * 60_000; // under 30 min
+
+  return (
+    <span className={cn(
+      "inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold tabular-nums",
+      urgent
+        ? "bg-amber-500/15 text-amber-400 border border-amber-500/25"
+        : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+    )}>
+      <Timer className="h-2.5 w-2.5 shrink-0" />
+      {label}
+    </span>
+  );
+}
 
 interface EconomicEventTableProps {
   events: EconomicEvent[];
@@ -36,12 +84,17 @@ function EventDetail({ ev }: { ev: EconomicEvent }) {
     <div className="space-y-4">
       {/* Time + status */}
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-[11px] font-mono text-[hsl(var(--muted-foreground))]">{ev.time} ET</span>
-        <Badge variant="high" className="text-[9px]">HIGH IMPACT</Badge>
+        <span className="text-[11px] font-mono text-[hsl(var(--muted-foreground))]">{ev.time} PHT</span>
+        <Badge variant={ev.impact === "high" ? "high" : "medium"} className="text-[9px]">
+          {ev.impact === "high" ? "HIGH IMPACT" : "MEDIUM IMPACT"}
+        </Badge>
         {isCompleted && (
           <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-400">
             <CheckCircle2 className="h-2.5 w-2.5" /> COMPLETED
           </span>
+        )}
+        {ev.status === "upcoming" && (
+          <Countdown utcTimestamp={ev.utcTimestamp} />
         )}
       </div>
 
@@ -179,11 +232,16 @@ export function EconomicEventTable({ events, showInterpretation = false, compact
               <div className="flex items-center justify-between px-3 py-2.5 border-b border-[hsl(var(--border))]/50">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <StatusIcon className={cn("h-3.5 w-3.5 shrink-0", statusColor)} />
-                  <span className="text-[10px] font-mono text-[hsl(var(--muted-foreground))] shrink-0">{ev.time} ET</span>
+                  <span className="text-[10px] font-mono text-[hsl(var(--muted-foreground))] shrink-0">{ev.time} PHT</span>
                   <span className="text-xs font-semibold text-[hsl(var(--foreground))] truncate">{ev.event}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 ml-2">
-                  <Badge variant="high" className="text-[9px]">HIGH</Badge>
+                  {ev.status === "upcoming" && (
+                    <Countdown utcTimestamp={ev.utcTimestamp} compact />
+                  )}
+                  <Badge variant={ev.impact === "high" ? "high" : "medium"} className="text-[9px]">
+                    {ev.impact === "high" ? "HIGH" : "MED"}
+                  </Badge>
                   <span className="text-[10px] font-mono text-[hsl(var(--muted-foreground))]">
                     F: {ev.forecast} | P: {ev.previous}
                     {ev.actual && ev.status === "completed" ? ` | A: ${ev.actual}` : ""}

@@ -125,6 +125,7 @@ export interface EconomicEvent {
   tradeImplication?: string;
   postEventSummary?: string;   // AI narrative for completed events
   postEventBullets?: string[]; // "Now watch" checklist for completed events
+  utcTimestamp?: number;       // Unix ms — used for countdown timer
 }
 
 // Extended news item with optional URL/image from live feeds
