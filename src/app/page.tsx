@@ -230,30 +230,14 @@ export default function LandingPage() {
           backdrop-filter: blur(18px);
           border-bottom: 1px solid var(--border-sub);
         }
-        .nav-brand { display: flex; align-items: center; gap: 9px; text-decoration: none; }
-        .nav-mark {
-          width: 26px; height: 26px;
-          background: linear-gradient(135deg, #00C853, #69F0AE);
-          border-radius: 6px;
-          display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-          animation: tradex-glow 3s ease-in-out infinite;
+        .nav-brand { display: flex; align-items: center; gap: 0px; text-decoration: none; }
+        .nav-logo {
+          height: 36px; width: auto;
+          object-fit: contain;
         }
         @keyframes tradex-glow {
           0%, 100% { filter: drop-shadow(0 0 6px #00C85360) drop-shadow(0 0 14px #00C85330); }
           50%       { filter: drop-shadow(0 0 12px #00C85390) drop-shadow(0 0 28px #00C85350); }
-        }
-        .nav-wordmark {
-          font-size: 15px; letter-spacing: -0.04em; color: var(--t1);
-          display: inline-flex; align-items: center;
-        }
-        .nav-wordmark .wm-trade { font-weight: 300; }
-        .nav-wordmark .wm-x {
-          font-weight: 800;
-          background: linear-gradient(135deg, #00C853 0%, #69F0AE 50%, #00E676 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          animation: tradex-glow 3s ease-in-out infinite;
         }
         .nav-links { display: flex; gap: 30px; }
         .nav-links a { font-size: 13px; color: var(--t3); transition: color .15s; }
@@ -705,10 +689,8 @@ export default function LandingPage() {
       {/* ── NAV ── */}
       <nav className="nav">
         <a href="/" className="nav-brand">
-          <div className="nav-mark">
-            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 900, color: "#080808", lineHeight: 1 }}>X</span>
-          </div>
-          <span className="nav-wordmark"><span className="wm-trade">trade</span><span className="wm-x">X</span></span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="TradeX" className="nav-logo" />
         </a>
         <div className="nav-links">
           <a href="#features">Features</a>
@@ -1005,10 +987,8 @@ export default function LandingPage() {
       {/* ── FOOTER ── */}
       <footer>
         <div className="ft-brand">
-          <div className="ft-mark">
-            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, fontWeight: 900, color: "#080808", lineHeight: 1 }}>X</span>
-          </div>
-          <span className="ft-name"><span className="wm-trade">trade</span><span className="wm-x">X</span></span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="TradeX" style={{ height: 28, width: "auto", objectFit: "contain" }} />
         </div>
         <ul className="ft-links">
           <li><a href="#features">Features</a></li>
