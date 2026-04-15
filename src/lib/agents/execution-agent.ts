@@ -103,10 +103,11 @@ export async function runExecutionAgent(
     }
 
     // ── TP Levels ──────────────────────────────────────────────────────────
-    // TP1 = nearest liquidity (equal highs/lows, SMC target, or session high/low)
-    // TP2 = secondary target (beyond TP1)
-    const tp1Distance = Math.abs(entry - stopLoss) * 2;  // 2R minimum
-    const tp2Distance = Math.abs(entry - stopLoss) * 3.5; // 3.5R
+    // TP1 = nearest liquidity (equal highs/lows, PA target, or session high/low)
+    // TP2 = secondary target — always beyond TP1 by at least 1R
+    const riskDist     = Math.abs(entry - stopLoss);
+    const tp1Distance  = riskDist * 2;   // 2R minimum
+    const tp2Distance  = riskDist * 3.5; // 3.5R
 
     let tp1: number;
     let tp2: number;
@@ -114,13 +115,17 @@ export async function runExecutionAgent(
 
     if (isBullish) {
       tp1 = keyLevels.liquidityTarget ?? entry + tp1Distance;
-      tp2 = entry + tp2Distance;
+      // tp2 must always be above tp1
+      const rawTp2 = entry + tp2Distance;
+      tp2 = rawTp2 > tp1 ? rawTp2 : tp1 + riskDist;
       tp1Zone = keyLevels.liquidityTarget
         ? `Equal highs / session high ${tp1.toFixed(4)} — liquidity pool above`
         : `2R target ${tp1.toFixed(4)} — nearest structural resistance`;
     } else {
       tp1 = keyLevels.liquidityTarget ?? entry - tp1Distance;
-      tp2 = entry - tp2Distance;
+      // tp2 must always be below tp1
+      const rawTp2 = entry - tp2Distance;
+      tp2 = rawTp2 < tp1 ? rawTp2 : tp1 - riskDist;
       tp1Zone = keyLevels.liquidityTarget
         ? `Equal lows / session low ${tp1.toFixed(4)} — liquidity pool below`
         : `2R target ${tp1.toFixed(4)} — nearest structural support`;
