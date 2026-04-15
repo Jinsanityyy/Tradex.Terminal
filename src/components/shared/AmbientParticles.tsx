@@ -6,27 +6,44 @@ interface Particle {
   y: number;
   vx: number;
   vy: number;
-  r: number;
-  alpha: number;
-  targetAlpha: number;
-  blinkSpeed: number;
+  r: number;          // core radius
+  baseAlpha: number;  // peak opacity
+  twinkleOffset: number;
+  twinkleSpeed: number;
   life: number;
   maxLife: number;
+  tier: 0 | 1 | 2;   // 0=dim/small  1=mid  2=bright/large
 }
 
-function spawn(w: number, h: number): Particle {
-  const maxLife = 800 + Math.random() * 1200;
+const TIERS = [
+  { rMin: 1.0, rMax: 1.8,  aMin: 0.28, aMax: 0.42, weight: 0.45 }, // dim
+  { rMin: 1.6, rMax: 2.8,  aMin: 0.45, aMax: 0.62, weight: 0.40 }, // mid
+  { rMin: 2.4, rMax: 3.8,  aMin: 0.60, aMax: 0.82, weight: 0.15 }, // bright accent
+];
+
+function pickTier(): 0 | 1 | 2 {
+  const r = Math.random();
+  if (r < TIERS[0].weight) return 0;
+  if (r < TIERS[0].weight + TIERS[1].weight) return 1;
+  return 2;
+}
+
+function spawn(w: number, h: number, fromBottom = false): Particle {
+  const tier  = pickTier();
+  const t     = TIERS[tier];
+  const maxLife = 1200 + Math.random() * 1600;
   return {
     x: Math.random() * w,
-    y: Math.random() * h,
-    vx: (Math.random() - 0.5) * 0.025,
-    vy: -(Math.random() * 0.022 + 0.006),
-    r: Math.random() * 1.2 + 0.8,           // 0.8 – 2px radius
-    alpha: 0,
-    targetAlpha: Math.random() * 0.22 + 0.06, // 6 – 28% max
-    blinkSpeed: 0.0003 + Math.random() * 0.0004,
-    life: Math.random() * maxLife,            // stagger start
+    y: fromBottom ? h + 6 : Math.random() * h,
+    vx: (Math.random() - 0.5) * 0.06,
+    vy: -(Math.random() * 0.055 + 0.018),
+    r: t.rMin + Math.random() * (t.rMax - t.rMin),
+    baseAlpha: t.aMin + Math.random() * (t.aMax - t.aMin),
+    twinkleOffset: Math.random() * Math.PI * 2,
+    twinkleSpeed:  0.0008 + Math.random() * 0.0012,
+    life: fromBottom ? 0 : Math.random() * maxLife,
     maxLife,
+    tier,
   };
 }
 
@@ -48,8 +65,8 @@ export function AmbientParticles() {
     resize();
     window.addEventListener("resize", resize);
 
-    // Very low density — ~1 particle per 22 000px²
-    const count = Math.min(30, Math.floor((window.innerWidth * window.innerHeight) / 22000));
+    // ~1 particle per 9 000px², capped at 75
+    const count = Math.min(75, Math.floor((window.innerWidth * window.innerHeight) / 9000));
     const particles: Particle[] = Array.from({ length: count }, () =>
       spawn(window.innerWidth, window.innerHeight)
     );
@@ -66,44 +83,48 @@ export function AmbientParticles() {
       for (const p of particles) {
         p.life += dt;
 
-        // Respawn when life expires or drifts offscreen
-        if (p.life > p.maxLife || p.y < -10 || p.x < -10 || p.x > canvas.width + 10) {
-          Object.assign(p, spawn(canvas.width, canvas.height));
-          p.life = 0;
-          p.y    = canvas.height + 4;  // re-enter from bottom
+        if (p.life > p.maxLife || p.y < -12 || p.x < -12 || p.x > canvas.width + 12) {
+          Object.assign(p, spawn(canvas.width, canvas.height, true));
           continue;
         }
 
         p.x += p.vx * dt;
         p.y += p.vy * dt;
 
-        // Smooth fade envelope
+        // Fade envelope: soft in over 8%, hold, soft out over 15%
         const progress = p.life / p.maxLife;
         const envelope =
-          progress < 0.10 ? progress / 0.10 :
+          progress < 0.08 ? progress / 0.08 :
           progress > 0.85 ? (1 - progress) / 0.15 : 1;
 
-        // Slow twinkle on top of envelope
-        p.alpha = p.targetAlpha * envelope *
-          (0.75 + 0.25 * Math.sin(p.life * p.blinkSpeed * Math.PI * 2));
+        // Gentle twinkle
+        const twinkle = 0.82 + 0.18 * Math.sin(p.life * p.twinkleSpeed * Math.PI * 2 + p.twinkleOffset);
 
-        if (p.alpha <= 0.005) continue;
+        const alpha = p.baseAlpha * envelope * twinkle;
+        if (alpha < 0.01) continue;
 
-        // Soft glow: large faint halo + crisp core
-        const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 5);
-        grd.addColorStop(0,   `rgba(95,199,122,${(p.alpha * 0.9).toFixed(3)})`);
-        grd.addColorStop(0.35,`rgba(95,199,122,${(p.alpha * 0.4).toFixed(3)})`);
-        grd.addColorStop(1,   `rgba(95,199,122,0)`);
+        // Color: tiers 0/1 use brand green, tier 2 uses lighter teal for accent
+        const coreColor  = p.tier === 2 ? `rgba(110,231,183,${alpha.toFixed(3)})`  : `rgba(95,199,122,${alpha.toFixed(3)})`;
+        const haloColor0 = p.tier === 2 ? `rgba(110,231,183,${(alpha * 0.45).toFixed(3)})` : `rgba(95,199,122,${(alpha * 0.40).toFixed(3)})`;
+        const haloR = p.r * 5.5;
+
+        // Soft halo
+        const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, haloR);
+        grd.addColorStop(0,    haloColor0);
+        grd.addColorStop(0.4,  p.tier === 2
+          ? `rgba(110,231,183,${(alpha * 0.18).toFixed(3)})`
+          : `rgba(95,199,122,${(alpha * 0.15).toFixed(3)})`);
+        grd.addColorStop(1,    "rgba(95,199,122,0)");
 
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r * 5, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, haloR, 0, Math.PI * 2);
         ctx.fillStyle = grd;
         ctx.fill();
 
-        // Crisp center dot
+        // Crisp core dot
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(110,231,183,${(p.alpha * 1.1).toFixed(3)})`;
+        ctx.fillStyle = coreColor;
         ctx.fill();
       }
 
