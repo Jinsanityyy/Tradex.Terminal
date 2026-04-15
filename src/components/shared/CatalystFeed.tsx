@@ -59,10 +59,10 @@ function CatalystDetail({ cat }: { cat: Catalyst }) {
         <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 mb-1">Market Effect</p>
         <p className="text-xs text-gray-300 leading-relaxed">
           {cat.importance === "high"
-            ? "High-impact catalyst — expect increased volatility and potential trend acceleration across affected markets. Monitor price action closely near key levels."
+            ? "High-impact catalyst.expect increased volatility and potential trend acceleration across affected markets. Monitor price action closely near key levels."
             : cat.importance === "medium"
-            ? "Medium-impact catalyst — may cause short-term volatility. Watch for confirmation before entering positions."
-            : "Low-impact catalyst — limited directional effect expected. Use as secondary context only."}
+            ? "Medium-impact catalyst.may cause short-term volatility. Watch for confirmation before entering positions."
+            : "Low-impact catalyst.limited directional effect expected. Use as secondary context only."}
         </p>
       </div>
     </div>

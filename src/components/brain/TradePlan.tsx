@@ -96,8 +96,8 @@ function LotSizeCalculator({
 }
 
 const PRICE_ROW_EXPLANATIONS: Record<string, string> = {
-  "Entry": "The exact price zone where you execute the trade. Wait for price to reach this level — do NOT chase. Entry is based on post-sweep confirmation or structure break retest.",
-  "Stop Loss": "Your invalidation level. If price closes below this point, the trade setup is broken — exit immediately. Sized to the sweep low/high so lows/highs must hold for the thesis to remain valid.",
+  "Entry": "The exact price zone where you execute the trade. Wait for price to reach this level.do NOT chase. Entry is based on post-sweep confirmation or structure break retest.",
+  "Stop Loss": "Your invalidation level. If price closes below this point, the trade setup is broken.exit immediately. Sized to the sweep low/high so lows/highs must hold for the thesis to remain valid.",
   "Take Profit 1": "First partial target (50% position). Closes half your trade to lock in profit and eliminate risk. After TP1 is hit, move your stop loss to breakeven on the remaining position.",
   "Take Profit 2": "Final target for the remainder of your position. Based on the next major structural level. Trail your stop as price approaches to protect gains.",
 };
@@ -203,7 +203,7 @@ export function TradePlan({ tradePlan, loading }: TradePlanProps) {
             : <TrendingDown className="h-4 w-4 text-red-400" />
           }
           <span className={cn("font-bold text-sm", isLong ? "text-emerald-400" : "text-red-400")}>
-            {isLong ? "LONG" : "SHORT"} — {tradePlan.trigger}
+            {isLong ? "LONG" : "SHORT"}.{tradePlan.trigger}
           </span>
         </div>
         <div className="flex items-center gap-5">

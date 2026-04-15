@@ -26,7 +26,7 @@ export default function NewsFlowPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold text-[hsl(var(--foreground))]">News Flow</h1>
-          <p className="text-xs text-[hsl(var(--muted-foreground))]">Filtered macro intelligence and headline analysis</p>
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">Macro news and headline tracker</p>
         </div>
         <div className="flex items-center gap-1">
           {isLive ? (

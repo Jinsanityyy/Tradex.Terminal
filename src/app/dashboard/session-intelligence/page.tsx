@@ -19,7 +19,7 @@ export default function SessionIntelligencePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold text-[hsl(var(--foreground))]">Session Intelligence</h1>
-          <p className="text-xs text-[hsl(var(--muted-foreground))]">Market behavior by session — handoff intelligence and key levels</p>
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">Session handoffs, key levels and market behavior</p>
         </div>
         <Badge variant={isLive ? "bullish" : "outline"} className="gap-1">
           {isLoading && <Loader2 className="h-3 w-3 animate-spin" />}

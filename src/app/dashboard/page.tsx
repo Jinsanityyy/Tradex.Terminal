@@ -94,7 +94,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold text-[hsl(var(--foreground))]">Command Center</h1>
-          <p className="text-xs text-[hsl(var(--muted-foreground))]">Real-time market intelligence overview</p>
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">Live market overview and trade context</p>
         </div>
         <div className="flex items-center gap-2">
           {/* Live indicator */}

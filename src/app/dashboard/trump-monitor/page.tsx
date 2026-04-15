@@ -50,7 +50,7 @@ export default function TrumpMonitorPage() {
             <UserCircle className="h-5 w-5 text-amber-400" />
             Trump Monitor
           </h1>
-          <p className="text-xs text-[hsl(var(--muted-foreground))]">Market-moving posts, policy signals, and impact analysis</p>
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">Policy posts and market impact tracker</p>
         </div>
         <div className="flex items-center gap-1">
           {isLive ? (

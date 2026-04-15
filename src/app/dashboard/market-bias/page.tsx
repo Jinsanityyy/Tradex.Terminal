@@ -249,7 +249,7 @@ export default function MarketBiasPage() {
               <div className="flex items-center gap-3">
                 {biasIcon(finalBias)}
                 <div>
-                  <div className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Master Verdict — {selected}</div>
+                  <div className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Master Verdict · {selected}</div>
                   <div className={cn("text-2xl font-black tracking-tight", biasColor(finalBias))}>
                     {master.finalBias === "no-trade" ? "NO TRADE" : finalBias.toUpperCase()}
                   </div>

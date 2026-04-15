@@ -25,10 +25,10 @@ interface BrainOverviewDrawerProps {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function getPreferredAction(finalBias: string, riskValid: boolean) {
-  if (!riskValid)        return { text: "Stand Aside",           sub: "Risk Gate blocked — no execution conditions met",      color: "text-red-400",     bg: "bg-red-500/8",     border: "border-red-500/20"    };
-  if (finalBias === "bullish") return { text: "Look for BUY setups",   sub: "HTF bias is bullish — seek discount entries",           color: "text-emerald-400", bg: "bg-emerald-500/8", border: "border-emerald-500/20" };
-  if (finalBias === "bearish") return { text: "Look for SELL setups",  sub: "HTF bias is bearish — seek premium entries",            color: "text-red-400",     bg: "bg-red-500/8",     border: "border-red-500/20"    };
-  return                       { text: "Stand Aside",           sub: "Insufficient consensus — wait for high-conviction setup", color: "text-amber-400",   bg: "bg-amber-500/8",   border: "border-amber-500/20"  };
+  if (!riskValid)        return { text: "Stand Aside",           sub: "Risk Gate blocked.no execution conditions met",      color: "text-red-400",     bg: "bg-red-500/8",     border: "border-red-500/20"    };
+  if (finalBias === "bullish") return { text: "Look for BUY setups",   sub: "HTF bias is bullish.seek discount entries",           color: "text-emerald-400", bg: "bg-emerald-500/8", border: "border-emerald-500/20" };
+  if (finalBias === "bearish") return { text: "Look for SELL setups",  sub: "HTF bias is bearish.seek premium entries",            color: "text-red-400",     bg: "bg-red-500/8",     border: "border-red-500/20"    };
+  return                       { text: "Stand Aside",           sub: "Insufficient consensus.wait for high-conviction setup", color: "text-amber-400",   bg: "bg-amber-500/8",   border: "border-amber-500/20"  };
 }
 
 function getHTFLTFStatus(data: AgentRunResult): { conflict: boolean; message: string } {
@@ -41,7 +41,7 @@ function getHTFLTFStatus(data: AgentRunResult): { conflict: boolean; message: st
   if (htf === "bearish" && zone === "DISCOUNT")
     return { conflict: true,  message: `HTF is bearish but price is in the discount zone. Wait for a premium-zone retracement before seeking short entries.` };
   if (htf !== ltf && ltf !== "neutral")
-    return { conflict: true,  message: `HTF bias is ${htf} while LTF trend shows ${ltf}. Counter-trend pressure present — wait for LTF alignment with HTF before entry.` };
+    return { conflict: true,  message: `HTF bias is ${htf} while LTF trend shows ${ltf}. Counter-trend pressure present.wait for LTF alignment with HTF before entry.` };
   if (htf === ltf && ltf !== "neutral")
     return { conflict: false, message: `HTF and LTF are aligned ${htf}. Price is in the ${zone.toLowerCase()} zone. Clean structure for directional setups.` };
   return    { conflict: false, message: `HTF ${htf} bias. LTF ${ltf}. No significant structural conflict detected at this time.` };
@@ -54,11 +54,11 @@ function composeAIAnalysis(data: AgentRunResult): string {
   const setup = agents.smc.setupType !== "None" ? `${setupMap[agents.smc.setupType] ?? agents.smc.setupType} setup is present.` : "No clear price action setup present.";
   const phase = `Market phase is ${agents.trend.marketPhase.toLowerCase()} with ${agents.trend.momentumDirection} momentum.`;
   const bos   = agents.smc.bosDetected
-    ? "Structure break detected — directional continuation bias."
+    ? "Structure break detected.directional continuation bias."
     : agents.smc.chochDetected
-    ? "Reversal signal detected — potential directional shift developing."
+    ? "Reversal signal detected.potential directional shift developing."
     : "";
-  const sweep = agents.smc.liquiditySweepDetected ? "Liquidity sweep detected — stop hunt at a key level." : "";
+  const sweep = agents.smc.liquiditySweepDetected ? "Liquidity sweep detected.stop hunt at a key level." : "";
   const macro = agents.news.dominantCatalyst ? `Macro context: ${agents.news.dominantCatalyst}.` : "";
   const final = `Overall consensus is ${agents.master.finalBias === "no-trade" ? "inconclusive" : agents.master.finalBias} at ${agents.master.confidence}% confidence (score: ${agents.master.consensusScore > 0 ? "+" : ""}${agents.master.consensusScore.toFixed(1)}).`;
 
@@ -79,11 +79,11 @@ function getSessionNote(data: AgentRunResult): string {
     "London":   "London session is characterized by directional breakouts and liquidity grabs in the first hour.",
     "New York": "New York session often confirms or aggressively reverses London direction. High-volume period.",
     "Asia":     "Asian session is typically range-bound. Setups forming here often resolve at London open.",
-    "Closed":   "Off-session period. Reduced liquidity — false moves are more common. Use smaller size.",
+    "Closed":   "Off-session period. Reduced liquidity.false moves are more common. Use smaller size.",
   };
   const base = notes[session] ?? `Currently in the ${session} session.`;
-  const qual  = score >= 70 ? ` Session quality is high (${score}/100) — favorable for execution.`
-              : score  < 40 ? ` Session quality is low (${score}/100) — avoid aggressive entries.`
+  const qual  = score >= 70 ? ` Session quality is high (${score}/100).favorable for execution.`
+              : score  < 40 ? ` Session quality is low (${score}/100).avoid aggressive entries.`
               : ` Session score: ${score}/100.`;
   return base + qual;
 }
@@ -282,7 +282,7 @@ export function BrainOverviewDrawer({ open, onClose, data, highlightAgentId }: B
             <SectionLabel icon={<Target className="h-3.5 w-3.5" />} label="Execution Guidance" />
             <div className="space-y-2">
               {[
-                { icon: <Clock className="h-3 w-3 text-zinc-500" />, label: "Wait for", value: agents.execution.triggerCondition || "No setup — wait for structure to develop" },
+                { icon: <Clock className="h-3 w-3 text-zinc-500" />, label: "Wait for", value: agents.execution.triggerCondition || "No setup.wait for structure to develop" },
                 { icon: <Zap className="h-3 w-3 text-emerald-500/60" />, label: "Entry confirms", value: agents.execution.managementNotes[0] || agents.execution.entryZone || "Confirmation pending" },
                 { icon: <AlertTriangle className="h-3 w-3 text-red-500/60" />, label: "Invalidated by", value: agents.master.invalidations[0] || `Price close above/below ${agents.trend.invalidationLevel ?? "key structure level"}` },
               ].map(({ icon, label, value }) => (

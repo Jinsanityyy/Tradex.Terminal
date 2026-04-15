@@ -38,7 +38,7 @@ function deriveActionBias(
   if (bias === "neutral" || confidence < 35) {
     return {
       action: "Avoid Trading",
-      sub: "No directional edge present — stand aside",
+      sub: "No directional edge present.stand aside",
       color: "#FF4D4F", bg: "#FF4D4F0A", border: "#FF4D4F25",
       icon: AlertOctagon,
     };
@@ -47,8 +47,8 @@ function deriveActionBias(
     return {
       action: "Wait for Confirmation",
       sub: hasCHoCH
-        ? "CHoCH detected — structure shifting. Wait for BOS to confirm new direction"
-        : "Weak signal — wait for BOS or session open before committing",
+        ? "CHoCH detected.structure shifting. Wait for BOS to confirm new direction"
+        : "Weak signal.wait for BOS or session open before committing",
       color: "#F59E0B", bg: "#F59E0B0A", border: "#F59E0B25",
       icon: Clock,
     };
@@ -57,8 +57,8 @@ function deriveActionBias(
     return {
       action: "Look for BUY Setups",
       sub: hasBOS
-        ? "BOS to upside confirmed — enter at discount OB/FVG, target prior highs"
-        : "HTF bullish — wait for LTF pullback to discount zone before buying",
+        ? "BOS to upside confirmed.enter at discount OB/FVG, target prior highs"
+        : "HTF bullish.wait for LTF pullback to discount zone before buying",
       color: "#00C896", bg: "#00C8960A", border: "#00C89625",
       icon: Crosshair,
     };
@@ -66,8 +66,8 @@ function deriveActionBias(
   return {
     action: "Look for SELL Setups",
     sub: hasBOS
-      ? "BOS to downside confirmed — enter at premium OB/FVG, target prior lows"
-      : "HTF bearish — wait for LTF bounce to premium zone before selling",
+      ? "BOS to downside confirmed.enter at premium OB/FVG, target prior lows"
+      : "HTF bearish.wait for LTF bounce to premium zone before selling",
     color: "#FF4D4F", bg: "#FF4D4F0A", border: "#FF4D4F25",
     icon: Crosshair,
   };
@@ -88,35 +88,35 @@ function deriveMarketPhase(
   if (hasCHoCH && hasBOS) {
     return {
       phase: "Reversal",
-      description: `CHoCH + BOS detected — potential ${bias} trend reversal in progress`,
+      description: `CHoCH + BOS detected.potential ${bias} trend reversal in progress`,
       color: "#FF6B35",
     };
   }
   if (hasCHoCH) {
     return {
       phase: "Potential Reversal",
-      description: "CHoCH in play — structure changing character, not yet confirmed",
+      description: "CHoCH in play.structure changing character, not yet confirmed",
       color: "#F59E0B",
     };
   }
   if (bias === "neutral" || confidence < 35) {
     return {
       phase: "Ranging / Accumulation",
-      description: "Price compressing — no directional bias. Mark highs/lows and wait",
+      description: "Price compressing.no directional bias. Mark highs/lows and wait",
       color: "#8B949E",
     };
   }
   if (hasBOS && confidence >= 70) {
     return {
       phase: "Expansion",
-      description: `${bias === "bullish" ? "Bullish" : "Bearish"} expansion — BOS confirmed, momentum is institutional`,
+      description: `${bias === "bullish" ? "Bullish" : "Bearish"} expansion.BOS confirmed, momentum is institutional`,
       color: bias === "bullish" ? "#00C896" : "#FF4D4F",
     };
   }
   if (hasBOS) {
     return {
       phase: "Trend",
-      description: `${bias === "bullish" ? "Bullish" : "Bearish"} trend — structure is clean, follow the flow`,
+      description: `${bias === "bullish" ? "Bullish" : "Bearish"} trend.structure is clean, follow the flow`,
       color: bias === "bullish" ? "#00C896" : "#FF4D4F",
     };
   }
@@ -124,20 +124,20 @@ function deriveMarketPhase(
   if (bias === "bullish" && inPremium) {
     return {
       phase: "Pullback",
-      description: "Bullish HTF trend, price in premium — pullback in progress. Wait for discount",
+      description: "Bullish HTF trend, price in premium.pullback in progress. Wait for discount",
       color: "#F59E0B",
     };
   }
   if (bias === "bearish" && inDiscount) {
     return {
       phase: "Pullback",
-      description: "Bearish HTF trend, price in discount — pullback bounce in progress. Wait for premium",
+      description: "Bearish HTF trend, price in discount.pullback bounce in progress. Wait for premium",
       color: "#F59E0B",
     };
   }
   return {
     phase: "Trend",
-    description: `${bias === "bullish" ? "Bullish" : "Bearish"} trend — align entries with higher timeframe direction`,
+    description: `${bias === "bullish" ? "Bullish" : "Bearish"} trend.align entries with higher timeframe direction`,
     color: bias === "bullish" ? "#00C896" : "#FF4D4F",
   };
 }
@@ -156,14 +156,14 @@ function deriveExecutionSteps(
 
   if (bias === "neutral" || confidence < 35) {
     return [
-      { step: "Stand Aside", detail: "No setup — do not force a trade in consolidation" },
+      { step: "Stand Aside", detail: "No setup.do not force a trade in consolidation" },
       { step: "Mark the Range", detail: "Identify today's high and low as liquidity targets" },
       { step: "Wait for BOS", detail: "Re-evaluate only after a break above/below the range" },
     ];
   }
   if (confidence < 55 || hasCHoCH) {
     return [
-      { step: "Reduce Size", detail: "Conflicting signals — if trading, use 0.5× normal size" },
+      { step: "Reduce Size", detail: "Conflicting signals.if trading, use 0.5× normal size" },
       { step: "Wait for London/NY", detail: "Higher-probability sessions increase signal clarity" },
       { step: "Watch for BOS", detail: "Entry only after structure confirms the new direction" },
     ];
@@ -173,14 +173,14 @@ function deriveExecutionSteps(
       {
         step: inPremium ? "Wait for Pullback to Discount" : "Buy at Discount / OB Zone",
         detail: inPremium
-          ? "Price is in premium — let it retrace before entering long"
+          ? "Price is in premium.let it retrace before entering long"
           : "Enter long at bullish OB or FVG below equilibrium, not at current price",
       },
       {
         step: "SL Below Swing Low",
         detail: hasBOS
-          ? "Place SL below the BOS candle low — beyond the structural break point"
-          : "SL below the last significant low — beyond liquidity sweep level",
+          ? "Place SL below the BOS candle low.beyond the structural break point"
+          : "SL below the last significant low.beyond liquidity sweep level",
       },
       {
         step: "Target Prior Highs",
@@ -193,14 +193,14 @@ function deriveExecutionSteps(
     {
       step: inDiscount ? "Wait for Bounce to Premium" : "Sell at Premium / OB Zone",
       detail: inDiscount
-        ? "Price is in discount — let it bounce to premium before selling"
+        ? "Price is in discount.let it bounce to premium before selling"
         : "Enter short at bearish OB or FVG above equilibrium, not at current price",
     },
     {
       step: "SL Above Swing High",
       detail: hasBOS
-        ? "Place SL above the BOS candle high — beyond the structural break point"
-        : "SL above the last significant high — beyond liquidity sweep level",
+        ? "Place SL above the BOS candle high.beyond the structural break point"
+        : "SL above the last significant high.beyond liquidity sweep level",
     },
     {
       step: "Target Prior Lows",
@@ -254,23 +254,23 @@ function deriveBiasAlignmentNote(
   if (bias === "bullish" && inPremium) {
     return {
       hasConflict: true,
-      note: "HTF Bias is BULLISH — but price is in premium zone",
-      explanation: "This is a short-term pullback against the HTF uptrend. LTF setups may show bearish pressure — this is retracement, not reversal. Do not buy premium; wait for discount.",
+      note: "HTF Bias is BULLISH.but price is in premium zone",
+      explanation: "This is a short-term pullback against the HTF uptrend. LTF setups may show bearish pressure.this is retracement, not reversal. Do not buy premium; wait for discount.",
     };
   }
   // Conflict: bearish bias but price in discount (risky entry zone)
   if (bias === "bearish" && inDiscount) {
     return {
       hasConflict: true,
-      note: "HTF Bias is BEARISH — but price is in discount zone",
-      explanation: "This is a short-term bounce against the HTF downtrend. LTF setups may show bullish pressure — this is retracement, not reversal. Do not sell discount; wait for premium.",
+      note: "HTF Bias is BEARISH.but price is in discount zone",
+      explanation: "This is a short-term bounce against the HTF downtrend. LTF setups may show bullish pressure.this is retracement, not reversal. Do not sell discount; wait for premium.",
     };
   }
   if (hasCHoCH) {
     return {
       hasConflict: true,
-      note: `CHoCH detected — HTF ${bias} bias may be weakening`,
-      explanation: "Change of Character suggests the current trend may be losing momentum. LTF setups that conflict with HTF bias could be early reversal signals — reduce size and wait for BOS confirmation.",
+      note: `CHoCH detected.HTF ${bias} bias may be weakening`,
+      explanation: "Change of Character suggests the current trend may be losing momentum. LTF setups that conflict with HTF bias could be early reversal signals.reduce size and wait for BOS confirmation.",
     };
   }
   return null;
@@ -299,16 +299,16 @@ function deriveFactors(confidence: number, bias: Bias, smcContext?: string) {
     {
       label: "Market Structure", icon: BarChart3, color: "#00C896",
       score: pct(structureW), weight: Math.round(structureW / total * 100),
-      note: hasBOS ? "BOS detected — institutional momentum confirmed"
-        : hasCHoCH ? "CHoCH in play — trend character changing"
-        : "No decisive BOS — structure consolidating",
+      note: hasBOS ? "BOS detected.institutional momentum confirmed"
+        : hasCHoCH ? "CHoCH in play.trend character changing"
+        : "No decisive BOS.structure consolidating",
     },
     {
       label: "Momentum", icon: Zap, color: "#00C896",
       score: pct(momentumW), weight: Math.round(momentumW / total * 100),
       note: isBull ? "Positive session change supports directional move"
         : isBear ? "Negative session change confirms selling pressure"
-        : "Flat momentum — no decisive push",
+        : "Flat momentum.no decisive push",
     },
     {
       label: "Proxy Alignment", icon: Activity, color: "#8B949E",
@@ -323,7 +323,7 @@ function deriveFactors(confidence: number, bias: Bias, smcContext?: string) {
     {
       label: "Geopolitical Risk", icon: Globe, color: "#F59E0B",
       score: pct(geoW), weight: Math.round(geoW / total * 100),
-      note: "Headline-driven risk premium — sub-factor only",
+      note: "Headline-driven risk premium.sub-factor only",
     },
     {
       label: "Session Timing", icon: Activity, color: "#8B949E",
@@ -333,16 +333,16 @@ function deriveFactors(confidence: number, bias: Bias, smcContext?: string) {
     {
       label: "RSI (Secondary)", icon: BarChart3, color: "#8B949E",
       score: pct(rsiW), weight: Math.round(rsiW / total * 100),
-      note: "Confirming indicator only — not the primary signal",
+      note: "Confirming indicator only.not the primary signal",
     },
   ];
 }
 
 function convictionTier(confidence: number): { label: string; color: string; description: string } {
-  if (confidence >= 75) return { label: "HIGH",     color: "#00C896", description: "Strong edge — multiple factors aligned" };
-  if (confidence >= 55) return { label: "MODERATE", color: "#F59E0B", description: "Directional lean — some conflicting signals" };
-  if (confidence >= 35) return { label: "LOW",      color: "#8B949E", description: "Weak signal — wait for clarity" };
-  return                       { label: "UNCLEAR",  color: "#FF4D4F", description: "No edge — avoid this asset" };
+  if (confidence >= 75) return { label: "HIGH",     color: "#00C896", description: "Strong edge.multiple factors aligned" };
+  if (confidence >= 55) return { label: "MODERATE", color: "#F59E0B", description: "Directional lean.some conflicting signals" };
+  if (confidence >= 35) return { label: "LOW",      color: "#8B949E", description: "Weak signal.wait for clarity" };
+  return                       { label: "UNCLEAR",  color: "#FF4D4F", description: "No edge.avoid this asset" };
 }
 
 // ── Drill-down Modal ──────────────────────────────────────────────────────────
@@ -453,7 +453,7 @@ function DrillDownModal({
                 <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: "#F59E0B" }} />
                 <div>
                   <p className="text-[10px] font-bold mb-1" style={{ color: "#F59E0B" }}>
-                    HTF Bias vs LTF Setup — {alignNote.hasConflict ? "Conflict Detected" : "Alignment"}
+                    HTF Bias vs LTF Setup.{alignNote.hasConflict ? "Conflict Detected" : "Alignment"}
                   </p>
                   <p className="text-[10px] font-semibold mb-1" style={{ color: "var(--t-text)" }}>
                     {alignNote.note}
@@ -699,7 +699,7 @@ export function BiasCard({
         </CardHeader>
 
         <CardContent className="space-y-3">
-          {/* Action bias — primary callout */}
+          {/* Action bias.primary callout */}
           <div className="rounded-lg px-3 py-2.5"
             style={{ background: actionBias.bg, border: `1px solid ${actionBias.border}` }}>
             <p className="text-[8px] uppercase tracking-widest mb-1" style={{ color: "var(--t-muted)" }}>Preferred Action</p>
