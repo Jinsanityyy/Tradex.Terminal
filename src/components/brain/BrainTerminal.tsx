@@ -13,7 +13,7 @@ import { ConsensusPanel } from "./ConsensusPanel";
 import { TradePlan } from "./TradePlan";
 import { SnapshotBar } from "./SnapshotBar";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
-import { AgentTopologyMap } from "./AgentTopologyMap";
+import { AgentCommandRoom } from "./AgentCommandRoom";
 import { AgentActivityLog } from "./AgentActivityLog";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -264,24 +264,28 @@ export function BrainTerminal() {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════
-          VISUAL LAYER — TOPOLOGY MAP + ACTIVITY LOG
+          VISUAL LAYER — COMMAND ROOM + ACTIVITY LOG
       ══════════════════════════════════════════════════════════════════ */}
       <div>
         <div className="flex items-center gap-2 mb-3">
           <div className="h-px flex-1 bg-white/5" />
           <span className="text-[10px] text-zinc-600 uppercase tracking-widest font-semibold px-2">
-            Neural Topology
+            AI Operations Center
           </span>
           <div className="h-px flex-1 bg-white/5" />
         </div>
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4">
-          <AgentTopologyMap data={data ?? null} loading={loading && !data} />
-          <AgentActivityLog
-            data={data ?? null}
-            loading={loading && !data}
-            timestamp={data?.timestamp}
-          />
+        {/* Command room — horizontal scroll on mobile */}
+        <div className="overflow-x-auto rounded-xl mb-4">
+          <div style={{ minWidth: 640 }}>
+            <AgentCommandRoom data={data ?? null} loading={loading && !data} />
+          </div>
         </div>
+        {/* Activity log — full width below */}
+        <AgentActivityLog
+          data={data ?? null}
+          loading={loading && !data}
+          timestamp={data?.timestamp}
+        />
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════
