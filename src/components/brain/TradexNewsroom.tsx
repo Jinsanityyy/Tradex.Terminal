@@ -1167,7 +1167,8 @@ function RoomFloor() {
 // Main exported component
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function TradexNewsroom() {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function TradexNewsroom(_props?: { data?: any; loading?: boolean }) {
   const [running, setRunning] = useState(false);
 
   const handleRun = useCallback(()=>{

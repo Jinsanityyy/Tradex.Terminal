@@ -13,7 +13,7 @@ import { ConsensusPanel } from "./ConsensusPanel";
 import { TradePlan } from "./TradePlan";
 import { SnapshotBar } from "./SnapshotBar";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
-import { AgentCommandRoom } from "./AgentCommandRoom";
+import { TradexNewsroom } from "./TradexNewsroom";
 import { AgentActivityLog } from "./AgentActivityLog";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -274,10 +274,10 @@ export function BrainTerminal() {
           </span>
           <div className="h-px flex-1 bg-white/5" />
         </div>
-        {/* Command room — horizontal scroll on mobile */}
+        {/* Newsroom — horizontal scroll on mobile */}
         <div className="overflow-x-auto rounded-xl mb-4">
-          <div style={{ minWidth: 640 }}>
-            <AgentCommandRoom data={data ?? null} loading={loading && !data} />
+          <div style={{ minWidth: 720 }}>
+            <TradexNewsroom data={data ?? null} loading={loading && !data} />
           </div>
         </div>
         {/* Activity log — full width below */}
