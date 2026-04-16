@@ -13,6 +13,8 @@ import { ConsensusPanel } from "./ConsensusPanel";
 import { TradePlan } from "./TradePlan";
 import { SnapshotBar } from "./SnapshotBar";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
+import { AgentTopologyMap } from "./AgentTopologyMap";
+import { AgentActivityLog } from "./AgentActivityLog";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -260,6 +262,27 @@ export function BrainTerminal() {
           <p className="text-sm text-red-400">Failed to load agent data. Check API keys and try again.</p>
         </div>
       )}
+
+      {/* ══════════════════════════════════════════════════════════════════
+          VISUAL LAYER — TOPOLOGY MAP + ACTIVITY LOG
+      ══════════════════════════════════════════════════════════════════ */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="h-px flex-1 bg-white/5" />
+          <span className="text-[10px] text-zinc-600 uppercase tracking-widest font-semibold px-2">
+            Neural Topology
+          </span>
+          <div className="h-px flex-1 bg-white/5" />
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4">
+          <AgentTopologyMap data={data ?? null} loading={loading && !data} />
+          <AgentActivityLog
+            data={data ?? null}
+            loading={loading && !data}
+            timestamp={data?.timestamp}
+          />
+        </div>
+      </div>
 
       {/* ══════════════════════════════════════════════════════════════════
           LAYER 1 — AGENT GRID (full width, all 6 agents)

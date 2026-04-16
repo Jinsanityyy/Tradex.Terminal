@@ -156,6 +156,46 @@ iframe,
   animation: pulse-live 2s ease-in-out infinite;
 }
 
+/* ── Brain / Agent animations ───────────────────────── */
+
+/* Radar sweep */
+@keyframes radar-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.radar-spin      { animation: radar-spin 4s linear infinite; transform-origin: center; }
+.radar-spin-slow { animation: radar-spin 8s linear infinite; transform-origin: center; }
+
+/* Alert blink */
+@keyframes alert-blink {
+  0%, 90%, 100% { opacity: 1; }
+  45%           { opacity: 0.2; }
+}
+.alert-blink { animation: alert-blink 1.4s ease-in-out infinite; }
+
+/* Flowing dashes on connection lines */
+@keyframes dash-flow {
+  from { stroke-dashoffset: 60; }
+  to   { stroke-dashoffset: 0; }
+}
+.dash-flow      { animation: dash-flow 1.2s linear infinite; }
+.dash-flow-slow { animation: dash-flow 2.5s linear infinite; }
+.dash-flow-fast { animation: dash-flow 0.55s linear infinite; }
+
+/* Log entry slide-in */
+@keyframes log-entry-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.log-entry-in { animation: log-entry-in 0.3s ease-out both; }
+
+/* Core glow breathe */
+@keyframes core-breathe {
+  0%, 100% { opacity: 0.12; }
+  50%       { opacity: 0.32; }
+}
+.core-breathe { animation: core-breathe 3s ease-in-out infinite; }
+
 /* ── Mobile safe areas ──────────────────────────────── */
 .pt-safe-top  { padding-top: env(safe-area-inset-top, 0px); }
 .pb-safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
