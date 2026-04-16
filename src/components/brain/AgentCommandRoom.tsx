@@ -1,728 +1,880 @@
 "use client";
 
 /**
- * AgentCommandRoom — cinematic AI operations room.
+ * AgentCommandRoom — AI operations room scene.
  *
- * 7 operator workstations rendered as a cyberpunk command center:
- * stylised seated silhouettes, animated monitor screens, status lighting,
- * and state-driven glow — all derived from live AgentRunResult data.
+ * A cinematic pixel-art / cyberpunk command center. Each of the 7 agents
+ * is rendered as an operator workstation: a chair, a seated silhouette, a
+ * desk, monitor(s) with animated content, and state-driven glow lighting.
  *
- * Pure SVG + inline CSS animations. Zero external dependencies.
+ * This is a VISUAL SCENE — not a diagram, not a dashboard.
  */
 
 import React from "react";
 import type { AgentRunResult } from "@/lib/agents/schemas";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// State colours
+// State system
 // ─────────────────────────────────────────────────────────────────────────────
 
 type AgentState =
-  | "idle"
-  | "active-bull"
-  | "active-bear"
-  | "alert"
-  | "approved"
-  | "blocked"
-  | "armed"
-  | "analyzing";
+  | "idle" | "bull" | "bear" | "alert"
+  | "approved" | "blocked" | "armed" | "analyzing";
 
-interface StateStyle {
-  accent: string;       // primary glow / border
-  dim: string;          // muted variant
-  screenBg: string;     // monitor fill
-  floorGlow: string;    // radial halo under desk
-  label: string;        // text label for state badge
+interface SC { // state colours
+  accent: string;   // primary glow / line color
+  dim: string;      // muted version for chair/body
+  screen: string;   // monitor background
+  floor: string;    // floor glow color (rgba)
+  badge: string;    // status badge text
 }
 
-const S: Record<AgentState, StateStyle> = {
-  idle:          { accent: "#23233a", dim: "#18182a", screenBg: "#09090f", floorGlow: "transparent",  label: "IDLE"      },
-  "active-bull": { accent: "#10b981", dim: "#065f46", screenBg: "#020c07", floorGlow: "#10b98120",    label: "BULLISH"   },
-  "active-bear": { accent: "#ef4444", dim: "#7f1d1d", screenBg: "#0c0202", floorGlow: "#ef444420",    label: "BEARISH"   },
-  alert:         { accent: "#f97316", dim: "#7c2d12", screenBg: "#0c0601", floorGlow: "#f9731620",    label: "ALERT"     },
-  approved:      { accent: "#10b981", dim: "#065f46", screenBg: "#020c07", floorGlow: "#10b98120",    label: "VALID"     },
-  blocked:       { accent: "#ef4444", dim: "#7f1d1d", screenBg: "#0c0202", floorGlow: "#ef444428",    label: "BLOCKED"   },
-  armed:         { accent: "#22d3ee", dim: "#164e63", screenBg: "#010c10", floorGlow: "#22d3ee28",    label: "ARMED"     },
-  analyzing:     { accent: "#a78bfa", dim: "#4c1d95", screenBg: "#07030f", floorGlow: "#a78bfa20",    label: "ANALYZING" },
+const STATE: Record<AgentState, SC> = {
+  idle:      { accent:"#1e1e32", dim:"#141420", screen:"#08080f", floor:"transparent", badge:"IDLE"      },
+  bull:      { accent:"#10b981", dim:"#065f46", screen:"#020c07", floor:"#10b98118",  badge:"BULLISH"   },
+  bear:      { accent:"#ef4444", dim:"#7f1d1d", screen:"#0c0202", floor:"#ef444418",  badge:"BEARISH"   },
+  alert:     { accent:"#f59e0b", dim:"#78350f", screen:"#0c0800", floor:"#f59e0b18",  badge:"ALERT"     },
+  approved:  { accent:"#10b981", dim:"#065f46", screen:"#020c07", floor:"#10b98118",  badge:"VALID"     },
+  blocked:   { accent:"#ef4444", dim:"#7f1d1d", screen:"#0c0202", floor:"#ef444422",  badge:"BLOCKED"   },
+  armed:     { accent:"#22d3ee", dim:"#164e63", screen:"#010c10", floor:"#22d3ee22",  badge:"ARMED"     },
+  analyzing: { accent:"#a78bfa", dim:"#4c1d95", screen:"#07030f", floor:"#a78bfa18",  badge:"ANALYZING" },
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// State derivation
-// ─────────────────────────────────────────────────────────────────────────────
-
-function deriveStates(data: AgentRunResult): Record<string, AgentState> {
-  const { agents } = data;
+function deriveStates(d: AgentRunResult): Record<string, AgentState> {
+  const { agents } = d;
   const bias = agents.master.finalBias;
-
   return {
     trend:
-      agents.trend.bias === "bullish" && agents.trend.confidence >= 52 ? "active-bull" :
-      agents.trend.bias === "bearish" && agents.trend.confidence >= 52 ? "active-bear" :
-      agents.trend.confidence < 35 ? "idle" : "alert",
-
+      agents.trend.bias==="bullish"&&agents.trend.confidence>=52 ? "bull" :
+      agents.trend.bias==="bearish"&&agents.trend.confidence>=52 ? "bear" :
+      agents.trend.confidence<35 ? "idle" : "alert",
     smc:
-      agents.smc.liquiditySweepDetected                                          ? "alert"       :
-      agents.smc.setupPresent && agents.smc.bias === "bullish"                   ? "active-bull" :
-      agents.smc.setupPresent && agents.smc.bias === "bearish"                   ? "active-bear" :
-      agents.smc.confidence < 35                                                  ? "idle"        : "alert",
-
+      agents.smc.liquiditySweepDetected ? "alert" :
+      agents.smc.setupPresent&&agents.smc.bias==="bullish" ? "bull" :
+      agents.smc.setupPresent&&agents.smc.bias==="bearish" ? "bear" :
+      agents.smc.confidence<35 ? "idle" : "alert",
     news:
-      agents.news.riskScore >= 65 ? "alert" :
-      agents.news.impact === "bullish" ? "active-bull" :
-      agents.news.impact === "bearish" ? "active-bear" : "idle",
-
-    risk:  agents.risk.valid ? "approved" : "blocked",
-
+      agents.news.riskScore>=65 ? "alert" :
+      agents.news.impact==="bullish" ? "bull" :
+      agents.news.impact==="bearish" ? "bear" : "idle",
+    risk:    agents.risk.valid ? "approved" : "blocked",
     contrarian:
-      agents.contrarian.challengesBias && agents.contrarian.trapConfidence >= 60 ? "blocked" :
-      agents.contrarian.challengesBias                                            ? "alert"   : "idle",
-
+      agents.contrarian.challengesBias&&agents.contrarian.trapConfidence>=60 ? "blocked" :
+      agents.contrarian.challengesBias ? "alert" : "idle",
     master:
-      bias === "bullish" && agents.master.confidence >= 65 ? "active-bull"  :
-      bias === "bearish" && agents.master.confidence >= 65 ? "active-bear"  :
-      bias === "no-trade"                                    ? "analyzing"   : "alert",
-
+      bias==="bullish"&&agents.master.confidence>=65 ? "bull" :
+      bias==="bearish"&&agents.master.confidence>=65 ? "bear" :
+      bias==="no-trade" ? "analyzing" : "alert",
     execution:
-      agents.execution.hasSetup && agents.risk.valid && bias !== "no-trade" ? "armed" :
-      agents.execution.hasSetup                                               ? "alert" : "idle",
+      agents.execution.hasSetup&&agents.risk.valid&&bias!=="no-trade" ? "armed" :
+      agents.execution.hasSetup ? "alert" : "idle",
   };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Reusable SVG atoms
+// Pixel-art operator silhouette
+// Each element is a rect/polygon for the sharp cyberpunk look.
+// Origin = centre of waist. Desk surface is at y=0 relative to origin.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Seated operator silhouette (local origin = waist centre) */
-function Operator({ state, style }: { state: AgentState; style: StateStyle }) {
-  const isIdle = state === "idle";
-  const bodyColor = isIdle ? "#101018" : "#0d0d1a";
-  const rimColor  = isIdle ? "#1a1a26" : style.dim;
+function PixelOperator({
+  cx, baseY, sc, lean = 0, isMaster = false,
+}: {
+  cx: number; baseY: number; sc: SC;
+  lean?: number;   // positive = lean forward (px)
+  isMaster?: boolean;
+}) {
+  const s  = isMaster ? 1.15 : 1.0;  // scale
+  const ox = cx + lean * 0.4;
+  const oy = baseY;
+  const c  = sc.dim;
+  const rim = sc.accent;
+  const eye = sc.accent;
+  const isIdle = sc.badge === "IDLE";
+
+  // all coords are local, translated via the 'ox,oy' anchor
+  const t = (lx: number, ly: number) => [ox + lx * s, oy + ly * s] as [number, number];
+  const r = (lx: number, ly: number, w: number, h: number) => {
+    const [x, y] = t(lx, ly);
+    return { x, y, width: w * s, height: h * s };
+  };
 
   return (
     <g>
-      {/* Monitor light falling on operator from above */}
-      {!isIdle && (
-        <ellipse cx="0" cy="-38" rx="24" ry="14"
-          fill={style.accent} opacity="0.07" />
-      )}
-      {/* Head */}
-      <circle cx="0" cy="-58" r="10"
-        fill={bodyColor} stroke={rimColor} strokeWidth="1" />
-      {/* Head top rim (hair / helmet suggestion) */}
-      <path d="M -9,-65 Q 0,-72 9,-65" fill={rimColor} opacity="0.5" />
-      {/* Neck */}
-      <rect x="-3" y="-48" width="6" height="8" fill={bodyColor} />
+      {/* ── CHAIR (behind operator) ── */}
+      {/* Chair back */}
+      <rect {...r(-12, -118, 24, 82)} fill="#0b0b16" stroke="#161624" strokeWidth="1"/>
+      {/* Chair back cushion */}
+      <rect {...r(-9, -114, 18, 72)} fill="#0e0e1e" stroke="#1a1a2e" strokeWidth="0.7"/>
+      {/* Chair headrest */}
+      <rect {...r(-8, -124, 16, 10)} fill="#0e0e1e" stroke="#1a1a2e" strokeWidth="0.7"/>
+      {/* Chair seat */}
+      <rect {...r(-16, -36, 32, 10)} fill="#0c0c1a" stroke="#161626" strokeWidth="1"/>
+      {/* Left armrest */}
+      <rect {...r(-24, -60, 8, 32)} fill="#0b0b16" stroke="#14142a" strokeWidth="0.8"/>
+      {/* Right armrest */}
+      <rect {...r(16, -60, 8, 32)} fill="#0b0b16" stroke="#14142a" strokeWidth="0.8"/>
+      {/* Chair base column */}
+      <rect {...r(-3, -26, 6, 16)} fill="#0a0a14"/>
+      {/* Chair wheel disc */}
+      <ellipse cx={ox} cy={oy - 10 * s} rx={10 * s} ry={3 * s} fill="#0a0a14"/>
+
+      {/* ── OPERATOR BODY ── */}
+      {/* Lower body / lap (sitting) */}
+      <rect {...r(-14, -48, 28, 14)} fill={c}/>
       {/* Torso */}
-      <path d="M -19,-42 Q -13,-46 0,-47 Q 13,-46 19,-42 L 15,-8 Q 7,-4 0,-4 Q -7,-4 -15,-8 Z"
-        fill={bodyColor} stroke={rimColor} strokeWidth="0.8" />
-      {/* Left arm reaching forward */}
-      <path d="M -17,-32 Q -26,-20 -28,-8"
-        stroke={bodyColor} strokeWidth="8" fill="none" strokeLinecap="round" />
-      <path d="M -17,-32 Q -26,-20 -28,-8"
-        stroke={rimColor} strokeWidth="1" fill="none" strokeLinecap="round" opacity="0.5" />
-      {/* Right arm */}
-      <path d="M 17,-32 Q 26,-20 28,-8"
-        stroke={bodyColor} strokeWidth="8" fill="none" strokeLinecap="round" />
-      <path d="M 17,-32 Q 26,-20 28,-8"
-        stroke={rimColor} strokeWidth="1" fill="none" strokeLinecap="round" opacity="0.5" />
+      <rect {...r(-16, -94, 32, 48)} fill={c} stroke={isIdle ? "#0f0f1e" : rim} strokeWidth="0.6" opacity={isIdle ? 0.7 : 1}/>
+      {/* Jacket centre line */}
+      <rect {...r(-1, -90, 2, 42)} fill={isIdle ? "#101020" : sc.dim} opacity="0.6"/>
+      {/* Shoulder pads (left) */}
+      <rect {...r(-22, -96, 8, 10)} fill={isIdle ? "#0e0e1c" : sc.dim} stroke={rim} strokeWidth="0.5" opacity={isIdle ? 0.5 : 1}/>
+      {/* Shoulder pads (right) */}
+      <rect {...r(14, -96, 8, 10)} fill={isIdle ? "#0e0e1c" : sc.dim} stroke={rim} strokeWidth="0.5" opacity={isIdle ? 0.5 : 1}/>
+      {/* Chest badge / equipment detail */}
+      <rect {...r(-6, -82, 12, 6)} fill={isIdle ? "#0f0f20" : rim} opacity={isIdle ? 0.2 : 0.25} stroke={rim} strokeWidth="0.4"/>
+
+      {/* Left arm (upper) */}
+      <rect {...r(-24, -92, 8, 30)} fill={c}/>
+      {/* Left arm (lower — reaching to desk/keyboard) */}
+      <rect {...r(-26 + lean * 0.6, -62, 8, 30)} fill={c}/>
+      {/* Left hand */}
+      <rect {...r(-28 + lean * 0.7, -32, 10, 6)} fill={c}/>
+
+      {/* Right arm (upper) */}
+      <rect {...r(16, -92, 8, 30)} fill={c}/>
+      {/* Right arm (lower) */}
+      <rect {...r(18 + lean * 0.6, -62, 8, 30)} fill={c}/>
+      {/* Right hand */}
+      <rect {...r(18 + lean * 0.7, -32, 10, 6)} fill={c}/>
+
+      {/* ── HEAD ── */}
+      {/* Head block */}
+      <rect {...r(-10, -118, 20, 22)} fill={c} stroke={isIdle ? "#111122" : rim} strokeWidth="0.8" opacity={isIdle ? 0.7 : 1}/>
+      {/* Helmet top / hair */}
+      <rect {...r(-11, -122, 22, 6)} fill={isIdle ? "#0d0d1a" : sc.dim}/>
+      {/* Antenna / device (adds character) */}
+      <rect {...r(8, -128, 2, 8)} fill={isIdle ? "#111122" : rim} opacity={isIdle ? 0.3 : 0.7}/>
+
+      {/* Visor / eye strip — the "face" */}
+      <rect {...r(-8, -112, 16, 6)} fill={isIdle ? "#101018" : "#080812"} stroke={isIdle ? "#141420" : rim} strokeWidth="0.5"/>
+      {/* Eye glow — two pixel blocks */}
+      <rect {...r(-7, -111, 6, 4)} fill={eye} opacity={isIdle ? 0.08 : 0.55}
+        className={isIdle ? "" : "pulse-live"}/>
+      <rect {...r(1, -111, 6, 4)} fill={eye} opacity={isIdle ? 0.08 : 0.55}
+        className={isIdle ? "" : "pulse-live"}/>
+
+      {/* Screen glow on face (light from monitor above/in front) */}
+      {!isIdle && (
+        <rect {...r(-10, -118, 20, 22)} fill={sc.accent} opacity="0.05"
+          className="core-breathe"/>
+      )}
     </g>
   );
 }
 
-/** Scan-line overlay for monitors — subtle CRT feel */
-function ScanLines({ w, h }: { w: number; h: number }) {
+// ─────────────────────────────────────────────────────────────────────────────
+// Desk — pixel-art 3-D desk with top surface + front face
+// ─────────────────────────────────────────────────────────────────────────────
+
+function PixelDesk({
+  cx, y, w, sc,
+}: { cx: number; y: number; w: number; sc: SC }) {
+  const hw = w / 2;
+  const isIdle = sc.badge === "IDLE";
   return (
-    <g opacity="0.08">
-      {Array.from({ length: Math.floor(h / 4) }, (_, i) => (
-        <line key={i} x1="0" y1={i * 4} x2={w} y2={i * 4}
-          stroke="#fff" strokeWidth="0.5" />
-      ))}
+    <g>
+      {/* Desk top surface */}
+      <rect x={cx - hw} y={y} width={w} height={16}
+        fill={isIdle ? "#0d0d1a" : sc.dim}
+        stroke={isIdle ? "#181828" : sc.accent}
+        strokeWidth={isIdle ? 0.7 : 1.2}/>
+      {/* Desk top highlight line (top edge) */}
+      <line x1={cx - hw} y1={y} x2={cx + hw} y2={y}
+        stroke={isIdle ? "#1a1a28" : sc.accent}
+        strokeWidth={isIdle ? 0.5 : 1}
+        opacity={isIdle ? 0.5 : 0.6}/>
+      {/* Desk front face */}
+      <rect x={cx - hw} y={y + 16} width={w} height={14}
+        fill={isIdle ? "#09090f" : "#0b0b14"}
+        stroke={isIdle ? "#111118" : sc.dim}
+        strokeWidth="0.5"/>
+      {/* Desk leg left */}
+      <rect x={cx - hw + 4} y={y + 30} width={6} height={18}
+        fill="#080810" stroke="#101018" strokeWidth="0.5"/>
+      {/* Desk leg right */}
+      <rect x={cx + hw - 10} y={y + 30} width={6} height={18}
+        fill="#080810" stroke="#101018" strokeWidth="0.5"/>
     </g>
   );
 }
 
-/** Monitor frame + glowing screen (clipPath used for screen contents) */
+// ─────────────────────────────────────────────────────────────────────────────
+// Keyboard on desk
+// ─────────────────────────────────────────────────────────────────────────────
+
+function Keyboard({ cx, y, sc }: { cx: number; y: number; sc: SC }) {
+  const isActive = sc.badge !== "IDLE";
+  return (
+    <g>
+      <rect x={cx - 22} y={y + 4} width={44} height={8} rx="1"
+        fill={isActive ? "#0c0c1c" : "#080810"}
+        stroke={isActive ? sc.dim : "#111118"}
+        strokeWidth="0.7"/>
+      {/* Key rows — pixel suggestion */}
+      {[0, 1, 2].map(row => (
+        <g key={row}>
+          {[0, 1, 2, 3, 4].map(col => (
+            <rect key={col}
+              x={cx - 18 + col * 8} y={y + 5 + row * 2}
+              width="6" height="1.5"
+              fill={isActive ? sc.accent : "#141420"}
+              opacity={isActive ? 0.18 : 0.12}/>
+          ))}
+        </g>
+      ))}
+      {/* Cursor blink on keyboard */}
+      {isActive && (
+        <rect x={cx - 2} y={y + 6} width={4} height={5}
+          fill={sc.accent} opacity="0.8"
+          className="pulse-live"/>
+      )}
+    </g>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Monitor — frame + glowing screen
+// ─────────────────────────────────────────────────────────────────────────────
+
 function Monitor({
-  x, y, w, h, state, style, clipId, children,
+  x, y, w, h, sc, clipId, children, tilt = false,
 }: {
   x: number; y: number; w: number; h: number;
-  state: AgentState; style: StateStyle;
-  clipId: string;
+  sc: SC; clipId: string; tilt?: boolean;
   children: React.ReactNode;
 }) {
-  const isIdle    = state === "idle";
-  const isBlocked = state === "blocked" || state === "alert";
-  const frameColor = isIdle ? "#1a1a28" : style.accent;
+  const isIdle = sc.badge === "IDLE";
+  const isAlert = sc.badge === "BLOCKED" || sc.badge === "ALERT";
 
   return (
     <g>
-      {/* Outer glow behind monitor */}
+      {/* Monitor glow bloom behind screen */}
       {!isIdle && (
-        <rect x={x - 4} y={y - 4} width={w + 8} height={h + 8}
-          rx="4" fill={style.accent} opacity="0.08"
-          className={isBlocked ? "alert-blink" : "core-breathe"} />
+        <rect x={x - 6} y={y - 6} width={w + 12} height={h + 12}
+          fill={sc.accent} opacity="0.07"
+          className={isAlert ? "alert-blink" : "core-breathe"}/>
       )}
-      {/* Monitor plastic frame */}
-      <rect x={x} y={y} width={w} height={h} rx="2"
-        fill="#0c0c18" stroke={frameColor}
-        strokeWidth={isIdle ? 0.8 : 1.5}
-        opacity={isIdle ? 0.5 : 1} />
-      {/* Screen bezel (inner inset) */}
-      <rect x={x + 3} y={y + 3} width={w - 6} height={h - 6} rx="1"
-        fill={style.screenBg} />
+      {/* Outer bezel */}
+      <rect x={x} y={y} width={w} height={h}
+        fill="#0a0a14"
+        stroke={isIdle ? "#181826" : sc.accent}
+        strokeWidth={isIdle ? 0.8 : 1.5}/>
+      {/* Inner screen area */}
+      <rect x={x + 4} y={y + 4} width={w - 8} height={h - 8}
+        fill={sc.screen}/>
+      {/* CRT scanline pattern (SVG pattern via dashed horizontal lines) */}
+      {Array.from({ length: Math.floor((h - 8) / 3) }, (_, i) => (
+        <line key={i}
+          x1={x + 4} y1={y + 4 + i * 3}
+          x2={x + w - 4} y2={y + 4 + i * 3}
+          stroke="#ffffff" strokeWidth="0.4" opacity="0.04"/>
+      ))}
       {/* Screen contents (clipped) */}
       <clipPath id={clipId}>
-        <rect x={x + 3} y={y + 3} width={w - 6} height={h - 6} />
+        <rect x={x + 4} y={y + 4} width={w - 8} height={h - 8}/>
       </clipPath>
       <g clipPath={`url(#${clipId})`}>
-        <g transform={`translate(${x + 3}, ${y + 3})`}>
+        <g transform={`translate(${x + 4}, ${y + 4})`}>
           {children}
-          <ScanLines w={w - 6} h={h - 6} />
         </g>
       </g>
-      {/* Corner accent dots */}
+      {/* Top corner LEDs */}
+      <rect x={x + 3} y={y + 3} width={3} height={3}
+        fill={sc.accent} opacity={isIdle ? 0.15 : 0.7}
+        className={isAlert ? "alert-blink" : ""}/>
+      <rect x={x + w - 6} y={y + 3} width={3} height={3}
+        fill={sc.accent} opacity={isIdle ? 0.15 : 0.7}
+        className={isAlert ? "alert-blink" : ""}/>
+      {/* Monitor stand */}
+      <rect x={x + w/2 - 4} y={y + h} width={8} height={12}
+        fill="#0a0a12" stroke="#14141e" strokeWidth="0.5"/>
+      <rect x={x + w/2 - 12} y={y + h + 12} width={24} height={5}
+        fill="#0a0a12" stroke="#14141e" strokeWidth="0.5"/>
+    </g>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Status light — pulsing dot on desk corner
+// ─────────────────────────────────────────────────────────────────────────────
+
+function StatusLight({ cx, y, sc }: { cx: number; y: number; sc: SC }) {
+  const isIdle   = sc.badge === "IDLE";
+  const isAlert  = sc.badge === "BLOCKED" || sc.badge === "ALERT";
+  return (
+    <g>
       {!isIdle && (
-        <>
-          <circle cx={x + 4} cy={y + 4} r="1.5" fill={style.accent} opacity="0.6" />
-          <circle cx={x + w - 4} cy={y + 4} r="1.5" fill={style.accent} opacity="0.6" />
-        </>
+        <rect x={cx - 6} y={y - 6} width={12} height={12}
+          fill={sc.accent} opacity="0.12"
+          className={isAlert ? "alert-blink" : "core-breathe"}/>
       )}
+      <rect x={cx - 3} y={y - 3} width={6} height={6}
+        fill={sc.accent}
+        opacity={isIdle ? 0.15 : 0.9}
+        className={isAlert ? "alert-blink" : !isIdle ? "pulse-live" : ""}/>
     </g>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen content — one per agent type
+// All in local coords: origin = top-left of screen content area
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Trend agent: flowing trend lines + directional arrow */
-function TrendScreen({ state, style, w, h }: { state: AgentState; style: StateStyle; w: number; h: number }) {
-  const isIdle = state === "idle";
-  const isBull = state === "active-bull";
-  const isBear = state === "active-bear";
-  const c = isIdle ? "#252530" : style.accent;
-
-  const lines = isBull
-    ? [[2,h-10, w*0.25,h*0.6], [w*0.15,h*0.65, w*0.5,h*0.35], [w*0.4,h*0.4, w*0.75,h*0.15], [w*0.65,h*0.2, w-2,h*0.05]]
-    : isBear
-    ? [[2,10, w*0.25,h*0.35], [w*0.15,h*0.3, w*0.5,h*0.6], [w*0.4,h*0.55, w*0.75,h*0.8], [w*0.65,h*0.75, w-2,h*0.92]]
-    : [[2,h*0.5, w*0.3,h*0.45], [w*0.25,h*0.48, w*0.55,h*0.52], [w*0.5,h*0.5, w-2,h*0.5]];
+function TrendScreen({ w, h, sc }: { w: number; h: number; sc: SC }) {
+  const c = sc.accent;
+  const isIdle = sc.badge === "IDLE";
+  const isBull = sc.badge === "BULLISH";
+  // Pixel-art trend bars: staircase pattern
+  const levels = isBull
+    ? [h*0.75, h*0.65, h*0.55, h*0.42, h*0.30, h*0.18]
+    : sc.badge==="BEARISH"
+    ? [h*0.18, h*0.28, h*0.40, h*0.52, h*0.65, h*0.75]
+    : [h*0.45, h*0.48, h*0.44, h*0.46, h*0.43, h*0.45];
 
   return (
     <g>
       {/* Grid */}
-      {[0.25, 0.5, 0.75].map(t => (
-        <line key={t} x1="0" y1={h * t} x2={w} y2={h * t}
-          stroke={c} strokeWidth="0.5" opacity="0.12" />
+      {[0.25,0.5,0.75].map(t=>(
+        <line key={t} x1="0" y1={h*t} x2={w} y2={h*t}
+          stroke={c} strokeWidth="0.4" opacity="0.12"/>
       ))}
-      {/* Trend lines */}
-      {lines.map(([x1, y1, x2, y2], i) => (
-        <line key={i}
-          x1={x1} y1={y1} x2={x2} y2={y2}
-          stroke={c} strokeWidth="1.5" opacity={0.5 + i * 0.1}
-          strokeLinecap="round"
-        />
+      {/* Staircase pixel bars */}
+      {levels.map((ly, i) => (
+        <rect key={i}
+          x={i * (w/6) + 2} y={ly}
+          width={w/6 - 3} height={h - ly}
+          fill={c}
+          opacity={isIdle ? 0.08 : 0.22 + i * 0.06}/>
       ))}
-      {/* Arrow tip */}
+      {/* Trend line on top of bars */}
       {!isIdle && (
-        <path
-          d={isBull
-            ? `M ${w*0.7},${h*0.12} L ${w-4},${h*0.04} L ${w-4},${h*0.14}`
-            : `M ${w*0.7},${h*0.88} L ${w-4},${h*0.96} L ${w-4},${h*0.86}`}
-          fill={c} opacity="0.8"
+        <polyline
+          points={levels.map((ly,i)=>`${i*(w/6)+w/12},${ly}`).join(" ")}
+          fill="none" stroke={c} strokeWidth="1.5"
+          opacity="0.8" strokeLinejoin="round"
           className="pulse-live"
         />
       )}
-      {/* HTF label */}
-      <text x={w/2} y={h - 4} textAnchor="middle" fontSize="7"
-        fill={c} opacity={isIdle ? 0.3 : 0.7} fontFamily="monospace">
-        {isIdle ? "IDLE" : isBull ? "HTF ▲ BULL" : isBear ? "HTF ▼ BEAR" : "NEUTRAL"}
+      {/* Direction arrow (top-right) */}
+      {!isIdle && (
+        <text x={w - 4} y="14" textAnchor="end"
+          fontSize="11" fill={c} opacity="0.9" fontFamily="monospace">
+          {isBull ? "▲" : sc.badge==="BEARISH" ? "▼" : "→"}
+        </text>
+      )}
+      {/* Label */}
+      <text x={w/2} y={h - 3} textAnchor="middle"
+        fontSize="7" fill={c} opacity={isIdle?0.2:0.65} fontFamily="monospace">
+        {isIdle ? "IDLE" : `HTF ${sc.badge}`}
       </text>
     </g>
   );
 }
 
-/** Price Action agent: candlestick bars + sweep highlight */
-function PriceActionScreen({ state, style, w, h }: { state: AgentState; style: StateStyle; w: number; h: number }) {
-  const isIdle = state === "idle";
-  const c = isIdle ? "#252530" : style.accent;
-  const isBull = state === "active-bull";
-
-  // simplified OHLC bars
-  const bars = [
-    { x: w*0.08, open: h*0.55, close: h*0.35, high: h*0.28, low: h*0.62 },
-    { x: w*0.22, open: h*0.40, close: h*0.28, high: h*0.22, low: h*0.46 },
-    { x: w*0.36, open: h*0.32, close: h*0.48, high: h*0.26, low: h*0.56 },
-    { x: w*0.50, open: h*0.52, close: h*0.38, high: h*0.30, low: h*0.58 },
-    { x: w*0.64, open: h*0.42, close: h*0.28, high: h*0.22, low: h*0.50 },
-    { x: w*0.78, open: h*0.35, close: h*0.22, high: h*0.16, low: h*0.42 },
+function PriceActionScreen({ w, h, sc }: { w: number; h: number; sc: SC }) {
+  const c = sc.accent;
+  const isIdle = sc.badge === "IDLE";
+  // Pixel candlesticks
+  const candles = [
+    {o:h*.55,c:h*.35,hi:h*.28,lo:h*.62,bull:true },
+    {o:h*.38,c:h*.25,hi:h*.20,lo:h*.44,bull:true },
+    {o:h*.28,c:h*.42,hi:h*.24,lo:h*.50,bull:false},
+    {o:h*.48,c:h*.34,hi:h*.28,lo:h*.56,bull:true },
+    {o:h*.36,c:h*.24,hi:h*.18,lo:h*.42,bull:true },
+    {o:h*.28,c:h*.18,hi:h*.12,lo:h*.34,bull:true },
+    {o:h*.22,c:h*.32,hi:h*.18,lo:h*.38,bull:false},
   ];
-
+  const cw = w / 8;
   return (
     <g>
       {/* OB highlight box */}
       {!isIdle && (
-        <rect x={w*0.44} y={h*0.18} width={w*0.25} height={h*0.2}
-          fill={c} opacity="0.08" stroke={c} strokeWidth="0.5" strokeDasharray="2 2"
-          className="core-breathe" />
+        <rect x={w*0.48} y={h*0.15} width={w*0.22} height={h*0.22}
+          fill={c} opacity="0.07"
+          stroke={c} strokeWidth="0.6" strokeDasharray="2 2"
+          className="core-breathe"/>
       )}
-      {/* Candle bars */}
-      {bars.map((b, i) => {
-        const bullBar = b.close < b.open;
-        const barColor = isIdle ? "#252530" : bullBar ? "#10b981" : "#ef4444";
-        const opacity  = isIdle ? 0.3 : 0.7;
+      {candles.map((cd, i)=>{
+        const col = cd.bull ? "#10b981" : "#ef4444";
+        const op  = isIdle ? 0.2 : 0.7;
+        const bx  = i * (w/7) + 3;
+        const by  = Math.min(cd.o,cd.c);
+        const bh  = Math.max(3, Math.abs(cd.c-cd.o));
         return (
           <g key={i}>
-            {/* Wick */}
-            <line x1={b.x} y1={b.high} x2={b.x} y2={b.low}
-              stroke={barColor} strokeWidth="0.8" opacity={opacity} />
-            {/* Body */}
-            <rect x={b.x - 4} y={Math.min(b.open, b.close)}
-              width="8" height={Math.abs(b.close - b.open)}
-              fill={barColor} opacity={opacity} />
+            <line x1={bx+cw*.4} y1={cd.hi} x2={bx+cw*.4} y2={cd.lo}
+              stroke={col} strokeWidth="1" opacity={op}/>
+            <rect x={bx} y={by} width={cw*.8} height={bh}
+              fill={col} opacity={op}/>
           </g>
         );
       })}
-      {/* Sweep label */}
-      {state === "alert" && (
-        <text x={w/2} y={h - 4} textAnchor="middle" fontSize="7"
-          fill={c} className="alert-blink" fontFamily="monospace">
-          SWEEP ⚡
-        </text>
+      {/* Sweep flash */}
+      {sc.badge==="ALERT" && (
+        <rect x="0" y={h*.62} width={w} height="2"
+          fill={c} opacity="0.6" className="alert-blink"/>
       )}
-      {!isIdle && state !== "alert" && (
-        <text x={w/2} y={h - 4} textAnchor="middle" fontSize="7"
-          fill={c} opacity="0.6" fontFamily="monospace">
-          {isBull ? "BUY STRUCTURE" : "SELL STRUCTURE"}
-        </text>
-      )}
+      <text x={w/2} y={h-3} textAnchor="middle"
+        fontSize="7" fill={c} opacity={isIdle?0.2:0.65} fontFamily="monospace">
+        {isIdle ? "IDLE" : sc.badge==="ALERT" ? "SWEEP ⚡" : "STRUCTURE"}
+      </text>
     </g>
   );
 }
 
-/** News agent: scrolling headline lines */
-function NewsScreen({ state, style, w, h }: { state: AgentState; style: StateStyle; w: number; h: number }) {
-  const isIdle  = state === "idle";
-  const isAlert = state === "alert";
-  const c = isIdle ? "#252530" : style.accent;
-
-  const lines = [
-    { y: h*0.14, lw: w*0.85 },
-    { y: h*0.26, lw: w*0.65 },
-    { y: h*0.38, lw: w*0.75 },
-    { y: h*0.50, lw: w*0.55 },
-    { y: h*0.62, lw: w*0.80 },
-    { y: h*0.74, lw: w*0.60 },
+function NewsScreen({ w, h, sc }: { w: number; h: number; sc: SC }) {
+  const c = sc.accent;
+  const isIdle = sc.badge === "IDLE";
+  const rows = [
+    { y: h*0.12, lw: w*0.88, thick: true  },
+    { y: h*0.24, lw: w*0.65, thick: false },
+    { y: h*0.34, lw: w*0.78, thick: false },
+    { y: h*0.44, lw: w*0.55, thick: false },
+    { y: h*0.54, lw: w*0.72, thick: false },
+    { y: h*0.64, lw: w*0.60, thick: false },
+    { y: h*0.74, lw: w*0.82, thick: false },
   ];
-
   return (
     <g>
-      {/* Header bar */}
-      <rect x="0" y="0" width={w} height={h * 0.1}
-        fill={c} opacity={isIdle ? 0.06 : 0.15} />
-      <text x={w/2} y={h*0.08} textAnchor="middle" fontSize="6.5"
-        fill={c} opacity={isIdle ? 0.3 : 0.8} fontFamily="monospace">
-        {isAlert ? "⚠ HIGH IMPACT" : "MACRO FEED"}
+      {/* Header strip */}
+      <rect x="0" y="0" width={w} height={h*0.09}
+        fill={c} opacity={isIdle ? 0.05 : 0.14}/>
+      <text x={w/2} y={h*0.075} textAnchor="middle"
+        fontSize="6.5" fill={c} opacity={isIdle?0.2:0.85} fontFamily="monospace">
+        {sc.badge==="ALERT" ? "⚠ HIGH IMPACT" : "MACRO FEED"}
       </text>
-      {/* Text lines */}
-      {lines.map((l, i) => (
+      {/* Text rows (pixel blocks simulating text) */}
+      {rows.map((r,i)=>(
         <rect key={i}
-          x={w * 0.05} y={l.y - 3}
-          width={l.lw} height="4"
-          rx="1" fill={c}
-          opacity={isIdle ? 0.1 : isAlert && i === 0 ? 0.6 : 0.25}
-          className={isAlert && i < 2 ? "alert-blink" : ""}
-        />
+          x={w*0.04} y={r.y - (r.thick?2.5:1.5)}
+          width={r.lw} height={r.thick?4:3}
+          rx="0.5" fill={c}
+          opacity={isIdle ? 0.07 : sc.badge==="ALERT"&&i<2 ? 0.55 : 0.22}
+          className={sc.badge==="ALERT"&&i===0 ? "alert-blink" : ""}/>
       ))}
-      {/* Blinking cursor */}
+      {/* Scrolling cursor */}
       {!isIdle && (
-        <rect x={w * 0.05} y={h * 0.74} width="4" height="4"
-          fill={c} className="pulse-live" opacity="0.8" />
+        <rect x={w*0.04} y={h*0.74} width={5} height={4}
+          fill={c} className="pulse-live" opacity="0.8"/>
       )}
     </g>
   );
 }
 
-/** Risk Gate: circular shield gauge */
-function RiskScreen({ state, style, w, h }: { state: AgentState; style: StateStyle; w: number; h: number }) {
-  const isIdle    = state === "idle";
-  const isBlocked = state === "blocked";
-  const c = isIdle ? "#252530" : style.accent;
-  const cx = w / 2;
-  const cy = h * 0.46;
-  const r  = Math.min(w, h) * 0.28;
-  const circ = 2 * Math.PI * r;
-  const fill = isIdle ? 0.1 : isBlocked ? 0.25 : 0.75;
-
+function RiskScreen({ w, h, sc }: { w: number; h: number; sc: SC }) {
+  const c = sc.accent;
+  const isIdle = sc.badge === "IDLE";
+  const isBlocked = sc.badge === "BLOCKED";
+  const cx2 = w/2, cy2 = h*0.44;
+  const r = Math.min(w,h)*0.28;
+  const circ = 2*Math.PI*r;
+  const fill = isIdle ? 0.08 : isBlocked ? 0.20 : 0.78;
   return (
     <g>
-      {/* Outer ring track */}
-      <circle cx={cx} cy={cy} r={r} fill="none"
-        stroke={c} strokeWidth="3" opacity="0.12" />
-      {/* Fill arc */}
-      <circle cx={cx} cy={cy} r={r} fill="none"
+      {/* Circular gauge track */}
+      <circle cx={cx2} cy={cy2} r={r} fill="none"
+        stroke={c} strokeWidth="3" opacity="0.12"/>
+      {/* Gauge fill */}
+      <circle cx={cx2} cy={cy2} r={r} fill="none"
         stroke={c} strokeWidth="3"
-        opacity={isIdle ? 0.2 : 0.7}
-        strokeDasharray={`${circ * fill} ${circ * (1 - fill)}`}
-        strokeDashoffset={circ * 0.25}
-        strokeLinecap="round"
-        className={isBlocked ? "alert-blink" : !isIdle ? "pulse-live" : ""}
-      />
-      {/* Shield icon inner */}
-      <path
-        d={`M ${cx},${cy - r*0.55} Q ${cx + r*0.4},${cy - r*0.4} ${cx + r*0.4},${cy - r*0.1} Q ${cx + r*0.35},${cy + r*0.3} ${cx},${cy + r*0.55} Q ${cx - r*0.35},${cy + r*0.3} ${cx - r*0.4},${cy - r*0.1} Q ${cx - r*0.4},${cy - r*0.4} ${cx},${cy - r*0.55} Z`}
-        fill={c} opacity={isIdle ? 0.1 : 0.18}
-        stroke={c} strokeWidth="0.8" />
-      {/* VALID / BLOCKED label */}
-      <text x={cx} y={h - 5} textAnchor="middle" fontSize="7"
-        fill={c} opacity={isIdle ? 0.3 : 0.8} fontFamily="monospace"
-        className={isBlocked ? "alert-blink" : ""}>
-        {isIdle ? "STANDBY" : isBlocked ? "✖ BLOCKED" : "✔ VALID"}
-      </text>
-    </g>
-  );
-}
-
-/** Contrarian: mirrored inverted pattern */
-function ContrarianScreen({ state, style, w, h }: { state: AgentState; style: StateStyle; w: number; h: number }) {
-  const isIdle = state === "idle";
-  const c = isIdle ? "#252530" : style.accent;
-
-  return (
-    <g>
-      {/* Center mirror axis */}
-      <line x1={w/2} y1="0" x2={w/2} y2={h}
-        stroke={c} strokeWidth="0.5" opacity="0.2" strokeDasharray="3 3" />
-      {/* Left side (crowd) */}
-      <path d={`M ${w*0.05},${h*0.7} Q ${w*0.15},${h*0.4} ${w*0.2},${h*0.2} L ${w*0.22},${h*0.2} Q ${w*0.35},${h*0.5} ${w*0.44},${h*0.8}`}
-        fill={c} opacity={isIdle ? 0.06 : 0.12} />
-      <path d={`M ${w*0.05},${h*0.7} Q ${w*0.15},${h*0.4} ${w*0.2},${h*0.2} Q ${w*0.35},${h*0.5} ${w*0.44},${h*0.8}`}
-        stroke={c} strokeWidth="1.5" fill="none" opacity={isIdle ? 0.2 : 0.5} />
-      {/* Right side (contrarian — mirrored, inverted) */}
-      <path d={`M ${w*0.95},${h*0.3} Q ${w*0.85},${h*0.6} ${w*0.8},${h*0.8} Q ${w*0.65},${h*0.5} ${w*0.56},${h*0.2}`}
-        stroke={c} strokeWidth="1.5" fill="none" opacity={isIdle ? 0.2 : 0.5}
-        strokeDasharray="4 2" />
-      {/* ↕ symbol */}
+        opacity={isIdle?0.18:0.72}
+        strokeDasharray={`${circ*fill} ${circ*(1-fill)}`}
+        strokeDashoffset={circ*0.25}
+        strokeLinecap="square"
+        className={isBlocked?"alert-blink":!isIdle?"pulse-live":""}/>
+      {/* Shield pixel-art shape */}
+      <polygon
+        points={`${cx2},${cy2-r*.5} ${cx2+r*.38},${cy2-r*.28} ${cx2+r*.38},${cy2+r*.12} ${cx2},${cy2+r*.5} ${cx2-r*.38},${cy2+r*.12} ${cx2-r*.38},${cy2-r*.28}`}
+        fill={c} opacity={isIdle?0.06:0.14}
+        stroke={c} strokeWidth="0.7"/>
+      {/* ✔ or ✖ */}
       {!isIdle && (
-        <text x={w/2} y={h*0.55} textAnchor="middle" fontSize="12"
-          fill={c} opacity="0.5" className="pulse-live">
-          ⇅
+        <text x={cx2} y={cy2+4} textAnchor="middle" fontSize="14"
+          fill={c} opacity="0.85" fontFamily="monospace"
+          className={isBlocked?"alert-blink":""}>
+          {isBlocked ? "✖" : "✔"}
         </text>
       )}
-      <text x={w/2} y={h - 4} textAnchor="middle" fontSize="7"
-        fill={c} opacity={isIdle ? 0.3 : 0.6} fontFamily="monospace">
-        {isIdle ? "IDLE" : state === "blocked" ? "TRAP ⚠" : "MONITORING"}
+      <text x={cx2} y={h-3} textAnchor="middle" fontSize="7"
+        fill={c} opacity={isIdle?0.2:0.75} fontFamily="monospace"
+        className={isBlocked?"alert-blink":""}>
+        {isIdle?"STANDBY":isBlocked?"BLOCKED":"VALID"}
       </text>
     </g>
   );
 }
 
-/** Master Consensus: central HUD with radiating connection beams */
-function MasterScreen({
-  state, style, w, h, confidence, aligned, total,
-}: {
-  state: AgentState; style: StateStyle;
-  w: number; h: number;
-  confidence: number; aligned: number; total: number;
-}) {
-  const isIdle = state === "idle";
-  const c = isIdle ? "#252530" : style.accent;
-  const cx = w / 2;
-  const cy = h * 0.44;
-  const r  = Math.min(w, h) * 0.26;
-
-  // Spoke lines from center to edges
-  const spokeDirs = [0, 45, 90, 135, 180, 225, 270, 315];
-
+function ContrarianScreen({ w, h, sc }: { w: number; h: number; sc: SC }) {
+  const c = sc.accent;
+  const isIdle = sc.badge === "IDLE";
+  const mid = w/2;
+  // Left side = crowd (going up)
+  const lPts = [[mid*.08,h*.8],[mid*.22,h*.55],[mid*.38,h*.32],[mid*.5,h*.15]];
+  // Right side = contrarian (going opposite, dashed)
+  const rPts = [[mid*1.92,h*.2],[mid*1.78,h*.45],[mid*1.62,h*.68],[mid*1.5,h*.85]];
   return (
     <g>
+      {/* Centre divider */}
+      <line x1={mid} y1="2" x2={mid} y2={h-2}
+        stroke={c} strokeWidth="0.5" opacity="0.2" strokeDasharray="3 3"/>
+      {/* Crowd line */}
+      <polyline points={lPts.map(p=>p.join(",")).join(" ")}
+        fill="none" stroke={c} strokeWidth="2" opacity={isIdle?0.15:0.5}
+        strokeLinejoin="round" strokeLinecap="round"/>
+      {lPts.map(([px,py],i)=>(
+        <rect key={i} x={px-2} y={py-2} width={4} height={4}
+          fill={c} opacity={isIdle?0.12:0.45}/>
+      ))}
+      {/* Contrarian line (dashed, opposite) */}
+      <polyline points={rPts.map(p=>p.join(",")).join(" ")}
+        fill="none" stroke={c} strokeWidth="2" opacity={isIdle?0.15:0.5}
+        strokeDasharray="4 2" strokeLinejoin="round" strokeLinecap="round"/>
+      {/* ⇅ icon */}
+      {!isIdle && (
+        <text x={mid} y={h*.55} textAnchor="middle" fontSize="13"
+          fill={c} opacity="0.4" className="pulse-live">⇅</text>
+      )}
+      <text x={mid} y={h-3} textAnchor="middle" fontSize="7"
+        fill={c} opacity={isIdle?0.2:0.65} fontFamily="monospace">
+        {isIdle?"IDLE":sc.badge==="BLOCKED"?"TRAP ⚠":"MONITORING"}
+      </text>
+    </g>
+  );
+}
+
+function MasterScreen({
+  w, h, sc, conf, aligned, total,
+}: { w:number;h:number;sc:SC;conf:number;aligned:number;total:number }) {
+  const c = sc.accent;
+  const isIdle = sc.badge==="IDLE";
+  const cx2=w/2, cy2=h*.42;
+  const r=Math.min(w,h)*.26;
+  const spokes=[0,45,90,135,180,225,270,315];
+  return (
+    <g>
+      {/* Outer rotating ring */}
+      <circle cx={cx2} cy={cy2} r={r*.9} fill="none"
+        stroke={c} strokeWidth="0.8" opacity={isIdle?.08:.28}
+        strokeDasharray="4 3"
+        className={!isIdle?"radar-spin-slow":""}/>
       {/* Spokes */}
-      {spokeDirs.map((deg, i) => {
-        const rad   = (deg * Math.PI) / 180;
-        const inner = r * 0.35;
-        const outer = r * 0.75;
+      {spokes.map((deg,i)=>{
+        const rad=deg*Math.PI/180;
+        const i1=r*.35, o1=r*.72;
         return (
           <line key={i}
-            x1={cx + inner * Math.cos(rad)} y1={cy + inner * Math.sin(rad)}
-            x2={cx + outer * Math.cos(rad)} y2={cy + outer * Math.sin(rad)}
+            x1={cx2+i1*Math.cos(rad)} y1={cy2+i1*Math.sin(rad)}
+            x2={cx2+o1*Math.cos(rad)} y2={cy2+o1*Math.sin(rad)}
             stroke={c} strokeWidth="0.8"
-            opacity={isIdle ? 0.08 : 0.22 + (i % 2) * 0.1}
-            strokeDasharray={i % 2 === 0 ? "none" : "2 2"}
-          />
+            opacity={isIdle?.06:.18+(i%2)*.08}
+            strokeDasharray={i%2===0?"none":"2 2"}/>
         );
       })}
-      {/* Outer ring */}
-      <circle cx={cx} cy={cy} r={r * 0.85} fill="none"
-        stroke={c} strokeWidth="0.8" opacity={isIdle ? 0.12 : 0.3}
-        strokeDasharray="4 3" className={!isIdle ? "radar-spin-slow" : ""} />
       {/* Inner filled ring */}
-      <circle cx={cx} cy={cy} r={r * 0.5} fill={c}
-        opacity={isIdle ? 0.04 : 0.1}
-        className={!isIdle ? "core-breathe" : ""} />
-      {/* Core dot */}
-      <circle cx={cx} cy={cy} r={r * 0.22} fill={c}
-        opacity={isIdle ? 0.15 : 0.55}
-        className={!isIdle ? "pulse-live" : ""} />
-      {/* Confidence value */}
+      <circle cx={cx2} cy={cy2} r={r*.45} fill={c}
+        opacity={isIdle?.03:.10}
+        className={!isIdle?"core-breathe":""}/>
+      {/* Core hex pixel pattern (3×3 grid center) */}
+      {[-1,0,1].map(row=>[-1,0,1].map(col=>(
+        <rect key={`${row}-${col}`}
+          x={cx2+col*8-3} y={cy2+row*8-3}
+          width={6} height={6}
+          fill={c}
+          opacity={isIdle?.05:Math.abs(row)===0&&Math.abs(col)===0?0.6:0.18}
+          className={row===0&&col===0&&!isIdle?"pulse-live":""}/>
+      )))}
+      {/* Confidence */}
       {!isIdle && (
         <>
-          <text x={cx} y={cy + 4} textAnchor="middle" fontSize="11"
-            fontWeight="bold" fill={c} opacity="0.95" fontFamily="monospace">
-            {confidence}%
+          <text x={cx2} y={cy2+3} textAnchor="middle"
+            fontSize="13" fontWeight="bold" fill={c} opacity=".95" fontFamily="monospace">
+            {conf}%
           </text>
-          <text x={cx} y={cy + 14} textAnchor="middle" fontSize="6.5"
-            fill={c} opacity="0.55" fontFamily="monospace">
+          <text x={cx2} y={cy2+14} textAnchor="middle"
+            fontSize="7" fill={c} opacity=".55" fontFamily="monospace">
             {aligned}/{total}
           </text>
         </>
       )}
-      {/* Status label */}
-      <text x={cx} y={h - 4} textAnchor="middle" fontSize="7"
-        fill={c} opacity={isIdle ? 0.3 : 0.8} fontFamily="monospace"
-        className={state === "blocked" || state === "alert" ? "alert-blink" : ""}>
-        {isIdle ? "STANDBY"
-          : state === "active-bull" ? "▲ BULLISH CONSENSUS"
-          : state === "active-bear" ? "▼ BEARISH CONSENSUS"
-          : state === "analyzing"   ? "COLLECTING..."
-          : "NO CONSENSUS"}
+      <text x={cx2} y={h-3} textAnchor="middle" fontSize="7.5"
+        fill={c} opacity={isIdle?.2:.85} fontFamily="monospace"
+        className={sc.badge==="BLOCKED"||sc.badge==="ALERT"?"alert-blink":""}>
+        {isIdle?"STANDBY":sc.badge==="BULL"?"▲ CONSENSUS BULL":sc.badge==="BEAR"?"▼ CONSENSUS BEAR":sc.badge==="ANALYZING"?"COLLECTING...":"NO CONSENSUS"}
       </text>
     </g>
   );
 }
 
-/** Execution Agent: targeting crosshair — pulses bright when armed */
-function ExecutionScreen({ state, style, w, h }: { state: AgentState; style: StateStyle; w: number; h: number }) {
-  const isIdle  = state === "idle";
-  const isArmed = state === "armed";
-  const c = isIdle ? "#252530" : style.accent;
-  const cx = w / 2;
-  const cy = h * 0.44;
-  const r  = Math.min(w, h) * 0.28;
-
+function ExecutionScreen({ w, h, sc }: { w: number; h: number; sc: SC }) {
+  const c = sc.accent;
+  const isIdle = sc.badge === "IDLE";
+  const isArmed = sc.badge === "ARMED";
+  const cx2=w/2, cy2=h*.42;
+  const r=Math.min(w,h)*.28;
   return (
     <g>
-      {/* Crosshair lines */}
-      <line x1={cx - r} y1={cy} x2={cx - r*0.3} y2={cy}
-        stroke={c} strokeWidth="1.5" opacity={isIdle ? 0.2 : 0.7}
-        className={isArmed ? "pulse-live" : ""} />
-      <line x1={cx + r*0.3} y1={cy} x2={cx + r} y2={cy}
-        stroke={c} strokeWidth="1.5" opacity={isIdle ? 0.2 : 0.7}
-        className={isArmed ? "pulse-live" : ""} />
-      <line x1={cx} y1={cy - r} x2={cx} y2={cy - r*0.3}
-        stroke={c} strokeWidth="1.5" opacity={isIdle ? 0.2 : 0.7}
-        className={isArmed ? "pulse-live" : ""} />
-      <line x1={cx} y1={cy + r*0.3} x2={cx} y2={cy + r}
-        stroke={c} strokeWidth="1.5" opacity={isIdle ? 0.2 : 0.7}
-        className={isArmed ? "pulse-live" : ""} />
+      {/* Cross lines */}
+      {[[-r,0,-r*.32,0],[r*.32,0,r,0],[0,-r,0,-r*.32],[0,r*.32,0,r]].map(([x1,y1,x2,y2],i)=>(
+        <line key={i}
+          x1={cx2+x1} y1={cy2+y1} x2={cx2+x2} y2={cy2+y2}
+          stroke={c} strokeWidth={isArmed?2:1.2}
+          opacity={isIdle?.18:.75}
+          className={isArmed?"pulse-live":""}/>
+      ))}
       {/* Outer circle */}
-      <circle cx={cx} cy={cy} r={r} fill="none"
-        stroke={c} strokeWidth="1" opacity={isIdle ? 0.15 : 0.4}
-        strokeDasharray="5 5" />
+      <circle cx={cx2} cy={cy2} r={r} fill="none"
+        stroke={c} strokeWidth="1" opacity={isIdle?.12:.35}
+        strokeDasharray="5 4"/>
       {/* Inner circle */}
-      <circle cx={cx} cy={cy} r={r * 0.35} fill="none"
-        stroke={c} strokeWidth="1.5" opacity={isIdle ? 0.15 : 0.6}
-        className={isArmed ? "pulse-live" : ""} />
-      {/* Center dot */}
-      <circle cx={cx} cy={cy} r={isArmed ? 4 : 2} fill={c}
-        opacity={isIdle ? 0.2 : 0.9}
-        className={isArmed ? "pulse-live" : ""} />
-      {/* Aimed arcs (armed only) */}
-      {isArmed && (
-        <>
-          <path d={`M ${cx - r*0.55},${cy - r*0.55} A ${r*0.78} ${r*0.78} 0 0 1 ${cx + r*0.55},${cy - r*0.55}`}
-            fill="none" stroke={c} strokeWidth="1" opacity="0.4"
-            className="pulse-live" strokeLinecap="round" />
-        </>
-      )}
-      {/* Label */}
-      <text x={cx} y={h - 4} textAnchor="middle" fontSize="7"
-        fill={c} opacity={isIdle ? 0.3 : 0.8} fontFamily="monospace"
-        className={isArmed ? "pulse-live" : ""}>
-        {isIdle ? "STANDBY" : isArmed ? "◉ ARMED" : state === "alert" ? "WATCHING" : "NO SETUP"}
+      <circle cx={cx2} cy={cy2} r={r*.38} fill="none"
+        stroke={c} strokeWidth={isArmed?2:1} opacity={isIdle?.15:.6}
+        className={isArmed?"pulse-live":""}/>
+      {/* Center pixel */}
+      <rect x={cx2-3} y={cy2-3} width={6} height={6}
+        fill={c} opacity={isIdle?.12:.9}
+        className={isArmed?"pulse-live":""}/>
+      {/* Corner brackets (armed look) */}
+      {isArmed && [[-1,-1],[1,-1],[-1,1],[1,1]].map(([sx,sy],i)=>(
+        <g key={i}>
+          <line x1={cx2+sx*(r*.62)} y1={cy2+sy*(r*.62)}
+            x2={cx2+sx*(r*.62+10)} y2={cy2+sy*(r*.62)}
+            stroke={c} strokeWidth="2" opacity=".6" strokeLinecap="square"/>
+          <line x1={cx2+sx*(r*.62)} y1={cy2+sy*(r*.62)}
+            x2={cx2+sx*(r*.62)} y2={cy2+sy*(r*.62+10)}
+            stroke={c} strokeWidth="2" opacity=".6" strokeLinecap="square"/>
+        </g>
+      ))}
+      <text x={cx2} y={h-3} textAnchor="middle" fontSize="7.5"
+        fill={c} opacity={isIdle?.2:.85} fontFamily="monospace"
+        className={isArmed?"pulse-live":""}>
+        {isIdle?"STANDBY":isArmed?"◉ ARMED":sc.badge==="ALERT"?"WATCHING":"NO SETUP"}
       </text>
     </g>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// WorkStation — assembles a full operator station
+// Complete workstation
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface StationDef {
-  id: string;
-  label: string;
-  sub: string;
-  cx: number;
-  top: number;
-  w: number;        // station total width
+interface StationCfg {
+  id: string; label: string; sub: string;
+  cx: number; deskY: number; w: number;
+  monW: number; monH: number;
   isMaster?: boolean;
+  lean?: number;
 }
 
-function WorkStation({
-  def, state, style, children,
+function Workstation({
+  cfg, state, sc, extraData,
 }: {
-  def: StationDef;
-  state: AgentState;
-  style: StateStyle;
-  children: React.ReactNode;    // screen content
+  cfg: StationCfg; state: AgentState; sc: SC;
+  extraData?: { conf: number; aligned: number; total: number };
 }) {
-  const { cx, top, w, label, sub, isMaster } = def;
+  const { cx, deskY, w, monW, monH, isMaster, lean=0 } = cfg;
+  const monX = cx - monW/2;
+  const monY = deskY - monH - 22;  // monitor sits above desk with stand gap
+  const sw = monW - 8;
+  const sh = monH - 8;
   const isIdle = state === "idle";
-  const isAlert = state === "blocked" || state === "alert";
 
-  // Derived measurements
-  const halfW     = w / 2;
-  const monW      = w - (isMaster ? 24 : 20);
-  const monH      = isMaster ? 100 : 82;
-  const monX      = cx - monW / 2;
-  const monY      = top;
-  const opY       = monY + monH + 16;   // operator anchor (waist)
-  const deskY     = opY + 50;
-  const deskH     = 16;
-  const deskFaceH = 12;
+  function screenContent() {
+    const props = { w: sw, h: sh, sc };
+    switch (cfg.id) {
+      case "trend":      return <TrendScreen {...props}/>;
+      case "smc":        return <PriceActionScreen {...props}/>;
+      case "news":       return <NewsScreen {...props}/>;
+      case "risk":       return <RiskScreen {...props}/>;
+      case "contrarian": return <ContrarianScreen {...props}/>;
+      case "execution":  return <ExecutionScreen {...props}/>;
+      case "master":     return <MasterScreen {...props}
+          conf={extraData?.conf??0}
+          aligned={extraData?.aligned??0}
+          total={extraData?.total??0}/>;
+      default:           return null;
+    }
+  }
 
   return (
     <g>
-      {/* Floor glow / ambient pool */}
-      <ellipse cx={cx} cy={deskY + deskH + deskFaceH + 18}
-        rx={halfW + 10} ry={12}
-        fill={style.floorGlow}
-        className={!isIdle && !isAlert ? "core-breathe" : isAlert ? "alert-blink" : ""}
-      />
+      {/* Floor glow pool */}
+      <ellipse cx={cx} cy={deskY + 52} rx={w/2 + 8} ry={10}
+        fill={sc.floor}
+        className={!isIdle ? "core-breathe" : ""}/>
 
-      {/* Overhead light ray */}
+      {/* Overhead station spotlight */}
       {!isIdle && (
-        <path d={`M ${cx - 6},0 L ${cx - halfW + 4},${top - 2} L ${cx + halfW - 4},${top - 2} L ${cx + 6},0`}
-          fill={style.accent} opacity="0.04" />
+        <path d={`M ${cx-8},0 L ${cx-w/2+4},${monY-8} L ${cx+w/2-4},${monY-8} L ${cx+8},0`}
+          fill={sc.accent} opacity="0.025"/>
       )}
 
       {/* Monitor */}
-      <Monitor
-        x={monX} y={monY} w={monW} h={monH}
-        state={state} style={style}
-        clipId={`clip-${def.id}`}
-      >
-        {children}
+      <Monitor x={monX} y={monY} w={monW} h={monH}
+        sc={sc} clipId={`clip-${cfg.id}`}>
+        {screenContent()}
       </Monitor>
 
-      {/* Monitor stand */}
-      <rect x={cx - 4} y={monY + monH} width="8" height={opY - (monY + monH) - 44}
-        fill="#0e0e1a" stroke="#1a1a28" strokeWidth="0.5" />
-      {/* Stand base */}
-      <rect x={cx - 14} y={opY - 46} width="28" height="5" rx="1"
-        fill="#141422" stroke="#1e1e2e" strokeWidth="0.5" />
-
       {/* Operator silhouette */}
-      <g transform={`translate(${cx}, ${opY})`}>
-        <Operator state={state} style={style} />
-      </g>
+      <PixelOperator cx={cx} baseY={deskY} sc={sc} lean={lean} isMaster={isMaster}/>
 
-      {/* Desk surface (top face) */}
-      <rect x={cx - halfW + 4} y={deskY}
-        width={w - 8} height={deskH} rx="1"
-        fill={isIdle ? "#0e0e1a" : style.dim}
-        stroke={isIdle ? "#1c1c2a" : style.accent}
-        strokeWidth={isIdle ? 0.5 : 1}
-        opacity={isIdle ? 0.6 : 0.8}
-      />
-      {/* Desk front face (3-D) */}
-      <rect x={cx - halfW + 4} y={deskY + deskH}
-        width={w - 8} height={deskFaceH} rx="1"
-        fill="#09090f"
-        stroke={isIdle ? "#141420" : style.accent}
-        strokeWidth="0.5" opacity="0.7"
-      />
+      {/* Desk */}
+      <PixelDesk cx={cx} y={deskY} w={w} sc={sc}/>
 
-      {/* Keyboard on desk */}
-      <rect x={cx - 22} y={deskY + 4}
-        width="44" height="7" rx="1"
-        fill={isIdle ? "#111120" : "#0a0a18"}
-        stroke={isIdle ? "#1e1e2e" : style.accent}
-        strokeWidth="0.5" opacity="0.8" />
-      {/* Typing cursor blink */}
-      {!isIdle && (
-        <rect x={cx - 2} y={deskY + 6} width="3" height="3"
-          fill={style.accent} opacity="0.9"
-          className="pulse-live" />
-      )}
+      {/* Keyboard */}
+      <Keyboard cx={cx} y={deskY} sc={sc}/>
 
-      {/* Status indicator light — right side of desk */}
-      <circle cx={cx + halfW - 12} cy={deskY + 8} r="4"
-        fill={style.accent}
-        opacity={isIdle ? 0.15 : 0.85}
-        className={isAlert ? "alert-blink" : !isIdle ? "pulse-live" : ""}
-      />
-      {/* Status light halo */}
-      {!isIdle && (
-        <circle cx={cx + halfW - 12} cy={deskY + 8} r="8"
-          fill={style.accent} opacity="0.12"
-          className="core-breathe" />
-      )}
+      {/* Status light (right side of desk) */}
+      <StatusLight cx={cx + w/2 - 12} y={deskY + 8} sc={sc}/>
 
       {/* Agent label */}
-      <text x={cx} y={deskY + deskH + deskFaceH + 14}
-        textAnchor="middle" fontSize={isMaster ? 9.5 : 8.5}
-        fontWeight="700" fill={style.label}
-        fontFamily="ui-monospace, monospace"
-        letterSpacing="0.1em"
-        opacity={isIdle ? 0.4 : 1}>
-        {label}
+      <text x={cx} y={deskY + 52}
+        textAnchor="middle" fontSize={isMaster?10:9}
+        fontWeight="700" fill={sc.accent}
+        fontFamily="ui-monospace,monospace" letterSpacing="0.12em"
+        opacity={isIdle ? 0.35 : 1}>
+        {cfg.label}
       </text>
-      <text x={cx} y={deskY + deskH + deskFaceH + 25}
-        textAnchor="middle" fontSize="7"
-        fill={style.label} opacity={isIdle ? 0.2 : 0.45}
-        fontFamily="ui-monospace, monospace" letterSpacing="0.06em">
-        {sub}
+      <text x={cx} y={deskY + 64}
+        textAnchor="middle" fontSize="7.5"
+        fill={sc.accent} opacity={isIdle ? 0.18 : 0.5}
+        fontFamily="ui-monospace,monospace" letterSpacing="0.06em">
+        {cfg.sub}
       </text>
 
       {/* State badge */}
       {!isIdle && (
-        <g>
-          <rect x={cx - 22} y={deskY + deskH + deskFaceH + 30}
-            width="44" height="10" rx="2"
-            fill={style.accent} opacity="0.12"
-            stroke={style.accent} strokeWidth="0.5" />
-          <text x={cx} y={deskY + deskH + deskFaceH + 38}
-            textAnchor="middle" fontSize="6.5"
-            fill={style.accent} opacity="0.8"
-            fontFamily="ui-monospace, monospace" letterSpacing="0.08em"
-            className={isAlert ? "alert-blink" : ""}>
-            {style.label}
+        <>
+          <rect x={cx - 20} y={deskY + 68} width={40} height={11} rx="1"
+            fill={sc.accent} opacity="0.12" stroke={sc.accent} strokeWidth="0.4"/>
+          <text x={cx} y={deskY + 76.5}
+            textAnchor="middle" fontSize="6.5" fill={sc.accent} opacity="0.85"
+            fontFamily="ui-monospace,monospace" letterSpacing="0.1em"
+            className={state==="blocked"||state==="alert"?"alert-blink":""}>
+            {sc.badge}
           </text>
-        </g>
+        </>
       )}
     </g>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Connection channels (floor-level light strips between stations and master)
+// Floor data-stream channels between stations and master
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ConnectionChannel({
-  fromCx, toCx, y, state,
-}: { fromCx: number; toCx: number; y: number; state: AgentState }) {
-  const isIdle = state === "idle";
-  const c = S[state].accent;
+function FloorChannel({
+  x1, x2, y, sc,
+}: { x1:number; x2:number; y:number; sc:SC }) {
+  const isIdle = sc.badge === "IDLE";
   return (
     <g>
-      {/* Track */}
-      <line x1={fromCx} y1={y} x2={toCx} y2={y}
-        stroke="#1a1a28" strokeWidth="2" />
-      {/* Active flow */}
+      <line x1={x1} y1={y} x2={x2} y2={y}
+        stroke="#14142a" strokeWidth="2"/>
       {!isIdle && (
-        <line x1={fromCx} y1={y} x2={toCx} y2={y}
-          stroke={c} strokeWidth="2" opacity="0.4"
-          strokeDasharray="8 6"
-          className={state === "blocked" ? "dash-flow-slow" : state === "armed" ? "dash-flow-fast" : "dash-flow"}
-        />
+        <line x1={x1} y1={y} x2={x2} y2={y}
+          stroke={sc.accent} strokeWidth="2"
+          opacity="0.45" strokeDasharray="8 7"
+          className={sc.badge==="BLOCKED"?"dash-flow-slow":sc.badge==="ARMED"?"dash-flow-fast":"dash-flow"}/>
       )}
     </g>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main component
+// Room background — walls, ceiling, floor
+// ─────────────────────────────────────────────────────────────────────────────
+
+function RoomBackground({ VW, VH }: { VW: number; VH: number }) {
+  return (
+    <g>
+      {/* Base fill */}
+      <rect width={VW} height={VH} fill="#03030a"/>
+
+      {/* Back wall */}
+      <rect x="0" y="0" width={VW} height={VH*.45} fill="#050510"/>
+
+      {/* Back wall circuit traces (diagonal, low opacity) */}
+      {Array.from({length:14},(_, i)=>(
+        <line key={`ct${i}`}
+          x1={i*90-20} y1="0" x2={i*90+100} y2={VH*.44}
+          stroke="#a78bfa" strokeWidth="0.4" opacity="0.025"/>
+      ))}
+      {/* Back wall horizontal panels */}
+      {[0.12, 0.28, 0.4].map(t=>(
+        <line key={t} x1="0" y1={VH*t} x2={VW} y2={VH*t}
+          stroke="#0e0e20" strokeWidth="1" opacity="0.5"/>
+      ))}
+
+      {/* Large back-wall display panels (decorative) */}
+      {[VW*.18, VW*.50, VW*.82].map((px,i)=>(
+        <g key={i}>
+          <rect x={px-70} y={VH*.04} width={140} height={VH*.28}
+            fill="#060614" stroke="#0e0e22" strokeWidth="1"/>
+          <rect x={px-66} y={VH*.04+4} width={132} height={VH*.28-8}
+            fill="#040410"/>
+          {/* Panel content: subtle scan lines */}
+          {Array.from({length:8},(_, r)=>(
+            <rect key={r} x={px-60} y={VH*.07+r*10}
+              width={120} height="3" rx="0.5"
+              fill={i===1?"#a78bfa":"#1a1a36"} opacity={i===1?0.06:0.04}
+              className={i===1?"pulse-live":""}/>
+          ))}
+        </g>
+      ))}
+
+      {/* Ceiling */}
+      <rect x="0" y="0" width={VW} height="18" fill="#040410"/>
+      {/* Ceiling light strips */}
+      {[VW*.2, VW*.5, VW*.8].map(lx=>(
+        <g key={lx}>
+          <rect x={lx-80} y="2" width={160} height="8" rx="2"
+            fill="#ffffff" opacity="0.04"/>
+          <rect x={lx-80} y="2" width={160} height="8" rx="2"
+            fill="#a0a0ff" opacity="0.03" className="core-breathe"/>
+          {/* Light cone */}
+          <path d={`M ${lx-80},10 L ${lx-140},${VH*.44} L ${lx+140},${VH*.44} L ${lx+80},10 Z`}
+            fill="#8888ff" opacity="0.015"/>
+        </g>
+      ))}
+      <line x1="0" y1="10" x2={VW} y2="10"
+        stroke="#ffffff" strokeWidth="0.5" opacity="0.04"/>
+
+      {/* Floor — bottom area */}
+      <rect x="0" y={VH*.6} width={VW} height={VH*.4} fill="#030308"/>
+      {/* Floor grid */}
+      {Array.from({length:20},(_, i)=>(
+        <line key={`fg${i}`}
+          x1={i*VW/19} y1={VH*.6} x2={i*VW/19} y2={VH}
+          stroke="#0a0a1a" strokeWidth="0.8" opacity="0.6"/>
+      ))}
+      {[0.65,0.72,0.8,0.88].map(t=>(
+        <line key={t} x1="0" y1={VH*t} x2={VW} y2={VH*t}
+          stroke="#0a0a1a" strokeWidth="0.8" opacity="0.6"/>
+      ))}
+      {/* Floor-to-wall transition line */}
+      <line x1="0" y1={VH*.6} x2={VW} y2={VH*.6}
+        stroke="#101028" strokeWidth="1.5"/>
+
+      {/* Side wall vignette */}
+      <rect x="0" y="0" width={VW*.12} height={VH} fill="#03030a" opacity="0.55"/>
+      <rect x={VW*.88} y="0" width={VW*.12} height={VH} fill="#03030a" opacity="0.55"/>
+    </g>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main exported component
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface AgentCommandRoomProps {
@@ -731,218 +883,152 @@ interface AgentCommandRoomProps {
 }
 
 export function AgentCommandRoom({ data, loading = false }: AgentCommandRoomProps) {
-  const states = data
+  const VW = 1200, VH = 490;
+  const DESK_Y = 330;
+
+  const states: Record<string, AgentState> = data
     ? deriveStates(data)
-    : {
-        trend: "idle" as AgentState, smc: "idle" as AgentState,
-        news: "idle" as AgentState, risk: "idle" as AgentState,
-        contrarian: "idle" as AgentState, master: "analyzing" as AgentState,
-        execution: "idle" as AgentState,
-      };
+    : { trend:"idle", smc:"idle", news:"idle", risk:"idle", contrarian:"idle", master:"analyzing", execution:"idle" };
 
-  // ── Scene geometry ─────────────────────────────────────────────────────────
-  const VW = 1120;
-  const VH = 470;
-  const DESK_BOTTOM_Y = 335; // where the connection channel sits
+  const sc = (id: string) => STATE[states[id as keyof typeof states] ?? "idle"];
 
-  // Station definitions
-  const stations: StationDef[] = [
-    { id: "trend",      label: "TREND",      sub: "AGENT",    cx: 68,  top: 78, w: 118 },
-    { id: "smc",        label: "PR. ACTION", sub: "AGENT",    cx: 198, top: 78, w: 118 },
-    { id: "news",       label: "NEWS",       sub: "AGENT",    cx: 328, top: 78, w: 118 },
-    { id: "master",     label: "MASTER",     sub: "CONSENSUS",cx: 496, top: 45, w: 200, isMaster: true },
-    { id: "risk",       label: "RISK GATE",  sub: "AGENT",    cx: 672, top: 78, w: 118 },
-    { id: "contrarian", label: "CONTRARIAN", sub: "AGENT",    cx: 800, top: 78, w: 118 },
-    { id: "execution",  label: "EXECUTION",  sub: "AGENT",    cx: 998, top: 78, w: 148 },
-  ];
-
-  const masterDef = stations.find(s => s.id === "master")!;
-
-  // Confidence info for master screen
+  // Master data extras
   const conf    = data?.agents.master.confidence ?? 0;
   const aligned = data
     ? data.agents.master.agentConsensus.filter(a =>
-        data.agents.master.finalBias === "bullish" ? a.weightedScore > 0 :
-        data.agents.master.finalBias === "bearish" ? a.weightedScore < 0 : false
+        data.agents.master.finalBias==="bullish" ? a.weightedScore>0 :
+        data.agents.master.finalBias==="bearish" ? a.weightedScore<0 : false
       ).length
     : 0;
   const total = data?.agents.master.agentConsensus.length ?? 0;
 
-  // Map agent id → screen content component
-  function screenFor(id: string, def: StationDef) {
-    const st    = states[id as keyof typeof states] ?? "idle";
-    const style = S[st];
-    const sw    = def.w - (def.isMaster ? 24 : 20);
-    const sh    = def.isMaster ? 100 : 82;
-    const props = { state: st, style, w: sw, h: sh };
+  // Station definitions
+  const stations: StationCfg[] = [
+    { id:"trend",      label:"TREND",      sub:"AGENT",     cx:92,   deskY:DESK_Y, w:138, monW:110, monH:130, lean:-4 },
+    { id:"smc",        label:"PR. ACTION", sub:"AGENT",     cx:244,  deskY:DESK_Y, w:138, monW:118, monH:130, lean: 8 },
+    { id:"news",       label:"NEWS",       sub:"AGENT",     cx:396,  deskY:DESK_Y, w:138, monW:114, monH:130, lean:-2 },
+    { id:"master",     label:"MASTER",     sub:"CONSENSUS", cx:600,  deskY:DESK_Y+12, w:200, monW:174, monH:148, isMaster:true },
+    { id:"risk",       label:"RISK GATE",  sub:"AGENT",     cx:808,  deskY:DESK_Y, w:138, monW:110, monH:130 },
+    { id:"contrarian", label:"CONTRARIAN", sub:"AGENT",     cx:960,  deskY:DESK_Y, w:138, monW:114, monH:130, lean: 5 },
+    { id:"execution",  label:"EXECUTION",  sub:"AGENT",     cx:1108, deskY:DESK_Y, w:150, monW:122, monH:130, lean:10 },
+  ];
 
-    switch (id) {
-      case "trend":      return <TrendScreen {...props} />;
-      case "smc":        return <PriceActionScreen {...props} />;
-      case "news":       return <NewsScreen {...props} />;
-      case "risk":       return <RiskScreen {...props} />;
-      case "contrarian": return <ContrarianScreen {...props} />;
-      case "execution":  return <ExecutionScreen {...props} />;
-      case "master":     return (
-        <MasterScreen {...props}
-          confidence={conf} aligned={aligned} total={total} />
-      );
-      default:           return null;
-    }
-  }
+  const masterCfg  = stations.find(s=>s.id==="master")!;
+  const CHANNEL_Y  = DESK_Y + 50;
 
   return (
-    <div className="w-full rounded-xl border border-white/6 overflow-hidden bg-[#04040a]"
-         style={{ minWidth: 640 }}>
-      <svg
-        viewBox={`0 0 ${VW} ${VH}`}
-        className="w-full"
-        style={{ display: "block", height: "auto" }}
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        {/* ── Defs ────────────────────────────────────────────────────────── */}
-        <defs>
-          <radialGradient id="room-ambient" cx="50%" cy="0%" r="70%">
-            <stop offset="0%"   stopColor="#1a1240" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#000000" stopOpacity="0" />
-          </radialGradient>
-          <radialGradient id="master-ambient" cx="50%" cy="50%" r="50%">
-            <stop offset="0%"   stopColor={S[states.master].accent} stopOpacity="0.12" />
-            <stop offset="100%" stopColor={S[states.master].accent} stopOpacity="0" />
-          </radialGradient>
-          <linearGradient id="floor-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%"   stopColor="#06060f" />
-            <stop offset="100%" stopColor="#020208" />
-          </linearGradient>
-          <filter id="room-blur" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="8" />
-          </filter>
-        </defs>
-
-        {/* ── Room background ──────────────────────────────────────────── */}
-        <rect width={VW} height={VH} fill="#04040a" />
-
-        {/* Ceiling ambient light */}
-        <rect width={VW} height={VH} fill="url(#room-ambient)" />
-
-        {/* Master consensus ambient bloom */}
-        <ellipse cx={masterDef.cx} cy={masterDef.top + 80}
-          rx="220" ry="120"
-          fill="url(#master-ambient)"
-          filter="url(#room-blur)"
-          className="core-breathe" />
-
-        {/* Background grid */}
-        {Array.from({ length: 14 }, (_, i) => (
-          <line key={`vg-${i}`}
-            x1={i * 80} y1="0" x2={i * 80} y2={VH}
-            stroke="#ffffff" strokeWidth="0.4" opacity="0.025" />
-        ))}
-        {Array.from({ length: 8 }, (_, i) => (
-          <line key={`hg-${i}`}
-            x1="0" y1={i * 60} x2={VW} y2={i * 60}
-            stroke="#ffffff" strokeWidth="0.4" opacity="0.025" />
-        ))}
-
-        {/* Ceiling light strip */}
-        <rect x="0" y="0" width={VW} height="3"
-          fill="#a78bfa" opacity="0.04" />
-        <line x1="0" y1="0" x2={VW} y2="0"
-          stroke="#ffffff" strokeWidth="0.8" opacity="0.06" />
-
-        {/* Floor */}
-        <rect x="0" y={DESK_BOTTOM_Y + 20} width={VW} height={VH - DESK_BOTTOM_Y - 20}
-          fill="url(#floor-grad)" />
-        {/* Floor reflection line */}
-        <line x1="0" y1={DESK_BOTTOM_Y + 20} x2={VW} y2={DESK_BOTTOM_Y + 20}
-          stroke="#ffffff" strokeWidth="0.5" opacity="0.06" />
-
-        {/* ── Floor connection channels (input agents → master) ──────── */}
-        {["trend", "smc", "news", "risk", "contrarian"].map(id => {
-          const def = stations.find(s => s.id === id)!;
-          const st  = states[id as keyof typeof states] ?? "idle";
-          const goRight = def.cx < masterDef.cx;
-          return (
-            <ConnectionChannel
-              key={id}
-              fromCx={goRight ? def.cx + def.w / 2 - 8 : def.cx - def.w / 2 + 8}
-              toCx={goRight ? masterDef.cx - 60 : masterDef.cx + 60}
-              y={DESK_BOTTOM_Y + 8}
-              state={st}
-            />
-          );
-        })}
-        {/* Master → Execution channel */}
-        <ConnectionChannel
-          fromCx={masterDef.cx + 60}
-          toCx={stations.find(s => s.id === "execution")!.cx - 50}
-          y={DESK_BOTTOM_Y + 8}
-          state={states.execution}
-        />
-
-        {/* ── Workstations ─────────────────────────────────────────────── */}
-        {stations.map(def => {
-          const st    = states[def.id as keyof typeof states] ?? "idle";
-          const style = S[st];
-          return (
-            <WorkStation key={def.id} def={def} state={st} style={style}>
-              {screenFor(def.id, def)}
-            </WorkStation>
-          );
-        })}
-
-        {/* ── Room label / title strip ──────────────────────────────── */}
-        <text x={VW / 2} y={VH - 10}
-          textAnchor="middle" fontSize="8"
-          fill="#ffffff" opacity="0.06"
-          fontFamily="ui-monospace, monospace"
-          letterSpacing="0.25em">
-          TRADEX AI OPERATIONS CENTER · {data ? "LIVE" : "STANDBY"}
-        </text>
-
-        {/* ── Decorative corner marks ──────────────────────────────── */}
-        {[[6,6],[VW-6,6],[6,VH-6],[VW-6,VH-6]].map(([px,py], i) => (
-          <g key={i}>
-            <line x1={px - (px < VW/2 ? 0 : 10)} y1={py}
-              x2={px + (px < VW/2 ? 10 : 0)} y2={py}
-              stroke="#ffffff" strokeWidth="0.8" opacity="0.08" />
-            <line x1={px} y1={py - (py < VH/2 ? 0 : 10)}
-              x2={px} y2={py + (py < VH/2 ? 10 : 0)}
-              stroke="#ffffff" strokeWidth="0.8" opacity="0.08" />
-          </g>
-        ))}
-      </svg>
-
-      {/* ── Caption bar ───────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-4 py-2 border-t border-white/[0.04] bg-white/[0.01]">
+    <div className="w-full rounded-xl border border-white/[0.05] bg-[#03030a] overflow-hidden">
+      {/* Title bar */}
+      <div className="flex items-center justify-between px-5 py-2.5 border-b border-white/[0.04]">
+        <div className="flex items-center gap-2.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#a78bfa] pulse-live"/>
+          <span className="text-[10px] font-bold text-[#a78bfa] uppercase tracking-[0.22em] font-mono">
+            AI Operations Center
+          </span>
+        </div>
         <div className="flex items-center gap-4">
-          {stations.map(def => {
-            const st = states[def.id as keyof typeof states] ?? "idle";
-            const c  = S[st].accent;
-            const isIdle = st === "idle";
+          {stations.map(s => {
+            const state = states[s.id] ?? "idle";
+            const color = STATE[state].accent;
+            const active = state !== "idle";
             return (
-              <div key={def.id} className="flex items-center gap-1.5">
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${!isIdle ? "pulse-live" : ""}`}
-                  style={{ background: c, opacity: isIdle ? 0.25 : 1 }}
-                />
-                <span
-                  className="text-[8.5px] font-bold font-mono uppercase tracking-wider hidden sm:block"
-                  style={{ color: c, opacity: isIdle ? 0.3 : 0.8 }}
-                >
-                  {def.label}
+              <div key={s.id} className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-sm"
+                  style={{ background: color, opacity: active ? 1 : 0.2 }}/>
+                <span className="text-[8px] font-mono uppercase tracking-wide hidden lg:block"
+                  style={{ color, opacity: active ? 0.75 : 0.25 }}>
+                  {s.label}
                 </span>
               </div>
             );
           })}
+          {data && (
+            <span className="text-[8px] font-mono text-zinc-600 ml-1">
+              {new Date(data.timestamp).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false})}
+            </span>
+          )}
         </div>
-        {data && (
-          <span className="text-[8.5px] font-mono text-zinc-600 shrink-0">
-            {new Date(data.timestamp).toLocaleTimeString("en-US", {
-              hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+      </div>
+
+      {/* Scene */}
+      <div className="overflow-x-auto" style={{minWidth:0}}>
+        <div style={{ minWidth: 700 }}>
+          <svg
+            viewBox={`0 0 ${VW} ${VH}`}
+            style={{ display:"block", width:"100%", height:"auto" }}
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            {/* ── Defs ── */}
+            <defs>
+              <radialGradient id="master-bloom" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor={STATE[states.master].accent} stopOpacity="0.14"/>
+                <stop offset="100%" stopColor={STATE[states.master].accent} stopOpacity="0"/>
+              </radialGradient>
+              <filter id="soft-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="6" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+
+            {/* Room */}
+            <RoomBackground VW={VW} VH={VH}/>
+
+            {/* Master bloom */}
+            <ellipse cx={masterCfg.cx} cy={masterCfg.deskY - 60}
+              rx={180} ry={140}
+              fill="url(#master-bloom)"
+              filter="url(#soft-glow)"
+              className="core-breathe"/>
+
+            {/* Floor channels: input agents → master */}
+            {["trend","smc","news"].map(id=>{
+              const cfg = stations.find(s=>s.id===id)!;
+              return (
+                <FloorChannel key={id}
+                  x1={cfg.cx + cfg.w/2 - 6}
+                  x2={masterCfg.cx - masterCfg.w/2 + 6}
+                  y={CHANNEL_Y} sc={sc(id)}/>
+              );
             })}
-          </span>
-        )}
+            {["risk","contrarian"].map(id=>{
+              const cfg = stations.find(s=>s.id===id)!;
+              return (
+                <FloorChannel key={id}
+                  x1={masterCfg.cx + masterCfg.w/2 - 6}
+                  x2={cfg.cx - cfg.w/2 + 6}
+                  y={CHANNEL_Y} sc={sc(id)}/>
+              );
+            })}
+            {/* Master → execution */}
+            {(() => {
+              const execCfg = stations.find(s=>s.id==="execution")!;
+              return (
+                <FloorChannel
+                  x1={masterCfg.cx + masterCfg.w/2 - 6}
+                  x2={execCfg.cx - execCfg.w/2 + 6}
+                  y={CHANNEL_Y} sc={sc("execution")}/>
+              );
+            })()}
+
+            {/* Workstations */}
+            {stations.map(cfg => (
+              <Workstation
+                key={cfg.id}
+                cfg={cfg}
+                state={states[cfg.id] ?? "idle"}
+                sc={sc(cfg.id)}
+                extraData={cfg.id==="master" ? { conf, aligned, total } : undefined}
+              />
+            ))}
+
+            {/* Watermark */}
+            <text x={VW/2} y={VH - 6} textAnchor="middle"
+              fontSize="7.5" fill="#ffffff" opacity="0.04"
+              fontFamily="ui-monospace,monospace" letterSpacing="0.28em">
+              TRADEX · AI OPERATIONS CENTER · {data?"LIVE":"STANDBY"}
+            </text>
+          </svg>
+        </div>
       </div>
     </div>
   );
