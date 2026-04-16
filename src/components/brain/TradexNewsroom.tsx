@@ -1,25 +1,25 @@
 "use client";
 
 /**
- * TradexNewsroom — Isometric Pixel-Art Command Center
+ * TradexNewsroom — 2.5D Cyberpunk Command Center Diorama
  *
- * 2.5D isometric office room built with SVG + CSS transforms.
- * Dark high-tech ops room: grid floor, back-wall monitors, tiered desks,
- * pixel-art characters, glowing floor cables, LED blinks.
+ * Built as a literal game scene: perspective floor grid, cabinet-projection
+ * desks, split-render pixel-art characters (body behind desk, head in front),
+ * animated floor cables, back-wall displays, server racks, analog clock.
  */
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Hooks
 // ─────────────────────────────────────────────────────────────────────────────
 
-function useBlink(interval = 900) {
+function useBlink(ms = 750) {
   const [on, setOn] = useState(true);
   useEffect(() => {
-    const t = setInterval(() => setOn(v => !v), interval);
+    const t = setInterval(() => setOn(v => !v), ms);
     return () => clearInterval(t);
-  }, [interval]);
+  }, [ms]);
   return on;
 }
 
@@ -32,20 +32,28 @@ function useClock() {
   return d;
 }
 
-function useAnimatedBars(count: number, min = 20, max = 85, ms = 1400) {
+function useAnimatedBars(count: number, min = 14, max = 88, ms = 1150) {
   const [bars, setBars] = useState<number[]>(() =>
     Array.from({ length: count }, () => min + Math.random() * (max - min))
   );
   useEffect(() => {
     const t = setInterval(() => {
-      setBars(prev => prev.map(v => {
-        const delta = (Math.random() - 0.48) * 18;
-        return Math.max(min, Math.min(max, v + delta));
-      }));
+      setBars(prev =>
+        prev.map(v => Math.max(min, Math.min(max, v + (Math.random() - 0.48) * 18)))
+      );
     }, ms);
     return () => clearInterval(t);
   }, [count, min, max, ms]);
   return bars;
+}
+
+function useTick(fps = 28) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setN(v => v + 1), 1000 / fps);
+    return () => clearInterval(t);
+  }, [fps]);
+  return n;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -62,623 +70,785 @@ interface AgentDef {
   hair: string;
   skin: string;
   suit: string;
+  suitLight: string; // lighter suit shade for front lapels
   accent: string;
   isMaster?: boolean;
 }
 
+interface StationDef {
+  agentId: string;
+  cx: number;    // horizontal center of whole station
+  deskY: number; // Y of the desk top-face front edge
+  scale: number; // depth/size scale factor
+  row: number;   // 0=back 1=mid 2=front (render order)
+  isMaster?: boolean;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// State → colors
+// State → visual colors
 // ─────────────────────────────────────────────────────────────────────────────
 
-const STATE_COLOR: Record<AgentState, { glow: string; badge: string; screen: string }> = {
-  bullish:  { glow: "#10b981", badge: "#10b981", screen: "#064e3b" },
-  bearish:  { glow: "#ef4444", badge: "#ef4444", screen: "#450a0a" },
-  alert:    { glow: "#f59e0b", badge: "#f59e0b", screen: "#451a03" },
-  valid:    { glow: "#10b981", badge: "#10b981", screen: "#052e16" },
-  blocked:  { glow: "#ef4444", badge: "#ef4444", screen: "#450a0a" },
-  armed:    { glow: "#22d3ee", badge: "#22d3ee", screen: "#0c2648" },
-  "no-trade":{ glow: "#22d3ee", badge: "#22d3ee", screen: "#0c2648" },
-  idle:     { glow: "#6366f1", badge: "#94a3b8", screen: "#0f1729" },
+const SC: Record<AgentState, { glow: string; screen: string; badge: string }> = {
+  bullish:    { glow: "#10b981", screen: "#042318", badge: "#10b981" },
+  bearish:    { glow: "#ef4444", screen: "#38080a", badge: "#ef4444" },
+  alert:      { glow: "#f59e0b", screen: "#361502", badge: "#f59e0b" },
+  valid:      { glow: "#10b981", screen: "#042318", badge: "#10b981" },
+  blocked:    { glow: "#ef4444", screen: "#38080a", badge: "#ef4444" },
+  armed:      { glow: "#22d3ee", screen: "#041a28", badge: "#22d3ee" },
+  "no-trade": { glow: "#22d3ee", screen: "#041828", badge: "#22d3ee" },
+  idle:       { glow: "#6366f1", screen: "#0d1020", badge: "#94a3b8" },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Agent roster
 // ─────────────────────────────────────────────────────────────────────────────
 
-const AGENTS: AgentDef[] = [
-  { id:"trend",      label:"TREND",       role:"BULLISH",    state:"bullish",
-    hair:"#f5c518", skin:"#e8a870", suit:"#14366a", accent:"#10b981" },
-  { id:"smc",        label:"PR.ACTION",   role:"ALERT",      state:"alert",
-    hair:"#7c3aed", skin:"#c89060", suit:"#1e1040", accent:"#f59e0b" },
-  { id:"master",     label:"MASTER",      role:"NO TRADE",   state:"no-trade",
-    hair:"#e2e8f0", skin:"#dfc898", suit:"#0a1e3c", accent:"#22d3ee", isMaster:true },
-  { id:"risk",       label:"RISK GATE",   role:"VALID",      state:"valid",
-    hair:"#059669", skin:"#b8765a", suit:"#061410", accent:"#10b981" },
-  { id:"contrarian", label:"CONTRARIAN",  role:"MONITORING", state:"idle",
-    hair:"#b91c1c", skin:"#e0a870", suit:"#1a0805", accent:"#f97316" },
-  { id:"news",       label:"NEWS",        role:"MONITORING", state:"idle",
-    hair:"#374151", skin:"#8b5e3c", suit:"#0d1a28", accent:"#3b82f6" },
-  { id:"execution",  label:"EXECUTION",   role:"STANDBY",    state:"armed",
-    hair:"#111827", skin:"#c89060", suit:"#0c1e30", accent:"#22d3ee" },
+const AGENTS: Record<string, AgentDef> = {
+  trend: {
+    id: "trend", label: "TREND", role: "BULLISH", state: "bullish",
+    hair: "#f5c518", skin: "#e8a870", suit: "#0e2a52", suitLight: "#1a4080", accent: "#10b981",
+  },
+  smc: {
+    id: "smc", label: "PR.ACTION", role: "ALERT", state: "alert",
+    hair: "#7c3aed", skin: "#c89060", suit: "#160c38", suitLight: "#261858", accent: "#f59e0b",
+  },
+  master: {
+    id: "master", label: "MASTER", role: "NO TRADE", state: "no-trade",
+    hair: "#c8d8ec", skin: "#dfc898", suit: "#060e20", suitLight: "#0e1e38", accent: "#22d3ee",
+    isMaster: true,
+  },
+  risk: {
+    id: "risk", label: "RISK GATE", role: "VALID", state: "valid",
+    hair: "#059669", skin: "#b87058", suit: "#040d08", suitLight: "#081810", accent: "#10b981",
+  },
+  contrarian: {
+    id: "contrarian", label: "CONTRARIAN", role: "MONITOR", state: "idle",
+    hair: "#b91c1c", skin: "#e0a870", suit: "#130604", suitLight: "#200c06", accent: "#f97316",
+  },
+  news: {
+    id: "news", label: "NEWS", role: "MONITOR", state: "idle",
+    hair: "#2d3748", skin: "#8b5e3c", suit: "#081420", suitLight: "#0e2034", accent: "#3b82f6",
+  },
+  execution: {
+    id: "execution", label: "EXECUTION", role: "STANDBY", state: "armed",
+    hair: "#0f1923", skin: "#c89060", suit: "#07101c", suitLight: "#0e1c2e", accent: "#22d3ee",
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Station layout  (scene SVG: viewBox "40 20 1120 575")
+//   Horizon (wall/floor junction): y ≈ 268
+//   Floor area: y = 268 → 595
+//
+// deskY = front edge of desk top face (character's waist aligns here)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const STATIONS: StationDef[] = [
+  // Row 0 — back (nearest back wall)
+  { agentId: "smc",        cx: 278,  deskY: 300, scale: 0.76, row: 0 },
+  { agentId: "master",     cx: 580,  deskY: 280, scale: 0.94, row: 0, isMaster: true },
+  { agentId: "risk",       cx: 882,  deskY: 300, scale: 0.76, row: 0 },
+  // Row 1 — middle
+  { agentId: "trend",      cx: 128,  deskY: 385, scale: 0.87, row: 1 },
+  { agentId: "contrarian", cx: 1032, deskY: 385, scale: 0.87, row: 1 },
+  // Row 2 — front (closest to viewer)
+  { agentId: "news",       cx: 348,  deskY: 462, scale: 0.95, row: 2 },
+  { agentId: "execution",  cx: 812,  deskY: 462, scale: 0.93, row: 2 },
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Isometric desk layout  (SVG coordinate space: 1200 × 720)
-//
-// Rows (back → front):
-//   Row 0 (back)    : smc(L), master(C), risk(R)
-//   Row 1 (mid)     : trend(LL), news(LC), contrarian(RC), execution(RR)  — but spread
-//   Row 2 (front)   : news and execution in foreground
-//
-// We define per-desk iso origin (left corner of desk top face).
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface DeskConfig {
-  agentId: string;
-  // SVG x,y for the left corner of the desk top face
-  ox: number;
-  oy: number;
-  // desk width in iso units  (1 unit ≈ 1px in the flat plan)
-  w: number;
-  isMaster?: boolean;
-  row: number; // 0=back 1=mid 2=front
-}
-
-const DESKS: DeskConfig[] = [
-  // ── back row ────────────────────────────────────────────────────────────────
-  { agentId:"smc",        ox:240, oy:215, w:100, row:0 },
-  { agentId:"master",     ox:530, oy:168, w:140, row:0, isMaster:true },
-  { agentId:"risk",       ox:820, oy:215, w:100, row:0 },
-  // ── mid row ─────────────────────────────────────────────────────────────────
-  { agentId:"trend",      ox:110, oy:318, w:100, row:1 },
-  { agentId:"contrarian", ox:950, oy:318, w:100, row:1 },
-  // ── front row ───────────────────────────────────────────────────────────────
-  { agentId:"news",       ox:300, oy:420, w:100, row:2 },
-  { agentId:"execution",  ox:760, oy:420, w:100, row:2 },
-];
+// Floor cable colors
+const CABLE_COL: Record<string, string> = {
+  trend: "#f59e0b", smc: "#7c3aed", risk: "#10b981",
+  contrarian: "#f97316", news: "#3b82f6", execution: "#22d3ee",
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Iso helpers
+// Character sprite — split into BODY and HEAD for depth ordering
+// Body: y=22-58 in natural sprite coordinates (rendered BEHIND monitor)
+// Head: y=0-26 in natural sprite coordinates (rendered ABOVE monitor)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Convert flat-plan (u,v) to isometric screen (x,y).
- *  Standard 2:1 iso: x = (u - v) * tileW/2, y = (u + v) * tileH/2
- *  We'll keep it simple: u→right, v→down on the plan.
- *  sx = u - v*0.5,  sy = v * 0.5 + u*0.28  (cabinet projection feel)
- */
-function isoProject(u: number, v: number): [number, number] {
-  return [u - v * 0.5, v * 0.5 + u * 0.22];
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Pixel-art character SVG (sitting operator, 40×60 canvas)
-// ─────────────────────────────────────────────────────────────────────────────
-
-function PixelCharacter({
-  hair, skin, suit, scale = 1,
-}: {
-  hair: string; skin: string; suit: string; scale?: number;
-}) {
-  // Everything is drawn in a 40×60 grid — scaled at render site
+function CharBody({ hair, skin, suit, suitLight, accent }: AgentDef) {
   return (
-    <g transform={`scale(${scale})`}>
-      {/* Chair back */}
-      <rect x={10} y={22} width={20} height={28} rx={2} fill="#1e293b" />
-      <rect x={12} y={24} width={16} height={20} rx={1} fill="#0f172a" />
+    <g>
+      {/* Chair back panel */}
+      <rect x={2} y={22} width={32} height={30} rx={2}
+        fill="#07111e" stroke="#0d2040" strokeWidth={0.6} />
+      <rect x={4} y={24} width={28} height={22} rx={1} fill="#040b14" />
+      {/* Chair sides / arm rests */}
+      <rect x={0} y={34} width={4} height={14} rx={1} fill="#0a1828" />
+      <rect x={32} y={34} width={4} height={14} rx={1} fill="#0a1828" />
 
-      {/* Body / suit */}
-      <rect x={11} y={34} width={18} height={18} rx={2} fill={suit} />
-      {/* Lapels */}
-      <rect x={11} y={34} width={5} height={10} rx={1} fill={hair} opacity={0.4} />
-      <rect x={24} y={34} width={5} height={10} rx={1} fill={hair} opacity={0.4} />
+      {/* Torso */}
+      <rect x={8} y={30} width={20} height={22} rx={2} fill={suit} />
+      {/* Left lapel */}
+      <polygon points="8,30 18,36 8,44" fill={suitLight} opacity={0.55} />
+      {/* Right lapel */}
+      <polygon points="28,30 18,36 28,44" fill={suitLight} opacity={0.55} />
+      {/* Shirt centre strip */}
+      <rect x={16} y={30} width={4} height={14} rx={0.5} fill="#e2e8f0" opacity={0.12} />
 
-      {/* Arms */}
-      <rect x={5}  y={36} width={6}  height={12} rx={2} fill={suit} />
-      <rect x={29} y={36} width={6}  height={12} rx={2} fill={suit} />
+      {/* Arms on desk */}
+      <rect x={1} y={38} width={8} height={12} rx={2} fill={suit} />
+      <rect x={27} y={38} width={8} height={12} rx={2} fill={suit} />
       {/* Hands */}
-      <rect x={5}  y={46} width={6}  height={5}  rx={1} fill={skin} />
-      <rect x={29} y={46} width={6}  height={5}  rx={1} fill={skin} />
+      <rect x={1} y={48} width={8} height={6} rx={1.5} fill={skin} />
+      <rect x={27} y={48} width={8} height={6} rx={1.5} fill={skin} />
 
       {/* Neck */}
-      <rect x={17} y={28} width={6} height={7} fill={skin} />
+      <rect x={15} y={24} width={6} height={8} rx={1} fill={skin} />
 
+      {/* Accent badge on chest */}
+      <rect x={15} y={30} width={6} height={2} rx={0.5} fill={accent} opacity={0.7} />
+    </g>
+  );
+}
+
+function CharHead({ hair, skin }: { hair: string; skin: string }) {
+  return (
+    <g>
       {/* Head */}
-      <rect x={13} y={14} width={14} height={15} rx={3} fill={skin} />
+      <rect x={10} y={10} width={16} height={15} rx={3} fill={skin} />
 
       {/* Eyes */}
-      <rect x={16} y={19} width={3} height={3} rx={0.5} fill="#0f172a" />
-      <rect x={22} y={19} width={3} height={3} rx={0.5} fill="#0f172a" />
+      <rect x={13} y={15} width={3} height={3} rx={1} fill="#06101a" />
+      <rect x={20} y={15} width={3} height={3} rx={1} fill="#06101a" />
       {/* Eye shine */}
-      <rect x={17} y={19} width={1} height={1} fill="white" opacity={0.8} />
-      <rect x={23} y={19} width={1} height={1} fill="white" opacity={0.8} />
+      <rect x={14} y={15} width={1} height={1} fill="white" opacity={0.85} />
+      <rect x={21} y={15} width={1} height={1} fill="white" opacity={0.85} />
+      {/* Subtle mouth */}
+      <rect x={15} y={22} width={6} height={1.5} rx={0.5} fill="#06101a" opacity={0.4} />
 
-      {/* Hair — unique per character via color + shape variation */}
-      <rect x={12} y={10} width={16} height={8}  rx={2} fill={hair} />
-      <rect x={12} y={10} width={6}  height={5}  rx={1} fill={hair} />
-      <rect x={22} y={10} width={6}  height={5}  rx={1} fill={hair} />
-      {/* Hair tuft */}
-      <rect x={17} y={8}  width={6}  height={4}  rx={1} fill={hair} />
+      {/* Hair — block + two side tufts + top spike */}
+      <rect x={9} y={7} width={18} height={8} rx={2} fill={hair} />
+      <rect x={9} y={7} width={5} height={5} rx={1} fill={hair} />
+      <rect x={22} y={7} width={5} height={5} rx={1} fill={hair} />
+      <rect x={15} y={4} width={7} height={5} rx={1.5} fill={hair} />
+      {/* Side burn */}
+      <rect x={9} y={14} width={3} height={5} rx={1} fill={hair} />
+      <rect x={24} y={14} width={3} height={5} rx={1} fill={hair} />
     </g>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Pixel monitor (isometric face, top face + screen)
+// Monitor (sits on desk top surface, faces viewer)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function IsoMonitor({
-  x, y, w, screenColor, accent, label, role, blink,
-  isMaster = false,
+function DeskMonitor({
+  cx, topY, w, h, agent, blink, bars,
 }: {
-  x: number; y: number; w: number;
-  screenColor: string; accent: string;
-  label: string; role: string;
-  blink: boolean;
-  isMaster?: boolean;
+  cx: number; topY: number; w: number; h: number;
+  agent: AgentDef; blink: boolean; bars: number[];
 }) {
-  const h = isMaster ? 56 : 44;
-  const depth = 8;
+  const sc = SC[agent.state];
+  const x = cx - w / 2;
 
   return (
     <g>
-      {/* Monitor body — front face */}
-      <rect x={x} y={y} width={w} height={h} rx={3}
-        fill="#0d1117" stroke={accent} strokeWidth={isMaster ? 1.5 : 1} />
+      {/* Monitor casing */}
+      <rect x={x} y={topY} width={w} height={h} rx={2.5}
+        fill="#05090e" stroke={sc.glow} strokeWidth={agent.isMaster ? 1.4 : 0.9}
+      />
+      {/* Screen */}
+      <rect x={x + 2} y={topY + 2} width={w - 4} height={h - 8} rx={1.5}
+        fill={sc.screen}
+      />
 
-      {/* Screen glow bg */}
-      <rect x={x + 3} y={y + 3} width={w - 6} height={h - 10} rx={2}
-        fill={screenColor} />
-
-      {/* Screen content — tiny bars */}
-      {Array.from({ length: isMaster ? 6 : 4 }, (_, i) => {
-        const bh = 4 + Math.sin(i * 1.3 + Date.now() * 0.001) * 3;
-        const bw = (w - 14) / (isMaster ? 6 : 4) - 2;
-        return (
-          <rect key={i}
-            x={x + 6 + i * (bw + 2)} y={y + h - 13 - bh}
-            width={bw} height={bh} rx={0.5}
-            fill={accent} opacity={0.7}
-          />
-        );
-      })}
-
-      {/* Label on screen */}
-      <text x={x + w / 2} y={y + 12}
-        textAnchor="middle" fontSize={isMaster ? 6 : 5}
-        fill={accent} fontFamily="monospace" fontWeight="bold">
-        {label}
-      </text>
-
-      {/* Status row */}
-      <circle cx={x + 8} cy={y + h - 5} r={2}
-        fill={blink ? accent : "#1e293b"} />
-      <text x={x + 13} y={y + h - 3}
-        fontSize={4} fill={accent} fontFamily="monospace">
-        {role}
-      </text>
-
-      {/* Monitor stand */}
-      <rect x={x + w / 2 - 4} y={y + h} width={8} height={depth}
-        fill="#1e293b" />
-      <rect x={x + w / 2 - 7} y={y + h + depth} width={14} height={3}
-        rx={1} fill="#334155" />
-    </g>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Isometric desk + character + monitor
-// ─────────────────────────────────────────────────────────────────────────────
-
-function IsoDeskStation({
-  cfg, agent, blink,
-}: {
-  cfg: DeskConfig;
-  agent: AgentDef;
-  blink: boolean;
-}) {
-  const { ox, oy, w, isMaster } = cfg;
-  const sc = STATE_COLOR[agent.state];
-  const deskH = isMaster ? 32 : 24;
-  const deskDepth = isMaster ? 16 : 12;
-  const deskColor = isMaster ? "#0a1628" : "#0d1829";
-  const edgeColor = isMaster ? "#1e3a5f" : "#1a2d42";
-  const charScale = isMaster ? 1.05 : 0.82;
-
-  // Desk top face (iso parallelogram drawn as polygon)
-  // Left-corner at (ox,oy), right-corner at (ox+w,oy), depth goes down+right
-  const topFace = [
-    `${ox},${oy}`,
-    `${ox + w},${oy}`,
-    `${ox + w + deskDepth},${oy + deskDepth * 0.5}`,
-    `${ox + deskDepth},${oy + deskDepth * 0.5}`,
-  ].join(" ");
-
-  // Front face
-  const frontFace = [
-    `${ox + deskDepth},${oy + deskDepth * 0.5}`,
-    `${ox + w + deskDepth},${oy + deskDepth * 0.5}`,
-    `${ox + w + deskDepth},${oy + deskDepth * 0.5 + deskH}`,
-    `${ox + deskDepth},${oy + deskDepth * 0.5 + deskH}`,
-  ].join(" ");
-
-  // Right side face
-  const sideFace = [
-    `${ox + w},${oy}`,
-    `${ox + w + deskDepth},${oy + deskDepth * 0.5}`,
-    `${ox + w + deskDepth},${oy + deskDepth * 0.5 + deskH}`,
-    `${ox + w},${oy + deskH}`,
-  ].join(" ");
-
-  // Chair position (centered behind desk)
-  const chairX = ox + w * 0.5 - 20;
-  const chairY = oy - 55 * charScale;
-
-  // Monitor on desk top-left area
-  const monW = isMaster ? 72 : 54;
-  const monX = ox + 8;
-  const monY = oy - (isMaster ? 62 : 50);
-
-  // Keyboard on desk top face
-  const kbX = ox + w * 0.35;
-  const kbY = oy + 4;
-
-  // LED on desk edge
-  const ledX = ox + 6;
-  const ledY = oy + deskDepth * 0.5 + 6;
-
-  return (
-    <g>
-      {/* Drop shadow */}
-      <ellipse cx={ox + w * 0.5 + deskDepth * 0.5}
-               cy={oy + deskDepth * 0.5 + deskH + 4}
-               rx={w * 0.45} ry={6}
-               fill={sc.glow} opacity={0.08} />
-
-      {/* Desk glow aura */}
-      {isMaster && (
-        <ellipse cx={ox + w * 0.5} cy={oy + 10}
-                 rx={w * 0.6} ry={20}
-                 fill={sc.glow} opacity={0.06} />
+      {/* Screen content */}
+      {agent.isMaster ? (
+        <>
+          {/* Title */}
+          <text x={cx} y={topY + 10} textAnchor="middle"
+            fontSize={5.5} fill={sc.glow} fontFamily="monospace" fontWeight="bold"
+            letterSpacing={1}>
+            {agent.label}
+          </text>
+          {/* Bar chart */}
+          {bars.slice(0, 5).map((v, i) => {
+            const bw = (w - 12) / 5 - 2;
+            const maxBh = h - 18;
+            const bh = (v / 100) * maxBh;
+            return (
+              <rect key={i}
+                x={x + 6 + i * (bw + 2)} y={topY + h - 8 - bh}
+                width={bw} height={bh} rx={0.5}
+                fill={sc.glow} opacity={0.75}
+              />
+            );
+          })}
+        </>
+      ) : (
+        <>
+          <text x={cx} y={topY + 9} textAnchor="middle"
+            fontSize={5} fill={sc.glow} fontFamily="monospace" fontWeight="bold">
+            {agent.label}
+          </text>
+          <text x={cx} y={topY + 15} textAnchor="middle"
+            fontSize={4} fill={sc.badge} fontFamily="monospace">
+            {agent.role}
+          </text>
+          {bars.slice(0, 3).map((v, i) => {
+            const bw = (w - 10) / 3 - 1.5;
+            const maxBh = h - 22;
+            const bh = (v / 100) * maxBh;
+            return (
+              <rect key={i}
+                x={x + 5 + i * (bw + 1.5)} y={topY + h - 7 - bh}
+                width={bw} height={bh} rx={0.5}
+                fill={sc.glow} opacity={0.7}
+              />
+            );
+          })}
+        </>
       )}
 
-      {/* Desk faces */}
-      <polygon points={topFace}  fill={deskColor} stroke={edgeColor} strokeWidth={0.8} />
-      <polygon points={frontFace} fill="#08101c" stroke={edgeColor} strokeWidth={0.8} />
-      <polygon points={sideFace}  fill="#0a1420" stroke={edgeColor} strokeWidth={0.8} />
+      {/* Status LED */}
+      <circle cx={x + w - 5} cy={topY + h - 4} r={2}
+        fill={blink ? sc.glow : "#06101a"}
+        opacity={blink ? 0.9 : 0.3}
+      />
 
-      {/* Desk surface highlight */}
-      <line x1={ox + 4} y1={oy + 2}
-            x2={ox + w - 4} y2={oy + 2}
-            stroke={sc.glow} strokeWidth={0.5} opacity={0.3} />
-
-      {/* Keyboard */}
-      <rect x={kbX} y={kbY} width={w * 0.3} height={8} rx={1}
-        fill="#0f1f2e" stroke="#1e3a5f" strokeWidth={0.5} />
-      {/* Keys rows */}
-      {[0, 1].map(row =>
-        Array.from({ length: 6 }, (_, k) => (
-          <rect key={`${row}-${k}`}
-            x={kbX + 2 + k * 5} y={kbY + 1 + row * 3}
-            width={4} height={2} rx={0.3}
-            fill="#132030" stroke="#1e3a5f" strokeWidth={0.3}
-          />
-        ))
-      )}
-
-      {/* Coffee mug (front left of desk) */}
-      <rect x={ox + 2} y={oy + deskDepth * 0.3} width={7} height={8} rx={1}
-        fill="#1e293b" stroke="#334155" strokeWidth={0.5} />
-      <rect x={ox + 2} y={oy + deskDepth * 0.3} width={7} height={2} rx={0.5}
-        fill={sc.glow} opacity={0.3} />
-      {/* Handle */}
-      <path d={`M${ox + 9},${oy + deskDepth * 0.3 + 2} Q${ox + 12},${oy + deskDepth * 0.3 + 4} ${ox + 9},${oy + deskDepth * 0.3 + 6}`}
-        fill="none" stroke="#334155" strokeWidth={0.8} />
-
-      {/* LED blink */}
-      <circle cx={ledX} cy={ledY} r={2.5}
-        fill={blink ? sc.glow : "#0d1829"} opacity={blink ? 0.9 : 0.4} />
-
-      {/* Character */}
-      <g transform={`translate(${chairX},${chairY})`}>
-        <PixelCharacter hair={agent.hair} skin={agent.skin} suit={agent.suit} scale={charScale} />
-      </g>
-
-      {/* Monitor */}
-      <IsoMonitor
-        x={monX} y={monY} w={monW}
-        screenColor={sc.screen} accent={sc.glow}
-        label={agent.label} role={agent.role}
-        blink={blink} isMaster={isMaster}
+      {/* Monitor stand neck */}
+      <rect x={cx - 4} y={topY + h} width={8} height={7} fill="#07111e" />
+      {/* Stand base */}
+      <rect x={cx - 9} y={topY + h + 7} width={18} height={3} rx={1}
+        fill="#0d1e30" stroke="#0d2040" strokeWidth={0.4}
       />
     </g>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Floor grid (isometric)
+// Full desk station (desk body + split-render character + monitor)
+// Render order: desk → chair+body → monitor → head (for correct depth)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function IsoFloor() {
-  const lines: React.ReactElement[] = [];
-  const cols = 16;
-  const rows = 10;
-  const tw = 72; // tile width
-  const th = 36; // tile height
+interface StationParts {
+  deskLayer: React.ReactElement;
+  bodyLayer: React.ReactElement;
+  monitorLayer: React.ReactElement;
+  headLayer: React.ReactElement;
+}
 
-  for (let r = 0; r <= rows; r++) {
-    // horizontal iso lines
-    const x1 = 60 + r * (tw * 0.5);
-    const y1 = 540 - r * (th * 0.5);
-    const x2 = x1 + cols * tw * 0.5;
-    const y2 = y1 + cols * th * 0.5;
-    lines.push(
-      <line key={`h${r}`} x1={x1} y1={y1} x2={x2} y2={y2}
-        stroke="#0d2040" strokeWidth={0.6} />
-    );
-  }
-  for (let c = 0; c <= cols; c++) {
-    // vertical iso lines
-    const x1 = 60 + c * (tw * 0.5);
-    const y1 = 540 + c * (th * 0.5);
-    const x2 = x1 + rows * (tw * 0.5);
-    const y2 = y1 - rows * (th * 0.5);
-    lines.push(
-      <line key={`v${c}`} x1={x1} y1={y1} x2={x2} y2={y2}
-        stroke="#0d2040" strokeWidth={0.6} />
-    );
-  }
+function buildStation(
+  stn: StationDef,
+  agent: AgentDef,
+  blink: boolean,
+  bars: number[],
+): StationParts {
+  const s = stn.scale;
+  const { cx, deskY, isMaster } = stn;
+  const sc = SC[agent.state];
 
-  return <g opacity={0.7}>{lines}</g>;
+  // Desk geometry
+  const deskW  = (isMaster ? 130 : 96) * s;
+  const deskFH = (isMaster ? 20 : 16) * s;  // front face height
+  const deskDX = 18 * s;                     // cabinet projection X
+  const deskDY = 11 * s;                     // cabinet projection Y
+
+  const dLeft  = cx - deskW / 2;
+  const dRight = cx + deskW / 2;
+
+  const topFace = `${dLeft},${deskY} ${dRight},${deskY} ${dRight + deskDX},${deskY - deskDY} ${dLeft + deskDX},${deskY - deskDY}`;
+  const frontFace = `${dLeft},${deskY} ${dRight},${deskY} ${dRight},${deskY + deskFH} ${dLeft},${deskY + deskFH}`;
+  const sideFace = `${dRight},${deskY} ${dRight + deskDX},${deskY - deskDY} ${dRight + deskDX},${deskY - deskDY + deskFH} ${dRight},${deskY + deskFH}`;
+
+  // Monitor size
+  const monW = (isMaster ? 64 : 48) * s;
+  const monH = (isMaster ? 38 : 30) * s;
+  const monTopY = deskY - monH;
+
+  // Character sprite position
+  // charOriginY set so sprite y=40 (hands) aligns with deskY
+  const spriteScale = s;
+  const charOriginX = cx - 18 * s;
+  const charOriginY = deskY - 40 * s;
+
+  // Head position (sprite y=4-25 within its 36-wide canvas)
+  const headOriginX = charOriginX;
+  const headOriginY = charOriginY; // same origin, head sub-elements are at y=4-25
+
+  // Coffee mug (top-left of desk surface)
+  const mugX = dLeft + 4 * s;
+  const mugY = deskY - 8 * s;
+
+  const deskLayer = (
+    <g key={`desk-${stn.agentId}`}>
+      {/* Master glow aura */}
+      {isMaster && (
+        <ellipse cx={cx} cy={deskY + deskFH * 0.5}
+          rx={deskW * 0.7} ry={18 * s}
+          fill={sc.glow} opacity={0.06}
+        />
+      )}
+      {/* Floor shadow */}
+      <ellipse cx={cx + deskDX * 0.4} cy={deskY + deskFH + 3}
+        rx={deskW * 0.46} ry={4}
+        fill="#000" opacity={0.35}
+      />
+      {/* Top face */}
+      <polygon points={topFace}
+        fill={isMaster ? "#08162a" : "#0a1624"}
+        stroke={sc.glow} strokeWidth={isMaster ? 0.9 : 0.6}
+      />
+      {/* Top face highlight seam */}
+      <line x1={dLeft + 5 * s} y1={deskY - 0.5} x2={dRight - 5 * s} y2={deskY - 0.5}
+        stroke={sc.glow} strokeWidth={0.5} opacity={0.25}
+      />
+      {/* Keyboard on desk surface */}
+      <rect x={cx - 16 * s} y={deskY + 1} width={32 * s} height={7 * s}
+        rx={1} fill="#040c14" stroke="#0d2040" strokeWidth={0.4}
+      />
+      {[0, 1].flatMap(row =>
+        Array.from({ length: 5 }, (_, k) => (
+          <rect key={`${row}-${k}`}
+            x={cx - 14 * s + k * 6 * s} y={deskY + 1.5 + row * 3 * s}
+            width={5 * s} height={2.5 * s} rx={0.3}
+            fill="#09182a" stroke="#0d2040" strokeWidth={0.25}
+          />
+        ))
+      )}
+      {/* Front face */}
+      <polygon points={frontFace}
+        fill={isMaster ? "#050d1a" : "#06101c"}
+        stroke={sc.glow} strokeWidth={0.5}
+      />
+      {/* Front face LED strip */}
+      <rect x={dLeft + 5 * s} y={deskY + 1}
+        width={deskW - 10 * s} height={1.8}
+        rx={0.9} fill={blink ? sc.glow : "#040c18"}
+        opacity={blink ? 0.65 : 0.15}
+      />
+      {/* Front face panel detail lines */}
+      <line x1={dLeft + 5 * s} y1={deskY + deskFH * 0.55}
+            x2={dRight - 5 * s} y2={deskY + deskFH * 0.55}
+        stroke={sc.glow} strokeWidth={0.3} opacity={0.2}
+      />
+      {/* Right side face */}
+      <polygon points={sideFace}
+        fill="#030810" stroke={sc.glow} strokeWidth={0.4}
+      />
+      {/* Coffee mug */}
+      <rect x={mugX} y={mugY} width={7 * s} height={8 * s}
+        rx={1} fill="#0a1828" stroke="#0d2040" strokeWidth={0.4}
+      />
+      <rect x={mugX} y={mugY} width={7 * s} height={2 * s}
+        rx={0.5} fill={sc.glow} opacity={0.2}
+      />
+      <path d={`M${mugX + 7 * s},${mugY + 1.5 * s} Q${mugX + 10 * s},${mugY + 4 * s} ${mugX + 7 * s},${mugY + 6.5 * s}`}
+        fill="none" stroke="#0d2040" strokeWidth={0.7}
+      />
+    </g>
+  );
+
+  const bodyLayer = (
+    <g key={`body-${stn.agentId}`}
+      transform={`translate(${charOriginX},${charOriginY}) scale(${spriteScale})`}>
+      <CharBody {...agent} />
+    </g>
+  );
+
+  const monitorLayer = (
+    <DeskMonitor key={`mon-${stn.agentId}`}
+      cx={cx} topY={monTopY} w={monW} h={monH}
+      agent={agent} blink={blink} bars={bars}
+    />
+  );
+
+  const headLayer = (
+    <g key={`head-${stn.agentId}`}
+      transform={`translate(${headOriginX},${headOriginY}) scale(${spriteScale})`}>
+      <CharHead hair={agent.hair} skin={agent.skin} />
+    </g>
+  );
+
+  return { deskLayer, bodyLayer, monitorLayer, headLayer };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Back wall with giant display
+// Perspective floor grid (converging to horizon vanishing point)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function BackWall({ bars, clock }: { bars: number[]; clock: Date }) {
-  const hh = clock.getHours();
-  const mm = clock.getMinutes();
-  const ss = clock.getSeconds();
-  const hourDeg = (hh % 12) * 30 + mm * 0.5;
-  const minDeg = mm * 6 + ss * 0.1;
-  const secDeg = ss * 6;
+function FloorGrid() {
+  const H = 268;          // horizon Y
+  const B = 595;          // floor bottom Y
+  const L = 40;           // floor left X
+  const R = 1160;         // floor right X
+  const VX = 600;         // vanishing point X
+
+  const lines: React.ReactElement[] = [];
+
+  // Horizontal lines — perspective spaced (exponential toward horizon)
+  const steps = 10;
+  for (let i = 0; i <= steps; i++) {
+    const t = Math.pow(i / steps, 0.7); // compressed near horizon
+    const y = H + t * (B - H);
+    const alpha = 0.3 + t * 0.5;
+    lines.push(
+      <line key={`fh${i}`} x1={L} y1={y} x2={R} y2={y}
+        stroke="#0d1e38" strokeWidth={0.7} opacity={alpha}
+      />
+    );
+  }
+
+  // Converging lines toward vanishing point
+  const cols = 20;
+  for (let i = 0; i <= cols; i++) {
+    const t = i / cols;
+    const xBottom = L + t * (R - L);
+    lines.push(
+      <line key={`fv${i}`}
+        x1={xBottom} y1={B} x2={VX} y2={H}
+        stroke="#0d1e38" strokeWidth={0.5} opacity={0.55}
+      />
+    );
+  }
+
+  // Ambient floor tint
+  lines.push(
+    <defs key="fgrd">
+      <linearGradient id="floorFade" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#020608" stopOpacity="0" />
+        <stop offset="100%" stopColor="#030a12" stopOpacity="0.4" />
+      </linearGradient>
+    </defs>,
+    <rect key="ffloor" x={L} y={H} width={R - L} height={B - H}
+      fill="url(#floorFade)"
+    />
+  );
+
+  return <g>{lines}</g>;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Data cables on the floor (from each station to master)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function DataCables({ tick }: { tick: number }) {
+  const master = STATIONS.find(s => s.isMaster)!;
+  const mx = master.cx;
+  const my = master.deskY + 14; // cable endpoint below desk front face
 
   return (
-    <g>
-      {/* Wall surface */}
-      <rect x={60} y={40} width={1080} height={380} fill="#060c18" />
-      {/* Wall top edge highlight */}
-      <line x1={60} y1={40} x2={1140} y2={40} stroke="#0d2040" strokeWidth={1.5} />
-      {/* Wall bottom edge */}
-      <line x1={60} y1={420} x2={1140} y2={420} stroke="#0d2040" strokeWidth={1} />
+    <g opacity={0.7}>
+      {STATIONS.filter(s => !s.isMaster).map(stn => {
+        const col = CABLE_COL[stn.agentId] ?? "#64748b";
+        const ax = stn.cx;
+        const ay = stn.deskY + 14;
 
-      {/* Ceiling lights (rectangular strips) */}
-      {[200, 400, 600, 800, 1000].map((cx, i) => (
-        <g key={i}>
-          <rect x={cx - 40} y={42} width={80} height={10} rx={2}
-            fill="#0a1628" stroke="#1e3a5f" strokeWidth={0.5} />
-          <rect x={cx - 36} y={43} width={72} height={6} rx={1}
-            fill="#7dd3fc" opacity={0.12} />
-          {/* Light cone */}
-          <polygon
-            points={`${cx - 36},52 ${cx + 36},52 ${cx + 60},140 ${cx - 60},140`}
-            fill="#3b82f6" opacity={0.025}
-          />
-        </g>
-      ))}
+        // Two right-angle segments (pixel-art cable style)
+        const midY = Math.min(ay, my) + Math.abs(ay - my) * 0.4;
+        const d = `M ${ax} ${ay} L ${ax} ${midY} L ${mx} ${midY} L ${mx} ${my}`;
+        const offset = (tick * 1.8) % 18;
 
-      {/* ── Main center display ────────────────────────────────────────── */}
-      <rect x={380} y={60} width={440} height={200} rx={4}
-        fill="#050d18" stroke="#1e40af" strokeWidth={1.5} />
-      {/* Screen glow */}
-      <rect x={383} y={63} width={434} height={194} rx={3}
-        fill="#040a14" />
-
-      {/* TRADEX title */}
-      <text x={600} y={100} textAnchor="middle"
-        fontSize={18} fill="#22d3ee" fontFamily="monospace" fontWeight="bold"
-        letterSpacing={4}>
-        TRADEX
-      </text>
-      <text x={600} y={116} textAnchor="middle"
-        fontSize={7} fill="#3b82f6" fontFamily="monospace" letterSpacing={2}>
-        MULTI-AGENT INTELLIGENCE PLATFORM
-      </text>
-
-      {/* Divider */}
-      <line x1={410} y1={122} x2={790} y2={122} stroke="#1e3a5f" strokeWidth={0.8} />
-
-      {/* Bar chart on main display */}
-      {bars.slice(0, 8).map((h, i) => {
-        const bx = 405 + i * 47;
-        const maxH = 60;
-        const bh = (h / 100) * maxH;
-        const colors = ["#22d3ee","#10b981","#22d3ee","#f59e0b","#10b981","#3b82f6","#22d3ee","#10b981"];
         return (
-          <g key={i}>
-            <rect x={bx} y={130 + maxH - bh} width={36} height={bh} rx={1}
-              fill={colors[i]} opacity={0.7} />
-            <rect x={bx} y={130} width={36} height={maxH} rx={1}
-              fill={colors[i]} opacity={0.04} />
+          <g key={stn.agentId}>
+            {/* Glow halo */}
+            <path d={d} fill="none" stroke={col} strokeWidth={5} opacity={0.07} />
+            {/* Cable body */}
+            <path d={d} fill="none" stroke={col} strokeWidth={1.4}
+              strokeDasharray="7 5" strokeDashoffset={-offset}
+            />
+            {/* Bright spine */}
+            <path d={d} fill="none" stroke={col} strokeWidth={0.5} opacity={0.6} />
           </g>
         );
       })}
-
-      {/* Agent count & status */}
-      <text x={420} y={210} fontSize={6} fill="#22d3ee" fontFamily="monospace">
-        7 ACTIVE AGENTS
-      </text>
-      <text x={600} y={210} textAnchor="middle" fontSize={6}
-        fill="#10b981" fontFamily="monospace">
-        ● REAL-TIME CONSENSUS
-      </text>
-      <text x={775} y={210} textAnchor="end" fontSize={6}
-        fill="#3b82f6" fontFamily="monospace">
-        TRADEX v2.4.1
-      </text>
-
-      {/* Screen frame corner accents */}
-      {([[380,60],[816,60],[380,258],[816,258]] as [number,number][]).map(([cx,cy],i) => (
-        <g key={i}>
-          <line x1={cx} y1={cy} x2={cx + (i%2===0?12:-12)} y2={cy}
-            stroke="#22d3ee" strokeWidth={1.5} />
-          <line x1={cx} y1={cy} x2={cx} y2={cy + (i<2?12:-12)}
-            stroke="#22d3ee" strokeWidth={1.5} />
-        </g>
-      ))}
-
-      {/* ── Left side monitor ─────────────────────────────────────────── */}
-      <rect x={80} y={65} width={180} height={130} rx={3}
-        fill="#050d18" stroke="#1e3a5f" strokeWidth={1} />
-      <rect x={83} y={68} width={174} height={124} rx={2} fill="#040a14" />
-
-      {/* FX Rates table */}
-      <text x={170} y={84} textAnchor="middle" fontSize={7}
-        fill="#22d3ee" fontFamily="monospace" fontWeight="bold">
-        FX RATES
-      </text>
-      <line x1={90} y1={88} x2={252} y2={88} stroke="#0d2040" strokeWidth={0.8} />
-      {[
-        ["XAUUSD","2,341.50","+0.4%","#10b981"],
-        ["EURUSD","1.0842","+0.1%","#10b981"],
-        ["GBPUSD","1.2674","-0.2%","#ef4444"],
-        ["BTCUSD","67,420","+1.8%","#10b981"],
-        ["USDJPY","154.32","-0.3%","#ef4444"],
-      ].map(([pair, price, chg, col], i) => (
-        <g key={i}>
-          <text x={90}  y={98 + i * 14} fontSize={6} fill="#94a3b8" fontFamily="monospace">{pair}</text>
-          <text x={170} y={98 + i * 14} fontSize={6} fill="#e2e8f0" fontFamily="monospace">{price}</text>
-          <text x={245} y={98 + i * 14} fontSize={6} fill={col as string}
-            fontFamily="monospace" textAnchor="end">{chg}</text>
-        </g>
-      ))}
-
-      {/* ── Right side monitor (analog clock) ────────────────────────── */}
-      <rect x={880} y={65} width={130} height={130} rx={3}
-        fill="#050d18" stroke="#1e3a5f" strokeWidth={1} />
-      <circle cx={945} cy={130} r={54} fill="#040a14" />
-      <circle cx={945} cy={130} r={52} fill="none" stroke="#0d2040" strokeWidth={1} />
-      {/* Hour markers */}
-      {Array.from({ length: 12 }, (_, i) => {
-        const a = (i * 30 - 90) * (Math.PI / 180);
-        const r1 = 42, r2 = 49;
-        return (
-          <line key={i}
-            x1={945 + Math.cos(a) * r1} y1={130 + Math.sin(a) * r1}
-            x2={945 + Math.cos(a) * r2} y2={130 + Math.sin(a) * r2}
-            stroke="#1e3a5f" strokeWidth={i % 3 === 0 ? 2 : 1}
-          />
-        );
-      })}
-      {/* Clock hands */}
-      {/* Hour */}
-      <line x1={945} y1={130}
-        x2={945 + Math.cos((hourDeg - 90) * Math.PI / 180) * 28}
-        y2={130 + Math.sin((hourDeg - 90) * Math.PI / 180) * 28}
-        stroke="#e2e8f0" strokeWidth={3} strokeLinecap="round" />
-      {/* Minute */}
-      <line x1={945} y1={130}
-        x2={945 + Math.cos((minDeg - 90) * Math.PI / 180) * 38}
-        y2={130 + Math.sin((minDeg - 90) * Math.PI / 180) * 38}
-        stroke="#e2e8f0" strokeWidth={2} strokeLinecap="round" />
-      {/* Second */}
-      <line x1={945} y1={130}
-        x2={945 + Math.cos((secDeg - 90) * Math.PI / 180) * 42}
-        y2={130 + Math.sin((secDeg - 90) * Math.PI / 180) * 42}
-        stroke="#ef4444" strokeWidth={1} strokeLinecap="round" />
-      <circle cx={945} cy={130} r={3} fill="#ef4444" />
-
-      {/* Server racks on far left & right walls */}
-      {[70, 95, 120].map((rx, i) => (
-        <g key={i}>
-          <rect x={rx} y={200} width={18} height={110} rx={1}
-            fill="#06101a" stroke="#0d2040" strokeWidth={0.8} />
-          {Array.from({ length: 8 }, (_, j) => (
-            <g key={j}>
-              <rect x={rx + 1} y={202 + j * 13} width={16} height={11} rx={0.5}
-                fill="#0a1628" stroke="#1e3a5f" strokeWidth={0.3} />
-              <circle cx={rx + 13} cy={202 + j * 13 + 5} r={1.5}
-                fill={j % 3 === 0 ? "#10b981" : j % 3 === 1 ? "#3b82f6" : "#f59e0b"}
-                opacity={0.8} />
-            </g>
-          ))}
-        </g>
-      ))}
-      {[1070, 1095, 1120].map((rx, i) => (
-        <g key={i}>
-          <rect x={rx} y={200} width={18} height={110} rx={1}
-            fill="#06101a" stroke="#0d2040" strokeWidth={0.8} />
-          {Array.from({ length: 8 }, (_, j) => (
-            <g key={j}>
-              <rect x={rx + 1} y={202 + j * 13} width={16} height={11} rx={0.5}
-                fill="#0a1628" stroke="#1e3a5f" strokeWidth={0.3} />
-              <circle cx={rx + 13} cy={202 + j * 13 + 5} r={1.5}
-                fill={j % 3 === 0 ? "#10b981" : j % 3 === 1 ? "#3b82f6" : "#f59e0b"}
-                opacity={0.8} />
-            </g>
-          ))}
-        </g>
-      ))}
     </g>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Floor cables (pixel-art wires from each desk to master)
+// Back wall: TRADEX center display, FX rates, analog clock, server racks
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CABLE_COLORS: Record<string, string> = {
-  trend:      "#f59e0b",
-  smc:        "#7c3aed",
-  risk:       "#10b981",
-  contrarian: "#f97316",
-  news:       "#3b82f6",
-  execution:  "#22d3ee",
-};
-
-function FloorCables({ tick }: { tick: number }) {
-  // Master center ≈ desk ox+w/2 of master desk
-  const masterX = 530 + 140 / 2 + 10; // ~610
-  const masterY = 168 + 24 + 20;       // base of master desk
-
-  const deskCenters: Record<string, [number, number]> = {
-    trend:      [110 + 50, 318 + 24],
-    smc:        [240 + 50, 215 + 24],
-    risk:       [820 + 50, 215 + 24],
-    contrarian: [950 + 50, 318 + 24],
-    news:       [300 + 50, 420 + 24],
-    execution:  [760 + 50, 420 + 24],
-  };
+function BackWall({ bars, clock, blink }: { bars: number[]; clock: Date; blink: boolean }) {
+  const hh = clock.getHours();
+  const mm = clock.getMinutes();
+  const ss = clock.getSeconds();
+  const hourDeg  = (hh % 12) * 30 + mm * 0.5;
+  const minDeg   = mm * 6 + ss * 0.1;
+  const secDeg   = ss * 6;
 
   return (
-    <g opacity={0.65}>
-      {Object.entries(deskCenters).map(([id, [x2, y2]]) => {
-        const col = CABLE_COLORS[id] ?? "#64748b";
-        // Pixel-art style: two right-angle segments
-        const mx = masterX;
-        const my = masterY;
-        const midY = (y2 + my) / 2 + 10;
-        const d = `M${x2},${y2} L${x2},${midY} L${mx},${midY} L${mx},${my}`;
-        // Animated dash offset
-        const offset = (tick * 3) % 24;
+    <g>
+      {/* Wall surface */}
+      <rect x={40} y={24} width={1120} height={250} fill="#03070f" />
+      {/* Wall top edge */}
+      <rect x={40} y={24} width={1120} height={2} fill="#0a1628" />
+      {/* Wall/floor seam */}
+      <line x1={40} y1={268} x2={1160} y2={268}
+        stroke="#0d2040" strokeWidth={2}
+      />
+      {/* Subtle wall panels */}
+      {[200, 400, 600, 800, 1000].map((x, i) => (
+        <line key={i} x1={x} y1={26} x2={x} y2={266}
+          stroke="#060e1c" strokeWidth={1.2}
+        />
+      ))}
+
+      {/* ── Ceiling light bars ─────────────────────────────────────── */}
+      {[160, 340, 530, 680, 870, 1050].map((lx, i) => (
+        <g key={i}>
+          <rect x={lx - 32} y={25} width={64} height={11} rx={2}
+            fill="#05101c" stroke="#0a1c30" strokeWidth={0.7}
+          />
+          <rect x={lx - 28} y={27} width={56} height={6} rx={1}
+            fill="#7dd3fc" opacity={0.13}
+          />
+          {/* Light cone */}
+          <polygon
+            points={`${lx - 28},36 ${lx + 28},36 ${lx + 58},160 ${lx - 58},160`}
+            fill="#3b82f6" opacity={0.016}
+          />
+        </g>
+      ))}
+
+      {/* ── LEFT SERVER RACKS ──────────────────────────────────────── */}
+      {[46, 70, 94].map((rx, i) => (
+        <g key={i}>
+          <rect x={rx} y={50} width={20} height={160} rx={1}
+            fill="#03070e" stroke="#0a1628" strokeWidth={0.7}
+          />
+          {Array.from({ length: 11 }, (_, j) => (
+            <g key={j}>
+              <rect x={rx + 1} y={52 + j * 14} width={18} height={12} rx={0.5}
+                fill="#060e1a" stroke="#0a1628" strokeWidth={0.3}
+              />
+              {/* Drive slot lines */}
+              <line x1={rx + 2} y1={56 + j * 14} x2={rx + 12} y2={56 + j * 14}
+                stroke="#0a1628" strokeWidth={0.4} />
+              {/* Blink LED */}
+              <circle cx={rx + 15} cy={52 + j * 14 + 5} r={2}
+                fill={
+                  (blink && j % 2 === i % 2)
+                    ? (j % 3 === 0 ? "#10b981" : j % 3 === 1 ? "#3b82f6" : "#f59e0b")
+                    : "#08101c"
+                }
+                opacity={0.85}
+              />
+            </g>
+          ))}
+        </g>
+      ))}
+
+      {/* ── RIGHT SERVER RACKS ─────────────────────────────────────── */}
+      {[1086, 1110, 1134].map((rx, i) => (
+        <g key={i}>
+          <rect x={rx} y={50} width={20} height={160} rx={1}
+            fill="#03070e" stroke="#0a1628" strokeWidth={0.7}
+          />
+          {Array.from({ length: 11 }, (_, j) => (
+            <g key={j}>
+              <rect x={rx + 1} y={52 + j * 14} width={18} height={12} rx={0.5}
+                fill="#060e1a" stroke="#0a1628" strokeWidth={0.3}
+              />
+              <line x1={rx + 2} y1={56 + j * 14} x2={rx + 12} y2={56 + j * 14}
+                stroke="#0a1628" strokeWidth={0.4} />
+              <circle cx={rx + 15} cy={52 + j * 14 + 5} r={2}
+                fill={
+                  (!blink && j % 2 === i % 2)
+                    ? (j % 3 === 0 ? "#22d3ee" : j % 3 === 1 ? "#10b981" : "#f97316")
+                    : "#08101c"
+                }
+                opacity={0.85}
+              />
+            </g>
+          ))}
+        </g>
+      ))}
+
+      {/* ── LEFT DISPLAY: FX RATES ─────────────────────────────────── */}
+      <rect x={128} y={44} width={210} height={170} rx={3}
+        fill="#030810" stroke="#0d2040" strokeWidth={0.9}
+      />
+      <rect x={131} y={47} width={204} height={164} rx={2} fill="#020608" />
+
+      <text x={233} y={62} textAnchor="middle" fontSize={8}
+        fill="#22d3ee" fontFamily="monospace" fontWeight="bold" letterSpacing={2}>
+        FX RATES
+      </text>
+      <line x1={138} y1={66} x2={328} y2={66}
+        stroke="#0a1e34" strokeWidth={0.8}
+      />
+      {([
+        ["XAUUSD","2,341.50","+0.4%","#10b981"],
+        ["EURUSD","1.0842",  "+0.1%","#10b981"],
+        ["GBPUSD","1.2674",  "−0.2%","#ef4444"],
+        ["BTCUSD","67,420",  "+1.8%","#10b981"],
+        ["USDJPY","154.32",  "−0.3%","#ef4444"],
+        ["XAGUSD","27.44",   "+0.6%","#10b981"],
+        ["NZDUSD","0.5924",  "−0.1%","#ef4444"],
+      ] as [string,string,string,string][]).map(([pair, price, chg, col], i) => (
+        <g key={i}>
+          <text x={138}  y={78 + i * 16} fontSize={6.5}
+            fill="#4a6080" fontFamily="monospace">{pair}</text>
+          <text x={233}  y={78 + i * 16} fontSize={6.5} textAnchor="middle"
+            fill="#7a98b8" fontFamily="monospace">{price}</text>
+          <text x={328}  y={78 + i * 16} fontSize={6.5} textAnchor="end"
+            fill={col} fontFamily="monospace">{chg}</text>
+        </g>
+      ))}
+
+      {/* Screen corner brackets */}
+      {([[128,44],[334,44],[128,212],[334,212]] as [number,number][]).map(([bx,by],i) => (
+        <g key={i}>
+          <line x1={bx} y1={by} x2={bx + (i%2===0?10:-10)} y2={by}
+            stroke="#22d3ee" strokeWidth={1.2} opacity={0.5} />
+          <line x1={bx} y1={by} x2={bx} y2={by + (i<2?10:-10)}
+            stroke="#22d3ee" strokeWidth={1.2} opacity={0.5} />
+        </g>
+      ))}
+
+      {/* ── MAIN CENTER DISPLAY ──────────────────────────────────────── */}
+      <rect x={368} y={34} width={464} height={224} rx={4}
+        fill="#020810" stroke="#1d3a70" strokeWidth={1.6}
+      />
+      <rect x={372} y={38} width={456} height={216} rx={3}
+        fill="#010508"
+      />
+
+      {/* TRADEX header */}
+      <text x={600} y={72} textAnchor="middle"
+        fontSize={24} fill="#22d3ee" fontFamily="monospace" fontWeight="bold"
+        letterSpacing={7}>
+        TRADEX
+      </text>
+      <text x={600} y={88} textAnchor="middle"
+        fontSize={7.5} fill="#2a5090" fontFamily="monospace" letterSpacing={2.5}>
+        MULTI-AGENT INTELLIGENCE PLATFORM
+      </text>
+
+      {/* Separator */}
+      <line x1={390} y1={94} x2={810} y2={94}
+        stroke="#0d2040" strokeWidth={1}
+      />
+
+      {/* Agent bar chart with labels */}
+      {([
+        ["TRND","#10b981"],["PA","#f59e0b"],["NEWS","#3b82f6"],
+        ["MSTR","#22d3ee"],["RISK","#10b981"],["CNTR","#f97316"],["EXEC","#22d3ee"],
+      ] as [string,string][]).map(([lbl, col], i) => {
+        const bx = 384 + i * 61;
+        const h = (bars[i] / 100) * 74;
         return (
-          <g key={id}>
-            {/* Cable glow */}
-            <path d={d} fill="none"
-              stroke={col} strokeWidth={3} opacity={0.15} />
-            {/* Cable body */}
-            <path d={d} fill="none"
-              stroke={col} strokeWidth={1.2}
-              strokeDasharray="6 6"
-              strokeDashoffset={-offset}
+          <g key={i}>
+            {/* Bar BG */}
+            <rect x={bx + 2} y={100} width={52} height={74}
+              rx={1} fill="#040a14"
             />
-            {/* Cable spine */}
-            <path d={d} fill="none"
-              stroke={col} strokeWidth={0.4} opacity={0.8} />
+            {/* Bar fill */}
+            <rect x={bx + 2} y={100 + 74 - h} width={52} height={h}
+              rx={1} fill={col} opacity={0.72}
+            />
+            {/* Label top */}
+            <text x={bx + 28} y={97} textAnchor="middle"
+              fontSize={5} fill={col} fontFamily="monospace">{lbl}</text>
+            {/* Value bottom */}
+            <text x={bx + 28} y={184} textAnchor="middle"
+              fontSize={5} fill={col} fontFamily="monospace">
+              {Math.round(bars[i])}%
+            </text>
           </g>
         );
       })}
+
+      {/* Status line */}
+      <line x1={383} y1={188} x2={817} y2={188}
+        stroke="#0d2040" strokeWidth={0.7}
+      />
+      <text x={390} y={200} fontSize={6}
+        fill="#10b981" fontFamily="monospace">
+        ● 7 AGENTS ACTIVE
+      </text>
+      <text x={600} y={200} textAnchor="middle" fontSize={6}
+        fill="#22d3ee" fontFamily="monospace">
+        REAL-TIME CONSENSUS
+      </text>
+      <text x={817} y={200} textAnchor="end" fontSize={6}
+        fill="#2a5090" fontFamily="monospace">
+        TRADEX v2.4.1
+      </text>
+
+      {/* Main display corner brackets */}
+      {([[368,34],[828,34],[368,256],[828,256]] as [number,number][]).map(([bx,by],i) => (
+        <g key={i}>
+          <line x1={bx} y1={by} x2={bx + (i%2===0?16:-16)} y2={by}
+            stroke="#22d3ee" strokeWidth={1.8} />
+          <line x1={bx} y1={by} x2={bx} y2={by + (i<2?16:-16)}
+            stroke="#22d3ee" strokeWidth={1.8} />
+        </g>
+      ))}
+
+      {/* ── RIGHT DISPLAY: ANALOG CLOCK ────────────────────────────── */}
+      <rect x={862} y={44} width={170} height={170} rx={3}
+        fill="#030810" stroke="#0d2040" strokeWidth={0.9}
+      />
+      <rect x={865} y={47} width={164} height={164} rx={2} fill="#020608" />
+
+      {/* Clock circle */}
+      <circle cx={947} cy={129} r={68} fill="#010508" />
+      <circle cx={947} cy={129} r={66} fill="none"
+        stroke="#0d2040" strokeWidth={1.2} />
+      <circle cx={947} cy={129} r={60} fill="none"
+        stroke="#060e1c" strokeWidth={0.6} />
+
+      {/* Hour markers */}
+      {Array.from({ length: 12 }, (_, i) => {
+        const a = (i * 30 - 90) * (Math.PI / 180);
+        const isMaj = i % 3 === 0;
+        return (
+          <line key={i}
+            x1={947 + Math.cos(a) * (isMaj ? 52 : 55)}
+            y1={129 + Math.sin(a) * (isMaj ? 52 : 55)}
+            x2={947 + Math.cos(a) * 63}
+            y2={129 + Math.sin(a) * 63}
+            stroke={isMaj ? "#22d3ee" : "#0d2040"}
+            strokeWidth={isMaj ? 2 : 1}
+          />
+        );
+      })}
+
+      {/* Clock hands */}
+      <line x1={947} y1={129}
+        x2={947 + Math.cos((hourDeg - 90) * Math.PI / 180) * 34}
+        y2={129 + Math.sin((hourDeg - 90) * Math.PI / 180) * 34}
+        stroke="#c8d8ec" strokeWidth={3.5} strokeLinecap="round"
+      />
+      <line x1={947} y1={129}
+        x2={947 + Math.cos((minDeg - 90) * Math.PI / 180) * 50}
+        y2={129 + Math.sin((minDeg - 90) * Math.PI / 180) * 50}
+        stroke="#c8d8ec" strokeWidth={2.2} strokeLinecap="round"
+      />
+      <line x1={947} y1={129}
+        x2={947 + Math.cos((secDeg - 90) * Math.PI / 180) * 58}
+        y2={129 + Math.sin((secDeg - 90) * Math.PI / 180) * 58}
+        stroke="#ef4444" strokeWidth={1.1} strokeLinecap="round"
+      />
+      {/* Center cap */}
+      <circle cx={947} cy={129} r={3.5} fill="#ef4444" />
+      <circle cx={947} cy={129} r={1.5} fill="#e2e8f0" />
+
+      <text x={947} y={182} textAnchor="middle" fontSize={7}
+        fill="#22d3ee" fontFamily="monospace">
+        {`${String(hh).padStart(2,"0")}:${String(mm).padStart(2,"0")}:${String(ss).padStart(2,"0")}`}
+      </text>
+
+      {/* Clock corner brackets */}
+      {([[862,44],[1028,44],[862,212],[1028,212]] as [number,number][]).map(([bx,by],i) => (
+        <g key={i}>
+          <line x1={bx} y1={by} x2={bx + (i%2===0?8:-8)} y2={by}
+            stroke="#22d3ee" strokeWidth={1.0} opacity={0.5} />
+          <line x1={bx} y1={by} x2={bx} y2={by + (i<2?8:-8)}
+            stroke="#22d3ee" strokeWidth={1.0} opacity={0.5} />
+        </g>
+      ))}
+
+      {/* Wall base glow line */}
+      <line x1={340} y1={264} x2={860} y2={264}
+        stroke="#0d2040" strokeWidth={1.5}
+      />
     </g>
   );
 }
@@ -690,56 +860,52 @@ function FloorCables({ tick }: { tick: number }) {
 function NavBar({ running, onRun }: { running: boolean; onRun: () => void }) {
   return (
     <div className="flex items-center justify-between px-4 py-2.5"
-      style={{ background: "#04090f", borderBottom: "1px solid #0d2040" }}>
+      style={{ background: "#020609", borderBottom: "1px solid #0a1e34" }}>
       <div className="flex items-center gap-3">
-        {/* Traffic lights */}
+        {/* Window dots */}
         <div className="flex gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-red-500 opacity-80" />
-          <div className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-80" />
-          <div className="w-2.5 h-2.5 rounded-full bg-green-500 opacity-80" />
+          {["#ef4444","#f59e0b","#10b981"].map((c,i) => (
+            <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: c, opacity: 0.85 }} />
+          ))}
         </div>
-        <span style={{ fontFamily: "monospace", fontSize: 12, color: "#22d3ee", letterSpacing: 3, fontWeight: "bold" }}>
-          TRADEX NEWSROOM
+        <span style={{ fontFamily:"monospace", fontSize:11, color:"#22d3ee", letterSpacing:4, fontWeight:"bold" }}>
+          TRADEX COMMAND CENTER
         </span>
-        <span style={{ fontFamily: "monospace", fontSize: 9, color: "#3b82f6", letterSpacing: 1 }}>
-          OPS CENTER v2.4
+        <span style={{ fontFamily:"monospace", fontSize:8, color:"#1a3050", letterSpacing:2 }}>
+          MULTI-AGENT INTELLIGENCE PLATFORM
         </span>
       </div>
 
-      <div className="flex items-center gap-3">
-        {/* FX ticker */}
-        <div style={{ fontFamily: "monospace", fontSize: 9, color: "#64748b" }}>
-          XAU <span style={{ color: "#10b981" }}>2341.50</span>
-          {" · "}BTC <span style={{ color: "#10b981" }}>67420</span>
-          {" · "}EUR <span style={{ color: "#ef4444" }}>1.0842</span>
+      <div className="flex items-center gap-4">
+        {/* Live ticker */}
+        <div style={{ fontFamily:"monospace", fontSize:8.5, color:"#2a4060" }}>
+          XAU{" "}<span style={{ color:"#10b981" }}>2341.50</span>
+          {" · "}BTC{" "}<span style={{ color:"#10b981" }}>67420</span>
+          {" · "}EUR{" "}<span style={{ color:"#ef4444" }}>1.0842</span>
         </div>
-
-        {/* Status badge */}
+        {/* Agent count pill */}
         <div style={{
-          padding: "2px 10px", borderRadius: 3,
-          background: "#04090f", border: "1px solid #0d2040",
-          fontFamily: "monospace", fontSize: 9, color: "#3b82f6",
+          padding:"2px 10px", borderRadius:3,
+          background:"#03070e", border:"1px solid #0a1e34",
+          fontFamily:"monospace", fontSize:8, color:"#2a5090",
         }}>
           7 AGENTS ACTIVE
         </div>
-
         {/* Run button */}
-        <button onClick={onRun}
-          className="flex items-center gap-1.5"
-          style={{
-            padding: "4px 12px", borderRadius: 3,
-            background: running ? "#064e3b" : "#030d1a",
-            border: `1px solid ${running ? "#10b981" : "#1e40af"}`,
-            fontFamily: "monospace", fontSize: 10, fontWeight: "bold",
-            color: running ? "#10b981" : "#3b82f6",
-            cursor: "pointer", letterSpacing: 1,
-          }}>
+        <button onClick={onRun} style={{
+          display:"flex", alignItems:"center", gap:6,
+          padding:"4px 14px", borderRadius:3, cursor:"pointer",
+          background: running ? "#041c10" : "#020810",
+          border:`1px solid ${running ? "#10b981" : "#1a3a70"}`,
+          fontFamily:"monospace", fontSize:9, fontWeight:"bold", letterSpacing:1,
+          color: running ? "#10b981" : "#22d3ee",
+        }}>
           <span style={{
-            display: "inline-block", width: 6, height: 6, borderRadius: "50%",
-            background: running ? "#10b981" : "#3b82f6",
-            animation: running ? "pulse-live 0.8s ease-in-out infinite" : "none",
+            width:6, height:6, borderRadius:"50%", display:"inline-block",
+            background: running ? "#10b981" : "#22d3ee",
+            animation: running ? "pulse-live 0.7s ease-in-out infinite" : "none",
           }} />
-          {running ? "RUNNING..." : "RUN PIPELINE"}
+          {running ? "RUNNING…" : "RUN PIPELINE"}
         </button>
       </div>
     </div>
@@ -747,140 +913,134 @@ function NavBar({ running, onRun }: { running: boolean; onRun: () => void }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main Component
+// Main export
 // ─────────────────────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function TradexNewsroom(_props?: { data?: any; loading?: boolean }) {
   const [running, setRunning] = useState(false);
-  const [tick, setTick] = useState(0);
   const blink = useBlink(700);
   const clock = useClock();
-  const bars = useAnimatedBars(8, 15, 88, 1200);
+  const bars  = useAnimatedBars(8, 16, 91, 1080);
+  const tick  = useTick(28);
 
   const handleRun = useCallback(() => {
     setRunning(true);
-    setTimeout(() => setRunning(false), 4000);
+    setTimeout(() => setRunning(false), 4200);
   }, []);
 
-  // Cable animation tick
-  useEffect(() => {
-    const t = setInterval(() => setTick(n => n + 1), 80);
-    return () => clearInterval(t);
-  }, []);
+  // Build all station parts (desk, body, monitor, head)
+  const allParts = STATIONS.map(stn => {
+    const agent = AGENTS[stn.agentId];
+    if (!agent) return null;
+    return { stn, parts: buildStation(stn, agent, blink, bars) };
+  }).filter(Boolean) as { stn: StationDef; parts: StationParts }[];
 
-  // Build agent lookup
-  const agentMap = Object.fromEntries(AGENTS.map(a => [a.id, a]));
+  // Sort back-to-front for each layer
+  const sorted = [...allParts].sort((a, b) => a.stn.row - b.stn.row);
 
   return (
     <div className="flex flex-col w-full rounded-xl overflow-hidden"
-      style={{ background: "#04090f", border: "1px solid #0d2040" }}>
+      style={{ background:"#020609", border:"1px solid #0a1e34" }}>
 
-      {/* ── NavBar ─────────────────────────────────────────────────────────── */}
       <NavBar running={running} onRun={handleRun} />
 
-      {/* ── Scene ──────────────────────────────────────────────────────────── */}
       <div className="relative w-full overflow-x-auto">
         <svg
-          viewBox="60 35 1090 570"
+          viewBox="40 20 1120 580"
           width="100%"
-          style={{ minWidth: 720, display: "block", background: "#04090f" }}
+          style={{ minWidth: 720, display:"block", background:"#020609" }}
           preserveAspectRatio="xMidYMid meet"
         >
           <defs>
-            {/* Ambient glow filter */}
-            <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="3" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
+            {/* Bloom filter */}
+            <filter id="bloom" x="-25%" y="-25%" width="150%" height="150%">
+              <feGaussianBlur stdDeviation="2.5" result="b" />
+              <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
             </filter>
-            <filter id="glow-strong" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="6" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
+            {/* Strong bloom for master */}
+            <filter id="bloom2" x="-40%" y="-40%" width="180%" height="180%">
+              <feGaussianBlur stdDeviation="5" result="b" />
+              <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
             </filter>
-            {/* Scanline pattern for screens */}
-            <pattern id="scanlines" width="2" height="2" patternUnits="userSpaceOnUse">
-              <line x1="0" y1="1" x2="2" y2="1" stroke="#000" strokeWidth="0.5" opacity="0.3" />
+            {/* Scanlines */}
+            <pattern id="scan" width="1" height="3" patternUnits="userSpaceOnUse">
+              <line x1="0" y1="2" x2="1" y2="2"
+                stroke="#000" strokeWidth="0.7" opacity="0.22" />
             </pattern>
-          </defs>
-
-          {/* Gradient background */}
-          <defs>
-            <radialGradient id="roomBg" cx="50%" cy="30%" r="70%">
-              <stop offset="0%" stopColor="#060d1c" />
-              <stop offset="100%" stopColor="#020509" />
+            {/* Room ambient gradient */}
+            <radialGradient id="roomAmbient" cx="50%" cy="38%" r="68%">
+              <stop offset="0%" stopColor="#05101e" />
+              <stop offset="100%" stopColor="#010407" />
+            </radialGradient>
+            {/* Vignette */}
+            <radialGradient id="vig" cx="50%" cy="48%" r="62%">
+              <stop offset="55%" stopColor="transparent" />
+              <stop offset="100%" stopColor="#010305" stopOpacity="0.95" />
             </radialGradient>
           </defs>
-          <rect x={60} y={35} width={1090} height={570} fill="url(#roomBg)" />
 
-          {/* Floor */}
-          <IsoFloor />
-
-          {/* Floor edge */}
-          <line x1={60} y1={420} x2={1140} y2={420}
-            stroke="#0d2040" strokeWidth={1.2} />
+          {/* Scene background */}
+          <rect x={40} y={20} width={1120} height={580} fill="url(#roomAmbient)" />
 
           {/* Back wall */}
-          <BackWall bars={bars} clock={clock} />
+          <BackWall bars={bars} clock={clock} blink={blink} />
 
-          {/* Floor cables — rendered behind desks */}
-          <FloorCables tick={tick} />
+          {/* Perspective floor grid */}
+          <FloorGrid />
 
-          {/* ── Desks — sorted back to front (row 0 first, row 2 last) ──── */}
-          {[...DESKS]
-            .sort((a, b) => a.row - b.row)
-            .map(cfg => {
-              const agent = agentMap[cfg.agentId];
-              if (!agent) return null;
-              return (
-                <IsoDeskStation
-                  key={cfg.agentId}
-                  cfg={cfg}
-                  agent={agent}
-                  blink={blink}
-                />
-              );
-            })}
+          {/* Data cables — rendered beneath desks */}
+          <DataCables tick={tick} />
 
-          {/* Master desk glow ring (rendered on top) */}
-          <ellipse cx={600} cy={340} rx={80} ry={14}
-            fill="none" stroke="#22d3ee" strokeWidth={1}
-            opacity={0.15} filter="url(#glow)" />
+          {/* ── PASS 1: All desk surfaces (back → front) ──────────── */}
+          {sorted.map(({ parts }) => parts.deskLayer)}
 
-          {/* Room vignette */}
-          <defs>
-            <radialGradient id="vignette" cx="50%" cy="50%" r="70%">
-              <stop offset="60%" stopColor="transparent" />
-              <stop offset="100%" stopColor="#020509" stopOpacity="0.9" />
-            </radialGradient>
-          </defs>
-          <rect x={60} y={35} width={1090} height={570}
-            fill="url(#vignette)" pointerEvents="none" />
+          {/* ── PASS 2: All character BODIES (back → front) ─────────
+              Bodies render before monitors — they appear "behind" the monitor face */}
+          {sorted.map(({ parts }) => parts.bodyLayer)}
+
+          {/* ── PASS 3: All MONITORS (back → front) ─────────────────
+              Monitors render over bodies — appear to sit on the desk surface */}
+          {sorted.map(({ parts }) => parts.monitorLayer)}
+
+          {/* ── PASS 4: All character HEADS (back → front) ───────────
+              Heads render last — appear above/in-front of monitor tops */}
+          {sorted.map(({ parts }) => parts.headLayer)}
+
+          {/* Master station aura ring (top of stack) */}
+          {(() => {
+            const m = STATIONS.find(s => s.isMaster);
+            if (!m) return null;
+            return (
+              <ellipse cx={m.cx} cy={m.deskY + 16}
+                rx={90} ry={16}
+                fill="none" stroke="#22d3ee" strokeWidth={1}
+                opacity={0.18} filter="url(#bloom)"
+              />
+            );
+          })()}
+
+          {/* Vignette overlay */}
+          <rect x={40} y={20} width={1120} height={580}
+            fill="url(#vig)" pointerEvents="none"
+          />
         </svg>
       </div>
 
-      {/* ── Footer status bar ──────────────────────────────────────────────── */}
+      {/* ── Footer status strip ─────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 py-2"
-        style={{ background: "#04090f", borderTop: "1px solid #0d2040" }}>
-        <div className="flex items-center gap-4">
-          {AGENTS.map(a => {
-            const sc = STATE_COLOR[a.state];
+        style={{ background:"#020609", borderTop:"1px solid #0a1e34" }}>
+        <div className="flex items-center gap-4 flex-wrap">
+          {Object.values(AGENTS).map(a => {
+            const sc = SC[a.state];
             return (
               <div key={a.id} className="flex items-center gap-1.5">
                 <div style={{
-                  width: 5, height: 5, borderRadius: "50%",
-                  background: blink ? sc.glow : "#0d2040",
-                  transition: "background 0.3s",
+                  width:5, height:5, borderRadius:"50%",
+                  background: blink ? sc.glow : "#0a1e34",
+                  transition:"background 0.3s",
                 }} />
-                <span style={{
-                  fontFamily: "monospace", fontSize: 8,
-                  color: sc.glow, letterSpacing: 1,
-                }}>
+                <span style={{ fontFamily:"monospace", fontSize:8, color:sc.glow, letterSpacing:1 }}>
                   {a.label}
                 </span>
               </div>
@@ -888,13 +1048,10 @@ export function TradexNewsroom(_props?: { data?: any; loading?: boolean }) {
           })}
         </div>
         <div className="flex items-center gap-3">
-          <span style={{ fontFamily: "monospace", fontSize: 8, color: "#1e3a5f" }}>
-            {clock.toLocaleTimeString("en-US", { hour12: false })}
+          <span style={{ fontFamily:"monospace", fontSize:8, color:"#122040" }}>
+            {clock.toLocaleTimeString("en-US",{ hour12:false })}
           </span>
-          <span style={{
-            fontFamily: "monospace", fontSize: 8,
-            color: "#10b981", letterSpacing: 1,
-          }}>
+          <span style={{ fontFamily:"monospace", fontSize:8, color:"#10b981", letterSpacing:1 }}>
             ● LIVE
           </span>
         </div>
