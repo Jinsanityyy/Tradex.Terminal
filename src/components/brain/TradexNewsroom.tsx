@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useQuotes } from "@/hooks/useMarketData";
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 function useBlink(ms = 750) {
@@ -21,46 +20,6 @@ function useAnimatedBars(n: number, lo = 14, hi = 88, ms = 1200) {
     return () => clearInterval(t);
   }, [n, lo, hi, ms]);
   return b;
-}
-
-// ─── Live Prices ──────────────────────────────────────────────────────────────
-// Uses the SAME SWR cache as TopStatusBar → prices are always in sync
-type FXRow = { price: string; pct: string; up: boolean; live: boolean };
-const EMPTY: FXRow = { price: "—", pct: "—", up: true, live: false };
-
-// Maps display key → symbol field in AssetSnapshot
-const SNAP_SYM: Record<string, string> = {
-  XAUUSD:"XAU/USD", BTCUSD:"BTC/USD", EURUSD:"EUR/USD",
-  GBPUSD:"GBP/USD", USDJPY:"USD/JPY", XAGUSD:"XAG/USD", NZDUSD:"NZD/USD",
-};
-
-function fmtPrice(key: string, p: number): string {
-  if (key === "BTCUSD") return p.toLocaleString("en-US", { maximumFractionDigits: 0 });
-  if (key === "USDJPY" || key === "XAUUSD" || key === "XAGUSD") return p.toFixed(2);
-  return p.toFixed(4);
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function useLivePrices(_agentData: any): Record<string, FXRow> {
-  const { quotes } = useQuotes(30_000);                       // same SWR key as TopStatusBar
-
-  const rows: Record<string, FXRow> = Object.fromEntries(
-    Object.keys(SNAP_SYM).map(k => [k, EMPTY])
-  );
-
-  for (const snap of quotes) {
-    const key = Object.entries(SNAP_SYM).find(([, v]) => v === snap.symbol)?.[0];
-    if (!key || !snap.price) continue;
-    const pct = snap.changePercent ?? 0;
-    rows[key] = {
-      price: fmtPrice(key, snap.price),
-      pct:   `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`,
-      up:    pct >= 0,
-      live:  true,
-    };
-  }
-
-  return rows;
 }
 
 // ─── Agent definitions ────────────────────────────────────────────────────────
@@ -265,8 +224,7 @@ function AnalogClock({ clock }: { clock: Date }) {
 }
 
 // ─── NavBar ────────────────────────────────────────────────────────────────────
-function NavBar({ running, onRun, fx }: { running: boolean; onRun: () => void; fx: Record<string, FXRow> }) {
-  const pairs: Array<[string, string]> = [["XAU", "XAUUSD"], ["BTC", "BTCUSD"], ["EUR", "EURUSD"], ["JPY", "USDJPY"]];
+function NavBar({ running, onRun }: { running: boolean; onRun: () => void }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 18px", background: "linear-gradient(to right,#020810,#030c18,#020810)", borderBottom: "1px solid rgba(34,211,238,0.25)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -278,42 +236,18 @@ function NavBar({ running, onRun, fx }: { running: boolean; onRun: () => void; f
         <span style={{ fontFamily: "monospace", fontSize: 12, color: "#22d3ee", letterSpacing: 5, fontWeight: "bold", textShadow: "0 0 20px rgba(34,211,238,0.8)" }}>TRADEX NEWSROOM</span>
         <span style={{ fontFamily: "monospace", fontSize: 8, color: "rgba(34,211,238,0.35)", letterSpacing: 2 }}>AI OPS CENTER</span>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <div style={{ fontFamily: "monospace", fontSize: 9, display: "flex", gap: 10, alignItems: "center" }}>
-          {pairs.map(([lbl, key]) => {
-            const r = fx[key];
-            const col = r?.live ? (r.up ? "#34d399" : "#f87171") : "rgba(34,211,238,0.3)";
-            return (
-              <React.Fragment key={key}>
-                <span style={{ color: "rgba(34,211,238,0.45)" }}>{lbl}</span>
-                <span style={{ color: col, fontWeight: "bold", textShadow: r?.live ? `0 0 8px ${col}` : "none" }}>{r?.price ?? "—"}</span>
-                <span style={{ color: "rgba(34,211,238,0.2)" }}>·</span>
-              </React.Fragment>
-            );
-          })}
-        </div>
-        <button onClick={onRun} style={{ display: "flex", alignItems: "center", gap: 7, padding: "5px 16px", borderRadius: 4, cursor: "pointer", background: running ? "#041c10" : "#020a1a", border: `1px solid ${running ? "#10b981" : "rgba(34,211,238,0.5)"}`, fontFamily: "monospace", fontSize: 9, fontWeight: "bold", letterSpacing: 1.5, color: running ? "#10b981" : "#22d3ee", boxShadow: running ? "0 0 16px rgba(16,185,129,0.4)" : "0 0 12px rgba(34,211,238,0.2)" }}>
-          <span style={{ width: 7, height: 7, borderRadius: "50%", display: "inline-block", background: running ? "#10b981" : "#22d3ee", boxShadow: running ? "0 0 8px #10b981" : "0 0 6px #22d3ee" }} />
-          {running ? "RUNNING…" : "RUN PIPELINE"}
-        </button>
-      </div>
+      <button onClick={onRun} style={{ display: "flex", alignItems: "center", gap: 7, padding: "5px 16px", borderRadius: 4, cursor: "pointer", background: running ? "#041c10" : "#020a1a", border: `1px solid ${running ? "#10b981" : "rgba(34,211,238,0.5)"}`, fontFamily: "monospace", fontSize: 9, fontWeight: "bold", letterSpacing: 1.5, color: running ? "#10b981" : "#22d3ee", boxShadow: running ? "0 0 16px rgba(16,185,129,0.4)" : "0 0 12px rgba(34,211,238,0.2)" }}>
+        <span style={{ width: 7, height: 7, borderRadius: "50%", display: "inline-block", background: running ? "#10b981" : "#22d3ee", boxShadow: running ? "0 0 8px #10b981" : "0 0 6px #22d3ee" }} />
+        {running ? "RUNNING…" : "RUN PIPELINE"}
+      </button>
     </div>
   );
 }
 
 // ─── Room Scene ────────────────────────────────────────────────────────────────
-function RoomScene({ blink, clock, bars, fx }: {
-  blink: boolean; clock: Date; bars: number[]; fx: Record<string, FXRow>;
+function RoomScene({ blink, clock, bars }: {
+  blink: boolean; clock: Date; bars: number[];
 }) {
-  const FX_LIST = [
-    { key: "XAUUSD", label: "GOLD / USD",  icon: "⬛" },
-    { key: "BTCUSD", label: "BTC  / USD",  icon: "⬛" },
-    { key: "EURUSD", label: "EUR  / USD",  icon: "⬛" },
-    { key: "GBPUSD", label: "GBP  / USD",  icon: "⬛" },
-    { key: "USDJPY", label: "USD  / JPY",  icon: "⬛" },
-    { key: "XAGUSD", label: "SILV / USD",  icon: "⬛" },
-  ] as const;
-
   const BACK_ROW  = AGENTS.slice(0, 4);
   const FRONT_ROW = AGENTS.slice(4);
 
@@ -401,27 +335,24 @@ function RoomScene({ blink, clock, bars, fx }: {
             </div>
           </div>
 
-          {/* RIGHT: FX Live Rates — single column, readable */}
-          <div style={{ width: 200, flexShrink: 0, background: "#040910", border: "2px solid rgba(34,211,238,0.55)", borderTop: "4px solid #22d3ee", borderRadius: "0 0 4px 4px", overflow: "hidden", boxShadow: "0 0 30px rgba(34,211,238,0.15)", position: "relative" }}>
+          {/* RIGHT: Agent Status Board */}
+          <div style={{ width: 190, flexShrink: 0, background: "#040910", border: "2px solid rgba(34,211,238,0.55)", borderTop: "4px solid #22d3ee", borderRadius: "0 0 4px 4px", overflow: "hidden", boxShadow: "0 0 30px rgba(34,211,238,0.15)", position: "relative" }}>
             <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.15) 3px,rgba(0,0,0,0.15) 4px)", pointerEvents: "none" }} />
             <div style={{ padding: "6px 10px", borderBottom: "1px solid rgba(34,211,238,0.15)", display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 8, color: "#22d3ee", letterSpacing: 2, fontWeight: "bold", textShadow: "0 0 8px #22d3ee" }}>◆ FX LIVE RATES</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <div style={{ width: 5, height: 5, borderRadius: "50%", background: blink ? "#10b981" : "#030810", boxShadow: blink ? "0 0 6px #10b981" : "none" }} />
-              </div>
+              <span style={{ fontSize: 8, color: "#22d3ee", letterSpacing: 2, fontWeight: "bold", textShadow: "0 0 8px #22d3ee" }}>◆ AGENT STATUS</span>
+              <div style={{ width: 5, height: 5, borderRadius: "50%", background: blink ? "#10b981" : "#030810", boxShadow: blink ? "0 0 6px #10b981" : "none", alignSelf: "center" }} />
             </div>
-            <div style={{ padding: "8px 10px", display: "flex", flexDirection: "column", gap: 7 }}>
-              {FX_LIST.map(({ key, label }) => {
-                const r = fx[key];
-                const col = r?.live ? (r.up ? "#34d399" : "#f87171") : "rgba(100,140,170,0.4)";
-                const arrow = r?.live ? (r.up ? "▲" : "▼") : "";
+            <div style={{ padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6 }}>
+              {AGENTS.map(a => {
+                const col = STATE_META[a.state].color;
+                const lbl = STATE_META[a.state].label;
                 return (
-                  <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 9, color: "rgba(34,211,238,0.6)", letterSpacing: 0.5 }}>{label}</span>
+                  <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                      <span style={{ fontSize: 10, color: r?.live ? "#c8e8ff" : "rgba(100,140,170,0.4)", fontWeight: "bold" }}>{r?.price ?? "—"}</span>
-                      <span style={{ fontSize: 9, color: col, fontWeight: "bold", textShadow: r?.live ? `0 0 6px ${col}` : "none", minWidth: 14 }}>{arrow}</span>
+                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: blink ? col : "#030810", boxShadow: blink ? `0 0 6px ${col}` : "none", flexShrink: 0 }} />
+                      <span style={{ fontSize: 8, color: "rgba(34,211,238,0.65)", letterSpacing: 0.5 }}>{a.label}</span>
                     </div>
+                    <span style={{ fontSize: 8, color: col, fontWeight: "bold", textShadow: `0 0 6px ${col}` }}>{lbl}</span>
                   </div>
                 );
               })}
@@ -474,35 +405,26 @@ function RoomScene({ blink, clock, bars, fx }: {
   );
 }
 
-// ─── Legend / Interpretation Panel ────────────────────────────────────────────
-function InterpretationBar({ fx }: { fx: Record<string, FXRow> }) {
-  const bullish = AGENTS.filter(a => a.state === "bullish" || a.state === "valid" || a.state === "armed").length;
-  const bearish = AGENTS.filter(a => a.state === "bearish" || a.state === "blocked").length;
-  const neutral = AGENTS.length - bullish - bearish;
-  const consensus = bullish > bearish ? "BULLISH" : bearish > bullish ? "BEARISH" : "NEUTRAL";
+// ─── Interpretation Bar ────────────────────────────────────────────────────────
+function InterpretationBar() {
+  const bullish = AGENTS.filter(a => ["bullish","valid","armed"].includes(a.state)).length;
+  const bearish = AGENTS.filter(a => ["bearish","blocked"].includes(a.state)).length;
+  const neutral  = AGENTS.length - bullish - bearish;
+  const consensus    = bullish > bearish ? "BULLISH" : bearish > bullish ? "BEARISH" : "NEUTRAL";
   const consensusCol = bullish > bearish ? "#10b981" : bearish > bullish ? "#ef4444" : "#22d3ee";
 
   return (
     <div style={{ padding: "8px 18px", background: "#030810", borderTop: "1px solid rgba(34,211,238,0.15)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-      {/* How to read */}
-      <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <span style={{ fontFamily: "monospace", fontSize: 7, color: "rgba(34,211,238,0.4)", letterSpacing: 1 }}>HOW TO READ:</span>
-        {(Object.entries({ "🟢 GREEN": "Bullish / Valid signal", "🟡 AMBER": "Alert / caution", "🔵 CYAN": "Armed / No-trade", "🟣 PURPLE": "Monitoring" }) as [string, string][]).map(([k, v]) => (
-          <span key={k} style={{ fontFamily: "monospace", fontSize: 7, color: "rgba(34,211,238,0.55)" }}>{k} = {v}</span>
+        {([["🟢", "#10b981", "Bullish / Valid"], ["🟡", "#f59e0b", "Alert"], ["🔵", "#22d3ee", "Armed / No-trade"], ["🟣", "#818cf8", "Monitoring"]] as const).map(([ic, , lbl]) => (
+          <span key={lbl} style={{ fontFamily: "monospace", fontSize: 7, color: "rgba(34,211,238,0.5)" }}>{ic} {lbl}</span>
         ))}
       </div>
-      {/* Consensus score */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span style={{ fontFamily: "monospace", fontSize: 7, color: "rgba(34,211,238,0.4)" }}>CONSENSUS:</span>
-        <span style={{ fontFamily: "monospace", fontSize: 10, fontWeight: "bold", color: consensusCol, textShadow: `0 0 10px ${consensusCol}` }}>{consensus}</span>
+        <span style={{ fontFamily: "monospace", fontSize: 7, color: "rgba(34,211,238,0.4)" }}>CONSENSUS</span>
+        <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: "bold", color: consensusCol, textShadow: `0 0 12px ${consensusCol}` }}>{consensus}</span>
         <span style={{ fontFamily: "monospace", fontSize: 7, color: "rgba(34,211,238,0.3)" }}>{bullish}B · {neutral}N · {bearish}R</span>
-        {fx["XAUUSD"]?.live && (
-          <>
-            <span style={{ fontFamily: "monospace", fontSize: 7, color: "rgba(34,211,238,0.2)" }}>|</span>
-            <span style={{ fontFamily: "monospace", fontSize: 7, color: "rgba(34,211,238,0.4)" }}>XAU </span>
-            <span style={{ fontFamily: "monospace", fontSize: 9, fontWeight: "bold", color: fx["XAUUSD"].up ? "#34d399" : "#f87171", textShadow: `0 0 6px ${fx["XAUUSD"].up ? "#34d399" : "#f87171"}` }}>{fx["XAUUSD"].price}</span>
-          </>
-        )}
       </div>
     </div>
   );
@@ -515,13 +437,12 @@ export function TradexNewsroom(_props?: { data?: any; loading?: boolean }) {
   const blink  = useBlink(700);
   const clock  = useClock();
   const bars   = useAnimatedBars(8, 20, 92, 1100);
-  const fx     = useLivePrices(_props?.data);
   const handleRun = useCallback(() => { setRunning(true); setTimeout(() => setRunning(false), 4200); }, []);
 
   return (
     <div style={{ position: "relative", background: "#020810", border: "1px solid rgba(34,211,238,0.2)", borderRadius: 12, overflow: "hidden", userSelect: "none" }}>
-      <NavBar running={running} onRun={handleRun} fx={fx} />
-      <RoomScene blink={blink} clock={clock} bars={bars} fx={fx} />
+      <NavBar running={running} onRun={handleRun} />
+      <RoomScene blink={blink} clock={clock} bars={bars} />
 
       {/* Footer agent status */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 18px", background: "linear-gradient(to right,#020810,#030c18,#020810)", borderTop: "1px solid rgba(34,211,238,0.2)" }}>
@@ -542,8 +463,7 @@ export function TradexNewsroom(_props?: { data?: any; loading?: boolean }) {
         </div>
       </div>
 
-      {/* Interpretation bar */}
-      <InterpretationBar fx={fx} />
+      <InterpretationBar />
     </div>
   );
 }
