@@ -1,11 +1,5 @@
 "use client";
 
-/**
- * TradexNewsroom — CSS 3D Isometric Command Center
- * Enclosed room: left wall + back wall meet at corner, floor fills viewport.
- * Dense 2-row desk layout, chunky desks with leg recess, neon glow shadows.
- */
-
 import React, { useState, useEffect, useCallback } from "react";
 
 // ─── Hooks ───────────────────────────────────────────────────────────────────
@@ -33,7 +27,6 @@ function useTick(fps = 25) {
   return n;
 }
 
-// Live FX + crypto prices from free public APIs, merged with agent snapshot data
 type FXRow = { price: string; pct: string; up: boolean; live: boolean };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function useLivePrices(agentData: any) {
@@ -46,11 +39,9 @@ function useLivePrices(agentData: any) {
     XAGUSD:{price:"—",pct:"—",up:true,live:false},
     NZDUSD:{price:"—",pct:"—",up:true,live:false},
   });
-
   useEffect(() => {
     async function load() {
       try {
-        // Forex: open.er-api.com (free, no key, CORS-ok)
         const fxRes = await fetch("https://open.er-api.com/v6/latest/USD");
         if (fxRes.ok) {
           const { rates } = await fxRes.json() as { rates: Record<string,number> };
@@ -66,20 +57,16 @@ function useLivePrices(agentData: any) {
         }
       } catch { /* silent */ }
       try {
-        // BTC: Binance free ticker
         const btcRes = await fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT");
         if (btcRes.ok) {
           const btc = await btcRes.json() as { lastPrice:string; priceChangePercent:string };
           const price = parseFloat(btc.lastPrice);
           const pct   = parseFloat(btc.priceChangePercent);
-          setRows(p => ({
-            ...p,
-            BTCUSD:{
-              price: price.toLocaleString("en-US",{maximumFractionDigits:0}),
-              pct:   `${pct>=0?"+":""}${pct.toFixed(2)}%`,
-              up:    pct>=0, live:true,
-            },
-          }));
+          setRows(p => ({...p, BTCUSD:{
+            price: price.toLocaleString("en-US",{maximumFractionDigits:0}),
+            pct:   `${pct>=0?"+":""}${pct.toFixed(2)}%`,
+            up: pct>=0, live:true,
+          }}));
         }
       } catch { /* silent */ }
     }
@@ -88,23 +75,17 @@ function useLivePrices(agentData: any) {
     return () => clearInterval(t);
   }, []);
 
-  // Override with the real snapshot price from the currently-running agent analysis
   const merged = { ...rows };
   if (agentData?.snapshot) {
-    const sym: string  = agentData.snapshot.symbol;
-    const cur: number  = agentData.snapshot.price.current;
-    const pct: number  = agentData.snapshot.price.changePercent;
-    const isJpy        = sym === "USDJPY";
-    const isBtc        = sym === "BTCUSD";
+    const sym: string = agentData.snapshot.symbol;
+    const cur: number = agentData.snapshot.price.current;
+    const pct: number = agentData.snapshot.price.changePercent;
     merged[sym] = {
-      price: isBtc
+      price: sym==="BTCUSD"
         ? cur.toLocaleString("en-US",{maximumFractionDigits:0})
-        : isJpy
-        ? cur.toFixed(2)
-        : cur.toFixed(4),
-      pct:  `${pct>=0?"+":""}${pct.toFixed(2)}%`,
-      up:   pct>=0,
-      live: true,
+        : sym==="USDJPY" ? cur.toFixed(2) : cur.toFixed(4),
+      pct: `${pct>=0?"+":""}${pct.toFixed(2)}%`,
+      up: pct>=0, live:true,
     };
   }
   return merged;
@@ -115,41 +96,42 @@ type AgentState = "bullish"|"bearish"|"alert"|"valid"|"blocked"|"armed"|"no-trad
 interface AgentDef { id:string; label:string; role:string; state:AgentState; hair:string; skin:string; suit:string; accent:string; isMaster?:boolean; }
 interface StationDef { agentId:string; x:number; y:number; platformH?:number; }
 
-const SC: Record<AgentState,{glow:string;screen:string}> = {
-  bullish:    {glow:"#10b981",screen:"#021a0e"},
-  bearish:    {glow:"#ef4444",screen:"#2a0808"},
-  alert:      {glow:"#f59e0b",screen:"#261202"},
-  valid:      {glow:"#10b981",screen:"#021a0e"},
-  blocked:    {glow:"#ef4444",screen:"#2a0808"},
-  armed:      {glow:"#22d3ee",screen:"#021420"},
-  "no-trade": {glow:"#22d3ee",screen:"#021420"},
-  idle:       {glow:"#6366f1",screen:"#0a0c1e"},
+const SC: Record<AgentState,{glow:string;screen:string;dim:string}> = {
+  bullish:    {glow:"#10b981",screen:"#031a0c",dim:"#064d24"},
+  bearish:    {glow:"#ef4444",screen:"#1a0303",dim:"#5a1010"},
+  alert:      {glow:"#f59e0b",screen:"#1a0d00",dim:"#5a3300"},
+  valid:      {glow:"#10b981",screen:"#031a0c",dim:"#064d24"},
+  blocked:    {glow:"#ef4444",screen:"#1a0303",dim:"#5a1010"},
+  armed:      {glow:"#22d3ee",screen:"#021420",dim:"#0a4060"},
+  "no-trade": {glow:"#22d3ee",screen:"#021420",dim:"#0a4060"},
+  idle:       {glow:"#818cf8",screen:"#080c1e",dim:"#1e2060"},
 };
 
 const AGENTS: Record<string,AgentDef> = {
-  trend:      {id:"trend",      label:"TREND",      role:"BULLISH",  state:"bullish",  hair:"#f5c518",skin:"#e8a870",suit:"#0e2a52",accent:"#10b981"},
-  smc:        {id:"smc",        label:"PR.ACTION",  role:"ALERT",    state:"alert",    hair:"#7c3aed",skin:"#c89060",suit:"#160c38",accent:"#f59e0b"},
-  master:     {id:"master",     label:"MASTER",     role:"NO TRADE", state:"no-trade", hair:"#c8d8ec",skin:"#dfc898",suit:"#060e20",accent:"#22d3ee",isMaster:true},
-  risk:       {id:"risk",       label:"RISK GATE",  role:"VALID",    state:"valid",    hair:"#059669",skin:"#b87058",suit:"#040d08",accent:"#10b981"},
-  contrarian: {id:"contrarian", label:"CONTRARIAN", role:"MONITOR",  state:"idle",     hair:"#b91c1c",skin:"#e0a870",suit:"#130604",accent:"#f97316"},
-  news:       {id:"news",       label:"NEWS",       role:"MONITOR",  state:"idle",     hair:"#2d3748",skin:"#8b5e3c",suit:"#081420",accent:"#3b82f6"},
-  execution:  {id:"execution",  label:"EXECUTION",  role:"STANDBY",  state:"armed",    hair:"#0f1923",skin:"#c89060",suit:"#07101c",accent:"#22d3ee"},
+  trend:      {id:"trend",      label:"TREND",      role:"BULLISH",  state:"bullish",  hair:"#fbbf24",skin:"#f0a070",suit:"#0e3060",accent:"#10b981"},
+  smc:        {id:"smc",        label:"PR.ACTION",  role:"ALERT",    state:"alert",    hair:"#a78bfa",skin:"#d09060",suit:"#1e0e48",accent:"#f59e0b"},
+  master:     {id:"master",     label:"MASTER",     role:"NO TRADE", state:"no-trade", hair:"#e2e8f0",skin:"#e8c898",suit:"#080e20",accent:"#22d3ee",isMaster:true},
+  risk:       {id:"risk",       label:"RISK GATE",  role:"VALID",    state:"valid",    hair:"#34d399",skin:"#c07858",suit:"#040e0a",accent:"#10b981"},
+  contrarian: {id:"contrarian", label:"CONTRARIAN", role:"MONITOR",  state:"idle",     hair:"#f87171",skin:"#e0a870",suit:"#180806",accent:"#f97316"},
+  news:       {id:"news",       label:"NEWS",       role:"MONITOR",  state:"idle",     hair:"#60a5fa",skin:"#9b7050",suit:"#061428",accent:"#3b82f6"},
+  execution:  {id:"execution",  label:"EXECUTION",  role:"STANDBY",  state:"armed",    hair:"#22d3ee",skin:"#c89060",suit:"#07101c",accent:"#22d3ee"},
 };
 
-// Dense 2-row layout in 1100×800 floor space
-// Back row near Y=50 (wall), front row near Y=260 — tight gap
+// row 0 = back (near wall), row 1 = front
 const STATIONS: StationDef[] = [
-  {agentId:"smc",        x:90,  y:55},
-  {agentId:"master",     x:420, y:30,  platformH:24}, // center, elevated
-  {agentId:"risk",       x:750, y:55},
-  // front row — 4 desks
-  {agentId:"trend",      x:10,  y:270},
-  {agentId:"news",       x:240, y:270},
-  {agentId:"execution",  x:540, y:270},
-  {agentId:"contrarian", x:820, y:270},
+  {agentId:"smc",        x:80,  y:50},
+  {agentId:"master",     x:420, y:20,  platformH:28},
+  {agentId:"risk",       x:750, y:50},
+  {agentId:"trend",      x:20,  y:280},
+  {agentId:"news",       x:250, y:280},
+  {agentId:"execution",  x:530, y:280},
+  {agentId:"contrarian", x:810, y:280},
 ];
 
-const CABLE_COL: Record<string,string> = {trend:"#f59e0b",smc:"#7c3aed",risk:"#10b981",contrarian:"#f97316",news:"#3b82f6",execution:"#22d3ee"};
+const CABLE_COL: Record<string,string> = {
+  trend:"#fbbf24",smc:"#a78bfa",risk:"#34d399",
+  contrarian:"#f97316",news:"#60a5fa",execution:"#22d3ee",
+};
 const p3d: React.CSSProperties = {transformStyle:"preserve-3d"};
 const px = (n: number) => `${n}px`;
 
@@ -158,80 +140,100 @@ function IsoFloor() {
   return (
     <div style={{
       position:"absolute", left:0, top:0, width:1100, height:800,
-      background:"#010508",
-      backgroundImage:`linear-gradient(to right,#0c1e3870 1px,transparent 1px),linear-gradient(to bottom,#0c1e3870 1px,transparent 1px)`,
+      background:"#040f20",
+      backgroundImage:[
+        `linear-gradient(to right, rgba(34,211,238,0.18) 1px, transparent 1px)`,
+        `linear-gradient(to bottom, rgba(34,211,238,0.18) 1px, transparent 1px)`,
+      ].join(","),
       backgroundSize:"55px 55px",
       transform:"translateZ(0px)",
+      boxShadow:"inset 0 0 120px rgba(34,211,238,0.06)",
     }}>
-      {/* Central floor glow under master desk */}
-      <div style={{position:"absolute",left:"32%",top:"5%",width:"36%",height:"45%",
-        background:"radial-gradient(ellipse,rgba(34,211,238,0.055) 0%,transparent 70%)",pointerEvents:"none"}} />
-      {/* Floor base glow lines */}
-      <div style={{position:"absolute",bottom:0,left:0,right:0,height:80,
-        background:"linear-gradient(to top,rgba(34,211,238,0.03),transparent)",pointerEvents:"none"}} />
+      {/* Bright central glow under master */}
+      <div style={{position:"absolute",left:"28%",top:"0%",width:"44%",height:"50%",
+        background:"radial-gradient(ellipse,rgba(34,211,238,0.12) 0%,transparent 70%)",
+        pointerEvents:"none"}} />
+      {/* Front row glow */}
+      <div style={{position:"absolute",left:"0%",top:"50%",width:"100%",height:"50%",
+        background:"radial-gradient(ellipse 80% 50% at 50% 60%,rgba(99,102,241,0.07) 0%,transparent 70%)",
+        pointerEvents:"none"}} />
+      {/* Floor edge strip glow */}
+      <div style={{position:"absolute",bottom:0,left:0,right:0,height:6,
+        background:"rgba(34,211,238,0.15)",boxShadow:"0 0 20px rgba(34,211,238,0.3)"}} />
+      <div style={{position:"absolute",right:0,top:0,bottom:0,width:6,
+        background:"rgba(99,102,241,0.15)"}} />
     </div>
   );
 }
 
-// ─── Left Wall (stands up at X=0) ─────────────────────────────────────────────
+// ─── Left Wall ────────────────────────────────────────────────────────────────
 function LeftWall({ blink }: { blink:boolean }) {
   return (
     <div style={{
       position:"absolute", left:0, top:0,
-      width:420, height:800,        // width=wallH, height=roomDepth
-      background:"#030912",
-      borderRight:"2px solid #0a1e38",
+      width:420, height:800,
+      background:"linear-gradient(to right,#060e1e,#040b18)",
+      borderRight:"2px solid rgba(34,211,238,0.35)",
       transformOrigin:"left",
       transform:"rotateY(90deg)",
       overflow:"hidden",
     }}>
-      {/* Panel lines (horizontal) */}
+      {/* Horizontal panel lines */}
       {[100,200,300,380].map(y=>(
-        <div key={y} style={{position:"absolute",left:0,right:0,top:y,height:1,background:"#06111e"}} />
+        <div key={y} style={{position:"absolute",left:0,right:0,top:y,height:1,
+          background:"rgba(34,211,238,0.12)"}} />
       ))}
-      {/* Vertical panel dividers */}
+      {/* Vertical dividers */}
       {[160,320,480,640].map(x=>(
-        <div key={x} style={{position:"absolute",top:0,bottom:0,left:x,width:1,background:"#06111e"}} />
+        <div key={x} style={{position:"absolute",top:0,bottom:0,left:x,width:1,
+          background:"rgba(34,211,238,0.08)"}} />
       ))}
-      {/* Small side monitor cluster at Y≈200 (mid-depth) */}
+      {/* Side monitors */}
       {[1,2].map(i=>(
-        <div key={i} style={{position:"absolute",left:60+i*140,top:80,width:100,height:70,
-          background:"#020810",border:"1px solid #0d2040",borderRadius:2,
-          boxShadow:"0 0 10px rgba(34,211,238,0.07)"}}>
-          <div style={{margin:3,height:50,background:"#021420",borderRadius:1,position:"relative",overflow:"hidden"}}>
+        <div key={i} style={{position:"absolute",left:60+i*140,top:60,width:110,height:80,
+          background:"#04091a",border:"1px solid rgba(34,211,238,0.4)",borderRadius:3,
+          boxShadow:"0 0 20px rgba(34,211,238,0.2), inset 0 0 12px rgba(34,211,238,0.05)"}}>
+          <div style={{margin:4,height:54,background:"#021828",borderRadius:2,position:"relative",overflow:"hidden"}}>
             <div style={{position:"absolute",top:4,left:0,right:0,textAlign:"center",
-              fontFamily:"monospace",fontSize:5,color:"#22d3ee",letterSpacing:1}}>
+              fontFamily:"monospace",fontSize:6,color:"#22d3ee",letterSpacing:1,
+              textShadow:"0 0 8px #22d3ee"}}>
               {i===1?"SYS.MON":"NET.FLOW"}
             </div>
-            {/* Mini bars */}
-            <div style={{position:"absolute",bottom:3,left:4,right:4,height:20,display:"flex",alignItems:"flex-end",gap:2}}>
+            <div style={{position:"absolute",bottom:4,left:4,right:4,height:24,
+              display:"flex",alignItems:"flex-end",gap:2.5}}>
               {[45,72,55,83,61,70].map((v,j)=>(
-                <div key={j} style={{flex:1,height:`${v}%`,background:"#22d3ee",opacity:0.6,borderRadius:"1px 1px 0 0"}} />
+                <div key={j} style={{flex:1,height:`${v}%`,background:"#22d3ee",opacity:0.75,
+                  borderRadius:"1px 1px 0 0",boxShadow:"0 0 4px #22d3ee"}} />
               ))}
             </div>
           </div>
-          {/* LED */}
-          <div style={{position:"absolute",bottom:3,right:5,width:4,height:4,borderRadius:"50%",
-            background:blink?"#10b981":"#06101a",
-            boxShadow:blink?"0 0 4px #10b981":"none"}} />
+          <div style={{position:"absolute",bottom:4,right:6,width:6,height:6,borderRadius:"50%",
+            background:blink?"#10b981":"#04101a",
+            boxShadow:blink?"0 0 8px #10b981":"none"}} />
         </div>
       ))}
-      {/* Wall cable conduit strip */}
-      <div style={{position:"absolute",top:160,left:0,right:0,height:8,background:"#07111e",
-        borderTop:"1px solid #0d2040",borderBottom:"1px solid #0d2040"}} />
-      {/* Small LED indicators strip */}
-      <div style={{position:"absolute",top:164,left:20,display:"flex",gap:12}}>
-        {Array.from({length:28},(_,i)=>(
-          <div key={i} style={{width:4,height:4,borderRadius:"50%",
-            background:(blink&&i%3===0)?"#10b981":((!blink)&&i%4===0)?"#3b82f6":"#06101a",
-            opacity:0.8}} />
+      {/* Cable conduit strip */}
+      <div style={{position:"absolute",top:160,left:0,right:0,height:10,
+        background:"#060e1c",
+        borderTop:"1px solid rgba(34,211,238,0.3)",
+        borderBottom:"1px solid rgba(34,211,238,0.3)"}} />
+      {/* LED indicator strip */}
+      <div style={{position:"absolute",top:163,left:20,display:"flex",gap:10}}>
+        {Array.from({length:30},(_,i)=>(
+          <div key={i} style={{width:5,height:5,borderRadius:"50%",
+            background:(blink&&i%3===0)?"#10b981":((!blink)&&i%4===0)?"#3b82f6":"#061018",
+            boxShadow:(blink&&i%3===0)?"0 0 6px #10b981":((!blink)&&i%4===0)?"0 0 6px #3b82f6":"none",
+            opacity:0.9}} />
         ))}
       </div>
+      {/* Top border glow */}
+      <div style={{position:"absolute",top:0,left:0,right:0,height:4,
+        background:"linear-gradient(to right,rgba(34,211,238,0.5),rgba(99,102,241,0.5))"}} />
     </div>
   );
 }
 
-// ─── Back Wall ─────────────────────────────────────────────────────────────────
+// ─── Back Wall ────────────────────────────────────────────────────────────────
 function BackWall({ bars, clock, blink, fxPrices }: {
   bars:number[]; clock:Date; blink:boolean;
   fxPrices: Record<string,FXRow>;
@@ -247,195 +249,210 @@ function BackWall({ bars, clock, blink, fxPrices }: {
   return (
     <div style={{
       position:"absolute", left:0, top:0, width:1100, height:440,
-      background:"#030912",
+      background:"linear-gradient(to bottom, #060e20, #040b18)",
       transformOrigin:"top center",
       transform:"rotateX(-90deg)",
       overflow:"hidden",
     }}>
-      {/* Wall base gradient — makes it look attached to floor */}
-      <div style={{position:"absolute",bottom:0,left:0,right:0,height:60,
-        background:"linear-gradient(to top,#060e1c,transparent)",pointerEvents:"none"}} />
+      {/* Bottom seam glow — attaches wall to floor */}
+      <div style={{position:"absolute",bottom:0,left:0,right:0,height:8,
+        background:"linear-gradient(to top,rgba(34,211,238,0.4),transparent)",
+        boxShadow:"0 0 30px rgba(34,211,238,0.2)"}} />
+      {/* Top border */}
+      <div style={{position:"absolute",top:0,left:0,right:0,height:4,
+        background:"linear-gradient(to right,rgba(34,211,238,0.6),rgba(99,102,241,0.6))",
+        boxShadow:"0 0 20px rgba(34,211,238,0.4)"}} />
 
-      {/* Horizontal panel lines across wall */}
+      {/* Horizontal panel lines */}
       {[80,160,240,320,400].map(y=>(
-        <div key={y} style={{position:"absolute",left:0,right:0,top:y,height:1,background:"#06111e"}} />
+        <div key={y} style={{position:"absolute",left:0,right:0,top:y,height:1,
+          background:"rgba(34,211,238,0.1)"}} />
       ))}
 
-      {/* CEILING LIGHT BARS — attached to top of wall */}
+      {/* CEILING LIGHT BARS */}
       {[80,230,400,560,730,900,1040].map(cx=>(
-        <div key={cx} style={{position:"absolute",top:0,left:cx-38,width:76,height:16,
-          background:"#04091a",border:"1px solid #0a1e34",
-          borderRadius:"0 0 4px 4px",
-          boxShadow:"0 8px 40px rgba(125,211,252,0.14)"}}>
-          <div style={{margin:"3px 5px",height:8,
-            background:"rgba(125,211,252,0.22)",borderRadius:2}} />
+        <div key={cx} style={{position:"absolute",top:0,left:cx-44,width:88,height:18,
+          background:"#040918",border:"1px solid rgba(125,211,252,0.4)",
+          borderRadius:"0 0 6px 6px",
+          boxShadow:"0 12px 50px rgba(125,211,252,0.3)"}}>
+          <div style={{margin:"3px 6px",height:10,
+            background:"rgba(125,211,252,0.55)",borderRadius:2,
+            boxShadow:"0 0 12px rgba(125,211,252,0.8)"}} />
         </div>
       ))}
 
-      {/* LEFT SERVER RACK CLUSTER — attached/built into wall */}
-      <div style={{position:"absolute",left:0,top:16,width:90,bottom:0,
-        background:"#020810",borderRight:"2px solid #0a1e34"}}>
-        <div style={{padding:"4px 2px",display:"flex",flexDirection:"column",gap:1}}>
-          {Array.from({length:24},(_,j)=>(
-            <div key={j} style={{display:"flex",alignItems:"center",height:14,
-              background:"#030c18",border:"1px solid #071424",borderRadius:1,margin:"0 2px"}}>
-              <div style={{flex:1,height:2,margin:"0 4px",background:"#071424",borderRadius:1}} />
-              <div style={{width:5,height:5,borderRadius:"50%",marginRight:3,
-                background:(blink&&j%2===0)?(j%3===0?"#10b981":j%3===1?"#3b82f6":"#f59e0b"):"#060e1a",
-                boxShadow:(blink&&j%2===0)?`0 0 5px currentColor`:"none"}} />
-              <div style={{width:5,height:5,borderRadius:"50%",marginRight:4,
-                background:(!blink&&j%3===0)?"#22d3ee":"#060e1a",
-                boxShadow:(!blink&&j%3===0)?"0 0 5px #22d3ee":"none"}} />
+      {/* LEFT SERVER RACK */}
+      <div style={{position:"absolute",left:0,top:18,width:96,bottom:0,
+        background:"#030c1c",
+        borderRight:"2px solid rgba(34,211,238,0.35)"}}>
+        <div style={{padding:"4px 3px",display:"flex",flexDirection:"column",gap:1.5}}>
+          {Array.from({length:22},(_,j)=>(
+            <div key={j} style={{display:"flex",alignItems:"center",height:15,
+              background:"#040c1c",border:"1px solid rgba(34,211,238,0.12)",borderRadius:1,margin:"0 2px"}}>
+              <div style={{flex:1,height:2,margin:"0 4px",background:"rgba(34,211,238,0.15)",borderRadius:1}} />
+              <div style={{width:6,height:6,borderRadius:"50%",marginRight:3,
+                background:(blink&&j%2===0)
+                  ? (j%3===0?"#10b981":j%3===1?"#3b82f6":"#f59e0b")
+                  : "#060f1a",
+                boxShadow:(blink&&j%2===0)?`0 0 6px currentColor`:"none"}} />
+              <div style={{width:6,height:6,borderRadius:"50%",marginRight:4,
+                background:(!blink&&j%3===0)?"#22d3ee":"#060f1a",
+                boxShadow:(!blink&&j%3===0)?"0 0 6px #22d3ee":"none"}} />
             </div>
           ))}
         </div>
       </div>
 
-      {/* RIGHT SERVER RACK CLUSTER */}
-      <div style={{position:"absolute",right:0,top:16,width:90,bottom:0,
-        background:"#020810",borderLeft:"2px solid #0a1e34"}}>
-        <div style={{padding:"4px 2px",display:"flex",flexDirection:"column",gap:1}}>
-          {Array.from({length:24},(_,j)=>(
-            <div key={j} style={{display:"flex",alignItems:"center",height:14,
-              background:"#030c18",border:"1px solid #071424",borderRadius:1,margin:"0 2px"}}>
-              <div style={{flex:1,height:2,margin:"0 4px",background:"#071424",borderRadius:1}} />
-              <div style={{width:5,height:5,borderRadius:"50%",marginRight:3,
-                background:(!blink&&j%2===0)?(j%4===0?"#f97316":j%4===1?"#10b981":"#3b82f6"):"#060e1a",
-                boxShadow:(!blink&&j%2===0)?`0 0 5px currentColor`:"none"}} />
-              <div style={{width:5,height:5,borderRadius:"50%",marginRight:4,
-                background:(blink&&j%3===1)?"#f59e0b":"#060e1a",
-                boxShadow:(blink&&j%3===1)?"0 0 5px #f59e0b":"none"}} />
+      {/* RIGHT SERVER RACK */}
+      <div style={{position:"absolute",right:0,top:18,width:96,bottom:0,
+        background:"#030c1c",
+        borderLeft:"2px solid rgba(99,102,241,0.35)"}}>
+        <div style={{padding:"4px 3px",display:"flex",flexDirection:"column",gap:1.5}}>
+          {Array.from({length:22},(_,j)=>(
+            <div key={j} style={{display:"flex",alignItems:"center",height:15,
+              background:"#040c1c",border:"1px solid rgba(99,102,241,0.12)",borderRadius:1,margin:"0 2px"}}>
+              <div style={{flex:1,height:2,margin:"0 4px",background:"rgba(99,102,241,0.15)",borderRadius:1}} />
+              <div style={{width:6,height:6,borderRadius:"50%",marginRight:3,
+                background:(!blink&&j%2===0)
+                  ? (j%4===0?"#f97316":j%4===1?"#10b981":"#818cf8")
+                  : "#060f1a",
+                boxShadow:(!blink&&j%2===0)?`0 0 6px currentColor`:"none"}} />
+              <div style={{width:6,height:6,borderRadius:"50%",marginRight:4,
+                background:(blink&&j%3===1)?"#f59e0b":"#060f1a",
+                boxShadow:(blink&&j%3===1)?"0 0 6px #f59e0b":"none"}} />
             </div>
           ))}
         </div>
       </div>
 
-      {/* FX RATES monitor — built into left section of wall */}
-      <div style={{position:"absolute",left:100,top:20,width:220,height:220,
-        background:"#010810",border:"1px solid #0d2040",borderRadius:"0 0 4px 4px",
+      {/* FX RATES PANEL */}
+      <div style={{position:"absolute",left:104,top:22,width:230,height:230,
+        background:"#030a18",border:"1px solid rgba(34,211,238,0.5)",
         borderTop:"3px solid #22d3ee",
-        boxShadow:"0 0 24px rgba(34,211,238,0.1), inset 0 0 20px rgba(34,211,238,0.02)"}}>
+        borderRadius:"0 0 6px 6px",
+        boxShadow:"0 0 30px rgba(34,211,238,0.25), inset 0 0 20px rgba(34,211,238,0.04)"}}>
         <div style={{padding:"8px 10px"}}>
-          <div style={{fontFamily:"monospace",fontSize:8,color:"#22d3ee",
-            letterSpacing:3,marginBottom:5,textAlign:"center",
-            textShadow:"0 0 10px #22d3ee"}}>FX RATES</div>
-          <div style={{height:1,background:"#0a1e34",marginBottom:5}} />
+          <div style={{fontFamily:"monospace",fontSize:9,color:"#22d3ee",
+            letterSpacing:3,marginBottom:6,textAlign:"center",fontWeight:"bold",
+            textShadow:"0 0 12px #22d3ee"}}>FX LIVE RATES</div>
+          <div style={{height:1,background:"rgba(34,211,238,0.3)",marginBottom:6}} />
           {FX_SYMBOLS.map(sym=>{
             const r = fxPrices[sym];
-            const col = r?.up ? "#10b981" : "#ef4444";
+            const up = r?.up ?? true;
+            const col = up ? "#34d399" : "#f87171";
             return (
               <div key={sym} style={{display:"flex",justifyContent:"space-between",
-                fontFamily:"monospace",fontSize:7.5,marginBottom:5,alignItems:"center"}}>
-                <span style={{color:"#2a4060",letterSpacing:0.5}}>{sym}</span>
-                <span style={{color: r?.live ? "#7a9ab8" : "#334155"}}>{r?.price ?? "—"}</span>
-                <span style={{color: r?.live ? col : "#334155",fontWeight:"bold"}}>{r?.pct ?? "—"}</span>
+                fontFamily:"monospace",fontSize:8,marginBottom:5.5,alignItems:"center"}}>
+                <span style={{color:"rgba(34,211,238,0.55)",letterSpacing:0.5,minWidth:52}}>{sym}</span>
+                <span style={{color: r?.live ? "#a5c8e8" : "rgba(100,130,160,0.5)",
+                  minWidth:54,textAlign:"right"}}>{r?.price ?? "—"}</span>
+                <span style={{color: r?.live ? col : "rgba(100,130,160,0.4)",
+                  fontWeight:"bold",minWidth:46,textAlign:"right",
+                  textShadow: r?.live ? `0 0 8px ${col}` : "none"}}>{r?.pct ?? "—"}</span>
               </div>
             );
           })}
         </div>
-        {/* Scanlines */}
-        <div style={{position:"absolute",inset:0,borderRadius:"0 0 4px 4px",
-          backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.18) 2px,rgba(0,0,0,0.18) 4px)",
+        <div style={{position:"absolute",inset:0,borderRadius:"0 0 6px 6px",
+          backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.15) 2px,rgba(0,0,0,0.15) 4px)",
           pointerEvents:"none"}} />
       </div>
 
-      {/* MAIN TRADEX DISPLAY — center, large, attached */}
-      <div style={{position:"absolute",left:338,top:14,width:510,height:260,
-        background:"#010608",
-        border:"2px solid #1a3870",
+      {/* MAIN TRADEX DISPLAY */}
+      <div style={{position:"absolute",left:342,top:14,width:518,height:270,
+        background:"#030810",
+        border:"2px solid rgba(34,211,238,0.55)",
         borderTop:"4px solid #22d3ee",
-        borderRadius:"0 0 4px 4px",
-        boxShadow:"0 0 60px rgba(34,211,238,0.15), inset 0 0 40px rgba(34,211,238,0.03)"}}>
+        borderRadius:"0 0 6px 6px",
+        boxShadow:"0 0 80px rgba(34,211,238,0.3), inset 0 0 40px rgba(34,211,238,0.04)"}}>
         {/* Corner brackets */}
         {(["top-left","top-right","bottom-left","bottom-right"] as const).map((pos,i)=>(
           <div key={i} style={{
             position:"absolute",
-            top:pos.startsWith("top")?2:undefined,
-            bottom:pos.startsWith("bottom")?2:undefined,
-            left:pos.endsWith("left")?2:undefined,
-            right:pos.endsWith("right")?2:undefined,
-            width:16,height:16,
+            top:pos.startsWith("top")?3:undefined,
+            bottom:pos.startsWith("bottom")?3:undefined,
+            left:pos.endsWith("left")?3:undefined,
+            right:pos.endsWith("right")?3:undefined,
+            width:20,height:20,
             borderTop:pos.startsWith("top")?"2px solid #22d3ee":undefined,
             borderBottom:pos.startsWith("bottom")?"2px solid #22d3ee":undefined,
             borderLeft:pos.endsWith("left")?"2px solid #22d3ee":undefined,
             borderRight:pos.endsWith("right")?"2px solid #22d3ee":undefined,
           }} />
         ))}
-        <div style={{padding:"16px 22px 10px",height:"100%",display:"flex",flexDirection:"column",gap:6}}>
-          {/* Title */}
+        <div style={{padding:"14px 22px 10px",height:"100%",display:"flex",flexDirection:"column",gap:6}}>
           <div style={{textAlign:"center"}}>
-            <div style={{fontFamily:"monospace",fontSize:22,fontWeight:"bold",color:"#22d3ee",
-              letterSpacing:8,textShadow:"0 0 25px #22d3ee, 0 0 60px rgba(34,211,238,0.35)"}}>
+            <div style={{fontFamily:"monospace",fontSize:24,fontWeight:"bold",color:"#22d3ee",
+              letterSpacing:8,textShadow:"0 0 30px #22d3ee, 0 0 80px rgba(34,211,238,0.4)"}}>
               TRADEX
             </div>
-            <div style={{fontFamily:"monospace",fontSize:7,color:"#1e4080",letterSpacing:2.5,marginTop:2}}>
+            <div style={{fontFamily:"monospace",fontSize:7.5,color:"rgba(34,211,238,0.45)",
+              letterSpacing:3,marginTop:2}}>
               MULTI-AGENT INTELLIGENCE PLATFORM
             </div>
           </div>
-          <div style={{height:1,background:"#0d2040"}} />
-          {/* Bar chart */}
+          <div style={{height:1,background:"rgba(34,211,238,0.2)"}} />
           <div style={{flex:1,display:"flex",alignItems:"flex-end",gap:5,padding:"0 2px"}}>
             {(["TRND","PA","NEWS","MSTR","RISK","CNTR","EXEC"] as const).map((lbl,i)=>{
-              const COLS=["#10b981","#f59e0b","#3b82f6","#22d3ee","#10b981","#f97316","#22d3ee"];
+              const COLS=["#34d399","#fbbf24","#60a5fa","#22d3ee","#34d399","#fb923c","#22d3ee"];
               return (
                 <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-                  <div style={{fontFamily:"monospace",fontSize:4.5,color:COLS[i]}}>{Math.round(bars[i])}%</div>
-                  <div style={{width:"100%",height:66,background:"#030a14",borderRadius:1,
-                    display:"flex",alignItems:"flex-end",overflow:"hidden"}}>
-                    <div style={{width:"100%",height:`${bars[i]}%`,background:COLS[i],opacity:0.78,
+                  <div style={{fontFamily:"monospace",fontSize:5,color:COLS[i],
+                    textShadow:`0 0 6px ${COLS[i]}`}}>{Math.round(bars[i])}%</div>
+                  <div style={{width:"100%",height:70,background:"#03091a",borderRadius:1,
+                    display:"flex",alignItems:"flex-end",overflow:"hidden",
+                    border:`1px solid ${COLS[i]}22`}}>
+                    <div style={{width:"100%",height:`${bars[i]}%`,background:COLS[i],opacity:0.85,
                       borderRadius:"1px 1px 0 0",transition:"height 1s ease",
-                      boxShadow:`0 0 8px ${COLS[i]}77`}} />
+                      boxShadow:`0 0 12px ${COLS[i]}, 0 0 4px ${COLS[i]}`}} />
                   </div>
-                  <div style={{fontFamily:"monospace",fontSize:4.5,color:COLS[i]}}>{lbl}</div>
+                  <div style={{fontFamily:"monospace",fontSize:5,color:COLS[i],
+                    textShadow:`0 0 6px ${COLS[i]}`}}>{lbl}</div>
                 </div>
               );
             })}
           </div>
-          {/* Status */}
           <div style={{display:"flex",justifyContent:"space-between",
-            fontFamily:"monospace",fontSize:6.5,borderTop:"1px solid #0a1e34",paddingTop:4}}>
-            <span style={{color:"#10b981",textShadow:"0 0 6px #10b981"}}>● 7 AGENTS ACTIVE</span>
-            <span style={{color:"#22d3ee"}}>REAL-TIME CONSENSUS</span>
-            <span style={{color:"#1a3a70"}}>v2.4.1</span>
+            fontFamily:"monospace",fontSize:7,
+            borderTop:"1px solid rgba(34,211,238,0.15)",paddingTop:4}}>
+            <span style={{color:"#34d399",textShadow:"0 0 8px #34d399"}}>● 7 AGENTS ACTIVE</span>
+            <span style={{color:"rgba(34,211,238,0.7)"}}>REAL-TIME CONSENSUS</span>
+            <span style={{color:"rgba(34,211,238,0.3)"}}>v2.4.1</span>
           </div>
         </div>
-        {/* Scanlines */}
-        <div style={{position:"absolute",inset:0,borderRadius:"0 0 4px 4px",
-          backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.15) 2px,rgba(0,0,0,0.15) 4px)",
+        <div style={{position:"absolute",inset:0,borderRadius:"0 0 6px 6px",
+          backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.12) 2px,rgba(0,0,0,0.12) 4px)",
           pointerEvents:"none"}} />
       </div>
 
-      {/* ANALOG CLOCK — right section, wall-mounted */}
-      <div style={{position:"absolute",right:100,top:20,width:120,height:120,
-        background:"#010608",border:"2px solid #0d2040",borderTop:"3px solid #22d3ee",
-        borderRadius:"0 0 60px 60px",
-        boxShadow:"0 0 20px rgba(34,211,238,0.08)"}}>
-        <svg width="120" height="120" viewBox="0 0 100 100">
-          <circle cx="50" cy="50" r="46" fill="#010508" stroke="#0d2040" strokeWidth="1.2"/>
-          <circle cx="50" cy="50" r="40" fill="none" stroke="#060e1c" strokeWidth="0.6"/>
+      {/* ANALOG CLOCK */}
+      <div style={{position:"absolute",right:104,top:22,width:130,height:130,
+        background:"#030810",border:"2px solid rgba(34,211,238,0.5)",
+        borderTop:"3px solid #22d3ee",
+        borderRadius:"0 0 65px 65px",
+        boxShadow:"0 0 30px rgba(34,211,238,0.2)"}}>
+        <svg width="130" height="130" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="46" fill="#020810" stroke="rgba(34,211,238,0.25)" strokeWidth="1.5"/>
+          <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(34,211,238,0.1)" strokeWidth="0.8"/>
           {Array.from({length:12},(_,i)=>{
-            const a=(i*30-90)*Math.PI/180,maj=i%3===0;
+            const a=(i*30-90)*Math.PI/180, maj=i%3===0;
             return <line key={i}
-              x1={50+Math.cos(a)*(maj?32:36)} y1={50+Math.sin(a)*(maj?32:36)}
+              x1={50+Math.cos(a)*(maj?30:35)} y1={50+Math.sin(a)*(maj?30:35)}
               x2={50+Math.cos(a)*43} y2={50+Math.sin(a)*43}
-              stroke={maj?"#22d3ee":"#0d2040"} strokeWidth={maj?2:1}/>;
+              stroke={maj?"#22d3ee":"rgba(34,211,238,0.3)"} strokeWidth={maj?2.5:1.2}/>;
           })}
           {hand(hourDeg,22,3.5,"#c8d8ec")}
-          {hand(minDeg,32,2.2,"#c8d8ec")}
-          {hand(secDeg,38,1.1,"#ef4444")}
-          <circle cx="50" cy="50" r="3.5" fill="#ef4444"/>
-          <circle cx="50" cy="50" r="1.5" fill="#e2e8f0"/>
+          {hand(minDeg,32,2.2,"#e2e8f0")}
+          {hand(secDeg,38,1.2,"#ef4444")}
+          <circle cx="50" cy="50" r="4" fill="#ef4444" filter="url(#glow)"/>
+          <circle cx="50" cy="50" r="2" fill="#fff"/>
         </svg>
-        <div style={{textAlign:"center",marginTop:-4,
-          fontFamily:"monospace",fontSize:7,color:"#22d3ee",
-          textShadow:"0 0 8px #22d3ee"}}>
+        <div style={{textAlign:"center",marginTop:-6,
+          fontFamily:"monospace",fontSize:8,color:"#22d3ee",
+          textShadow:"0 0 10px #22d3ee"}}>
           {`${String(hh).padStart(2,"0")}:${String(mm).padStart(2,"0")}:${String(ss).padStart(2,"0")}`}
         </div>
       </div>
-
-      {/* Wall base trim — where wall meets floor (glowing seam) */}
-      <div style={{position:"absolute",bottom:0,left:0,right:0,height:4,
-        background:"linear-gradient(to right,#22d3ee11,#22d3ee44,#22d3ee11)"}} />
     </div>
   );
 }
@@ -444,23 +461,23 @@ function BackWall({ bars, clock, blink, fxPrices }: {
 function FloorCables({ tick }: { tick:number }) {
   const masterStn = STATIONS.find(s=>AGENTS[s.agentId]?.isMaster);
   if (!masterStn) return null;
-  const mx = masterStn.x + 62, my = masterStn.y + 40;
+  const mx = masterStn.x + 62, my = masterStn.y + 42;
   return (
     <svg style={{position:"absolute",left:0,top:0,width:"100%",height:"100%",
-      overflow:"visible",transform:"translateZ(1px)",...p3d}}>
+      overflow:"visible",transform:"translateZ(2px)",...p3d}}>
       {STATIONS.filter(s=>!AGENTS[s.agentId]?.isMaster).map(stn=>{
         const col=CABLE_COL[stn.agentId]??"#64748b";
-        const ax=stn.x+62, ay=stn.y+40;
-        const midY=(ay+my)/2+16;
+        const ax=stn.x+62, ay=stn.y+42;
+        const midY=(ay+my)/2+20;
         const d=`M${ax},${ay} L${ax},${midY} L${mx},${midY} L${mx},${my}`;
-        const off=(tick*1.8)%16;
+        const off=(tick*2)%20;
         return (
           <g key={stn.agentId}>
-            <path d={d} fill="none" stroke={col} strokeWidth={6} opacity={0.07}/>
-            <path d={d} fill="none" stroke={col} strokeWidth={2.2}
-              strokeDasharray="8 5" strokeDashoffset={-off}
-              style={{filter:`drop-shadow(0 0 4px ${col})`}}/>
-            <path d={d} fill="none" stroke={col} strokeWidth={0.6} opacity={0.5}/>
+            <path d={d} fill="none" stroke={col} strokeWidth={8} opacity={0.08}/>
+            <path d={d} fill="none" stroke={col} strokeWidth={3}
+              strokeDasharray="10 6" strokeDashoffset={-off}
+              style={{filter:`drop-shadow(0 0 6px ${col}) drop-shadow(0 0 2px ${col})`}}/>
+            <path d={d} fill="none" stroke={col} strokeWidth={0.8} opacity={0.6}/>
           </g>
         );
       })}
@@ -468,126 +485,130 @@ function FloorCables({ tick }: { tick:number }) {
   );
 }
 
-// ─── Chunky Desk Cube ─────────────────────────────────────────────────────────
-const DW=118, DD=78, DH=52; // Desk Width, Depth, Height — chunky!
+// ─── Desk Cube ────────────────────────────────────────────────────────────────
+const DW=122, DD=80, DH=56;
 
-function DeskCube({ left, top, platformH=0, glow }: { left:number; top:number; platformH?:number; glow:string; }) {
+function DeskCube({ left, top, platformH=0, glow }: {
+  left:number; top:number; platformH?:number; glow:string;
+}) {
   const totalH = DH + platformH;
   return (
     <div style={{...p3d,position:"absolute",left:px(left),top:px(top),width:px(DW),height:px(DD)}}>
-      {/* PLATFORM */}
+      {/* PLATFORM (master only) */}
       {platformH>0 && <>
-        <div style={{position:"absolute",left:px(-14),top:px(-14),
-          width:px(DW+28),height:px(DD+28),
-          background:"#04091a",border:`1px solid ${glow}44`,
-          transform:"translateZ(0px)"}} />
-        <div style={{position:"absolute",bottom:0,left:px(-14),
-          width:px(DW+28),height:px(platformH),
-          background:"#030912",border:`1px solid ${glow}28`,
+        <div style={{position:"absolute",left:px(-16),top:px(-16),
+          width:px(DW+32),height:px(DD+32),
+          background:"#050a1c",border:`2px solid ${glow}55`,
+          transform:"translateZ(0px)",
+          boxShadow:`0 0 30px ${glow}33`}} />
+        <div style={{position:"absolute",bottom:0,left:px(-16),
+          width:px(DW+32),height:px(platformH),
+          background:"#040818",border:`1px solid ${glow}33`,
           transformOrigin:"bottom",transform:"rotateX(-90deg)"}} />
-        <div style={{position:"absolute",top:0,left:px(DW+14),
-          width:px(platformH),height:px(DD+28),
-          background:"#020710",border:`1px solid ${glow}20`,
+        <div style={{position:"absolute",top:0,left:px(DW+16),
+          width:px(platformH),height:px(DD+32),
+          background:"#030614",border:`1px solid ${glow}22`,
           transformOrigin:"left",transform:"rotateY(90deg)"}} />
       </>}
 
       {/* TOP FACE */}
       <div style={{position:"absolute",width:px(DW),height:px(DD),
-        background:`linear-gradient(135deg,#0c1e38,#07111e)`,
-        border:`1px solid ${glow}66`,
-        boxShadow:`0 0 20px ${glow}33, inset 0 0 12px ${glow}11`,
+        background:`linear-gradient(135deg,#0d2040 0%,#071428 100%)`,
+        border:`2px solid ${glow}88`,
+        boxShadow:`0 0 30px ${glow}55, inset 0 0 16px ${glow}18`,
         transform:`translateZ(${px(totalH)})`}}>
         {/* Surface grid */}
         <div style={{position:"absolute",inset:0,
-          backgroundImage:`linear-gradient(to right,${glow}18 1px,transparent 1px),linear-gradient(to bottom,${glow}18 1px,transparent 1px)`,
-          backgroundSize:"20px 20px"}} />
-        {/* Glowing LED trim on back edge */}
-        <div style={{position:"absolute",top:2,left:5,right:5,height:3,
-          background:glow,opacity:0.55,borderRadius:2,
-          boxShadow:`0 0 10px ${glow},0 0 20px ${glow}66`}} />
-        {/* Monitor glow patch (where monitor will be) */}
-        <div style={{position:"absolute",top:4,left:"18%",width:"64%",height:26,
-          background:glow,opacity:0.07,borderRadius:2}} />
+          backgroundImage:`linear-gradient(to right,${glow}28 1px,transparent 1px),linear-gradient(to bottom,${glow}28 1px,transparent 1px)`,
+          backgroundSize:"22px 22px"}} />
+        {/* Bright back LED trim */}
+        <div style={{position:"absolute",top:3,left:6,right:6,height:4,
+          background:glow,opacity:0.8,borderRadius:2,
+          boxShadow:`0 0 16px ${glow},0 0 32px ${glow}88`}} />
+        {/* Monitor base glow */}
+        <div style={{position:"absolute",top:5,left:"16%",width:"68%",height:28,
+          background:glow,opacity:0.1,borderRadius:2}} />
         {/* Keyboard */}
-        <div style={{position:"absolute",bottom:6,left:"50%",transform:"translateX(-50%)",
-          width:52,height:16,background:"#03080e",
-          border:`1px solid ${glow}33`,borderRadius:2}}>
+        <div style={{position:"absolute",bottom:7,left:"50%",transform:"translateX(-50%)",
+          width:54,height:17,background:"#03070e",
+          border:`1px solid ${glow}55`,borderRadius:2,
+          boxShadow:`inset 0 0 6px ${glow}18`}}>
           {[0,1].map(row=>(
-            <div key={row} style={{display:"flex",gap:1.5,padding:"1.5px 3px",marginTop:row===0?1.5:0}}>
-              {Array.from({length:7},(_,k)=>(
-                <div key={k} style={{flex:1,height:5,
-                  background:"#07121e",border:`1px solid ${glow}22`,borderRadius:1}} />
+            <div key={row} style={{display:"flex",gap:1.5,padding:"2px 3px",marginTop:row===0?1.5:0}}>
+              {Array.from({length:8},(_,k)=>(
+                <div key={k} style={{flex:1,height:5,background:"#070e18",
+                  border:`1px solid ${glow}33`,borderRadius:1}} />
               ))}
             </div>
           ))}
         </div>
         {/* Coffee mug */}
-        <div style={{position:"absolute",top:6,left:7,width:11,height:14,
-          background:"#0a1a28",border:`1px solid ${glow}40`,borderRadius:"2px 2px 3px 3px"}}>
-          <div style={{height:3,background:glow,opacity:0.3,borderRadius:"1px 1px 0 0"}} />
+        <div style={{position:"absolute",top:7,left:8,width:12,height:15,
+          background:"#09162a",border:`1.5px solid ${glow}55`,borderRadius:"3px 3px 4px 4px"}}>
+          <div style={{height:4,background:glow,opacity:0.5,borderRadius:"1px 1px 0 0"}} />
         </div>
-        {/* Paper/notes */}
-        <div style={{position:"absolute",top:6,right:8,width:16,height:12,
-          background:"#060e1a",border:`1px solid ${glow}20`,borderRadius:1}}>
+        {/* Notes */}
+        <div style={{position:"absolute",top:7,right:8,width:17,height:13,
+          background:"#060c1a",border:`1px solid ${glow}30`,borderRadius:1}}>
           {[3,6,9].map(y=>(
-            <div key={y} style={{position:"absolute",top:y,left:2,right:2,height:1,background:`${glow}22`}} />
+            <div key={y} style={{position:"absolute",top:y,left:2,right:2,height:1,
+              background:`${glow}44`}} />
           ))}
         </div>
       </div>
 
-      {/* FRONT FACE — tall & chunky */}
+      {/* FRONT FACE */}
       <div style={{position:"absolute",bottom:0,left:0,width:px(DW),height:px(totalH),
-        background:`linear-gradient(to bottom,#0a1828,#040c18)`,
-        border:`1px solid ${glow}44`,
+        background:`linear-gradient(to bottom,#0c1e3a,#060c1e)`,
+        border:`2px solid ${glow}55`,
         transformOrigin:"bottom",transform:"rotateX(-90deg)"}}>
-        {/* LED strip at top */}
-        <div style={{position:"absolute",top:3,left:6,right:6,height:2.5,
-          background:glow,opacity:0.5,borderRadius:1,
-          boxShadow:`0 0 8px ${glow}`}} />
-        {/* Leg recess / dark cavity */}
-        <div style={{position:"absolute",bottom:4,left:"10%",width:"80%",height:totalH*0.42,
-          background:"#010407",borderRadius:"2px 2px 0 0",
-          border:`1px solid ${glow}18`}} />
+        <div style={{position:"absolute",top:4,left:7,right:7,height:3,
+          background:glow,opacity:0.75,borderRadius:1,
+          boxShadow:`0 0 12px ${glow},0 0 4px ${glow}`}} />
+        {/* Leg cavity */}
+        <div style={{position:"absolute",bottom:4,left:"8%",width:"84%",height:totalH*0.44,
+          background:"#010408",borderRadius:"3px 3px 0 0",
+          border:`1px solid ${glow}22`}} />
         {/* Port cluster */}
-        <div style={{position:"absolute",bottom:8,left:6,display:"flex",gap:3}}>
-          {[glow,"#6366f1","#f59e0b","#ef4444"].map((c,i)=>(
-            <div key={i} style={{width:5,height:5,borderRadius:"50%",background:c,opacity:0.75,
-              boxShadow:`0 0 5px ${c}`}} />
+        <div style={{position:"absolute",bottom:9,left:7,display:"flex",gap:4}}>
+          {[glow,"#818cf8","#fbbf24","#f87171"].map((c,i)=>(
+            <div key={i} style={{width:7,height:7,borderRadius:"50%",background:c,
+              opacity:0.9,boxShadow:`0 0 8px ${c}`}} />
           ))}
         </div>
-        {/* Power indicator panel */}
-        <div style={{position:"absolute",bottom:8,right:6,
-          width:18,height:10,background:"#030810",
-          border:`1px solid ${glow}33`,borderRadius:1,
+        {/* Power panel */}
+        <div style={{position:"absolute",bottom:9,right:7,
+          width:20,height:12,background:"#030810",
+          border:`1px solid ${glow}44`,borderRadius:2,
           display:"flex",alignItems:"center",justifyContent:"center",gap:3}}>
-          <div style={{width:4,height:4,borderRadius:"50%",background:"#10b981",
-            boxShadow:"0 0 5px #10b981"}} />
-          <div style={{width:4,height:4,borderRadius:"50%",background:"#3b82f6",
-            boxShadow:"0 0 5px #3b82f6"}} />
+          <div style={{width:5,height:5,borderRadius:"50%",background:"#10b981",
+            boxShadow:"0 0 7px #10b981"}} />
+          <div style={{width:5,height:5,borderRadius:"50%",background:"#3b82f6",
+            boxShadow:"0 0 7px #3b82f6"}} />
         </div>
       </div>
 
       {/* RIGHT SIDE FACE */}
       <div style={{position:"absolute",top:0,left:px(DW),
         width:px(totalH),height:px(DD),
-        background:`linear-gradient(to right,#060e1a,#030810)`,
-        border:`1px solid ${glow}30`,
+        background:`linear-gradient(to right,#080e1e,#040810)`,
+        border:`2px solid ${glow}40`,
         transformOrigin:"left",transform:"rotateY(90deg)"}}>
-        {/* Vent slits */}
-        {[15,25,35].map(y=>(
-          <div key={y} style={{position:"absolute",top:y,left:6,right:6,height:2,
-            background:`${glow}20`,borderRadius:1}} />
+        {[14,26,38].map(y=>(
+          <div key={y} style={{position:"absolute",top:y,left:7,right:7,height:3,
+            background:`${glow}30`,borderRadius:1}} />
         ))}
+        <div style={{position:"absolute",top:4,right:6,width:7,height:7,borderRadius:"50%",
+          background:glow,opacity:0.7,boxShadow:`0 0 10px ${glow}`}} />
       </div>
 
-      {/* DROP SHADOW on floor */}
+      {/* DROP SHADOW */}
       <div style={{position:"absolute",
-        left:px(8),top:px(DD+2),
-        width:px(DW+totalH*0.8),height:px(DD*0.6),
-        background:`radial-gradient(ellipse,${glow}18 0%,transparent 70%)`,
-        transform:"translateZ(-1px) scaleY(0.4)",
-        transformOrigin:"top",
-        pointerEvents:"none"}} />
+        left:px(6),top:px(DD+4),
+        width:px(DW+totalH*0.85),height:px(DD*0.55),
+        background:`radial-gradient(ellipse,${glow}22 0%,transparent 70%)`,
+        transform:"translateZ(-1px) scaleY(0.35)",
+        transformOrigin:"top",pointerEvents:"none"}} />
     </div>
   );
 }
@@ -598,114 +619,121 @@ function CharSprite({ left, top, platformH=0, agent }: {
 }) {
   const { hair, skin, suit, accent } = agent;
   const sc = SC[agent.state];
-  const Z = DH + platformH + 6;
+  const Z = DH + platformH + 8;
   const billboard = "rotateZ(45deg) rotateX(-55deg)";
 
   return (
     <div style={{...p3d,position:"absolute",
-      left:px(left+36),top:px(top+10),
-      width:42,height:60,
+      left:px(left+32),top:px(top+8),
+      width:46,height:66,
       transform:`translateZ(${px(Z)}) ${billboard}`}}>
       {/* Chair back */}
-      <div style={{position:"absolute",top:16,left:3,width:36,height:38,
-        background:"#060f1e",border:"1px solid #0d2040",borderRadius:3}}>
-        <div style={{margin:"3px 3px",height:26,background:"#040b16",borderRadius:2}} />
+      <div style={{position:"absolute",top:18,left:2,width:42,height:42,
+        background:"#060e1e",border:"1px solid #0e2248",borderRadius:4,
+        boxShadow:`inset 0 0 8px rgba(0,0,0,0.5)`}}>
+        <div style={{margin:"3px 4px",height:28,background:"#040a16",borderRadius:2}} />
       </div>
-      {/* Body — larger */}
-      <div style={{position:"absolute",top:26,left:9,width:24,height:26,background:suit,borderRadius:3}}>
-        <div style={{position:"absolute",top:0,left:0,width:8,height:14,
-          background:"rgba(255,255,255,0.09)",borderRadius:"3px 0 0 0"}} />
-        <div style={{position:"absolute",top:0,right:0,width:8,height:14,
-          background:"rgba(255,255,255,0.07)",borderRadius:"0 3px 0 0"}} />
-        <div style={{position:"absolute",top:3,left:"50%",transform:"translateX(-50%)",
-          width:7,height:2.5,background:accent,borderRadius:1,
-          boxShadow:`0 0 6px ${accent}`}} />
-        {/* Monitor glow on chest */}
-        <div style={{position:"absolute",inset:0,background:sc.glow,opacity:0.1,borderRadius:3}} />
-      </div>
-      {/* Arms */}
-      <div style={{position:"absolute",top:28,left:2,width:8,height:16,background:suit,borderRadius:2}} />
-      <div style={{position:"absolute",top:28,right:2,width:8,height:16,background:suit,borderRadius:2}} />
-      {/* Hands */}
-      <div style={{position:"absolute",top:42,left:2,width:8,height:6,background:skin,borderRadius:2}} />
-      <div style={{position:"absolute",top:42,right:2,width:8,height:6,background:skin,borderRadius:2}} />
-      {/* Neck */}
-      <div style={{position:"absolute",top:18,left:16,width:10,height:9,background:skin,borderRadius:2}} />
-      {/* Head */}
-      <div style={{position:"absolute",top:6,left:11,width:20,height:16,background:skin,borderRadius:4}}>
-        {/* Eyes */}
-        <div style={{position:"absolute",top:5,left:3,width:5,height:5,background:"#050912",borderRadius:1}}>
-          <div style={{width:2,height:2,background:"white",opacity:0.9,margin:"0.5px 0 0 1px",borderRadius:"50%"}} />
-        </div>
-        <div style={{position:"absolute",top:5,right:3,width:5,height:5,background:"#050912",borderRadius:1}}>
-          <div style={{width:2,height:2,background:"white",opacity:0.9,margin:"0.5px 0 0 1px",borderRadius:"50%"}} />
-        </div>
-        {/* Monitor glow on face */}
+      {/* Body */}
+      <div style={{position:"absolute",top:28,left:8,width:30,height:28,background:suit,borderRadius:4,
+        boxShadow:`0 0 12px ${sc.glow}44`}}>
+        {/* Jacket lapels */}
+        <div style={{position:"absolute",top:0,left:0,width:10,height:16,
+          background:"rgba(255,255,255,0.1)",borderRadius:"4px 0 0 0"}} />
+        <div style={{position:"absolute",top:0,right:0,width:10,height:16,
+          background:"rgba(255,255,255,0.08)",borderRadius:"0 4px 0 0"}} />
+        {/* Tie/badge */}
+        <div style={{position:"absolute",top:4,left:"50%",transform:"translateX(-50%)",
+          width:8,height:14,background:accent,borderRadius:"1px 1px 3px 3px",opacity:0.9,
+          boxShadow:`0 0 8px ${accent}`}} />
+        {/* Screen glow on chest */}
         <div style={{position:"absolute",inset:0,background:sc.glow,opacity:0.14,borderRadius:4}} />
       </div>
-      {/* Hair — large + spiky */}
-      <div style={{position:"absolute",top:2,left:10,width:22,height:10,background:hair,
-        borderRadius:"5px 5px 1px 1px"}}>
-        <div style={{position:"absolute",top:-4,left:-2,width:6,height:8,background:hair,borderRadius:3}} />
-        <div style={{position:"absolute",top:-4,right:-2,width:6,height:8,background:hair,borderRadius:3}} />
-        <div style={{position:"absolute",top:-6,left:"50%",transform:"translateX(-50%)",
-          width:9,height:7,background:hair,borderRadius:"4px 4px 0 0"}} />
+      {/* Arms */}
+      <div style={{position:"absolute",top:30,left:1,width:8,height:18,background:suit,borderRadius:3}} />
+      <div style={{position:"absolute",top:30,right:1,width:8,height:18,background:suit,borderRadius:3}} />
+      {/* Hands */}
+      <div style={{position:"absolute",top:46,left:1,width:8,height:7,background:skin,borderRadius:3}} />
+      <div style={{position:"absolute",top:46,right:1,width:8,height:7,background:skin,borderRadius:3}} />
+      {/* Neck */}
+      <div style={{position:"absolute",top:20,left:16,width:14,height:9,background:skin,borderRadius:2}} />
+      {/* Head */}
+      <div style={{position:"absolute",top:8,left:10,width:26,height:18,background:skin,borderRadius:5,
+        boxShadow:`0 0 10px ${sc.glow}33`}}>
+        {/* Eyes */}
+        <div style={{position:"absolute",top:5,left:3,width:7,height:6,background:"#04070e",borderRadius:2}}>
+          <div style={{width:3,height:3,background:"white",opacity:0.95,margin:"0.5px 0 0 1.5px",borderRadius:"50%"}} />
+        </div>
+        <div style={{position:"absolute",top:5,right:3,width:7,height:6,background:"#04070e",borderRadius:2}}>
+          <div style={{width:3,height:3,background:"white",opacity:0.95,margin:"0.5px 0 0 1.5px",borderRadius:"50%"}} />
+        </div>
+        {/* Screen glow on face */}
+        <div style={{position:"absolute",inset:0,background:sc.glow,opacity:0.18,borderRadius:5}} />
+      </div>
+      {/* Hair */}
+      <div style={{position:"absolute",top:4,left:9,width:28,height:10,background:hair,
+        borderRadius:"6px 6px 1px 1px",boxShadow:`0 0 8px ${hair}88`}}>
+        <div style={{position:"absolute",top:-5,left:-3,width:8,height:10,background:hair,borderRadius:4}} />
+        <div style={{position:"absolute",top:-5,right:-3,width:8,height:10,background:hair,borderRadius:4}} />
+        <div style={{position:"absolute",top:-8,left:"50%",transform:"translateX(-50%)",
+          width:10,height:9,background:hair,borderRadius:"5px 5px 0 0"}} />
       </div>
     </div>
   );
 }
 
-// ─── Monitor ──────────────────────────────────────────────────────────────────
+// ─── Desk Monitor ─────────────────────────────────────────────────────────────
 function DeskMonitor({ left, top, platformH=0, agent, blink, bars }: {
   left:number; top:number; platformH?:number;
   agent:AgentDef; blink:boolean; bars:number[];
 }) {
   const sc = SC[agent.state];
-  const Z = DH + platformH + 2;
-  const tilt = "rotateZ(45deg) rotateX(-40deg)";
-  const mw = agent.isMaster ? 76 : 58;
-  const mh = agent.isMaster ? 50 : 40;
+  const Z = DH + platformH + 4;
+  const tilt = "rotateZ(45deg) rotateX(-38deg)";
+  const mw = agent.isMaster ? 82 : 62;
+  const mh = agent.isMaster ? 54 : 44;
 
   return (
     <div style={{...p3d,position:"absolute",
-      left:px(left+20),top:px(top+2),
+      left:px(left+18),top:px(top+2),
       width:mw,height:mh,
       transform:`translateZ(${px(Z)}) ${tilt}`,
       background:"#020810",
-      border:`1.5px solid ${sc.glow}`,
-      borderRadius:3,
-      boxShadow:`0 0 24px ${sc.glow}66, 0 0 8px ${sc.glow}99, inset 0 0 12px ${sc.glow}11`}}>
-      {/* Screen */}
-      <div style={{position:"absolute",inset:"2px 2px 8px",
-        background:sc.screen,borderRadius:2,overflow:"hidden"}}>
+      border:`2px solid ${sc.glow}`,
+      borderRadius:4,
+      boxShadow:`0 0 30px ${sc.glow}88, 0 0 10px ${sc.glow}, inset 0 0 16px ${sc.glow}18`}}>
+      {/* Screen area */}
+      <div style={{position:"absolute",inset:"2px 2px 10px",
+        background:sc.screen,borderRadius:3,overflow:"hidden"}}>
         <div style={{position:"absolute",inset:0,
-          backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.3) 2px,rgba(0,0,0,0.3) 4px)",
+          backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.25) 2px,rgba(0,0,0,0.25) 4px)",
           pointerEvents:"none",zIndex:10}} />
         <div style={{position:"absolute",top:3,left:0,right:0,textAlign:"center",
-          fontFamily:"monospace",fontSize:5.5,fontWeight:"bold",color:sc.glow,letterSpacing:1,
-          textShadow:`0 0 8px ${sc.glow}`}}>
+          fontFamily:"monospace",fontSize:6,fontWeight:"bold",color:sc.glow,letterSpacing:1.5,
+          textShadow:`0 0 10px ${sc.glow}`}}>
           {agent.label}
         </div>
-        <div style={{position:"absolute",top:10,left:0,right:0,textAlign:"center",
-          fontFamily:"monospace",fontSize:4.5,color:sc.glow,opacity:0.7}}>
+        <div style={{position:"absolute",top:11,left:0,right:0,textAlign:"center",
+          fontFamily:"monospace",fontSize:5,color:sc.glow,opacity:0.75}}>
           {agent.role}
         </div>
-        {/* Bars */}
-        <div style={{position:"absolute",bottom:2,left:3,right:3,height:14,
-          display:"flex",alignItems:"flex-end",gap:1.5}}>
+        {/* Bar chart */}
+        <div style={{position:"absolute",bottom:2,left:3,right:3,height:16,
+          display:"flex",alignItems:"flex-end",gap:2}}>
           {bars.slice(0,agent.isMaster?6:4).map((v,i)=>(
             <div key={i} style={{flex:1,height:`${v}%`,background:sc.glow,
-              opacity:0.75,borderRadius:"1px 1px 0 0",transition:"height 0.9s ease"}} />
+              opacity:0.85,borderRadius:"1px 1px 0 0",
+              boxShadow:`0 0 6px ${sc.glow}`}} />
           ))}
         </div>
       </div>
-      {/* LED */}
-      <div style={{position:"absolute",bottom:2,right:4,width:5,height:5,borderRadius:"50%",
-        background:blink?sc.glow:"#05090e",
-        boxShadow:blink?`0 0 8px ${sc.glow}`:"none",transition:"all 0.3s"}} />
+      {/* LED indicator */}
+      <div style={{position:"absolute",bottom:2,right:4,width:6,height:6,borderRadius:"50%",
+        background:blink?sc.glow:"#04080e",
+        boxShadow:blink?`0 0 10px ${sc.glow},0 0 4px ${sc.glow}`:"none",
+        transition:"all 0.3s"}} />
       {/* Stand */}
-      <div style={{position:"absolute",bottom:-9,left:"50%",transform:"translateX(-50%)",
-        width:9,height:9,background:"#040a12"}} />
+      <div style={{position:"absolute",bottom:-10,left:"50%",transform:"translateX(-50%)",
+        width:10,height:10,background:"#050a14"}} />
     </div>
   );
 }
@@ -721,35 +749,56 @@ function NavBar({ running, onRun, fxPrices }: {
   const jpy = fxPrices["USDJPY"];
   return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-      padding:"7px 16px",background:"#010407",borderBottom:"1px solid #0a1e34"}}>
-      <div style={{display:"flex",alignItems:"center",gap:12}}>
-        <div style={{display:"flex",gap:5}}>
+      padding:"8px 18px",
+      background:"linear-gradient(to right,#020810,#030c18,#020810)",
+      borderBottom:"1px solid rgba(34,211,238,0.25)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:14}}>
+        <div style={{display:"flex",gap:6}}>
           {(["#ef4444","#f59e0b","#10b981"] as const).map((c,i)=>(
-            <div key={i} style={{width:10,height:10,borderRadius:"50%",background:c,opacity:0.88}} />
+            <div key={i} style={{width:11,height:11,borderRadius:"50%",background:c,opacity:0.9,
+              boxShadow:`0 0 8px ${c}88`}} />
           ))}
         </div>
-        <span style={{fontFamily:"monospace",fontSize:11,color:"#22d3ee",letterSpacing:4,fontWeight:"bold",
-          textShadow:"0 0 14px rgba(34,211,238,0.65)"}}>
+        <span style={{fontFamily:"monospace",fontSize:12,color:"#22d3ee",letterSpacing:5,fontWeight:"bold",
+          textShadow:"0 0 20px rgba(34,211,238,0.8)"}}>
           TRADEX NEWSROOM
         </span>
-        <span style={{fontFamily:"monospace",fontSize:8,color:"#1a2e50",letterSpacing:2}}>AI OPS CENTER</span>
+        <span style={{fontFamily:"monospace",fontSize:8,color:"rgba(34,211,238,0.35)",letterSpacing:2}}>AI OPS CENTER</span>
       </div>
-      <div style={{display:"flex",alignItems:"center",gap:12}}>
-        <div style={{fontFamily:"monospace",fontSize:8.5,color:"#182a42"}}>
-          XAU <span style={{color:xau?.up?"#10b981":"#ef4444"}}>{xau?.price ?? "—"}</span>{" · "}
-          BTC <span style={{color:btc?.up?"#10b981":"#ef4444"}}>{btc?.price ?? "—"}</span>{" · "}
-          EUR <span style={{color:eur?.up?"#10b981":"#ef4444"}}>{eur?.price ?? "—"}</span>{" · "}
-          JPY <span style={{color:jpy?.up?"#10b981":"#ef4444"}}>{jpy?.price ?? "—"}</span>
+      <div style={{display:"flex",alignItems:"center",gap:14}}>
+        <div style={{fontFamily:"monospace",fontSize:9,display:"flex",gap:10,alignItems:"center"}}>
+          <span style={{color:"rgba(34,211,238,0.5)"}}>XAU</span>
+          <span style={{color:xau?.up?"#34d399":"#f87171",fontWeight:"bold",
+            textShadow:xau?.live?(xau?.up?"0 0 8px #34d399":"0 0 8px #f87171"):"none"}}>
+            {xau?.price ?? "—"}
+          </span>
+          <span style={{color:"rgba(34,211,238,0.2)"}}>·</span>
+          <span style={{color:"rgba(34,211,238,0.5)"}}>BTC</span>
+          <span style={{color:btc?.up?"#34d399":"#f87171",fontWeight:"bold",
+            textShadow:btc?.live?(btc?.up?"0 0 8px #34d399":"0 0 8px #f87171"):"none"}}>
+            {btc?.price ?? "—"}
+          </span>
+          <span style={{color:"rgba(34,211,238,0.2)"}}>·</span>
+          <span style={{color:"rgba(34,211,238,0.5)"}}>EUR</span>
+          <span style={{color:eur?.up?"#34d399":"#f87171",fontWeight:"bold"}}>
+            {eur?.price ?? "—"}
+          </span>
+          <span style={{color:"rgba(34,211,238,0.2)"}}>·</span>
+          <span style={{color:"rgba(34,211,238,0.5)"}}>JPY</span>
+          <span style={{color:jpy?.up?"#34d399":"#f87171",fontWeight:"bold"}}>
+            {jpy?.price ?? "—"}
+          </span>
         </div>
-        <button onClick={onRun} style={{display:"flex",alignItems:"center",gap:6,
-          padding:"4px 14px",borderRadius:3,cursor:"pointer",
-          background:running?"#041c10":"#010a18",
-          border:`1px solid ${running?"#10b981":"#1a3a70"}`,
-          fontFamily:"monospace",fontSize:9,fontWeight:"bold",letterSpacing:1,
-          color:running?"#10b981":"#22d3ee"}}>
-          <span style={{width:6,height:6,borderRadius:"50%",display:"inline-block",
+        <button onClick={onRun} style={{display:"flex",alignItems:"center",gap:7,
+          padding:"5px 16px",borderRadius:4,cursor:"pointer",
+          background:running?"#041c10":"#020a1a",
+          border:`1px solid ${running?"#10b981":"rgba(34,211,238,0.5)"}`,
+          fontFamily:"monospace",fontSize:9,fontWeight:"bold",letterSpacing:1.5,
+          color:running?"#10b981":"#22d3ee",
+          boxShadow:running?"0 0 16px rgba(16,185,129,0.4)":"0 0 12px rgba(34,211,238,0.2)"}}>
+          <span style={{width:7,height:7,borderRadius:"50%",display:"inline-block",
             background:running?"#10b981":"#22d3ee",
-            animation:running?"pulse-live 0.7s ease-in-out infinite":"none"}} />
+            boxShadow:running?"0 0 8px #10b981":"0 0 6px #22d3ee"}} />
           {running?"RUNNING…":"RUN PIPELINE"}
         </button>
       </div>
@@ -757,40 +806,44 @@ function NavBar({ running, onRun, fxPrices }: {
   );
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// ─── Main Component ───────────────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function TradexNewsroom(_props?: { data?: any; loading?: boolean }) {
   const [running, setRunning] = useState(false);
-  const blink = useBlink(700);
-  const clock = useClock();
-  const bars  = useAnimatedBars(8, 16, 90, 1050);
-  const tick  = useTick(25);
+  const blink  = useBlink(700);
+  const clock  = useClock();
+  const bars   = useAnimatedBars(8, 20, 92, 1050);
+  const tick   = useTick(25);
   const fxPrices = useLivePrices(_props?.data);
   const handleRun = useCallback(()=>{setRunning(true);setTimeout(()=>setRunning(false),4200);},[]);
 
-  // screen-space label positions (approximate, tuned for iso view)
+  // Screen-space label positions (tuned for iso view)
   const LABELS: Record<string,[number,number]> = {
-    smc:        [196, 208], master:     [360, 156],
-    risk:       [514, 208], trend:      [ 98, 348],
-    news:       [258, 382], execution:  [404, 406],
-    contrarian: [574, 370],
+    smc:        [200, 210], master:     [368, 158],
+    risk:       [520, 210], trend:      [104, 354],
+    news:       [262, 386], execution:  [408, 410],
+    contrarian: [578, 376],
   };
 
   return (
-    <div style={{position:"relative",background:"#010407",
-      border:"1px solid #0a1e34",borderRadius:12,overflow:"hidden",userSelect:"none"}}>
+    <div style={{position:"relative",
+      background:"#020810",
+      border:"1px solid rgba(34,211,238,0.2)",
+      borderRadius:12,overflow:"hidden",userSelect:"none"}}>
+
       <NavBar running={running} onRun={handleRun} fxPrices={fxPrices} />
 
-      {/* Scene viewport */}
-      <div style={{position:"relative",height:560,overflow:"hidden",background:"#010407"}}>
+      {/* Scene container */}
+      <div style={{position:"relative",height:560,overflow:"hidden",
+        background:"#020810"}}>
 
-        {/* CRT scanline overlay */}
+        {/* CRT scanlines */}
         <div style={{position:"absolute",inset:0,zIndex:50,pointerEvents:"none",
-          backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.22) 3px,rgba(0,0,0,0.22) 4px)"}} />
+          backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.2) 3px,rgba(0,0,0,0.2) 4px)"}} />
 
-        {/* Corner vignette */}
+        {/* Vignette */}
         <div style={{position:"absolute",inset:0,zIndex:49,pointerEvents:"none",
-          background:"radial-gradient(ellipse 85% 85% at 48% 52%,transparent 45%,rgba(1,4,7,0.9) 100%)"}} />
+          background:"radial-gradient(ellipse 90% 90% at 48% 50%,transparent 40%,rgba(2,8,16,0.88) 100%)"}} />
 
         {/* ISO WORLD */}
         <div style={{
@@ -814,7 +867,7 @@ export function TradexNewsroom(_props?: { data?: any; loading?: boolean }) {
             const pH = stn.platformH ?? 0;
             return (
               <React.Fragment key={stn.agentId}>
-                <DeskCube left={stn.x} top={stn.y} platformH={pH} glow={sc.glow} />
+                <DeskCube   left={stn.x} top={stn.y} platformH={pH} glow={sc.glow} />
                 <CharSprite left={stn.x} top={stn.y} platformH={pH} agent={agent} />
                 <DeskMonitor left={stn.x} top={stn.y} platformH={pH}
                   agent={agent} blink={blink} bars={bars} />
@@ -823,7 +876,7 @@ export function TradexNewsroom(_props?: { data?: any; loading?: boolean }) {
           })}
         </div>
 
-        {/* Agent label overlays — screen-space, always readable */}
+        {/* Screen-space agent labels */}
         {STATIONS.map(stn=>{
           const agent = AGENTS[stn.agentId];
           if (!agent) return null;
@@ -835,16 +888,16 @@ export function TradexNewsroom(_props?: { data?: any; loading?: boolean }) {
               transform:"translateX(-50%)",
               zIndex:30,pointerEvents:"none",textAlign:"center",
             }}>
-              <div style={{fontFamily:"monospace",fontSize:7.5,fontWeight:"bold",
-                color:sc.glow,letterSpacing:1.5,
-                textShadow:`0 0 10px ${sc.glow}`,
-                background:"rgba(1,4,7,0.75)",
-                padding:"2px 7px",borderRadius:2,
-                border:`1px solid ${sc.glow}44`}}>
+              <div style={{fontFamily:"monospace",fontSize:8,fontWeight:"bold",
+                color:sc.glow,letterSpacing:2,
+                textShadow:`0 0 12px ${sc.glow}, 0 0 4px ${sc.glow}`,
+                background:"rgba(2,8,16,0.82)",
+                padding:"3px 8px",borderRadius:3,
+                border:`1px solid ${sc.glow}55`}}>
                 {agent.label}
               </div>
-              <div style={{fontFamily:"monospace",fontSize:6,color:sc.glow,
-                opacity:0.6,marginTop:1}}>
+              <div style={{fontFamily:"monospace",fontSize:6.5,color:sc.glow,
+                opacity:0.65,marginTop:2}}>
                 {agent.role}
               </div>
             </div>
@@ -852,30 +905,32 @@ export function TradexNewsroom(_props?: { data?: any; loading?: boolean }) {
         })}
       </div>
 
-      {/* Footer */}
+      {/* Footer status bar */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-        padding:"6px 16px",background:"#010407",borderTop:"1px solid #0a1e34"}}>
+        padding:"7px 18px",
+        background:"linear-gradient(to right,#020810,#030c18,#020810)",
+        borderTop:"1px solid rgba(34,211,238,0.2)"}}>
         <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
           {Object.values(AGENTS).map(a=>{
             const sc=SC[a.state];
             return (
               <div key={a.id} style={{display:"flex",alignItems:"center",gap:5}}>
-                <div style={{width:5,height:5,borderRadius:"50%",
-                  background:blink?sc.glow:"#0a1e34",
-                  boxShadow:blink?`0 0 7px ${sc.glow}`:"none",
+                <div style={{width:6,height:6,borderRadius:"50%",
+                  background:blink?sc.glow:"#061018",
+                  boxShadow:blink?`0 0 8px ${sc.glow}`:"none",
                   transition:"all 0.3s"}} />
-                <span style={{fontFamily:"monospace",fontSize:7.5,color:sc.glow,
-                  letterSpacing:1,textShadow:`0 0 6px ${sc.glow}77`}}>
+                <span style={{fontFamily:"monospace",fontSize:8,color:sc.glow,
+                  letterSpacing:1,textShadow:`0 0 8px ${sc.glow}88`}}>
                   {a.label}
                 </span>
               </div>
             );
           })}
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <span style={{fontFamily:"monospace",fontSize:7.5,color:"#10b981",letterSpacing:1,
-            textShadow:"0 0 6px #10b981"}}>● LIVE</span>
-          <span style={{fontFamily:"monospace",fontSize:7.5,color:"#0a1e34"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <span style={{fontFamily:"monospace",fontSize:8,color:"#34d399",letterSpacing:1,
+            textShadow:"0 0 8px #34d399"}}>● LIVE</span>
+          <span style={{fontFamily:"monospace",fontSize:8,color:"rgba(34,211,238,0.3)"}}>
             {clock.toLocaleTimeString("en-US",{hour12:false})}
           </span>
         </div>
