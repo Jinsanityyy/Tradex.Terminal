@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useQuotes } from "@/hooks/useMarketData";
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 function useBlink(ms = 750) {
@@ -23,99 +24,41 @@ function useAnimatedBars(n: number, lo = 14, hi = 88, ms = 1200) {
 }
 
 // ─── Live Prices ──────────────────────────────────────────────────────────────
+// Uses the SAME SWR cache as TopStatusBar → prices are always in sync
 type FXRow = { price: string; pct: string; up: boolean; live: boolean };
 const EMPTY: FXRow = { price: "—", pct: "—", up: true, live: false };
 
-const DISPLAY_PAIRS = ["XAUUSD","BTCUSD","EURUSD","GBPUSD","USDJPY","XAGUSD","NZDUSD"] as const;
-
-// symbol used by /api/market/quotes
-const API_SYM: Record<string, string> = {
+// Maps display key → symbol field in AssetSnapshot
+const SNAP_SYM: Record<string, string> = {
   XAUUSD:"XAU/USD", BTCUSD:"BTC/USD", EURUSD:"EUR/USD",
   GBPUSD:"GBP/USD", USDJPY:"USD/JPY", XAGUSD:"XAG/USD", NZDUSD:"NZD/USD",
 };
 
-function formatPrice(key: string, p: number): string {
+function fmtPrice(key: string, p: number): string {
   if (key === "BTCUSD") return p.toLocaleString("en-US", { maximumFractionDigits: 0 });
   if (key === "USDJPY" || key === "XAUUSD" || key === "XAGUSD") return p.toFixed(2);
   return p.toFixed(4);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function useLivePrices(_agentData: any) {
-  const [rows, setRows] = useState<Record<string, FXRow>>(() =>
-    Object.fromEntries(DISPLAY_PAIRS.map(k => [k, EMPTY]))
+function useLivePrices(_agentData: any): Record<string, FXRow> {
+  const { quotes } = useQuotes(30_000);                       // same SWR key as TopStatusBar
+
+  const rows: Record<string, FXRow> = Object.fromEntries(
+    Object.keys(SNAP_SYM).map(k => [k, EMPTY])
   );
 
-  useEffect(() => {
-    let dead = false;
-
-    async function loadFromServerAPI() {
-      try {
-        const res = await fetch("/api/market/quotes", { cache: "no-store" });
-        if (!res.ok) return false;
-        const json = await res.json() as { data?: Array<{ symbol: string; price: number; changePercent: number }> };
-        if (!Array.isArray(json.data) || json.data.length === 0) return false;
-
-        const rev = Object.fromEntries(Object.entries(API_SYM).map(([k, v]) => [v, k]));
-        const next: Record<string, FXRow> = {};
-        for (const item of json.data) {
-          const key = rev[item.symbol];
-          if (!key || !item.price) continue;
-          const pct = item.changePercent ?? 0;
-          next[key] = { price: formatPrice(key, item.price), pct: `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`, up: pct >= 0, live: true };
-        }
-        if (Object.keys(next).length === 0) return false;
-        if (!dead) setRows(p => ({ ...p, ...next }));
-        return true;
-      } catch { return false; }
-    }
-
-    async function loadFallback() {
-      // Fallback: fxratesapi (forex) + Binance (BTC) + metals-api free
-      try {
-        const [fxRes, btcRes] = await Promise.all([
-          fetch("https://api.fxratesapi.com/latest?base=USD&currencies=EUR,GBP,JPY,NZD,XAU,XAG", { cache: "no-store" })
-            .then(r => r.ok ? r.json() : null).catch(() => null),
-          fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT")
-            .then(r => r.ok ? r.json() : null).catch(() => null),
-        ]);
-
-        const next: Record<string, FXRow> = {};
-
-        if (fxRes?.rates) {
-          const r = fxRes.rates as Record<string, number>;
-          const pairs: Array<[string, number]> = [
-            ["EURUSD", r.EUR ? 1 / r.EUR : 0],
-            ["GBPUSD", r.GBP ? 1 / r.GBP : 0],
-            ["USDJPY", r.JPY ?? 0],
-            ["NZDUSD", r.NZD ? 1 / r.NZD : 0],
-            ["XAUUSD", r.XAU ? 1 / r.XAU : 0],
-            ["XAGUSD", r.XAG ? 1 / r.XAG : 0],
-          ];
-          for (const [k, p] of pairs) {
-            if (p > 0) next[k] = { price: formatPrice(k, p), pct: "—", up: true, live: true };
-          }
-        }
-
-        if (btcRes?.lastPrice) {
-          const price = parseFloat(btcRes.lastPrice);
-          const pct = parseFloat(btcRes.priceChangePercent ?? "0");
-          next["BTCUSD"] = { price: formatPrice("BTCUSD", price), pct: `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`, up: pct >= 0, live: true };
-        }
-
-        if (!dead && Object.keys(next).length > 0) setRows(p => ({ ...p, ...next }));
-      } catch { /* silent */ }
-    }
-
-    async function load() {
-      const ok = await loadFromServerAPI();
-      if (!ok) await loadFallback();
-    }
-
-    load();
-    const t = setInterval(load, 30_000);
-    return () => { dead = true; clearInterval(t); };
-  }, []);
+  for (const snap of quotes) {
+    const key = Object.entries(SNAP_SYM).find(([, v]) => v === snap.symbol)?.[0];
+    if (!key || !snap.price) continue;
+    const pct = snap.changePercent ?? 0;
+    rows[key] = {
+      price: fmtPrice(key, snap.price),
+      pct:   `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`,
+      up:    pct >= 0,
+      live:  true,
+    };
+  }
 
   return rows;
 }
