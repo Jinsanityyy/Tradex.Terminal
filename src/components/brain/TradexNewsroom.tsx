@@ -33,6 +33,83 @@ function useTick(fps = 25) {
   return n;
 }
 
+// Live FX + crypto prices from free public APIs, merged with agent snapshot data
+type FXRow = { price: string; pct: string; up: boolean; live: boolean };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function useLivePrices(agentData: any) {
+  const [rows, setRows] = useState<Record<string, FXRow>>({
+    XAUUSD:{price:"—",pct:"—",up:true,live:false},
+    EURUSD:{price:"—",pct:"—",up:true,live:false},
+    GBPUSD:{price:"—",pct:"—",up:true,live:false},
+    BTCUSD:{price:"—",pct:"—",up:true,live:false},
+    USDJPY:{price:"—",pct:"—",up:false,live:false},
+    XAGUSD:{price:"—",pct:"—",up:true,live:false},
+    NZDUSD:{price:"—",pct:"—",up:true,live:false},
+  });
+
+  useEffect(() => {
+    async function load() {
+      try {
+        // Forex: open.er-api.com (free, no key, CORS-ok)
+        const fxRes = await fetch("https://open.er-api.com/v6/latest/USD");
+        if (fxRes.ok) {
+          const { rates } = await fxRes.json() as { rates: Record<string,number> };
+          setRows(p => ({
+            ...p,
+            EURUSD:{price:(1/rates.EUR).toFixed(4),pct:"—",up:true,live:true},
+            GBPUSD:{price:(1/rates.GBP).toFixed(4),pct:"—",up:true,live:true},
+            USDJPY:{price:rates.JPY.toFixed(2),     pct:"—",up:false,live:true},
+            NZDUSD:{price:(1/rates.NZD).toFixed(4), pct:"—",up:true,live:true},
+            XAGUSD:{price:(1/rates.XAG).toFixed(2), pct:"—",up:true,live:true},
+            XAUUSD:{price:(1/rates.XAU).toFixed(2), pct:"—",up:true,live:true},
+          }));
+        }
+      } catch { /* silent */ }
+      try {
+        // BTC: Binance free ticker
+        const btcRes = await fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT");
+        if (btcRes.ok) {
+          const btc = await btcRes.json() as { lastPrice:string; priceChangePercent:string };
+          const price = parseFloat(btc.lastPrice);
+          const pct   = parseFloat(btc.priceChangePercent);
+          setRows(p => ({
+            ...p,
+            BTCUSD:{
+              price: price.toLocaleString("en-US",{maximumFractionDigits:0}),
+              pct:   `${pct>=0?"+":""}${pct.toFixed(2)}%`,
+              up:    pct>=0, live:true,
+            },
+          }));
+        }
+      } catch { /* silent */ }
+    }
+    load();
+    const t = setInterval(load, 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Override with the real snapshot price from the currently-running agent analysis
+  const merged = { ...rows };
+  if (agentData?.snapshot) {
+    const sym: string  = agentData.snapshot.symbol;
+    const cur: number  = agentData.snapshot.price.current;
+    const pct: number  = agentData.snapshot.price.changePercent;
+    const isJpy        = sym === "USDJPY";
+    const isBtc        = sym === "BTCUSD";
+    merged[sym] = {
+      price: isBtc
+        ? cur.toLocaleString("en-US",{maximumFractionDigits:0})
+        : isJpy
+        ? cur.toFixed(2)
+        : cur.toFixed(4),
+      pct:  `${pct>=0?"+":""}${pct.toFixed(2)}%`,
+      up:   pct>=0,
+      live: true,
+    };
+  }
+  return merged;
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 type AgentState = "bullish"|"bearish"|"alert"|"valid"|"blocked"|"armed"|"no-trade"|"idle";
 interface AgentDef { id:string; label:string; role:string; state:AgentState; hair:string; skin:string; suit:string; accent:string; isMaster?:boolean; }
@@ -155,23 +232,17 @@ function LeftWall({ blink }: { blink:boolean }) {
 }
 
 // ─── Back Wall ─────────────────────────────────────────────────────────────────
-function BackWall({ bars, clock, blink }: { bars:number[]; clock:Date; blink:boolean }) {
+function BackWall({ bars, clock, blink, fxPrices }: {
+  bars:number[]; clock:Date; blink:boolean;
+  fxPrices: Record<string,FXRow>;
+}) {
   const hh=clock.getHours(), mm=clock.getMinutes(), ss=clock.getSeconds();
   const hourDeg=(hh%12)*30+mm*0.5, minDeg=mm*6+ss*0.1, secDeg=ss*6;
   const hand=(deg:number,len:number,w:number,col:string)=>{
     const a=(deg-90)*Math.PI/180;
     return <line x1={50} y1={50} x2={50+Math.cos(a)*len} y2={50+Math.sin(a)*len} stroke={col} strokeWidth={w} strokeLinecap="round"/>;
   };
-  // Realistic FX prices
-  const FX_PAIRS=[
-    ["XAUUSD","2,318.60","+0.3%","#10b981"],
-    ["EURUSD","1.0876",  "+0.1%","#10b981"],
-    ["GBPUSD","1.2698",  "−0.2%","#ef4444"],
-    ["BTCUSD","62,840",  "+1.4%","#10b981"],
-    ["USDJPY","151.24",  "−0.4%","#ef4444"],
-    ["XAGUSD","28.92",   "+0.5%","#10b981"],
-    ["NZDUSD","0.6118",  "−0.1%","#ef4444"],
-  ] as const;
+  const FX_SYMBOLS = ["XAUUSD","EURUSD","GBPUSD","BTCUSD","USDJPY","XAGUSD","NZDUSD"] as const;
 
   return (
     <div style={{
@@ -249,14 +320,18 @@ function BackWall({ bars, clock, blink }: { bars:number[]; clock:Date; blink:boo
             letterSpacing:3,marginBottom:5,textAlign:"center",
             textShadow:"0 0 10px #22d3ee"}}>FX RATES</div>
           <div style={{height:1,background:"#0a1e34",marginBottom:5}} />
-          {FX_PAIRS.map(([pair,price,chg,col],i)=>(
-            <div key={i} style={{display:"flex",justifyContent:"space-between",
-              fontFamily:"monospace",fontSize:7.5,marginBottom:5,alignItems:"center"}}>
-              <span style={{color:"#2a4060",letterSpacing:0.5}}>{pair}</span>
-              <span style={{color:"#7a9ab8"}}>{price}</span>
-              <span style={{color:col,fontWeight:"bold"}}>{chg}</span>
-            </div>
-          ))}
+          {FX_SYMBOLS.map(sym=>{
+            const r = fxPrices[sym];
+            const col = r?.up ? "#10b981" : "#ef4444";
+            return (
+              <div key={sym} style={{display:"flex",justifyContent:"space-between",
+                fontFamily:"monospace",fontSize:7.5,marginBottom:5,alignItems:"center"}}>
+                <span style={{color:"#2a4060",letterSpacing:0.5}}>{sym}</span>
+                <span style={{color: r?.live ? "#7a9ab8" : "#334155"}}>{r?.price ?? "—"}</span>
+                <span style={{color: r?.live ? col : "#334155",fontWeight:"bold"}}>{r?.pct ?? "—"}</span>
+              </div>
+            );
+          })}
         </div>
         {/* Scanlines */}
         <div style={{position:"absolute",inset:0,borderRadius:"0 0 4px 4px",
@@ -636,7 +711,14 @@ function DeskMonitor({ left, top, platformH=0, agent, blink, bars }: {
 }
 
 // ─── NavBar ───────────────────────────────────────────────────────────────────
-function NavBar({ running, onRun }: { running:boolean; onRun:()=>void }) {
+function NavBar({ running, onRun, fxPrices }: {
+  running:boolean; onRun:()=>void;
+  fxPrices: Record<string,FXRow>;
+}) {
+  const xau = fxPrices["XAUUSD"];
+  const btc = fxPrices["BTCUSD"];
+  const eur = fxPrices["EURUSD"];
+  const jpy = fxPrices["USDJPY"];
   return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
       padding:"7px 16px",background:"#010407",borderBottom:"1px solid #0a1e34"}}>
@@ -654,10 +736,10 @@ function NavBar({ running, onRun }: { running:boolean; onRun:()=>void }) {
       </div>
       <div style={{display:"flex",alignItems:"center",gap:12}}>
         <div style={{fontFamily:"monospace",fontSize:8.5,color:"#182a42"}}>
-          XAU <span style={{color:"#10b981"}}>2,318.60</span>{" · "}
-          BTC <span style={{color:"#10b981"}}>62,840</span>{" · "}
-          EUR <span style={{color:"#ef4444"}}>1.0876</span>{" · "}
-          JPY <span style={{color:"#ef4444"}}>151.24</span>
+          XAU <span style={{color:xau?.up?"#10b981":"#ef4444"}}>{xau?.price ?? "—"}</span>{" · "}
+          BTC <span style={{color:btc?.up?"#10b981":"#ef4444"}}>{btc?.price ?? "—"}</span>{" · "}
+          EUR <span style={{color:eur?.up?"#10b981":"#ef4444"}}>{eur?.price ?? "—"}</span>{" · "}
+          JPY <span style={{color:jpy?.up?"#10b981":"#ef4444"}}>{jpy?.price ?? "—"}</span>
         </div>
         <button onClick={onRun} style={{display:"flex",alignItems:"center",gap:6,
           padding:"4px 14px",borderRadius:3,cursor:"pointer",
@@ -683,6 +765,7 @@ export function TradexNewsroom(_props?: { data?: any; loading?: boolean }) {
   const clock = useClock();
   const bars  = useAnimatedBars(8, 16, 90, 1050);
   const tick  = useTick(25);
+  const fxPrices = useLivePrices(_props?.data);
   const handleRun = useCallback(()=>{setRunning(true);setTimeout(()=>setRunning(false),4200);},[]);
 
   // screen-space label positions (approximate, tuned for iso view)
@@ -696,7 +779,7 @@ export function TradexNewsroom(_props?: { data?: any; loading?: boolean }) {
   return (
     <div style={{position:"relative",background:"#010407",
       border:"1px solid #0a1e34",borderRadius:12,overflow:"hidden",userSelect:"none"}}>
-      <NavBar running={running} onRun={handleRun} />
+      <NavBar running={running} onRun={handleRun} fxPrices={fxPrices} />
 
       {/* Scene viewport */}
       <div style={{position:"relative",height:560,overflow:"hidden",background:"#010407"}}>
@@ -720,7 +803,7 @@ export function TradexNewsroom(_props?: { data?: any; loading?: boolean }) {
           transformOrigin:"550px 400px",
         }}>
           <IsoFloor />
-          <BackWall bars={bars} clock={clock} blink={blink} />
+          <BackWall bars={bars} clock={clock} blink={blink} fxPrices={fxPrices} />
           <LeftWall blink={blink} />
           <FloorCables tick={tick} />
 
