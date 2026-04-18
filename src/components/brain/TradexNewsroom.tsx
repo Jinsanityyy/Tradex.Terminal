@@ -177,16 +177,24 @@ function DeskBox({ x, y, w, h, skewX = 14, skewY = 8 }: {
   );
 }
 
+// Bloomberg-inspired palette: amber primary, P/L green, warning red
 const GLOW: Record<AgentState,string> = {
-  bullish:"#10b981", bearish:"#ef4444", alert:"#f59e0b",
-  valid:"#10b981",   blocked:"#ef4444", armed:"#22d3ee",
-  "no-trade":"#818cf8", idle:"#4a5568",
+  bullish:"#22c55e", bearish:"#ef4444", alert:"#f59e0b",
+  valid:"#22c55e",   blocked:"#ef4444", armed:"#fbbf24",
+  "no-trade":"#a78bfa", idle:"#3d4a38",
 };
 const SCBG: Record<AgentState,string> = {
-  bullish:"#021208", bearish:"#1a0303", alert:"#1a0d00",
-  valid:"#021208",   blocked:"#1a0303", armed:"#021420",
-  "no-trade":"#080820", idle:"#0a0a0a",
+  bullish:"#041a08", bearish:"#1a0404", alert:"#1a1000",
+  valid:"#041a08",   blocked:"#1a0404", armed:"#1a1405",
+  "no-trade":"#0a0820", idle:"#0a0c08",
 };
+// Scene-wide accent tokens (Bloomberg amber + P/L green)
+const AMBER = "#fbbf24";
+const AMBER_DIM = "#b8860b";
+const PL_GREEN = "#22c55e";
+const WALL_BASE = "#0d1410";
+const WALL_TRIM = "#1a2418";
+const FLOOR_BASE = "#0a0f0c";
 
 // ── Monitor on Desk ───────────────────────────────────────────────────────────
 function DeskMonitor({ agent, cx, deskTopY, blink, hasData }: {
@@ -232,18 +240,23 @@ function DeskMonitor({ agent, cx, deskTopY, blink, hasData }: {
   );
 }
 
-// ── Desk Props (papers, mug, equipment) ───────────────────────────────────────
+// ── Desk Props (Bloomberg-style: phone handset, ticker tape, monitor, papers) ──
 function DeskProps({ x, y, w, skewY = 8 }: { x:number; y:number; w:number; skewY?:number }) {
   const topY = y - skewY/2; // approximate top surface center
   return (
     <g>
       {/* Stacked papers */}
-      <rect x={x+6}  y={topY-10} width={22} height={14} rx={1} fill="#d4c98a" opacity={0.75} transform={`rotate(-4,${x+17},${topY-3})`}/>
-      <rect x={x+8}  y={topY-9}  width={22} height={14} rx={1} fill="#e8dda0" opacity={0.55} transform={`rotate(2,${x+19},${topY-2})`}/>
+      <rect x={x+4}  y={topY-10} width={20} height={13} rx={1} fill="#d4c98a" opacity={0.75} transform={`rotate(-4,${x+14},${topY-3})`}/>
+      <rect x={x+6}  y={topY-9}  width={20} height={13} rx={1} fill="#e8dda0" opacity={0.55} transform={`rotate(2,${x+16},${topY-2})`}/>
       {/* Coffee mug */}
       <rect x={x+w-22} y={topY-11} width={10} height={11} rx={1} fill="#3a2010"/>
       <rect x={x+w-21} y={topY-10} width={8}  height={9}  fill="#150800"/>
       <rect x={x+w-12} y={topY-8}  width={3}  height={6}  fill="#3a2010"/>
+      {/* Bloomberg-style phone handset (classic 2-line desk phone) */}
+      <rect x={x+w-40} y={topY-5} width={14} height={5} rx={1} fill="#0a0a0a"/>
+      <rect x={x+w-38} y={topY-4} width={10} height={3} fill="#1a1a1a"/>
+      {/* Phone cord (squiggle) */}
+      <path d={`M ${x+w-33} ${topY-1} q 2 2 -1 3 q -3 1 -1 3`} stroke="#0a0a0a" strokeWidth={0.6} fill="none"/>
       {/* Keyboard */}
       <rect x={x+w/2-16} y={topY-5} width={32} height={6} rx={1} fill="#1a1a1a"/>
       <rect x={x+w/2-15} y={topY-4} width={30} height={4} rx={1} fill="#141414"/>
@@ -255,8 +268,14 @@ function DeskProps({ x, y, w, skewY = 8 }: { x:number; y:number; w:number; skewY
           ))}
         </g>
       ))}
+      {/* Ticker tape strip hanging off desk edge */}
+      <rect x={x+4} y={topY+4} width={3} height={14} fill="#e8dda0" opacity={0.6}/>
+      <rect x={x+4} y={topY+6} width={3} height={1} fill="#2a2010" opacity={0.5}/>
+      <rect x={x+4} y={topY+9} width={3} height={1} fill="#2a2010" opacity={0.5}/>
+      <rect x={x+4} y={topY+12} width={3} height={1} fill="#2a2010" opacity={0.5}/>
+      <rect x={x+4} y={topY+15} width={3} height={1} fill="#2a2010" opacity={0.5}/>
       {/* Small LED strip */}
-      <rect x={x+w-8} y={topY-2} width={6} height={2} rx={1} fill="#10b981" opacity={0.6}/>
+      <rect x={x+w-8} y={topY-2} width={6} height={2} rx={1} fill="#22c55e" opacity={0.6}/>
     </g>
   );
 }
@@ -268,27 +287,27 @@ function AnalogClock({ cx, cy, r, now }: { cx:number; cy:number; r:number; now:D
   const sAngle = now.getSeconds()/60 * Math.PI*2 - Math.PI/2;
   return (
     <g>
-      <circle cx={cx} cy={cy} r={r+4} fill="#080c18" stroke="#1e2840" strokeWidth={1.5}/>
-      <circle cx={cx} cy={cy} r={r}   fill="#060a10"/>
-      <circle cx={cx} cy={cy} r={r}   stroke="#22d3ee" strokeWidth={0.8} fill="none" opacity={0.7}/>
+      <circle cx={cx} cy={cy} r={r+4} fill="#0a0e08" stroke="#1f2a1f" strokeWidth={1.5}/>
+      <circle cx={cx} cy={cy} r={r}   fill="#060806"/>
+      <circle cx={cx} cy={cy} r={r}   stroke="#fbbf24" strokeWidth={0.8} fill="none" opacity={0.6}/>
       {Array.from({length:12},(_,i) => {
         const a = i/12*Math.PI*2 - Math.PI/2;
         const big = i%3===0;
         return <line key={i}
           x1={cx+Math.cos(a)*(r-5)} y1={cy+Math.sin(a)*(r-5)}
           x2={cx+Math.cos(a)*(r-1)} y2={cy+Math.sin(a)*(r-1)}
-          stroke="#22d3ee" strokeWidth={big?2:0.8} opacity={0.7}/>;
+          stroke="#fbbf24" strokeWidth={big?2:0.8} opacity={0.65}/>;
       })}
       {/* Hour hand */}
       <line x1={cx} y1={cy} x2={cx+Math.cos(hAngle)*(r*0.55)} y2={cy+Math.sin(hAngle)*(r*0.55)}
-        stroke="#e2e8f0" strokeWidth={2.5} strokeLinecap="round"/>
+        stroke="#f5f5dc" strokeWidth={2.5} strokeLinecap="round"/>
       {/* Minute hand */}
       <line x1={cx} y1={cy} x2={cx+Math.cos(mAngle)*(r*0.8)} y2={cy+Math.sin(mAngle)*(r*0.8)}
-        stroke="#22d3ee" strokeWidth={1.5} strokeLinecap="round"/>
+        stroke="#fbbf24" strokeWidth={1.5} strokeLinecap="round"/>
       {/* Second hand */}
       <line x1={cx} y1={cy} x2={cx+Math.cos(sAngle)*(r*0.88)} y2={cy+Math.sin(sAngle)*(r*0.88)}
         stroke="#ef4444" strokeWidth={0.8} strokeLinecap="round"/>
-      <circle cx={cx} cy={cy} r={2.5} fill="#22d3ee"/>
+      <circle cx={cx} cy={cy} r={2.5} fill="#fbbf24"/>
     </g>
   );
 }
@@ -347,13 +366,13 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
 
   return (
     <div style={{ position:"relative", width:"100%", aspectRatio:`${W}/${H}`, overflow:"hidden",
-      background:"#08090e", borderRadius:8, border:"1px solid #1a2035" }}>
+      background:"#05080a", borderRadius:8, border:"1px solid #1f2a1f" }}>
       <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice" style={{ display:"block" }}>
         <defs>
-          {/* Light cone gradient */}
+          {/* Light cone gradient — warm fluorescent */}
           <linearGradient id="nr_cone" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#7dd3fc" stopOpacity="0.22"/>
-            <stop offset="100%" stopColor="#7dd3fc" stopOpacity="0"/>
+            <stop offset="0%" stopColor="#fde68a" stopOpacity="0.18"/>
+            <stop offset="100%" stopColor="#fde68a" stopOpacity="0"/>
           </linearGradient>
           {/* Scanline pattern (fine) */}
           <pattern id="nr_scan" x="0" y="0" width="1" height="3" patternUnits="userSpaceOnUse">
@@ -376,168 +395,257 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
         </defs>
 
         {/* ═══════════════════════════════════════════════════════════════════
-            FLOOR
+            FLOOR — warm concrete w/ perspective
         ═══════════════════════════════════════════════════════════════════ */}
-        <rect x={0} y={WALL_H-10} width={W} height={H-WALL_H+10} fill="#0b0c11"/>
-        {/* Floor grid */}
+        <rect x={0} y={WALL_H-10} width={W} height={H-WALL_H+10} fill={FLOOR_BASE}/>
+        {/* Floor grid — horizontal (subtle) */}
         {Array.from({length:22},(_,i)=>(
           <line key={`fh${i}`} x1={0} y1={WALL_H+i*14} x2={W} y2={WALL_H+i*14}
-            stroke="#141b28" strokeWidth={0.6} opacity={0.7}/>
+            stroke="#13201a" strokeWidth={0.6} opacity={0.6}/>
         ))}
-        {Array.from({length:32},(_,i)=>(
-          <line key={`fv${i}`} x1={i*29} y1={WALL_H} x2={i*29} y2={H}
-            stroke="#141b28" strokeWidth={0.6} opacity={0.7}/>
-        ))}
-        {/* Floor glow strip at wall junction */}
-        <rect x={0} y={WALL_H-3} width={W} height={6} fill="#22d3ee" opacity={0.04}/>
+        {/* Floor grid — perspective diagonals (converge toward center) */}
+        {Array.from({length:14},(_,i)=>{
+          const startX = i * (W/14);
+          const endX = W/2 + (startX - W/2) * 0.55;
+          return (
+            <line key={`fp${i}`} x1={startX} y1={H} x2={endX} y2={WALL_H}
+              stroke="#13201a" strokeWidth={0.5} opacity={0.45}/>
+          );
+        })}
+        {/* Floor glow strip at wall junction — amber */}
+        <rect x={0} y={WALL_H-3} width={W} height={6} fill={AMBER} opacity={0.05}/>
 
         {/* ═══════════════════════════════════════════════════════════════════
-            BACK WALL
+            BACK WALL — warm fluorescent-lit concrete
         ═══════════════════════════════════════════════════════════════════ */}
-        <rect x={0} y={0} width={W} height={WALL_H} fill="#0c0e15"/>
-        {/* Wall panel texture — vertical grooves */}
+        <rect x={0} y={0} width={W} height={WALL_H} fill={WALL_BASE}/>
+        {/* Wall panel texture — vertical grooves (subtle) */}
         {Array.from({length:18},(_,i)=>(
           <line key={`wp${i}`} x1={i*52} y1={0} x2={i*52} y2={WALL_H}
-            stroke="#0e1018" strokeWidth={1}/>
+            stroke="#0b120d" strokeWidth={1}/>
         ))}
+        {/* Horizontal wall seam (dado rail) */}
+        <line x1={0} y1={WALL_H*0.55} x2={W} y2={WALL_H*0.55} stroke="#1a2418" strokeWidth={0.8} opacity={0.6}/>
         {/* Wall base shadow */}
-        <rect x={0} y={WALL_H-30} width={W} height={30} fill="#070810" opacity={0.7}/>
+        <rect x={0} y={WALL_H-30} width={W} height={30} fill="#060a07" opacity={0.7}/>
         {/* Wall top shadow */}
-        <rect x={0} y={0} width={W} height={18} fill="#050608" opacity={0.8}/>
+        <rect x={0} y={0} width={W} height={18} fill="#040604" opacity={0.8}/>
         {/* Horizontal trim at wall base */}
-        <rect x={0} y={WALL_H-8} width={W} height={3} fill="#131825"/>
-        <rect x={0} y={WALL_H-5} width={W} height={2} fill="#22d3ee" opacity={0.12}/>
+        <rect x={0} y={WALL_H-8} width={W} height={3} fill={WALL_TRIM}/>
+        <rect x={0} y={WALL_H-5} width={W} height={2} fill={AMBER} opacity={0.14}/>
 
         {/* Corner pillars */}
-        <rect x={0}   y={0} width={22} height={WALL_H} fill="#080b12"/>
-        <rect x={W-22} y={0} width={22} height={WALL_H} fill="#080b12"/>
-        <rect x={21} y={0}   width={2}  height={WALL_H} fill="#151e30" opacity={0.8}/>
-        <rect x={W-23} y={0} width={2}  height={WALL_H} fill="#151e30" opacity={0.8}/>
+        <rect x={0}   y={0} width={22} height={WALL_H} fill="#080b09"/>
+        <rect x={W-22} y={0} width={22} height={WALL_H} fill="#080b09"/>
+        <rect x={21} y={0}   width={2}  height={WALL_H} fill="#1a2418" opacity={0.8}/>
+        <rect x={W-23} y={0} width={2}  height={WALL_H} fill="#1a2418" opacity={0.8}/>
 
         {/* ── LEFT SERVER RACK ARRAY ─────────────────────────────────── */}
-        <rect x={22} y={48} width={98} height={172} fill="#090d18" stroke="#121828" strokeWidth={1}/>
-        <text x={71} y={44} textAnchor="middle" fill="#22d3ee" fontSize={5.5}
-          fontFamily="monospace" opacity={0.5} letterSpacing={2}>SERVER ARRAY</text>
+        <rect x={22} y={48} width={98} height={172} fill="#070d09" stroke="#131c15" strokeWidth={1}/>
+        <text x={71} y={44} textAnchor="middle" fill={AMBER} fontSize={5.5}
+          fontFamily="monospace" opacity={0.55} letterSpacing={2}>SERVER ARRAY</text>
         {Array.from({length:8},(_,i)=>(
           <g key={`rack${i}`}>
-            <rect x={26} y={52+i*20} width={90} height={16} fill="#0b1020" stroke="#141e30" strokeWidth={0.5}/>
+            <rect x={26} y={52+i*20} width={90} height={16} fill="#090f0b" stroke="#121a14" strokeWidth={0.5}/>
             {/* Power LED */}
             <rect x={29} y={56+i*20} width={4} height={8} rx={1}
-              fill={blink&&i%3===0 ? "#10b981" : blink2&&i%2===0 ? "#22d3ee" : "#0a2010"} opacity={0.9}/>
+              fill={blink&&i%3===0 ? PL_GREEN : blink2&&i%2===0 ? AMBER : "#0a2010"} opacity={0.9}/>
             {/* Activity LEDs */}
             {[0,1,2,3].map(j=>(
               <rect key={j} x={35+j*5} y={57+i*20} width={3} height={6} rx={0.5}
                 fill={Math.sin(i*3+j+Date.now()/800)>0.3 ? "#0f3" : "#030a04"} opacity={0.7}/>
             ))}
             {/* Drive bays */}
-            <rect x={57} y={53+i*20} width={56} height={14} rx={1} fill="#050810"/>
+            <rect x={57} y={53+i*20} width={56} height={14} rx={1} fill="#040806"/>
             {Array.from({length:14},(_,k)=>(
               <rect key={k} x={58+k*4} y={55+i*20} width={2} height={10} rx={0.3}
-                fill={k%3===0 ? "#0f1825" : "#08111e"}/>
+                fill={k%3===0 ? "#121a14" : "#0a100c"}/>
             ))}
             {/* Warning LED (right side) */}
             <rect x={111} y={56+i*20} width={4} height={8} rx={1}
-              fill={i===2 && blink ? "#f59e0b" : "#100800"} opacity={0.8}/>
+              fill={i===2 && blink ? AMBER : "#100800"} opacity={0.85}/>
           </g>
         ))}
 
-        {/* ── MAIN TRADEX MONITOR (center back wall) ─────────────────── */}
-        {/* Outer frame */}
-        <rect x={166} y={22} width={508} height={220} rx={4} fill="#050810" stroke="#1e2840" strokeWidth={2}/>
-        {/* Bezel highlights */}
-        <rect x={166} y={22} width={508} height={3} fill="#1e2840"/>
-        <rect x={166} y={22} width={2}   height={220} fill="#1e2840"/>
-        {/* Screen area */}
-        <rect x={170} y={26} width={500} height={212} fill="#040710"/>
+        {/* ── CORKBOARD (left wall, above server rack) ────────────────── */}
+        <rect x={22} y={24} width={98} height={20} fill="#3d2817" stroke="#1a0f08" strokeWidth={0.8}/>
+        <rect x={24} y={26} width={94} height={16} fill="#52361e" opacity={0.7}/>
+        {/* Pinned chart (small candlestick pattern) */}
+        <rect x={28} y={28} width={28} height={12} fill="#0a0f0c"/>
+        {[0,1,2,3,4,5].map(i=>(
+          <rect key={`ch${i}`} x={30+i*4} y={30+Math.sin(i*2)*2+2} width={2} height={6-Math.sin(i*2)*2} fill={i%2===0?PL_GREEN:"#ef4444"} opacity={0.8}/>
+        ))}
+        {/* Pinned note */}
+        <rect x={60} y={28} width={26} height={12} fill="#e8dda0" opacity={0.85} transform="rotate(-3 73 34)"/>
+        <line x1={63} y1={32} x2={82} y2={32} stroke="#666" strokeWidth={0.3} transform="rotate(-3 73 34)"/>
+        <line x1={63} y1={35} x2={78} y2={35} stroke="#666" strokeWidth={0.3} transform="rotate(-3 73 34)"/>
+        {/* Newspaper clipping */}
+        <rect x={90} y={28} width={24} height={12} fill="#d4c98a" opacity={0.75} transform="rotate(4 102 34)"/>
+        <line x1={92} y1={31} x2={112} y2={31} stroke="#2a2010" strokeWidth={0.4} transform="rotate(4 102 34)"/>
+        <line x1={92} y1={33} x2={108} y2={33} stroke="#2a2010" strokeWidth={0.3} transform="rotate(4 102 34)"/>
+        <line x1={92} y1={36} x2={110} y2={36} stroke="#2a2010" strokeWidth={0.3} transform="rotate(4 102 34)"/>
+        {/* Pins */}
+        <circle cx={30} cy={29} r={1} fill="#ef4444"/>
+        <circle cx={73} cy={28} r={1} fill={AMBER}/>
+        <circle cx={102} cy={29} r={1} fill={PL_GREEN}/>
 
-        {/* TRADEX header on main monitor */}
-        <rect x={170} y={26} width={500} height={38} fill="#040a14"/>
-        <text x={420} y={48} textAnchor="middle" fill="#22d3ee" fontSize={16}
-          fontFamily="monospace" fontWeight="bold" letterSpacing={6}
+        {/* ── MAIN TRADEX MONITOR BANK (3 wall-mounted screens) ─────────── */}
+        {/* Wall mount backing */}
+        <rect x={162} y={18} width={516} height={228} fill="#060a07" stroke="#1a2418" strokeWidth={1.5}/>
+
+        {/* ──── SCREEN 1 (TOP): TRADEX branding + live master ticker ──── */}
+        <rect x={166} y={22} width={508} height={44} rx={2} fill="#040704" stroke="#1e2a1e" strokeWidth={1.5}/>
+        <rect x={166} y={22} width={508} height={44} rx={2} fill={AMBER} opacity={0.02}/>
+        {/* Screen 1 bezel */}
+        <rect x={166} y={22} width={508} height={2} fill="#1e2a1e"/>
+        {/* Shinra/Bloomberg-style logo mark (left) */}
+        <rect x={172} y={28} width={30} height={32} rx={2} fill="#0a140a" stroke={AMBER} strokeWidth={0.5} opacity={0.85}/>
+        <text x={187} y={38} textAnchor="middle" fill={AMBER} fontSize={7} fontFamily="monospace" fontWeight="bold">TRX</text>
+        <text x={187} y={48} textAnchor="middle" fill={AMBER} fontSize={4.5} fontFamily="monospace" opacity={0.7}>INT</text>
+        <rect x={174} y={56} width={26} height={2} rx={1} fill={AMBER} opacity={0.4}/>
+        {/* TRADEX wordmark */}
+        <text x={420} y={48} textAnchor="middle" fill={AMBER} fontSize={18}
+          fontFamily="monospace" fontWeight="bold" letterSpacing={8}
           filter="url(#nr_glow_sm)">TRADEX</text>
-        <text x={420} y={58} textAnchor="middle" fill="#22d3ee" fontSize={5.5}
-          fontFamily="monospace" letterSpacing={10} opacity={0.55}>INTELLIGENCE COMMAND</text>
-        <line x1={175} y1={66} x2={665} y2={66} stroke="#22d3ee" strokeWidth={0.5} opacity={0.35}/>
+        <text x={420} y={58} textAnchor="middle" fill={AMBER} fontSize={4.5}
+          fontFamily="monospace" letterSpacing={8} opacity={0.6}>INTELLIGENCE COMMAND</text>
+        {/* Live LED on top-right */}
+        <circle cx={660} cy={44} r={3} fill={hasData && blink ? PL_GREEN : "#1a1a1a"} opacity={0.9}/>
+        <text x={652} y={47} textAnchor="end" fill={hasData?PL_GREEN:"#333"} fontSize={3.5} fontFamily="monospace" opacity={0.7}>LIVE</text>
 
-        {/* Shinra-style logo mark (left of header) */}
-        <rect x={178} y={28} width={30} height={34} rx={2} fill="#0a1428" stroke="#22d3ee" strokeWidth={0.5} opacity={0.8}/>
-        <text x={193} y={38} textAnchor="middle" fill="#22d3ee" fontSize={7} fontFamily="monospace" fontWeight="bold">TRX</text>
-        <text x={193} y={48} textAnchor="middle" fill="#22d3ee" fontSize={4.5} fontFamily="monospace" opacity={0.7}>INT</text>
-        <rect x={180} y={56} width={26} height={2} rx={1} fill="#22d3ee" opacity={0.4}/>
-
-        {/* Agent status grid on main monitor */}
+        {/* ──── SCREEN 2 (MIDDLE): Agent status grid ──── */}
+        <rect x={166} y={70} width={508} height={108} rx={2} fill="#040704" stroke="#1e2a1e" strokeWidth={1.5}/>
+        <rect x={166} y={70} width={508} height={2} fill="#1e2a1e"/>
+        {/* Screen 2 header strip */}
+        <rect x={166} y={70} width={508} height={12} fill="#0a140a"/>
+        <text x={172} y={79} fill={AMBER} fontSize={4.5} fontFamily="monospace" fontWeight="bold" letterSpacing={2}>AGENT CONSENSUS</text>
+        <text x={668} y={79} textAnchor="end" fill="#7a8a7a" fontSize={4} fontFamily="monospace" opacity={0.6}>
+          7 AGENTS ONLINE
+        </text>
+        {/* Agent status grid */}
         {AGENTS.map((ag,i)=>{
           const col=i%4; const row=Math.floor(i/4);
-          const mx=180+col*122+4; const my=74+row*52;
+          const mx=172+col*124+2; const my=88+row*44;
           const gl=GLOW[ag.state];
-          const confW = hasData ? Math.round(96*(ag.confidence/100)) : 0;
+          const confW = hasData ? Math.round(104*(ag.confidence/100)) : 0;
           return (
             <g key={ag.id}>
-              <rect x={mx} y={my} width={114} height={44} rx={2} fill="#030810"
+              <rect x={mx} y={my} width={118} height={38} rx={2} fill="#020604"
                 stroke={gl} strokeWidth={hasData?0.8:0.3} opacity={0.92}/>
-              <rect x={mx} y={my} width={114} height={11} fill={gl} opacity={hasData?0.08:0.02}/>
-              <text x={mx+6} y={my+9} fill={gl} fontSize={5.5} fontFamily="monospace" fontWeight="bold">{ag.label}</text>
-              <text x={mx+6} y={my+20} fill={gl} fontSize={4} fontFamily="monospace" opacity={hasData?0.85:0.35}>
-                {hasData ? ag.role : "AWAITING DATA"}
+              <rect x={mx} y={my} width={118} height={10} fill={gl} opacity={hasData?0.1:0.02}/>
+              <text x={mx+5} y={my+8} fill={gl} fontSize={5} fontFamily="monospace" fontWeight="bold">{ag.label}</text>
+              <text x={mx+5} y={my+18} fill={gl} fontSize={4} fontFamily="monospace" opacity={hasData?0.85:0.35}>
+                {hasData ? ag.role : "AWAITING"}
               </text>
               {/* Confidence bar */}
-              <rect x={mx+6} y={my+26} width={96} height={3} fill="#0a1020"/>
-              <rect x={mx+6} y={my+26} width={confW} height={3} fill={gl} opacity={0.8}/>
+              <rect x={mx+5} y={my+22} width={104} height={3} fill="#0a100c"/>
+              <rect x={mx+5} y={my+22} width={confW} height={3} fill={gl} opacity={0.85}/>
               {/* Confidence % */}
-              <text x={mx+102} y={my+29} textAnchor="end" fill={gl} fontSize={3.5} fontFamily="monospace" opacity={hasData?0.7:0.2}>
+              <text x={mx+109} y={my+30} textAnchor="end" fill={gl} fontSize={3.5} fontFamily="monospace" opacity={hasData?0.75:0.2}>
                 {hasData ? `${ag.confidence}%` : "—"}
               </text>
               {/* State label */}
-              <text x={mx+6} y={my+38} fill={gl} fontSize={3.8} fontFamily="monospace" opacity={hasData?0.55:0.2}>
+              <text x={mx+5} y={my+34} fill={gl} fontSize={3.5} fontFamily="monospace" opacity={hasData?0.55:0.2}>
                 {hasData ? ag.state.toUpperCase() : "IDLE"}
               </text>
-              {/* Blink dot — solid when live */}
-              <rect x={mx+104} y={my+5} width={6} height={6} rx={1}
+              {/* Blink dot */}
+              <rect x={mx+108} y={my+4} width={6} height={6} rx={1}
                 fill={hasData && blink ? gl : "#111"} opacity={hasData&&blink?0.9:0.2}/>
             </g>
           );
         })}
 
-        {/* Bottom data strip on main monitor */}
-        <rect x={170} y={178} width={500} height={58} fill="#020508"/>
-        <line x1={175} y1={180} x2={665} y2={180} stroke="#22d3ee" strokeWidth={0.5} opacity={0.25}/>
-        <text x={180} y={191} fill="#10b981" fontSize={5} fontFamily="monospace" opacity={0.85}>
+        {/* ──── SCREEN 3 (BOTTOM): Ticker tape + status strip ──── */}
+        <rect x={166} y={182} width={508} height={60} rx={2} fill="#040704" stroke="#1e2a1e" strokeWidth={1.5}/>
+        <rect x={166} y={182} width={508} height={2} fill="#1e2a1e"/>
+        <rect x={166} y={184} width={508} height={12} fill="#0a140a"/>
+        <text x={172} y={193} fill={AMBER} fontSize={4.5} fontFamily="monospace" fontWeight="bold" letterSpacing={2}>LIVE TAPE</text>
+        <text x={172} y={206} fill={PL_GREEN} fontSize={5} fontFamily="monospace" opacity={0.9}>
           {`SYS: ONLINE │ AGENTS: 7/7 │ TIME: ${hrs}:${min}:${sec} UTC │ BUILD: v4.2.1`}
         </text>
-        <text x={180} y={201} fill="#22d3ee" fontSize={4.5} fontFamily="monospace" opacity={0.55}>
+        <text x={172} y={216} fill={AMBER} fontSize={4.5} fontFamily="monospace" opacity={0.6}>
           {hasData
             ? `MASTER: ${masterAgent.role} │ CONFIDENCE: ${masterAgent.confidence}% │ STATUS: LIVE`
             : "TRADEX INTELLIGENCE ENGINE ACTIVE │ CLICK REFRESH TO RUN AGENTS"}
         </text>
-        <text x={180} y={210} fill={hasData ? masterColor : "#818cf8"} fontSize={4} fontFamily="monospace" opacity={0.55}>
+        <text x={172} y={225} fill={hasData ? masterColor : "#a78bfa"} fontSize={4} fontFamily="monospace" opacity={0.6}>
           {hasData
             ? `RISK: ${data!.agents.risk.valid ? `GRADE ${data!.agents.risk.grade} ✓` : "BLOCKED ✗"} │ EXEC: ${data!.agents.execution.hasSetup ? `SETUP FOUND — ${data!.agents.execution.direction?.toUpperCase()}` : "NO SETUP"}`
             : `${blink ? "▶" : "▷"} AWAITING ANALYSIS │ HIT REFRESH IN BRAIN TERMINAL`}
         </text>
-        {/* Bottom ticker */}
-        <rect x={170} y={213} width={500} height={22} fill="#030608"/>
-        <line x1={175} y1={214} x2={665} y2={214} stroke="#10b981" strokeWidth={0.5} opacity={0.3}/>
-        <text x={180} y={224} fill={hasData ? masterColor : "#4a5568"} fontSize={5} fontFamily="monospace" opacity={0.75}>
+        {/* Ticker tape line */}
+        <rect x={170} y={230} width={500} height={10} fill="#020504"/>
+        <text x={174} y={238} fill={hasData ? masterColor : "#3a4a3a"} fontSize={5} fontFamily="monospace" opacity={0.8}>
           {hasData
-            ? `${data!.agents.trend.bias.toUpperCase()} TREND │ SMC: ${data!.agents.smc.bias.toUpperCase()} │ NEWS: ${data!.agents.news.impact.toUpperCase()} │ FINAL: ${masterAgent.role}`
+            ? `▲ ${data!.agents.trend.bias.toUpperCase()} TREND  │  SMC: ${data!.agents.smc.bias.toUpperCase()}  │  NEWS: ${data!.agents.news.impact.toUpperCase()}  │  ➤ FINAL: ${masterAgent.role}`
             : "── NO DATA ── CLICK REFRESH ──"}
         </text>
-        <rect x={655} y={215} width={12} height={18} rx={1} fill={hasData&&blink ? masterColor : "#111"} opacity={0.6}/>
+        <rect x={658} y={232} width={10} height={6} rx={1} fill={hasData&&blink ? masterColor : "#111"} opacity={0.7}/>
 
-        {/* ── RIGHT PANEL: CLOCK + STATUS ───────────────────────────── */}
+        {/* ── RIGHT PANEL: WORLD CLOCKS + STATUS ───────────────────── */}
         {/* Panel frame */}
-        <rect x={680} y={22} width={198} height={220} rx={2} fill="#080c18" stroke="#121828" strokeWidth={1}/>
+        <rect x={680} y={22} width={198} height={220} rx={2} fill="#070d09" stroke="#131c15" strokeWidth={1}/>
 
-        {/* Analog clock */}
-        <rect x={684} y={26} width={94} height={94} rx={2} fill="#060a14" stroke="#1a2535" strokeWidth={0.8}/>
-        <AnalogClock cx={731} cy={73} r={38} now={now}/>
-        <text x={731} y={130} textAnchor="middle" fill="#22d3ee" fontSize={5}
-          fontFamily="monospace" opacity={0.5} letterSpacing={1}>WALL CLOCK</text>
-        <text x={731} y={118} textAnchor="middle" fill="#22d3ee" fontSize={6}
-          fontFamily="monospace" opacity={0.65}>{`${hrs}:${min}`}</text>
+        {/* Triple world clocks (NY / LON / TOK — Bloomberg style) */}
+        <rect x={684} y={26} width={190} height={52} rx={2} fill="#050805" stroke="#1a2418" strokeWidth={0.8}/>
+        <text x={779} y={34} textAnchor="middle" fill={AMBER} fontSize={4.5}
+          fontFamily="monospace" opacity={0.65} letterSpacing={2}>WORLD CLOCKS</text>
+        {(() => {
+          const ms = now.getTime();
+          // Tokyo UTC+9, London UTC+0/+1 (approx), NY UTC-5/-4 (approx) — using UTC offsets
+          const nyDate = new Date(ms - 5 * 3600 * 1000);
+          const lnDate = new Date(ms + 0 * 3600 * 1000);
+          const tkDate = new Date(ms + 9 * 3600 * 1000);
+          const fmt = (d:Date) => `${d.getUTCHours().toString().padStart(2,"0")}:${d.getUTCMinutes().toString().padStart(2,"0")}`;
+          const clocks = [
+            { label:"NY",  time: fmt(nyDate), x: 702 },
+            { label:"LON", time: fmt(lnDate), x: 779 },
+            { label:"TOK", time: fmt(tkDate), x: 856 },
+          ];
+          return clocks.map(c => (
+            <g key={c.label}>
+              <text x={c.x} y={50} textAnchor="middle" fill="#7a8a7a" fontSize={4} fontFamily="monospace" letterSpacing={1}>{c.label}</text>
+              <text x={c.x} y={64} textAnchor="middle" fill={AMBER} fontSize={9} fontFamily="monospace" fontWeight="bold" letterSpacing={1}>{c.time}</text>
+              <rect x={c.x-14} y={68} width={28} height={1.5} fill={AMBER} opacity={0.25}/>
+            </g>
+          ));
+        })()}
+
+        {/* Analog clock (smaller now, under world clocks) */}
+        <rect x={684} y={82} width={60} height={60} rx={2} fill="#050805" stroke="#1a2418" strokeWidth={0.8}/>
+        <AnalogClock cx={714} cy={112} r={24} now={now}/>
+        <text x={714} y={138} textAnchor="middle" fill={AMBER} fontSize={4}
+          fontFamily="monospace" opacity={0.55} letterSpacing={1}>WALL CLOCK</text>
+
+        {/* Small auxiliary info panel beside clock */}
+        <rect x={748} y={82} width={126} height={60} rx={2} fill="#050805" stroke="#1a2418" strokeWidth={0.8}/>
+        <text x={754} y={92} fill="#7a8a7a" fontSize={4} fontFamily="monospace" letterSpacing={1}>SESSION</text>
+        <text x={754} y={104} fill={PL_GREEN} fontSize={6} fontFamily="monospace" fontWeight="bold">
+          {(() => {
+            const h = now.getUTCHours();
+            if (h >= 0 && h < 7) return "TOKYO";
+            if (h >= 7 && h < 12) return "LONDON";
+            if (h >= 12 && h < 17) return "LON/NY";
+            if (h >= 17 && h < 21) return "NEW YORK";
+            return "CLOSED";
+          })()}
+        </text>
+        <rect x={754} y={108} width={114} height={1} fill={PL_GREEN} opacity={0.3}/>
+        <text x={754} y={120} fill="#7a8a7a" fontSize={3.5} fontFamily="monospace" opacity={0.7}>VOLATILITY</text>
+        <text x={868} y={120} textAnchor="end" fill={AMBER} fontSize={4} fontFamily="monospace">
+          {hasData ? `${data!.agents.risk.volatilityScore}/100` : "—"}
+        </text>
+        <text x={754} y={130} fill="#7a8a7a" fontSize={3.5} fontFamily="monospace" opacity={0.7}>REGIME</text>
+        <text x={868} y={130} textAnchor="end" fill={AMBER} fontSize={4} fontFamily="monospace">
+          {hasData ? data!.agents.news.regime.toUpperCase().slice(0,10) : "—"}
+        </text>
 
         {/* Status panels — wired to live data */}
         {(["PIPELINE","CONSENSUS","RISK GATE","EXEC MODE"] as const).map((lbl,i)=>{
+          const col = i % 2;
+          const row = Math.floor(i / 2);
+          const px = 684 + col * 97;
+          const py = 148 + row * 48;
           const liveVals = hasData ? [
             1.0,
             data!.agents.master.confidence / 100,
@@ -547,44 +655,44 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
           const liveStrs = hasData ? [
             "ACTIVE",
             `${data!.agents.master.confidence}%`,
-            data!.agents.risk.valid ? `OK (${data!.agents.risk.grade})` : "BLOCKED",
+            data!.agents.risk.valid ? `OK ${data!.agents.risk.grade}` : "BLOCKED",
             data!.agents.execution.hasSetup ? data!.agents.execution.direction?.toUpperCase() ?? "ARMED" : "STANDBY",
           ] : ["—","—","—","—"];
           const vals = hasData ? liveVals : [0,0,0,0];
-          const cols=["#10b981","#818cf8","#10b981","#22d3ee"];
+          const cols=[PL_GREEN, AMBER, PL_GREEN, AMBER];
           const strs = hasData ? liveStrs : ["—","—","—","—"];
           return (
             <g key={lbl}>
-              <rect x={784} y={26+i*52} width={90} height={46} rx={1}
-                fill="#060a14" stroke="#131c2c" strokeWidth={0.8}/>
-              <text x={790} y={38+i*52} fill="#7a8a9a" fontSize={4.5} fontFamily="monospace"
+              <rect x={px} y={py} width={90} height={42} rx={1}
+                fill="#050805" stroke="#1a2418" strokeWidth={0.8}/>
+              <text x={px+6} y={py+9} fill="#7a8a7a" fontSize={4} fontFamily="monospace"
                 letterSpacing={1}>{lbl}</text>
-              <rect x={790} y={42+i*52} width={78} height={4} rx={1} fill="#0a1020"/>
-              <rect x={790} y={42+i*52} width={78*vals[i]} height={4} rx={1} fill={cols[i]} opacity={0.8}/>
-              <text x={870} y={56+i*52} textAnchor="end" fill={cols[i]} fontSize={5}
+              <rect x={px+6} y={py+14} width={78} height={4} rx={1} fill="#0a100c"/>
+              <rect x={px+6} y={py+14} width={78*vals[i]} height={4} rx={1} fill={cols[i]} opacity={0.85}/>
+              <text x={px+84} y={py+30} textAnchor="end" fill={cols[i]} fontSize={6}
                 fontFamily="monospace" fontWeight="bold">{strs[i]}</text>
-              <rect x={870} y={26+i*52} width={4} height={4} rx={1}
+              <rect x={px+82} y={py+4} width={4} height={4} rx={1}
                 fill={blink&&i%2===0 ? cols[i] : "#111"}/>
             </g>
           );
         })}
 
         {/* ═══════════════════════════════════════════════════════════════════
-            CEILING LIGHT FIXTURES
+            CEILING LIGHT FIXTURES — warm fluorescent
         ═══════════════════════════════════════════════════════════════════ */}
-        <rect x={0} y={0} width={W} height={14} fill="#07080e"/>
+        <rect x={0} y={0} width={W} height={14} fill="#050805"/>
         {/* Ceiling conduit */}
-        <rect x={0} y={11} width={W} height={3} fill="#0d1020"/>
+        <rect x={0} y={11} width={W} height={3} fill="#0d120a"/>
         {/* Light fixtures */}
         {[130, 340, 560, 770].map((cx,i)=>(
           <g key={`lf${i}`}>
             {/* Fixture housing */}
-            <rect x={cx-70} y={3} width={140} height={10} rx={1} fill="#0f1428"/>
+            <rect x={cx-70} y={3} width={140} height={10} rx={1} fill="#0f1408"/>
             {/* Light tube */}
-            <rect x={cx-66} y={4} width={132} height={7} rx={1} fill="#c8e8f8" opacity={0.92}/>
-            <rect x={cx-64} y={5} width={128} height={5} rx={1} fill="#f0f8ff" opacity={0.97}/>
+            <rect x={cx-66} y={4} width={132} height={7} rx={1} fill="#fef3c7" opacity={0.92}/>
+            <rect x={cx-64} y={5} width={128} height={5} rx={1} fill="#fffbeb" opacity={0.97}/>
             {/* Glow halo above fixture */}
-            <ellipse cx={cx} cy={10} rx={80} ry={10} fill="#7dd3fc" opacity={0.08}/>
+            <ellipse cx={cx} cy={10} rx={80} ry={10} fill="#fde68a" opacity={0.08}/>
           </g>
         ))}
 
@@ -611,13 +719,13 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
         {[100, 330, 582, 804].map((sx,i)=>(
           <path key={`cable${i}`}
             d={`M ${sx} ${FR_DESK_TOPRAW+FR_DESK_H-10} Q ${sx+(413-sx)*0.4} ${FR_DESK_TOPRAW+FR_DESK_H+30} 413 ${BR_DESK_TOPRAW+BR_DESK_H}`}
-            stroke="#22d3ee" strokeWidth={1.2} fill="none" opacity={0.18} strokeDasharray="4 4"/>
+            stroke={AMBER} strokeWidth={1.2} fill="none" opacity={0.2} strokeDasharray="4 4"/>
         ))}
         {/* Cables from back row to Master */}
         {[130, 708].map((sx,i)=>(
           <path key={`bcab${i}`}
             d={`M ${sx} ${BR_DESK_TOPRAW+BR_DESK_H-5} Q ${(sx+413)*0.55} ${BR_DESK_TOPRAW+BR_DESK_H+20} 413 ${BR_DESK_TOPRAW+BR_DESK_H-5}`}
-            stroke="#10b981" strokeWidth={0.9} fill="none" opacity={0.22} strokeDasharray="3 5"/>
+            stroke={PL_GREEN} strokeWidth={0.9} fill="none" opacity={0.22} strokeDasharray="3 5"/>
         ))}
 
         {/* ═══════════════════════════════════════════════════════════════════
