@@ -343,19 +343,9 @@ export function BrainTerminal() {
           LAYER 2 — MASTER CONSENSUS (full width, final decision)
       ══════════════════════════════════════════════════════════════════ */}
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Brain className="h-4 w-4 text-violet-400" />
-            <span className="text-xs text-zinc-300 uppercase tracking-wider font-semibold">Master Consensus</span>
-          </div>
-          {data && (
-            <button
-              onClick={() => openDrawer()}
-              className="text-xs text-violet-400/70 hover:text-violet-400 transition-colors flex items-center gap-1"
-            >
-              Full breakdown →
-            </button>
-          )}
+        <div className="flex items-center gap-2 mb-4">
+          <Brain className="h-4 w-4 text-violet-400" />
+          <span className="text-xs text-zinc-300 uppercase tracking-wider font-semibold">Master Consensus</span>
         </div>
         <ConsensusPanel
           finalBias={data?.agents.master.finalBias ?? "no-trade"}
@@ -365,6 +355,7 @@ export function BrainTerminal() {
           strategyMatch={data?.agents.master.strategyMatch}
           noTradeReason={data?.agents.master.noTradeReason}
           loading={loading && !data}
+          onClick={data ? () => openDrawer("master") : undefined}
         />
       </div>
 

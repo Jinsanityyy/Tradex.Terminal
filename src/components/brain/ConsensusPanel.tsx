@@ -13,6 +13,7 @@ interface ConsensusPanelProps {
   strategyMatch?: string;
   noTradeReason?: string;
   loading?: boolean;
+  onClick?: () => void;
 }
 
 const AGENT_LABELS: Record<string, string> = {
@@ -117,7 +118,7 @@ function AgentBar({ item }: { item: AgentConsensusItem }) {
 
 export function ConsensusPanel({
   finalBias, confidence, consensusScore, agentConsensus,
-  strategyMatch, noTradeReason, loading,
+  strategyMatch, noTradeReason, loading, onClick,
 }: ConsensusPanelProps) {
   if (loading) {
     return (
@@ -136,11 +137,15 @@ export function ConsensusPanel({
   const cfg = BIAS_CONFIG[finalBias];
 
   return (
-    <div className={cn(
-      "rounded-xl border p-5 space-y-5",
-      "bg-[#0d0d0d]/80 backdrop-blur-sm",
-      cfg.border
-    )}>
+    <div
+      className={cn(
+        "rounded-xl border p-5 space-y-5",
+        "bg-[#0d0d0d]/80 backdrop-blur-sm",
+        cfg.border,
+        onClick && "cursor-pointer hover:brightness-110 hover:ring-1 hover:ring-white/10 transition-all"
+      )}
+      onClick={onClick}
+    >
       {/* Final Verdict */}
       <div className={cn(
         "flex items-center justify-between p-5 rounded-xl",

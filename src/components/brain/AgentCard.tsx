@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronUp, CheckCircle2, XCircle, AlertTriangle, Minus, Zap, Shield } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 
 interface AgentCardProps {
   agentId: string;
@@ -65,7 +65,6 @@ export function AgentCard({
   reasons = [], invalidationLevel, extra = {},
   warnings = [], isGate = false, loading = false, onClick,
 }: AgentCardProps) {
-  const [expanded, setExpanded] = useState(false);
   const colors = BIAS_COLORS[bias] ?? BIAS_COLORS.neutral;
 
   if (loading) {
@@ -157,44 +156,6 @@ export function AgentCard({
         </div>
       )}
 
-      {/* Expand toggle */}
-      {(reasons.length > 1 || invalidationLevel !== null) && (
-        <button
-          onClick={(e) => { e.stopPropagation(); setExpanded(ex => !ex); }}
-          className="w-full flex items-center justify-between px-5 py-2.5 text-zinc-600 hover:text-zinc-400 border-t border-white/4 transition-colors"
-        >
-          <span className="text-[11px] uppercase tracking-wider">
-            {expanded ? "Less" : `${reasons.length} signals`}
-          </span>
-          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-        </button>
-      )}
-
-      {/* Expanded details */}
-      {expanded && (
-        <div className="px-5 pb-5 space-y-2.5 border-t border-white/4 pt-4">
-          {reasons.map((r, i) => (
-            <div key={i} className="flex items-start gap-2.5">
-              <div className={cn("w-1 h-1 rounded-full mt-1.5 shrink-0", colors.dot)} />
-              <p className="text-xs text-zinc-400 leading-relaxed">{r}</p>
-            </div>
-          ))}
-
-          {warnings.map((w, i) => (
-            <div key={`w${i}`} className="flex items-start gap-2.5">
-              <AlertTriangle className="h-3 w-3 text-amber-400 mt-0.5 shrink-0" />
-              <p className="text-xs text-amber-400/70 leading-relaxed">{w}</p>
-            </div>
-          ))}
-
-          {invalidationLevel !== null && (
-            <div className="mt-3 pt-3 border-t border-white/4">
-              <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Invalidation</span>
-              <p className="text-xs font-mono text-red-400 mt-1">{invalidationLevel}</p>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
