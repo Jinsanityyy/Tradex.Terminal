@@ -264,9 +264,9 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
   ];
 
   return (
-    <div style={{ position:"relative", width:W, height:H, overflow:"hidden",
+    <div style={{ position:"relative", width:"100%", aspectRatio:`${W}/${H}`, overflow:"hidden",
       background:"#08090e", borderRadius:8, border:"1px solid #1a2035" }}>
-      <svg width={W} height={H} style={{ display:"block" }}>
+      <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice" style={{ display:"block" }}>
         <defs>
           {/* Light cone gradient */}
           <linearGradient id="nr_cone" x1="0%" y1="0%" x2="0%" y2="100%">

@@ -274,11 +274,9 @@ export function BrainTerminal() {
           </span>
           <div className="h-px flex-1 bg-white/5" />
         </div>
-        {/* Newsroom — horizontal scroll on mobile */}
-        <div className="overflow-x-auto rounded-xl mb-4">
-          <div style={{ minWidth: 720 }}>
-            <TradexNewsroom data={data ?? null} loading={loading && !data} />
-          </div>
+        {/* Newsroom — full width */}
+        <div className="rounded-xl mb-4 w-full">
+          <TradexNewsroom data={data ?? null} loading={loading && !data} />
         </div>
         {/* Activity log — full width below */}
         <AgentActivityLog
