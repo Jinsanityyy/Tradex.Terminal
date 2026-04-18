@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils";
 import {
   X, TrendingUp, TrendingDown, Minus, Target, Shield,
   Zap, ChevronDown, ChevronUp, AlertTriangle, Clock,
-  Layers, Brain, Activity, ArrowRight,
+  Layers, Brain, Activity, ArrowRight, ArrowLeft,
+  Newspaper, FlipHorizontal2, CheckCircle, XCircle,
 } from "lucide-react";
 import type { AgentRunResult } from "@/lib/agents/schemas";
 
@@ -21,92 +22,22 @@ interface BrainOverviewDrawerProps {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers
+// Helpers (shared)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function getPreferredAction(finalBias: string, riskValid: boolean) {
-  if (!riskValid)        return { text: "Stand Aside",           sub: "Risk Gate blocked.no execution conditions met",      color: "text-red-400",     bg: "bg-red-500/8",     border: "border-red-500/20"    };
-  if (finalBias === "bullish") return { text: "Look for BUY setups",   sub: "HTF bias is bullish.seek discount entries",           color: "text-emerald-400", bg: "bg-emerald-500/8", border: "border-emerald-500/20" };
-  if (finalBias === "bearish") return { text: "Look for SELL setups",  sub: "HTF bias is bearish.seek premium entries",            color: "text-red-400",     bg: "bg-red-500/8",     border: "border-red-500/20"    };
-  return                       { text: "Stand Aside",           sub: "Insufficient consensus.wait for high-conviction setup", color: "text-amber-400",   bg: "bg-amber-500/8",   border: "border-amber-500/20"  };
+function biasBadge(bias: string): string {
+  if (bias === "bullish" || bias === "valid")   return "bg-emerald-500/12 text-emerald-400 border border-emerald-500/20";
+  if (bias === "bearish" || bias === "blocked") return "bg-red-500/12 text-red-400 border border-red-500/20";
+  if (bias === "no-trade" || bias === "opposing") return "bg-amber-500/12 text-amber-400 border border-amber-500/20";
+  return "bg-zinc-800/60 text-zinc-400 border border-white/8";
 }
 
-function getHTFLTFStatus(data: AgentRunResult): { conflict: boolean; message: string } {
-  const htf  = data.snapshot.structure.htfBias;
-  const ltf  = data.agents.trend.bias;
-  const zone = data.agents.smc.premiumDiscount;
-
-  if (htf === "bullish" && zone === "PREMIUM")
-    return { conflict: true,  message: `HTF is bullish but price is in the premium zone. Wait for a discount-zone retracement before seeking long entries.` };
-  if (htf === "bearish" && zone === "DISCOUNT")
-    return { conflict: true,  message: `HTF is bearish but price is in the discount zone. Wait for a premium-zone retracement before seeking short entries.` };
-  if (htf !== ltf && ltf !== "neutral")
-    return { conflict: true,  message: `HTF bias is ${htf} while LTF trend shows ${ltf}. Counter-trend pressure present.wait for LTF alignment with HTF before entry.` };
-  if (htf === ltf && ltf !== "neutral")
-    return { conflict: false, message: `HTF and LTF are aligned ${htf}. Price is in the ${zone.toLowerCase()} zone. Clean structure for directional setups.` };
-  return    { conflict: false, message: `HTF ${htf} bias. LTF ${ltf}. No significant structural conflict detected at this time.` };
+function biasColor(bias: string): string {
+  if (bias === "bullish" || bias === "valid")    return "text-emerald-400";
+  if (bias === "bearish" || bias === "blocked")  return "text-red-400";
+  if (bias === "no-trade" || bias === "opposing") return "text-amber-400";
+  return "text-zinc-400";
 }
-
-function composeAIAnalysis(data: AgentRunResult): string {
-  const { agents, snapshot } = data;
-  const zone  = agents.smc.premiumDiscount.toLowerCase();
-  const setupMap: Record<string, string> = { BOS: "structure break", CHoCH: "reversal", OB: "S/R zone retest", FVG: "imbalance fill", Sweep: "liquidity sweep" };
-  const setup = agents.smc.setupType !== "None" ? `${setupMap[agents.smc.setupType] ?? agents.smc.setupType} setup is present.` : "No clear price action setup present.";
-  const phase = `Market phase is ${agents.trend.marketPhase.toLowerCase()} with ${agents.trend.momentumDirection} momentum.`;
-  const bos   = agents.smc.bosDetected
-    ? "Structure break detected.directional continuation bias."
-    : agents.smc.chochDetected
-    ? "Reversal signal detected.potential directional shift developing."
-    : "";
-  const sweep = agents.smc.liquiditySweepDetected ? "Liquidity sweep detected.stop hunt at a key level." : "";
-  const macro = agents.news.dominantCatalyst ? `Macro context: ${agents.news.dominantCatalyst}.` : "";
-  const final = `Overall consensus is ${agents.master.finalBias === "no-trade" ? "inconclusive" : agents.master.finalBias} at ${agents.master.confidence}% confidence (score: ${agents.master.consensusScore > 0 ? "+" : ""}${agents.master.consensusScore.toFixed(1)}).`;
-
-  return [
-    `Price is currently trading in the ${zone} zone. ${setup}`,
-    phase,
-    bos,
-    sweep,
-    macro,
-    final,
-  ].filter(Boolean).join(" ");
-}
-
-function getSessionNote(data: AgentRunResult): string {
-  const session = data.snapshot.indicators.session;
-  const score   = data.agents.risk.sessionScore;
-  const notes: Record<string, string> = {
-    "London":   "London session is characterized by directional breakouts and liquidity grabs in the first hour.",
-    "New York": "New York session often confirms or aggressively reverses London direction. High-volume period.",
-    "Asia":     "Asian session is typically range-bound. Setups forming here often resolve at London open.",
-    "Closed":   "Off-session period. Reduced liquidity.false moves are more common. Use smaller size.",
-  };
-  const base = notes[session] ?? `Currently in the ${session} session.`;
-  const qual  = score >= 70 ? ` Session quality is high (${score}/100).favorable for execution.`
-              : score  < 40 ? ` Session quality is low (${score}/100).avoid aggressive entries.`
-              : ` Session score: ${score}/100.`;
-  return base + qual;
-}
-
-function getConvictionLabel(value: number): string {
-  if (value >= 80) return "High Conviction";
-  if (value >= 60) return "Moderate Conviction";
-  if (value >= 40) return "Low Conviction";
-  return "Very Low Conviction";
-}
-
-const AGENT_LABEL_MAP: Record<string, string> = {
-  trend:      "Trend Agent",
-  smc:        "Price Action Agent",
-  news:       "News Agent",
-  execution:  "Execution Agent",
-  contrarian: "Contrarian Agent",
-  risk:       "Risk Gate",
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Sub-components
-// ─────────────────────────────────────────────────────────────────────────────
 
 function SectionLabel({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
@@ -121,38 +52,56 @@ function SectionLabel({ icon, label }: { icon: React.ReactNode; label: string })
 function Bullet({ text, color = "text-zinc-400", dot = "bg-zinc-600" }: { text: string; color?: string; dot?: string }) {
   return (
     <div className="flex items-start gap-2">
-      <div className={cn("w-1 h-1 rounded-full mt-1.5 shrink-0", dot)} />
+      <div className={cn("w-1.5 h-1.5 rounded-full mt-1.5 shrink-0", dot)} />
       <p className={cn("text-[11px] leading-relaxed", color)}>{text}</p>
     </div>
   );
 }
 
+function Stat({ label, value, accent = false }: { label: string; value: React.ReactNode; accent?: boolean }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[9px] text-zinc-600 uppercase tracking-wider">{label}</span>
+      <span className={cn("text-[12px] font-bold", accent ? "text-white" : "text-zinc-300")}>{value}</span>
+    </div>
+  );
+}
+
+function StatRow({ children }: { children: React.ReactNode }) {
+  return <div className="grid grid-cols-3 gap-4 p-3 rounded-xl bg-white/3 border border-white/6">{children}</div>;
+}
+
+function ConfBar({ value, color = "bg-emerald-500" }: { value: number; color?: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-1.5 bg-white/6 rounded-full overflow-hidden">
+        <div className={cn("h-full rounded-full transition-all duration-700", color)} style={{ width:`${value}%` }} />
+      </div>
+      <span className="text-[10px] font-mono text-zinc-400 w-8 text-right">{value}%</span>
+    </div>
+  );
+}
+
 function ConvictionGauge({ value }: { value: number }) {
-  const r = 34;
-  const circ = 2 * Math.PI * r;
+  const r = 34; const circ = 2 * Math.PI * r;
   const dash = circ - (value / 100) * circ;
   const color = value >= 70 ? "#10b981" : value >= 40 ? "#f59e0b" : "#ef4444";
-
+  const label = value >= 80 ? "High Conviction" : value >= 60 ? "Moderate Conviction" : value >= 40 ? "Low Conviction" : "Very Low Conviction";
   return (
     <div className="flex flex-col items-center gap-1.5">
       <div className="relative w-20 h-20">
         <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
           <circle cx="40" cy="40" r={r} stroke="rgba(255,255,255,0.06)" strokeWidth="6" fill="none" />
-          <circle
-            cx="40" cy="40" r={r}
-            stroke={color} strokeWidth="6" fill="none"
-            strokeDasharray={circ}
-            strokeDashoffset={dash}
-            strokeLinecap="round"
-            style={{ transition: "stroke-dashoffset 0.7s ease" }}
-          />
+          <circle cx="40" cy="40" r={r} stroke={color} strokeWidth="6" fill="none"
+            strokeDasharray={circ} strokeDashoffset={dash} strokeLinecap="round"
+            style={{ transition: "stroke-dashoffset 0.7s ease" }} />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-lg font-black text-white leading-none">{value}</span>
           <span className="text-[9px] text-zinc-500 leading-none">%</span>
         </div>
       </div>
-      <span className="text-[10px] text-zinc-400 font-medium">{getConvictionLabel(value)}</span>
+      <span className="text-[10px] text-zinc-400 font-medium">{label}</span>
     </div>
   );
 }
@@ -163,358 +112,594 @@ function BiasIcon({ bias }: { bias: string }) {
   return <Minus className="h-3.5 w-3.5 text-zinc-500" />;
 }
 
-function biasBadge(bias: string): string {
-  if (bias === "bullish" || bias === "valid")  return "bg-emerald-500/12 text-emerald-400 border border-emerald-500/20";
-  if (bias === "bearish" || bias === "invalid") return "bg-red-500/12 text-red-400 border border-red-500/20";
-  if (bias === "no-trade") return "bg-amber-500/12 text-amber-400 border border-amber-500/20";
-  return "bg-zinc-800/60 text-zinc-400 border border-white/8";
+// ─────────────────────────────────────────────────────────────────────────────
+// Per-Agent Detail Views
+// ─────────────────────────────────────────────────────────────────────────────
+
+function TrendAgentDetail({ data }: { data: AgentRunResult }) {
+  const a = data.agents.trend;
+  const tf = a.timeframeBias;
+  const tfEntries = (["M5","M15","H1","H4"] as const).map(k => ({ tf: k, bias: tf[k] }));
+  return (
+    <div className="space-y-5">
+      <StatRow>
+        <Stat label="Market Phase" value={a.marketPhase} accent />
+        <Stat label="Momentum" value={a.momentumDirection} />
+        <Stat label="MA Align" value={a.maAlignment ? "Yes" : "No"} />
+      </StatRow>
+
+      <div>
+        <SectionLabel icon={<Layers className="h-3.5 w-3.5" />} label="Timeframe Bias" />
+        <div className="grid grid-cols-2 gap-2">
+          {tfEntries.map(({ tf: k, bias }) => (
+            <div key={k} className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/3 border border-white/5">
+              <span className="text-[10px] font-mono text-zinc-500">{k}</span>
+              <span className={cn("text-[10px] font-bold uppercase", biasColor(bias))}>{bias}</span>
+            </div>
+          ))}
+        </div>
+        <p className={cn("text-[10px] mt-2 px-1", a.timeframeBias.aligned ? "text-emerald-400" : "text-amber-400")}>
+          {a.timeframeBias.aligned ? "✓ All timeframes aligned" : "⚠ Mixed timeframe signals"}
+        </p>
+      </div>
+
+      {a.invalidationLevel && (
+        <div className="p-3 rounded-lg bg-red-500/6 border border-red-500/15">
+          <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Invalidation Level</p>
+          <p className="text-sm font-mono font-bold text-red-400">{a.invalidationLevel.toFixed(4)}</p>
+          <p className="text-[10px] text-zinc-500 mt-1">Trend bias is invalid if price closes beyond this level.</p>
+        </div>
+      )}
+
+      <div>
+        <SectionLabel icon={<Zap className="h-3.5 w-3.5" />} label="Why this decision?" />
+        <div className="space-y-2">
+          {a.reasons.map((r, i) => <Bullet key={i} text={r} dot={a.bias === "bullish" ? "bg-emerald-500/70" : "bg-red-500/70"} />)}
+        </div>
+      </div>
+    </div>
+  );
 }
+
+function SMCAgentDetail({ data }: { data: AgentRunResult }) {
+  const a = data.agents.smc;
+  const kl = a.keyLevels;
+  return (
+    <div className="space-y-5">
+      <StatRow>
+        <Stat label="Setup Type" value={a.setupType} accent />
+        <Stat label="Zone" value={a.premiumDiscount} />
+        <Stat label="Setup Present" value={a.setupPresent ? "Yes" : "No"} />
+      </StatRow>
+
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { label: "Structure Break", value: a.bosDetected, color: a.bosDetected ? "text-emerald-400" : "text-zinc-600" },
+          { label: "CHoCH", value: a.chochDetected, color: a.chochDetected ? "text-amber-400" : "text-zinc-600" },
+          { label: "Liq. Sweep", value: a.liquiditySweepDetected, color: a.liquiditySweepDetected ? "text-amber-400" : "text-zinc-600" },
+        ].map(({ label, value, color }) => (
+          <div key={label} className="flex flex-col items-center gap-1.5 p-3 rounded-lg bg-white/3 border border-white/5">
+            {value
+              ? <CheckCircle className="h-4 w-4 text-emerald-400" />
+              : <XCircle className="h-4 w-4 text-zinc-700" />}
+            <span className={cn("text-[9px] text-center", color)}>{label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <SectionLabel icon={<Target className="h-3.5 w-3.5" />} label="Key Levels" />
+        <div className="space-y-1.5">
+          {[
+            { label: "Order Block High", value: kl.orderBlockHigh },
+            { label: "Order Block Low",  value: kl.orderBlockLow },
+            { label: "FVG High",         value: kl.fvgHigh },
+            { label: "FVG Low",          value: kl.fvgLow },
+            { label: "Liquidity Target", value: kl.liquidityTarget },
+            { label: "Sweep Level",      value: kl.sweepLevel },
+          ].filter(l => l.value != null).map(({ label, value }) => (
+            <div key={label} className="flex justify-between items-center px-3 py-1.5 rounded bg-white/3">
+              <span className="text-[10px] text-zinc-500">{label}</span>
+              <span className="text-[11px] font-mono text-zinc-300">{(value as number).toFixed(4)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {a.invalidationLevel && (
+        <div className="p-3 rounded-lg bg-red-500/6 border border-red-500/15">
+          <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Invalidation Level</p>
+          <p className="text-sm font-mono font-bold text-red-400">{a.invalidationLevel.toFixed(4)}</p>
+        </div>
+      )}
+
+      <div>
+        <SectionLabel icon={<Zap className="h-3.5 w-3.5" />} label="Why this decision?" />
+        <div className="space-y-2">
+          {a.reasons.map((r, i) => <Bullet key={i} text={r} dot={a.bias === "bullish" ? "bg-emerald-500/70" : "bg-red-500/70"} />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NewsAgentDetail({ data }: { data: AgentRunResult }) {
+  const a = data.agents.news;
+  return (
+    <div className="space-y-5">
+      <StatRow>
+        <Stat label="Regime" value={a.regime} accent />
+        <Stat label="Risk Score" value={`${a.riskScore}/100`} />
+        <Stat label="Catalysts" value={`${a.catalysts.length} found`} />
+      </StatRow>
+
+      {a.dominantCatalyst && (
+        <div className="p-3 rounded-xl bg-white/3 border border-white/6">
+          <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1.5">Dominant Catalyst</p>
+          <p className="text-[12px] text-zinc-200">{a.dominantCatalyst}</p>
+        </div>
+      )}
+
+      <div>
+        <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-2">Risk Score</p>
+        <ConfBar value={a.riskScore} color={a.riskScore > 60 ? "bg-red-500" : a.riskScore > 30 ? "bg-amber-500" : "bg-emerald-500"} />
+      </div>
+
+      {a.catalysts.length > 0 && (
+        <div>
+          <SectionLabel icon={<Newspaper className="h-3.5 w-3.5" />} label="Active Catalysts" />
+          <div className="space-y-2">
+            {a.catalysts.map((c, i) => (
+              <div key={i} className="p-3 rounded-lg bg-white/3 border border-white/5">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded", biasBadge(c.direction))}>{c.impact.toUpperCase()}</span>
+                  <span className={cn("text-[9px] font-bold uppercase", biasColor(c.direction))}>{c.direction}</span>
+                </div>
+                <p className="text-[10px] text-zinc-400 leading-relaxed">{c.headline}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {a.biasChangers.length > 0 && (
+        <div>
+          <SectionLabel icon={<AlertTriangle className="h-3.5 w-3.5" />} label="Bias Changers (watch for)" />
+          <div className="space-y-1.5">
+            {a.biasChangers.map((b, i) => <Bullet key={i} text={b} dot="bg-amber-500/60" color="text-amber-400/80" />)}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <SectionLabel icon={<Zap className="h-3.5 w-3.5" />} label="Why this decision?" />
+        <div className="space-y-2">
+          {a.reasons.map((r, i) => <Bullet key={i} text={r} />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RiskAgentDetail({ data }: { data: AgentRunResult }) {
+  const a = data.agents.risk;
+  const gradeColor = { A:"text-emerald-400", B:"text-emerald-400", C:"text-amber-400", D:"text-red-400", F:"text-red-400" }[a.grade] ?? "text-zinc-400";
+  return (
+    <div className="space-y-5">
+      <div className={cn(
+        "p-4 rounded-xl border flex items-center gap-4",
+        a.valid ? "bg-emerald-500/8 border-emerald-500/20" : "bg-red-500/8 border-red-500/20"
+      )}>
+        {a.valid
+          ? <CheckCircle className="h-6 w-6 text-emerald-400 shrink-0" />
+          : <XCircle className="h-6 w-6 text-red-400 shrink-0" />}
+        <div>
+          <p className={cn("text-sm font-black", a.valid ? "text-emerald-400" : "text-red-400")}>
+            {a.valid ? "TRADE CONDITIONS MET" : "TRADE INVALID"}
+          </p>
+          <p className="text-[10px] text-zinc-500 mt-0.5">
+            {a.valid ? "Risk Gate is open. Execution conditions are acceptable." : "Risk Gate is blocked. Do not execute new positions."}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="p-3 rounded-xl bg-white/3 border border-white/6 text-center">
+          <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Grade</p>
+          <p className={cn("text-2xl font-black", gradeColor)}>{a.grade}</p>
+        </div>
+        <div className="p-3 rounded-xl bg-white/3 border border-white/6 text-center">
+          <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Max Risk</p>
+          <p className="text-2xl font-black text-white">{a.maxRiskPercent}%</p>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <div className="flex justify-between text-[10px] mb-1">
+            <span className="text-zinc-500">Session Quality</span>
+            <span className="text-zinc-400">{a.sessionScore}/100</span>
+          </div>
+          <ConfBar value={a.sessionScore} color={a.sessionScore >= 70 ? "bg-emerald-500" : a.sessionScore >= 40 ? "bg-amber-500" : "bg-red-500"} />
+        </div>
+        <div>
+          <div className="flex justify-between text-[10px] mb-1">
+            <span className="text-zinc-500">Volatility</span>
+            <span className="text-zinc-400">{a.volatilityScore}/100</span>
+          </div>
+          <ConfBar value={a.volatilityScore} color={a.volatilityScore > 70 ? "bg-red-500" : a.volatilityScore > 40 ? "bg-amber-500" : "bg-emerald-500"} />
+        </div>
+      </div>
+
+      {a.warnings.length > 0 && (
+        <div>
+          <SectionLabel icon={<AlertTriangle className="h-3.5 w-3.5" />} label="Active Warnings" />
+          <div className="space-y-2">
+            {a.warnings.map((w, i) => (
+              <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/6 border border-amber-500/15">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-amber-400/85 leading-relaxed">{w}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <SectionLabel icon={<Zap className="h-3.5 w-3.5" />} label="Why this decision?" />
+        <div className="space-y-2">
+          {a.reasons.map((r, i) => (
+            <Bullet key={i} text={r} dot={a.valid ? "bg-emerald-500/60" : "bg-red-500/60"} color={a.valid ? "text-zinc-400" : "text-zinc-400"} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExecutionAgentDetail({ data }: { data: AgentRunResult }) {
+  const a = data.agents.execution;
+  return (
+    <div className="space-y-5">
+      {!a.hasSetup ? (
+        <div className="p-4 rounded-xl bg-zinc-900 border border-white/8 text-center">
+          <p className="text-zinc-500 text-sm">No actionable setup found at this time.</p>
+          <p className="text-[10px] text-zinc-600 mt-1">{a.triggerCondition || "Wait for structure to develop."}</p>
+        </div>
+      ) : (
+        <>
+          <div className={cn(
+            "p-3 rounded-xl border text-center",
+            a.direction === "long" ? "bg-emerald-500/8 border-emerald-500/20" : "bg-red-500/8 border-red-500/20"
+          )}>
+            <p className={cn("text-base font-black tracking-widest uppercase", a.direction === "long" ? "text-emerald-400" : "text-red-400")}>
+              {a.direction === "long" ? "↑ LONG SETUP" : "↓ SHORT SETUP"}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: "Entry",    value: a.entry?.toFixed(4)    ?? "—" },
+              { label: "Stop Loss",value: a.stopLoss?.toFixed(4) ?? "—" },
+              { label: "TP1",      value: a.tp1?.toFixed(4)      ?? "—" },
+              { label: "TP2",      value: a.tp2?.toFixed(4)      ?? "—" },
+            ].map(({ label, value }) => (
+              <div key={label} className="p-3 rounded-lg bg-white/3 border border-white/5">
+                <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">{label}</p>
+                <p className="text-[13px] font-mono font-bold text-white">{value}</p>
+              </div>
+            ))}
+          </div>
+
+          {a.rrRatio && (
+            <div className="p-3 rounded-xl bg-violet-500/8 border border-violet-500/20 text-center">
+              <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Risk / Reward</p>
+              <p className="text-xl font-black text-violet-400">{a.rrRatio}:1</p>
+            </div>
+          )}
+        </>
+      )}
+
+      <div>
+        <SectionLabel icon={<Clock className="h-3.5 w-3.5" />} label="Trigger Condition" />
+        <div className="p-3 rounded-lg bg-white/3 border border-white/5">
+          <p className="text-[11px] text-zinc-300 leading-relaxed">{a.triggerCondition || "No specific trigger identified."}</p>
+        </div>
+      </div>
+
+      {a.managementNotes.length > 0 && (
+        <div>
+          <SectionLabel icon={<Zap className="h-3.5 w-3.5" />} label="Trade Management" />
+          <div className="space-y-1.5">
+            {a.managementNotes.map((n, i) => <Bullet key={i} text={n} dot="bg-violet-500/60" />)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ContrarianAgentDetail({ data }: { data: AgentRunResult }) {
+  const a = data.agents.contrarian;
+  return (
+    <div className="space-y-5">
+      <div className={cn(
+        "p-4 rounded-xl border",
+        a.challengesBias ? "bg-amber-500/8 border-amber-500/20" : "bg-white/3 border-white/6"
+      )}>
+        <p className={cn("text-sm font-black", a.challengesBias ? "text-amber-400" : "text-zinc-400")}>
+          {a.challengesBias ? "⚠ CHALLENGING THE CONSENSUS" : "✓ NOT CHALLENGING CONSENSUS"}
+        </p>
+        <p className="text-[10px] text-zinc-500 mt-1">
+          {a.challengesBias
+            ? "The contrarian agent has identified signals that contradict the majority bias."
+            : "No significant contrarian signals detected. Majority bias is unchallenged."}
+        </p>
+      </div>
+
+      <StatRow>
+        <Stat label="Trap Type" value={a.trapType ?? "None"} accent />
+        <Stat label="Risk Factor" value={`${a.riskFactor}%`} />
+        <Stat label="Trap Confidence" value={`${a.trapConfidence}%`} />
+      </StatRow>
+
+      {a.oppositeLiquidity && (
+        <div className="p-3 rounded-lg bg-white/3 border border-white/5">
+          <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Opposite Liquidity Level</p>
+          <p className="text-sm font-mono font-bold text-amber-400">{a.oppositeLiquidity.toFixed(4)}</p>
+          <p className="text-[10px] text-zinc-500 mt-1">Price may be drawn to sweep this level before continuing.</p>
+        </div>
+      )}
+
+      <div>
+        <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-2">Trap Confidence</p>
+        <ConfBar value={a.trapConfidence} color={a.trapConfidence > 60 ? "bg-amber-500" : "bg-zinc-600"} />
+      </div>
+
+      <div>
+        <SectionLabel icon={<FlipHorizontal2 className="h-3.5 w-3.5" />} label="Why is it challenging?" />
+        <div className="space-y-2">
+          {a.failureReasons.length > 0
+            ? a.failureReasons.map((r, i) => <Bullet key={i} text={r} dot="bg-amber-500/60" color="text-amber-400/80" />)
+            : <p className="text-[11px] text-zinc-600">No specific failure reasons identified.</p>
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MasterAgentDetail({ data }: { data: AgentRunResult }) {
+  const a = data.agents.master;
+  const AGENT_LABEL_MAP: Record<string, string> = {
+    trend:"Trend", smc:"Price Action", news:"News",
+    execution:"Execution", contrarian:"Contrarian", risk:"Risk Gate",
+  };
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-5 p-4 rounded-xl bg-white/3 border border-white/6">
+        <ConvictionGauge value={a.confidence} />
+        <div className="flex-1 space-y-2">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] text-zinc-500">Consensus Score</span>
+            <span className={cn("text-[11px] font-mono font-bold", a.consensusScore > 0 ? "text-emerald-400" : a.consensusScore < 0 ? "text-red-400" : "text-zinc-400")}>
+              {a.consensusScore > 0 ? "+" : ""}{a.consensusScore.toFixed(1)}
+            </span>
+          </div>
+          <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+            <div className={cn("h-full rounded-full transition-all duration-700", a.consensusScore > 0 ? "bg-emerald-500" : "bg-red-500")}
+              style={{ width:`${Math.min(100,Math.abs(a.consensusScore))}%` }} />
+          </div>
+          {a.strategyMatch && (
+            <div className="flex items-center gap-1.5">
+              <Zap className="h-3 w-3 text-amber-400 shrink-0" />
+              <span className="text-[10px] text-amber-400">{a.strategyMatch}</span>
+            </div>
+          )}
+          {a.noTradeReason && <p className="text-[10px] text-amber-400/70">{a.noTradeReason}</p>}
+        </div>
+      </div>
+
+      <div>
+        <SectionLabel icon={<Layers className="h-3.5 w-3.5" />} label="Agent Votes" />
+        <div className="space-y-2">
+          {a.agentConsensus.map(item => {
+            const isBull = item.weightedScore > 0;
+            const isNeg  = item.weightedScore < 0;
+            return (
+              <div key={item.agentId} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/2 border border-white/5">
+                <div className="w-24 text-[10px] text-zinc-500 font-medium shrink-0">
+                  {AGENT_LABEL_MAP[item.agentId] ?? item.agentId}
+                </div>
+                <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                  <div className={cn("h-full rounded-full", item.agentId === "contrarian" ? "bg-orange-500" : isBull ? "bg-emerald-500" : isNeg ? "bg-red-500" : "bg-zinc-600")}
+                    style={{ width:`${Math.min(100, Math.abs(item.weightedScore)*3)}%` }} />
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={cn("text-[10px] font-mono", isBull ? "text-emerald-400" : isNeg ? "text-red-400" : "text-zinc-500")}>
+                    {item.weightedScore > 0 ? "+" : ""}{item.weightedScore.toFixed(1)}
+                  </span>
+                  <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-bold", biasBadge(item.bias))}>
+                    {item.bias.toUpperCase()}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {a.supports.length > 0 && (
+        <div>
+          <SectionLabel icon={<Zap className="h-3.5 w-3.5" />} label="Supporting Factors" />
+          <div className="space-y-2">
+            {a.supports.map((s, i) => <Bullet key={i} text={s} dot="bg-emerald-500/60" />)}
+          </div>
+        </div>
+      )}
+
+      {a.invalidations.length > 0 && (
+        <div>
+          <SectionLabel icon={<AlertTriangle className="h-3.5 w-3.5" />} label="Invalidation Scenarios" />
+          <div className="space-y-2">
+            {a.invalidations.map((inv, i) => <Bullet key={i} text={inv} dot="bg-red-500/60" />)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Agent config map
+// ─────────────────────────────────────────────────────────────────────────────
+
+const AGENT_CONFIG: Record<string, {
+  label: string;
+  icon: React.ReactNode;
+  getBias: (d: AgentRunResult) => string;
+  getConf: (d: AgentRunResult) => number;
+  View: (props: { data: AgentRunResult }) => React.ReactElement;
+}> = {
+  trend: {
+    label: "Trend Agent",
+    icon: <TrendingUp className="h-4 w-4" />,
+    getBias: d => d.agents.trend.bias,
+    getConf: d => d.agents.trend.confidence,
+    View: TrendAgentDetail,
+  },
+  smc: {
+    label: "Price Action Agent",
+    icon: <Activity className="h-4 w-4" />,
+    getBias: d => d.agents.smc.bias,
+    getConf: d => d.agents.smc.confidence,
+    View: SMCAgentDetail,
+  },
+  news: {
+    label: "News Agent",
+    icon: <Newspaper className="h-4 w-4" />,
+    getBias: d => d.agents.news.impact,
+    getConf: d => d.agents.news.confidence,
+    View: NewsAgentDetail,
+  },
+  risk: {
+    label: "Risk Gate",
+    icon: <Shield className="h-4 w-4" />,
+    getBias: d => d.agents.risk.valid ? "valid" : "blocked",
+    getConf: d => d.agents.risk.sessionScore,
+    View: RiskAgentDetail,
+  },
+  execution: {
+    label: "Execution Agent",
+    icon: <Target className="h-4 w-4" />,
+    getBias: d => d.agents.execution.hasSetup ? (d.agents.execution.direction === "long" ? "bullish" : "bearish") : "neutral",
+    getConf: d => d.agents.execution.hasSetup ? 75 : 30,
+    View: ExecutionAgentDetail,
+  },
+  contrarian: {
+    label: "Contrarian Agent",
+    icon: <FlipHorizontal2 className="h-4 w-4" />,
+    getBias: d => d.agents.contrarian.challengesBias ? "opposing" : "neutral",
+    getConf: d => d.agents.contrarian.trapConfidence,
+    View: ContrarianAgentDetail,
+  },
+  master: {
+    label: "Master Consensus",
+    icon: <Brain className="h-4 w-4" />,
+    getBias: d => d.agents.master.finalBias,
+    getConf: d => d.agents.master.confidence,
+    View: MasterAgentDetail,
+  },
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Drawer
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function BrainOverviewDrawer({ open, onClose, data, highlightAgentId }: BrainOverviewDrawerProps) {
-  const [factorsExpanded, setFactorsExpanded] = useState(false);
+  // Which agent is being viewed: start with the clicked one, allow switching
+  const [activeAgent, setActiveAgent] = useState<string>(highlightAgentId ?? "master");
 
-  // Escape key
-  const handleKey = useCallback((e: KeyboardEvent) => {
-    if (e.key === "Escape") onClose();
-  }, [onClose]);
+  // Sync when opened from a different card
+  useEffect(() => {
+    if (open) setActiveAgent(highlightAgentId ?? "master");
+  }, [open, highlightAgentId]);
 
+  const handleKey = useCallback((e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }, [onClose]);
   useEffect(() => {
     if (open) document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
   }, [open, handleKey]);
 
-  // Derive all display data
-  const { agents, snapshot, symbolDisplay } = data;
-  const finalBias   = agents.master.finalBias;
-  const riskValid   = agents.risk.valid;
-  const action      = getPreferredAction(finalBias, riskValid);
-  const htfLtf      = getHTFLTFStatus(data);
-  const aiAnalysis  = composeAIAnalysis(data);
-  const sessionNote = getSessionNote(data);
-  const confidence  = agents.master.confidence;
+  const { symbolDisplay, agents } = data;
+  const cfg = AGENT_CONFIG[activeAgent] ?? AGENT_CONFIG.master;
+  const bias = cfg.getBias(data);
+  const conf = cfg.getConf(data);
 
-  const htfBias = snapshot.structure.htfBias;
-  const ltfBias = agents.trend.bias;
+  // Quick-switch tab list (all 7 agents)
+  const tabs = Object.entries(AGENT_CONFIG).map(([id, c]) => ({ id, label: id === "master" ? "MASTER" : id.toUpperCase(), icon: c.icon }));
 
   return (
     <>
       {/* Backdrop */}
       <div
-        className={cn(
-          "fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm transition-opacity duration-300",
-          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        )}
+        className={cn("fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm transition-opacity duration-300",
+          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none")}
         onClick={onClose}
       />
 
-      {/* Drawer panel */}
-      <div
-        className={cn(
-          "fixed top-0 right-0 h-full z-[75] flex flex-col",
-          "w-full sm:w-[520px]",
-          "bg-[#0a0a0a] border-l border-white/8",
-          "transition-transform duration-300 ease-out",
-          open ? "translate-x-0" : "translate-x-full"
-        )}
-      >
-        {/* ── Header ────────────────────────────────────────────────────── */}
+      {/* Drawer */}
+      <div className={cn(
+        "fixed top-0 right-0 h-full z-[75] flex flex-col w-full sm:w-[540px]",
+        "bg-[#09090b] border-l border-white/8",
+        "transition-transform duration-300 ease-out",
+        open ? "translate-x-0" : "translate-x-full"
+      )}>
+        {/* ── Header ──────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/6 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-violet-500/15 border border-violet-500/20 flex items-center justify-center">
-              <Brain className="h-4 w-4 text-violet-400" />
+            <div className="w-8 h-8 rounded-lg bg-violet-500/15 border border-violet-500/20 flex items-center justify-center text-violet-400">
+              {cfg.icon}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-white">{symbolDisplay}</span>
-                <span className={cn(
-                  "text-[10px] font-bold px-2 py-0.5 rounded",
-                  biasBadge(finalBias)
-                )}>
-                  {finalBias === "no-trade" ? "NO TRADE" : finalBias.toUpperCase()}
+                <span className="text-sm font-bold text-white">{symbolDisplay} — {cfg.label}</span>
+                <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded", biasBadge(bias))}>
+                  {bias.toUpperCase()}
                 </span>
+                <span className="text-[10px] text-zinc-600 font-mono">{conf}%</span>
               </div>
-              <p className="text-[10px] text-zinc-600 mt-0.5">Multi-Agent Intelligence Breakdown</p>
+              <p className="text-[10px] text-zinc-600 mt-0.5">Click an agent tab to see its specific reasoning</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-zinc-600 hover:text-white hover:bg-white/8 transition-all"
-          >
+          <button onClick={onClose} className="rounded-lg p-1.5 text-zinc-600 hover:text-white hover:bg-white/8 transition-all">
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* ── Scrollable body ───────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
-
-          {/* 1. Preferred Action */}
-          <div className={cn(
-            "rounded-xl border p-4",
-            action.bg, action.border
-          )}>
-            <div className="text-[9px] text-zinc-600 uppercase tracking-widest mb-1.5">Preferred Action</div>
-            <div className={cn("text-base font-black tracking-tight", action.color)}>{action.text}</div>
-            <p className="text-[11px] text-zinc-500 mt-1">{action.sub}</p>
-          </div>
-
-          {/* 2. Market Phase */}
-          <div>
-            <SectionLabel icon={<Activity className="h-3.5 w-3.5" />} label="Market Phase" />
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-white/3 border border-white/6">
-              <div className="w-2 h-2 rounded-full bg-violet-400 shrink-0" />
-              <div>
-                <div className="text-sm font-bold text-white">{agents.trend.marketPhase}</div>
-                <p className="text-[10px] text-zinc-500 mt-0.5">
-                  Momentum: <span className="text-zinc-300">{agents.trend.momentumDirection}</span>
-                  {" · "}MA Alignment: <span className={agents.trend.maAlignment ? "text-emerald-400" : "text-zinc-500"}>{agents.trend.maAlignment ? "Yes" : "No"}</span>
-                  {" · "}Timeframes: <span className={agents.trend.timeframeBias.aligned ? "text-emerald-400" : "text-amber-400"}>{agents.trend.timeframeBias.aligned ? "All aligned" : "Mixed"}</span>
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* 3. Execution Guidance */}
-          <div>
-            <SectionLabel icon={<Target className="h-3.5 w-3.5" />} label="Execution Guidance" />
-            <div className="space-y-2">
-              {[
-                { icon: <Clock className="h-3 w-3 text-zinc-500" />, label: "Wait for", value: agents.execution.triggerCondition || "No setup.wait for structure to develop" },
-                { icon: <Zap className="h-3 w-3 text-emerald-500/60" />, label: "Entry confirms", value: agents.execution.managementNotes[0] || agents.execution.entryZone || "Confirmation pending" },
-                { icon: <AlertTriangle className="h-3 w-3 text-red-500/60" />, label: "Invalidated by", value: agents.master.invalidations[0] || `Price close above/below ${agents.trend.invalidationLevel ?? "key structure level"}` },
-              ].map(({ icon, label, value }) => (
-                <div key={label} className="flex items-start gap-3 p-3 rounded-lg bg-white/3 border border-white/5">
-                  <div className="mt-0.5 shrink-0">{icon}</div>
-                  <div className="min-w-0">
-                    <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-0.5">{label}</div>
-                    <p className="text-[11px] text-zinc-300 leading-relaxed">{value}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 4. HTF vs LTF Conflict */}
-          <div>
-            <SectionLabel icon={<Layers className="h-3.5 w-3.5" />} label="HTF / LTF Structure" />
-            <div className={cn(
-              "rounded-xl border p-4",
-              htfLtf.conflict
-                ? "bg-amber-500/6 border-amber-500/20"
-                : "bg-white/3 border-white/6"
-            )}>
-              <div className="flex items-center gap-4 mb-3">
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-[9px] text-zinc-600 uppercase tracking-wider">HTF Bias</span>
-                  <div className="flex items-center gap-1.5">
-                    <BiasIcon bias={htfBias} />
-                    <span className={cn(
-                      "text-[11px] font-bold uppercase",
-                      htfBias === "bullish" ? "text-emerald-400" : htfBias === "bearish" ? "text-red-400" : "text-zinc-400"
-                    )}>{htfBias}</span>
-                  </div>
-                </div>
-                <ArrowRight className="h-3.5 w-3.5 text-zinc-700 shrink-0" />
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-[9px] text-zinc-600 uppercase tracking-wider">LTF Trend</span>
-                  <div className="flex items-center gap-1.5">
-                    <BiasIcon bias={ltfBias} />
-                    <span className={cn(
-                      "text-[11px] font-bold uppercase",
-                      ltfBias === "bullish" ? "text-emerald-400" : ltfBias === "bearish" ? "text-red-400" : "text-zinc-400"
-                    )}>{ltfBias}</span>
-                  </div>
-                </div>
-                <ArrowRight className="h-3.5 w-3.5 text-zinc-700 shrink-0" />
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-[9px] text-zinc-600 uppercase tracking-wider">Price Zone</span>
-                  <span className={cn(
-                    "text-[11px] font-bold",
-                    agents.smc.premiumDiscount === "PREMIUM" ? "text-red-400" :
-                    agents.smc.premiumDiscount === "DISCOUNT" ? "text-emerald-400" :
-                    "text-zinc-400"
-                  )}>{agents.smc.premiumDiscount}</span>
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                {htfLtf.conflict
-                  ? <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
-                  : <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0 mt-1" />
-                }
-                <p className={cn(
-                  "text-[11px] leading-relaxed",
-                  htfLtf.conflict ? "text-amber-400/80" : "text-zinc-400"
-                )}>{htfLtf.message}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* 5. Conviction Score */}
-          <div>
-            <SectionLabel icon={<Brain className="h-3.5 w-3.5" />} label="Conviction Score" />
-            <div className="flex items-center gap-5 p-4 rounded-xl bg-white/3 border border-white/6">
-              <ConvictionGauge value={confidence} />
-              <div className="flex-1 space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] text-zinc-500">Consensus score</span>
-                  <span className={cn(
-                    "text-[11px] font-mono font-bold",
-                    agents.master.consensusScore > 0 ? "text-emerald-400" : agents.master.consensusScore < 0 ? "text-red-400" : "text-zinc-400"
-                  )}>
-                    {agents.master.consensusScore > 0 ? "+" : ""}{agents.master.consensusScore.toFixed(1)}
-                  </span>
-                </div>
-                <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                  <div
-                    className={cn(
-                      "h-full rounded-full transition-all duration-700",
-                      agents.master.consensusScore > 0 ? "bg-emerald-500" : "bg-red-500"
-                    )}
-                    style={{ width: `${Math.min(100, Math.abs(agents.master.consensusScore))}%` }}
-                  />
-                </div>
-                {agents.master.strategyMatch && (
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <Zap className="h-3 w-3 text-amber-400 shrink-0" />
-                    <span className="text-[10px] text-amber-400">{agents.master.strategyMatch}</span>
-                  </div>
-                )}
-                {agents.master.noTradeReason && (
-                  <p className="text-[10px] text-amber-400/70 mt-1">{agents.master.noTradeReason}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* 6. AI Analysis */}
-          <div>
-            <SectionLabel icon={<Brain className="h-3.5 w-3.5" />} label="AI Analysis" />
-            <div className="rounded-xl bg-white/3 border border-white/6 p-4">
-              <p className="text-[12px] text-zinc-300 leading-relaxed">{aiAnalysis}</p>
-            </div>
-          </div>
-
-          {/* 7. Supporting Factors */}
-          {agents.master.supports.length > 0 && (
-            <div>
-              <SectionLabel icon={<Zap className="h-3.5 w-3.5" />} label="Supporting Factors" />
-              <div className="space-y-2">
-                {agents.master.supports.map((s, i) => (
-                  <Bullet key={i} text={s} dot="bg-emerald-500/60" color="text-zinc-400" />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 8. Bias Invalidation */}
-          {agents.master.invalidations.length > 0 && (
-            <div>
-              <SectionLabel icon={<AlertTriangle className="h-3.5 w-3.5" />} label="Bias Invalidation" />
-              <div className="space-y-2">
-                {agents.master.invalidations.map((inv, i) => (
-                  <Bullet key={i} text={inv} dot="bg-red-500/60" color="text-zinc-400" />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 9. Session Note */}
-          <div>
-            <SectionLabel icon={<Clock className="h-3.5 w-3.5" />} label="Session Note" />
-            <div className="rounded-xl bg-white/3 border border-white/6 p-4 flex items-start gap-3">
-              <div className="shrink-0 mt-0.5">
-                <div className="h-2 w-2 rounded-full bg-emerald-400/60 pulse-live" />
-              </div>
-              <div>
-                <div className="text-[10px] font-semibold text-zinc-400 mb-1 uppercase tracking-wider">
-                  {snapshot.indicators.session} Session
-                </div>
-                <p className="text-[11px] text-zinc-500 leading-relaxed">{sessionNote}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* 10. Factor Breakdown (collapsible) */}
-          <div>
+        {/* ── Agent Tab Strip ──────────────────────────────────────────── */}
+        <div className="flex gap-1 px-3 pt-2 pb-1 border-b border-white/5 shrink-0 overflow-x-auto scrollbar-none">
+          {tabs.map(t => (
             <button
-              onClick={() => setFactorsExpanded(e => !e)}
-              className="w-full flex items-center justify-between mb-3 group"
+              key={t.id}
+              onClick={() => setActiveAgent(t.id)}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wide transition-all whitespace-nowrap",
+                activeAgent === t.id
+                  ? "bg-white/10 text-white"
+                  : "text-zinc-600 hover:text-zinc-300 hover:bg-white/5"
+              )}
             >
-              <div className="flex items-center gap-2">
-                <Layers className="h-3.5 w-3.5 text-zinc-600" />
-                <span className="text-[10px] text-zinc-500 group-hover:text-zinc-400 uppercase tracking-widest font-semibold transition-colors">
-                  Agent Factor Breakdown
-                </span>
-                <div className="flex-1 h-px bg-white/5" />
-              </div>
-              <div className="flex items-center gap-1 ml-2 shrink-0">
-                <span className="text-[10px] text-zinc-600">{factorsExpanded ? "Collapse" : "Expand"}</span>
-                {factorsExpanded
-                  ? <ChevronUp className="h-3 w-3 text-zinc-600" />
-                  : <ChevronDown className="h-3 w-3 text-zinc-600" />
-                }
-              </div>
+              <span className="w-3 h-3 flex items-center justify-center">{t.icon}</span>
+              {t.label}
             </button>
+          ))}
+        </div>
 
-            {factorsExpanded && (
-              <div className="space-y-2">
-                {agents.master.agentConsensus.map(item => {
-                  const isHighlighted = item.agentId === highlightAgentId;
-                  const isBull = item.weightedScore > 0;
-                  const isNeg  = item.weightedScore < 0;
-                  const abs    = Math.abs(item.weightedScore);
-
-                  return (
-                    <div
-                      key={item.agentId}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all",
-                        isHighlighted
-                          ? "bg-violet-500/8 border-violet-500/20"
-                          : "bg-white/2 border-white/5"
-                      )}
-                    >
-                      <div className="w-20 text-[10px] text-zinc-500 font-medium shrink-0">
-                        {AGENT_LABEL_MAP[item.agentId] ?? item.agentId}
-                      </div>
-                      <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                        <div
-                          className={cn(
-                            "h-full rounded-full transition-all",
-                            item.agentId === "contrarian" ? "bg-orange-500"
-                            : isBull ? "bg-emerald-500"
-                            : isNeg  ? "bg-red-500"
-                            : "bg-zinc-600"
-                          )}
-                          style={{ width: `${Math.min(100, abs * 3)}%` }}
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className={cn(
-                          "text-[10px] font-mono",
-                          isBull ? "text-emerald-400" : isNeg ? "text-red-400" : "text-zinc-500"
-                        )}>
-                          {item.weightedScore > 0 ? "+" : ""}{item.weightedScore.toFixed(1)}
-                        </span>
-                        <span className={cn(
-                          "text-[9px] px-1.5 py-0.5 rounded font-bold",
-                          biasBadge(item.bias)
-                        )}>
-                          {item.bias.toUpperCase()}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Bottom spacer */}
-          <div className="h-4" />
+        {/* ── Scrollable Agent Detail ──────────────────────────────────── */}
+        <div className="flex-1 overflow-y-auto px-5 py-5">
+          <cfg.View data={data} />
+          <div className="h-8" />
         </div>
       </div>
     </>
