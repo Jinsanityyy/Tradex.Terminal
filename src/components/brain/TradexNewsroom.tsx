@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import type { AgentRunResult } from "@/lib/agents/schemas";
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
@@ -298,6 +298,18 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
   const blink  = useBlink(900);
   const blink2 = useBlink(1300);
   const now    = useClock();
+  const [flashNew, setFlashNew] = useState(false);
+  const prevTs = useRef<string|undefined>(undefined);
+
+  // Flash "NEW" banner whenever timestamp changes (fresh API result)
+  useEffect(() => {
+    if (data?.timestamp && data.timestamp !== prevTs.current) {
+      prevTs.current = data.timestamp;
+      setFlashNew(true);
+      const t = setTimeout(() => setFlashNew(false), 3500);
+      return () => clearTimeout(t);
+    }
+  }, [data?.timestamp]);
 
   const W=900, H=520;
   const WALL_H = 265;
@@ -310,6 +322,11 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
   const hasData = !!data && !loading;
   const AGENTS  = hasData ? getLiveAgents(data!) : DEFAULTS;
   const masterAgent = AGENTS[1];
+
+  // Last-updated display
+  const lastUpdated = data?.timestamp
+    ? new Date(data.timestamp).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false})
+    : null;
   const masterColor = GLOW[masterAgent.state];
 
   // ── Station layouts ────────────────────────────────────────────────────────
@@ -728,6 +745,89 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
       }}>
         ◆ TRADEX INTELLIGENCE OPERATIONS ◆
       </div>
+
+      {/* ── MASTER DECISION HUD (bottom-center, always visible) ─────────────── */}
+      <div style={{
+        position:"absolute", bottom:28, left:"50%", transform:"translateX(-50%)",
+        pointerEvents:"none", zIndex:20,
+        display:"flex", alignItems:"center", gap:8,
+      }}>
+        {/* Master decision badge */}
+        <div style={{
+          fontFamily:"monospace", fontWeight:"bold", fontSize:11,
+          letterSpacing:3, textTransform:"uppercase",
+          color: hasData ? masterColor : "#4a5568",
+          background: hasData ? `${masterColor}18` : "#111",
+          border: `1px solid ${hasData ? masterColor : "#333"}66`,
+          padding:"3px 10px", borderRadius:3,
+          textShadow: hasData ? `0 0 12px ${masterColor}` : "none",
+          transition:"all 0.4s",
+        }}>
+          {loading ? "RUNNING..." : hasData ? `⬤ ${masterAgent.role}` : "○ NO DATA"}
+        </div>
+        {/* Confidence */}
+        {hasData && (
+          <div style={{
+            fontFamily:"monospace", fontSize:9, color: masterColor,
+            opacity:0.75, letterSpacing:2,
+          }}>
+            {masterAgent.confidence}% CONF
+          </div>
+        )}
+        {/* Last updated */}
+        {lastUpdated && (
+          <div style={{
+            fontFamily:"monospace", fontSize:8, color:"#4a5568",
+            letterSpacing:1,
+          }}>
+            @ {lastUpdated}
+          </div>
+        )}
+      </div>
+
+      {/* ── "DATA UPDATED" FLASH BANNER ─────────────────────────────────────── */}
+      {flashNew && (
+        <div style={{
+          position:"absolute", top:16, left:"50%", transform:"translateX(-50%)",
+          pointerEvents:"none", zIndex:30,
+          fontFamily:"monospace", fontWeight:"bold", fontSize:10,
+          letterSpacing:4, color:"#10b981",
+          background:"rgba(16,185,129,0.12)",
+          border:"1px solid #10b98166",
+          padding:"4px 16px", borderRadius:3,
+          textShadow:"0 0 14px #10b981",
+          animation:"nr_fadein 0.3s ease",
+        }}>
+          ✓ ANALYSIS COMPLETE — DATA UPDATED
+        </div>
+      )}
+
+      {/* ── LOADING OVERLAY ─────────────────────────────────────────────────── */}
+      {loading && (
+        <div style={{
+          position:"absolute", inset:0, zIndex:25, pointerEvents:"none",
+          background:"rgba(4,6,14,0.55)",
+          display:"flex", flexDirection:"column",
+          alignItems:"center", justifyContent:"center", gap:8,
+        }}>
+          <div style={{
+            fontFamily:"monospace", fontWeight:"bold", fontSize:13,
+            color:"#22d3ee", letterSpacing:4, textShadow:"0 0 18px #22d3ee",
+          }}>
+            ◈ RUNNING AGENTS
+          </div>
+          <div style={{
+            fontFamily:"monospace", fontSize:9, color:"#22d3ee",
+            opacity:0.6, letterSpacing:2,
+          }}>
+            ANALYZING MARKET DATA...
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes nr_fadein { from { opacity:0; transform:translateX(-50%) translateY(-6px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+      `}</style>
     </div>
   );
 }
