@@ -17,28 +17,71 @@ function useClock() {
 
 // ── Agent Data ────────────────────────────────────────────────────────────────
 type AgentState = "bullish"|"bearish"|"alert"|"valid"|"blocked"|"armed"|"no-trade"|"idle";
-interface Agent { id:string; label:string; role:string; state:AgentState; hair:string; skin:string; suit:string; accent:string; }
+interface Agent {
+  id:string; label:string; role:string; state:AgentState;
+  hair:string; skin:string; suit:string; accent:string;
+  confidence:number;
+}
 
-const AGENTS: Agent[] = [
-  { id:"trend",       label:"TREND",      role:"BULLISH",  state:"bullish",  hair:"#fbbf24",skin:"#f0a070",suit:"#0e3060",accent:"#10b981" },
-  { id:"master",      label:"MASTER",     role:"NO TRADE", state:"no-trade", hair:"#e2e8f0",skin:"#e8c898",suit:"#080e20",accent:"#22d3ee" },
-  { id:"risk",        label:"RISK GATE",  role:"VALID",    state:"valid",    hair:"#34d399",skin:"#c07858",suit:"#040e0a",accent:"#10b981" },
-  { id:"smc",         label:"PR.ACTION",  role:"ALERT",    state:"alert",    hair:"#a78bfa",skin:"#d09060",suit:"#1e0e48",accent:"#f59e0b" },
-  { id:"news",        label:"NEWS",       role:"MONITOR",  state:"idle",     hair:"#60a5fa",skin:"#9b7050",suit:"#061428",accent:"#3b82f6" },
-  { id:"contrarian",  label:"CONTRARIAN", role:"MONITOR",  state:"idle",     hair:"#f87171",skin:"#e0a870",suit:"#180806",accent:"#f97316" },
-  { id:"execution",   label:"EXECUTION",  role:"STANDBY",  state:"armed",    hair:"#22d3ee",skin:"#c89060",suit:"#07101c",accent:"#22d3ee" },
+const DEFAULTS: Agent[] = [
+  { id:"trend",      label:"TREND",      role:"—",       state:"idle",     confidence:0, hair:"#fbbf24",skin:"#f0a070",suit:"#0e3060",accent:"#10b981" },
+  { id:"master",     label:"MASTER",     role:"—",       state:"idle",     confidence:0, hair:"#e2e8f0",skin:"#e8c898",suit:"#080e20",accent:"#22d3ee" },
+  { id:"risk",       label:"RISK GATE",  role:"—",       state:"idle",     confidence:0, hair:"#34d399",skin:"#c07858",suit:"#040e0a",accent:"#10b981" },
+  { id:"smc",        label:"PR.ACTION",  role:"—",       state:"idle",     confidence:0, hair:"#a78bfa",skin:"#d09060",suit:"#1e0e48",accent:"#f59e0b" },
+  { id:"news",       label:"NEWS",       role:"—",       state:"idle",     confidence:0, hair:"#60a5fa",skin:"#9b7050",suit:"#061428",accent:"#3b82f6" },
+  { id:"contrarian", label:"CONTRARIAN", role:"—",       state:"idle",     confidence:0, hair:"#f87171",skin:"#e0a870",suit:"#180806",accent:"#f97316" },
+  { id:"execution",  label:"EXECUTION",  role:"—",       state:"idle",     confidence:0, hair:"#22d3ee",skin:"#c89060",suit:"#07101c",accent:"#22d3ee" },
 ];
 
-const GLOW: Record<AgentState,string> = {
-  bullish:"#10b981", bearish:"#ef4444", alert:"#f59e0b",
-  valid:"#10b981",   blocked:"#ef4444", armed:"#22d3ee",
-  "no-trade":"#818cf8", idle:"#6366f1",
-};
-const SCBG: Record<AgentState,string> = {
-  bullish:"#021208", bearish:"#1a0303", alert:"#1a0d00",
-  valid:"#021208",   blocked:"#1a0303", armed:"#021420",
-  "no-trade":"#080820", idle:"#08091a",
-};
+function biasToState(bias: string): AgentState {
+  if (bias === "bullish") return "bullish";
+  if (bias === "bearish") return "bearish";
+  if (bias === "no-trade") return "no-trade";
+  return "idle";
+}
+
+function getLiveAgents(data: AgentRunResult): Agent[] {
+  const { agents } = data;
+  return [
+    { ...DEFAULTS[0],
+      role: agents.trend.bias.toUpperCase(),
+      state: biasToState(agents.trend.bias),
+      confidence: agents.trend.confidence,
+    },
+    { ...DEFAULTS[1],
+      role: agents.master.finalBias.replace("-"," ").toUpperCase(),
+      state: agents.master.finalBias === "no-trade" ? "no-trade" : biasToState(agents.master.finalBias),
+      confidence: agents.master.confidence,
+    },
+    { ...DEFAULTS[2],
+      role: agents.risk.valid ? `GRADE ${agents.risk.grade}` : "BLOCKED",
+      state: agents.risk.valid ? "valid" : "blocked",
+      confidence: agents.risk.sessionScore,
+    },
+    { ...DEFAULTS[3],
+      role: agents.smc.bias.toUpperCase(),
+      state: agents.smc.bias === "neutral" ? "alert" : biasToState(agents.smc.bias),
+      confidence: agents.smc.confidence,
+    },
+    { ...DEFAULTS[4],
+      role: agents.news.impact.toUpperCase(),
+      state: biasToState(agents.news.impact),
+      confidence: agents.news.confidence,
+    },
+    { ...DEFAULTS[5],
+      role: agents.contrarian.challengesBias ? "OPPOSING" : "NEUTRAL",
+      state: agents.contrarian.challengesBias ? "alert" : "idle",
+      confidence: agents.contrarian.trapConfidence,
+    },
+    { ...DEFAULTS[6],
+      role: agents.execution.hasSetup
+        ? (agents.execution.direction === "long" ? "LONG" : "SHORT")
+        : "STANDBY",
+      state: agents.execution.hasSetup ? "armed" : "idle",
+      confidence: agents.execution.hasSetup ? 75 : 30,
+    },
+  ];
+}
 
 // ── Pixel Character Sprite (pure SVG g element) ───────────────────────────────
 function PixelChar({ a, x, y, s = 1 }: { a:Agent; x:number; y:number; s?:number }) {
@@ -134,15 +177,27 @@ function DeskBox({ x, y, w, h, skewX = 14, skewY = 8 }: {
   );
 }
 
+const GLOW: Record<AgentState,string> = {
+  bullish:"#10b981", bearish:"#ef4444", alert:"#f59e0b",
+  valid:"#10b981",   blocked:"#ef4444", armed:"#22d3ee",
+  "no-trade":"#818cf8", idle:"#4a5568",
+};
+const SCBG: Record<AgentState,string> = {
+  bullish:"#021208", bearish:"#1a0303", alert:"#1a0d00",
+  valid:"#021208",   blocked:"#1a0303", armed:"#021420",
+  "no-trade":"#080820", idle:"#0a0a0a",
+};
+
 // ── Monitor on Desk ───────────────────────────────────────────────────────────
-function DeskMonitor({ agent, cx, deskTopY, blink }: {
-  agent:Agent; cx:number; deskTopY:number; blink:boolean;
+function DeskMonitor({ agent, cx, deskTopY, blink, hasData }: {
+  agent:Agent; cx:number; deskTopY:number; blink:boolean; hasData:boolean;
 }) {
   const g = GLOW[agent.state];
   const sb = SCBG[agent.state];
-  const mw = 46; const mh = 34;
+  const mw = 46; const mh = 36;
   const mx = cx - mw/2;
-  const my = deskTopY - 8 - mh; // sits on desk top surface
+  const my = deskTopY - 8 - mh;
+  const confW = Math.round((mw-8) * (agent.confidence / 100));
 
   return (
     <g>
@@ -150,20 +205,26 @@ function DeskMonitor({ agent, cx, deskTopY, blink }: {
       <rect x={mx-2} y={my-2} width={mw+4} height={mh+4} rx={2} fill="#0d0d0d" stroke="#222" strokeWidth={1}/>
       {/* Screen */}
       <rect x={mx} y={my} width={mw} height={mh} fill={sb}/>
-      {/* Screen content */}
-      <text x={cx} y={my+10} textAnchor="middle" fill={g} fontSize={5} fontFamily="monospace" fontWeight="bold">{agent.label}</text>
-      <text x={cx} y={my+18} textAnchor="middle" fill={g} fontSize={4} fontFamily="monospace" opacity={0.8}>{agent.role}</text>
-      {/* Data bars */}
-      <rect x={mx+4} y={my+22} width={mw-8} height={2} fill={g} opacity={0.15}/>
-      <rect x={mx+4} y={my+22} width={(mw-8)*0.7} height={2} fill={g} opacity={0.55}/>
-      <rect x={mx+4} y={my+26} width={mw-8} height={2} fill={g} opacity={0.1}/>
-      <rect x={mx+4} y={my+26} width={(mw-8)*0.45} height={2} fill={g} opacity={0.4}/>
-      {/* Cursor blink */}
-      {blink && <rect x={mx+4} y={my+30} width={4} height={2} fill={g} opacity={0.9}/>}
+      {/* Agent label */}
+      <text x={cx} y={my+9} textAnchor="middle" fill={g} fontSize={5} fontFamily="monospace" fontWeight="bold">{agent.label}</text>
+      {/* Role / status */}
+      <text x={cx} y={my+17} textAnchor="middle" fill={g} fontSize={4} fontFamily="monospace" opacity={hasData?0.95:0.4}>
+        {hasData ? agent.role : "AWAITING"}
+      </text>
+      {/* Confidence bar */}
+      <rect x={mx+4} y={my+21} width={mw-8} height={3} fill="#111"/>
+      <rect x={mx+4} y={my+21} width={hasData ? confW : 0} height={3} fill={g} opacity={0.8}/>
+      {/* Confidence % */}
+      <text x={mx+mw-5} y={my+29} textAnchor="end" fill={g} fontSize={3.5} fontFamily="monospace" opacity={hasData?0.8:0.3}>
+        {hasData ? `${agent.confidence}%` : "—"}
+      </text>
+      {/* Scrolling data line */}
+      <rect x={mx+4} y={my+30} width={mw-8} height={1.5} fill={g} opacity={0.12}/>
+      {blink && hasData && <rect x={mx+4} y={my+33} width={4} height={1.5} fill={g} opacity={0.8}/>}
       {/* Screen ambient glow */}
-      <rect x={mx} y={my} width={mw} height={mh} fill={g} opacity={0.04}/>
-      {/* Status LED */}
-      <rect x={mx+mw-6} y={my-5} width={4} height={4} rx={1} fill={blink ? g : "#111"}/>
+      <rect x={mx} y={my} width={mw} height={mh} fill={g} opacity={hasData?0.05:0.01}/>
+      {/* Status LED — blinks green when live */}
+      <rect x={mx+mw-6} y={my-5} width={4} height={4} rx={1} fill={hasData && blink ? g : "#111"}/>
       {/* Monitor stand */}
       <rect x={cx-2} y={my+mh+4} width={4} height={8} fill="#181818"/>
       <rect x={cx-9} y={my+mh+12} width={18} height={3} rx={1} fill="#1a1a1a"/>
@@ -239,14 +300,19 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
   const now    = useClock();
 
   const W=900, H=520;
-  const WALL_H = 265; // wall/floor boundary
+  const WALL_H = 265;
 
   const hrs = now.getHours().toString().padStart(2,"0");
   const min = now.getMinutes().toString().padStart(2,"0");
   const sec = now.getSeconds().toString().padStart(2,"0");
 
+  // ── Live agent states (from API data or idle defaults) ────────────────────
+  const hasData = !!data && !loading;
+  const AGENTS  = hasData ? getLiveAgents(data!) : DEFAULTS;
+  const masterAgent = AGENTS[1];
+  const masterColor = GLOW[masterAgent.state];
+
   // ── Station layouts ────────────────────────────────────────────────────────
-  // Back row: 3 desks, smaller (further away)
   const BR_DESK_W=165, BR_DESK_H=58, BR_DESK_TOPRAW=242, BR_SKEWX=12, BR_SKEWY=9;
   const backRow = [
     { agent:AGENTS[0], dx:45,  charScale:0.88 },
@@ -254,7 +320,6 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
     { agent:AGENTS[2], dx:625, charScale:0.88 },
   ];
 
-  // Front row: 4 desks, bigger (closer)
   const FR_DESK_W=185, FR_DESK_H=78, FR_DESK_TOPRAW=368, FR_SKEWX=14, FR_SKEWY=10;
   const frontRow = [
     { agent:AGENTS[3], dx:8   },
@@ -388,25 +453,30 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
           const col=i%4; const row=Math.floor(i/4);
           const mx=180+col*122+4; const my=74+row*52;
           const gl=GLOW[ag.state];
+          const confW = hasData ? Math.round(96*(ag.confidence/100)) : 0;
           return (
             <g key={ag.id}>
               <rect x={mx} y={my} width={114} height={44} rx={2} fill="#030810"
-                stroke={gl} strokeWidth={0.6} opacity={0.92}/>
-              <rect x={mx} y={my} width={114} height={11} fill={gl} opacity={0.07}/>
+                stroke={gl} strokeWidth={hasData?0.8:0.3} opacity={0.92}/>
+              <rect x={mx} y={my} width={114} height={11} fill={gl} opacity={hasData?0.08:0.02}/>
               <text x={mx+6} y={my+9} fill={gl} fontSize={5.5} fontFamily="monospace" fontWeight="bold">{ag.label}</text>
-              <text x={mx+6} y={my+20} fill={gl} fontSize={4} fontFamily="monospace" opacity={0.75}>{ag.role}</text>
-              {/* Progress bar */}
-              <rect x={mx+6} y={my+26} width={96} height={3} fill="#0a1020"/>
-              <rect x={mx+6} y={my+26}
-                width={96*(ag.state==="bullish"||ag.state==="valid"||ag.state==="armed"?0.82:ag.state==="alert"?0.65:0.45)}
-                height={3} fill={gl} opacity={0.75}/>
-              {/* Status text */}
-              <text x={mx+6} y={my+37} fill={gl} fontSize={3.8} fontFamily="monospace" opacity={0.55}>
-                {ag.state.toUpperCase().slice(0,12)}
+              <text x={mx+6} y={my+20} fill={gl} fontSize={4} fontFamily="monospace" opacity={hasData?0.85:0.35}>
+                {hasData ? ag.role : "AWAITING DATA"}
               </text>
-              {/* Blink dot */}
+              {/* Confidence bar */}
+              <rect x={mx+6} y={my+26} width={96} height={3} fill="#0a1020"/>
+              <rect x={mx+6} y={my+26} width={confW} height={3} fill={gl} opacity={0.8}/>
+              {/* Confidence % */}
+              <text x={mx+102} y={my+29} textAnchor="end" fill={gl} fontSize={3.5} fontFamily="monospace" opacity={hasData?0.7:0.2}>
+                {hasData ? `${ag.confidence}%` : "—"}
+              </text>
+              {/* State label */}
+              <text x={mx+6} y={my+38} fill={gl} fontSize={3.8} fontFamily="monospace" opacity={hasData?0.55:0.2}>
+                {hasData ? ag.state.toUpperCase() : "IDLE"}
+              </text>
+              {/* Blink dot — solid when live */}
               <rect x={mx+104} y={my+5} width={6} height={6} rx={1}
-                fill={blink ? gl : "#111"} opacity={blink?0.9:0.3}/>
+                fill={hasData && blink ? gl : "#111"} opacity={hasData&&blink?0.9:0.2}/>
             </g>
           );
         })}
@@ -418,18 +488,24 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
           {`SYS: ONLINE │ AGENTS: 7/7 │ TIME: ${hrs}:${min}:${sec} UTC │ BUILD: v4.2.1`}
         </text>
         <text x={180} y={201} fill="#22d3ee" fontSize={4.5} fontFamily="monospace" opacity={0.55}>
-          TRADEX INTELLIGENCE ENGINE ACTIVE │ MULTI-AGENT CONSENSUS PIPELINE RUNNING
+          {hasData
+            ? `MASTER: ${masterAgent.role} │ CONFIDENCE: ${masterAgent.confidence}% │ STATUS: LIVE`
+            : "TRADEX INTELLIGENCE ENGINE ACTIVE │ CLICK REFRESH TO RUN AGENTS"}
         </text>
-        <text x={180} y={210} fill="#818cf8" fontSize={4} fontFamily="monospace" opacity={0.45}>
-          {blink ? "▶" : "▷"} MARKET ANALYSIS IN PROGRESS │ NEXT CYCLE: AUTO
+        <text x={180} y={210} fill={hasData ? masterColor : "#818cf8"} fontSize={4} fontFamily="monospace" opacity={0.55}>
+          {hasData
+            ? `RISK: ${data!.agents.risk.valid ? `GRADE ${data!.agents.risk.grade} ✓` : "BLOCKED ✗"} │ EXEC: ${data!.agents.execution.hasSetup ? `SETUP FOUND — ${data!.agents.execution.direction?.toUpperCase()}` : "NO SETUP"}`
+            : `${blink ? "▶" : "▷"} AWAITING ANALYSIS │ HIT REFRESH IN BRAIN TERMINAL`}
         </text>
-        {/* Bottom monitor scrolling ticker */}
+        {/* Bottom ticker */}
         <rect x={170} y={213} width={500} height={22} fill="#030608"/>
         <line x1={175} y1={214} x2={665} y2={214} stroke="#10b981" strokeWidth={0.5} opacity={0.3}/>
-        <text x={180} y={224} fill="#10b981" fontSize={5} fontFamily="monospace" opacity={0.7}>
-          XAU/USD │ EUR/USD │ BTC/USD │ GBP/USD │ CONSENSUS: ACTIVE │ RISK: OK │ PIPELINE: GO
+        <text x={180} y={224} fill={hasData ? masterColor : "#4a5568"} fontSize={5} fontFamily="monospace" opacity={0.75}>
+          {hasData
+            ? `${data!.agents.trend.bias.toUpperCase()} TREND │ SMC: ${data!.agents.smc.bias.toUpperCase()} │ NEWS: ${data!.agents.news.impact.toUpperCase()} │ FINAL: ${masterAgent.role}`
+            : "── NO DATA ── CLICK REFRESH ──"}
         </text>
-        <rect x={655} y={215} width={12} height={18} rx={1} fill={blink?"#10b981":"#021208"} opacity={0.6}/>
+        <rect x={655} y={215} width={12} height={18} rx={1} fill={hasData&&blink ? masterColor : "#111"} opacity={0.6}/>
 
         {/* ── RIGHT PANEL: CLOCK + STATUS ───────────────────────────── */}
         {/* Panel frame */}
@@ -443,11 +519,23 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
         <text x={731} y={118} textAnchor="middle" fill="#22d3ee" fontSize={6}
           fontFamily="monospace" opacity={0.65}>{`${hrs}:${min}`}</text>
 
-        {/* Status panels */}
+        {/* Status panels — wired to live data */}
         {(["PIPELINE","CONSENSUS","RISK GATE","EXEC MODE"] as const).map((lbl,i)=>{
-          const vals=[0.85,0.60,1.00,0.40];
+          const liveVals = hasData ? [
+            1.0,
+            data!.agents.master.confidence / 100,
+            data!.agents.risk.valid ? data!.agents.risk.sessionScore / 100 : 0.05,
+            data!.agents.execution.hasSetup ? 0.9 : 0.25,
+          ] : [0,0,0,0];
+          const liveStrs = hasData ? [
+            "ACTIVE",
+            `${data!.agents.master.confidence}%`,
+            data!.agents.risk.valid ? `OK (${data!.agents.risk.grade})` : "BLOCKED",
+            data!.agents.execution.hasSetup ? data!.agents.execution.direction?.toUpperCase() ?? "ARMED" : "STANDBY",
+          ] : ["—","—","—","—"];
+          const vals = hasData ? liveVals : [0,0,0,0];
           const cols=["#10b981","#818cf8","#10b981","#22d3ee"];
-          const strs=["ACTIVE","READY","OK","STANDBY"];
+          const strs = hasData ? liveStrs : ["—","—","—","—"];
           return (
             <g key={lbl}>
               <rect x={784} y={26+i*52} width={90} height={46} rx={1}
@@ -537,11 +625,17 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
               {/* Desk surface props */}
               <DeskProps x={deskX} y={deskTopY} w={dw} skewY={sY}/>
               {/* Monitor on desk */}
-              <DeskMonitor agent={agent} cx={monCX} deskTopY={deskTopY} blink={blink}/>
-              {/* Agent name label */}
-              <text x={charX} y={deskTopY+dh+14} textAnchor="middle"
+              <DeskMonitor agent={agent} cx={monCX} deskTopY={deskTopY} blink={blink} hasData={hasData}/>
+              {/* Agent name + confidence label */}
+              <text x={charX} y={deskTopY+dh+10} textAnchor="middle"
                 fill={GLOW[agent.state]} fontSize={5.5} fontFamily="monospace"
-                fontWeight="bold" opacity={0.75}>{agent.label}</text>
+                fontWeight="bold" opacity={0.8}>{agent.label}</text>
+              {hasData && (
+                <text x={charX} y={deskTopY+dh+18} textAnchor="middle"
+                  fill={GLOW[agent.state]} fontSize={4} fontFamily="monospace" opacity={0.55}>
+                  {agent.role}
+                </text>
+              )}
             </g>
           );
         })}
@@ -563,10 +657,16 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
               <PixelChar a={agent} x={charX} y={charY} s={1.12}/>
               <DeskBox x={deskX} y={deskTopY} w={dw} h={dh} skewX={sk} skewY={sY}/>
               <DeskProps x={deskX} y={deskTopY} w={dw} skewY={sY}/>
-              <DeskMonitor agent={agent} cx={monCX} deskTopY={deskTopY} blink={blink}/>
-              <text x={charX} y={deskTopY+dh+14} textAnchor="middle"
+              <DeskMonitor agent={agent} cx={monCX} deskTopY={deskTopY} blink={blink} hasData={hasData}/>
+              <text x={charX} y={deskTopY+dh+10} textAnchor="middle"
                 fill={GLOW[agent.state]} fontSize={5.5} fontFamily="monospace"
-                fontWeight="bold" opacity={0.75}>{agent.label}</text>
+                fontWeight="bold" opacity={0.8}>{agent.label}</text>
+              {hasData && (
+                <text x={charX} y={deskTopY+dh+18} textAnchor="middle"
+                  fill={GLOW[agent.state]} fontSize={4} fontFamily="monospace" opacity={0.55}>
+                  {agent.role}
+                </text>
+              )}
             </g>
           );
         })}
@@ -598,10 +698,13 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
         <rect x={0} y={H-22} width={W} height={1} fill="#22d3ee" opacity={0.1}/>
         <text x={10} y={H-7} fill="#22d3ee" fontSize={6} fontFamily="monospace"
           fontWeight="bold" opacity={0.75} letterSpacing={2}>TRADEX SECURE BROADCAST</text>
-        <text x={W/2} y={H-7} textAnchor="middle" fill="#10b981" fontSize={6}
-          fontFamily="monospace" opacity={0.7}>{`${hrs}:${min}:${sec} UTC`}</text>
-        <text x={W-10} y={H-7} textAnchor="end" fill="#818cf8" fontSize={6}
-          fontFamily="monospace" opacity={0.7}>{blink ? "● LIVE" : "○ LIVE"}</text>
+        <text x={W/2} y={H-7} textAnchor="middle"
+          fill={loading ? "#f59e0b" : hasData ? "#10b981" : "#4a5568"}
+          fontSize={6} fontFamily="monospace" opacity={0.9}>
+          {loading ? (blink ? "● RUNNING AGENTS..." : "○ RUNNING AGENTS...") : hasData ? `● LIVE — ${masterAgent.role} (${masterAgent.confidence}%)` : "○ AWAITING — HIT REFRESH"}
+        </text>
+        <text x={W-10} y={H-7} textAnchor="end" fill="#4a5568" fontSize={6}
+          fontFamily="monospace" opacity={0.6}>{`${hrs}:${min}:${sec}`}</text>
       </svg>
 
       {/* ── CSS CRT Scanlines ───────────────────────────────────────────────── */}
