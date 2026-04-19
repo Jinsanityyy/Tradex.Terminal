@@ -145,6 +145,7 @@ export default function PricingPage() {
 
   useEffect(() => {
     const supabase = createClient();
+    if (!supabase) return;
     supabase.auth.getUser().then(({ data }) => {
       setUserId(data.user?.id ?? null);
     });

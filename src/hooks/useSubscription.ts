@@ -39,6 +39,7 @@ export function useSubscription() {
     async function load() {
       try {
         const supabase = createClient();
+        if (!supabase) { setLoading(false); return; }
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) { setLoading(false); return; }
 

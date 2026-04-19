@@ -29,6 +29,12 @@ export function MobileLayout() {
 
   useEffect(() => {
     const supabase = createClient();
+    if (!supabase) {
+      // Guest mode — allow access without auth. Dashboard features will
+      // show empty/disabled states as needed.
+      setReady(true);
+      return;
+    }
     supabase.auth.getSession().then(({ data }) => {
       if (!data.session) {
         window.location.href = "/login";

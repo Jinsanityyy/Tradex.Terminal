@@ -117,6 +117,7 @@ function MFASection() {
   async function checkMFA() {
     setStatus("loading");
     const supabase = createClient();
+    if (!supabase) { setStatus("disabled"); return; }
     const { data } = await supabase.auth.mfa.listFactors();
     const totp = data?.totp?.find((f) => f.status === "verified");
     if (totp) { setStatus("enabled"); setFactorId(totp.id); }
@@ -128,6 +129,7 @@ function MFASection() {
     setStep("enrolling"); setLoading(true);
     try {
       const supabase = createClient();
+      if (!supabase) throw new Error("Authentication is not configured.");
       const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp" });
       if (error) throw error;
       setQrCode(data.totp.qr_code);
@@ -145,6 +147,7 @@ function MFASection() {
     setError(""); setLoading(true);
     try {
       const supabase = createClient();
+      if (!supabase) throw new Error("Authentication is not configured.");
       const { data: c } = await supabase.auth.mfa.challenge({ factorId: enrollFactorId });
       const { error } = await supabase.auth.mfa.verify({ factorId: enrollFactorId, challengeId: c!.id, code });
       if (error) throw error;
@@ -160,6 +163,7 @@ function MFASection() {
     setError(""); setLoading(true);
     try {
       const supabase = createClient();
+      if (!supabase) throw new Error("Authentication is not configured.");
       const { error } = await supabase.auth.mfa.unenroll({ factorId });
       if (error) throw error;
       setFactorId(null); setStep("idle");

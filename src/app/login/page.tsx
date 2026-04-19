@@ -46,6 +46,11 @@ export default function LoginPage() {
     setSuccess("");
     setLoading(true);
     const supabase = createClient();
+    if (!supabase) {
+      setError("Authentication is not configured. Please contact support.");
+      setLoading(false);
+      return;
+    }
     try {
       if (mode === "mfa") {
         const { data: factors } = await supabase.auth.mfa.listFactors();

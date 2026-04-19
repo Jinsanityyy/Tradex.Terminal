@@ -67,6 +67,7 @@ function UserMenu() {
 
   useEffect(() => {
     const supabase = createClient();
+    if (!supabase) return;
     supabase.auth.getUser().then(({ data }) => {
       setEmail(data.user?.email ?? null);
     });
@@ -86,7 +87,7 @@ function UserMenu() {
 
   async function handleLogout() {
     const supabase = createClient();
-    await supabase.auth.signOut();
+    if (supabase) await supabase.auth.signOut();
     window.location.href = "/login";
   }
 

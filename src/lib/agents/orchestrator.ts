@@ -15,6 +15,7 @@ import { runRiskAgent }      from "./risk-agent";
 import { runExecutionAgent } from "./execution-agent";
 import { runContrarianAgent } from "./contrarian-agent";
 import { runMasterAgent }    from "./master-agent";
+import { logSignal }         from "@/lib/signals/logger";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cache (server-side, per symbol+timeframe)
@@ -188,6 +189,13 @@ export async function runAgentOrchestrator(
 
   // ── Cache result ─────────────────────────────────────────────────────────
   cache.set(key, { result, ts: Date.now() });
+
+  // ── Log signal to history (fire-and-forget — never blocks the response) ──
+  // The logger is idempotent (dedupes by minute+symbol+TF) so cache-hits or
+  // rapid re-runs within the same minute will not create duplicate records.
+  void logSignal(result).catch(err =>
+    console.warn("[orchestrator] signal log failed:", err)
+  );
 
   return result;
 }

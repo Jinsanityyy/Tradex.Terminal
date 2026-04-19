@@ -19,6 +19,7 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     // Supabase puts the session tokens in the URL hash after redirect
     const supabase = createClient();
+    if (!supabase) return;
     supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         setReady(true);
@@ -42,6 +43,7 @@ export default function ResetPasswordPage() {
     setLoading(true);
     try {
       const supabase = createClient();
+      if (!supabase) throw new Error("Authentication is not configured.");
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
       setDone(true);

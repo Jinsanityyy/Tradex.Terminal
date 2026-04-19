@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase/client";
 async function getAuthHeaders(): Promise<Record<string, string>> {
   try {
     const supabase = createClient();
+    if (!supabase) return {};
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.access_token) {
       return { "Authorization": `Bearer ${session.access_token}` };

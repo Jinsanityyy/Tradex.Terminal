@@ -74,10 +74,11 @@ export function FloatingChat() {
 
   // Auth + name
   useEffect(() => {
+    if (!supabase) return;
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
     const saved = localStorage.getItem(TRADER_NAME_KEY);
     if (saved) setTraderName(saved);
-  }, []);
+  }, [supabase]);
 
   // Notification permission
   useEffect(() => {
@@ -88,19 +89,22 @@ export function FloatingChat() {
 
   // Load online members count
   useEffect(() => {
+    if (!supabase) return;
     supabase.from("profiles").select("id, display_name, email")
       .then(({ data }) => { if (data) setMembers(data as Member[]); });
-  }, []);
+  }, [supabase]);
 
   // Load group messages (no recipient_id = group)
   useEffect(() => {
+    if (!supabase) return;
     supabase.from("messages").select("*").is("recipient_id", null)
       .order("created_at", { ascending: true }).limit(100)
       .then(({ data }) => { if (data) setMessages(data as Message[]); });
-  }, []);
+  }, [supabase]);
 
   // Real-time group messages only
   useEffect(() => {
+    if (!supabase) return;
     if (!userId) return;
 
     const channel = supabase.channel("group_chat", { config: { broadcast: { self: false } } })
@@ -140,6 +144,7 @@ export function FloatingChat() {
   useEffect(() => { if (open) setUnread(0); }, [open]);
 
   function broadcastTyping() {
+    if (!supabase) return;
     if (!userId) return;
     supabase.channel("group_chat").send({
       type: "broadcast", event: "typing",
@@ -155,7 +160,7 @@ export function FloatingChat() {
 
   async function sendMessage() {
     const text = input.trim();
-    if (!text || !userId || sending) return;
+    if (!text || !userId || !supabase || sending) return;
     setSending(true);
     setInput("");
 
