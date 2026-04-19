@@ -172,24 +172,28 @@ export function matchStrategy(
   const bias = smc.bias;
 
   if (liquiditySweepDetected && bosDetected) {
+    if (bias === "neutral") return undefined;
     return bias === "bullish"
       ? "Sweep & Reverse — Long (Lows swept, bullish structure break confirmed)"
       : "Sweep & Reverse — Short (Highs swept, bearish structure break confirmed)";
   }
 
   if (setupType === "OB" && bosDetected) {
+    if (bias === "neutral") return undefined;
     return bias === "bullish"
       ? "S/R Retest + Break — Long (Support zone retest after upside structure break)"
       : "S/R Retest + Break — Short (Resistance zone retest after downside structure break)";
   }
 
   if (setupType === "FVG") {
+    if (bias === "neutral") return undefined;
     return bias === "bullish"
       ? "Imbalance Fill — Long (Price returning to fill gap below, bullish continuation)"
       : "Imbalance Fill — Short (Price returning to fill gap above, bearish continuation)";
   }
 
   if (chochDetected) {
+    if (bias === "neutral") return undefined;
     return bias === "bullish"
       ? "Reversal Re-entry — Long (Bearish-to-bullish flip, pullback entry on retest)"
       : "Reversal Re-entry — Short (Bullish-to-bearish flip, rally-sell on retest)";
