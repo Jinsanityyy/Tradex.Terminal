@@ -277,7 +277,7 @@ export default function SignalsPage() {
             By symbol
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {Object.entries(stats.bySymbol).map(([sym, v]) => (
+            {(Object.entries(stats.bySymbol) as Array<[string, { total: number; wins: number; losses: number; hitRate: number }]>).map(([sym, v]) => (
               <div key={sym} className="text-xs">
                 <div className="text-zinc-400 font-mono">{sym}</div>
                 <div className="text-white font-bold mt-0.5">

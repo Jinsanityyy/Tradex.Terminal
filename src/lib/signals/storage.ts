@@ -1,69 +1,163 @@
 /**
- * TradeX Signal History — Storage Layer
+ * TradeX Signal History — Storage Layer (Supabase)
  *
- * Swappable abstraction. Currently uses JSON file.
- * To switch to Vercel Blob / Supabase / Redis later, only this file changes.
+ * Reads and writes signal records to the Supabase `signals` table.
+ * The table schema (see migrations) extends the user's existing `signals` table
+ * by adding columns for the richer AgentRunResult context.
  *
- * WARNING: JSON file storage does NOT work on Vercel production (read-only filesystem).
- * For production deploy, migrate this module to Vercel Blob or Supabase.
+ * This layer is swappable: if we ever want to migrate off Supabase, only this
+ * file needs to change — logger.ts, tracker.ts, stats.ts, and the API routes
+ * all depend on this abstraction.
  */
 
-import { promises as fs } from "fs";
-import path from "path";
-import type { SignalRecord } from "./types";
+import { getServiceClient } from "@/lib/supabase/service";
+import type { SignalRecord, SignalOutcome, SignalStatus, SignalTradePlan } from "./types";
+import type { Symbol, Timeframe, FinalBias } from "@/lib/agents/schemas";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Config
+// Table row shape (database)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const DATA_DIR = path.join(process.cwd(), ".signals-data");
-const SIGNALS_FILE = path.join(DATA_DIR, "signals.json");
-const LOCK_TIMEOUT_MS = 5000;
+interface SignalRow {
+  id: string;                    // PRIMARY KEY — stable deterministic id
+  timestamp: string;              // ISO
+  symbol: string;
+  symbol_display: string | null;
+  timeframe: string | null;
 
-// In-memory lock to prevent concurrent writes within the same Node process
-let writeLock: Promise<void> = Promise.resolve();
+  // Legacy columns from the user's existing schema (kept for compatibility)
+  action: string | null;          // bullish / bearish / no-trade (mirrors final_bias)
+  price: number | null;           // mirrors price_at_signal
+  is_armed: boolean | null;
+  entry_price: number | null;
+  take_profit: number | null;
+  stop_loss: number | null;
+  strategy: string | null;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Internal helpers
-// ─────────────────────────────────────────────────────────────────────────────
+  // Extended columns we add via migration
+  final_bias: string | null;
+  confidence: number | null;
+  consensus_score: number | null;
+  strategy_match: string | null;
+  no_trade_reason: string | null;
+  price_at_signal: number | null;
+  take_profit_2: number | null;
+  rr_ratio: number | null;
+  direction: string | null;
 
-async function ensureDir(): Promise<void> {
-  try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-  } catch {
-    // directory exists or can't create (production)
-  }
+  status: string;
+  resolved_at: string | null;
+  price_at_resolution: number | null;
+  pnl_r: number | null;
+  pnl_percent: number | null;
+
+  supports: string[] | null;
+  invalidations: string[] | null;
+  agents_snapshot: SignalRecord["agents"] | null;
+
+  created_at: string;
 }
 
-async function readAll(): Promise<SignalRecord[]> {
-  try {
-    await ensureDir();
-    const raw = await fs.readFile(SIGNALS_FILE, "utf-8");
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (err) {
-    // file doesn't exist yet or is corrupt — start fresh
-    return [];
-  }
+// ─────────────────────────────────────────────────────────────────────────────
+// Mappers — DB row ⇄ domain record
+// ─────────────────────────────────────────────────────────────────────────────
+
+function recordToRow(r: SignalRecord): Omit<SignalRow, "created_at"> {
+  const plan = r.tradePlan;
+  return {
+    id: r.id,
+    timestamp: r.timestamp,
+    symbol: r.symbol,
+    symbol_display: r.symbolDisplay,
+    timeframe: r.timeframe,
+
+    // Legacy mirrors for backwards compatibility with any existing queries
+    action: r.finalBias,
+    price: r.priceAtSignal,
+    is_armed: plan !== null,
+    entry_price: plan?.entry ?? null,
+    take_profit: plan?.tp1 ?? null,
+    stop_loss: plan?.stopLoss ?? null,
+    strategy: r.strategyMatch,
+
+    // Extended fields
+    final_bias: r.finalBias,
+    confidence: r.confidence,
+    consensus_score: r.consensusScore,
+    strategy_match: r.strategyMatch,
+    no_trade_reason: r.noTradeReason,
+    price_at_signal: r.priceAtSignal,
+    take_profit_2: plan?.tp2 ?? null,
+    rr_ratio: plan?.rrRatio ?? null,
+    direction: plan?.direction ?? null,
+
+    status: r.status,
+    resolved_at: r.outcome?.resolvedAt ?? null,
+    price_at_resolution: r.outcome?.priceAtResolution ?? null,
+    pnl_r: r.outcome?.pnlR ?? null,
+    pnl_percent: r.outcome?.pnlPercent ?? null,
+
+    supports: r.supports ?? [],
+    invalidations: r.invalidations ?? [],
+    agents_snapshot: r.agents,
+  };
 }
 
-async function writeAll(records: SignalRecord[]): Promise<void> {
-  // Serialize writes via a chained promise to prevent race conditions
-  const unlock = writeLock;
-  let release: () => void;
-  writeLock = new Promise<void>(r => { release = r; });
+function rowToRecord(row: SignalRow): SignalRecord {
+  // Reconstruct trade plan from flat columns if armed
+  const isArmed = row.is_armed && row.entry_price !== null && row.stop_loss !== null && row.take_profit !== null;
+  const tradePlan: SignalTradePlan | null = isArmed
+    ? {
+        direction: (row.direction === "short" ? "short" : "long"),
+        entry: row.entry_price!,
+        stopLoss: row.stop_loss!,
+        tp1: row.take_profit!,
+        tp2: row.take_profit_2,
+        rrRatio: row.rr_ratio ?? 0,
+      }
+    : null;
 
-  try {
-    await unlock;
-    await ensureDir();
-    await fs.writeFile(
-      SIGNALS_FILE,
-      JSON.stringify(records, null, 2),
-      "utf-8"
-    );
-  } finally {
-    release!();
-  }
+  const outcome: SignalOutcome | null = row.resolved_at
+    ? {
+        resolvedAt: row.resolved_at,
+        priceAtResolution: row.price_at_resolution ?? 0,
+        pnlPercent: row.pnl_percent ?? 0,
+        pnlR: row.pnl_r ?? 0,
+      }
+    : null;
+
+  return {
+    id: row.id,
+    timestamp: row.timestamp,
+    symbol: row.symbol as Symbol,
+    symbolDisplay: row.symbol_display ?? row.symbol,
+    timeframe: (row.timeframe ?? "H1") as Timeframe,
+
+    finalBias: (row.final_bias ?? row.action ?? "no-trade") as FinalBias,
+    confidence: row.confidence ?? 0,
+    consensusScore: row.consensus_score ?? 0,
+    strategyMatch: row.strategy_match ?? row.strategy,
+    noTradeReason: row.no_trade_reason,
+
+    priceAtSignal: row.price_at_signal ?? row.price ?? 0,
+
+    tradePlan,
+
+    status: row.status as SignalStatus,
+    outcome,
+
+    supports: row.supports ?? [],
+    invalidations: row.invalidations ?? [],
+
+    agents: row.agents_snapshot ?? {
+      trend:      { bias: "neutral", confidence: 0 },
+      smc:        { bias: "neutral", confidence: 0, setupType: "None" },
+      news:       { impact: "neutral", confidence: 0, regime: "neutral" },
+      risk:       { valid: false, grade: "F" },
+      execution:  { hasSetup: false, direction: "none" },
+      contrarian: { challengesBias: false, riskFactor: 0 },
+    },
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -72,119 +166,96 @@ async function writeAll(records: SignalRecord[]): Promise<void> {
 
 /**
  * Append a new signal record.
- * Returns the saved record.
+ * Idempotent via upsert on id — running the same signal twice is a no-op.
  */
-export async function saveSignal(record: SignalRecord): Promise<SignalRecord> {
-  const records = await readAll();
-
-  // Deduplication: skip if ID already exists
-  if (records.some(r => r.id === record.id)) {
-    return record;
+export async function saveSignal(record: SignalRecord): Promise<SignalRecord | null> {
+  const db = getServiceClient();
+  if (!db) {
+    console.warn("[signals/storage] Supabase service client unavailable — signal not saved");
+    return null;
   }
 
-  records.push(record);
-  await writeAll(records);
+  const row = recordToRow(record);
+  const { error } = await db.from("signals").upsert(row, { onConflict: "id", ignoreDuplicates: true });
+  if (error) {
+    console.warn("[signals/storage] upsert failed:", error.message);
+    return null;
+  }
   return record;
 }
 
 /**
- * Get all signals, optionally filtered.
+ * List signals with optional filters.
  */
 export async function getSignals(opts?: {
   symbol?: string;
   status?: string;
-  sinceTimestamp?: string;  // ISO
+  sinceTimestamp?: string;
   limit?: number;
 }): Promise<SignalRecord[]> {
-  const all = await readAll();
-  let filtered = all;
+  const db = getServiceClient();
+  if (!db) return [];
 
-  if (opts?.symbol) {
-    filtered = filtered.filter(r => r.symbol === opts.symbol);
-  }
-  if (opts?.status) {
-    filtered = filtered.filter(r => r.status === opts.status);
-  }
-  if (opts?.sinceTimestamp) {
-    const since = new Date(opts.sinceTimestamp).getTime();
-    filtered = filtered.filter(r => new Date(r.timestamp).getTime() >= since);
-  }
+  let q = db.from("signals").select("*").order("timestamp", { ascending: false });
+  if (opts?.symbol) q = q.eq("symbol", opts.symbol);
+  if (opts?.status) q = q.eq("status", opts.status);
+  if (opts?.sinceTimestamp) q = q.gte("timestamp", opts.sinceTimestamp);
+  if (opts?.limit) q = q.limit(opts.limit);
 
-  // Most recent first
-  filtered.sort((a, b) =>
-    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
-
-  if (opts?.limit) {
-    filtered = filtered.slice(0, opts.limit);
+  const { data, error } = await q;
+  if (error) {
+    console.warn("[signals/storage] select failed:", error.message);
+    return [];
   }
-
-  return filtered;
+  return (data as SignalRow[]).map(rowToRecord);
 }
 
-/**
- * Find a signal by ID.
- */
 export async function getSignalById(id: string): Promise<SignalRecord | null> {
-  const all = await readAll();
-  return all.find(r => r.id === id) ?? null;
+  const db = getServiceClient();
+  if (!db) return null;
+  const { data, error } = await db.from("signals").select("*").eq("id", id).maybeSingle();
+  if (error || !data) return null;
+  return rowToRecord(data as SignalRow);
 }
 
 /**
  * Update a signal (used by outcome tracker).
- * Only the fields provided in `patch` are replaced.
  */
-export async function updateSignal(
-  id: string,
-  patch: Partial<SignalRecord>
-): Promise<SignalRecord | null> {
-  const all = await readAll();
-  const idx = all.findIndex(r => r.id === id);
-  if (idx === -1) return null;
+export async function updateSignal(id: string, patch: Partial<SignalRecord>): Promise<SignalRecord | null> {
+  const db = getServiceClient();
+  if (!db) return null;
 
-  all[idx] = { ...all[idx], ...patch };
-  await writeAll(all);
-  return all[idx];
+  const patchRow: Partial<SignalRow> = {};
+  if (patch.status !== undefined) patchRow.status = patch.status;
+  if (patch.outcome !== undefined) {
+    patchRow.resolved_at = patch.outcome?.resolvedAt ?? null;
+    patchRow.price_at_resolution = patch.outcome?.priceAtResolution ?? null;
+    patchRow.pnl_percent = patch.outcome?.pnlPercent ?? null;
+    patchRow.pnl_r = patch.outcome?.pnlR ?? null;
+  }
+
+  const { data, error } = await db.from("signals").update(patchRow).eq("id", id).select().maybeSingle();
+  if (error || !data) return null;
+  return rowToRecord(data as SignalRow);
 }
 
-/**
- * Get all open signals (status === "open").
- * Used by the outcome tracker.
- */
 export async function getOpenSignals(): Promise<SignalRecord[]> {
   return getSignals({ status: "open" });
 }
 
-/**
- * Purge old records to prevent unbounded file growth.
- * Keeps last N records OR records within last M days.
- */
 export async function pruneOldSignals(opts: {
   keepLastN?: number;
   keepWithinDays?: number;
 }): Promise<number> {
-  const all = await readAll();
-  let kept = all;
+  const db = getServiceClient();
+  if (!db) return 0;
+  if (!opts.keepWithinDays) return 0;
 
-  if (opts.keepWithinDays) {
-    const cutoff = Date.now() - opts.keepWithinDays * 86400_000;
-    kept = kept.filter(r => new Date(r.timestamp).getTime() >= cutoff);
-  }
-  if (opts.keepLastN && kept.length > opts.keepLastN) {
-    kept.sort((a, b) =>
-      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    );
-    kept = kept.slice(0, opts.keepLastN);
-  }
-
-  const removed = all.length - kept.length;
-  if (removed > 0) await writeAll(kept);
-  return removed;
+  const cutoff = new Date(Date.now() - opts.keepWithinDays * 86400_000).toISOString();
+  const { data, error } = await db.from("signals").delete().lt("timestamp", cutoff).select("id");
+  if (error) return 0;
+  return (data?.length ?? 0);
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Storage info (for debugging)
-// ─────────────────────────────────────────────────────────────────────────────
 
 export async function getStorageInfo(): Promise<{
   backend: string;
@@ -192,22 +263,15 @@ export async function getStorageInfo(): Promise<{
   count: number;
   isWritable: boolean;
 }> {
-  const all = await readAll();
-  let isWritable = true;
-  try {
-    await ensureDir();
-    // try to touch the file to verify write access
-    const testFile = path.join(DATA_DIR, ".write-test");
-    await fs.writeFile(testFile, "");
-    await fs.unlink(testFile).catch(() => {});
-  } catch {
-    isWritable = false;
+  const db = getServiceClient();
+  if (!db) {
+    return { backend: "supabase", path: "signals", count: 0, isWritable: false };
   }
-
+  const { count } = await db.from("signals").select("*", { count: "exact", head: true });
   return {
-    backend: "json-file",
-    path: SIGNALS_FILE,
-    count: all.length,
-    isWritable,
+    backend: "supabase",
+    path: "public.signals",
+    count: count ?? 0,
+    isWritable: true,
   };
 }

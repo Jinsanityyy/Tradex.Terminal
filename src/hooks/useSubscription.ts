@@ -90,6 +90,7 @@ export const PLAN_ACCESS: Record<string, Plan[]> = {
   "/dashboard/economic-calendar":    ["free", "pro", "elite"],
   "/dashboard/news-flow":            ["free", "pro", "elite"],
   "/dashboard/settings":             ["free", "pro", "elite"],
+  "/dashboard/signals":              ["free", "pro", "elite"],
   "/dashboard/pnl-calendar":         ["pro", "elite"],
   "/dashboard/market-bias":          ["pro", "elite"],
   "/dashboard/ai-briefing":          ["pro", "elite"],
