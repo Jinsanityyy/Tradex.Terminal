@@ -11,6 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { computeStats, getRecentSignals } from "@/lib/signals/stats";
+import { trackOpenSignals } from "@/lib/signals/tracker";
 import type { Symbol } from "@/lib/agents/schemas";
 import type { SignalStats } from "@/lib/signals/types";
 
@@ -18,6 +19,11 @@ export const dynamic = "force-dynamic";
 
 const VALID_SYMBOLS = new Set<string>(["XAUUSD", "EURUSD", "GBPUSD", "BTCUSD", "ALL"]);
 const VALID_PERIODS = new Set<string>(["24h", "7d", "30d", "all"]);
+
+// Throttle tracking runs to at most once every N seconds per serverless instance.
+// Without this, every signals page load would hammer the price API.
+let lastTrackerRunAt = 0;
+const TRACKER_COOLDOWN_MS = 60_000; // 60 seconds
 
 export async function GET(req: NextRequest) {
   try {
@@ -44,6 +50,17 @@ export async function GET(req: NextRequest) {
     const limit  = Number.isFinite(limitParam) && limitParam > 0
       ? Math.min(limitParam, 200)
       : 50;
+
+    // Opportunistic outcome tracking — kicks in max once per minute per instance.
+    // This replaces the Vercel cron (which hit the Hobby plan limit).
+    const now = Date.now();
+    if (now - lastTrackerRunAt > TRACKER_COOLDOWN_MS) {
+      lastTrackerRunAt = now;
+      // Fire-and-forget — don't block the response.
+      void trackOpenSignals().catch(err =>
+        console.warn("[api/signals] tracker run failed:", err)
+      );
+    }
 
     const [stats, recent] = await Promise.all([
       computeStats(symbol, period),
