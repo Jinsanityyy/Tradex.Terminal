@@ -16,6 +16,8 @@ import type { Symbol } from "@/lib/agents/schemas";
 import type { SignalStats } from "@/lib/signals/types";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 const VALID_SYMBOLS = new Set<string>(["XAUUSD", "EURUSD", "GBPUSD", "BTCUSD", "ALL"]);
 const VALID_PERIODS = new Set<string>(["24h", "7d", "30d", "all"]);
@@ -67,11 +69,20 @@ export async function GET(req: NextRequest) {
       getRecentSignals(limit),
     ]);
 
-    return NextResponse.json({
-      stats,
-      recent: symbol === "ALL" ? recent : recent.filter(r => r.symbol === symbol),
-      fetchedAt: new Date().toISOString(),
-    });
+    return NextResponse.json(
+      {
+        stats,
+        recent: symbol === "ALL" ? recent : recent.filter(r => r.symbol === symbol),
+        fetchedAt: new Date().toISOString(),
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+          "Pragma": "no-cache",
+          "Expires": "0",
+        },
+      }
+    );
   } catch (err) {
     console.error("[api/signals] failed:", err);
     return NextResponse.json(
