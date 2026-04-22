@@ -498,12 +498,7 @@ export default function LoginPage() {
               )}
             </div>
 
-            <p className="text-center text-gray-600 mt-5" style={{ fontSize: "11px" }}>
-              Want to see plans?{" "}
-              <Link href="/pricing" className="text-gray-400 hover:text-gray-200 transition-colors underline underline-offset-2">
-                View pricing
-              </Link>
-            </p>
+           
           </div>
         </div>
       </div>
