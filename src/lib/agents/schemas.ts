@@ -186,6 +186,8 @@ export interface RiskAgentOutput {
 // Agent 5 — Execution Agent
 // ─────────────────────────────────────────────────────────────────────────────
 
+export type SignalState = "ARMED" | "PENDING" | "EXPIRED" | "NO_TRADE";
+
 export interface ExecutionAgentOutput {
   agentId: "execution";
   hasSetup: boolean;
@@ -195,12 +197,15 @@ export interface ExecutionAgentOutput {
   tp1: number | null;
   tp2: number | null;
   rrRatio: number | null;
-  trigger: string;           // "OB retest" | "FVG fill" | "BOS pullback" | "Sweep reversal" | etc.
-  triggerCondition: string;  // human-readable trigger description
+  trigger: string;
+  triggerCondition: string;
   managementNotes: string[];
   entryZone: string;
   slZone: string;
   tp1Zone: string;
+  signalState: SignalState;         // NEW: ARMED | PENDING | EXPIRED | NO_TRADE
+  signalStateReason: string;        // NEW: human-readable explanation
+  distanceToEntry: number | null;   // NEW: % distance from current price to entry
   processingTime: number;
   error?: string;
 }

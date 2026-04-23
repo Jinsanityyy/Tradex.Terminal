@@ -3,11 +3,88 @@
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ArrowRight, Target, Shield, TrendingUp, TrendingDown, ChevronRight, ChevronDown, Calculator } from "lucide-react";
-import type { TradePlan as TradePlanType } from "@/lib/agents/schemas";
+import type { TradePlan as TradePlanType, SignalState } from "@/lib/agents/schemas";
 
 interface TradePlanProps {
   tradePlan: TradePlanType | null;
+  signalState?: SignalState;
+  signalStateReason?: string;
+  distanceToEntry?: number | null;
   loading?: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Signal State Banner
+// ─────────────────────────────────────────────────────────────────────────────
+
+function SignalStateBanner({
+  state,
+  reason,
+  distanceToEntry,
+}: {
+  state: SignalState;
+  reason: string;
+  distanceToEntry?: number | null;
+}) {
+  const configs = {
+    ARMED: {
+      bg: "bg-emerald-500/15",
+      border: "border-emerald-500/40",
+      dot: "bg-emerald-400",
+      dotPulse: "animate-pulse",
+      label: "🟢 ARMED — ENTER NOW",
+      labelColor: "text-emerald-300",
+      textColor: "text-emerald-200/70",
+    },
+    PENDING: {
+      bg: "bg-amber-500/10",
+      border: "border-amber-500/30",
+      dot: "bg-amber-400",
+      dotPulse: "",
+      label: "🟡 PENDING — WAIT FOR ENTRY",
+      labelColor: "text-amber-300",
+      textColor: "text-amber-200/60",
+    },
+    EXPIRED: {
+      bg: "bg-zinc-800/60",
+      border: "border-zinc-600/30",
+      dot: "bg-zinc-500",
+      dotPulse: "",
+      label: "⚪ EXPIRED — DO NOT CHASE",
+      labelColor: "text-zinc-400",
+      textColor: "text-zinc-500",
+    },
+    NO_TRADE: {
+      bg: "bg-zinc-900/60",
+      border: "border-zinc-700/30",
+      dot: "bg-zinc-600",
+      dotPulse: "",
+      label: "⛔ NO TRADE",
+      labelColor: "text-zinc-500",
+      textColor: "text-zinc-600",
+    },
+  };
+
+  const cfg = configs[state];
+
+  return (
+    <div className={cn("rounded-xl border px-4 py-3.5 mb-4", cfg.bg, cfg.border)}>
+      <div className="flex items-center gap-2.5 mb-1.5">
+        <span className={cn("w-2 h-2 rounded-full shrink-0", cfg.dot, cfg.dotPulse)} />
+        <span className={cn("text-[11px] font-bold uppercase tracking-widest", cfg.labelColor)}>
+          {cfg.label}
+        </span>
+        {distanceToEntry !== null && distanceToEntry !== undefined && state !== "NO_TRADE" && (
+          <span className="ml-auto text-[10px] font-mono text-zinc-500">
+            {distanceToEntry.toFixed(2)}% from entry
+          </span>
+        )}
+      </div>
+      <p className={cn("text-[11px] leading-relaxed pl-4", cfg.textColor)}>
+        {reason}
+      </p>
+    </div>
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -166,7 +243,7 @@ function NoTradeCard() {
   );
 }
 
-export function TradePlan({ tradePlan, loading }: TradePlanProps) {
+export function TradePlan({ tradePlan, signalState, signalStateReason, distanceToEntry, loading }: TradePlanProps) {
   if (loading) {
     return (
       <div className="rounded-xl border border-white/6 bg-[#111]/60 p-5 animate-pulse space-y-3">
@@ -179,7 +256,18 @@ export function TradePlan({ tradePlan, loading }: TradePlanProps) {
   }
 
   if (!tradePlan) {
-    return <NoTradeCard />;
+    return (
+      <>
+        {signalState && signalStateReason && (
+          <SignalStateBanner
+            state={signalState}
+            reason={signalStateReason}
+            distanceToEntry={distanceToEntry}
+          />
+        )}
+        <NoTradeCard />
+      </>
+    );
   }
 
   const isLong = tradePlan.direction === "long";
@@ -189,8 +277,16 @@ export function TradePlan({ tradePlan, loading }: TradePlanProps) {
   const tp2Color   = "text-emerald-300";
 
   return (
-    <div className="rounded-xl border bg-[#0d0d0d]/80 backdrop-blur-sm overflow-hidden"
-      style={{ borderColor: isLong ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)" }}>
+    <>
+      {signalState && signalStateReason && (
+        <SignalStateBanner
+          state={signalState}
+          reason={signalStateReason}
+          distanceToEntry={distanceToEntry}
+        />
+      )}
+      <div className="rounded-xl border bg-[#0d0d0d]/80 backdrop-blur-sm overflow-hidden"
+        style={{ borderColor: isLong ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)" }}>
 
       {/* Header */}
       <div className={cn(
@@ -284,6 +380,7 @@ export function TradePlan({ tradePlan, loading }: TradePlanProps) {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

@@ -367,7 +367,13 @@ export function BrainTerminal() {
           <Target className="h-4 w-4 text-zinc-400" />
           <span className="text-xs text-zinc-300 uppercase tracking-wider font-semibold">Execution Plan</span>
         </div>
-        <TradePlan tradePlan={data?.agents.master.tradePlan ?? null} loading={loading && !data} />
+        <TradePlan
+          tradePlan={data?.agents.master.tradePlan ?? null}
+          signalState={data?.agents.execution.signalState}
+          signalStateReason={data?.agents.execution.signalStateReason}
+          distanceToEntry={data?.agents.execution.distanceToEntry}
+          loading={loading && !data}
+        />
       </div>
 
       {/* Processing metadata */}

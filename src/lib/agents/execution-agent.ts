@@ -48,6 +48,9 @@ export async function runExecutionAgent(
         entryZone: "No valid entry zone",
         slZone: "No SL required — no trade",
         tp1Zone: "No target — no trade",
+        signalState: "NO_TRADE",
+        signalStateReason: "No directional bias detected. Stand aside and wait for clear setup.",
+        distanceToEntry: null,
         processingTime: Date.now() - start,
       };
     }
@@ -171,6 +174,35 @@ export async function runExecutionAgent(
     if (session === "New York") managementNotes.push("NY session — watch for reversal at London high/low before TP2");
     if (smc.chochDetected) managementNotes.push("CHoCH detected — consider partial entry (50%) until full confirmation");
 
+    // ── Signal State ──────────────────────────────────────────────────────────
+    // Tells traders WHEN to act — not just what the setup is.
+    // ARMED:   price is within 0.5% of entry → enter now
+    // PENDING: price is away from entry but within 2% → wait for pullback
+    // EXPIRED: price has moved >2% away from entry → setup invalidated, don't chase
+    const distanceToEntry = Math.abs(current - entry) / entry * 100;
+    const pricePastEntry  = isBullish ? current > entry : current < entry;
+
+    let signalState: import("./schemas").SignalState;
+    let signalStateReason: string;
+
+    if (pricePastEntry && distanceToEntry > 0.3) {
+      // Price already moved past entry in the right direction — missed, don't chase
+      signalState = "EXPIRED";
+      signalStateReason = `Price already moved ${distanceToEntry.toFixed(2)}% past entry zone. Do NOT chase — wait for the next setup.`;
+    } else if (distanceToEntry <= 0.5) {
+      // Price is at or very near entry zone → execute now
+      signalState = "ARMED";
+      signalStateReason = `Price is ${distanceToEntry.toFixed(2)}% from entry zone. Setup is active — confirm trigger and execute.`;
+    } else if (distanceToEntry <= 2.0) {
+      // Price is approaching entry zone → monitor and prepare
+      signalState = "PENDING";
+      signalStateReason = `Price is ${distanceToEntry.toFixed(2)}% from entry zone. Wait for price to return to ${entry.toFixed(entry > 100 ? 1 : 4)} before entering.`;
+    } else {
+      // Price is far from entry zone → wait, not urgent
+      signalState = "PENDING";
+      signalStateReason = `Price is ${distanceToEntry.toFixed(2)}% away from entry zone at ${entry.toFixed(entry > 100 ? 1 : 4)}. Monitor — no action yet.`;
+    }
+
     return {
       agentId: "execution",
       hasSetup: true,
@@ -186,6 +218,9 @@ export async function runExecutionAgent(
       entryZone,
       slZone,
       tp1Zone,
+      signalState,
+      signalStateReason,
+      distanceToEntry: parseFloat(distanceToEntry.toFixed(2)),
       processingTime: Date.now() - start,
     };
   } catch (err) {
@@ -200,6 +235,9 @@ export async function runExecutionAgent(
       entryZone: "N/A",
       slZone: "N/A",
       tp1Zone: "N/A",
+      signalState: "NO_TRADE",
+      signalStateReason: "Execution analysis failed",
+      distanceToEntry: null,
       processingTime: Date.now() - start,
       error: String(err),
     };
