@@ -120,6 +120,7 @@ export function TradingViewChart({
   const [query, setQuery] = useState("");
   const [chartState, setChartState] = useState<"loading" | "ready" | "error">("loading");
   const [fallbackMessage, setFallbackMessage] = useState("Connecting to TradingView feed...");
+  const [isSlowLoading, setIsSlowLoading] = useState(false);
 
   const filtered = query.trim()
     ? ALL_SYMBOLS.filter(
@@ -169,9 +170,10 @@ export function TradingViewChart({
 
     setChartState("loading");
     setFallbackMessage("Connecting to TradingView feed...");
+    setIsSlowLoading(false);
 
     let isCancelled = false;
-    let readyTimeout: ReturnType<typeof setTimeout> | null = null;
+    let slowTimer: ReturnType<typeof setTimeout> | null = null;
     let saveTimer: ReturnType<typeof setInterval> | null = null;
     let widget: any = null;
 
@@ -253,11 +255,12 @@ export function TradingViewChart({
       widget.onChartReady(() => {
         if (isCancelled) return;
 
-        if (readyTimeout) {
-          clearTimeout(readyTimeout);
+        if (slowTimer) {
+          clearTimeout(slowTimer);
         }
 
         setChartState("ready");
+        setIsSlowLoading(false);
 
         try {
           const saved = localStorage.getItem(storageKey);
@@ -282,8 +285,10 @@ export function TradingViewChart({
       });
     }
 
-    readyTimeout = setTimeout(() => {
-      setFailure("Live chart is taking longer than expected. Keep working from the terminal data below.");
+    slowTimer = setTimeout(() => {
+      if (!isCancelled) {
+        setIsSlowLoading(true);
+      }
     }, 8000);
 
     if ((window as any).TradingView) {
@@ -319,8 +324,8 @@ export function TradingViewChart({
     return () => {
       isCancelled = true;
 
-      if (readyTimeout) {
-        clearTimeout(readyTimeout);
+      if (slowTimer) {
+        clearTimeout(slowTimer);
       }
 
       if (saveTimer) {
@@ -474,12 +479,19 @@ export function TradingViewChart({
       <div className="relative min-h-0 flex-1 bg-[#131722]">
         <div ref={containerRef} className="h-full w-full min-h-0" />
 
-        {chartState !== "ready" && (
+        {isSlowLoading && chartState === "loading" && (
+          <div className="absolute right-4 top-4 z-10 inline-flex items-center gap-2 rounded-md border border-white/10 bg-[#131722]/85 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.18em] text-gray-300 backdrop-blur-sm">
+            <Activity className="h-3.5 w-3.5 animate-pulse" />
+            Loading Feed
+          </div>
+        )}
+
+        {chartState === "error" && (
           <div className="absolute inset-0 z-10 flex flex-col justify-between gap-5 bg-[#131722]/95 p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">
-                  {chartState === "loading" ? "Loading Chart" : "Chart Placeholder"}
+                  Chart Placeholder
                 </p>
                 <h3 className="mt-1 text-lg font-semibold text-white">
                   {getLabel(activeSymbol)} · {activeInterval.label}
@@ -500,7 +512,7 @@ export function TradingViewChart({
                 ) : (
                   <Activity className="h-3.5 w-3.5 animate-pulse" />
                 )}
-                {chartState === "error" ? "Fallback Mode" : "Loading Feed"}
+                Fallback Mode
               </div>
             </div>
 
@@ -526,17 +538,9 @@ export function TradingViewChart({
               </div>
             </div>
 
-            {chartState === "loading" ? (
-              <div className="grid gap-2 md:grid-cols-3">
-                <div className="h-16 rounded-lg bg-white/5" />
-                <div className="h-16 rounded-lg bg-white/5" />
-                <div className="h-16 rounded-lg bg-white/5" />
-              </div>
-            ) : (
-              <p className="text-xs text-gray-500">
-                The dashboard remains usable even without the embedded chart. Refresh the page or switch symbols once the feed recovers.
-              </p>
-            )}
+            <p className="text-xs text-gray-500">
+              The dashboard remains usable even without the embedded chart. Refresh the page or switch symbols once the feed recovers.
+            </p>
           </div>
         )}
       </div>
