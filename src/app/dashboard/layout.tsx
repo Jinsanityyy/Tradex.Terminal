@@ -18,13 +18,12 @@ export default function DashboardLayout({
 
 
   return (
-    <div className="flex min-h-screen bg-[hsl(var(--background))]" style={{ overflowX: "clip" }}>
+    <div className="flex h-dvh overflow-hidden bg-[hsl(var(--background))]">
       <Sidebar />
-      <div className="flex flex-1 flex-col min-w-0 transition-all duration-300" style={{ marginLeft: "var(--sidebar-current-width, var(--sidebar-width))" }}>
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden transition-all duration-300 [margin-left:var(--sidebar-current-width,var(--sidebar-width))]">
         <TopStatusBar />
-    
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full p-4 md:p-5 pb-20 md:pb-5">
+        <main className="flex flex-1 min-h-0 overflow-hidden p-3 pb-20 md:p-4 md:pb-4">
           {children}
         </main>
       </div>

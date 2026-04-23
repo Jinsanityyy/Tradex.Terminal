@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import { Timer, Search, X, ChevronDown } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Activity, AlertTriangle, ChevronDown, Search, Timer, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TradingViewChartProps {
@@ -10,74 +10,94 @@ interface TradingViewChartProps {
 }
 
 const INTERVALS = [
-  { label: "1m",  value: "1",   minutes: 1 },
-  { label: "5m",  value: "5",   minutes: 5 },
-  { label: "15m", value: "15",  minutes: 15 },
-  { label: "30m", value: "30",  minutes: 30 },
-  { label: "1H",  value: "60",  minutes: 60 },
-  { label: "4H",  value: "240", minutes: 240 },
-  { label: "1D",  value: "D",   minutes: 1440 },
+  { label: "1m", value: "1", minutes: 1 },
+  { label: "5m", value: "5", minutes: 5 },
+  { label: "15m", value: "15", minutes: 15 },
+  { label: "30m", value: "30", minutes: 30 },
+  { label: "1H", value: "60", minutes: 60 },
+  { label: "4H", value: "240", minutes: 240 },
+  { label: "1D", value: "D", minutes: 1440 },
 ];
 
 const QUICK_SYMBOLS = [
-  { group: "Metals",  items: [
-    { label: "XAU/USD", value: "OANDA:XAUUSD" },
-    { label: "XAG/USD", value: "OANDA:XAGUSD" },
-  ]},
-  { group: "Forex", items: [
-    { label: "EUR/USD", value: "OANDA:EURUSD" },
-    { label: "GBP/USD", value: "OANDA:GBPUSD" },
-    { label: "USD/JPY", value: "OANDA:USDJPY" },
-    { label: "AUD/USD", value: "OANDA:AUDUSD" },
-    { label: "USD/CAD", value: "OANDA:USDCAD" },
-    { label: "USD/CHF", value: "OANDA:USDCHF" },
-    { label: "NZD/USD", value: "OANDA:NZDUSD" },
-    { label: "EUR/GBP", value: "OANDA:EURGBP" },
-  ]},
-  { group: "Crypto", items: [
-    { label: "BTC/USD", value: "COINBASE:BTCUSD" },
-    { label: "ETH/USD", value: "COINBASE:ETHUSD" },
-    { label: "SOL/USD", value: "COINBASE:SOLUSD" },
-    { label: "XRP/USD", value: "BITSTAMP:XRPUSD" },
-    { label: "BNB/USD", value: "BINANCE:BNBUSDT" },
-    { label: "ADA/USD", value: "COINBASE:ADAUSD" },
-    { label: "DOGE/USD","value": "BINANCE:DOGEUSDT" },
-    { label: "AVAX/USD", value: "COINBASE:AVAXUSD" },
-  ]},
-  { group: "Indices", items: [
-    { label: "US500",   value: "SP:SPX" },
-    { label: "NAS100",  value: "NASDAQ:NDX" },
-    { label: "US30",    value: "DJ:DJI" },
-    { label: "GER40",   value: "XETR:DAX" },
-    { label: "UK100",   value: "SPREADEX:UK100" },
-  ]},
-  { group: "Commodities", items: [
-    { label: "WTI Oil", value: "TVC:USOIL" },
-    { label: "Brent",   value: "TVC:UKOIL" },
-    { label: "Nat Gas", value: "TVC:NATURALGAS" },
-  ]},
+  {
+    group: "Metals",
+    items: [
+      { label: "XAU/USD", value: "OANDA:XAUUSD" },
+      { label: "XAG/USD", value: "OANDA:XAGUSD" },
+    ],
+  },
+  {
+    group: "Forex",
+    items: [
+      { label: "EUR/USD", value: "OANDA:EURUSD" },
+      { label: "GBP/USD", value: "OANDA:GBPUSD" },
+      { label: "USD/JPY", value: "OANDA:USDJPY" },
+      { label: "AUD/USD", value: "OANDA:AUDUSD" },
+      { label: "USD/CAD", value: "OANDA:USDCAD" },
+      { label: "USD/CHF", value: "OANDA:USDCHF" },
+      { label: "NZD/USD", value: "OANDA:NZDUSD" },
+      { label: "EUR/GBP", value: "OANDA:EURGBP" },
+    ],
+  },
+  {
+    group: "Crypto",
+    items: [
+      { label: "BTC/USD", value: "COINBASE:BTCUSD" },
+      { label: "ETH/USD", value: "COINBASE:ETHUSD" },
+      { label: "SOL/USD", value: "COINBASE:SOLUSD" },
+      { label: "XRP/USD", value: "BITSTAMP:XRPUSD" },
+      { label: "BNB/USD", value: "BINANCE:BNBUSDT" },
+      { label: "ADA/USD", value: "COINBASE:ADAUSD" },
+      { label: "DOGE/USD", value: "BINANCE:DOGEUSDT" },
+      { label: "AVAX/USD", value: "COINBASE:AVAXUSD" },
+    ],
+  },
+  {
+    group: "Indices",
+    items: [
+      { label: "US500", value: "SP:SPX" },
+      { label: "NAS100", value: "NASDAQ:NDX" },
+      { label: "US30", value: "DJ:DJI" },
+      { label: "GER40", value: "XETR:DAX" },
+      { label: "UK100", value: "SPREADEX:UK100" },
+    ],
+  },
+  {
+    group: "Commodities",
+    items: [
+      { label: "WTI Oil", value: "TVC:USOIL" },
+      { label: "Brent", value: "TVC:UKOIL" },
+      { label: "Nat Gas", value: "TVC:NATURALGAS" },
+    ],
+  },
 ];
 
-// Flat list for search
-const ALL_SYMBOLS = QUICK_SYMBOLS.flatMap(g => g.items.map(i => ({ ...i, group: g.group })));
+const ALL_SYMBOLS = QUICK_SYMBOLS.flatMap((group) =>
+  group.items.map((item) => ({ ...item, group: group.group }))
+);
 
 function getLabel(tvSymbol: string) {
-  const found = ALL_SYMBOLS.find(s => s.value === tvSymbol);
+  const found = ALL_SYMBOLS.find((entry) => entry.value === tvSymbol);
   return found ? found.label : tvSymbol.split(":")[1] ?? tvSymbol;
 }
 
-function secondsToClose(mins: number): number {
+function secondsToClose(minutes: number): number {
   const nowMs = Date.now();
-  const ms = mins * 60 * 1000;
-  return Math.floor((ms - (nowMs % ms)) / 1000);
+  const totalMs = minutes * 60 * 1000;
+  return Math.floor((totalMs - (nowMs % totalMs)) / 1000);
 }
 
-function fmt(secs: number) {
-  const h = Math.floor(secs / 3600);
-  const m = Math.floor((secs % 3600) / 60);
-  const s = secs % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+function formatCountdown(totalSeconds: number) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function chartStorageKey(symbol: string) {
@@ -86,38 +106,29 @@ function chartStorageKey(symbol: string) {
 
 let widgetCounter = 0;
 
-export function TradingViewChart({ symbol: initialSymbol = "OANDA:XAUUSD", height = 400 }: TradingViewChartProps) {
+export function TradingViewChart({
+  symbol: initialSymbol = "OANDA:XAUUSD",
+  height = 400,
+}: TradingViewChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [activeSymbol, setActiveSymbol] = useState(initialSymbol);
-  const [activeInterval, setActiveInterval] = useState(INTERVALS[4]); // 1H
-  const [secs, setSecs] = useState(() => secondsToClose(60));
-
-  // Symbol picker state
+  const [activeInterval, setActiveInterval] = useState(INTERVALS[4]);
+  const [secondsLeft, setSecondsLeft] = useState(() => secondsToClose(60));
   const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [chartState, setChartState] = useState<"loading" | "ready" | "error">("loading");
+  const [fallbackMessage, setFallbackMessage] = useState("Connecting to TradingView feed...");
 
   const filtered = query.trim()
-    ? ALL_SYMBOLS.filter(s =>
-        s.label.toLowerCase().includes(query.toLowerCase()) ||
-        s.value.toLowerCase().includes(query.toLowerCase()) ||
-        s.group.toLowerCase().includes(query.toLowerCase())
+    ? ALL_SYMBOLS.filter(
+        (entry) =>
+          entry.label.toLowerCase().includes(query.toLowerCase()) ||
+          entry.value.toLowerCase().includes(query.toLowerCase()) ||
+          entry.group.toLowerCase().includes(query.toLowerCase())
       )
     : null;
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    if (!pickerOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setPickerOpen(false);
-        setQuery("");
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [pickerOpen]);
 
   const selectSymbol = useCallback((value: string) => {
     setActiveSymbol(value);
@@ -125,31 +136,59 @@ export function TradingViewChart({ symbol: initialSymbol = "OANDA:XAUUSD", heigh
     setQuery("");
   }, []);
 
-  // Countdown timer
   useEffect(() => {
-    setSecs(secondsToClose(activeInterval.minutes));
-    const id = setInterval(() => setSecs(secondsToClose(activeInterval.minutes)), 1000);
-    return () => clearInterval(id);
+    setActiveSymbol(initialSymbol);
+  }, [initialSymbol]);
+
+  useEffect(() => {
+    if (!pickerOpen) return;
+
+    function handleClick(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setPickerOpen(false);
+        setQuery("");
+      }
+    }
+
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [pickerOpen]);
+
+  useEffect(() => {
+    setSecondsLeft(secondsToClose(activeInterval.minutes));
+    const timerId = setInterval(() => {
+      setSecondsLeft(secondsToClose(activeInterval.minutes));
+    }, 1000);
+
+    return () => clearInterval(timerId);
   }, [activeInterval.minutes]);
 
-  // Chart rebuild on symbol OR interval change
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+    const element = containerRef.current;
+    if (!element) return;
+
+    setChartState("loading");
+    setFallbackMessage("Connecting to TradingView feed...");
 
     let isCancelled = false;
+    let readyTimeout: ReturnType<typeof setTimeout> | null = null;
     let saveTimer: ReturnType<typeof setInterval> | null = null;
     let widget: any = null;
 
     const containerId = `tv_widget_${++widgetCounter}`;
     const storageKey = chartStorageKey(activeSymbol);
 
-    el.innerHTML = "";
-    const div = document.createElement("div");
-    div.id = containerId;
-    div.style.width = "100%";
-    div.style.height = "100%";
-    el.appendChild(div);
+    element.innerHTML = "";
+    const widgetRoot = document.createElement("div");
+    widgetRoot.id = containerId;
+    widgetRoot.className = "h-full w-full";
+    element.appendChild(widgetRoot);
+
+    function setFailure(message: string) {
+      if (isCancelled) return;
+      setChartState("error");
+      setFallbackMessage(message);
+    }
 
     function buildWidget() {
       if (isCancelled || !(window as any).TradingView) return;
@@ -178,53 +217,64 @@ export function TradingViewChart({ symbol: initialSymbol = "OANDA:XAUUSD", heigh
             "header_symbol_search",
             "header_compare",
           ],
-          enabled_features: [
-            "study_templates",
-            "side_toolbar_in_fullscreen_mode",
-          ],
+          enabled_features: ["study_templates", "side_toolbar_in_fullscreen_mode"],
           backgroundColor: "rgba(19,23,34,1)",
           gridColor: "rgba(42,46,57,0.5)",
           overrides: {
-            "mainSeriesProperties.candleStyle.upColor":           "#26a69a",
-            "mainSeriesProperties.candleStyle.downColor":         "#ef5350",
-            "mainSeriesProperties.candleStyle.wickUpColor":       "#26a69a",
-            "mainSeriesProperties.candleStyle.wickDownColor":     "#ef5350",
-            "mainSeriesProperties.candleStyle.borderUpColor":     "#26a69a",
-            "mainSeriesProperties.candleStyle.borderDownColor":   "#ef5350",
-            "paneProperties.background":                          "#131722",
-            "paneProperties.backgroundType":                      "solid",
-            "paneProperties.vertGridProperties.color":            "#1e2230",
-            "paneProperties.vertGridProperties.style":            2,
-            "paneProperties.horzGridProperties.color":            "#1e2230",
-            "paneProperties.horzGridProperties.style":            2,
-            "scalesProperties.textColor":                         "#6b7280",
-            "scalesProperties.fontSize":                          11,
-            "scalesProperties.backgroundColor":                   "#131722",
+            "mainSeriesProperties.candleStyle.upColor": "#26a69a",
+            "mainSeriesProperties.candleStyle.downColor": "#ef5350",
+            "mainSeriesProperties.candleStyle.wickUpColor": "#26a69a",
+            "mainSeriesProperties.candleStyle.wickDownColor": "#ef5350",
+            "mainSeriesProperties.candleStyle.borderUpColor": "#26a69a",
+            "mainSeriesProperties.candleStyle.borderDownColor": "#ef5350",
+            "paneProperties.background": "#131722",
+            "paneProperties.backgroundType": "solid",
+            "paneProperties.vertGridProperties.color": "#1e2230",
+            "paneProperties.vertGridProperties.style": 2,
+            "paneProperties.horzGridProperties.color": "#1e2230",
+            "paneProperties.horzGridProperties.style": 2,
+            "scalesProperties.textColor": "#6b7280",
+            "scalesProperties.fontSize": 11,
+            "scalesProperties.backgroundColor": "#131722",
           },
         });
-      } catch (e) {
-        console.warn("[TradingView] widget constructor failed:", e);
+      } catch (error) {
+        console.warn("[TradingView] widget constructor failed:", error);
+        setFailure("Chart service is unavailable. Use the terminal metrics while the feed reconnects.");
         return;
       }
 
       if (!widget || typeof widget.onChartReady !== "function") {
-        console.warn("[TradingView] widget missing onChartReady — skipping");
+        console.warn("[TradingView] widget missing onChartReady - skipping");
+        setFailure("Chart widget did not initialize. Summary cards and context panels remain active.");
         return;
       }
 
       widget.onChartReady(() => {
         if (isCancelled) return;
+
+        if (readyTimeout) {
+          clearTimeout(readyTimeout);
+        }
+
+        setChartState("ready");
+
         try {
           const saved = localStorage.getItem(storageKey);
-          if (saved && typeof widget?.load === "function") widget.load(JSON.parse(saved));
+          if (saved && typeof widget?.load === "function") {
+            widget.load(JSON.parse(saved));
+          }
         } catch {}
 
         saveTimer = setInterval(() => {
           if (isCancelled) return;
+
           try {
             if (typeof widget?.save === "function") {
-              widget.save((state: any) => {
-                try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch {}
+              widget.save((state: unknown) => {
+                try {
+                  localStorage.setItem(storageKey, JSON.stringify(state));
+                } catch {}
               });
             }
           } catch {}
@@ -232,134 +282,149 @@ export function TradingViewChart({ symbol: initialSymbol = "OANDA:XAUUSD", heigh
       });
     }
 
+    readyTimeout = setTimeout(() => {
+      setFailure("Live chart is taking longer than expected. Keep working from the terminal data below.");
+    }, 8000);
+
     if ((window as any).TradingView) {
       buildWidget();
     } else {
-      const existing = document.querySelector('script[src*="tradingview.com/tv.js"]');
-      if (existing) {
+      const existingScript = document.querySelector('script[src*="tradingview.com/tv.js"]');
+
+      if (existingScript) {
         let attempts = 0;
         const poll = setInterval(() => {
-          attempts++;
-          if ((window as any).TradingView) { clearInterval(poll); buildWidget(); }
-          else if (attempts > 50) clearInterval(poll);
+          attempts += 1;
+
+          if ((window as any).TradingView) {
+            clearInterval(poll);
+            buildWidget();
+          } else if (attempts > 50) {
+            clearInterval(poll);
+            setFailure("Chart library did not finish loading. The rest of the dashboard is still available.");
+          }
         }, 100);
       } else {
         const script = document.createElement("script");
         script.src = "https://s3.tradingview.com/tv.js";
         script.async = true;
         script.onload = buildWidget;
+        script.onerror = () => {
+          setFailure("Chart script was blocked. Use the dashboard panels while TradingView reconnects.");
+        };
         document.head.appendChild(script);
       }
     }
 
     return () => {
       isCancelled = true;
-      if (saveTimer) clearInterval(saveTimer);
+
+      if (readyTimeout) {
+        clearTimeout(readyTimeout);
+      }
+
+      if (saveTimer) {
+        clearInterval(saveTimer);
+      }
+
       try {
         if (typeof widget?.save === "function") {
-          widget.save((state: any) => {
-            try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch {}
+          widget.save((state: unknown) => {
+            try {
+              localStorage.setItem(storageKey, JSON.stringify(state));
+            } catch {}
           });
         }
       } catch {}
-      widget = null;
-      if (el) el.innerHTML = "";
-    };
-  }, [activeSymbol, activeInterval.value]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const urgent = secs <= 60;
+      widget = null;
+
+      if (element) {
+        element.innerHTML = "";
+      }
+    };
+  }, [activeInterval.value, activeSymbol]);
+
+  const urgent = secondsLeft <= 60;
 
   return (
-    <div className="w-full flex flex-col" style={{ height }}>
-      {/* Toolbar */}
-      <div
-        className="flex items-center justify-between px-3 shrink-0 gap-2"
-        style={{
-          height: 42,
-          background: "#0a0e1a",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-        }}
-      >
-        {/* Left: Symbol picker + intervals */}
-        <div className="flex items-center gap-1.5 min-w-0">
-          {/* Symbol picker button */}
+    <div className="flex w-full flex-col overflow-hidden" style={{ height }}>
+      <div className="flex h-[42px] shrink-0 items-center justify-between gap-2 border-b border-white/5 bg-[#0a0e1a] px-3">
+        <div className="flex min-w-0 items-center gap-1.5">
           <div className="relative" ref={dropdownRef}>
             <button
-              onClick={() => setPickerOpen(v => !v)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-semibold border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all text-white"
+              onClick={() => setPickerOpen((current) => !current)}
+              className="flex items-center gap-1.5 rounded border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-white transition-all hover:border-white/20 hover:bg-white/10"
             >
               <span>{getLabel(activeSymbol)}</span>
               <ChevronDown className="h-3 w-3 text-gray-400" />
             </button>
 
             {pickerOpen && (
-              <div
-                className="absolute top-full left-0 mt-1.5 z-50 rounded-lg overflow-hidden"
-                style={{
-                  width: 260,
-                  background: "#0d1117",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  boxShadow: "0 16px 40px rgba(0,0,0,0.7)",
-                }}
-              >
-                {/* Search input */}
-                <div className="flex items-center gap-2 px-3 py-2 border-b border-white/8">
-                  <Search className="h-3.5 w-3.5 text-gray-500 shrink-0" />
+              <div className="absolute left-0 top-full z-50 mt-1.5 w-[260px] overflow-hidden rounded-lg border border-white/10 bg-[#0d1117] shadow-2xl">
+                <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2">
+                  <Search className="h-3.5 w-3.5 shrink-0 text-gray-500" />
                   <input
                     autoFocus
                     type="text"
                     value={query}
-                    onChange={e => setQuery(e.target.value)}
+                    onChange={(event) => setQuery(event.target.value)}
                     placeholder="Search symbol..."
-                    className="flex-1 bg-transparent text-[12px] text-white placeholder-gray-600 outline-none"
+                    className="flex-1 bg-transparent text-[12px] text-white outline-none placeholder:text-gray-600"
                   />
-                  {query && (
+                  {query ? (
                     <button onClick={() => setQuery("")}>
-                      <X className="h-3 w-3 text-gray-500 hover:text-white" />
+                      <X className="h-3 w-3 text-gray-500 transition-colors hover:text-white" />
                     </button>
-                  )}
+                  ) : null}
                 </div>
 
-                {/* Results */}
-                <div style={{ maxHeight: 280, overflowY: "auto" }}>
+                <div className="max-h-[280px] overflow-y-auto">
                   {filtered ? (
                     filtered.length === 0 ? (
-                      <div className="px-4 py-6 text-center text-[11px] text-gray-600">No results for "{query}"</div>
+                      <div className="px-4 py-6 text-center text-[11px] text-gray-600">
+                        No results for "{query}"
+                      </div>
                     ) : (
                       <div className="py-1">
-                        {filtered.map(s => (
+                        {filtered.map((entry) => (
                           <button
-                            key={s.value}
-                            onClick={() => selectSymbol(s.value)}
+                            key={entry.value}
+                            onClick={() => selectSymbol(entry.value)}
                             className={cn(
-                              "w-full flex items-center justify-between px-3 py-2 text-[12px] transition-colors hover:bg-white/5",
-                              activeSymbol === s.value ? "text-[hsl(142,71%,45%)] bg-[hsl(142,71%,45%)]/8" : "text-gray-300"
+                              "flex w-full items-center justify-between px-3 py-2 text-[12px] transition-colors hover:bg-white/5",
+                              activeSymbol === entry.value
+                                ? "bg-[hsl(142,71%,45%)]/8 text-[hsl(142,71%,45%)]"
+                                : "text-gray-300"
                             )}
                           >
-                            <span className="font-medium">{s.label}</span>
-                            <span className="text-[10px] text-gray-600 font-mono">{s.group}</span>
+                            <span className="font-medium">{entry.label}</span>
+                            <span className="font-mono text-[10px] text-gray-600">{entry.group}</span>
                           </button>
                         ))}
                       </div>
                     )
                   ) : (
-                    // Grouped browse
-                    QUICK_SYMBOLS.map(group => (
+                    QUICK_SYMBOLS.map((group) => (
                       <div key={group.group}>
-                        <div className="px-3 py-1.5 text-[9px] font-semibold uppercase tracking-widest text-gray-600 border-b border-white/5">
+                        <div className="border-b border-white/5 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-widest text-gray-600">
                           {group.group}
                         </div>
-                        {group.items.map(s => (
+                        {group.items.map((entry) => (
                           <button
-                            key={s.value}
-                            onClick={() => selectSymbol(s.value)}
+                            key={entry.value}
+                            onClick={() => selectSymbol(entry.value)}
                             className={cn(
-                              "w-full flex items-center justify-between px-3 py-2 text-[12px] transition-colors hover:bg-white/5",
-                              activeSymbol === s.value ? "text-[hsl(142,71%,45%)] bg-[hsl(142,71%,45%)]/8" : "text-gray-300"
+                              "flex w-full items-center justify-between px-3 py-2 text-[12px] transition-colors hover:bg-white/5",
+                              activeSymbol === entry.value
+                                ? "bg-[hsl(142,71%,45%)]/8 text-[hsl(142,71%,45%)]"
+                                : "text-gray-300"
                             )}
                           >
-                            <span className="font-medium">{s.label}</span>
-                            <span className="text-[10px] text-gray-500 font-mono">{s.value.split(":")[1]}</span>
+                            <span className="font-medium">{entry.label}</span>
+                            <span className="font-mono text-[10px] text-gray-500">
+                              {entry.value.split(":")[1]}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -370,40 +435,35 @@ export function TradingViewChart({ symbol: initialSymbol = "OANDA:XAUUSD", heigh
             )}
           </div>
 
-          {/* Divider */}
-          <div className="w-px h-4 bg-white/10 mx-0.5" />
+          <div className="mx-0.5 h-4 w-px bg-white/10" />
 
-          {/* Interval buttons */}
-          {INTERVALS.map((iv) => (
-            <button
-              key={iv.value}
-              onClick={() => setActiveInterval(iv)}
-              className={cn(
-                "px-2 py-1 rounded text-[11px] font-semibold transition-all",
-                activeInterval.value === iv.value
-                  ? "bg-[hsl(142,71%,45%)]/15 text-[hsl(142,71%,45%)] border border-[hsl(142,71%,45%)]/30"
-                  : "text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent"
-              )}
-            >
-              {iv.label}
-            </button>
-          ))}
+          <div className="flex flex-wrap items-center gap-1">
+            {INTERVALS.map((interval) => (
+              <button
+                key={interval.value}
+                onClick={() => setActiveInterval(interval)}
+                className={cn(
+                  "rounded border px-2 py-1 text-[11px] font-semibold transition-all",
+                  activeInterval.value === interval.value
+                    ? "border-[hsl(142,71%,45%)]/30 bg-[hsl(142,71%,45%)]/15 text-[hsl(142,71%,45%)]"
+                    : "border-transparent text-gray-500 hover:bg-white/5 hover:text-gray-300"
+                )}
+              >
+                {interval.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Right: Candle close timer */}
         <div
-          className="flex items-center gap-1.5 rounded-md px-2.5 py-1 shrink-0"
-          style={{
-            background: urgent ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.04)",
-            border: `1px solid ${urgent ? "rgba(239,68,68,0.35)" : "rgba(255,255,255,0.08)"}`,
-          }}
+          className={cn(
+            "flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1",
+            urgent ? "border-red-500/35 bg-red-500/10" : "border-white/10 bg-white/5"
+          )}
         >
-          <Timer className="h-3 w-3" style={{ color: urgent ? "#ef4444" : "#6b7280" }} />
-          <span
-            className="font-mono text-xs font-bold tabular-nums"
-            style={{ color: urgent ? "#ef4444" : "#d1d5db" }}
-          >
-            {fmt(secs)}
+          <Timer className={cn("h-3 w-3", urgent ? "text-red-400" : "text-gray-500")} />
+          <span className={cn("font-mono text-xs font-bold tabular-nums", urgent ? "text-red-400" : "text-gray-300")}>
+            {formatCountdown(secondsLeft)}
           </span>
           <span className="text-[9px] uppercase tracking-widest text-gray-600">
             {activeInterval.label} close
@@ -411,8 +471,75 @@ export function TradingViewChart({ symbol: initialSymbol = "OANDA:XAUUSD", heigh
         </div>
       </div>
 
-      {/* Chart container */}
-      <div ref={containerRef} className="flex-1 w-full min-h-0" style={{ background: "#131722" }} />
+      <div className="relative min-h-0 flex-1 bg-[#131722]">
+        <div ref={containerRef} className="h-full w-full min-h-0" />
+
+        {chartState !== "ready" && (
+          <div className="absolute inset-0 z-10 flex flex-col justify-between gap-5 bg-[#131722]/95 p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">
+                  {chartState === "loading" ? "Loading Chart" : "Chart Placeholder"}
+                </p>
+                <h3 className="mt-1 text-lg font-semibold text-white">
+                  {getLabel(activeSymbol)} · {activeInterval.label}
+                </h3>
+                <p className="mt-2 max-w-xl text-sm text-gray-400">{fallbackMessage}</p>
+              </div>
+
+              <div
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.18em]",
+                  chartState === "error"
+                    ? "border-amber-500/20 bg-amber-500/10 text-amber-300"
+                    : "border-white/10 bg-white/5 text-gray-300"
+                )}
+              >
+                {chartState === "error" ? (
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                ) : (
+                  <Activity className="h-3.5 w-3.5 animate-pulse" />
+                )}
+                {chartState === "error" ? "Fallback Mode" : "Loading Feed"}
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">Symbol</p>
+                <p className="mt-1 text-sm font-semibold text-white">{getLabel(activeSymbol)}</p>
+                <p className="mt-2 text-[11px] text-gray-400">{activeSymbol}</p>
+              </div>
+
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">Interval</p>
+                <p className="mt-1 text-sm font-semibold text-white">{activeInterval.label}</p>
+                <p className="mt-2 text-[11px] text-gray-400">Candle closes in {formatCountdown(secondsLeft)}</p>
+              </div>
+
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">Terminal Guidance</p>
+                <p className="mt-1 text-sm font-semibold text-white">Keep working the board</p>
+                <p className="mt-2 text-[11px] text-gray-400">
+                  Signal cards, cross-asset tape, and the intelligence panel remain available while the chart feed reconnects.
+                </p>
+              </div>
+            </div>
+
+            {chartState === "loading" ? (
+              <div className="grid gap-2 md:grid-cols-3">
+                <div className="h-16 rounded-lg bg-white/5" />
+                <div className="h-16 rounded-lg bg-white/5" />
+                <div className="h-16 rounded-lg bg-white/5" />
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500">
+                The dashboard remains usable even without the embedded chart. Refresh the page or switch symbols once the feed recovers.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
