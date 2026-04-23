@@ -339,8 +339,8 @@ export default function DashboardPage() {
         <div className="flex-1 min-w-0 flex flex-col border-r border-white/5 overflow-hidden">
 
           {/* Chart — fills space */}
-          <div className="flex-1 min-h-0">
-            <TradingViewChart symbol={symCfg.tv} />
+          <div className="flex-1 min-h-0 relative" style={{ minHeight: 400 }}>
+            <TradingViewChart symbol={symCfg.tv} height={600} />
           </div>
 
           {/* Execution strip below chart */}

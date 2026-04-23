@@ -163,39 +163,43 @@ export function TradingViewChart({ symbol: initialSymbol = "OANDA:XAUUSD", heigh
           interval: activeInterval.value,
           timezone: "America/New_York",
           theme: "dark",
-          style: "8",
+          style: "1",
           locale: "en",
-          toolbar_bg: "#000000",
+          toolbar_bg: "#131722",
           enable_publishing: false,
-          hide_top_toolbar: true,
+          hide_top_toolbar: false,
           hide_side_toolbar: false,
           allow_symbol_change: false,
           save_image: false,
-          studies: [],
+          studies: ["Volume@tv-basicstudies"],
           disabled_features: [
-            "create_volume_indicator_by_default",
             "header_fullscreen_button",
             "left_toolbar",
+            "header_symbol_search",
+            "header_compare",
           ],
-          backgroundColor: "rgba(0,0,0,1)",
-          gridColor: "rgba(0,0,0,0)",
+          enabled_features: [
+            "study_templates",
+            "side_toolbar_in_fullscreen_mode",
+          ],
+          backgroundColor: "rgba(19,23,34,1)",
+          gridColor: "rgba(42,46,57,0.5)",
           overrides: {
-            "mainSeriesProperties.haStyle.upColor": "#5fc77a",
-            "mainSeriesProperties.haStyle.downColor": "#ef4444",
-            "mainSeriesProperties.haStyle.wickUpColor": "#5fc77a",
-            "mainSeriesProperties.haStyle.wickDownColor": "#ef4444",
-            "mainSeriesProperties.haStyle.borderUpColor": "#5fc77a",
-            "mainSeriesProperties.haStyle.borderDownColor": "#ef4444",
-            "paneProperties.background": "#000000",
-            "paneProperties.backgroundType": "solid",
-            "paneProperties.vertGridProperties.color": "#000000",
-            "paneProperties.vertGridProperties.style": 0,
-            "paneProperties.horzGridProperties.color": "#000000",
-            "paneProperties.horzGridProperties.style": 0,
-            "scalesProperties.textColor": "#6b7280",
-            "scalesProperties.fontSize": 11,
-            "scalesProperties.backgroundColor": "#000000",
-            "mainSeriesProperties.showVolume": false,
+            "mainSeriesProperties.candleStyle.upColor":           "#26a69a",
+            "mainSeriesProperties.candleStyle.downColor":         "#ef5350",
+            "mainSeriesProperties.candleStyle.wickUpColor":       "#26a69a",
+            "mainSeriesProperties.candleStyle.wickDownColor":     "#ef5350",
+            "mainSeriesProperties.candleStyle.borderUpColor":     "#26a69a",
+            "mainSeriesProperties.candleStyle.borderDownColor":   "#ef5350",
+            "paneProperties.background":                          "#131722",
+            "paneProperties.backgroundType":                      "solid",
+            "paneProperties.vertGridProperties.color":            "#1e2230",
+            "paneProperties.vertGridProperties.style":            2,
+            "paneProperties.horzGridProperties.color":            "#1e2230",
+            "paneProperties.horzGridProperties.style":            2,
+            "scalesProperties.textColor":                         "#6b7280",
+            "scalesProperties.fontSize":                          11,
+            "scalesProperties.backgroundColor":                   "#131722",
           },
         });
       } catch (e) {
@@ -408,7 +412,7 @@ export function TradingViewChart({ symbol: initialSymbol = "OANDA:XAUUSD", heigh
       </div>
 
       {/* Chart container */}
-      <div ref={containerRef} className="flex-1 w-full min-h-0" style={{ background: "#000000" }} />
+      <div ref={containerRef} className="flex-1 w-full min-h-0" style={{ background: "#131722" }} />
     </div>
   );
 }
