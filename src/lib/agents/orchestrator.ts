@@ -95,8 +95,8 @@ async function fetchMarketData(symbol: Symbol): Promise<{
           news = items.slice(0, 20).map((n: Record<string, unknown>) => ({
             headline: (n.headline as string) ?? (n.title as string) ?? "",
             summary:  (n.summary  as string) ?? (n.description as string) ?? "",
-            datetime: (n.datetime as number)
-              ?? (n.timestamp ? new Date(n.timestamp as string).getTime() / 1000 : 0)
+            datetime: (n.datetime as number | undefined)
+              ?? (n.timestamp ? new Date(n.timestamp as string).getTime() / 1000 : undefined)
               ?? (n.publishedAt ? new Date(n.publishedAt as string).getTime() / 1000 : 0),
           }));
         }
