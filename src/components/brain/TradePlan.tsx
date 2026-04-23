@@ -258,7 +258,7 @@ export function TradePlan({ tradePlan, signalState, signalStateReason, distanceT
   if (!tradePlan) {
     return (
       <>
-        {signalState && signalStateReason && (
+        {signalState && signalStateReason && signalState !== "NO_TRADE" && (
           <SignalStateBanner
             state={signalState}
             reason={signalStateReason}

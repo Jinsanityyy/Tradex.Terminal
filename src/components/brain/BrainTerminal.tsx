@@ -369,9 +369,22 @@ export function BrainTerminal() {
         </div>
         <TradePlan
           tradePlan={data?.agents.master.tradePlan ?? null}
-          signalState={data?.agents.execution.signalState}
-          signalStateReason={data?.agents.execution.signalStateReason}
-          distanceToEntry={data?.agents.execution.distanceToEntry}
+          signalState={
+            !data ? undefined :
+            data.agents.master.finalBias === "no-trade"
+              ? "NO_TRADE"
+              : data.agents.execution.signalState
+          }
+          signalStateReason={
+            data?.agents.master.finalBias === "no-trade"
+              ? (data.agents.master.noTradeReason ?? "Insufficient consensus — stand aside.")
+              : data?.agents.execution.signalStateReason
+          }
+          distanceToEntry={
+            data?.agents.master.finalBias === "no-trade"
+              ? null
+              : data?.agents.execution.distanceToEntry
+          }
           loading={loading && !data}
         />
       </div>
