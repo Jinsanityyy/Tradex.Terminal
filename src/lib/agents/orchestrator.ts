@@ -79,7 +79,10 @@ async function fetchMarketData(symbol: Symbol): Promise<{
     // Fallback: use the project's own /api/market/news route (always works, no API key needed)
     if (news.length === 0) {
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+        // Use relative URL for internal API calls — works in both local and Vercel
+        // NEXT_PUBLIC_APP_URL is optional; if missing we use the Vercel system URL
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL
+          ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 5000);
         const res = await fetch(`${baseUrl}/api/market/news`, {
@@ -92,7 +95,9 @@ async function fetchMarketData(symbol: Symbol): Promise<{
           news = items.slice(0, 20).map((n: Record<string, unknown>) => ({
             headline: (n.headline as string) ?? (n.title as string) ?? "",
             summary:  (n.summary  as string) ?? (n.description as string) ?? "",
-            datetime: (n.datetime as number) ?? (n.publishedAt ? new Date(n.publishedAt as string).getTime() / 1000 : 0),
+            datetime: (n.datetime as number)
+              ?? (n.timestamp ? new Date(n.timestamp as string).getTime() / 1000 : 0)
+              ?? (n.publishedAt ? new Date(n.publishedAt as string).getTime() / 1000 : 0),
           }));
         }
       } catch {
