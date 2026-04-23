@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Activity, AlertTriangle, ChevronDown, Search, Timer, X } from "lucide-react";
+import { ChevronDown, Search, Timer, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TradingViewChartProps {
@@ -118,9 +118,6 @@ export function TradingViewChart({
   const [secondsLeft, setSecondsLeft] = useState(() => secondsToClose(60));
   const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [chartState, setChartState] = useState<"loading" | "ready" | "error">("loading");
-  const [fallbackMessage, setFallbackMessage] = useState("Connecting to TradingView feed...");
-  const [isSlowLoading, setIsSlowLoading] = useState(false);
 
   const filtered = query.trim()
     ? ALL_SYMBOLS.filter(
@@ -168,12 +165,7 @@ export function TradingViewChart({
     const element = containerRef.current;
     if (!element) return;
 
-    setChartState("loading");
-    setFallbackMessage("Connecting to TradingView feed...");
-    setIsSlowLoading(false);
-
     let isCancelled = false;
-    let slowTimer: ReturnType<typeof setTimeout> | null = null;
     let saveTimer: ReturnType<typeof setInterval> | null = null;
     let widget: any = null;
 
@@ -186,14 +178,8 @@ export function TradingViewChart({
     widgetRoot.className = "h-full w-full";
     element.appendChild(widgetRoot);
 
-    function setFailure(message: string) {
-      if (isCancelled) return;
-      setChartState("error");
-      setFallbackMessage(message);
-    }
-
     function buildWidget() {
-      if (isCancelled || !(window as any).TradingView) return;
+      if (isCancelled || !(window as any).TradingView?.widget) return;
 
       try {
         widget = new (window as any).TradingView.widget({
@@ -242,29 +228,19 @@ export function TradingViewChart({
         });
       } catch (error) {
         console.warn("[TradingView] widget constructor failed:", error);
-        setFailure("Chart service is unavailable. Use the terminal metrics while the feed reconnects.");
         return;
       }
 
       if (!widget || typeof widget.onChartReady !== "function") {
-        console.warn("[TradingView] widget missing onChartReady - skipping");
-        setFailure("Chart widget did not initialize. Summary cards and context panels remain active.");
         return;
       }
 
       widget.onChartReady(() => {
         if (isCancelled) return;
 
-        if (slowTimer) {
-          clearTimeout(slowTimer);
-        }
-
-        setChartState("ready");
-        setIsSlowLoading(false);
-
         try {
           const saved = localStorage.getItem(storageKey);
-          if (saved && typeof widget?.load === "function") {
+          if (saved && typeof widget.load === "function") {
             widget.load(JSON.parse(saved));
           }
         } catch {}
@@ -273,7 +249,7 @@ export function TradingViewChart({
           if (isCancelled) return;
 
           try {
-            if (typeof widget?.save === "function") {
+            if (typeof widget.save === "function") {
               widget.save((state: unknown) => {
                 try {
                   localStorage.setItem(storageKey, JSON.stringify(state));
@@ -285,48 +261,55 @@ export function TradingViewChart({
       });
     }
 
-    slowTimer = setTimeout(() => {
-      if (!isCancelled) {
-        setIsSlowLoading(true);
-      }
-    }, 8000);
-
-    if ((window as any).TradingView) {
+    if ((window as any).TradingView?.widget) {
       buildWidget();
     } else {
-      const existingScript = document.querySelector('script[src*="tradingview.com/tv.js"]');
+      const existingScript = document.querySelector('script[src*="tradingview.com/tv.js"]') as HTMLScriptElement | null;
 
       if (existingScript) {
-        let attempts = 0;
         const poll = setInterval(() => {
-          attempts += 1;
-
-          if ((window as any).TradingView) {
+          if ((window as any).TradingView?.widget) {
             clearInterval(poll);
             buildWidget();
-          } else if (attempts > 50) {
-            clearInterval(poll);
-            setFailure("Chart library did not finish loading. The rest of the dashboard is still available.");
           }
         }, 100);
-      } else {
-        const script = document.createElement("script");
-        script.src = "https://s3.tradingview.com/tv.js";
-        script.async = true;
-        script.onload = buildWidget;
-        script.onerror = () => {
-          setFailure("Chart script was blocked. Use the dashboard panels while TradingView reconnects.");
+
+        return () => {
+          isCancelled = true;
+          clearInterval(poll);
+
+          if (saveTimer) {
+            clearInterval(saveTimer);
+          }
+
+          try {
+            if (typeof widget?.save === "function") {
+              widget.save((state: unknown) => {
+                try {
+                  localStorage.setItem(storageKey, JSON.stringify(state));
+                } catch {}
+              });
+            }
+          } catch {}
+
+          if (element) {
+            element.innerHTML = "";
+          }
         };
-        document.head.appendChild(script);
       }
+
+      const script = document.createElement("script");
+      script.src = "https://s3.tradingview.com/tv.js";
+      script.async = true;
+      script.onload = buildWidget;
+      script.onerror = () => {
+        console.warn("[TradingView] failed to load tv.js");
+      };
+      document.head.appendChild(script);
     }
 
     return () => {
       isCancelled = true;
-
-      if (slowTimer) {
-        clearTimeout(slowTimer);
-      }
 
       if (saveTimer) {
         clearInterval(saveTimer);
@@ -341,8 +324,6 @@ export function TradingViewChart({
           });
         }
       } catch {}
-
-      widget = null;
 
       if (element) {
         element.innerHTML = "";
@@ -476,74 +457,7 @@ export function TradingViewChart({
         </div>
       </div>
 
-      <div className="relative min-h-0 flex-1 bg-[#131722]">
-        <div ref={containerRef} className="h-full w-full min-h-0" />
-
-        {isSlowLoading && chartState === "loading" && (
-          <div className="absolute right-4 top-4 z-10 inline-flex items-center gap-2 rounded-md border border-white/10 bg-[#131722]/85 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.18em] text-gray-300 backdrop-blur-sm">
-            <Activity className="h-3.5 w-3.5 animate-pulse" />
-            Loading Feed
-          </div>
-        )}
-
-        {chartState === "error" && (
-          <div className="absolute inset-0 z-10 flex flex-col justify-between gap-5 bg-[#131722]/95 p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">
-                  Chart Placeholder
-                </p>
-                <h3 className="mt-1 text-lg font-semibold text-white">
-                  {getLabel(activeSymbol)} · {activeInterval.label}
-                </h3>
-                <p className="mt-2 max-w-xl text-sm text-gray-400">{fallbackMessage}</p>
-              </div>
-
-              <div
-                className={cn(
-                  "inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.18em]",
-                  chartState === "error"
-                    ? "border-amber-500/20 bg-amber-500/10 text-amber-300"
-                    : "border-white/10 bg-white/5 text-gray-300"
-                )}
-              >
-                {chartState === "error" ? (
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                ) : (
-                  <Activity className="h-3.5 w-3.5 animate-pulse" />
-                )}
-                Fallback Mode
-              </div>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">Symbol</p>
-                <p className="mt-1 text-sm font-semibold text-white">{getLabel(activeSymbol)}</p>
-                <p className="mt-2 text-[11px] text-gray-400">{activeSymbol}</p>
-              </div>
-
-              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">Interval</p>
-                <p className="mt-1 text-sm font-semibold text-white">{activeInterval.label}</p>
-                <p className="mt-2 text-[11px] text-gray-400">Candle closes in {formatCountdown(secondsLeft)}</p>
-              </div>
-
-              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">Terminal Guidance</p>
-                <p className="mt-1 text-sm font-semibold text-white">Keep working the board</p>
-                <p className="mt-2 text-[11px] text-gray-400">
-                  Signal cards, cross-asset tape, and the intelligence panel remain available while the chart feed reconnects.
-                </p>
-              </div>
-            </div>
-
-            <p className="text-xs text-gray-500">
-              The dashboard remains usable even without the embedded chart. Refresh the page or switch symbols once the feed recovers.
-            </p>
-          </div>
-        )}
-      </div>
+      <div ref={containerRef} className="min-h-0 flex-1 bg-[#131722]" />
     </div>
   );
 }

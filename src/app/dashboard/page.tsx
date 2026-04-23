@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,8 @@ import {
   BrainCircuit,
   CalendarDays,
   Clock,
+  Maximize2,
+  Minimize2,
   RefreshCw,
   Shield,
   TrendingDown,
@@ -208,6 +210,7 @@ export default function DashboardPage() {
   const [timeframe, setTimeframe] = useState<Timeframe>("H1");
   const [refreshKey, setRefreshKey] = useState(0);
   const [expandedSnapshot, setExpandedSnapshot] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const symCfg = SYMBOLS.find((entry) => entry.id === symbol) ?? SYMBOLS[0];
 
@@ -221,6 +224,28 @@ export default function DashboardPage() {
     setRefreshKey((current) => current + 1);
     await mutate();
   }, [mutate]);
+
+  useEffect(() => {
+    function handleFullscreenChange() {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    }
+
+    handleFullscreenChange();
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (error) {
+      console.error("Failed to toggle fullscreen:", error);
+    }
+  }, []);
 
   const { quotes } = useQuotes();
   const { events } = useEconomicCalendar();
@@ -302,6 +327,24 @@ export default function DashboardPage() {
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto lg:flex-row lg:overflow-hidden lg:overflow-y-hidden">
       <section className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 lg:overflow-y-auto lg:pr-1">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-semibold text-[hsl(var(--foreground))]">Command Center</h1>
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+              Live dashboard layout with terminal context and full-screen viewing.
+            </p>
+          </div>
+
+          <button
+            onClick={toggleFullscreen}
+            className="inline-flex items-center gap-2 rounded-md border border-[hsl(var(--border))] px-3 py-1.5 text-[11px] font-medium text-[hsl(var(--muted-foreground))] transition-colors hover:text-[hsl(var(--foreground))]"
+            title={isFullscreen ? "Exit full screen" : "Open full screen"}
+          >
+            {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+            {isFullscreen ? "Exit Full Screen" : "Full Screen"}
+          </button>
+        </div>
+
         <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
           <SummaryCard title="Trade Signal" icon={<Activity className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />}>
             <div className={cn("inline-flex items-center gap-2 rounded-md border px-2.5 py-2", signalConfig.badge)}>
