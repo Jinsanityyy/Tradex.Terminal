@@ -91,9 +91,7 @@ function UserMenu() {
     window.location.href = "/login";
   }
 
-  if (!email) return null;
-
-  const displayName = traderName || email.split("@")[0];
+  const displayName = traderName || (email ? email.split("@")[0] : "Trader");
 
   return (
     <div className="relative">

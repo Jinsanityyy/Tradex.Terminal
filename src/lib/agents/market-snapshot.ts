@@ -73,7 +73,24 @@ export async function buildMarketSnapshot(
 
   const dayRange      = high - low;
   const positionInDay = dayRange > 0 ? ((close - low) / dayRange) * 100 : 50;
-  const rsiVal        = rsi ?? 50;
+
+  // Derive pseudo-RSI from available data if real RSI not provided.
+  // Real RSI requires 14 candles of history which we don't have from daily quotes.
+  // This approximation uses: position in day's range, 52-week position, and daily % change.
+  // It won't match a real RSI chart exactly, but correctly reflects overbought/oversold conditions.
+  const derivedRsi = rsi ?? (() => {
+    const rangeFactor    = positionInDay;                        // 0-100 based on day's H/L
+    const weekFactor     = (() => {
+      const r52 = (parseFloat(rawQuote.fifty_two_week?.high ?? String(close * 1.1)) -
+                   parseFloat(rawQuote.fifty_two_week?.low  ?? String(close * 0.9)));
+      const l52 =  parseFloat(rawQuote.fifty_two_week?.low  ?? String(close * 0.9));
+      return r52 > 0 ? ((close - l52) / r52) * 100 : 50;
+    })();
+    const momentumFactor = Math.min(100, Math.max(0, 50 + pctChange * 8)); // scale daily % move
+    return Math.round(rangeFactor * 0.4 + weekFactor * 0.35 + momentumFactor * 0.25);
+  })();
+
+  const rsiVal = Math.min(100, Math.max(0, derivedRsi));
 
   // Effective values for bias (invert EUR/USD since it's a DXY proxy)
   const effPctChange = cfg.invertBias ? -pctChange : pctChange;

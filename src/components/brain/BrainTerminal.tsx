@@ -352,7 +352,11 @@ export function BrainTerminal() {
           confidence={data?.agents.master.confidence ?? 0}
           consensusScore={data?.agents.master.consensusScore ?? 0}
           agentConsensus={data?.agents.master.agentConsensus ?? []}
-          strategyMatch={data?.agents.master.strategyMatch}
+          strategyMatch={
+            data?.agents.master.finalBias === "no-trade"
+              ? undefined
+              : data?.agents.master.strategyMatch
+          }
           noTradeReason={data?.agents.master.noTradeReason}
           loading={loading && !data}
           onClick={data ? () => openDrawer("master") : undefined}

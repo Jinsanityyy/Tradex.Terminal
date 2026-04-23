@@ -128,7 +128,7 @@ function rowToRecord(row: SignalRow): SignalRecord {
 
   return {
     id: row.id,
-    timestamp: row.timestamp,
+    timestamp: row.timestamp ?? row.created_at ?? new Date().toISOString(),
     symbol: row.symbol as Symbol,
     symbolDisplay: row.symbol_display ?? row.symbol,
     timeframe: (row.timeframe ?? "H1") as Timeframe,
@@ -196,7 +196,7 @@ export async function getSignals(opts?: {
   const db = getServiceClient();
   if (!db) return [];
 
-  let q = db.from("signals").select("*").order("timestamp", { ascending: false });
+  let q = db.from("signals").select("*").order("created_at", { ascending: false });
   if (opts?.symbol) q = q.eq("symbol", opts.symbol);
   if (opts?.status) q = q.eq("status", opts.status);
   if (opts?.sinceTimestamp) q = q.gte("timestamp", opts.sinceTimestamp);
