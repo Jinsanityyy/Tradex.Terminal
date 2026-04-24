@@ -746,7 +746,7 @@ export default function DashboardPage() {
   })();
   const chartHeightClass = isFullscreen
     ? "h-[88vh]"
-    : "h-[50vh] min-h-[300px] lg:h-[80vh] lg:min-h-[500px]";
+    : "h-[60vh] min-h-[400px] lg:h-[75vh] lg:min-h-[500px]";
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto lg:flex-row lg:overflow-hidden lg:overflow-y-hidden">
@@ -822,7 +822,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Chart — first thing visible */}
-        <Card className="overflow-hidden">
+        <Card className="overflow-hidden border-[hsl(var(--primary))]/20">
           <CardContent className="p-0">
             <TradingViewChart symbol={symCfg.tv} heightClass={chartHeightClass} />
           </CardContent>
