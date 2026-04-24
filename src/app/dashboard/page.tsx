@@ -151,7 +151,7 @@ function InfoRow({
 function SummaryCard({
   title,
   icon,
-  hint = "Open overview",
+  hint = "OPEN OVERVIEW",
   onClick,
   children,
 }: {
@@ -164,39 +164,28 @@ function SummaryCard({
   const interactive = Boolean(onClick);
 
   return (
-    <Card
+    <div
       className={cn(
-        "h-full",
-        interactive &&
-          "cursor-pointer transition-all hover:border-[hsl(var(--primary))]/25 hover:bg-[hsl(var(--secondary))]/35"
+        "h-full flex flex-col border-l-2 border-l-white/8 pl-3 py-3 pr-2 bg-[hsl(var(--card))]",
+        interactive && "cursor-pointer group hover:bg-white/[0.04] transition-colors"
       )}
       onClick={onClick}
-      onKeyDown={
-        interactive
-          ? (event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                onClick?.();
-              }
-            }
-          : undefined
-      }
       role={interactive ? "button" : undefined}
       tabIndex={interactive ? 0 : undefined}
     >
-      <CardHeader className="pb-1.5">
-        <CardTitle className="flex items-center justify-between gap-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-[hsl(var(--muted-foreground))]">
-          <span className="flex items-center gap-2">
-            {icon}
-            <span>{title}</span>
-          </span>
-          {interactive ? <span className="text-[9px] text-[hsl(var(--primary))]">{hint}</span> : null}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2.5 pt-0">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5">
+          {icon}
+          <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-zinc-600">{title}</span>
+        </div>
+        {interactive && (
+          <span className="text-[8px] text-zinc-700 group-hover:text-zinc-400 transition-colors uppercase tracking-wider">{hint}</span>
+        )}
+      </div>
+      <div className="flex-1 space-y-2">
         {children}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -750,40 +739,38 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:h-[calc(100vh-var(--topbar-height,56px))] lg:overflow-hidden">
-      <section className="min-w-0 flex-1 flex flex-col gap-3 lg:overflow-y-auto lg:h-full">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-3">
-            <div>
-              <h1 className="text-base font-semibold text-[hsl(var(--foreground))]">Command Center</h1>
-            </div>
-
-            <div className="hidden items-center gap-1 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-1 xl:flex">
+      <section className="min-w-0 flex-1 flex flex-col gap-2 lg:overflow-y-auto lg:h-full">
+        <div className="flex items-center justify-between gap-2 h-8">
+          <div className="flex items-center gap-1">
+            {/* Symbol tabs */}
+            <div className="flex items-center">
               {SYMBOLS.map((entry) => (
                 <button
                   key={entry.id}
                   onClick={() => setSymbol(entry.id)}
                   className={cn(
-                    "rounded-md px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-colors",
+                    "px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors",
                     symbol === entry.id
-                      ? "bg-[hsl(var(--primary))]/12 text-[hsl(var(--primary))]"
-                      : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+                      ? "text-[hsl(var(--primary))]"
+                      : "text-zinc-600 hover:text-zinc-300"
                   )}
                 >
                   {entry.short}
                 </button>
               ))}
             </div>
-
-            <div className="hidden items-center gap-1 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-1 xl:flex">
+            <span className="w-px h-3 bg-white/10" />
+            {/* TF tabs */}
+            <div className="flex items-center">
               {TIMEFRAMES.map((entry) => (
                 <button
                   key={entry}
                   onClick={() => setTimeframe(entry)}
                   className={cn(
-                    "rounded-md px-2.5 py-1 text-[10px] font-mono transition-colors",
+                    "px-2 py-1 text-[10px] font-mono transition-colors",
                     timeframe === entry
-                      ? "bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))]"
-                      : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+                      ? "text-white"
+                      : "text-zinc-600 hover:text-zinc-300"
                   )}
                 >
                   {entry}
@@ -792,43 +779,40 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={handleRefresh}
               disabled={isLoading}
-              className="inline-flex items-center gap-2 rounded-md border border-[hsl(var(--border))] px-3 py-1.5 text-[11px] font-medium text-[hsl(var(--muted-foreground))] transition-colors hover:text-[hsl(var(--foreground))]"
+              className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors"
             >
-              <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
-              {isLoading ? "Refreshing" : "Refresh"}
+              <RefreshCw className={cn("h-3 w-3", isLoading && "animate-spin")} />
+              {isLoading ? "Running…" : "Refresh"}
             </button>
-
             <Link
               href="/dashboard/brain"
-              className="inline-flex items-center gap-2 rounded-md border border-[hsl(var(--border))] px-3 py-1.5 text-[11px] font-medium text-[hsl(var(--muted-foreground))] transition-colors hover:text-[hsl(var(--foreground))]"
+              className="flex items-center gap-1 px-2.5 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors"
             >
               Brain Terminal
-              <ArrowRight className="h-3.5 w-3.5" />
+              <ArrowRight className="h-3 w-3" />
             </Link>
-
             <button
               onClick={toggleFullscreen}
-              className="inline-flex items-center gap-2 rounded-md border border-[hsl(var(--border))] px-3 py-1.5 text-[11px] font-medium text-[hsl(var(--muted-foreground))] transition-colors hover:text-[hsl(var(--foreground))]"
-              title={isFullscreen ? "Exit full screen" : "Open full screen"}
+              className="flex items-center gap-1 px-2.5 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors"
             >
-              {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-              {isFullscreen ? "Exit Full Screen" : "Full Screen"}
+              {isFullscreen ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+              {isFullscreen ? "Exit" : "Full Screen"}
             </button>
           </div>
         </div>
 
         {/* Chart — first thing visible */}
-        <Card className="overflow-hidden border-[hsl(var(--primary))]/20">
+        <Card className="overflow-hidden border-white/5">
           <CardContent className="p-0">
             <TradingViewChart symbol={symCfg.tv} heightClass={chartHeightClass} />
           </CardContent>
         </Card>
 
-        <div className="grid gap-2 md:grid-cols-2 2xl:grid-cols-4">
+        <div className="grid gap-px md:grid-cols-2 2xl:grid-cols-4 bg-white/5 rounded-xl overflow-hidden">
           <SummaryCard
             title="Trade Signal"
             icon={<Activity className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />}
@@ -1020,7 +1004,7 @@ export default function DashboardPage() {
         </Card>
       </section>
 
-      <aside className="w-full lg:w-[300px] xl:w-[320px] shrink-0 lg:sticky lg:top-0 lg:h-[calc(100vh-var(--topbar-height,56px))] lg:flex lg:flex-col lg:overflow-hidden">
+      <aside className="w-full lg:w-[240px] xl:w-[260px] shrink-0 lg:sticky lg:top-0 lg:h-[calc(100vh-var(--topbar-height,56px))] lg:flex lg:flex-col lg:overflow-hidden border-l border-white/5">
 
         {/* Community chat — fixed at top */}
         <div className="shrink-0">
