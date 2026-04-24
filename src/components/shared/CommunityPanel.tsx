@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Send, Loader2, Hash, Users } from "lucide-react";
+import { Send, Loader2, Hash } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 
@@ -63,9 +63,20 @@ export function CommunityPanel() {
 
   useEffect(() => {
     if (!supabase) return;
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
-    const saved = localStorage.getItem(TRADER_NAME_KEY);
-    if (saved) setTraderName(saved);
+    supabase.auth.getUser().then(({ data }) => {
+      const user = data.user;
+      if (!user) return;
+      setUserId(user.id);
+      // Load name: localStorage first, then profile, then email prefix
+      const saved = localStorage.getItem(TRADER_NAME_KEY);
+      if (saved) { setTraderName(saved); return; }
+      supabase.from("profiles").select("display_name, email").eq("id", user.id).maybeSingle()
+        .then(({ data: profile }) => {
+          const name = profile?.display_name ?? user.email?.split("@")[0] ?? "Trader";
+          setTraderName(name);
+          localStorage.setItem(TRADER_NAME_KEY, name);
+        });
+    });
   }, []);
 
   useEffect(() => {
@@ -151,7 +162,7 @@ export function CommunityPanel() {
   return (
     <div className="flex flex-col h-full" style={{ minHeight: "380px" }}>
 
-      {/* Header */}
+      {/* Header - no usernames for privacy */}
       <div className="px-3 py-2 border-b border-[hsl(var(--border))] shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
@@ -165,15 +176,6 @@ export function CommunityPanel() {
             </span>
           </div>
         </div>
-        {members.length > 0 && (
-          <div className="flex items-center gap-1 mt-0.5">
-            <Users className="h-2.5 w-2.5 text-[hsl(var(--muted-foreground))]" />
-            <span className="text-[9px] text-[hsl(var(--muted-foreground))] truncate">
-              {members.slice(0, 3).map(m => m.display_name ?? m.email?.split("@")[0] ?? "Trader").join(", ")}
-              {members.length > 3 ? ` +${members.length - 3}` : ""}
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Messages */}
@@ -209,7 +211,7 @@ export function CommunityPanel() {
                     {showAvatar && (
                       <div className={cn("flex items-baseline gap-1.5 mb-0.5", isOwn && "flex-row-reverse")}>
                         <span className="text-[10px] font-semibold text-[hsl(var(--foreground))]">
-                          {isOwn ? "You" : (msg.display_name ?? "Trader")}
+                          {isOwn ? traderName : (msg.display_name ?? "Trader")}
                         </span>
                         <span className="text-[9px] text-[hsl(var(--muted-foreground))]">{timeShort(msg.created_at)}</span>
                       </div>
