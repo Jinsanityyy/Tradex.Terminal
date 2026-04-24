@@ -745,8 +745,8 @@ export default function DashboardPage() {
     }
   })();
   const chartHeightClass = isFullscreen
-    ? "h-[88vh] min-h-[980px] xl:h-[94vh] xl:min-h-[1120px]"
-    : "h-[80vh] min-h-[860px] xl:h-[88vh] xl:min-h-[1020px]";
+    ? "h-[88vh]"
+    : "h-[50vh] min-h-[300px] lg:h-[80vh] lg:min-h-[500px]";
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto lg:flex-row lg:overflow-hidden lg:overflow-y-hidden">
