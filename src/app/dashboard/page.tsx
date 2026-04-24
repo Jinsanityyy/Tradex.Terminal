@@ -174,7 +174,7 @@ function AgentMiniCard({
     <div
       onClick={onClick}
       className={cn(
-        "flex flex-col bg-[hsl(var(--card))] px-3 py-3.5 gap-2.5 border-t-2 transition-all",
+        "flex flex-col bg-[hsl(var(--card))] px-3 py-4 gap-3 border-t-2 transition-all",
         borderColor,
         onClick && "cursor-pointer hover:bg-white/[0.05]",
       )}
@@ -186,7 +186,7 @@ function AgentMiniCard({
       {isLoading ? (
         <div className="h-4 w-20 bg-white/5 rounded animate-pulse" />
       ) : (
-        <span className={cn("text-[13px] font-bold uppercase leading-none", biasTextColor)}>{bias}</span>
+        <span className={cn("text-[14px] font-bold uppercase leading-none", biasTextColor)}>{bias}</span>
       )}
 
       {/* Confidence bar + % */}
@@ -797,7 +797,7 @@ export default function DashboardPage() {
   })();
   const chartHeightClass = isFullscreen
     ? "h-[88vh]"
-    : "h-[52vh] min-h-[380px] lg:h-[58vh] lg:min-h-[420px]";
+    : "h-[calc(100vh-320px)] min-h-[420px]";
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:h-[calc(100vh-var(--topbar-height,56px))] lg:overflow-hidden">
