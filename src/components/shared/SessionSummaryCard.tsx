@@ -55,7 +55,7 @@ export function SessionSummaryCard({ session, compact = false }: SessionSummaryC
         <div>
           <h4 className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1.5">Key Moves</h4>
           <ul className="space-y-1">
-            {(compact ? session.keyMoves.slice(0, 3) : session.keyMoves).map((move, i) => (
+            {(compact ? session.keyMoves.slice(0, 1) : session.keyMoves).map((move, i) => (
               <li key={i} className="flex items-start gap-1.5">
                 <ArrowRight className="h-3 w-3 mt-0.5 shrink-0 text-[hsl(var(--muted-foreground))]" />
                 <span className="text-xs text-[hsl(var(--muted-foreground))]">{move}</span>
