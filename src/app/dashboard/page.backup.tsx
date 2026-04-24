@@ -165,7 +165,7 @@ export default function DashboardPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <TradingViewChart symbol="OANDA:XAUUSD" height={900} />
+          <TradingViewChart symbol="OANDA:XAUUSD" heightClass="h-[900px]" />
         </CardContent>
       </Card>
 

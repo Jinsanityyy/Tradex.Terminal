@@ -3,24 +3,24 @@
 @tailwind utilities;
 
 :root {
-  --background: 220 20% 4%;
+  --background: 225 14% 12%;
   --foreground: 0 0% 95%;
-  --card: 220 18% 7%;
+  --card: 225 13% 15%;
   --card-foreground: 0 0% 95%;
-  --popover: 220 18% 7%;
+  --popover: 225 13% 15%;
   --popover-foreground: 0 0% 95%;
   --primary: 142 71% 45%;
-  --primary-foreground: 220 20% 4%;
-  --secondary: 220 14% 12%;
+  --primary-foreground: 225 14% 12%;
+  --secondary: 225 11% 18%;
   --secondary-foreground: 0 0% 95%;
-  --muted: 220 13% 20%;
-  --muted-foreground: 220 10% 55%;
+  --muted: 225 10% 22%;
+  --muted-foreground: 225 8% 62%;
   --accent: 217 91% 60%;
   --accent-foreground: 0 0% 95%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 95%;
-  --border: 220 13% 15%;
-  --input: 220 13% 15%;
+  --border: 225 10% 20%;
+  --input: 225 10% 20%;
   --ring: 142 71% 45%;
   --radius: 0.5rem;
 
@@ -39,11 +39,11 @@
 }
 
 html {
-  background: #0a0e1a;
+  background: hsl(var(--background));
 }
 
 body {
-  background: #0a0e1a;
+  background: hsl(var(--background));
   color: hsl(var(--foreground));
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -54,24 +54,24 @@ body {
 /* Scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #1e2535 #0a0e1a;
+  scrollbar-color: hsl(var(--secondary)) hsl(var(--background));
 }
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
 }
 ::-webkit-scrollbar-track {
-  background: #0a0e1a;
+  background: hsl(var(--background));
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e2535;
+  background: hsl(var(--secondary));
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #2a3348;
+  background: hsl(var(--muted));
 }
 ::-webkit-scrollbar-corner {
-  background: #0a0e1a;
+  background: hsl(var(--background));
 }
 
 /* Fullscreen scrollbar fix */
@@ -83,25 +83,25 @@ body {
 }
 :fullscreen ::-webkit-scrollbar-track,
 :-webkit-full-screen ::-webkit-scrollbar-track {
-  background: #0a0e1a;
+  background: hsl(var(--background));
 }
 :fullscreen ::-webkit-scrollbar-thumb,
 :-webkit-full-screen ::-webkit-scrollbar-thumb {
-  background: #1e2535;
+  background: hsl(var(--secondary));
   border-radius: 4px;
 }
 :fullscreen,
 :-webkit-full-screen,
 :-moz-full-screen {
-  background: #0a0e1a !important;
-  scrollbar-color: #1e2535 #0a0e1a;
+  background: hsl(var(--background)) !important;
+  scrollbar-color: hsl(var(--secondary)) hsl(var(--background));
 }
 
 /* TradingView dark background fix */
 iframe,
 [id^="tradingview_"],
 .tv-embed-widget-wrapper {
-  background: #000000 !important;
+  background: hsl(var(--card)) !important;
 }
 
 /* Premium Utilities */
@@ -207,6 +207,14 @@ iframe,
 /* Default dark — TradingView style, slightly elevated surfaces */
 :root,
 [data-theme="dark"] {
+  --background: 225 14% 12%;
+  --card: 225 13% 15%;
+  --popover: 225 13% 15%;
+  --secondary: 225 11% 18%;
+  --muted: 225 10% 22%;
+  --muted-foreground: 225 8% 62%;
+  --border: 225 10% 20%;
+  --input: 225 10% 20%;
   --t-bg:           #0B0F14;
   --t-card:         #11161C;
   --t-card-2:       #161C24;

@@ -6,8 +6,10 @@ import { cn } from "@/lib/utils";
 
 interface TradingViewChartProps {
   symbol?: string;
-  height?: number;
+  heightClass?: string;
 }
+
+const CHART_LAYOUT_VERSION = "v4";
 
 const INTERVALS = [
   { label: "1m", value: "1", minutes: 1 },
@@ -101,14 +103,14 @@ function formatCountdown(totalSeconds: number) {
 }
 
 function chartStorageKey(symbol: string) {
-  return `tradex_chart_${symbol.replace(/[^a-z0-9]/gi, "_")}`;
+  return `tradex_chart_${CHART_LAYOUT_VERSION}_${symbol.replace(/[^a-z0-9]/gi, "_")}`;
 }
 
 let widgetCounter = 0;
 
 export function TradingViewChart({
   symbol: initialSymbol = "OANDA:XAUUSD",
-  height = 400,
+  heightClass = "h-[400px]",
 }: TradingViewChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -192,13 +194,12 @@ export function TradingViewChart({
           theme: "dark",
           style: "1",
           locale: "en",
-          toolbar_bg: "#131722",
+          toolbar_bg: "#1b2028",
           enable_publishing: false,
           hide_top_toolbar: false,
           hide_side_toolbar: false,
           allow_symbol_change: false,
           save_image: false,
-          studies: ["Volume@tv-basicstudies"],
           disabled_features: [
             "header_fullscreen_button",
             "left_toolbar",
@@ -206,8 +207,8 @@ export function TradingViewChart({
             "header_compare",
           ],
           enabled_features: ["study_templates", "side_toolbar_in_fullscreen_mode"],
-          backgroundColor: "rgba(19,23,34,1)",
-          gridColor: "rgba(42,46,57,0.5)",
+          backgroundColor: "rgba(28,32,40,1)",
+          gridColor: "rgba(255,255,255,0.05)",
           overrides: {
             "mainSeriesProperties.candleStyle.upColor": "#26a69a",
             "mainSeriesProperties.candleStyle.downColor": "#ef5350",
@@ -215,15 +216,13 @@ export function TradingViewChart({
             "mainSeriesProperties.candleStyle.wickDownColor": "#ef5350",
             "mainSeriesProperties.candleStyle.borderUpColor": "#26a69a",
             "mainSeriesProperties.candleStyle.borderDownColor": "#ef5350",
-            "paneProperties.background": "#131722",
+            "paneProperties.background": "#1c2028",
             "paneProperties.backgroundType": "solid",
-            "paneProperties.vertGridProperties.color": "#1e2230",
-            "paneProperties.vertGridProperties.style": 2,
-            "paneProperties.horzGridProperties.color": "#1e2230",
-            "paneProperties.horzGridProperties.style": 2,
-            "scalesProperties.textColor": "#6b7280",
+            "paneProperties.vertGridProperties.color": "#2d333d",
+            "paneProperties.horzGridProperties.color": "#2d333d",
+            "scalesProperties.textColor": "#8d95a3",
             "scalesProperties.fontSize": 11,
-            "scalesProperties.backgroundColor": "#131722",
+            "scalesProperties.backgroundColor": "#1c2028",
           },
         });
       } catch (error) {
@@ -334,8 +333,8 @@ export function TradingViewChart({
   const urgent = secondsLeft <= 60;
 
   return (
-    <div className="flex w-full flex-col overflow-hidden" style={{ height }}>
-      <div className="flex h-[42px] shrink-0 items-center justify-between gap-2 border-b border-white/5 bg-[#0a0e1a] px-3">
+    <div className={cn("flex w-full flex-col overflow-hidden", heightClass)}>
+      <div className="flex h-[42px] shrink-0 items-center justify-between gap-2 border-b border-white/5 bg-[#171b22] px-3">
         <div className="flex min-w-0 items-center gap-1.5">
           <div className="relative" ref={dropdownRef}>
             <button
@@ -347,7 +346,7 @@ export function TradingViewChart({
             </button>
 
             {pickerOpen && (
-              <div className="absolute left-0 top-full z-50 mt-1.5 w-[260px] overflow-hidden rounded-lg border border-white/10 bg-[#0d1117] shadow-2xl">
+              <div className="absolute left-0 top-full z-50 mt-1.5 w-[260px] overflow-hidden rounded-lg border border-white/10 bg-[#1b1f27] shadow-2xl">
                 <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2">
                   <Search className="h-3.5 w-3.5 shrink-0 text-gray-500" />
                   <input
@@ -457,7 +456,7 @@ export function TradingViewChart({
         </div>
       </div>
 
-      <div ref={containerRef} className="min-h-0 flex-1 bg-[#131722]" />
+      <div ref={containerRef} className="min-h-0 flex-1 bg-[#1c2028]" />
     </div>
   );
 }

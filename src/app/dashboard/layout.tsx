@@ -18,7 +18,7 @@ export default function DashboardLayout({
 
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-[hsl(var(--background))]">
+    <div className="flex h-dvh overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.035),_transparent_30%),hsl(var(--background))]">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden transition-all duration-300 [margin-left:var(--sidebar-current-width,var(--sidebar-width))]">
         <TopStatusBar />

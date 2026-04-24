@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Component } from "react";
+import React, { useState, Component } from "react";
 import { TradingViewChart } from "@/components/shared/TradingViewChart";
 import { cn } from "@/lib/utils";
 import { RefreshCw } from "lucide-react";
@@ -43,14 +43,6 @@ class ChartErrorBoundary extends Component<
 export function MobileChart() {
   const [symbol, setSymbol] = useState("OANDA:XAUUSD");
   const [chartKey, setChartKey] = useState(0);
-  const [chartHeight, setChartHeight] = useState(500);
-
-  useEffect(() => {
-    const update = () => setChartHeight(Math.max(300, window.innerHeight - 180));
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
 
   function handleSymbol(value: string) {
     setSymbol(value);
@@ -83,7 +75,7 @@ export function MobileChart() {
           <TradingViewChart
             key={`${symbol}-${chartKey}`}
             symbol={symbol}
-            height={chartHeight}
+            heightClass="h-[calc(100dvh-180px)] min-h-[300px]"
           />
         </ChartErrorBoundary>
       </div>

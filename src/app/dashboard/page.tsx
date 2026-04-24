@@ -628,7 +628,10 @@ export default function DashboardPage() {
 
           <CardContent className="p-0">
             <div className="border-b border-[hsl(var(--border))]">
-              <TradingViewChart symbol={symCfg.tv} height={560} />
+              <TradingViewChart
+                symbol={symCfg.tv}
+                heightClass="h-[68vh] min-h-[680px] max-h-[900px]"
+              />
             </div>
 
             <div className="grid gap-4 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_280px]">
