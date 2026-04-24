@@ -148,6 +148,53 @@ function InfoRow({
   );
 }
 
+function AgentMiniCard({
+  label,
+  bias,
+  confidence,
+  detail,
+  isLoading,
+  accent,
+}: {
+  label: string;
+  bias: string;
+  confidence: number;
+  detail: string;
+  isLoading: boolean;
+  accent: "bull" | "bear" | "neutral";
+}) {
+  const accentColor = accent === "bull" ? "bg-emerald-500" : accent === "bear" ? "bg-red-500" : "bg-zinc-600";
+  const biasTextColor = accent === "bull" ? "text-emerald-400" : accent === "bear" ? "text-red-400" : "text-zinc-500";
+
+  return (
+    <div className="flex flex-col bg-[hsl(var(--card))] px-3 py-3 gap-2">
+      {/* Label */}
+      <span className="text-[8px] font-semibold uppercase tracking-[0.2em] text-zinc-600 truncate">{label}</span>
+
+      {/* Bias */}
+      {isLoading ? (
+        <div className="h-3.5 w-16 bg-white/5 rounded animate-pulse" />
+      ) : (
+        <span className={cn("text-[11px] font-semibold uppercase truncate", biasTextColor)}>
+          {bias}
+        </span>
+      )}
+
+      {/* Confidence bar */}
+      <div className="h-0.5 bg-zinc-800 rounded-full overflow-hidden">
+        <div className={cn("h-full rounded-full transition-all", accentColor)}
+          style={{ width: isLoading ? "0%" : `${confidence}%` }} />
+      </div>
+
+      {/* Confidence % */}
+      <span className="text-[10px] font-mono text-zinc-600">{isLoading ? "—" : `${confidence}%`}</span>
+
+      {/* Detail */}
+      <span className="text-[9px] text-zinc-700 truncate leading-tight">{isLoading ? "—" : detail}</span>
+    </div>
+  );
+}
+
 function SummaryCard({
   title,
   icon,
@@ -812,131 +859,29 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-px md:grid-cols-2 2xl:grid-cols-4 bg-white/5 rounded-xl overflow-hidden min-h-[160px]">
-          <SummaryCard
-            title="Trade Signal"
-            icon={<Activity className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />}
-            onClick={() => setActiveOverview("signal")}
-          >
-            <div className={cn("inline-flex items-center gap-2 rounded-md border px-2.5 py-2", signalConfig.badge)}>
-              <span className={cn("h-2 w-2 rounded-full", signalConfig.dot)} />
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">{signalConfig.label}</span>
-              {master?.confidence ? (
-                <span className="text-[11px] font-mono text-[hsl(var(--foreground))]">{master.confidence}%</span>
-              ) : null}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <StatCell label="Bias" value={formatBiasLabel(finalBias)} color={biasColor(finalBias)} />
-              <StatCell label="Direction" value={tradePlan?.direction?.toUpperCase() ?? "--"} />
-              <StatCell label="Trigger" value={tradePlan?.trigger?.toUpperCase() ?? "--"} />
-              <StatCell
-                label="Max Risk"
-                value={tradePlan?.maxRiskPercent ? `${tradePlan.maxRiskPercent}%` : "--"}
-                color="text-[hsl(var(--muted-foreground))]"
-              />
-            </div>
-
-            <SummaryHint>{signalPreview}</SummaryHint>
-          </SummaryCard>
-
-          <SummaryCard
-            title="Market Snapshot"
-            icon={<BarChart3 className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />}
-            onClick={() => setActiveOverview("snapshot")}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[11px] text-[hsl(var(--muted-foreground))]">{symCfg.label}</p>
-                <p className="text-2xl font-semibold font-mono text-[hsl(var(--foreground))]">{priceLabel}</p>
-              </div>
-              <div className={cn("rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]", biasBadgeClass(finalBias))}>
-                {formatBiasLabel(finalBias)}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <StatCell
-                label="RSI"
-                value={String(snap?.indicators?.rsi ?? "--")}
-                color={
-                  (snap?.indicators?.rsi ?? 50) > 70
-                    ? "text-red-400"
-                    : (snap?.indicators?.rsi ?? 50) < 30
-                      ? "text-emerald-400"
-                      : "text-[hsl(var(--foreground))]"
-                }
-              />
-              <StatCell label="Session" value={snap?.indicators?.session ?? primarySession?.session.toUpperCase() ?? "--"} />
-              <StatCell label="Zone" value={snap?.structure?.zone ?? "--"} />
-              <StatCell
-                label="Consensus"
-                value={master ? `${master.consensusScore > 0 ? "+" : ""}${master.consensusScore.toFixed(1)}` : "--"}
-                color={master && master.consensusScore < 0 ? "text-red-400" : "text-emerald-400"}
-              />
-            </div>
-
-            <SummaryHint>{snapshotPreview}</SummaryHint>
-          </SummaryCard>
-
-          <SummaryCard
-            title="Agent Consensus"
-            icon={<BrainCircuit className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />}
-            onClick={() => setActiveOverview("consensus")}
-          >
-            <div className="grid grid-cols-3 gap-2">
-              {agentRows.slice(0, 3).map((agent) => (
-                <div
-                  key={agent.label}
-                  className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/35 px-2 py-2"
-                >
-                  <p className="text-[9px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
-                    {agent.label}
-                  </p>
-                  <p className={cn("mt-1 text-[11px] font-mono font-semibold", biasColor(agent.bias))}>
-                    {formatBiasLabel(agent.bias)}
-                  </p>
-                  <p className="mt-1 text-[10px] text-[hsl(var(--muted-foreground))]">{agent.confidence}%</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 border-t border-[hsl(var(--border))] pt-3">
-              <StatCell
-                label="News Risk"
-                value={news ? `${news.riskScore ?? 0}/100` : "--"}
-                color={
-                  (news?.riskScore ?? 0) > 70
-                    ? "text-red-400"
-                    : (news?.riskScore ?? 0) > 40
-                      ? "text-amber-400"
-                      : "text-emerald-400"
-                }
-              />
-              <StatCell label="Catalysts" value={String(news?.catalysts?.length ?? catalysts.length)} />
-            </div>
-
-            <SummaryHint>{consensusPreview}</SummaryHint>
-          </SummaryCard>
-
-          <SummaryCard
-            title="Risk and Session"
-            icon={<Shield className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />}
-            onClick={() => setActiveOverview("risk")}
-          >
-            <div className="grid grid-cols-2 gap-3">
-              <StatCell
-                label="Risk Gate"
-                value={risk ? `${risk.valid ? "VALID" : "BLOCKED"} ${risk.grade}` : "--"}
-                color={risk?.valid ? "text-emerald-400" : "text-red-400"}
-              />
-              <StatCell label="Volatility" value={risk ? String(risk.volatilityScore) : "--"} />
-              <StatCell label="Session Score" value={risk ? String(risk.sessionScore) : "--"} />
-              <StatCell label="Session" value={primarySession?.session.toUpperCase() ?? "--"} />
-            </div>
-
-            <SummaryHint>{riskPreview}</SummaryHint>
-          </SummaryCard>
+        {/* 7 Agent cards — replacing summary cards */}
+        <div className="grid grid-cols-7 gap-px bg-white/5 rounded-xl overflow-hidden">
+          <AgentMiniCard label="MASTER" bias={finalBias} confidence={master?.confidence ?? 0}
+            detail={isNoTrade ? (master?.noTradeReason ?? "No trade") : (master?.strategyMatch ?? finalBias)}
+            isLoading={isLoading && !data} accent={isNoTrade ? "neutral" : finalBias === "bullish" ? "bull" : "bear"} />
+          <AgentMiniCard label="TREND" bias={trend?.bias ?? "neutral"} confidence={trend?.confidence ?? 0}
+            detail={trend?.momentumDirection ?? "—"} isLoading={isLoading && !data}
+            accent={trend?.bias === "bullish" ? "bull" : trend?.bias === "bearish" ? "bear" : "neutral"} />
+          <AgentMiniCard label="PR. ACTION" bias={smc?.bias ?? "neutral"} confidence={smc?.confidence ?? 0}
+            detail={smc?.setupType ?? "—"} isLoading={isLoading && !data}
+            accent={smc?.bias === "bullish" ? "bull" : smc?.bias === "bearish" ? "bear" : "neutral"} />
+          <AgentMiniCard label="NEWS" bias={news?.impact ?? "neutral"} confidence={news?.confidence ?? 0}
+            detail={news?.regime ?? "—"} isLoading={isLoading && !data}
+            accent={news?.impact === "bullish" ? "bull" : news?.impact === "bearish" ? "bear" : "neutral"} />
+          <AgentMiniCard label="RISK GATE" bias={risk?.valid ? "valid" : "blocked"} confidence={risk?.sessionScore ?? 0}
+            detail={`Grade ${risk?.grade ?? "—"} · Vol ${risk?.volatilityScore ?? 0}`} isLoading={isLoading && !data}
+            accent={risk?.valid ? "bull" : "bear"} />
+          <AgentMiniCard label="CONTRARIAN" bias={contrarian?.challengesBias ? "alert" : "clear"} confidence={contrarian?.riskFactor ?? 0}
+            detail={contrarian?.trapType && contrarian.trapType !== "None" ? contrarian.trapType : "No trap"}
+            isLoading={isLoading && !data} accent={contrarian?.challengesBias ? "bear" : "neutral"} />
+          <AgentMiniCard label="EXECUTION" bias={exec?.signalState ?? "NO_TRADE"} confidence={exec?.hasSetup ? 75 : 0}
+            detail={exec?.trigger ?? "—"} isLoading={isLoading && !data}
+            accent={exec?.signalState === "ARMED" ? "bull" : exec?.signalState === "PENDING" ? "neutral" : "bear"} />
         </div>
 
         <Card>
