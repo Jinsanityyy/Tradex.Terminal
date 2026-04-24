@@ -10,15 +10,16 @@ import { MobileFeed } from "@/components/mobile/MobileFeed";
 import { MobileBias } from "@/components/mobile/MobileBias";
 import { MobileSettings } from "@/components/mobile/MobileSettings";
 import { MobileAgentDebate } from "@/components/mobile/MobileAgentDebate";
+import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { createClient } from "@/lib/supabase/client";
 
 const TABS = [
-  { id: "home",     label: "Home",    Icon: LayoutDashboard },
-  { id: "chart",    label: "Chart",   Icon: TrendingUp },
-  { id: "feed",     label: "Feed",    Icon: Zap },
-  { id: "bias",     label: "Bias",    Icon: BarChart3 },
-  { id: "debate",   label: "Debate",  Icon: Users },
-  { id: "settings", label: "More",    Icon: Settings },
+  { id: "home",      label: "Home",      Icon: LayoutDashboard },
+  { id: "chart",     label: "Chart",     Icon: TrendingUp },
+  { id: "feed",      label: "Feed",      Icon: Zap },
+  { id: "bias",      label: "Bias",      Icon: BarChart3 },
+  { id: "community", label: "Community", Icon: Users },
+  { id: "settings",  label: "More",      Icon: Settings },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -67,12 +68,16 @@ export function MobileLayout() {
 
       {/* Page content */}
       <div className="flex-1 overflow-y-auto overscroll-none">
-        {active === "home"     && <MobileHome />}
-        {active === "chart"    && <MobileChart />}
-        {active === "feed"     && <MobileFeed />}
-        {active === "bias"     && <MobileBias />}
-        {active === "debate"   && <MobileAgentDebate />}
-        {active === "settings" && <MobileSettings />}
+        {active === "home"      && <MobileHome />}
+        {active === "chart"     && <MobileChart />}
+        {active === "feed"      && <MobileFeed />}
+        {active === "bias"      && <MobileBias />}
+        {active === "community" && (
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <CommunityPanel />
+          </div>
+        )}
+        {active === "settings"  && <MobileSettings />}
       </div>
 
       {/* Bottom tab bar */}
