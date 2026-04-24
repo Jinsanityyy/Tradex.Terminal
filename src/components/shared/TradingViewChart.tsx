@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, Search, Timer, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TradingViewChartProps {
@@ -298,129 +297,7 @@ export function TradingViewChart({
 
   return (
     <div className={cn("flex w-full flex-col overflow-hidden", heightClass)}>
-      <div className="flex h-[38px] shrink-0 items-center justify-between gap-2 border-b border-white/5 bg-[#131722] px-2.5">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setPickerOpen((current) => !current)}
-              className="flex items-center gap-1.5 rounded border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-white transition-all hover:border-white/20 hover:bg-white/10"
-            >
-              <span>{getLabel(activeSymbol)}</span>
-              <ChevronDown className="h-3 w-3 text-gray-400" />
-            </button>
-
-            {pickerOpen && (
-              <div className="absolute left-0 top-full z-50 mt-1.5 w-[260px] overflow-hidden rounded-lg border border-white/10 bg-[#0b0b0c] shadow-2xl">
-                <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2">
-                  <Search className="h-3.5 w-3.5 shrink-0 text-gray-500" />
-                  <input
-                    autoFocus
-                    type="text"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search symbol..."
-                    className="flex-1 bg-transparent text-[12px] text-white outline-none placeholder:text-gray-600"
-                  />
-                  {query ? (
-                    <button onClick={() => setQuery("")}>
-                      <X className="h-3 w-3 text-gray-500 transition-colors hover:text-white" />
-                    </button>
-                  ) : null}
-                </div>
-
-                <div className="max-h-[280px] overflow-y-auto">
-                  {filtered ? (
-                    filtered.length === 0 ? (
-                      <div className="px-4 py-6 text-center text-[11px] text-gray-600">
-                        No results for "{query}"
-                      </div>
-                    ) : (
-                      <div className="py-1">
-                        {filtered.map((entry) => (
-                          <button
-                            key={entry.value}
-                            onClick={() => selectSymbol(entry.value)}
-                            className={cn(
-                              "flex w-full items-center justify-between px-3 py-2 text-[12px] transition-colors hover:bg-white/5",
-                              activeSymbol === entry.value
-                                ? "bg-[hsl(142,71%,45%)]/8 text-[hsl(142,71%,45%)]"
-                                : "text-gray-300"
-                            )}
-                          >
-                            <span className="font-medium">{entry.label}</span>
-                            <span className="font-mono text-[10px] text-gray-600">{entry.group}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )
-                  ) : (
-                    QUICK_SYMBOLS.map((group) => (
-                      <div key={group.group}>
-                        <div className="border-b border-white/5 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-widest text-gray-600">
-                          {group.group}
-                        </div>
-                        {group.items.map((entry) => (
-                          <button
-                            key={entry.value}
-                            onClick={() => selectSymbol(entry.value)}
-                            className={cn(
-                              "flex w-full items-center justify-between px-3 py-2 text-[12px] transition-colors hover:bg-white/5",
-                              activeSymbol === entry.value
-                                ? "bg-[hsl(142,71%,45%)]/8 text-[hsl(142,71%,45%)]"
-                                : "text-gray-300"
-                            )}
-                          >
-                            <span className="font-medium">{entry.label}</span>
-                            <span className="font-mono text-[10px] text-gray-500">
-                              {entry.value.split(":")[1]}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="mx-0.5 h-4 w-px bg-white/10" />
-
-          <div className="flex flex-wrap items-center gap-1">
-            {INTERVALS.map((interval) => (
-              <button
-                key={interval.value}
-                onClick={() => setActiveInterval(interval)}
-                className={cn(
-                  "rounded border px-2 py-1 text-[11px] font-semibold transition-all",
-                  activeInterval.value === interval.value
-                    ? "border-[hsl(142,71%,45%)]/30 bg-[hsl(142,71%,45%)]/15 text-[hsl(142,71%,45%)]"
-                    : "border-transparent text-gray-500 hover:bg-white/5 hover:text-gray-300"
-                )}
-              >
-                {interval.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div
-          className={cn(
-            "flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5",
-            urgent ? "border-red-500/35 bg-red-500/10" : "border-white/10 bg-white/5"
-          )}
-        >
-          <Timer className={cn("h-3 w-3", urgent ? "text-red-400" : "text-gray-500")} />
-          <span className={cn("font-mono text-xs font-bold tabular-nums", urgent ? "text-red-400" : "text-gray-300")}>
-            {formatCountdown(secondsLeft)}
-          </span>
-          <span className="text-[9px] uppercase tracking-widest text-gray-600">
-            {activeInterval.label} close
-          </span>
-        </div>
-      </div>
-
-      <div ref={containerRef} className="min-h-0 flex-1 bg-[#131722]" />
+      <div ref={containerRef} className="flex-1 min-h-0 w-full" style={{ background: "#131722" }} />
     </div>
   );
 }
