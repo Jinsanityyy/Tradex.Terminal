@@ -797,11 +797,11 @@ export default function DashboardPage() {
   })();
   const chartHeightClass = isFullscreen
     ? "h-[88vh]"
-    : "flex-1 min-h-[300px]";
+    : "h-[calc(100vh-280px)] min-h-[380px]";
 
   return (
-    <div className="dashboard-fixed flex flex-col gap-0 lg:flex-row lg:items-start h-full overflow-hidden">
-      <section className="min-w-0 flex-1 flex flex-col lg:overflow-y-auto lg:h-full p-3 gap-2">
+    <div className="dashboard-fixed -m-3 md:-m-4 flex flex-col lg:flex-row h-[calc(100vh-var(--topbar-height,56px))] overflow-hidden">
+      <section className="min-w-0 flex-1 flex flex-col overflow-hidden lg:h-full px-3 pt-2 gap-2">
         <div className="flex items-center justify-between gap-2 h-8">
           <div className="flex items-center gap-1">
             {/* Symbol tabs */}

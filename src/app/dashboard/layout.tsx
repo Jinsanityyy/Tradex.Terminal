@@ -30,7 +30,7 @@ export default function DashboardLayout({
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden transition-all duration-300 [margin-left:var(--sidebar-current-width,var(--sidebar-width))]">
         <TopStatusBar />
-        <main className="flex-1 overflow-auto dashboard-main">
+        <main className="flex-1 overflow-y-auto p-3 pb-20 md:p-4 md:pb-4">
           {children}
         </main>
       </div>
