@@ -192,17 +192,16 @@ export function TradingViewChart({
           allow_symbol_change: true,
           save_image: true,
           withdateranges: true,
-          studies: [
-            "Volume@tv-basicstudies",
-          ],
+          studies: [],
           disabled_features: [
             "header_fullscreen_button",
             "use_localstorage_for_settings",
+            "create_volume_indicator_by_default",
+            "create_volume_indicator_by_default_once",
           ],
           enabled_features: [
             "study_templates",
             "side_toolbar_in_fullscreen_mode",
-            "hide_left_toolbar_by_default",
             "save_chart_properties_to_local_storage",
           ],
           backgroundColor: "rgba(19,23,34,1)",
