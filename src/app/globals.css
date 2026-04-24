@@ -2,6 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Dashboard page gets no padding + no scroll — fixed layout */
+.dashboard-main {
+  padding: 0;
+  overflow: hidden;
+}
+
+/* All other dashboard sub-pages get normal padding + scroll */
+.dashboard-main > *:not(.dashboard-fixed) {
+  padding: 1rem;
+  overflow-y: auto;
+  height: 100%;
+  padding-bottom: 5rem;
+}
+
 :root {
   --background: 225 14% 12%;
   --foreground: 0 0% 95%;
