@@ -821,6 +821,13 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Chart — first thing visible */}
+        <Card className="overflow-hidden">
+          <CardContent className="p-0">
+            <TradingViewChart symbol={symCfg.tv} heightClass={chartHeightClass} />
+          </CardContent>
+        </Card>
+
         <div className="grid gap-2 md:grid-cols-2 2xl:grid-cols-4">
           <SummaryCard
             title="Trade Signal"
@@ -947,12 +954,6 @@ export default function DashboardPage() {
             <SummaryHint>{riskPreview}</SummaryHint>
           </SummaryCard>
         </div>
-
-        <Card className="overflow-hidden">
-          <CardContent className="p-0">
-            <TradingViewChart symbol={symCfg.tv} heightClass={chartHeightClass} />
-          </CardContent>
-        </Card>
 
         <Card>
           <CardHeader className="pb-3">
