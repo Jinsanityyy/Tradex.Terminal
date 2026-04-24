@@ -749,8 +749,8 @@ export default function DashboardPage() {
     : "h-[60vh] min-h-[400px] lg:h-[75vh] lg:min-h-[500px]";
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto lg:flex-row lg:overflow-hidden lg:overflow-y-hidden">
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 lg:overflow-y-auto lg:pr-1">
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+      <section className="min-w-0 flex-1 flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-3">
             <div>
@@ -1020,10 +1020,10 @@ export default function DashboardPage() {
         </Card>
       </section>
 
-      <aside className="min-h-0 w-full shrink-0 lg:w-[300px] lg:flex lg:flex-col xl:w-[320px]">
+      <aside className="w-full lg:w-[300px] xl:w-[320px] shrink-0 flex flex-col gap-3 lg:sticky lg:top-0">
 
         {/* Scrollable sidebar content */}
-        <div className="flex flex-col gap-3 lg:flex-1 lg:overflow-y-auto lg:pl-1 lg:pb-3">
+        <div className="flex flex-col gap-3">
 
           <Card>
             <CardHeader className="pb-3">
