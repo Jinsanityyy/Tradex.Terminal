@@ -166,7 +166,7 @@ function SummaryCard({
   return (
     <div
       className={cn(
-        "h-full flex flex-col border-l-2 border-l-white/8 pl-3 py-3 pr-2 bg-[hsl(var(--card))]",
+        "h-full flex flex-col border-l-2 border-l-white/8 pl-3 py-4 pr-3 bg-[hsl(var(--card))]",
         interactive && "cursor-pointer group hover:bg-white/[0.04] transition-colors"
       )}
       onClick={onClick}
@@ -735,7 +735,7 @@ export default function DashboardPage() {
   })();
   const chartHeightClass = isFullscreen
     ? "h-[88vh]"
-    : "h-[60vh] min-h-[400px] lg:h-[75vh] lg:min-h-[500px]";
+    : "h-[62vh] min-h-[420px] lg:h-[72vh] lg:min-h-[500px]";
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:h-[calc(100vh-var(--topbar-height,56px))] lg:overflow-hidden">
