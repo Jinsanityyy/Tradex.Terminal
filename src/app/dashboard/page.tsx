@@ -795,87 +795,59 @@ export default function DashboardPage() {
         };
     }
   })();
-  const chartHeightClass = isFullscreen
-    ? "h-[88vh]"
-    : "h-[calc(100vh-280px)] min-h-[380px]";
+  const chartHeightClass = isFullscreen ? "h-[88vh]" : "h-full";
 
   return (
-    <div className="dashboard-fixed -m-3 md:-m-4 flex flex-col lg:flex-row h-[calc(100vh-var(--topbar-height,56px))] overflow-hidden">
-      <section className="min-w-0 flex-1 flex flex-col overflow-hidden lg:h-full px-3 pt-2 gap-2">
-        <div className="flex items-center justify-between gap-2 h-8">
+    <div className="-m-3 md:-m-4 flex flex-col lg:flex-row overflow-hidden" style={{ height: "calc(100vh - 56px)" }}>
+      <section className="min-w-0 flex-1 flex flex-col overflow-hidden" style={{ height: "100%" }}>
+        {/* Compact header */}
+        <div className="flex items-center justify-between gap-2 px-3 py-1.5 shrink-0 border-b border-white/5">
           <div className="flex items-center gap-1">
-            {/* Symbol tabs */}
             <div className="flex items-center">
               {SYMBOLS.map((entry) => (
-                <button
-                  key={entry.id}
-                  onClick={() => setSymbol(entry.id)}
-                  className={cn(
-                    "px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors",
-                    symbol === entry.id
-                      ? "text-[hsl(var(--primary))]"
-                      : "text-zinc-600 hover:text-zinc-300"
-                  )}
-                >
+                <button key={entry.id} onClick={() => setSymbol(entry.id)}
+                  className={cn("px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors",
+                    symbol === entry.id ? "text-[hsl(var(--primary))]" : "text-zinc-600 hover:text-zinc-300")}>
                   {entry.short}
                 </button>
               ))}
             </div>
             <span className="w-px h-3 bg-white/10" />
-            {/* TF tabs */}
             <div className="flex items-center">
               {TIMEFRAMES.map((entry) => (
-                <button
-                  key={entry}
-                  onClick={() => setTimeframe(entry)}
-                  className={cn(
-                    "px-2 py-1 text-[10px] font-mono transition-colors",
-                    timeframe === entry
-                      ? "text-white"
-                      : "text-zinc-600 hover:text-zinc-300"
-                  )}
-                >
+                <button key={entry} onClick={() => setTimeframe(entry)}
+                  className={cn("px-2 py-1 text-[10px] font-mono transition-colors",
+                    timeframe === entry ? "text-white" : "text-zinc-600 hover:text-zinc-300")}>
                   {entry}
                 </button>
               ))}
             </div>
           </div>
-
           <div className="flex items-center gap-1.5">
-            <button
-              onClick={handleRefresh}
-              disabled={isLoading}
-              className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors"
-            >
+            <button onClick={handleRefresh} disabled={isLoading}
+              className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors">
               <RefreshCw className={cn("h-3 w-3", isLoading && "animate-spin")} />
               {isLoading ? "Running…" : "Refresh"}
             </button>
-            <Link
-              href="/dashboard/brain"
-              className="flex items-center gap-1 px-2.5 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors"
-            >
-              Brain Terminal
-              <ArrowRight className="h-3 w-3" />
+            <Link href="/dashboard/brain"
+              className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors">
+              Brain Terminal <ArrowRight className="h-3 w-3" />
             </Link>
-            <button
-              onClick={toggleFullscreen}
-              className="flex items-center gap-1 px-2.5 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors"
-            >
+            <button onClick={toggleFullscreen}
+              className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors">
               {isFullscreen ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
               {isFullscreen ? "Exit" : "Full Screen"}
             </button>
           </div>
         </div>
 
-        {/* Chart — first thing visible */}
-        <Card className="overflow-hidden border-white/5">
-          <CardContent className="p-0">
-            <TradingViewChart symbol={symCfg.tv} heightClass={chartHeightClass} />
-          </CardContent>
-        </Card>
+        {/* Chart — fills all remaining space */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <TradingViewChart symbol={symCfg.tv} heightClass={chartHeightClass} />
+        </div>
 
-        {/* 7 Agent cards — replacing summary cards */}
-        <div className="grid grid-cols-7 gap-px bg-white/5 rounded-xl overflow-hidden auto-rows-fr">
+        {/* 7 Agent cards */}
+        <div className="shrink-0 grid grid-cols-7 gap-px bg-white/5 overflow-hidden">
           <AgentMiniCard label="MASTER" bias={finalBias} confidence={master?.confidence ?? 0}
             detail={isNoTrade ? (master?.noTradeReason ?? "No trade") : (master?.strategyMatch ?? finalBias)}
             detail2={`Score: ${master?.consensusScore?.toFixed(1) ?? "—"}`}
@@ -920,7 +892,7 @@ export default function DashboardPage() {
 
         {/* Compact execution plan strip — fills space below agent cards */}
         {data && (
-          <div className="rounded-xl border border-white/5 bg-[hsl(var(--card))] px-4 py-3">
+          <div className="shrink-0 rounded-none border-t border-white/5 bg-[hsl(var(--card))] px-4 py-2">
             {tradePlan ? (
               <div className="flex items-center gap-6 flex-wrap">
                 <div className="flex items-center gap-2">
