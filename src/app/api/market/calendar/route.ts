@@ -4,7 +4,7 @@ import type { EconomicEvent } from "@/types";
 export const dynamic = "force-dynamic";
 
 let cache: { data: EconomicEvent[]; ts: number } = { data: [], ts: 0 };
-const CACHE_TTL = 300_000; // 5 min — avoid hitting FF rate limit
+const CACHE_TTL = 60_000; // 1 min — refresh status more frequently
 
 interface FFEvent {
   title: string;
@@ -377,8 +377,12 @@ export async function GET() {
     const mapped: EconomicEvent[] = events
       .filter((e) => (e.impact === "High" || e.impact === "Medium") && e.country === "USD")
       .map((e, i) => {
+        // FairFX dates are in UTC — parse directly
         const eventTime = new Date(e.date);
-        const isPast = eventTime < now;
+        
+        // Use a 15-min buffer: events within 15 min after scheduled time are still "live"
+        const msSinceEvent = now.getTime() - eventTime.getTime();
+        const isPast = msSinceEvent > 15 * 60 * 1000; // 15 min buffer
 
         let status: "completed" | "live" | "upcoming";
         if (isPast) {
@@ -410,7 +414,7 @@ export async function GET() {
           impact,
           forecast: e.forecast !== "" ? e.forecast : "—",
           previous: e.previous !== "" ? e.previous : "—",
-          actual: isPast && e.forecast !== "" ? e.forecast : undefined,
+          actual: isPast && e.previous !== "" ? e.previous : undefined,
           interpretation: analysis.tradeImplication,
           affectedAssets: ["XAUUSD", "DXY", "EURUSD", ...deriveExtraAssets(e.title)],
           status,
