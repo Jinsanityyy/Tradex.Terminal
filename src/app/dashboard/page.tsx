@@ -152,6 +152,7 @@ function AgentMiniCard({
   bias,
   confidence,
   detail,
+  detail2,
   isLoading,
   accent,
   onClick,
@@ -160,35 +161,50 @@ function AgentMiniCard({
   bias: string;
   confidence: number;
   detail: string;
+  detail2?: string;
   isLoading: boolean;
   accent: "bull" | "bear" | "neutral";
   onClick?: () => void;
 }) {
   const accentColor = accent === "bull" ? "bg-emerald-500" : accent === "bear" ? "bg-red-500" : "bg-zinc-600";
   const biasTextColor = accent === "bull" ? "text-emerald-400" : accent === "bear" ? "text-red-400" : "text-zinc-500";
+  const borderColor = accent === "bull" ? "border-t-emerald-500/60" : accent === "bear" ? "border-t-red-500/60" : "border-t-zinc-700/40";
 
   return (
     <div
       onClick={onClick}
       className={cn(
-        "flex flex-col bg-[hsl(var(--card))] px-3 py-3 gap-2 border-b-2 border-b-transparent transition-all",
-        onClick && "cursor-pointer hover:bg-white/[0.06]",
-        accent === "bull" && onClick && "hover:border-b-emerald-500/40",
-        accent === "bear" && onClick && "hover:border-b-red-500/40",
+        "flex flex-col bg-[hsl(var(--card))] px-3 py-3.5 gap-2.5 border-t-2 transition-all",
+        borderColor,
+        onClick && "cursor-pointer hover:bg-white/[0.05]",
       )}
     >
-      <span className="text-[8px] font-semibold uppercase tracking-[0.2em] text-zinc-600 truncate">{label}</span>
+      {/* Label */}
+      <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-600 truncate">{label}</span>
+
+      {/* Bias — prominent */}
       {isLoading ? (
-        <div className="h-3.5 w-16 bg-white/5 rounded animate-pulse" />
+        <div className="h-4 w-20 bg-white/5 rounded animate-pulse" />
       ) : (
-        <span className={cn("text-[11px] font-semibold uppercase truncate", biasTextColor)}>{bias}</span>
+        <span className={cn("text-[13px] font-bold uppercase leading-none", biasTextColor)}>{bias}</span>
       )}
-      <div className="h-0.5 bg-zinc-800 rounded-full overflow-hidden">
-        <div className={cn("h-full rounded-full transition-all", accentColor)}
-          style={{ width: isLoading ? "0%" : `${confidence}%` }} />
+
+      {/* Confidence bar + % */}
+      <div className="flex items-center gap-2">
+        <div className="flex-1 h-1 bg-zinc-800 rounded-full overflow-hidden">
+          <div className={cn("h-full rounded-full transition-all", accentColor)}
+            style={{ width: isLoading ? "0%" : `${confidence}%` }} />
+        </div>
+        <span className="text-[10px] font-mono text-zinc-500 shrink-0 w-7 text-right">{isLoading ? "—" : `${confidence}%`}</span>
       </div>
-      <span className="text-[10px] font-mono text-zinc-600">{isLoading ? "—" : `${confidence}%`}</span>
-      <span className="text-[9px] text-zinc-700 truncate leading-tight">{isLoading ? "—" : detail}</span>
+
+      {/* Detail line 1 */}
+      <span className="text-[10px] text-zinc-500 truncate leading-tight">{isLoading ? "—" : detail}</span>
+
+      {/* Detail line 2 — optional */}
+      {detail2 && !isLoading && (
+        <span className="text-[10px] text-zinc-600 truncate leading-tight">{detail2}</span>
+      )}
     </div>
   );
 }
@@ -862,30 +878,42 @@ export default function DashboardPage() {
         <div className="grid grid-cols-7 gap-px bg-white/5 rounded-xl overflow-hidden auto-rows-fr">
           <AgentMiniCard label="MASTER" bias={finalBias} confidence={master?.confidence ?? 0}
             detail={isNoTrade ? (master?.noTradeReason ?? "No trade") : (master?.strategyMatch ?? finalBias)}
+            detail2={`Score: ${master?.consensusScore?.toFixed(1) ?? "—"}`}
             isLoading={isLoading && !data} accent={isNoTrade ? "neutral" : finalBias === "bullish" ? "bull" : "bear"}
             onClick={() => setActiveAgent("master")} />
           <AgentMiniCard label="TREND" bias={trend?.bias ?? "neutral"} confidence={trend?.confidence ?? 0}
-            detail={trend?.momentumDirection ?? "—"} isLoading={isLoading && !data}
+            detail={trend?.marketPhase ? `Phase: ${trend.marketPhase}` : "—"}
+            detail2={`Momentum: ${trend?.momentumDirection ?? "—"}`}
+            isLoading={isLoading && !data}
             accent={trend?.bias === "bullish" ? "bull" : trend?.bias === "bearish" ? "bear" : "neutral"}
             onClick={() => setActiveAgent("trend")} />
           <AgentMiniCard label="PR. ACTION" bias={smc?.bias ?? "neutral"} confidence={smc?.confidence ?? 0}
-            detail={smc?.setupType ?? "—"} isLoading={isLoading && !data}
+            detail={smc?.setupType ?? "—"}
+            detail2={`Zone: ${smc?.premiumDiscount ?? "—"}`}
+            isLoading={isLoading && !data}
             accent={smc?.bias === "bullish" ? "bull" : smc?.bias === "bearish" ? "bear" : "neutral"}
             onClick={() => setActiveAgent("smc")} />
           <AgentMiniCard label="NEWS" bias={news?.impact ?? "neutral"} confidence={news?.confidence ?? 0}
-            detail={news?.regime ?? "—"} isLoading={isLoading && !data}
+            detail={news?.regime ? `Regime: ${news.regime}` : "—"}
+            detail2={`Risk: ${news?.riskScore ?? 0}/100`}
+            isLoading={isLoading && !data}
             accent={news?.impact === "bullish" ? "bull" : news?.impact === "bearish" ? "bear" : "neutral"}
             onClick={() => setActiveAgent("news")} />
           <AgentMiniCard label="RISK GATE" bias={risk?.valid ? "valid" : "blocked"} confidence={risk?.sessionScore ?? 0}
-            detail={`Grade ${risk?.grade ?? "—"} · Vol ${risk?.volatilityScore ?? 0}`} isLoading={isLoading && !data}
+            detail={`Grade ${risk?.grade ?? "—"} · Vol ${risk?.volatilityScore ?? 0}`}
+            detail2={risk?.warnings?.[0]?.substring(0, 40) ?? "No warnings"}
+            isLoading={isLoading && !data}
             accent={risk?.valid ? "bull" : "bear"}
             onClick={() => setActiveAgent("risk")} />
           <AgentMiniCard label="CONTRARIAN" bias={contrarian?.challengesBias ? "alert" : "clear"} confidence={contrarian?.riskFactor ?? 0}
             detail={contrarian?.trapType && contrarian.trapType !== "None" ? contrarian.trapType : "No trap"}
+            detail2={contrarian?.challengesBias ? (contrarian.failureReasons?.[0]?.substring(0, 40) ?? "—") : "Bias confirmed"}
             isLoading={isLoading && !data} accent={contrarian?.challengesBias ? "bear" : "neutral"}
             onClick={() => setActiveAgent("contrarian")} />
           <AgentMiniCard label="EXECUTION" bias={exec?.signalState ?? "NO_TRADE"} confidence={exec?.hasSetup ? 75 : 0}
-            detail={exec?.trigger ?? "—"} isLoading={isLoading && !data}
+            detail={exec?.entry ? `Entry: ${exec.entry.toFixed(exec.entry > 100 ? 1 : 4)}` : (exec?.trigger ?? "—")}
+            detail2={exec?.distanceToEntry != null ? `${exec.distanceToEntry}% from entry` : "No setup"}
+            isLoading={isLoading && !data}
             accent={exec?.signalState === "ARMED" ? "bull" : exec?.signalState === "PENDING" ? "neutral" : "bear"}
             onClick={() => setActiveAgent("execution")} />
         </div>
