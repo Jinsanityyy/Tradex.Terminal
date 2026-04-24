@@ -78,12 +78,13 @@ export default function EconomicCalendarPage() {
           All ({events.length})
         </button>
         {availableDates.map(date => {
+          if (!date) return null;
           const count = events.filter(e => e.date === date).length;
           const hasUpcoming = events.filter(e => e.date === date && (e.status === "upcoming" || e.status === "live")).length > 0;
           return (
             <button
               key={date}
-              onClick={() => setSelectedDate(date)}
+              onClick={() => setSelectedDate(date as string)}
               className={cn(
                 "px-3 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wider transition-all border",
                 selectedDate === date
@@ -91,7 +92,7 @@ export default function EconomicCalendarPage() {
                   : "border-white/8 text-zinc-500 hover:text-zinc-300"
               )}
             >
-              {formatDateLabel(date)}
+              {formatDateLabel(date as string)}
               {hasUpcoming && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" />}
               <span className="ml-1 text-zinc-700">({count})</span>
             </button>
