@@ -795,7 +795,7 @@ export default function DashboardPage() {
         };
     }
   })();
-  const chartHeightClass = isFullscreen ? "h-[88vh]" : "h-full";
+  const chartHeightClass = isFullscreen ? "h-[88vh]" : "h-[calc(100vh-242px)]";
 
   return (
     <div className="dashboard-fixed -m-3 md:-m-4 flex flex-col lg:flex-row overflow-hidden" style={{ height: "calc(100vh - 56px)" }}>
@@ -841,8 +841,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Chart — fills all remaining space */}
-        <div className="flex-1 min-h-0 overflow-hidden">
+        {/* Chart */}
+        <div className="shrink-0 overflow-hidden">
           <TradingViewChart symbol={symCfg.tv} heightClass={chartHeightClass} />
         </div>
 
