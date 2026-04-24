@@ -155,6 +155,7 @@ function AgentMiniCard({
   detail,
   isLoading,
   accent,
+  onClick,
 }: {
   label: string;
   bias: string;
@@ -162,34 +163,32 @@ function AgentMiniCard({
   detail: string;
   isLoading: boolean;
   accent: "bull" | "bear" | "neutral";
+  onClick?: () => void;
 }) {
   const accentColor = accent === "bull" ? "bg-emerald-500" : accent === "bear" ? "bg-red-500" : "bg-zinc-600";
   const biasTextColor = accent === "bull" ? "text-emerald-400" : accent === "bear" ? "text-red-400" : "text-zinc-500";
 
   return (
-    <div className="flex flex-col bg-[hsl(var(--card))] px-3 py-3 gap-2">
-      {/* Label */}
+    <div
+      onClick={onClick}
+      className={cn(
+        "flex flex-col bg-[hsl(var(--card))] px-3 py-3 gap-2 border-b-2 border-b-transparent transition-all",
+        onClick && "cursor-pointer hover:bg-white/[0.06]",
+        accent === "bull" && onClick && "hover:border-b-emerald-500/40",
+        accent === "bear" && onClick && "hover:border-b-red-500/40",
+      )}
+    >
       <span className="text-[8px] font-semibold uppercase tracking-[0.2em] text-zinc-600 truncate">{label}</span>
-
-      {/* Bias */}
       {isLoading ? (
         <div className="h-3.5 w-16 bg-white/5 rounded animate-pulse" />
       ) : (
-        <span className={cn("text-[11px] font-semibold uppercase truncate", biasTextColor)}>
-          {bias}
-        </span>
+        <span className={cn("text-[11px] font-semibold uppercase truncate", biasTextColor)}>{bias}</span>
       )}
-
-      {/* Confidence bar */}
       <div className="h-0.5 bg-zinc-800 rounded-full overflow-hidden">
         <div className={cn("h-full rounded-full transition-all", accentColor)}
           style={{ width: isLoading ? "0%" : `${confidence}%` }} />
       </div>
-
-      {/* Confidence % */}
       <span className="text-[10px] font-mono text-zinc-600">{isLoading ? "—" : `${confidence}%`}</span>
-
-      {/* Detail */}
       <span className="text-[9px] text-zinc-700 truncate leading-tight">{isLoading ? "—" : detail}</span>
     </div>
   );
@@ -528,6 +527,7 @@ export default function DashboardPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [activeOverview, setActiveOverview] = useState<OverviewKey | null>(null);
+  const [activeAgent, setActiveAgent] = useState<string | null>(null);
 
   const symCfg = SYMBOLS.find((entry) => entry.id === symbol) ?? SYMBOLS[0];
 
@@ -863,96 +863,40 @@ export default function DashboardPage() {
         <div className="grid grid-cols-7 gap-px bg-white/5 rounded-xl overflow-hidden">
           <AgentMiniCard label="MASTER" bias={finalBias} confidence={master?.confidence ?? 0}
             detail={isNoTrade ? (master?.noTradeReason ?? "No trade") : (master?.strategyMatch ?? finalBias)}
-            isLoading={isLoading && !data} accent={isNoTrade ? "neutral" : finalBias === "bullish" ? "bull" : "bear"} />
+            isLoading={isLoading && !data} accent={isNoTrade ? "neutral" : finalBias === "bullish" ? "bull" : "bear"}
+            onClick={() => setActiveAgent("master")} />
           <AgentMiniCard label="TREND" bias={trend?.bias ?? "neutral"} confidence={trend?.confidence ?? 0}
             detail={trend?.momentumDirection ?? "—"} isLoading={isLoading && !data}
-            accent={trend?.bias === "bullish" ? "bull" : trend?.bias === "bearish" ? "bear" : "neutral"} />
+            accent={trend?.bias === "bullish" ? "bull" : trend?.bias === "bearish" ? "bear" : "neutral"}
+            onClick={() => setActiveAgent("trend")} />
           <AgentMiniCard label="PR. ACTION" bias={smc?.bias ?? "neutral"} confidence={smc?.confidence ?? 0}
             detail={smc?.setupType ?? "—"} isLoading={isLoading && !data}
-            accent={smc?.bias === "bullish" ? "bull" : smc?.bias === "bearish" ? "bear" : "neutral"} />
+            accent={smc?.bias === "bullish" ? "bull" : smc?.bias === "bearish" ? "bear" : "neutral"}
+            onClick={() => setActiveAgent("smc")} />
           <AgentMiniCard label="NEWS" bias={news?.impact ?? "neutral"} confidence={news?.confidence ?? 0}
             detail={news?.regime ?? "—"} isLoading={isLoading && !data}
-            accent={news?.impact === "bullish" ? "bull" : news?.impact === "bearish" ? "bear" : "neutral"} />
+            accent={news?.impact === "bullish" ? "bull" : news?.impact === "bearish" ? "bear" : "neutral"}
+            onClick={() => setActiveAgent("news")} />
           <AgentMiniCard label="RISK GATE" bias={risk?.valid ? "valid" : "blocked"} confidence={risk?.sessionScore ?? 0}
             detail={`Grade ${risk?.grade ?? "—"} · Vol ${risk?.volatilityScore ?? 0}`} isLoading={isLoading && !data}
-            accent={risk?.valid ? "bull" : "bear"} />
+            accent={risk?.valid ? "bull" : "bear"}
+            onClick={() => setActiveAgent("risk")} />
           <AgentMiniCard label="CONTRARIAN" bias={contrarian?.challengesBias ? "alert" : "clear"} confidence={contrarian?.riskFactor ?? 0}
             detail={contrarian?.trapType && contrarian.trapType !== "None" ? contrarian.trapType : "No trap"}
-            isLoading={isLoading && !data} accent={contrarian?.challengesBias ? "bear" : "neutral"} />
+            isLoading={isLoading && !data} accent={contrarian?.challengesBias ? "bear" : "neutral"}
+            onClick={() => setActiveAgent("contrarian")} />
           <AgentMiniCard label="EXECUTION" bias={exec?.signalState ?? "NO_TRADE"} confidence={exec?.hasSetup ? 75 : 0}
             detail={exec?.trigger ?? "—"} isLoading={isLoading && !data}
-            accent={exec?.signalState === "ARMED" ? "bull" : exec?.signalState === "PENDING" ? "neutral" : "bear"} />
+            accent={exec?.signalState === "ARMED" ? "bull" : exec?.signalState === "PENDING" ? "neutral" : "bear"}
+            onClick={() => setActiveAgent("execution")} />
         </div>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-4 w-4 text-[hsl(var(--primary))]" />
-                  <span>Trade Setup / Execution Plan</span>
-                </CardTitle>
-                <CardDescription>
-                  Direct execution context under the chart so the decision path stays visible without wasting vertical space.
-                </CardDescription>
-              </div>
-
-              <div
-                className={cn(
-                  "inline-flex items-center rounded-md border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em]",
-                  decisionConfig(finalDecision)
-                )}
-              >
-                {finalDecision}
-              </div>
-            </div>
-          </CardHeader>
-
-          <CardContent className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <SetupField label="Bias" value={formatBiasLabel(finalBias)} tone={biasColor(finalBias)} />
-              <SetupField label="Setup Type" value={setupType} detail={smc?.reasons?.[0]} />
-              <SetupField label="Entry Zone" value={entryZone} detail={tradePlan?.direction?.toUpperCase() ?? "WAITING"} />
-              <SetupField label="Risk Reward" value={riskRewardLabel} detail={`Max risk ${maxRiskLabel}`} tone={tradePlan && (tradePlan.rrRatio ?? 0) >= 2 ? "text-emerald-400" : "text-amber-400"} />
-              <SetupField label="Stop / Invalidation" value={invalidationLabel} detail={invalidationNote} tone="text-red-400" />
-              <SetupField label="TP1" value={tp1Label} detail={tradePlan?.tp1Zone ?? "First target"} tone="text-emerald-400" />
-              <SetupField label="TP2" value={tp2Label} detail={tradePlan?.tp2 ? "Final target" : "No secondary target"} tone="text-emerald-300" />
-              <SetupField label="Final Decision" value={finalDecision} detail={signalState ? `${signalConfig.label.toUpperCase()} signal state` : "Awaiting signal state"} tone={finalDecision === "TRADE" ? "text-emerald-400" : finalDecision === "WAIT" ? "text-amber-400" : "text-[hsl(var(--muted-foreground))]"} />
-            </div>
-
-            <div className="grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(260px,0.65fr)]">
-              <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/35 p-3">
-                <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
-                  Entry Trigger
-                </p>
-                <p className="mt-2 text-sm leading-6 text-[hsl(var(--foreground))]">{entryTrigger}</p>
-                <p className="mt-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">{executionNote}</p>
-              </div>
-
-              <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/35 p-3">
-                <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
-                  Trade Controls
-                </p>
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <StatCell label="Entry" value={tradePlan?.entry != null ? formatTradePrice(tradePlan.entry) : "--"} />
-                  <StatCell label="Max Risk" value={maxRiskLabel} color="text-[hsl(var(--foreground))]" />
-                  <StatCell label="Signal" value={signalConfig.label.toUpperCase()} color={biasColor(finalBias)} />
-                  <StatCell
-                    label="Risk Gate"
-                    value={risk ? `${risk.valid ? "VALID" : "BLOCKED"} ${risk.grade}` : "--"}
-                    color={risk?.valid ? "text-emerald-400" : "text-red-400"}
-                  />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </section>
 
-      <aside className="w-full lg:w-[280px] xl:w-[300px] shrink-0 lg:sticky lg:top-0 lg:h-[calc(100vh-var(--topbar-height,56px))] lg:flex lg:flex-col lg:overflow-hidden border-l border-white/5">
+      <aside className="w-full lg:w-[300px] xl:w-[320px] shrink-0 lg:sticky lg:top-0 lg:h-[calc(100vh-var(--topbar-height,56px))] lg:flex lg:flex-col lg:overflow-hidden border-l border-white/5">
 
         {/* Community chat — fixed height at top */}
-        <div className="shrink-0" style={{ height: "280px" }}>
+        <div className="shrink-0" style={{ height: "320px" }}>
           <Card className="overflow-hidden h-full rounded-none border-x-0 border-t-0">
             <CardContent className="p-0 h-full">
               <CommunityPanel />
@@ -964,7 +908,7 @@ export default function DashboardPage() {
         <div className="h-px bg-white/5 shrink-0" />
 
         {/* Rest — scrollable */}
-        <div className="flex-1 overflow-y-auto flex flex-col gap-3 p-3">
+        <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-4">
 
           <Card>
             <CardHeader className="pb-3">
@@ -1132,6 +1076,160 @@ export default function DashboardPage() {
           </OverviewPanel>
         </div>
       </DetailModal>
+
+      {/* Agent Detail Drawer */}
+      {activeAgent && data && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" onClick={() => setActiveAgent(null)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div
+            className="relative z-10 w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-white/10 bg-[hsl(var(--card))] shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
+              <div className="flex items-center gap-3">
+                <div className={cn("h-2 w-2 rounded-full",
+                  activeAgent === "master" ? (isNoTrade ? "bg-zinc-500" : finalBias === "bullish" ? "bg-emerald-400" : "bg-red-400") :
+                  activeAgent === "trend" ? (trend?.bias === "bullish" ? "bg-emerald-400" : trend?.bias === "bearish" ? "bg-red-400" : "bg-zinc-500") :
+                  "bg-zinc-500"
+                )} />
+                <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-300">
+                  {activeAgent === "master" ? "Master Consensus" :
+                   activeAgent === "trend" ? "Trend Agent" :
+                   activeAgent === "smc" ? "Price Action Agent" :
+                   activeAgent === "news" ? "News Agent" :
+                   activeAgent === "risk" ? "Risk Gate Agent" :
+                   activeAgent === "contrarian" ? "Contrarian Agent" :
+                   "Execution Agent"}
+                </span>
+              </div>
+              <button onClick={() => setActiveAgent(null)} className="text-zinc-600 hover:text-zinc-300 text-lg leading-none">×</button>
+            </div>
+
+            {/* Content */}
+            <div className="px-5 py-4 space-y-4 text-[12px]">
+
+              {/* MASTER */}
+              {activeAgent === "master" && master && (
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Final Bias</p><p className={cn("font-semibold uppercase", biasColor(finalBias))}>{finalBias}</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Confidence</p><p className="font-mono text-zinc-200">{master.confidence}%</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Consensus</p><p className={cn("font-mono", master.consensusScore > 0 ? "text-emerald-400" : "text-red-400")}>{master.consensusScore > 0 ? "+" : ""}{master.consensusScore.toFixed(1)}</p></div>
+                  </div>
+                  {master.strategyMatch && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Strategy</p><p className="text-amber-400">{master.strategyMatch}</p></div>}
+                  {master.noTradeReason && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">No Trade Reason</p><p className="text-zinc-400">{master.noTradeReason}</p></div>}
+                  {master.supports?.length > 0 && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-2">Supporting Factors</p><div className="space-y-1">{master.supports.map((s, i) => <p key={i} className="text-zinc-400 flex gap-2"><span className="text-emerald-500 shrink-0">+</span>{s}</p>)}</div></div>}
+                  {master.invalidations?.length > 0 && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-2">Invalidation Conditions</p><div className="space-y-1">{master.invalidations.map((s, i) => <p key={i} className="text-zinc-400 flex gap-2"><span className="text-red-500 shrink-0">−</span>{s}</p>)}</div></div>}
+                </>
+              )}
+
+              {/* TREND */}
+              {activeAgent === "trend" && trend && (
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Bias</p><p className={cn("font-semibold uppercase", biasColor(trend.bias))}>{trend.bias}</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Confidence</p><p className="font-mono text-zinc-200">{trend.confidence}%</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Momentum</p><p className="text-zinc-300 capitalize">{trend.momentumDirection}</p></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Market Phase</p><p className="text-zinc-300 capitalize">{trend.marketPhase}</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">MA Alignment</p><p className={trend.maAlignment ? "text-emerald-400" : "text-red-400"}>{trend.maAlignment ? "Aligned ✓" : "Misaligned ✗"}</p></div>
+                  </div>
+                  {trend.invalidationLevel && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Invalidation Level</p><p className="font-mono text-red-400">{trend.invalidationLevel.toFixed(2)}</p></div>}
+                  {trend.reasons?.length > 0 && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-2">Reasoning</p><div className="space-y-1">{trend.reasons.map((r, i) => <p key={i} className="text-zinc-400">• {r}</p>)}</div></div>}
+                </>
+              )}
+
+              {/* SMC / PRICE ACTION */}
+              {activeAgent === "smc" && smc && (
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Bias</p><p className={cn("font-semibold uppercase", biasColor(smc.bias))}>{smc.bias}</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Confidence</p><p className="font-mono text-zinc-200">{smc.confidence}%</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Setup</p><p className="text-zinc-300 text-[11px]">{smc.setupType}</p></div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Liq. Sweep</p><p className={smc.liquiditySweepDetected ? "text-amber-400" : "text-zinc-600"}>{smc.liquiditySweepDetected ? "Detected" : "None"}</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">BOS</p><p className={smc.bosDetected ? "text-emerald-400" : "text-zinc-600"}>{smc.bosDetected ? "Detected" : "None"}</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">CHoCH</p><p className={smc.chochDetected ? "text-amber-400" : "text-zinc-600"}>{smc.chochDetected ? "Detected" : "None"}</p></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Zone</p><p className="text-zinc-300">{smc.premiumDiscount}</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Setup Present</p><p className={smc.setupPresent ? "text-emerald-400" : "text-zinc-600"}>{smc.setupPresent ? "Yes" : "No"}</p></div>
+                  </div>
+                  {smc.reasons?.length > 0 && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-2">Reasoning</p><div className="space-y-1">{smc.reasons.map((r, i) => <p key={i} className="text-zinc-400">• {r}</p>)}</div></div>}
+                </>
+              )}
+
+              {/* NEWS */}
+              {activeAgent === "news" && news && (
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Impact</p><p className={cn("font-semibold uppercase", biasColor(news.impact))}>{news.impact}</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Risk Score</p><p className={cn("font-mono", news.riskScore > 70 ? "text-red-400" : news.riskScore > 40 ? "text-amber-400" : "text-emerald-400")}>{news.riskScore}/100</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Regime</p><p className="text-zinc-300 capitalize">{news.regime}</p></div>
+                  </div>
+                  {news.dominantCatalyst && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Dominant Catalyst</p><p className="text-zinc-300">{news.dominantCatalyst}</p></div>}
+                  {news.catalysts?.length > 0 && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-2">Catalysts</p><div className="space-y-2">{news.catalysts.slice(0,4).map((c, i) => <div key={i} className="flex items-start gap-2"><span className={cn("text-[9px] font-bold uppercase shrink-0 mt-0.5", c.impact === "high" ? "text-red-400" : c.impact === "medium" ? "text-amber-400" : "text-zinc-500")}>{c.impact}</span><p className="text-zinc-400 text-[11px]">{c.headline}</p></div>)}</div></div>}
+                  {news.biasChangers?.length > 0 && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-2">Bias Changers</p><div className="space-y-1">{news.biasChangers.map((b, i) => <p key={i} className="text-amber-400/70 text-[11px]">⚠ {b}</p>)}</div></div>}
+                </>
+              )}
+
+              {/* RISK */}
+              {activeAgent === "risk" && risk && (
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Gate</p><p className={cn("font-semibold uppercase", risk.valid ? "text-emerald-400" : "text-red-400")}>{risk.valid ? "VALID" : "BLOCKED"}</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Grade</p><p className="font-mono text-zinc-200 text-lg">{risk.grade}</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Max Risk</p><p className="font-mono text-zinc-200">{risk.maxRiskPercent}%</p></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Volatility Score</p><div className="flex items-center gap-2 mt-1"><div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden"><div className="h-full bg-amber-500 rounded-full" style={{ width: `${risk.volatilityScore}%` }} /></div><span className="font-mono text-zinc-400 text-[10px]">{risk.volatilityScore}</span></div></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Session Score</p><div className="flex items-center gap-2 mt-1"><div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${risk.sessionScore}%` }} /></div><span className="font-mono text-zinc-400 text-[10px]">{risk.sessionScore}</span></div></div>
+                  </div>
+                  {risk.warnings?.length > 0 && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-2">Warnings</p><div className="space-y-1">{risk.warnings.map((w, i) => <p key={i} className="text-red-400/70">⚠ {w}</p>)}</div></div>}
+                  {risk.reasons?.length > 0 && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-2">Reasoning</p><div className="space-y-1">{risk.reasons.map((r, i) => <p key={i} className="text-zinc-400">• {r}</p>)}</div></div>}
+                </>
+              )}
+
+              {/* CONTRARIAN */}
+              {activeAgent === "contrarian" && contrarian && (
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Challenges</p><p className={cn("font-semibold", contrarian.challengesBias ? "text-amber-400" : "text-zinc-500")}>{contrarian.challengesBias ? "YES" : "NO"}</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Risk Factor</p><p className={cn("font-mono", contrarian.riskFactor > 60 ? "text-red-400" : "text-zinc-300")}>{contrarian.riskFactor}%</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Trap</p><p className="text-zinc-300 text-[11px]">{contrarian.trapType ?? "None"}</p></div>
+                  </div>
+                  {contrarian.alternativeScenario && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Alternative Scenario</p><p className="text-zinc-400">{contrarian.alternativeScenario}</p></div>}
+                  {contrarian.failureReasons?.length > 0 && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-2">Failure Risks</p><div className="space-y-1">{contrarian.failureReasons.map((r, i) => <p key={i} className="text-amber-400/70">⚠ {r}</p>)}</div></div>}
+                  {contrarian.oppositeLiquidity && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Opposite Liquidity</p><p className="font-mono text-zinc-300">{contrarian.oppositeLiquidity.toFixed(2)}</p></div>}
+                </>
+              )}
+
+              {/* EXECUTION */}
+              {activeAgent === "execution" && exec && (
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Signal State</p><p className={cn("font-semibold uppercase text-[11px]", exec.signalState === "ARMED" ? "text-emerald-400" : exec.signalState === "PENDING" ? "text-amber-400" : "text-zinc-500")}>{exec.signalState}</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Direction</p><p className={cn("font-semibold uppercase", exec.direction === "long" ? "text-emerald-400" : exec.direction === "short" ? "text-red-400" : "text-zinc-500")}>{exec.direction}</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Distance</p><p className="font-mono text-zinc-300">{exec.distanceToEntry != null ? `${exec.distanceToEntry}%` : "—"}</p></div>
+                  </div>
+                  {exec.entry && <div className="grid grid-cols-3 gap-3">
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Entry</p><p className="font-mono text-zinc-100">{exec.entry.toFixed(exec.entry > 100 ? 2 : 4)}</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Stop Loss</p><p className="font-mono text-red-400">{exec.stopLoss?.toFixed(exec.stopLoss > 100 ? 2 : 4) ?? "—"}</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">TP1</p><p className="font-mono text-emerald-400">{exec.tp1?.toFixed(exec.tp1 > 100 ? 2 : 4) ?? "—"}</p></div>
+                  </div>}
+                  {exec.signalStateReason && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">State Reason</p><p className="text-zinc-400">{exec.signalStateReason}</p></div>}
+                  {exec.triggerCondition && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Trigger</p><p className="text-zinc-400">{exec.triggerCondition}</p></div>}
+                  {exec.managementNotes?.length > 0 && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-2">Trade Management</p><div className="space-y-1">{exec.managementNotes.map((n, i) => <p key={i} className="text-zinc-400">• {n}</p>)}</div></div>}
+                </>
+              )}
+
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
