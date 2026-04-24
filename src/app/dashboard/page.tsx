@@ -749,8 +749,8 @@ export default function DashboardPage() {
     : "h-[60vh] min-h-[400px] lg:h-[75vh] lg:min-h-[500px]";
 
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-      <section className="min-w-0 flex-1 flex flex-col gap-3">
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:h-[calc(100vh-var(--topbar-height,56px))] lg:overflow-hidden">
+      <section className="min-w-0 flex-1 flex flex-col gap-3 lg:overflow-y-auto lg:h-full">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-3">
             <div>
@@ -1020,10 +1020,19 @@ export default function DashboardPage() {
         </Card>
       </section>
 
-      <aside className="w-full lg:w-[300px] xl:w-[320px] shrink-0 flex flex-col gap-3 lg:sticky lg:top-0">
+      <aside className="w-full lg:w-[300px] xl:w-[320px] shrink-0 lg:sticky lg:top-0 lg:h-[calc(100vh-var(--topbar-height,56px))] lg:flex lg:flex-col lg:overflow-hidden">
 
-        {/* Scrollable sidebar content */}
-        <div className="flex flex-col gap-3">
+        {/* Community chat — fixed at top */}
+        <div className="shrink-0">
+          <Card className="overflow-hidden rounded-none border-x-0 border-t-0">
+            <CardContent className="p-0">
+              <CommunityPanel />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Rest of sidebar — scrollable */}
+        <div className="flex-1 overflow-y-auto flex flex-col gap-3 p-3">
 
           <Card>
             <CardHeader className="pb-3">
@@ -1116,13 +1125,6 @@ export default function DashboardPage() {
                   detail="The desk will show the active and recently closed sessions here."
                 />
               )}
-            </CardContent>
-          </Card>
-
-          {/* Community chat — at bottom of sidebar */}
-          <Card className="overflow-hidden">
-            <CardContent className="p-0">
-              <CommunityPanel />
             </CardContent>
           </Card>
 
