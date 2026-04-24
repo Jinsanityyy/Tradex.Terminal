@@ -202,6 +202,148 @@ export function TrumpFeedPanel({ posts, limit, compact = false }: TrumpFeedPanel
 }
 
 // Compact Trump impact preview card for the dashboard
+function TrumpImpactModal({ posts, avgImpact, topTheme, recentPosts }: {
+  posts: TrumpPost[];
+  avgImpact: number;
+  topTheme: string;
+  recentPosts: TrumpPost[];
+}) {
+  const [analysis, setAnalysis] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(false);
+
+  // Detect speeches
+  const speeches = posts.filter(p =>
+    p.content.toLowerCase().includes("speak") ||
+    p.content.toLowerCase().includes("speech") ||
+    p.content.toLowerCase().includes("said") ||
+    p.content.toLowerCase().includes("remarks") ||
+    p.policyCategory.toLowerCase().includes("speech")
+  );
+
+  React.useEffect(() => {
+    if (posts.length === 0) return;
+    setLoading(true);
+    const headlines = posts.slice(0, 8).map(p => `[${p.policyCategory} · ${p.impactScore}/10] ${p.content}`).join("\n");
+    fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        system: `You are a market intelligence analyst specializing in Trump policy impact on Gold (XAUUSD) and forex markets. Be concise and direct. No fluff. Use trading terminology.`,
+        messages: [{
+          role: "user",
+          content: `Analyze these recent Trump headlines and explain:
+1. WHY the impact score is ${avgImpact}/10 (2-3 sentences)
+2. What is the KEY MARKET EFFECT on Gold and USD right now (2-3 sentences)
+3. What traders should WATCH FOR next (1-2 sentences)
+${speeches.length > 0 ? `4. SPEECH SUMMARY: Summarize what was said and immediate market reaction (2-3 sentences)` : ""}
+
+Headlines:
+${headlines}
+
+Respond in JSON only:
+{
+  "whyScore": "explanation of why score is X/10",
+  "marketEffect": "current effect on Gold and USD",
+  "watchFor": "what to watch next",
+  "speechSummary": "speech summary if applicable or null"
+}`
+        }]
+      })
+    })
+    .then(r => r.json())
+    .then(data => {
+      const text = data.content?.[0]?.text ?? "";
+      const clean = text.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(clean);
+      setAnalysis(JSON.stringify(parsed));
+    })
+    .catch(() => setAnalysis(null))
+    .finally(() => setLoading(false));
+  }, [posts.length]);
+
+  const parsed = analysis ? JSON.parse(analysis) : null;
+
+  return (
+    <div className="space-y-4">
+      {/* Stats row */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
+          <p className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Average Impact</p>
+          <p className="mt-1 text-lg font-bold font-mono text-[hsl(var(--foreground))]">{avgImpact}/10</p>
+        </div>
+        <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
+          <p className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Dominant Theme</p>
+          <p className="mt-1 text-sm font-semibold text-[hsl(var(--foreground))]">{topTheme}</p>
+        </div>
+      </div>
+
+      {/* AI Analysis */}
+      {loading ? (
+        <div className="rounded-lg border border-white/5 bg-[hsl(var(--secondary))] p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-[hsl(var(--primary))] animate-pulse" />
+            <span className="text-[10px] text-zinc-500 uppercase tracking-wider">AI analyzing market impact…</span>
+          </div>
+          {[80,60,70].map((w,i) => <div key={i} className={`h-3 bg-white/5 rounded animate-pulse`} style={{width:`${w}%`}} />)}
+        </div>
+      ) : parsed ? (
+        <div className="space-y-3">
+          {/* Why this score */}
+          <div className="rounded-lg border border-white/5 bg-[hsl(var(--secondary))] p-3 space-y-1">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Why {avgImpact}/10</p>
+            <p className="text-[12px] text-zinc-300 leading-relaxed">{parsed.whyScore}</p>
+          </div>
+
+          {/* Market effect */}
+          <div className="rounded-lg border border-white/5 bg-[hsl(var(--secondary))] p-3 space-y-1">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Market Effect — Gold & USD</p>
+            <p className="text-[12px] text-zinc-300 leading-relaxed">{parsed.marketEffect}</p>
+          </div>
+
+          {/* Watch for */}
+          <div className="rounded-lg border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary))]/5 p-3 space-y-1">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-[hsl(var(--primary))]/60">Watch For</p>
+            <p className="text-[12px] text-zinc-200 leading-relaxed">{parsed.watchFor}</p>
+          </div>
+
+          {/* Speech summary if applicable */}
+          {parsed.speechSummary && (
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 space-y-1">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-amber-500/60">Speech Summary</p>
+              <p className="text-[12px] text-zinc-200 leading-relaxed">{parsed.speechSummary}</p>
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {/* Headlines */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Latest Headlines</p>
+          <Link href="/dashboard/trump-monitor" className="text-[10px] text-zinc-500 hover:text-zinc-200">Open full monitor →</Link>
+        </div>
+        {recentPosts.map((post) => (
+          <div key={post.id} className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-[11px] leading-relaxed text-[hsl(var(--foreground))] line-clamp-2">&ldquo;{post.content}&rdquo;</p>
+              <span className="shrink-0 text-[10px] font-mono text-zinc-400">{post.impactScore}/10</span>
+            </div>
+            <div className="mt-1.5 flex items-start gap-2">
+              <span className="text-[10px] text-zinc-600">{timeAgo(post.timestamp)}</span>
+              <Badge variant="outline" className="text-[10px] ml-auto">{post.policyCategory}</Badge>
+            </div>
+            {post.whyItMatters && (
+              <p className="mt-2 text-[10px] text-zinc-600 leading-relaxed border-t border-white/5 pt-2">{post.whyItMatters}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function TrumpImpactPreview({ posts }: { posts: TrumpPost[] }) {
   const [open, setOpen] = useState(false);
   const latestHigh = posts.filter(p => p.impactScore >= 7).slice(0, 1)[0];
@@ -262,51 +404,7 @@ export function TrumpImpactPreview({ posts }: { posts: TrumpPost[] }) {
       </Card>
 
       <DetailModal open={open} onClose={() => setOpen(false)} title="Trump Impact Overview">
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
-              <p className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Average Impact</p>
-              <p className="mt-1 text-lg font-bold font-mono text-amber-400">{avgImpact}/10</p>
-            </div>
-            <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
-              <p className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Dominant Theme</p>
-              <p className="mt-1 text-sm font-semibold text-[hsl(var(--foreground))]">{topTheme}</p>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
-                Latest Headlines
-              </p>
-              <Link href="/dashboard/trump-monitor" className="text-[10px] text-amber-400 hover:underline">
-                Open full monitor
-              </Link>
-            </div>
-
-            {recentPosts.length > 0 ? recentPosts.map((post) => (
-              <div
-                key={post.id}
-                className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-[11px] font-medium leading-relaxed text-[hsl(var(--foreground))] line-clamp-2">
-                    &ldquo;{post.content}&rdquo;
-                  </p>
-                  <span className="shrink-0 text-[10px] font-mono text-amber-400">{post.impactScore}/10</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <span className="text-[10px] text-[hsl(var(--muted-foreground))]">{timeAgo(post.timestamp)}</span>
-                  <Badge variant="outline" className="text-[10px]">{post.policyCategory}</Badge>
-                </div>
-              </div>
-            )) : (
-              <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
-                <p className="text-[11px] text-[hsl(var(--muted-foreground))]">No recent Trump headlines available.</p>
-              </div>
-            )}
-          </div>
-        </div>
+        <TrumpImpactModal posts={posts} avgImpact={avgImpact} topTheme={topTheme} recentPosts={recentPosts} />
       </DetailModal>
     </>
   );
