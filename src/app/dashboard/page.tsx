@@ -798,7 +798,7 @@ export default function DashboardPage() {
   const chartHeightClass = isFullscreen ? "h-[88vh]" : "h-full";
 
   return (
-    <div className="-m-3 md:-m-4 flex flex-col lg:flex-row overflow-hidden" style={{ height: "calc(100vh - 56px)" }}>
+    <div className="dashboard-fixed -m-3 md:-m-4 flex flex-col lg:flex-row overflow-hidden" style={{ height: "calc(100vh - 56px)" }}>
       <section className="min-w-0 flex-1 flex flex-col overflow-hidden" style={{ height: "100%" }}>
         {/* Compact header */}
         <div className="flex items-center justify-between gap-2 px-3 py-1.5 shrink-0 border-b border-white/5">
@@ -930,7 +930,7 @@ export default function DashboardPage() {
 
       </section>
 
-      <aside className="w-full lg:w-[440px] xl:w-[480px] shrink-0 lg:sticky lg:top-0 lg:h-[calc(100vh-var(--topbar-height,56px))] lg:flex lg:flex-col lg:overflow-hidden border-l border-white/5">
+      <aside className="w-full lg:w-[440px] xl:w-[480px] shrink-0 lg:h-full lg:flex lg:flex-col lg:overflow-hidden border-l border-white/5">
 
         {/* Community chat — fixed height at top */}
         <div className="shrink-0" style={{ height: "360px" }}>

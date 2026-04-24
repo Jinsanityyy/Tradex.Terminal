@@ -30,8 +30,10 @@ export default function DashboardLayout({
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden transition-all duration-300 [margin-left:var(--sidebar-current-width,var(--sidebar-width))]">
         <TopStatusBar />
-        <main className="flex-1 overflow-y-auto p-3 pb-20 md:p-4 md:pb-4">
-          {children}
+        <main className="flex-1 overflow-hidden relative">
+          <div className="dashboard-scroll absolute inset-0 overflow-y-auto p-3 pb-20 md:p-4 md:pb-4 [&:has(.dashboard-fixed)]:overflow-hidden [&:has(.dashboard-fixed)]:p-0">
+            {children}
+          </div>
         </main>
       </div>
     </div>
