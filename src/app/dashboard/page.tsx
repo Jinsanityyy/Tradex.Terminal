@@ -630,7 +630,7 @@ export default function DashboardPage() {
             <div className="border-b border-[hsl(var(--border))]">
               <TradingViewChart
                 symbol={symCfg.tv}
-                heightClass="h-[68vh] min-h-[680px] max-h-[900px]"
+                heightClass="h-[78vh] min-h-[820px] xl:h-[84vh] xl:min-h-[920px] max-h-[1280px]"
               />
             </div>
 

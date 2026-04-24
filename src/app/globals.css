@@ -101,7 +101,7 @@ body {
 iframe,
 [id^="tradingview_"],
 .tv-embed-widget-wrapper {
-  background: hsl(var(--card)) !important;
+  background: #070707 !important;
 }
 
 /* Premium Utilities */

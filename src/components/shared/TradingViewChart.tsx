@@ -9,8 +9,6 @@ interface TradingViewChartProps {
   heightClass?: string;
 }
 
-const CHART_LAYOUT_VERSION = "v4";
-
 const INTERVALS = [
   { label: "1m", value: "1", minutes: 1 },
   { label: "5m", value: "5", minutes: 5 },
@@ -102,10 +100,6 @@ function formatCountdown(totalSeconds: number) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-function chartStorageKey(symbol: string) {
-  return `tradex_chart_${CHART_LAYOUT_VERSION}_${symbol.replace(/[^a-z0-9]/gi, "_")}`;
-}
-
 let widgetCounter = 0;
 
 export function TradingViewChart({
@@ -168,11 +162,8 @@ export function TradingViewChart({
     if (!element) return;
 
     let isCancelled = false;
-    let saveTimer: ReturnType<typeof setInterval> | null = null;
     let widget: any = null;
-
     const containerId = `tv_widget_${++widgetCounter}`;
-    const storageKey = chartStorageKey(activeSymbol);
 
     element.innerHTML = "";
     const widgetRoot = document.createElement("div");
@@ -194,7 +185,7 @@ export function TradingViewChart({
           theme: "dark",
           style: "1",
           locale: "en",
-          toolbar_bg: "#1b2028",
+          toolbar_bg: "#070707",
           enable_publishing: false,
           hide_top_toolbar: false,
           hide_side_toolbar: false,
@@ -202,13 +193,16 @@ export function TradingViewChart({
           save_image: false,
           disabled_features: [
             "header_fullscreen_button",
-            "left_toolbar",
             "header_symbol_search",
             "header_compare",
+            "use_localstorage_for_settings",
+            "save_chart_properties_to_local_storage",
+            "create_volume_indicator_by_default",
+            "create_volume_indicator_by_default_once",
           ],
           enabled_features: ["study_templates", "side_toolbar_in_fullscreen_mode"],
-          backgroundColor: "rgba(28,32,40,1)",
-          gridColor: "rgba(255,255,255,0.05)",
+          backgroundColor: "rgba(7,7,7,1)",
+          gridColor: "rgba(0,0,0,0)",
           overrides: {
             "mainSeriesProperties.candleStyle.upColor": "#26a69a",
             "mainSeriesProperties.candleStyle.downColor": "#ef5350",
@@ -216,13 +210,15 @@ export function TradingViewChart({
             "mainSeriesProperties.candleStyle.wickDownColor": "#ef5350",
             "mainSeriesProperties.candleStyle.borderUpColor": "#26a69a",
             "mainSeriesProperties.candleStyle.borderDownColor": "#ef5350",
-            "paneProperties.background": "#1c2028",
+            "paneProperties.background": "#070707",
             "paneProperties.backgroundType": "solid",
-            "paneProperties.vertGridProperties.color": "#2d333d",
-            "paneProperties.horzGridProperties.color": "#2d333d",
-            "scalesProperties.textColor": "#8d95a3",
+            "paneProperties.vertGridProperties.color": "rgba(0,0,0,0)",
+            "paneProperties.horzGridProperties.color": "rgba(0,0,0,0)",
+            "paneProperties.legendProperties.showVolume": false,
+            "scalesProperties.textColor": "#84888f",
             "scalesProperties.fontSize": 11,
-            "scalesProperties.backgroundColor": "#1c2028",
+            "scalesProperties.backgroundColor": "#070707",
+            "scalesProperties.lineColor": "rgba(255,255,255,0.06)",
           },
         });
       } catch (error) {
@@ -238,25 +234,18 @@ export function TradingViewChart({
         if (isCancelled) return;
 
         try {
-          const saved = localStorage.getItem(storageKey);
-          if (saved && typeof widget.load === "function") {
-            widget.load(JSON.parse(saved));
+          if (typeof widget.applyOverrides === "function") {
+            widget.applyOverrides({
+              "paneProperties.background": "#070707",
+              "paneProperties.backgroundType": "solid",
+              "paneProperties.vertGridProperties.color": "rgba(0,0,0,0)",
+              "paneProperties.horzGridProperties.color": "rgba(0,0,0,0)",
+              "paneProperties.legendProperties.showVolume": false,
+              "scalesProperties.backgroundColor": "#070707",
+              "scalesProperties.lineColor": "rgba(255,255,255,0.06)",
+            });
           }
         } catch {}
-
-        saveTimer = setInterval(() => {
-          if (isCancelled) return;
-
-          try {
-            if (typeof widget.save === "function") {
-              widget.save((state: unknown) => {
-                try {
-                  localStorage.setItem(storageKey, JSON.stringify(state));
-                } catch {}
-              });
-            }
-          } catch {}
-        }, 10_000);
       });
     }
 
@@ -277,20 +266,6 @@ export function TradingViewChart({
           isCancelled = true;
           clearInterval(poll);
 
-          if (saveTimer) {
-            clearInterval(saveTimer);
-          }
-
-          try {
-            if (typeof widget?.save === "function") {
-              widget.save((state: unknown) => {
-                try {
-                  localStorage.setItem(storageKey, JSON.stringify(state));
-                } catch {}
-              });
-            }
-          } catch {}
-
           if (element) {
             element.innerHTML = "";
           }
@@ -310,20 +285,6 @@ export function TradingViewChart({
     return () => {
       isCancelled = true;
 
-      if (saveTimer) {
-        clearInterval(saveTimer);
-      }
-
-      try {
-        if (typeof widget?.save === "function") {
-          widget.save((state: unknown) => {
-            try {
-              localStorage.setItem(storageKey, JSON.stringify(state));
-            } catch {}
-          });
-        }
-      } catch {}
-
       if (element) {
         element.innerHTML = "";
       }
@@ -334,7 +295,7 @@ export function TradingViewChart({
 
   return (
     <div className={cn("flex w-full flex-col overflow-hidden", heightClass)}>
-      <div className="flex h-[42px] shrink-0 items-center justify-between gap-2 border-b border-white/5 bg-[#171b22] px-3">
+      <div className="flex h-[42px] shrink-0 items-center justify-between gap-2 border-b border-white/5 bg-[#070707] px-3">
         <div className="flex min-w-0 items-center gap-1.5">
           <div className="relative" ref={dropdownRef}>
             <button
@@ -346,7 +307,7 @@ export function TradingViewChart({
             </button>
 
             {pickerOpen && (
-              <div className="absolute left-0 top-full z-50 mt-1.5 w-[260px] overflow-hidden rounded-lg border border-white/10 bg-[#1b1f27] shadow-2xl">
+              <div className="absolute left-0 top-full z-50 mt-1.5 w-[260px] overflow-hidden rounded-lg border border-white/10 bg-[#0b0b0c] shadow-2xl">
                 <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2">
                   <Search className="h-3.5 w-3.5 shrink-0 text-gray-500" />
                   <input
@@ -456,7 +417,7 @@ export function TradingViewChart({
         </div>
       </div>
 
-      <div ref={containerRef} className="min-h-0 flex-1 bg-[#1c2028]" />
+      <div ref={containerRef} className="min-h-0 flex-1 bg-[#070707]" />
     </div>
   );
 }
