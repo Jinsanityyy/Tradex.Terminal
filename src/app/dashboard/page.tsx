@@ -166,7 +166,7 @@ function SummaryCard({
   return (
     <div
       className={cn(
-        "h-full flex flex-col border-l-2 border-l-white/8 pl-3 py-4 pr-3 bg-[hsl(var(--card))]",
+        "h-full flex flex-col border-l-2 border-l-white/8 pl-4 py-4 pr-4 bg-[hsl(var(--card))]",
         interactive && "cursor-pointer group hover:bg-white/[0.04] transition-colors"
       )}
       onClick={onClick}
@@ -739,7 +739,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:h-[calc(100vh-var(--topbar-height,56px))] lg:overflow-hidden">
-      <section className="min-w-0 flex-1 flex flex-col gap-2 lg:overflow-y-auto lg:h-full">
+      <section className="min-w-0 flex-1 flex flex-col gap-3 lg:overflow-y-auto lg:h-full">
         <div className="flex items-center justify-between gap-2 h-8">
           <div className="flex items-center gap-1">
             {/* Symbol tabs */}
@@ -812,7 +812,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-px md:grid-cols-2 2xl:grid-cols-4 bg-white/5 rounded-xl overflow-hidden">
+        <div className="grid gap-px md:grid-cols-2 2xl:grid-cols-4 bg-white/5 rounded-xl overflow-hidden min-h-[160px]">
           <SummaryCard
             title="Trade Signal"
             icon={<Activity className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />}
@@ -1004,7 +1004,7 @@ export default function DashboardPage() {
         </Card>
       </section>
 
-      <aside className="w-full lg:w-[240px] xl:w-[260px] shrink-0 lg:sticky lg:top-0 lg:h-[calc(100vh-var(--topbar-height,56px))] lg:flex lg:flex-col lg:overflow-hidden border-l border-white/5">
+      <aside className="w-full lg:w-[280px] xl:w-[300px] shrink-0 lg:sticky lg:top-0 lg:h-[calc(100vh-var(--topbar-height,56px))] lg:flex lg:flex-col lg:overflow-hidden border-l border-white/5">
 
         {/* Community chat — fixed at top */}
         <div className="shrink-0">
