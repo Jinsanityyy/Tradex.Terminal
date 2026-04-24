@@ -185,13 +185,13 @@ export function TradingViewChart({
           theme: "dark",
           style: "1",
           locale: "en",
-          toolbar_bg: "#131722",
+          toolbar_bg: "#000000",
           enable_publishing: false,
-          hide_top_toolbar: false,
+          hide_top_toolbar: true,
           hide_side_toolbar: false,
-          allow_symbol_change: true,
-          save_image: true,
-          withdateranges: true,
+          allow_symbol_change: false,
+          save_image: false,
+          withdateranges: false,
           studies: [],
           disabled_features: [
             "header_fullscreen_button",
@@ -199,22 +199,17 @@ export function TradingViewChart({
             "save_chart_properties_to_local_storage",
             "create_volume_indicator_by_default",
             "create_volume_indicator_by_default_once",
-            "show_chart_property_page",
-            "header_chart_type",
-            "header_compare",
-            "header_undo_redo",
-            "header_screenshot",
-            "header_symbol_search",
-            "display_market_status",
             "timeframes_toolbar",
+            "display_market_status",
             "go_to_date",
             "clock_button",
+            "border_around_the_chart",
           ],
           enabled_features: [
             "study_templates",
             "side_toolbar_in_fullscreen_mode",
           ],
-          backgroundColor: "rgba(13,17,23,1)",
+          backgroundColor: "rgba(0,0,0,1)",
           gridColor: "rgba(0,0,0,0)",
           overrides: {
             "mainSeriesProperties.candleStyle.upColor": "#26a69a",
@@ -223,14 +218,14 @@ export function TradingViewChart({
             "mainSeriesProperties.candleStyle.wickDownColor": "#ef5350",
             "mainSeriesProperties.candleStyle.borderUpColor": "#26a69a",
             "mainSeriesProperties.candleStyle.borderDownColor": "#ef5350",
-            "paneProperties.background": "#0d1117",
+            "paneProperties.background": "#000000",
             "paneProperties.backgroundType": "solid",
             "paneProperties.vertGridProperties.color": "rgba(0,0,0,0)",
             "paneProperties.horzGridProperties.color": "rgba(0,0,0,0)",
-            "scalesProperties.textColor": "#6b7280",
+            "scalesProperties.textColor": "#4b5563",
             "scalesProperties.fontSize": 11,
-            "scalesProperties.backgroundColor": "#0d1117",
-            "scalesProperties.lineColor": "rgba(255,255,255,0.05)",
+            "scalesProperties.backgroundColor": "#000000",
+            "scalesProperties.lineColor": "rgba(255,255,255,0.04)",
           },
         });
       } catch (error) {
@@ -247,12 +242,12 @@ export function TradingViewChart({
         try {
           if (typeof widget.applyOverrides === "function") {
             widget.applyOverrides({
-              "paneProperties.background": "#0d1117",
+              "paneProperties.background": "#000000",
               "paneProperties.backgroundType": "solid",
               "paneProperties.vertGridProperties.color": "rgba(0,0,0,0)",
               "paneProperties.horzGridProperties.color": "rgba(0,0,0,0)",
-              "scalesProperties.backgroundColor": "#0d1117",
-              "scalesProperties.lineColor": "rgba(255,255,255,0.05)",
+              "scalesProperties.backgroundColor": "#000000",
+              "scalesProperties.lineColor": "rgba(255,255,255,0.04)",
             });
           }
         } catch {}
@@ -307,7 +302,7 @@ export function TradingViewChart({
     <div className={cn("flex w-full flex-col overflow-hidden", heightClass)}>
 
       {/* TradeX custom header — symbol picker + timeframes + candle countdown */}
-      <div className="flex h-[38px] shrink-0 items-center justify-between gap-2 border-b border-white/5 bg-[#0d1117] px-2.5">
+      <div className="flex h-[38px] shrink-0 items-center justify-between gap-2 border-b border-white/5 bg-black px-2.5">
         <div className="flex min-w-0 items-center gap-1.5">
 
           {/* Symbol picker */}
@@ -400,7 +395,7 @@ export function TradingViewChart({
         </div>
       </div>
 
-      <div ref={containerRef} className="flex-1 min-h-0 w-full" style={{ background: "#0d1117" }} />
+      <div ref={containerRef} className="flex-1 min-h-0 w-full" style={{ background: "#000000" }} />
     </div>
   );
 }
