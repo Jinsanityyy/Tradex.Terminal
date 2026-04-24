@@ -7,9 +7,8 @@ import { cn } from "@/lib/utils";
 import { MobileHome } from "@/components/mobile/MobileHome";
 import { MobileChart } from "@/components/mobile/MobileChart";
 import { MobileFeed } from "@/components/mobile/MobileFeed";
-import { MobileBias } from "@/components/mobile/MobileBias";
+import { MobileBrain } from "@/components/mobile/MobileBrain";
 import { MobileSettings } from "@/components/mobile/MobileSettings";
-import { MobileAgentDebate } from "@/components/mobile/MobileAgentDebate";
 import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { createClient } from "@/lib/supabase/client";
 
@@ -17,8 +16,8 @@ const TABS = [
   { id: "home",      label: "Home",      Icon: LayoutDashboard },
   { id: "chart",     label: "Chart",     Icon: TrendingUp },
   { id: "feed",      label: "Feed",      Icon: Zap },
-  { id: "bias",      label: "Bias",      Icon: BarChart3 },
-  { id: "community", label: "Community", Icon: Users },
+  { id: "brain",     label: "Brain",     Icon: BarChart3 },
+  { id: "community", label: "Chat",      Icon: Users },
   { id: "settings",  label: "More",      Icon: Settings },
 ] as const;
 
@@ -67,16 +66,17 @@ export function MobileLayout() {
       </div>
 
       {/* Page content */}
-      <div className="flex-1 overflow-y-auto overscroll-none">
+      <div className={cn(
+        "flex-1 min-h-0",
+        active === "chart" || active === "community"
+          ? "overflow-hidden flex flex-col"
+          : "overflow-y-auto overscroll-none"
+      )}>
         {active === "home"      && <MobileHome />}
         {active === "chart"     && <MobileChart />}
         {active === "feed"      && <MobileFeed />}
-        {active === "bias"      && <MobileBias />}
-        {active === "community" && (
-          <div className="flex-1 min-h-0 overflow-hidden">
-            <CommunityPanel />
-          </div>
-        )}
+        {active === "brain"     && <MobileBrain />}
+        {active === "community" && <CommunityPanel />}
         {active === "settings"  && <MobileSettings />}
       </div>
 
