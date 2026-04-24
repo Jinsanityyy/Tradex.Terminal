@@ -17,7 +17,6 @@ import useSWR from "swr";
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import { AgentActivityLog } from "./AgentActivityLog";
 import { AgentCard } from "./AgentCard";
-import { AgentCommandRoom } from "./AgentCommandRoom";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
 import { ConsensusPanel } from "./ConsensusPanel";
 import { SnapshotBar } from "./SnapshotBar";
@@ -377,9 +376,8 @@ export function BrainTerminal() {
           <div className="text-[11px] text-zinc-500">Scroll continues below</div>
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <div>
           <AgentActivityLog data={data ?? null} loading={loading && !data} timestamp={data?.timestamp} />
-          <AgentCommandRoom data={data ?? null} loading={loading && !data} />
         </div>
       </div>
 
