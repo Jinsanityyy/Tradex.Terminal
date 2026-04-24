@@ -24,6 +24,7 @@ import {
 import { TradingViewChart } from "@/components/shared/TradingViewChart";
 import { CatalystFeed } from "@/components/shared/CatalystFeed";
 import { AssetSnapshotGrid } from "@/components/shared/AssetSnapshotGrid";
+import { DetailModal } from "@/components/shared/DetailModal";
 import { TrumpImpactPreview } from "@/components/shared/TrumpFeedPanel";
 import { TradeContextBox } from "@/components/shared/TradeContextBox";
 import { SessionSummaryCard } from "@/components/shared/SessionSummaryCard";
@@ -150,22 +151,126 @@ function InfoRow({
 function SummaryCard({
   title,
   icon,
+  hint = "Open overview",
+  onClick,
   children,
 }: {
   title: string;
   icon: React.ReactNode;
+  hint?: string;
+  onClick?: () => void;
+  children: React.ReactNode;
+}) {
+  const interactive = Boolean(onClick);
+
+  return (
+    <Card
+      className={cn(
+        "h-full",
+        interactive &&
+          "cursor-pointer transition-all hover:border-[hsl(var(--primary))]/25 hover:bg-[hsl(var(--secondary))]/35"
+      )}
+      onClick={onClick}
+      onKeyDown={
+        interactive
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onClick?.();
+              }
+            }
+          : undefined
+      }
+      role={interactive ? "button" : undefined}
+      tabIndex={interactive ? 0 : undefined}
+    >
+      <CardHeader className="pb-1.5">
+        <CardTitle className="flex items-center justify-between gap-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-[hsl(var(--muted-foreground))]">
+          <span className="flex items-center gap-2">
+            {icon}
+            <span>{title}</span>
+          </span>
+          {interactive ? <span className="text-[9px] text-[hsl(var(--primary))]">{hint}</span> : null}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2.5 pt-0">
+        {children}
+      </CardContent>
+    </Card>
+  );
+}
+
+function OverviewSection({
+  label,
+  children,
+}: {
+  label: string;
   children: React.ReactNode;
 }) {
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[hsl(var(--muted-foreground))]">
-          {icon}
-          <span>{title}</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">{children}</CardContent>
-    </Card>
+    <div className="space-y-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/35 p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
+        {label}
+      </p>
+      <div className="space-y-3">{children}</div>
+    </div>
+  );
+}
+
+function OverviewText({ children }: { children: React.ReactNode }) {
+  return <p className="text-sm leading-6 text-[hsl(var(--muted-foreground))]">{children}</p>;
+}
+
+function OverviewList({
+  items,
+  tone,
+}: {
+  items: string[];
+  tone?: string;
+}) {
+  if (items.length === 0) {
+    return <OverviewText>No additional context is available yet.</OverviewText>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {items.map((item, index) => (
+        <p key={`${item}-${index}`} className={cn("text-sm leading-6 text-[hsl(var(--muted-foreground))]", tone)}>
+          {item}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+type OverviewKey = "signal" | "snapshot" | "consensus" | "risk";
+
+function overviewTitle(key: OverviewKey | null) {
+  switch (key) {
+    case "signal":
+      return "Trade Signal Overview";
+    case "snapshot":
+      return "Market Snapshot Overview";
+    case "consensus":
+      return "Agent Consensus Overview";
+    case "risk":
+      return "Risk and Session Overview";
+    default:
+      return "";
+  }
+}
+
+function SummaryHint({
+  tone,
+  children,
+}: {
+  tone?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <p className={cn("line-clamp-2 text-[10px] leading-5 text-[hsl(var(--muted-foreground))]", tone)}>
+      {children}
+    </p>
   );
 }
 
@@ -312,6 +417,7 @@ export default function DashboardPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [expandedSnapshot, setExpandedSnapshot] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [activeOverview, setActiveOverview] = useState<OverviewKey | null>(null);
 
   const symCfg = SYMBOLS.find((entry) => entry.id === symbol) ?? SYMBOLS[0];
 
@@ -424,30 +530,97 @@ export default function DashboardPage() {
       ];
 
   const snapshotAssets = expandedSnapshot ? quotes : quotes.slice(0, 8);
+  const signalPreview = master?.strategyMatch ?? signalReason;
+  const snapshotPreview = snap?.structure?.smcContext ?? "Structure context is recalculating from the latest feed.";
+  const consensusPreview =
+    master?.supports?.[0] ?? "Consensus blends trend, price action, catalysts, execution timing, and contrarian risk.";
+  const riskPreview =
+    primarySession?.carriesForward ??
+    tradeContext.directionalLean ??
+    "Risk posture updates with volatility, session quality, and macro pressure.";
+  const chartHeightClass = isFullscreen
+    ? "h-[84vh] min-h-[900px] xl:h-[90vh] xl:min-h-[1020px]"
+    : "h-[78vh] min-h-[820px] xl:h-[86vh] xl:min-h-[960px]";
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto lg:flex-row lg:overflow-hidden lg:overflow-y-hidden">
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 lg:overflow-y-auto lg:pr-1">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-semibold text-[hsl(var(--foreground))]">Command Center</h1>
-            <p className="text-xs text-[hsl(var(--muted-foreground))]">
-              Live dashboard layout with terminal context and full-screen viewing.
-            </p>
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 lg:overflow-y-auto lg:pr-1">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <div>
+              <h1 className="text-base font-semibold text-[hsl(var(--foreground))]">Command Center</h1>
+            </div>
+
+            <div className="hidden items-center gap-1 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-1 xl:flex">
+              {SYMBOLS.map((entry) => (
+                <button
+                  key={entry.id}
+                  onClick={() => setSymbol(entry.id)}
+                  className={cn(
+                    "rounded-md px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-colors",
+                    symbol === entry.id
+                      ? "bg-[hsl(var(--primary))]/12 text-[hsl(var(--primary))]"
+                      : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+                  )}
+                >
+                  {entry.short}
+                </button>
+              ))}
+            </div>
+
+            <div className="hidden items-center gap-1 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-1 xl:flex">
+              {TIMEFRAMES.map((entry) => (
+                <button
+                  key={entry}
+                  onClick={() => setTimeframe(entry)}
+                  className={cn(
+                    "rounded-md px-2.5 py-1 text-[10px] font-mono transition-colors",
+                    timeframe === entry
+                      ? "bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))]"
+                      : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+                  )}
+                >
+                  {entry}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <button
-            onClick={toggleFullscreen}
-            className="inline-flex items-center gap-2 rounded-md border border-[hsl(var(--border))] px-3 py-1.5 text-[11px] font-medium text-[hsl(var(--muted-foreground))] transition-colors hover:text-[hsl(var(--foreground))]"
-            title={isFullscreen ? "Exit full screen" : "Open full screen"}
-          >
-            {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-            {isFullscreen ? "Exit Full Screen" : "Full Screen"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="inline-flex items-center gap-2 rounded-md border border-[hsl(var(--border))] px-3 py-1.5 text-[11px] font-medium text-[hsl(var(--muted-foreground))] transition-colors hover:text-[hsl(var(--foreground))]"
+            >
+              <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
+              {isLoading ? "Refreshing" : "Refresh"}
+            </button>
+
+            <Link
+              href="/dashboard/brain"
+              className="inline-flex items-center gap-2 rounded-md border border-[hsl(var(--border))] px-3 py-1.5 text-[11px] font-medium text-[hsl(var(--muted-foreground))] transition-colors hover:text-[hsl(var(--foreground))]"
+            >
+              Brain Terminal
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+
+            <button
+              onClick={toggleFullscreen}
+              className="inline-flex items-center gap-2 rounded-md border border-[hsl(var(--border))] px-3 py-1.5 text-[11px] font-medium text-[hsl(var(--muted-foreground))] transition-colors hover:text-[hsl(var(--foreground))]"
+              title={isFullscreen ? "Exit full screen" : "Open full screen"}
+            >
+              {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+              {isFullscreen ? "Exit Full Screen" : "Full Screen"}
+            </button>
+          </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
-          <SummaryCard title="Trade Signal" icon={<Activity className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />}>
+        <div className="grid gap-2 md:grid-cols-2 2xl:grid-cols-4">
+          <SummaryCard
+            title="Trade Signal"
+            icon={<Activity className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />}
+            onClick={() => setActiveOverview("signal")}
+          >
             <div className={cn("inline-flex items-center gap-2 rounded-md border px-2.5 py-2", signalConfig.badge)}>
               <span className={cn("h-2 w-2 rounded-full", signalConfig.dot)} />
               <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">{signalConfig.label}</span>
@@ -467,10 +640,14 @@ export default function DashboardPage() {
               />
             </div>
 
-            <p className="text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">{signalReason}</p>
+            <SummaryHint>{signalPreview}</SummaryHint>
           </SummaryCard>
 
-          <SummaryCard title="Market Snapshot" icon={<BarChart3 className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />}>
+          <SummaryCard
+            title="Market Snapshot"
+            icon={<BarChart3 className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />}
+            onClick={() => setActiveOverview("snapshot")}
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] text-[hsl(var(--muted-foreground))]">{symCfg.label}</p>
@@ -501,17 +678,29 @@ export default function DashboardPage() {
                 color={master && master.consensusScore < 0 ? "text-red-400" : "text-emerald-400"}
               />
             </div>
+
+            <SummaryHint>{snapshotPreview}</SummaryHint>
           </SummaryCard>
 
-          <SummaryCard title="Agent Consensus" icon={<BrainCircuit className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />}>
-            <div className="space-y-2">
-              {agentRows.map((agent) => (
-                <InfoRow
+          <SummaryCard
+            title="Agent Consensus"
+            icon={<BrainCircuit className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />}
+            onClick={() => setActiveOverview("consensus")}
+          >
+            <div className="grid grid-cols-3 gap-2">
+              {agentRows.slice(0, 3).map((agent) => (
+                <div
                   key={agent.label}
-                  label={agent.label}
-                  value={`${formatBiasLabel(agent.bias)} ${agent.confidence}%`}
-                  tone={biasColor(agent.bias)}
-                />
+                  className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/35 px-2 py-2"
+                >
+                  <p className="text-[9px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
+                    {agent.label}
+                  </p>
+                  <p className={cn("mt-1 text-[11px] font-mono font-semibold", biasColor(agent.bias))}>
+                    {formatBiasLabel(agent.bias)}
+                  </p>
+                  <p className="mt-1 text-[10px] text-[hsl(var(--muted-foreground))]">{agent.confidence}%</p>
+                </div>
               ))}
             </div>
 
@@ -529,9 +718,15 @@ export default function DashboardPage() {
               />
               <StatCell label="Catalysts" value={String(news?.catalysts?.length ?? catalysts.length)} />
             </div>
+
+            <SummaryHint>{consensusPreview}</SummaryHint>
           </SummaryCard>
 
-          <SummaryCard title="Risk and Session" icon={<Shield className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />}>
+          <SummaryCard
+            title="Risk and Session"
+            icon={<Shield className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />}
+            onClick={() => setActiveOverview("risk")}
+          >
             <div className="grid grid-cols-2 gap-3">
               <StatCell
                 label="Risk Gate"
@@ -543,144 +738,13 @@ export default function DashboardPage() {
               <StatCell label="Session" value={primarySession?.session.toUpperCase() ?? "--"} />
             </div>
 
-            <p className="text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">
-              {primarySession?.carriesForward ?? tradeContext.directionalLean}
-            </p>
+            <SummaryHint>{riskPreview}</SummaryHint>
           </SummaryCard>
         </div>
 
         <Card className="overflow-hidden">
-          <CardHeader className="gap-3 border-b border-[hsl(var(--border))] pb-3">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4 text-[hsl(var(--primary))]" />
-                  <span>{symCfg.label} Terminal</span>
-                </CardTitle>
-                <CardDescription>
-                  Live chart, execution context, and machine-generated trade plan in one working area.
-                </CardDescription>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleRefresh}
-                  disabled={isLoading}
-                  className="inline-flex items-center gap-2 rounded-md border border-[hsl(var(--border))] px-3 py-1.5 text-[11px] font-medium text-[hsl(var(--muted-foreground))] transition-colors hover:text-[hsl(var(--foreground))]"
-                >
-                  <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
-                  {isLoading ? "Refreshing" : "Refresh"}
-                </button>
-
-                <Link
-                  href="/dashboard/brain"
-                  className="inline-flex items-center gap-2 rounded-md border border-[hsl(var(--border))] px-3 py-1.5 text-[11px] font-medium text-[hsl(var(--muted-foreground))] transition-colors hover:text-[hsl(var(--foreground))]"
-                >
-                  Brain Terminal
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex flex-wrap gap-1">
-                {SYMBOLS.map((entry) => (
-                  <button
-                    key={entry.id}
-                    onClick={() => setSymbol(entry.id)}
-                    className={cn(
-                      "rounded-md border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-colors",
-                      symbol === entry.id
-                        ? "border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
-                        : "border-transparent bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
-                    )}
-                  >
-                    {entry.short}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex flex-wrap gap-1">
-                {TIMEFRAMES.map((entry) => (
-                  <button
-                    key={entry}
-                    onClick={() => setTimeframe(entry)}
-                    className={cn(
-                      "rounded-md border px-2.5 py-1 text-[10px] font-mono transition-colors",
-                      timeframe === entry
-                        ? "border-[hsl(var(--border))] bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))]"
-                        : "border-transparent text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]"
-                    )}
-                  >
-                    {entry}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-4 lg:ml-auto">
-                <StatCell label="Price" value={priceLabel} color="text-[hsl(var(--foreground))]" />
-                <StatCell label="RSI" value={String(snap?.indicators?.rsi ?? "--")} />
-                <StatCell label="Session" value={snap?.indicators?.session ?? "--"} />
-                <StatCell label="Zone" value={snap?.structure?.zone ?? "--"} />
-              </div>
-            </div>
-          </CardHeader>
-
           <CardContent className="p-0">
-            <div className="border-b border-[hsl(var(--border))]">
-              <TradingViewChart
-                symbol={symCfg.tv}
-                heightClass="h-[78vh] min-h-[820px] xl:h-[84vh] xl:min-h-[920px] max-h-[1280px]"
-              />
-            </div>
-
-            <div className="grid gap-4 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_280px]">
-              <div className="min-w-0">
-                {tradePlan ? (
-                  <div className="flex items-start gap-3">
-                    {tradePlan.direction === "long" ? (
-                      <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-                    ) : (
-                      <TrendingDown className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
-                    )}
-                    <div className="min-w-0">
-                      <p
-                        className={cn(
-                          "text-sm font-semibold uppercase tracking-[0.18em]",
-                          tradePlan.direction === "long" ? "text-emerald-400" : "text-red-400"
-                        )}
-                      >
-                        {tradePlan.direction} setup
-                      </p>
-                      <p className="mt-1 text-[11px] text-[hsl(var(--foreground))]">
-                        Trigger: {tradePlan.trigger}
-                      </p>
-                      <p className="mt-1 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">
-                        {signalReason}
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-start gap-3">
-                    <Shield className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[hsl(var(--foreground))]">
-                        No active trade plan
-                      </p>
-                      <p className="mt-1 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">
-                        {signalReason}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                {tradeStats.map((stat) => (
-                  <StatCell key={stat.label} label={stat.label} value={stat.value} color={stat.color} />
-                ))}
-              </div>
-            </div>
+            <TradingViewChart symbol={symCfg.tv} heightClass={chartHeightClass} />
           </CardContent>
         </Card>
 
@@ -821,6 +885,175 @@ export default function DashboardPage() {
           </Card>
         </div>
       </aside>
+
+      <DetailModal
+        open={activeOverview !== null}
+        onClose={() => setActiveOverview(null)}
+        title={overviewTitle(activeOverview)}
+      >
+        {activeOverview === "signal" ? (
+          <div className="space-y-4">
+            <OverviewSection label="Status">
+              <OverviewText>{signalReason}</OverviewText>
+              {master?.strategyMatch ? <OverviewText>{master.strategyMatch}</OverviewText> : null}
+            </OverviewSection>
+
+            <OverviewSection label="Key Metrics">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <StatCell label="Signal" value={signalConfig.label.toUpperCase()} color={biasColor(finalBias)} />
+                <StatCell label="Confidence" value={master ? `${master.confidence}%` : "--"} />
+                <StatCell label="Bias" value={formatBiasLabel(finalBias)} color={biasColor(finalBias)} />
+                <StatCell label="Direction" value={tradePlan?.direction?.toUpperCase() ?? "--"} />
+                <StatCell label="Trigger" value={tradePlan?.trigger?.toUpperCase() ?? "--"} />
+                <StatCell
+                  label="Max Risk"
+                  value={tradePlan?.maxRiskPercent ? `${tradePlan.maxRiskPercent}%` : risk ? `${risk.maxRiskPercent}%` : "--"}
+                  color="text-[hsl(var(--muted-foreground))]"
+                />
+              </div>
+            </OverviewSection>
+
+            <OverviewSection label="Execution Plan">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {tradeStats.map((stat) => (
+                  <StatCell key={stat.label} label={stat.label} value={stat.value} color={stat.color} />
+                ))}
+              </div>
+              {tradePlan?.triggerCondition ? <OverviewText>{tradePlan.triggerCondition}</OverviewText> : null}
+              <OverviewList items={tradePlan?.managementNotes ?? []} />
+            </OverviewSection>
+
+            <OverviewSection label="Why It Reads This Way">
+              <OverviewList items={master?.supports ?? []} tone="text-emerald-300" />
+            </OverviewSection>
+
+            <OverviewSection label="Invalidation Risk">
+              <OverviewList items={master?.invalidations ?? []} tone="text-red-300" />
+            </OverviewSection>
+          </div>
+        ) : null}
+
+        {activeOverview === "snapshot" ? (
+          <div className="space-y-4">
+            <OverviewSection label="Price State">
+              <OverviewText>{snapshotPreview}</OverviewText>
+              <OverviewText>
+                {(snap?.isExtended ?? false)
+                  ? "Momentum is extended, so chasing breakouts needs tighter risk control."
+                  : "Momentum is balanced enough for structure-led execution instead of panic chasing."}
+              </OverviewText>
+            </OverviewSection>
+
+            <OverviewSection label="Key Metrics">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <StatCell label="Price" value={priceLabel} color="text-[hsl(var(--foreground))]" />
+                <StatCell
+                  label="Change"
+                  value={snap ? `${snap.price.changePercent > 0 ? "+" : ""}${snap.price.changePercent.toFixed(2)}%` : "--"}
+                  color={snap && snap.price.changePercent < 0 ? "text-red-400" : "text-emerald-400"}
+                />
+                <StatCell label="RSI" value={String(snap?.indicators?.rsi ?? "--")} />
+                <StatCell label="Session" value={snap?.indicators?.session ?? primarySession?.session.toUpperCase() ?? "--"} />
+                <StatCell label="Zone" value={snap?.structure?.zone ?? "--"} />
+                <StatCell label="52W Pos" value={snap ? `${Math.round(snap.structure.pos52w)}%` : "--"} />
+              </div>
+            </OverviewSection>
+
+            <OverviewSection label="Structure Read">
+              <OverviewText>
+                HTF bias is {formatBiasLabel(snap?.structure?.htfBias)} with {snap?.structure?.htfConfidence ?? "--"}%
+                confidence. Equilibrium sits near {snap ? formatTradePrice(snap.structure.equilibrium) : "--"} and the
+                desk currently tags price as {snap?.structure?.zone ?? "--"}.
+              </OverviewText>
+            </OverviewSection>
+
+            <OverviewSection label="Recent News">
+              {snap?.recentNews?.length ? (
+                <div className="space-y-3">
+                  {snap.recentNews.slice(0, 2).map((item) => (
+                    <div key={`${item.headline}-${item.timestamp}`} className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3">
+                      <p className="text-sm font-medium text-[hsl(var(--foreground))]">{item.headline}</p>
+                      <p className="mt-2 text-sm leading-6 text-[hsl(var(--muted-foreground))]">{item.summary}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <OverviewText>No recent news summary is attached to this snapshot yet.</OverviewText>
+              )}
+            </OverviewSection>
+          </div>
+        ) : null}
+
+        {activeOverview === "consensus" ? (
+          <div className="space-y-4">
+            <OverviewSection label="Consensus State">
+              <OverviewText>{consensusPreview}</OverviewText>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <StatCell label="Final Bias" value={formatBiasLabel(finalBias)} color={biasColor(finalBias)} />
+                <StatCell label="Confidence" value={master ? `${master.confidence}%` : "--"} />
+                <StatCell
+                  label="Consensus"
+                  value={master ? `${master.consensusScore > 0 ? "+" : ""}${master.consensusScore.toFixed(1)}` : "--"}
+                  color={master && master.consensusScore < 0 ? "text-red-400" : "text-emerald-400"}
+                />
+                <StatCell label="Strategy" value={master?.strategyMatch ?? "--"} />
+              </div>
+            </OverviewSection>
+
+            <OverviewSection label="Agent Breakdown">
+              {agentRows.map((agent) => (
+                <InfoRow
+                  key={agent.label}
+                  label={agent.label}
+                  value={`${formatBiasLabel(agent.bias)} ${agent.confidence}%`}
+                  tone={biasColor(agent.bias)}
+                />
+              ))}
+            </OverviewSection>
+
+            <OverviewSection label="Support Stack">
+              <OverviewList items={master?.supports ?? []} tone="text-emerald-300" />
+            </OverviewSection>
+
+            <OverviewSection label="What Could Break Consensus">
+              <OverviewList items={master?.invalidations ?? []} tone="text-red-300" />
+            </OverviewSection>
+          </div>
+        ) : null}
+
+        {activeOverview === "risk" ? (
+          <div className="space-y-4">
+            <OverviewSection label="Risk Posture">
+              <OverviewText>{riskPreview}</OverviewText>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <StatCell
+                  label="Risk Gate"
+                  value={risk ? `${risk.valid ? "VALID" : "BLOCKED"} ${risk.grade}` : "--"}
+                  color={risk?.valid ? "text-emerald-400" : "text-red-400"}
+                />
+                <StatCell label="Max Risk" value={risk ? `${risk.maxRiskPercent}%` : "--"} />
+                <StatCell label="Volatility" value={risk ? String(risk.volatilityScore) : "--"} />
+                <StatCell label="Session Score" value={risk ? String(risk.sessionScore) : "--"} />
+                <StatCell label="Session" value={primarySession?.session.toUpperCase() ?? "--"} />
+                <StatCell
+                  label="Estimated R:R"
+                  value={risk?.estimatedRR != null ? `${risk.estimatedRR}:1` : tradePlan?.rrRatio ? `${tradePlan.rrRatio}:1` : "--"}
+                />
+              </div>
+            </OverviewSection>
+
+            <OverviewSection label="Risk Warnings">
+              <OverviewList items={[...(risk?.warnings ?? []), ...(risk?.reasons ?? [])]} tone="text-amber-300" />
+            </OverviewSection>
+
+            <OverviewSection label="Desk Context">
+              <OverviewText>{tradeContext.condition}</OverviewText>
+              <OverviewText>{tradeContext.directionalLean}</OverviewText>
+              <OverviewList items={tradeContext.cautionFactors} />
+            </OverviewSection>
+          </div>
+        ) : null}
+      </DetailModal>
     </div>
   );
 }
