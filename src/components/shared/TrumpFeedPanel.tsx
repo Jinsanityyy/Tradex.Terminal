@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -202,8 +203,10 @@ export function TrumpFeedPanel({ posts, limit, compact = false }: TrumpFeedPanel
 
 // Compact Trump impact preview card for the dashboard
 export function TrumpImpactPreview({ posts }: { posts: TrumpPost[] }) {
+  const [open, setOpen] = useState(false);
   const latestHigh = posts.filter(p => p.impactScore >= 7).slice(0, 1)[0];
-  const avgImpact = Math.round(posts.reduce((s, p) => s + p.impactScore, 0) / posts.length);
+  const avgImpact = posts.length > 0 ? Math.round(posts.reduce((s, p) => s + p.impactScore, 0) / posts.length) : 0;
+  const recentPosts = posts.slice(0, 3);
 
   const themes = posts.reduce((acc, p) => {
     acc[p.policyCategory] = (acc[p.policyCategory] || 0) + 1;
@@ -212,33 +215,99 @@ export function TrumpImpactPreview({ posts }: { posts: TrumpPost[] }) {
   const topTheme = Object.entries(themes).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
 
   return (
-    <Card className="border-amber-500/20 bg-amber-500/[0.02]">
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2">
-          <UserCircle className="h-4 w-4 text-amber-400" />
-          <span>Trump Impact Monitor</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Avg Impact</span>
-          <div className="flex items-center gap-2">
-            <Progress value={avgImpact * 10} className="w-16 h-1.5" indicatorClassName="bg-amber-500" />
-            <span className="text-xs font-mono font-bold text-amber-400">{avgImpact}/10</span>
+    <>
+      <Card
+        className="cursor-pointer border-amber-500/20 bg-amber-500/[0.02] transition-colors hover:bg-amber-500/[0.04]"
+        onClick={() => setOpen(true)}
+      >
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <UserCircle className="h-4 w-4 text-amber-400" />
+              <span>Trump Impact Monitor</span>
+            </div>
+            <Link
+              href="/dashboard/trump-monitor"
+              onClick={(event) => event.stopPropagation()}
+              className="text-[10px] font-medium text-[hsl(var(--muted-foreground))] transition-colors hover:text-[hsl(var(--foreground))]"
+            >
+              Open
+            </Link>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Avg Impact</span>
+            <div className="flex items-center gap-2">
+              <Progress value={avgImpact * 10} className="h-1.5 w-16" indicatorClassName="bg-amber-500" />
+              <span className="text-xs font-mono font-bold text-amber-400">{avgImpact}/10</span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Top Theme</span>
+            <Badge variant="outline" className="text-[10px]">{topTheme}</Badge>
+          </div>
+
+          {latestHigh && (
+            <div className="rounded-md bg-[hsl(var(--secondary))] p-2">
+              <p className="text-[11px] text-[hsl(var(--foreground))] leading-relaxed line-clamp-2">
+                &ldquo;{latestHigh.content.slice(0, 120)}...&rdquo;
+              </p>
+            </div>
+          )}
+
+          <p className="text-[10px] text-amber-400/70">Click for overview →</p>
+        </CardContent>
+      </Card>
+
+      <DetailModal open={open} onClose={() => setOpen(false)} title="Trump Impact Overview">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
+              <p className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Average Impact</p>
+              <p className="mt-1 text-lg font-bold font-mono text-amber-400">{avgImpact}/10</p>
+            </div>
+            <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
+              <p className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Dominant Theme</p>
+              <p className="mt-1 text-sm font-semibold text-[hsl(var(--foreground))]">{topTheme}</p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
+                Latest Headlines
+              </p>
+              <Link href="/dashboard/trump-monitor" className="text-[10px] text-amber-400 hover:underline">
+                Open full monitor
+              </Link>
+            </div>
+
+            {recentPosts.length > 0 ? recentPosts.map((post) => (
+              <div
+                key={post.id}
+                className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-[11px] font-medium leading-relaxed text-[hsl(var(--foreground))] line-clamp-2">
+                    &ldquo;{post.content}&rdquo;
+                  </p>
+                  <span className="shrink-0 text-[10px] font-mono text-amber-400">{post.impactScore}/10</span>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <span className="text-[10px] text-[hsl(var(--muted-foreground))]">{timeAgo(post.timestamp)}</span>
+                  <Badge variant="outline" className="text-[10px]">{post.policyCategory}</Badge>
+                </div>
+              </div>
+            )) : (
+              <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
+                <p className="text-[11px] text-[hsl(var(--muted-foreground))]">No recent Trump headlines available.</p>
+              </div>
+            )}
           </div>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Top Theme</span>
-          <Badge variant="outline" className="text-[10px]">{topTheme}</Badge>
-        </div>
-        {latestHigh && (
-          <div className="rounded-md bg-[hsl(var(--secondary))] p-2">
-            <p className="text-[11px] text-[hsl(var(--foreground))] leading-relaxed line-clamp-2">
-              &ldquo;{latestHigh.content.slice(0, 120)}...&rdquo;
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      </DetailModal>
+    </>
   );
 }

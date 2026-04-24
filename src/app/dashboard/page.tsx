@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Activity,
@@ -23,7 +24,6 @@ import {
 import { TradingViewChart } from "@/components/shared/TradingViewChart";
 import { CatalystFeed } from "@/components/shared/CatalystFeed";
 import { AssetSnapshotGrid } from "@/components/shared/AssetSnapshotGrid";
-import { EconomicEventTable } from "@/components/shared/EconomicEventTable";
 import { TrumpImpactPreview } from "@/components/shared/TrumpFeedPanel";
 import { TradeContextBox } from "@/components/shared/TradeContextBox";
 import { SessionSummaryCard } from "@/components/shared/SessionSummaryCard";
@@ -36,6 +36,7 @@ import {
   useMarketAnalysis,
 } from "@/hooks/useMarketData";
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
+import type { EconomicEvent } from "@/types";
 
 const SYMBOLS: { id: Symbol; tv: string; label: string; short: string }[] = [
   { id: "XAUUSD", tv: "OANDA:XAUUSD", label: "Gold", short: "XAU" },
@@ -201,6 +202,106 @@ function PanelPlaceholder({
     <div className="rounded-lg border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/40 px-3 py-4">
       <p className="text-[11px] font-medium text-[hsl(var(--foreground))]">{title}</p>
       <p className="mt-1 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">{detail}</p>
+    </div>
+  );
+}
+
+function SidebarCountdown({ utcTimestamp }: { utcTimestamp?: number }) {
+  const [diff, setDiff] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!utcTimestamp) {
+      setDiff(null);
+      return;
+    }
+
+    const tick = () => setDiff(utcTimestamp - Date.now());
+    tick();
+
+    const intervalId = setInterval(tick, utcTimestamp - Date.now() < 5 * 60_000 ? 1000 : 30_000);
+    return () => clearInterval(intervalId);
+  }, [utcTimestamp]);
+
+  if (diff === null || diff <= 0) return null;
+
+  const totalSeconds = Math.floor(diff / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const label = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m ${seconds}s`;
+
+  return (
+    <span className="inline-flex items-center rounded-md border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-[10px] font-mono font-semibold text-blue-400">
+      {label}
+    </span>
+  );
+}
+
+function EventToneBadge({
+  label,
+  tone,
+}: {
+  label: string;
+  tone?: "bullish" | "bearish" | "neutral";
+}) {
+  if (!tone) return null;
+
+  return (
+    <Badge variant={tone} className="text-[9px]">
+      {label} {tone}
+    </Badge>
+  );
+}
+
+function SidebarEventPreview({ event }: { event: EconomicEvent }) {
+  return (
+    <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/40 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[11px] font-mono font-semibold text-[hsl(var(--foreground))]">{event.time}</span>
+        <SidebarCountdown utcTimestamp={event.utcTimestamp} />
+        <Badge variant={event.impact === "high" ? "high" : event.impact === "medium" ? "medium" : "low"} className="text-[9px]">
+          {event.impact}
+        </Badge>
+      </div>
+
+      <p className="mt-2 text-[12px] font-semibold leading-5 text-[hsl(var(--foreground))]">
+        {event.event}
+      </p>
+
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2 py-1.5">
+          <p className="text-[9px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">Forecast</p>
+          <p className="mt-1 text-[11px] font-mono text-[hsl(var(--foreground))]">{event.forecast}</p>
+        </div>
+        <div className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2 py-1.5">
+          <p className="text-[9px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">Previous</p>
+          <p className="mt-1 text-[11px] font-mono text-[hsl(var(--foreground))]">{event.previous}</p>
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <EventToneBadge label="Gold" tone={event.goldImpact} />
+        <EventToneBadge label="USD" tone={event.usdImpact} />
+      </div>
+
+      {event.affectedAssets.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {event.affectedAssets.slice(0, 3).map((asset) => (
+            <span
+              key={asset}
+              className="rounded bg-[hsl(var(--card))] px-1.5 py-0.5 text-[9px] font-mono text-[hsl(var(--muted-foreground))]"
+            >
+              {asset}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {event.tradeImplication ? (
+        <p className="mt-3 text-[11px] leading-5 text-[hsl(var(--muted-foreground))] line-clamp-2">
+          {event.tradeImplication}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -660,7 +761,11 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               {calendarPreview.length > 0 ? (
-                <EconomicEventTable events={calendarPreview} compact />
+                <div className="space-y-3">
+                  {calendarPreview.slice(0, 2).map((event) => (
+                    <SidebarEventPreview key={event.id} event={event} />
+                  ))}
+                </div>
               ) : (
                 <PanelPlaceholder
                   title="No scheduled events yet."
