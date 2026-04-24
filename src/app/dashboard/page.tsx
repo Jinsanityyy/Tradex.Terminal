@@ -913,7 +913,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="pb-2 pt-4 px-4">
               <SectionHeader
-                icon={<span className="text-base">🔍</span>}
+                icon={<Activity className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />}
                 label="Trump Impact Monitor"
                 action={
                   <Link href="/dashboard/trump-monitor" className="text-[11px] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]">
@@ -990,14 +990,14 @@ export default function DashboardPage() {
               />
             </CardHeader>
             <CardContent className="px-4 pb-4 space-y-3">
-              {sessionPreview.length > 0 ? (
-                sessionPreview.map((session) => (
+              {sessionPreview.filter(s => s.status === "active").length > 0 ? (
+                sessionPreview.filter(s => s.status === "active").map((session) => (
                   <SessionSummaryCard key={session.session} session={session} />
                 ))
               ) : (
                 <PanelPlaceholder
-                  title="Session data is loading."
-                  detail="The desk will show the active and recently closed sessions here."
+                  title="No active session."
+                  detail="Markets are currently between sessions."
                 />
               )}
             </CardContent>
