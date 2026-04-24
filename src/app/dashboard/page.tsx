@@ -23,6 +23,7 @@ import {
   Zap,
 } from "lucide-react";
 import { TradingViewChart } from "@/components/shared/TradingViewChart";
+import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { CatalystFeed } from "@/components/shared/CatalystFeed";
 import { DetailModal } from "@/components/shared/DetailModal";
 import { TrumpImpactPreview } from "@/components/shared/TrumpFeedPanel";
@@ -1018,8 +1019,20 @@ export default function DashboardPage() {
         </Card>
       </section>
 
-      <aside className="min-h-0 w-full shrink-0 lg:w-[300px] lg:overflow-y-auto lg:pl-1 xl:w-[320px]">
-        <div className="flex flex-col gap-3">
+      <aside className="min-h-0 w-full shrink-0 lg:w-[300px] lg:flex lg:flex-col xl:w-[320px]">
+
+        {/* Community chat — fixed height, always visible */}
+        <div className="shrink-0 lg:pl-1">
+          <Card className="overflow-hidden">
+            <CardContent className="p-0">
+              <CommunityPanel />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Rest of sidebar — scrollable */}
+        <div className="flex flex-col gap-3 mt-3 lg:flex-1 lg:overflow-y-auto lg:pl-1 lg:pb-3">
+
           <Card>
             <CardHeader className="pb-3">
               <SectionHeader
