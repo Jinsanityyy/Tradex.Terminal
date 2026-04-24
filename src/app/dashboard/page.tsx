@@ -397,7 +397,7 @@ function SectionHeader({
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-2">
         {icon}
-        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[hsl(var(--muted-foreground))]">
           {label}
         </span>
       </div>
@@ -860,7 +860,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* 7 Agent cards — replacing summary cards */}
-        <div className="grid grid-cols-7 gap-px bg-white/5 rounded-xl overflow-hidden">
+        <div className="grid grid-cols-7 gap-px bg-white/5 rounded-xl overflow-hidden auto-rows-fr">
           <AgentMiniCard label="MASTER" bias={finalBias} confidence={master?.confidence ?? 0}
             detail={isNoTrade ? (master?.noTradeReason ?? "No trade") : (master?.strategyMatch ?? finalBias)}
             isLoading={isLoading && !data} accent={isNoTrade ? "neutral" : finalBias === "bullish" ? "bull" : "bear"}
@@ -911,7 +911,7 @@ export default function DashboardPage() {
         <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-4">
 
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-2 pt-4 px-4">
               <SectionHeader
                 icon={<Zap className="h-3.5 w-3.5 text-amber-400" />}
                 label="Top Catalysts"
@@ -922,7 +922,7 @@ export default function DashboardPage() {
                 }
               />
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 pb-4">
               {catalysts.length > 0 ? (
                 <CatalystFeed catalysts={catalysts} limit={3} compact />
               ) : (
@@ -935,7 +935,7 @@ export default function DashboardPage() {
           </Card>
 
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-2 pt-4 px-4">
               <SectionHeader
                 icon={<CalendarDays className="h-3.5 w-3.5 text-blue-400" />}
                 label="Upcoming Events"
@@ -946,7 +946,7 @@ export default function DashboardPage() {
                 }
               />
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 pb-4">
               {calendarPreview.length > 0 ? (
                 <div className="space-y-3">
                   {calendarPreview.slice(0, 2).map((event) => (
@@ -972,7 +972,7 @@ export default function DashboardPage() {
                   label="Trump Monitor"
                 />
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-4 pb-4">
                 <PanelPlaceholder
                   title="No fresh posts detected."
                   detail="The policy monitor will surface high-impact political headlines here."
@@ -984,7 +984,7 @@ export default function DashboardPage() {
           <TradeContextBox context={tradeContext} />
 
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-2 pt-4 px-4">
               <SectionHeader
                 icon={<Clock className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />}
                 label="Sessions"
