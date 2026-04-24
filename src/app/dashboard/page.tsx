@@ -27,6 +27,7 @@ import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { CatalystFeed } from "@/components/shared/CatalystFeed";
 import { DetailModal } from "@/components/shared/DetailModal";
 import { SessionSummaryCard } from "@/components/shared/SessionSummaryCard";
+import { TrumpImpactPreview } from "@/components/shared/TrumpFeedPanel";
 import {
   useEconomicCalendar,
   useTrumpPosts,
@@ -565,6 +566,8 @@ export default function DashboardPage() {
   const { events } = useEconomicCalendar();
   const { catalysts } = useCatalysts();
   const { sessions } = useSessions();
+  const { posts: trumpPosts } = useTrumpPosts();
+  const { tradeContext } = useMarketAnalysis();
 
   const upcomingEvents = events.filter((event) => event.status === "upcoming" || event.status === "live");
   const calendarPreview = upcomingEvents.length > 0 ? upcomingEvents.slice(0, 5) : events.slice(0, 5);
@@ -889,7 +892,7 @@ export default function DashboardPage() {
 
       </section>
 
-      <aside className="w-full lg:w-[360px] xl:w-[380px] shrink-0 lg:sticky lg:top-0 lg:h-[calc(100vh-var(--topbar-height,56px))] lg:flex lg:flex-col lg:overflow-hidden border-l border-white/5">
+      <aside className="w-full lg:w-[440px] xl:w-[480px] shrink-0 lg:sticky lg:top-0 lg:h-[calc(100vh-var(--topbar-height,56px))] lg:flex lg:flex-col lg:overflow-hidden border-l border-white/5">
 
         {/* Community chat — fixed height at top */}
         <div className="shrink-0" style={{ height: "360px" }}>
@@ -906,6 +909,25 @@ export default function DashboardPage() {
         {/* Rest — scrollable */}
         <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-4">
 
+          {/* Trump Impact Monitor — first after community */}
+          <Card>
+            <CardHeader className="pb-2 pt-4 px-4">
+              <SectionHeader
+                icon={<span className="text-base">🔍</span>}
+                label="Trump Impact Monitor"
+                action={
+                  <Link href="/dashboard/trump-monitor" className="text-[11px] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]">
+                    Full
+                  </Link>
+                }
+              />
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <TrumpImpactPreview posts={trumpPosts} />
+            </CardContent>
+          </Card>
+
+          {/* Top Catalysts */}
           <Card>
             <CardHeader className="pb-2 pt-4 px-4">
               <SectionHeader
@@ -930,6 +952,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
+          {/* Upcoming Events */}
           <Card>
             <CardHeader className="pb-2 pt-4 px-4">
               <SectionHeader
@@ -958,6 +981,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
+          {/* Sessions */}
           <Card>
             <CardHeader className="pb-2 pt-4 px-4">
               <SectionHeader
@@ -965,7 +989,7 @@ export default function DashboardPage() {
                 label="Sessions"
               />
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="px-4 pb-4 space-y-3">
               {sessionPreview.length > 0 ? (
                 sessionPreview.map((session) => (
                   <SessionSummaryCard key={session.session} session={session} />
