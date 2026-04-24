@@ -997,7 +997,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="pb-2 pt-4 px-4">
               <SectionHeader
-                icon={<Zap className="h-3.5 w-3.5 text-amber-400" />}
+                icon={<Zap className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />}
                 label="Top Catalysts"
                 action={
                   <Link href="/dashboard/catalysts" className="text-[11px] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]">
@@ -1022,7 +1022,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="pb-2 pt-4 px-4">
               <SectionHeader
-                icon={<CalendarDays className="h-3.5 w-3.5 text-blue-400" />}
+                icon={<CalendarDays className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />}
                 label="Upcoming Events"
                 action={
                   <Link href="/dashboard/economic-calendar" className="text-[11px] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]">

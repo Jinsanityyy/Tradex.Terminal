@@ -217,13 +217,13 @@ export function TrumpImpactPreview({ posts }: { posts: TrumpPost[] }) {
   return (
     <>
       <Card
-        className="cursor-pointer border-amber-500/20 bg-amber-500/[0.02] transition-colors hover:bg-amber-500/[0.04]"
+        className="cursor-pointer transition-colors hover:bg-white/[0.03]"
         onClick={() => setOpen(true)}
       >
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <UserCircle className="h-4 w-4 text-amber-400" />
+              <UserCircle className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
               <span>Trump Impact Monitor</span>
             </div>
             <Link
@@ -239,8 +239,8 @@ export function TrumpImpactPreview({ posts }: { posts: TrumpPost[] }) {
           <div className="flex items-center justify-between">
             <span className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Avg Impact</span>
             <div className="flex items-center gap-2">
-              <Progress value={avgImpact * 10} className="h-1.5 w-16" indicatorClassName="bg-amber-500" />
-              <span className="text-xs font-mono font-bold text-amber-400">{avgImpact}/10</span>
+              <Progress value={avgImpact * 10} className="h-1.5 w-16" />
+              <span className="text-xs font-mono font-bold text-[hsl(var(--foreground))]">{avgImpact}/10</span>
             </div>
           </div>
 
@@ -257,7 +257,7 @@ export function TrumpImpactPreview({ posts }: { posts: TrumpPost[] }) {
             </div>
           )}
 
-          <p className="text-[10px] text-amber-400/70">Click for overview →</p>
+          <p className="text-[10px] text-[hsl(var(--muted-foreground))]/70">Click for overview →</p>
         </CardContent>
       </Card>
 
