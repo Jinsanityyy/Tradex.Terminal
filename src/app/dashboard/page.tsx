@@ -26,8 +26,6 @@ import { TradingViewChart } from "@/components/shared/TradingViewChart";
 import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { CatalystFeed } from "@/components/shared/CatalystFeed";
 import { DetailModal } from "@/components/shared/DetailModal";
-import { TrumpImpactPreview } from "@/components/shared/TrumpFeedPanel";
-import { TradeContextBox } from "@/components/shared/TradeContextBox";
 import { SessionSummaryCard } from "@/components/shared/SessionSummaryCard";
 import {
   useEconomicCalendar,
@@ -565,10 +563,8 @@ export default function DashboardPage() {
   }, []);
 
   const { events } = useEconomicCalendar();
-  const { posts: trump } = useTrumpPosts();
   const { catalysts } = useCatalysts();
   const { sessions } = useSessions();
-  const { tradeContext } = useMarketAnalysis();
 
   const upcomingEvents = events.filter((event) => event.status === "upcoming" || event.status === "live");
   const calendarPreview = upcomingEvents.length > 0 ? upcomingEvents.slice(0, 5) : events.slice(0, 5);
@@ -782,7 +778,7 @@ export default function DashboardPage() {
   })();
   const chartHeightClass = isFullscreen
     ? "h-[88vh]"
-    : "h-[62vh] min-h-[420px] lg:h-[72vh] lg:min-h-[500px]";
+    : "h-[52vh] min-h-[380px] lg:h-[58vh] lg:min-h-[420px]";
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:h-[calc(100vh-var(--topbar-height,56px))] lg:overflow-hidden">
@@ -893,10 +889,10 @@ export default function DashboardPage() {
 
       </section>
 
-      <aside className="w-full lg:w-[300px] xl:w-[320px] shrink-0 lg:sticky lg:top-0 lg:h-[calc(100vh-var(--topbar-height,56px))] lg:flex lg:flex-col lg:overflow-hidden border-l border-white/5">
+      <aside className="w-full lg:w-[360px] xl:w-[380px] shrink-0 lg:sticky lg:top-0 lg:h-[calc(100vh-var(--topbar-height,56px))] lg:flex lg:flex-col lg:overflow-hidden border-l border-white/5">
 
         {/* Community chat — fixed height at top */}
-        <div className="shrink-0" style={{ height: "320px" }}>
+        <div className="shrink-0" style={{ height: "360px" }}>
           <Card className="overflow-hidden h-full rounded-none border-x-0 border-t-0">
             <CardContent className="p-0 h-full">
               <CommunityPanel />
@@ -924,7 +920,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="px-4 pb-4">
               {catalysts.length > 0 ? (
-                <CatalystFeed catalysts={catalysts} limit={3} compact />
+                <CatalystFeed catalysts={catalysts} limit={3} />
               ) : (
                 <PanelPlaceholder
                   title="No catalysts in queue."
@@ -962,27 +958,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {trump.length > 0 ? (
-            <TrumpImpactPreview posts={trump} />
-          ) : (
-            <Card>
-              <CardHeader className="pb-3">
-                <SectionHeader
-                  icon={<Activity className="h-3.5 w-3.5 text-amber-400" />}
-                  label="Trump Monitor"
-                />
-              </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <PanelPlaceholder
-                  title="No fresh posts detected."
-                  detail="The policy monitor will surface high-impact political headlines here."
-                />
-              </CardContent>
-            </Card>
-          )}
-
-          <TradeContextBox context={tradeContext} />
-
           <Card>
             <CardHeader className="pb-2 pt-4 px-4">
               <SectionHeader
@@ -993,7 +968,7 @@ export default function DashboardPage() {
             <CardContent className="space-y-3">
               {sessionPreview.length > 0 ? (
                 sessionPreview.map((session) => (
-                  <SessionSummaryCard key={session.session} session={session} compact />
+                  <SessionSummaryCard key={session.session} session={session} />
                 ))
               ) : (
                 <PanelPlaceholder
