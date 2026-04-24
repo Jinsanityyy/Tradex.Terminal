@@ -1006,16 +1006,19 @@ export default function DashboardPage() {
 
       <aside className="w-full lg:w-[280px] xl:w-[300px] shrink-0 lg:sticky lg:top-0 lg:h-[calc(100vh-var(--topbar-height,56px))] lg:flex lg:flex-col lg:overflow-hidden border-l border-white/5">
 
-        {/* Community chat — fixed at top */}
-        <div className="shrink-0">
-          <Card className="overflow-hidden rounded-none border-x-0 border-t-0">
-            <CardContent className="p-0">
+        {/* Community chat — fixed height at top */}
+        <div className="shrink-0" style={{ height: "280px" }}>
+          <Card className="overflow-hidden h-full rounded-none border-x-0 border-t-0">
+            <CardContent className="p-0 h-full">
               <CommunityPanel />
             </CardContent>
           </Card>
         </div>
 
-        {/* Rest of sidebar — scrollable */}
+        {/* Divider */}
+        <div className="h-px bg-white/5 shrink-0" />
+
+        {/* Rest — scrollable */}
         <div className="flex-1 overflow-y-auto flex flex-col gap-3 p-3">
 
           <Card>

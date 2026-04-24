@@ -160,7 +160,7 @@ export function CommunityPanel() {
   }
 
   return (
-    <div className="flex flex-col h-full" style={{ minHeight: "380px" }}>
+    <div className="flex flex-col h-full">
 
       {/* Header - no usernames for privacy */}
       <div className="px-3 py-2 border-b border-[hsl(var(--border))] shrink-0">
