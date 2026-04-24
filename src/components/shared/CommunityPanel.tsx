@@ -40,7 +40,12 @@ function getInitial(name: string | null, email: string | null) {
   return (name ?? email ?? "T")[0].toUpperCase();
 }
 
-function Avatar({ userId, name, email }: { userId: string; name: string | null; email: string | null }) {
+function Avatar({ userId, name, email, photo }: { userId: string; name: string | null; email: string | null; photo?: string | null }) {
+  if (photo) {
+    return (
+      <img src={photo} alt={name ?? "avatar"} className={cn("h-6 w-6 rounded-full object-cover shrink-0")} />
+    );
+  }
   return (
     <div className={cn("h-6 w-6 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold text-white", avatarColor(userId))}>
       {getInitial(name, email)}
@@ -56,6 +61,7 @@ export function CommunityPanel() {
   const [userId, setUserId]           = useState<string | null>(null);
   const [traderName, setTraderName]   = useState("Trader");
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [myAvatar, setMyAvatar]       = useState<string | null>(null);
   const bottomRef  = useRef<HTMLDivElement>(null);
   const typingTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -67,7 +73,6 @@ export function CommunityPanel() {
       const user = data.user;
       if (!user) return;
       setUserId(user.id);
-      // Load name: localStorage first, then profile, then email prefix
       const saved = localStorage.getItem(TRADER_NAME_KEY);
       if (saved) { setTraderName(saved); return; }
       supabase.from("profiles").select("display_name, email").eq("id", user.id).maybeSingle()
@@ -77,6 +82,15 @@ export function CommunityPanel() {
           localStorage.setItem(TRADER_NAME_KEY, name);
         });
     });
+    // Load avatar from localStorage
+    const savedAvatar = localStorage.getItem("tradex_avatar");
+    if (savedAvatar) setMyAvatar(savedAvatar);
+    // Sync when avatar changes in same tab
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "tradex_avatar") setMyAvatar(e.newValue);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   useEffect(() => {
@@ -205,7 +219,7 @@ export function CommunityPanel() {
               return (
                 <div key={msg.id} className={cn("flex gap-2 mb-1.5", isOwn && "flex-row-reverse")}>
                   <div className="w-6 shrink-0 flex items-end">
-                    {showAvatar && <Avatar userId={msg.user_id} name={msg.display_name} email={null} />}
+                    {showAvatar && <Avatar userId={msg.user_id} name={msg.display_name} email={null} photo={isOwn ? myAvatar : null} />}
                   </div>
                   <div className={cn("flex-1 min-w-0", isOwn && "flex flex-col items-end")}>
                     {showAvatar && (
