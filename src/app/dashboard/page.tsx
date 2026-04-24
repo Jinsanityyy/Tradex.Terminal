@@ -918,6 +918,44 @@ export default function DashboardPage() {
             onClick={() => setActiveAgent("execution")} />
         </div>
 
+        {/* Compact execution plan strip — fills space below agent cards */}
+        {data && (
+          <div className="rounded-xl border border-white/5 bg-[hsl(var(--card))] px-4 py-3">
+            {tradePlan ? (
+              <div className="flex items-center gap-6 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className={cn("text-[11px] font-bold uppercase", tradePlan.direction === "long" ? "text-emerald-400" : "text-red-400")}>
+                    {tradePlan.direction === "long" ? "▲ LONG" : "▼ SHORT"} · {tradePlan.trigger}
+                  </span>
+                </div>
+                <span className="h-3 w-px bg-white/10" />
+                <div className="flex items-center gap-4">
+                  <div><span className="text-[9px] text-zinc-600 uppercase mr-1.5">Entry</span><span className="text-[12px] font-mono text-zinc-100">{tradePlan.entry.toFixed(tradePlan.entry > 100 ? 2 : 4)}</span></div>
+                  <div><span className="text-[9px] text-zinc-600 uppercase mr-1.5">SL</span><span className="text-[12px] font-mono text-red-400">{tradePlan.stopLoss.toFixed(tradePlan.stopLoss > 100 ? 2 : 4)}</span></div>
+                  <div><span className="text-[9px] text-zinc-600 uppercase mr-1.5">TP1</span><span className="text-[12px] font-mono text-emerald-400">{tradePlan.tp1.toFixed(tradePlan.tp1 > 100 ? 2 : 4)}</span></div>
+                  {tradePlan.tp2 && <div><span className="text-[9px] text-zinc-600 uppercase mr-1.5">TP2</span><span className="text-[12px] font-mono text-emerald-300">{tradePlan.tp2.toFixed(tradePlan.tp2 > 100 ? 2 : 4)}</span></div>}
+                  <div><span className="text-[9px] text-zinc-600 uppercase mr-1.5">RR</span><span className="text-[12px] font-mono text-zinc-200">{tradePlan.rrRatio}:1</span></div>
+                  <div><span className="text-[9px] text-zinc-600 uppercase mr-1.5">Risk</span><span className="text-[12px] font-mono text-zinc-400">{tradePlan.maxRiskPercent}%</span></div>
+                </div>
+                {exec?.signalStateReason && (
+                  <>
+                    <span className="h-3 w-px bg-white/10" />
+                    <span className={cn("text-[10px]", exec.signalState === "ARMED" ? "text-emerald-400" : exec.signalState === "PENDING" ? "text-amber-400" : "text-zinc-600")}>
+                      {exec.signalStateReason}
+                    </span>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-zinc-600">
+                  {master?.noTradeReason ?? "No active trade setup — stand aside and monitor for entry conditions"}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
       </section>
 
       <aside className="w-full lg:w-[440px] xl:w-[480px] shrink-0 lg:sticky lg:top-0 lg:h-[calc(100vh-var(--topbar-height,56px))] lg:flex lg:flex-col lg:overflow-hidden border-l border-white/5">

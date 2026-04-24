@@ -1,23 +1,51 @@
 "use client";
 
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EconomicEventTable } from "@/components/shared/EconomicEventTable";
 import { useEconomicCalendar } from "@/hooks/useMarketData";
 import { CalendarDays, AlertCircle, Clock, Target, Wifi, WifiOff, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function EconomicCalendarPage() {
   const { events, isLive, isLoading } = useEconomicCalendar();
+  const [selectedDate, setSelectedDate] = useState<string>("all");
 
-  const completed = events.filter(e => e.status === "completed");
-  const upcoming = events.filter(e => e.status === "upcoming" || e.status === "live");
-  const live = events.filter(e => e.status === "live");
+  // Get unique dates from events
+  const availableDates = useMemo(() => {
+    const dates = [...new Set(events.map(e => e.date))].sort();
+    return dates;
+  }, [events]);
+
+  // Filter by selected date
+  const filteredEvents = useMemo(() => {
+    if (selectedDate === "all") return events;
+    return events.filter(e => e.date === selectedDate);
+  }, [events, selectedDate]);
+
+  const completed = filteredEvents.filter(e => e.status === "completed");
+  const upcoming = filteredEvents.filter(e => e.status === "upcoming" || e.status === "live");
+  const live = filteredEvents.filter(e => e.status === "live");
 
   // Count bias signals
-  const goldBullish = events.filter(e => e.goldImpact === "bullish").length;
-  const goldBearish = events.filter(e => e.goldImpact === "bearish").length;
+  const goldBullish = filteredEvents.filter(e => e.goldImpact === "bullish").length;
+  const goldBearish = filteredEvents.filter(e => e.goldImpact === "bearish").length;
   const overallGoldBias = goldBullish > goldBearish ? "bullish" : goldBearish > goldBullish ? "bearish" : "neutral";
+
+  function formatDateLabel(dateStr: string) {
+    const d = new Date(dateStr + "T12:00:00");
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
+    if (dateStr === today.toISOString().split("T")[0]) return "Today";
+    if (dateStr === tomorrow.toISOString().split("T")[0]) return "Tomorrow";
+    if (dateStr === yesterday.toISOString().split("T")[0]) return "Yesterday";
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
 
   return (
     <div className="space-y-5">
@@ -34,6 +62,41 @@ export default function EconomicCalendarPage() {
             {isLive ? "LIVE" : "LOADING"}
           </Badge>
         </div>
+      </div>
+
+      {/* Date filter tabs */}
+      <div className="flex items-center gap-1 flex-wrap">
+        <button
+          onClick={() => setSelectedDate("all")}
+          className={cn(
+            "px-3 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wider transition-all border",
+            selectedDate === "all"
+              ? "bg-[hsl(var(--primary))]/15 border-[hsl(var(--primary))]/30 text-[hsl(var(--primary))]"
+              : "border-white/8 text-zinc-500 hover:text-zinc-300"
+          )}
+        >
+          All ({events.length})
+        </button>
+        {availableDates.map(date => {
+          const count = events.filter(e => e.date === date).length;
+          const hasUpcoming = events.filter(e => e.date === date && (e.status === "upcoming" || e.status === "live")).length > 0;
+          return (
+            <button
+              key={date}
+              onClick={() => setSelectedDate(date)}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wider transition-all border",
+                selectedDate === date
+                  ? "bg-[hsl(var(--primary))]/15 border-[hsl(var(--primary))]/30 text-[hsl(var(--primary))]"
+                  : "border-white/8 text-zinc-500 hover:text-zinc-300"
+              )}
+            >
+              {formatDateLabel(date)}
+              {hasUpcoming && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" />}
+              <span className="ml-1 text-zinc-700">({count})</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Gold Bias Summary from Events */}
