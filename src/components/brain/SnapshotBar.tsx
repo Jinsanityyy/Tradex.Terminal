@@ -57,10 +57,10 @@ export function SnapshotBar({ snapshot }: SnapshotBarProps) {
     <div className="flex items-center gap-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
       {fields.map((f, i) => (
         <React.Fragment key={f.label}>
-          {i > 0 && <div className="w-px h-7 bg-white/8 shrink-0" />}
-          <div className="flex flex-col items-center px-4 shrink-0">
-            <span className="text-[10px] text-zinc-500 uppercase tracking-wider">{f.label}</span>
-            <span className={cn("text-xs font-mono font-semibold mt-0.5", f.color)}>{f.value}</span>
+          {i > 0 && <div className="h-6 w-px shrink-0 bg-white/8" />}
+          <div className="flex shrink-0 flex-col items-center px-3">
+            <span className="text-[9px] uppercase tracking-[0.18em] text-zinc-500">{f.label}</span>
+            <span className={cn("mt-0.5 text-[11px] font-mono font-semibold", f.color)}>{f.value}</span>
           </div>
         </React.Fragment>
       ))}

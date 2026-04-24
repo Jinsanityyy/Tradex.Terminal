@@ -46,20 +46,20 @@ function SymbolSelector({
   onChange: (value: Symbol) => void;
 }) {
   return (
-    <div className="flex gap-1 rounded-xl border border-white/8 bg-white/4 p-1">
+    <div className="flex gap-1 rounded-lg border border-white/8 bg-white/4 p-1">
       {SYMBOLS.map((symbol) => (
         <button
           key={symbol.id}
           onClick={() => onChange(symbol.id)}
           className={cn(
-            "flex flex-col items-center rounded-lg px-3 py-2 text-center transition-all",
+            "flex flex-col items-center rounded-md px-2.5 py-1.5 text-center transition-all",
             value === symbol.id
               ? "bg-white/10 text-white shadow-sm"
               : "text-zinc-500 hover:text-zinc-300"
           )}
         >
-          <span className="text-xs font-bold">{symbol.label}</span>
-          <span className="mt-0.5 text-[10px] opacity-60">{symbol.sub}</span>
+          <span className="text-[11px] font-bold">{symbol.label}</span>
+          <span className="mt-0.5 text-[9px] opacity-60">{symbol.sub}</span>
         </button>
       ))}
     </div>
@@ -74,13 +74,13 @@ function TimeframeSelector({
   onChange: (value: Timeframe) => void;
 }) {
   return (
-    <div className="flex gap-1 rounded-xl border border-white/8 bg-white/4 p-1">
+    <div className="flex gap-1 rounded-lg border border-white/8 bg-white/4 p-1">
       {TIMEFRAMES.map((timeframe) => (
         <button
           key={timeframe}
           onClick={() => onChange(timeframe)}
           className={cn(
-            "rounded-lg px-3 py-2 text-xs font-bold transition-all",
+            "rounded-md px-2.5 py-1.5 text-[11px] font-bold transition-all",
             value === timeframe
               ? "bg-white/10 text-white"
               : "text-zinc-500 hover:text-zinc-300"
@@ -107,25 +107,8 @@ function getAgentCards(data: AgentRunResult) {
   const tfCount = (["M5", "M15", "H1", "H4"] as const).filter(
     (timeframe) => tfBias[timeframe] === agents.trend.bias
   ).length;
-  const alignedCount = getAlignedAgentCount(data);
 
   return [
-    {
-      agentId: "master",
-      label: "Master Consensus",
-      icon: <Brain className="h-4 w-4" />,
-      bias: agents.master.finalBias,
-      confidence: agents.master.confidence,
-      reasons: agents.master.noTradeReason
-        ? [agents.master.noTradeReason, ...agents.master.supports.slice(0, 2)]
-        : agents.master.supports.slice(0, 3),
-      extra: {
-        Consensus: `${agents.master.consensusScore > 0 ? "+" : ""}${agents.master.consensusScore.toFixed(1)}`,
-        Aligned: `${alignedCount}/${agents.master.agentConsensus.length}`,
-        Strategy: agents.master.strategyMatch ?? "No exact match",
-        Mode: agents.master.finalBias === "no-trade" ? "Stand Aside" : "Executable",
-      } as Record<string, string | number | boolean | null>,
-    },
     {
       agentId: "trend",
       label: "Trend Agent",
@@ -170,23 +153,32 @@ function getAgentCards(data: AgentRunResult) {
       } as Record<string, string | number | boolean | null>,
     },
     {
-      agentId: "execution",
-      label: "Execution Agent",
-      icon: <Target className="h-4 w-4" />,
-      bias: !agents.execution.hasSetup
-        ? "neutral"
-        : agents.execution.direction === "long"
-          ? "bullish"
-          : "bearish",
-      confidence: agents.execution.hasSetup ? 75 : 30,
-      reasons: [agents.execution.triggerCondition, ...agents.execution.managementNotes.slice(0, 2)].filter(
-        (entry): entry is string => Boolean(entry)
-      ),
+      agentId: "risk",
+      label: "Risk Gate",
+      icon: <Shield className="h-4 w-4" />,
+      bias: agents.risk.valid ? "valid" : "invalid",
+      confidence: agents.risk.sessionScore,
+      reasons: agents.risk.reasons,
+      warnings: agents.risk.warnings,
       extra: {
-        Entry: agents.execution.entry?.toFixed(4) ?? "--",
-        SL: agents.execution.stopLoss?.toFixed(4) ?? "--",
-        TP1: agents.execution.tp1?.toFixed(4) ?? "--",
-        RR: agents.execution.rrRatio ? `${agents.execution.rrRatio}:1` : "--",
+        Grade: agents.risk.grade,
+        Session: `${agents.risk.sessionScore}/100`,
+        Vol: `${agents.risk.volatilityScore}/100`,
+        "Max Risk": `${agents.risk.maxRiskPercent}%`,
+      } as Record<string, string | number | boolean | null>,
+      isGate: true,
+    },
+    {
+      agentId: "contrarian",
+      label: "Contrarian Agent",
+      icon: <FlipHorizontal2 className="h-4 w-4" />,
+      bias: agents.contrarian.challengesBias ? "opposing" : "neutral",
+      confidence: agents.contrarian.trapConfidence,
+      reasons: agents.contrarian.failureReasons,
+      extra: {
+        Trap: agents.contrarian.trapType ?? "None",
+        Risk: `${agents.contrarian.riskFactor}%`,
+        "Opp Liq": agents.contrarian.oppositeLiquidity?.toFixed(4) ?? "--",
       } as Record<string, string | number | boolean | null>,
     },
   ];
@@ -228,17 +220,19 @@ export function BrainTerminal() {
   }, [symbol, timeframe]);
 
   const loading = isLoading || isRefreshing;
+  const secondaryCards = data ? getAgentCards(data) : [];
+  const alignedCount = data ? getAlignedAgentCount(data) : 0;
 
   return (
-    <div className="w-full space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-violet-500/20 bg-violet-500/15">
-            <Brain className="h-5 w-5 text-violet-400" />
+    <div className="w-full min-w-0 space-y-4 pb-2">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-violet-500/20 bg-violet-500/15">
+            <Brain className="h-4.5 w-4.5 text-violet-400" />
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-white">Multi-Agent Brain</h1>
-            <p className="text-xs text-zinc-400">7-agent consensus engine - Price Action + Macro + Risk</p>
+          <div className="min-w-0">
+            <h1 className="text-base font-bold text-white">Multi-Agent Brain</h1>
+            <p className="text-[11px] text-zinc-400">7-agent consensus engine - Price Action + Macro + Risk</p>
           </div>
         </div>
 
@@ -261,7 +255,7 @@ export function BrainTerminal() {
             onClick={handleRefresh}
             disabled={loading}
             className={cn(
-              "flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/4 px-3 py-2 text-xs font-semibold text-zinc-400 transition-all hover:bg-white/8 hover:text-white",
+              "flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/4 px-3 py-1.5 text-[11px] font-semibold text-zinc-400 transition-all hover:bg-white/8 hover:text-white",
               loading && "cursor-not-allowed opacity-50"
             )}
           >
@@ -272,87 +266,30 @@ export function BrainTerminal() {
       </div>
 
       {data?.snapshot && !loading && (
-        <div className="rounded-xl border border-white/6 bg-[#0d0d0d]/60 px-2 py-3">
+        <div className="rounded-xl border border-white/6 bg-[#0d0d0d]/60 px-3 py-2">
           <SnapshotBar snapshot={data.snapshot} />
         </div>
       )}
 
       {loading && !data && (
-        <div className="animate-pulse rounded-xl border border-white/6 bg-[#0d0d0d]/60 px-5 py-4">
-          <div className="h-8 w-full rounded bg-white/4" />
+        <div className="animate-pulse rounded-xl border border-white/6 bg-[#0d0d0d]/60 px-4 py-3">
+          <div className="h-6 w-full rounded bg-white/4" />
         </div>
       )}
 
       {error && (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-5 py-4">
+        <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3">
           <p className="text-sm text-red-400">Failed to load agent data. Check API keys and try again.</p>
         </div>
       )}
 
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-200">Agent Overview</h2>
-            <p className="text-xs text-zinc-500">Click any card to open the full explanation and result for that agent.</p>
-          </div>
-          <div className="rounded-lg border border-white/8 bg-white/4 px-3 py-1.5 text-[11px] text-zinc-400">
-            7 agents live
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-4">
-          {loading && !data
-            ? [...Array(7)].map((_, index) => (
-                <AgentCard key={index} agentId="" label="" icon={null} bias="neutral" confidence={0} loading />
-              ))
-            : data
-              ? [
-                  ...getAgentCards(data).map((card) => (
-                    <AgentCard key={card.agentId} {...card} onClick={() => openDrawer(card.agentId)} />
-                  )),
-                  <AgentCard
-                    key="risk"
-                    agentId="risk"
-                    label="Risk Gate"
-                    icon={<Shield className="h-4 w-4" />}
-                    bias={data.agents.risk.valid ? "valid" : "invalid"}
-                    confidence={data.agents.risk.sessionScore}
-                    reasons={data.agents.risk.reasons}
-                    warnings={data.agents.risk.warnings}
-                    extra={{
-                      Grade: data.agents.risk.grade,
-                      Session: `${data.agents.risk.sessionScore}/100`,
-                      Vol: `${data.agents.risk.volatilityScore}/100`,
-                      "Max Risk": `${data.agents.risk.maxRiskPercent}%`,
-                    }}
-                    isGate
-                    onClick={() => openDrawer("risk")}
-                  />,
-                  <AgentCard
-                    key="contrarian"
-                    agentId="contrarian"
-                    label="Contrarian Agent"
-                    icon={<FlipHorizontal2 className="h-4 w-4" />}
-                    bias={data.agents.contrarian.challengesBias ? "opposing" : "neutral"}
-                    confidence={data.agents.contrarian.trapConfidence}
-                    reasons={data.agents.contrarian.failureReasons}
-                    extra={{
-                      Trap: data.agents.contrarian.trapType ?? "None",
-                      Risk: `${data.agents.contrarian.riskFactor}%`,
-                      "Opp Liq": data.agents.contrarian.oppositeLiquidity?.toFixed(4) ?? "--",
-                    }}
-                    onClick={() => openDrawer("contrarian")}
-                  />,
-                ]
-              : null}
-        </div>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(340px,0.85fr)]">
-        <div className="space-y-4">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.95fr)]">
+        <div className="space-y-2.5">
           <div className="flex items-center gap-2">
             <Brain className="h-4 w-4 text-violet-400" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-300">Master Consensus</span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-300">
+              Master Consensus
+            </span>
           </div>
           <ConsensusPanel
             finalBias={data?.agents.master.finalBias ?? "no-trade"}
@@ -368,10 +305,22 @@ export function BrainTerminal() {
           />
         </div>
 
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Target className="h-4 w-4 text-zinc-400" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-300">Execution Plan</span>
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-zinc-400" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-300">
+                Execution Plan
+              </span>
+            </div>
+            {data ? (
+              <button
+                onClick={() => openDrawer("execution")}
+                className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500 transition-colors hover:text-zinc-300"
+              >
+                Open Detail
+              </button>
+            ) : null}
           </div>
           <TradePlan
             tradePlan={data?.agents.master.tradePlan ?? null}
@@ -395,23 +344,47 @@ export function BrainTerminal() {
         </div>
       </div>
 
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <div className="h-px flex-1 bg-white/5" />
-          <span className="px-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
-            AI Operations Center
-          </span>
-          <div className="h-px flex-1 bg-white/5" />
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-200">Support Agents</h2>
+            <p className="text-xs text-zinc-500">Compact support cards for trend, structure, macro, risk, and contrarian pressure.</p>
+          </div>
+          <div className="rounded-lg border border-white/8 bg-white/4 px-3 py-1.5 text-[11px] text-zinc-400">
+            {data ? `${alignedCount}/${data.agents.master.agentConsensus.length} aligned` : "7 agents live"}
+          </div>
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <AgentCommandRoom data={data ?? null} loading={loading && !data} />
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {loading && !data
+            ? [...Array(5)].map((_, index) => (
+                <AgentCard key={index} agentId="" label="" icon={null} bias="neutral" confidence={0} loading />
+              ))
+            : data
+              ? secondaryCards.map((card) => (
+                  <AgentCard key={card.agentId} {...card} onClick={() => openDrawer(card.agentId)} />
+                ))
+              : null}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-200">Detailed View</h2>
+            <p className="text-xs text-zinc-500">Keep the explanation drawer and activity feed accessible below the decision cards.</p>
+          </div>
+          <div className="text-[11px] text-zinc-500">Scroll continues below</div>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
           <AgentActivityLog data={data ?? null} loading={loading && !data} timestamp={data?.timestamp} />
+          <AgentCommandRoom data={data ?? null} loading={loading && !data} />
         </div>
       </div>
 
       {data && (
-        <div className="-mt-2 flex items-center justify-between text-[11px] text-zinc-500">
+        <div className="flex items-center justify-between border-t border-white/5 pt-1 text-[11px] text-zinc-500">
           <div className="flex items-center gap-1.5">
             <Clock className="h-3 w-3" />
             <span>{data.totalProcessingTime}ms</span>
