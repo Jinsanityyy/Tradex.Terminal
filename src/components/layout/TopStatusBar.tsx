@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { cn, formatNumber, formatPercent, getCurrentSession } from "@/lib/utils";
 import { useQuotes } from "@/hooks/useMarketData";
-import { TrendingUp, TrendingDown, Clock, Wifi, WifiOff, LogOut, User } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, Wifi, WifiOff, LogOut, User, Camera } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 function SessionClock({ label, timezone }: { label: string; timezone: string }) {
@@ -64,6 +64,8 @@ function UserMenu() {
   const [traderName, setTraderName] = useState("");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const fileRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -73,6 +75,8 @@ function UserMenu() {
     });
     const saved = localStorage.getItem(TRADER_NAME_KEY);
     if (saved) setTraderName(saved);
+    const savedAvatar = localStorage.getItem("tradex_avatar");
+    if (savedAvatar) setAvatar(savedAvatar);
   }, []);
 
   function saveName() {
@@ -83,6 +87,18 @@ function UserMenu() {
     }
     setEditing(false);
     setOpen(false);
+  }
+
+  function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const base64 = ev.target?.result as string;
+      setAvatar(base64);
+      localStorage.setItem("tradex_avatar", base64);
+    };
+    reader.readAsDataURL(file);
   }
 
   async function handleLogout() {
@@ -97,9 +113,13 @@ function UserMenu() {
     <div className="relative">
       <button
         onClick={() => { setOpen(!open); setDraft(traderName); setEditing(false); }}
-        className="flex items-center gap-1.5 rounded-md bg-[hsl(var(--secondary))] px-2.5 py-1 hover:bg-[hsl(var(--muted))] transition-colors"
+        className="flex items-center gap-1.5 rounded-md bg-[hsl(var(--secondary))] px-2 py-1 hover:bg-[hsl(var(--muted))] transition-colors"
       >
-        <User className="h-3 w-3 text-[hsl(var(--primary))]" />
+        {avatar ? (
+          <img src={avatar} alt="avatar" className="h-5 w-5 rounded-full object-cover" />
+        ) : (
+          <User className="h-3 w-3 text-[hsl(var(--primary))]" />
+        )}
         <span className="text-[10px] font-semibold text-[hsl(var(--foreground))] max-w-[120px] truncate hidden sm:block uppercase tracking-wider">
           {displayName}
         </span>
@@ -108,10 +128,40 @@ function UserMenu() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-9 z-50 min-w-[200px] rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-2xl p-2">
-            {/* Trader Name */}
-            <div className="px-2 py-2">
-              <p className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-wider mb-1.5">Trader Name</p>
+          <div className="absolute right-0 top-9 z-50 min-w-[220px] rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-2xl p-3">
+
+            {/* Avatar + Name row */}
+            <div className="flex items-center gap-3 mb-3">
+              <div className="relative group cursor-pointer" onClick={() => fileRef.current?.click()}>
+                {avatar ? (
+                  <img src={avatar} alt="avatar" className="h-12 w-12 rounded-full object-cover ring-2 ring-white/10 group-hover:ring-[hsl(var(--primary))]/50 transition-all" />
+                ) : (
+                  <div className="h-12 w-12 rounded-full bg-[hsl(var(--secondary))] ring-2 ring-white/10 group-hover:ring-[hsl(var(--primary))]/50 transition-all flex items-center justify-center">
+                    <span className="text-lg font-bold text-[hsl(var(--primary))]">{displayName[0]?.toUpperCase()}</span>
+                  </div>
+                )}
+                <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Camera className="h-4 w-4 text-white" />
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-bold text-white truncate uppercase tracking-wide">{displayName}</p>
+                <p className="text-[10px] text-zinc-500 truncate">{email}</p>
+              </div>
+            </div>
+
+            {/* Hidden file input */}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
+
+            {/* Trader Name edit */}
+            <div className="mb-2">
+              <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Trader Name</p>
               {editing ? (
                 <div className="flex gap-1.5">
                   <input
@@ -121,12 +171,9 @@ function UserMenu() {
                     onKeyDown={(e) => e.key === "Enter" && saveName()}
                     maxLength={20}
                     placeholder="Your name..."
-                    className="flex-1 rounded-md bg-[hsl(var(--secondary))] border border-[hsl(var(--primary))]/30 px-2 py-1 text-xs text-white outline-none placeholder-gray-600"
+                    className="flex-1 rounded-md bg-[hsl(var(--secondary))] border border-[hsl(var(--primary))]/30 px-2 py-1 text-xs text-white outline-none"
                   />
-                  <button
-                    onClick={saveName}
-                    className="rounded-md bg-[hsl(var(--primary))]/20 border border-[hsl(var(--primary))]/30 px-2 py-1 text-[10px] text-[hsl(var(--primary))] font-semibold"
-                  >
+                  <button onClick={saveName} className="rounded-md bg-[hsl(var(--primary))]/20 border border-[hsl(var(--primary))]/30 px-2 py-1 text-[10px] text-[hsl(var(--primary))] font-semibold">
                     Save
                   </button>
                 </div>
@@ -135,20 +182,22 @@ function UserMenu() {
                   onClick={() => { setDraft(traderName); setEditing(true); }}
                   className="flex items-center justify-between w-full rounded-md bg-[hsl(var(--secondary))] px-2.5 py-1.5 hover:bg-[hsl(var(--muted))] transition-colors"
                 >
-                  <span className="text-xs font-semibold text-[hsl(var(--foreground))] uppercase tracking-wide">{displayName}</span>
+                  <span className="text-xs font-semibold text-white uppercase tracking-wide">{displayName}</span>
                   <span className="text-[10px] text-[hsl(var(--primary))]">Edit</span>
                 </button>
               )}
             </div>
 
-            <div className="border-t border-[hsl(var(--border))] my-1.5" />
+            <div className="border-t border-[hsl(var(--border))] my-2" />
 
-            {/* Email */}
-            <div className="px-2 pb-1">
-              <p className="text-[10px] text-[hsl(var(--muted-foreground))]">{email}</p>
-            </div>
-
-            <div className="border-t border-[hsl(var(--border))] my-1.5" />
+            {/* Upload photo button */}
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-zinc-400 hover:bg-white/5 rounded-lg transition-colors mb-1"
+            >
+              <Camera className="h-3.5 w-3.5" />
+              {avatar ? "Change profile photo" : "Upload profile photo"}
+            </button>
 
             {/* Logout */}
             <button
