@@ -90,6 +90,51 @@ function generateMarketImplication(headline: string, sentiment: "bullish" | "bea
     : `Mixed signal for ${marketStr}. Markets awaiting confirmation or follow-up developments.`;
 }
 
+type GoldUSD = {
+  goldImpact: "bullish" | "bearish" | "neutral";
+  goldReasoning: string;
+  usdImpact: "bullish" | "bearish" | "neutral";
+  usdReasoning: string;
+};
+
+function deriveGoldUSDFallback(headline: string, sentiment: "bullish" | "bearish" | "neutral"): GoldUSD {
+  const h = headline.toLowerCase();
+
+  if (h.includes("fed") || h.includes("rate cut") || h.includes("rate hike") || h.includes("powell") || h.includes("fomc")) {
+    return sentiment === "bearish"
+      ? { goldImpact: "bearish", goldReasoning: "Hawkish Fed tone raises real yields, reducing gold's non-yielding appeal and pressuring spot prices.", usdImpact: "bullish", usdReasoning: "Higher-for-longer rate expectations attract capital flows into USD, strengthening the dollar's yield advantage." }
+      : { goldImpact: "bullish", goldReasoning: "Dovish Fed signals lower real yields ahead, making gold more attractive as a non-yielding safe-haven asset.", usdImpact: "bearish", usdReasoning: "Rate cut expectations erode USD yield advantage, weakening the dollar against major currency pairs." };
+  }
+  if (h.includes("tariff") || h.includes("trade war") || h.includes("trade deal")) {
+    return sentiment === "bearish"
+      ? { goldImpact: "bullish", goldReasoning: "Trade war escalation triggers risk-off safe-haven flows into gold as global growth fears intensify.", usdImpact: "neutral", usdReasoning: "Tariff escalation creates competing forces — safe-haven inflows vs. growth damage — leaving USD directionless short-term." }
+      : { goldImpact: "bearish", goldReasoning: "Trade deal progress improves global risk sentiment, reducing gold's safe-haven premium and weighing on prices.", usdImpact: "bullish", usdReasoning: "Trade optimism supports USD via improved US growth outlook and reduced recession risk from trade disruptions." };
+  }
+  if (h.includes("cpi") || h.includes("inflation") || h.includes("pce") || h.includes("price")) {
+    return sentiment === "bearish"
+      ? { goldImpact: "bearish", goldReasoning: "Hot inflation data pushes Fed rate-cut timeline further out, lifting real yields and making gold less competitive.", usdImpact: "bullish", usdReasoning: "Above-consensus inflation locks in higher US rates for longer, forcing USD short-covering and attracting yield-seeking capital." }
+      : { goldImpact: "bullish", goldReasoning: "Cooling inflation accelerates rate-cut expectations, reducing real yields and boosting gold's relative appeal.", usdImpact: "bearish", usdReasoning: "Soft inflation prints increase probability of Fed cuts, eroding USD's yield premium against other major currencies." };
+  }
+  if (h.includes("war") || h.includes("military") || h.includes("geopolit") || h.includes("iran") || h.includes("nuclear") || h.includes("sanction") || h.includes("attack")) {
+    return { goldImpact: "bullish", goldReasoning: "Geopolitical escalation drives flight-to-safety flows into gold — historically the primary beneficiary of global conflict risk.", usdImpact: "bullish", usdReasoning: "USD benefits alongside gold from safe-haven demand as investors exit regional risk exposure and EM assets." };
+  }
+  if (h.includes("nfp") || h.includes("payroll") || h.includes("employment") || h.includes("jobs")) {
+    return sentiment === "bullish"
+      ? { goldImpact: "bearish", goldReasoning: "Strong jobs data removes Fed urgency to cut rates, eliminating a key gold bullish catalyst and raising real yield expectations.", usdImpact: "bullish", usdReasoning: "Robust payrolls reinforce the US economic exceptionalism narrative, driving USD higher on reduced rate-cut expectations." }
+      : { goldImpact: "bullish", goldReasoning: "Weak jobs report raises recession fears and brings forward rate-cut expectations, boosting gold's safe-haven and rate-sensitive appeal.", usdImpact: "bearish", usdReasoning: "Disappointing employment data accelerates Fed dovish pricing, reducing USD yield advantage and triggering broad dollar selling." };
+  }
+  if (h.includes("oil") || h.includes("opec") || h.includes("energy")) {
+    return { goldImpact: "neutral", goldReasoning: "Oil/energy catalyst has indirect gold impact via inflation transmission — watch for CPI implications in 4-6 weeks.", usdImpact: "neutral", usdReasoning: "Energy price moves affect petro-currencies (CAD, NOK) more directly; USD impact depends on net inflation/growth effect." };
+  }
+
+  // Default by sentiment
+  return sentiment === "bearish"
+    ? { goldImpact: "bullish", goldReasoning: "Risk-off catalyst drives safe-haven demand into gold as investors reduce exposure to risk assets.", usdImpact: "bullish", usdReasoning: "Negative sentiment supports USD safe-haven demand as a flight-to-quality play alongside gold." }
+    : sentiment === "bullish"
+    ? { goldImpact: "bearish", goldReasoning: "Positive risk catalyst reduces safe-haven demand, marginally weighing on gold as risk appetite improves.", usdImpact: "bullish", usdReasoning: "Risk-on backdrop supports USD via improved US growth narrative and reduced demand for alternative safe-havens." }
+    : { goldImpact: "neutral", goldReasoning: "Mixed catalyst with no clear directional bias for gold — await price action confirmation at key levels.", usdImpact: "neutral", usdReasoning: "Neutral backdrop provides no strong USD directional signal — monitor DXY reaction at structural support/resistance." };
+}
+
 async function generateAnalysis(title: string, summary: string, markets: string[], importance: string) {
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -271,13 +316,15 @@ export async function GET() {
       const toBias = (b: string): "bullish" | "bearish" | "neutral" =>
         b?.toLowerCase() === "bullish" ? "bullish" : b?.toLowerCase() === "bearish" ? "bearish" : "neutral";
 
+      // Use AI-extracted gold/USD if available, else rule-based fallback
+      const fallback = deriveGoldUSDFallback(c.title, c.sentimentTag);
       return {
         ...c,
         analysis: ai,
-        goldImpact:    goldAsset ? toBias(goldAsset.bias) : undefined,
-        goldReasoning: goldAsset?.context,
-        usdImpact:     usdAsset  ? toBias(usdAsset.bias)  : undefined,
-        usdReasoning:  usdAsset?.context,
+        goldImpact:    goldAsset ? toBias(goldAsset.bias) : fallback.goldImpact,
+        goldReasoning: goldAsset?.context                 ?? fallback.goldReasoning,
+        usdImpact:     usdAsset  ? toBias(usdAsset.bias)  : fallback.usdImpact,
+        usdReasoning:  usdAsset?.context                  ?? fallback.usdReasoning,
       };
     });
 
