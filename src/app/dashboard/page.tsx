@@ -795,13 +795,31 @@ export default function DashboardPage() {
         };
     }
   })();
-  // topbar(56) + chart bar(34) + agents(105) + execution(38) = 233
-  const chartHeightClass = isFullscreen ? "h-[88vh]" : "h-[calc(100vh-233px)]";
+  // topbar(56) + action bar(28) + chart bar(38) + agents(105) + execution(38) = 265
+  const chartHeightClass = isFullscreen ? "h-[88vh]" : "h-[calc(100vh-265px)]";
 
   return (
     <div className="flex flex-col lg:flex-row overflow-hidden" style={{ height: "100%" }}>
       <section className="min-w-0 flex-1 flex flex-col overflow-hidden" style={{ height: "100%" }}>
-        {/* Chart — no separate header, chart bar handles symbol/TF/countdown */}
+        {/* Minimal action bar — Refresh, Brain Terminal, Fullscreen only */}
+        <div className="flex items-center justify-end gap-1 px-3 py-1 shrink-0">
+          <button onClick={handleRefresh} disabled={isLoading}
+            className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors">
+            <RefreshCw className={cn("h-3 w-3", isLoading && "animate-spin")} />
+            {isLoading ? "Running…" : "Refresh"}
+          </button>
+          <Link href="/dashboard/brain"
+            className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors">
+            Brain Terminal <ArrowRight className="h-3 w-3" />
+          </Link>
+          <button onClick={toggleFullscreen}
+            className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors">
+            {isFullscreen ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+            {isFullscreen ? "Exit" : "Full Screen"}
+          </button>
+        </div>
+
+        {/* Chart */}
         <div className="shrink-0 overflow-hidden">
           <TradingViewChart symbol={symCfg.tv} heightClass={chartHeightClass} />
         </div>
