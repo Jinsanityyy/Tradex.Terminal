@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn, timeAgo } from "@/lib/utils";
-import { Zap, Loader2 } from "lucide-react";
+import { Zap, Loader2, Clock, CheckCircle2, Radio } from "lucide-react";
 import type { Catalyst } from "@/types";
 import { DetailModal } from "./DetailModal";
 
@@ -35,7 +35,7 @@ function CatalystDetail({ cat }: { cat: Catalyst }) {
     fetch("/api/ai/catalyst-analysis", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ headline: cat.headline, explanation: cat.explanation, importance: cat.importance, affectedMarkets: cat.affectedMarkets })
+      body: JSON.stringify({ headline: cat.title, explanation: cat.explanation, importance: cat.importance, affectedMarkets: cat.affectedMarkets })
     })
     .then(r => r.json())
     .then(data => setAnalysis(data))
