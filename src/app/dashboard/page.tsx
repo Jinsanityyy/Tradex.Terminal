@@ -795,7 +795,8 @@ export default function DashboardPage() {
         };
     }
   })();
-  const chartHeightClass = isFullscreen ? "h-[88vh]" : "h-[calc(100vh-236px)]";
+  // topbar(56) + our header(36) + countdown(32) + agents(100) + execution(40) + gaps(16) = 280
+  const chartHeightClass = isFullscreen ? "h-[88vh]" : "h-[calc(100vh-280px)]";
 
   return (
     <div className="flex flex-col lg:flex-row overflow-hidden" style={{ height: "100%" }}>
@@ -847,7 +848,7 @@ export default function DashboardPage() {
         </div>
 
         {/* 7 Agent cards */}
-        <div className="shrink-0 grid grid-cols-7 gap-px bg-white/5 overflow-hidden">
+        <div className="shrink-0 grid grid-cols-7 gap-px bg-white/5 overflow-hidden pl-[46px]">
           <AgentMiniCard label="MASTER" bias={finalBias} confidence={master?.confidence ?? 0}
             detail={isNoTrade ? (master?.noTradeReason ?? "No trade") : (master?.strategyMatch ?? finalBias)}
             detail2={`Score: ${master?.consensusScore?.toFixed(1) ?? "—"}`}
@@ -892,7 +893,7 @@ export default function DashboardPage() {
 
         {/* Compact execution plan strip — fills space below agent cards */}
         {data && (
-          <div className="shrink-0 rounded-none border-t border-white/5 bg-[hsl(var(--card))] px-4 py-2">
+          <div className="shrink-0 rounded-none border-t border-white/5 bg-[hsl(var(--card))] px-4 py-2 pl-[50px]">
             {tradePlan ? (
               <div className="flex items-center gap-6 flex-wrap">
                 <div className="flex items-center gap-2">
