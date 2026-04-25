@@ -262,18 +262,58 @@ function TrumpImpactModal({ posts, avgImpact, topTheme, recentPosts }: {
   topTheme: string;
   recentPosts: TrumpPost[];
 }) {
-  // Derive aggregate gold/USD direction from per-post analysis
+  const topPost = [...posts].sort((a, b) => b.impactScore - a.impactScore)[0];
+
+  // Derive gold/USD direction — from per-post AI data if available, else from dominant theme
   const goldCounts = { bullish: 0, bearish: 0, neutral: 0 };
   const usdCounts  = { bullish: 0, bearish: 0, neutral: 0 };
   posts.forEach(p => {
     if (p.goldImpact) goldCounts[p.goldImpact]++;
     if (p.usdImpact)  usdCounts[p.usdImpact]++;
   });
-  const dominantGold = (Object.entries(goldCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "neutral") as "bullish" | "bearish" | "neutral";
-  const dominantUSD  = (Object.entries(usdCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "neutral") as "bullish" | "bearish" | "neutral";
+  const hasPerPostData = posts.some(p => p.goldImpact);
 
-  // Top gold/USD reasoning from highest-impact post
-  const topPost = [...posts].sort((a, b) => b.impactScore - a.impactScore)[0];
+  // Theme-based directional map (fallback when per-post AI data unavailable)
+  const THEME_GOLD: Record<string, "bullish" | "bearish" | "neutral"> = {
+    Iran: "bullish", Geopolitics: "bullish", Russia: "bullish", China: "bullish",
+    Tariffs: "bullish", Oil: "neutral",
+    Fed: "neutral", Crypto: "neutral", Economy: "neutral", Government: "neutral",
+  };
+  const THEME_USD: Record<string, "bullish" | "bearish" | "neutral"> = {
+    Iran: "bullish", Geopolitics: "bullish", Russia: "bullish",
+    China: "neutral", Tariffs: "neutral", Oil: "neutral",
+    Fed: "bearish", Crypto: "neutral", Economy: "neutral", Government: "neutral",
+  };
+  const THEME_GOLD_REASON: Record<string, string> = {
+    Iran: "Iran geopolitical tensions drive safe-haven gold demand — Hormuz Strait disruption risk adds oil supply premium that indirectly supports gold prices.",
+    Geopolitics: "Geopolitical escalation triggers risk-off flows into gold as the primary safe-haven asset across global markets.",
+    Russia: "Russia-Ukraine conflict risk drives European safe-haven flows, with gold benefiting from both geopolitical premium and EUR weakness.",
+    China: "US-China tensions create broad risk-off sentiment, supporting gold as a hedge against global trade disruption and equity volatility.",
+    Tariffs: "Trade war escalation drives safe-haven flows into gold as global growth fears and equity sell-offs intensify.",
+    Fed: "Fed policy commentary creates rate outlook uncertainty — gold moves inversely with rate-cut expectations and real yield direction.",
+    Oil: "Energy catalyst indirectly affects gold via inflation transmission — watch for CPI repricing in coming sessions.",
+    Economy: "Economic uncertainty supports gold's safe-haven role — weak growth data is typically bullish for gold via rate-cut expectations.",
+  };
+  const THEME_USD_REASON: Record<string, string> = {
+    Iran: "Iran geopolitical risk drives parallel USD safe-haven demand alongside gold as investors exit regional and EM risk assets.",
+    Geopolitics: "Global risk events support USD safe-haven demand as the world's primary reserve currency attracts capital flight.",
+    Russia: "Russia-related escalation pressures EUR and supports USD as European energy security risks weigh on euro-area outlook.",
+    China: "US-China tensions create mixed USD signals — safe-haven demand competes with growth damage from trade disruptions on the US economy.",
+    Tariffs: "Tariff escalation leaves USD directionless — safe-haven inflows offset by US growth damage and retaliatory risk to exports.",
+    Fed: "Presidential pressure on Fed independence signals potential rate cuts ahead, eroding USD's yield advantage vs. major peers.",
+    Oil: "Energy policy impacts petro-currencies (CAD, NOK) more directly; USD effect depends on net inflation and growth implications.",
+    Economy: "Weak economic data accelerates Fed cut pricing, reducing USD yield advantage and triggering broad dollar selling pressure.",
+  };
+
+  const dominantGold: "bullish" | "bearish" | "neutral" = hasPerPostData
+    ? (Object.entries(goldCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "neutral") as "bullish" | "bearish" | "neutral"
+    : (THEME_GOLD[topTheme] ?? "neutral");
+  const dominantUSD: "bullish" | "bearish" | "neutral" = hasPerPostData
+    ? (Object.entries(usdCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "neutral") as "bullish" | "bearish" | "neutral"
+    : (THEME_USD[topTheme] ?? "neutral");
+
+  const goldReason = topPost?.goldReasoning ?? THEME_GOLD_REASON[topTheme] ?? "Monitor gold reaction at key levels for directional confirmation.";
+  const usdReason  = topPost?.usdReasoning  ?? THEME_USD_REASON[topTheme]  ?? "Watch DXY at structural levels to confirm USD directional bias.";
 
   const goldColors = { bullish: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10", bearish: "text-red-400 border-red-500/30 bg-red-500/10", neutral: "text-zinc-400 border-zinc-500/30 bg-zinc-500/10" };
   const GoldIcon = dominantGold === "bullish" ? TrendingUp : dominantGold === "bearish" ? TrendingDown : Minus;
@@ -300,18 +340,14 @@ function TrumpImpactModal({ posts, avgImpact, topTheme, recentPosts }: {
             <Target className="h-3.5 w-3.5" />
             <span className="text-[10px] font-bold uppercase tracking-wider">Gold — {dominantGold.toUpperCase()}</span>
           </div>
-          <p className="text-[11px] leading-relaxed opacity-80">
-            {topPost?.goldReasoning ?? "Monitor gold reaction at key levels for directional confirmation."}
-          </p>
+          <p className="text-[11px] leading-relaxed opacity-80">{goldReason}</p>
         </div>
         <div className={cn("rounded-lg border p-3 space-y-1.5", goldColors[dominantUSD])}>
           <div className="flex items-center gap-1.5">
             <Shield className="h-3.5 w-3.5" />
             <span className="text-[10px] font-bold uppercase tracking-wider">USD — {dominantUSD.toUpperCase()}</span>
           </div>
-          <p className="text-[11px] leading-relaxed opacity-80">
-            {topPost?.usdReasoning ?? "Watch DXY reaction to confirm USD directional bias from policy headlines."}
-          </p>
+          <p className="text-[11px] leading-relaxed opacity-80">{usdReason}</p>
         </div>
       </div>
 
