@@ -7,13 +7,14 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Target, Zap, CalendarDays, UserCircle,
   Grid3X3, Clock, Newspaper, BrainCircuit, Settings,
-  ChevronLeft, BarChart2, Menu, X, History,
+  ChevronLeft, BarChart2, Menu, X, History, Radio,
 } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 
 const navItems = [
   { label: "Dashboard",           href: "/dashboard",                        icon: LayoutDashboard },
   { label: "Market Bias",         href: "/dashboard/market-bias",            icon: Target },
+  { label: "Market Intelligence", href: "/dashboard/market-intelligence",    icon: Radio, accent3: true },
   { label: "Catalysts",           href: "/dashboard/catalysts",              icon: Zap },
   { label: "Economic Calendar",   href: "/dashboard/economic-calendar",      icon: CalendarDays },
   { label: "Trump Monitor",       href: "/dashboard/trump-monitor",          icon: UserCircle, accent: true },
@@ -126,7 +127,8 @@ export function Sidebar() {
                       "h-[18px] w-[18px] shrink-0 transition-colors",
                       active ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--foreground))]",
                       item.accent && !active && "text-amber-500/70",
-                      (item as any).accent2 && !active && "text-emerald-400/80"
+                      (item as any).accent2 && !active && "text-emerald-400/80",
+                      (item as any).accent3 && !active && "text-blue-400/80"
                     )}
                   />
                   {!collapsed && <span className="truncate">{item.label}</span>}
@@ -248,7 +250,8 @@ export function Sidebar() {
                       className={cn(
                         "h-5 w-5",
                         item.accent && !active && "text-amber-500/70",
-                        (item as any).accent2 && !active && "text-emerald-400/80"
+                        (item as any).accent2 && !active && "text-emerald-400/80",
+                        (item as any).accent3 && !active && "text-blue-400/80"
                       )}
                     />
                     <span className="text-[10px] font-semibold text-center leading-tight">{item.label}</span>
