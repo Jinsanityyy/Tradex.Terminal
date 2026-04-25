@@ -158,11 +158,14 @@ function AnalysisModal({ cat, onClose }: { cat: Catalyst; onClose: () => void })
             );
           })()}
 
-          {/* Gold + USD badges */}
+          {/* Gold + USD badges — prevent both showing bullish (inverse assets) */}
           {(cat.goldImpact || cat.usdImpact) && (
             <div className="flex gap-2 flex-wrap">
               <ImpactBadge impact={cat.goldImpact} label="GOLD" />
-              <ImpactBadge impact={cat.usdImpact} label="USD" />
+              <ImpactBadge
+                impact={cat.goldImpact === "bullish" && cat.usdImpact === "bullish" ? "neutral" : cat.usdImpact}
+                label="USD"
+              />
             </div>
           )}
 
@@ -245,7 +248,10 @@ function CatalystCard({ cat }: { cat: Catalyst }) {
         {(cat.goldImpact || cat.usdImpact) && (
           <div className="flex items-center gap-1.5 pl-4 mb-1.5 flex-wrap">
             <ImpactBadge impact={cat.goldImpact} label="GOLD" />
-            <ImpactBadge impact={cat.usdImpact} label="USD" />
+            <ImpactBadge
+              impact={cat.goldImpact === "bullish" && cat.usdImpact === "bullish" ? "neutral" : cat.usdImpact}
+              label="USD"
+            />
           </div>
         )}
         <div className="flex items-center justify-between pl-4">

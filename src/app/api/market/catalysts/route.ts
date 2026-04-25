@@ -116,7 +116,7 @@ function deriveGoldUSDFallback(headline: string, sentiment: "bullish" | "bearish
       : { goldImpact: "bullish", goldReasoning: "Cooling inflation accelerates rate-cut expectations, reducing real yields and boosting gold's relative appeal.", usdImpact: "bearish", usdReasoning: "Soft inflation prints increase probability of Fed cuts, eroding USD's yield premium against other major currencies." };
   }
   if (h.includes("war") || h.includes("military") || h.includes("geopolit") || h.includes("iran") || h.includes("nuclear") || h.includes("sanction") || h.includes("attack")) {
-    return { goldImpact: "bullish", goldReasoning: "Geopolitical escalation drives flight-to-safety flows into gold — historically the primary beneficiary of global conflict risk.", usdImpact: "bullish", usdReasoning: "USD benefits alongside gold from safe-haven demand as investors exit regional risk exposure and EM assets." };
+    return { goldImpact: "bullish", goldReasoning: "Geopolitical escalation drives flight-to-safety flows into gold — historically the primary beneficiary of global conflict risk.", usdImpact: "neutral", usdReasoning: "USD safe-haven demand competes with gold; both can receive flows during peak risk-off but gold is the primary destination." };
   }
   if (h.includes("nfp") || h.includes("payroll") || h.includes("employment") || h.includes("jobs")) {
     return sentiment === "bullish"
@@ -129,7 +129,7 @@ function deriveGoldUSDFallback(headline: string, sentiment: "bullish" | "bearish
 
   // Default by sentiment
   return sentiment === "bearish"
-    ? { goldImpact: "bullish", goldReasoning: "Risk-off catalyst drives safe-haven demand into gold as investors reduce exposure to risk assets.", usdImpact: "bullish", usdReasoning: "Negative sentiment supports USD safe-haven demand as a flight-to-quality play alongside gold." }
+    ? { goldImpact: "bullish", goldReasoning: "Risk-off catalyst drives safe-haven demand into gold as investors reduce exposure to risk assets.", usdImpact: "neutral", usdReasoning: "USD may see some safe-haven demand but gold absorbs the primary risk-off flow; watch DXY for directional confirmation." }
     : sentiment === "bullish"
     ? { goldImpact: "bearish", goldReasoning: "Positive risk catalyst reduces safe-haven demand, marginally weighing on gold as risk appetite improves.", usdImpact: "bullish", usdReasoning: "Risk-on backdrop supports USD via improved US growth narrative and reduced demand for alternative safe-havens." }
     : { goldImpact: "neutral", goldReasoning: "Mixed catalyst with no clear directional bias for gold — await price action confirmation at key levels.", usdImpact: "neutral", usdReasoning: "Neutral backdrop provides no strong USD directional signal — monitor DXY reaction at structural support/resistance." };

@@ -102,11 +102,14 @@ function NewsDetail({ item }: { item: NewsItem }) {
         )}
       </div>
 
-      {/* Gold + USD badges */}
+      {/* Gold + USD badges — prevent both showing bullish (inverse assets) */}
       {(item.goldImpact || item.usdImpact) && (
         <div className="flex gap-2 flex-wrap">
           <ImpactBadge impact={item.goldImpact} label="GOLD" />
-          <ImpactBadge impact={item.usdImpact} label="USD" />
+          <ImpactBadge
+            impact={item.goldImpact === "bullish" && item.usdImpact === "bullish" ? "neutral" : item.usdImpact}
+            label="USD"
+          />
         </div>
       )}
 
@@ -189,7 +192,10 @@ export function NewsFeed({ items, limit, compact = false }: NewsFeedProps) {
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant={item.sentiment}>{item.sentiment}</Badge>
                   <ImpactBadge impact={item.goldImpact} label="GOLD" />
-                  <ImpactBadge impact={item.usdImpact} label="USD" />
+                  <ImpactBadge
+                    impact={item.goldImpact === "bullish" && item.usdImpact === "bullish" ? "neutral" : item.usdImpact}
+                    label="USD"
+                  />
                   <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))]">
                     {item.category}
                   </span>
