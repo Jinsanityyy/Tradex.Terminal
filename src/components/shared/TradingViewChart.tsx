@@ -300,15 +300,70 @@ export function TradingViewChart({
 
   return (
     <div className={cn("flex w-full flex-col overflow-hidden", heightClass)}>
-      {/* Candle close countdown only — symbol/TF handled by dashboard header */}
-      <div className="flex h-[32px] shrink-0 items-center justify-end gap-2 bg-black px-2.5">
-        <div className={cn("flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5",
-          urgent ? "border-red-500/35 bg-red-500/10" : "border-white/10 bg-white/5")}>
-          <Timer className={cn("h-3 w-3", urgent ? "text-red-400" : "text-gray-500")} />
-          <span className={cn("font-mono text-xs font-bold tabular-nums", urgent ? "text-red-400" : "text-gray-300")}>
+      {/* Chart header: symbol picker + TF + countdown — all in one compact bar */}
+      <div className="flex h-[34px] shrink-0 items-center justify-between gap-2 bg-black border-b border-white/5 px-2">
+        
+        {/* Symbol picker */}
+        <div className="relative" ref={dropdownRef}>
+          <button onClick={() => setPickerOpen(v => !v)}
+            className="flex items-center gap-1 rounded border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10 transition-all">
+            <span>{getLabel(activeSymbol)}</span>
+            <ChevronDown className="h-3 w-3 text-gray-500" />
+          </button>
+          {pickerOpen && (
+            <div className="absolute left-0 top-full z-50 mt-1 w-[240px] overflow-hidden rounded-lg border border-white/10 bg-[#0d1117] shadow-2xl">
+              <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2">
+                <Search className="h-3 w-3 shrink-0 text-gray-500" />
+                <input autoFocus type="text" value={query} onChange={e => setQuery(e.target.value)}
+                  placeholder="Search..." className="flex-1 bg-transparent text-[11px] text-white outline-none placeholder:text-gray-600" />
+                {query && <button onClick={() => setQuery("")}><X className="h-3 w-3 text-gray-500" /></button>}
+              </div>
+              <div className="max-h-[260px] overflow-y-auto">
+                {filtered ? (
+                  filtered.length === 0
+                    ? <div className="px-4 py-4 text-center text-[11px] text-gray-600">No results</div>
+                    : <div className="py-1">{filtered.map(e => (
+                        <button key={e.value} onClick={() => selectSymbol(e.value)}
+                          className={cn("flex w-full items-center justify-between px-3 py-1.5 text-[11px] hover:bg-white/5", activeSymbol === e.value ? "text-[hsl(var(--primary))]" : "text-gray-300")}>
+                          <span>{e.label}</span><span className="font-mono text-[10px] text-gray-600">{e.group}</span>
+                        </button>))}</div>
+                ) : QUICK_SYMBOLS.map(group => (
+                  <div key={group.group}>
+                    <div className="border-b border-white/5 px-3 py-1 text-[9px] font-semibold uppercase tracking-widest text-gray-600">{group.group}</div>
+                    {group.items.map(e => (
+                      <button key={e.value} onClick={() => selectSymbol(e.value)}
+                        className={cn("flex w-full items-center justify-between px-3 py-1.5 text-[11px] hover:bg-white/5", activeSymbol === e.value ? "text-[hsl(var(--primary))]" : "text-gray-300")}>
+                        <span>{e.label}</span><span className="font-mono text-[10px] text-gray-500">{e.value.split(":")[1]}</span>
+                      </button>))}
+                  </div>))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="w-px h-3 bg-white/10" />
+
+        {/* TF buttons */}
+        <div className="flex items-center gap-0.5">
+          {INTERVALS.map(interval => (
+            <button key={interval.value} onClick={() => setActiveInterval(interval)}
+              className={cn("px-1.5 py-0.5 text-[10px] font-semibold rounded transition-all",
+                activeInterval.value === interval.value
+                  ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10"
+                  : "text-gray-600 hover:text-gray-300")}>
+              {interval.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Countdown */}
+        <div className={cn("flex items-center gap-1 rounded border px-1.5 py-0.5 ml-auto",
+          urgent ? "border-red-500/30 bg-red-500/10" : "border-white/8 bg-white/5")}>
+          <Timer className={cn("h-2.5 w-2.5", urgent ? "text-red-400" : "text-gray-600")} />
+          <span className={cn("font-mono text-[10px] font-bold tabular-nums", urgent ? "text-red-400" : "text-gray-400")}>
             {formatCountdown(secondsLeft)}
           </span>
-          <span className="text-[9px] uppercase tracking-widest text-gray-600">{activeInterval.label} close</span>
+          <span className="text-[8px] text-gray-700 uppercase tracking-wider">{activeInterval.label}</span>
         </div>
       </div>
 

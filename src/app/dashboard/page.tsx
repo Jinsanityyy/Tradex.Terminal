@@ -795,36 +795,24 @@ export default function DashboardPage() {
         };
     }
   })();
-  // topbar(56) + our header(36) + countdown(32) + agents(100) + execution(40) + gaps(16) = 280
-  const chartHeightClass = isFullscreen ? "h-[88vh]" : "h-[calc(100vh-280px)]";
+  // topbar(56) + dashboard header(30) + chart bar(34) + agents(105) + execution(38) + gaps(5) = 268
+  const chartHeightClass = isFullscreen ? "h-[88vh]" : "h-[calc(100vh-268px)]";
 
   return (
     <div className="flex flex-col lg:flex-row overflow-hidden" style={{ height: "100%" }}>
       <section className="min-w-0 flex-1 flex flex-col overflow-hidden" style={{ height: "100%" }}>
-        {/* Compact header */}
-        <div className="flex items-center justify-between gap-2 px-3 py-1.5 shrink-0 border-b border-white/5">
-          <div className="flex items-center gap-1">
-            <div className="flex items-center">
-              {SYMBOLS.map((entry) => (
-                <button key={entry.id} onClick={() => setSymbol(entry.id)}
-                  className={cn("px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors",
-                    symbol === entry.id ? "text-[hsl(var(--primary))]" : "text-zinc-600 hover:text-zinc-300")}>
-                  {entry.short}
-                </button>
-              ))}
-            </div>
-            <span className="w-px h-3 bg-white/10" />
-            <div className="flex items-center">
-              {TIMEFRAMES.map((entry) => (
-                <button key={entry} onClick={() => setTimeframe(entry)}
-                  className={cn("px-2 py-1 text-[10px] font-mono transition-colors",
-                    timeframe === entry ? "text-white" : "text-zinc-600 hover:text-zinc-300")}>
-                  {entry}
-                </button>
-              ))}
-            </div>
+        {/* Compact header — symbol tabs + action buttons only, NO timeframe (that's in the chart) */}
+        <div className="flex items-center justify-between gap-2 px-3 py-1 shrink-0 border-b border-white/5">
+          <div className="flex items-center">
+            {SYMBOLS.map((entry) => (
+              <button key={entry.id} onClick={() => setSymbol(entry.id)}
+                className={cn("px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors",
+                  symbol === entry.id ? "text-[hsl(var(--primary))]" : "text-zinc-600 hover:text-zinc-300")}>
+                {entry.short}
+              </button>
+            ))}
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <button onClick={handleRefresh} disabled={isLoading}
               className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors">
               <RefreshCw className={cn("h-3 w-3", isLoading && "animate-spin")} />
@@ -842,7 +830,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Chart */}
+        {/* Chart — takes up remaining space minus agent cards and execution strip */}
         <div className="shrink-0 overflow-hidden">
           <TradingViewChart symbol={symCfg.tv} heightClass={chartHeightClass} />
         </div>
