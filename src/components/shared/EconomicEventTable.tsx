@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus, Target, Shield, BookOpen, ChevronRight, Timer } from "lucide-react";
+import { Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus, Target, Shield, BookOpen, ChevronRight, Timer, Eye } from "lucide-react";
 import type { EconomicEvent } from "@/types";
 import { DetailModal } from "./DetailModal";
 
@@ -111,6 +111,35 @@ function EventDetail({ ev }: { ev: EconomicEvent }) {
           </div>
         ))}
       </div>
+
+      {/* ── PRE-EVENT SECTION (upcoming / live only) ─────────────────────────── */}
+      {!isCompleted && ev.preEventSummary && (
+        <div className="rounded-xl border border-blue-500/25 bg-blue-500/[0.04] overflow-hidden">
+          <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-blue-500/15">
+            <Eye className="h-3.5 w-3.5 text-blue-400" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">Pre-Event Analysis</span>
+            <span className="ml-auto text-[9px] text-blue-400/50 uppercase tracking-wider">
+              {ev.status === "live" ? "Event Starting" : "Upcoming"}
+            </span>
+          </div>
+          <div className="px-3.5 py-3">
+            <p className="text-[12px] text-[hsl(var(--foreground))] leading-relaxed">{ev.preEventSummary}</p>
+          </div>
+          {ev.preEventBullets && ev.preEventBullets.length > 0 && (
+            <div className="px-3.5 pb-3.5 space-y-2">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-blue-400/70">What To Watch</p>
+              <ul className="space-y-1.5">
+                {ev.preEventBullets.map((b, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <ChevronRight className="h-3 w-3 text-blue-400/60 mt-0.5 shrink-0" />
+                    <span className="text-[11px] text-[hsl(var(--muted-foreground))] leading-snug">{b}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── POST-EVENT SECTION (completed only) ─────────────────────────────── */}
       {isCompleted && ev.postEventSummary && (

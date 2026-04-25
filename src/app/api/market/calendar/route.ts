@@ -208,6 +208,221 @@ function analyzeEvent(
   };
 }
 
+// ── Pre-event narrative (upcoming / live events) ─────────────────────────────
+function generatePreEvent(title: string, forecast: string, previous: string): {
+  preEventSummary: string;
+  preEventBullets: string[];
+} {
+  const t = title.toLowerCase();
+
+  // ── FOMC Rate Decision ──
+  if (t.includes("fomc") || (t.includes("rate") && t.includes("decision"))) {
+    return {
+      preEventSummary:
+        "The FOMC rate decision is the single highest-impact event for Gold and USD traders. The actual rate is almost always priced in — what moves markets is the statement language, dot plot revisions, and Powell's press conference. Any shift toward signaling fewer cuts (hawkish) hammers Gold and lifts the Dollar; any hint of dovishness does the opposite. Expect price compression in the hour before the release and a sharp directional break the moment the decision hits.",
+      preEventBullets: [
+        "Rate hold is expected — the statement adjectives are what matter: 'patient', 'cautious', 'confident' each carry a different signal",
+        "Dot plot: any revision to fewer rate cuts this year = bearish Gold, bullish USD",
+        "Powell's press conference (30 min after release) is often more volatile than the decision itself — stay positioned",
+        "Watch Gold's 5-min chart during Q&A: if reporters push on cut timing and Powell resists, Gold fades",
+        "Rate cut surprise (rare): immediate Gold spike $30-50, DXY breakdown — hold Gold longs multi-day",
+        "Pre-event: avoid new positions inside 30 minutes of the decision — spreads widen and slippage is high",
+      ],
+    };
+  }
+
+  // ── Fed Chair / Fed Speakers ──
+  if (t.includes("powell") || (t.includes("fed") && (t.includes("speak") || t.includes("chair") || t.includes("press") || t.includes("member")))) {
+    return {
+      preEventSummary:
+        "Fed speaker events are high-alert moments for Gold and USD traders. Powell's language, in particular, moves markets more than most economic data releases. The key signal to listen for is whether the tone is hawkish (rates higher for longer, not ready to cut) or dovish (inflation progress made, cuts are getting closer). Words like 'further progress needed' lean hawkish and weigh on Gold; phrases like 'gaining confidence' lean dovish and lift it. Don't pre-position — wait for the language, then trade the direction.",
+      preEventBullets: [
+        "Hawkish signal words: 'not yet confident', 'further progress needed', 'labor market still tight' — sell Gold on bounce",
+        "Dovish signal words: 'gaining confidence', 'inflation has eased substantially', 'appropriate to cut' — buy Gold dips",
+        "Tariff / trade-war mentions = immediate Gold spike — safe-haven demand activates on uncertainty",
+        "Watch the first 5-min Gold candle after the speech begins — direction = market's initial read",
+        "DXY confirms: DXY rising = hawkish read = sell Gold. DXY falling = dovish = buy Gold dips",
+        "Best entry: wait for the 15–30 min retest after the initial spike — that move is cleaner and more sustained",
+      ],
+    };
+  }
+
+  // ── CPI / PCE / Inflation ──
+  if (t.includes("cpi") || t.includes("pce") || t.includes("inflation")) {
+    const fc = parseFloat(forecast), pr = parseFloat(previous);
+    const hasData = !isNaN(fc) && !isNaN(pr);
+    const hot = hasData && fc > pr;
+    const cold = hasData && fc < pr;
+    const biasHint = hot ? " With the forecast above the prior reading, markets may be pricing in a slightly hotter print." : cold ? " With the forecast below the prior reading, some cooling is expected — but the magnitude of the miss or beat is what matters." : "";
+    return {
+      preEventSummary:
+        `CPI is the single most important monthly release for Gold and USD markets. The Fed's entire rate path is anchored to this number — a hotter print delays cuts, keeps real yields high, and is the core bearish force on Gold while lifting the Dollar. A cooler print accelerates cut expectations, triggers a relief rally in Gold, and softens the Dollar.${biasHint} Markets have an options-implied expectation baked in — a meaningful surprise in either direction amplifies the move.`,
+      preEventBullets: [
+        "Watch year-over-year Core CPI (ex-food and energy) — this is the Fed's preferred inflation gauge",
+        "A 0.1% beat/miss from consensus typically triggers a $15–25 Gold move; 0.2%+ deviation = $30–50 move",
+        hot
+          ? "Forecast is above prior — if confirmed hot, sell Gold rallies and watch DXY for breakout"
+          : cold
+          ? "Forecast is below prior — if confirmed soft, buy Gold dips aggressively as rate-cut bets reprice"
+          : "In-line print = muted reaction — wait for the Fed's next commentary for fresh directional bias",
+        "Pre-event: Gold often compresses into a tight range — the breakout direction IS the trade",
+        "Watch TIPS yields (real rates) after the print: rising real yields = bearish Gold regardless of direction",
+        "Don't fight the first 15-min move — CPI surprises sustain directional momentum for hours",
+      ],
+    };
+  }
+
+  // ── NFP / Non-Farm Payrolls ──
+  if (t.includes("nonfarm") || t.includes("non-farm") || t.includes("nfp") || t.includes("payroll")) {
+    const fc = parseFloat(forecast), pr = parseFloat(previous);
+    const hasData = !isNaN(fc) && !isNaN(pr);
+    const strong = hasData && fc > pr;
+    return {
+      preEventSummary:
+        `Non-Farm Payrolls is the most watched monthly jobs report and a primary input into Fed rate decisions. A strong number signals economic resilience — the Fed can afford to keep rates elevated, which pressures Gold and supports the Dollar. A weak number raises recession concerns, revives rate-cut bets, and drives safe-haven flows into Gold.${hasData ? ` The consensus forecast of ${forecast}K vs the prior ${previous}K sets the bar — the deviation from this level, not the absolute number, is what moves markets.` : ""} The initial Gold move is often sharp and partially reversed — patience on the 15-minute retest pays more than chasing the spike.`,
+      preEventBullets: [
+        "Watch three components: headline jobs, unemployment rate, and average hourly earnings (wage inflation)",
+        "Strong wages (+0.4% m/m or higher) = hawkish signal even if headline disappoints — sell Gold",
+        "Headline miss + rising unemployment = double-bearish signal for USD = buy Gold",
+        "The first 5-min candle is often a headfake — wait for the 15-min retest before entering",
+        "Watch USDJPY: rising after print = risk-on = Gold headwind. Falling = risk-off = Gold bid",
+        "Gold can move $20–50 on a major NFP surprise — size positions accordingly before the print",
+      ],
+    };
+  }
+
+  // ── Retail Sales / Consumer ──
+  if (t.includes("retail") || t.includes("consumer") || (t.includes("spending") && !t.includes("pce"))) {
+    const fc = parseFloat(forecast), pr = parseFloat(previous);
+    const hasData = !isNaN(fc) && !isNaN(pr);
+    const beat = hasData && fc > pr;
+    const miss = hasData && fc < pr;
+    return {
+      preEventSummary:
+        `Retail Sales measures consumer spending — the largest driver of U.S. GDP at roughly 70% of total economic activity. A beat signals that households remain financially healthy despite elevated interest rates, reducing the Fed's urgency to cut. This is a classic risk-on, Gold-bearish, USD-bullish setup. A miss raises recession fears and revives rate-cut bets, pushing safe-haven flows into Gold.${hasData ? ` The forecast of ${forecast}% vs the prior ${previous}%${beat ? " implies consumer resilience — a confirm would pressure Gold" : miss ? " implies softening demand — a confirm would support Gold" : " — any significant deviation from forecast triggers the directional move"}.` : ""}`,
+      preEventBullets: [
+        "A deviation of ±0.3% from forecast is considered significant and will move markets",
+        "Core Retail Sales (ex-autos) matters equally — autos are volatile, so core tells the real consumer health story",
+        beat
+          ? "Beat expected: sell Gold on the spike, buy USD — look for DXY breakout above prior resistance"
+          : miss
+          ? "Miss expected: buy Gold dips — initial drop often reverses within 15 minutes as rate-cut bets reprice"
+          : "No clear lean — wait for the print, then trade the deviation",
+        "Watch USDJPY: rising = USD strength confirmed. Falling = dollar weakness, Gold bid",
+        "If both headline AND core beat = strong signal — hold the directional trade for the full session",
+        "Weak retail sales for 2+ consecutive months = recession setup = sustained bullish bias for Gold",
+      ],
+    };
+  }
+
+  // ── GDP ──
+  if (t.includes("gdp")) {
+    const fc = parseFloat(forecast), pr = parseFloat(previous);
+    const hasData = !isNaN(fc) && !isNaN(pr);
+    const beat = hasData && fc > pr;
+    return {
+      preEventSummary:
+        `GDP is a quarterly snapshot of U.S. economic health and a key input into Fed rate thinking. Strong growth signals the economy can handle elevated rates, reducing the urgency for cuts — bearish for Gold, supportive for USD. A GDP miss raises recession risk and accelerates cut bets, creating safe-haven demand for Gold.${hasData ? ` The forecast of ${forecast}% vs the prior ${previous}% ${beat ? "suggests continued growth — a confirm would pressure Gold near-term" : "implies a slowdown — a confirm could trigger Gold buying"}.` : ""} Note that the GDP deflator (inflation within the GDP report) also matters — an elevated deflator adds hawkish pressure on the Fed.`,
+      preEventBullets: [
+        "Flash GDP (first estimate) moves markets most — revisions rarely trigger significant reactions",
+        "GDP below 1.5% annualized raises recession concerns — Gold bullish setup on the miss",
+        "GDP above 3% = economy handles high rates = delayed cuts = sell Gold rallies",
+        "Also watch the GDP Price Deflator — high deflator = persistent inflation = hawkish Fed = bearish Gold",
+        "This is a secondary Gold driver — trade only on large deviations (±0.5% from consensus or more)",
+        "Watch DXY reaction first, then confirm Gold direction — both should move in sync",
+      ],
+    };
+  }
+
+  // ── PMI / ISM ──
+  if (t.includes("pmi") || t.includes("ism")) {
+    const isMfg = t.includes("manufacturing") || t.includes("mfg");
+    const fc = parseFloat(forecast), pr = parseFloat(previous);
+    const hasData = !isNaN(fc) && !isNaN(pr);
+    const expansionary = hasData && fc > 50;
+    const contractionary = hasData && fc < 50;
+    return {
+      preEventSummary:
+        `${isMfg ? "Manufacturing" : "Services"} PMI is a real-time survey of business activity — the 50 level is the key dividing line between expansion and contraction. Readings above 50 signal a growing sector, which reduces safe-haven demand for Gold and supports the Dollar. Readings below 50 signal contraction, raising recession fears and bullish Gold conditions. The Prices Paid sub-index within the ISM is also closely watched — elevated prices = inflationary pressure = hawkish Fed = Gold headwind.${hasData && fc !== pr ? ` The forecast of ${forecast} ${expansionary ? "signals expansion — would pressure Gold if confirmed" : contractionary ? "signals contraction — would support Gold on a confirm" : "sits near the neutral zone"}.` : ""}`,
+      preEventBullets: [
+        "Key level is 50: above = expansion = Gold bearish. Below = contraction = Gold bullish",
+        "Watch the Prices Paid sub-index — above 60 = inflationary = bearish Gold despite growth signals",
+        isMfg
+          ? "Manufacturing PMI below 50 for 3+ consecutive months signals industrial recession — sustained Gold bid"
+          : "Services PMI is the dominant sector — a miss here has broader recession implications than manufacturing",
+        expansionary
+          ? "Forecast above 50 — a confirm puts risk-on pressure on Gold, DXY should tick up"
+          : contractionary
+          ? "Forecast below 50 — a confirm is Gold supportive, watch for safe-haven flows"
+          : "Near 50 forecast — deviation in either direction is the tradeable event",
+        "New Orders sub-index is the leading edge — strong orders today = strong future activity",
+        "Trade PMI reactions with tight stops — first-hour reversals are common after initial spike",
+      ],
+    };
+  }
+
+  // ── Unemployment / Jobless Claims ──
+  if (t.includes("unemployment") || t.includes("jobless") || t.includes("employment change") || t.includes("claims")) {
+    return {
+      preEventSummary:
+        "Weekly Jobless Claims are the labor market's real-time heartbeat — released every Thursday, they give traders the earliest read on whether hiring conditions are deteriorating between major jobs reports. A sustained rise toward 250K or higher signals labor market cracks, raises rate-cut expectations, and is Gold bullish. Conversely, persistently low claims reinforce Fed patience, keeping rates elevated and creating headwinds for Gold. A single week rarely moves markets significantly — it's the trend over 3–4 weeks that traders respect.",
+      preEventBullets: [
+        "Watch the 4-week moving average — single-week spikes are often noise from holidays or seasonal factors",
+        "Claims above 250K sustained = early recession warning = Gold buy signal building",
+        "Claims below 200K = labor market remains tight = Fed stays patient = Gold headwind",
+        "Continuing claims (ongoing unemployment) matter as much as the headline — watch for trend",
+        "A single large miss (>30K from consensus) can cause a sharp Gold reaction — size positions carefully",
+        "This is a secondary event — unless claims spike dramatically, wait for NFP for the definitive labor read",
+      ],
+    };
+  }
+
+  // ── Housing ──
+  if (t.includes("housing") || t.includes("home") || t.includes("building permit")) {
+    return {
+      preEventSummary:
+        "Housing data is one of the most rate-sensitive sectors of the economy and serves as a leading indicator of economic momentum. Weak housing starts or existing home sales signal that elevated mortgage rates are biting, which can feed into broader economic slowdown concerns and revive rate-cut bets — mildly bullish for Gold. Strong housing data, however, suggests the economy is absorbing high rates, reducing the urgency for Fed cuts and creating headwinds for Gold. The impact on Gold is secondary — trade only on a significant deviation from forecast.",
+      preEventBullets: [
+        "Housing data has indirect Gold impact — it works through rate-cut expectations, not direct safe-haven dynamics",
+        "Weak housing = rate-sensitive sectors struggling = Fed may need to cut sooner = bullish Gold bias",
+        "Strong housing = economy handling high rates = delayed cuts = neutral to bearish Gold",
+        "Watch the 30-year fixed mortgage rate trend alongside this data for context",
+        "Trade only if deviation is large (±10% from consensus) — this is a secondary catalyst",
+        "Combine with next week's CPI or Fed speaker for confirmation before positioning",
+      ],
+    };
+  }
+
+  // ── Trump / President speaks ──
+  if (t.includes("trump") || t.includes("president")) {
+    return {
+      preEventSummary:
+        "Presidential speeches and press conferences carry headline risk that can trigger sharp, immediate Gold moves. Trump's commentary in particular has been market-moving — tariff threats create instant Gold spikes as safe-haven demand activates; pro-growth or deregulation language can briefly pressure Gold as risk appetite improves. The challenge is that the direction is unknowable in advance. The strategy is to be ready to react within seconds of the headline, not to pre-position based on assumption.",
+      preEventBullets: [
+        "Tariff / trade war keywords = immediate Gold buy — safe-haven demand activates regardless of other signals",
+        "Fed criticism or pressure to cut rates = Gold bullish (implies USD weakness expectations)",
+        "Pro-growth, tax cut, or deregulation language = risk-on = brief Gold headwind",
+        "Geopolitical escalation mentions = buy Gold immediately",
+        "Don't pre-position — direction is unknowable. Set alerts and react to headline keywords",
+        "First 5-min Gold candle after the headline = market's verdict. Trade in that direction on the retest",
+      ],
+    };
+  }
+
+  // ── Default ──
+  return {
+    preEventSummary:
+      "This economic release is a secondary market catalyst that can move Gold and USD if the actual print significantly deviates from the consensus forecast. The general rule: strong U.S. data = USD bid + Gold pressure (reduces rate-cut urgency). Weak U.S. data = USD sell + Gold bid (increases rate-cut bets). The magnitude of the deviation from forecast determines whether the move is tradeable or noise.",
+    preEventBullets: [
+      "Compare the actual print vs consensus forecast — deviation of ±0.3% or more = tradeable move",
+      "Strong data = USD strengthens = Gold faces headwind. Weak data = USD softens = Gold bids",
+      "Wait for the initial 5-min spike to exhaust before entering — first candles are often reversals",
+      "Watch DXY reaction to confirm Gold's direction after the release",
+      "If the data is in-line with forecast, expect minimal reaction — wait for the next major catalyst",
+    ],
+  };
+}
+
 // ── Post-event narrative (completed events only) ──────────────────────────────
 function generatePostEvent(title: string, forecast: string, previous: string): {
   postEventSummary: string;
@@ -397,6 +612,7 @@ export async function GET() {
 
         const analysis = analyzeEvent(e.title, e.forecast, e.previous, isPast);
         const post = isPast ? generatePostEvent(e.title, e.forecast, e.previous) : null;
+        const pre = !isPast ? generatePreEvent(e.title, e.forecast, e.previous) : null;
 
         return {
           id: `ec-${i}`,
@@ -425,6 +641,8 @@ export async function GET() {
           tradeImplication: analysis.tradeImplication,
           postEventSummary: post?.postEventSummary,
           postEventBullets: post?.postEventBullets,
+          preEventSummary: pre?.preEventSummary,
+          preEventBullets: pre?.preEventBullets,
         };
       });
 

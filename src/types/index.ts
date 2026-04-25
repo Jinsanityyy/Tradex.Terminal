@@ -134,8 +134,10 @@ export interface EconomicEvent {
   usdImpact?: "bullish" | "bearish" | "neutral";
   usdReasoning?: string;
   tradeImplication?: string;
-  postEventSummary?: string;   // AI narrative for completed events
+  postEventSummary?: string;   // Narrative for completed events
   postEventBullets?: string[]; // "Now watch" checklist for completed events
+  preEventSummary?: string;    // Narrative for upcoming/live events
+  preEventBullets?: string[];  // "What to watch" checklist for upcoming/live events
   utcTimestamp?: number;       // Unix ms — used for countdown timer
 }
 
