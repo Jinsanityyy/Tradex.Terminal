@@ -184,12 +184,43 @@ function AnalysisModal({ cat, onClose }: { cat: Catalyst; onClose: () => void })
               )}
             </>
           ) : (
-            /* Fallback — no AI analysis available */
+            /* Fallback — no AI analysis, show gold/USD context + explanation */
             <div className="space-y-4">
               <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3.5">
                 <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-600 mb-2">Summary</p>
                 <p className="text-[12.5px] text-zinc-300 leading-relaxed">{cat.explanation}</p>
               </div>
+
+              {/* Gold + USD impact — always show if data exists */}
+              {(cat.goldImpact || cat.usdImpact) && (
+                <>
+                  <div className="flex gap-2 flex-wrap">
+                    <ImpactBadge impact={cat.goldImpact} label="GOLD" />
+                    <ImpactBadge impact={cat.usdImpact} label="USD" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {cat.goldReasoning && (
+                      <div className="rounded-lg bg-white/[0.03] border border-white/5 p-3 space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <Target className="h-3 w-3 text-amber-400" />
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Gold Context</span>
+                        </div>
+                        <p className="text-[11px] text-zinc-300 leading-relaxed">{cat.goldReasoning}</p>
+                      </div>
+                    )}
+                    {cat.usdReasoning && (
+                      <div className="rounded-lg bg-white/[0.03] border border-white/5 p-3 space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <Shield className="h-3 w-3 text-blue-400" />
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">USD Context</span>
+                        </div>
+                        <p className="text-[11px] text-zinc-300 leading-relaxed">{cat.usdReasoning}</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
               <div className="rounded-lg border border-white/5 bg-white/[0.02] px-4 py-3">
                 <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-600 mb-1.5">Market Implication</p>
                 <p className="text-[12px] text-zinc-400 leading-relaxed">{cat.marketImplication}</p>

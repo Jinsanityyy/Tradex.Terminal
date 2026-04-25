@@ -146,6 +146,10 @@ const FALLBACK_CATALYSTS: Catalyst[] = [
     explanation: "Federal Open Market Committee meeting where rate decision and forward guidance will be announced. Gold and USD will move sharply on outcome.",
     marketImplication: "Hawkish hold = USD bid, Gold pressured. Rate cut signal = USD sell, Gold rally.",
     sentimentTag: "neutral",
+    goldImpact: "neutral",
+    goldReasoning: "Outcome-dependent — hawkish hold pressures gold via higher real yields; dovish pivot or rate cut signal triggers a gold rally as USD weakens.",
+    usdImpact: "bullish",
+    usdReasoning: "Any hold or hawkish tone reinforces USD yield advantage; only a surprise cut or explicitly dovish forward guidance would weaken the dollar.",
   },
   {
     id: "fallback-2",
@@ -157,6 +161,10 @@ const FALLBACK_CATALYSTS: Catalyst[] = [
     explanation: "Consumer Price Index — the most important gold driver. Hot CPI = bearish gold (hawkish Fed). Cold CPI = bullish gold (rate cuts).",
     marketImplication: "CPI beat = sell Gold rallies. CPI miss = buy Gold dips aggressively.",
     sentimentTag: "neutral",
+    goldImpact: "neutral",
+    goldReasoning: "Hot CPI beats push Fed rate-cut timelines out, raising real yields and crushing gold; a soft miss accelerates rate-cut bets and fuels a gold breakout.",
+    usdImpact: "neutral",
+    usdReasoning: "CPI above consensus = USD surge as traders reprice fewer cuts; CPI below consensus = USD selloff as rate cut probability jumps sharply.",
   },
   {
     id: "fallback-3",
@@ -168,6 +176,10 @@ const FALLBACK_CATALYSTS: Catalyst[] = [
     explanation: "Monthly employment report — strong jobs = delayed rate cuts = bearish Gold. Weak jobs = recession fears + rate cuts = bullish Gold.",
     marketImplication: "Strong NFP = sell Gold. Weak NFP = buy Gold. Trade the 30-min retest for cleaner entry.",
     sentimentTag: "neutral",
+    goldImpact: "neutral",
+    goldReasoning: "Strong NFP above 200K removes urgency for rate cuts, reducing gold's appeal; a weak print below 150K sparks recession fears and drives safe-haven gold demand.",
+    usdImpact: "neutral",
+    usdReasoning: "Blowout jobs number = dollar breakout as Fed patience narrative is confirmed; disappointing NFP = dollar selloff as markets front-run a rate cut cycle.",
   },
   {
     id: "fallback-4",
@@ -179,6 +191,10 @@ const FALLBACK_CATALYSTS: Catalyst[] = [
     explanation: "Ongoing trade war developments continue to drive safe-haven demand for Gold. Any escalation boosts Gold; any deal progress weighs on it.",
     marketImplication: "Trade escalation = buy Gold dips. Trade deal progress = risk-on, sell Gold rallies.",
     sentimentTag: "bearish",
+    goldImpact: "bullish",
+    goldReasoning: "Active trade war escalation drives risk-off safe-haven flows directly into gold — every tariff headline adds a geopolitical risk premium to spot prices.",
+    usdImpact: "neutral",
+    usdReasoning: "USD faces two opposing forces: safe-haven demand pushes it higher, but growth damage from tariffs on the US economy creates a meaningful offsetting headwind.",
   },
 ];
 

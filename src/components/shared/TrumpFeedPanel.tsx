@@ -262,33 +262,22 @@ function TrumpImpactModal({ posts, avgImpact, topTheme, recentPosts }: {
   topTheme: string;
   recentPosts: TrumpPost[];
 }) {
-  const [analysis, setAnalysis] = React.useState<string | null>(null);
-  const [loading, setLoading] = React.useState(false);
+  // Derive aggregate gold/USD direction from per-post analysis
+  const goldCounts = { bullish: 0, bearish: 0, neutral: 0 };
+  const usdCounts  = { bullish: 0, bearish: 0, neutral: 0 };
+  posts.forEach(p => {
+    if (p.goldImpact) goldCounts[p.goldImpact]++;
+    if (p.usdImpact)  usdCounts[p.usdImpact]++;
+  });
+  const dominantGold = (Object.entries(goldCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "neutral") as "bullish" | "bearish" | "neutral";
+  const dominantUSD  = (Object.entries(usdCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "neutral") as "bullish" | "bearish" | "neutral";
 
-  // Detect speeches
-  const speeches = posts.filter(p =>
-    p.content.toLowerCase().includes("speak") ||
-    p.content.toLowerCase().includes("speech") ||
-    p.content.toLowerCase().includes("said") ||
-    p.content.toLowerCase().includes("remarks") ||
-    p.policyCategory.toLowerCase().includes("speech")
-  );
+  // Top gold/USD reasoning from highest-impact post
+  const topPost = [...posts].sort((a, b) => b.impactScore - a.impactScore)[0];
 
-  React.useEffect(() => {
-    if (posts.length === 0) return;
-    setLoading(true);
-    fetch("/api/ai/trump-analysis", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ posts, avgImpact, topTheme })
-    })
-    .then(r => r.json())
-    .then(data => setAnalysis(JSON.stringify(data)))
-    .catch(() => setAnalysis(null))
-    .finally(() => setLoading(false));
-  }, [posts.length]);
-
-  const parsed = analysis ? JSON.parse(analysis) : null;
+  const goldColors = { bullish: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10", bearish: "text-red-400 border-red-500/30 bg-red-500/10", neutral: "text-zinc-400 border-zinc-500/30 bg-zinc-500/10" };
+  const GoldIcon = dominantGold === "bullish" ? TrendingUp : dominantGold === "bearish" ? TrendingDown : Minus;
+  const USDIcon  = dominantUSD  === "bullish" ? TrendingUp : dominantUSD  === "bearish" ? TrendingDown : Minus;
 
   return (
     <div className="space-y-4">
@@ -304,44 +293,35 @@ function TrumpImpactModal({ posts, avgImpact, topTheme, recentPosts }: {
         </div>
       </div>
 
-      {/* AI Analysis */}
-      {loading ? (
-        <div className="rounded-lg border border-white/5 bg-[hsl(var(--secondary))] p-4 space-y-2">
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-[hsl(var(--primary))] animate-pulse" />
-            <span className="text-[10px] text-zinc-500 uppercase tracking-wider">AI analyzing market impact…</span>
+      {/* Gold + USD aggregate impact */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className={cn("rounded-lg border p-3 space-y-1.5", goldColors[dominantGold])}>
+          <div className="flex items-center gap-1.5">
+            <Target className="h-3.5 w-3.5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Gold — {dominantGold.toUpperCase()}</span>
           </div>
-          {[80,60,70].map((w,i) => <div key={i} className={`h-3 bg-white/5 rounded animate-pulse`} style={{width:`${w}%`}} />)}
+          <p className="text-[11px] leading-relaxed opacity-80">
+            {topPost?.goldReasoning ?? "Monitor gold reaction at key levels for directional confirmation."}
+          </p>
         </div>
-      ) : parsed ? (
-        <div className="space-y-3">
-          {/* Why this score */}
-          <div className="rounded-lg border border-white/5 bg-[hsl(var(--secondary))] p-3 space-y-1">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Why {avgImpact}/10</p>
-            <p className="text-[12px] text-zinc-300 leading-relaxed">{parsed.whyScore}</p>
+        <div className={cn("rounded-lg border p-3 space-y-1.5", goldColors[dominantUSD])}>
+          <div className="flex items-center gap-1.5">
+            <Shield className="h-3.5 w-3.5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">USD — {dominantUSD.toUpperCase()}</span>
           </div>
-
-          {/* Market effect */}
-          <div className="rounded-lg border border-white/5 bg-[hsl(var(--secondary))] p-3 space-y-1">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Market Effect — Gold & USD</p>
-            <p className="text-[12px] text-zinc-300 leading-relaxed">{parsed.marketEffect}</p>
-          </div>
-
-          {/* Watch for */}
-          <div className="rounded-lg border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary))]/5 p-3 space-y-1">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-[hsl(var(--primary))]/60">Watch For</p>
-            <p className="text-[12px] text-zinc-200 leading-relaxed">{parsed.watchFor}</p>
-          </div>
-
-          {/* Speech summary if applicable */}
-          {parsed.speechSummary && (
-            <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 space-y-1">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-amber-500/60">Speech Summary</p>
-              <p className="text-[12px] text-zinc-200 leading-relaxed">{parsed.speechSummary}</p>
-            </div>
-          )}
+          <p className="text-[11px] leading-relaxed opacity-80">
+            {topPost?.usdReasoning ?? "Watch DXY reaction to confirm USD directional bias from policy headlines."}
+          </p>
         </div>
-      ) : null}
+      </div>
+
+      {/* Watch For — from top-impact post */}
+      {topPost && (
+        <div className="rounded-lg border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary))]/5 p-3 space-y-1">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-[hsl(var(--primary))]/60">Watch For</p>
+          <p className="text-[12px] text-zinc-200 leading-relaxed">{topPost.potentialReaction}</p>
+        </div>
+      )}
 
       {/* Headlines */}
       <div className="space-y-2">
@@ -355,12 +335,26 @@ function TrumpImpactModal({ posts, avgImpact, topTheme, recentPosts }: {
               <p className="text-[11px] leading-relaxed text-[hsl(var(--foreground))] line-clamp-2">&ldquo;{post.content}&rdquo;</p>
               <span className="shrink-0 text-[10px] font-mono text-zinc-400">{post.impactScore}/10</span>
             </div>
-            <div className="mt-1.5 flex items-start gap-2">
+            <div className="mt-1.5 flex items-center gap-2 flex-wrap">
               <span className="text-[10px] text-zinc-600">{timeAgo(post.timestamp)}</span>
-              <Badge variant="outline" className="text-[10px] ml-auto">{post.policyCategory}</Badge>
+              <Badge variant="outline" className="text-[10px]">{post.policyCategory}</Badge>
+              {post.goldImpact && (
+                <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded border",
+                  post.goldImpact === "bullish" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                  post.goldImpact === "bearish" ? "bg-red-500/10 text-red-400 border-red-500/20" :
+                  "bg-zinc-500/10 text-zinc-400 border-zinc-500/20"
+                )}>GOLD {post.goldImpact.toUpperCase()}</span>
+              )}
+              {post.usdImpact && (
+                <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded border",
+                  post.usdImpact === "bullish" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                  post.usdImpact === "bearish" ? "bg-red-500/10 text-red-400 border-red-500/20" :
+                  "bg-zinc-500/10 text-zinc-400 border-zinc-500/20"
+                )}>USD {post.usdImpact.toUpperCase()}</span>
+              )}
             </div>
-            {post.whyItMatters && (
-              <p className="mt-2 text-[10px] text-zinc-600 leading-relaxed border-t border-white/5 pt-2">{post.whyItMatters}</p>
+            {post.goldReasoning && (
+              <p className="mt-2 text-[10px] text-zinc-500 leading-relaxed border-t border-white/5 pt-2">{post.goldReasoning}</p>
             )}
           </div>
         ))}
