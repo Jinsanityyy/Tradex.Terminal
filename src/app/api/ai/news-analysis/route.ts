@@ -1,7 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
-  const { title, explanation, affectedMarkets, importance } = await req.json();
+  const { title, explanation, affectedMarkets, importance, forecast, previous, actual, status, source } = await req.json();
+
+  // Detect event type for analysis framing
+  const t = (title || "").toLowerCase();
+  const isSpeech = t.includes("speak") || t.includes("testimony") || t.includes("conference") || t.includes("remarks");
+  const isEconData = forecast !== undefined || previous !== undefined;
+  const hasActual = actual && actual !== "—" && actual !== "";
+  const analysisType = hasActual ? "POST-EVENT ANALYSIS" : isEconData ? "PRE-EVENT WATCH" : "MARKET IMPACT ANALYSIS";
+
+  // Build context string for AI
+  const dataContext = isEconData
+    ? `\nEconomic Data: Forecast=${forecast || "—"} | Previous=${previous || "—"} | Actual=${hasActual ? actual : "not yet released"}`
+    : "";
+  const statusContext = status ? `\nEvent status: ${status}` : "";
+  const sourceContext = source ? `\nSource: ${source}` : "";
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -12,46 +26,52 @@ export async function POST(req: NextRequest) {
     },
     body: JSON.stringify({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 1000,
-      system: `You are a professional macro market analyst writing fundamental analysis for traders.
+      max_tokens: 1200,
+      system: `You are a senior macro market analyst at a trading desk. You write fundamental market analysis — not trading signals, not technical analysis, not SMC.
 
-CRITICAL RULES:
-- Analyze the SPECIFIC headline. Do not apply generic geopolitical templates.
-- If the headline is about German sentiment, analyze German/Eurozone economics.
-- If the headline is about UK retail sales, analyze GBP and consumer demand.
-- If the headline is about Fed policy, analyze USD and rate expectations.
-- If the headline is about oil supply, analyze energy markets first.
-- Gold is NOT always the main asset. Only include it if genuinely relevant.
-- Each response must be unique to the specific event — never copy a template.
-- Do not mention SMC, technical analysis, or trading setups.
-- Write like a macro analyst at a bank or hedge fund.
-- Be specific about regions, currencies, and economic mechanisms involved.
-
-Respond only with valid JSON. No markdown.`,
+RULES:
+- Analyze the SPECIFIC event. Never use generic copy-paste explanations.
+- German sentiment → explain Eurozone growth, EUR weakness, ECB implications
+- UK retail sales → explain consumer strength, GBP, BoE expectations  
+- Fed speaks → hawkish vs dovish outcomes, USD, rates, gold, indices
+- Iran/war/geopolitical → differentiate: oil supply, safe-haven, not everything is gold-bullish
+- CPI/inflation → rates, currency strength, gold as inflation hedge
+- NFP/jobs → growth signal, Fed expectations, USD
+- Only include assets that are ACTUALLY affected by this specific event
+- Be specific about countries, currencies, economic mechanisms
+- Use clear plain language — no jargon, no SMC, no setup talk
+- Respond only with valid JSON`,
       messages: [{
         role: "user",
-        content: `Analyze this specific news event for traders:
+        content: `Analyze this market event:
 
-Headline: "${title}"
-Additional context: "${explanation || "none"}"
+Title: "${title}"
+Context: "${explanation || ""}"
 Importance: ${importance}
-Markets mentioned: ${(affectedMarkets || []).join(", ") || "none specified"}
+Affected markets: ${(affectedMarkets || []).join(", ") || "not specified"}${dataContext}${statusContext}${sourceContext}
 
-Produce a unique, specific analysis of THIS headline. Do not use generic templates.
+Analysis type needed: ${analysisType}
 
-Return ONLY this JSON (no markdown backticks):
+Return ONLY this JSON (no markdown):
 {
-  "eventOverview": "2-3 sentences explaining what this headline actually means in plain language. Be specific to this event.",
-  "whyMarketsCare": "2-3 sentences on the macro mechanism. Connect this specific event to growth/inflation/rates/sentiment/supply. Be specific to this headline's topic.",
+  "analysisType": "${analysisType}",
+  "mainAnalysis": "3-5 sentences. Answer: what happened, why markets care, what macro factor is at play (growth/inflation/rates/risk/supply/currency), what this means for financial markets. Be specific to THIS event.",
+  "nowWatch": [
+    "Specific thing #1 traders should watch after this (asset + what to look for)",
+    "Specific thing #2",
+    "Specific thing #3",
+    "Specific thing #4 (optional, only if relevant)",
+    "Specific thing #5 (optional, only if relevant)"
+  ],
   "assets": [
     {
-      "name": "Asset name (e.g. Gold, USD, EUR, GBP, Oil, S&P 500, DAX — only include RELEVANT ones)",
+      "name": "e.g. Gold, USD, EUR, GBP, Oil, S&P 500 — only include genuinely affected assets",
+      "ticker": "e.g. XAUUSD, DXY, EURUSD, GBPUSD, USOIL, SPX",
       "bias": "Bullish | Bearish | Neutral | Mixed",
-      "explanation": "2-4 sentences explaining the specific causal chain from THIS event to this asset's movement. Be concrete."
+      "context": "3-4 sentences explaining specifically WHY this asset is affected by THIS event. Include the mechanism: rate expectations, safe-haven demand, growth signal, currency flows, energy supply, etc."
     }
   ],
-  "marketLogic": "2-3 sentences describing the full cause-and-effect chain: this specific event → macro interpretation → investor reaction → asset movement.",
-  "conditions": "1-2 sentences on when this analysis is valid and what could change it."
+  "confirmationNote": "1-2 sentences: what confirms this interpretation is correct, and what would invalidate or reverse it."
 }`
       }]
     })
@@ -59,13 +79,11 @@ Return ONLY this JSON (no markdown backticks):
 
   const data = await res.json();
   const raw = data.content?.[0]?.text ?? "";
-  const text = raw.replace(/```json|```/g, "").trim();
+  const text = raw.replace(/```json[\s\S]*?```/g, m => m.slice(7, -3)).replace(/```/g, "").trim();
 
   try {
-    const parsed = JSON.parse(text);
-    return NextResponse.json(parsed);
+    return NextResponse.json(JSON.parse(text));
   } catch {
-    // Return null so frontend shows fallback
     return NextResponse.json(null);
   }
 }
