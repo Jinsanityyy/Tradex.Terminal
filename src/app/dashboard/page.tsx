@@ -798,7 +798,7 @@ export default function DashboardPage() {
   const chartHeightClass = isFullscreen ? "h-[88vh]" : "h-[calc(100vh-242px)]";
 
   return (
-    <div className="dashboard-fixed -m-3 md:-m-4 flex flex-col lg:flex-row overflow-hidden" style={{ height: "calc(100vh - 56px)" }}>
+    <div className="flex flex-col lg:flex-row overflow-hidden" style={{ height: "100%" }}>
       <section className="min-w-0 flex-1 flex flex-col overflow-hidden" style={{ height: "100%" }}>
         {/* Compact header */}
         <div className="flex items-center justify-between gap-2 px-3 py-1.5 shrink-0 border-b border-white/5">

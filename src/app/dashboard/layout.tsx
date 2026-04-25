@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopStatusBar } from "@/components/layout/TopStatusBar";
 
@@ -11,9 +11,10 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const isDashboardHome = pathname === "/dashboard";
 
   useEffect(() => {
-    // Redirect mobile users to the dedicated mobile experience
     if (window.innerWidth < 768) {
       router.replace("/m");
     }
@@ -30,11 +31,15 @@ export default function DashboardLayout({
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden transition-all duration-300 [margin-left:var(--sidebar-current-width,var(--sidebar-width))]">
         <TopStatusBar />
-        <main className="flex-1 overflow-hidden relative">
-          <div className="dashboard-scroll absolute inset-0 overflow-y-auto p-3 pb-20 md:p-4 md:pb-4 [&:has(.dashboard-fixed)]:overflow-hidden [&:has(.dashboard-fixed)]:p-0">
+        {isDashboardHome ? (
+          <main className="flex-1 overflow-hidden">
             {children}
-          </div>
-        </main>
+          </main>
+        ) : (
+          <main className="flex-1 overflow-y-auto p-3 pb-20 md:p-4 md:pb-4">
+            {children}
+          </main>
+        )}
       </div>
     </div>
   );
