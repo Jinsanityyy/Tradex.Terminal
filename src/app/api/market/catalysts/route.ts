@@ -90,6 +90,45 @@ function generateMarketImplication(headline: string, sentiment: "bullish" | "bea
     : `Mixed signal for ${marketStr}. Markets awaiting confirmation or follow-up developments.`;
 }
 
+async function generateAnalysis(title: string, summary: string, markets: string[], importance: string) {
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.ANTHROPIC_API_KEY ?? "",
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 800,
+        system: `You are a senior macro market analyst. Write fundamental market analysis — not trading signals, not technical analysis.
+RULES:
+- Analyze THIS specific headline. Never use generic templates.
+- German/EU news → EUR, DAX, ECB focus. UK news → GBP, BoE. Fed news → USD, rates, gold.
+- Only include assets genuinely affected by this specific event.
+- Be specific about economic mechanisms: growth, inflation, rates, risk sentiment, supply.
+- Valid JSON only, no markdown.`,
+        messages: [{
+          role: "user",
+          content: `Analyze: "${title}"
+Context: "${summary?.slice(0, 200) || ""}"
+Markets: ${markets.join(", ")}
+Importance: ${importance}
+
+Return ONLY this JSON:
+{"eventOverview":"2-3 sentences what this means in plain language","whyMarketsCare":"2-3 sentences on the specific macro mechanism","assets":[{"name":"asset name","ticker":"e.g. XAUUSD","bias":"Bullish|Bearish|Neutral|Mixed","context":"2-3 sentences specific causal chain from THIS event"}],"marketLogic":"2 sentences cause-effect chain specific to this event","conditions":"1-2 sentences what confirms or invalidates this"}`
+        }]
+      })
+    });
+    const data = await res.json();
+    const text = (data.content?.[0]?.text ?? "").replace(/```json|```/g, "").trim();
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
 function deriveStatus(datetime: number): "live" | "completed" {
   const ageHours = (Date.now() / 1000 - datetime) / 3600;
   return ageHours < 4 ? "live" : "completed";
@@ -176,8 +215,8 @@ export async function GET() {
     }[] = await res.json();
 
     // Filter for market-moving catalysts (high/medium importance only)
-    const catalysts: Catalyst[] = [];
-    for (let i = 0; i < raw.length && catalysts.length < 20; i++) {
+    const raw_catalysts: Catalyst[] = [];
+    for (let i = 0; i < raw.length && raw_catalysts.length < 12; i++) {
       const item = raw[i];
       const importance = classifyImportance(item.headline, item.summary);
       if (importance === "low") continue;
@@ -186,7 +225,7 @@ export async function GET() {
       const affectedMarkets = extractAffectedMarkets(item.headline, item.summary);
       const status = deriveStatus(item.datetime);
 
-      catalysts.push({
+      raw_catalysts.push({
         id: `cat-${item.id ?? i}`,
         title: item.headline,
         timestamp: new Date(item.datetime * 1000).toISOString(),
@@ -196,8 +235,19 @@ export async function GET() {
         explanation: item.summary?.slice(0, 300) || item.headline,
         marketImplication: generateMarketImplication(item.headline, sentiment, affectedMarkets),
         sentimentTag: sentiment,
+        analysis: null,
       });
     }
+
+    // Generate AI analysis for each catalyst in parallel
+    const analysisResults = await Promise.allSettled(
+      raw_catalysts.map(c => generateAnalysis(c.title, c.explanation, c.affectedMarkets, c.importance))
+    );
+
+    const catalysts: Catalyst[] = raw_catalysts.map((c, i) => ({
+      ...c,
+      analysis: analysisResults[i].status === "fulfilled" ? analysisResults[i].value : null,
+    }));
 
     if (catalysts.length > 0) {
       cache = { data: catalysts, ts: Date.now() };

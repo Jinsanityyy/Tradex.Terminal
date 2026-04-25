@@ -101,6 +101,13 @@ export interface Catalyst {
   explanation: string;
   marketImplication: string;
   sentimentTag: Bias;
+  analysis?: {
+    eventOverview: string;
+    whyMarketsCare: string;
+    assets: { name: string; ticker: string; bias: string; context: string }[];
+    marketLogic: string;
+    conditions: string;
+  } | null;
 }
 
 export interface EconomicEvent {
