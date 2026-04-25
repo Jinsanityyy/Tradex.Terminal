@@ -795,42 +795,13 @@ export default function DashboardPage() {
         };
     }
   })();
-  // topbar(56) + dashboard header(30) + chart bar(34) + agents(105) + execution(38) + gaps(5) = 268
-  const chartHeightClass = isFullscreen ? "h-[88vh]" : "h-[calc(100vh-268px)]";
+  // topbar(56) + chart bar(34) + agents(105) + execution(38) = 233
+  const chartHeightClass = isFullscreen ? "h-[88vh]" : "h-[calc(100vh-233px)]";
 
   return (
     <div className="flex flex-col lg:flex-row overflow-hidden" style={{ height: "100%" }}>
       <section className="min-w-0 flex-1 flex flex-col overflow-hidden" style={{ height: "100%" }}>
-        {/* Compact header — symbol tabs + action buttons only, NO timeframe (that's in the chart) */}
-        <div className="flex items-center justify-between gap-2 px-3 py-1 shrink-0 border-b border-white/5">
-          <div className="flex items-center">
-            {SYMBOLS.map((entry) => (
-              <button key={entry.id} onClick={() => setSymbol(entry.id)}
-                className={cn("px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors",
-                  symbol === entry.id ? "text-[hsl(var(--primary))]" : "text-zinc-600 hover:text-zinc-300")}>
-                {entry.short}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-1">
-            <button onClick={handleRefresh} disabled={isLoading}
-              className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors">
-              <RefreshCw className={cn("h-3 w-3", isLoading && "animate-spin")} />
-              {isLoading ? "Running…" : "Refresh"}
-            </button>
-            <Link href="/dashboard/brain"
-              className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors">
-              Brain Terminal <ArrowRight className="h-3 w-3" />
-            </Link>
-            <button onClick={toggleFullscreen}
-              className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors">
-              {isFullscreen ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
-              {isFullscreen ? "Exit" : "Full Screen"}
-            </button>
-          </div>
-        </div>
-
-        {/* Chart — takes up remaining space minus agent cards and execution strip */}
+        {/* Chart — no separate header, chart bar handles symbol/TF/countdown */}
         <div className="shrink-0 overflow-hidden">
           <TradingViewChart symbol={symCfg.tv} heightClass={chartHeightClass} />
         </div>

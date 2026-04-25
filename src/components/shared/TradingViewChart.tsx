@@ -357,7 +357,7 @@ export function TradingViewChart({
         </div>
 
         {/* Countdown */}
-        <div className={cn("flex items-center gap-1 rounded border px-1.5 py-0.5 ml-auto",
+        <div className={cn("flex items-center gap-1 rounded border px-1.5 py-0.5",
           urgent ? "border-red-500/30 bg-red-500/10" : "border-white/8 bg-white/5")}>
           <Timer className={cn("h-2.5 w-2.5", urgent ? "text-red-400" : "text-gray-600")} />
           <span className={cn("font-mono text-[10px] font-bold tabular-nums", urgent ? "text-red-400" : "text-gray-400")}>
