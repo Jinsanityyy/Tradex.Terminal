@@ -408,9 +408,12 @@ function TrumpImpactModal({ posts, avgImpact, topTheme, recentPosts }: {
   const dominantGold: "bullish" | "bearish" | "neutral" = hasPerPostData
     ? (Object.entries(goldCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "neutral") as "bullish" | "bearish" | "neutral"
     : (THEME_GOLD[topTheme] ?? "neutral");
-  const dominantUSD: "bullish" | "bearish" | "neutral" = hasPerPostData
+  const rawUSD: "bullish" | "bearish" | "neutral" = hasPerPostData
     ? (Object.entries(usdCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "neutral") as "bullish" | "bearish" | "neutral"
     : (THEME_USD[topTheme] ?? "neutral");
+  // Gold and USD can't both be bullish — they move inversely. If conflict, USD defaults to neutral.
+  const dominantUSD: "bullish" | "bearish" | "neutral" =
+    dominantGold === "bullish" && rawUSD === "bullish" ? "neutral" : rawUSD;
 
   const goldReason = topPost?.goldReasoning ?? THEME_GOLD_REASON[topTheme] ?? "Monitor gold reaction at key levels for directional confirmation.";
   const usdReason  = topPost?.usdReasoning  ?? THEME_USD_REASON[topTheme]  ?? "Watch DXY at structural levels to confirm USD directional bias.";
