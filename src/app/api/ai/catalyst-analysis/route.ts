@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
-  const { headline: title, explanation, importance, affectedMarkets } = await req.json();
+  const { headline, explanation, importance, affectedMarkets } = await req.json();
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
         role: "user",
         content: `Analyze this market catalyst for Gold and forex traders:
 
-Headline: "${title}"
+Headline: "${headline}"
 Context: "${explanation || ""}"
 Importance: ${importance}
 Affected: ${(affectedMarkets || []).join(", ")}
