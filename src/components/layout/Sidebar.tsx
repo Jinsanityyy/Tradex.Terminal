@@ -6,29 +6,27 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Target, Zap, CalendarDays, UserCircle,
-  Grid3X3, Clock, Newspaper, BrainCircuit, Settings,
-  ChevronLeft, BarChart2, Menu, X, History, Radio,
+  Grid3X3, Clock, Newspaper, Settings,
+  ChevronLeft, BarChart2, Menu, X, History,
 } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 
 const navItems = [
   { label: "Dashboard",           href: "/dashboard",                        icon: LayoutDashboard },
   { label: "Market Bias",         href: "/dashboard/market-bias",            icon: Target },
-  { label: "Market Intelligence", href: "/dashboard/market-intelligence",    icon: Radio, accent3: true },
   { label: "Catalysts",           href: "/dashboard/catalysts",              icon: Zap },
   { label: "Economic Calendar",   href: "/dashboard/economic-calendar",      icon: CalendarDays },
   { label: "Trump Monitor",       href: "/dashboard/trump-monitor",          icon: UserCircle, accent: true },
   { label: "Asset Matrix",        href: "/dashboard/asset-matrix",           icon: Grid3X3 },
   { label: "Session Intelligence",href: "/dashboard/session-intelligence",   icon: Clock },
   { label: "News Flow",           href: "/dashboard/news-flow",              icon: Newspaper },
-  { label: "AI Briefing",         href: "/dashboard/ai-briefing",            icon: BrainCircuit },
   { label: "PnL Calendar",        href: "/dashboard/pnl-calendar",           icon: BarChart2, accent2: true },
   { label: "Signal History",      href: "/dashboard/signals",                icon: History },
   { label: "Settings",            href: "/dashboard/settings",               icon: Settings },
 ];
 
 // 4 items shown in the mobile bottom tab bar
-const MOBILE_TAB_ITEMS = [navItems[0], navItems[1], navItems[9], navItems[3]];
+const MOBILE_TAB_ITEMS = [navItems[0], navItems[1], navItems[7], navItems[2]];
 
 export function Sidebar() {
   const pathname = usePathname();
