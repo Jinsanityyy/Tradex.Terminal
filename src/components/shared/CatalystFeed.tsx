@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn, timeAgo } from "@/lib/utils";
 import { Zap, Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import type { Catalyst } from "@/types";
-import { DetailModal } from "./DetailModal";
 
 interface CatalystFeedProps {
   catalysts: Catalyst[];
@@ -71,7 +70,6 @@ function CatalystDetail({ cat }: { cat: Catalyst }) {
 
 export function CatalystFeed({ catalysts, limit, compact = false }: CatalystFeedProps) {
   const items = limit ? catalysts.slice(0, limit) : catalysts;
-  const [selected, setSelected] = useState<Catalyst | null>(null);
 
   if (items.length === 0) {
     return (
@@ -84,68 +82,71 @@ export function CatalystFeed({ catalysts, limit, compact = false }: CatalystFeed
   }
 
   return (
-    <>
-      <div className="space-y-2">
-        {items.map((cat) => (
-          <div
-            key={cat.id}
-            onClick={() => setSelected(cat)}
-            className={cn(
-              "group rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 transition-colors hover:bg-[hsl(var(--secondary))] cursor-pointer",
-              cat.status === "live" && "border-amber-500/30 bg-amber-500/[0.03]"
-            )}
-          >
+    <div className="space-y-3">
+      {items.map((cat) => (
+        <div
+          key={cat.id}
+          className={cn(
+            "rounded-lg border bg-[hsl(var(--card))] overflow-hidden",
+            cat.status === "live" ? "border-amber-500/30" : "border-[hsl(var(--border))]"
+          )}
+        >
+          {/* Header */}
+          <div className="px-3 pt-3 pb-2">
             <div className="flex items-start justify-between gap-2 mb-1.5">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
                 {cat.status === "live" ? (
-                  <Radio className="h-3.5 w-3.5 text-amber-400 pulse-live shrink-0" />
+                  <Radio className="h-3 w-3 text-amber-400 shrink-0" />
                 ) : cat.status === "completed" ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500/60 shrink-0" />
+                  <CheckCircle2 className="h-3 w-3 text-zinc-600 shrink-0" />
                 ) : (
-                  <Clock className="h-3.5 w-3.5 text-blue-400/60 shrink-0" />
+                  <Clock className="h-3 w-3 text-zinc-600 shrink-0" />
                 )}
-                <h4 className="text-xs font-semibold text-[hsl(var(--foreground))] leading-tight">{cat.title}</h4>
+                <h4 className="text-[12px] font-semibold text-[hsl(var(--foreground))] leading-tight">{cat.title}</h4>
               </div>
-              <Badge variant={cat.importance}>{cat.importance}</Badge>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Badge variant={cat.importance}>{cat.importance}</Badge>
+                <span className="text-[10px] text-zinc-600">{timeAgo(cat.timestamp)}</span>
+              </div>
             </div>
 
-            {!compact && (
-              <>
-                <p className="text-[11px] text-[hsl(var(--muted-foreground))] leading-relaxed mb-2 pl-5">
-                  {cat.explanation}
-                </p>
-                <div className="flex items-center justify-between pl-5">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {cat.affectedMarkets.slice(0, 4).map((m) => (
-                      <MarketTag key={m} label={m} />
-                    ))}
-                  </div>
-                  <span className="text-[10px] text-[hsl(var(--muted-foreground))]">{timeAgo(cat.timestamp)}</span>
-                </div>
-              </>
-            )}
-
-            {compact && (
-              <div className="flex items-center justify-between pl-5">
-                <div className="flex items-center gap-1.5">
-                  {cat.affectedMarkets.slice(0, 3).map((m) => (
-                    <MarketTag key={m} label={m} />
-                  ))}
-                </div>
-                <span className="text-[10px] text-[hsl(var(--muted-foreground))]">{timeAgo(cat.timestamp)}</span>
-              </div>
-            )}
+            {/* What happened / why important */}
+            <p className="text-[11px] text-zinc-400 leading-relaxed pl-4">{cat.explanation}</p>
           </div>
-        ))}
-      </div>
 
-      <DetailModal
-        open={!!selected}
-        onClose={() => setSelected(null)}
-        title={selected?.title}
-      >
-        {selected && <CatalystDetail cat={selected} />}
-      </DetailModal>
-    </>
+          {/* Market impact section — always visible, MarketEdge style */}
+          {cat.marketImplication && (
+            <div className="mx-3 mb-3 rounded-md bg-[hsl(var(--secondary))] px-3 py-2 border-l-2 border-l-[hsl(var(--primary))]/40">
+              <div className="flex items-center gap-1.5 mb-1">
+                {cat.sentimentTag === "bullish" ? (
+                  <TrendingUp className="h-3 w-3 text-emerald-400" />
+                ) : cat.sentimentTag === "bearish" ? (
+                  <TrendingDown className="h-3 w-3 text-red-400" />
+                ) : (
+                  <Minus className="h-3 w-3 text-zinc-500" />
+                )}
+                <span className={cn(
+                  "text-[9px] font-bold uppercase tracking-widest",
+                  cat.sentimentTag === "bullish" ? "text-emerald-400" :
+                  cat.sentimentTag === "bearish" ? "text-red-400" : "text-zinc-500"
+                )}>
+                  {cat.sentimentTag === "bullish" ? "Bullish" : cat.sentimentTag === "bearish" ? "Bearish" : "Neutral"} for Gold
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-300 leading-relaxed">{cat.marketImplication}</p>
+            </div>
+          )}
+
+          {/* Markets */}
+          {!compact && cat.affectedMarkets.length > 0 && (
+            <div className="flex items-center gap-1.5 px-3 pb-2.5">
+              {cat.affectedMarkets.slice(0, 4).map((m) => (
+                <MarketTag key={m} label={m} />
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
