@@ -223,42 +223,13 @@ function TrumpImpactModal({ posts, avgImpact, topTheme, recentPosts }: {
   React.useEffect(() => {
     if (posts.length === 0) return;
     setLoading(true);
-    const headlines = posts.slice(0, 8).map(p => `[${p.policyCategory} · ${p.impactScore}/10] ${p.content}`).join("\n");
-    fetch("https://api.anthropic.com/v1/messages", {
+    fetch("/api/ai/trump-analysis", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        system: `You are a market intelligence analyst specializing in Trump policy impact on Gold (XAUUSD) and forex markets. Be concise and direct. No fluff. Use trading terminology.`,
-        messages: [{
-          role: "user",
-          content: `Analyze these recent Trump headlines and explain:
-1. WHY the impact score is ${avgImpact}/10 (2-3 sentences)
-2. What is the KEY MARKET EFFECT on Gold and USD right now (2-3 sentences)
-3. What traders should WATCH FOR next (1-2 sentences)
-${speeches.length > 0 ? `4. SPEECH SUMMARY: Summarize what was said and immediate market reaction (2-3 sentences)` : ""}
-
-Headlines:
-${headlines}
-
-Respond in JSON only:
-{
-  "whyScore": "explanation of why score is X/10",
-  "marketEffect": "current effect on Gold and USD",
-  "watchFor": "what to watch next",
-  "speechSummary": "speech summary if applicable or null"
-}`
-        }]
-      })
+      body: JSON.stringify({ posts, avgImpact, topTheme })
     })
     .then(r => r.json())
-    .then(data => {
-      const text = data.content?.[0]?.text ?? "";
-      const clean = text.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(clean);
-      setAnalysis(JSON.stringify(parsed));
-    })
+    .then(data => setAnalysis(JSON.stringify(data)))
     .catch(() => setAnalysis(null))
     .finally(() => setLoading(false));
   }, [posts.length]);

@@ -484,55 +484,106 @@ function EventToneBadge({
 }
 
 function SidebarEventPreview({ event }: { event: EconomicEvent }) {
+  const [open, setOpen] = React.useState(false);
+
   return (
-    <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/40 p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[11px] font-mono font-semibold text-[hsl(var(--foreground))]">{event.time}</span>
-        <SidebarCountdown utcTimestamp={event.utcTimestamp} />
-        <Badge variant={event.impact === "high" ? "high" : event.impact === "medium" ? "medium" : "low"} className="text-[9px]">
-          {event.impact}
-        </Badge>
+    <>
+      <div
+        onClick={() => setOpen(true)}
+        className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/40 p-3 cursor-pointer hover:bg-white/[0.04] transition-colors"
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-mono font-semibold text-[hsl(var(--foreground))]">{event.time}</span>
+          <SidebarCountdown utcTimestamp={event.utcTimestamp} />
+          <Badge variant={event.impact === "high" ? "high" : event.impact === "medium" ? "medium" : "low"} className="text-[9px]">
+            {event.impact}
+          </Badge>
+        </div>
+        <p className="mt-2 text-[12px] font-semibold leading-5 text-[hsl(var(--foreground))]">{event.event}</p>
+        <div className="mt-2 flex gap-2">
+          <EventToneBadge label="Gold" tone={event.goldImpact} />
+          <EventToneBadge label="USD" tone={event.usdImpact} />
+        </div>
+        {event.tradeImplication && (
+          <p className="mt-2 text-[10px] text-zinc-600 line-clamp-1">{event.tradeImplication}</p>
+        )}
+        <p className="mt-1.5 text-[9px] text-[hsl(var(--primary))]/60">Tap for full analysis →</p>
       </div>
 
-      <p className="mt-2 text-[12px] font-semibold leading-5 text-[hsl(var(--foreground))]">
-        {event.event}
-      </p>
+      <DetailModal open={open} onClose={() => setOpen(false)} title={event.event}>
+        <div className="space-y-4">
+          {/* Time + Impact */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
+              <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1">Time</p>
+              <p className="text-sm font-mono font-bold text-white">{event.time}</p>
+            </div>
+            <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
+              <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1">Forecast</p>
+              <p className="text-sm font-mono font-bold text-white">{event.forecast || "—"}</p>
+            </div>
+            <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
+              <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1">Previous</p>
+              <p className="text-sm font-mono font-bold text-white">{event.previous || "—"}</p>
+            </div>
+          </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <div className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2 py-1.5">
-          <p className="text-[9px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">Forecast</p>
-          <p className="mt-1 text-[11px] font-mono text-[hsl(var(--foreground))]">{event.forecast}</p>
+          {/* Market bias */}
+          <div className="flex gap-3">
+            <div className="flex-1 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
+              <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1.5">Gold Impact</p>
+              <EventToneBadge label="Gold" tone={event.goldImpact} />
+            </div>
+            <div className="flex-1 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
+              <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1.5">USD Impact</p>
+              <EventToneBadge label="USD" tone={event.usdImpact} />
+            </div>
+          </div>
+
+          {/* Gold Analysis */}
+          {event.goldAnalysis && (
+            <div className="rounded-lg border border-white/5 bg-[hsl(var(--secondary))] p-3">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 mb-1.5">Gold Analysis</p>
+              <p className="text-[12px] text-zinc-300 leading-relaxed">{event.goldAnalysis}</p>
+            </div>
+          )}
+
+          {/* USD Analysis */}
+          {event.usdAnalysis && (
+            <div className="rounded-lg border border-white/5 bg-[hsl(var(--secondary))] p-3">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 mb-1.5">USD Analysis</p>
+              <p className="text-[12px] text-zinc-300 leading-relaxed">{event.usdAnalysis}</p>
+            </div>
+          )}
+
+          {/* Trade Implication */}
+          {event.tradeImplication && (
+            <div className="rounded-lg border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary))]/5 p-3">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-[hsl(var(--primary))]/60 mb-1.5">Trade Implication</p>
+              <p className="text-[12px] text-zinc-200 leading-relaxed">{event.tradeImplication}</p>
+            </div>
+          )}
+
+          {/* Affected assets */}
+          {event.affectedAssets?.length > 0 && (
+            <div>
+              <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-2">Affected Assets</p>
+              <div className="flex flex-wrap gap-1.5">
+                {event.affectedAssets.map(a => (
+                  <span key={a} className="rounded bg-[hsl(var(--card))] px-2 py-1 text-[10px] font-mono text-zinc-400">{a}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="text-center">
+            <Link href="/dashboard/economic-calendar" className="text-[11px] text-zinc-500 hover:text-zinc-300">
+              Open full calendar →
+            </Link>
+          </div>
         </div>
-        <div className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2 py-1.5">
-          <p className="text-[9px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">Previous</p>
-          <p className="mt-1 text-[11px] font-mono text-[hsl(var(--foreground))]">{event.previous}</p>
-        </div>
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-2">
-        <EventToneBadge label="Gold" tone={event.goldImpact} />
-        <EventToneBadge label="USD" tone={event.usdImpact} />
-      </div>
-
-      {event.affectedAssets.length > 0 ? (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {event.affectedAssets.slice(0, 3).map((asset) => (
-            <span
-              key={asset}
-              className="rounded bg-[hsl(var(--card))] px-1.5 py-0.5 text-[9px] font-mono text-[hsl(var(--muted-foreground))]"
-            >
-              {asset}
-            </span>
-          ))}
-        </div>
-      ) : null}
-
-      {event.tradeImplication ? (
-        <p className="mt-3 text-[11px] leading-5 text-[hsl(var(--muted-foreground))] line-clamp-2">
-          {event.tradeImplication}
-        </p>
-      ) : null}
-    </div>
+      </DetailModal>
+    </>
   );
 }
 
