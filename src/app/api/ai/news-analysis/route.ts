@@ -79,7 +79,7 @@ Return ONLY this JSON (no markdown):
 
   const data = await res.json();
   const raw = data.content?.[0]?.text ?? "";
-  const text = raw.replace(/```json[\s\S]*?```/g, m => m.slice(7, -3)).replace(/```/g, "").trim();
+  const text = raw.replace(/```json[\s\S]*?```/g, (m: string) => m.slice(7, -3)).replace(/```/g, "").trim();
 
   try {
     return NextResponse.json(JSON.parse(text));
