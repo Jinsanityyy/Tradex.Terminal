@@ -75,7 +75,7 @@ export function MobileChart() {
           <TradingViewChart
             key={`${symbol}-${chartKey}`}
             symbol={symbol}
-            heightClass="h-full"
+            heightClass="h-full min-h-[300px]"
           />
         </ChartErrorBoundary>
       </div>

@@ -68,24 +68,27 @@ export function CommunityPanel() {
   const supabase = createClient();
 
   useEffect(() => {
-    if (!supabase) return;
-    supabase.auth.getUser().then(({ data }) => {
+    const sb = createClient();
+    if (!sb) return;
+    sb.auth.getUser().then(({ data }) => {
       const user = data.user;
       if (!user) return;
       setUserId(user.id);
       const saved = localStorage.getItem(TRADER_NAME_KEY);
-      if (saved) { setTraderName(saved); return; }
-      supabase.from("profiles").select("display_name, email").eq("id", user.id).maybeSingle()
-        .then(({ data: profile }) => {
-          const name = profile?.display_name ?? user.email?.split("@")[0] ?? "Trader";
-          setTraderName(name);
-          localStorage.setItem(TRADER_NAME_KEY, name);
-        });
+      if (!saved) {
+        sb.from("profiles").select("display_name, email").eq("id", user.id).maybeSingle()
+          .then(({ data: profile }) => {
+            const name = profile?.display_name ?? user.email?.split("@")[0] ?? "Trader";
+            setTraderName(name);
+            localStorage.setItem(TRADER_NAME_KEY, name);
+          });
+      } else {
+        setTraderName(saved);
+      }
     });
     // Load avatar from localStorage
     const savedAvatar = localStorage.getItem("tradex_avatar");
     if (savedAvatar) setMyAvatar(savedAvatar);
-    // Sync when avatar changes in same tab
     const onStorage = (e: StorageEvent) => {
       if (e.key === "tradex_avatar") setMyAvatar(e.newValue);
     };
