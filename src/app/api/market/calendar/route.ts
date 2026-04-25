@@ -167,12 +167,26 @@ function analyzeEvent(
 
   // ── Retail Sales / Consumer ──
   if (t.includes("retail") || t.includes("consumer") || t.includes("spending")) {
+    const fcLabel = fcNum != null ? `${forecast}%` : "the forecast";
+    const prLabel = prevNum != null ? `${previous}%` : "the prior reading";
     return {
       goldImpact: beating ? "bearish" : missing ? "bullish" : "neutral",
-      goldReasoning: "Strong consumer = less safe-haven demand = bearish gold. Weak consumer = recession fears = bullish gold.",
+      goldReasoning: beating
+        ? `Retail Sales forecasted at ${fcLabel} vs prior ${prLabel} signals strong consumer health — households are still spending despite elevated rates. This reduces safe-haven demand for Gold as recession fears ease and the Fed faces less pressure to cut.`
+        : missing
+        ? `Retail Sales projected at ${fcLabel} vs prior ${prLabel} signals slowing consumer activity — a warning sign for growth. Weak consumption raises recession risk and rate-cut expectations, both powerful bullish drivers for Gold as a safe-haven asset.`
+        : `Retail Sales is the pulse of consumer spending, the largest component of U.S. GDP. A beat above forecast reduces rate-cut urgency and pressures Gold; a miss raises recession fears and lifts safe-haven demand for Gold.`,
       usdImpact: beating ? "bullish" : missing ? "bearish" : "neutral",
-      usdReasoning: "Consumer spending drives 70% of US GDP. Strong = USD up. Weak = USD down.",
-      tradeImplication: "If retail sales beat: sell gold, buy USD. If miss: buy gold on risk-off.",
+      usdReasoning: beating
+        ? `Strong Retail Sales at ${fcLabel} vs prior ${prLabel} reinforces economic resilience, giving the Fed justification to keep rates elevated. This supports the Dollar as rate differentials remain favorable for USD-denominated assets.`
+        : missing
+        ? `Soft Retail Sales at ${fcLabel} vs prior ${prLabel} signals that consumers are pulling back — a drag on GDP growth. This accelerates rate-cut expectations and weakens the Dollar as yield differentials compress.`
+        : `Consumer spending accounts for roughly 70% of U.S. GDP. A stronger-than-expected print reduces rate-cut urgency and lifts the Dollar; a miss accelerates cut bets and drives USD lower across the board.`,
+      tradeImplication: beating
+        ? "Beat expected: sell Gold on spikes, buy USD dips. Look for DXY breakout above resistance. Avoid long Gold until CPI or NFP provides a dovish counter-signal."
+        : missing
+        ? "Miss expected: buy Gold dips — rate-cut repricing is the most powerful Gold driver. DXY likely weakens across the board. Watch for Gold breakout above key resistance."
+        : "Trade the deviation: beat = sell Gold, buy USD. Miss = buy Gold on risk-off. In-line = minimal reaction, wait for next major catalyst.",
     };
   }
 
@@ -538,6 +552,72 @@ function generatePostEvent(title: string, forecast: string, previous: string): {
       postEventBullets: beat
         ? ["Sell Gold on rallies — strong growth = risk-on", "Watch DXY for further USD strength"]
         : ["Buy Gold dips — slow growth = Fed cuts closer", "Risk-off sentiment should support Gold multi-session"],
+    };
+  }
+
+  // ── Retail Sales / Consumer ──
+  if (t.includes("retail") || t.includes("consumer") || (t.includes("spending") && !t.includes("pce"))) {
+    const fc = parseFloat(forecast), pr = parseFloat(previous);
+    const hasData = !isNaN(fc) && !isNaN(pr);
+    const strong = hasData && fc > pr;
+    const weak = hasData && fc < pr;
+    return {
+      postEventSummary: strong
+        ? `Retail Sales was projected to rebound to ${forecast}% from the prior ${previous}%, signaling resilient consumer spending. If the actual print confirmed this strength, Gold faces near-term headwinds — strong consumers reduce recession risk and give the Fed less reason to cut rates. Consumer health removes the safe-haven premium embedded in Gold's price. Any Gold bounce from current levels should be treated as a selling opportunity unless the next CPI or NFP data delivers a dovish surprise.`
+        : weak
+        ? `Retail Sales was projected to slow to ${forecast}% from the prior ${previous}%, flagging a weakening consumer. If the actual print came in line with or below forecast, this is a warning signal for U.S. growth. Slowing retail activity raises recession risk, accelerates rate-cut bets, and creates a sustained tailwind for Gold as a safe-haven asset. Look for Gold to build a support base and potentially break higher toward the next key resistance level.`
+        : `Retail Sales has been released and the market impact is now priced in. Compare Gold's current level against where it was 1 hour before the release — a rally signals the print was weak (below forecast, rate-cut bullish); a decline signals the print was strong (above forecast, risk-on). The first 15–30 minutes of directional movement is the most reliable signal.`,
+      postEventBullets: strong
+        ? [
+            "Strong consumer = Fed holds rates = Gold faces continued headwind near-term — sell rallies",
+            "Look for clean Gold sell entries on the second push lower or on a retest of the breakdown level",
+            "Watch DXY: if holding gains post-release, USD strength is confirmed — don't fight it",
+            "Core Retail Sales (ex-autos) confirms or denies the headline — check if both components beat",
+            "Next catalysts to watch: CPI (inflation) and NFP (jobs) — dovish surprises there could reverse Gold's direction",
+          ]
+        : weak
+        ? [
+            "Weak consumer = recession risk rising = rate-cut expectations accelerating = buy Gold dips",
+            "Watch for Gold to test and potentially break above the prior session's resistance level",
+            "DXY should weaken — EURUSD and GBPUSD likely benefiting from USD selling pressure",
+            "If both headline AND core retail sales missed = stronger signal — hold Gold longs with patience",
+            "This is a multi-session bullish Gold setup — don't rush the exit on the initial bounce",
+          ]
+        : [
+            "In-line print = muted market reaction — avoid chasing the initial spike",
+            "Compare Gold's price now vs 1 hour before the release to gauge the market's true interpretation",
+            "If Gold barely moved, the market treated this as a non-event — wait for next major catalyst",
+            "Watch Fed speakers this week for fresh direction on rate-cut timing",
+          ],
+    };
+  }
+
+  // ── PMI / ISM ──
+  if (t.includes("pmi") || t.includes("ism")) {
+    const fc = parseFloat(forecast), pr = parseFloat(previous);
+    const hasData = !isNaN(fc) && !isNaN(pr);
+    const expanding = hasData && fc > 50;
+    const contracting = hasData && fc < 50;
+    const beat = hasData && fc > pr;
+    return {
+      postEventSummary: expanding && beat
+        ? `${t.includes("manufacturing") ? "Manufacturing" : "Services"} PMI printed above the key 50 expansion level at ${forecast} (vs prior ${previous}). Expanding business activity signals economic resilience — reducing the urgency for Fed rate cuts. Gold faces headwinds as risk appetite returns and safe-haven demand fades. USD should be supported by the positive growth signal.`
+        : contracting
+        ? `${t.includes("manufacturing") ? "Manufacturing" : "Services"} PMI printed below the critical 50 threshold at ${forecast} (vs prior ${previous}), signaling contraction. Business activity is shrinking — a warning sign for growth that raises recession concerns and rate-cut expectations. This is a Gold-bullish, USD-bearish setup. Watch for sustained buying in Gold if the PMI trend continues deteriorating.`
+        : `PMI has been released. Compare the print vs the 50 level and vs the prior reading — expansion above 50 pressures Gold, contraction below 50 supports it. The direction of the trend (improving vs worsening) matters as much as the absolute level.`,
+      postEventBullets: expanding
+        ? [
+            "PMI above 50 = economic expansion = risk-on = sell Gold rallies",
+            "Watch the Prices Paid sub-index — above 60 = inflationary pressure = extra hawkish signal",
+            "DXY should be bid — USD benefits from growth signals",
+            "New Orders component is the leading indicator — strong orders = future activity stays elevated",
+          ]
+        : [
+            "PMI below 50 = contraction = recession risk = buy Gold dips",
+            "Sustained PMI below 50 for 2+ months = strong Gold buy signal builds",
+            "DXY should weaken — USD under pressure from growth concerns",
+            "Watch Employment sub-index — weakness there compounds the bearish growth narrative",
+          ],
     };
   }
 

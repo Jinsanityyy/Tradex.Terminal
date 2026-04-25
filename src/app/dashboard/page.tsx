@@ -10,9 +10,12 @@ import {
   Activity,
   ArrowRight,
   BarChart3,
+  BookOpen,
   BrainCircuit,
   CalendarDays,
+  ChevronRight,
   Clock,
+  Eye,
   Maximize2,
   Minimize2,
   RefreshCw,
@@ -512,53 +515,122 @@ function SidebarEventPreview({ event }: { event: EconomicEvent }) {
 
       <DetailModal open={open} onClose={() => setOpen(false)} title={event.event}>
         <div className="space-y-4">
-          {/* Time + Impact */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
-              <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1">Time</p>
-              <p className="text-sm font-mono font-bold text-white">{event.time}</p>
-            </div>
-            <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
-              <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1">Forecast</p>
-              <p className="text-sm font-mono font-bold text-white">{event.forecast || "—"}</p>
-            </div>
-            <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
-              <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1">Previous</p>
-              <p className="text-sm font-mono font-bold text-white">{event.previous || "—"}</p>
-            </div>
+          {/* Time + status row */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] font-mono text-zinc-500">{event.time} PHT</span>
+            <span className={cn(
+              "text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full",
+              event.status === "completed" ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" :
+              event.status === "live" ? "bg-amber-500/15 text-amber-400 border border-amber-500/30" :
+              "bg-blue-500/15 text-blue-400 border border-blue-500/20"
+            )}>
+              {event.status === "completed" ? "Completed" : event.status === "live" ? "Live" : "Upcoming"}
+            </span>
           </div>
 
-          {/* Market bias */}
-          <div className="flex gap-3">
-            <div className="flex-1 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
-              <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1.5">Gold Impact</p>
-              <EventToneBadge label="Gold" tone={event.goldImpact} />
-            </div>
-            <div className="flex-1 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
-              <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1.5">USD Impact</p>
-              <EventToneBadge label="USD" tone={event.usdImpact} />
-            </div>
+          {/* Forecast / Previous */}
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: "Forecast", value: event.forecast || "—", color: "text-blue-400" },
+              { label: "Previous", value: event.previous || "—", color: "text-zinc-400" },
+              { label: "Actual", value: event.actual || "—", color: event.actual ? "text-emerald-400" : "text-zinc-700" },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="rounded-lg bg-[hsl(var(--secondary))] p-3 text-center">
+                <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1">{label}</p>
+                <p className={cn("text-sm font-bold font-mono", color)}>{value}</p>
+              </div>
+            ))}
           </div>
 
-          {/* Gold Analysis */}
+          {/* PRE-EVENT ANALYSIS — upcoming/live only */}
+          {event.status !== "completed" && event.preEventSummary && (
+            <div className="rounded-xl border border-blue-500/25 bg-blue-500/[0.04] overflow-hidden">
+              <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-blue-500/15">
+                <Eye className="h-3.5 w-3.5 text-blue-400" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">Pre-Event Analysis</span>
+                <span className="ml-auto text-[9px] text-blue-400/50 uppercase tracking-wider">
+                  {event.status === "live" ? "Starting Now" : "Upcoming"}
+                </span>
+              </div>
+              <div className="px-3.5 py-3">
+                <p className="text-[12px] text-[hsl(var(--foreground))] leading-relaxed">{event.preEventSummary}</p>
+              </div>
+              {event.preEventBullets && event.preEventBullets.length > 0 && (
+                <div className="px-3.5 pb-3.5 space-y-2">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-blue-400/70">What To Watch</p>
+                  <ul className="space-y-1.5">
+                    {event.preEventBullets.map((b, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <ChevronRight className="h-3 w-3 text-blue-400/60 mt-0.5 shrink-0" />
+                        <span className="text-[11px] text-zinc-400 leading-snug">{b}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* POST-EVENT ANALYSIS — completed only */}
+          {event.status === "completed" && event.postEventSummary && (
+            <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.05] overflow-hidden">
+              <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-amber-500/15">
+                <BookOpen className="h-3.5 w-3.5 text-amber-400" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400">Post-Event Analysis</span>
+                <span className="ml-auto text-[9px] text-amber-400/50 uppercase tracking-wider">Event Concluded</span>
+              </div>
+              <div className="px-3.5 py-3">
+                <p className="text-[12px] text-[hsl(var(--foreground))] leading-relaxed">{event.postEventSummary}</p>
+              </div>
+              {event.postEventBullets && event.postEventBullets.length > 0 && (
+                <div className="px-3.5 pb-3.5 space-y-2">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-amber-400/70">Now Watch</p>
+                  <ul className="space-y-1.5">
+                    {event.postEventBullets.map((b, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <ChevronRight className="h-3 w-3 text-amber-400/60 mt-0.5 shrink-0" />
+                        <span className="text-[11px] text-zinc-400 leading-snug">{b}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Gold / USD badges + context */}
+          <div className="flex gap-2 flex-wrap">
+            <EventToneBadge label="GOLD" tone={event.goldImpact} />
+            <EventToneBadge label="USD" tone={event.usdImpact} />
+          </div>
+
           {event.goldReasoning && (
-            <div className="rounded-lg border border-white/5 bg-[hsl(var(--secondary))] p-3">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 mb-1.5">Gold Analysis</p>
+            <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <Target className="h-3.5 w-3.5 text-amber-400" />
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">
+                  {event.status === "completed" ? "Gold Context" : "Gold Analysis"}
+                </span>
+              </div>
               <p className="text-[12px] text-zinc-300 leading-relaxed">{event.goldReasoning}</p>
             </div>
           )}
 
-          {/* USD Analysis */}
           {event.usdReasoning && (
-            <div className="rounded-lg border border-white/5 bg-[hsl(var(--secondary))] p-3">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 mb-1.5">USD Analysis</p>
+            <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <Shield className="h-3.5 w-3.5 text-blue-400" />
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">
+                  {event.status === "completed" ? "USD Context" : "USD Analysis"}
+                </span>
+              </div>
               <p className="text-[12px] text-zinc-300 leading-relaxed">{event.usdReasoning}</p>
             </div>
           )}
 
-          {/* Trade Implication */}
-          {event.tradeImplication && (
-            <div className="rounded-lg border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary))]/5 p-3">
+          {/* Trade Implication — hide for completed if post-event covers it */}
+          {event.tradeImplication && event.status !== "completed" && (
+            <div className="rounded-lg border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary))]/5 p-3.5">
               <p className="text-[9px] font-bold uppercase tracking-widest text-[hsl(var(--primary))]/60 mb-1.5">Trade Implication</p>
               <p className="text-[12px] text-zinc-200 leading-relaxed">{event.tradeImplication}</p>
             </div>
