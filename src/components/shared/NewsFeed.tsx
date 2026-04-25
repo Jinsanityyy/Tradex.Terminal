@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn, timeAgo } from "@/lib/utils";
-import { Newspaper, TrendingUp, TrendingDown, Minus, Target, Shield } from "lucide-react";
+import { Newspaper, TrendingUp, TrendingDown, Minus, Target, Shield, BookOpen, ChevronRight } from "lucide-react";
 import type { NewsItem } from "@/types";
 import { DetailModal } from "./DetailModal";
 
@@ -30,98 +30,107 @@ function ImpactBadge({ impact, label }: { impact?: "bullish" | "bearish" | "neut
 }
 
 function NewsDetail({ item }: { item: NewsItem }) {
-  const sentimentColor =
-    item.sentiment === "bullish" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" :
-    item.sentiment === "bearish" ? "text-red-400 bg-red-500/10 border-red-500/20" :
-    "text-zinc-400 bg-zinc-500/10 border-zinc-500/20";
+  const borderCls = item.sentiment === "bullish" ? "border-emerald-500/25" : item.sentiment === "bearish" ? "border-red-500/25" : "border-zinc-600/30";
+  const bgCls     = item.sentiment === "bullish" ? "bg-emerald-500/[0.04]" : item.sentiment === "bearish" ? "bg-red-500/[0.04]"    : "bg-zinc-800/20";
+  const divCls    = item.sentiment === "bullish" ? "border-emerald-500/15" : item.sentiment === "bearish" ? "border-red-500/15"    : "border-zinc-700/30";
+  const iconCls   = item.sentiment === "bullish" ? "text-emerald-400"      : item.sentiment === "bearish" ? "text-red-400"         : "text-zinc-500";
 
-  const SentimentIcon =
-    item.sentiment === "bullish" ? TrendingUp :
-    item.sentiment === "bearish" ? TrendingDown : Minus;
+  const bullets: string[] = [
+    item.sentiment === "bullish"
+      ? "Bullish signal — look for breakout entries on affected assets, confirm with price action before entering"
+      : item.sentiment === "bearish"
+      ? "Bearish signal — sell rallies rather than shorting into extended weakness; look for distribution patterns"
+      : "Mixed/neutral signal — use as background context; wait for clearer directional price action",
+    item.goldImpact === "bullish"
+      ? "Gold expected to bid higher — watch for breakout above session resistance"
+      : item.goldImpact === "bearish"
+      ? "Gold faces selling pressure — identify key support levels before considering bounce entries"
+      : null,
+    item.usdImpact === "bullish"
+      ? "USD strength likely — DXY breakout above resistance confirms the signal"
+      : item.usdImpact === "bearish"
+      ? "USD weakness likely — EURUSD and GBPUSD benefit from dollar selling pressure"
+      : null,
+    item.impactScore >= 8 ? `High impact score (${item.impactScore}/10) — this news warrants immediate attention and position review` : null,
+  ].filter((b): b is string => Boolean(b));
 
   return (
     <div className="space-y-4">
-      {/* Meta */}
+      {/* Meta + impact row */}
       <div className="flex items-center gap-2 flex-wrap">
         <Badge variant={item.sentiment}>{item.sentiment}</Badge>
         <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))] uppercase">
           {item.category.replace("-", " ")}
+        </span>
+        <span className={cn(
+          "text-[10px] font-mono font-bold px-2 py-0.5 rounded",
+          item.impactScore >= 8 ? "bg-red-500/15 text-red-400" :
+          item.impactScore >= 6 ? "bg-amber-500/15 text-amber-400" :
+          "bg-zinc-800 text-zinc-400"
+        )}>
+          {item.impactScore}/10
         </span>
         <span className="text-[10px] text-[hsl(var(--muted-foreground))] ml-auto">
           {item.source} · {timeAgo(item.timestamp)}
         </span>
       </div>
 
-      {/* Impact score */}
-      <div className="flex items-center gap-3">
-        <div className="rounded-lg bg-[hsl(var(--secondary))] px-4 py-2.5 text-center">
-          <p className="text-[9px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-0.5">Impact Score</p>
-          <p className={cn(
-            "text-xl font-bold font-mono",
-            item.impactScore >= 8 ? "text-red-400" :
-            item.impactScore >= 6 ? "text-amber-400" : "text-[hsl(var(--primary))]"
-          )}>
-            {item.impactScore}<span className="text-xs text-[hsl(var(--muted-foreground))]">/10</span>
-          </p>
+      {/* ── NEWS ANALYSIS BLOCK (uniform format) ─────────────────────────── */}
+      <div className={cn("rounded-xl border overflow-hidden", borderCls, bgCls)}>
+        <div className={cn("flex items-center gap-2 px-3.5 py-2.5 border-b", divCls)}>
+          <BookOpen className={cn("h-3.5 w-3.5", iconCls)} />
+          <span className={cn("text-[10px] font-bold uppercase tracking-widest", iconCls)}>News Analysis</span>
+          <span className={cn("ml-auto text-[9px] uppercase tracking-wider opacity-50", iconCls)}>
+            {item.category.replace("-", " ")}
+          </span>
         </div>
-        <div className={cn("flex-1 rounded-lg border px-3 py-2.5 flex items-center gap-2", sentimentColor)}>
-          <SentimentIcon className="h-4 w-4 shrink-0" />
-          <div>
-            <p className="text-[9px] uppercase tracking-wider opacity-70 mb-0.5">Market Sentiment</p>
-            <p className="text-sm font-bold capitalize">{item.sentiment}</p>
+        <div className="px-3.5 py-3">
+          <p className="text-[12px] text-zinc-200 leading-relaxed">{item.summary}</p>
+        </div>
+        {bullets.length > 0 && (
+          <div className="px-3.5 pb-3.5 space-y-2">
+            <p className={cn("text-[9px] font-bold uppercase tracking-widest opacity-70", iconCls)}>Key Context</p>
+            <ul className="space-y-1.5">
+              {bullets.map((b, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <ChevronRight className={cn("h-3 w-3 mt-0.5 shrink-0 opacity-60", iconCls)} />
+                  <span className="text-[11px] text-zinc-400 leading-snug">{b}</span>
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Summary */}
-      {item.summary && (
-        <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--primary))]">Summary</p>
-          <p className="text-xs text-[hsl(var(--foreground))] leading-relaxed">{item.summary}</p>
-        </div>
-      )}
-
-      {/* Gold + USD directional impact */}
+      {/* Gold + USD badges */}
       {(item.goldImpact || item.usdImpact) && (
-        <>
-          <div className="flex gap-2 flex-wrap">
-            <ImpactBadge impact={item.goldImpact} label="GOLD" />
-            <ImpactBadge impact={item.usdImpact} label="USD" />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {item.goldReasoning && (
-              <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 space-y-1">
-                <div className="flex items-center gap-1.5">
-                  <Target className="h-3 w-3 text-amber-400" />
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Gold Context</span>
-                </div>
-                <p className="text-[11px] text-[hsl(var(--foreground))] leading-relaxed">{item.goldReasoning}</p>
-              </div>
-            )}
-            {item.usdReasoning && (
-              <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 space-y-1">
-                <div className="flex items-center gap-1.5">
-                  <Shield className="h-3 w-3 text-blue-400" />
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">USD Context</span>
-                </div>
-                <p className="text-[11px] text-[hsl(var(--foreground))] leading-relaxed">{item.usdReasoning}</p>
-              </div>
-            )}
-          </div>
-        </>
+        <div className="flex gap-2 flex-wrap">
+          <ImpactBadge impact={item.goldImpact} label="GOLD" />
+          <ImpactBadge impact={item.usdImpact} label="USD" />
+        </div>
       )}
 
-      {/* What it means for traders */}
-      <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3.5">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 mb-1.5">What It Means For Traders</p>
-        <p className="text-xs text-gray-300 leading-relaxed">
-          {item.sentiment === "bullish"
-            ? `Bullish signal — this news supports upside momentum. Watch for breakout entries on affected assets. Confirm with price action before entering.`
-            : item.sentiment === "bearish"
-            ? `Bearish signal — this news adds downside pressure. Look for distribution patterns on affected assets. Avoid buying into weakness without confirmation.`
-            : `Neutral/mixed signal — no strong directional bias. Use as background context. Wait for clearer price action before acting.`}
-        </p>
-      </div>
+      {/* Gold context */}
+      {item.goldReasoning && (
+        <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <Target className="h-3.5 w-3.5 text-amber-400" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Gold Context</span>
+          </div>
+          <p className="text-[11.5px] text-[hsl(var(--foreground))] leading-relaxed">{item.goldReasoning}</p>
+        </div>
+      )}
+
+      {/* USD context */}
+      {item.usdReasoning && (
+        <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <Shield className="h-3.5 w-3.5 text-blue-400" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">USD Context</span>
+          </div>
+          <p className="text-[11.5px] text-[hsl(var(--foreground))] leading-relaxed">{item.usdReasoning}</p>
+        </div>
+      )}
 
       {/* Affected assets */}
       {item.affectedAssets?.length > 0 && (

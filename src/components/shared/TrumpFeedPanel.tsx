@@ -255,6 +255,110 @@ export function TrumpFeedPanel({ posts, limit, compact = false }: TrumpFeedPanel
   );
 }
 
+// ── Theme-specific narrative + bullets for Trump Impact Overview ──────────────
+const TRUMP_ANALYSIS: Record<string, { summary: string; bullets: string[] }> = {
+  Iran: {
+    summary: "Trump's Iran-related communications are driving heightened geopolitical risk premium across markets. Tensions around nuclear talks, Hormuz Strait access, and sanctions create dual safe-haven demand — investors rotate to both Gold and the Dollar as risk assets sell off. Oil repricing adds secondary inflation implications that amplify the safe-haven bid.",
+    bullets: [
+      "Watch oil prices (USOIL/BRENT) — Hormuz risk premium signals Gold support; oil reversal = immediate Gold fade",
+      "Gold and USD rising together = peak risk-off signal — both can hold simultaneously during geopolitical fear",
+      "EM currencies (MXN, TRY) under pressure — capital rotating out of risk assets into safe havens",
+      "US equities (SPX) likely pressured lower — risk-off rotation into Gold and Treasuries",
+      "Monitor diplomatic headlines: de-escalation = Gold selloff. Deal breakdown = Gold spike",
+    ],
+  },
+  Tariffs: {
+    summary: "Trump's tariff commentary is reshaping global trade flow expectations and creating significant market uncertainty. Escalation increases U.S. import costs (inflationary), dampens global growth (deflationary medium-term), and triggers retaliatory responses — all of which historically flow into Gold as a safe haven. The Dollar faces cross-currents: safe-haven inflows compete with growth damage from trade disruption.",
+    bullets: [
+      "Watch for retaliation from affected countries — escalation = Gold spikes, USD directionally mixed",
+      "Supply chain disruption = inflationary pressure = Gold bid via inflation hedge demand",
+      "Risk-off equities = Gold bid as capital rotates to safe haven assets",
+      "Watch USDCNH — Yuan weakness signals trade war escalation, typically lifts Gold",
+      "CAD, AUD weakening on trade fears = broad USD strength but Gold holds the safe-haven bid",
+    ],
+  },
+  China: {
+    summary: "US-China tensions — across trade, technology sanctions, or Taiwan — create broad risk-off sentiment in global markets. Gold benefits from safe-haven demand and the potential for dollar weakness if China retaliates via Treasury selling. The interconnected US-China relationship means escalation ripples simultaneously across equities, commodities, and currencies.",
+    bullets: [
+      "Watch USDCNH: Chinese Yuan weakening = escalation confirmed = Gold typically rallies",
+      "Tech sector (semiconductors) hit hardest by export controls — Nasdaq weakness = risk-off = Gold bid",
+      "China Treasury sales = USD weakness = Gold bullish from currency debasement angle",
+      "Taiwan-related tensions = highest-impact geopolitical risk for Gold — monitor closely",
+      "Gold + JPY rising together = peak safe-haven flow — both are classic fear hedges",
+    ],
+  },
+  Fed: {
+    summary: "Trump's commentary on Federal Reserve independence directly moves markets. Pressure on the Fed to cut rates or criticism of Powell undermines confidence in the Dollar by raising monetary policy credibility concerns. This is bearish for USD and bullish for Gold, which benefits from real yield compression and currency debasement fears. Markets treat central bank independence as a pillar of USD's reserve status.",
+    bullets: [
+      "Trump criticizing Powell = USD weakness signal = buy Gold on the headline",
+      "Threats to restructure the Fed = Dollar debasement fear = aggressive Gold bid",
+      "Watch DXY: falling on Fed pressure headlines = confirms Gold bull signal",
+      "Rate cut demands = market pricing Fed dovishness ahead of schedule = Gold bullish",
+      "Treasury yields falling = lower real yields = less opportunity cost of holding Gold = bullish",
+    ],
+  },
+  Russia: {
+    summary: "Russia-related developments — war escalation, sanctions, or peace talks — drive significant Gold volatility. European risk assets bear the brunt of Russia-Ukraine tension as energy security and conflict fears weigh on EUR and EU equities. Gold benefits from European safe-haven flows while the Dollar strengthens against EUR as capital seeks non-European refuge.",
+    bullets: [
+      "Watch EURUSD: EUR weakness on Russia escalation = USD strength = Gold bid in EUR terms",
+      "Energy disruption (gas, oil exports) = European inflation = ECB dilemma = EUR weaker",
+      "Peace talks breakthrough = risk-on = Gold selloff; don't hold longs through negotiation headlines",
+      "Gold + EUR inverse relationship in Russia scenarios — Gold holds while EUR drops",
+      "Sanctions affecting global commodities = broader safe-haven flows into Gold",
+    ],
+  },
+  Geopolitics: {
+    summary: "Broader geopolitical signals from Trump — on NATO, Middle East alliances, or global security commitments — create risk-off flows that benefit Gold. When markets perceive increased global instability from U.S. foreign policy shifts, they hedge via Gold as the primary cross-border safe haven. USD also benefits as a reserve currency, creating simultaneous Gold and USD strength.",
+    bullets: [
+      "NATO commitment uncertainty = EUR/GBP weakness = USD and Gold both bid",
+      "Middle East policy shifts = energy risk premium = oil and Gold rally together",
+      "Gold and USD rising simultaneously = extreme fear signal — both can co-exist in peak risk-off",
+      "Watch VIX: spike above 25 = Gold typically rallies $20+ within the session",
+      "USDJPY falling (yen strengthening) = peak risk-off — buy Gold on yen strength signals",
+    ],
+  },
+  Economy: {
+    summary: "Trump's economic commentary shapes market views on the U.S. growth trajectory. Statements suggesting fiscal deterioration (large deficits, spending increases) are long-term USD-negative and Gold-positive via dollar debasement concerns. Conversely, pro-growth signals (deregulation, business confidence) are risk-on and may briefly pressure Gold as equities rally.",
+    bullets: [
+      "Fiscal deficit expansion = USD long-term negative = Gold benefits as store of value",
+      "Deregulation/tax cut signals = risk-on = equity rally = brief Gold headwind",
+      "Watch 10-year Treasury yield: rising = higher real yields = Gold headwind; falling = Gold bid",
+      "Recession concern dominant: safe-haven premium builds = sustained Gold bullish setup",
+      "Monitor consumer confidence data following economic commentary for directional confirmation",
+    ],
+  },
+  Oil: {
+    summary: "Oil-related Trump commentary — strategic petroleum reserve actions, OPEC pressure, or energy policy shifts — affects Gold indirectly through inflation expectations. Higher oil feeds into CPI, complicating the Fed's rate-cutting timeline and creating a hawkish undertone that weighs on Gold. Lower oil prices reduce inflation pressure and are Gold-positive via rate-cut expectations.",
+    bullets: [
+      "Oil spike = higher CPI expectations = hawkish Fed bias = Gold headwind via real yields",
+      "Oil drop = easing inflation pressure = rate-cut bets build = Gold bullish signal",
+      "Petro-currencies (CAD, NOK) move first — CAD vs USD direction confirms the oil market read",
+      "SPR release = bearish oil = deflationary = watch Gold reaction in following sessions",
+      "OPEC+ context: Trump pushing for production increase = bearish oil = inflation relief = Fed dovish lean",
+    ],
+  },
+  Government: {
+    summary: "Federal budget battles, debt ceiling negotiations, and government shutdown risks create fiscal uncertainty that temporarily supports Gold against USD instability. Debt ceiling standoffs historically compress USD confidence and lift Gold as markets price default risk. However, these situations typically resolve — Gold rallies on government dysfunction are often fade opportunities.",
+    bullets: [
+      "Debt ceiling deadline approaching: Gold rallies as default risk premium is priced in",
+      "Deal/resolution announced: Gold selloff — remove the fear premium, risk-on returns",
+      "Watch US credit default swap (CDS) spreads: rising = market pricing default risk = Gold bid",
+      "Rating agency warnings (Moody's/Fitch threats) = immediate USD selloff = Gold spike",
+      "Shutdown affecting data releases = FOMC may delay decisions = uncertainty = neutral to Gold bullish",
+    ],
+  },
+};
+const TRUMP_DEFAULT_ANALYSIS = {
+  summary: "Trump's latest communication is creating directional market uncertainty. Monitor the prevailing risk sentiment — if equities are selling off and safe havens (Gold, JPY, Treasuries) are bid simultaneously, the market interpretation is risk-off and Gold should be held. If equities hold and only Gold moves, the signal may be commodity-specific and less sustained.",
+  bullets: [
+    "Watch risk sentiment: equities + Gold direction tells you whether it's broad risk-off or a specific move",
+    "Watch DXY for USD confirmation of Gold's direction",
+    "Gold spike >$15 in 30 minutes: a significant catalyst is being priced — trade in that direction",
+    "Tariff/trade/Iran keywords = buy Gold. Growth/deregulation keywords = fade Gold spike",
+    "Wait for the 15-min retest after the initial move — that's the cleaner, more sustained entry",
+  ],
+};
+
 // Compact Trump impact preview card for the dashboard
 function TrumpImpactModal({ posts, avgImpact, topTheme, recentPosts }: {
   posts: TrumpPost[];
@@ -264,7 +368,6 @@ function TrumpImpactModal({ posts, avgImpact, topTheme, recentPosts }: {
 }) {
   const topPost = [...posts].sort((a, b) => b.impactScore - a.impactScore)[0];
 
-  // Derive gold/USD direction — from per-post AI data if available, else from dominant theme
   const goldCounts = { bullish: 0, bearish: 0, neutral: 0 };
   const usdCounts  = { bullish: 0, bearish: 0, neutral: 0 };
   posts.forEach(p => {
@@ -273,16 +376,13 @@ function TrumpImpactModal({ posts, avgImpact, topTheme, recentPosts }: {
   });
   const hasPerPostData = posts.some(p => p.goldImpact);
 
-  // Theme-based directional map (fallback when per-post AI data unavailable)
   const THEME_GOLD: Record<string, "bullish" | "bearish" | "neutral"> = {
     Iran: "bullish", Geopolitics: "bullish", Russia: "bullish", China: "bullish",
-    Tariffs: "bullish", Oil: "neutral",
-    Fed: "neutral", Crypto: "neutral", Economy: "neutral", Government: "neutral",
+    Tariffs: "bullish", Oil: "neutral", Fed: "neutral", Crypto: "neutral", Economy: "neutral", Government: "neutral",
   };
   const THEME_USD: Record<string, "bullish" | "bearish" | "neutral"> = {
     Iran: "bullish", Geopolitics: "bullish", Russia: "bullish",
-    China: "neutral", Tariffs: "neutral", Oil: "neutral",
-    Fed: "bearish", Crypto: "neutral", Economy: "neutral", Government: "neutral",
+    China: "neutral", Tariffs: "neutral", Oil: "neutral", Fed: "bearish", Crypto: "neutral", Economy: "neutral", Government: "neutral",
   };
   const THEME_GOLD_REASON: Record<string, string> = {
     Iran: "Iran geopolitical tensions drive safe-haven gold demand — Hormuz Strait disruption risk adds oil supply premium that indirectly supports gold prices.",
@@ -314,62 +414,80 @@ function TrumpImpactModal({ posts, avgImpact, topTheme, recentPosts }: {
 
   const goldReason = topPost?.goldReasoning ?? THEME_GOLD_REASON[topTheme] ?? "Monitor gold reaction at key levels for directional confirmation.";
   const usdReason  = topPost?.usdReasoning  ?? THEME_USD_REASON[topTheme]  ?? "Watch DXY at structural levels to confirm USD directional bias.";
-
-  const goldColors = { bullish: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10", bearish: "text-red-400 border-red-500/30 bg-red-500/10", neutral: "text-zinc-400 border-zinc-500/30 bg-zinc-500/10" };
-  const GoldIcon = dominantGold === "bullish" ? TrendingUp : dominantGold === "bearish" ? TrendingDown : Minus;
-  const USDIcon  = dominantUSD  === "bullish" ? TrendingUp : dominantUSD  === "bearish" ? TrendingDown : Minus;
+  const analysis   = TRUMP_ANALYSIS[topTheme] ?? TRUMP_DEFAULT_ANALYSIS;
 
   return (
     <div className="space-y-4">
       {/* Stats row */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
-          <p className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Average Impact</p>
-          <p className="mt-1 text-lg font-bold font-mono text-[hsl(var(--foreground))]">{avgImpact}/10</p>
-        </div>
-        <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
-          <p className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Dominant Theme</p>
-          <p className="mt-1 text-sm font-semibold text-[hsl(var(--foreground))]">{topTheme}</p>
-        </div>
-      </div>
-
-      {/* Gold + USD aggregate impact */}
       <div className="grid grid-cols-2 gap-2">
-        <div className={cn("rounded-lg border p-3 space-y-1.5", goldColors[dominantGold])}>
-          <div className="flex items-center gap-1.5">
-            <Target className="h-3.5 w-3.5" />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Gold — {dominantGold.toUpperCase()}</span>
-          </div>
-          <p className="text-[11px] leading-relaxed opacity-80">{goldReason}</p>
+        <div className="rounded-lg bg-[hsl(var(--secondary))] p-3">
+          <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-0.5">Average Impact</p>
+          <p className="text-lg font-bold font-mono text-zinc-100">{avgImpact}/10</p>
         </div>
-        <div className={cn("rounded-lg border p-3 space-y-1.5", goldColors[dominantUSD])}>
-          <div className="flex items-center gap-1.5">
-            <Shield className="h-3.5 w-3.5" />
-            <span className="text-[10px] font-bold uppercase tracking-wider">USD — {dominantUSD.toUpperCase()}</span>
-          </div>
-          <p className="text-[11px] leading-relaxed opacity-80">{usdReason}</p>
+        <div className="rounded-lg bg-[hsl(var(--secondary))] p-3">
+          <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-0.5">Dominant Theme</p>
+          <p className="text-sm font-semibold text-zinc-100">{topTheme}</p>
         </div>
       </div>
 
-      {/* Watch For — from top-impact post */}
-      {topPost && (
-        <div className="rounded-lg border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary))]/5 p-3 space-y-1">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-[hsl(var(--primary))]/60">Watch For</p>
-          <p className="text-[12px] text-zinc-200 leading-relaxed">{topPost.potentialReaction}</p>
+      {/* ── TRUMP MARKET IMPACT ANALYSIS (uniform format) ─────────────────── */}
+      <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.05] overflow-hidden">
+        <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-amber-500/15">
+          <UserCircle className="h-3.5 w-3.5 text-amber-400" />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400">Trump Market Impact</span>
+          <span className="ml-auto text-[9px] text-amber-400/50 uppercase tracking-wider">{topTheme}</span>
         </div>
-      )}
+        <div className="px-3.5 py-3">
+          <p className="text-[12px] text-zinc-200 leading-relaxed">{analysis.summary}</p>
+        </div>
+        <div className="px-3.5 pb-3.5 space-y-2">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-amber-400/70">Key Factors To Watch</p>
+          <ul className="space-y-1.5">
+            {analysis.bullets.map((b, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <ChevronRight className="h-3 w-3 text-amber-400/60 mt-0.5 shrink-0" />
+                <span className="text-[11px] text-zinc-400 leading-snug">{b}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* Gold + USD badges */}
+      <div className="flex gap-2 flex-wrap">
+        <ImpactBadge impact={dominantGold} label="GOLD" />
+        <ImpactBadge impact={dominantUSD} label="USD" />
+      </div>
+
+      {/* Gold context */}
+      <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
+        <div className="flex items-center gap-1.5">
+          <Target className="h-3.5 w-3.5 text-amber-400" />
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Gold Context</span>
+        </div>
+        <p className="text-[11.5px] text-zinc-300 leading-relaxed">{goldReason}</p>
+      </div>
+
+      {/* USD context */}
+      <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
+        <div className="flex items-center gap-1.5">
+          <Shield className="h-3.5 w-3.5 text-blue-400" />
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">USD Context</span>
+        </div>
+        <p className="text-[11.5px] text-zinc-300 leading-relaxed">{usdReason}</p>
+      </div>
 
       {/* Headlines */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Latest Headlines</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600">Latest Headlines</p>
           <Link href="/dashboard/trump-monitor" className="text-[10px] text-zinc-500 hover:text-zinc-200">Open full monitor →</Link>
         </div>
         {recentPosts.map((post) => (
           <div key={post.id} className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3">
             <div className="flex items-start justify-between gap-3">
-              <p className="text-[11px] leading-relaxed text-[hsl(var(--foreground))] line-clamp-2">&ldquo;{post.content}&rdquo;</p>
-              <span className="shrink-0 text-[10px] font-mono text-zinc-400">{post.impactScore}/10</span>
+              <p className="text-[11px] leading-relaxed text-zinc-300 line-clamp-2">&ldquo;{post.content}&rdquo;</p>
+              <span className="shrink-0 text-[10px] font-mono text-zinc-500">{post.impactScore}/10</span>
             </div>
             <div className="mt-1.5 flex items-center gap-2 flex-wrap">
               <span className="text-[10px] text-zinc-600">{timeAgo(post.timestamp)}</span>
@@ -389,9 +507,6 @@ function TrumpImpactModal({ posts, avgImpact, topTheme, recentPosts }: {
                 )}>USD {post.usdImpact.toUpperCase()}</span>
               )}
             </div>
-            {post.goldReasoning && (
-              <p className="mt-2 text-[10px] text-zinc-500 leading-relaxed border-t border-white/5 pt-2">{post.goldReasoning}</p>
-            )}
           </div>
         ))}
       </div>

@@ -3,7 +3,7 @@
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn, timeAgo } from "@/lib/utils";
-import { Zap, Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus, X, Eye, Target, Shield } from "lucide-react";
+import { Zap, Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus, X, Eye, Target, Shield, BookOpen, ChevronRight } from "lucide-react";
 import type { Catalyst } from "@/types";
 
 interface CatalystFeedProps {
@@ -87,149 +87,132 @@ function AnalysisModal({ cat, onClose }: { cat: Catalyst; onClose: () => void })
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
-          {a ? (
-            <>
-              {/* Main Analysis */}
-              <div className="rounded-xl border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary))]/[0.04] px-4 py-3.5">
-                <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-[hsl(var(--primary))]/50 mb-2">Market Impact Analysis</p>
-                <p className="text-[12.5px] text-zinc-200 leading-relaxed">{a.eventOverview}</p>
-              </div>
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
 
-              {/* Why Markets Care */}
-              <div>
-                <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-600 mb-2">Why Markets Care</p>
-                <p className="text-[12px] text-zinc-300 leading-relaxed">{a.whyMarketsCare}</p>
-              </div>
+          {/* ── ANALYSIS BLOCK (uniform format) ─────────────────────────────── */}
+          {(() => {
+            const isUpcoming = cat.status === "upcoming";
+            const isLive = cat.status === "live";
+            const borderCls = isUpcoming ? "border-blue-500/25" : isLive ? "border-amber-500/25" : "border-amber-500/25";
+            const bgCls     = isUpcoming ? "bg-blue-500/[0.04]"  : "bg-amber-500/[0.05]";
+            const dividerCls= isUpcoming ? "border-blue-500/15"  : "border-amber-500/15";
+            const iconCls   = isUpcoming ? "text-blue-400"        : "text-amber-400";
+            const Icon      = a ? BookOpen : Zap;
+            const label     = a ? "Market Impact Analysis" : "Catalyst Analysis";
+            const status    = cat.status.charAt(0).toUpperCase() + cat.status.slice(1);
 
-              {/* Gold + USD Impact */}
-              {(cat.goldImpact || cat.usdImpact) && (
-                <>
-                  <div className="flex gap-2 flex-wrap">
-                    <ImpactBadge impact={cat.goldImpact} label="GOLD" />
-                    <ImpactBadge impact={cat.usdImpact} label="USD" />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {cat.goldReasoning && (
-                      <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 space-y-1">
-                        <div className="flex items-center gap-1.5">
-                          <Target className="h-3 w-3 text-amber-400" />
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Gold Context</span>
-                        </div>
-                        <p className="text-[11px] text-zinc-300 leading-relaxed">{cat.goldReasoning}</p>
-                      </div>
-                    )}
-                    {cat.usdReasoning && (
-                      <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 space-y-1">
-                        <div className="flex items-center gap-1.5">
-                          <Shield className="h-3 w-3 text-blue-400" />
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">USD Context</span>
-                        </div>
-                        <p className="text-[11px] text-zinc-300 leading-relaxed">{cat.usdReasoning}</p>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
+            const narrative = a
+              ? [a.eventOverview, a.whyMarketsCare].filter(Boolean).join("\n\n")
+              : cat.explanation;
 
-              <div className="h-px bg-white/5" />
+            const bullets: string[] = a
+              ? [
+                  a.conditions,
+                  a.marketLogic,
+                  ...(a.assets ?? []).slice(0, 3).map(
+                    (asset) => `${asset.name}${asset.ticker ? ` (${asset.ticker})` : ""}: ${asset.bias.toUpperCase()} — ${asset.context}`
+                  ),
+                ].filter((b): b is string => Boolean(b))
+              : [
+                  cat.goldImpact === "bullish"
+                    ? "Safe-haven flows into Gold expected — watch for breakout above prior session high"
+                    : cat.goldImpact === "bearish"
+                    ? "Gold faces headwinds from this catalyst — sell rallies toward prior resistance"
+                    : "Gold direction uncertain — wait for price action confirmation before positioning",
+                  cat.usdImpact === "bullish"
+                    ? "USD strength expected — watch DXY for breakout confirmation above key resistance"
+                    : cat.usdImpact === "bearish"
+                    ? "USD weakness likely — EURUSD and GBPUSD may benefit from dollar selling pressure"
+                    : null,
+                  cat.marketImplication ?? null,
+                ].filter((b): b is string => Boolean(b));
 
-              {/* Asset Context */}
-              {a.assets?.length > 0 && (
-                <div>
-                  <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-600 mb-2.5">Asset Impact</p>
-                  <div className="space-y-2.5">
-                    {a.assets.map((asset) => (
-                      <div key={asset.ticker || asset.name} className="rounded-lg border border-white/5 bg-white/[0.025] p-3.5">
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-semibold text-zinc-300">{asset.name}</span>
-                            {asset.ticker && (
-                              <span className="text-[9px] font-mono text-zinc-600 bg-white/5 px-1.5 py-0.5 rounded">{asset.ticker}</span>
-                            )}
-                          </div>
-                          <BiasBadge bias={asset.bias} />
-                        </div>
-                        <p className="text-[11.5px] text-zinc-500 leading-relaxed">{asset.context}</p>
-                      </div>
-                    ))}
-                  </div>
+            return (
+              <div className={cn("rounded-xl border overflow-hidden", borderCls, bgCls)}>
+                <div className={cn("flex items-center gap-2 px-3.5 py-2.5 border-b", dividerCls)}>
+                  <Icon className={cn("h-3.5 w-3.5", iconCls)} />
+                  <span className={cn("text-[10px] font-bold uppercase tracking-widest", iconCls)}>{label}</span>
+                  <span className={cn("ml-auto text-[9px] uppercase tracking-wider opacity-50", iconCls)}>{status}</span>
                 </div>
-              )}
-
-              <div className="h-px bg-white/5" />
-
-              {/* Market Logic */}
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Eye className="h-3 w-3 text-zinc-600" />
-                  <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-600">Market Logic</p>
+                <div className="px-3.5 py-3">
+                  {narrative.split("\n\n").map((para, i) => (
+                    <p key={i} className={cn("text-[12px] text-zinc-200 leading-relaxed", i > 0 && "mt-2 text-zinc-400")}>{para}</p>
+                  ))}
                 </div>
-                <p className="text-[12px] text-zinc-400 leading-relaxed">{a.marketLogic}</p>
-              </div>
-
-              {/* Conditions */}
-              {a.conditions && (
-                <div className="rounded-lg bg-white/[0.02] border border-white/5 px-4 py-3">
-                  <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-700 mb-1.5">Confirmation & Conditions</p>
-                  <p className="text-[11px] text-zinc-600 leading-relaxed">{a.conditions}</p>
-                </div>
-              )}
-
-              {/* Market tags */}
-              {cat.affectedMarkets?.length > 0 && (
-                <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                  {cat.affectedMarkets.map(m => <MarketTag key={m} label={m} />)}
-                </div>
-              )}
-            </>
-          ) : (
-            /* Fallback — no AI analysis, show gold/USD context + explanation */
-            <div className="space-y-4">
-              <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3.5">
-                <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-600 mb-2">Summary</p>
-                <p className="text-[12.5px] text-zinc-300 leading-relaxed">{cat.explanation}</p>
-              </div>
-
-              {/* Gold + USD impact — always show if data exists */}
-              {(cat.goldImpact || cat.usdImpact) && (
-                <>
-                  <div className="flex gap-2 flex-wrap">
-                    <ImpactBadge impact={cat.goldImpact} label="GOLD" />
-                    <ImpactBadge impact={cat.usdImpact} label="USD" />
+                {bullets.length > 0 && (
+                  <div className="px-3.5 pb-3.5 space-y-2">
+                    <p className={cn("text-[9px] font-bold uppercase tracking-widest opacity-70", iconCls)}>
+                      {isUpcoming ? "What To Watch" : "Key Context"}
+                    </p>
+                    <ul className="space-y-1.5">
+                      {bullets.slice(0, 5).map((b, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <ChevronRight className={cn("h-3 w-3 mt-0.5 shrink-0 opacity-60", iconCls)} />
+                          <span className="text-[11px] text-zinc-400 leading-snug">{b}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {cat.goldReasoning && (
-                      <div className="rounded-lg bg-white/[0.03] border border-white/5 p-3 space-y-1">
-                        <div className="flex items-center gap-1.5">
-                          <Target className="h-3 w-3 text-amber-400" />
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Gold Context</span>
-                        </div>
-                        <p className="text-[11px] text-zinc-300 leading-relaxed">{cat.goldReasoning}</p>
-                      </div>
-                    )}
-                    {cat.usdReasoning && (
-                      <div className="rounded-lg bg-white/[0.03] border border-white/5 p-3 space-y-1">
-                        <div className="flex items-center gap-1.5">
-                          <Shield className="h-3 w-3 text-blue-400" />
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">USD Context</span>
-                        </div>
-                        <p className="text-[11px] text-zinc-300 leading-relaxed">{cat.usdReasoning}</p>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-
-              <div className="rounded-lg border border-white/5 bg-white/[0.02] px-4 py-3">
-                <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-600 mb-1.5">Market Implication</p>
-                <p className="text-[12px] text-zinc-400 leading-relaxed">{cat.marketImplication}</p>
+                )}
               </div>
-              {cat.affectedMarkets?.length > 0 && (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {cat.affectedMarkets.map(m => <MarketTag key={m} label={m} />)}
-                </div>
-              )}
+            );
+          })()}
+
+          {/* Gold + USD badges */}
+          {(cat.goldImpact || cat.usdImpact) && (
+            <div className="flex gap-2 flex-wrap">
+              <ImpactBadge impact={cat.goldImpact} label="GOLD" />
+              <ImpactBadge impact={cat.usdImpact} label="USD" />
+            </div>
+          )}
+
+          {/* Gold context */}
+          {cat.goldReasoning && (
+            <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <Target className="h-3.5 w-3.5 text-amber-400" />
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Gold Context</span>
+              </div>
+              <p className="text-[11.5px] text-zinc-300 leading-relaxed">{cat.goldReasoning}</p>
+            </div>
+          )}
+
+          {/* USD context */}
+          {cat.usdReasoning && (
+            <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <Shield className="h-3.5 w-3.5 text-blue-400" />
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">USD Context</span>
+              </div>
+              <p className="text-[11.5px] text-zinc-300 leading-relaxed">{cat.usdReasoning}</p>
+            </div>
+          )}
+
+          {/* Asset impact — only when AI analysis has per-asset breakdown */}
+          {a?.assets && a.assets.length > 0 && (
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-600 mb-2.5">Asset Impact</p>
+              <div className="space-y-2">
+                {a.assets.map((asset) => (
+                  <div key={asset.ticker || asset.name} className="rounded-lg border border-white/5 bg-white/[0.025] p-3">
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-semibold text-zinc-300">{asset.name}</span>
+                        {asset.ticker && <span className="text-[9px] font-mono text-zinc-600 bg-white/5 px-1.5 py-0.5 rounded">{asset.ticker}</span>}
+                      </div>
+                      <BiasBadge bias={asset.bias} />
+                    </div>
+                    <p className="text-[11px] text-zinc-500 leading-relaxed">{asset.context}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Affected markets */}
+          {cat.affectedMarkets?.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {cat.affectedMarkets.map(m => <MarketTag key={m} label={m} />)}
             </div>
           )}
         </div>
