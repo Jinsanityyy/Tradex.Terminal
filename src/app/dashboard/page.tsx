@@ -541,18 +541,18 @@ function SidebarEventPreview({ event }: { event: EconomicEvent }) {
           </div>
 
           {/* Gold Analysis */}
-          {event.goldAnalysis && (
+          {event.goldReasoning && (
             <div className="rounded-lg border border-white/5 bg-[hsl(var(--secondary))] p-3">
               <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 mb-1.5">Gold Analysis</p>
-              <p className="text-[12px] text-zinc-300 leading-relaxed">{event.goldAnalysis}</p>
+              <p className="text-[12px] text-zinc-300 leading-relaxed">{event.goldReasoning}</p>
             </div>
           )}
 
           {/* USD Analysis */}
-          {event.usdAnalysis && (
+          {event.usdReasoning && (
             <div className="rounded-lg border border-white/5 bg-[hsl(var(--secondary))] p-3">
               <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 mb-1.5">USD Analysis</p>
-              <p className="text-[12px] text-zinc-300 leading-relaxed">{event.usdAnalysis}</p>
+              <p className="text-[12px] text-zinc-300 leading-relaxed">{event.usdReasoning}</p>
             </div>
           )}
 
