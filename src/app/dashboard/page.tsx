@@ -1009,7 +1009,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="px-4 pb-4">
               {catalysts.length > 0 ? (
-                <CatalystFeed catalysts={catalysts} limit={3} />
+                <CatalystFeed catalysts={catalysts} limit={3} newsAgent={data?.agents.news ?? null} />
               ) : (
                 <PanelPlaceholder
                   title="No catalysts in queue."

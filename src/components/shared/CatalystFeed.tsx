@@ -11,6 +11,15 @@ interface CatalystFeedProps {
   catalysts: Catalyst[];
   limit?: number;
   compact?: boolean;
+  newsAgent?: {
+    impact: string;
+    riskScore: number;
+    regime: string;
+    dominantCatalyst: string;
+    reasons: string[];
+    biasChangers: string[];
+    catalysts: { headline: string; impact: string; direction: string }[];
+  } | null;
 }
 
 function MarketTag({ label }: { label: string }) {
@@ -21,7 +30,10 @@ function MarketTag({ label }: { label: string }) {
   );
 }
 
-function CatalystDetail({ cat }: { cat: Catalyst }) {
+function CatalystDetail({ cat, newsAgent }: { 
+  cat: Catalyst; 
+  newsAgent?: CatalystFeedProps["newsAgent"];
+}) {
   const [analysis, setAnalysis] = React.useState<{
     whyItMatters: string;
     goldEffect: string;
@@ -35,7 +47,25 @@ function CatalystDetail({ cat }: { cat: Catalyst }) {
     fetch("/api/ai/catalyst-analysis", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ headline: cat.title, explanation: cat.explanation, importance: cat.importance, affectedMarkets: cat.affectedMarkets })
+      body: JSON.stringify({
+        headline: cat.title,
+        explanation: cat.explanation,
+        importance: cat.importance,
+        affectedMarkets: cat.affectedMarkets,
+        // Pass news agent context so AI doesn't analyze blind
+        newsContext: newsAgent ? {
+          overallImpact: newsAgent.impact,
+          regime: newsAgent.regime,
+          riskScore: newsAgent.riskScore,
+          dominantCatalyst: newsAgent.dominantCatalyst,
+          reasons: newsAgent.reasons,
+          biasChangers: newsAgent.biasChangers,
+          // Find if this catalyst is in news agent's list
+          agentDirection: newsAgent.catalysts?.find(c =>
+            c.headline.toLowerCase().includes(cat.title.toLowerCase().slice(0, 20))
+          )?.direction ?? null
+        } : null
+      })
     })
     .then(r => r.json())
     .then(data => setAnalysis(data))
@@ -118,7 +148,7 @@ function CatalystDetail({ cat }: { cat: Catalyst }) {
   );
 }
 
-export function CatalystFeed({ catalysts, limit, compact = false }: CatalystFeedProps) {
+export function CatalystFeed({ catalysts, limit, compact = false, newsAgent }: CatalystFeedProps) {
   const items = limit ? catalysts.slice(0, limit) : catalysts;
   const [selected, setSelected] = useState<Catalyst | null>(null);
 
@@ -193,7 +223,7 @@ export function CatalystFeed({ catalysts, limit, compact = false }: CatalystFeed
         onClose={() => setSelected(null)}
         title={selected?.title}
       >
-        {selected && <CatalystDetail cat={selected} />}
+        {selected && <CatalystDetail cat={selected} newsAgent={newsAgent} />}
       </DetailModal>
     </>
   );
