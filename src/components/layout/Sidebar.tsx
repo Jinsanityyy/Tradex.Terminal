@@ -20,7 +20,7 @@ const navItems = [
   { label: "Asset Matrix",        href: "/dashboard/asset-matrix",           icon: Grid3X3 },
   { label: "Session Intelligence",href: "/dashboard/session-intelligence",   icon: Clock },
   { label: "News Flow",           href: "/dashboard/news-flow",              icon: Newspaper },
-  { label: "AI Briefing",         href: "/dashboard/ai-briefing",            icon: BrainCircuit },
+  // AI Briefing removed — redundant with Brain Terminal
   { label: "PnL Calendar",        href: "/dashboard/pnl-calendar",           icon: BarChart2, accent2: true },
   { label: "Signal History",      href: "/dashboard/signals",                icon: History },
   { label: "Settings",            href: "/dashboard/settings",               icon: Settings },

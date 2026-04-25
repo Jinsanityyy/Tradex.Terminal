@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn, timeAgo } from "@/lib/utils";
-import { Zap, Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Zap, Loader2 } from "lucide-react";
 import type { Catalyst } from "@/types";
 import { DetailModal } from "./DetailModal";
 
@@ -22,49 +22,98 @@ function MarketTag({ label }: { label: string }) {
 }
 
 function CatalystDetail({ cat }: { cat: Catalyst }) {
+  const [analysis, setAnalysis] = React.useState<{
+    whyItMatters: string;
+    goldEffect: string;
+    usdEffect: string;
+    tradeBias: string;
+    watchFor: string;
+  } | null>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetch("/api/ai/catalyst-analysis", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ headline: cat.headline, explanation: cat.explanation, importance: cat.importance, affectedMarkets: cat.affectedMarkets })
+    })
+    .then(r => r.json())
+    .then(data => setAnalysis(data))
+    .catch(() => setAnalysis(null))
+    .finally(() => setLoading(false));
+  }, [cat.id]);
+
   return (
     <div className="space-y-4">
-      {/* Status + time */}
-      <div className="flex items-center gap-2">
+      {/* Header */}
+      <div className="flex items-center gap-2 flex-wrap">
         <Badge variant={cat.importance}>{cat.importance}</Badge>
-        <span className="text-[11px] text-[hsl(var(--muted-foreground))]">{timeAgo(cat.timestamp)}</span>
-        <span className={cn(
-          "text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full",
+        <span className="text-[11px] text-zinc-500">{timeAgo(cat.timestamp)}</span>
+        <span className={cn("text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full",
           cat.status === "live" ? "bg-amber-500/15 text-amber-400" :
-          cat.status === "completed" ? "bg-emerald-500/15 text-emerald-400" :
-          "bg-blue-500/15 text-blue-400"
-        )}>
+          cat.status === "completed" ? "bg-emerald-500/15 text-emerald-400" : "bg-blue-500/15 text-blue-400")}>
           {cat.status}
         </span>
       </div>
 
-      {/* Why high impact */}
-      <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--primary))]">Why High Impact</p>
-        <p className="text-xs text-[hsl(var(--foreground))] leading-relaxed">{cat.explanation}</p>
-      </div>
-
       {/* Affected markets */}
       {cat.affectedMarkets?.length > 0 && (
-        <div className="space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Affected Markets</p>
-          <div className="flex flex-wrap gap-1.5">
-            {cat.affectedMarkets.map((m) => <MarketTag key={m} label={m} />)}
-          </div>
+        <div className="flex flex-wrap gap-1.5">
+          {cat.affectedMarkets.map(m => <MarketTag key={m} label={m} />)}
         </div>
       )}
 
-      {/* Market effect hint */}
-      <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3.5">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 mb-1">Market Effect</p>
-        <p className="text-xs text-gray-300 leading-relaxed">
-          {cat.importance === "high"
-            ? "High-impact catalyst.expect increased volatility and potential trend acceleration across affected markets. Monitor price action closely near key levels."
-            : cat.importance === "medium"
-            ? "Medium-impact catalyst.may cause short-term volatility. Watch for confirmation before entering positions."
-            : "Low-impact catalyst.limited directional effect expected. Use as secondary context only."}
-        </p>
-      </div>
+      {/* AI Analysis */}
+      {loading ? (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-zinc-600">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            <span className="text-[10px] uppercase tracking-wider">Analyzing market impact…</span>
+          </div>
+          {[90, 70, 80, 60].map((w, i) => (
+            <div key={i} className="rounded-lg bg-[hsl(var(--secondary))] p-3.5">
+              <div className="h-2 bg-white/5 rounded animate-pulse mb-2" style={{ width: "40%" }} />
+              <div className="h-3 bg-white/5 rounded animate-pulse" style={{ width: `${w}%` }} />
+            </div>
+          ))}
+        </div>
+      ) : analysis ? (
+        <div className="space-y-3">
+          {/* Why it matters */}
+          <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Why It Matters</p>
+            <p className="text-[12px] text-zinc-300 leading-relaxed">{analysis.whyItMatters}</p>
+          </div>
+
+          {/* Gold + USD effect side by side */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 space-y-1">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Gold (XAUUSD)</p>
+              <p className="text-[11px] text-zinc-300 leading-relaxed">{analysis.goldEffect}</p>
+            </div>
+            <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 space-y-1">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">USD</p>
+              <p className="text-[11px] text-zinc-300 leading-relaxed">{analysis.usdEffect}</p>
+            </div>
+          </div>
+
+          {/* Trade bias */}
+          <div className="rounded-lg border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary))]/5 p-3.5 space-y-1">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-[hsl(var(--primary))]/60">Trade Bias</p>
+            <p className="text-[12px] text-zinc-200 leading-relaxed">{analysis.tradeBias}</p>
+          </div>
+
+          {/* Watch for */}
+          <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Watch For</p>
+            <p className="text-[12px] text-zinc-400 leading-relaxed">{analysis.watchFor}</p>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5">
+          <p className="text-[11px] text-zinc-500">{cat.explanation}</p>
+        </div>
+      )}
     </div>
   );
 }
