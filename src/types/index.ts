@@ -101,6 +101,10 @@ export interface Catalyst {
   explanation: string;
   marketImplication: string;
   sentimentTag: Bias;
+  goldImpact?: "bullish" | "bearish" | "neutral";
+  goldReasoning?: string;
+  usdImpact?: "bullish" | "bearish" | "neutral";
+  usdReasoning?: string;
   analysis?: {
     eventOverview: string;
     whyMarketsCare: string;
@@ -153,6 +157,10 @@ export interface TrumpPost {
   whyItMatters: string;
   potentialReaction: string;
   tags: string[];
+  goldImpact?: "bullish" | "bearish" | "neutral";
+  goldReasoning?: string;
+  usdImpact?: "bullish" | "bearish" | "neutral";
+  usdReasoning?: string;
 }
 
 export interface SessionSummary {
@@ -176,6 +184,10 @@ export interface NewsItem {
   affectedAssets: string[];
   summary: string;
   source: string;
+  goldImpact?: "bullish" | "bearish" | "neutral";
+  goldReasoning?: string;
+  usdImpact?: "bullish" | "bearish" | "neutral";
+  usdReasoning?: string;
 }
 
 export interface AIBriefing {

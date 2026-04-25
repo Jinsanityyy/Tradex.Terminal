@@ -244,10 +244,25 @@ export async function GET() {
       raw_catalysts.map(c => generateAnalysis(c.title, c.explanation, c.affectedMarkets, c.importance))
     );
 
-    const catalysts: Catalyst[] = raw_catalysts.map((c, i) => ({
-      ...c,
-      analysis: analysisResults[i].status === "fulfilled" ? analysisResults[i].value : null,
-    }));
+    const catalysts: Catalyst[] = raw_catalysts.map((c, i) => {
+      const ai = analysisResults[i].status === "fulfilled" ? analysisResults[i].value : null;
+      const assets: { ticker: string; bias: string; context: string }[] = ai?.assets ?? [];
+
+      const goldAsset = assets.find(a => a.ticker === "XAUUSD" || a.ticker?.includes("XAU") || a.name?.toLowerCase().includes("gold"));
+      const usdAsset  = assets.find(a => a.ticker === "DXY"    || a.ticker?.includes("DXY") || a.name?.toLowerCase().includes("dollar") || a.name?.toLowerCase().includes("usd index"));
+
+      const toBias = (b: string): "bullish" | "bearish" | "neutral" =>
+        b?.toLowerCase() === "bullish" ? "bullish" : b?.toLowerCase() === "bearish" ? "bearish" : "neutral";
+
+      return {
+        ...c,
+        analysis: ai,
+        goldImpact:    goldAsset ? toBias(goldAsset.bias) : undefined,
+        goldReasoning: goldAsset?.context,
+        usdImpact:     usdAsset  ? toBias(usdAsset.bias)  : undefined,
+        usdReasoning:  usdAsset?.context,
+      };
+    });
 
     if (catalysts.length > 0) {
       cache = { data: catalysts, ts: Date.now() };

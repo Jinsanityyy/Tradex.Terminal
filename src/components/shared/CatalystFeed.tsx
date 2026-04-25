@@ -3,13 +3,29 @@
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn, timeAgo } from "@/lib/utils";
-import { Zap, Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus, X, Eye } from "lucide-react";
+import { Zap, Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus, X, Eye, Target, Shield } from "lucide-react";
 import type { Catalyst } from "@/types";
 
 interface CatalystFeedProps {
   catalysts: Catalyst[];
   limit?: number;
   compact?: boolean;
+}
+
+function ImpactBadge({ impact, label }: { impact?: "bullish" | "bearish" | "neutral"; label: string }) {
+  if (!impact) return null;
+  const Icon = impact === "bullish" ? TrendingUp : impact === "bearish" ? TrendingDown : Minus;
+  const colors = {
+    bullish: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+    bearish: "bg-red-500/15 text-red-400 border-red-500/30",
+    neutral: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
+  };
+  return (
+    <span className={cn("inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold", colors[impact])}>
+      <Icon className="h-2.5 w-2.5" />
+      {label} {impact.toUpperCase()}
+    </span>
+  );
 }
 
 function MarketTag({ label }: { label: string }) {
@@ -85,6 +101,36 @@ function AnalysisModal({ cat, onClose }: { cat: Catalyst; onClose: () => void })
                 <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-600 mb-2">Why Markets Care</p>
                 <p className="text-[12px] text-zinc-300 leading-relaxed">{a.whyMarketsCare}</p>
               </div>
+
+              {/* Gold + USD Impact */}
+              {(cat.goldImpact || cat.usdImpact) && (
+                <>
+                  <div className="flex gap-2 flex-wrap">
+                    <ImpactBadge impact={cat.goldImpact} label="GOLD" />
+                    <ImpactBadge impact={cat.usdImpact} label="USD" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {cat.goldReasoning && (
+                      <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <Target className="h-3 w-3 text-amber-400" />
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Gold Context</span>
+                        </div>
+                        <p className="text-[11px] text-zinc-300 leading-relaxed">{cat.goldReasoning}</p>
+                      </div>
+                    )}
+                    {cat.usdReasoning && (
+                      <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <Shield className="h-3 w-3 text-blue-400" />
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">USD Context</span>
+                        </div>
+                        <p className="text-[11px] text-zinc-300 leading-relaxed">{cat.usdReasoning}</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
 
               <div className="h-px bg-white/5" />
 
@@ -182,6 +228,12 @@ function CatalystCard({ cat }: { cat: Catalyst }) {
           </div>
           <Badge variant={cat.importance} className="shrink-0">{cat.importance}</Badge>
         </div>
+        {(cat.goldImpact || cat.usdImpact) && (
+          <div className="flex items-center gap-1.5 pl-4 mb-1.5 flex-wrap">
+            <ImpactBadge impact={cat.goldImpact} label="GOLD" />
+            <ImpactBadge impact={cat.usdImpact} label="USD" />
+          </div>
+        )}
         <div className="flex items-center justify-between pl-4">
           <div className="flex items-center gap-1.5 flex-wrap">
             {cat.affectedMarkets.slice(0, 4).map(m => <MarketTag key={m} label={m} />)}

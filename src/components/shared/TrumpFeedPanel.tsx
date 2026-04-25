@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn, timeAgo } from "@/lib/utils";
-import { UserCircle, AlertTriangle, ArrowRight, Flame, ChevronRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { UserCircle, AlertTriangle, ArrowRight, Flame, ChevronRight, TrendingUp, TrendingDown, Minus, Target, Shield } from "lucide-react";
 import type { TrumpPost } from "@/types";
 import { DetailModal } from "./DetailModal";
 
@@ -14,6 +14,22 @@ interface TrumpFeedPanelProps {
   posts: TrumpPost[];
   limit?: number;
   compact?: boolean;
+}
+
+function ImpactBadge({ impact, label }: { impact?: "bullish" | "bearish" | "neutral"; label: string }) {
+  if (!impact) return null;
+  const Icon = impact === "bullish" ? TrendingUp : impact === "bearish" ? TrendingDown : Minus;
+  const colors = {
+    bullish: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+    bearish: "bg-red-500/15 text-red-400 border-red-500/30",
+    neutral: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
+  };
+  return (
+    <span className={cn("inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold", colors[impact])}>
+      <Icon className="h-2.5 w-2.5" />
+      {label} {impact.toUpperCase()}
+    </span>
+  );
 }
 
 function TrumpPostDetail({ post }: { post: TrumpPost }) {
@@ -83,6 +99,36 @@ function TrumpPostDetail({ post }: { post: TrumpPost }) {
         <p className="text-xs text-[hsl(var(--muted-foreground))] leading-relaxed">{post.potentialReaction}</p>
       </div>
 
+      {/* Gold + USD directional impact */}
+      {(post.goldImpact || post.usdImpact) && (
+        <>
+          <div className="flex gap-2 flex-wrap">
+            <ImpactBadge impact={post.goldImpact} label="GOLD" />
+            <ImpactBadge impact={post.usdImpact} label="USD" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {post.goldReasoning && (
+              <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <Target className="h-3 w-3 text-amber-400" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Gold Context</span>
+                </div>
+                <p className="text-[11px] text-[hsl(var(--foreground))] leading-relaxed">{post.goldReasoning}</p>
+              </div>
+            )}
+            {post.usdReasoning && (
+              <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <Shield className="h-3 w-3 text-blue-400" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">USD Context</span>
+                </div>
+                <p className="text-[11px] text-[hsl(var(--foreground))] leading-relaxed">{post.usdReasoning}</p>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
       {/* Affected assets */}
       <div className="space-y-1.5">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Affected Assets</p>
@@ -141,6 +187,14 @@ export function TrumpFeedPanel({ posts, limit, compact = false }: TrumpFeedPanel
               <p className="text-xs text-[hsl(var(--foreground))] leading-relaxed mb-2 font-medium">
                 &ldquo;{post.content}&rdquo;
               </p>
+
+              {/* Gold + USD inline badges */}
+              {(post.goldImpact || post.usdImpact) && (
+                <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                  <ImpactBadge impact={post.goldImpact} label="GOLD" />
+                  <ImpactBadge impact={post.usdImpact} label="USD" />
+                </div>
+              )}
 
               {!compact && (
                 <>

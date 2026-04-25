@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn, timeAgo } from "@/lib/utils";
-import { Newspaper, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Newspaper, TrendingUp, TrendingDown, Minus, Target, Shield } from "lucide-react";
 import type { NewsItem } from "@/types";
 import { DetailModal } from "./DetailModal";
 
@@ -11,6 +11,22 @@ interface NewsFeedProps {
   items: NewsItem[];
   limit?: number;
   compact?: boolean;
+}
+
+function ImpactBadge({ impact, label }: { impact?: "bullish" | "bearish" | "neutral"; label: string }) {
+  if (!impact) return null;
+  const Icon = impact === "bullish" ? TrendingUp : impact === "bearish" ? TrendingDown : Minus;
+  const colors = {
+    bullish: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+    bearish: "bg-red-500/15 text-red-400 border-red-500/30",
+    neutral: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
+  };
+  return (
+    <span className={cn("inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold", colors[impact])}>
+      <Icon className="h-2.5 w-2.5" />
+      {label} {impact.toUpperCase()}
+    </span>
+  );
 }
 
 function NewsDetail({ item }: { item: NewsItem }) {
@@ -63,6 +79,36 @@ function NewsDetail({ item }: { item: NewsItem }) {
           <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--primary))]">Summary</p>
           <p className="text-xs text-[hsl(var(--foreground))] leading-relaxed">{item.summary}</p>
         </div>
+      )}
+
+      {/* Gold + USD directional impact */}
+      {(item.goldImpact || item.usdImpact) && (
+        <>
+          <div className="flex gap-2 flex-wrap">
+            <ImpactBadge impact={item.goldImpact} label="GOLD" />
+            <ImpactBadge impact={item.usdImpact} label="USD" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {item.goldReasoning && (
+              <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <Target className="h-3 w-3 text-amber-400" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Gold Context</span>
+                </div>
+                <p className="text-[11px] text-[hsl(var(--foreground))] leading-relaxed">{item.goldReasoning}</p>
+              </div>
+            )}
+            {item.usdReasoning && (
+              <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <Shield className="h-3 w-3 text-blue-400" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">USD Context</span>
+                </div>
+                <p className="text-[11px] text-[hsl(var(--foreground))] leading-relaxed">{item.usdReasoning}</p>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* What it means for traders */}
@@ -133,12 +179,11 @@ export function NewsFeed({ items, limit, compact = false }: NewsFeedProps) {
                 )}
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant={item.sentiment}>{item.sentiment}</Badge>
+                  <ImpactBadge impact={item.goldImpact} label="GOLD" />
+                  <ImpactBadge impact={item.usdImpact} label="USD" />
                   <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))]">
                     {item.category}
                   </span>
-                  {item.affectedAssets.slice(0, 3).map((a) => (
-                    <span key={a} className="text-[10px] font-mono text-[hsl(var(--muted-foreground))]">{a}</span>
-                  ))}
                   <span className="text-[10px] text-[hsl(var(--muted-foreground))] ml-auto shrink-0">
                     {item.source} · {timeAgo(item.timestamp)}
                   </span>

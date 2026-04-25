@@ -99,6 +99,38 @@ function deriveSentiment(headline: string): "bullish" | "bearish" | "neutral" {
   return b > s ? "bullish" : s > b ? "bearish" : "neutral";
 }
 
+async function analyzeGoldUSD(content: string, category: string): Promise<{
+  goldImpact: "bullish" | "bearish" | "neutral";
+  goldReasoning: string;
+  usdImpact: "bullish" | "bearish" | "neutral";
+  usdReasoning: string;
+} | null> {
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.ANTHROPIC_API_KEY ?? "",
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 300,
+        system: `You are a macro analyst. Given a Trump news headline, state the specific directional impact on Gold (XAUUSD) and USD (DXY). Be specific to this exact headline — no generic templates. Valid JSON only.`,
+        messages: [{
+          role: "user",
+          content: `Headline: "${content}"\nCategory: ${category}\n\nReturn ONLY this JSON:\n{"goldImpact":"bullish|bearish|neutral","goldReasoning":"1 sentence why gold moves this way from THIS specific news","usdImpact":"bullish|bearish|neutral","usdReasoning":"1 sentence why USD moves this way from THIS specific news"}`,
+        }],
+      }),
+    });
+    const data = await res.json();
+    const text = (data.content?.[0]?.text ?? "").replace(/```json|```/g, "").trim();
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
 function deriveImpactScore(headline: string, summary: string): number {
   const text = (headline + " " + summary).toLowerCase();
   let score = 5; // base
@@ -123,6 +155,10 @@ const FALLBACK_POSTS: TrumpPost[] = [
     whyItMatters: IMPACT_TEMPLATES.Tariffs.whyItMatters,
     potentialReaction: IMPACT_TEMPLATES.Tariffs.reaction,
     tags: ["tariffs", "trade-war"],
+    goldImpact: "bullish",
+    goldReasoning: "Tariff escalation drives safe-haven flows into gold as risk-off sentiment intensifies across global markets.",
+    usdImpact: "neutral",
+    usdReasoning: "USD faces competing forces — safe-haven demand vs. growth damage from trade restrictions, resulting in mixed direction.",
   },
   {
     id: "trump-fallback-2",
@@ -136,6 +172,10 @@ const FALLBACK_POSTS: TrumpPost[] = [
     whyItMatters: IMPACT_TEMPLATES.Fed.whyItMatters,
     potentialReaction: IMPACT_TEMPLATES.Fed.reaction,
     tags: ["fed", "rate-cut"],
+    goldImpact: "bullish",
+    goldReasoning: "Presidential rate-cut pressure signals potential monetary easing, weakening USD and supporting gold as a non-yielding asset.",
+    usdImpact: "bearish",
+    usdReasoning: "Direct political pressure on Fed independence signals lower rates ahead, reducing yield differential and weakening the dollar.",
   },
   {
     id: "trump-fallback-3",
@@ -149,6 +189,10 @@ const FALLBACK_POSTS: TrumpPost[] = [
     whyItMatters: IMPACT_TEMPLATES.China.whyItMatters,
     potentialReaction: IMPACT_TEMPLATES.China.reaction,
     tags: ["china", "tariffs"],
+    goldImpact: "bullish",
+    goldReasoning: "US-China trade war escalation risk spurs safe-haven demand — gold historically rallies on geopolitical and economic uncertainty.",
+    usdImpact: "bearish",
+    usdReasoning: "Tariff escalation on China threatens US growth outlook, undermining dollar demand despite short-term safe-haven positioning.",
   },
   {
     id: "trump-fallback-4",
@@ -162,6 +206,10 @@ const FALLBACK_POSTS: TrumpPost[] = [
     whyItMatters: IMPACT_TEMPLATES.Oil.whyItMatters,
     potentialReaction: IMPACT_TEMPLATES.Oil.reaction,
     tags: ["oil", "energy"],
+    goldImpact: "bearish",
+    goldReasoning: "Increased US energy output reduces inflation pressures, lowering gold's appeal as an inflation hedge in the near-term.",
+    usdImpact: "bullish",
+    usdReasoning: "Higher domestic energy production reduces US import costs and strengthens the current account, supporting USD fundamentals.",
   },
 ];
 
@@ -202,12 +250,11 @@ export async function GET() {
       (n.headline + " " + n.summary).toLowerCase().match(/trump|white house|president.*us|potus|oval office|truth social/)
     );
 
-    const posts: TrumpPost[] = trumpNews.slice(0, 15).map((item, i) => {
+    const rawPosts = trumpNews.slice(0, 10).map((item, i) => {
       const { category, assets, tags } = classifyPost(item.headline, item.summary);
       const sentiment = deriveSentiment(item.headline);
       const impactScore = deriveImpactScore(item.headline, item.summary);
       const template = IMPACT_TEMPLATES[category] ?? IMPACT_TEMPLATES.Government;
-
       return {
         id: `tp-${item.id ?? i}`,
         timestamp: new Date(item.datetime * 1000).toISOString(),
@@ -220,6 +267,22 @@ export async function GET() {
         whyItMatters: template.whyItMatters,
         potentialReaction: template.reaction,
         tags,
+      };
+    });
+
+    // Per-post AI Gold/USD analysis (parallel, max 10)
+    const aiResults = await Promise.allSettled(
+      rawPosts.map(p => analyzeGoldUSD(p.content, p.policyCategory))
+    );
+
+    const posts: TrumpPost[] = rawPosts.map((p, i) => {
+      const ai = aiResults[i].status === "fulfilled" ? aiResults[i].value : null;
+      return {
+        ...p,
+        goldImpact:    ai?.goldImpact,
+        goldReasoning: ai?.goldReasoning,
+        usdImpact:     ai?.usdImpact,
+        usdReasoning:  ai?.usdReasoning,
       };
     });
 
