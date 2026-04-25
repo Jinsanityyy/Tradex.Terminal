@@ -246,10 +246,11 @@ export async function GET() {
 
     const catalysts: Catalyst[] = raw_catalysts.map((c, i) => {
       const ai = analysisResults[i].status === "fulfilled" ? analysisResults[i].value : null;
-      const assets: { ticker: string; bias: string; context: string }[] = ai?.assets ?? [];
+      type AssetEntry = { name: string; ticker: string; bias: string; context: string };
+      const assets: AssetEntry[] = Array.isArray(ai?.assets) ? ai.assets : [];
 
-      const goldAsset = assets.find(a => a.ticker === "XAUUSD" || a.ticker?.includes("XAU") || a.name?.toLowerCase().includes("gold"));
-      const usdAsset  = assets.find(a => a.ticker === "DXY"    || a.ticker?.includes("DXY") || a.name?.toLowerCase().includes("dollar") || a.name?.toLowerCase().includes("usd index"));
+      const goldAsset = assets.find(a => a.ticker === "XAUUSD" || a.ticker.includes("XAU") || a.name.toLowerCase().includes("gold"));
+      const usdAsset  = assets.find(a => a.ticker === "DXY"    || a.ticker.includes("DXY") || a.name.toLowerCase().includes("dollar") || a.name.toLowerCase().includes("usd index"));
 
       const toBias = (b: string): "bullish" | "bearish" | "neutral" =>
         b?.toLowerCase() === "bullish" ? "bullish" : b?.toLowerCase() === "bearish" ? "bearish" : "neutral";
