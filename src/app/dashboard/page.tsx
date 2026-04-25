@@ -795,7 +795,7 @@ export default function DashboardPage() {
         };
     }
   })();
-  const chartHeightClass = isFullscreen ? "h-[88vh]" : "h-[calc(100vh-242px)]";
+  const chartHeightClass = isFullscreen ? "h-[88vh]" : "h-[calc(100vh-236px)]";
 
   return (
     <div className="flex flex-col lg:flex-row overflow-hidden" style={{ height: "100%" }}>
