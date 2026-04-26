@@ -32,7 +32,7 @@ function cacheKey(symbol: Symbol, timeframe: Timeframe): string {
 // Market Data Fetcher
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SYMBOL_TO_API: Record<Symbol, string> = {
+const SYMBOL_TO_API: Partial<Record<Symbol, string>> = {
   XAUUSD: "XAU/USD",
   EURUSD: "EUR/USD",
   GBPUSD: "GBP/USD",
@@ -48,8 +48,9 @@ async function fetchMarketData(symbol: Symbol): Promise<{
     // Reuse the existing quotes cache
     const { ensureCacheWarm, getQuotesForSymbols } = await import("@/lib/api/quotes-cache");
     await ensureCacheWarm();
-    const quotes = getQuotesForSymbols([SYMBOL_TO_API[symbol]]);
-    const quote = (quotes[SYMBOL_TO_API[symbol]] ?? null) as unknown as Record<string, string | { high: string; low: string }> | null;
+    const apiSymbol = SYMBOL_TO_API[symbol] ?? symbol;
+    const quotes = getQuotesForSymbols([apiSymbol]);
+    const quote = (quotes[apiSymbol] ?? null) as unknown as Record<string, string | { high: string; low: string }> | null;
 
     // Fetch news — try Finnhub directly, fall back to project's shared news cache
     let news: Array<{ headline: string; summary: string; datetime: number }> = [];

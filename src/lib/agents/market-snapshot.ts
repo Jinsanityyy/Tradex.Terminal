@@ -24,11 +24,11 @@ interface RawNewsItem {
   datetime: number;
 }
 
-const SYMBOL_CONFIG: Record<Symbol, {
+const SYMBOL_CONFIG: Partial<Record<Symbol, {
   display: string;
   apiSymbol: string;
   invertBias: boolean;
-}> = {
+}>> = {
   XAUUSD: { display: "Gold (XAUUSD)",        apiSymbol: "XAU/USD", invertBias: false },
   EURUSD: { display: "EUR/USD (DXY Proxy)",   apiSymbol: "EUR/USD", invertBias: true  },
   GBPUSD: { display: "GBP/USD",              apiSymbol: "GBP/USD", invertBias: false },
@@ -60,7 +60,7 @@ export async function buildMarketSnapshot(
   news: RawNewsItem[],
   rsi?: number
 ): Promise<MarketSnapshot> {
-  const cfg = SYMBOL_CONFIG[symbol];
+  const cfg = SYMBOL_CONFIG[symbol] ?? { display: symbol, apiSymbol: symbol, invertBias: false };
 
   const close       = parseFloat(rawQuote.close) || 0;
   const open        = parseFloat(rawQuote.open        ?? rawQuote.close) || close;
@@ -171,15 +171,15 @@ export async function buildMarketSnapshot(
 
 // Mock snapshot for fallback / testing when market data is unavailable
 export function buildMockSnapshot(symbol: Symbol, timeframe: Timeframe): MarketSnapshot {
-  const prices: Record<Symbol, number> = {
+  const prices: Partial<Record<Symbol, number>> = {
     XAUUSD: 3220.50,
     EURUSD: 1.1345,
     GBPUSD: 1.3120,
     BTCUSD: 84500.00,
   };
 
-  const price = prices[symbol];
-  const cfg   = SYMBOL_CONFIG[symbol];
+  const price = prices[symbol] ?? 1.0000;
+  const cfg   = SYMBOL_CONFIG[symbol] ?? { display: symbol, apiSymbol: symbol, invertBias: false };
 
   return {
     symbol,
