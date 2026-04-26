@@ -178,7 +178,20 @@ export default function SignalsPage() {
   );
 
   const stats  = data?.stats;
-  const recent = data?.recent ?? [];
+
+  // Deduplicate: for armed signals, keep only the most recent record per
+  // entry+SL+TP1 combination. Collapse identical open setups into one row.
+  const recent = (() => {
+    const raw = data?.recent ?? [];
+    const seen = new Set<string>();
+    return raw.filter(s => {
+      if (!s.tradePlan) return true; // always show no-trade / informational
+      const key = `${s.symbol}_${s.tradePlan.entry}_${s.tradePlan.stopLoss}_${s.tradePlan.tp1}_${s.status}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  })();
 
   const resolvedTotal = (stats?.wins ?? 0) + (stats?.losses ?? 0);
   const hitRateLabel = stats
