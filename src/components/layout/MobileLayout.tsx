@@ -52,7 +52,6 @@ export function MobileLayout() {
 
     // Listen for new chat messages — increment badge
     let myUserId: string | null = null;
-    let myUserId: string | null = null;
     supabase.auth.getUser().then(({ data }) => { myUserId = data.user?.id ?? null; });
 
     let lastMessageId: string | null = null;

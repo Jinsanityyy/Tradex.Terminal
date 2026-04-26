@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CatalystFeed } from "@/components/shared/CatalystFeed";
@@ -9,7 +9,7 @@ import { LiveNewsTicker } from "@/components/shared/LiveNewsTicker";
 import { EconomicEventTable } from "@/components/shared/EconomicEventTable";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useEconomicCalendar, useCatalysts, useNews } from "@/hooks/useMarketData";
-import { Zap, Radio, CheckCircle2, Clock, CalendarDays, Wifi, WifiOff, Newspaper, Tv } from "lucide-react";
+import { Zap, Radio, CheckCircle2, Clock, CalendarDays, Wifi, WifiOff, Newspaper, Tv, RotateCcw } from "lucide-react";
 
 const LIVE_CHANNELS = [
   { id: "bloomberg", name: "Bloomberg TV", embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCIALMKvObZNtJ6AmdCLP7Lg&autoplay=1" },
@@ -22,12 +22,8 @@ export default function CatalystsPage() {
   const { events: economicEvents } = useEconomicCalendar();
   const { catalysts, isLive: isCatalystsLive } = useCatalysts();
   const { news, isLive: isNewsLive } = useNews(60_000);
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [activeChannel, setActiveChannel] = useState(LIVE_CHANNELS[0]);
-
-  useEffect(() => {
-    if (isNewsLive) setLastUpdated(new Date());
-  }, [news, isNewsLive]);
+  const [streamKey, setStreamKey] = useState(0);
 
   const liveCatalysts = catalysts.filter(c => c.status === "live");
   const completedCatalysts = catalysts.filter(c => c.status === "completed");
@@ -122,30 +118,39 @@ export default function CatalystsPage() {
         <TabsContent value="news">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {/* Compact video panel */}
-            <div className="rounded-xl border border-white/8 overflow-hidden bg-black">
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-white/6 bg-[#0a0b0e]">
+            <div className="rounded-xl border border-white/8 overflow-hidden bg-black flex flex-col">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-white/6 bg-[#0a0b0e] shrink-0">
                 <span className="relative flex h-1.5 w-1.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-500" />
                 </span>
                 <span className="text-[9px] font-bold text-red-400 uppercase tracking-wider">Live TV</span>
-                <div className="flex gap-1 ml-2">
+                <div className="flex gap-1 ml-2 flex-1 flex-wrap">
                   {LIVE_CHANNELS.map(ch => (
                     <button
                       key={ch.id}
-                      onClick={() => setActiveChannel(ch)}
-                      className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-colors ${
-                        activeChannel.id === ch.id ? "bg-white/15 text-white" : "text-zinc-500 hover:text-zinc-300"
+                      onClick={() => { setActiveChannel(ch); setStreamKey(k => k + 1); }}
+                      className={`px-2.5 py-0.5 rounded text-[10px] font-semibold transition-all border ${
+                        activeChannel.id === ch.id
+                          ? "bg-red-500/15 border-red-500/30 text-red-300"
+                          : "border-transparent text-zinc-500 hover:text-zinc-300 hover:border-white/10"
                       }`}
                     >
                       {ch.name}
                     </button>
                   ))}
                 </div>
+                <button
+                  onClick={() => setStreamKey(k => k + 1)}
+                  title="Reload stream"
+                  className="ml-auto text-zinc-600 hover:text-zinc-300 transition-colors"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                </button>
               </div>
               <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
                 <iframe
-                  key={activeChannel.id}
+                  key={`${activeChannel.id}-${streamKey}`}
                   src={activeChannel.embedUrl}
                   className="absolute inset-0 w-full h-full"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -156,8 +161,8 @@ export default function CatalystsPage() {
             </div>
 
             {/* Live headlines beside the video */}
-            <Card className="overflow-hidden">
-              <CardHeader className="pb-2">
+            <Card className="overflow-hidden flex flex-col">
+              <CardHeader className="pb-2 shrink-0">
                 <CardTitle className="flex items-center gap-2 text-sm">
                   <Newspaper className="h-3.5 w-3.5" />
                   <span>Live Headlines</span>
@@ -169,7 +174,7 @@ export default function CatalystsPage() {
                   </div>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="max-h-[360px] overflow-y-auto">
+              <CardContent className="flex-1 overflow-y-auto" style={{ maxHeight: "420px" }}>
                 <NewsFeed items={news} compact />
               </CardContent>
             </Card>
@@ -177,18 +182,21 @@ export default function CatalystsPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Completed Events with Full Results */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-[hsl(var(--primary))]" />
-            <span>Completed Events — Full Results & Impact</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <EconomicEventTable events={completedEvents} showInterpretation />
-        </CardContent>
-      </Card>
+      {/* Completed Events with Full Results — only show when events exist */}
+      {completedEvents.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-[hsl(var(--primary))]" />
+              <span>Completed Events — Full Results & Impact</span>
+              <Badge variant="default" className="ml-auto">{completedEvents.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <EconomicEventTable events={completedEvents} showInterpretation />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
