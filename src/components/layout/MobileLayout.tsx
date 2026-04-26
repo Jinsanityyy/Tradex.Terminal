@@ -44,7 +44,7 @@ export function MobileLayout() {
 
   if (!ready) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-[#0a0e1a]">
+      <div className="flex h-screen w-full items-center justify-center bg-[hsl(var(--background))]">
         <div className="h-6 w-6 rounded-full border-2 border-[hsl(var(--primary))] border-t-transparent animate-spin" />
       </div>
     );
@@ -53,9 +53,9 @@ export function MobileLayout() {
   const noScroll = active === "chart" || active === "community" || active === "feed" || active === "brain" || active === "more";
 
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden" style={{ background: "#0a0e1a" }}>
+    <div className="flex flex-col h-screen w-full overflow-hidden bg-[hsl(var(--background))]">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 pt-10 pb-2 bg-[#0a0e1a] border-b border-white/5 shrink-0">
+      <div className="flex items-center justify-between px-4 pt-10 pb-2 bg-[hsl(var(--background))] border-b border-white/5 shrink-0">
         <TradeXLogo variant="wordmark" size="xs" />
         <div className="flex items-center gap-1.5">
           <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--primary))] animate-pulse" />
@@ -77,7 +77,7 @@ export function MobileLayout() {
       </div>
 
       {/* Bottom tab bar */}
-      <div className="shrink-0 border-t border-white/5 bg-[#080b14] pb-4">
+      <div className="shrink-0 border-t border-white/5 bg-[hsl(var(--card))] pb-4">
         <div className="grid grid-cols-6">
           {TABS.map(({ id, label, Icon }) => {
             const isActive = active === id;
