@@ -86,7 +86,7 @@ export function MobileLayout() {
     );
   }
 
-  const noScroll = active === "chart" || active === "community" || active === "feed" || active === "brain" || active === "more";
+  const noScroll = active === "chart" || active === "community" || active === "more" || active === "feed";
 
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-[hsl(var(--background))]">
