@@ -9,13 +9,21 @@ import { LiveNewsTicker } from "@/components/shared/LiveNewsTicker";
 import { EconomicEventTable } from "@/components/shared/EconomicEventTable";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useEconomicCalendar, useCatalysts, useNews } from "@/hooks/useMarketData";
-import { Zap, Radio, CheckCircle2, Clock, CalendarDays, Wifi, WifiOff, Newspaper } from "lucide-react";
+import { Zap, Radio, CheckCircle2, Clock, CalendarDays, Wifi, WifiOff, Newspaper, Tv } from "lucide-react";
+
+const LIVE_CHANNELS = [
+  { id: "bloomberg", name: "Bloomberg TV", embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCIALMKvObZNtJ6AmdCLP7Lg&autoplay=1" },
+  { id: "cnbc",      name: "CNBC",         embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCrp_UI8XtuYfpiqluWLD7Lw&autoplay=1" },
+  { id: "reuters",   name: "Reuters",      embedUrl: "https://www.youtube.com/embed/live_stream?channel=UChqUTb7kYRX8-EiaN3XFrSQ&autoplay=1" },
+  { id: "aljazeera", name: "Al Jazeera",   embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCNye-wNBqNL5ZzHSJdse18g&autoplay=1" },
+];
 
 export default function CatalystsPage() {
   const { events: economicEvents } = useEconomicCalendar();
   const { catalysts, isLive: isCatalystsLive } = useCatalysts();
-  const { news, isLive: isNewsLive } = useNews(60_000); // refresh every 60s
+  const { news, isLive: isNewsLive } = useNews(60_000);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [activeChannel, setActiveChannel] = useState(LIVE_CHANNELS[0]);
 
   useEffect(() => {
     if (isNewsLive) setLastUpdated(new Date());
@@ -58,11 +66,11 @@ export default function CatalystsPage() {
             <Clock className="h-3 w-3" /> Upcoming
           </TabsTrigger>
           <TabsTrigger value="news" className="gap-1">
-            <Newspaper className="h-3 w-3" />
-            Live News
+            <Tv className="h-3 w-3" />
+            Live
             <span className="relative flex h-1.5 w-1.5 ml-0.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-500" />
             </span>
           </TabsTrigger>
         </TabsList>
@@ -121,24 +129,57 @@ export default function CatalystsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="news">
+        <TabsContent value="news" className="space-y-3">
+          {/* Video player */}
+          <div className="rounded-xl border border-white/8 overflow-hidden bg-black">
+            {/* Channel switcher */}
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-white/6 bg-[#0a0b0e]">
+              <div className="flex items-center gap-1.5 mr-2">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-500" />
+                </span>
+                <span className="text-[9px] font-bold text-red-400 uppercase tracking-wider">Live TV</span>
+              </div>
+              {LIVE_CHANNELS.map(ch => (
+                <button
+                  key={ch.id}
+                  onClick={() => setActiveChannel(ch)}
+                  className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${
+                    activeChannel.id === ch.id
+                      ? "bg-white/15 text-white"
+                      : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+                >
+                  {ch.name}
+                </button>
+              ))}
+            </div>
+            {/* 16:9 iframe */}
+            <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+              <iframe
+                key={activeChannel.id}
+                src={activeChannel.embedUrl}
+                className="absolute inset-0 w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                title={activeChannel.name}
+              />
+            </div>
+          </div>
+
+          {/* Live news feed below video */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2">
-                <div className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-                </div>
-                <span>Live Market News</span>
-                <span className="text-[10px] font-normal text-[hsl(var(--muted-foreground))] ml-1">
-                  Forex · Macro · Crypto · Commodities
-                </span>
-                <div className="ml-auto flex items-center gap-1.5">
-                  {isNewsLive ? (
-                    <><Wifi className="h-3 w-3 text-emerald-500" /><span className="text-[10px] text-emerald-500">LIVE · refreshes every 60s</span></>
-                  ) : (
-                    <><WifiOff className="h-3 w-3 text-amber-500" /><span className="text-[10px] text-amber-500">CACHED</span></>
-                  )}
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Newspaper className="h-3.5 w-3.5" />
+                <span>Live Headlines</span>
+                <span className="text-[10px] font-normal text-[hsl(var(--muted-foreground))]">Forex · Macro · Crypto</span>
+                <div className="ml-auto flex items-center gap-1">
+                  {isNewsLive
+                    ? <><Wifi className="h-3 w-3 text-emerald-500" /><span className="text-[10px] text-emerald-500">60s refresh</span></>
+                    : <><WifiOff className="h-3 w-3 text-amber-500" /><span className="text-[10px] text-amber-500">CACHED</span></>
+                  }
                 </div>
               </CardTitle>
             </CardHeader>
