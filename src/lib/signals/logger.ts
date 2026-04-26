@@ -7,7 +7,7 @@
 
 import type { AgentRunResult } from "@/lib/agents/schemas";
 import type { SignalRecord, SignalTradePlan } from "./types";
-import { saveSignal } from "./storage";
+import { saveSignal, getOpenSignals } from "./storage";
 
 /**
  * Build a stable, unique ID from agent run metadata.
@@ -15,9 +15,33 @@ import { saveSignal } from "./storage";
  * cache-hit re-renders don't create duplicate records.
  */
 function buildId(result: AgentRunResult): string {
-  // Round to nearest minute to deduplicate tight reruns
-  const minute = Math.floor(new Date(result.timestamp).getTime() / 60_000);
-  return `${minute}_${result.symbol}_${result.timeframe}`;
+  const isNoTrade = result.agents.master.finalBias === "no-trade";
+  // No-trade signals: bucket into 30-min windows to avoid spamming identical INFO rows
+  const bucket = isNoTrade ? 30 : 1;
+  const slot = Math.floor(new Date(result.timestamp).getTime() / (60_000 * bucket));
+  return `${slot}_${result.symbol}_${result.timeframe}`;
+}
+
+/**
+ * Returns true if an identical armed signal is already OPEN for this symbol.
+ * Prevents the same entry/SL/TP from being logged on every hourly agent run.
+ */
+async function isDuplicateArmedSignal(result: AgentRunResult): Promise<boolean> {
+  const plan = result.agents.master.tradePlan;
+  if (!plan) return false; // no-trade signals — don't dedup here
+
+  try {
+    const openSignals = await getOpenSignals();
+    return openSignals.some(s =>
+      s.symbol === result.symbol &&
+      s.tradePlan !== null &&
+      s.tradePlan.entry     === plan.entry &&
+      s.tradePlan.stopLoss  === plan.stopLoss &&
+      s.tradePlan.tp1       === plan.tp1
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -43,6 +67,11 @@ function extractTradePlan(result: AgentRunResult): SignalTradePlan | null {
  */
 export async function logSignal(result: AgentRunResult): Promise<SignalRecord | null> {
   try {
+    // Skip if an open armed signal with the exact same entry/SL/TP already exists.
+    if (await isDuplicateArmedSignal(result)) {
+      return null;
+    }
+
     const master = result.agents.master;
     const snapshot = result.snapshot;
 
