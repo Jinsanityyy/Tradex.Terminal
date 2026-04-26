@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { LayoutDashboard, TrendingUp, Zap, BarChart3, Users, Grid } from "lucide-react";
+import React, { useEffect, useState, useRef } from "react";
+import { LayoutDashboard, TrendingUp, Zap, BarChart3, Users, Grid, Camera, LogOut, X } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import { cn } from "@/lib/utils";
 import { MobileHome } from "@/components/mobile/MobileHome";
@@ -11,6 +11,8 @@ import { MobileBrain } from "@/components/mobile/MobileBrain";
 import { MobileMore } from "@/components/mobile/MobileMore";
 import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { createClient } from "@/lib/supabase/client";
+
+const TRADER_NAME_KEY = "tradex_trader_name";
 
 const TABS = [
   { id: "home",      label: "Home",    Icon: LayoutDashboard },
@@ -26,21 +28,55 @@ type TabId = (typeof TABS)[number]["id"];
 export function MobileLayout() {
   const [active, setActive] = useState<TabId>("home");
   const [ready, setReady] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [traderName, setTraderName] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const supabase = createClient();
-    if (!supabase) {
-      setReady(true);
-      return;
-    }
+    if (!supabase) { setReady(true); return; }
     supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) {
-        window.location.href = "/login";
-      } else {
-        setReady(true);
-      }
+      if (!data.session) { window.location.href = "/login"; } 
+      else { setReady(true); }
     });
+    // Load saved name + avatar
+    const saved = localStorage.getItem(TRADER_NAME_KEY);
+    if (saved) setTraderName(saved);
+    const savedAvatar = localStorage.getItem("tradex_avatar");
+    if (savedAvatar) setAvatar(savedAvatar);
   }, []);
+
+  function saveName() {
+    const trimmed = draft.trim();
+    if (trimmed) {
+      setTraderName(trimmed);
+      localStorage.setItem(TRADER_NAME_KEY, trimmed);
+    }
+    setEditing(false);
+  }
+
+  function handleAvatar(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const b64 = ev.target?.result as string;
+      setAvatar(b64);
+      localStorage.setItem("tradex_avatar", b64);
+      // Trigger storage event for CommunityPanel
+      window.dispatchEvent(new StorageEvent("storage", { key: "tradex_avatar", newValue: b64 }));
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function handleLogout() {
+    const supabase = createClient();
+    if (supabase) await supabase.auth.signOut();
+    window.location.href = "/login";
+  }
 
   if (!ready) {
     return (
@@ -57,11 +93,98 @@ export function MobileLayout() {
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 pt-10 pb-2 bg-[hsl(var(--background))] border-b border-white/5 shrink-0">
         <TradeXLogo variant="wordmark" size="xs" />
-        <div className="flex items-center gap-1.5">
-          <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--primary))] animate-pulse" />
-          <span className="text-[9px] text-[hsl(var(--primary))] font-medium tracking-wider uppercase">Live</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--primary))] animate-pulse" />
+            <span className="text-[9px] text-[hsl(var(--primary))] font-medium tracking-wider uppercase">Live</span>
+          </div>
+          {/* Profile button */}
+          <button onClick={() => { setShowProfile(true); setDraft(traderName); setEditing(false); }}
+            className="flex items-center justify-center w-7 h-7 rounded-full overflow-hidden border border-white/10">
+            {avatar
+              ? <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
+              : <div className="w-full h-full bg-[hsl(var(--secondary))] flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-[hsl(var(--primary))]">
+                    {(traderName || "T")[0].toUpperCase()}
+                  </span>
+                </div>
+            }
+          </button>
         </div>
       </div>
+
+      {/* Profile modal */}
+      {showProfile && (
+        <div className="absolute inset-0 z-50 flex flex-col" style={{ background: "rgba(0,0,0,0.8)" }}
+          onClick={() => setShowProfile(false)}>
+          <div className="mt-auto rounded-t-3xl bg-[hsl(var(--card))] p-5 pb-10"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <span className="text-[14px] font-semibold">Profile</span>
+              <button onClick={() => setShowProfile(false)}>
+                <X className="h-5 w-5 text-zinc-500" />
+              </button>
+            </div>
+
+            {/* Avatar */}
+            <div className="flex items-center gap-4 mb-5">
+              <button onClick={() => fileRef.current?.click()}
+                className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white/10">
+                {avatar
+                  ? <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
+                  : <div className="w-full h-full bg-[hsl(var(--secondary))] flex items-center justify-center">
+                      <span className="text-2xl font-bold text-[hsl(var(--primary))]">
+                        {(traderName || "T")[0].toUpperCase()}
+                      </span>
+                    </div>
+                }
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                  <Camera className="h-4 w-4 text-white" />
+                </div>
+              </button>
+              <div>
+                <p className="text-[13px] font-semibold text-white">{traderName || "Set your name"}</p>
+                <button onClick={() => fileRef.current?.click()}
+                  className="text-[11px] text-[hsl(var(--primary))] mt-0.5">
+                  {avatar ? "Change photo" : "Add photo"}
+                </button>
+              </div>
+            </div>
+
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatar} />
+
+            {/* Name edit */}
+            <div className="mb-4">
+              <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-2">Trader Name</p>
+              {editing ? (
+                <div className="flex gap-2">
+                  <input autoFocus value={draft} onChange={e => setDraft(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && saveName()}
+                    maxLength={20} placeholder="Your name..."
+                    className="flex-1 rounded-xl bg-[hsl(var(--secondary))] border border-[hsl(var(--primary))]/30 px-3 py-2 text-[13px] text-white outline-none" />
+                  <button onClick={saveName}
+                    className="px-4 py-2 rounded-xl bg-[hsl(var(--primary))]/20 border border-[hsl(var(--primary))]/30 text-[12px] text-[hsl(var(--primary))] font-semibold">
+                    Save
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => { setDraft(traderName); setEditing(true); }}
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-[hsl(var(--secondary))] text-[13px] text-white">
+                  <span>{traderName || "Tap to set name"}</span>
+                  <span className="text-[11px] text-[hsl(var(--primary))]">Edit</span>
+                </button>
+              )}
+            </div>
+
+            {/* Sign out */}
+            <button onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-red-500/20 bg-red-500/5 text-[13px] text-red-400">
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Page content */}
       <div className={cn(
