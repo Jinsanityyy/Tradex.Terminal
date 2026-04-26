@@ -1,24 +1,24 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { LayoutDashboard, TrendingUp, Zap, BarChart3, Settings, Users } from "lucide-react";
+import { LayoutDashboard, TrendingUp, Zap, BarChart3, Users, Grid } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import { cn } from "@/lib/utils";
 import { MobileHome } from "@/components/mobile/MobileHome";
 import { MobileChart } from "@/components/mobile/MobileChart";
 import { MobileFeed } from "@/components/mobile/MobileFeed";
 import { MobileBrain } from "@/components/mobile/MobileBrain";
-import { MobileSettings } from "@/components/mobile/MobileSettings";
+import { MobileMore } from "@/components/mobile/MobileMore";
 import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { createClient } from "@/lib/supabase/client";
 
 const TABS = [
-  { id: "home",      label: "Home",      Icon: LayoutDashboard },
-  { id: "chart",     label: "Chart",     Icon: TrendingUp },
-  { id: "feed",      label: "Feed",      Icon: Zap },
-  { id: "brain",     label: "Brain",     Icon: BarChart3 },
-  { id: "community", label: "Chat",      Icon: Users },
-  { id: "settings",  label: "More",      Icon: Settings },
+  { id: "home",      label: "Home",    Icon: LayoutDashboard },
+  { id: "chart",     label: "Chart",   Icon: TrendingUp },
+  { id: "feed",      label: "Feed",    Icon: Zap },
+  { id: "brain",     label: "Brain",   Icon: BarChart3 },
+  { id: "community", label: "Chat",    Icon: Users },
+  { id: "more",      label: "More",    Icon: Grid },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -30,8 +30,6 @@ export function MobileLayout() {
   useEffect(() => {
     const supabase = createClient();
     if (!supabase) {
-      // Guest mode — allow access without auth. Dashboard features will
-      // show empty/disabled states as needed.
       setReady(true);
       return;
     }
@@ -52,13 +50,13 @@ export function MobileLayout() {
     );
   }
 
+  const noScroll = active === "chart" || active === "community" || active === "feed" || active === "brain";
+
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden" style={{ background: "#0a0e1a" }}>
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 pt-10 pb-2 bg-[#0a0e1a] border-b border-white/5 shrink-0">
-        <div className="flex items-center">
-          <TradeXLogo variant="wordmark" size="xs" />
-        </div>
+        <TradeXLogo variant="wordmark" size="xs" />
         <div className="flex items-center gap-1.5">
           <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--primary))] animate-pulse" />
           <span className="text-[9px] text-[hsl(var(--primary))] font-medium tracking-wider uppercase">Live</span>
@@ -68,16 +66,14 @@ export function MobileLayout() {
       {/* Page content */}
       <div className={cn(
         "flex-1 min-h-0",
-        active === "chart" || active === "community"
-          ? "overflow-hidden flex flex-col"
-          : "overflow-y-auto overscroll-none"
+        noScroll ? "overflow-hidden flex flex-col" : "overflow-y-auto overscroll-none"
       )}>
         {active === "home"      && <MobileHome />}
         {active === "chart"     && <MobileChart />}
         {active === "feed"      && <MobileFeed />}
         {active === "brain"     && <MobileBrain />}
         {active === "community" && <CommunityPanel />}
-        {active === "settings"  && <MobileSettings />}
+        {active === "more"      && <MobileMore />}
       </div>
 
       {/* Bottom tab bar */}
@@ -86,23 +82,12 @@ export function MobileLayout() {
           {TABS.map(({ id, label, Icon }) => {
             const isActive = active === id;
             return (
-              <button
-                key={id}
-                onClick={() => setActive(id)}
-                className="flex flex-col items-center justify-center gap-0.5 py-3 transition-colors"
-              >
-                <Icon
-                  className={cn(
-                    "w-5 h-5 transition-colors",
-                    isActive ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]"
-                  )}
-                />
-                <span
-                  className={cn(
-                    "text-[9px] font-medium tracking-wide transition-colors",
-                    isActive ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]"
-                  )}
-                >
+              <button key={id} onClick={() => setActive(id)}
+                className="flex flex-col items-center justify-center gap-0.5 py-3 transition-colors relative">
+                <Icon className={cn("w-5 h-5 transition-colors",
+                  isActive ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]")} />
+                <span className={cn("text-[9px] font-medium tracking-wide transition-colors",
+                  isActive ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]")}>
                   {label}
                 </span>
                 {isActive && (
