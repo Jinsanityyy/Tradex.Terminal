@@ -16,11 +16,13 @@ const MarketBiasPage     = dynamic(() => import("@/app/dashboard/market-bias/pag
 const CatalystsPage      = dynamic(() => import("@/app/dashboard/catalysts/page"),            { ssr: false });
 const CalendarPage       = dynamic(() => import("@/app/dashboard/economic-calendar/page"),    { ssr: false });
 const TrumpPage          = dynamic(() => import("@/app/dashboard/trump-monitor/page"),        { ssr: false });
-const SignalsPage         = dynamic(() => import("@/app/dashboard/signals/page"),              { ssr: false });
+const SignalsPage        = dynamic(() => import("@/app/dashboard/signals/page"),              { ssr: false });
 const NewsFlowPage       = dynamic(() => import("@/app/dashboard/news-flow/page"),            { ssr: false });
 const SessionIntelPage   = dynamic(() => import("@/app/dashboard/session-intelligence/page"), { ssr: false });
 const AssetMatrixPage    = dynamic(() => import("@/app/dashboard/asset-matrix/page"),         { ssr: false });
 const MarketIntelPage    = dynamic(() => import("@/app/dashboard/market-intelligence/page"),  { ssr: false });
+const PnlCalendarPage    = dynamic(() => import("@/app/dashboard/pnl-calendar/page"),        { ssr: false });
+const SettingsPage       = dynamic(() => import("@/app/dashboard/settings/page"),             { ssr: false });
 
 interface AppDef {
   id: string;
@@ -40,7 +42,9 @@ const ALL_APPS: AppDef[] = [
   { id: "trump-monitor",        label: "Trump",           icon: AtSign,     color: "#f59e0b", component: TrumpPage },
   { id: "news-flow",            label: "News Flow",       icon: Radio,      color: "#10b981", component: NewsFlowPage },
   { id: "signals",              label: "Signals",         icon: Activity,   color: "#10b981", component: SignalsPage },
+  { id: "pnl-calendar",         label: "PnL Calendar",   icon: DollarSign, color: "#f59e0b", component: PnlCalendarPage },
   { id: "brain",                label: "Brain Terminal",  icon: Brain,      color: "#8b5cf6", component: MobileBrain },
+  { id: "settings",             label: "Settings",        icon: Shield,     color: "#6b7280", component: SettingsPage },
 ];
 
 const FOLDERS = [
@@ -60,7 +64,7 @@ const FOLDERS = [
     id: "trading",
     label: "Trading",
     color: "#10b981",
-    appIds: ["signals", "brain"],
+    appIds: ["signals", "pnl-calendar", "brain", "settings"],
   },
 ];
 
