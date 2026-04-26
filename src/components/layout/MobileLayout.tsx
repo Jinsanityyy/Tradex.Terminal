@@ -54,8 +54,10 @@ export function MobileLayout() {
     let myUserId: string | null = null;
     supabase.auth.getUser().then(({ data }) => { myUserId = data.user?.id ?? null; });
 
-    const ready = setTimeout(() => {
-      const channel = supabase
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const timer = setTimeout(() => {
+      channel = supabase
         .channel("mobile-chat-badge")
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
           const msg = payload.new as { user_id: string };
@@ -63,10 +65,12 @@ export function MobileLayout() {
           setUnreadChat(n => n + 1);
         })
         .subscribe();
-      return () => supabase.removeChannel(channel);
     }, 2000);
 
-    return () => clearTimeout(ready);
+    return () => {
+      clearTimeout(timer);
+      if (channel) supabase.removeChannel(channel);
+    };
   }, []);
 
   function saveName() {
