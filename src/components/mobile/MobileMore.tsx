@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
 import { 
-  BarChart2, Calendar, TrendingUp, Activity, 
+  Calendar, TrendingUp, Activity, 
   Radio, Brain, Clock, History, DollarSign,
-  Shield, AtSign, Newspaper, X, LayoutGrid
+  Shield, AtSign, Newspaper, X, LayoutGrid,
+  ChevronLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -59,34 +59,67 @@ const FOLDERS: Folder[] = [
   },
 ];
 
+function go(href: string) {
+  window.location.href = href;
+}
+
 export function MobileMore() {
-  const router = useRouter();
   const [openFolder, setOpenFolder] = useState<Folder | null>(null);
 
-  function navigate(href: string) {
-    setOpenFolder(null);
-    router.push(href);
+  // When folder is open — show folder content view
+  if (openFolder) {
+    return (
+      <div className="h-full flex flex-col bg-[#0a0e1a] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 pt-4 pb-3 border-b border-white/5">
+          <button onClick={() => setOpenFolder(null)}
+            className="flex items-center gap-1 text-zinc-400 active:text-white">
+            <ChevronLeft className="h-5 w-5" />
+            <span className="text-[12px]">More</span>
+          </button>
+          <span className="text-[13px] font-semibold text-white ml-2">{openFolder.label}</span>
+        </div>
+
+        {/* App grid */}
+        <div className="grid grid-cols-3 gap-6 px-6 py-8">
+          {openFolder.apps.map(app => {
+            const Icon = app.icon;
+            return (
+              <button key={app.href}
+                onClick={() => go(app.href)}
+                className="flex flex-col items-center gap-2 active:opacity-70">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                  style={{ background: `${app.color}25`, border: `1px solid ${app.color}40` }}>
+                  <Icon className="h-7 w-7" style={{ color: app.color }} />
+                </div>
+                <span className="text-[11px] text-zinc-300 text-center">{app.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
   }
 
+  // Main grid view
   return (
-    <div className="h-full px-6 py-6 pb-24 overflow-y-auto">
+    <div className="h-full overflow-y-auto px-6 py-6 pb-24">
       <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 mb-6">All Features</p>
 
-      {/* Folder grid */}
       <div className="grid grid-cols-3 gap-6">
         {FOLDERS.map(folder => (
           <button key={folder.id}
             onClick={() => setOpenFolder(folder)}
-            className="flex flex-col items-center gap-2">
-            {/* Folder icon — 2x2 mini grid */}
-            <div className="w-full aspect-square rounded-2xl p-1.5 grid grid-cols-2 grid-rows-2 gap-1"
-              style={{ background: `${folder.color}20`, border: `1px solid ${folder.color}30` }}>
+            className="flex flex-col items-center gap-2 active:opacity-70">
+            {/* Folder — 2x2 mini grid */}
+            <div className="w-full aspect-square rounded-2xl p-2 grid grid-cols-2 grid-rows-2 gap-1.5"
+              style={{ background: `${folder.color}18`, border: `1px solid ${folder.color}30` }}>
               {folder.apps.slice(0, 4).map((app, i) => {
                 const Icon = app.icon;
                 return (
                   <div key={i} className="rounded-lg flex items-center justify-center"
                     style={{ background: `${app.color}30` }}>
-                    <Icon className="h-3 w-3" style={{ color: app.color }} />
+                    <Icon className="h-3.5 w-3.5" style={{ color: app.color }} />
                   </div>
                 );
               })}
@@ -95,50 +128,6 @@ export function MobileMore() {
           </button>
         ))}
       </div>
-
-      {/* Folder overlay */}
-      {openFolder && (
-        <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm"
-            onClick={() => setOpenFolder(null)}
-          />
-
-          {/* Sheet */}
-          <div className="fixed bottom-24 left-4 right-4 z-50 rounded-3xl p-5"
-            style={{ background: "rgba(18,20,28,0.98)", border: "1px solid rgba(255,255,255,0.12)" }}>
-            
-            {/* Header */}
-            <div className="flex items-center justify-between mb-5">
-              <span className="text-[14px] font-semibold text-white">{openFolder.label}</span>
-              <button
-                onClick={() => setOpenFolder(null)}
-                className="h-7 w-7 rounded-full bg-white/10 flex items-center justify-center">
-                <X className="h-4 w-4 text-zinc-300" />
-              </button>
-            </div>
-
-            {/* App icons */}
-            <div className="grid grid-cols-4 gap-3">
-              {openFolder.apps.map(app => {
-                const Icon = app.icon;
-                return (
-                  <button key={app.href}
-                    onClick={() => navigate(app.href)}
-                    className="flex flex-col items-center gap-1.5">
-                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                      style={{ background: `${app.color}25`, border: `1px solid ${app.color}40` }}>
-                      <Icon className="h-6 w-6" style={{ color: app.color }} />
-                    </div>
-                    <span className="text-[10px] text-zinc-400 text-center leading-tight">{app.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </>
-      )}
     </div>
   );
 }
