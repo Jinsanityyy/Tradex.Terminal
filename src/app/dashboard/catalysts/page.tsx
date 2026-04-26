@@ -53,7 +53,7 @@ export default function CatalystsPage() {
       {/* Live scrolling news ticker — always visible */}
       <LiveNewsTicker items={news} isLive={isNewsLive} />
 
-      <Tabs defaultValue="all">
+      <Tabs defaultValue="news">
         <TabsList>
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="live" className="gap-1">
