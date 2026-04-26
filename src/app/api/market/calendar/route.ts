@@ -634,6 +634,69 @@ function generatePostEvent(title: string, forecast: string, previous: string): {
   };
 }
 
+// ── Known recurring USD high-impact events (fallback when API has no upcoming) ─
+// Times are in UTC (13:30 = 8:30 AM ET = 21:30 PHT)
+const WEEKLY_SCHEDULE: Array<{
+  dayOffset: number; // 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri
+  utcHour: number;
+  utcMin: number;
+  title: string;
+  impact: "high" | "medium";
+}> = [
+  { dayOffset: 1, utcHour: 14, utcMin: 0,  title: "CB Consumer Confidence",          impact: "medium" },
+  { dayOffset: 1, utcHour: 14, utcMin: 0,  title: "JOLTS Job Openings",              impact: "high"   },
+  { dayOffset: 2, utcHour: 12, utcMin: 15, title: "ADP Non-Farm Employment Change",  impact: "high"   },
+  { dayOffset: 2, utcHour: 12, utcMin: 30, title: "GDP q/q (Advance)",               impact: "high"   },
+  { dayOffset: 2, utcHour: 14, utcMin: 0,  title: "ISM Manufacturing PMI",           impact: "high"   },
+  { dayOffset: 3, utcHour: 12, utcMin: 30, title: "Unemployment Claims",             impact: "high"   },
+  { dayOffset: 3, utcHour: 12, utcMin: 30, title: "Core PCE Price Index m/m",        impact: "high"   },
+  { dayOffset: 4, utcHour: 12, utcMin: 30, title: "Non-Farm Payrolls",               impact: "high"   },
+  { dayOffset: 4, utcHour: 12, utcMin: 30, title: "Unemployment Rate",               impact: "high"   },
+];
+
+function buildFallbackUpcoming(now: Date): EconomicEvent[] {
+  // Find next Monday
+  const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon ... 6=Sat
+  const daysToMonday = dayOfWeek === 0 ? 1 : dayOfWeek === 6 ? 2 : 8 - dayOfWeek;
+  const monday = new Date(now);
+  monday.setUTCDate(now.getUTCDate() + daysToMonday);
+  monday.setUTCHours(0, 0, 0, 0);
+
+  return WEEKLY_SCHEDULE.map((s, i) => {
+    const eventTime = new Date(monday);
+    eventTime.setUTCDate(monday.getUTCDate() + s.dayOffset);
+    eventTime.setUTCHours(s.utcHour, s.utcMin, 0, 0);
+
+    const analysis = analyzeEvent(s.title, "", "", false);
+    const pre = generatePreEvent(s.title, "", "");
+
+    return {
+      id: `fallback-${i}`,
+      time: eventTime.toLocaleTimeString("en-US", {
+        hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Manila",
+      }),
+      date: eventTime.toISOString().split("T")[0],
+      utcTimestamp: eventTime.getTime(),
+      currency: "USD",
+      country: "US",
+      event: s.title,
+      impact: s.impact,
+      forecast: "—",
+      previous: "—",
+      interpretation: analysis.tradeImplication,
+      affectedAssets: ["XAUUSD", "DXY", "EURUSD", ...deriveExtraAssets(s.title)],
+      status: "upcoming" as const,
+      goldImpact: analysis.goldImpact,
+      goldReasoning: analysis.goldReasoning,
+      usdImpact: analysis.usdImpact,
+      usdReasoning: analysis.usdReasoning,
+      tradeImplication: analysis.tradeImplication,
+      preEventSummary: pre.preEventSummary,
+      preEventBullets: pre.preEventBullets,
+    };
+  });
+}
+
 async function fetchFFWeek(url: string): Promise<FFEvent[]> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10000);
@@ -726,11 +789,15 @@ export async function GET() {
         };
       });
 
-    if (mapped.length > 0) {
-      cache = { data: mapped, ts: Date.now() };
+    // If API returned no upcoming events, inject known next-week schedule as fallback
+    const hasUpcoming = mapped.some(e => e.status === "upcoming" || e.status === "live");
+    const final = hasUpcoming ? mapped : [...mapped, ...buildFallbackUpcoming(now)];
+
+    if (final.length > 0) {
+      cache = { data: final, ts: Date.now() };
     }
 
-    return NextResponse.json({ data: mapped, timestamp: Date.now(), count: mapped.length });
+    return NextResponse.json({ data: final, timestamp: Date.now(), count: final.length });
   } catch (error: any) {
     console.error("Calendar error:", error?.message);
     return NextResponse.json({ data: cache.data, timestamp: Date.now(), error: "fetch failed" });
