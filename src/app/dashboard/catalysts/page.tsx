@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CatalystFeed } from "@/components/shared/CatalystFeed";
 import { NewsFeed } from "@/components/shared/NewsFeed";
+import { LiveNewsTicker } from "@/components/shared/LiveNewsTicker";
 import { EconomicEventTable } from "@/components/shared/EconomicEventTable";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useEconomicCalendar, useCatalysts, useNews } from "@/hooks/useMarketData";
@@ -40,6 +41,9 @@ export default function CatalystsPage() {
           )}
         </div>
       </div>
+
+      {/* Live scrolling news ticker — always visible */}
+      <LiveNewsTicker items={news} isLive={isNewsLive} />
 
       <Tabs defaultValue="all">
         <TabsList>
