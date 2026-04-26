@@ -149,20 +149,26 @@ export default function EconomicCalendarPage() {
       )}
 
       {/* Upcoming */}
-      {upcoming.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-blue-400" />
-              <span>Upcoming</span>
-              <Badge variant="default" className="ml-auto">{upcoming.length}</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-blue-400" />
+            <span>Upcoming</span>
+            <Badge variant="default" className="ml-auto">{upcoming.length}</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {upcoming.length > 0 ? (
             <EconomicEventTable events={upcoming} />
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
+              <Clock className="h-5 w-5 text-zinc-700" />
+              <p className="text-xs text-zinc-500">No upcoming events scheduled</p>
+              <p className="text-[10px] text-zinc-600">Next week&apos;s calendar is usually published Sunday night — check back then.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Completed */}
       {completed.length > 0 && (
