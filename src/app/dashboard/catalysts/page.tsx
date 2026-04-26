@@ -129,64 +129,61 @@ export default function CatalystsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="news" className="space-y-3">
-          {/* Video player */}
-          <div className="rounded-xl border border-white/8 overflow-hidden bg-black">
-            {/* Channel switcher */}
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-white/6 bg-[#0a0b0e]">
-              <div className="flex items-center gap-1.5 mr-2">
+        <TabsContent value="news">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {/* Compact video panel */}
+            <div className="rounded-xl border border-white/8 overflow-hidden bg-black">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-white/6 bg-[#0a0b0e]">
                 <span className="relative flex h-1.5 w-1.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-500" />
                 </span>
                 <span className="text-[9px] font-bold text-red-400 uppercase tracking-wider">Live TV</span>
-              </div>
-              {LIVE_CHANNELS.map(ch => (
-                <button
-                  key={ch.id}
-                  onClick={() => setActiveChannel(ch)}
-                  className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${
-                    activeChannel.id === ch.id
-                      ? "bg-white/15 text-white"
-                      : "text-zinc-500 hover:text-zinc-300"
-                  }`}
-                >
-                  {ch.name}
-                </button>
-              ))}
-            </div>
-            {/* 16:9 iframe */}
-            <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-              <iframe
-                key={activeChannel.id}
-                src={activeChannel.embedUrl}
-                className="absolute inset-0 w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                title={activeChannel.name}
-              />
-            </div>
-          </div>
-
-          {/* Live news feed below video */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <Newspaper className="h-3.5 w-3.5" />
-                <span>Live Headlines</span>
-                <span className="text-[10px] font-normal text-[hsl(var(--muted-foreground))]">Forex · Macro · Crypto</span>
-                <div className="ml-auto flex items-center gap-1">
-                  {isNewsLive
-                    ? <><Wifi className="h-3 w-3 text-emerald-500" /><span className="text-[10px] text-emerald-500">60s refresh</span></>
-                    : <><WifiOff className="h-3 w-3 text-amber-500" /><span className="text-[10px] text-amber-500">CACHED</span></>
-                  }
+                <div className="flex gap-1 ml-2">
+                  {LIVE_CHANNELS.map(ch => (
+                    <button
+                      key={ch.id}
+                      onClick={() => setActiveChannel(ch)}
+                      className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-colors ${
+                        activeChannel.id === ch.id ? "bg-white/15 text-white" : "text-zinc-500 hover:text-zinc-300"
+                      }`}
+                    >
+                      {ch.name}
+                    </button>
+                  ))}
                 </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <NewsFeed items={news} />
-            </CardContent>
-          </Card>
+              </div>
+              <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+                <iframe
+                  key={activeChannel.id}
+                  src={activeChannel.embedUrl}
+                  className="absolute inset-0 w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  title={activeChannel.name}
+                />
+              </div>
+            </div>
+
+            {/* Live headlines beside the video */}
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Newspaper className="h-3.5 w-3.5" />
+                  <span>Live Headlines</span>
+                  <div className="ml-auto flex items-center gap-1">
+                    {isNewsLive
+                      ? <><Wifi className="h-3 w-3 text-emerald-500" /><span className="text-[10px] text-emerald-500">60s</span></>
+                      : <WifiOff className="h-3 w-3 text-amber-500" />
+                    }
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="max-h-[360px] overflow-y-auto">
+                <NewsFeed items={news} compact />
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
