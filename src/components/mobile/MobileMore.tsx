@@ -11,9 +11,10 @@ import {
 import { cn } from "@/lib/utils";
 
 interface AppItem {
+  colorHex?: string;
   href: string;
   label: string;
-  icon: React.FC<{ className?: string }>;
+  icon: React.FC<{ className?: string; style?: React.CSSProperties }>;
   color: string;
 }
 
