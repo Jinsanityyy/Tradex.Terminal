@@ -70,23 +70,33 @@ export function CommunityPanel() {
   useEffect(() => {
     const sb = createClient();
     if (!sb) return;
-    sb.auth.getUser().then(({ data }) => {
-      const user = data.user;
-      if (!user) return;
-      setUserId(user.id);
-      const saved = localStorage.getItem(TRADER_NAME_KEY);
-      if (!saved) {
-        sb.from("profiles").select("display_name, email").eq("id", user.id).maybeSingle()
-          .then(({ data: profile }) => {
-            const name = profile?.display_name ?? user.email?.split("@")[0] ?? "Trader";
-            setTraderName(name);
-            localStorage.setItem(TRADER_NAME_KEY, name);
-          });
+    // Use getSession first (faster, cached), fallback to getUser
+    sb.auth.getSession().then(({ data: sessionData }) => {
+      const user = sessionData.session?.user;
+      if (user) {
+        setUserId(user.id);
+        const saved = localStorage.getItem(TRADER_NAME_KEY);
+        if (!saved) {
+          sb.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
+            .then(({ data: profile }) => {
+              const name = profile?.display_name ?? user.email?.split("@")[0] ?? "Trader";
+              setTraderName(name);
+              localStorage.setItem(TRADER_NAME_KEY, name);
+            });
+        } else {
+          setTraderName(saved);
+        }
       } else {
-        setTraderName(saved);
+        // Fallback to getUser
+        sb.auth.getUser().then(({ data }) => {
+          if (data.user) {
+            setUserId(data.user.id);
+            const saved = localStorage.getItem(TRADER_NAME_KEY);
+            setTraderName(saved ?? data.user.email?.split("@")[0] ?? "Trader");
+          }
+        });
       }
     });
-    // Load avatar from localStorage
     const savedAvatar = localStorage.getItem("tradex_avatar");
     if (savedAvatar) setMyAvatar(savedAvatar);
     const onStorage = (e: StorageEvent) => {

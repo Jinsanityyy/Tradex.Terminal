@@ -70,12 +70,12 @@ export function MobileChart() {
       </div>
 
       {/* Chart */}
-      <div className="flex-1 overflow-hidden min-h-0">
+      <div className="flex-1 overflow-hidden min-h-0" style={{ minHeight: "300px" }}>
         <ChartErrorBoundary onReset={() => setChartKey((k) => k + 1)}>
           <TradingViewChart
             key={`${symbol}-${chartKey}`}
             symbol={symbol}
-            heightClass="h-full min-h-[300px]"
+            heightClass="h-full"
           />
         </ChartErrorBoundary>
       </div>
