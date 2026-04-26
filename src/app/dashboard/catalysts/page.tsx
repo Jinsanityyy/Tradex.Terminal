@@ -55,29 +55,25 @@ export default function CatalystsPage() {
 
       <Tabs defaultValue="news">
         <TabsList>
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="live" className="gap-1">
-            <Radio className="h-3 w-3" /> Live
+          <TabsTrigger value="news" className="gap-1.5">
+            <Tv className="h-3 w-3" />
+            Live TV
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-500" />
+            </span>
           </TabsTrigger>
+          <TabsTrigger value="all">Catalysts</TabsTrigger>
           <TabsTrigger value="completed" className="gap-1">
             <CheckCircle2 className="h-3 w-3" /> Completed
           </TabsTrigger>
           <TabsTrigger value="upcoming" className="gap-1">
             <Clock className="h-3 w-3" /> Upcoming
           </TabsTrigger>
-          <TabsTrigger value="news" className="gap-1">
-            <Tv className="h-3 w-3" />
-            Live
-            <span className="relative flex h-1.5 w-1.5 ml-0.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-500" />
-            </span>
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="all">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {/* Live / Developing */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2">
@@ -90,8 +86,6 @@ export default function CatalystsPage() {
                 <CatalystFeed catalysts={liveCatalysts} />
               </CardContent>
             </Card>
-
-            {/* Recent Completed */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2">
@@ -105,10 +99,6 @@ export default function CatalystsPage() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-
-        <TabsContent value="live">
-          <CatalystFeed catalysts={liveCatalysts} />
         </TabsContent>
 
         <TabsContent value="completed">
