@@ -11,6 +11,7 @@ import { MobileBrain } from "@/components/mobile/MobileBrain";
 import { MobileMore } from "@/components/mobile/MobileMore";
 import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { createClient } from "@/lib/supabase/client";
+import { NotificationToast } from "@/components/shared/NotificationToast";
 
 const TRADER_NAME_KEY = "tradex_trader_name";
 
@@ -90,6 +91,7 @@ export function MobileLayout() {
 
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-[hsl(var(--background))]">
+      <NotificationToast />
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 pt-10 pb-2 bg-[hsl(var(--background))] border-b border-white/5 shrink-0">
         <TradeXLogo variant="wordmark" size="xs" />

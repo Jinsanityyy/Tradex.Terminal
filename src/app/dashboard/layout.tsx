@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopStatusBar } from "@/components/layout/TopStatusBar";
 import { ArrowLeft } from "lucide-react";
+import { NotificationToast } from "@/components/shared/NotificationToast";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -13,6 +14,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <>
+      <NotificationToast />
       {/* Mobile layout — shown on small screens */}
       <div className="flex flex-col min-h-screen bg-[hsl(var(--background))] lg:hidden">
         {isDashboardHome ? (
