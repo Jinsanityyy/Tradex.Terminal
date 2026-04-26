@@ -34,6 +34,7 @@ export function MobileLayout() {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [avatar, setAvatar] = useState<string | null>(null);
+  const [unreadChat, setUnreadChat] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -48,6 +49,24 @@ export function MobileLayout() {
     if (saved) setTraderName(saved);
     const savedAvatar = localStorage.getItem("tradex_avatar");
     if (savedAvatar) setAvatar(savedAvatar);
+
+    // Listen for new chat messages — increment badge
+    let myUserId: string | null = null;
+    supabase.auth.getUser().then(({ data }) => { myUserId = data.user?.id ?? null; });
+
+    const ready = setTimeout(() => {
+      const channel = supabase
+        .channel("mobile-chat-badge")
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+          const msg = payload.new as { user_id: string };
+          if (msg.user_id === myUserId) return;
+          setUnreadChat(n => n + 1);
+        })
+        .subscribe();
+      return () => supabase.removeChannel(channel);
+    }, 2000);
+
+    return () => clearTimeout(ready);
   }, []);
 
   function saveName() {
@@ -206,11 +225,22 @@ export function MobileLayout() {
         <div className="grid grid-cols-6">
           {TABS.map(({ id, label, Icon }) => {
             const isActive = active === id;
+            const showBadge = id === "community" && unreadChat > 0 && active !== "community";
             return (
-              <button key={id} onClick={() => setActive(id)}
+              <button key={id} onClick={() => {
+                setActive(id);
+                if (id === "community") setUnreadChat(0);
+              }}
                 className="flex flex-col items-center justify-center gap-0.5 py-3 transition-colors relative">
-                <Icon className={cn("w-5 h-5 transition-colors",
-                  isActive ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]")} />
+                <div className="relative">
+                  <Icon className={cn("w-5 h-5 transition-colors",
+                    isActive ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]")} />
+                  {showBadge && (
+                    <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-red-500 text-[8px] font-bold text-white flex items-center justify-center px-0.5">
+                      {unreadChat > 9 ? "9+" : unreadChat}
+                    </span>
+                  )}
+                </div>
                 <span className={cn("text-[9px] font-medium tracking-wide transition-colors",
                   isActive ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]")}>
                   {label}
