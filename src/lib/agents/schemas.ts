@@ -10,7 +10,19 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type Timeframe = "M5" | "M15" | "H1" | "H4";
-export type Symbol = "XAUUSD" | "EURUSD" | "GBPUSD" | "BTCUSD";
+export type Symbol =
+  // Metals
+  | "XAUUSD" | "XAGUSD" | "XPTUSD"
+  // Major Forex
+  | "EURUSD" | "GBPUSD" | "USDJPY" | "USDCHF" | "USDCAD" | "AUDUSD" | "NZDUSD"
+  // Cross / Minor Forex
+  | "EURJPY" | "GBPJPY" | "EURGBP" | "AUDJPY" | "CADJPY" | "CHFJPY" | "EURCAD" | "GBPCAD" | "AUDCAD" | "AUDNZD"
+  // Indices
+  | "US500" | "US100" | "US30" | "GER40" | "UK100" | "JPN225" | "AUS200" | "HK50"
+  // Crypto
+  | "BTCUSD" | "ETHUSD" | "SOLUSD" | "XRPUSD" | "BNBUSD" | "ADAUSD" | "DOTUSD" | "LNKUSD"
+  // Commodities
+  | "USOIL" | "UKOIL" | "NATGAS" | "CORN" | "WHEAT" | "COPPER";
 export type DirectionalBias = "bullish" | "bearish" | "neutral";
 export type TradeDirection = "long" | "short" | "none";
 export type FinalBias = "bullish" | "bearish" | "no-trade";

@@ -41,11 +41,55 @@ import {
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import type { EconomicEvent } from "@/types";
 
-const SYMBOLS: { id: Symbol; tv: string; label: string; short: string }[] = [
-  { id: "XAUUSD", tv: "OANDA:XAUUSD", label: "Gold", short: "XAU" },
-  { id: "EURUSD", tv: "OANDA:EURUSD", label: "EUR/USD", short: "EUR" },
-  { id: "GBPUSD", tv: "OANDA:GBPUSD", label: "GBP/USD", short: "GBP" },
-  { id: "BTCUSD", tv: "BITSTAMP:BTCUSD", label: "Bitcoin", short: "BTC" },
+const SYMBOLS: { id: Symbol; tv: string; label: string; short: string; group: string }[] = [
+  // Metals
+  { id: "XAUUSD",  tv: "OANDA:XAUUSD",       label: "Gold",       short: "XAU/USD",  group: "Metals"      },
+  { id: "XAGUSD",  tv: "OANDA:XAGUSD",        label: "Silver",     short: "XAG/USD",  group: "Metals"      },
+  { id: "XPTUSD",  tv: "OANDA:XPTUSD",        label: "Platinum",   short: "XPT/USD",  group: "Metals"      },
+  // Major Forex
+  { id: "EURUSD",  tv: "OANDA:EURUSD",        label: "Euro",       short: "EUR/USD",  group: "Forex Majors" },
+  { id: "GBPUSD",  tv: "OANDA:GBPUSD",        label: "Cable",      short: "GBP/USD",  group: "Forex Majors" },
+  { id: "USDJPY",  tv: "OANDA:USDJPY",        label: "Yen",        short: "USD/JPY",  group: "Forex Majors" },
+  { id: "USDCHF",  tv: "OANDA:USDCHF",        label: "Swissy",     short: "USD/CHF",  group: "Forex Majors" },
+  { id: "USDCAD",  tv: "OANDA:USDCAD",        label: "Loonie",     short: "USD/CAD",  group: "Forex Majors" },
+  { id: "AUDUSD",  tv: "OANDA:AUDUSD",        label: "Aussie",     short: "AUD/USD",  group: "Forex Majors" },
+  { id: "NZDUSD",  tv: "OANDA:NZDUSD",        label: "Kiwi",       short: "NZD/USD",  group: "Forex Majors" },
+  // Cross Forex
+  { id: "EURJPY",  tv: "OANDA:EURJPY",        label: "EUR/JPY",    short: "EUR/JPY",  group: "Forex Cross"  },
+  { id: "GBPJPY",  tv: "OANDA:GBPJPY",        label: "GBP/JPY",    short: "GBP/JPY",  group: "Forex Cross"  },
+  { id: "EURGBP",  tv: "OANDA:EURGBP",        label: "EUR/GBP",    short: "EUR/GBP",  group: "Forex Cross"  },
+  { id: "AUDJPY",  tv: "OANDA:AUDJPY",        label: "AUD/JPY",    short: "AUD/JPY",  group: "Forex Cross"  },
+  { id: "CADJPY",  tv: "OANDA:CADJPY",        label: "CAD/JPY",    short: "CAD/JPY",  group: "Forex Cross"  },
+  { id: "CHFJPY",  tv: "OANDA:CHFJPY",        label: "CHF/JPY",    short: "CHF/JPY",  group: "Forex Cross"  },
+  { id: "EURCAD",  tv: "OANDA:EURCAD",        label: "EUR/CAD",    short: "EUR/CAD",  group: "Forex Cross"  },
+  { id: "GBPCAD",  tv: "OANDA:GBPCAD",        label: "GBP/CAD",    short: "GBP/CAD",  group: "Forex Cross"  },
+  { id: "AUDCAD",  tv: "OANDA:AUDCAD",        label: "AUD/CAD",    short: "AUD/CAD",  group: "Forex Cross"  },
+  { id: "AUDNZD",  tv: "OANDA:AUDNZD",        label: "AUD/NZD",    short: "AUD/NZD",  group: "Forex Cross"  },
+  // Indices
+  { id: "US500",   tv: "FOREXCOM:SPX500",     label: "S&P 500",    short: "US500",    group: "Indices"      },
+  { id: "US100",   tv: "FOREXCOM:NAS100",     label: "NASDAQ 100", short: "US100",    group: "Indices"      },
+  { id: "US30",    tv: "FOREXCOM:US30",       label: "Dow Jones",  short: "US30",     group: "Indices"      },
+  { id: "GER40",   tv: "FOREXCOM:GER40",      label: "DAX 40",     short: "GER40",    group: "Indices"      },
+  { id: "UK100",   tv: "FOREXCOM:UK100",      label: "FTSE 100",   short: "UK100",    group: "Indices"      },
+  { id: "JPN225",  tv: "FOREXCOM:JPN225",     label: "Nikkei 225", short: "JPN225",   group: "Indices"      },
+  { id: "AUS200",  tv: "FOREXCOM:AUS200",     label: "ASX 200",    short: "AUS200",   group: "Indices"      },
+  { id: "HK50",    tv: "FOREXCOM:HK50",       label: "Hang Seng",  short: "HK50",     group: "Indices"      },
+  // Crypto
+  { id: "BTCUSD",  tv: "BITSTAMP:BTCUSD",    label: "Bitcoin",    short: "BTC/USD",  group: "Crypto"       },
+  { id: "ETHUSD",  tv: "BITSTAMP:ETHUSD",    label: "Ethereum",   short: "ETH/USD",  group: "Crypto"       },
+  { id: "SOLUSD",  tv: "COINBASE:SOLUSD",    label: "Solana",     short: "SOL/USD",  group: "Crypto"       },
+  { id: "XRPUSD",  tv: "BITSTAMP:XRPUSD",   label: "XRP",        short: "XRP/USD",  group: "Crypto"       },
+  { id: "BNBUSD",  tv: "BINANCE:BNBUSDT",    label: "BNB",        short: "BNB/USD",  group: "Crypto"       },
+  { id: "ADAUSD",  tv: "COINBASE:ADAUSD",    label: "Cardano",    short: "ADA/USD",  group: "Crypto"       },
+  { id: "DOTUSD",  tv: "COINBASE:DOTUSD",    label: "Polkadot",   short: "DOT/USD",  group: "Crypto"       },
+  { id: "LNKUSD",  tv: "COINBASE:LINKUSD",   label: "Chainlink",  short: "LINK/USD", group: "Crypto"       },
+  // Commodities
+  { id: "USOIL",   tv: "NYMEX:CL1!",         label: "WTI Oil",    short: "WTI",      group: "Commodities"  },
+  { id: "UKOIL",   tv: "ICEEUR:B1!",         label: "Brent Oil",  short: "BRENT",    group: "Commodities"  },
+  { id: "NATGAS",  tv: "NYMEX:NG1!",         label: "Nat. Gas",   short: "NATGAS",   group: "Commodities"  },
+  { id: "CORN",    tv: "CBOT:ZC1!",          label: "Corn",       short: "CORN",     group: "Commodities"  },
+  { id: "WHEAT",   tv: "CBOT:ZW1!",          label: "Wheat",      short: "WHEAT",    group: "Commodities"  },
+  { id: "COPPER",  tv: "COMEX:HG1!",         label: "Copper",     short: "COPPER",   group: "Commodities"  },
 ];
 
 const TIMEFRAMES: Timeframe[] = ["M5", "M15", "H1", "H4"];
