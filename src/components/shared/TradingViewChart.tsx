@@ -477,7 +477,7 @@ export function TradingViewChart({
           theme: "dark",
           style: "1",
           locale: "en",
-          toolbar_bg: "#131722",
+          toolbar_bg: "#000000",
           enable_publishing: false,
           hide_top_toolbar: true,
           hide_side_toolbar: false,
@@ -501,8 +501,8 @@ export function TradingViewChart({
             "study_templates",
             "side_toolbar_in_fullscreen_mode",
           ],
-          backgroundColor: "rgba(19,23,34,1)",
-          gridColor: "rgba(255,255,255,0.03)",
+          backgroundColor: "rgba(0,0,0,1)",
+          gridColor: "rgba(0,0,0,0)",
           overrides: {
             "mainSeriesProperties.candleStyle.upColor": "#26a69a",
             "mainSeriesProperties.candleStyle.downColor": "#ef5350",
@@ -510,13 +510,13 @@ export function TradingViewChart({
             "mainSeriesProperties.candleStyle.wickDownColor": "#ef5350",
             "mainSeriesProperties.candleStyle.borderUpColor": "#26a69a",
             "mainSeriesProperties.candleStyle.borderDownColor": "#ef5350",
-            "paneProperties.background": "#131722",
+            "paneProperties.background": "#000000",
             "paneProperties.backgroundType": "solid",
-            "paneProperties.vertGridProperties.color": "rgba(255,255,255,0.03)",
-            "paneProperties.horzGridProperties.color": "rgba(255,255,255,0.03)",
+            "paneProperties.vertGridProperties.color": "rgba(0,0,0,0)",
+            "paneProperties.horzGridProperties.color": "rgba(0,0,0,0)",
             "scalesProperties.textColor": "#6b7280",
             "scalesProperties.fontSize": 11,
-            "scalesProperties.backgroundColor": "#131722",
+            "scalesProperties.backgroundColor": "#000000",
             "scalesProperties.lineColor": "rgba(255,255,255,0.04)",
           },
         });
@@ -534,11 +534,11 @@ export function TradingViewChart({
         try {
           if (typeof widget.applyOverrides === "function") {
             widget.applyOverrides({
-              "paneProperties.background": "#131722",
+              "paneProperties.background": "#000000",
               "paneProperties.backgroundType": "solid",
-              "paneProperties.vertGridProperties.color": "rgba(255,255,255,0.03)",
-              "paneProperties.horzGridProperties.color": "rgba(255,255,255,0.03)",
-              "scalesProperties.backgroundColor": "#131722",
+              "paneProperties.vertGridProperties.color": "rgba(0,0,0,0)",
+              "paneProperties.horzGridProperties.color": "rgba(0,0,0,0)",
+              "scalesProperties.backgroundColor": "#000000",
               "scalesProperties.lineColor": "rgba(255,255,255,0.04)",
             });
           }
@@ -591,10 +591,10 @@ export function TradingViewChart({
   const urgent = secondsLeft <= 60;
 
   return (
-    <div className={cn("flex w-full flex-col overflow-hidden", heightClass)} style={{ background: "#131722" }}>
+    <div className={cn("flex w-full flex-col overflow-hidden", heightClass)} style={{ background: "#000000" }}>
 
       {/* TradeX custom header — symbol picker + timeframes + candle countdown */}
-      <div className="flex h-[38px] shrink-0 items-center justify-between gap-2 border-b border-white/5 px-2.5" style={{ background: "#131722" }}>
+      <div className="flex h-[38px] shrink-0 items-center justify-between gap-2 border-b border-white/5 px-2.5" style={{ background: "#000000" }}>
         <div className="flex min-w-0 items-center gap-1.5">
 
           {/* Symbol picker */}
@@ -678,7 +678,7 @@ export function TradingViewChart({
         </div>
       </div>
 
-      <div ref={containerRef} className="flex-1 min-h-0 w-full" style={{ background: "#131722" }} />
+      <div ref={containerRef} className="flex-1 min-h-0 w-full" style={{ background: "#000000" }} />
     </div>
   );
 }
