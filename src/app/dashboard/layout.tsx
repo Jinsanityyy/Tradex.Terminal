@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useLayoutEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopStatusBar } from "@/components/layout/TopStatusBar";
@@ -13,34 +13,29 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const isDashboardHome = pathname === "/dashboard";
-  const isSubPage = pathname !== "/dashboard";
-
-  // Detect mobile synchronously before first paint
-  const [isMobile, setIsMobile] = useState<boolean | null>(null);
-
-  useLayoutEffect(() => {
-    setIsMobile(window.innerWidth < 768);
-  }, []);
 
   useEffect(() => {
-    if (isMobile && isDashboardHome) {
+    // Only redirect /dashboard home to /m on mobile
+    // Sub-pages (/dashboard/*) render with mobile-friendly layout directly
+    if (typeof window !== "undefined" && window.innerWidth < 768 && pathname === "/dashboard") {
       router.replace("/m");
     }
-  }, [isMobile, isDashboardHome, router]);
+  }, [router, pathname]);
 
-  // Still detecting
-  if (isMobile === null) {
-    return <div className="h-screen bg-[hsl(var(--background))]" />;
-  }
+  // Detect mobile via window (only client-side)
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+  const isDashboardHome = pathname === "/dashboard";
+  const isSubPage = !isDashboardHome;
 
   // Mobile sub-page — clean layout with back button
   if (isMobile && isSubPage) {
     return (
       <div className="flex flex-col min-h-screen bg-[hsl(var(--background))]">
         <div className="flex items-center gap-3 px-4 pt-12 pb-3 border-b border-white/5 shrink-0 sticky top-0 bg-[hsl(var(--background))] z-10">
-          <button onClick={() => router.push("/m")}
-            className="flex items-center gap-1.5 text-zinc-400 active:text-white transition-colors">
+          <button
+            onClick={() => router.push("/m")}
+            className="flex items-center gap-1.5 text-zinc-400 active:text-white transition-colors"
+          >
             <ArrowLeft className="h-4 w-4" />
             <span className="text-[11px] font-medium">Back</span>
           </button>
