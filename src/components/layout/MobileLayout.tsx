@@ -52,20 +52,43 @@ export function MobileLayout() {
 
     // Listen for new chat messages — increment badge
     let myUserId: string | null = null;
+    let myUserId: string | null = null;
     supabase.auth.getUser().then(({ data }) => { myUserId = data.user?.id ?? null; });
 
+    let lastMessageId: string | null = null;
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const timer = setTimeout(() => {
+      // Try realtime first
       channel = supabase
-        .channel("mobile-chat-badge")
+        .channel("badge-listener", { config: { broadcast: { self: false } } })
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
           const msg = payload.new as { user_id: string };
           if (msg.user_id === myUserId) return;
           setUnreadChat(n => n + 1);
         })
         .subscribe();
-    }, 2000);
+
+      // Polling fallback — check for new messages every 10s
+      const poll = setInterval(async () => {
+        try {
+          const { data } = await supabase
+            .from("messages")
+            .select("id, user_id")
+            .order("created_at", { ascending: false })
+            .limit(1);
+          if (data && data[0]) {
+            const latest = data[0];
+            if (lastMessageId && latest.id !== lastMessageId && latest.user_id !== myUserId) {
+              setUnreadChat(n => n + 1);
+            }
+            lastMessageId = latest.id;
+          }
+        } catch {}
+      }, 10_000);
+
+      return () => clearInterval(poll);
+    }, 1500);
 
     return () => {
       clearTimeout(timer);

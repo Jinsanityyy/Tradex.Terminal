@@ -105,7 +105,7 @@ export function useNotifications(onNotif: NotifCallback) {
     }, 3000);
 
     const channel = sb
-      .channel("notif-messages")
+      .channel("notif-messages", { config: { broadcast: { self: false } } })
       .on("postgres_changes", {
         event: "INSERT",
         schema: "public",
@@ -113,7 +113,7 @@ export function useNotifications(onNotif: NotifCallback) {
       }, (payload) => {
         if (!chatInitRef.current) return;
         const msg = payload.new as { user_id: string; display_name: string; content: string };
-        if (msg.user_id === myUserId) return; // don't notify own messages
+        if (msg.user_id === myUserId) return;
         onNotifRef.current({
           id: crypto.randomUUID(),
           type: "chat",
