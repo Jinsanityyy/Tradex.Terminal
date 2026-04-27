@@ -129,7 +129,7 @@ function LotSizeCalculator({
           type="number"
           value={accountSize}
           onChange={(event) => setAccountSize(Math.max(100, Number(event.target.value)))}
-          className="w-20 rounded border border-white/8 bg-white/4 px-2 py-1 text-right text-[10px] text-zinc-300 outline-none focus:border-violet-500/40"
+          className="w-20 rounded border border-white/8 bg-[#0d0d0d] px-2 py-1 text-right text-[10px] text-zinc-300 outline-none focus:border-violet-500/40 [color-scheme:dark]"
           placeholder="Custom"
         />
       </div>
