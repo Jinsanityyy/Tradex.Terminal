@@ -53,7 +53,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 function MobileHomeRedirect() {
   React.useEffect(() => {
-    window.location.replace("/m");
+    // Only redirect on actual small screens — CSS lg:hidden hides the wrapper
+    // but useEffect still runs on desktop, causing a redirect loop with middleware.
+    if (window.innerWidth < 1024) {
+      window.location.replace("/m");
+    }
   }, []);
   return <div className="h-screen bg-[hsl(var(--background))]" />;
 }
