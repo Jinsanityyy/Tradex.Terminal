@@ -3,897 +3,777 @@
 import React from "react";
 import type { AgentRunResult } from "@/lib/agents/schemas";
 
-// ─── State system ────────────────────────────────────────────────────────────
+// ─── State system ─────────────────────────────────────────────────────────────
+type AgentState = "idle"|"bull"|"bear"|"alert"|"approved"|"blocked"|"armed"|"analyzing";
+interface SC { accent:string; screen:string; badge:string }
 
-type AgentState =
-  | "idle" | "bull" | "bear" | "alert"
-  | "approved" | "blocked" | "armed" | "analyzing";
-
-interface SC { accent: string; screen: string; badge: string }
-
-const STATE: Record<AgentState, SC> = {
-  idle:      { accent: "#1e3a5f", screen: "#020810", badge: "IDLE"      },
-  bull:      { accent: "#00ff9c", screen: "#00120a", badge: "BULLISH"   },
-  bear:      { accent: "#ff4466", screen: "#120008", badge: "BEARISH"   },
-  alert:     { accent: "#ffcc00", screen: "#0c0a00", badge: "ALERT"     },
-  approved:  { accent: "#00ff9c", screen: "#00120a", badge: "VALID"     },
-  blocked:   { accent: "#ff4466", screen: "#120008", badge: "BLOCKED"   },
-  armed:     { accent: "#00fff7", screen: "#001210", badge: "ARMED"     },
-  analyzing: { accent: "#22d3ee", screen: "#010c10", badge: "ANALYZING" },
+const STATE:Record<AgentState,SC> = {
+  idle:      {accent:"#1e3a5f", screen:"#020810", badge:"IDLE"      },
+  bull:      {accent:"#00ff9c", screen:"#001a0a", badge:"BULLISH"   },
+  bear:      {accent:"#ff4466", screen:"#180006", badge:"BEARISH"   },
+  alert:     {accent:"#ffaa00", screen:"#100800", badge:"ALERT"     },
+  approved:  {accent:"#00ff9c", screen:"#001a0a", badge:"VALID"     },
+  blocked:   {accent:"#ff4466", screen:"#180006", badge:"BLOCKED"   },
+  armed:     {accent:"#00ffee", screen:"#001210", badge:"ARMED"     },
+  analyzing: {accent:"#22d3ee", screen:"#010c10", badge:"ANALYZING" },
 };
 
-const ID: Record<string, { hair: string; face: string; suit: string; trim: string }> = {
-  trend:      { hair: "#f5c518", face: "#e8a870", suit: "#14366a", trim: "#204a90" },
-  smc:        { hair: "#9333ea", face: "#c89060", suit: "#26185a", trim: "#3a2490" },
-  news:       { hair: "#dc2626", face: "#d49870", suit: "#183460", trim: "#244880" },
-  master:     { hair: "#e5e7eb", face: "#dfc898", suit: "#0c2248", trim: "#163868" },
-  risk:       { hair: "#10b981", face: "#c89060", suit: "#081e18", trim: "#0c3028" },
-  contrarian: { hair: "#ea580c", face: "#e0a870", suit: "#24100a", trim: "#381c10" },
-  execution:  { hair: "#374151", face: "#c89060", suit: "#0c1e30", trim: "#183048" },
+const ID:Record<string,{hair:string;face:string;suit:string;trim:string}> = {
+  trend:      {hair:"#f5c518",face:"#e8a870",suit:"#14366a",trim:"#1e4a90"},
+  smc:        {hair:"#9333ea",face:"#c89060",suit:"#26185a",trim:"#3a2490"},
+  news:       {hair:"#dc2626",face:"#d49870",suit:"#183460",trim:"#244880"},
+  master:     {hair:"#e5e7eb",face:"#dfc898",suit:"#0c2248",trim:"#163868"},
+  risk:       {hair:"#10b981",face:"#c89060",suit:"#081e18",trim:"#0c3028"},
+  contrarian: {hair:"#ea580c",face:"#e0a870",suit:"#24100a",trim:"#381c10"},
+  execution:  {hair:"#374151",face:"#c89060",suit:"#0c1e30",trim:"#183048"},
 };
 
-function deriveStates(d: AgentRunResult): Record<string, AgentState> {
-  const { agents } = d;
+function deriveStates(d:AgentRunResult):Record<string,AgentState> {
+  const {agents} = d;
   const bias = agents.master.finalBias;
   return {
     trend:
-      agents.trend.bias === "bullish" && agents.trend.confidence >= 52 ? "bull" :
-      agents.trend.bias === "bearish" && agents.trend.confidence >= 52 ? "bear" :
-      agents.trend.confidence < 35 ? "idle" : "alert",
+      agents.trend.bias==="bullish"&&agents.trend.confidence>=52?"bull":
+      agents.trend.bias==="bearish"&&agents.trend.confidence>=52?"bear":
+      agents.trend.confidence<35?"idle":"alert",
     smc:
-      agents.smc.liquiditySweepDetected ? "alert" :
-      agents.smc.setupPresent && agents.smc.bias === "bullish" ? "bull" :
-      agents.smc.setupPresent && agents.smc.bias === "bearish" ? "bear" :
-      agents.smc.confidence < 35 ? "idle" : "alert",
+      agents.smc.liquiditySweepDetected?"alert":
+      agents.smc.setupPresent&&agents.smc.bias==="bullish"?"bull":
+      agents.smc.setupPresent&&agents.smc.bias==="bearish"?"bear":
+      agents.smc.confidence<35?"idle":"alert",
     news:
-      agents.news.riskScore >= 65 ? "alert" :
-      agents.news.impact === "bullish" ? "bull" :
-      agents.news.impact === "bearish" ? "bear" : "idle",
-    risk:       agents.risk.valid ? "approved" : "blocked",
+      agents.news.riskScore>=65?"alert":
+      agents.news.impact==="bullish"?"bull":
+      agents.news.impact==="bearish"?"bear":"idle",
+    risk:       agents.risk.valid?"approved":"blocked",
     contrarian:
-      agents.contrarian.challengesBias && agents.contrarian.trapConfidence >= 60 ? "blocked" :
-      agents.contrarian.challengesBias ? "alert" : "idle",
+      agents.contrarian.challengesBias&&agents.contrarian.trapConfidence>=60?"blocked":
+      agents.contrarian.challengesBias?"alert":"idle",
     master:
-      bias === "bullish" && agents.master.confidence >= 65 ? "bull" :
-      bias === "bearish" && agents.master.confidence >= 65 ? "bear" :
-      bias === "no-trade" ? "analyzing" : "alert",
+      bias==="bullish"&&agents.master.confidence>=65?"bull":
+      bias==="bearish"&&agents.master.confidence>=65?"bear":
+      bias==="no-trade"?"analyzing":"alert",
     execution:
-      agents.execution.hasSetup && agents.risk.valid && bias !== "no-trade" ? "armed" :
-      agents.execution.hasSetup ? "alert" : "idle",
+      agents.execution.hasSetup&&agents.risk.valid&&bias!=="no-trade"?"armed":
+      agents.execution.hasSetup?"alert":"idle",
   };
 }
 
-interface Stn {
-  id: string; label: string; sub: string;
-  cx: number; deskY: number; s: number; isMaster?: boolean;
-}
+interface Stn { id:string; label:string; cx:number; deskY:number; s:number; isMaster?:boolean }
 
-const STATIONS: Stn[] = [
-  { id: "trend",      label: "TREND",      sub: "AGENT",     cx: 108,  deskY: 362, s: 0.84 },
-  { id: "smc",        label: "PR.ACTION",  sub: "AGENT",     cx: 272,  deskY: 358, s: 0.84 },
-  { id: "news",       label: "NEWS",       sub: "AGENT",     cx: 436,  deskY: 364, s: 0.84 },
-  { id: "master",     label: "MASTER",     sub: "CONSENSUS", cx: 600,  deskY: 344, s: 1.00, isMaster: true },
-  { id: "risk",       label: "RISK GATE",  sub: "AGENT",     cx: 764,  deskY: 364, s: 0.84 },
-  { id: "contrarian", label: "CONTRARIAN", sub: "AGENT",     cx: 928,  deskY: 358, s: 0.84 },
-  { id: "execution",  label: "EXECUTION",  sub: "AGENT",     cx: 1092, deskY: 362, s: 0.84 },
+const STATIONS:Stn[] = [
+  {id:"trend",      label:"TREND",      cx:108,  deskY:392, s:0.82},
+  {id:"smc",        label:"PR.ACTION",  cx:272,  deskY:386, s:0.82},
+  {id:"news",       label:"NEWS INTEL", cx:436,  deskY:393, s:0.82},
+  {id:"master",     label:"MASTER CMD", cx:600,  deskY:372, s:1.00, isMaster:true},
+  {id:"risk",       label:"RISK GATE",  cx:764,  deskY:393, s:0.82},
+  {id:"contrarian", label:"CONTRARIAN", cx:928,  deskY:386, s:0.82},
+  {id:"execution",  label:"EXECUTION",  cx:1092, deskY:392, s:0.82},
 ];
 
-// ─── Background ───────────────────────────────────────────────────────────────
+// ─── Wall monitors ────────────────────────────────────────────────────────────
 
-function HexFloor({ VW, VH, wallH }: { VW: number; VH: number; wallH: number }) {
-  const size = 28;
-  const cols = Math.ceil(VW / (size * 1.732)) + 2;
-  const rows = Math.ceil((VH - wallH) / (size * 1.5)) + 2;
-  const hexes: React.ReactNode[] = [];
+const HEAT_CELLS = [
+  {sym:"XAU",v:0.7},{sym:"BTC",v:-0.4},{sym:"ETH",v:-0.3},{sym:"EUR",v:0.2},{sym:"GBP",v:0.1},
+  {sym:"SPX",v:-0.5},{sym:"NAS",v:-0.6},{sym:"OIL",v:0.3},{sym:"JPY",v:-0.2},{sym:"AUD",v:0.4},
+  {sym:"CHF",v:0.6},{sym:"NKK",v:-0.1},{sym:"SGD",v:0.2},{sym:"ZAR",v:-0.4},{sym:"HKD",v:0.0},
+];
 
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const x = c * size * 1.732 + (r % 2) * size * 0.866 - size;
-      const y = wallH + r * size * 1.5 - size * 0.5;
-      const pts = Array.from({ length: 6 }, (_, i) => {
-        const a = (Math.PI / 180) * (60 * i - 30);
-        return `${x + size * Math.cos(a)},${y + size * Math.sin(a)}`;
-      }).join(" ");
-      const dist = Math.sqrt(Math.pow(x - VW / 2, 2) + Math.pow(y - wallH - 60, 2));
-      const op = Math.max(0.03, 0.14 - dist / 2800);
-      hexes.push(
-        <polygon key={`h${r}-${c}`} points={pts}
-          fill="none" stroke="#22d3ee" strokeWidth="0.6" opacity={op} />
-      );
-    }
-  }
-  return <g>{hexes}</g>;
-}
-
-function Environment({ VW, VH }: { VW: number; VH: number }) {
-  const wallH = 200;
-
+function LeftWallMonitor({x,y,w,h}:{x:number;y:number;w:number;h:number}) {
+  const cellW=(w-14)/5, cellH=(h-32)/3;
   return (
     <g>
-      {/* Base */}
-      <rect width={VW} height={VH} fill="#060d1a" />
-
-      {/* Back wall */}
-      <rect x={0} y={0} width={VW} height={wallH} fill="#09132a" />
-
-      {/* Wall hex micro-grid */}
-      {Array.from({ length: 24 }, (_, c) =>
-        Array.from({ length: 8 }, (_, r) => {
-          const hx = c * 52 + (r % 2) * 26 - 10;
-          const hy = r * 24 - 4;
-          const pts = Array.from({ length: 6 }, (_, i) => {
-            const a = (Math.PI / 180) * (60 * i - 30);
-            return `${hx + 12 * Math.cos(a)},${hy + 12 * Math.sin(a)}`;
-          }).join(" ");
-          return (
-            <polygon key={`wh${c}-${r}`} points={pts}
-              fill="none" stroke="#1a3a6a" strokeWidth="0.4" opacity="0.25" />
-          );
-        })
-      )}
-
-      {/* Wall panel seams */}
-      {[50, 100, 150, 198].map(y => (
-        <line key={y} x1={0} y1={y} x2={VW} y2={y}
-          stroke="#0f2444" strokeWidth="1" opacity="0.7" />
+      <rect x={x} y={y} width={w} height={h} fill="#050e1e" stroke="#1a3a60" strokeWidth="1.5"/>
+      <rect x={x+4} y={y+4} width={w-8} height={h-8} fill="#030a16"/>
+      {/* Scanlines */}
+      {Array.from({length:Math.floor((h-8)/3)},(_,i)=>(
+        <line key={i} x1={x+4} y1={y+4+i*3} x2={x+w-4} y2={y+4+i*3}
+          stroke="#fff" strokeWidth="0.3" opacity="0.015"/>
       ))}
-
-      {/* ── CENTER MAIN DISPLAY ── */}
-      {(() => {
-        const dw = 600, dh = 156, dx = (VW - 600) / 2, dy = 12;
+      <text x={x+w/2} y={y+15} textAnchor="middle" fontSize="7" fill="#22d3ee"
+        fontFamily="ui-monospace,monospace" letterSpacing="0.2em" opacity="0.85">
+        MARKET OVERVIEW
+      </text>
+      <line x1={x+6} y1={y+20} x2={x+w-6} y2={y+20} stroke="#1a3a60" strokeWidth="0.6"/>
+      {HEAT_CELLS.map((cell,i)=>{
+        const col=i%5, row=Math.floor(i/5);
+        const cx2=x+7+col*(cellW+1.5);
+        const cy2=y+24+row*(cellH+1.5);
+        const color=cell.v>0.3?"#00ff9c":cell.v<-0.3?"#ff4466":cell.v>0?"#44aa66":cell.v<0?"#aa3344":"#445566";
+        const op=0.18+Math.abs(cell.v)*0.55;
         return (
-          <g>
-            <rect x={dx - 16} y={dy - 10} width={dw + 32} height={dh + 20}
-              fill="#020810" opacity="0.8" />
-            <rect x={dx - 8} y={dy - 4} width={dw + 16} height={dh + 8}
-              fill="#0a1628" stroke="#22d3ee" strokeWidth="1.2" opacity="0.6" />
-            <rect x={dx} y={dy} width={dw} height={dh} fill="#020d1e" />
-
-            {/* Hex grid overlay on center screen */}
-            {Array.from({ length: 22 }, (_, c) =>
-              Array.from({ length: 8 }, (_, r) => {
-                const hx = dx + c * 28 + (r % 2) * 14;
-                const hy = dy + r * 20;
-                const pts = Array.from({ length: 6 }, (_, i) => {
-                  const a = (Math.PI / 180) * (60 * i - 30);
-                  return `${hx + 9 * Math.cos(a)},${hy + 9 * Math.sin(a)}`;
-                }).join(" ");
-                return (
-                  <polygon key={`sh${c}-${r}`} points={pts}
-                    fill="none" stroke="#22d3ee" strokeWidth="0.35" opacity="0.07" />
-                );
-              })
-            )}
-
-            {/* Scanlines */}
-            {Array.from({ length: Math.floor(dh / 3) }, (_, i) => (
-              <line key={i} x1={dx} y1={dy + i * 3} x2={dx + dw} y2={dy + i * 3}
-                stroke="#fff" strokeWidth="0.3" opacity="0.018" />
-            ))}
-
-            {/* TRADEX text */}
-            <text x={VW / 2} y={dy + 48} textAnchor="middle"
-              fontSize="34" fill="#c8f0ff" opacity="0.92"
-              fontFamily="ui-monospace,monospace" letterSpacing="0.55em" fontWeight="bold">
-              TRADEX
+          <g key={cell.sym}>
+            <rect x={cx2} y={cy2} width={cellW} height={cellH} fill={color} opacity={op} rx="1"/>
+            <text x={cx2+cellW/2} y={cy2+cellH/2+2.5} textAnchor="middle" fontSize="6"
+              fill={color} fontFamily="ui-monospace,monospace" fontWeight="bold" opacity="0.9">
+              {cell.sym}
             </text>
-            <text x={VW / 2} y={dy + 66} textAnchor="middle"
-              fontSize="7.5" fill="#4ab8d8" opacity="0.65"
-              fontFamily="ui-monospace,monospace" letterSpacing="0.40em">
-              MULTI-AGENT INTELLIGENCE PLATFORM
-            </text>
-
-            {/* Divider */}
-            <rect x={dx + 60} y={dy + 72} width={dw - 120} height="0.8"
-              fill="#00ff9c" opacity="0.25" />
-
-            {/* Status line */}
-            <text x={VW / 2} y={dy + 84} textAnchor="middle"
-              fontSize="7" fill="#00ff9c" opacity="0.55"
-              fontFamily="ui-monospace,monospace" letterSpacing="0.2em">
-              7 ACTIVE AGENTS · REAL-TIME CONSENSUS ENGINE
-            </text>
-
-            {/* Mini bar chart at bottom of center display */}
-            {[0.55, 0.72, 0.60, 0.85, 0.45, 0.78, 0.65].map((h, i) => (
-              <rect key={i}
-                x={dx + 70 + i * 68} y={dy + 110 - h * 32} width={40} height={h * 32}
-                fill="#22d3ee" opacity={0.10 + h * 0.08} />
-            ))}
-
-            {/* Corner brackets */}
-            {([[dx + 2, dy + 2, 16, 16], [dx + dw - 2, dy + 2, -16, 16],
-               [dx + 2, dy + dh - 2, 16, -16], [dx + dw - 2, dy + dh - 2, -16, -16]] as [number, number, number, number][])
-              .map(([ox, oy, bx, by], i) => (
-              <g key={i}>
-                <line x1={ox} y1={oy} x2={ox + bx} y2={oy}
-                  stroke="#00ff9c" strokeWidth="2" opacity="0.55" />
-                <line x1={ox} y1={oy} x2={ox} y2={oy + by}
-                  stroke="#00ff9c" strokeWidth="2" opacity="0.55" />
-              </g>
-            ))}
-
-            {/* Glow rim */}
-            <rect x={dx - 8} y={dy - 4} width={dw + 16} height={dh + 8}
-              fill="none" stroke="#22d3ee" strokeWidth="1"
-              opacity="0.18" className="core-breathe" />
           </g>
         );
-      })()}
-
-      {/* ── FLANKING SIDE PANELS ── */}
-      {[{ x: 14, w: 90 }, { x: VW - 104, w: 90 }].map(({ x, w }, i) => (
+      })}
+      {([[x+4,y+4,10,10],[x+w-4,y+4,-10,10],[x+4,y+h-4,10,-10],[x+w-4,y+h-4,-10,-10]] as [number,number,number,number][]).map(([ox,oy,bx,by],i)=>(
         <g key={i}>
-          <rect x={x} y={16} width={w} height={wallH - 20}
-            fill="#080f24" stroke="#0f2040" strokeWidth="1" />
-          <rect x={x + 4} y={20} width={w - 8} height={wallH - 28}
-            fill="#040a18" />
-          {/* Mini screen rows */}
-          {Array.from({ length: 6 }, (_, r) => (
-            <rect key={r} x={x + 6} y={24 + r * 26} width={w - 12} height={18}
-              fill="#061224" stroke="#0a1e38" strokeWidth="0.5" />
-          ))}
-          {/* Status dots */}
-          {Array.from({ length: 6 }, (_, j) => (
-            <rect key={j}
-              x={x + (i === 0 ? w - 12 : 6)} y={28 + j * 26} width={6} height={6}
-              fill={["#00ff9c", "#22d3ee", "#4466ff", "#ffcc00", "#00ff9c", "#22d3ee"][j]}
-              opacity="0.7" className="pulse-live" />
-          ))}
-          {/* Data lines */}
-          {Array.from({ length: 6 }, (_, r) => (
-            <rect key={`dl${r}`} x={x + 14} y={30 + r * 26} width={[38, 52, 28, 44, 36, 50][r]} height={3}
-              fill="#22d3ee" opacity="0.18" />
-          ))}
+          <line x1={ox} y1={oy} x2={ox+bx} y2={oy} stroke="#00ff9c" strokeWidth="1.5" opacity="0.50"/>
+          <line x1={ox} y1={oy} x2={ox} y2={oy+by} stroke="#00ff9c" strokeWidth="1.5" opacity="0.50"/>
         </g>
       ))}
+    </g>
+  );
+}
 
-      {/* ── SERVER RACKS (sides) ── */}
-      {[{ x: 0, w: 14 }, { x: VW - 14, w: 14 }].map(({ x, w }, i) => (
+function CenterWallMonitor({x,y,w,h,finalBias,confidence,masterSC}:{
+  x:number;y:number;w:number;h:number;
+  finalBias:string;confidence:number;masterSC:SC;
+}) {
+  const biasColor=finalBias==="bullish"?"#00ff9c":finalBias==="bearish"?"#ff4466":"#ffaa00";
+  const biasLabel=finalBias==="bullish"?"▲  BULLISH":finalBias==="bearish"?"▼  BEARISH":"—  NO TRADE";
+  return (
+    <g>
+      <rect x={x} y={y} width={w} height={h} fill="#040c1c" stroke={masterSC.accent} strokeWidth="1.5" opacity="0.65"/>
+      <rect x={x+4} y={y+4} width={w-8} height={h-8} fill="#020810"/>
+      {/* Screen scanlines */}
+      {Array.from({length:Math.floor((h-8)/3)},(_,i)=>(
+        <line key={i} x1={x+4} y1={y+4+i*3} x2={x+w-4} y2={y+4+i*3}
+          stroke="#fff" strokeWidth="0.3" opacity="0.018"/>
+      ))}
+      {/* Hex grid overlay */}
+      {Array.from({length:16},(_,c)=>Array.from({length:6},(_,r)=>{
+        const hx=x+8+c*36+(r%2)*18, hy=y+8+r*28;
+        const pts=Array.from({length:6},(_,i)=>{const a=(Math.PI/180)*(60*i-30);return `${hx+10*Math.cos(a)},${hy+10*Math.sin(a)}`;}).join(" ");
+        return <polygon key={`${c}-${r}`} points={pts} fill="none" stroke="#162848" strokeWidth="0.4" opacity="0.25"/>;
+      }))}
+      {/* TRADEX title */}
+      <text x={x+w/2} y={y+48} textAnchor="middle"
+        fontSize="32" fill="#c8f0ff" opacity="0.93"
+        fontFamily="ui-monospace,monospace" letterSpacing="0.55em" fontWeight="bold">
+        TRADEX
+      </text>
+      <text x={x+w/2} y={y+62} textAnchor="middle"
+        fontSize="7" fill="#4ab8d8" opacity="0.60"
+        fontFamily="ui-monospace,monospace" letterSpacing="0.38em">
+        MULTI-AGENT INTELLIGENCE PLATFORM
+      </text>
+      <rect x={x+60} y={y+68} width={w-120} height="0.8" fill={masterSC.accent} opacity="0.30"/>
+      {/* Final bias */}
+      <text x={x+w/2} y={y+94} textAnchor="middle"
+        fontSize="24" fill={biasColor} fontFamily="ui-monospace,monospace"
+        fontWeight="bold" opacity="0.95" letterSpacing="0.08em">
+        {biasLabel}
+      </text>
+      {/* Confidence bar */}
+      <text x={x+44} y={y+110} fontSize="6.5" fill="#4a8cb8"
+        fontFamily="ui-monospace,monospace" opacity="0.65">CONFIDENCE</text>
+      <rect x={x+40} y={y+114} width={w-80} height="5" fill="#0a1e3a" rx="2"/>
+      <rect x={x+40} y={y+114} width={(w-80)*(confidence/100)} height="5"
+        fill={biasColor} rx="2" opacity="0.88"/>
+      <text x={x+w-38} y={y+120} fontSize="7" fill={biasColor}
+        fontFamily="ui-monospace,monospace" fontWeight="bold">{confidence}%</text>
+      {/* Agent mini badges */}
+      {["TREND","PA","NEWS","RISK","CNTR","EXEC"].map((lbl,i)=>{
+        const bw=(w-60)/6-4;
+        const bx=x+30+i*(bw+4);
+        return (
+          <g key={lbl}>
+            <rect x={bx} y={y+h-30} width={bw} height={16} fill="#0a1e3a" rx="1" opacity="0.7"/>
+            <text x={bx+bw/2} y={y+h-19} textAnchor="middle" fontSize="5.5"
+              fill="#4a8cb8" fontFamily="ui-monospace,monospace">{lbl}</text>
+          </g>
+        );
+      })}
+      {/* Corner brackets */}
+      {([[x+4,y+4,16,16],[x+w-4,y+4,-16,16],[x+4,y+h-4,16,-16],[x+w-4,y+h-4,-16,-16]] as [number,number,number,number][]).map(([ox,oy,bx,by],i)=>(
         <g key={i}>
-          <rect x={x} y={0} width={w} height={VH}
-            fill="#04091a" stroke="#0a1428" strokeWidth="0.5" />
-          {Array.from({ length: 22 }, (_, u) => (
-            <rect key={u} x={x + 2} y={u * 22 + 4} width={w - 4} height={18}
-              fill="#060e22" stroke="#0a1428" strokeWidth="0.3" />
-          ))}
-          {Array.from({ length: 16 }, (_, u) => (
-            <rect key={u}
-              x={x + (i === 0 ? w - 6 : 2)} y={u * 30 + 8} width={4} height={4}
-              fill={u % 3 === 0 ? "#00ff9c" : u % 3 === 1 ? "#22d3ee" : "#142240"}
-              opacity={u % 3 === 2 ? 0.12 : 0.65}
-              className={u % 3 !== 2 ? "pulse-live" : ""} />
-          ))}
+          <line x1={ox} y1={oy} x2={ox+bx} y2={oy} stroke="#00ff9c" strokeWidth="2.2" opacity="0.65"/>
+          <line x1={ox} y1={oy} x2={ox} y2={oy+by} stroke="#00ff9c" strokeWidth="2.2" opacity="0.65"/>
         </g>
       ))}
+      <rect x={x+4} y={y+4} width={w-8} height={h-8}
+        fill="none" stroke={masterSC.accent} strokeWidth="0.8"
+        opacity="0.16" className="core-breathe"/>
+    </g>
+  );
+}
 
-      {/* ── CEILING ── */}
-      <rect x={0} y={0} width={VW} height={10} fill="#030912" />
-      {/* Structural beams */}
-      {[VW * 0.22, VW * 0.50, VW * 0.78].map((bx, i) => (
-        <rect key={i} x={bx - 6} y={0} width={12} height={wallH}
-          fill="#040c1e" stroke="#081828" strokeWidth="0.4" opacity="0.6" />
+const LOG_LINES = [
+  {t:"08:42:11", agent:"TREND",  msg:"HTF BIAS BEARISH CONFIRMED",   hot:true },
+  {t:"08:42:09", agent:"PA",     msg:"BOS TO DOWNSIDE — 4732.50",    hot:true },
+  {t:"08:42:07", agent:"RISK",   msg:"SESSION GATE: CLOSED",         hot:false},
+  {t:"08:42:05", agent:"NEWS",   msg:"GEOPOLITICAL REGIME ACTIVE",   hot:false},
+  {t:"08:42:03", agent:"CNTR",   msg:"FALSE BREAKOUT TRAP",          hot:true },
+  {t:"08:41:58", agent:"EXEC",   msg:"SETUP STANDBY — AWAIT OPEN",   hot:false},
+  {t:"08:41:54", agent:"MASTER", msg:"ADJUDICATING POSITIONS...",    hot:false},
+];
+
+function RightWallMonitor({x,y,w,h,contrarianActive}:{
+  x:number;y:number;w:number;h:number;contrarianActive:boolean;
+}) {
+  return (
+    <g>
+      <rect x={x} y={y} width={w} height={h} fill="#050e1e" stroke="#2a2010" strokeWidth="1.5"/>
+      <rect x={x+4} y={y+4} width={w-8} height={h-8} fill="#030a16"/>
+      {Array.from({length:Math.floor((h-8)/3)},(_,i)=>(
+        <line key={i} x1={x+4} y1={y+4+i*3} x2={x+w-4} y2={y+4+i*3}
+          stroke="#fff" strokeWidth="0.3" opacity="0.015"/>
       ))}
-      {/* Light fixtures */}
-      {[VW * 0.22, VW * 0.50, VW * 0.78].map((lx, i) => (
+      <text x={x+w/2} y={y+15} textAnchor="middle" fontSize="7" fill="#ffaa00"
+        fontFamily="ui-monospace,monospace" letterSpacing="0.2em" opacity="0.85">
+        INTEL FEED
+      </text>
+      <line x1={x+6} y1={y+20} x2={x+w-6} y2={y+20} stroke="#2a2010" strokeWidth="0.6"/>
+      {contrarianActive && (
+        <g>
+          <rect x={x+6} y={y+22} width={w-12} height={11} fill="#ff4466" opacity="0.14" rx="1"
+            className="alert-blink"/>
+          <text x={x+w/2} y={y+30} textAnchor="middle" fontSize="6" fill="#ff4466"
+            fontFamily="ui-monospace,monospace" className="alert-blink">
+            ⚠ ANOMALY DETECTED
+          </text>
+        </g>
+      )}
+      {LOG_LINES.map((line,i)=>(
         <g key={i}>
-          <rect x={lx - 72} y={1} width={144} height={6} rx="2"
-            fill="#00ff9c" opacity="0.06" className="core-breathe" />
-          <rect x={lx - 36} y={7} width={72} height={2} rx="1"
-            fill="#22d3ee" opacity="0.06" />
-          {/* Cyan ambient cone */}
-          <path d={`M ${lx - 72},8 L ${lx - 220},${wallH + 35} L ${lx + 220},${wallH + 35} L ${lx + 72},8 Z`}
-            fill="#00ff9c" opacity="0.004" />
-          <path d={`M ${lx - 36},8 L ${lx - 110},${wallH + 35} L ${lx + 110},${wallH + 35} L ${lx + 36},8 Z`}
-            fill="#22d3ee" opacity="0.007" />
+          <text x={x+7} y={y+38+i*20} fontSize="5" fill="#22d3ee" opacity="0.38"
+            fontFamily="ui-monospace,monospace">{line.t}</text>
+          <text x={x+7} y={y+46+i*20} fontSize="5.8"
+            fill={line.hot?"#ffaa00":"#4a8cb8"}
+            fontFamily="ui-monospace,monospace" opacity={line.hot?0.88:0.55}>
+            [{line.agent}] {line.msg.slice(0,20)}
+          </text>
         </g>
       ))}
+      {/* Scrollbar */}
+      <rect x={x+w-8} y={y+22} width={4} height={h-30} fill="#0a1e3a" rx="2"/>
+      <rect x={x+w-8} y={y+22} width={4} height={28} fill="#ffaa00" rx="2" opacity="0.45"
+        className="dash-flow-slow"/>
+      {([[x+4,y+4,10,10],[x+w-4,y+4,-10,10],[x+4,y+h-4,10,-10],[x+w-4,y+h-4,-10,-10]] as [number,number,number,number][]).map(([ox,oy,bx,by],i)=>(
+        <g key={i}>
+          <line x1={ox} y1={oy} x2={ox+bx} y2={oy} stroke="#ffaa00" strokeWidth="1.5" opacity="0.50"/>
+          <line x1={ox} y1={oy} x2={ox} y2={oy+by} stroke="#ffaa00" strokeWidth="1.5" opacity="0.50"/>
+        </g>
+      ))}
+    </g>
+  );
+}
 
-      {/* Wall → floor seam */}
-      <line x1={0} y1={wallH} x2={VW} y2={wallH} stroke="#00ff9c" strokeWidth="1.5" opacity="0.18" />
+// ─── Environment ──────────────────────────────────────────────────────────────
 
-      {/* Floor */}
-      <rect x={0} y={wallH} width={VW} height={VH - wallH} fill="#060d1a" />
-
-      {/* Hex floor grid */}
-      <HexFloor VW={VW} VH={VH} wallH={wallH} />
-
-      {/* Floor neon strip at wall */}
-      <rect x={0} y={wallH} width={VW} height={3} fill="#00ff9c" opacity="0.06" />
-
-      {/* Side vignettes */}
+function Environment({VW,VH,wallH,states,finalBias,confidence,masterSCarg}:{
+  VW:number;VH:number;wallH:number;
+  states:Record<string,AgentState>;
+  finalBias:string;confidence:number;
+  masterSCarg:SC;
+}) {
+  const vpX=VW/2;
+  return (
+    <g>
       <defs>
         <linearGradient id="vig-l" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#060d1a" stopOpacity="0.88" />
-          <stop offset="100%" stopColor="#060d1a" stopOpacity="0" />
+          <stop offset="0%" stopColor="#060d1a" stopOpacity="0.92"/>
+          <stop offset="100%" stopColor="#060d1a" stopOpacity="0"/>
         </linearGradient>
         <linearGradient id="vig-r" x1="1" y1="0" x2="0" y2="0">
-          <stop offset="0%" stopColor="#060d1a" stopOpacity="0.88" />
-          <stop offset="100%" stopColor="#060d1a" stopOpacity="0" />
+          <stop offset="0%" stopColor="#060d1a" stopOpacity="0.92"/>
+          <stop offset="100%" stopColor="#060d1a" stopOpacity="0"/>
         </linearGradient>
         <filter id="bloom" x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur stdDeviation="14" result="b" />
-          <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          <feGaussianBlur stdDeviation="14" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
-        <filter id="soft-glow" x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="5" result="b" />
-          <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+        <filter id="soft-glow" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="6" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
       </defs>
-      <rect x={0} y={0} width={VW * 0.07} height={VH} fill="url(#vig-l)" />
-      <rect x={VW * 0.93} y={0} width={VW * 0.07} height={VH} fill="url(#vig-r)" />
-    </g>
-  );
-}
 
-// ─── Screen content ───────────────────────────────────────────────────────────
+      {/* Base fill */}
+      <rect width={VW} height={VH} fill="#060d1a"/>
 
-function TrendScreen({ w, h, sc }: { w: number; h: number; sc: SC }) {
-  const c = sc.accent;
-  const isBull = sc.badge === "BULLISH", isBear = sc.badge === "BEARISH";
-  const levels = isBull
-    ? [h * .78, h * .62, h * .46, h * .30, h * .16]
-    : isBear
-    ? [h * .16, h * .30, h * .48, h * .64, h * .78]
-    : [h * .44, h * .50, h * .43, h * .48, h * .44];
-
-  return (
-    <g>
-      {/* Grid lines */}
-      {[0.25, 0.5, 0.75].map(t => (
-        <line key={t} x1={0} y1={h * t} x2={w} y2={h * t}
-          stroke={c} strokeWidth="0.4" opacity="0.12" strokeDasharray="3 4" />
+      {/* Back wall */}
+      <rect x={0} y={0} width={VW} height={wallH} fill="#07102a"/>
+      {[38,76,114,152,wallH-2].map(y=>(
+        <line key={y} x1={0} y1={y} x2={VW} y2={y}
+          stroke="#0d2040" strokeWidth="0.8" opacity="0.65"/>
       ))}
-      {/* Bars */}
-      {levels.map((ly, i) => (
-        <rect key={i} x={i * (w / 5) + 2} y={ly} width={w / 5 - 3} height={h - ly}
-          fill={c} opacity={0.14 + i * 0.10} />
+      {[0.15,0.30,0.45,0.60,0.75,0.90].map(t=>(
+        <line key={t} x1={VW*t} y1={0} x2={VW*t} y2={wallH}
+          stroke="#0d2040" strokeWidth="0.5" opacity="0.30"/>
       ))}
-      {/* Line chart */}
-      <polyline points={levels.map((ly, i) => `${i * (w / 5) + w / 10},${ly}`).join(" ")}
-        fill="none" stroke={c} strokeWidth="1.8" opacity="0.95"
-        strokeLinejoin="round" className="pulse-live" />
-      {/* Dots at each point */}
-      {levels.map((ly, i) => (
-        <circle key={i} cx={i * (w / 5) + w / 10} cy={ly} r="2"
-          fill={c} opacity="0.9" />
-      ))}
-      {/* Trend arrow */}
-      <text x={w - 2} y={12} textAnchor="end" fontSize="10" fill={c} fontFamily="monospace">
-        {isBull ? "▲" : isBear ? "▼" : "→"}
-      </text>
-      {/* MA line */}
-      <polyline
-        points={levels.map((ly, i) => `${i * (w / 5) + w / 10},${ly + (isBull ? 8 : isBear ? -8 : 3)}`).join(" ")}
-        fill="none" stroke={c} strokeWidth="0.8" opacity="0.35"
-        strokeDasharray="4 3" strokeLinejoin="round" />
-    </g>
-  );
-}
 
-function PriceActionScreen({ w, h, sc }: { w: number; h: number; sc: SC }) {
-  const isBull = sc.badge === "BULLISH";
-  const candles = [
-    { o: h * .58, cl: h * .36, hi: h * .28, lo: h * .66, bull: true  },
-    { o: h * .38, cl: h * .24, hi: h * .18, lo: h * .44, bull: true  },
-    { o: h * .28, cl: h * .44, hi: h * .22, lo: h * .52, bull: false },
-    { o: h * .48, cl: h * .32, hi: h * .26, lo: h * .56, bull: true  },
-    { o: h * .34, cl: h * .20, hi: h * .14, lo: h * .40, bull: true  },
-  ];
-  const cw = w / 6;
+      {/* Three wall monitors */}
+      <LeftWallMonitor  x={20}  y={10} w={272} h={wallH-14}/>
+      <CenterWallMonitor x={308} y={6}  w={584} h={wallH-8}
+        finalBias={finalBias} confidence={confidence} masterSC={masterSCarg}/>
+      <RightWallMonitor x={908} y={10} w={272} h={wallH-14}
+        contrarianActive={states["contrarian"]==="blocked"||states["contrarian"]==="alert"}/>
 
-  return (
-    <g>
-      {/* S/R levels */}
-      <line x1={0} y1={h * .22} x2={w} y2={h * .22}
-        stroke="#00ff9c" strokeWidth="0.8" opacity="0.45" strokeDasharray="4 3" />
-      <line x1={0} y1={h * .62} x2={w} y2={h * .62}
-        stroke="#ff4466" strokeWidth="0.8" opacity="0.45" strokeDasharray="4 3" />
-      {/* Alert sweep */}
-      {sc.badge === "ALERT" && (
-        <rect x={0} y={h * .60} width={w} height={2}
-          fill={sc.accent} opacity="0.7" className="alert-blink" />
-      )}
-      {/* Candles */}
-      {candles.map((cd, i) => {
-        const col = cd.bull ? "#00ff9c" : "#ff4466";
-        const bx = i * (w / 5) + 3;
-        const by = Math.min(cd.o, cd.cl);
-        const bh = Math.max(2, Math.abs(cd.cl - cd.o));
-        return (
-          <g key={i}>
-            <line x1={bx + cw * .4} y1={cd.hi} x2={bx + cw * .4} y2={cd.lo}
-              stroke={col} strokeWidth="0.9" opacity="0.8" />
-            <rect x={bx} y={by} width={cw * .8} height={bh}
-              fill={col} opacity="0.82" />
-          </g>
-        );
-      })}
-      {/* BOS label */}
-      {isBull && (
-        <text x={2} y={h - 3} fontSize="6" fill="#00ff9c" fontFamily="monospace" opacity="0.75">
-          BOS↑
-        </text>
-      )}
-    </g>
-  );
-}
-
-function NewsScreen({ w, h, sc }: { w: number; h: number; sc: SC }) {
-  const c = sc.accent;
-  const isAlert = sc.badge === "ALERT";
-
-  return (
-    <g>
-      {/* Header bar */}
-      <rect x={0} y={0} width={w} height={h * .14}
-        fill={c} opacity={isAlert ? .28 : .12} />
-      <text x={w / 2} y={h * .10} textAnchor="middle"
-        fontSize="5.5" fill={c} opacity="0.95" fontFamily="monospace">
-        {isAlert ? "⚠ IMPACT" : "MACRO NEWS"}
-      </text>
-      {/* News rows */}
-      {[.22, .34, .46, .58, .70].map((t, i) => (
+      {/* Server racks */}
+      {([{x:0,w:18},{x:VW-18,w:18}] as {x:number;w:number}[]).map(({x,w},i)=>(
         <g key={i}>
-          <rect x={3} y={h * t - 1.5}
-            width={[w * .82, w * .60, w * .74, w * .50, w * .68][i]} height={3}
-            rx="0.5" fill={c}
-            opacity={isAlert && i < 2 ? .60 : .24}
-            className={isAlert && i === 0 ? "alert-blink" : ""} />
+          <rect x={x} y={0} width={w} height={VH} fill="#03070f" stroke="#08142a" strokeWidth="0.5"/>
+          {Array.from({length:22},(_,u)=>(
+            <rect key={u} x={x+2} y={u*24+4} width={w-4} height={20}
+              fill="#060e20" stroke="#08142a" strokeWidth="0.3"/>
+          ))}
+          {Array.from({length:14},(_,u)=>(
+            <rect key={u} x={x+(i===0?w-7:3)} y={u*34+10} width={4} height={4}
+              fill={u%4===0?"#00ff9c":u%4===1?"#22d3ee":u%4===2?"#ffaa00":"#142240"}
+              opacity={u%4===3?0.12:0.65}
+              className={u%4!==3?"pulse-live":""}/>
+          ))}
         </g>
       ))}
-      {/* Scanning line */}
-      <rect x={0} y={h * .80} width={w} height={1.5}
-        fill={c} opacity="0.5" className="dash-flow" />
-      {/* Live dot */}
-      <rect x={3} y={h * .82} width={5} height={4}
-        fill={c} className="pulse-live" opacity="0.9" />
-    </g>
-  );
-}
 
-function RiskScreen({ w, h, sc }: { w: number; h: number; sc: SC }) {
-  const c = sc.accent;
-  const isBlocked = sc.badge === "BLOCKED";
-  const cx2 = w / 2, cy2 = h * .46, r = Math.min(w, h) * .28;
-  const circ = 2 * Math.PI * r;
-  const fill = isBlocked ? .20 : .82;
-
-  return (
-    <g>
-      {/* Outer ring */}
-      <circle cx={cx2} cy={cy2} r={r * 1.2}
-        fill="none" stroke={c} strokeWidth="0.6" opacity="0.10" />
-      {/* Segmented arc background */}
-      <circle cx={cx2} cy={cy2} r={r}
-        fill="none" stroke={c} strokeWidth="3.5" opacity="0.12" />
-      {/* Filled arc */}
-      <circle cx={cx2} cy={cy2} r={r}
-        fill="none" stroke={c} strokeWidth="3.5" opacity="0.88"
-        strokeDasharray={`${circ * fill} ${circ * (1 - fill)}`}
-        strokeDashoffset={circ * .25} strokeLinecap="square"
-        className={isBlocked ? "alert-blink" : "pulse-live"} />
-      {/* Icon */}
-      <text x={cx2} y={cy2 + 5} textAnchor="middle"
-        fontSize="14" fill={c} fontFamily="monospace"
-        opacity="0.95" className={isBlocked ? "alert-blink" : ""}>
-        {isBlocked ? "✖" : "✔"}
-      </text>
-      {/* Tick marks */}
-      {Array.from({ length: 8 }, (_, i) => {
-        const a = (Math.PI / 180) * (i * 45 - 90);
-        return (
-          <line key={i}
-            x1={cx2 + (r - 5) * Math.cos(a)} y1={cy2 + (r - 5) * Math.sin(a)}
-            x2={cx2 + (r + 5) * Math.cos(a)} y2={cy2 + (r + 5) * Math.sin(a)}
-            stroke={c} strokeWidth="0.8" opacity="0.35" />
-        );
-      })}
-    </g>
-  );
-}
-
-function ContrarianScreen({ w, h, sc }: { w: number; h: number; sc: SC }) {
-  const c = sc.accent;
-  const mid = w / 2;
-  const lP = [[mid * .1, h * .8], [mid * .3, h * .5], [mid * .5, h * .25]];
-  const rP = [[mid * 1.9, h * .2], [mid * 1.7, h * .5], [mid * 1.5, h * .75]];
-
-  return (
-    <g>
-      {/* Center divider */}
-      <line x1={mid} y1="2" x2={mid} y2={h - 2}
-        stroke={c} strokeWidth="0.6" opacity="0.22" strokeDasharray="3 3" />
-      {/* Background fill zones */}
-      <rect x={0} y={0} width={mid} height={h} fill={c} opacity="0.04" />
-      {/* Bull path */}
-      <polyline points={lP.map(p => p.join(",")).join(" ")}
-        fill="none" stroke="#00ff9c" strokeWidth="2" opacity="0.65"
-        strokeLinecap="round" strokeLinejoin="round" />
-      {/* Bear path */}
-      <polyline points={rP.map(p => p.join(",")).join(" ")}
-        fill="none" stroke="#ff4466" strokeWidth="2" opacity="0.65"
-        strokeDasharray="3 2" strokeLinecap="round" strokeLinejoin="round" />
-      {/* Center symbol */}
-      <text x={mid} y={h * .58} textAnchor="middle"
-        fontSize="12" fill={c} opacity="0.50" className="pulse-live">⇅</text>
-    </g>
-  );
-}
-
-function MasterScreen({
-  w, h, sc, conf, aligned, total,
-}: {
-  w: number; h: number; sc: SC; conf: number; aligned: number; total: number;
-}) {
-  const c = sc.accent;
-  const cx2 = w / 2, cy2 = h * .42, r = Math.min(w, h) * .26;
-
-  return (
-    <g>
-      {/* Outer orbit ring */}
-      <circle cx={cx2} cy={cy2} r={r * 1.1}
-        fill="none" stroke={c} strokeWidth="0.7" opacity="0.20"
-        strokeDasharray="5 4" className="radar-spin-slow" />
-      {/* Radial spokes */}
-      {[0, 45, 90, 135, 180, 225, 270, 315].map((deg, i) => {
-        const rad = deg * Math.PI / 180;
-        return (
-          <line key={i}
-            x1={cx2 + r * .35 * Math.cos(rad)} y1={cy2 + r * .35 * Math.sin(rad)}
-            x2={cx2 + r * .78 * Math.cos(rad)} y2={cy2 + r * .78 * Math.sin(rad)}
-            stroke={c} strokeWidth="0.7" opacity={.14 + (i % 2) * .08} />
-        );
-      })}
-      {/* Core pulse */}
-      <circle cx={cx2} cy={cy2} r={r * .40}
-        fill={c} opacity=".08" className="core-breathe" />
-      {/* Confidence */}
-      <text x={cx2} y={cy2 + 6} textAnchor="middle"
-        fontSize="17" fontWeight="bold" fill={c} opacity=".98" fontFamily="monospace">
-        {conf}%
-      </text>
-      <text x={cx2} y={cy2 + 17} textAnchor="middle"
-        fontSize="7.5" fill={c} opacity=".55" fontFamily="monospace">
-        {aligned}/{total}
-      </text>
-      {/* Status */}
-      <text x={cx2} y={h - 2} textAnchor="middle"
-        fontSize="7" fill={c} opacity=".85" fontFamily="monospace">
-        {sc.badge === "BULLISH" ? "▲ BULLISH" : sc.badge === "BEARISH" ? "▼ BEARISH"
-          : sc.badge === "ANALYZING" ? "SCANNING..." : "NO TRADE"}
-      </text>
-    </g>
-  );
-}
-
-function ExecutionScreen({ w, h, sc }: { w: number; h: number; sc: SC }) {
-  const c = sc.accent;
-  const isArmed = sc.badge === "ARMED";
-  const cx2 = w / 2, cy2 = h * .44, r = Math.min(w, h) * .28;
-
-  return (
-    <g>
-      {/* Crosshair lines */}
-      {[[-r, 0, -r * .35, 0], [r * .35, 0, r, 0],
-        [0, -r, 0, -r * .35], [0, r * .35, 0, r]].map(([x1, y1, x2, y2], i) => (
-        <line key={i}
-          x1={cx2 + x1} y1={cy2 + y1} x2={cx2 + x2} y2={cy2 + y2}
-          stroke={c} strokeWidth={isArmed ? 2 : 1.2} opacity="0.88"
-          className={isArmed ? "pulse-live" : ""} />
-      ))}
-      {/* Outer circle */}
-      <circle cx={cx2} cy={cy2} r={r}
-        fill="none" stroke={c} strokeWidth="0.9" opacity="0.38"
-        strokeDasharray="4 4" />
-      {/* Inner circle */}
-      <circle cx={cx2} cy={cy2} r={r * .38}
-        fill="none" stroke={c}
-        strokeWidth={isArmed ? 2 : 1.2}
-        opacity={isArmed ? .95 : .52}
-        className={isArmed ? "pulse-live" : ""} />
-      {/* Center dot */}
-      <rect x={cx2 - 3} y={cy2 - 3} width={6} height={6}
-        fill={c} opacity={isArmed ? .98 : .65}
-        className={isArmed ? "pulse-live" : ""} />
-      {/* Armed corner brackets */}
-      {isArmed && [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sy], i) => (
+      {/* Ceiling */}
+      <rect x={0} y={0} width={VW} height={8} fill="#030810"/>
+      {[VW*0.20,VW*0.40,VW*0.60,VW*0.80].map((lx,i)=>(
         <g key={i}>
-          <line x1={cx2 + sx * (r * .62)} y1={cy2 + sy * (r * .62)}
-            x2={cx2 + sx * (r * .62 + 10)} y2={cy2 + sy * (r * .62)}
-            stroke={c} strokeWidth="2" opacity=".78" strokeLinecap="square" />
-          <line x1={cx2 + sx * (r * .62)} y1={cy2 + sy * (r * .62)}
-            x2={cx2 + sx * (r * .62)} y2={cy2 + sy * (r * .62 + 10)}
-            stroke={c} strokeWidth="2" opacity=".78" strokeLinecap="square" />
+          <rect x={lx-60} y={1} width={120} height={5} rx="2"
+            fill="#22d3ee" opacity="0.04" className="core-breathe"/>
+          <path d={`M ${lx-60},6 L ${lx-200},${wallH+30} L ${lx+200},${wallH+30} L ${lx+60},6 Z`}
+            fill="#22d3ee" opacity="0.004"/>
         </g>
       ))}
+
+      {/* Wall-floor seam */}
+      <line x1={0} y1={wallH} x2={VW} y2={wallH} stroke="#00ff9c" strokeWidth="1.8" opacity="0.22"/>
+
+      {/* Floor base */}
+      <rect x={0} y={wallH} width={VW} height={VH-wallH} fill="#050c18"/>
+
+      {/* 1-point perspective floor grid */}
+      {Array.from({length:20},(_,i)=>{
+        const t=i/19;
+        const xBot=t*VW;
+        return <line key={`fv${i}`} x1={vpX} y1={wallH} x2={xBot} y2={VH}
+          stroke="#0d2040" strokeWidth="0.8" opacity="0.48"/>;
+      })}
+      {[0.16,0.32,0.50,0.66,0.82,0.94].map((t,i)=>{
+        const y=wallH+t*(VH-wallH);
+        const frac=(y-wallH)/(VH-wallH);
+        const xL=vpX*(1-frac);
+        const xR=vpX+(VW-vpX)*frac;
+        return <line key={`fh${i}`} x1={xL} y1={y} x2={xR} y2={y}
+          stroke="#0d2040" strokeWidth="0.8" opacity="0.48"/>;
+      })}
+
+      {/* Floor neon accent */}
+      <rect x={0} y={wallH} width={VW} height={2} fill="#22d3ee" opacity="0.06"/>
+
+      {/* Vignettes */}
+      <rect x={0} y={0} width={VW*0.06} height={VH} fill="url(#vig-l)"/>
+      <rect x={VW*0.94} y={0} width={VW*0.06} height={VH} fill="url(#vig-r)"/>
     </g>
   );
 }
 
-// ─── Pixel-art operator ───────────────────────────────────────────────────────
+// ─── Desk clutter ─────────────────────────────────────────────────────────────
 
-function Operator({
-  cx, deskY, s, agentId, sc,
-}: {
-  cx: number; deskY: number; s: number; agentId: string; sc: SC;
+function DeskClutter({cx,deskY,s,sc}:{cx:number;deskY:number;s:number;sc:SC}) {
+  const active=sc.badge!=="IDLE";
+  return (
+    <g>
+      {/* Paper stack */}
+      <rect x={cx-35*s} y={deskY+1.5*s} width={15*s} height={10*s}
+        fill="#d4cfc0" opacity="0.09"
+        transform={`rotate(-5,${cx-27*s},${deskY+6*s})`}/>
+      <rect x={cx-34*s} y={deskY+1*s} width={15*s} height={10*s}
+        fill="#c8c2b0" opacity="0.07"
+        transform={`rotate(-9,${cx-26*s},${deskY+6*s})`}/>
+      {/* Glow lamp */}
+      <rect x={cx+22*s} y={deskY+5*s} width={9*s} height={2.5*s} fill="#12243a" rx="1"/>
+      <rect x={cx+25*s} y={deskY-7*s} width={2*s} height={14*s} fill="#12243a"/>
+      <ellipse cx={cx+26*s} cy={deskY-9*s} rx={7*s} ry={5*s}
+        fill={active?sc.accent:"#1a3050"} opacity={active?0.60:0.16}
+        className={active?"core-breathe":""}/>
+      {active&&(
+        <ellipse cx={cx+26*s} cy={deskY-4*s} rx={18*s} ry={11*s}
+          fill={sc.accent} opacity="0.05" filter="url(#soft-glow)"/>
+      )}
+      {/* Coffee mug */}
+      <rect x={cx-50*s} y={deskY+2*s} width={7*s} height={7*s}
+        fill="#0e1e30" stroke="#1a3050" strokeWidth="0.5" rx="0.5"/>
+      <path d={`M ${cx-43*s},${deskY+4*s} Q ${cx-40*s},${deskY+5.5*s} ${cx-43*s},${deskY+7.5*s}`}
+        fill="none" stroke="#1a3050" strokeWidth="1"/>
+      {active&&(
+        <path d={`M ${cx-46*s},${deskY+1.5*s} Q ${cx-45*s},${deskY-2*s} ${cx-47*s},${deskY-5*s}`}
+          fill="none" stroke="#22d3ee" strokeWidth="0.8" opacity="0.18" className="pulse-live"/>
+      )}
+    </g>
+  );
+}
+
+// ─── Operator sprite (viewed from BEHIND) ─────────────────────────────────────
+
+function Operator({cx,deskY,s,agentId,sc}:{
+  cx:number;deskY:number;s:number;agentId:string;sc:SC;
 }) {
-  const id = ID[agentId] ?? ID.trend;
-  const isIdle  = sc.badge === "IDLE";
-  const isAlert = sc.badge === "BLOCKED" || sc.badge === "ALERT";
-  const tx = (lx: number) => cx + lx * s;
-  const ty = (ly: number) => deskY + ly * s;
+  const id=ID[agentId]??ID.trend;
+  const isIdle=sc.badge==="IDLE";
+  const isAlert=sc.badge==="BLOCKED"||sc.badge==="ALERT";
+  const tx=(lx:number)=>cx+lx*s;
+  const ty=(ly:number)=>deskY+ly*s;
 
   return (
     <g>
-      {/* Chair */}
-      <rect x={tx(-12)} y={ty(-128)} width={24 * s} height={90 * s}
-        fill="#05091a" stroke="#0b1828" strokeWidth="0.8" />
-      <rect x={tx(-9)}  y={ty(-124)} width={18 * s} height={80 * s}
-        fill="#060c1c" stroke="#0d1c2e" strokeWidth="0.4" />
-      <rect x={tx(-9)}  y={ty(-132)} width={18 * s} height={10 * s}
-        fill="#050a18" stroke="#0b1828" strokeWidth="0.4" />
-      <rect x={tx(-24)} y={ty(-68)}  width={7 * s}  height={32 * s}
-        fill="#040910" stroke="#0b1626" strokeWidth="0.4" />
-      <rect x={tx(17)}  y={ty(-68)}  width={7 * s}  height={32 * s}
-        fill="#040910" stroke="#0b1626" strokeWidth="0.4" />
-      <rect x={tx(-16)} y={ty(-38)}  width={32 * s} height={10 * s}
-        fill="#050c14" stroke="#0a1424" strokeWidth="0.6" />
-      <rect x={tx(-3)}  y={ty(-28)}  width={6 * s}  height={18 * s} fill="#03070e" />
-      <ellipse cx={tx(0)} cy={ty(-10)} rx={10 * s} ry={3.5 * s} fill="#03070e" />
+      {/* Chair back */}
+      <rect x={tx(-14)} y={ty(-140)} width={28*s} height={102*s}
+        fill="#050d1e" stroke="#0c1c30" strokeWidth="0.8"/>
+      <rect x={tx(-11)} y={ty(-136)} width={22*s} height={94*s}
+        fill="#060f20" stroke="#0d1e32" strokeWidth="0.4"/>
+      <rect x={tx(-11)} y={ty(-144)} width={22*s} height={10*s}
+        fill="#04091a" stroke="#0b1828" strokeWidth="0.5"/>
+      {/* Armrests */}
+      <rect x={tx(-27)} y={ty(-74)} width={8*s} height={34*s}
+        fill="#04080f" stroke="#0a1424" strokeWidth="0.4"/>
+      <rect x={tx(19)} y={ty(-74)} width={8*s} height={34*s}
+        fill="#04080f" stroke="#0a1424" strokeWidth="0.4"/>
+      {/* Seat */}
+      <rect x={tx(-19)} y={ty(-44)} width={38*s} height={12*s}
+        fill="#060c18" stroke="#0a1626" strokeWidth="0.5"/>
+      <rect x={tx(-3)} y={ty(-32)} width={6*s} height={20*s} fill="#030810"/>
+      <ellipse cx={tx(0)} cy={ty(-12)} rx={13*s} ry={4.5*s} fill="#030810"/>
 
-      {/* Body */}
-      <rect x={tx(-14)} y={ty(-48)}  width={28 * s} height={14 * s} fill={id.suit} />
-      <rect x={tx(-15)} y={ty(-100)} width={30 * s} height={54 * s}
+      {/* Lap */}
+      <rect x={tx(-16)} y={ty(-54)} width={32*s} height={14*s} fill={id.suit}/>
+
+      {/* Back of jacket — torso */}
+      <rect x={tx(-17)} y={ty(-108)} width={34*s} height={58*s}
         fill={id.suit}
-        stroke={isIdle ? "#0a1a2e" : sc.accent}
-        strokeWidth={isIdle ? 0.4 : 0.9} />
-      <polygon
-        points={`${tx(0)},${ty(-100)} ${tx(-8)},${ty(-100)} ${tx(-4)},${ty(-76)}`}
-        fill={id.trim} opacity="0.65" />
-      <polygon
-        points={`${tx(0)},${ty(-100)} ${tx(8)},${ty(-100)} ${tx(4)},${ty(-76)}`}
-        fill={id.trim} opacity="0.65" />
-      <rect x={tx(-2)} y={ty(-96)} width={4 * s} height={50 * s}
-        fill={id.trim} opacity="0.4" />
-      <rect x={tx(-21)} y={ty(-102)} width={8 * s} height={10 * s}
-        fill={id.trim}
-        stroke={isIdle ? "#0a1a2e" : sc.accent}
-        strokeWidth={isIdle ? 0.3 : 0.7}
-        opacity={isIdle ? 0.5 : 0.9} />
-      <rect x={tx(13)}  y={ty(-102)} width={8 * s} height={10 * s}
-        fill={id.trim}
-        stroke={isIdle ? "#0a1a2e" : sc.accent}
-        strokeWidth={isIdle ? 0.3 : 0.7}
-        opacity={isIdle ? 0.5 : 0.9} />
-      {/* Badge */}
-      <rect x={tx(-5)} y={ty(-86)} width={10 * s} height={6 * s}
-        fill={sc.accent} opacity={isIdle ? 0.12 : 0.42}
-        stroke={sc.accent} strokeWidth="0.3" />
+        stroke={isIdle?"#0a1a2e":sc.accent}
+        strokeWidth={isIdle?0.4:1.0}/>
+      {/* Center seam */}
+      <rect x={tx(-1.5)} y={ty(-104)} width={3*s} height={54*s}
+        fill={id.trim} opacity="0.42"/>
+      {/* Horizontal panel lines */}
+      <rect x={tx(-15)} y={ty(-92)} width={30*s} height={1.5*s} fill={id.trim} opacity="0.26"/>
+      <rect x={tx(-15)} y={ty(-76)} width={30*s} height={1.5*s} fill={id.trim} opacity="0.18"/>
+      {/* Shoulders */}
+      <rect x={tx(-24)} y={ty(-110)} width={48*s} height={8*s}
+        fill={id.suit}
+        stroke={isIdle?"#0a1a2e":sc.accent}
+        strokeWidth={isIdle?0.3:0.9}/>
+      {/* Epaulettes */}
+      <rect x={tx(-24)} y={ty(-112)} width={8*s} height={6*s}
+        fill={id.trim} opacity={isIdle?0.35:0.90}
+        stroke={isIdle?"none":sc.accent} strokeWidth="0.4"/>
+      <rect x={tx(16)} y={ty(-112)} width={8*s} height={6*s}
+        fill={id.trim} opacity={isIdle?0.35:0.90}
+        stroke={isIdle?"none":sc.accent} strokeWidth="0.4"/>
+      {/* Status badge */}
+      <rect x={tx(-5)} y={ty(-90)} width={10*s} height={6*s}
+        fill={sc.accent} opacity={isIdle?0.10:0.42}
+        stroke={sc.accent} strokeWidth="0.3"/>
 
-      {/* Arms */}
-      <rect x={tx(-23)} y={ty(-97)} width={7 * s} height={28 * s} fill={id.suit} />
-      <rect x={tx(-24)} y={ty(-69)} width={7 * s} height={26 * s} fill={id.suit} />
-      <rect x={tx(-24)} y={ty(-44)} width={9 * s} height={6 * s} fill={id.face} opacity="0.9" />
-      <rect x={tx(16)}  y={ty(-97)} width={7 * s} height={28 * s} fill={id.suit} />
-      <rect x={tx(17)}  y={ty(-69)} width={7 * s} height={26 * s} fill={id.suit} />
-      <rect x={tx(16)}  y={ty(-44)} width={9 * s} height={6 * s} fill={id.face} opacity="0.9" />
+      {/* Arms — reaching forward */}
+      <rect x={tx(-27)} y={ty(-102)} width={8*s} height={28*s} fill={id.suit}/>
+      <rect x={tx(-28)} y={ty(-76)} width={8*s} height={30*s} fill={id.suit}/>
+      <rect x={tx(-29)} y={ty(-48)} width={11*s} height={7*s} fill={id.face} opacity="0.88"/>
+      <rect x={tx(19)} y={ty(-102)} width={8*s} height={28*s} fill={id.suit}/>
+      <rect x={tx(20)} y={ty(-76)} width={8*s} height={30*s} fill={id.suit}/>
+      <rect x={tx(18)} y={ty(-48)} width={11*s} height={7*s} fill={id.face} opacity="0.88"/>
 
-      {/* Head */}
-      <rect x={tx(-4)} y={ty(-110)} width={8 * s}  height={12 * s} fill={id.face} opacity="0.9" />
-      <rect x={tx(-10)} y={ty(-130)} width={20 * s} height={22 * s}
+      {/* Neck */}
+      <rect x={tx(-5)} y={ty(-118)} width={10*s} height={12*s} fill={id.face} opacity="0.9"/>
+      {/* Back of head */}
+      <rect x={tx(-11)} y={ty(-136)} width={22*s} height={20*s}
         fill={id.face}
-        stroke={isIdle ? "#0a1a28" : sc.accent}
-        strokeWidth={isIdle ? 0.4 : 0.9}
-        opacity={isIdle ? 0.75 : 1} />
-      <rect x={tx(-10)} y={ty(-136)} width={20 * s} height={10 * s}
-        fill={id.hair} opacity={isIdle ? 0.55 : 0.95} />
-      <rect x={tx(-12)} y={ty(-132)} width={3 * s}  height={8 * s}
-        fill={id.hair} opacity={isIdle ? 0.45 : 0.82} />
-      <rect x={tx(9)}   y={ty(-132)} width={3 * s}  height={8 * s}
-        fill={id.hair} opacity={isIdle ? 0.45 : 0.82} />
-      {/* Headset */}
-      <rect x={tx(7)}  y={ty(-140)} width={2 * s} height={8 * s}
-        fill={isIdle ? "#0a1624" : sc.accent} opacity={isIdle ? 0.3 : 0.85} />
-      <rect x={tx(6)}  y={ty(-142)} width={4 * s} height={3 * s}
-        fill={isIdle ? "#0a1624" : sc.accent} opacity={isIdle ? 0.2 : 0.75}
-        className={isAlert ? "alert-blink" : ""} />
-      {/* Visor */}
-      <rect x={tx(-8)} y={ty(-122)} width={16 * s} height={6 * s}
-        fill="#010610" stroke={isIdle ? "#081420" : sc.accent} strokeWidth="0.6" />
-      {/* Eyes */}
-      <rect x={tx(-7)} y={ty(-121)} width={5 * s} height={4 * s}
-        fill={isIdle ? "#061428" : sc.accent}
-        opacity={isIdle ? 0.18 : 0.75}
-        className={isIdle ? "" : "pulse-live"} />
-      <rect x={tx(2)}  y={ty(-121)} width={5 * s} height={4 * s}
-        fill={isIdle ? "#061428" : sc.accent}
-        opacity={isIdle ? 0.18 : 0.75}
-        className={isIdle ? "" : "pulse-live"} />
-      {/* Screen glow on face */}
-      {!isIdle && (
-        <rect x={tx(-10)} y={ty(-130)} width={20 * s} height={22 * s}
-          fill={sc.accent} opacity="0.05" className="core-breathe" />
+        stroke={isIdle?"#0a1a28":sc.accent}
+        strokeWidth={isIdle?0.4:0.9}
+        opacity={isIdle?0.70:1}/>
+      {/* Hair */}
+      <rect x={tx(-12)} y={ty(-144)} width={24*s} height={12*s}
+        fill={id.hair} opacity={isIdle?0.55:0.95}/>
+      <rect x={tx(-14)} y={ty(-138)} width={4*s} height={10*s}
+        fill={id.hair} opacity={isIdle?0.45:0.82}/>
+      <rect x={tx(10)} y={ty(-138)} width={4*s} height={10*s}
+        fill={id.hair} opacity={isIdle?0.45:0.82}/>
+
+      {/* Headset band */}
+      <rect x={tx(-13)} y={ty(-146)} width={26*s} height={3*s}
+        fill={isIdle?"#0a1624":sc.accent} opacity={isIdle?0.28:0.72}/>
+      {/* Left ear cup */}
+      <rect x={tx(-19)} y={ty(-142)} width={6*s} height={8*s}
+        fill={isIdle?"#0a1624":sc.accent}
+        opacity={isIdle?0.22:0.68}
+        className={isAlert?"alert-blink":""}/>
+      {/* Right ear cup */}
+      <rect x={tx(13)} y={ty(-142)} width={6*s} height={8*s}
+        fill={isIdle?"#0a1624":sc.accent}
+        opacity={isIdle?0.22:0.68}
+        className={isAlert?"alert-blink":""}/>
+      {/* Mic boom */}
+      <rect x={tx(19)} y={ty(-138)} width={10*s} height={2*s}
+        fill={isIdle?"#0a1624":sc.accent} opacity={isIdle?0.18:0.55}/>
+      <rect x={tx(29)} y={ty(-139)} width={2*s} height={4*s}
+        fill={isIdle?"#0a1624":sc.accent} opacity={isIdle?0.18:0.55}/>
+
+      {!isIdle&&(
+        <rect x={tx(-17)} y={ty(-112)} width={34*s} height={64*s}
+          fill={sc.accent} opacity="0.04" className="core-breathe"/>
       )}
     </g>
   );
+}
+
+// ─── Mini desk screen content ─────────────────────────────────────────────────
+
+function MiniScreen({id,w,h,sc}:{id:string;w:number;h:number;sc:SC}) {
+  const c=sc.accent;
+  const isBull=sc.badge==="BULLISH", isBear=sc.badge==="BEARISH";
+
+  if(id==="trend") {
+    const pts=isBull?[h*.70,h*.54,h*.38,h*.24,h*.12]:isBear?[h*.18,h*.34,h*.50,h*.64,h*.78]:[h*.44,h*.52,h*.42,h*.50,h*.44];
+    return (
+      <g>
+        {[0.33,0.66].map(t=><line key={t} x1={0} y1={h*t} x2={w} y2={h*t} stroke={c} strokeWidth="0.4" opacity="0.10" strokeDasharray="3 4"/>)}
+        {pts.map((py,i)=><rect key={i} x={i*(w/5)+1} y={py} width={w/5-2} height={h-py} fill={c} opacity={0.12+i*0.09}/>)}
+        <polyline points={pts.map((py,i)=>`${i*(w/5)+w/10},${py}`).join(" ")}
+          fill="none" stroke={c} strokeWidth="1.8" opacity="0.95" strokeLinejoin="round" className="pulse-live"/>
+        {pts.map((py,i)=><circle key={i} cx={i*(w/5)+w/10} cy={py} r={1.8} fill={c} opacity="0.9"/>)}
+        <text x={w-2} y={11} textAnchor="end" fontSize="9" fill={c} fontFamily="monospace">{isBull?"▲":isBear?"▼":"→"}</text>
+      </g>
+    );
+  }
+  if(id==="smc") {
+    const candles=[
+      {o:h*.56,cl:h*.36,hi:h*.28,lo:h*.64,bull:true},{o:h*.38,cl:h*.24,hi:h*.18,lo:h*.44,bull:true},
+      {o:h*.28,cl:h*.42,hi:h*.22,lo:h*.50,bull:false},{o:h*.46,cl:h*.30,hi:h*.24,lo:h*.54,bull:true},
+      {o:h*.32,cl:h*.18,hi:h*.12,lo:h*.38,bull:true},
+    ];
+    const cw=w/6;
+    return (
+      <g>
+        <line x1={0} y1={h*.22} x2={w} y2={h*.22} stroke="#00ff9c" strokeWidth="0.8" opacity="0.45" strokeDasharray="4 3"/>
+        <line x1={0} y1={h*.62} x2={w} y2={h*.62} stroke="#ff4466" strokeWidth="0.8" opacity="0.45" strokeDasharray="4 3"/>
+        {sc.badge==="ALERT"&&<rect x={0} y={h*.60} width={w} height={2} fill={c} opacity="0.7" className="alert-blink"/>}
+        {candles.map((cd,i)=>{
+          const col=cd.bull?"#00ff9c":"#ff4466";
+          const bx=i*(w/5)+2,by=Math.min(cd.o,cd.cl),bh=Math.max(2,Math.abs(cd.cl-cd.o));
+          return <g key={i}><line x1={bx+cw*.4} y1={cd.hi} x2={bx+cw*.4} y2={cd.lo} stroke={col} strokeWidth="0.9" opacity="0.8"/><rect x={bx} y={by} width={cw*.8} height={bh} fill={col} opacity="0.82"/></g>;
+        })}
+      </g>
+    );
+  }
+  if(id==="news") {
+    const isAlert=sc.badge==="ALERT";
+    return (
+      <g>
+        <rect x={0} y={0} width={w} height={h*.14} fill={c} opacity={isAlert?.26:.11}/>
+        <text x={w/2} y={h*.10} textAnchor="middle" fontSize="5.5" fill={c} opacity="0.9" fontFamily="monospace">{isAlert?"⚠ IMPACT":"MACRO"}</text>
+        {[.22,.34,.46,.58,.70].map((t,i)=>(
+          <rect key={i} x={2} y={h*t-1.5} width={[w*.82,w*.60,w*.74,w*.50,w*.68][i]} height={3}
+            rx="0.5" fill={c} opacity={isAlert&&i<2?.58:.22} className={isAlert&&i===0?"alert-blink":""}/>
+        ))}
+        <rect x={2} y={h*.80} width={w-4} height={1.5} fill={c} opacity="0.5" className="dash-flow"/>
+      </g>
+    );
+  }
+  if(id==="risk") {
+    const isBlocked=sc.badge==="BLOCKED";
+    const cx2=w/2,cy2=h*.44,r=Math.min(w,h)*.28,circ=2*Math.PI*r;
+    const fill=isBlocked?.18:.82;
+    return (
+      <g>
+        <circle cx={cx2} cy={cy2} r={r*1.2} fill="none" stroke={c} strokeWidth="0.6" opacity="0.10"/>
+        <circle cx={cx2} cy={cy2} r={r} fill="none" stroke={c} strokeWidth="3.5" opacity="0.12"/>
+        <circle cx={cx2} cy={cy2} r={r} fill="none" stroke={c} strokeWidth="3.5" opacity="0.88"
+          strokeDasharray={`${circ*fill} ${circ*(1-fill)}`}
+          strokeDashoffset={circ*.25} strokeLinecap="square"
+          className={isBlocked?"alert-blink":"pulse-live"}/>
+        <text x={cx2} y={cy2+5} textAnchor="middle" fontSize="13" fill={c}
+          fontFamily="monospace" opacity="0.95" className={isBlocked?"alert-blink":""}>{isBlocked?"✖":"✔"}</text>
+      </g>
+    );
+  }
+  if(id==="contrarian") {
+    const mid=w/2;
+    return (
+      <g>
+        <line x1={mid} y1="2" x2={mid} y2={h-2} stroke={c} strokeWidth="0.6" opacity="0.22" strokeDasharray="3 3"/>
+        <rect x={0} y={0} width={mid} height={h} fill={c} opacity="0.04"/>
+        <polyline points={`${mid*.1},${h*.8} ${mid*.3},${h*.5} ${mid*.5},${h*.25}`}
+          fill="none" stroke="#00ff9c" strokeWidth="2" opacity="0.65" strokeLinecap="round" strokeLinejoin="round"/>
+        <polyline points={`${mid*1.9},${h*.2} ${mid*1.7},${h*.5} ${mid*1.5},${h*.75}`}
+          fill="none" stroke="#ff4466" strokeWidth="2" opacity="0.65"
+          strokeDasharray="3 2" strokeLinecap="round" strokeLinejoin="round"/>
+        <text x={mid} y={h*.58} textAnchor="middle" fontSize="11" fill={c} opacity="0.50" className="pulse-live">⇅</text>
+      </g>
+    );
+  }
+  if(id==="master") {
+    const cx2=w/2,cy2=h*.42,r=Math.min(w,h)*.24;
+    return (
+      <g>
+        <circle cx={cx2} cy={cy2} r={r*1.1} fill="none" stroke={c}
+          strokeWidth="0.7" opacity="0.20" strokeDasharray="5 4" className="radar-spin-slow"/>
+        {[0,45,90,135,180,225,270,315].map((deg,i)=>{
+          const rad=deg*Math.PI/180;
+          return <line key={i} x1={cx2+r*.35*Math.cos(rad)} y1={cy2+r*.35*Math.sin(rad)}
+            x2={cx2+r*.78*Math.cos(rad)} y2={cy2+r*.78*Math.sin(rad)}
+            stroke={c} strokeWidth="0.7" opacity={.14+(i%2)*.08}/>;
+        })}
+        <circle cx={cx2} cy={cy2} r={r*.40} fill={c} opacity=".08" className="core-breathe"/>
+        <text x={cx2} y={cy2+5} textAnchor="middle" fontSize="13" fontWeight="bold"
+          fill={c} opacity=".95" fontFamily="monospace">
+          {sc.badge==="BULLISH"?"▲":sc.badge==="BEARISH"?"▼":"○"}
+        </text>
+      </g>
+    );
+  }
+  if(id==="execution") {
+    const isArmed=sc.badge==="ARMED";
+    const cx2=w/2,cy2=h*.44,r=Math.min(w,h)*.28;
+    const lines:[number,number,number,number][]=[[-r,0,-r*.35,0],[r*.35,0,r,0],[0,-r,0,-r*.35],[0,r*.35,0,r]];
+    return (
+      <g>
+        {lines.map(([x1,y1,x2,y2],i)=>(
+          <line key={i} x1={cx2+x1} y1={cy2+y1} x2={cx2+x2} y2={cy2+y2}
+            stroke={c} strokeWidth={isArmed?2:1.2} opacity="0.88" className={isArmed?"pulse-live":""}/>
+        ))}
+        <circle cx={cx2} cy={cy2} r={r} fill="none" stroke={c} strokeWidth="0.9" opacity="0.38" strokeDasharray="4 4"/>
+        <circle cx={cx2} cy={cy2} r={r*.38} fill="none" stroke={c}
+          strokeWidth={isArmed?2:1.2} opacity={isArmed?.95:.52} className={isArmed?"pulse-live":""}/>
+        <rect x={cx2-3} y={cy2-3} width={6} height={6} fill={c}
+          opacity={isArmed?.98:.65} className={isArmed?"pulse-live":""}/>
+      </g>
+    );
+  }
+  return null;
 }
 
 // ─── Station ──────────────────────────────────────────────────────────────────
 
-function Station({
-  stn, state, sc, extraData,
-}: {
-  stn: Stn; state: AgentState; sc: SC;
-  extraData?: { conf: number; aligned: number; total: number };
-}) {
-  const { cx, deskY, s, isMaster } = stn;
-  const isIdle  = state === "idle";
-  const isAlert = state === "blocked" || state === "alert";
+function Station({stn,state,sc}:{stn:Stn;state:AgentState;sc:SC}) {
+  const {cx,deskY,s,isMaster}=stn;
+  const isIdle=state==="idle";
+  const isAlert=state==="blocked"||state==="alert";
 
-  const monW  = (isMaster ? 152 : 112) * s;
-  const monH  = (isMaster ? 116 : 86) * s;
-  const monX  = cx - monW / 2;
-  const standH = 14 * s;
-  const monY  = deskY - monH - standH;
+  const monW=(isMaster?152:114)*s;
+  const monH=(isMaster?116:88)*s;
+  const monX=cx-monW/2;
+  const standH=14*s;
+  const monY=deskY-monH-standH;
 
-  const cW = isMaster ? 114 : 86;
-  const cH = isMaster ? 90  : 66;
-  const sw = monW - 8 * s;
-  const sh = monH - 8 * s;
+  const cW=isMaster?114:86;
+  const cH=isMaster?90:66;
+  const sw=monW-8*s;
+  const sh=monH-8*s;
 
-  const dtop = (isMaster ? 112 : 82) * s;
-  const dbot = dtop * 0.82;
-  const dh1  = 18 * s;
-  const dh2  = 14 * s;
-
-  function screenContent() {
-    const p = { w: cW, h: cH, sc };
-    switch (stn.id) {
-      case "trend":      return <TrendScreen {...p} />;
-      case "smc":        return <PriceActionScreen {...p} />;
-      case "news":       return <NewsScreen {...p} />;
-      case "risk":       return <RiskScreen {...p} />;
-      case "contrarian": return <ContrarianScreen {...p} />;
-      case "execution":  return <ExecutionScreen {...p} />;
-      case "master":
-        return <MasterScreen {...p} w={cW} h={cH}
-          conf={extraData?.conf ?? 0}
-          aligned={extraData?.aligned ?? 0}
-          total={extraData?.total ?? 0} />;
-      default: return null;
-    }
-  }
+  const dtop=(isMaster?116:86)*s;
+  const dbot=dtop*0.82;
+  const dh1=18*s;
+  const dh2=14*s;
 
   return (
     <g>
-      {/* Overhead spotlight cone */}
-      {!isIdle && (
-        <path d={`M ${cx - 8 * s},0 L ${monX - 10 * s},${monY} L ${monX + monW + 10 * s},${monY} L ${cx + 8 * s},0`}
-          fill={sc.accent} opacity="0.012" />
+      {/* Spotlight cone */}
+      {!isIdle&&(
+        <path d={`M ${cx-8*s},0 L ${monX-12*s},${monY} L ${monX+monW+12*s},${monY} L ${cx+8*s},0`}
+          fill={sc.accent} opacity="0.010"/>
       )}
-
       {/* Monitor bloom */}
-      {!isIdle && (
-        <rect x={monX - 18 * s} y={monY - 18 * s} width={monW + 36 * s} height={monH + 36 * s}
-          fill={sc.accent} opacity={isMaster ? "0.075" : "0.045"}
-          filter="url(#bloom)"
-          className={isAlert ? "alert-blink" : "core-breathe"} />
+      {!isIdle&&(
+        <rect x={monX-20*s} y={monY-20*s} width={monW+40*s} height={monH+40*s}
+          fill={sc.accent} opacity={isMaster?"0.080":"0.050"}
+          filter="url(#bloom)" className={isAlert?"alert-blink":"core-breathe"}/>
       )}
-
       {/* Monitor bezel */}
       <rect x={monX} y={monY} width={monW} height={monH}
-        fill="#06101e"
-        stroke={isIdle ? "#0e2038" : sc.accent}
-        strokeWidth={isIdle ? 0.6 : s * 1.1}
-        opacity={isIdle ? 0.5 : 0.96} />
-
+        fill="#05101e" stroke={isIdle?"#0e2038":sc.accent}
+        strokeWidth={isIdle?0.6:s*1.1} opacity={isIdle?0.50:0.97}/>
       {/* Screen */}
-      <rect x={monX + 4 * s} y={monY + 4 * s} width={monW - 8 * s} height={monH - 8 * s}
-        fill={sc.screen} />
-
+      <rect x={monX+4*s} y={monY+4*s} width={monW-8*s} height={monH-8*s} fill={sc.screen}/>
       {/* CRT scanlines */}
-      {Array.from({ length: Math.floor((monH - 8 * s) / (3 * s)) }, (_, i) => (
+      {Array.from({length:Math.floor((monH-8*s)/(3*s))},(_,i)=>(
         <line key={i}
-          x1={monX + 4 * s} y1={monY + 4 * s + i * 3 * s}
-          x2={monX + monW - 4 * s} y2={monY + 4 * s + i * 3 * s}
-          stroke="#fff" strokeWidth="0.3" opacity="0.022" />
+          x1={monX+4*s} y1={monY+4*s+i*3*s}
+          x2={monX+monW-4*s} y2={monY+4*s+i*3*s}
+          stroke="#fff" strokeWidth="0.3" opacity="0.020"/>
       ))}
-
       {/* Screen content */}
       <clipPath id={`clip-${stn.id}`}>
-        <rect x={monX + 4 * s} y={monY + 4 * s} width={sw} height={sh} />
+        <rect x={monX+4*s} y={monY+4*s} width={sw} height={sh}/>
       </clipPath>
       <g clipPath={`url(#clip-${stn.id})`}>
-        <g transform={`translate(${monX + 4 * s},${monY + 4 * s}) scale(${sw / cW},${sh / cH})`}>
-          {screenContent()}
+        <g transform={`translate(${monX+4*s},${monY+4*s}) scale(${sw/cW},${sh/cH})`}>
+          <MiniScreen id={stn.id} w={cW} h={cH} sc={sc}/>
         </g>
       </g>
-
       {/* Corner LEDs */}
-      <rect x={monX + 4 * s}      y={monY + 4 * s} width={4 * s} height={4 * s}
-        fill={sc.accent} opacity={isIdle ? 0.15 : 0.80}
-        className={isAlert ? "alert-blink" : ""} />
-      <rect x={monX + monW - 8 * s} y={monY + 4 * s} width={4 * s} height={4 * s}
-        fill={sc.accent} opacity={isIdle ? 0.15 : 0.80}
-        className={isAlert ? "alert-blink" : ""} />
-
+      <rect x={monX+4*s}      y={monY+4*s} width={4*s} height={4*s}
+        fill={sc.accent} opacity={isIdle?0.15:0.80} className={isAlert?"alert-blink":""}/>
+      <rect x={monX+monW-8*s} y={monY+4*s} width={4*s} height={4*s}
+        fill={sc.accent} opacity={isIdle?0.15:0.80} className={isAlert?"alert-blink":""}/>
       {/* Monitor stand */}
-      <rect x={cx - 4 * s}  y={monY + monH}        width={8 * s}  height={standH}     fill="#040e1a" />
-      <rect x={cx - 13 * s} y={monY + monH + standH} width={26 * s} height={4 * s}    fill="#040e1a" />
-
+      <rect x={cx-4*s}  y={monY+monH}        width={8*s}  height={standH} fill="#040e1c"/>
+      <rect x={cx-14*s} y={monY+monH+standH} width={28*s} height={4*s}    fill="#040e1c"/>
       {/* Master hologram ring */}
-      {isMaster && !isIdle && (
-        <ellipse cx={cx} cy={monY - 20 * s} rx={40 * s} ry={12 * s}
-          fill="none" stroke={sc.accent} strokeWidth="0.8"
-          opacity="0.25" strokeDasharray="5 4" className="radar-spin-slow" />
+      {isMaster&&!isIdle&&(
+        <ellipse cx={cx} cy={monY-22*s} rx={44*s} ry={13*s}
+          fill="none" stroke={sc.accent} strokeWidth="0.9"
+          opacity="0.30" strokeDasharray="5 4" className="radar-spin-slow"/>
       )}
 
-      {/* Operator */}
-      <Operator cx={cx} deskY={deskY} s={s} agentId={stn.id} sc={sc} />
+      {/* Operator (rendered before desk so desk covers lower body = depth) */}
+      <Operator cx={cx} deskY={deskY} s={s} agentId={stn.id} sc={sc}/>
 
-      {/* Isometric desk top surface */}
+      {/* Desk top */}
       <polygon
-        points={`${cx - dtop},${deskY} ${cx + dtop},${deskY} ${cx + dbot},${deskY + dh1} ${cx - dbot},${deskY + dh1}`}
-        fill={isIdle ? "#081428" : "#0c1c34"}
-        stroke={isIdle ? "#102540" : sc.accent}
-        strokeWidth={isIdle ? 0.5 : s * 0.9} />
-      {/* Isometric desk front face — gives 3D depth illusion */}
+        points={`${cx-dtop},${deskY} ${cx+dtop},${deskY} ${cx+dbot},${deskY+dh1} ${cx-dbot},${deskY+dh1}`}
+        fill={isIdle?"#081428":"#0c1c36"}
+        stroke={isIdle?"#102540":sc.accent}
+        strokeWidth={isIdle?0.5:s*0.9}/>
+      {/* Desk front face */}
       <polygon
-        points={`${cx - dbot},${deskY + dh1} ${cx + dbot},${deskY + dh1} ${cx + dbot * .86},${deskY + dh1 + dh2} ${cx - dbot * .86},${deskY + dh1 + dh2}`}
-        fill="#050c18" stroke="#0a1828" strokeWidth="0.4" />
-      {/* Desk side faces for iso depth */}
+        points={`${cx-dbot},${deskY+dh1} ${cx+dbot},${deskY+dh1} ${cx+dbot*.86},${deskY+dh1+dh2} ${cx-dbot*.86},${deskY+dh1+dh2}`}
+        fill="#04091a" stroke="#09152a" strokeWidth="0.4"/>
+      {/* Desk side faces */}
       <polygon
-        points={`${cx - dtop},${deskY} ${cx - dbot},${deskY + dh1} ${cx - dbot * .86},${deskY + dh1 + dh2} ${cx - dtop * .86},${deskY + dh2}`}
-        fill="#040a14" stroke="#0a1828" strokeWidth="0.3" opacity="0.7" />
+        points={`${cx-dtop},${deskY} ${cx-dbot},${deskY+dh1} ${cx-dbot*.86},${deskY+dh1+dh2} ${cx-dtop*.86},${deskY+dh2}`}
+        fill="#030811" stroke="#09152a" strokeWidth="0.3" opacity="0.8"/>
       <polygon
-        points={`${cx + dtop},${deskY} ${cx + dbot},${deskY + dh1} ${cx + dbot * .86},${deskY + dh1 + dh2} ${cx + dtop * .86},${deskY + dh2}`}
-        fill="#040a14" stroke="#0a1828" strokeWidth="0.3" opacity="0.7" />
-
-      {/* Keyboard on desk */}
-      <rect x={cx - 22 * s} y={deskY + 3 * s} width={44 * s} height={8 * s} rx="1"
-        fill={isIdle ? "#060e1c" : "#081426"}
-        stroke={isIdle ? "#0e1c2e" : sc.accent} strokeWidth="0.5" />
-      {[0, 1, 2].map(row => (
+        points={`${cx+dtop},${deskY} ${cx+dbot},${deskY+dh1} ${cx+dbot*.86},${deskY+dh1+dh2} ${cx+dtop*.86},${deskY+dh2}`}
+        fill="#030811" stroke="#09152a" strokeWidth="0.3" opacity="0.8"/>
+      {/* Keyboard */}
+      <rect x={cx-24*s} y={deskY+3*s} width={48*s} height={9*s} rx="1"
+        fill={isIdle?"#060e1c":"#081428"}
+        stroke={isIdle?"#0e1c2e":sc.accent} strokeWidth="0.5"/>
+      {[0,1,2].map(row=>(
         <g key={row}>
-          {[0, 1, 2, 3, 4].map(col => (
-            <rect key={col}
-              x={cx - 18 * s + col * 8 * s} y={deskY + 4 * s + row * 2 * s}
-              width={6 * s} height={1.5 * s}
-              fill={sc.accent} opacity={isIdle ? 0.08 : 0.22} />
+          {[0,1,2,3,4,5].map(col=>(
+            <rect key={col} x={cx-21*s+col*8*s} y={deskY+4*s+row*2.5*s}
+              width={6*s} height={1.8*s} fill={sc.accent} opacity={isIdle?0.07:0.20}/>
           ))}
         </g>
       ))}
+      {/* Desk LED */}
+      <rect x={cx+dbot-10*s} y={deskY+4*s} width={4*s} height={4*s}
+        fill={isIdle?"#1e3a5f":sc.accent}
+        opacity={isIdle?0.22:0.95}
+        className={isAlert?"alert-blink":!isIdle?"pulse-live":""}/>
 
-      {/* Desk status LED */}
-      <rect x={cx + dbot - 9 * s} y={deskY + 4 * s} width={4 * s} height={4 * s}
-        fill={isIdle ? "#1e3a5f" : sc.accent}
-        opacity={isIdle ? 0.22 : 0.92}
-        className={isAlert ? "alert-blink" : !isIdle ? "pulse-live" : ""} />
+      {/* Desk clutter on top of desk surface */}
+      <DeskClutter cx={cx} deskY={deskY} s={s} sc={sc}/>
 
       {/* Floor shadow */}
-      <ellipse cx={cx} cy={deskY + dh1 + dh2 + 8 * s} rx={dtop * 1.1} ry={8 * s}
-        fill={sc.accent} opacity={isIdle ? 0 : isMaster ? 0.14 : 0.07}
-        className={!isIdle ? "core-breathe" : ""} />
+      <ellipse cx={cx} cy={deskY+dh1+dh2+8*s} rx={dtop*1.15} ry={9*s}
+        fill={sc.accent} opacity={isIdle?0:isMaster?0.16:0.08}
+        className={!isIdle?"core-breathe":""}/>
 
-      {/* Station label */}
-      <text x={cx} y={deskY + dh1 + dh2 + 22 * s}
-        textAnchor="middle"
-        fontSize={isMaster ? 10 * s : 8.5 * s}
+      {/* Label */}
+      <text x={cx} y={deskY+dh1+dh2+22*s}
+        textAnchor="middle" fontSize={isMaster?10*s:8.5*s}
         fontWeight="700" fill={sc.accent}
-        fontFamily="ui-monospace,monospace"
-        letterSpacing="0.12em"
-        opacity={isIdle ? 0.30 : 0.96}>
+        fontFamily="ui-monospace,monospace" letterSpacing="0.12em"
+        opacity={isIdle?0.28:0.95}>
         {stn.label}
       </text>
-      {!isIdle && (
-        <text x={cx} y={deskY + dh1 + dh2 + 32 * s}
-          textAnchor="middle"
-          fontSize={6.5 * s}
-          fill={sc.accent} opacity="0.72"
-          fontFamily="ui-monospace,monospace"
-          letterSpacing="0.12em"
-          className={isAlert ? "alert-blink" : ""}>
+      {!isIdle&&(
+        <text x={cx} y={deskY+dh1+dh2+32*s}
+          textAnchor="middle" fontSize={6.5*s}
+          fill={sc.accent} opacity="0.70"
+          fontFamily="ui-monospace,monospace" letterSpacing="0.12em"
+          className={isAlert?"alert-blink":""}>
           [{sc.badge}]
         </text>
       )}
@@ -903,28 +783,25 @@ function Station({
 
 // ─── Data-flow lines ──────────────────────────────────────────────────────────
 
-function DataFlowLines({ states }: { states: Record<string, AgentState> }) {
-  const master = STATIONS.find(s => s.id === "master")!;
+function DataFlowLines({states}:{states:Record<string,AgentState>}) {
+  const master=STATIONS.find(s=>s.id==="master")!;
   return (
     <g>
-      {STATIONS.filter(s => s.id !== "master").map(stn => {
-        const state = states[stn.id] ?? "idle";
-        const sc    = STATE[state];
-        const active = state !== "idle";
-        const mx = (stn.cx + master.cx) / 2;
-        const my = Math.min(stn.deskY, master.deskY) - Math.abs(stn.deskY - master.deskY) * 0.12 - 18;
+      {STATIONS.filter(s=>s.id!=="master").map(stn=>{
+        const state=states[stn.id]??"idle";
+        const sc=STATE[state];
+        const active=state!=="idle";
+        const mx=(stn.cx+master.cx)/2;
+        const my=Math.min(stn.deskY,master.deskY)-20;
         return (
           <g key={stn.id}>
-            {/* Base path */}
             <path d={`M ${stn.cx} ${stn.deskY} Q ${mx} ${my} ${master.cx} ${master.deskY}`}
-              fill="none" stroke="#0a1c30" strokeWidth="0.7" opacity="0.5" />
-            {/* Active data flow */}
-            {active && (
+              fill="none" stroke="#0a1c30" strokeWidth="0.7" opacity="0.5"/>
+            {active&&(
               <path d={`M ${stn.cx} ${stn.deskY} Q ${mx} ${my} ${master.cx} ${master.deskY}`}
                 fill="none" stroke={sc.accent} strokeWidth="0.8"
-                opacity="0.55" strokeDasharray="4 4"
-                className={state === "blocked" ? "dash-flow-slow"
-                  : state === "armed" ? "dash-flow-fast" : "dash-flow"} />
+                opacity="0.52" strokeDasharray="4 4"
+                className={state==="blocked"?"dash-flow-slow":state==="armed"?"dash-flow-fast":"dash-flow"}/>
             )}
           </g>
         );
@@ -933,87 +810,67 @@ function DataFlowLines({ states }: { states: Record<string, AgentState> }) {
   );
 }
 
-// ─── Main export ──────────────────────────────────────────────────────────────
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
-export function AgentCommandRoom({
-  data, loading = false,
-}: {
-  data: AgentRunResult | null; loading?: boolean;
+export function AgentCommandRoom({data,loading=false}:{
+  data:AgentRunResult|null; loading?:boolean;
 }) {
-  const VW = 1200, VH = 520;
+  const VW=1200, VH=560, wallH=212;
 
-  const states: Record<string, AgentState> = data
-    ? deriveStates(data)
-    : {
-        trend: "idle", smc: "idle", news: "idle", risk: "idle",
-        contrarian: "idle", master: "analyzing", execution: "idle",
-      };
+  const states:Record<string,AgentState>=data
+    ?deriveStates(data)
+    :{trend:"idle",smc:"idle",news:"idle",risk:"idle",contrarian:"idle",master:"analyzing",execution:"idle"};
 
-  const sc = (id: string): SC => STATE[states[id] ?? "idle"];
+  const sc=(id:string):SC=>STATE[states[id]??"idle"];
+  const masterSCval=sc("master");
+  const conf=data?.agents.master.confidence??0;
+  const finalBias=data?.agents.master.finalBias??"no-trade";
 
-  const conf    = data?.agents.master.confidence ?? 0;
-  const aligned = data
-    ? data.agents.master.agentConsensus.filter(a =>
-        data.agents.master.finalBias === "bullish" ? a.weightedScore > 0 :
-        data.agents.master.finalBias === "bearish" ? a.weightedScore < 0 : false
-      ).length
-    : 0;
-  const total = data?.agents.master.agentConsensus.length ?? 0;
-
-  const renderOrder = ["news", "risk", "smc", "contrarian", "master", "trend", "execution"];
+  const renderOrder=["news","risk","smc","contrarian","master","trend","execution"];
 
   return (
     <div className="w-full rounded-xl border border-cyan-500/20 bg-[#060d1a] overflow-hidden">
       <div className="overflow-x-auto">
-        <div style={{ minWidth: 640 }}>
-          <svg
-            viewBox={`0 0 ${VW} ${VH}`}
-            style={{ display: "block", width: "100%", height: "auto" }}
-            xmlns="http://www.w3.org/2000/svg"
-          >
+        <div style={{minWidth:640}}>
+          <svg viewBox={`0 0 ${VW} ${VH}`}
+            style={{display:"block",width:"100%",height:"auto"}}
+            xmlns="http://www.w3.org/2000/svg">
+
             <defs>
               <radialGradient id="master-halo" cx="50%" cy="50%" r="50%">
-                <stop offset="0%"   stopColor={STATE[states["master"] ?? "analyzing"].accent} stopOpacity="0.22" />
-                <stop offset="100%" stopColor={STATE[states["master"] ?? "analyzing"].accent} stopOpacity="0" />
+                <stop offset="0%"   stopColor={masterSCval.accent} stopOpacity="0.25"/>
+                <stop offset="100%" stopColor={masterSCval.accent} stopOpacity="0"/>
               </radialGradient>
             </defs>
 
-            <Environment VW={VW} VH={VH} />
+            <Environment VW={VW} VH={VH} wallH={wallH}
+              states={states} finalBias={finalBias}
+              confidence={conf} masterSCarg={masterSCval}/>
 
-            {/* Master ambient halo */}
-            {(() => {
-              const m = STATIONS.find(s => s.id === "master")!;
-              return (
-                <ellipse cx={m.cx} cy={m.deskY - 70} rx={220} ry={170}
-                  fill="url(#master-halo)" filter="url(#bloom)"
-                  className="core-breathe" />
-              );
+            {/* Master halo */}
+            {(()=>{
+              const m=STATIONS.find(s=>s.id==="master")!;
+              return <ellipse cx={m.cx} cy={m.deskY-70} rx={230} ry={175}
+                fill="url(#master-halo)" filter="url(#bloom)" className="core-breathe"/>;
             })()}
 
-            {/* Data flow lines */}
-            <DataFlowLines states={states} />
+            <DataFlowLines states={states}/>
 
-            {/* Stations */}
-            {renderOrder.map(id => {
-              const stn = STATIONS.find(s => s.id === id)!;
-              return (
-                <Station key={id} stn={stn} state={states[id] ?? "idle"}
-                  sc={sc(id)}
-                  extraData={id === "master" ? { conf, aligned, total } : undefined} />
-              );
+            {renderOrder.map(id=>{
+              const stn=STATIONS.find(s=>s.id===id)!;
+              return <Station key={id} stn={stn} state={states[id]??"idle"} sc={sc(id)}/>;
             })}
 
             {/* Global CRT sheet */}
-            {Array.from({ length: Math.floor(VH / 4) }, (_, i) => (
-              <line key={i} x1={0} y1={i * 4 + 2} x2={VW} y2={i * 4 + 2}
-                stroke="#000" strokeWidth="1.2" opacity="0.06" />
+            {Array.from({length:Math.floor(VH/4)},(_,i)=>(
+              <line key={i} x1={0} y1={i*4+2} x2={VW} y2={i*4+2}
+                stroke="#000" strokeWidth="1.2" opacity="0.06"/>
             ))}
 
-            {/* Watermark */}
-            <text x={VW / 2} y={VH - 5} textAnchor="middle"
+            <text x={VW/2} y={VH-5} textAnchor="middle"
               fontSize="7" fill="#00ff9c" opacity="0.05"
               fontFamily="ui-monospace,monospace" letterSpacing="0.28em">
-              TRADEX · AI OPERATIONS CENTER · {data ? "LIVE" : "STANDBY"}
+              TRADEX · AI OPERATIONS CENTER · {data?"LIVE":"STANDBY"}
             </text>
           </svg>
         </div>
