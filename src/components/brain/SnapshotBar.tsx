@@ -6,24 +6,28 @@ import type { MarketSnapshot } from "@/lib/agents/schemas";
 
 interface SnapshotBarProps {
   snapshot: MarketSnapshot;
+  livePrice?: number;
+  liveChangePercent?: number;
 }
 
-export function SnapshotBar({ snapshot }: SnapshotBarProps) {
+export function SnapshotBar({ snapshot, livePrice, liveChangePercent }: SnapshotBarProps) {
   const { price, structure, indicators } = snapshot;
-  const isUp = price.changePercent >= 0;
+  const displayPrice = livePrice ?? price.current;
+  const displayPct   = liveChangePercent ?? price.changePercent;
+  const isUp = displayPct >= 0;
 
   const fields = [
     {
       label: "Price",
-      value: price.current.toLocaleString(undefined, {
+      value: displayPrice.toLocaleString(undefined, {
         minimumFractionDigits: 2,
-        maximumFractionDigits: price.current > 100 ? 2 : 5,
+        maximumFractionDigits: displayPrice > 100 ? 2 : 5,
       }),
       color: isUp ? "text-emerald-400" : "text-red-400",
     },
     {
       label: "Change",
-      value: `${isUp ? "+" : ""}${price.changePercent.toFixed(2)}%`,
+      value: `${isUp ? "+" : ""}${displayPct.toFixed(2)}%`,
       color: isUp ? "text-emerald-400" : "text-red-400",
     },
     {

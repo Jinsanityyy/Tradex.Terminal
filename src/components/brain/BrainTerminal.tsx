@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import useSWR from "swr";
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
+import { useQuotes } from "@/hooks/useMarketData";
 import { AgentActivityLog } from "./AgentActivityLog";
 import { AgentCard } from "./AgentCard";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
@@ -183,6 +184,21 @@ function getAgentCards(data: AgentRunResult) {
   ];
 }
 
+// Map agent Symbol → quote symbol used by useQuotes / ticker
+const SYMBOL_TO_QUOTE: Partial<Record<Symbol, string>> = {
+  XAUUSD: "XAU/USD",
+  XAGUSD: "XAG/USD",
+  EURUSD: "EUR/USD",
+  GBPUSD: "GBP/USD",
+  USDJPY: "USD/JPY",
+  USDCAD: "USD/CAD",
+  USDCHF: "USD/CHF",
+  AUDUSD: "AUD/USD",
+  NZDUSD: "NZD/USD",
+  BTCUSD: "BTC/USD",
+  ETHUSD: "ETH/USD",
+};
+
 export function BrainTerminal() {
   const [symbol, setSymbol] = useState<Symbol>("XAUUSD");
   const [timeframe, setTimeframe] = useState<Timeframe>("H1");
@@ -190,6 +206,11 @@ export function BrainTerminal() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [highlightAgentId, setHighlightAgentId] = useState<string | undefined>();
+
+  // Live price from the 30s quotes feed — overrides the stale snapshot price
+  const { quotes } = useQuotes(15_000);
+  const quoteSymbol = SYMBOL_TO_QUOTE[symbol];
+  const liveQuote = quoteSymbol ? quotes.find(q => q.symbol === quoteSymbol) : undefined;
 
   const openDrawer = useCallback((agentId?: string) => {
     setHighlightAgentId(agentId);
@@ -266,7 +287,11 @@ export function BrainTerminal() {
 
       {data?.snapshot && !loading && (
         <div className="rounded-xl border border-white/6 bg-[#0d0d0d]/60 px-3 py-2">
-          <SnapshotBar snapshot={data.snapshot} />
+          <SnapshotBar
+            snapshot={data.snapshot}
+            livePrice={liveQuote?.price}
+            liveChangePercent={liveQuote?.changePercent}
+          />
         </div>
       )}
 
