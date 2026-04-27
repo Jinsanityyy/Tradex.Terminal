@@ -964,47 +964,6 @@ export function AgentCommandRoom({
 
   return (
     <div className="w-full rounded-xl border border-cyan-500/20 bg-[#060d1a] overflow-hidden">
-      {/* Title bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-cyan-500/10 bg-[#050c1a]">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#00ff9c] pulse-live inline-block" />
-          <span className="text-[9px] font-bold text-[#00ff9c] uppercase tracking-[0.22em] font-mono">
-            AI Operations Center
-          </span>
-          <span className="text-[8px] text-[#22d3ee] font-mono opacity-50 ml-1">
-            · {data ? "LIVE" : "STANDBY"}
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          {STATIONS.map(s => {
-            const state = states[s.id] ?? "idle";
-            const color = STATE[state].accent;
-            const active = state !== "idle";
-            return (
-              <div key={s.id} className="flex items-center gap-1">
-                <span style={{
-                  display: "inline-block", width: 5, height: 5,
-                  background: color, opacity: active ? 1 : 0.2,
-                  borderRadius: 1,
-                }} />
-                <span
-                  className="text-[7.5px] font-mono uppercase tracking-wide hidden lg:block"
-                  style={{ color, opacity: active ? 0.78 : 0.22 }}>
-                  {s.label}
-                </span>
-              </div>
-            );
-          })}
-          {data && (
-            <span className="text-[7.5px] font-mono text-zinc-600 ml-2">
-              {new Date(data.timestamp).toLocaleTimeString("en-US",
-                { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Scene */}
       <div className="overflow-x-auto">
         <div style={{ minWidth: 640 }}>
           <svg
@@ -1014,8 +973,8 @@ export function AgentCommandRoom({
           >
             <defs>
               <radialGradient id="master-halo" cx="50%" cy="50%" r="50%">
-                <stop offset="0%"   stopColor={STATE[states.master ?? "analyzing"].accent} stopOpacity="0.22" />
-                <stop offset="100%" stopColor={STATE[states.master ?? "analyzing"].accent} stopOpacity="0" />
+                <stop offset="0%"   stopColor={STATE[states["master"] ?? "analyzing"].accent} stopOpacity="0.22" />
+                <stop offset="100%" stopColor={STATE[states["master"] ?? "analyzing"].accent} stopOpacity="0" />
               </radialGradient>
             </defs>
 

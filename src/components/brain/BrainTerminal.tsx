@@ -21,7 +21,6 @@ import { AgentCard } from "./AgentCard";
 import { AgentCommandRoom } from "./AgentCommandRoom";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
 import { ConsensusPanel } from "./ConsensusPanel";
-import { DebateLog } from "./DebateLog";
 import { SnapshotBar } from "./SnapshotBar";
 import { TradePlan } from "./TradePlan";
 
@@ -310,19 +309,11 @@ export function BrainTerminal() {
       )}
 
       {/* ── Live Command Room ─────────────────────────────────────────────── */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
-          <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-400">
-            Live Agent Dashboard
-          </span>
-        </div>
-        <AgentCommandRoom data={data ?? null} loading={loading && !data} />
-      </div>
+      <AgentCommandRoom data={data ?? null} loading={loading && !data} />
 
       {/* ── Analysis ────────────────────────────────────────────────────── */}
-      <div className="grid gap-4 items-start xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.95fr)]">
-        <div className="min-w-0 space-y-2.5 xl:sticky xl:top-4 xl:self-start">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.95fr)]">
+        <div className="min-w-0 space-y-2.5">
           <div className="flex items-center gap-2">
             <Brain className="h-4 w-4 text-violet-400" />
             <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-300">
@@ -382,37 +373,27 @@ export function BrainTerminal() {
         </div>
       </div>
 
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-200">Support Agents</h2>
-            <p className="text-xs text-zinc-500">Compact support cards for trend, structure, macro, risk, and contrarian pressure.</p>
+      {(loading || data) && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Support Agents</h2>
+            {data && (
+              <span className="rounded-lg border border-white/8 bg-white/4 px-3 py-1.5 text-[11px] text-zinc-400">
+                {alignedCount}/{data.agents.master.agentConsensus.length} aligned
+              </span>
+            )}
           </div>
-          <div className="rounded-lg border border-white/8 bg-white/4 px-3 py-1.5 text-[11px] text-zinc-400">
-            {data ? `${alignedCount}/${data.agents.master.agentConsensus.length} aligned` : "7 agents live"}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {loading && !data
-            ? [...Array(5)].map((_, index) => (
-                <AgentCard key={index} agentId="" label="" icon={null} bias="neutral" confidence={0} loading />
-              ))
-            : data
-              ? secondaryCards.map((card) => (
-                  <AgentCard key={card.agentId} {...card} onClick={() => openDrawer(card.agentId)} />
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {loading && !data
+              ? [...Array(5)].map((_, index) => (
+                  <AgentCard key={index} agentId="" label="" icon={null} bias="neutral" confidence={0} loading />
                 ))
-              : null}
+              : secondaryCards.map((card) => (
+                  <AgentCard key={card.agentId} {...card} onClick={() => openDrawer(card.agentId)} />
+                ))}
+          </div>
         </div>
-      </div>
-
-      {/* Debate Log — agents challenge each other before Master adjudicates */}
-      <div className="rounded-xl border border-orange-500/10 bg-orange-500/3 p-3 md:p-4">
-        <DebateLog
-          debate={data?.debate ?? []}
-          loading={loading && !data}
-        />
-      </div>
+      )}
 
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
