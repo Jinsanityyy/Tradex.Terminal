@@ -283,6 +283,19 @@ export interface MasterDecisionOutput {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Debate System — agent-vs-agent debate log
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface DebateEntry {
+  agentId: string;
+  displayName: string;
+  stance: "bullish" | "bearish" | "neutral" | "no-trade" | "valid" | "invalid" | "opposing";
+  confidence: number;
+  position: string;       // 2-3 sentence opening argument
+  challenge?: string;     // 1-2 sentence challenge to opposing agents (null if fully aligned)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Orchestrator Output — full session result
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -301,6 +314,7 @@ export interface AgentRunResult {
     contrarian: ContrarianAgentOutput;
     master: MasterDecisionOutput;
   };
+  debate?: DebateEntry[];
   totalProcessingTime: number;
   cached?: boolean;
 }

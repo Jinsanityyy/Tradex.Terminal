@@ -20,6 +20,7 @@ import { AgentActivityLog } from "./AgentActivityLog";
 import { AgentCard } from "./AgentCard";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
 import { ConsensusPanel } from "./ConsensusPanel";
+import { DebateLog } from "./DebateLog";
 import { SnapshotBar } from "./SnapshotBar";
 import { TradePlan } from "./TradePlan";
 
@@ -390,6 +391,14 @@ export function BrainTerminal() {
                 ))
               : null}
         </div>
+      </div>
+
+      {/* Debate Log — agents challenge each other before Master adjudicates */}
+      <div className="rounded-xl border border-orange-500/10 bg-orange-500/3 p-3 md:p-4">
+        <DebateLog
+          debate={data?.debate ?? []}
+          loading={loading && !data}
+        />
       </div>
 
       <div className="space-y-4">

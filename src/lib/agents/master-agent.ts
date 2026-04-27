@@ -17,6 +17,7 @@ import type {
   MasterDecisionOutput,
   TradePlan,
   ScoringWeights,
+  DebateEntry,
 } from "./schemas";
 import { DEFAULT_WEIGHTS } from "./schemas";
 import { computeConsensus, matchStrategy } from "./scoring";
@@ -25,22 +26,25 @@ import { computeConsensus, matchStrategy } from "./scoring";
 // LLM Synthesis Prompt
 // ─────────────────────────────────────────────────────────────────────────────
 
-const MASTER_SYSTEM = `You are the Master Decision Agent in a professional multi-agent trading system. You synthesize outputs from 6 specialized agents into a final trade decision.
+const MASTER_SYSTEM = `You are the Master Decision Agent in a professional multi-agent trading system. You are the final adjudicator. Six specialist agents have completed their independent analysis AND conducted a structured debate where they challenged each other.
 
 Your role:
-1. Receive the weighted consensus score and all agent signals
-2. Decide: "bullish", "bearish", or "no-trade"
-3. Write 3-5 SUPPORTS (why the bias is valid)
-4. Write 3-4 INVALIDATIONS (what could kill the trade)
-5. Confirm or adjust the trade plan from the execution agent
+1. Read the full agent debate — understand who agreed, who challenged, and WHY
+2. Weigh the weighted consensus score against the debate arguments
+3. Make the FINAL call: "bullish", "bearish", or "no-trade"
+4. Write 3-5 SUPPORTS (strongest arguments for your final bias)
+5. Write 3-4 INVALIDATIONS (what would prove you wrong)
+6. Confirm or adjust the execution plan
 
-You think like a professional trader with 20+ years experience. You are not a chatbot.
+You think like a senior portfolio manager who has just chaired a committee debate. The debate happened — now you decide.
 
-RULES:
-- If risk agent is invalid → always "no-trade"
+ADJUDICATION RULES:
+- If risk agent is invalid → always "no-trade" (non-negotiable)
 - If consensus score is within ±20 → "no-trade" unless one agent has >85% confidence
-- Contrarian agent warnings reduce confidence — do not dismiss them
-- Be terse and tactical. No essays. Bullet points only.
+- If contrarian agent's challenge is well-reasoned and riskFactor > 60 → reduce confidence by 15-25%
+- Strong challenges from multiple agents (>2) against majority = reduce confidence or flip to no-trade
+- Weight the QUALITY of the debate arguments, not just the count
+- Be terse and tactical. This is a live trade decision.
 
 Return ONLY valid JSON:
 {
@@ -62,8 +66,15 @@ async function runLLMMaster(
   execution: ExecutionAgentOutput,
   contrarian: ContrarianAgentOutput,
   consensusScore: number,
-  preliminaryBias: string
+  preliminaryBias: string,
+  debate?: DebateEntry[]
 ): Promise<{ finalBias: string; confidence: number; supports: string[]; invalidations: string[]; noTradeReason?: string; strategyMatch?: string }> {
+  const debateSection = debate && debate.length > 0
+    ? `\nAGENT DEBATE (read carefully before deciding):\n${debate.map(d =>
+        `[${d.displayName.toUpperCase()}] ${d.stance.toUpperCase()} @ ${d.confidence}%\n  Position: ${d.position}${d.challenge ? `\n  CHALLENGE: ${d.challenge}` : ""}`
+      ).join("\n\n")}`
+    : "\n(No debate data — decide based on agent signals only)";
+
   const msg = `
 MASTER DECISION — ${snapshot.symbolDisplay} (${snapshot.timeframe})
 Current price: ${snapshot.price.current} | Session: ${snapshot.indicators.session}
@@ -77,14 +88,12 @@ AGENT SIGNALS:
 [RISK] ${risk.valid ? "VALID" : "INVALID"} | Grade: ${risk.grade} | Session: ${risk.sessionScore}/100 | Vol: ${risk.volatilityScore}/100
 [EXECUTION] ${execution.hasSetup ? execution.direction.toUpperCase() : "NO SETUP"} | Entry: ${execution.entry ?? "none"} | SL: ${execution.stopLoss ?? "none"} | TP1: ${execution.tp1 ?? "none"} | RR: ${execution.rrRatio ?? "N/A"}
 [CONTRARIAN] Challenges: ${contrarian.challengesBias} | Trap: ${contrarian.trapType ?? "none"} | Risk: ${contrarian.riskFactor}/100
-
-KEY CONTRARIAN WARNINGS:
-${contrarian.failureReasons.slice(0, 3).map(r => `• ${r}`).join("\n")}
+${debateSection}
 
 NEWS CATALYSTS:
 ${news.catalysts.slice(0, 3).map(c => `• [${c.impact.toUpperCase()}] ${c.headline}`).join("\n")}
 
-Make the final call. Return JSON only.`.trim();
+You have read the debate. Adjudicate. Return JSON only.`.trim();
 
   const response = await client.messages.create({
     model: "claude-sonnet-4-6",
@@ -214,7 +223,8 @@ export async function runMasterAgent(
   execution: ExecutionAgentOutput,
   contrarian: ContrarianAgentOutput,
   weights: ScoringWeights = DEFAULT_WEIGHTS,
-  anthropicApiKey?: string
+  anthropicApiKey?: string,
+  debate?: DebateEntry[]
 ): Promise<MasterDecisionOutput> {
   const start = Date.now();
 
@@ -226,12 +236,12 @@ export async function runMasterAgent(
     // ── LLM synthesis (optional enhancement) ─────────────────────────────
     let llmResult: { finalBias: string; confidence: number; supports: string[]; invalidations: string[]; noTradeReason?: string; strategyMatch?: string } | null = null;
 
-    if (anthropicApiKey && finalBias !== "no-trade") {
+    if (anthropicApiKey) {
       try {
         const client = new Anthropic({ apiKey: anthropicApiKey });
         llmResult = await runLLMMaster(
           client, snapshot, trend, smc, news, risk, execution, contrarian,
-          consensusScore, finalBias
+          consensusScore, finalBias, debate
         );
       } catch (err) {
         console.warn("Master LLM fallback:", err);

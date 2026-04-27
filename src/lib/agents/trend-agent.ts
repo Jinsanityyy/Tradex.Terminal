@@ -1,5 +1,5 @@
 /**
- * Agent 1 — Trend Agent (Rule-Based)
+ * Agent 1 — Trend Agent (Claude-Powered + Rule-Based Fallback)
  *
  * Determines trend bias using:
  * - Market structure (BOS/CHoCH from conviction engine)
@@ -8,7 +8,87 @@
  * - Timeframe confluence
  */
 
+import Anthropic from "@anthropic-ai/sdk";
 import type { MarketSnapshot, TrendAgentOutput, TimeframeBias, DirectionalBias, MarketPhase } from "./schemas";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LLM Prompt
+// ─────────────────────────────────────────────────────────────────────────────
+
+const TREND_SYSTEM = `You are the Trend Analysis Agent in a professional multi-agent trading terminal. Your job is to determine the dominant trend direction and market phase.
+
+Analyze price action, momentum, and structure across all timeframes. Think like a seasoned technician who reads markets through price behavior, not just indicators.
+
+FRAMEWORK:
+- H4/H1 bias comes from HTF conviction and structural highs/lows
+- RSI above 50 = bullish momentum, below 50 = bearish
+- MACD histogram positive = expanding bullish momentum
+- MA alignment: price in upper 52w range + RSI > 50 + positive MACD = bullish MA stack
+- Market phases: Accumulation (discount, building longs) → Expansion (trending hard) → Distribution (premium, topping) → Pullback (correcting in trend)
+
+Return ONLY valid JSON — no markdown, no code blocks:
+{
+  "bias": "bullish" | "bearish" | "neutral",
+  "confidence": 0-100,
+  "timeframeBias": { "M5": "bullish|bearish|neutral", "M15": "bullish|bearish|neutral", "H1": "bullish|bearish|neutral", "H4": "bullish|bearish|neutral", "aligned": true|false },
+  "maAlignment": true|false,
+  "momentumDirection": "expanding" | "contracting" | "flat",
+  "marketPhase": "Accumulation" | "Manipulation" | "Expansion" | "Distribution" | "Pullback" | "Range",
+  "reasons": ["reason1", "reason2", "reason3", "reason4"],
+  "invalidationLevel": number | null
+}`;
+
+async function runLLMTrend(client: Anthropic, snapshot: MarketSnapshot): Promise<TrendAgentOutput> {
+  const start = Date.now();
+  const { price, structure, indicators } = snapshot;
+
+  const msg = `
+Analyze trend for ${snapshot.symbolDisplay} (${snapshot.symbol}) on ${snapshot.timeframe}.
+
+PRICE DATA:
+- Current: ${price.current} | Open: ${price.open} | High: ${price.high} | Low: ${price.low}
+- Change: ${price.changePercent > 0 ? "+" : ""}${price.changePercent.toFixed(2)}% today
+- Position in today's range: ${price.positionInDay.toFixed(0)}%
+
+MARKET STRUCTURE:
+- 52-week range: ${structure.low52w} – ${structure.high52w}
+- Position: ${structure.pos52w}% of range (${structure.zone})
+- HTF Bias: ${structure.htfBias.toUpperCase()} at ${structure.htfConfidence}% conviction
+- Structure context: ${structure.smcContext}
+- In discount: ${structure.inDiscount} | In premium: ${structure.inPremium}
+
+MOMENTUM:
+- RSI(14): ${indicators.rsi.toFixed(1)}
+- MACD histogram: ${indicators.macdHist > 0 ? "+" : ""}${indicators.macdHist.toFixed(4)} (${indicators.macdHist > 0 ? "bullish" : "bearish"} momentum)
+- ATR proxy: ${indicators.atrProxy.toFixed(2)}% daily move
+- Session: ${indicators.session} (hour ${indicators.sessionHour} UTC)
+
+Determine the trend, market phase, and provide your institutional-grade reasoning.`.trim();
+
+  const response = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 600,
+    system: TREND_SYSTEM,
+    messages: [{ role: "user", content: msg }],
+  });
+
+  const raw = response.content[0].type === "text" ? response.content[0].text : "";
+  const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
+  const parsed = JSON.parse(cleaned);
+
+  return {
+    agentId: "trend",
+    bias: parsed.bias as DirectionalBias,
+    confidence: parsed.confidence,
+    timeframeBias: parsed.timeframeBias as TimeframeBias,
+    maAlignment: parsed.maAlignment,
+    momentumDirection: parsed.momentumDirection,
+    marketPhase: parsed.marketPhase as MarketPhase,
+    reasons: parsed.reasons,
+    invalidationLevel: parsed.invalidationLevel,
+    processingTime: Date.now() - start,
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Timeframe Bias Simulation
@@ -159,8 +239,17 @@ function buildReasons(
 // Main Agent Function
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function runTrendAgent(snapshot: MarketSnapshot): Promise<TrendAgentOutput> {
+export async function runTrendAgent(snapshot: MarketSnapshot, anthropicApiKey?: string): Promise<TrendAgentOutput> {
   const start = Date.now();
+
+  if (anthropicApiKey) {
+    try {
+      const client = new Anthropic({ apiKey: anthropicApiKey });
+      return await runLLMTrend(client, snapshot);
+    } catch (err) {
+      console.warn("Trend Agent LLM fallback:", err);
+    }
+  }
 
   try {
     const { htfBias, htfConfidence, zone, pos52w, high52w, low52w } = snapshot.structure;

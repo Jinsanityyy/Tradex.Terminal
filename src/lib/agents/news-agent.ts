@@ -1,5 +1,5 @@
 /**
- * Agent 3 — News Agent (Rule-Based + LLM)
+ * Agent 3 — News Agent (Claude-Powered + Rule-Based Fallback)
  *
  * Analyzes macroeconomic context:
  * - Fed / central bank tone
@@ -10,9 +10,95 @@
  * - Bias-changing events
  */
 
+import Anthropic from "@anthropic-ai/sdk";
 import type {
   MarketSnapshot, NewsAgentOutput, DirectionalBias, CatalystEvent,
 } from "./schemas";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LLM Prompt
+// ─────────────────────────────────────────────────────────────────────────────
+
+const NEWS_SYSTEM = `You are the Macro & News Analysis Agent in a professional multi-agent trading terminal. You interpret macroeconomic context, geopolitical developments, and news flow to determine market impact.
+
+Your job: analyze real news headlines and determine how they affect the specified asset. Think like a macro-focused fund manager.
+
+MACRO REGIMES:
+- geopolitical: war, sanctions, conflict → safe-haven bid (gold), risk-off
+- fed-policy: Fed, FOMC, rate decisions → USD impact, rate-sensitive moves
+- inflation: CPI, PCE, price data → real yield, gold, USD reactions
+- tariff: trade war, import duties → risk uncertainty, commodity impact
+- macro-data: GDP, NFP, employment → forward guidance, risk appetite
+- calm: no major catalysts → technical price action dominates
+
+ASSET IMPACT RULES:
+- XAUUSD (Gold): bullish on geopolitical risk, inflation, rate cuts, dollar weakness; bearish on rate hikes, dollar strength, risk-on
+- EURUSD: bullish on ECB hawkish, dollar weakness, risk-on; bearish on ECB dovish, dollar strength, euro crisis
+- GBPUSD: bullish on BOE hawkish, risk-on, UK data beat; bearish on BOE dovish, UK recession, dollar strength
+- BTCUSD: bullish on institutional adoption, ETF news, rate cuts, risk-on; bearish on regulation, bans, rate hikes
+- Other forex: impact based on relative central bank tone and risk appetite
+
+Return ONLY valid JSON:
+{
+  "impact": "bullish" | "bearish" | "neutral",
+  "riskScore": 0-100,
+  "confidence": 0-100,
+  "dominantCatalyst": "description of the key market-moving theme",
+  "regime": "geopolitical" | "fed-policy" | "inflation" | "tariff" | "macro-data" | "calm",
+  "catalysts": [{ "headline": "...", "impact": "high|medium|low", "direction": "bullish|bearish|neutral", "affectedAsset": true|false }],
+  "biasChangers": ["event that could flip the current bias"],
+  "tailRiskEvents": ["tail risk if any"],
+  "reasons": ["reason1", "reason2", "reason3"]
+}`;
+
+async function runLLMNews(client: Anthropic, snapshot: MarketSnapshot): Promise<NewsAgentOutput> {
+  const start = Date.now();
+  const { recentNews, symbol } = snapshot;
+
+  const headlineList = recentNews.slice(0, 10).map((n, i) =>
+    `${i + 1}. "${n.headline}" — ${n.summary.slice(0, 80)}`
+  ).join("\n");
+
+  const msg = `
+Analyze macro/news impact for ${snapshot.symbolDisplay} (${snapshot.symbol}).
+
+RECENT NEWS HEADLINES:
+${headlineList || "No news available — assume calm macro environment"}
+
+MARKET CONTEXT:
+- Asset: ${snapshot.symbolDisplay}
+- Current price: ${snapshot.price.current}
+- Price change: ${snapshot.price.changePercent > 0 ? "+" : ""}${snapshot.price.changePercent.toFixed(2)}%
+- HTF Bias from structure: ${snapshot.structure.htfBias.toUpperCase()} at ${snapshot.structure.htfConfidence}%
+- Session: ${snapshot.indicators.session}
+
+Determine: what is the macro regime? How does current news flow impact this specific asset? What could flip the bias?`.trim();
+
+  const response = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 700,
+    system: NEWS_SYSTEM,
+    messages: [{ role: "user", content: msg }],
+  });
+
+  const raw = response.content[0].type === "text" ? response.content[0].text : "";
+  const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
+  const parsed = JSON.parse(cleaned);
+
+  return {
+    agentId: "news",
+    impact: parsed.impact as DirectionalBias,
+    riskScore: parsed.riskScore,
+    confidence: parsed.confidence,
+    dominantCatalyst: parsed.dominantCatalyst,
+    regime: parsed.regime,
+    catalysts: (parsed.catalysts ?? []) as CatalystEvent[],
+    biasChangers: parsed.biasChangers ?? [],
+    tailRiskEvents: parsed.tailRiskEvents ?? [],
+    reasons: (parsed.reasons ?? []).slice(0, 5),
+    processingTime: Date.now() - start,
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Keyword Classifiers
@@ -159,8 +245,17 @@ function computeRiskScore(regime: string, newsCount: number, hasHighImpact: bool
 // Main Agent Function
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function runNewsAgent(snapshot: MarketSnapshot): Promise<NewsAgentOutput> {
+export async function runNewsAgent(snapshot: MarketSnapshot, anthropicApiKey?: string): Promise<NewsAgentOutput> {
   const start = Date.now();
+
+  if (anthropicApiKey) {
+    try {
+      const client = new Anthropic({ apiKey: anthropicApiKey });
+      return await runLLMNews(client, snapshot);
+    } catch (err) {
+      console.warn("News Agent LLM fallback:", err);
+    }
+  }
 
   try {
     const { recentNews, symbol } = snapshot;
