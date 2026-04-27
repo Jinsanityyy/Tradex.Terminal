@@ -577,7 +577,7 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
         <rect x={170} y={230} width={500} height={10} fill="#020504"/>
         <text x={174} y={238} fill={hasData ? masterColor : "#3a4a3a"} fontSize={5} fontFamily="monospace" opacity={0.8}>
           {hasData
-            ? `▲ ${data!.agents.trend.bias.toUpperCase()} TREND  │  SMC: ${data!.agents.smc.bias.toUpperCase()}  │  NEWS: ${data!.agents.news.impact.toUpperCase()}  │  ➤ FINAL: ${masterAgent.role}`
+            ? `▲ ${data!.agents.trend.bias.toUpperCase()} TREND  │  PA: ${data!.agents.smc.bias.toUpperCase()}  │  NEWS: ${data!.agents.news.impact.toUpperCase()}  │  ➤ FINAL: ${masterAgent.role}`
             : "── NO DATA ── CLICK REFRESH ──"}
         </text>
         <rect x={658} y={232} width={10} height={6} rx={1} fill={hasData&&blink ? masterColor : "#111"} opacity={0.7}/>

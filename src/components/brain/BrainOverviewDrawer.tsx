@@ -632,7 +632,11 @@ export function BrainOverviewDrawer({ open, onClose, data, highlightAgentId }: B
   const conf = cfg.getConf(data);
 
   // Quick-switch tab list (all 7 agents)
-  const tabs = Object.entries(AGENT_CONFIG).map(([id, c]) => ({ id, label: id === "master" ? "MASTER" : id.toUpperCase(), icon: c.icon }));
+  const TAB_LABEL: Record<string, string> = {
+    trend: "TREND", smc: "PA", news: "NEWS",
+    risk: "RISK", execution: "EXECUTION", contrarian: "CONTRARIAN", master: "MASTER",
+  };
+  const tabs = Object.entries(AGENT_CONFIG).map(([id, c]) => ({ id, label: TAB_LABEL[id] ?? id.toUpperCase(), icon: c.icon }));
 
   return (
     <>
