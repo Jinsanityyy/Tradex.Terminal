@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { RefreshCw, Shield, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
+import { DebateLog } from "@/components/brain/DebateLog";
 
 const SYMBOLS: { id: Symbol; label: string; tv: string }[] = [
   { id: "XAUUSD", label: "Gold",    tv: "OANDA:XAUUSD" },
@@ -230,6 +231,16 @@ export function MobileBrain() {
               )}
             </>
           )}
+        </div>
+      )}
+
+      {/* Agent Debate Log */}
+      {(data?.debate || isLoading) && (
+        <div className="bg-[hsl(var(--card))] rounded-xl border border-white/5 p-4">
+          <DebateLog
+            debate={data?.debate ?? []}
+            loading={isLoading && !data}
+          />
         </div>
       )}
 
