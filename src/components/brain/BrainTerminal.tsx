@@ -18,6 +18,7 @@ import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import { useQuotes } from "@/hooks/useMarketData";
 import { AgentActivityLog } from "./AgentActivityLog";
 import { AgentCard } from "./AgentCard";
+import { AgentCommandRoom } from "./AgentCommandRoom";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
 import { ConsensusPanel } from "./ConsensusPanel";
 import { DebateLog } from "./DebateLog";
@@ -308,6 +309,18 @@ export function BrainTerminal() {
         </div>
       )}
 
+      {/* ── Live Command Room ─────────────────────────────────────────────── */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
+          <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-400">
+            Live Agent Dashboard
+          </span>
+        </div>
+        <AgentCommandRoom data={data ?? null} loading={loading && !data} />
+      </div>
+
+      {/* ── Analysis ────────────────────────────────────────────────────── */}
       <div className="grid gap-4 items-start xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.95fr)]">
         <div className="min-w-0 space-y-2.5 xl:sticky xl:top-4 xl:self-start">
           <div className="flex items-center gap-2">

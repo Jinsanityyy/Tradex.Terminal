@@ -779,9 +779,9 @@ export function AgentCommandRoom({data, loading=false}: {
   const renderOrder = ["news","risk","smc","contrarian","master","trend","execution"];
 
   return (
-    <div className="w-full rounded-xl border border-white/[0.05] bg-[#010912] overflow-hidden">
+    <div className="w-full rounded-xl border border-cyan-500/20 bg-[#010912] overflow-hidden">
       {/* Title bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.04]">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-cyan-500/10 bg-[#020e1c]">
         <div className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-[#22d3ee] pulse-live"/>
           <span className="text-[9px] font-bold text-[#22d3ee] uppercase tracking-[0.22em] font-mono">
