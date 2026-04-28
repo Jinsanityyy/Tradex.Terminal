@@ -105,10 +105,10 @@ export function AgentCommandRoom({ data, loading=false }: {
   const biasLabel = finalBias==="bullish"?"▲ BULLISH":finalBias==="bearish"?"▼ BEARISH":"— NO TRADE";
 
   return (
-    <div className="rounded-xl border border-cyan-500/20 bg-[#060d1a] overflow-hidden" style={{ maxWidth:"75%", margin:"0 auto" }}>
+    <div className="w-full rounded-xl border border-cyan-500/20 bg-[#060d1a] overflow-hidden">
 
       {/* ── IMAGE + PINS ── */}
-      <div style={{ position:"relative", width:"100%" }}>
+      <div style={{ position:"relative", width:"100%", maxHeight:"480px", overflow:"hidden" }}>
         <img
           src={HQ_IMAGE}
           alt="TradeX Agent HQ"
