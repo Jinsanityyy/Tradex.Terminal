@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import { DebateLog } from "@/components/brain/DebateLog";
 import { TradexNewsroom } from "@/components/brain/TradexNewsroom";
+import { AgentCommandRoom } from "@/components/brain/AgentCommandRoom";
 
 const SYMBOLS: { id: Symbol; label: string; tv: string }[] = [
   { id: "XAUUSD", label: "Gold",    tv: "OANDA:XAUUSD" },
@@ -97,7 +98,7 @@ export function MobileBrain() {
       <div className="flex shrink-0 border-b border-white/5 px-4 pt-2">
         {[
           { id: "brain" as const, label: "Brain", icon: Shield },
-          { id: "newsroom" as const, label: "Newsroom", icon: Newspaper },
+          { id: "newsroom" as const, label: "Agent HQ", icon: Newspaper },
         ].map(({ id, label, icon: Icon }) => (
           <button key={id} onClick={() => setView(id)}
             className={cn("flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider border-b-2 transition-all -mb-px",
@@ -107,10 +108,10 @@ export function MobileBrain() {
         ))}
       </div>
 
-      {/* Newsroom view */}
+      {/* Newsroom / Agent HQ view */}
       {view === "newsroom" && (
         <div className="flex-1 overflow-y-auto">
-          <TradexNewsroom data={data ?? null} loading={isLoading && !data} />
+          <AgentCommandRoom data={data ?? null} loading={isLoading && !data} />
         </div>
       )}
 
