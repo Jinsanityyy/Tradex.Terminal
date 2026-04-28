@@ -209,7 +209,7 @@ export function BrainTerminal() {
   const [highlightAgentId, setHighlightAgentId] = useState<string | undefined>();
 
   // Live price from the 30s quotes feed — overrides the stale snapshot price
-  const { quotes } = useQuotes(15_000);
+  const { quotes } = useQuotes(60_000);
   const quoteSymbol = SYMBOL_TO_QUOTE[symbol];
   const liveQuote = quoteSymbol ? quotes.find(q => q.symbol === quoteSymbol) : undefined;
 

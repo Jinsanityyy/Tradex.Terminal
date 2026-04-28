@@ -217,7 +217,7 @@ function UserMenu() {
 
 export function TopStatusBar() {
   const session = getCurrentSession();
-  const { quotes, isLive } = useQuotes(15_000);
+  const { quotes, isLive } = useQuotes(60_000);
   // Show fewer assets on mobile — 4, full 8 on desktop
   const mobileAssets = quotes.slice(0, 4);
   const desktopAssets = quotes.slice(0, 8);
