@@ -117,7 +117,7 @@ export function AgentCommandRoom({ data, loading=false }: {
         <img
           src={HQ_IMAGE}
           alt="TradeX Agent HQ"
-          style={{ width:"100%", height:"620px", display:"block", objectFit:"fill" }}
+          style={{ width:"100%", height:"620px", display:"block", objectFit:"fill", pointerEvents:"none" }}
         />
 
         {/* Bias overlay bar on top of image */}
@@ -164,12 +164,13 @@ export function AgentCommandRoom({ data, loading=false }: {
                 top:`${pin.py}%`,
                 transform:"translate(-50%,-50%)",
                 cursor:"pointer",
-                zIndex:10,
-                width:44,
-                height:44,
+                zIndex:100,
+                width:60,
+                height:60,
                 display:"flex",
                 alignItems:"center",
                 justifyContent:"center",
+                pointerEvents:"all",
               }}
             >
               {/* Outer pulse ring */}
