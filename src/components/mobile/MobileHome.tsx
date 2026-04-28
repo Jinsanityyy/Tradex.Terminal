@@ -52,12 +52,20 @@ export function MobileHome() {
   const keyAssets = ["XAUUSD", "BTCUSD", "EURUSD", "USDJPY", "USOIL", "GBPUSD"];
   const displayQuotes = keyAssets.map((sym) => quotes.find((q) => q.symbol === sym)).filter(Boolean).slice(0, 6) as typeof quotes;
 
-  // Agent signal data — correct field paths
+  // Agent signal data — exec has signalState + entry/SL/TP
   const master = agentData?.agents?.master;
   const exec = agentData?.agents?.execution;
   const tradePlan = master?.tradePlan;
-  const signalState = (exec as any)?.signalState ?? "NO_TRADE";
+  const signalState = exec?.signalState ?? "NO_TRADE";
   const finalBias = master?.finalBias ?? "neutral";
+
+  // Entry/SL/TP can come from exec directly or from master.tradePlan
+  const entry = exec?.entry ?? tradePlan?.entry ?? null;
+  const stopLoss = exec?.stopLoss ?? tradePlan?.stopLoss ?? null;
+  const tp1 = exec?.tp1 ?? tradePlan?.tp1 ?? null;
+  const rrRatio = tradePlan?.rrRatio ?? null;
+  const direction = exec?.direction ?? tradePlan?.direction ?? null;
+  const trigger = exec?.trigger ?? tradePlan?.trigger ?? null;
 
   // Active session
   const activeSession = sessions.find(s => s.status === "active");
@@ -100,9 +108,9 @@ export function MobileHome() {
           <div className={cn("rounded-xl p-3.5 border", signalBg)}>
             <p className="text-[9px] text-zinc-600 uppercase tracking-widest mb-1">Signal</p>
             <p className={cn("text-[13px] font-bold uppercase", signalColor)}>{signalState.replace("_", " ")}</p>
-            {tradePlan && (
+            {direction && (
               <p className="text-[9px] text-zinc-600 mt-1 truncate">
-                {tradePlan.direction?.toUpperCase()} · {tradePlan.trigger}
+                {direction.toUpperCase()} · {trigger ?? "—"}
               </p>
             )}
           </div>
@@ -128,16 +136,20 @@ export function MobileHome() {
           </div>
         </div>
 
-        {/* Entry strip if ARMED */}
-        {signalState === "ARMED" && tradePlan && (
-          <div className="bg-emerald-500/8 border border-emerald-500/25 rounded-xl px-4 py-3">
-            <p className="text-[9px] text-emerald-500/70 uppercase tracking-wider mb-2">Armed Trade Setup</p>
+        {/* Entry strip — show when ARMED or PENDING and has entry */}
+        {(signalState === "ARMED" || signalState === "PENDING") && entry && (
+          <div className={cn("border rounded-xl px-4 py-3",
+            signalState === "ARMED" ? "bg-emerald-500/8 border-emerald-500/25" : "bg-amber-500/8 border-amber-500/25")}>
+            <p className={cn("text-[9px] uppercase tracking-wider mb-2",
+              signalState === "ARMED" ? "text-emerald-500/70" : "text-amber-500/70")}>
+              {signalState === "ARMED" ? "⚡ Armed — Confirm trigger" : "⏳ Pending — Waiting for entry"}
+            </p>
             <div className="grid grid-cols-4 gap-2">
               {[
-                { label: "Entry", value: tradePlan.entry?.toFixed(2), color: "text-zinc-100" },
-                { label: "SL", value: tradePlan.stopLoss?.toFixed(2), color: "text-red-400" },
-                { label: "TP1", value: tradePlan.tp1?.toFixed(2), color: "text-emerald-400" },
-                { label: "RR", value: tradePlan.rrRatio ? `${tradePlan.rrRatio}:1` : "—", color: "text-zinc-300" },
+                { label: "Entry", value: entry?.toFixed(entry > 100 ? 2 : 4), color: "text-zinc-100" },
+                { label: "SL", value: stopLoss?.toFixed(stopLoss > 100 ? 2 : 4), color: "text-red-400" },
+                { label: "TP1", value: tp1?.toFixed(tp1 > 100 ? 2 : 4), color: "text-emerald-400" },
+                { label: "RR", value: rrRatio ? `${rrRatio}:1` : "—", color: "text-zinc-300" },
               ].map(({ label, value, color }) => (
                 <div key={label} className="text-center">
                   <p className="text-[8px] text-zinc-600 mb-0.5">{label}</p>
