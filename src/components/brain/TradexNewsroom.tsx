@@ -365,7 +365,7 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
   ];
 
   return (
-    <div style={{ position:"relative", width:"100%", aspectRatio:`${W}/${H}`, overflow:"hidden",
+    <div style={{ position:"relative", width:"100%", aspectRatio:"900/380", overflow:"hidden",
       background:"#05080a", borderRadius:8, border:"1px solid #1f2a1f" }}>
       <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice" style={{ display:"block" }}>
         <defs>
