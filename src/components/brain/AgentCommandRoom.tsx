@@ -112,7 +112,7 @@ export function AgentCommandRoom({ data, loading=false }: {
         <img
           src={HQ_IMAGE}
           alt="TradeX Agent HQ"
-          style={{ width:"100%", display:"block", imageRendering:"pixelated" }}
+          style={{ width:"100%", height:"460px", display:"block", objectFit:"fill" }}
         />
 
         {/* Bias overlay bar on top of image */}

@@ -309,9 +309,7 @@ export function BrainTerminal() {
       )}
 
       {/* ── Live Command Room ─────────────────────────────────────────────── */}
-      <div style={{ zoom: 0.65 }}>
-        <AgentCommandRoom data={data ?? null} loading={loading && !data} />
-      </div>
+      <AgentCommandRoom data={data ?? null} loading={loading && !data} />
 
       {/* ── Analysis ────────────────────────────────────────────────────── */}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.95fr)]">
