@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Symbol, Timeframe } from "@/lib/agents/schemas";
 import { runAgentOrchestrator } from "@/lib/agents/orchestrator";
+import { logSignal } from "@/lib/signals/logger";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 55; // Vercel Pro: 60s max — keep 5s buffer for cleanup
@@ -39,6 +40,8 @@ export async function GET(req: NextRequest) {
 
   try {
     const result = await runAgentOrchestrator(validated.symbol, validated.timeframe);
+    // Log to signal history (fire-and-forget)
+    logSignal(result).catch(() => {});
     return NextResponse.json(result);
   } catch (error) {
     console.error("Agent run error:", error);
@@ -70,6 +73,10 @@ export async function POST(req: NextRequest) {
       undefined,
       body.forceRefresh ?? false
     );
+
+    // Log to signal history (fire-and-forget, never blocks response)
+    logSignal(result).catch(() => {});
+
     return NextResponse.json(result);
   } catch (error) {
     console.error("Agent run POST error:", error);
