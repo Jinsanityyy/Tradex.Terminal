@@ -230,9 +230,9 @@ export default function SignalsPage() {
 
   // Compute avg time to resolution from resolved signals
   const avgTimeToResolution = (() => {
-    const resolved = filteredSignals.filter(s => s.outcome?.resolvedAt && s.status !== "open" && s.status !== "expired");
+    const resolved = recent.filter((s: SignalRecord) => s.outcome?.resolvedAt && s.status !== "open" && s.status !== "expired");
     if (!resolved.length) return null;
-    const totalMs = resolved.reduce((sum, s) => {
+    const totalMs = resolved.reduce((sum: number, s: SignalRecord) => {
       const ms = new Date(s.outcome!.resolvedAt).getTime() - new Date(s.timestamp).getTime();
       return sum + Math.max(0, ms);
     }, 0);
