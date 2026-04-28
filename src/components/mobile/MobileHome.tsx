@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
-import { useQuotes, useMarketBias, useKeyLevels, useCatalysts, useMarketAnalysis } from "@/hooks/useMarketData";
-import { TrendingUp, TrendingDown, Minus, Target, Zap, RefreshCw, Sparkles } from "lucide-react";
+import React, { useState, useRef, useCallback } from "react";
+import { useQuotes, useMarketBias, useKeyLevels, useCatalysts, useMarketAnalysis, useAgentResult, useSessions } from "@/hooks/useMarketData";
+import { TrendingUp, TrendingDown, Minus, Target, Zap, RefreshCw, Sparkles, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DetailModal } from "@/components/shared/DetailModal";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { mutate } from "swr";
 import type { Catalyst } from "@/types";
 
 function LiveBadge() {
@@ -40,152 +42,213 @@ export function MobileHome() {
   const { levels } = useKeyLevels();
   const { catalysts } = useCatalysts();
   const { narrative, sentiment, generateFresh } = useMarketAnalysis();
+  const { result: agentData } = useAgentResult("XAUUSD", "H1");
+  const { sessions } = useSessions();
   const [generating, setGenerating] = useState(false);
   const [selectedCatalyst, setSelectedCatalyst] = useState<Catalyst | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLElement>;
 
   const goldBias = biasData.find((b) => b.asset?.toLowerCase().includes("gold")) ?? biasData[0];
-
   const keyAssets = ["XAUUSD", "BTCUSD", "EURUSD", "USDJPY", "USOIL", "GBPUSD"];
-  const displayQuotes = keyAssets
-    .map((sym) => quotes.find((q) => q.symbol === sym))
-    .filter(Boolean)
-    .slice(0, 6) as typeof quotes;
+  const displayQuotes = keyAssets.map((sym) => quotes.find((q) => q.symbol === sym)).filter(Boolean).slice(0, 6) as typeof quotes;
+
+  // Agent signal data
+  const agents = agentData?.agents as Record<string, any> | undefined;
+  const master = agents?.master;
+  const exec = agents?.execution;
+  const tradePlan = master?.tradePlan;
+  const signalState = exec?.signalState ?? "NO_TRADE";
+  const finalBias = master?.finalBias ?? "neutral";
+
+  // Active session
+  const activeSession = sessions.find(s => s.status === "active");
+
+  const divRef = useRef<HTMLDivElement>(null);
+
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([
+      mutate("/api/market/quotes"),
+      mutate("/api/market/catalysts"),
+      mutate("/api/agents/run"),
+    ]);
+  }, []);
+
+  const { refreshing, pullDistance, THRESHOLD } = usePullToRefresh(handleRefresh, divRef as React.RefObject<HTMLElement>);
+
 
   async function handleGenerate() {
     setGenerating(true);
     try { await generateFresh(); } finally { setGenerating(false); }
   }
 
+  const signalColor = signalState === "ARMED" ? "text-emerald-400" : signalState === "PENDING" ? "text-amber-400" : "text-zinc-500";
+  const signalBg = signalState === "ARMED" ? "bg-emerald-500/10 border-emerald-500/30" : signalState === "PENDING" ? "bg-amber-500/10 border-amber-500/30" : "bg-white/5 border-white/5";
+
   return (
-    <div className="px-4 py-4 space-y-5 pb-6">
-
-      {/* Prices grid */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-[11px] font-semibold text-[hsl(var(--foreground))] uppercase tracking-wider">Live Prices</span>
-          <LiveBadge />
+    <div ref={divRef} className="overflow-y-auto h-full pb-6">
+      {/* Pull to refresh indicator */}
+      {(pullDistance > 0 || refreshing) && (
+        <div className="flex items-center justify-center py-3 transition-all"
+          style={{ height: refreshing ? 48 : Math.min(pullDistance * 0.5, 48) }}>
+          <RefreshCw className={cn("h-4 w-4 text-[hsl(var(--primary))]", refreshing ? "animate-spin" : pullDistance >= THRESHOLD ? "text-emerald-400" : "")} />
         </div>
+      )}
+
+      <div className="px-4 py-4 space-y-4">
+        {/* Signal + Session row */}
         <div className="grid grid-cols-2 gap-2">
-          {displayQuotes.length > 0
-            ? displayQuotes.map((q) => (
-                <PriceCard key={q.symbol} symbol={q.symbol} price={q.price} change={q.changePercent} />
-              ))
-            : Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-[hsl(var(--card))] rounded-xl p-3.5 border border-white/5 h-[70px] animate-pulse" />
-              ))
-          }
-        </div>
-      </section>
+          {/* Signal State */}
+          <div className={cn("rounded-xl p-3.5 border", signalBg)}>
+            <p className="text-[9px] text-zinc-600 uppercase tracking-widest mb-1">Signal</p>
+            <p className={cn("text-[13px] font-bold uppercase", signalColor)}>{signalState.replace("_", " ")}</p>
+            {tradePlan && (
+              <p className="text-[9px] text-zinc-600 mt-1 truncate">
+                {tradePlan.direction?.toUpperCase()} · {tradePlan.trigger}
+              </p>
+            )}
+          </div>
 
-      {/* Gold Bias */}
-      {goldBias && (
-        <section>
-          <p className="text-[11px] font-semibold text-[hsl(var(--foreground))] uppercase tracking-wider mb-3">Gold Bias</p>
-          <div className="bg-[hsl(var(--card))] rounded-xl p-4 border border-white/5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-bold text-[hsl(var(--foreground))]">XAU/USD</span>
-              <span className={cn(
-                "text-[10px] font-bold px-3 py-1 rounded-full",
-                goldBias.bias === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
-                goldBias.bias === "bearish" ? "bg-red-500/15 text-red-400" :
-                "bg-zinc-500/15 text-zinc-400"
-              )}>
-                {goldBias.bias?.toUpperCase()}
+          {/* Active Session */}
+          <div className="bg-[hsl(var(--card))] rounded-xl p-3.5 border border-white/5">
+            <p className="text-[9px] text-zinc-600 uppercase tracking-widest mb-1">Session</p>
+            {activeSession ? (
+              <>
+                <p className="text-[13px] font-bold text-zinc-200">{activeSession.session}</p>
+                <span className={cn("text-[9px] font-bold uppercase",
+                  activeSession.volatilityTone === "high" ? "text-red-400" :
+                  activeSession.volatilityTone === "moderate" ? "text-amber-400" : "text-emerald-400")}>
+                  {activeSession.volatilityTone} vol
+                </span>
+              </>
+            ) : (
+              <>
+                <p className="text-[13px] font-bold text-zinc-500">Closed</p>
+                <p className="text-[9px] text-zinc-700 mt-1">Between sessions</p>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Entry strip if ARMED */}
+        {signalState === "ARMED" && tradePlan && (
+          <div className="bg-emerald-500/8 border border-emerald-500/25 rounded-xl px-4 py-3">
+            <p className="text-[9px] text-emerald-500/70 uppercase tracking-wider mb-2">Armed Trade Setup</p>
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { label: "Entry", value: tradePlan.entry?.toFixed(2), color: "text-zinc-100" },
+                { label: "SL", value: tradePlan.stopLoss?.toFixed(2), color: "text-red-400" },
+                { label: "TP1", value: tradePlan.tp1?.toFixed(2), color: "text-emerald-400" },
+                { label: "RR", value: tradePlan.rrRatio ? `${tradePlan.rrRatio}:1` : "—", color: "text-zinc-300" },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="text-center">
+                  <p className="text-[8px] text-zinc-600 mb-0.5">{label}</p>
+                  <p className={cn("text-[11px] font-mono font-bold", color)}>{value ?? "—"}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Top Catalyst highlight */}
+        {catalysts[0] && (
+          <div onClick={() => setSelectedCatalyst(catalysts[0])}
+            className="bg-[hsl(var(--card))] rounded-xl px-4 py-3 border border-white/5 active:bg-[hsl(var(--secondary))] cursor-pointer">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1">
+                <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Top Catalyst</p>
+                <p className="text-xs text-zinc-200 leading-snug">{catalysts[0].title}</p>
+              </div>
+              <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-4",
+                catalysts[0].importance === "high" ? "bg-red-500/15 text-red-400" :
+                catalysts[0].importance === "medium" ? "bg-amber-500/15 text-amber-400" :
+                "bg-zinc-500/15 text-zinc-400")}>
+                {catalysts[0].importance?.toUpperCase()}
               </span>
             </div>
-            {/* Conviction bar */}
-            <div>
-              <div className="flex justify-between text-[9px] text-[hsl(var(--muted-foreground))] mb-1.5">
-                <span>Conviction</span>
-                <span>{goldBias.confidence}%</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-white/5">
-                <div
-                  className={cn("h-full rounded-full transition-all", goldBias.bias === "bullish" ? "bg-emerald-400" : goldBias.bias === "bearish" ? "bg-red-400" : "bg-zinc-400")}
-                  style={{ width: `${goldBias.confidence}%` }}
-                />
-              </div>
-            </div>
+          </div>
+        )}
+
+        {/* Prices grid */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[11px] font-semibold uppercase tracking-wider">Live Prices</span>
+            <LiveBadge />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {displayQuotes.length > 0
+              ? displayQuotes.map((q) => <PriceCard key={q.symbol} symbol={q.symbol} price={q.price} change={q.changePercent} />)
+              : Array.from({ length: 6 }).map((_, i) => <div key={i} className="bg-[hsl(var(--card))] rounded-xl p-3.5 border border-white/5 h-[70px] animate-pulse" />)
+            }
           </div>
         </section>
-      )}
 
-      {/* Market regime */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-[11px] font-semibold text-[hsl(var(--foreground))] uppercase tracking-wider">AI Analysis</p>
-          <button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="flex items-center gap-1 text-[9px] text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30 px-2 py-1 rounded-lg"
-          >
-            {generating ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
-            {generating ? "..." : "Refresh"}
-          </button>
-        </div>
-        <div className="bg-[hsl(var(--card))] rounded-xl p-4 border border-white/5 space-y-2">
-          {narrative.regime && (
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Regime</span>
-              <span className="text-[10px] font-semibold text-amber-400">{narrative.regime}</span>
-            </div>
-          )}
-          {narrative.dominantTheme && (
-            <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-relaxed">{narrative.dominantTheme}</p>
-          )}
-          {narrative.summary && (
-            <p className="text-xs text-[hsl(var(--foreground))]/80 leading-relaxed">{narrative.summary}</p>
-          )}
-        </div>
-      </section>
-
-      {/* Key Levels */}
-      {levels.length > 0 && (
-        <section>
-          <p className="text-[11px] font-semibold text-[hsl(var(--foreground))] uppercase tracking-wider mb-3">Key Levels — Gold</p>
-          <div className="space-y-2">
-            {levels.slice(0, 4).map((lvl, i) => (
-              <div key={i} className="bg-[hsl(var(--card))] rounded-xl px-4 py-3 border border-white/5 flex items-center justify-between">
-                <div>
-                  <p className="text-[9px] text-[hsl(var(--muted-foreground))] uppercase tracking-wider">{lvl.bias}</p>
-                  <p className="text-xs font-semibold text-[hsl(var(--foreground))] font-mono">{lvl.asset}</p>
-                </div>
-                <span className={cn(
-                  "text-sm font-bold font-mono",
-                  lvl.bias === "bearish" ? "text-red-400" : lvl.bias === "bullish" ? "text-emerald-400" : "text-amber-400"
-                )}>
-                  {lvl.price?.toLocaleString()}
+        {/* Gold Bias */}
+        {goldBias && (
+          <section>
+            <p className="text-[11px] font-semibold uppercase tracking-wider mb-3">Gold Bias</p>
+            <div className="bg-[hsl(var(--card))] rounded-xl p-4 border border-white/5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-bold">XAU/USD</span>
+                <span className={cn("text-[10px] font-bold px-3 py-1 rounded-full",
+                  goldBias.bias === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
+                  goldBias.bias === "bearish" ? "bg-red-500/15 text-red-400" : "bg-zinc-500/15 text-zinc-400")}>
+                  {goldBias.bias?.toUpperCase()}
                 </span>
               </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Top Catalysts */}
-      {catalysts.length > 0 && (
-        <section>
-          <p className="text-[11px] font-semibold text-[hsl(var(--foreground))] uppercase tracking-wider mb-3">Top Catalysts</p>
-          <div className="space-y-2">
-            {catalysts.slice(0, 3).map((c, i) => (
-              <div key={i} onClick={() => setSelectedCatalyst(c)} className="bg-[hsl(var(--card))] rounded-xl px-4 py-3 border border-white/5 active:bg-[hsl(var(--secondary))] cursor-pointer">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-xs text-[hsl(var(--foreground))] leading-snug flex-1">{c.title}</p>
-                  <span className={cn(
-                    "text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0",
-                    c.importance === "high" ? "bg-red-500/15 text-red-400" :
-                    c.importance === "medium" ? "bg-amber-500/15 text-amber-400" :
-                    "bg-zinc-500/15 text-zinc-400"
-                  )}>
-                    {c.importance?.toUpperCase()}
-                  </span>
-                </div>
-                {c.affectedMarkets?.[0] && <p className="text-[9px] text-[hsl(var(--muted-foreground))] mt-1">{c.affectedMarkets[0]}</p>}
+              <div className="flex justify-between text-[9px] text-zinc-600 mb-1.5">
+                <span>Conviction</span><span>{goldBias.confidence}%</span>
               </div>
-            ))}
+              <div className="h-1.5 rounded-full bg-white/5">
+                <div className={cn("h-full rounded-full", goldBias.bias === "bullish" ? "bg-emerald-400" : goldBias.bias === "bearish" ? "bg-red-400" : "bg-zinc-400")}
+                  style={{ width: `${goldBias.confidence}%` }} />
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* AI Analysis */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider">AI Analysis</p>
+            <button onClick={handleGenerate} disabled={generating}
+              className="flex items-center gap-1 text-[9px] text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30 px-2 py-1 rounded-lg">
+              {generating ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
+              {generating ? "..." : "Refresh"}
+            </button>
+          </div>
+          <div className="bg-[hsl(var(--card))] rounded-xl p-4 border border-white/5 space-y-2">
+            {narrative.regime && (
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] text-zinc-600 uppercase tracking-wider">Regime</span>
+                <span className="text-[10px] font-semibold text-amber-400">{narrative.regime}</span>
+              </div>
+            )}
+            {narrative.summary && <p className="text-xs text-zinc-400 leading-relaxed">{narrative.summary}</p>}
           </div>
         </section>
-      )}
+
+        {/* More catalysts */}
+        {catalysts.length > 1 && (
+          <section>
+            <p className="text-[11px] font-semibold uppercase tracking-wider mb-3">More Catalysts</p>
+            <div className="space-y-2">
+              {catalysts.slice(1, 4).map((c, i) => (
+                <div key={i} onClick={() => setSelectedCatalyst(c)}
+                  className="bg-[hsl(var(--card))] rounded-xl px-4 py-3 border border-white/5 active:bg-[hsl(var(--secondary))] cursor-pointer">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs text-zinc-200 leading-snug flex-1">{c.title}</p>
+                    <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0",
+                      c.importance === "high" ? "bg-red-500/15 text-red-400" :
+                      c.importance === "medium" ? "bg-amber-500/15 text-amber-400" : "bg-zinc-500/15 text-zinc-400")}>
+                      {c.importance?.toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
 
       <DetailModal open={!!selectedCatalyst} onClose={() => setSelectedCatalyst(null)} title={selectedCatalyst?.title}>
         {selectedCatalyst && (
@@ -193,39 +256,21 @@ export function MobileHome() {
             <div className="flex items-center gap-2 flex-wrap">
               <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full uppercase",
                 selectedCatalyst.importance === "high" ? "bg-red-500/15 text-red-400" :
-                selectedCatalyst.importance === "medium" ? "bg-amber-500/15 text-amber-400" :
-                "bg-zinc-500/15 text-zinc-400"
-              )}>{selectedCatalyst.importance}</span>
-              <span className={cn("text-[9px] font-semibold uppercase px-2 py-0.5 rounded-full",
-                selectedCatalyst.status === "live" ? "bg-amber-500/15 text-amber-400" :
-                selectedCatalyst.status === "completed" ? "bg-emerald-500/15 text-emerald-400" :
-                "bg-blue-500/15 text-blue-400"
-              )}>{selectedCatalyst.status}</span>
+                selectedCatalyst.importance === "medium" ? "bg-amber-500/15 text-amber-400" : "bg-zinc-500/15 text-zinc-400")}>
+                {selectedCatalyst.importance}
+              </span>
             </div>
-            <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--primary))]">Why High Impact</p>
-              <p className="text-xs text-[hsl(var(--foreground))] leading-relaxed">{selectedCatalyst.explanation}</p>
+            <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--primary))] mb-1.5">Why It Matters</p>
+              <p className="text-xs leading-relaxed">{selectedCatalyst.explanation}</p>
             </div>
             {selectedCatalyst.affectedMarkets?.length > 0 && (
-              <div className="space-y-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Affected Markets</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {selectedCatalyst.affectedMarkets.map((m) => (
-                    <span key={m} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))]">{m}</span>
-                  ))}
-                </div>
+              <div className="flex flex-wrap gap-1.5">
+                {selectedCatalyst.affectedMarkets.map((m) => (
+                  <span key={m} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[hsl(var(--secondary))] text-zinc-400">{m}</span>
+                ))}
               </div>
             )}
-            <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 mb-1">Market Effect</p>
-              <p className="text-xs text-gray-300 leading-relaxed">
-                {selectedCatalyst.importance === "high"
-                  ? "High-impact catalyst — expect increased volatility and potential trend acceleration. Monitor price action closely near key levels."
-                  : selectedCatalyst.importance === "medium"
-                  ? "Medium-impact catalyst — may cause short-term volatility. Watch for confirmation before entering positions."
-                  : "Low-impact catalyst — limited directional effect expected. Use as secondary context only."}
-              </p>
-            </div>
           </div>
         )}
       </DetailModal>

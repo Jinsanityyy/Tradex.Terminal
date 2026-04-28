@@ -35,6 +35,7 @@ export function MobileLayout() {
   const [draft, setDraft] = useState("");
   const [avatar, setAvatar] = useState<string | null>(null);
   const [unreadChat, setUnreadChat] = useState(0);
+  const [unreadFeed, setUnreadFeed] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -93,6 +94,33 @@ export function MobileLayout() {
       clearTimeout(timer);
       if (channel) supabase.removeChannel(channel);
     };
+  }, []);
+
+  // Feed badge — poll for new HIGH catalysts
+  useEffect(() => {
+    const SEEN_KEY = "tradex_seen_feed_catalysts";
+    let prevIds: Set<string> = new Set();
+    try {
+      const raw = localStorage.getItem(SEEN_KEY);
+      if (raw) prevIds = new Set(JSON.parse(raw));
+    } catch {}
+
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch("/api/market/catalysts");
+        const { data } = await res.json();
+        if (!data?.length) return;
+        const highItems = data.filter((c: { id?: string; importance: string }) => c.importance === "high" && c.id);
+        const newHigh = highItems.filter((c: { id: string }) => !prevIds.has(c.id));
+        if (newHigh.length > 0 && prevIds.size > 0) {
+          setUnreadFeed(n => n + newHigh.length);
+        }
+        highItems.forEach((c: { id: string }) => prevIds.add(c.id));
+        localStorage.setItem(SEEN_KEY, JSON.stringify([...prevIds].slice(-100)));
+      } catch {}
+    }, 60_000);
+
+    return () => clearInterval(poll);
   }, []);
 
   function saveName() {
@@ -251,11 +279,14 @@ export function MobileLayout() {
         <div className="grid grid-cols-6">
           {TABS.map(({ id, label, Icon }) => {
             const isActive = active === id;
-            const showBadge = id === "community" && unreadChat > 0 && active !== "community";
+            const showBadge = (id === "community" && unreadChat > 0 && active !== "community") ||
+                              (id === "feed" && unreadFeed > 0 && active !== "feed");
+            const badgeCount = id === "community" ? unreadChat : unreadFeed;
             return (
               <button key={id} onClick={() => {
                 setActive(id);
                 if (id === "community") setUnreadChat(0);
+                if (id === "feed") setUnreadFeed(0);
               }}
                 className="flex flex-col items-center justify-center gap-0.5 py-3 transition-colors relative">
                 <div className="relative">
@@ -263,7 +294,7 @@ export function MobileLayout() {
                     isActive ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]")} />
                   {showBadge && (
                     <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-red-500 text-[8px] font-bold text-white flex items-center justify-center px-0.5">
-                      {unreadChat > 9 ? "9+" : unreadChat}
+                      {badgeCount > 9 ? "9+" : badgeCount}
                     </span>
                   )}
                 </div>
