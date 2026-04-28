@@ -59,11 +59,11 @@ export function MobileHome() {
   const signalState = exec?.signalState ?? "NO_TRADE";
   const finalBias = master?.finalBias ?? "neutral";
 
-  // Entry/SL/TP can come from exec directly or from master.tradePlan
+  // Entry/SL/TP — exec has live values, tradePlan has logged values
   const entry = exec?.entry ?? tradePlan?.entry ?? null;
   const stopLoss = exec?.stopLoss ?? tradePlan?.stopLoss ?? null;
   const tp1 = exec?.tp1 ?? tradePlan?.tp1 ?? null;
-  const rrRatio = tradePlan?.rrRatio ?? null;
+  const rrRatio = exec?.rrRatio ?? tradePlan?.rrRatio ?? null;
   const direction = exec?.direction ?? tradePlan?.direction ?? null;
   const trigger = exec?.trigger ?? tradePlan?.trigger ?? null;
 
@@ -136,27 +136,36 @@ export function MobileHome() {
           </div>
         </div>
 
-        {/* Entry strip — show when ARMED or PENDING and has entry */}
-        {(signalState === "ARMED" || signalState === "PENDING") && entry && (
+        {/* Entry strip — show whenever we have entry data */}
+        {entry && (
           <div className={cn("border rounded-xl px-4 py-3",
-            signalState === "ARMED" ? "bg-emerald-500/8 border-emerald-500/25" : "bg-amber-500/8 border-amber-500/25")}>
+            signalState === "ARMED"   ? "bg-emerald-500/8 border-emerald-500/25" :
+            signalState === "PENDING" ? "bg-amber-500/8 border-amber-500/25" :
+            "bg-white/5 border-white/10")}>
             <p className={cn("text-[9px] uppercase tracking-wider mb-2",
-              signalState === "ARMED" ? "text-emerald-500/70" : "text-amber-500/70")}>
-              {signalState === "ARMED" ? "⚡ Armed — Confirm trigger" : "⏳ Pending — Waiting for entry"}
+              signalState === "ARMED"   ? "text-emerald-500/70" :
+              signalState === "PENDING" ? "text-amber-500/70" :
+              "text-zinc-600")}>
+              {signalState === "ARMED" ? "⚡ Armed — Confirm trigger" :
+               signalState === "PENDING" ? "⏳ Pending — Waiting for entry" :
+               "Last Setup"}
             </p>
             <div className="grid grid-cols-4 gap-2">
               {[
-                { label: "Entry", value: entry?.toFixed(entry > 100 ? 2 : 4), color: "text-zinc-100" },
-                { label: "SL", value: stopLoss?.toFixed(stopLoss > 100 ? 2 : 4), color: "text-red-400" },
-                { label: "TP1", value: tp1?.toFixed(tp1 > 100 ? 2 : 4), color: "text-emerald-400" },
-                { label: "RR", value: rrRatio ? `${rrRatio}:1` : "—", color: "text-zinc-300" },
+                { label: "Entry", value: entry > 100 ? entry.toFixed(2) : entry.toFixed(4), color: "text-zinc-100" },
+                { label: "SL",    value: stopLoss ? (stopLoss > 100 ? stopLoss.toFixed(2) : stopLoss.toFixed(4)) : "—", color: "text-red-400" },
+                { label: "TP1",   value: tp1 ? (tp1 > 100 ? tp1.toFixed(2) : tp1.toFixed(4)) : "—", color: "text-emerald-400" },
+                { label: "RR",    value: rrRatio ? `${rrRatio}:1` : "—", color: "text-zinc-300" },
               ].map(({ label, value, color }) => (
                 <div key={label} className="text-center">
                   <p className="text-[8px] text-zinc-600 mb-0.5">{label}</p>
-                  <p className={cn("text-[11px] font-mono font-bold", color)}>{value ?? "—"}</p>
+                  <p className={cn("text-[11px] font-mono font-bold", color)}>{value}</p>
                 </div>
               ))}
             </div>
+            {exec?.signalStateReason && (
+              <p className="text-[10px] text-zinc-600 mt-2 leading-tight">{exec.signalStateReason}</p>
+            )}
           </div>
         )}
 
