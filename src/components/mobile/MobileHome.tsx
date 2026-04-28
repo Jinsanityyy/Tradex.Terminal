@@ -52,12 +52,11 @@ export function MobileHome() {
   const keyAssets = ["XAUUSD", "BTCUSD", "EURUSD", "USDJPY", "USOIL", "GBPUSD"];
   const displayQuotes = keyAssets.map((sym) => quotes.find((q) => q.symbol === sym)).filter(Boolean).slice(0, 6) as typeof quotes;
 
-  // Agent signal data
-  const agents = agentData?.agents as Record<string, any> | undefined;
-  const master = agents?.master;
-  const exec = agents?.execution;
+  // Agent signal data — correct field paths
+  const master = agentData?.agents?.master;
+  const exec = agentData?.agents?.execution;
   const tradePlan = master?.tradePlan;
-  const signalState = exec?.signalState ?? "NO_TRADE";
+  const signalState = (exec as any)?.signalState ?? "NO_TRADE";
   const finalBias = master?.finalBias ?? "neutral";
 
   // Active session
