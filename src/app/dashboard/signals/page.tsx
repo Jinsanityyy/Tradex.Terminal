@@ -94,6 +94,22 @@ function StatCard({ label, value, sub, accent }: {
   );
 }
 
+function timeToResolution(signal: SignalRecord): string | null {
+  if (!signal.outcome?.resolvedAt) return null;
+  const start = new Date(signal.timestamp).getTime();
+  const end = new Date(signal.outcome.resolvedAt).getTime();
+  const diffMs = end - start;
+  if (diffMs < 0) return null;
+  const mins = Math.floor(diffMs / 60_000);
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  const remMins = mins % 60;
+  if (hrs < 24) return remMins > 0 ? `${hrs}h ${remMins}m` : `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  const remHrs = hrs % 24;
+  return remHrs > 0 ? `${days}d ${remHrs}h` : `${days}d`;
+}
+
 function SignalRow({ s }: { s: SignalRecord }) {
   const hasTradePlan = s.tradePlan !== null;
 
@@ -118,12 +134,22 @@ function SignalRow({ s }: { s: SignalRecord }) {
           </span>
         </div>
 
-        <div className={cn(
-          "text-[10px] font-bold font-mono px-2 py-0.5 rounded border uppercase tracking-wider",
-          statusColor(s.status)
-        )}>
-          {statusLabel(s.status)}
-          {s.outcome && ` · ${s.outcome.pnlR >= 0 ? "+" : ""}${s.outcome.pnlR.toFixed(2)}R`}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className={cn(
+            "text-[10px] font-bold font-mono px-2 py-0.5 rounded border uppercase tracking-wider",
+            statusColor(s.status)
+          )}>
+            {statusLabel(s.status)}
+            {s.outcome && ` · ${s.outcome.pnlR >= 0 ? "+" : ""}${s.outcome.pnlR.toFixed(2)}R`}
+          </div>
+          {/* Time to resolution */}
+          {s.outcome && timeToResolution(s) && (
+            <span className="text-[10px] text-zinc-600 font-mono flex items-center gap-1">
+              <span>⏱</span>
+              <span>{timeToResolution(s)}</span>
+              <span className="text-zinc-700">to {s.status === "loss_sl" ? "SL" : "TP"}</span>
+            </span>
+          )}
         </div>
       </div>
 
@@ -202,6 +228,21 @@ export default function SignalsPage() {
     ? `${stats.totalPnlR >= 0 ? "+" : ""}${stats.totalPnlR}R`
     : "—";
 
+  // Compute avg time to resolution from resolved signals
+  const avgTimeToResolution = (() => {
+    const resolved = filteredSignals.filter(s => s.outcome?.resolvedAt && s.status !== "open" && s.status !== "expired");
+    if (!resolved.length) return null;
+    const totalMs = resolved.reduce((sum, s) => {
+      const ms = new Date(s.outcome!.resolvedAt).getTime() - new Date(s.timestamp).getTime();
+      return sum + Math.max(0, ms);
+    }, 0);
+    const avgMins = Math.floor(totalMs / resolved.length / 60_000);
+    if (avgMins < 60) return `${avgMins}m`;
+    const hrs = Math.floor(avgMins / 60);
+    const mins = avgMins % 60;
+    return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`;
+  })();
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
       {/* ── Header ───────────────────────────────────────────────────────── */}
@@ -257,7 +298,7 @@ export default function SignalsPage() {
       )}
 
       {/* ── Stat cards ───────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <StatCard
           label="Hit rate"
           value={hitRateLabel}
@@ -274,6 +315,12 @@ export default function SignalsPage() {
           label="Avg RR"
           value={stats ? `${stats.avgRR}:1` : "—"}
           sub="Target RR per armed signal"
+        />
+        <StatCard
+          label="Avg Time to TP/SL"
+          value={avgTimeToResolution ?? "—"}
+          sub="From signal to outcome"
+          accent="text-blue-400"
         />
         <StatCard
           label="Still open"
