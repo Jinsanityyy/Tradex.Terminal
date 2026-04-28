@@ -108,7 +108,7 @@ export function AgentCommandRoom({ data, loading=false }: {
     <div className="w-full rounded-xl border border-cyan-500/20 bg-[#060d1a] overflow-hidden">
 
       {/* ── IMAGE + PINS ── */}
-      <div style={{ position:"relative", width:"100%", maxHeight:"480px", overflow:"hidden" }}>
+      <div style={{ position:"relative", width:"100%" }}>
         <img
           src={HQ_IMAGE}
           alt="TradeX Agent HQ"
