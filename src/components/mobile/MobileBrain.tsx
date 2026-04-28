@@ -2,10 +2,11 @@
 
 import React, { useState, useCallback } from "react";
 import useSWR from "swr";
-import { RefreshCw, Shield, TrendingUp, TrendingDown } from "lucide-react";
+import { RefreshCw, Shield, TrendingUp, TrendingDown, Newspaper } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import { DebateLog } from "@/components/brain/DebateLog";
+import { TradexNewsroom } from "@/components/brain/TradexNewsroom";
 
 const SYMBOLS: { id: Symbol; label: string; tv: string }[] = [
   { id: "XAUUSD", label: "Gold",    tv: "OANDA:XAUUSD" },
@@ -88,8 +89,34 @@ export function MobileBrain() {
     : sigState === "EXPIRED" ? "text-zinc-400 bg-zinc-800/60 border-zinc-600/30"
     : "text-zinc-500 bg-zinc-900/60 border-zinc-700/20";
 
+  const [view, setView] = useState<"brain" | "newsroom">("brain");
+
   return (
-    <div className="px-4 py-4 space-y-4 pb-24">
+    <div className="flex flex-col h-full">
+      {/* View toggle */}
+      <div className="flex shrink-0 border-b border-white/5 px-4 pt-2">
+        {[
+          { id: "brain" as const, label: "Brain", icon: Shield },
+          { id: "newsroom" as const, label: "Newsroom", icon: Newspaper },
+        ].map(({ id, label, icon: Icon }) => (
+          <button key={id} onClick={() => setView(id)}
+            className={cn("flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider border-b-2 transition-all -mb-px",
+              view === id ? "border-[hsl(var(--primary))] text-[hsl(var(--primary))]" : "border-transparent text-zinc-500")}>
+            <Icon className="w-3 h-3" />{label}
+          </button>
+        ))}
+      </div>
+
+      {/* Newsroom view */}
+      {view === "newsroom" && (
+        <div className="flex-1 overflow-y-auto">
+          <TradexNewsroom data={data ?? null} loading={isLoading && !data} />
+        </div>
+      )}
+
+      {/* Brain view */}
+      {view === "brain" && (
+    <div className="overflow-y-auto flex-1 px-4 py-4 space-y-4 pb-24">
 
       {/* Symbol + TF selector */}
       <div className="flex gap-2 flex-wrap">
@@ -249,6 +276,8 @@ export function MobileBrain() {
           <p className="text-[12px] text-zinc-600">Tap Refresh to run agent analysis</p>
         </div>
       )}
+    </div>
+    )}
     </div>
   );
 }
