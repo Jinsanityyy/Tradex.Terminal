@@ -706,7 +706,6 @@ function SidebarEventPreview({ event }: { event: EconomicEvent }) {
 export default function DashboardPage() {
   const [symbol, setSymbol] = useState<Symbol>("XAUUSD");
   const [timeframe, setTimeframe] = useState<Timeframe>("H1");
-  const [refreshKey, setRefreshKey] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [activeOverview, setActiveOverview] = useState<OverviewKey | null>(null);
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
