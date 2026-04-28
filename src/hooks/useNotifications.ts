@@ -37,8 +37,8 @@ function markSeen(key: string, ids: string[]) {
 }
 
 export function useNotifications(onNotif: NotifCallback) {
-  const { catalysts } = useCatalysts(60_000); // poll every 60s
-  const { posts } = useTrumpPosts(60_000);
+  const { catalysts } = useCatalysts(300_000); // poll every 5 min not 60s
+  const { posts } = useTrumpPosts(300_000);    // poll every 5 min
   const onNotifRef = useRef(onNotif);
   const initializedRef = useRef(false);
   onNotifRef.current = onNotif;

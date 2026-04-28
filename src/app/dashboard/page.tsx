@@ -714,13 +714,12 @@ export default function DashboardPage() {
   const symCfg = SYMBOLS.find((entry) => entry.id === symbol) ?? SYMBOLS[0];
 
   const { data, isLoading, mutate } = useSWR<AgentRunResult>(
-    `/api/agents/run?symbol=${symbol}&timeframe=${timeframe}&t=${refreshKey}`,
+    `/api/agents/run?symbol=${symbol}&timeframe=${timeframe}`,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 300_000 }
   );
 
   const handleRefresh = useCallback(async () => {
-    setRefreshKey((current) => current + 1);
     await mutate();
   }, [mutate]);
 

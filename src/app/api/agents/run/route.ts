@@ -40,8 +40,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const result = await runAgentOrchestrator(validated.symbol, validated.timeframe);
-    // Log to signal history (fire-and-forget)
-    logSignal(result).catch(() => {});
+    // Note: logSignal only on POST (manual refresh) to avoid logging cached reads
     return NextResponse.json(result);
   } catch (error) {
     console.error("Agent run error:", error);
