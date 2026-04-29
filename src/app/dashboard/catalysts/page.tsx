@@ -9,14 +9,14 @@ import { LiveNewsTicker } from "@/components/shared/LiveNewsTicker";
 import { EconomicEventTable } from "@/components/shared/EconomicEventTable";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useEconomicCalendar, useCatalysts, useNews } from "@/hooks/useMarketData";
-import { Zap, Radio, CheckCircle2, Clock, CalendarDays, Wifi, WifiOff, Newspaper, Tv, RotateCcw } from "lucide-react";
+import { Zap, Radio, CheckCircle2, Clock, CalendarDays, Wifi, WifiOff, Newspaper, Tv, RotateCcw, ExternalLink } from "lucide-react";
 
 const LIVE_CHANNELS = [
-  { id: "bloomberg",    name: "Bloomberg TV",  embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCIALMKvObZNtJ6AmdCLP7Lg&autoplay=1" },
-  { id: "cnbc",         name: "CNBC",          embedUrl: "https://www.youtube.com/embed/9uZPzpGFpok?autoplay=1" },
-  { id: "reuters",      name: "Reuters",       embedUrl: "https://www.youtube.com/embed/live_stream?channel=UChqUTb7kYRX8-EiaN3XFrSQ&autoplay=1" },
-  { id: "aljazeera",    name: "Al Jazeera",    embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCNye-wNBqNL5ZzHSJdse18g&autoplay=1" },
-  { id: "yahoofinance", name: "Yahoo Finance", embedUrl: "https://www.youtube.com/embed/edb1HmTL8RU?autoplay=1" },
+  { id: "bloomberg",    name: "Bloomberg TV",  embedUrl: "https://www.youtube.com/embed/dp8PhLsUcFE?autoplay=1",      watchUrl: "https://www.youtube.com/@BloombergTV/live" },
+  { id: "cnbc",         name: "CNBC",          embedUrl: "https://www.youtube.com/embed/9uZPzpGFpok?autoplay=1",      watchUrl: "https://www.youtube.com/watch?v=9uZPzpGFpok" },
+  { id: "reuters",      name: "Reuters",       embedUrl: "https://www.youtube.com/embed/INDhdbMGeKU?autoplay=1",      watchUrl: "https://www.youtube.com/@Reuters/live" },
+  { id: "aljazeera",    name: "Al Jazeera",    embedUrl: "https://www.youtube.com/embed/XWq5kBlakcQ?autoplay=1",      watchUrl: "https://www.youtube.com/@AlJazeeraEnglish/live" },
+  { id: "yahoofinance", name: "Yahoo Finance", embedUrl: "https://www.youtube.com/embed/edb1HmTL8RU?autoplay=1",      watchUrl: "https://www.youtube.com/watch?v=edb1HmTL8RU" },
 ];
 
 export default function CatalystsPage() {
@@ -158,6 +158,17 @@ export default function CatalystsPage() {
                   allowFullScreen
                   title={activeChannel.name}
                 />
+                {/* Fallback: always-visible "Watch on YouTube" button */}
+                <a
+                  href={activeChannel.watchUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold transition-opacity hover:opacity-100 opacity-70"
+                  style={{ background: "rgba(0,0,0,0.75)", color: "#fff", backdropFilter: "blur(4px)", border: "1px solid rgba(255,255,255,0.12)" }}
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Watch on YouTube
+                </a>
               </div>
             </div>
 
