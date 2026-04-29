@@ -10,9 +10,11 @@ type Phase = "checking" | "boot" | "cascade" | "fadeout" | "done";
 let _bootUserCache: string | null | undefined = undefined;
 
 function consumeBootUser(): string | null {
+  console.log("[tradex-overlay] consumeBootUser — cache:", _bootUserCache);
   if (_bootUserCache !== undefined) return _bootUserCache;
   if (typeof window === "undefined") return (_bootUserCache = null);
   const val = sessionStorage.getItem("tradex_boot") ?? null;
+  console.log("[tradex-overlay] sessionStorage tradex_boot:", val);
   sessionStorage.removeItem("tradex_boot");
   return (_bootUserCache = val);
 }
@@ -44,11 +46,15 @@ export function LoginTransitionOverlay() {
 
   // Initialise: read sessionStorage (client-only)
   useEffect(() => {
+    console.log("[tradex-overlay] init effect running");
     const stored = consumeBootUser();
+    console.log("[tradex-overlay] stored:", stored);
     if (!stored) {
+      console.log("[tradex-overlay] no flag — skipping animation");
       setPhase("done");
       return;
     }
+    console.log("[tradex-overlay] starting boot animation for:", stored);
 
     setBootLines([
       "TRADEX SYSTEMS v2.4.1",

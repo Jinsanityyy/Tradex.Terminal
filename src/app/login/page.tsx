@@ -81,8 +81,13 @@ export default function LoginPage() {
           return;
         }
         if (data.session) {
-          sessionStorage.setItem("tradex_boot", email.split("@")[0].toUpperCase());
+          const bootVal = email.split("@")[0].toUpperCase();
+          console.log("[tradex-login] setting tradex_boot:", bootVal);
+          sessionStorage.setItem("tradex_boot", bootVal);
+          console.log("[tradex-login] sessionStorage after set:", sessionStorage.getItem("tradex_boot"));
           window.location.href = "/dashboard";
+        } else {
+          console.log("[tradex-login] data.session is falsy — no navigation");
         }
       } else {
         const { data, error } = await supabase.auth.signUp({ email, password });
