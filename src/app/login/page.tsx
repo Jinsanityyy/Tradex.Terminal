@@ -60,6 +60,7 @@ export default function LoginPage() {
         const { data: challenge } = await supabase.auth.mfa.challenge({ factorId: fId });
         const { error } = await supabase.auth.mfa.verify({ factorId: fId, challengeId: challenge!.id, code: mfaCode });
         if (error) throw error;
+        sessionStorage.setItem("tradex_boot", email.split("@")[0].toUpperCase());
         window.location.href = "/dashboard";
       } else if (mode === "forgot") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -79,11 +80,15 @@ export default function LoginPage() {
           setMode("mfa");
           return;
         }
-        if (data.session) window.location.href = "/dashboard";
+        if (data.session) {
+          sessionStorage.setItem("tradex_boot", email.split("@")[0].toUpperCase());
+          window.location.href = "/dashboard";
+        }
       } else {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         if (data.session) {
+          sessionStorage.setItem("tradex_boot", email.split("@")[0].toUpperCase());
           window.location.href = "/dashboard";
         } else {
           setSuccess("Account created! Check your email to confirm, then sign in.");

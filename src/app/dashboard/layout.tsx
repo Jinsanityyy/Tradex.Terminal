@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { TopStatusBar } from "@/components/layout/TopStatusBar";
 import { ArrowLeft } from "lucide-react";
 import { NotificationToast } from "@/components/shared/NotificationToast";
+import { LoginTransitionOverlay } from "@/components/shared/LoginTransitionOverlay";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -13,6 +14,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <>
+      <LoginTransitionOverlay />
       <NotificationToast />
       <div className="flex h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.035),_transparent_30%),hsl(var(--background))]">
         <Sidebar />
