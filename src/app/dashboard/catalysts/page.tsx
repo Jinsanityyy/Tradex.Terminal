@@ -16,7 +16,7 @@ const LIVE_CHANNELS = [
   { id: "cnbc",         name: "CNBC",          embedUrl: "https://www.youtube.com/embed/kbeYeyt8IW0?autoplay=1",      watchUrl: "https://www.youtube.com/watch?v=kbeYeyt8IW0" },
   { id: "reuters",      name: "Reuters",       embedUrl: "https://www.youtube.com/embed/INDhdbMGeKU?autoplay=1",      watchUrl: "https://www.youtube.com/@Reuters/live" },
   { id: "aljazeera",    name: "Al Jazeera",    embedUrl: "https://www.youtube.com/embed/gCNeDWCI0vo?autoplay=1",      watchUrl: "https://www.youtube.com/watch?v=gCNeDWCI0vo" },
-  { id: "yahoofinance", name: "Yahoo Finance", embedUrl: "https://www.youtube.com/embed/edb1HmTL8RU?autoplay=1",      watchUrl: "https://www.youtube.com/watch?v=edb1HmTL8RU" },
+  { id: "yahoofinance", name: "Yahoo Finance", embedUrl: "https://www.youtube.com/embed/KQp-e_XQnDE?autoplay=1",      watchUrl: "https://www.youtube.com/watch?v=KQp-e_XQnDE" },
 ];
 
 export default function CatalystsPage() {
