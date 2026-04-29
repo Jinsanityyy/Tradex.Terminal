@@ -220,8 +220,8 @@ export function AgentCommandRoom({ data, loading=false }: {
           display:"flex", justifyContent:"space-between", alignItems:"center",
           pointerEvents:"none",
         }}>
-          <span style={{ color:"#22d3ee", fontSize:10, letterSpacing:"0.22em", fontFamily:"ui-monospace,monospace" }}>
-            ⚡ TRADEX · MULTI-AGENT FLOOR
+          <span style={{ color:"#22d3ee", fontSize:10, letterSpacing:"0.14em", fontFamily:"ui-monospace,monospace", whiteSpace:"nowrap" }}>
+            TRADEX · MULTI-AGENT FLOOR
           </span>
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
             {/* Live session pill */}
@@ -269,8 +269,8 @@ export function AgentCommandRoom({ data, loading=false }: {
                 transform:"translate(-50%,-50%)",
                 cursor:"pointer",
                 zIndex:100,
-                width:60,
-                height:60,
+                width:46,
+                height:46,
                 display:"flex",
                 alignItems:"center",
                 justifyContent:"center",
@@ -282,8 +282,8 @@ export function AgentCommandRoom({ data, loading=false }: {
                 position:"absolute",
                 top:"50%", left:"50%",
                 transform:"translate(-50%,-50%)",
-                width: isActive ? 52 : 38,
-                height: isActive ? 52 : 38,
+                width: isActive ? 40 : 28,
+                height: isActive ? 40 : 28,
                 borderRadius:"50%",
                 border:`2px solid ${accent}`,
                 opacity: isIdle ? 0.35 : isActive ? 1 : 0.7,
@@ -298,7 +298,7 @@ export function AgentCommandRoom({ data, loading=false }: {
                 <div style={{
                   position:"absolute",
                   top:"50%", left:"50%",
-                  width:38, height:38,
+                  width:28, height:28,
                   borderRadius:"50%",
                   border:`1px solid ${accent}`,
                   pointerEvents:"none",
@@ -310,7 +310,7 @@ export function AgentCommandRoom({ data, loading=false }: {
 
               {/* Center dot */}
               <div style={{
-                width:14, height:14,
+                width:11, height:11,
                 borderRadius:"50%",
                 background:"#07090f",
                 border:`2.5px solid ${accent}`,
