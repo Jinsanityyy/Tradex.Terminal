@@ -12,10 +12,11 @@ import { useEconomicCalendar, useCatalysts, useNews } from "@/hooks/useMarketDat
 import { Zap, Radio, CheckCircle2, Clock, CalendarDays, Wifi, WifiOff, Newspaper, Tv, RotateCcw } from "lucide-react";
 
 const LIVE_CHANNELS = [
-  { id: "bloomberg", name: "Bloomberg TV", embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCIALMKvObZNtJ6AmdCLP7Lg&autoplay=1" },
-  { id: "cnbc",      name: "CNBC",         embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCrp_UI8XtuYfpiqluWLD7Lw&autoplay=1" },
-  { id: "reuters",   name: "Reuters",      embedUrl: "https://www.youtube.com/embed/live_stream?channel=UChqUTb7kYRX8-EiaN3XFrSQ&autoplay=1" },
-  { id: "aljazeera", name: "Al Jazeera",   embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCNye-wNBqNL5ZzHSJdse18g&autoplay=1" },
+  { id: "bloomberg",    name: "Bloomberg TV",  embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCIALMKvObZNtJ6AmdCLP7Lg&autoplay=1" },
+  { id: "cnbc",         name: "CNBC",          embedUrl: "https://www.youtube.com/embed/9uZPzpGFpok?autoplay=1" },
+  { id: "reuters",      name: "Reuters",       embedUrl: "https://www.youtube.com/embed/live_stream?channel=UChqUTb7kYRX8-EiaN3XFrSQ&autoplay=1" },
+  { id: "aljazeera",    name: "Al Jazeera",    embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCNye-wNBqNL5ZzHSJdse18g&autoplay=1" },
+  { id: "yahoofinance", name: "Yahoo Finance", embedUrl: "https://www.youtube.com/embed/edb1HmTL8RU?autoplay=1" },
 ];
 
 export default function CatalystsPage() {
