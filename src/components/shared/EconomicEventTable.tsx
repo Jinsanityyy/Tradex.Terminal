@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus, Target, Shield, BookOpen, ChevronRight, Timer, Eye, Loader2, AlertCircle, Zap } from "lucide-react";
+import { Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus, Target, Shield, BookOpen, ChevronRight, Timer, Eye } from "lucide-react";
 import type { EconomicEvent } from "@/types";
 import { DetailModal } from "./DetailModal";
-import type { PostEventAnalysis } from "@/app/api/market/post-event/route";
 
 // ── Countdown Timer ──────────────────────────────────────────────────────────
 function useCountdown(utcTimestamp?: number) {
@@ -78,28 +77,7 @@ function ImpactBadge({ impact, label }: { impact?: "bullish" | "bearish" | "neut
   );
 }
 
-function ImpactPill({ impact, label }: { impact?: "bullish" | "bearish" | "neutral"; label: string }) {
-  if (!impact) return null;
-  const colors = {
-    bullish: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-    bearish: "bg-red-500/15 text-red-400 border-red-500/30",
-    neutral: "bg-zinc-700/40 text-zinc-400 border-zinc-600/30",
-  };
-  const Icon = impact === "bullish" ? TrendingUp : impact === "bearish" ? TrendingDown : Minus;
-  return (
-    <span className={cn("inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-bold", colors[impact])}>
-      <Icon className="h-2.5 w-2.5" />
-      {label} {impact.toUpperCase()}
-    </span>
-  );
-}
-
-function EventDetail({ ev, postEvent, peLoading, peError }: {
-  ev: EconomicEvent;
-  postEvent: PostEventAnalysis | null;
-  peLoading: boolean;
-  peError: boolean;
-}) {
+function EventDetail({ ev }: { ev: EconomicEvent }) {
   const isCompleted = ev.status === "completed";
 
   return (
@@ -132,96 +110,31 @@ function EventDetail({ ev, postEvent, peLoading, peError }: {
         ))}
       </div>
 
-      {/* ══ COMPLETED — on-demand post-event analysis ══ */}
-      {isCompleted && (
-        <>
-          {peLoading && (
-            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.03] px-4 py-6 flex flex-col items-center gap-3">
-              <Loader2 className="h-5 w-5 text-emerald-500 animate-spin" />
-              <p className="text-[11px] text-zinc-500 uppercase tracking-widest">Generating post-event analysis…</p>
+      {/* ══ COMPLETED — static post-event analysis ══ */}
+      {isCompleted && ev.postEventSummary && (
+        <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.04] overflow-hidden">
+          <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-emerald-500/15">
+            <Eye className="h-3.5 w-3.5 text-emerald-400" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Post-Event Analysis</span>
+            <span className="ml-auto text-[9px] text-emerald-400/50 uppercase tracking-wider">Completed</span>
+          </div>
+          <div className="px-3.5 py-3">
+            <p className="text-[12px] text-zinc-200 leading-relaxed">{ev.postEventSummary}</p>
+          </div>
+          {ev.postEventBullets && ev.postEventBullets.length > 0 && (
+            <div className="px-3.5 pb-3.5 space-y-2">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-400/70">Now Watch</p>
+              <ul className="space-y-1.5">
+                {ev.postEventBullets.map((b, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <ChevronRight className="h-3 w-3 text-emerald-400/60 mt-0.5 shrink-0" />
+                    <span className="text-[11px] text-zinc-400 leading-snug">{b}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
-
-          {peError && !peLoading && (
-            <div className="rounded-xl border border-red-500/15 bg-red-500/[0.03] px-4 py-3 flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
-              <p className="text-[11px] text-red-400">Could not load post-event analysis.</p>
-            </div>
-          )}
-
-          {postEvent && !peLoading && (
-            <>
-              {/* Outcome banner */}
-              <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.04] px-4 py-3">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-500 mb-1.5">Actual Outcome</p>
-                <p className="text-[13px] font-semibold text-white leading-snug">{postEvent.outcome}</p>
-              </div>
-
-              {/* Statement highlights */}
-              {postEvent.statementHighlights?.length > 0 && (
-                <div className="rounded-xl border border-white/6 bg-white/[0.015] overflow-hidden">
-                  <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-white/5">
-                    <BookOpen className="h-3.5 w-3.5 text-amber-400" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400">Key Statement Highlights</span>
-                  </div>
-                  <ul className="px-3.5 py-3 space-y-2.5">
-                    {postEvent.statementHighlights.map((pt, i) => (
-                      <li key={i} className="flex items-start gap-2.5">
-                        <ChevronRight className="h-3 w-3 mt-0.5 shrink-0 text-amber-500/60" />
-                        <span className="text-[11.5px] text-zinc-300 leading-snug">{pt}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Market reaction */}
-              <div className="rounded-xl border border-white/6 bg-white/[0.015] px-3.5 py-3 space-y-1.5">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Market Reaction</p>
-                <p className="text-[11.5px] text-zinc-300 leading-relaxed">{postEvent.marketReaction}</p>
-                {postEvent.timeframe && (
-                  <p className="text-[11px] text-zinc-500 italic">{postEvent.timeframe}</p>
-                )}
-              </div>
-
-              {/* Gold + USD side by side */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 space-y-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <Target className="h-3.5 w-3.5 text-amber-400" />
-                    <ImpactPill impact={postEvent.goldImpact} label="GOLD" />
-                  </div>
-                  <p className="text-[11px] text-zinc-400 leading-relaxed">{postEvent.goldAnalysis}</p>
-                </div>
-                <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 space-y-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <Shield className="h-3.5 w-3.5 text-blue-400" />
-                    <ImpactPill impact={postEvent.usdImpact} label="USD" />
-                  </div>
-                  <p className="text-[11px] text-zinc-400 leading-relaxed">{postEvent.usdAnalysis}</p>
-                </div>
-              </div>
-
-              {/* Now watch */}
-              {postEvent.traderFocus?.length > 0 && (
-                <div className="rounded-xl border border-blue-500/15 bg-blue-500/[0.03] overflow-hidden">
-                  <div className="flex items-center gap-2 px-3.5 py-2 border-b border-blue-500/10">
-                    <Zap className="h-3 w-3 text-blue-400" />
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-blue-400">Now Watch</span>
-                  </div>
-                  <ul className="px-3.5 py-3 space-y-2">
-                    {postEvent.traderFocus.map((f, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <ChevronRight className="h-3 w-3 mt-0.5 shrink-0 text-blue-500/60" />
-                        <span className="text-[11px] text-zinc-400 leading-snug">{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </>
-          )}
-        </>
+        </div>
       )}
 
       {/* ══ UPCOMING / LIVE — pre-event analysis ══ */}
@@ -306,35 +219,6 @@ function EventDetail({ ev, postEvent, peLoading, peError }: {
 
 export function EconomicEventTable({ events, showInterpretation = false, compact = false }: EconomicEventTableProps) {
   const [selected, setSelected] = useState<EconomicEvent | null>(null);
-  const [analyses, setAnalyses] = useState<Record<string, PostEventAnalysis>>({});
-  const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
-  const [errorIds, setErrorIds] = useState<Set<string>>(new Set());
-  const fetchedRef = useRef<Set<string>>(new Set());
-
-  // Pre-fetch post-event analysis for all completed events when they appear
-  useEffect(() => {
-    const completed = events.filter(e => e.status === "completed");
-    completed.forEach(ev => {
-      if (fetchedRef.current.has(ev.id)) return;
-      fetchedRef.current.add(ev.id);
-      setLoadingIds(prev => new Set(prev).add(ev.id));
-      const context = [
-        ev.actual   ? `Actual: ${ev.actual}`   : "",
-        ev.forecast ? `Forecast: ${ev.forecast}` : "",
-        ev.previous ? `Previous: ${ev.previous}` : "",
-      ].filter(Boolean).join(", ");
-      const params = new URLSearchParams({
-        title:   ev.event,
-        summary: context || ev.goldReasoning || "",
-        markets: ev.affectedAssets.join(", "),
-      });
-      fetch(`/api/market/post-event?${params}`)
-        .then(r => r.ok ? r.json() : Promise.reject(r.status))
-        .then(data => setAnalyses(prev => ({ ...prev, [ev.id]: data })))
-        .catch(() => setErrorIds(prev => new Set(prev).add(ev.id)))
-        .finally(() => setLoadingIds(prev => { const s = new Set(prev); s.delete(ev.id); return s; }));
-    });
-  }, [events]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (events.length === 0) {
     return (
@@ -439,14 +323,7 @@ export function EconomicEventTable({ events, showInterpretation = false, compact
         onClose={() => setSelected(null)}
         title={selected?.event}
       >
-        {selected && (
-          <EventDetail
-            ev={selected}
-            postEvent={analyses[selected.id] ?? null}
-            peLoading={loadingIds.has(selected.id)}
-            peError={errorIds.has(selected.id)}
-          />
-        )}
+        {selected && <EventDetail ev={selected} />}
       </DetailModal>
     </>
   );
