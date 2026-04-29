@@ -4,6 +4,19 @@ import React, { useEffect, useState, useRef } from "react";
 
 type Phase = "checking" | "boot" | "cascade" | "fadeout" | "done";
 
+// Module-level cache so React Strict Mode's double-invoke doesn't consume
+// the sessionStorage key twice (first run removes it, second run sees null).
+// window.location.href navigation reloads the page, so this resets per login.
+let _bootUserCache: string | null | undefined = undefined;
+
+function consumeBootUser(): string | null {
+  if (_bootUserCache !== undefined) return _bootUserCache;
+  if (typeof window === "undefined") return (_bootUserCache = null);
+  const val = sessionStorage.getItem("tradex_boot") ?? null;
+  sessionStorage.removeItem("tradex_boot");
+  return (_bootUserCache = val);
+}
+
 const SYMBOLS = [
   { sym: "XAUUSD", base: 2341.44, dec: 2 },
   { sym: "EURUSD", base: 1.0821, dec: 4 },
@@ -31,12 +44,11 @@ export function LoginTransitionOverlay() {
 
   // Initialise: read sessionStorage (client-only)
   useEffect(() => {
-    const stored = sessionStorage.getItem("tradex_boot");
+    const stored = consumeBootUser();
     if (!stored) {
       setPhase("done");
       return;
     }
-    sessionStorage.removeItem("tradex_boot");
 
     setBootLines([
       "TRADEX SYSTEMS v2.4.1",
