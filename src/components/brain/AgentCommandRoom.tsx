@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import type { AgentRunResult } from "@/lib/agents/schemas";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 // ─── State system (UNCHANGED) ─────────────────────────────────────────────────
 type AgentState = "idle"|"bull"|"bear"|"alert"|"approved"|"blocked"|"armed"|"analyzing";
@@ -93,6 +94,7 @@ export function AgentCommandRoom({ data, loading=false }: {
   data: AgentRunResult|null; loading?: boolean;
 }) {
   const [activeId, setActiveId] = useState<string|null>(null);
+  const isMobile = useIsMobile();
 
   const states: Record<string,AgentState> = data
     ? deriveStates(data)
@@ -117,7 +119,7 @@ export function AgentCommandRoom({ data, loading=false }: {
         <img
           src={HQ_IMAGE}
           alt="TradeX Agent HQ"
-          style={{ width:"100%", height:"900px", display:"block", objectFit:"fill", pointerEvents:"none" }}
+          style={{ width:"100%", height: isMobile ? "420px" : "900px", display:"block", objectFit:"fill", pointerEvents:"none" }}
         />
 
         {/* Bias overlay bar on top of image */}
