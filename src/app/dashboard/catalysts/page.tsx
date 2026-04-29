@@ -13,7 +13,7 @@ import { Zap, Radio, CheckCircle2, Clock, CalendarDays, Wifi, WifiOff, Newspaper
 
 const LIVE_CHANNELS = [
   { id: "bloomberg",    name: "Bloomberg TV",  embedUrl: "https://www.youtube.com/embed/iEpJwprxDdk?autoplay=1",      watchUrl: "https://www.youtube.com/watch?v=iEpJwprxDdk" },
-  { id: "cnbc",         name: "CNBC",          embedUrl: "https://www.youtube.com/embed/9uZPzpGFpok?autoplay=1",      watchUrl: "https://www.youtube.com/watch?v=9uZPzpGFpok" },
+  { id: "cnbc",         name: "CNBC",          embedUrl: "https://www.youtube.com/embed/kbeYeyt8IW0?autoplay=1",      watchUrl: "https://www.youtube.com/watch?v=kbeYeyt8IW0" },
   { id: "reuters",      name: "Reuters",       embedUrl: "https://www.youtube.com/embed/INDhdbMGeKU?autoplay=1",      watchUrl: "https://www.youtube.com/@Reuters/live" },
   { id: "aljazeera",    name: "Al Jazeera",    embedUrl: "https://www.youtube.com/embed/gCNeDWCI0vo?autoplay=1",      watchUrl: "https://www.youtube.com/watch?v=gCNeDWCI0vo" },
   { id: "yahoofinance", name: "Yahoo Finance", embedUrl: "https://www.youtube.com/embed/edb1HmTL8RU?autoplay=1",      watchUrl: "https://www.youtube.com/watch?v=edb1HmTL8RU" },
