@@ -113,11 +113,11 @@ export function AgentCommandRoom({ data, loading=false }: {
     <div className="w-full rounded-xl border border-cyan-500/20 bg-[#060d1a] overflow-hidden">
 
       {/* ── IMAGE + PINS ── */}
-      <div style={{ position:"relative", width:"100%" }}>
+      <div style={{ position:"relative", width:"100%", background:"#060d1a" }}>
         <img
           src={HQ_IMAGE}
           alt="TradeX Agent HQ"
-          style={{ width:"100%", height:"900px", display:"block", objectFit:"fill", pointerEvents:"none" }}
+          style={{ width:"100%", height:"auto", display:"block", objectFit:"contain", pointerEvents:"none" }}
         />
 
         {/* Bias overlay bar on top of image */}
