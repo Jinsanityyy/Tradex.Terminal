@@ -115,11 +115,12 @@ export function AgentCommandRoom({ data, loading=false }: {
     <div className="w-full rounded-xl border border-cyan-500/20 bg-[#060d1a] overflow-hidden">
 
       {/* ── IMAGE + PINS ── */}
-      <div style={{ position:"relative", width:"100%", height: isMobile ? "auto" : "900px" }}>
+      <div style={{ position:"relative", width:"100%" }}>
         <img
           src={HQ_IMAGE}
           alt="TradeX Agent HQ"
-          style={{ width:"100%", height: isMobile ? "auto" : "900px", display:"block", objectFit: isMobile ? "unset" : "fill", pointerEvents:"none" }}
+          className="block w-full h-auto md:h-[900px] md:object-fill"
+          style={{ pointerEvents:"none" }}
         />
 
         {/* Bias overlay bar on top of image */}
