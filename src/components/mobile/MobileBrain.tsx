@@ -110,7 +110,7 @@ export function MobileBrain() {
 
       {/* Newsroom / Agent HQ view */}
       {view === "newsroom" && (
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 flex flex-col overflow-hidden">
           <AgentCommandRoom data={data ?? null} loading={isLoading && !data} />
         </div>
       )}
