@@ -6,14 +6,16 @@ import React, { useState, useEffect, useRef } from "react";
 function MatrixRain() {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    const c = ref.current;
-    if (!c) return;
-    const ctx = c.getContext("2d")!;
-    const resize = () => { c.width = window.innerWidth; c.height = window.innerHeight; };
+    if (!ref.current) return;
+    const canvas = ref.current as HTMLCanvasElement;
+    const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+    let W = window.innerWidth;
+    let H = window.innerHeight;
+    const resize = () => { canvas.width = W = window.innerWidth; canvas.height = H = window.innerHeight; };
     resize();
     window.addEventListener("resize", resize);
     const fs = 14;
-    const cols = Math.floor(c.width / fs);
+    const cols = Math.floor(W / fs);
     const drops = Array.from({ length: cols }, () => Math.random() * -80);
     const chars = "アイウエカサタナハABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&<>/\\|{}[]";
     let raf: number;
@@ -21,13 +23,13 @@ function MatrixRain() {
     function frame(ts: number) {
       if (ts - last > 45) {
         ctx.fillStyle = "rgba(0,0,0,0.055)";
-        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.fillRect(0, 0, W, H);
         ctx.font = `${fs}px monospace`;
         drops.forEach((y, i) => {
           const bright = Math.random() > 0.92;
           ctx.fillStyle = bright ? "rgba(180,255,210,0.9)" : "rgba(0,255,136,0.38)";
           ctx.fillText(chars[Math.floor(Math.random() * chars.length)], i * fs, y * fs);
-          if (y * fs > c.height && Math.random() > 0.975) drops[i] = 0;
+          if (y * fs > H && Math.random() > 0.975) drops[i] = 0;
           drops[i] += 0.6;
         });
         last = ts;
