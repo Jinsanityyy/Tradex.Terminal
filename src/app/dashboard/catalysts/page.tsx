@@ -12,7 +12,7 @@ import { useEconomicCalendar, useCatalysts, useNews } from "@/hooks/useMarketDat
 import { Zap, Radio, CheckCircle2, Clock, CalendarDays, Wifi, WifiOff, Newspaper, Tv, RotateCcw, ExternalLink } from "lucide-react";
 
 const LIVE_CHANNELS = [
-  { id: "bloomberg",    name: "Bloomberg TV",  embedUrl: "https://www.youtube.com/embed/dp8PhLsUcFE?autoplay=1",      watchUrl: "https://www.youtube.com/@BloombergTV/live" },
+  { id: "bloomberg",    name: "Bloomberg TV",  embedUrl: "https://www.youtube.com/embed/iEpJwprxDdk?autoplay=1",      watchUrl: "https://www.youtube.com/watch?v=iEpJwprxDdk" },
   { id: "cnbc",         name: "CNBC",          embedUrl: "https://www.youtube.com/embed/9uZPzpGFpok?autoplay=1",      watchUrl: "https://www.youtube.com/watch?v=9uZPzpGFpok" },
   { id: "reuters",      name: "Reuters",       embedUrl: "https://www.youtube.com/embed/INDhdbMGeKU?autoplay=1",      watchUrl: "https://www.youtube.com/@Reuters/live" },
   { id: "aljazeera",    name: "Al Jazeera",    embedUrl: "https://www.youtube.com/embed/XWq5kBlakcQ?autoplay=1",      watchUrl: "https://www.youtube.com/@AlJazeeraEnglish/live" },
