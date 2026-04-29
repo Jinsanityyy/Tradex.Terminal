@@ -110,7 +110,7 @@ export function AgentCommandRoom({ data, loading=false }: {
   const biasLabel = finalBias==="bullish"?"▲ BULLISH":finalBias==="bearish"?"▼ BEARISH":"— NO TRADE";
 
   return (
-    <div className="w-full rounded-xl border border-cyan-500/20 bg-[#060d1a] overflow-hidden">
+    <div className="w-full rounded-xl border border-cyan-500/20 bg-[#060d1a] overflow-hidden flex flex-col h-full">
 
       {/* ── IMAGE + PINS ── */}
       <div style={{ position:"relative", width:"100%", background:"#060d1a" }}>
@@ -269,6 +269,7 @@ export function AgentCommandRoom({ data, loading=false }: {
       <div style={{
         borderTop:`1px solid ${activeSC ? activeSC.accent + "44" : "#1a2535"}`,
         padding:"12px 20px",
+        flex:1,
         minHeight:88,
         display:"flex",
         alignItems:"center",
