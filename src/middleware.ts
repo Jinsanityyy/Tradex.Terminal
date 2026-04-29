@@ -1,20 +1,47 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
+import { verifySessionToken } from "@/lib/whop";
 
 const MOBILE_UA = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/i;
 
 function isMobile(req: NextRequest) {
-  const ua = req.headers.get("user-agent") ?? "";
-  return MOBILE_UA.test(ua);
+  return MOBILE_UA.test(req.headers.get("user-agent") ?? "");
+}
+
+// Routes that bypass the Whop subscription gate
+function isPublicPath(pathname: string) {
+  return (
+    pathname === "/login" ||
+    pathname === "/access-denied" ||
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    /\.(png|svg|ico|jpg|jpeg|webp|gif|woff2?)$/.test(pathname)
+  );
 }
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // ── Supabase session refresh ────────────────────────────────────────────────
-  // REQUIRED by @supabase/ssr: refreshes the JWT so server-side getUser() works.
-  // Without this, all API routes return "Unauthorized" even when logged in.
-  // Guard: skip entirely when Supabase env vars are not configured (local dev without auth).
+  // ── 1. Whop subscription gate ───────────────────────────────────────────────
+  if (!isPublicPath(pathname)) {
+    const sessionCookie = req.cookies.get("whop_session");
+
+    if (!sessionCookie?.value) {
+      // No session — send to Whop OAuth
+      return NextResponse.redirect(new URL("/api/auth/login", req.url));
+    }
+
+    const session = await verifySessionToken(sessionCookie.value);
+    if (!session || !session.hasAccess) {
+      // Expired or invalid — re-auth
+      const res = NextResponse.redirect(new URL("/api/auth/login", req.url));
+      res.cookies.set("whop_session", "", { maxAge: 0, path: "/" });
+      return res;
+    }
+  }
+
+  // ── 2. Supabase session refresh ─────────────────────────────────────────────
   let response = NextResponse.next({ request: req });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -33,21 +60,22 @@ export async function middleware(req: NextRequest) {
         },
       },
     });
-    // Refreshes the session token — do not remove
     await supabase.auth.getUser();
   }
 
-  // ── Mobile redirect ─────────────────────────────────────────────────────────
-  const isStatic = pathname.startsWith("/_next") || pathname.startsWith("/api") || pathname.startsWith("/favicon");
-  const isLoginPage = pathname === "/login";
-  if (!isStatic && !isLoginPage) {
-    const mobile = isMobile(req);
-    const onMobileRoute = pathname.startsWith("/m");
+  // ── 3. Mobile redirect ──────────────────────────────────────────────────────
+  const isStatic  = pathname.startsWith("/_next") || pathname.startsWith("/api") || pathname.startsWith("/favicon");
+  const isLogin   = pathname === "/login";
+  const isDenied  = pathname === "/access-denied";
 
-    if (mobile && !onMobileRoute) {
+  if (!isStatic && !isLogin && !isDenied) {
+    const mobile    = isMobile(req);
+    const onMobile  = pathname.startsWith("/m");
+
+    if (mobile && !onMobile) {
       return NextResponse.redirect(new URL("/m", req.url));
     }
-    if (!mobile && onMobileRoute) {
+    if (!mobile && onMobile) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
   }
