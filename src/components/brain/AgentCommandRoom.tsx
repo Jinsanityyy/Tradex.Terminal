@@ -163,29 +163,36 @@ export function AgentCommandRoom({ data, loading=false }: {
   const showPrices     = !!activePinData && (activePinData.stateKey==="master"||activePinData.stateKey==="execution") && !!tradePlan;
   const sigState       = data?.agents.execution?.signalState;
   const showProgress   = !!activePinData && (activePinData.stateKey==="execution"||activePinData.stateKey==="master");
-  const progressStep   = !data ? 0 : sigState==="ARMED" ? 2 : data.agents.execution.hasSetup ? 1 : 0;
-  const progressSteps  = ["PENDING","ARMED","TRIGGERED"] as const;
+  const progressStep   = !data ? 0 : sigState==="ARMED" ? 1 : 0;
+  const progressSteps  = ["ARMED","TRIGGERED","COMPLETE"] as const;
 
   return (
-    <div className="w-full rounded-xl border border-cyan-500/20 bg-[#060d1a] overflow-hidden flex flex-col">
+    <div className="w-full rounded-xl border border-cyan-500/20 bg-[#07090f] overflow-hidden flex flex-col">
       <style>{`
         @keyframes hqPulse {
-          0%,100% { transform:translate(-50%,-50%) scale(1);   opacity:0.55; }
-          50%      { transform:translate(-50%,-50%) scale(1.45); opacity:0.15; }
+          0%   { transform:translate(-50%,-50%) scale(1);    opacity:0.7; }
+          60%  { transform:translate(-50%,-50%) scale(1.55); opacity:0.12; }
+          100% { transform:translate(-50%,-50%) scale(1);    opacity:0.7; }
+        }
+        @keyframes hqPulse2 {
+          0%   { transform:translate(-50%,-50%) scale(1.1);  opacity:0.35; }
+          60%  { transform:translate(-50%,-50%) scale(1.8);  opacity:0; }
+          100% { transform:translate(-50%,-50%) scale(1.1);  opacity:0.35; }
         }
         @keyframes hqAlert {
-          0%,100% { transform:translate(-50%,-50%) scale(1);   opacity:0.85; }
-          50%      { transform:translate(-50%,-50%) scale(1.65); opacity:0.2; }
+          0%   { transform:translate(-50%,-50%) scale(1);    opacity:1; }
+          50%  { transform:translate(-50%,-50%) scale(1.75); opacity:0.15; }
+          100% { transform:translate(-50%,-50%) scale(1);    opacity:1; }
         }
         @keyframes hqFadeUp {
-          from { opacity:0; transform:translateY(10px); }
+          from { opacity:0; transform:translateY(6px); }
           to   { opacity:1; transform:translateY(0); }
         }
-        .hq-card-enter { animation: hqFadeUp 0.22s ease both; }
+        .hq-card-enter { animation: hqFadeUp 0.28s ease both; }
       `}</style>
 
       {/* ── IMAGE + PINS ── */}
-      <div style={{ position:"relative", width:"100%", background:"#060d1a" }}>
+      <div style={{ position:"relative", width:"100%", background:"#07090f", lineHeight:0 }}>
         <img
           src={HQ_IMAGE}
           alt="TradeX Agent HQ"
@@ -195,7 +202,14 @@ export function AgentCommandRoom({ data, loading=false }: {
         {/* Scanline CRT overlay */}
         <div style={{
           position:"absolute", inset:0, zIndex:1, pointerEvents:"none",
-          backgroundImage:"repeating-linear-gradient(0deg,rgba(0,0,0,0.13) 0px,rgba(0,0,0,0.13) 1px,transparent 1px,transparent 3px)",
+          backgroundImage:"repeating-linear-gradient(0deg,rgba(0,0,0,0.18) 0px,rgba(0,0,0,0.18) 1px,transparent 1px,transparent 4px)",
+        }} />
+
+        {/* Bottom gradient — removes black gap, seals canvas to result card */}
+        <div style={{
+          position:"absolute", left:0, right:0, bottom:0, height:"32%",
+          background:"linear-gradient(to bottom, transparent 0%, #07090f 100%)",
+          pointerEvents:"none", zIndex:2,
         }} />
 
         {/* Bias overlay bar on top of image */}
@@ -272,18 +286,33 @@ export function AgentCommandRoom({ data, loading=false }: {
                 height: isActive ? 52 : 38,
                 borderRadius:"50%",
                 border:`2px solid ${accent}`,
-                opacity: isIdle ? 0.3 : isActive ? 1 : 0.65,
+                opacity: isIdle ? 0.35 : isActive ? 1 : 0.7,
                 transition:"width 0.2s, height 0.2s, box-shadow 0.2s, opacity 0.2s",
-                boxShadow: isActive ? `0 0 18px ${accent}` : isIdle ? `0 0 4px ${accent}44` : `0 0 8px ${accent}66`,
-                animation: isActive ? "none" : isAlert ? "hqAlert 1.3s ease-in-out infinite" : "hqPulse 2.4s ease-in-out infinite",
+                boxShadow: isActive ? `0 0 22px ${accent}` : isIdle ? `0 0 6px ${accent}55` : `0 0 10px ${accent}77`,
+                animation: isActive ? "none" : isAlert ? "hqAlert 1.1s ease-in-out infinite" : "hqPulse 2.2s ease-in-out infinite",
                 pointerEvents:"none",
               }} />
+
+              {/* Second pulse ring — layered glow depth */}
+              {!isActive && (
+                <div style={{
+                  position:"absolute",
+                  top:"50%", left:"50%",
+                  width:38, height:38,
+                  borderRadius:"50%",
+                  border:`1px solid ${accent}`,
+                  pointerEvents:"none",
+                  animation: isAlert
+                    ? "hqAlert 1.1s ease-in-out infinite 0.25s"
+                    : "hqPulse2 2.2s ease-in-out infinite 0.6s",
+                }} />
+              )}
 
               {/* Center dot */}
               <div style={{
                 width:14, height:14,
                 borderRadius:"50%",
-                background:"#060d1a",
+                background:"#07090f",
                 border:`2.5px solid ${accent}`,
                 position:"relative",
                 zIndex:2,
