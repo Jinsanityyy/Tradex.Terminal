@@ -97,13 +97,16 @@ function ImpactPill({ impact, label }: { impact?: "bullish" | "bearish" | "neutr
   );
 }
 
-function AnalysisModal({ cat, onClose }: { cat: Catalyst; onClose: () => void }) {
+function AnalysisModal({ cat, onClose, postEvent, peLoading, peError }: {
+  cat: Catalyst;
+  onClose: () => void;
+  postEvent: PostEventAnalysis | null;
+  peLoading: boolean;
+  peError: boolean;
+}) {
   const isCompleted = cat.status === "completed";
   const isUpcoming  = cat.status === "upcoming";
   const a = cat.analysis;
-
-  const { data: postEvent, loading: peLoading, error: peError } =
-    usePostEventAnalysis(cat, isCompleted);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
@@ -364,6 +367,10 @@ function AnalysisModal({ cat, onClose }: { cat: Catalyst; onClose: () => void })
 
 function CatalystCard({ cat }: { cat: Catalyst }) {
   const [open, setOpen] = React.useState(false);
+  const isCompleted = cat.status === "completed";
+  // Pre-fetch post-event analysis as soon as this card renders (not on modal open)
+  const { data: postEvent, loading: peLoading, error: peError } =
+    usePostEventAnalysis(cat, isCompleted);
 
   return (
     <>
@@ -404,7 +411,15 @@ function CatalystCard({ cat }: { cat: Catalyst }) {
           </div>
         </div>
       </div>
-      {open && <AnalysisModal cat={cat} onClose={() => setOpen(false)} />}
+      {open && (
+        <AnalysisModal
+          cat={cat}
+          onClose={() => setOpen(false)}
+          postEvent={postEvent}
+          peLoading={peLoading}
+          peError={peError}
+        />
+      )}
     </>
   );
 }
