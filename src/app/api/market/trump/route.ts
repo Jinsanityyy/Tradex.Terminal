@@ -6,6 +6,9 @@ export const dynamic = "force-dynamic";
 let cache: { data: TrumpPost[]; ts: number } = { data: [], ts: 0 };
 const CACHE_TTL = 120_000; // 2 min
 
+// Trump's Truth Social account ID (public Mastodon-compatible API)
+const TRUTH_SOCIAL_ACCOUNT_ID = "107780257626128497";
+
 // Policy categories & their keywords
 const POLICY_MAP: { category: string; keywords: string[]; assets: string[] }[] = [
   { category: "Tariffs", keywords: ["tariff", "trade war", "trade deal", "import", "export", "customs", "duties"], assets: ["DXY", "SPX", "EURUSD", "USDCAD"] },
@@ -20,7 +23,6 @@ const POLICY_MAP: { category: string; keywords: string[]; assets: string[] }[] =
   { category: "Government", keywords: ["congress", "senate", "shutdown", "executive order", "dhs", "fbi", "doj"], assets: ["SPX", "DXY"] },
 ];
 
-// Market impact reasoning templates
 const IMPACT_TEMPLATES: Record<string, { whyItMatters: string; reaction: string }> = {
   Tariffs: {
     whyItMatters: "Tariff threats directly impact trade flows, corporate earnings, and inflation expectations. Markets reprice supply chain costs and retaliatory risks.",
@@ -64,39 +66,57 @@ const IMPACT_TEMPLATES: Record<string, { whyItMatters: string; reaction: string 
   },
 };
 
-function classifyPost(headline: string, summary: string): {
-  category: string;
-  assets: string[];
-  tags: string[];
-} {
-  const text = (headline + " " + summary).toLowerCase();
+function classifyPost(text: string): { category: string; assets: string[]; tags: string[] } {
+  const lower = text.toLowerCase();
   let bestCategory = "Politics";
   let bestAssets: string[] = ["SPX", "DXY"];
   let bestScore = 0;
   const tags: string[] = [];
 
   for (const policy of POLICY_MAP) {
-    const hits = policy.keywords.filter(k => text.includes(k)).length;
+    const hits = policy.keywords.filter(k => lower.includes(k)).length;
     if (hits > bestScore) {
       bestScore = hits;
       bestCategory = policy.category;
       bestAssets = policy.assets;
     }
-    if (hits > 0) {
-      tags.push(policy.category.toLowerCase().replace(/\s/g, "-"));
-    }
+    if (hits > 0) tags.push(policy.category.toLowerCase().replace(/\s/g, "-"));
   }
 
   return { category: bestCategory, assets: bestAssets, tags: tags.length > 0 ? tags : ["politics"] };
 }
 
-function deriveSentiment(headline: string): "bullish" | "bearish" | "neutral" {
-  const h = headline.toLowerCase();
-  const bull = ["deal", "agree", "peace", "boost", "support", "pro-", "bullish", "win", "success", "present"];
-  const bear = ["threat", "war", "sanction", "attack", "block", "ban", "shutdown", "hit", "urge", "drastic", "harder", "blow", "defeat"];
+function deriveSentiment(text: string): "bullish" | "bearish" | "neutral" {
+  const h = text.toLowerCase();
+  const bull = ["deal", "agree", "peace", "boost", "support", "pro-", "bullish", "win", "success", "great", "beautiful", "fantastic", "tremendous"];
+  const bear = ["threat", "war", "sanction", "attack", "block", "ban", "shutdown", "hit", "urge", "drastic", "harder", "blow", "defeat", "disaster", "terrible"];
   const b = bull.filter(w => h.includes(w)).length;
   const s = bear.filter(w => h.includes(w)).length;
   return b > s ? "bullish" : s > b ? "bearish" : "neutral";
+}
+
+function deriveImpactScore(text: string): number {
+  const lower = text.toLowerCase();
+  let score = 5;
+  const highImpact = ["tariff", "war", "sanction", "nuclear", "shut down", "executive order", "deal", "attack", "military", "rate cut", "rate hike"];
+  const medImpact = ["threaten", "warn", "demand", "urge", "announce", "plan", "propose"];
+  score += highImpact.filter(w => lower.includes(w)).length * 1.5;
+  score += medImpact.filter(w => lower.includes(w)).length * 0.5;
+  return Math.min(10, Math.round(score));
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 async function analyzeGoldUSD(content: string, category: string): Promise<{
@@ -105,21 +125,23 @@ async function analyzeGoldUSD(content: string, category: string): Promise<{
   usdImpact: "bullish" | "bearish" | "neutral";
   usdReasoning: string;
 } | null> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return null;
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY ?? "",
+        "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 300,
-        system: `You are a macro analyst. Given a Trump news headline, state the specific directional impact on Gold (XAUUSD) and USD (DXY). Be specific to this exact headline — no generic templates. Valid JSON only.`,
+        system: `You are a macro analyst. Given a Trump statement, state the specific directional impact on Gold (XAUUSD) and USD (DXY). Be specific to this exact content — no generic templates. Valid JSON only.`,
         messages: [{
           role: "user",
-          content: `Headline: "${content}"\nCategory: ${category}\n\nReturn ONLY this JSON:\n{"goldImpact":"bullish|bearish|neutral","goldReasoning":"1 sentence why gold moves this way from THIS specific news","usdImpact":"bullish|bearish|neutral","usdReasoning":"1 sentence why USD moves this way from THIS specific news"}`,
+          content: `Trump post: "${content.slice(0, 400)}"\nCategory: ${category}\n\nReturn ONLY this JSON:\n{"goldImpact":"bullish|bearish|neutral","goldReasoning":"1 sentence why gold moves this way","usdImpact":"bullish|bearish|neutral","usdReasoning":"1 sentence why USD moves this way"}`,
         }],
       }),
     });
@@ -131,110 +153,82 @@ async function analyzeGoldUSD(content: string, category: string): Promise<{
   }
 }
 
-function deriveImpactScore(headline: string, summary: string): number {
-  const text = (headline + " " + summary).toLowerCase();
-  let score = 5; // base
-  const highImpact = ["tariff", "war", "sanction", "nuclear", "shut down", "executive order", "deal", "attack", "military"];
-  const medImpact = ["threaten", "warn", "demand", "urge", "announce", "plan", "propose"];
-  score += highImpact.filter(w => text.includes(w)).length * 1.5;
-  score += medImpact.filter(w => text.includes(w)).length * 0.5;
-  return Math.min(10, Math.round(score));
-}
-
-// ── Static fallback posts when Finnhub key unavailable ──────────────────────
-const FALLBACK_POSTS: TrumpPost[] = [
-  {
-    id: "trump-fallback-1",
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    content: "Trump administration signals new tariff package targeting key trading partners — escalation risk for global markets",
-    source: "Reuters",
-    sentimentClassification: "bearish",
-    impactScore: 9,
-    affectedAssets: ["DXY", "SPX", "EURUSD", "XAUUSD"],
-    policyCategory: "Tariffs",
-    whyItMatters: IMPACT_TEMPLATES.Tariffs.whyItMatters,
-    potentialReaction: IMPACT_TEMPLATES.Tariffs.reaction,
-    tags: ["tariffs", "trade-war"],
-    goldImpact: "bullish",
-    goldReasoning: "Tariff escalation drives safe-haven flows into gold as risk-off sentiment intensifies across global markets.",
-    usdImpact: "neutral",
-    usdReasoning: "USD faces competing forces — safe-haven demand vs. growth damage from trade restrictions, resulting in mixed direction.",
-  },
-  {
-    id: "trump-fallback-2",
-    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-    content: "President Trump calls on Federal Reserve to cut interest rates immediately — 'they should lower rates now'",
-    source: "Truth Social",
-    sentimentClassification: "bullish",
-    impactScore: 8,
-    affectedAssets: ["DXY", "XAUUSD", "SPX", "US10Y"],
-    policyCategory: "Fed",
-    whyItMatters: IMPACT_TEMPLATES.Fed.whyItMatters,
-    potentialReaction: IMPACT_TEMPLATES.Fed.reaction,
-    tags: ["fed", "rate-cut"],
-    goldImpact: "bullish",
-    goldReasoning: "Presidential rate-cut pressure signals potential monetary easing, weakening USD and supporting gold as a non-yielding asset.",
-    usdImpact: "bearish",
-    usdReasoning: "Direct political pressure on Fed independence signals lower rates ahead, reducing yield differential and weakening the dollar.",
-  },
-  {
-    id: "trump-fallback-3",
-    timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-    content: "Trump threatens additional 50% tariffs on China if trade talks fail to progress within two weeks",
-    source: "Bloomberg",
-    sentimentClassification: "bearish",
-    impactScore: 9,
-    affectedAssets: ["SPX", "USDCAD", "BTCUSD", "XAUUSD"],
-    policyCategory: "China",
-    whyItMatters: IMPACT_TEMPLATES.China.whyItMatters,
-    potentialReaction: IMPACT_TEMPLATES.China.reaction,
-    tags: ["china", "tariffs"],
-    goldImpact: "bullish",
-    goldReasoning: "US-China trade war escalation risk spurs safe-haven demand — gold historically rallies on geopolitical and economic uncertainty.",
-    usdImpact: "bearish",
-    usdReasoning: "Tariff escalation on China threatens US growth outlook, undermining dollar demand despite short-term safe-haven positioning.",
-  },
-  {
-    id: "trump-fallback-4",
-    timestamp: new Date(Date.now() - 18 * 60 * 60 * 1000).toISOString(),
-    content: "White House confirms executive order on domestic energy production — push for increased oil and gas drilling",
-    source: "AP",
-    sentimentClassification: "bearish",
-    impactScore: 7,
-    affectedAssets: ["USOIL", "USDCAD", "XAUUSD"],
-    policyCategory: "Oil",
-    whyItMatters: IMPACT_TEMPLATES.Oil.whyItMatters,
-    potentialReaction: IMPACT_TEMPLATES.Oil.reaction,
-    tags: ["oil", "energy"],
-    goldImpact: "bearish",
-    goldReasoning: "Increased US energy output reduces inflation pressures, lowering gold's appeal as an inflation hedge in the near-term.",
-    usdImpact: "bullish",
-    usdReasoning: "Higher domestic energy production reduces US import costs and strengthens the current account, supporting USD fundamentals.",
-  },
-];
-
-export async function GET() {
-  if (cache.data.length > 0 && Date.now() - cache.ts < CACHE_TTL) {
-    return NextResponse.json({ data: cache.data, timestamp: cache.ts, cached: true });
-  }
+// ── Source 1: Truth Social (Mastodon-compatible public API) ──────────────────
+async function fetchTruthSocial(): Promise<Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">[]> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
 
   try {
-    const key = process.env.FINNHUB_API_KEY;
-    if (!key) {
-      // Return static fallback — better than empty when API key not configured
-      return NextResponse.json({ data: FALLBACK_POSTS, timestamp: Date.now(), fallback: true });
-    }
+    const res = await fetch(
+      `https://truthsocial.com/api/v1/accounts/${TRUTH_SOCIAL_ACCOUNT_ID}/statuses?limit=20&exclude_reblogs=true`,
+      {
+        signal: controller.signal,
+        cache: "no-store",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; TradeX/1.0)",
+          "Accept": "application/json",
+        },
+      }
+    );
+    clearTimeout(timer);
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
+    if (!res.ok) throw new Error(`Truth Social HTTP ${res.status}`);
 
+    const statuses: {
+      id: string;
+      created_at: string;
+      content: string;
+      reblog: unknown | null;
+      in_reply_to_id: string | null;
+    }[] = await res.json();
+
+    // Keep only original posts (not replies, not reblogs), with real content
+    const ownPosts = statuses.filter(s => !s.reblog && !s.in_reply_to_id && s.content);
+
+    return ownPosts.slice(0, 10).map((s) => {
+      const text = stripHtml(s.content);
+      const { category, assets, tags } = classifyPost(text);
+      const sentiment = deriveSentiment(text);
+      const impactScore = deriveImpactScore(text);
+      const template = IMPACT_TEMPLATES[category] ?? IMPACT_TEMPLATES.Government;
+
+      return {
+        id: `ts-${s.id}`,
+        timestamp: s.created_at,
+        content: text,
+        source: "Truth Social",
+        sentimentClassification: sentiment,
+        impactScore,
+        affectedAssets: [...new Set(assets)],
+        policyCategory: category,
+        whyItMatters: template.whyItMatters,
+        potentialReaction: template.reaction,
+        tags,
+      };
+    });
+  } catch (err) {
+    clearTimeout(timer);
+    console.error("[trump/truth-social]", err);
+    return [];
+  }
+}
+
+// ── Source 2: Finnhub news filtered for Trump ────────────────────────────────
+async function fetchFinnhubTrump(): Promise<Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">[]> {
+  const key = process.env.FINNHUB_API_KEY;
+  if (!key) return [];
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+
+  try {
     const res = await fetch(
       `https://finnhub.io/api/v1/news?category=general&token=${key}`,
       { signal: controller.signal, cache: "no-store" }
     );
     clearTimeout(timer);
 
-    if (!res.ok) throw new Error(`Finnhub: ${res.status}`);
+    if (!res.ok) throw new Error(`Finnhub HTTP ${res.status}`);
 
     const allNews: {
       id: number;
@@ -242,21 +236,21 @@ export async function GET() {
       summary: string;
       source: string;
       datetime: number;
-      url: string;
     }[] = await res.json();
 
-    // Filter for Trump-related content
     const trumpNews = allNews.filter(n =>
-      (n.headline + " " + n.summary).toLowerCase().match(/trump|white house|president.*us|potus|oval office|truth social/)
+      (n.headline + " " + n.summary).toLowerCase().match(/trump|white house|potus|truth social/)
     );
 
-    const rawPosts = trumpNews.slice(0, 10).map((item, i) => {
-      const { category, assets, tags } = classifyPost(item.headline, item.summary);
-      const sentiment = deriveSentiment(item.headline);
-      const impactScore = deriveImpactScore(item.headline, item.summary);
+    return trumpNews.slice(0, 10).map((item, i) => {
+      const text = item.headline;
+      const { category, assets, tags } = classifyPost(text + " " + (item.summary ?? ""));
+      const sentiment = deriveSentiment(text);
+      const impactScore = deriveImpactScore(text + " " + (item.summary ?? ""));
       const template = IMPACT_TEMPLATES[category] ?? IMPACT_TEMPLATES.Government;
+
       return {
-        id: `tp-${item.id ?? i}`,
+        id: `fh-${item.id ?? i}`,
         timestamp: new Date(item.datetime * 1000).toISOString(),
         content: item.headline,
         source: item.source ?? "News",
@@ -269,34 +263,47 @@ export async function GET() {
         tags,
       };
     });
-
-    // Per-post AI Gold/USD analysis (parallel, max 10)
-    const aiResults = await Promise.allSettled(
-      rawPosts.map(p => analyzeGoldUSD(p.content, p.policyCategory))
-    );
-
-    const posts: TrumpPost[] = rawPosts.map((p, i) => {
-      const ai = aiResults[i].status === "fulfilled" ? aiResults[i].value : null;
-      return {
-        ...p,
-        goldImpact:    ai?.goldImpact,
-        goldReasoning: ai?.goldReasoning,
-        usdImpact:     ai?.usdImpact,
-        usdReasoning:  ai?.usdReasoning,
-      };
-    });
-
-    if (posts.length > 0) {
-      cache = { data: posts, ts: Date.now() };
-      return NextResponse.json({ data: posts, timestamp: Date.now(), count: posts.length });
-    }
-
-    // No Trump news found from live feed — use fallback
-    return NextResponse.json({ data: FALLBACK_POSTS, timestamp: Date.now(), fallback: true });
-  } catch (error) {
-    console.error("Trump API error:", error);
-    // On error return fallback if cache is empty
-    const fallback = cache.data.length > 0 ? cache.data : FALLBACK_POSTS;
-    return NextResponse.json({ data: fallback, timestamp: Date.now(), error: "fetch failed" });
+  } catch (err) {
+    clearTimeout(timer);
+    console.error("[trump/finnhub]", err);
+    return [];
   }
+}
+
+export async function GET() {
+  if (cache.data.length > 0 && Date.now() - cache.ts < CACHE_TTL) {
+    return NextResponse.json({ data: cache.data, timestamp: cache.ts, cached: true });
+  }
+
+  // Try Truth Social first, then Finnhub as backup
+  let rawPosts = await fetchTruthSocial();
+
+  if (rawPosts.length === 0) {
+    console.log("[trump] Truth Social returned nothing, trying Finnhub");
+    rawPosts = await fetchFinnhubTrump();
+  }
+
+  // Nothing from any source — return empty (never fake data)
+  if (rawPosts.length === 0) {
+    return NextResponse.json({ data: [], timestamp: Date.now(), empty: true });
+  }
+
+  // Enrich with Claude Gold/USD analysis (parallel, best-effort)
+  const aiResults = await Promise.allSettled(
+    rawPosts.map(p => analyzeGoldUSD(p.content, p.policyCategory))
+  );
+
+  const posts: TrumpPost[] = rawPosts.map((p, i) => {
+    const ai = aiResults[i].status === "fulfilled" ? aiResults[i].value : null;
+    return {
+      ...p,
+      goldImpact:    ai?.goldImpact,
+      goldReasoning: ai?.goldReasoning,
+      usdImpact:     ai?.usdImpact,
+      usdReasoning:  ai?.usdReasoning,
+    };
+  });
+
+  cache = { data: posts, ts: Date.now() };
+  return NextResponse.json({ data: posts, timestamp: Date.now(), count: posts.length });
 }
