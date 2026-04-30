@@ -712,14 +712,14 @@ export default function DashboardPage() {
 
   const symCfg = SYMBOLS.find((entry) => entry.id === symbol) ?? SYMBOLS[0];
 
-  const { data, isLoading, mutate } = useSWR<AgentRunResult>(
+  const { data, isValidating, mutate } = useSWR<AgentRunResult>(
     `/api/agents/run?symbol=${symbol}&timeframe=${timeframe}`,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 300_000 }
   );
 
   const handleRefresh = useCallback(async () => {
-    await mutate();
+    await mutate(undefined, { revalidate: true });
   }, [mutate]);
 
   useEffect(() => {
@@ -968,10 +968,10 @@ export default function DashboardPage() {
       <section className="min-w-0 flex-1 flex flex-col overflow-hidden" style={{ height: "100%" }}>
         {/* Minimal action bar — Refresh, Brain Terminal, Fullscreen only */}
         <div className="flex items-center justify-end gap-1 px-3 py-1 shrink-0">
-          <button onClick={handleRefresh} disabled={isLoading}
-            className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors">
-            <RefreshCw className={cn("h-3 w-3", isLoading && "animate-spin")} />
-            {isLoading ? "Running…" : "Refresh"}
+          <button onClick={handleRefresh} disabled={isValidating}
+            className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors disabled:opacity-50">
+            <RefreshCw className={cn("h-3 w-3", isValidating && "animate-spin")} />
+            {isValidating ? "Running…" : "Refresh"}
           </button>
           <Link href="/dashboard/brain"
             className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors">
@@ -994,41 +994,41 @@ export default function DashboardPage() {
           <AgentMiniCard label="MASTER" bias={finalBias} confidence={master?.confidence ?? 0}
             detail={isNoTrade ? (master?.noTradeReason ?? "No trade") : (master?.strategyMatch ?? finalBias)}
             detail2={`Score: ${master?.consensusScore?.toFixed(1) ?? "—"}`}
-            isLoading={isLoading && !data} accent={isNoTrade ? "neutral" : finalBias === "bullish" ? "bull" : "bear"}
+            isLoading={isValidating && !data} accent={isNoTrade ? "neutral" : finalBias === "bullish" ? "bull" : "bear"}
             onClick={() => setActiveAgent("master")} />
           <AgentMiniCard label="TREND" bias={trend?.bias ?? "neutral"} confidence={trend?.confidence ?? 0}
             detail={trend?.marketPhase ? `Phase: ${trend.marketPhase}` : "—"}
             detail2={`Momentum: ${trend?.momentumDirection ?? "—"}`}
-            isLoading={isLoading && !data}
+            isLoading={isValidating && !data}
             accent={trend?.bias === "bullish" ? "bull" : trend?.bias === "bearish" ? "bear" : "neutral"}
             onClick={() => setActiveAgent("trend")} />
           <AgentMiniCard label="PR. ACTION" bias={smc?.bias ?? "neutral"} confidence={smc?.confidence ?? 0}
             detail={smc?.setupType ?? "—"}
             detail2={`Zone: ${smc?.premiumDiscount ?? "—"}`}
-            isLoading={isLoading && !data}
+            isLoading={isValidating && !data}
             accent={smc?.bias === "bullish" ? "bull" : smc?.bias === "bearish" ? "bear" : "neutral"}
             onClick={() => setActiveAgent("smc")} />
           <AgentMiniCard label="NEWS" bias={news?.impact ?? "neutral"} confidence={news?.confidence ?? 0}
             detail={news?.regime ? `Regime: ${news.regime}` : "—"}
             detail2={`Risk: ${news?.riskScore ?? 0}/100`}
-            isLoading={isLoading && !data}
+            isLoading={isValidating && !data}
             accent={news?.impact === "bullish" ? "bull" : news?.impact === "bearish" ? "bear" : "neutral"}
             onClick={() => setActiveAgent("news")} />
           <AgentMiniCard label="RISK GATE" bias={risk?.valid ? "valid" : "blocked"} confidence={risk?.sessionScore ?? 0}
             detail={`Grade ${risk?.grade ?? "—"} · Vol ${risk?.volatilityScore ?? 0}`}
             detail2={risk?.warnings?.[0]?.substring(0, 40) ?? "No warnings"}
-            isLoading={isLoading && !data}
+            isLoading={isValidating && !data}
             accent={risk?.valid ? "bull" : "bear"}
             onClick={() => setActiveAgent("risk")} />
           <AgentMiniCard label="CONTRARIAN" bias={contrarian?.challengesBias ? "alert" : "clear"} confidence={contrarian?.riskFactor ?? 0}
             detail={contrarian?.trapType && contrarian.trapType !== "None" ? contrarian.trapType : "No trap"}
             detail2={contrarian?.challengesBias ? (contrarian.failureReasons?.[0]?.substring(0, 40) ?? "—") : "Bias confirmed"}
-            isLoading={isLoading && !data} accent={contrarian?.challengesBias ? "bear" : "neutral"}
+            isLoading={isValidating && !data} accent={contrarian?.challengesBias ? "bear" : "neutral"}
             onClick={() => setActiveAgent("contrarian")} />
           <AgentMiniCard label="EXECUTION" bias={exec?.signalState ?? "NO_TRADE"} confidence={exec?.hasSetup ? 75 : 0}
             detail={exec?.entry ? `Entry: ${exec.entry.toFixed(exec.entry > 100 ? 1 : 4)}` : (exec?.trigger ?? "—")}
             detail2={exec?.distanceToEntry != null ? `${exec.distanceToEntry}% from entry` : "No setup"}
-            isLoading={isLoading && !data}
+            isLoading={isValidating && !data}
             accent={exec?.signalState === "ARMED" ? "bull" : exec?.signalState === "PENDING" ? "neutral" : "bear"}
             onClick={() => setActiveAgent("execution")} />
         </div>
