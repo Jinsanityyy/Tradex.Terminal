@@ -13,6 +13,7 @@ interface FFEvent {
   impact: string;
   forecast: string;
   previous: string;
+  actual: string;
 }
 
 // ── Auto-analysis engine ─────────────────────────────────
@@ -773,7 +774,7 @@ export async function GET() {
           impact,
           forecast: e.forecast !== "" ? e.forecast : "—",
           previous: e.previous !== "" ? e.previous : "—",
-          actual: isPast && e.previous !== "" ? e.previous : undefined,
+          actual: isPast && e.actual && e.actual !== "" ? e.actual : undefined,
           interpretation: analysis.tradeImplication,
           affectedAssets: ["XAUUSD", "DXY", "EURUSD", ...deriveExtraAssets(e.title)],
           status,
