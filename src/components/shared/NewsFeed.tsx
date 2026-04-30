@@ -37,10 +37,10 @@ function NewsDetail({ item }: { item: NewsItem }) {
 
   const bullets: string[] = [
     item.sentiment === "bullish"
-      ? "Bullish signal — look for breakout entries on affected assets, confirm with price action before entering"
+      ? "Risk-on macro backdrop — broad risk appetite rising; this typically lifts equities and USD while reducing safe-haven demand for Gold"
       : item.sentiment === "bearish"
-      ? "Bearish signal — sell rallies rather than shorting into extended weakness; look for distribution patterns"
-      : "Mixed/neutral signal — use as background context; wait for clearer directional price action",
+      ? "Risk-off macro backdrop — defensive positioning; expect flows into safe-havens (Gold, JPY, CHF) and out of risk assets"
+      : "Neutral macro backdrop — no strong directional signal; focus on Gold/USD specific analysis below",
     item.goldImpact === "bullish"
       ? "Gold expected to bid higher — watch for breakout above session resistance"
       : item.goldImpact === "bearish"
@@ -58,7 +58,9 @@ function NewsDetail({ item }: { item: NewsItem }) {
     <div className="space-y-4">
       {/* Meta + impact row */}
       <div className="flex items-center gap-2 flex-wrap">
-        <Badge variant={item.sentiment}>{item.sentiment}</Badge>
+        <Badge variant={item.sentiment}>
+          {item.sentiment === "bullish" ? "RISK-ON" : item.sentiment === "bearish" ? "RISK-OFF" : "NEUTRAL"}
+        </Badge>
         <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))] uppercase">
           {item.category.replace("-", " ")}
         </span>
@@ -190,7 +192,9 @@ export function NewsFeed({ items, limit, compact = false }: NewsFeedProps) {
                   </p>
                 )}
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant={item.sentiment}>{item.sentiment}</Badge>
+                  <Badge variant={item.sentiment}>
+                    {item.sentiment === "bullish" ? "RISK-ON" : item.sentiment === "bearish" ? "RISK-OFF" : "NEUTRAL"}
+                  </Badge>
                   <ImpactBadge impact={item.goldImpact} label="GOLD" />
                   <ImpactBadge
                     impact={item.goldImpact === "bullish" && item.usdImpact === "bullish" ? "neutral" : item.usdImpact}
