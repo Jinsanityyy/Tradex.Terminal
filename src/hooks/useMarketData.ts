@@ -272,6 +272,26 @@ export function useMarketAnalysis(refreshInterval = 180_000) {
   };
 }
 
+// ── Multi-Timeframe Bias (algorithmic, price-action only) ──
+export function useMTFBias(symbol: string) {
+  const { data, isLoading, error } = useSWR(
+    `/api/agents/mtf?symbol=${symbol}`,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 5 * 60_000,
+      errorRetryCount: 2,
+      errorRetryInterval: 30_000,
+    }
+  );
+
+  return {
+    mtfData: data ?? null,
+    mtfLoading: isLoading,
+    mtfError: error,
+  };
+}
+
 // ── Single Agent Run (for Market Bias page) ─────────────
 export function useAgentResult(symbol: Symbol, timeframe: Timeframe = "H1", refreshInterval = 300_000) {
   const { data, error, isLoading, mutate: revalidate } = useSWR<AgentRunResult>(

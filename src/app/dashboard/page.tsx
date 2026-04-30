@@ -31,12 +31,14 @@ import { CatalystFeed } from "@/components/shared/CatalystFeed";
 import { DetailModal } from "@/components/shared/DetailModal";
 import { SessionSummaryCard } from "@/components/shared/SessionSummaryCard";
 import { TrumpImpactPreview } from "@/components/shared/TrumpFeedPanel";
+import { MTFBiasPanel } from "@/components/shared/MTFBiasPanel";
 import {
   useEconomicCalendar,
   useTrumpPosts,
   useCatalysts,
   useSessions,
   useMarketAnalysis,
+  useMTFBias,
 } from "@/hooks/useMarketData";
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import type { EconomicEvent } from "@/types";
@@ -769,6 +771,7 @@ export default function DashboardPage() {
   const { sessions } = useSessions();
   const { posts: trumpPosts } = useTrumpPosts();
   const { tradeContext } = useMarketAnalysis();
+  const { mtfData, mtfLoading } = useMTFBias(symbol);
 
   const upcomingEvents = events.filter((event) => event.status === "upcoming" || event.status === "live");
   const calendarPreview = upcomingEvents.length > 0 ? upcomingEvents.slice(0, 5) : events.slice(0, 5);
@@ -1123,6 +1126,19 @@ export default function DashboardPage() {
 
         {/* Rest — scrollable */}
         <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-4">
+
+          {/* Multi-Timeframe Bias */}
+          <Card>
+            <CardHeader className="pb-2 pt-4 px-4">
+              <SectionHeader
+                icon={<BarChart3 className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />}
+                label={`MTF Bias · ${symCfg.short}`}
+              />
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <MTFBiasPanel data={mtfData} isLoading={mtfLoading} />
+            </CardContent>
+          </Card>
 
           {/* Trump Impact Monitor — first after community */}
           <Card>
