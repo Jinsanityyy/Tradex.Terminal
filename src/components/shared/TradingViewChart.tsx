@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 interface TradingViewChartProps {
   symbol?: string;
   heightClass?: string;
+  onIntervalChange?: (tvInterval: string) => void;
 }
 
 const INTERVALS = [
@@ -397,6 +398,7 @@ let widgetCounter = 0;
 export function TradingViewChart({
   symbol: initialSymbol = "OANDA:XAUUSD",
   heightClass = "h-[400px]",
+  onIntervalChange,
 }: TradingViewChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -655,7 +657,10 @@ export function TradingViewChart({
           {/* Timeframe buttons */}
           <div className="flex items-center gap-0.5">
             {INTERVALS.map(interval => (
-              <button key={interval.value} onClick={() => setActiveInterval(interval)}
+              <button key={interval.value} onClick={() => {
+                setActiveInterval(interval);
+                onIntervalChange?.(interval.value);
+              }}
                 className={cn("rounded px-2 py-1 text-[11px] font-semibold transition-all border",
                   activeInterval.value === interval.value
                     ? "border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/15 text-[hsl(var(--primary))]"

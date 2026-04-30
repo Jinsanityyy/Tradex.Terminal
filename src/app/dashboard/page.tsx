@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -93,6 +93,14 @@ const SYMBOLS: { id: Symbol; tv: string; label: string; short: string; group: st
 ];
 
 const TIMEFRAMES: Timeframe[] = ["M5", "M15", "H1", "H4"];
+
+const TV_TO_AGENT_TF: Record<string, Timeframe> = {
+  "5": "M5", "15": "M15", "60": "H1", "240": "H4",
+};
+
+const TV_INTERVAL_LABELS: Record<string, string> = {
+  "1": "1m", "5": "5m", "15": "15m", "30": "30m", "60": "1H", "240": "4H", "D": "1D",
+};
 
 const fetcher = (url: string) =>
   fetch(url).then((response) => {
@@ -706,9 +714,11 @@ function SidebarEventPreview({ event }: { event: EconomicEvent }) {
 export default function DashboardPage() {
   const [symbol, setSymbol] = useState<Symbol>("XAUUSD");
   const [timeframe, setTimeframe] = useState<Timeframe>("H1");
+  const [chartInterval, setChartInterval] = useState("60");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [activeOverview, setActiveOverview] = useState<OverviewKey | null>(null);
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
+  const intervalDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const symCfg = SYMBOLS.find((entry) => entry.id === symbol) ?? SYMBOLS[0];
 
@@ -721,6 +731,16 @@ export default function DashboardPage() {
   const handleRefresh = useCallback(async () => {
     await mutate(undefined, { revalidate: true });
   }, [mutate]);
+
+  const handleIntervalChange = useCallback((tvInterval: string) => {
+    setChartInterval(tvInterval);
+    const mapped = TV_TO_AGENT_TF[tvInterval];
+    if (!mapped) return;
+    if (intervalDebounceRef.current) clearTimeout(intervalDebounceRef.current);
+    intervalDebounceRef.current = setTimeout(() => {
+      setTimeframe(mapped);
+    }, 2000);
+  }, []);
 
   useEffect(() => {
     function handleFullscreenChange() {
@@ -966,27 +986,41 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col lg:flex-row overflow-hidden" style={{ height: "100%" }}>
       <section className="min-w-0 flex-1 flex flex-col overflow-hidden" style={{ height: "100%" }}>
-        {/* Minimal action bar — Refresh, Brain Terminal, Fullscreen only */}
-        <div className="flex items-center justify-end gap-1 px-3 py-1 shrink-0">
-          <button onClick={handleRefresh} disabled={isValidating}
-            className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors disabled:opacity-50">
-            <RefreshCw className={cn("h-3 w-3", isValidating && "animate-spin")} />
-            {isValidating ? "Running…" : "Refresh"}
-          </button>
-          <Link href="/dashboard/brain"
-            className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors">
-            Brain Terminal <ArrowRight className="h-3 w-3" />
-          </Link>
-          <button onClick={toggleFullscreen}
-            className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors">
-            {isFullscreen ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
-            {isFullscreen ? "Exit" : "Full Screen"}
-          </button>
+        {/* Minimal action bar — agent TF badge left, controls right */}
+        <div className="flex items-center justify-between gap-1 px-3 py-1 shrink-0">
+          {/* Agent timeframe indicator */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-[hsl(var(--primary))]/25 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]/80">
+              AGENTS: {timeframe}
+            </span>
+            {!TV_TO_AGENT_TF[chartInterval] && (
+              <span className="text-[9px] text-zinc-600">
+                chart {TV_INTERVAL_LABELS[chartInterval]} not supported — using {timeframe}
+              </span>
+            )}
+          </div>
+          {/* Controls */}
+          <div className="flex items-center gap-1">
+            <button onClick={handleRefresh} disabled={isValidating}
+              className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors disabled:opacity-50">
+              <RefreshCw className={cn("h-3 w-3", isValidating && "animate-spin")} />
+              {isValidating ? "Running…" : "Refresh"}
+            </button>
+            <Link href="/dashboard/brain"
+              className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors">
+              Brain Terminal <ArrowRight className="h-3 w-3" />
+            </Link>
+            <button onClick={toggleFullscreen}
+              className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors">
+              {isFullscreen ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+              {isFullscreen ? "Exit" : "Full Screen"}
+            </button>
+          </div>
         </div>
 
         {/* Chart */}
         <div className="shrink-0 overflow-hidden">
-          <TradingViewChart symbol={symCfg.tv} heightClass={chartHeightClass} />
+          <TradingViewChart symbol={symCfg.tv} heightClass={chartHeightClass} onIntervalChange={handleIntervalChange} />
         </div>
 
         {/* 7 Agent cards */}
