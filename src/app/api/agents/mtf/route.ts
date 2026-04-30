@@ -32,98 +32,101 @@ export interface MTFResult {
   cached?: boolean;
 }
 
-// ── Yahoo Finance symbol mapping ─────────────────────────────────────────────
-const YAHOO_SYMBOLS: Record<string, string> = {
-  // Precious metals
-  XAUUSD: "GC=F",
-  XAGUSD: "SI=F",
-  XPTUSD: "PL=F",
+// ── Finnhub symbol mapping ────────────────────────────────────────────────────
+// endpoint: "forex" → /forex/candle, "crypto" → /crypto/candle
+type FinnhubEndpoint = "forex" | "crypto";
+
+interface FinnhubSym {
+  endpoint: FinnhubEndpoint;
+  symbol: string;
+}
+
+const FINNHUB_SYMBOLS: Record<string, FinnhubSym> = {
+  // Precious metals (OANDA forex/commodity CFDs)
+  XAUUSD: { endpoint: "forex", symbol: "OANDA:XAU_USD" },
+  XAGUSD: { endpoint: "forex", symbol: "OANDA:XAG_USD" },
+  XPTUSD: { endpoint: "forex", symbol: "OANDA:XPT_USD" },
   // Major forex
-  EURUSD: "EURUSD=X",
-  GBPUSD: "GBPUSD=X",
-  USDJPY: "USDJPY=X",
-  USDCHF: "USDCHF=X",
-  USDCAD: "USDCAD=X",
-  AUDUSD: "AUDUSD=X",
-  NZDUSD: "NZDUSD=X",
+  EURUSD: { endpoint: "forex", symbol: "OANDA:EUR_USD" },
+  GBPUSD: { endpoint: "forex", symbol: "OANDA:GBP_USD" },
+  USDJPY: { endpoint: "forex", symbol: "OANDA:USD_JPY" },
+  USDCHF: { endpoint: "forex", symbol: "OANDA:USD_CHF" },
+  USDCAD: { endpoint: "forex", symbol: "OANDA:USD_CAD" },
+  AUDUSD: { endpoint: "forex", symbol: "OANDA:AUD_USD" },
+  NZDUSD: { endpoint: "forex", symbol: "OANDA:NZD_USD" },
   // Cross forex
-  EURJPY: "EURJPY=X",
-  GBPJPY: "GBPJPY=X",
-  EURGBP: "EURGBP=X",
-  AUDJPY: "AUDJPY=X",
-  CADJPY: "CADJPY=X",
-  CHFJPY: "CHFJPY=X",
-  EURCAD: "EURCAD=X",
-  GBPCAD: "GBPCAD=X",
-  AUDCAD: "AUDCAD=X",
-  AUDNZD: "AUDNZD=X",
-  // US indices
-  US500:  "^GSPC",
-  US100:  "^IXIC",
-  US30:   "^DJI",
-  // Global indices
-  GER40:  "^GDAXI",
-  UK100:  "^FTSE",
-  JPN225: "^N225",
-  AUS200: "^AXJO",
-  HK50:   "^HSI",
-  // Crypto
-  BTCUSD: "BTC-USD",
-  ETHUSD: "ETH-USD",
-  SOLUSD: "SOL-USD",
-  XRPUSD: "XRP-USD",
-  BNBUSD: "BNB-USD",
-  ADAUSD: "ADA-USD",
-  DOTUSD: "DOT-USD",
-  LNKUSD: "LINK-USD",
-  // Commodities
-  USOIL:  "CL=F",
-  UKOIL:  "BZ=F",
-  NATGAS: "NG=F",
-  CORN:   "ZC=F",
-  WHEAT:  "ZW=F",
-  COPPER: "HG=F",
+  EURJPY: { endpoint: "forex", symbol: "OANDA:EUR_JPY" },
+  GBPJPY: { endpoint: "forex", symbol: "OANDA:GBP_JPY" },
+  EURGBP: { endpoint: "forex", symbol: "OANDA:EUR_GBP" },
+  AUDJPY: { endpoint: "forex", symbol: "OANDA:AUD_JPY" },
+  CADJPY: { endpoint: "forex", symbol: "OANDA:CAD_JPY" },
+  CHFJPY: { endpoint: "forex", symbol: "OANDA:CHF_JPY" },
+  EURCAD: { endpoint: "forex", symbol: "OANDA:EUR_CAD" },
+  GBPCAD: { endpoint: "forex", symbol: "OANDA:GBP_CAD" },
+  AUDCAD: { endpoint: "forex", symbol: "OANDA:AUD_CAD" },
+  AUDNZD: { endpoint: "forex", symbol: "OANDA:AUD_NZD" },
+  // US indices (OANDA CFDs)
+  US500:  { endpoint: "forex", symbol: "OANDA:SPX500_USD" },
+  US100:  { endpoint: "forex", symbol: "OANDA:NAS100_USD" },
+  US30:   { endpoint: "forex", symbol: "OANDA:US30_USD"   },
+  // Global indices (OANDA CFDs)
+  GER40:  { endpoint: "forex", symbol: "OANDA:DE30_EUR"   },
+  UK100:  { endpoint: "forex", symbol: "OANDA:UK100_GBP"  },
+  JPN225: { endpoint: "forex", symbol: "OANDA:JP225_USD"  },
+  AUS200: { endpoint: "forex", symbol: "OANDA:AU200_AUD"  },
+  HK50:   { endpoint: "forex", symbol: "OANDA:HK33_HKD"   },
+  // Crypto (Binance)
+  BTCUSD: { endpoint: "crypto", symbol: "BINANCE:BTCUSDT"  },
+  ETHUSD: { endpoint: "crypto", symbol: "BINANCE:ETHUSDT"  },
+  SOLUSD: { endpoint: "crypto", symbol: "BINANCE:SOLUSDT"  },
+  XRPUSD: { endpoint: "crypto", symbol: "BINANCE:XRPUSDT"  },
+  BNBUSD: { endpoint: "crypto", symbol: "BINANCE:BNBUSDT"  },
+  ADAUSD: { endpoint: "crypto", symbol: "BINANCE:ADAUSDT"  },
+  DOTUSD: { endpoint: "crypto", symbol: "BINANCE:DOTUSDT"  },
+  LNKUSD: { endpoint: "crypto", symbol: "BINANCE:LINKUSDT" },
+  // Energy & commodities (OANDA CFDs)
+  USOIL:  { endpoint: "forex", symbol: "OANDA:WTICO_USD"  },
+  UKOIL:  { endpoint: "forex", symbol: "OANDA:BCO_USD"    },
+  NATGAS: { endpoint: "forex", symbol: "OANDA:NATGAS_USD" },
+  CORN:   { endpoint: "forex", symbol: "OANDA:CORN_USD"   },
+  WHEAT:  { endpoint: "forex", symbol: "OANDA:WHEAT_USD"  },
+  COPPER: { endpoint: "forex", symbol: "OANDA:COPPER_USD" },
 };
 
 // ── Data fetching ─────────────────────────────────────────────────────────────
-async function fetchYahooCandles(
-  yahooSymbol: string,
-  interval: "15m" | "1h" | "1d",
-  range: "5d" | "3mo" | "1y",
+async function fetchFinnhubCandles(
+  endpoint: FinnhubEndpoint,
+  symbol: string,
+  resolution: "D" | "60" | "15",
+  from: number,
+  to: number,
 ): Promise<Candle[]> {
+  const key = process.env.FINNHUB_API_KEY;
+  if (!key) return [];
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 9000);
   try {
     const url =
-      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}` +
-      `?interval=${interval}&range=${range}&includePrePost=false`;
+      `https://finnhub.io/api/v1/${endpoint}/candle` +
+      `?symbol=${encodeURIComponent(symbol)}&resolution=${resolution}&from=${from}&to=${to}&token=${key}`;
     const res = await fetch(url, {
       signal: controller.signal,
       cache: "no-store",
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; TradeX/1.0)",
-        Accept: "application/json",
-      },
+      headers: { Accept: "application/json" },
     });
     clearTimeout(timer);
     if (!res.ok) return [];
     const json = await res.json();
-    const result = json?.chart?.result?.[0];
-    if (!result) return [];
-    const timestamps: number[] = result.timestamp ?? [];
-    const quote = result.indicators?.quote?.[0];
-    if (!quote) return [];
-    const { open, high, low, close } = quote;
+    // Finnhub returns { s: "ok" | "no_data", c, h, l, o, t, v }
+    if (json?.s !== "ok" || !Array.isArray(json.t) || json.t.length === 0) return [];
+    const { o, h, l, c, t } = json as {
+      o: number[]; h: number[]; l: number[]; c: number[]; t: number[];
+    };
     const candles: Candle[] = [];
-    for (let i = 0; i < timestamps.length; i++) {
-      if (close[i] != null && !isNaN(close[i])) {
-        candles.push({
-          t: timestamps[i],
-          o: open[i] ?? close[i],
-          h: high[i] ?? close[i],
-          l: low[i] ?? close[i],
-          c: close[i],
-        });
+    for (let i = 0; i < t.length; i++) {
+      if (c[i] != null && !isNaN(c[i])) {
+        candles.push({ t: t[i], o: o[i], h: h[i], l: l[i], c: c[i] });
       }
     }
     return candles;
@@ -284,16 +287,23 @@ export async function GET(request: Request) {
     return NextResponse.json({ ...hit.data, cached: true });
   }
 
-  const yahooSym = YAHOO_SYMBOLS[symbol];
-  if (!yahooSym) {
+  const cfg = FINNHUB_SYMBOLS[symbol];
+  if (!cfg) {
     return NextResponse.json({ error: `Symbol ${symbol} not supported` }, { status: 400 });
   }
 
-  // Fetch all timeframes in parallel — D1 and H1/M15 concurrently
+  const now  = Math.floor(Date.now() / 1000);
+  const from = {
+    D:  now - 400 * 24 * 3600, // 400 days  → ~250+ trading day bars
+    "60": now - 30  * 24 * 3600, // 30 days  → 720 H1 bars (forex 24h) / 160 (stocks)
+    "15": now -  7  * 24 * 3600, // 7 days   → 672 M15 bars (forex) / 112 (stocks)
+  };
+
+  // Fetch D1, H1, M15 in parallel — H4 is aggregated from H1
   const [d1Raw, h1Raw, m15Raw] = await Promise.all([
-    fetchYahooCandles(yahooSym, "1d", "1y"),
-    fetchYahooCandles(yahooSym, "1h", "3mo"),
-    fetchYahooCandles(yahooSym, "15m", "5d"),
+    fetchFinnhubCandles(cfg.endpoint, cfg.symbol, "D",  from["D"],  now),
+    fetchFinnhubCandles(cfg.endpoint, cfg.symbol, "60", from["60"], now),
+    fetchFinnhubCandles(cfg.endpoint, cfg.symbol, "15", from["15"], now),
   ]);
 
   const h4Raw = aggregateToH4(h1Raw);
