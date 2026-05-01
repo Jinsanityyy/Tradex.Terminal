@@ -192,109 +192,111 @@ export function AgentCommandRoom({ data, loading=false }: {
       `}</style>
 
       {/* ── IMAGE + PINS ── */}
-      <div
-        className="relative w-full overflow-hidden bg-[#07090f] leading-none lg:max-h-[55vh]"
-        style={{ lineHeight:0 }}
-      >
-        <img
-          src={HQ_IMAGE}
-          alt="TradeX Agent HQ"
-          style={{ width:"100%", height:"auto", display:"block", objectFit:"contain", pointerEvents:"none" }}
-        />
+      <div className="w-full overflow-hidden bg-[#07090f] lg:flex lg:justify-center">
+        <div
+          className="relative w-full bg-[#07090f] leading-none lg:w-fit lg:max-w-full lg:flex-none"
+          style={{ lineHeight:0 }}
+        >
+          <img
+            src={HQ_IMAGE}
+            alt="TradeX Agent HQ"
+            className="block h-auto w-full pointer-events-none lg:max-h-[55vh] lg:w-auto lg:max-w-full"
+            style={{ objectFit:"contain" }}
+          />
 
-        {/* Scanline CRT overlay */}
-        <div style={{
-          position:"absolute", inset:0, zIndex:1, pointerEvents:"none",
-          backgroundImage:"repeating-linear-gradient(0deg,rgba(0,0,0,0.18) 0px,rgba(0,0,0,0.18) 1px,transparent 1px,transparent 4px)",
-        }} />
+          {/* Scanline CRT overlay */}
+          <div style={{
+            position:"absolute", inset:0, zIndex:1, pointerEvents:"none",
+            backgroundImage:"repeating-linear-gradient(0deg,rgba(0,0,0,0.18) 0px,rgba(0,0,0,0.18) 1px,transparent 1px,transparent 4px)",
+          }} />
 
-        {/* Bottom gradient — removes black gap, seals canvas to result card */}
-        <div style={{
-          position:"absolute", left:0, right:0, bottom:0, height:"32%",
-          background:"linear-gradient(to bottom, transparent 0%, #07090f 100%)",
-          pointerEvents:"none", zIndex:2,
-        }} />
+          {/* Bottom gradient — removes black gap, seals canvas to result card */}
+          <div style={{
+            position:"absolute", left:0, right:0, bottom:0, height:"32%",
+            background:"linear-gradient(to bottom, transparent 0%, #07090f 100%)",
+            pointerEvents:"none", zIndex:2,
+          }} />
 
-        {/* Bias overlay bar on top of image */}
-        <div style={{
-          position:"absolute", top:0, left:0, right:0,
-          background:"linear-gradient(180deg, rgba(6,13,26,0.85) 0%, transparent 100%)",
-          padding:"10px 16px",
-          display:"flex", justifyContent:"space-between", alignItems:"center",
-          pointerEvents:"none",
-        }}>
-          <span style={{ color:"#22d3ee", fontSize:10, letterSpacing:"0.14em", fontFamily:"ui-monospace,monospace", whiteSpace:"nowrap" }}>
-            TRADEX · MULTI-AGENT FLOOR
-          </span>
-          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            {/* Live session pill */}
-            <span style={{
-              fontSize:8, letterSpacing:"0.14em", padding:"2px 7px", borderRadius:99,
-              border:`1px solid ${session.color}55`, color:session.color,
-              background:session.color+"18", fontFamily:"ui-monospace,monospace",
-              display:"flex", alignItems:"center", gap:4,
-            }}>
-              <span style={{ width:5, height:5, borderRadius:"50%", background:session.color, display:"inline-block", boxShadow:`0 0 5px ${session.color}` }} />
-              {session.label}
+          {/* Bias overlay bar on top of image */}
+          <div style={{
+            position:"absolute", top:0, left:0, right:0,
+            background:"linear-gradient(180deg, rgba(6,13,26,0.85) 0%, transparent 100%)",
+            padding:"10px 16px",
+            display:"flex", justifyContent:"space-between", alignItems:"center",
+            pointerEvents:"none",
+          }}>
+            <span style={{ color:"#22d3ee", fontSize:10, letterSpacing:"0.14em", fontFamily:"ui-monospace,monospace", whiteSpace:"nowrap" }}>
+              TRADEX · MULTI-AGENT FLOOR
             </span>
-            <span style={{ color:biasColor, fontSize:13, fontWeight:700, letterSpacing:"0.15em", fontFamily:"ui-monospace,monospace" }}>
-              {biasLabel}
-            </span>
-            <div style={{
-              background:"#0a1e3a", borderRadius:2, overflow:"hidden",
-              width:80, height:4,
-            }}>
-              <div style={{ width:`${conf}%`, height:"100%", background:biasColor }} />
-            </div>
-            <span style={{ color:biasColor, fontSize:10, fontFamily:"ui-monospace,monospace" }}>{conf}%</span>
-          </div>
-        </div>
-
-        {/* Agent pins */}
-        {PINS.map(pin => {
-          const pinSC = sc(pin.stateKey);
-          const pinState = states[pin.stateKey] ?? "idle";
-          const isIdle = pinState === "idle";
-          const isActive = activeId === pin.id;
-          const isAlert = pinState === "blocked" || pinState === "alert";
-          const accent = pinSC.accent;
-
-          return (
-            <div
-              key={pin.id}
-              onClick={() => setActiveId(isActive ? null : pin.id)}
-              onMouseEnter={() => setHoveredId(pin.id)}
-              onMouseLeave={() => setHoveredId(null)}
-              style={{
-                position:"absolute",
-                left:`${pin.px}%`,
-                top:`${pin.py}%`,
-                transform:"translate(-50%,-50%)",
-                cursor:"pointer",
-                zIndex:100,
-                width:46,
-                height:46,
-                display:"flex",
-                alignItems:"center",
-                justifyContent:"center",
-                pointerEvents:"all",
-              }}
-            >
-              {/* Outer pulse ring */}
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              {/* Live session pill */}
+              <span style={{
+                fontSize:8, letterSpacing:"0.14em", padding:"2px 7px", borderRadius:99,
+                border:`1px solid ${session.color}55`, color:session.color,
+                background:session.color+"18", fontFamily:"ui-monospace,monospace",
+                display:"flex", alignItems:"center", gap:4,
+              }}>
+                <span style={{ width:5, height:5, borderRadius:"50%", background:session.color, display:"inline-block", boxShadow:`0 0 5px ${session.color}` }} />
+                {session.label}
+              </span>
+              <span style={{ color:biasColor, fontSize:13, fontWeight:700, letterSpacing:"0.15em", fontFamily:"ui-monospace,monospace" }}>
+                {biasLabel}
+              </span>
               <div style={{
-                position:"absolute",
-                top:"50%", left:"50%",
-                transform:"translate(-50%,-50%)",
-                width: isActive ? 40 : 28,
-                height: isActive ? 40 : 28,
-                borderRadius:"50%",
-                border:`2px solid ${accent}`,
-                opacity: isIdle ? 0.35 : isActive ? 1 : 0.7,
-                transition:"width 0.2s, height 0.2s, box-shadow 0.2s, opacity 0.2s",
-                boxShadow: isActive ? `0 0 22px ${accent}` : isIdle ? `0 0 6px ${accent}55` : `0 0 10px ${accent}77`,
-                animation: isActive ? "none" : isAlert ? "hqAlert 1.1s ease-in-out infinite" : "hqPulse 2.2s ease-in-out infinite",
-                pointerEvents:"none",
-              }} />
+                background:"#0a1e3a", borderRadius:2, overflow:"hidden",
+                width:80, height:4,
+              }}>
+                <div style={{ width:`${conf}%`, height:"100%", background:biasColor }} />
+              </div>
+              <span style={{ color:biasColor, fontSize:10, fontFamily:"ui-monospace,monospace" }}>{conf}%</span>
+            </div>
+          </div>
+
+          {/* Agent pins */}
+          {PINS.map(pin => {
+            const pinSC = sc(pin.stateKey);
+            const pinState = states[pin.stateKey] ?? "idle";
+            const isIdle = pinState === "idle";
+            const isActive = activeId === pin.id;
+            const isAlert = pinState === "blocked" || pinState === "alert";
+            const accent = pinSC.accent;
+
+            return (
+              <div
+                key={pin.id}
+                onClick={() => setActiveId(isActive ? null : pin.id)}
+                onMouseEnter={() => setHoveredId(pin.id)}
+                onMouseLeave={() => setHoveredId(null)}
+                style={{
+                  position:"absolute",
+                  left:`${pin.px}%`,
+                  top:`${pin.py}%`,
+                  transform:"translate(-50%,-50%)",
+                  cursor:"pointer",
+                  zIndex:100,
+                  width:46,
+                  height:46,
+                  display:"flex",
+                  alignItems:"center",
+                  justifyContent:"center",
+                  pointerEvents:"all",
+                }}
+              >
+                {/* Outer pulse ring */}
+                <div style={{
+                  position:"absolute",
+                  top:"50%", left:"50%",
+                  transform:"translate(-50%,-50%)",
+                  width: isActive ? 40 : 28,
+                  height: isActive ? 40 : 28,
+                  borderRadius:"50%",
+                  border:`2px solid ${accent}`,
+                  opacity: isIdle ? 0.35 : isActive ? 1 : 0.7,
+                  transition:"width 0.2s, height 0.2s, box-shadow 0.2s, opacity 0.2s",
+                  boxShadow: isActive ? `0 0 22px ${accent}` : isIdle ? `0 0 6px ${accent}55` : `0 0 10px ${accent}77`,
+                  animation: isActive ? "none" : isAlert ? "hqAlert 1.1s ease-in-out infinite" : "hqPulse 2.2s ease-in-out infinite",
+                  pointerEvents:"none",
+                }} />
 
               {/* Second pulse ring — layered glow depth */}
               {!isActive && (
@@ -382,9 +384,10 @@ export function AgentCommandRoom({ data, loading=false }: {
                   pointerEvents:"none",
                 }} />
               )}
-            </div>
-          );
-        })}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── DETAIL PANEL — fades in when an agent is clicked ── */}
