@@ -402,6 +402,8 @@ export function TradingViewChart({
 }: TradingViewChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const widgetRef = useRef<any>(null);
+  const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [activeSymbol, setActiveSymbol] = useState(initialSymbol);
   const [activeInterval, setActiveInterval] = useState(INTERVALS[4]);
@@ -422,6 +424,27 @@ export function TradingViewChart({
     setActiveSymbol(value);
     setPickerOpen(false);
     setQuery("");
+  }, []);
+
+  const syncWidgetSize = useCallback(() => {
+    const element = containerRef.current;
+    const widget = widgetRef.current;
+    if (!element || !widget) return;
+
+    const width = element.clientWidth;
+    const height = element.clientHeight;
+    if (!width || !height) return;
+
+    try {
+      if (typeof widget.resize === "function") {
+        widget.resize(width, height);
+        return;
+      }
+    } catch {
+      // Fall through to global resize signal.
+    }
+
+    window.dispatchEvent(new Event("resize"));
   }, []);
 
   useEffect(() => {
@@ -450,6 +473,44 @@ export function TradingViewChart({
 
     return () => clearInterval(timerId);
   }, [activeInterval.minutes]);
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+
+    let lastWidth = Math.round(element.clientWidth);
+    let lastHeight = Math.round(element.clientHeight);
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+
+      const nextWidth = Math.round(entry.contentRect.width);
+      const nextHeight = Math.round(entry.contentRect.height);
+      if (!nextWidth || !nextHeight) return;
+      if (nextWidth === lastWidth && nextHeight === lastHeight) return;
+
+      lastWidth = nextWidth;
+      lastHeight = nextHeight;
+
+      if (resizeTimerRef.current) {
+        clearTimeout(resizeTimerRef.current);
+      }
+
+      resizeTimerRef.current = setTimeout(() => {
+        syncWidgetSize();
+      }, 90);
+    });
+
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+      if (resizeTimerRef.current) {
+        clearTimeout(resizeTimerRef.current);
+        resizeTimerRef.current = null;
+      }
+    };
+  }, [syncWidgetSize]);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -522,6 +583,7 @@ export function TradingViewChart({
             "scalesProperties.lineColor": "rgba(255,255,255,0.04)",
           },
         });
+        widgetRef.current = widget;
       } catch (error) {
         console.warn("[TradingView] widget constructor failed:", error);
         return;
@@ -545,6 +607,8 @@ export function TradingViewChart({
             });
           }
         } catch {}
+
+        syncWidgetSize();
       });
     }
 
@@ -564,6 +628,9 @@ export function TradingViewChart({
         return () => {
           isCancelled = true;
           clearInterval(poll);
+          if (widgetRef.current === widget) {
+            widgetRef.current = null;
+          }
 
           if (element) {
             element.innerHTML = "";
@@ -583,12 +650,15 @@ export function TradingViewChart({
 
     return () => {
       isCancelled = true;
+      if (widgetRef.current === widget) {
+        widgetRef.current = null;
+      }
 
       if (element) {
         element.innerHTML = "";
       }
     };
-  }, [activeInterval.value, activeSymbol]);
+  }, [activeInterval.value, activeSymbol, syncWidgetSize]);
 
   const urgent = secondsLeft <= 60;
 

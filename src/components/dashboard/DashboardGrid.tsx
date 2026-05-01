@@ -417,6 +417,13 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     releaseIframePointerEvents();
   }, [releaseIframePointerEvents]);
 
+  const notifyEmbeddedWidgets = useCallback(() => {
+    const fireResize = () => window.dispatchEvent(new Event("resize"));
+    fireResize();
+    requestAnimationFrame(fireResize);
+    window.setTimeout(fireResize, 120);
+  }, []);
+
   useEffect(() => {
     if (!showAddWidgetMenu) return;
 
@@ -882,10 +889,12 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
             onDragStop={(nextLayout) => {
               commitGridLayout(nextLayout);
               endInteraction();
+              notifyEmbeddedWidgets();
             }}
             onResizeStop={(nextLayout) => {
               commitGridLayout(nextLayout);
               endInteraction();
+              notifyEmbeddedWidgets();
             }}
           >
             {orderedVisibleWidgets.map((widget) => (
