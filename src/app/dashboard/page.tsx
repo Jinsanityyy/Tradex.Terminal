@@ -791,7 +791,6 @@ export default function DashboardPage() {
   const currentMonth = now.getUTCMonth() + 1;
   const currentYear = now.getUTCFullYear();
   const currentMonthKey = `${currentYear}-${String(currentMonth).padStart(2, "0")}`;
-  const currentMonthLabel = now.toLocaleDateString("en-US", { month: "short" });
   const liveCalendarCount = events.filter((event) => event.status === "live").length;
   const calendarBullishCount = events.filter((event) => event.goldImpact === "bullish").length;
   const calendarBearishCount = events.filter((event) => event.goldImpact === "bearish").length;
@@ -810,13 +809,14 @@ export default function DashboardPage() {
   const monthPnl = pnlSnapshot?.monthly.find(
     (entry) => entry.year === currentYear && entry.month === currentMonth
   );
-  const monthPnlValue = monthPnl?.pnl ?? 0;
-  const monthTrades = monthPnl?.trades ?? 0;
-  const monthWins = monthPnl?.wins ?? 0;
-  const monthWinRate = monthTrades > 0 ? Math.round((monthWins / monthTrades) * 100) : 0;
   const monthTradingDays = (pnlSnapshot?.daily ?? []).filter((entry) =>
     entry.date.startsWith(currentMonthKey)
   ).length;
+  const overallNetPnl = (pnlSnapshot?.daily ?? []).reduce((sum, entry) => sum + entry.pnl, 0);
+  const overallTrades = (pnlSnapshot?.daily ?? []).reduce((sum, entry) => sum + entry.trades, 0);
+  const overallWins = (pnlSnapshot?.daily ?? []).reduce((sum, entry) => sum + entry.wins, 0);
+  const overallWinRate = overallTrades > 0 ? Math.round((overallWins / overallTrades) * 100) : 0;
+  const overallTradingDays = (pnlSnapshot?.daily ?? []).filter((entry) => entry.trades > 0).length;
   const recentPnlDays = [...(pnlSnapshot?.daily ?? [])]
     .sort((left, right) => right.date.localeCompare(left.date))
     .slice(0, 4);
@@ -1223,35 +1223,62 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/35 p-2.5">
                 <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
-                  {currentMonthLabel} Net
+                  Overall Net
                 </p>
                 <p
                   className={cn(
                     "mt-1 text-sm font-mono font-semibold",
-                    monthPnlValue > 0 ? "text-emerald-400" : monthPnlValue < 0 ? "text-red-400" : "text-zinc-300"
+                    overallNetPnl > 0 ? "text-emerald-400" : overallNetPnl < 0 ? "text-red-400" : "text-zinc-300"
                   )}
                 >
-                  {monthPnlValue > 0 ? "+" : ""}
-                  {monthPnlValue.toFixed(2)}
+                  {overallNetPnl > 0 ? "+" : ""}
+                  {overallNetPnl.toFixed(2)}
                 </p>
               </div>
               <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/35 p-2.5">
                 <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
                   Win Rate
                 </p>
-                <p className="mt-1 text-sm font-semibold text-[hsl(var(--foreground))]">{monthWinRate}%</p>
+                <p className="mt-1 text-sm font-semibold text-[hsl(var(--foreground))]">{overallWinRate}%</p>
               </div>
               <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/35 p-2.5">
                 <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
                   Trades
                 </p>
-                <p className="mt-1 text-sm font-semibold text-[hsl(var(--foreground))]">{monthTrades}</p>
+                <p className="mt-1 text-sm font-semibold text-[hsl(var(--foreground))]">{overallTrades}</p>
               </div>
               <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/35 p-2.5">
                 <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
-                  Active Days
+                  Trading Days
                 </p>
-                <p className="mt-1 text-sm font-semibold text-[hsl(var(--foreground))]">{monthTradingDays}</p>
+                <p className="mt-1 text-sm font-semibold text-[hsl(var(--foreground))]">{overallTradingDays}</p>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/30 px-3 py-2">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">
+                    Current Month
+                  </p>
+                  <p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">
+                    {monthTradingDays} active days this month
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p
+                    className={cn(
+                      "text-sm font-mono font-semibold",
+                      (monthPnl?.pnl ?? 0) > 0 ? "text-emerald-400" : (monthPnl?.pnl ?? 0) < 0 ? "text-red-400" : "text-zinc-300"
+                    )}
+                  >
+                    {(monthPnl?.pnl ?? 0) > 0 ? "+" : ""}
+                    {(monthPnl?.pnl ?? 0).toFixed(2)}
+                  </p>
+                  <p className="text-[10px] text-[hsl(var(--muted-foreground))]">
+                    {monthPnl?.trades ?? 0} trades · {monthPnl?.wins ?? 0} wins
+                  </p>
+                </div>
               </div>
             </div>
 

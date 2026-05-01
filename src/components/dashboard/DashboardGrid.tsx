@@ -18,7 +18,7 @@ const COLS = 24;
 const MARGIN: [number, number] = [6, 6];
 const PADDING: [number, number] = [6, 6];
 const TOTAL_ROWS = 24;
-const STORAGE_KEY = "tradex-dashboard-grid-v6";
+const STORAGE_KEY = "tradex-dashboard-grid-v7";
 
 type LayoutPresetId = "pro" | "minimal";
 
@@ -181,12 +181,49 @@ function layoutOrder(layout: Layout, id: string) {
   return item ? item.y * 100 + item.x : Number.MAX_SAFE_INTEGER;
 }
 
+function itemsCollide(a: LayoutItem, b: LayoutItem) {
+  if (a.i === b.i) return false;
+
+  return !(
+    a.x + a.w <= b.x ||
+    a.x >= b.x + b.w ||
+    a.y + a.h <= b.y ||
+    a.y >= b.y + b.h
+  );
+}
+
+function findAvailableSlot(layout: Layout, candidate: LayoutItem) {
+  const maxY = Math.max(0, TOTAL_ROWS - candidate.h);
+  const maxX = Math.max(0, COLS - candidate.w);
+
+  for (let y = 0; y <= maxY; y += 1) {
+    for (let x = 0; x <= maxX; x += 1) {
+      const probe = { ...candidate, x, y };
+      if (!layout.some((item) => itemsCollide(probe, item))) {
+        return { x, y };
+      }
+    }
+  }
+
+  return {
+    x: Math.max(0, Math.min(candidate.x, maxX)),
+    y: Math.max(0, Math.min(candidate.y, maxY)),
+  };
+}
+
 export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const addWidgetMenuRef = useRef<HTMLDivElement>(null);
   const saveTimerRef = useRef<number | null>(null);
-  const widgetIds = useMemo(() => widgets.map((widget) => widget.id), [widgets]);
+  const widgetSignature = useMemo(
+    () => widgets.map((widget) => widget.id).join("|"),
+    [widgets]
+  );
+  const widgetIds = useMemo(
+    () => (widgetSignature ? widgetSignature.split("|") : []),
+    [widgetSignature]
+  );
 
   const [mounted, setMounted] = useState(false);
   const [gridWidth, setGridWidth] = useState(1280);
@@ -221,7 +258,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     setHasUnsavedChanges(false);
     setSaveLabel("save");
     setMounted(true);
-  }, [widgetIds]);
+  }, [widgetIds, widgetSignature]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -330,17 +367,36 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
 
     setHidden((state) => ({ ...state, [id]: false }));
     setCollapsed((state) => ({ ...state, [id]: false }));
-    setLayout((state) =>
-      state.map((entry) =>
+    setLayout((state) => {
+      const visibleLayout = state.filter((entry) => entry.i !== id && !hidden[entry.i]);
+      const candidate = normalizeLayoutItem(
+        {
+          ...fallback,
+          h: restoredHeight,
+          minH: fallback.minH,
+        },
+        fallback
+      );
+      const slot = findAvailableSlot(visibleLayout, candidate);
+
+      return state.map((entry) =>
         entry.i === id
-          ? { ...entry, h: restoredHeight, minH: fallback.minH }
+          ? {
+              ...entry,
+              x: slot.x,
+              y: slot.y,
+              w: candidate.w,
+              h: restoredHeight,
+              minW: fallback.minW,
+              minH: fallback.minH,
+            }
           : entry
-      )
-    );
+      );
+    });
     setHasUnsavedChanges(true);
     setSaveLabel("save");
     setShowAddWidgetMenu(false);
-  }, [prevHeights, selectedPreset]);
+  }, [hidden, prevHeights, selectedPreset]);
 
   const handleReset = useCallback(() => {
     clearGridState();
