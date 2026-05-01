@@ -225,24 +225,9 @@ export default function GlobeClient() {
     conflict: true, centralBanks: true, economicEvents: true, goldRegions: true,
   });
   const [tooltip, setTooltip]         = useState<TooltipState>({ visible: false, x: 0, y: 0, data: null });
-  const [utcTime, setUtcTime]         = useState('');
   const [is3D, setIs3D]               = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const { quotes } = useQuotes(15_000);
-
-  // UTC clock
-  useEffect(() => {
-    const tick = () => {
-      const now = new Date();
-      const hh  = now.getUTCHours().toString().padStart(2, '0');
-      const mm  = now.getUTCMinutes().toString().padStart(2, '0');
-      const ss  = now.getUTCSeconds().toString().padStart(2, '0');
-      setUtcTime(`${hh}:${mm}:${ss} UTC`);
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
 
   // Fullscreen listener
   useEffect(() => {
@@ -532,10 +517,6 @@ export default function GlobeClient() {
     >
       {/* ── Top Bar ─────────────────────────────────────────────────────────── */}
       <div style={{ height: 44, background: '#0a0a0a', borderBottom: '1px solid #1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '0 16px', gap: 12, flexShrink: 0, zIndex: 20 }}>
-        <span style={{ fontSize: 11, color: '#bbb', fontFamily: 'IBM Plex Mono, monospace', minWidth: 88 }}>{utcTime}</span>
-
-        <div style={{ width: 1, height: 24, background: '#222' }} />
-
         {/* 2D / 3D toggle */}
         <div style={{ display: 'flex', background: '#141414', border: '1px solid #222', borderRadius: 5, overflow: 'hidden' }}>
           {(['2D', '3D'] as const).map(mode => (

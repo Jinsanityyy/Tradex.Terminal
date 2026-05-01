@@ -26,11 +26,18 @@ type BuiltInPresetId = "pro" | "minimal";
 type LayoutPresetId = BuiltInPresetId | string;
 
 const DEFAULT_PRESET: BuiltInPresetId = "pro";
+const OPTIONAL_WIDGET_DEFAULTS: Record<string, boolean> = {
+  "live-tv": true,
+  agents: true,
+  "economic-calendar": true,
+  "pnl-calendar": true,
+};
 
 const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
   pro: [
     { i: "chart", x: 0, y: 0, w: 13, h: 14, minW: 8, minH: 14 },
     { i: "globe", x: 13, y: 0, w: 6, h: 7, minW: 4, minH: 5 },
+    { i: "live-tv", x: 13, y: 7, w: 11, h: 8, minW: 8, minH: 6 },
     { i: "trump", x: 19, y: 0, w: 5, h: 4, minW: 4, minH: 3 },
     { i: "mtf", x: 19, y: 4, w: 5, h: 4, minW: 4, minH: 3 },
     { i: "catalysts", x: 13, y: 7, w: 11, h: 7, minW: 6, minH: 4 },
@@ -43,6 +50,7 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
   ],
   minimal: [
     { i: "chart", x: 0, y: 0, w: 16, h: 16, minW: 10, minH: 14 },
+    { i: "live-tv", x: 0, y: 16, w: 16, h: 8, minW: 8, minH: 6 },
     { i: "mtf", x: 16, y: 0, w: 4, h: 4, minW: 4, minH: 3 },
     { i: "trump", x: 20, y: 0, w: 4, h: 4, minW: 4, minH: 3 },
     { i: "catalysts", x: 16, y: 4, w: 8, h: 7, minW: 6, minH: 4 },
@@ -58,16 +66,12 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
 
 const PRESET_HIDDEN: Record<BuiltInPresetId, Record<string, boolean>> = {
   pro: {
-    agents: true,
-    "economic-calendar": true,
-    "pnl-calendar": true,
+    ...OPTIONAL_WIDGET_DEFAULTS,
   },
   minimal: {
+    ...OPTIONAL_WIDGET_DEFAULTS,
     community: true,
     globe: true,
-    agents: true,
-    "economic-calendar": true,
-    "pnl-calendar": true,
   },
 };
 
@@ -99,6 +103,13 @@ function isBuiltInPresetId(preset: LayoutPresetId): preset is BuiltInPresetId {
 
 function cloneLayout(layout: Layout): Layout {
   return layout.map((item) => ({ ...item }));
+}
+
+function mergeHiddenState(...states: Array<Record<string, boolean> | undefined>): Record<string, boolean> {
+  return states.reduce<Record<string, boolean>>(
+    (acc, state) => ({ ...acc, ...(state ?? {}) }),
+    { ...OPTIONAL_WIDGET_DEFAULTS }
+  );
 }
 
 function loadGridState(): SavedGridState | null {
@@ -159,7 +170,7 @@ function resolvePreset(preset: LayoutPresetId, customPresets: CustomPreset[]) {
       id: preset,
       label: PRESET_LABELS[preset],
       layout: PRESET_LAYOUTS[preset],
-      hidden: PRESET_HIDDEN[preset],
+      hidden: mergeHiddenState(PRESET_HIDDEN[preset]),
       collapsed: {},
       prevHeights: {},
       isCustom: false,
@@ -170,6 +181,7 @@ function resolvePreset(preset: LayoutPresetId, customPresets: CustomPreset[]) {
   if (customPreset) {
     return {
       ...customPreset,
+      hidden: mergeHiddenState(customPreset.hidden),
       isCustom: true,
     };
   }
@@ -178,7 +190,7 @@ function resolvePreset(preset: LayoutPresetId, customPresets: CustomPreset[]) {
     id: DEFAULT_PRESET,
     label: PRESET_LABELS[DEFAULT_PRESET],
     layout: PRESET_LAYOUTS[DEFAULT_PRESET],
-    hidden: PRESET_HIDDEN[DEFAULT_PRESET],
+    hidden: mergeHiddenState(PRESET_HIDDEN[DEFAULT_PRESET]),
     collapsed: {},
     prevHeights: {},
     isCustom: false,
@@ -373,7 +385,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
         )
       );
       setCollapsed(savedCollapsed);
-      setHidden({ ...resolvedPreset.hidden, ...saved.hidden });
+      setHidden(mergeHiddenState(resolvedPreset.hidden, saved.hidden));
       setPrevHeights(saved.prevHeights);
     } else {
       const presetCollapsed = { ...resolvedPreset.collapsed };
@@ -387,7 +399,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
         )
       );
       setCollapsed(presetCollapsed);
-      setHidden({ ...resolvedPreset.hidden });
+      setHidden(mergeHiddenState(resolvedPreset.hidden));
       setPrevHeights({ ...resolvedPreset.prevHeights });
     }
 
@@ -645,7 +657,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
         customPresets
       )
     );
-    setHidden({ ...resolved.hidden });
+    setHidden(mergeHiddenState(resolved.hidden));
     setCollapsed(nextCollapsed);
     setPrevHeights({ ...resolved.prevHeights });
     setHasUnsavedChanges(false);
@@ -694,7 +706,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
         customPresets
       )
     );
-    setHidden({ ...resolved.hidden });
+    setHidden(mergeHiddenState(resolved.hidden));
     setCollapsed(nextCollapsed);
     setPrevHeights({ ...resolved.prevHeights });
     setHasUnsavedChanges(true);

@@ -7,9 +7,11 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Target, Zap, CalendarDays, UserCircle,
   Grid3X3, Clock, Newspaper, Settings,
-  ChevronLeft, BarChart2, Menu, X, History,
+  ChevronLeft, ChevronRight, BarChart2, Menu, X, History,
 } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
+
+const SIDEBAR_HIDDEN_STORAGE_KEY = "tradex-sidebar-hidden-v1";
 
 const navItems = [
   { label: "Dashboard",           href: "/dashboard",                        icon: LayoutDashboard },
@@ -30,34 +32,41 @@ const MOBILE_TAB_ITEMS = [navItems[0], navItems[1], navItems[7], navItems[2]];
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const [viewportWidth, setViewportWidth] = useState(1440);
+  const [desktopHidden, setDesktopHidden] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const isMobile = viewportWidth < 768;
+  const isCompact = !isMobile && viewportWidth < 1280;
 
-  // Sync sidebar width CSS variable + auto-collapse on desktop
   React.useEffect(() => {
-    function check() {
-      const w = window.innerWidth;
-      const isMobile = w < 768;
-      if (!isMobile) setCollapsed(w < 1280);
-      document.documentElement.style.setProperty(
-        "--sidebar-current-width",
-        isMobile ? "0px" : w < 1280 ? "60px" : "var(--sidebar-width)"
-      );
-    }
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
+    if (typeof window === "undefined") return;
+
+    const storedHidden = window.localStorage.getItem(SIDEBAR_HIDDEN_STORAGE_KEY) === "1";
+    setDesktopHidden(storedHidden);
+    setViewportWidth(window.innerWidth);
+
+    const handleResize = () => {
+      setViewportWidth(window.innerWidth);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Desktop manual collapse toggle
   React.useEffect(() => {
-    if (typeof window !== "undefined" && window.innerWidth >= 768) {
-      document.documentElement.style.setProperty(
-        "--sidebar-current-width",
-        collapsed ? "60px" : "var(--sidebar-width)"
-      );
-    }
-  }, [collapsed]);
+    if (typeof window === "undefined") return;
+
+    document.documentElement.style.setProperty(
+      "--sidebar-current-width",
+      isMobile || desktopHidden ? "0px" : isCompact ? "60px" : "var(--sidebar-width)"
+    );
+  }, [desktopHidden, isCompact, isMobile]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    window.localStorage.setItem(SIDEBAR_HIDDEN_STORAGE_KEY, desktopHidden ? "1" : "0");
+  }, [desktopHidden]);
 
   // Close mobile drawer on route change
   React.useEffect(() => {
@@ -75,29 +84,31 @@ export function Sidebar() {
         className={cn(
           "hidden md:fixed md:left-0 md:top-0 md:z-40 md:flex md:h-screen md:flex-col",
           "border-r border-[hsl(var(--border))] bg-[hsl(var(--card))] transition-all duration-300",
-          collapsed ? "md:w-[60px]" : "md:w-[var(--sidebar-width)]"
+          isCompact ? "md:w-[60px]" : "md:w-[var(--sidebar-width)]",
+          desktopHidden ? "md:-translate-x-full" : "md:translate-x-0"
         )}
       >
         {/* Logo */}
         <div className="flex h-[var(--topbar-height)] items-center justify-between border-b border-[hsl(var(--border))] px-3">
-          {!collapsed && (
+          {!isCompact && (
             <Link href="/dashboard" className="flex items-center">
               <TradeXLogo variant="wordmark" size="sm" />
             </Link>
           )}
-          {collapsed && (
+          {isCompact && (
             <Link href="/dashboard" className="mx-auto">
               <TradeXLogo variant="icon" size="sm" />
             </Link>
           )}
           <button
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={() => setDesktopHidden(true)}
             className={cn(
               "rounded-md p-1 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))] transition-colors",
-              collapsed && "mx-auto"
+              isCompact && "mx-auto"
             )}
+            title="Hide sidebar"
           >
-            <ChevronLeft className={cn("h-4 w-4 transition-transform", collapsed && "rotate-180")} />
+            <ChevronLeft className="h-4 w-4 transition-transform" />
           </button>
         </div>
 
@@ -116,9 +127,9 @@ export function Sidebar() {
                     active
                       ? "bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
                       : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]",
-                    collapsed && "justify-center px-2"
+                    isCompact && "justify-center px-2"
                   )}
-                  title={collapsed ? item.label : undefined}
+                  title={isCompact ? item.label : undefined}
                 >
                   <Icon
                     className={cn(
@@ -129,8 +140,8 @@ export function Sidebar() {
                       (item as any).accent3 && !active && "text-blue-400/80"
                     )}
                   />
-                  {!collapsed && <span className="truncate">{item.label}</span>}
-                  {!collapsed && active && (
+                  {!isCompact && <span className="truncate">{item.label}</span>}
+                  {!isCompact && active && (
                     <div className="ml-auto h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))]" />
                   )}
                 </Link>
@@ -141,7 +152,7 @@ export function Sidebar() {
 
         {/* Bottom */}
         <div className="border-t border-[hsl(var(--border))] p-3">
-          {!collapsed ? (
+          {!isCompact ? (
             <div className="flex items-center gap-2">
               <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 pulse-live" />
               <span className="text-[10px] uppercase tracking-widest text-[hsl(var(--muted-foreground))]">
@@ -155,6 +166,17 @@ export function Sidebar() {
           )}
         </div>
       </aside>
+
+      {!isMobile && desktopHidden ? (
+        <button
+          type="button"
+          onClick={() => setDesktopHidden(false)}
+          className="hidden md:fixed md:left-3 md:top-3 md:z-50 md:flex md:h-9 md:w-9 md:items-center md:justify-center rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]"
+          title="Show sidebar"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      ) : null}
 
       {/* ── Mobile Bottom Tab Bar ───────────────────────────────────────── */}
       <nav

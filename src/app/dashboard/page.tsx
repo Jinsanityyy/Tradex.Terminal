@@ -30,6 +30,7 @@ import { TradingViewChart } from "@/components/shared/TradingViewChart";
 import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { CatalystFeed } from "@/components/shared/CatalystFeed";
 import { DetailModal } from "@/components/shared/DetailModal";
+import { LiveTVPanel } from "@/components/shared/LiveTVPanel";
 import { SessionSummaryCard } from "@/components/shared/SessionSummaryCard";
 import { TrumpImpactPreview } from "@/components/shared/TrumpFeedPanel";
 import { MTFBiasPanel } from "@/components/shared/MTFBiasPanel";
@@ -1255,6 +1256,20 @@ export default function DashboardPage() {
             className="h-full w-full border-0"
             loading="lazy"
           />
+        </div>
+      ),
+    },
+    {
+      id: "live-tv",
+      title: "Live TV",
+      headerRight: (
+        <Link href="/dashboard/live-tv" className={widgetActionClass}>
+          Open
+        </Link>
+      ),
+      content: (
+        <div className="h-full min-h-0 overflow-hidden p-3">
+          <LiveTVPanel showHeader={false} showFooterNote={false} />
         </div>
       ),
     },
