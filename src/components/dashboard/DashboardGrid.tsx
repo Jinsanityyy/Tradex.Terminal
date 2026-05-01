@@ -19,12 +19,14 @@ const MARGIN: [number, number] = [6, 6];
 const PADDING: [number, number] = [6, 6];
 const TOTAL_ROWS = 24;
 const STORAGE_KEY = "tradex-dashboard-grid-v7";
+const PRESET_STORAGE_KEY = "tradex-dashboard-custom-presets-v1";
 
-type LayoutPresetId = "pro" | "minimal";
+type BuiltInPresetId = "pro" | "minimal";
+type LayoutPresetId = BuiltInPresetId | string;
 
-const DEFAULT_PRESET: LayoutPresetId = "pro";
+const DEFAULT_PRESET: BuiltInPresetId = "pro";
 
-const PRESET_LAYOUTS: Record<LayoutPresetId, Layout> = {
+const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
   pro: [
     { i: "chart", x: 0, y: 0, w: 13, h: 14, minW: 8, minH: 14 },
     { i: "globe", x: 13, y: 0, w: 6, h: 7, minW: 4, minH: 5 },
@@ -51,7 +53,7 @@ const PRESET_LAYOUTS: Record<LayoutPresetId, Layout> = {
   ],
 };
 
-const PRESET_HIDDEN: Record<LayoutPresetId, Record<string, boolean>> = {
+const PRESET_HIDDEN: Record<BuiltInPresetId, Record<string, boolean>> = {
   pro: {
     "economic-calendar": true,
     "pnl-calendar": true,
@@ -64,10 +66,19 @@ const PRESET_HIDDEN: Record<LayoutPresetId, Record<string, boolean>> = {
   },
 };
 
-const PRESET_LABELS: Record<LayoutPresetId, string> = {
+const PRESET_LABELS: Record<BuiltInPresetId, string> = {
   pro: "Pro Trader",
   minimal: "Minimalist",
 };
+
+interface CustomPreset {
+  id: string;
+  label: string;
+  layout: Layout;
+  hidden: Record<string, boolean>;
+  collapsed: Record<string, boolean>;
+  prevHeights: Record<string, number>;
+}
 
 interface SavedGridState {
   preset: LayoutPresetId;
@@ -75,6 +86,14 @@ interface SavedGridState {
   collapsed: Record<string, boolean>;
   hidden: Record<string, boolean>;
   prevHeights: Record<string, number>;
+}
+
+function isBuiltInPresetId(preset: LayoutPresetId): preset is BuiltInPresetId {
+  return preset === "pro" || preset === "minimal";
+}
+
+function cloneLayout(layout: Layout): Layout {
+  return layout.map((item) => ({ ...item }));
 }
 
 function loadGridState(): SavedGridState | null {
@@ -98,6 +117,27 @@ function saveGridState(state: SavedGridState) {
   }
 }
 
+function loadCustomPresets(): CustomPreset[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(PRESET_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as CustomPreset[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCustomPresets(presets: CustomPreset[]) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presets));
+  } catch {
+    // Ignore persistence failures.
+  }
+}
+
 function clearGridState() {
   if (typeof window === "undefined") return;
 
@@ -108,8 +148,43 @@ function clearGridState() {
   }
 }
 
-function presetLayoutFor(id: string, preset: LayoutPresetId): LayoutItem {
-  return PRESET_LAYOUTS[preset].find((item) => item.i === id) ?? {
+function resolvePreset(preset: LayoutPresetId, customPresets: CustomPreset[]) {
+  if (isBuiltInPresetId(preset)) {
+    return {
+      id: preset,
+      label: PRESET_LABELS[preset],
+      layout: PRESET_LAYOUTS[preset],
+      hidden: PRESET_HIDDEN[preset],
+      collapsed: {},
+      prevHeights: {},
+      isCustom: false,
+    };
+  }
+
+  const customPreset = customPresets.find((item) => item.id === preset);
+  if (customPreset) {
+    return {
+      ...customPreset,
+      isCustom: true,
+    };
+  }
+
+  return {
+    id: DEFAULT_PRESET,
+    label: PRESET_LABELS[DEFAULT_PRESET],
+    layout: PRESET_LAYOUTS[DEFAULT_PRESET],
+    hidden: PRESET_HIDDEN[DEFAULT_PRESET],
+    collapsed: {},
+    prevHeights: {},
+    isCustom: false,
+  };
+}
+
+function presetLayoutFor(id: string, preset: LayoutPresetId, customPresets: CustomPreset[]): LayoutItem {
+  const resolved = resolvePreset(preset, customPresets);
+
+  return resolved.layout.find((item) => item.i === id) ??
+    PRESET_LAYOUTS[DEFAULT_PRESET].find((item) => item.i === id) ?? {
     i: id,
     x: 0,
     y: TOTAL_ROWS,
@@ -146,12 +221,13 @@ function normalizeLayoutItem(item: LayoutItem, fallback: LayoutItem): LayoutItem
 function mergeLayouts(
   widgetIds: string[],
   savedLayout?: Layout,
-  preset: LayoutPresetId = DEFAULT_PRESET
+  preset: LayoutPresetId = DEFAULT_PRESET,
+  customPresets: CustomPreset[] = []
 ): Layout {
   const savedMap = new Map((savedLayout ?? []).map((item) => [item.i, item]));
 
   return widgetIds.map((id, index) => {
-    const fallback = presetLayoutFor(id, preset);
+    const fallback = presetLayoutFor(id, preset, customPresets);
     const saved = savedMap.get(id);
 
     if (!saved) {
@@ -215,6 +291,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const addWidgetMenuRef = useRef<HTMLDivElement>(null);
+  const saveMenuRef = useRef<HTMLDivElement>(null);
   const saveTimerRef = useRef<number | null>(null);
   const iframePointerStateRef = useRef<Array<{ frame: HTMLIFrameElement; pointerEvents: string }>>([]);
   const widgetSignature = useMemo(
@@ -234,27 +311,32 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [hidden, setHidden] = useState<Record<string, boolean>>({});
   const [prevHeights, setPrevHeights] = useState<Record<string, number>>({});
+  const [customPresets, setCustomPresets] = useState<CustomPreset[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [saveLabel, setSaveLabel] = useState<"save" | "saved">("save");
   const [showAddWidgetMenu, setShowAddWidgetMenu] = useState(false);
+  const [showSaveMenu, setShowSaveMenu] = useState(false);
   const [interactionMode, setInteractionMode] = useState<"drag" | "resize" | null>(null);
 
   useEffect(() => {
+    const savedCustomPresets = loadCustomPresets();
+    setCustomPresets(savedCustomPresets);
+
     const saved = loadGridState();
+    const resolvedPreset = resolvePreset(saved?.preset ?? DEFAULT_PRESET, savedCustomPresets);
 
     if (saved) {
-      const preset = saved.preset ?? DEFAULT_PRESET;
-      setSelectedPreset(preset);
-      setLayout(mergeLayouts(widgetIds, saved.layout, preset));
+      setSelectedPreset(resolvedPreset.id);
+      setLayout(mergeLayouts(widgetIds, saved.layout, resolvedPreset.id, savedCustomPresets));
       setCollapsed(saved.collapsed);
       setHidden(saved.hidden);
       setPrevHeights(saved.prevHeights);
     } else {
-      setSelectedPreset(DEFAULT_PRESET);
-      setLayout(mergeLayouts(widgetIds, PRESET_LAYOUTS[DEFAULT_PRESET], DEFAULT_PRESET));
-      setCollapsed({});
-      setHidden({ ...PRESET_HIDDEN[DEFAULT_PRESET] });
-      setPrevHeights({});
+      setSelectedPreset(resolvedPreset.id);
+      setLayout(mergeLayouts(widgetIds, resolvedPreset.layout, resolvedPreset.id, savedCustomPresets));
+      setCollapsed({ ...resolvedPreset.collapsed });
+      setHidden({ ...resolvedPreset.hidden });
+      setPrevHeights({ ...resolvedPreset.prevHeights });
     }
 
     setHasUnsavedChanges(false);
@@ -311,6 +393,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
 
   const beginInteraction = useCallback((mode: "drag" | "resize") => {
     setShowAddWidgetMenu(false);
+    setShowSaveMenu(false);
     setInteractionMode(mode);
 
     const frames = Array.from(document.querySelectorAll("iframe"));
@@ -343,6 +426,20 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [showAddWidgetMenu]);
+
+  useEffect(() => {
+    if (!showSaveMenu) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!saveMenuRef.current?.contains(target)) {
+        setShowSaveMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [showSaveMenu]);
 
   useEffect(() => {
     if (!interactionMode) return;
@@ -386,11 +483,24 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
 
   const hiddenWidgets = widgets.filter((widget) => hidden[widget.id]);
   const visibleLayout = layout.filter((entry) => !hidden[entry.i]);
+  const presetOptions = [
+    ...((Object.keys(PRESET_LABELS) as BuiltInPresetId[]).map((preset) => ({
+      id: preset as LayoutPresetId,
+      label: PRESET_LABELS[preset],
+      isCustom: false,
+    }))),
+    ...customPresets.map((preset) => ({
+      id: preset.id,
+      label: preset.label,
+      isCustom: true,
+    })),
+  ];
+  const activeCustomPreset = customPresets.find((preset) => preset.id === selectedPreset) ?? null;
 
   const handleCollapse = useCallback(
     (id: string) => {
       const current = collapsed[id] ?? false;
-      const fallback = presetLayoutFor(id, selectedPreset);
+      const fallback = presetLayoutFor(id, selectedPreset, customPresets);
 
       if (!current) {
         const currentHeight = layout.find((entry) => entry.i === id)?.h ?? fallback.h;
@@ -413,7 +523,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
       setHasUnsavedChanges(true);
       setSaveLabel("save");
     },
-    [collapsed, layout, prevHeights, selectedPreset]
+    [collapsed, customPresets, layout, prevHeights, selectedPreset]
   );
 
   const handleClose = useCallback((id: string) => {
@@ -423,7 +533,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
   }, []);
 
   const handleRestore = useCallback((id: string) => {
-    const fallback = presetLayoutFor(id, selectedPreset);
+    const fallback = presetLayoutFor(id, selectedPreset, customPresets);
     const restoredHeight = prevHeights[id] ?? fallback.h;
 
     setHidden((state) => ({ ...state, [id]: false }));
@@ -457,18 +567,20 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     setHasUnsavedChanges(true);
     setSaveLabel("save");
     setShowAddWidgetMenu(false);
-  }, [hidden, prevHeights, selectedPreset]);
+  }, [customPresets, hidden, prevHeights, selectedPreset]);
 
   const handleReset = useCallback(() => {
+    const resolved = resolvePreset(selectedPreset, customPresets);
     clearGridState();
-    setLayout(mergeLayouts(widgetIds, PRESET_LAYOUTS[selectedPreset], selectedPreset));
-    setHidden({ ...PRESET_HIDDEN[selectedPreset] });
-    setCollapsed({});
-    setPrevHeights({});
+    setLayout(mergeLayouts(widgetIds, resolved.layout, resolved.id, customPresets));
+    setHidden({ ...resolved.hidden });
+    setCollapsed({ ...resolved.collapsed });
+    setPrevHeights({ ...resolved.prevHeights });
     setHasUnsavedChanges(false);
     setSaveLabel("save");
     setShowAddWidgetMenu(false);
-  }, [selectedPreset, widgetIds]);
+    setShowSaveMenu(false);
+  }, [customPresets, selectedPreset, widgetIds]);
 
   const commitGridLayout = useCallback(
     (nextLayout: Layout) => {
@@ -479,7 +591,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
           const updated = nextMap.get(entry.i);
           if (!updated) return entry;
 
-          const fallback = presetLayoutFor(entry.i, selectedPreset);
+          const fallback = presetLayoutFor(entry.i, selectedPreset, customPresets);
           const effectiveFallback = collapsed[entry.i]
             ? { ...fallback, h: 1, minH: 1 }
             : fallback;
@@ -495,28 +607,23 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
       setHasUnsavedChanges(true);
       setSaveLabel("save");
     },
-    [collapsed, selectedPreset]
+    [collapsed, customPresets, selectedPreset]
   );
 
   const applyPreset = useCallback((preset: LayoutPresetId) => {
-    setSelectedPreset(preset);
-    setLayout(mergeLayouts(widgetIds, PRESET_LAYOUTS[preset], preset));
-    setHidden({ ...PRESET_HIDDEN[preset] });
-    setCollapsed({});
-    setPrevHeights({});
+    const resolved = resolvePreset(preset, customPresets);
+    setSelectedPreset(resolved.id);
+    setLayout(mergeLayouts(widgetIds, resolved.layout, resolved.id, customPresets));
+    setHidden({ ...resolved.hidden });
+    setCollapsed({ ...resolved.collapsed });
+    setPrevHeights({ ...resolved.prevHeights });
     setHasUnsavedChanges(true);
     setSaveLabel("save");
     setShowAddWidgetMenu(false);
-  }, [widgetIds]);
+    setShowSaveMenu(false);
+  }, [customPresets, widgetIds]);
 
-  const handleSaveLayout = useCallback(() => {
-    saveGridState({
-      preset: selectedPreset,
-      layout,
-      collapsed,
-      hidden,
-      prevHeights,
-    });
+  const markSaved = useCallback(() => {
     setHasUnsavedChanges(false);
     setSaveLabel("saved");
 
@@ -528,7 +635,88 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
       setSaveLabel("save");
       saveTimerRef.current = null;
     }, 1800);
-  }, [collapsed, hidden, layout, prevHeights, selectedPreset]);
+  }, []);
+
+  const handleSaveLayout = useCallback(() => {
+    saveGridState({
+      preset: selectedPreset,
+      layout,
+      collapsed,
+      hidden,
+      prevHeights,
+    });
+    markSaved();
+    setShowSaveMenu(false);
+  }, [collapsed, hidden, layout, markSaved, prevHeights, selectedPreset]);
+
+  const handleSaveAsPreset = useCallback(() => {
+    const suggestedName = activeCustomPreset?.label
+      ? `${activeCustomPreset.label} Copy`
+      : `${isBuiltInPresetId(selectedPreset) ? PRESET_LABELS[selectedPreset] : "Custom"} Copy`;
+    const rawName = window.prompt("Preset name", suggestedName);
+    const label = rawName?.trim();
+    if (!label) return;
+
+    const existingPreset = customPresets.find(
+      (preset) => preset.label.toLowerCase() === label.toLowerCase()
+    );
+    const presetId =
+      existingPreset?.id ?? `custom:${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now().toString(36)}`;
+
+    const nextPreset: CustomPreset = {
+      id: presetId,
+      label,
+      layout: cloneLayout(layout),
+      hidden: { ...hidden },
+      collapsed: { ...collapsed },
+      prevHeights: { ...prevHeights },
+    };
+
+    const nextCustomPresets = existingPreset
+      ? customPresets.map((preset) => (preset.id === presetId ? nextPreset : preset))
+      : [...customPresets, nextPreset];
+
+    setCustomPresets(nextCustomPresets);
+    saveCustomPresets(nextCustomPresets);
+    setSelectedPreset(presetId);
+    saveGridState({
+      preset: presetId,
+      layout,
+      collapsed,
+      hidden,
+      prevHeights,
+    });
+    markSaved();
+    setShowSaveMenu(false);
+  }, [activeCustomPreset, collapsed, customPresets, hidden, layout, markSaved, prevHeights, selectedPreset]);
+
+  const handleUpdateCurrentPreset = useCallback(() => {
+    if (!activeCustomPreset) return;
+
+    const nextPreset: CustomPreset = {
+      ...activeCustomPreset,
+      layout: cloneLayout(layout),
+      hidden: { ...hidden },
+      collapsed: { ...collapsed },
+      prevHeights: { ...prevHeights },
+    };
+
+    const nextCustomPresets = customPresets.map((preset) =>
+      preset.id === activeCustomPreset.id ? nextPreset : preset
+    );
+
+    setCustomPresets(nextCustomPresets);
+    saveCustomPresets(nextCustomPresets);
+    saveGridState({
+      preset: activeCustomPreset.id,
+      layout,
+      collapsed,
+      hidden,
+      prevHeights,
+    });
+    markSaved();
+    setShowSaveMenu(false);
+  }, [activeCustomPreset, collapsed, customPresets, hidden, layout, markSaved, prevHeights]);
 
   if (!mounted) return null;
 
@@ -539,18 +727,18 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
         className="flex h-8 shrink-0 items-center gap-2 border-b border-white/[0.05] px-3"
       >
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-          {(Object.keys(PRESET_LABELS) as LayoutPresetId[]).map((preset) => (
+          {presetOptions.map((preset) => (
             <button
-              key={preset}
+              key={preset.id}
               type="button"
-              onClick={() => applyPreset(preset)}
+              onClick={() => applyPreset(preset.id)}
               className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[9px] transition-colors ${
-                selectedPreset === preset
+                selectedPreset === preset.id
                   ? "border-white/15 bg-white/[0.06] text-zinc-100"
                   : "border-white/[0.08] text-zinc-500 hover:border-white/15 hover:text-zinc-200"
               }`}
             >
-              {PRESET_LABELS[preset]}
+              {preset.label}
             </button>
           ))}
         </div>
@@ -593,19 +781,61 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
           ) : null}
         </div>
 
-        <button
-          type="button"
-          onClick={handleSaveLayout}
-          disabled={!hasUnsavedChanges}
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded border px-2 py-0.5 text-[9px] transition-colors ${
-            hasUnsavedChanges
-              ? "border-emerald-500/20 text-emerald-300 hover:border-emerald-500/35"
-              : "border-white/[0.08] text-zinc-600"
-          }`}
-        >
-          {saveLabel === "saved" ? <Check className="h-2.5 w-2.5" /> : <Save className="h-2.5 w-2.5" />}
-          {saveLabel === "saved" ? "Saved" : "Save Layout"}
-        </button>
+        <div ref={saveMenuRef} className="relative shrink-0">
+          <div className="inline-flex overflow-hidden rounded border border-white/[0.08]">
+            <button
+              type="button"
+              onClick={handleSaveLayout}
+              disabled={!hasUnsavedChanges}
+              className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[9px] transition-colors ${
+                hasUnsavedChanges
+                  ? "text-emerald-300 hover:bg-emerald-500/8"
+                  : "text-zinc-600"
+              }`}
+            >
+              {saveLabel === "saved" ? <Check className="h-2.5 w-2.5" /> : <Save className="h-2.5 w-2.5" />}
+              {saveLabel === "saved" ? "Saved" : "Save Layout"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowSaveMenu((state) => !state)}
+              className="inline-flex items-center border-l border-white/[0.08] px-1.5 text-zinc-400 transition-colors hover:bg-white/[0.04] hover:text-zinc-100"
+            >
+              <ChevronDown className="h-2.5 w-2.5" />
+            </button>
+          </div>
+
+          {showSaveMenu ? (
+            <div className="absolute right-0 top-full z-20 mt-1 w-52 rounded-lg border border-white/[0.08] bg-[#0b0b0d]/95 p-1 shadow-2xl backdrop-blur">
+              <button
+                type="button"
+                onClick={handleSaveLayout}
+                className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[10px] text-zinc-300 transition-colors hover:bg-white/[0.05] hover:text-zinc-100"
+              >
+                <span>Save workspace state</span>
+                <Save className="h-3 w-3 shrink-0 text-zinc-500" />
+              </button>
+              {activeCustomPreset ? (
+                <button
+                  type="button"
+                  onClick={handleUpdateCurrentPreset}
+                  className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[10px] text-zinc-300 transition-colors hover:bg-white/[0.05] hover:text-zinc-100"
+                >
+                  <span>Update "{activeCustomPreset.label}"</span>
+                  <Check className="h-3 w-3 shrink-0 text-zinc-500" />
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={handleSaveAsPreset}
+                className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[10px] text-zinc-300 transition-colors hover:bg-white/[0.05] hover:text-zinc-100"
+              >
+                <span>Save as new preset</span>
+                <Plus className="h-3 w-3 shrink-0 text-zinc-500" />
+              </button>
+            </div>
+          ) : null}
+        </div>
 
         <button
           type="button"
