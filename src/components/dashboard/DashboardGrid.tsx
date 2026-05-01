@@ -872,7 +872,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
             }}
             resizeConfig={{
               enabled: true,
-              handles: ["s", "e", "se"],
+              handles: ["n", "s", "e", "w", "ne", "nw", "se", "sw"],
             }}
             compactor={getCompactor("vertical", false, false)}
             autoSize={false}
@@ -968,6 +968,13 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
           transform: translateX(-50%);
         }
 
+        .react-resizable-handle-n {
+          top: 0;
+          left: 50%;
+          cursor: n-resize;
+          transform: translateX(-50%);
+        }
+
         .react-resizable-handle-e {
           right: 0;
           top: 50%;
@@ -975,10 +982,35 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
           transform: translateY(-50%);
         }
 
+        .react-resizable-handle-w {
+          left: 0;
+          top: 50%;
+          cursor: w-resize;
+          transform: translateY(-50%);
+        }
+
+        .react-resizable-handle-ne {
+          right: 0;
+          top: 0;
+          cursor: ne-resize;
+        }
+
+        .react-resizable-handle-nw {
+          left: 0;
+          top: 0;
+          cursor: nw-resize;
+        }
+
         .react-resizable-handle-se {
           right: 0;
           bottom: 0;
           cursor: se-resize;
+        }
+
+        .react-resizable-handle-sw {
+          left: 0;
+          bottom: 0;
+          cursor: sw-resize;
         }
 
         .react-grid-item.react-grid-placeholder {
