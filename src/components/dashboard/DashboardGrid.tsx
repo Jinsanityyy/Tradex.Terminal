@@ -422,6 +422,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     fireResize();
     requestAnimationFrame(fireResize);
     window.setTimeout(fireResize, 120);
+    window.dispatchEvent(new Event("tradex-dashboard-layout-change"));
   }, []);
 
   useEffect(() => {

@@ -410,6 +410,7 @@ export function TradingViewChart({
   const [secondsLeft, setSecondsLeft] = useState(() => secondsToClose(60));
   const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [layoutRevision, setLayoutRevision] = useState(0);
 
   const filtered = query.trim()
     ? ALL_SYMBOLS.filter(
@@ -513,6 +514,15 @@ export function TradingViewChart({
   }, [syncWidgetSize]);
 
   useEffect(() => {
+    const handleLayoutChange = () => {
+      setLayoutRevision((value) => value + 1);
+    };
+
+    window.addEventListener("tradex-dashboard-layout-change", handleLayoutChange);
+    return () => window.removeEventListener("tradex-dashboard-layout-change", handleLayoutChange);
+  }, []);
+
+  useEffect(() => {
     const element = containerRef.current;
     if (!element) return;
 
@@ -532,6 +542,7 @@ export function TradingViewChart({
       try {
         widget = new (window as any).TradingView.widget({
           container_id: containerId,
+          autosize: true,
           width: "100%",
           height: "100%",
           symbol: activeSymbol,
@@ -658,7 +669,7 @@ export function TradingViewChart({
         element.innerHTML = "";
       }
     };
-  }, [activeInterval.value, activeSymbol, syncWidgetSize]);
+  }, [activeInterval.value, activeSymbol, layoutRevision, syncWidgetSize]);
 
   const urgent = secondsLeft <= 60;
 
