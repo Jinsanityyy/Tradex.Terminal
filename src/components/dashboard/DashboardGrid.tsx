@@ -17,17 +17,18 @@ export interface WidgetDef {
 const COLS = 12;
 const MARGIN: [number, number] = [6, 6];
 const PADDING: [number, number] = [6, 6];
-const TOTAL_ROWS = 20;
-const STORAGE_KEY = "tradex-dashboard-grid-v1";
+const TOTAL_ROWS = 24;
+const STORAGE_KEY = "tradex-dashboard-grid-v2";
 
 const DEFAULT_LAYOUT: Layout = [
-  { i: "chart", x: 0, y: 0, w: 8, h: 12, minW: 5, minH: 7 },
-  { i: "community", x: 0, y: 12, w: 8, h: 8, minW: 4, minH: 5 },
-  { i: "mtf", x: 8, y: 0, w: 4, h: 4, minW: 3, minH: 3 },
-  { i: "trump", x: 8, y: 4, w: 4, h: 4, minW: 3, minH: 3 },
-  { i: "catalysts", x: 8, y: 8, w: 4, h: 4, minW: 3, minH: 3 },
-  { i: "events", x: 8, y: 12, w: 4, h: 4, minW: 3, minH: 3 },
-  { i: "sessions", x: 8, y: 16, w: 4, h: 4, minW: 3, minH: 3 },
+  { i: "chart", x: 0, y: 0, w: 8, h: 14, minW: 6, minH: 14 },
+  { i: "globe", x: 8, y: 0, w: 4, h: 7, minW: 3, minH: 5 },
+  { i: "mtf", x: 8, y: 7, w: 4, h: 4, minW: 3, minH: 3 },
+  { i: "trump", x: 8, y: 11, w: 4, h: 4, minW: 3, minH: 3 },
+  { i: "catalysts", x: 8, y: 15, w: 4, h: 5, minW: 3, minH: 4 },
+  { i: "community", x: 0, y: 14, w: 8, h: 6, minW: 4, minH: 5 },
+  { i: "events", x: 0, y: 20, w: 4, h: 4, minW: 3, minH: 3 },
+  { i: "sessions", x: 4, y: 20, w: 4, h: 4, minW: 3, minH: 3 },
 ];
 
 interface SavedGridState {
@@ -94,6 +95,7 @@ function mergeLayouts(widgetIds: string[], savedLayout?: Layout): Layout {
       ...fallback,
       ...saved,
       i: id,
+      h: Math.max(saved.h, fallback.minH ?? fallback.h),
       minW: fallback.minW,
       minH: fallback.minH,
     };

@@ -1014,7 +1014,7 @@ export default function DashboardPage() {
         </>
       ),
       content: (
-        <div className="flex h-full min-h-0 flex-col overflow-hidden">
+        <div className="flex h-full min-h-0 flex-col overflow-y-auto overflow-x-hidden">
           <div className="grid shrink-0 gap-px border-b border-white/5 bg-white/5 md:grid-cols-2 2xl:grid-cols-4">
             <SummaryCard
               title="Trade Signal"
@@ -1164,7 +1164,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-hidden">
+          <div className="min-h-[420px] shrink-0 flex-1 overflow-hidden">
             <TradingViewChart
               symbol={symCfg.tv}
               heightClass="h-full"
@@ -1301,6 +1301,25 @@ export default function DashboardPage() {
               )}
             </div>
           )}
+        </div>
+      ),
+    },
+    {
+      id: "globe",
+      title: "TradeX globe",
+      headerRight: (
+        <Link href="/globe" className={widgetActionClass}>
+          Open
+        </Link>
+      ),
+      content: (
+        <div className="h-full min-h-0 overflow-hidden bg-black">
+          <iframe
+            src="/globe"
+            title="TradeX Globe"
+            className="h-full w-full border-0"
+            loading="lazy"
+          />
         </div>
       ),
     },
