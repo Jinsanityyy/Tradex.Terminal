@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -105,6 +105,19 @@ const TV_TO_AGENT_TF: Record<string, Timeframe> = {
 const TV_INTERVAL_LABELS: Record<string, string> = {
   "1": "1m", "5": "5m", "15": "15m", "30": "30m", "60": "1H", "240": "4H", "D": "1D",
 };
+
+interface ManualTrade {
+  id: string;
+  date: string;
+  symbol: string;
+  direction: "long" | "short";
+  pnl: number;
+  fees: number;
+  notes?: string;
+}
+
+const MANUAL_TRADES_KEY = "tradex_manual_trades";
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const jsonFetcher = <T,>(url: string) =>
   fetch(url).then((response) => {
@@ -724,6 +737,7 @@ export default function DashboardPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [activeOverview, setActiveOverview] = useState<OverviewKey | null>(null);
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
+  const [manualTrades, setManualTrades] = useState<ManualTrade[]>([]);
   const intervalDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const symCfg = SYMBOLS.find((entry) => entry.id === symbol) ?? SYMBOLS[0];
@@ -756,6 +770,19 @@ export default function DashboardPage() {
     handleFullscreenChange();
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(MANUAL_TRADES_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        setManualTrades(parsed);
+      }
+    } catch {
+      setManualTrades([]);
+    }
   }, []);
 
   const toggleFullscreen = useCallback(async () => {
@@ -806,20 +833,84 @@ export default function DashboardPage() {
       : calendarBias === "Bearish"
         ? "text-red-400"
         : "text-zinc-400";
-  const monthPnl = pnlSnapshot?.monthly.find(
+  const mergedPnlDaily = useMemo(() => {
+    const dailyMap = new Map<
+      string,
+      { date: string; pnl: number; trades: number; wins: number; fees: number }
+    >();
+
+    for (const entry of pnlSnapshot?.daily ?? []) {
+      dailyMap.set(entry.date, { ...entry });
+    }
+
+    for (const trade of manualTrades) {
+      if (!trade?.date) continue;
+      const existing = dailyMap.get(trade.date) ?? {
+        date: trade.date,
+        pnl: 0,
+        trades: 0,
+        wins: 0,
+        fees: 0,
+      };
+
+      existing.pnl = parseFloat((existing.pnl + (trade.pnl ?? 0)).toFixed(4));
+      existing.fees = parseFloat((existing.fees + (trade.fees ?? 0)).toFixed(4));
+      existing.trades += 1;
+      if ((trade.pnl ?? 0) > 0) {
+        existing.wins += 1;
+      }
+
+      dailyMap.set(trade.date, existing);
+    }
+
+    return Array.from(dailyMap.values()).sort((left, right) => left.date.localeCompare(right.date));
+  }, [manualTrades, pnlSnapshot?.daily]);
+
+  const mergedPnlMonthly = useMemo(() => {
+    const monthlyMap = new Map<
+      string,
+      { year: number; month: number; pnl: number; trades: number; wins: number; tradingDays: number }
+    >();
+
+    for (const entry of mergedPnlDaily) {
+      const [yearLabel, monthLabel] = entry.date.split("-");
+      const year = Number(yearLabel);
+      const month = Number(monthLabel);
+      const key = `${year}-${String(month).padStart(2, "0")}`;
+      const existing = monthlyMap.get(key) ?? {
+        year,
+        month,
+        pnl: 0,
+        trades: 0,
+        wins: 0,
+        tradingDays: 0,
+      };
+
+      existing.pnl = parseFloat((existing.pnl + entry.pnl).toFixed(4));
+      existing.trades += entry.trades;
+      existing.wins += entry.wins;
+      if (entry.trades > 0) {
+        existing.tradingDays += 1;
+      }
+
+      monthlyMap.set(key, existing);
+    }
+
+    return Array.from(monthlyMap.values()).sort((left, right) => {
+      if (left.year !== right.year) return right.year - left.year;
+      return right.month - left.month;
+    });
+  }, [mergedPnlDaily]);
+
+  const monthPnl = mergedPnlMonthly.find(
     (entry) => entry.year === currentYear && entry.month === currentMonth
   );
-  const monthTradingDays = (pnlSnapshot?.daily ?? []).filter((entry) =>
-    entry.date.startsWith(currentMonthKey)
-  ).length;
-  const overallNetPnl = (pnlSnapshot?.daily ?? []).reduce((sum, entry) => sum + entry.pnl, 0);
-  const overallTrades = (pnlSnapshot?.daily ?? []).reduce((sum, entry) => sum + entry.trades, 0);
-  const overallWins = (pnlSnapshot?.daily ?? []).reduce((sum, entry) => sum + entry.wins, 0);
+  const monthTradingDays = monthPnl?.tradingDays ?? 0;
+  const overallNetPnl = mergedPnlDaily.reduce((sum, entry) => sum + entry.pnl, 0);
+  const overallTrades = mergedPnlDaily.reduce((sum, entry) => sum + entry.trades, 0);
+  const overallWins = mergedPnlDaily.reduce((sum, entry) => sum + entry.wins, 0);
   const overallWinRate = overallTrades > 0 ? Math.round((overallWins / overallTrades) * 100) : 0;
-  const overallTradingDays = (pnlSnapshot?.daily ?? []).filter((entry) => entry.trades > 0).length;
-  const recentPnlDays = [...(pnlSnapshot?.daily ?? [])]
-    .sort((left, right) => right.date.localeCompare(left.date))
-    .slice(0, 4);
+  const overallTradingDays = mergedPnlDaily.filter((entry) => entry.trades > 0).length;
 
   const master = data?.agents.master;
   const exec = data?.agents.execution;
@@ -1399,15 +1490,25 @@ export default function DashboardPage() {
                 title="Loading PnL calendar."
                 detail="Pulling your current journal and trade performance snapshot."
               />
-            ) : recentPnlDays.length > 0 ? (
+            ) : mergedPnlMonthly.length > 0 ? (
               <div className="space-y-2">
-                {recentPnlDays.map((entry) => (
+                <div className="flex items-center justify-between px-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">
+                    All Months
+                  </p>
+                  <p className="text-[10px] text-[hsl(var(--muted-foreground))]">
+                    {mergedPnlMonthly.length} months tracked
+                  </p>
+                </div>
+                {mergedPnlMonthly.map((entry) => (
                   <div
-                    key={entry.date}
+                    key={`${entry.year}-${entry.month}`}
                     className="flex items-center justify-between rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/35 px-3 py-2"
                   >
                     <div>
-                      <p className="text-[11px] font-medium text-[hsl(var(--foreground))]">{entry.date}</p>
+                      <p className="text-[11px] font-medium text-[hsl(var(--foreground))]">
+                        {MONTH_LABELS[entry.month - 1]} {entry.year}
+                      </p>
                       <p className="text-[10px] text-[hsl(var(--muted-foreground))]">
                         {entry.trades} trades · {entry.wins} wins
                       </p>
