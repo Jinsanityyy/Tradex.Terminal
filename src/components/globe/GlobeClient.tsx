@@ -135,76 +135,423 @@ function latLonTo2D(lat: number, lon: number) {
   };
 }
 
+const MAP_LABELS = [
+  { label: 'CANADA', lat: 62, lon: -104, accent: '#5e6166', city: false },
+  { label: 'UNITED STATES', lat: 39, lon: -99, accent: '#707378', city: false },
+  { label: 'New York', lat: 40.7, lon: -74, accent: '#9ea2aa', city: true },
+  { label: 'London', lat: 51.5, lon: -0.1, accent: '#a4a8af', city: true },
+  { label: 'Paris', lat: 48.85, lon: 2.35, accent: '#898d95', city: true },
+  { label: 'Moscow', lat: 55.75, lon: 37.62, accent: '#91857a', city: true },
+  { label: 'UKRAINE', lat: 49, lon: 31, accent: '#c8c8c8', city: false },
+  { label: 'Cairo', lat: 30.04, lon: 31.24, accent: '#888b90', city: true },
+  { label: 'Beijing', lat: 39.9, lon: 116.4, accent: '#979ba2', city: true },
+  { label: 'Tokyo', lat: 35.7, lon: 139.7, accent: '#a2a6ad', city: true },
+  { label: 'SOUTH AFRICA', lat: -29, lon: 24, accent: '#76797f', city: false },
+  { label: 'Rio de Janeiro', lat: -22.9, lon: -43.2, accent: '#7d8187', city: true },
+  { label: 'Mexico City', lat: 19.43, lon: -99.13, accent: '#82868d', city: true },
+  { label: 'Bogota', lat: 4.71, lon: -74.07, accent: '#767b82', city: true },
+];
+
+const LAYER_INTEL: Record<LayerKey, { tag: string; level: string; accent: string; chip: string }> = {
+  conflict: { tag: 'Conflict Alert', level: 'HIGH', accent: '#ff544a', chip: '#3b1613' },
+  centralBanks: { tag: 'Central Bank Watch', level: 'ELEVATED', accent: GREEN, chip: '#123225' },
+  economicEvents: { tag: 'Macro Release', level: 'SCHEDULED', accent: '#5ba7ff', chip: '#15243b' },
+  goldRegions: { tag: 'Supply Zone', level: 'MONITOR', accent: GOLD, chip: '#3b3114' },
+};
+
+const MARKER_SIZE: Record<LayerKey, number> = {
+  conflict: 13,
+  centralBanks: 10,
+  economicEvents: 11,
+  goldRegions: 12,
+};
+
+const HOTSPOT_SIZE: Record<LayerKey, number> = {
+  conflict: 52,
+  centralBanks: 38,
+  economicEvents: 42,
+  goldRegions: 46,
+};
+
 // ─── 2D Flat Map View ─────────────────────────────────────────────────────────
 function FlatMapView({
   activeLayers,
-  onMarkerHover,
-  tooltip,
+  layerCounts,
+  selectedMarker,
+  onSelectMarker,
+  onToggleLayer,
+  isPanelOpen,
+  onTogglePanel,
 }: {
   activeLayers: Record<LayerKey, boolean>;
-  onMarkerHover: (data: MarkerData | null, x: number, y: number) => void;
-  tooltip: TooltipState;
+  layerCounts: Record<LayerKey, number>;
+  selectedMarker: MarkerData | null;
+  onSelectMarker: (data: MarkerData) => void;
+  onToggleLayer: (key: LayerKey) => void;
+  isPanelOpen: boolean;
+  onTogglePanel: () => void;
 }) {
+  const [mapScale, setMapScale] = useState(1);
+
+  const visibleMarkers = useMemo(
+    () => MARKERS.filter((marker) => activeLayers[marker.layer]),
+    [activeLayers]
+  );
+
+  const relatedMarkers = useMemo(() => {
+    if (!selectedMarker) return [];
+    return visibleMarkers
+      .filter((marker) => marker.layer === selectedMarker.layer && marker.name !== selectedMarker.name)
+      .slice(0, 3);
+  }, [selectedMarker, visibleMarkers]);
+
+  const zoomIn = useCallback(() => setMapScale((value) => Math.min(1.75, Number((value + 0.15).toFixed(2)))), []);
+  const zoomOut = useCallback(() => setMapScale((value) => Math.max(1, Number((value - 0.15).toFixed(2)))), []);
+  const zoomReset = useCallback(() => setMapScale(1), []);
+
   return (
-    <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#03060f' }}>
-      {/* Night earth texture as flat map */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={EARTH_NIGHT_URL}
-        alt="Earth night map"
-        style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block', opacity: 0.85 }}
-        draggable={false}
-      />
-      {/* Markers overlay */}
-      {MARKERS.filter(m => activeLayers[m.layer]).map((m, i) => {
-        const pos = latLonTo2D(m.lat, m.lon);
-        const cfg = LAYER_CONFIG[m.layer];
-        return (
-          <div
-            key={i}
-            onMouseEnter={e => onMarkerHover(m, e.clientX, e.clientY)}
-            onMouseLeave={() => onMarkerHover(null, 0, 0)}
+    <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#07090d' }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 22%, rgba(255,255,255,0.03), transparent 35%), linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.2))', zIndex: 0, pointerEvents: 'none' }} />
+
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          transform: `scale(${mapScale})`,
+          transformOrigin: '50% 50%',
+          transition: 'transform 160ms ease',
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={EARTH_NIGHT_URL}
+          alt="Earth night map"
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'fill',
+            display: 'block',
+            opacity: 0.44,
+            filter: 'grayscale(1) contrast(1.22) brightness(0.43) saturate(0.15)',
+          }}
+          draggable={false}
+        />
+
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(16,18,22,0.06), rgba(16,18,22,0.32))', pointerEvents: 'none' }} />
+
+        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+          {[-60, -30, 0, 30, 60].map((lat) => (
+            <line
+              key={lat}
+              x1="0"
+              y1={`${((90 - lat) / 180) * 100}%`}
+              x2="100%"
+              y2={`${((90 - lat) / 180) * 100}%`}
+              stroke={lat === 0 ? '#4b3f1c' : '#ffffff0d'}
+              strokeWidth={lat === 0 ? 1 : 0.5}
+            />
+          ))}
+          {[-120, -60, 0, 60, 120].map((lon) => (
+            <line
+              key={lon}
+              x1={`${((lon + 180) / 360) * 100}%`}
+              y1="0"
+              x2={`${((lon + 180) / 360) * 100}%`}
+              y2="100%"
+              stroke={lon === 0 ? '#4b3f1c' : '#ffffff0d'}
+              strokeWidth={lon === 0 ? 1 : 0.5}
+            />
+          ))}
+        </svg>
+
+        {MAP_LABELS.map((label) => {
+          const pos = latLonTo2D(label.lat, label.lon);
+          return (
+            <div
+              key={label.label}
+              style={{
+                position: 'absolute',
+                left: pos.left,
+                top: pos.top,
+                transform: 'translate(-50%, -50%)',
+                fontSize: label.city ? 12 : 11,
+                fontWeight: label.city ? 500 : 700,
+                letterSpacing: label.city ? 0.2 : 1.2,
+                color: label.accent,
+                opacity: label.city ? 0.78 : 0.58,
+                textTransform: label.city ? 'none' : 'uppercase',
+                textShadow: '0 1px 0 rgba(0,0,0,0.7)',
+                pointerEvents: 'none',
+                zIndex: 3,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {label.label}
+            </div>
+          );
+        })}
+
+        {visibleMarkers.map((marker, index) => {
+          const pos = latLonTo2D(marker.lat, marker.lon);
+          const cfg = LAYER_CONFIG[marker.layer];
+          const isSelected = selectedMarker?.name === marker.name;
+          const hotspot = HOTSPOT_SIZE[marker.layer];
+          const size = MARKER_SIZE[marker.layer] + (isSelected ? 4 : 0);
+
+          return (
+            <div key={`${marker.name}-${index}`}>
+              <div
+                style={{
+                  position: 'absolute',
+                  left: pos.left,
+                  top: pos.top,
+                  transform: 'translate(-50%, -50%)',
+                  width: hotspot,
+                  height: hotspot,
+                  borderRadius: '50%',
+                  background: `${cfg.color}24`,
+                  boxShadow: `0 0 24px ${cfg.color}22`,
+                  border: `1px solid ${cfg.color}32`,
+                  filter: 'blur(0.4px)',
+                  zIndex: 4,
+                  pointerEvents: 'none',
+                }}
+              />
+              <button
+                type="button"
+                onMouseEnter={() => onSelectMarker(marker)}
+                onClick={() => onSelectMarker(marker)}
+                style={{
+                  position: 'absolute',
+                  left: pos.left,
+                  top: pos.top,
+                  transform: 'translate(-50%, -50%)',
+                  width: size,
+                  height: size,
+                  borderRadius: '50%',
+                  border: isSelected ? `2px solid ${cfg.color}` : 'none',
+                  background: cfg.color,
+                  boxShadow: isSelected
+                    ? `0 0 0 4px ${cfg.color}22, 0 0 18px ${cfg.color}`
+                    : `0 0 10px ${cfg.color}, 0 0 16px ${cfg.color}70`,
+                  cursor: 'pointer',
+                  zIndex: 10,
+                }}
+                aria-label={marker.name}
+              >
+                <span
+                  style={{
+                    position: 'absolute',
+                    inset: -6,
+                    borderRadius: '50%',
+                    border: `1px solid ${cfg.color}`,
+                    opacity: 0.45,
+                    animation: 'pulse-ring 2s ease-out infinite',
+                  }}
+                />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ position: 'absolute', left: 18, top: 16, zIndex: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ padding: '4px 8px', borderRadius: 999, border: '1px solid #20242b', background: 'rgba(8,10,14,0.84)', fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: '#f04e45', textTransform: 'uppercase' }}>
+          2D Tactical View
+        </div>
+        <div style={{ fontSize: 10, color: '#6f7379', letterSpacing: 1 }}>
+          {visibleMarkers.length} active nodes
+        </div>
+        <button
+          type="button"
+          onClick={onTogglePanel}
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            border: '1px solid #20242b',
+            background: 'rgba(8,10,14,0.84)',
+            color: '#8f949c',
+            cursor: 'pointer',
+            fontSize: 14,
+            lineHeight: 1,
+          }}
+          title={isPanelOpen ? 'Hide layers panel' : 'Show layers panel'}
+        >
+          {isPanelOpen ? '←' : '→'}
+        </button>
+      </div>
+
+      {isPanelOpen ? (
+        <div style={{ position: 'absolute', left: 18, top: 54, zIndex: 14, width: 212, borderRadius: 12, border: '1px solid #20242b', background: 'rgba(8,10,14,0.9)', boxShadow: '0 18px 42px rgba(0,0,0,0.42)', overflow: 'hidden' }}>
+          <div style={{ padding: '10px 12px', borderBottom: '1px solid #181b21', fontSize: 10, color: '#70757d', letterSpacing: 1.6, textTransform: 'uppercase' }}>
+            Live Layers
+          </div>
+          <div style={{ padding: '6px 0' }}>
+            {(Object.keys(LAYER_CONFIG) as LayerKey[]).map((key) => {
+              const cfg = LAYER_CONFIG[key];
+              const active = activeLayers[key];
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => onToggleLayer(key)}
+                  style={{
+                    display: 'flex',
+                    width: '100%',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '10px 12px',
+                    background: active ? `${cfg.color}10` : 'transparent',
+                    border: 'none',
+                    borderLeft: `3px solid ${active ? cfg.color : 'transparent'}`,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: active ? cfg.color : '#30343a', boxShadow: active ? `0 0 10px ${cfg.color}` : 'none', flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: 11, color: active ? '#e5e7eb' : '#70757d', fontWeight: 600 }}>{cfg.label}</span>
+                  <span style={{ minWidth: 24, borderRadius: 999, background: active ? `${cfg.color}18` : '#12151b', padding: '2px 7px', textAlign: 'center', fontSize: 10, fontFamily: 'IBM Plex Mono, monospace', color: active ? cfg.color : '#4d5158' }}>
+                    {layerCounts[key]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={onTogglePanel}
+          style={{
+            position: 'absolute',
+            left: 18,
+            top: 54,
+            zIndex: 14,
+            width: 34,
+            height: 34,
+            borderRadius: 9,
+            border: '1px solid #20242b',
+            background: 'rgba(8,10,14,0.9)',
+            color: '#8f949c',
+            cursor: 'pointer',
+            fontSize: 16,
+            lineHeight: 1,
+          }}
+          title="Show layers panel"
+        >
+          →
+        </button>
+      )}
+
+      <div style={{ position: 'absolute', right: 16, top: 18, zIndex: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {[
+          { label: '+', onClick: zoomIn, title: 'Zoom in' },
+          { label: '−', onClick: zoomOut, title: 'Zoom out' },
+          { label: '⌂', onClick: zoomReset, title: 'Reset view' },
+        ].map((control) => (
+          <button
+            key={control.title}
+            type="button"
+            onClick={control.onClick}
+            title={control.title}
             style={{
-              position: 'absolute',
-              left: pos.left,
-              top: pos.top,
-              transform: 'translate(-50%, -50%)',
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
-              background: cfg.color,
-              boxShadow: `0 0 8px ${cfg.color}, 0 0 16px ${cfg.color}80`,
+              width: 34,
+              height: 34,
+              borderRadius: 8,
+              border: '1px solid #1f2329',
+              background: 'rgba(10,12,16,0.88)',
+              color: '#d6d8dc',
+              fontSize: 18,
               cursor: 'pointer',
-              zIndex: 10,
             }}
           >
-            <div style={{
-              position: 'absolute',
-              inset: -4,
-              borderRadius: '50%',
-              border: `1px solid ${cfg.color}`,
-              opacity: 0.5,
-              animation: 'pulse-ring 2s ease-out infinite',
-            }} />
+            {control.label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ position: 'absolute', right: 18, bottom: 18, zIndex: 14, width: 'min(332px, 30vw)', minWidth: 290, borderRadius: 14, border: '1px solid #262119', background: 'rgba(11, 10, 8, 0.94)', boxShadow: '0 18px 42px rgba(0,0,0,0.52)', overflow: 'hidden' }}>
+        {selectedMarker ? (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px 12px', borderBottom: '1px solid #1f1c17' }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: LAYER_INTEL[selectedMarker.layer].accent, boxShadow: `0 0 10px ${LAYER_INTEL[selectedMarker.layer].accent}` }} />
+                  <span style={{ fontSize: 11, color: '#8b867d', letterSpacing: 1.4, textTransform: 'uppercase' }}>
+                    {LAYER_INTEL[selectedMarker.layer].tag}
+                  </span>
+                </div>
+                <div style={{ marginTop: 8, fontSize: 20, lineHeight: 1.15, fontWeight: 700, color: '#f2ede2', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {selectedMarker.name}
+                </div>
+              </div>
+              <div style={{ marginLeft: 12, borderRadius: 999, border: `1px solid ${LAYER_INTEL[selectedMarker.layer].accent}30`, background: LAYER_INTEL[selectedMarker.layer].chip, padding: '4px 8px', fontSize: 10, color: LAYER_INTEL[selectedMarker.layer].accent, fontWeight: 700 }}>
+                {LAYER_INTEL[selectedMarker.layer].level}
+              </div>
+            </div>
+
+            <div style={{ padding: '14px 16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: '#64615c', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 }}>Type</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: LAYER_INTEL[selectedMarker.layer].accent }}>{LAYER_CONFIG[selectedMarker.layer].label}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: '#64615c', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 }}>Location</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#d9d5cc', textTransform: 'lowercase' }}>{selectedMarker.name}</div>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 10, color: '#64615c', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 }}>Market Impact</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', rowGap: 6 }}>
+                  {(['xauusd', 'eurusd', 'gbpusd'] as const).map((pair) => (
+                    <div key={pair} style={{ display: 'contents' }}>
+                      <span style={{ fontSize: 11, color: '#8c8880', fontFamily: 'IBM Plex Mono, monospace' }}>
+                        {pair === 'xauusd' ? 'XAU/USD' : pair === 'eurusd' ? 'EUR/USD' : 'GBP/USD'}
+                      </span>
+                      <span style={{ fontSize: 11, color: selectedMarker.impact[pair].startsWith('+') ? GREEN : selectedMarker.impact[pair].startsWith('-') ? '#ff544a' : GOLD, fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>
+                        {selectedMarker.impact[pair]}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ fontSize: 12, lineHeight: 1.55, color: '#b9b4ab', marginBottom: 14 }}>
+                {selectedMarker.desc}
+              </div>
+
+              <div style={{ fontSize: 10, color: '#64615c', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 }}>Related Events</div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {[selectedMarker, ...relatedMarkers].slice(0, 3).map((item, index) => (
+                  <div key={`${item.name}-${index}`} style={{ borderTop: index === 0 ? 'none' : '1px solid #201d19', paddingTop: index === 0 ? 0 : 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: LAYER_INTEL[item.layer].accent }} />
+                      <span style={{ fontSize: 10, color: '#7c786f', letterSpacing: 1, textTransform: 'uppercase' }}>{LAYER_INTEL[item.layer].level}</span>
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#ece7de', lineHeight: 1.35 }}>{item.name}</div>
+                    <div style={{ marginTop: 2, fontSize: 11, color: '#8b867d', lineHeight: 1.4 }}>{item.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div style={{ padding: '18px 16px', color: '#9a958d', fontSize: 12 }}>
+            No live layers selected. Re-enable a data layer to populate the intelligence panel.
           </div>
-        );
-      })}
-      {/* Grid overlay */}
-      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
-        {/* Latitude lines */}
-        {[-60,-30,0,30,60].map(lat => (
-          <line key={lat} x1="0" y1={`${((90 - lat) / 180) * 100}%`} x2="100%" y2={`${((90 - lat) / 180) * 100}%`}
-            stroke={lat === 0 ? '#D4AF3740' : '#ffffff10'} strokeWidth={lat === 0 ? 1 : 0.5} />
+        )}
+      </div>
+
+      <div style={{ position: 'absolute', left: '50%', bottom: 16, transform: 'translateX(-50%)', zIndex: 14, display: 'flex', alignItems: 'center', gap: 14, borderRadius: 999, border: '1px solid #20242b', background: 'rgba(8,10,14,0.92)', padding: '8px 12px', boxShadow: '0 10px 24px rgba(0,0,0,0.35)' }}>
+        {(Object.keys(LAYER_CONFIG) as LayerKey[]).map((key) => (
+          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: LAYER_CONFIG[key].color }} />
+            <span style={{ fontSize: 10, color: '#8a9097', whiteSpace: 'nowrap' }}>{LAYER_CONFIG[key].label}</span>
+          </div>
         ))}
-        {/* Longitude lines */}
-        {[-120,-60,0,60,120].map(lon => (
-          <line key={lon} x1={`${((lon + 180) / 360) * 100}%`} y1="0" x2={`${((lon + 180) / 360) * 100}%`} y2="100%"
-            stroke={lon === 0 ? '#D4AF3740' : '#ffffff10'} strokeWidth={lon === 0 ? 1 : 0.5} />
-        ))}
-      </svg>
-      {/* 2D label */}
-      <div style={{ position: 'absolute', bottom: 12, right: 12, fontSize: 9, color: '#333', letterSpacing: 1 }}>
-        EQUIRECTANGULAR PROJECTION
       </div>
     </div>
   );
@@ -225,8 +572,10 @@ export default function GlobeClient() {
     conflict: true, centralBanks: true, economicEvents: true, goldRegions: true,
   });
   const [tooltip, setTooltip]         = useState<TooltipState>({ visible: false, x: 0, y: 0, data: null });
+  const [selectedMarker2D, setSelectedMarker2D] = useState<MarkerData | null>(MARKERS[0] ?? null);
   const [is3D, setIs3D]               = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isLayerPanelOpen, setIsLayerPanelOpen] = useState(true);
   const { quotes } = useQuotes(15_000);
 
   // Fullscreen listener
@@ -482,14 +831,20 @@ export default function GlobeClient() {
     setActiveLayers(prev => ({ ...prev, [key]: !prev[key] }));
   }, []);
 
-  const handleMarkerHover2D = useCallback((data: MarkerData | null, x: number, y: number) => {
-    if (data) setTooltip({ visible: true, x, y, data });
-    else setTooltip(t => ({ ...t, visible: false }));
+  const toggleLayerPanel = useCallback(() => {
+    setIsLayerPanelOpen((prev) => !prev);
   }, []);
 
   const layerCounts: Record<LayerKey, number> = {
     conflict: 5, centralBanks: 5, economicEvents: 4, goldRegions: 6,
   };
+
+  useEffect(() => {
+    if (!selectedMarker2D || !activeLayers[selectedMarker2D.layer]) {
+      const fallback = MARKERS.find((marker) => activeLayers[marker.layer]) ?? null;
+      setSelectedMarker2D(fallback);
+    }
+  }, [activeLayers, selectedMarker2D]);
 
   const tickerItems = useMemo(() => {
     const quoteMap = new Map(quotes.map((quote) => [quote.symbol, quote]));
@@ -542,48 +897,79 @@ export default function GlobeClient() {
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
 
         {/* Sidebar */}
-        <div style={{ width: 236, background: '#0d0d0d', borderRight: '1px solid #1e1e1e', display: 'flex', flexDirection: 'column', flexShrink: 0, zIndex: 10 }}>
-          <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid #1e1e1e' }}>
-            <span style={{ fontSize: 10, color: '#555', letterSpacing: 2, textTransform: 'uppercase' }}>Data Layers</span>
-          </div>
-          <div style={{ flex: 1, padding: '6px 0' }}>
-            {(Object.keys(LAYER_CONFIG) as LayerKey[]).map(key => {
-              const cfg    = LAYER_CONFIG[key];
-              const active = activeLayers[key];
-              return (
-                <button
-                  key={key}
-                  onClick={() => toggleLayer(key)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 16px', background: active ? cfg.color + '0a' : 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', borderLeft: `3px solid ${active ? cfg.color : 'transparent'}`, transition: 'all 0.15s' }}
-                >
-                  {/* Custom checkbox */}
-                  <div style={{ width: 17, height: 17, borderRadius: 4, border: `2px solid ${active ? cfg.color : '#3a3a3a'}`, background: active ? cfg.color + '25' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}>
-                    {active && <div style={{ width: 8, height: 8, borderRadius: 2, background: cfg.color }} />}
+        {is3D && isLayerPanelOpen && (
+          <div style={{ width: 236, background: '#0d0d0d', borderRight: '1px solid #1e1e1e', display: 'flex', flexDirection: 'column', flexShrink: 0, zIndex: 10 }}>
+            <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid #1e1e1e', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontSize: 10, color: '#555', letterSpacing: 2, textTransform: 'uppercase' }}>Data Layers</span>
+              <button
+                type="button"
+                onClick={toggleLayerPanel}
+                style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid #232323', background: '#111214', color: '#7e838a', cursor: 'pointer', fontSize: 14, lineHeight: 1 }}
+                title="Hide data layers"
+              >
+                ←
+              </button>
+            </div>
+            <div style={{ flex: 1, padding: '6px 0' }}>
+              {(Object.keys(LAYER_CONFIG) as LayerKey[]).map(key => {
+                const cfg    = LAYER_CONFIG[key];
+                const active = activeLayers[key];
+                return (
+                  <button
+                    key={key}
+                    onClick={() => toggleLayer(key)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 16px', background: active ? cfg.color + '0a' : 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', borderLeft: `3px solid ${active ? cfg.color : 'transparent'}`, transition: 'all 0.15s' }}
+                  >
+                    <div style={{ width: 17, height: 17, borderRadius: 4, border: `2px solid ${active ? cfg.color : '#3a3a3a'}`, background: active ? cfg.color + '25' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}>
+                      {active && <div style={{ width: 8, height: 8, borderRadius: 2, background: cfg.color }} />}
+                    </div>
+                    <span style={{ fontSize: 13 }}>{cfg.icon}</span>
+                    <span style={{ fontSize: 12, color: active ? '#ececec' : '#666', flex: 1, lineHeight: 1.35, fontWeight: active ? 500 : 400 }}>{cfg.label}</span>
+                    <span style={{ fontSize: 10, color: active ? cfg.color : '#3a3a3a', fontFamily: 'IBM Plex Mono, monospace', background: active ? cfg.color + '18' : '#141414', padding: '2px 6px', borderRadius: 4, minWidth: 22, textAlign: 'center' }}>{layerCounts[key]}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ padding: '14px 16px', borderTop: '1px solid #1e1e1e' }}>
+              <div style={{ fontSize: 10, color: '#444', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 }}>Legend</div>
+              {(Object.keys(LAYER_CONFIG) as LayerKey[]).map(key => {
+                const cfg = LAYER_CONFIG[key];
+                return (
+                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 8 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: cfg.color, boxShadow: `0 0 7px ${cfg.color}, 0 0 14px ${cfg.color}60`, flexShrink: 0 }} />
+                    <span style={{ fontSize: 11, color: '#666' }}>{cfg.label}</span>
                   </div>
-                  <span style={{ fontSize: 13 }}>{cfg.icon}</span>
-                  <span style={{ fontSize: 12, color: active ? '#ececec' : '#666', flex: 1, lineHeight: 1.35, fontWeight: active ? 500 : 400 }}>{cfg.label}</span>
-                  <span style={{ fontSize: 10, color: active ? cfg.color : '#3a3a3a', fontFamily: 'IBM Plex Mono, monospace', background: active ? cfg.color + '18' : '#141414', padding: '2px 6px', borderRadius: 4, minWidth: 22, textAlign: 'center' }}>{layerCounts[key]}</span>
-                </button>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-          {/* Legend */}
-          <div style={{ padding: '14px 16px', borderTop: '1px solid #1e1e1e' }}>
-            <div style={{ fontSize: 10, color: '#444', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 }}>Legend</div>
-            {(Object.keys(LAYER_CONFIG) as LayerKey[]).map(key => {
-              const cfg = LAYER_CONFIG[key];
-              return (
-                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 8 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: cfg.color, boxShadow: `0 0 7px ${cfg.color}, 0 0 14px ${cfg.color}60`, flexShrink: 0 }} />
-                  <span style={{ fontSize: 11, color: '#666' }}>{cfg.label}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
+        )}
         {/* Globe / Map area */}
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          {is3D && !isLayerPanelOpen && (
+            <button
+              type="button"
+              onClick={toggleLayerPanel}
+              style={{
+                position: 'absolute',
+                left: 16,
+                top: 16,
+                zIndex: 30,
+                width: 34,
+                height: 34,
+                borderRadius: 9,
+                border: '1px solid #232323',
+                background: 'rgba(10, 12, 16, 0.92)',
+                color: '#8f949c',
+                cursor: 'pointer',
+                fontSize: 16,
+                lineHeight: 1,
+              }}
+              title="Show data layers"
+            >
+              →
+            </button>
+          )}
 
           {/* Three.js mount — hidden in 2D mode but kept alive */}
           <div
@@ -595,8 +981,12 @@ export default function GlobeClient() {
           {!is3D && (
             <FlatMapView
               activeLayers={activeLayers}
-              onMarkerHover={handleMarkerHover2D}
-              tooltip={tooltip}
+              layerCounts={layerCounts}
+              selectedMarker={selectedMarker2D}
+              onSelectMarker={setSelectedMarker2D}
+              onToggleLayer={toggleLayer}
+              isPanelOpen={isLayerPanelOpen}
+              onTogglePanel={toggleLayerPanel}
             />
           )}
 
@@ -650,7 +1040,7 @@ export default function GlobeClient() {
               DRAG TO ROTATE · SCROLL TO ZOOM
             </div>
           )}
-        </div>
+          </div>
       </div>
 
       {/* ── Ticker tape ─────────────────────────────────────────────────────── */}

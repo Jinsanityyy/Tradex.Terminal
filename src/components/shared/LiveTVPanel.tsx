@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { cn } from "@/lib/utils";
-import { ExternalLink, Radio } from "lucide-react";
+import { Radio } from "lucide-react";
 
 interface Channel {
   id: string;
@@ -12,40 +12,47 @@ interface Channel {
   color: string;
 }
 
+const YOUTUBE_LIVE_PARAMS =
+  "autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&fs=1";
+
+function buildLiveEmbedUrl(channelId: string) {
+  return `https://www.youtube-nocookie.com/embed/live_stream?channel=${channelId}&${YOUTUBE_LIVE_PARAMS}`;
+}
+
 const CHANNELS: Channel[] = [
   {
     id: "bloomberg",
     name: "Bloomberg TV",
     label: "Markets · Macro · Equities",
-    embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCIALMKvObZNtJ6AmdCLP7Lg&autoplay=1&mute=0",
+    embedUrl: buildLiveEmbedUrl("UCIALMKvObZNtJ6AmdCLP7Lg"),
     color: "text-blue-400 border-blue-500/40 bg-blue-500/10",
   },
   {
     id: "cnbc",
     name: "CNBC",
     label: "US Markets · Earnings · Fed",
-    embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCrp_UI8XtuYfpiqluWLD7Lw&autoplay=1&mute=0",
+    embedUrl: buildLiveEmbedUrl("UCrp_UI8XtuYfpiqluWLD7Lw"),
     color: "text-blue-300 border-blue-400/40 bg-blue-400/10",
   },
   {
     id: "reuters",
     name: "Reuters TV",
     label: "Global News · Geopolitics",
-    embedUrl: "https://www.youtube.com/embed/live_stream?channel=UChqUTb7kYRX8-EiaN3XFrSQ&autoplay=1&mute=0",
+    embedUrl: buildLiveEmbedUrl("UChqUTb7kYRX8-EiaN3XFrSQ"),
     color: "text-orange-400 border-orange-500/40 bg-orange-500/10",
   },
   {
     id: "al-jazeera",
     name: "Al Jazeera",
     label: "Geopolitics · Middle East · Oil",
-    embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCNye-wNBqNL5ZzHSJdse18g&autoplay=1&mute=0",
+    embedUrl: buildLiveEmbedUrl("UCNye-wNBqNL5ZzHSJdse18g"),
     color: "text-amber-400 border-amber-500/40 bg-amber-500/10",
   },
   {
     id: "wion",
     name: "WION",
     label: "Global · Geopolitics · Asia",
-    embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCmqvpsWGSBBOcvLMSCKEFGQ&autoplay=1&mute=0",
+    embedUrl: buildLiveEmbedUrl("UCmqvpsWGSBBOcvLMSCKEFGQ"),
     color: "text-emerald-400 border-emerald-500/40 bg-emerald-500/10",
   },
 ];
@@ -59,15 +66,10 @@ export function LiveTVPanel({
 }) {
   const [active, setActive] = useState<Channel>(CHANNELS[0]);
 
-  const youtubeChannelUrl = useMemo(() => {
-    const channelId = active.embedUrl.match(/channel=([^&]+)/)?.[1];
-    return channelId ? `https://www.youtube.com/channel/${channelId}` : "https://www.youtube.com";
-  }, [active.embedUrl]);
-
   return (
     <div className="flex h-full min-h-0 flex-col space-y-3">
       {showHeader ? (
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
           <div>
             <h1 className="flex items-center gap-2 text-lg font-bold text-white">
               <div className="relative flex h-2 w-2">
@@ -78,15 +80,6 @@ export function LiveTVPanel({
             </h1>
             <p className="mt-0.5 text-xs text-zinc-500">Live financial news streams</p>
           </div>
-          <a
-            href={youtubeChannelUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-[10px] text-zinc-500 transition-colors hover:text-zinc-300"
-          >
-            <ExternalLink className="h-3 w-3" />
-            Open on YouTube
-          </a>
         </div>
       ) : null}
 
@@ -116,6 +109,10 @@ export function LiveTVPanel({
 
       <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-white/8 bg-black">
         <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+          <div
+            aria-hidden="true"
+            className="absolute left-0 top-0 z-10 h-14 w-52 bg-gradient-to-r from-black via-black to-black/35 sm:w-64 md:w-80"
+          />
           <iframe
             key={active.id}
             src={active.embedUrl}
