@@ -257,6 +257,37 @@ function mergeLayouts(
   });
 }
 
+function syncLayoutWithCollapsedState(
+  layout: Layout,
+  collapsed: Record<string, boolean>,
+  preset: LayoutPresetId = DEFAULT_PRESET,
+  customPresets: CustomPreset[] = []
+): Layout {
+  return layout.map((entry) => {
+    const fallback = presetLayoutFor(entry.i, preset, customPresets);
+
+    if (collapsed[entry.i]) {
+      return normalizeLayoutItem(
+        {
+          ...entry,
+          h: 1,
+          minH: 1,
+        },
+        { ...fallback, h: 1, minH: 1 }
+      );
+    }
+
+    return normalizeLayoutItem(
+      {
+        ...entry,
+        minW: fallback.minW,
+        minH: fallback.minH,
+      },
+      fallback
+    );
+  });
+}
+
 function layoutOrder(layout: Layout, id: string) {
   const item = layout.find((entry) => entry.i === id);
   return item ? item.y * 100 + item.x : Number.MAX_SAFE_INTEGER;
@@ -331,15 +362,31 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     const resolvedPreset = resolvePreset(saved?.preset ?? DEFAULT_PRESET, savedCustomPresets);
 
     if (saved) {
+      const savedCollapsed = saved.collapsed ?? {};
       setSelectedPreset(resolvedPreset.id);
-      setLayout(mergeLayouts(widgetIds, saved.layout, resolvedPreset.id, savedCustomPresets));
-      setCollapsed(saved.collapsed);
+      setLayout(
+        syncLayoutWithCollapsedState(
+          mergeLayouts(widgetIds, saved.layout, resolvedPreset.id, savedCustomPresets),
+          savedCollapsed,
+          resolvedPreset.id,
+          savedCustomPresets
+        )
+      );
+      setCollapsed(savedCollapsed);
       setHidden({ ...resolvedPreset.hidden, ...saved.hidden });
       setPrevHeights(saved.prevHeights);
     } else {
+      const presetCollapsed = { ...resolvedPreset.collapsed };
       setSelectedPreset(resolvedPreset.id);
-      setLayout(mergeLayouts(widgetIds, resolvedPreset.layout, resolvedPreset.id, savedCustomPresets));
-      setCollapsed({ ...resolvedPreset.collapsed });
+      setLayout(
+        syncLayoutWithCollapsedState(
+          mergeLayouts(widgetIds, resolvedPreset.layout, resolvedPreset.id, savedCustomPresets),
+          presetCollapsed,
+          resolvedPreset.id,
+          savedCustomPresets
+        )
+      );
+      setCollapsed(presetCollapsed);
       setHidden({ ...resolvedPreset.hidden });
       setPrevHeights({ ...resolvedPreset.prevHeights });
     }
@@ -589,9 +636,17 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
   const handleReset = useCallback(() => {
     const resolved = resolvePreset(selectedPreset, customPresets);
     clearGridState();
-    setLayout(mergeLayouts(widgetIds, resolved.layout, resolved.id, customPresets));
+    const nextCollapsed = { ...resolved.collapsed };
+    setLayout(
+      syncLayoutWithCollapsedState(
+        mergeLayouts(widgetIds, resolved.layout, resolved.id, customPresets),
+        nextCollapsed,
+        resolved.id,
+        customPresets
+      )
+    );
     setHidden({ ...resolved.hidden });
-    setCollapsed({ ...resolved.collapsed });
+    setCollapsed(nextCollapsed);
     setPrevHeights({ ...resolved.prevHeights });
     setHasUnsavedChanges(false);
     setSaveLabel("save");
@@ -629,10 +684,18 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
 
   const applyPreset = useCallback((preset: LayoutPresetId) => {
     const resolved = resolvePreset(preset, customPresets);
+    const nextCollapsed = { ...resolved.collapsed };
     setSelectedPreset(resolved.id);
-    setLayout(mergeLayouts(widgetIds, resolved.layout, resolved.id, customPresets));
+    setLayout(
+      syncLayoutWithCollapsedState(
+        mergeLayouts(widgetIds, resolved.layout, resolved.id, customPresets),
+        nextCollapsed,
+        resolved.id,
+        customPresets
+      )
+    );
     setHidden({ ...resolved.hidden });
-    setCollapsed({ ...resolved.collapsed });
+    setCollapsed(nextCollapsed);
     setPrevHeights({ ...resolved.prevHeights });
     setHasUnsavedChanges(true);
     setSaveLabel("save");
@@ -655,16 +718,17 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
   }, []);
 
   const handleSaveLayout = useCallback(() => {
+    const persistedLayout = syncLayoutWithCollapsedState(layout, collapsed, selectedPreset, customPresets);
     saveGridState({
       preset: selectedPreset,
-      layout,
+      layout: persistedLayout,
       collapsed,
       hidden,
       prevHeights,
     });
     markSaved();
     setShowSaveMenu(false);
-  }, [collapsed, hidden, layout, markSaved, prevHeights, selectedPreset]);
+  }, [collapsed, customPresets, hidden, layout, markSaved, prevHeights, selectedPreset]);
 
   const handleSaveAsPreset = useCallback(() => {
     const suggestedName = activeCustomPreset?.label
@@ -683,7 +747,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     const nextPreset: CustomPreset = {
       id: presetId,
       label,
-      layout: cloneLayout(layout),
+      layout: cloneLayout(syncLayoutWithCollapsedState(layout, collapsed, selectedPreset, customPresets)),
       hidden: { ...hidden },
       collapsed: { ...collapsed },
       prevHeights: { ...prevHeights },
@@ -698,7 +762,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     setSelectedPreset(presetId);
     saveGridState({
       preset: presetId,
-      layout,
+      layout: syncLayoutWithCollapsedState(layout, collapsed, selectedPreset, customPresets),
       collapsed,
       hidden,
       prevHeights,
@@ -712,7 +776,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
 
     const nextPreset: CustomPreset = {
       ...activeCustomPreset,
-      layout: cloneLayout(layout),
+      layout: cloneLayout(syncLayoutWithCollapsedState(layout, collapsed, selectedPreset, customPresets)),
       hidden: { ...hidden },
       collapsed: { ...collapsed },
       prevHeights: { ...prevHeights },
@@ -726,7 +790,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     saveCustomPresets(nextCustomPresets);
     saveGridState({
       preset: activeCustomPreset.id,
-      layout,
+      layout: syncLayoutWithCollapsedState(layout, collapsed, selectedPreset, customPresets),
       collapsed,
       hidden,
       prevHeights,
