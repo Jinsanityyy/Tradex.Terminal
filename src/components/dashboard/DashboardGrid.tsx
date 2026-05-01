@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import GridLayout, { noCompactor, type Layout, type LayoutItem } from "react-grid-layout";
+import GridLayout, { getCompactor, type Layout, type LayoutItem } from "react-grid-layout";
 import { Plus, RotateCcw } from "lucide-react";
 import { WidgetCard } from "./WidgetCard";
 
@@ -18,17 +18,17 @@ const COLS = 24;
 const MARGIN: [number, number] = [6, 6];
 const PADDING: [number, number] = [6, 6];
 const TOTAL_ROWS = 24;
-const STORAGE_KEY = "tradex-dashboard-grid-v3";
+const STORAGE_KEY = "tradex-dashboard-grid-v4";
 
 const DEFAULT_LAYOUT: Layout = [
-  { i: "chart", x: 0, y: 0, w: 10, h: 14, minW: 8, minH: 14 },
-  { i: "trump", x: 10, y: 0, w: 5, h: 5, minW: 4, minH: 3 },
-  { i: "globe", x: 19, y: 0, w: 5, h: 7, minW: 4, minH: 5 },
-  { i: "mtf", x: 10, y: 5, w: 5, h: 4, minW: 4, minH: 3 },
-  { i: "catalysts", x: 10, y: 9, w: 5, h: 5, minW: 4, minH: 4 },
-  { i: "community", x: 0, y: 14, w: 10, h: 6, minW: 6, minH: 5 },
-  { i: "events", x: 0, y: 20, w: 5, h: 4, minW: 4, minH: 3 },
-  { i: "sessions", x: 5, y: 20, w: 5, h: 4, minW: 4, minH: 3 },
+  { i: "chart", x: 0, y: 0, w: 13, h: 14, minW: 8, minH: 14 },
+  { i: "trump", x: 13, y: 0, w: 5, h: 5, minW: 4, minH: 3 },
+  { i: "globe", x: 18, y: 0, w: 6, h: 7, minW: 4, minH: 5 },
+  { i: "mtf", x: 13, y: 5, w: 5, h: 4, minW: 4, minH: 3 },
+  { i: "catalysts", x: 18, y: 7, w: 6, h: 7, minW: 4, minH: 4 },
+  { i: "community", x: 0, y: 14, w: 13, h: 6, minW: 6, minH: 5 },
+  { i: "events", x: 13, y: 14, w: 5, h: 5, minW: 4, minH: 3 },
+  { i: "sessions", x: 18, y: 14, w: 6, h: 5, minW: 4, minH: 3 },
 ];
 
 interface SavedGridState {
@@ -71,6 +71,29 @@ function defaultLayoutFor(id: string): LayoutItem {
   };
 }
 
+function normalizeLayoutItem(item: LayoutItem, fallback: LayoutItem): LayoutItem {
+  const minW = fallback.minW ?? 1;
+  const minH = fallback.minH ?? 1;
+  const maxW = Math.min(fallback.maxW ?? COLS, COLS);
+  const maxH = Math.min(fallback.maxH ?? TOTAL_ROWS, TOTAL_ROWS);
+  const w = Math.max(minW, Math.min(item.w ?? fallback.w, maxW));
+  const h = Math.max(minH, Math.min(item.h ?? fallback.h, maxH));
+  const x = Math.max(0, Math.min(item.x ?? fallback.x, COLS - w));
+  const y = Math.max(0, Math.min(item.y ?? fallback.y, TOTAL_ROWS - h));
+
+  return {
+    ...item,
+    x,
+    y,
+    w,
+    h,
+    minW: fallback.minW,
+    minH: fallback.minH,
+    maxW: fallback.maxW,
+    maxH: fallback.maxH,
+  };
+}
+
 function mergeLayouts(widgetIds: string[], savedLayout?: Layout): Layout {
   const savedMap = new Map((savedLayout ?? []).map((item) => [item.i, item]));
 
@@ -80,25 +103,23 @@ function mergeLayouts(widgetIds: string[], savedLayout?: Layout): Layout {
 
     if (!saved) {
       if (fallback.i !== id) {
-        return {
+        return normalizeLayoutItem({
           ...fallback,
           i: id,
           x: (index % 3) * 4,
           y: TOTAL_ROWS + Math.floor(index / 3) * 4,
-        };
+        }, fallback);
       }
 
-      return fallback;
+      return normalizeLayoutItem(fallback, fallback);
     }
 
-    return {
+    return normalizeLayoutItem({
       ...fallback,
       ...saved,
       i: id,
       h: Math.max(saved.h, fallback.minH ?? fallback.h),
-      minW: fallback.minW,
-      minH: fallback.minH,
-    };
+    }, fallback);
   });
 }
 
@@ -247,12 +268,16 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
           if (!updated) return entry;
 
           const fallback = defaultLayoutFor(entry.i);
-          return {
+          const effectiveFallback = collapsed[entry.i]
+            ? { ...fallback, h: 1, minH: 1 }
+            : fallback;
+
+          return normalizeLayoutItem({
             ...entry,
             ...updated,
             minW: fallback.minW,
             minH: collapsed[entry.i] ? 1 : fallback.minH,
-          };
+          }, effectiveFallback);
         })
       );
     },
@@ -313,7 +338,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
               enabled: true,
               handles: ["s", "e", "se"],
             }}
-            compactor={noCompactor}
+            compactor={getCompactor(null, false, true)}
             autoSize={false}
             style={{ height: desktopGridHeight }}
             onLayoutChange={handleLayoutChange}
