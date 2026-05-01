@@ -6,6 +6,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardGrid } from "@/components/dashboard/DashboardGrid";
 import {
   Activity,
   ArrowRight,
@@ -985,257 +986,427 @@ export default function DashboardPage() {
   })();
   // topbar(56) + action bar(28) + chart bar(38) + agents(105) + execution(38) = 265
   const chartHeightClass = isFullscreen ? "h-[88vh]" : "h-[calc(100vh-265px)]";
+  const widgetActionClass =
+    "inline-flex items-center gap-1 rounded border border-white/[0.08] px-2 py-1 text-[9px] font-medium text-zinc-500 transition-colors hover:border-white/15 hover:text-zinc-200";
+  const dashboardWidgets = [
+    {
+      id: "chart",
+      title: `${symCfg.label} terminal`,
+      headerRight: (
+        <>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isValidating}
+            className={widgetActionClass}
+          >
+            <RefreshCw className={cn("h-3 w-3", isValidating && "animate-spin")} />
+            {isValidating ? "Running" : "Refresh"}
+          </button>
+          <Link href="/dashboard/brain" className={widgetActionClass}>
+            Brain Terminal
+            <ArrowRight className="h-3 w-3" />
+          </Link>
+          <button type="button" onClick={toggleFullscreen} className={widgetActionClass}>
+            {isFullscreen ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+            {isFullscreen ? "Exit" : "Full Screen"}
+          </button>
+        </>
+      ),
+      content: (
+        <div className="flex h-full min-h-0 flex-col overflow-hidden">
+          <div className="grid shrink-0 gap-px border-b border-white/5 bg-white/5 md:grid-cols-2 2xl:grid-cols-4">
+            <SummaryCard
+              title="Trade Signal"
+              icon={<Activity className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />}
+              onClick={() => setActiveOverview("signal")}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]",
+                    signalConfig.badge,
+                  )}
+                >
+                  <span className={cn("h-1.5 w-1.5 rounded-full", signalConfig.dot)} />
+                  {signalConfig.label}
+                </div>
+                <span className="text-sm font-mono font-semibold text-[hsl(var(--foreground))]">
+                  {confidenceLabel}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <StatCell label="Bias" value={formatBiasLabel(finalBias)} color={biasColor(finalBias)} />
+                <StatCell label="Direction" value={directionLabel} color={biasColor(finalBias)} />
+              </div>
+              <SummaryHint>{signalPreview}</SummaryHint>
+            </SummaryCard>
 
-  return (
-    <div className="flex flex-col lg:flex-row overflow-hidden" style={{ height: "100%" }}>
-      <section className="min-w-0 flex-1 flex flex-col overflow-hidden" style={{ height: "100%" }}>
-        {/* Minimal action bar — agent TF badge left, controls right */}
-        <div className="flex items-center justify-between gap-1 px-3 py-1 shrink-0">
-          {/* Agent timeframe indicator */}
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-[hsl(var(--primary))]/25 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]/80">
-              AGENTS: {timeframe}
-            </span>
-            {!TV_TO_AGENT_TF[chartInterval] && (
-              <span className="text-[9px] text-zinc-600">
-                chart {TV_INTERVAL_LABELS[chartInterval]} not supported — using {timeframe}
+            <SummaryCard
+              title="Market Snapshot"
+              icon={<BarChart3 className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />}
+              onClick={() => setActiveOverview("snapshot")}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] text-[hsl(var(--muted-foreground))]">{symCfg.label}</p>
+                  <p className="mt-1 text-2xl font-semibold text-[hsl(var(--foreground))]">{priceLabel}</p>
+                </div>
+                <Badge
+                  variant={
+                    finalBias === "bullish"
+                      ? "bullish"
+                      : finalBias === "bearish"
+                        ? "bearish"
+                        : "neutral"
+                  }
+                >
+                  {formatBiasLabel(finalBias)}
+                </Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <StatCell
+                  label="RSI"
+                  value={snap?.indicators?.rsi != null ? `${Math.round(snap.indicators.rsi)}` : "--"}
+                />
+                <StatCell label="Session" value={snap?.indicators?.session ?? primarySession?.session ?? "--"} />
+                <StatCell label="Zone" value={snap?.structure?.zone ?? "--"} />
+                <StatCell
+                  label="52W Pos"
+                  value={snap?.structure?.pos52w != null ? `${Math.round(snap.structure.pos52w)}%` : "--"}
+                />
+              </div>
+              <SummaryHint>{snapshotPreview}</SummaryHint>
+            </SummaryCard>
+
+            <SummaryCard
+              title="Agent Consensus"
+              icon={<BrainCircuit className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />}
+              onClick={() => setActiveOverview("consensus")}
+            >
+              <div className="grid grid-cols-2 gap-3">
+                <InfoRow
+                  label="Trend"
+                  value={`${formatBiasLabel(trend?.bias)} ${trend?.confidence ?? 0}%`}
+                  tone={biasColor(trend?.bias)}
+                />
+                <InfoRow
+                  label="Price Action"
+                  value={`${formatBiasLabel(smc?.bias)} ${smc?.confidence ?? 0}%`}
+                  tone={biasColor(smc?.bias)}
+                />
+                <InfoRow
+                  label="News"
+                  value={`${formatBiasLabel(news?.impact)} ${news?.confidence ?? 0}%`}
+                  tone={biasColor(news?.impact)}
+                />
+                <InfoRow
+                  label="Execution"
+                  value={`${exec?.hasSetup ? "SETUP" : "NO SETUP"} ${exec?.hasSetup ? "75%" : "30%"}`}
+                  tone={exec?.hasSetup ? "text-emerald-300" : "text-zinc-400"}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <StatCell
+                  label="Consensus"
+                  value={master ? `${master.consensusScore > 0 ? "+" : ""}${master.consensusScore.toFixed(1)}` : "--"}
+                  color={master && master.consensusScore > 0 ? "text-emerald-400" : "text-red-400"}
+                />
+                <StatCell
+                  label="Catalysts"
+                  value={news?.catalysts?.length != null ? `${news.catalysts.length}` : "--"}
+                />
+              </div>
+              <SummaryHint>{consensusPreview}</SummaryHint>
+            </SummaryCard>
+
+            <SummaryCard
+              title="Risk & Session"
+              icon={<Shield className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />}
+              onClick={() => setActiveOverview("risk")}
+            >
+              <div className="grid grid-cols-2 gap-3">
+                <StatCell
+                  label="Risk Gate"
+                  value={risk ? `${risk.valid ? "VALID" : "BLOCKED"} ${risk.grade}` : "--"}
+                  color={risk?.valid ? "text-emerald-400" : "text-red-400"}
+                />
+                <StatCell
+                  label="Volatility"
+                  value={risk?.volatilityScore != null ? `${risk.volatilityScore}` : "--"}
+                />
+                <StatCell label="Session Score" value={risk?.sessionScore != null ? `${risk.sessionScore}` : "--"} />
+                <StatCell label="Session" value={primarySession?.session ?? "--"} />
+              </div>
+              <SummaryHint>{riskPreview}</SummaryHint>
+            </SummaryCard>
+          </div>
+
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/5 px-3 py-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <span className="rounded border border-[hsl(var(--primary))]/25 bg-[hsl(var(--primary))]/10 px-1.5 py-0.5 text-[10px] font-mono text-[hsl(var(--primary))]/80">
+                AGENTS: {timeframe}
               </span>
-            )}
+              {!TV_TO_AGENT_TF[chartInterval] && (
+                <span className="text-[10px] text-zinc-600">
+                  Chart {TV_INTERVAL_LABELS[chartInterval]} unsupported, agents using {timeframe}
+                </span>
+              )}
+            </div>
+            <div className="hidden items-center gap-4 lg:flex">
+              <StatCell label="Price" value={priceLabel} />
+              <StatCell
+                label="RSI"
+                value={snap?.indicators?.rsi != null ? `${Math.round(snap.indicators.rsi)}` : "--"}
+              />
+              <StatCell label="Session" value={snap?.indicators?.session ?? primarySession?.session ?? "--"} />
+              <StatCell label="Zone" value={snap?.structure?.zone ?? "--"} />
+            </div>
           </div>
-          {/* Controls */}
-          <div className="flex items-center gap-1">
-            <button onClick={handleRefresh} disabled={isValidating}
-              className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors disabled:opacity-50">
-              <RefreshCw className={cn("h-3 w-3", isValidating && "animate-spin")} />
-              {isValidating ? "Running…" : "Refresh"}
-            </button>
-            <Link href="/dashboard/brain"
-              className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors">
-              Brain Terminal <ArrowRight className="h-3 w-3" />
-            </Link>
-            <button onClick={toggleFullscreen}
-              className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors">
-              {isFullscreen ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
-              {isFullscreen ? "Exit" : "Full Screen"}
-            </button>
+
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <TradingViewChart
+              symbol={symCfg.tv}
+              heightClass="h-full"
+              onIntervalChange={handleIntervalChange}
+            />
           </div>
-        </div>
 
-        {/* Chart */}
-        <div className="shrink-0 overflow-hidden">
-          <TradingViewChart symbol={symCfg.tv} heightClass={chartHeightClass} onIntervalChange={handleIntervalChange} />
-        </div>
+          <div className="grid shrink-0 grid-cols-2 gap-px bg-white/5 md:grid-cols-3 xl:grid-cols-7">
+            <AgentMiniCard
+              label="MASTER"
+              bias={finalBias}
+              confidence={master?.confidence ?? 0}
+              detail={isNoTrade ? (master?.noTradeReason ?? "No trade") : (master?.strategyMatch ?? finalBias)}
+              detail2={`Score: ${master?.consensusScore?.toFixed(1) ?? "--"}`}
+              isLoading={isValidating && !data}
+              accent={isNoTrade ? "neutral" : finalBias === "bullish" ? "bull" : "bear"}
+              onClick={() => setActiveAgent("master")}
+            />
+            <AgentMiniCard
+              label="TREND"
+              bias={trend?.bias ?? "neutral"}
+              confidence={trend?.confidence ?? 0}
+              detail={trend?.marketPhase ? `Phase: ${trend.marketPhase}` : "--"}
+              detail2={`Momentum: ${trend?.momentumDirection ?? "--"}`}
+              isLoading={isValidating && !data}
+              accent={trend?.bias === "bullish" ? "bull" : trend?.bias === "bearish" ? "bear" : "neutral"}
+              onClick={() => setActiveAgent("trend")}
+            />
+            <AgentMiniCard
+              label="PR. ACTION"
+              bias={smc?.bias ?? "neutral"}
+              confidence={smc?.confidence ?? 0}
+              detail={smc?.setupType ?? "--"}
+              detail2={`Zone: ${smc?.premiumDiscount ?? "--"}`}
+              isLoading={isValidating && !data}
+              accent={smc?.bias === "bullish" ? "bull" : smc?.bias === "bearish" ? "bear" : "neutral"}
+              onClick={() => setActiveAgent("smc")}
+            />
+            <AgentMiniCard
+              label="NEWS"
+              bias={news?.impact ?? "neutral"}
+              confidence={news?.confidence ?? 0}
+              detail={news?.regime ? `Regime: ${news.regime}` : "--"}
+              detail2={`Risk: ${news?.riskScore ?? 0}/100`}
+              isLoading={isValidating && !data}
+              accent={news?.impact === "bullish" ? "bull" : news?.impact === "bearish" ? "bear" : "neutral"}
+              onClick={() => setActiveAgent("news")}
+            />
+            <AgentMiniCard
+              label="RISK GATE"
+              bias={risk?.valid ? "valid" : "blocked"}
+              confidence={risk?.sessionScore ?? 0}
+              detail={`Grade ${risk?.grade ?? "--"} · Vol ${risk?.volatilityScore ?? 0}`}
+              detail2={risk?.warnings?.[0]?.substring(0, 40) ?? "No warnings"}
+              isLoading={isValidating && !data}
+              accent={risk?.valid ? "bull" : "bear"}
+              onClick={() => setActiveAgent("risk")}
+            />
+            <AgentMiniCard
+              label="CONTRARIAN"
+              bias={contrarian?.challengesBias ? "alert" : "clear"}
+              confidence={contrarian?.riskFactor ?? 0}
+              detail={contrarian?.trapType && contrarian.trapType !== "None" ? contrarian.trapType : "No trap"}
+              detail2={contrarian?.challengesBias ? (contrarian.failureReasons?.[0]?.substring(0, 40) ?? "--") : "Bias confirmed"}
+              isLoading={isValidating && !data}
+              accent={contrarian?.challengesBias ? "bear" : "neutral"}
+              onClick={() => setActiveAgent("contrarian")}
+            />
+            <AgentMiniCard
+              label="EXECUTION"
+              bias={exec?.signalState ?? "NO_TRADE"}
+              confidence={exec?.hasSetup ? 75 : 0}
+              detail={exec?.entry ? `Entry: ${exec.entry.toFixed(exec.entry > 100 ? 1 : 4)}` : (exec?.trigger ?? "--")}
+              detail2={exec?.distanceToEntry != null ? `${exec.distanceToEntry}% from entry` : "No setup"}
+              isLoading={isValidating && !data}
+              accent={exec?.signalState === "ARMED" ? "bull" : exec?.signalState === "PENDING" ? "neutral" : "bear"}
+              onClick={() => setActiveAgent("execution")}
+            />
+          </div>
 
-        {/* 7 Agent cards */}
-        <div className="shrink-0 grid grid-cols-7 gap-px bg-white/5 overflow-hidden pl-[46px]">
-          <AgentMiniCard label="MASTER" bias={finalBias} confidence={master?.confidence ?? 0}
-            detail={isNoTrade ? (master?.noTradeReason ?? "No trade") : (master?.strategyMatch ?? finalBias)}
-            detail2={`Score: ${master?.consensusScore?.toFixed(1) ?? "—"}`}
-            isLoading={isValidating && !data} accent={isNoTrade ? "neutral" : finalBias === "bullish" ? "bull" : "bear"}
-            onClick={() => setActiveAgent("master")} />
-          <AgentMiniCard label="TREND" bias={trend?.bias ?? "neutral"} confidence={trend?.confidence ?? 0}
-            detail={trend?.marketPhase ? `Phase: ${trend.marketPhase}` : "—"}
-            detail2={`Momentum: ${trend?.momentumDirection ?? "—"}`}
-            isLoading={isValidating && !data}
-            accent={trend?.bias === "bullish" ? "bull" : trend?.bias === "bearish" ? "bear" : "neutral"}
-            onClick={() => setActiveAgent("trend")} />
-          <AgentMiniCard label="PR. ACTION" bias={smc?.bias ?? "neutral"} confidence={smc?.confidence ?? 0}
-            detail={smc?.setupType ?? "—"}
-            detail2={`Zone: ${smc?.premiumDiscount ?? "—"}`}
-            isLoading={isValidating && !data}
-            accent={smc?.bias === "bullish" ? "bull" : smc?.bias === "bearish" ? "bear" : "neutral"}
-            onClick={() => setActiveAgent("smc")} />
-          <AgentMiniCard label="NEWS" bias={news?.impact ?? "neutral"} confidence={news?.confidence ?? 0}
-            detail={news?.regime ? `Regime: ${news.regime}` : "—"}
-            detail2={`Risk: ${news?.riskScore ?? 0}/100`}
-            isLoading={isValidating && !data}
-            accent={news?.impact === "bullish" ? "bull" : news?.impact === "bearish" ? "bear" : "neutral"}
-            onClick={() => setActiveAgent("news")} />
-          <AgentMiniCard label="RISK GATE" bias={risk?.valid ? "valid" : "blocked"} confidence={risk?.sessionScore ?? 0}
-            detail={`Grade ${risk?.grade ?? "—"} · Vol ${risk?.volatilityScore ?? 0}`}
-            detail2={risk?.warnings?.[0]?.substring(0, 40) ?? "No warnings"}
-            isLoading={isValidating && !data}
-            accent={risk?.valid ? "bull" : "bear"}
-            onClick={() => setActiveAgent("risk")} />
-          <AgentMiniCard label="CONTRARIAN" bias={contrarian?.challengesBias ? "alert" : "clear"} confidence={contrarian?.riskFactor ?? 0}
-            detail={contrarian?.trapType && contrarian.trapType !== "None" ? contrarian.trapType : "No trap"}
-            detail2={contrarian?.challengesBias ? (contrarian.failureReasons?.[0]?.substring(0, 40) ?? "—") : "Bias confirmed"}
-            isLoading={isValidating && !data} accent={contrarian?.challengesBias ? "bear" : "neutral"}
-            onClick={() => setActiveAgent("contrarian")} />
-          <AgentMiniCard label="EXECUTION" bias={exec?.signalState ?? "NO_TRADE"} confidence={exec?.hasSetup ? 75 : 0}
-            detail={exec?.entry ? `Entry: ${exec.entry.toFixed(exec.entry > 100 ? 1 : 4)}` : (exec?.trigger ?? "—")}
-            detail2={exec?.distanceToEntry != null ? `${exec.distanceToEntry}% from entry` : "No setup"}
-            isLoading={isValidating && !data}
-            accent={exec?.signalState === "ARMED" ? "bull" : exec?.signalState === "PENDING" ? "neutral" : "bear"}
-            onClick={() => setActiveAgent("execution")} />
-        </div>
-
-        {/* Compact execution plan strip — fills space below agent cards */}
-        {data && (
-          <div className="shrink-0 rounded-none border-t border-white/5 bg-[hsl(var(--card))] px-4 py-2 pl-[50px]">
-            {tradePlan ? (
-              <div className="flex items-center gap-6 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <span className={cn("text-[11px] font-bold uppercase", tradePlan.direction === "long" ? "text-emerald-400" : "text-red-400")}>
-                    {tradePlan.direction === "long" ? "▲ LONG" : "▼ SHORT"} · {tradePlan.trigger}
+          {data && (
+            <div className="shrink-0 border-t border-white/5 bg-[hsl(var(--card))] px-3 py-2">
+              {tradePlan ? (
+                <div className="flex flex-wrap items-center gap-4">
+                  <span
+                    className={cn(
+                      "text-[11px] font-bold uppercase",
+                      tradePlan.direction === "long" ? "text-emerald-400" : "text-red-400",
+                    )}
+                  >
+                    {tradePlan.direction === "long" ? "LONG" : "SHORT"} · {tradePlan.trigger}
                   </span>
-                </div>
-                <span className="h-3 w-px bg-white/10" />
-                <div className="flex items-center gap-4">
-                  <div><span className="text-[9px] text-zinc-600 uppercase mr-1.5">Entry</span><span className="text-[12px] font-mono text-zinc-100">{tradePlan.entry.toFixed(tradePlan.entry > 100 ? 2 : 4)}</span></div>
-                  <div><span className="text-[9px] text-zinc-600 uppercase mr-1.5">SL</span><span className="text-[12px] font-mono text-red-400">{tradePlan.stopLoss.toFixed(tradePlan.stopLoss > 100 ? 2 : 4)}</span></div>
-                  <div><span className="text-[9px] text-zinc-600 uppercase mr-1.5">TP1</span><span className="text-[12px] font-mono text-emerald-400">{tradePlan.tp1.toFixed(tradePlan.tp1 > 100 ? 2 : 4)}</span></div>
-                  {tradePlan.tp2 && <div><span className="text-[9px] text-zinc-600 uppercase mr-1.5">TP2</span><span className="text-[12px] font-mono text-emerald-300">{tradePlan.tp2.toFixed(tradePlan.tp2 > 100 ? 2 : 4)}</span></div>}
-                  <div><span className="text-[9px] text-zinc-600 uppercase mr-1.5">RR</span><span className="text-[12px] font-mono text-zinc-200">{tradePlan.rrRatio}:1</span></div>
-                  <div><span className="text-[9px] text-zinc-600 uppercase mr-1.5">Risk</span><span className="text-[12px] font-mono text-zinc-400">{tradePlan.maxRiskPercent}%</span></div>
-                </div>
-                {exec?.signalStateReason && (
-                  <>
-                    <span className="h-3 w-px bg-white/10" />
-                    <span className={cn("text-[10px]", exec.signalState === "ARMED" ? "text-emerald-400" : exec.signalState === "PENDING" ? "text-amber-400" : "text-zinc-600")}>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-[10px] text-zinc-500">
+                      Entry <span className="font-mono text-zinc-100">{tradePlan.entry.toFixed(tradePlan.entry > 100 ? 2 : 4)}</span>
+                    </span>
+                    <span className="text-[10px] text-zinc-500">
+                      SL <span className="font-mono text-red-400">{tradePlan.stopLoss.toFixed(tradePlan.stopLoss > 100 ? 2 : 4)}</span>
+                    </span>
+                    <span className="text-[10px] text-zinc-500">
+                      TP1 <span className="font-mono text-emerald-400">{tradePlan.tp1.toFixed(tradePlan.tp1 > 100 ? 2 : 4)}</span>
+                    </span>
+                    {tradePlan.tp2 ? (
+                      <span className="text-[10px] text-zinc-500">
+                        TP2 <span className="font-mono text-emerald-300">{tradePlan.tp2.toFixed(tradePlan.tp2 > 100 ? 2 : 4)}</span>
+                      </span>
+                    ) : null}
+                    <span className="text-[10px] text-zinc-500">
+                      RR <span className="font-mono text-zinc-200">{tradePlan.rrRatio}:1</span>
+                    </span>
+                    <span className="text-[10px] text-zinc-500">
+                      Risk <span className="font-mono text-zinc-400">{tradePlan.maxRiskPercent}%</span>
+                    </span>
+                  </div>
+                  {exec?.signalStateReason ? (
+                    <span
+                      className={cn(
+                        "text-[10px]",
+                        exec.signalState === "ARMED"
+                          ? "text-emerald-400"
+                          : exec.signalState === "PENDING"
+                            ? "text-amber-400"
+                            : "text-zinc-600",
+                      )}
+                    >
                       {exec.signalStateReason}
                     </span>
-                  </>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
+                  ) : null}
+                </div>
+              ) : (
                 <span className="text-[10px] text-zinc-600">
                   {master?.noTradeReason ?? "No active trade setup — stand aside and monitor for entry conditions"}
                 </span>
-              </div>
+              )}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "community",
+      title: "Desk chat",
+      content: (
+        <div className="h-full min-h-0 overflow-hidden">
+          <CommunityPanel />
+        </div>
+      ),
+    },
+    {
+      id: "mtf",
+      title: `MTF bias · ${symCfg.short}`,
+      content: (
+        <div className="h-full min-h-0 overflow-y-auto p-3">
+          <MTFBiasPanel data={mtfData} isLoading={mtfLoading} />
+        </div>
+      ),
+    },
+    {
+      id: "trump",
+      title: "Trump Impact Monitor",
+      headerRight: (
+        <Link href="/dashboard/trump-monitor" className={widgetActionClass}>
+          Full
+        </Link>
+      ),
+      content: (
+        <div className="h-full min-h-0 overflow-y-auto p-3">
+          <TrumpImpactPreview posts={trumpPosts} />
+        </div>
+      ),
+    },
+    {
+      id: "catalysts",
+      title: "Top Catalysts",
+      headerRight: (
+        <Link href="/dashboard/catalysts" className={widgetActionClass}>
+          All
+        </Link>
+      ),
+      content: (
+        <div className="h-full min-h-0 overflow-y-auto p-3">
+          {catalysts.length > 0 ? (
+            <CatalystFeed catalysts={catalysts} limit={3} />
+          ) : (
+            <PanelPlaceholder
+              title="No catalysts in queue."
+              detail="The headline scanner is waiting for the next market-moving event."
+            />
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "events",
+      title: "Upcoming Events",
+      headerRight: (
+        <Link href="/dashboard/economic-calendar" className={widgetActionClass}>
+          Calendar
+        </Link>
+      ),
+      content: (
+        <div className="h-full min-h-0 overflow-y-auto p-3">
+          {calendarPreview.length > 0 ? (
+            <div className="space-y-3">
+              {calendarPreview.slice(0, 2).map((event) => (
+                <SidebarEventPreview key={event.id} event={event} />
+              ))}
+            </div>
+          ) : (
+            <PanelPlaceholder
+              title="No scheduled events yet."
+              detail="The event calendar will list the next high-impact releases here."
+            />
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "sessions",
+      title: "Sessions",
+      content: (
+        <div className="h-full min-h-0 overflow-y-auto p-3">
+          <div className="space-y-3">
+            {sessionPreview.filter((session) => session.status === "active").length > 0 ? (
+              sessionPreview
+                .filter((session) => session.status === "active")
+                .map((session) => <SessionSummaryCard key={session.session} session={session} />)
+            ) : (
+              <PanelPlaceholder
+                title="No active session."
+                detail="Markets are currently between sessions."
+              />
             )}
           </div>
-        )}
-
-      </section>
-
-      <aside className="w-full lg:w-[440px] xl:w-[480px] shrink-0 lg:h-full lg:flex lg:flex-col lg:overflow-hidden border-l border-white/5">
-
-        {/* Community chat — fixed height at top */}
-        <div className="shrink-0" style={{ height: "360px" }}>
-          <Card className="overflow-hidden h-full rounded-none border-x-0 border-t-0">
-            <CardContent className="p-0 h-full">
-              <CommunityPanel />
-            </CardContent>
-          </Card>
         </div>
+      ),
+    },
+  ];
 
-        {/* Divider */}
-        <div className="h-px bg-white/5 shrink-0" />
-
-        {/* Rest — scrollable */}
-        <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-4">
-
-          {/* Multi-Timeframe Bias */}
-          <Card>
-            <CardHeader className="pb-2 pt-4 px-4">
-              <SectionHeader
-                icon={<BarChart3 className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />}
-                label={`MTF Bias · ${symCfg.short}`}
-              />
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <MTFBiasPanel data={mtfData} isLoading={mtfLoading} />
-            </CardContent>
-          </Card>
-
-          {/* Trump Impact Monitor — first after community */}
-          <Card>
-            <CardHeader className="pb-2 pt-4 px-4">
-              <SectionHeader
-                icon={<Activity className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />}
-                label="Trump Impact Monitor"
-                action={
-                  <Link href="/dashboard/trump-monitor" className="text-[11px] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]">
-                    Full
-                  </Link>
-                }
-              />
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <TrumpImpactPreview posts={trumpPosts} />
-            </CardContent>
-          </Card>
-
-          {/* Top Catalysts */}
-          <Card>
-            <CardHeader className="pb-2 pt-4 px-4">
-              <SectionHeader
-                icon={<Zap className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />}
-                label="Top Catalysts"
-                action={
-                  <Link href="/dashboard/catalysts" className="text-[11px] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]">
-                    All
-                  </Link>
-                }
-              />
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              {catalysts.length > 0 ? (
-                <CatalystFeed catalysts={catalysts} limit={3} />
-              ) : (
-                <PanelPlaceholder
-                  title="No catalysts in queue."
-                  detail="The headline scanner is waiting for the next market-moving event."
-                />
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Upcoming Events */}
-          <Card>
-            <CardHeader className="pb-2 pt-4 px-4">
-              <SectionHeader
-                icon={<CalendarDays className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />}
-                label="Upcoming Events"
-                action={
-                  <Link href="/dashboard/economic-calendar" className="text-[11px] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]">
-                    Calendar
-                  </Link>
-                }
-              />
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              {calendarPreview.length > 0 ? (
-                <div className="space-y-3">
-                  {calendarPreview.slice(0, 2).map((event) => (
-                    <SidebarEventPreview key={event.id} event={event} />
-                  ))}
-                </div>
-              ) : (
-                <PanelPlaceholder
-                  title="No scheduled events yet."
-                  detail="The event calendar will list the next high-impact releases here."
-                />
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Sessions */}
-          <Card>
-            <CardHeader className="pb-2 pt-4 px-4">
-              <SectionHeader
-                icon={<Clock className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />}
-                label="Sessions"
-              />
-            </CardHeader>
-            <CardContent className="px-4 pb-4 space-y-3">
-              {sessionPreview.filter(s => s.status === "active").length > 0 ? (
-                sessionPreview.filter(s => s.status === "active").map((session) => (
-                  <SessionSummaryCard key={session.session} session={session} />
-                ))
-              ) : (
-                <PanelPlaceholder
-                  title="No active session."
-                  detail="Markets are currently between sessions."
-                />
-              )}
-            </CardContent>
-          </Card>
-
-        </div>
-      </aside>
+  return (
+    <div className="h-full min-h-0">
+      <DashboardGrid widgets={dashboardWidgets} />
 
       <DetailModal
         open={activeOverview !== null}

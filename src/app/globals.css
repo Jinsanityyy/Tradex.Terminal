@@ -331,3 +331,28 @@ iframe,
   animation: shimmer 1.5s ease-in-out infinite;
   border-radius: 4px;
 }
+
+/* React Grid Layout */
+.react-grid-layout {
+  position: relative;
+  transition: height 180ms ease;
+}
+
+.react-grid-item {
+  transition: transform 180ms ease, width 180ms ease, height 180ms ease;
+}
+
+.react-grid-item.cssTransforms {
+  transition-property: transform, width, height;
+}
+
+.react-grid-item.resizing,
+.react-grid-item.react-draggable-dragging {
+  z-index: 30;
+  transition: none;
+  will-change: transform, width, height;
+}
+
+.react-resizable {
+  position: relative;
+}
