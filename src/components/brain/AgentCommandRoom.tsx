@@ -194,13 +194,14 @@ export function AgentCommandRoom({ data, loading=false }: {
       {/* ── IMAGE + PINS ── */}
       <div className="w-full overflow-hidden bg-[#07090f]">
         <div
-          className="relative mx-auto w-full bg-[#07090f] leading-none"
+          className="relative mx-auto w-full bg-[#07090f] leading-none lg:h-[55vh]"
           style={{ lineHeight:0 }}
         >
           <img
             src={HQ_IMAGE}
             alt="TradeX Agent HQ"
-            className="block h-auto w-full pointer-events-none"
+            className="block h-auto w-full pointer-events-none lg:h-full lg:w-full"
+            style={{ objectFit:"fill" }}
           />
 
           {/* Scanline CRT overlay */}
