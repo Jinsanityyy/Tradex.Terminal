@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import GridLayout, { getCompactor, type Layout, type LayoutItem } from "react-grid-layout";
-import { Plus, RotateCcw } from "lucide-react";
+import { Check, Plus, RotateCcw, Save } from "lucide-react";
 import { WidgetCard } from "./WidgetCard";
 
 export interface WidgetDef {
@@ -18,20 +18,50 @@ const COLS = 24;
 const MARGIN: [number, number] = [6, 6];
 const PADDING: [number, number] = [6, 6];
 const TOTAL_ROWS = 24;
-const STORAGE_KEY = "tradex-dashboard-grid-v4";
+const STORAGE_KEY = "tradex-dashboard-grid-v5";
 
-const DEFAULT_LAYOUT: Layout = [
-  { i: "chart", x: 0, y: 0, w: 13, h: 14, minW: 8, minH: 14 },
-  { i: "trump", x: 13, y: 0, w: 5, h: 5, minW: 4, minH: 3 },
-  { i: "globe", x: 18, y: 0, w: 6, h: 7, minW: 4, minH: 5 },
-  { i: "mtf", x: 13, y: 5, w: 5, h: 4, minW: 4, minH: 3 },
-  { i: "catalysts", x: 18, y: 7, w: 6, h: 7, minW: 4, minH: 4 },
-  { i: "community", x: 0, y: 14, w: 13, h: 6, minW: 6, minH: 5 },
-  { i: "events", x: 13, y: 14, w: 5, h: 5, minW: 4, minH: 3 },
-  { i: "sessions", x: 18, y: 14, w: 6, h: 5, minW: 4, minH: 3 },
-];
+type LayoutPresetId = "pro" | "minimal";
+
+const DEFAULT_PRESET: LayoutPresetId = "pro";
+
+const PRESET_LAYOUTS: Record<LayoutPresetId, Layout> = {
+  pro: [
+    { i: "chart", x: 0, y: 0, w: 13, h: 14, minW: 8, minH: 14 },
+    { i: "globe", x: 13, y: 0, w: 6, h: 7, minW: 4, minH: 5 },
+    { i: "trump", x: 19, y: 0, w: 5, h: 4, minW: 4, minH: 3 },
+    { i: "mtf", x: 19, y: 4, w: 5, h: 4, minW: 4, minH: 3 },
+    { i: "catalysts", x: 13, y: 7, w: 11, h: 7, minW: 6, minH: 4 },
+    { i: "community", x: 0, y: 14, w: 13, h: 6, minW: 6, minH: 5 },
+    { i: "events", x: 13, y: 14, w: 6, h: 5, minW: 4, minH: 3 },
+    { i: "sessions", x: 19, y: 14, w: 5, h: 5, minW: 4, minH: 3 },
+  ],
+  minimal: [
+    { i: "chart", x: 0, y: 0, w: 16, h: 16, minW: 10, minH: 14 },
+    { i: "mtf", x: 16, y: 0, w: 4, h: 4, minW: 4, minH: 3 },
+    { i: "trump", x: 20, y: 0, w: 4, h: 4, minW: 4, minH: 3 },
+    { i: "catalysts", x: 16, y: 4, w: 8, h: 7, minW: 6, minH: 4 },
+    { i: "events", x: 16, y: 11, w: 8, h: 5, minW: 4, minH: 3 },
+    { i: "sessions", x: 16, y: 16, w: 8, h: 4, minW: 4, minH: 3 },
+    { i: "community", x: 0, y: 16, w: 12, h: 4, minW: 6, minH: 4 },
+    { i: "globe", x: 12, y: 16, w: 4, h: 4, minW: 4, minH: 4 },
+  ],
+};
+
+const PRESET_HIDDEN: Record<LayoutPresetId, Record<string, boolean>> = {
+  pro: {},
+  minimal: {
+    community: true,
+    globe: true,
+  },
+};
+
+const PRESET_LABELS: Record<LayoutPresetId, string> = {
+  pro: "Pro Trader",
+  minimal: "Minimalist",
+};
 
 interface SavedGridState {
+  preset: LayoutPresetId;
   layout: Layout;
   collapsed: Record<string, boolean>;
   hidden: Record<string, boolean>;
@@ -59,8 +89,18 @@ function saveGridState(state: SavedGridState) {
   }
 }
 
-function defaultLayoutFor(id: string): LayoutItem {
-  return DEFAULT_LAYOUT.find((item) => item.i === id) ?? {
+function clearGridState() {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Ignore persistence failures.
+  }
+}
+
+function presetLayoutFor(id: string, preset: LayoutPresetId): LayoutItem {
+  return PRESET_LAYOUTS[preset].find((item) => item.i === id) ?? {
     i: id,
     x: 0,
     y: TOTAL_ROWS,
@@ -94,11 +134,15 @@ function normalizeLayoutItem(item: LayoutItem, fallback: LayoutItem): LayoutItem
   };
 }
 
-function mergeLayouts(widgetIds: string[], savedLayout?: Layout): Layout {
+function mergeLayouts(
+  widgetIds: string[],
+  savedLayout?: Layout,
+  preset: LayoutPresetId = DEFAULT_PRESET
+): Layout {
   const savedMap = new Map((savedLayout ?? []).map((item) => [item.i, item]));
 
   return widgetIds.map((id, index) => {
-    const fallback = defaultLayoutFor(id);
+    const fallback = presetLayoutFor(id, preset);
     const saved = savedMap.get(id);
 
     if (!saved) {
@@ -131,35 +175,42 @@ function layoutOrder(layout: Layout, id: string) {
 export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const saveTimerRef = useRef<number | null>(null);
   const widgetIds = useMemo(() => widgets.map((widget) => widget.id), [widgets]);
 
   const [mounted, setMounted] = useState(false);
   const [gridWidth, setGridWidth] = useState(1280);
   const [rowHeight, setRowHeight] = useState(38);
-  const [layout, setLayout] = useState<Layout>(() => mergeLayouts(widgetIds));
+  const [selectedPreset, setSelectedPreset] = useState<LayoutPresetId>(DEFAULT_PRESET);
+  const [layout, setLayout] = useState<Layout>(() => mergeLayouts(widgetIds, PRESET_LAYOUTS[DEFAULT_PRESET], DEFAULT_PRESET));
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [hidden, setHidden] = useState<Record<string, boolean>>({});
   const [prevHeights, setPrevHeights] = useState<Record<string, number>>({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [saveLabel, setSaveLabel] = useState<"save" | "saved">("save");
 
   useEffect(() => {
     const saved = loadGridState();
 
     if (saved) {
-      setLayout(mergeLayouts(widgetIds, saved.layout));
+      const preset = saved.preset ?? DEFAULT_PRESET;
+      setSelectedPreset(preset);
+      setLayout(mergeLayouts(widgetIds, saved.layout, preset));
       setCollapsed(saved.collapsed);
       setHidden(saved.hidden);
       setPrevHeights(saved.prevHeights);
     } else {
-      setLayout(mergeLayouts(widgetIds));
+      setSelectedPreset(DEFAULT_PRESET);
+      setLayout(mergeLayouts(widgetIds, PRESET_LAYOUTS[DEFAULT_PRESET], DEFAULT_PRESET));
+      setCollapsed({});
+      setHidden({ ...PRESET_HIDDEN[DEFAULT_PRESET] });
+      setPrevHeights({});
     }
 
+    setHasUnsavedChanges(false);
+    setSaveLabel("save");
     setMounted(true);
   }, [widgetIds]);
-
-  useEffect(() => {
-    if (!mounted) return;
-    saveGridState({ layout, collapsed, hidden, prevHeights });
-  }, [collapsed, hidden, layout, mounted, prevHeights]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -192,6 +243,14 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     return () => observer.disconnect();
   }, [mounted]);
 
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current !== null) {
+        window.clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, []);
+
   const isDesktopGrid = gridWidth >= 1024;
   const desktopGridHeight =
     rowHeight * TOTAL_ROWS +
@@ -208,7 +267,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
   const handleCollapse = useCallback(
     (id: string) => {
       const current = collapsed[id] ?? false;
-      const fallback = defaultLayoutFor(id);
+      const fallback = presetLayoutFor(id, selectedPreset);
 
       if (!current) {
         const currentHeight = layout.find((entry) => entry.i === id)?.h ?? fallback.h;
@@ -228,16 +287,20 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
       }
 
       setCollapsed((state) => ({ ...state, [id]: !current }));
+      setHasUnsavedChanges(true);
+      setSaveLabel("save");
     },
-    [collapsed, layout, prevHeights]
+    [collapsed, layout, prevHeights, selectedPreset]
   );
 
   const handleClose = useCallback((id: string) => {
     setHidden((state) => ({ ...state, [id]: true }));
+    setHasUnsavedChanges(true);
+    setSaveLabel("save");
   }, []);
 
   const handleRestore = useCallback((id: string) => {
-    const fallback = defaultLayoutFor(id);
+    const fallback = presetLayoutFor(id, selectedPreset);
     const restoredHeight = prevHeights[id] ?? fallback.h;
 
     setHidden((state) => ({ ...state, [id]: false }));
@@ -249,14 +312,19 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
           : entry
       )
     );
-  }, [prevHeights]);
+    setHasUnsavedChanges(true);
+    setSaveLabel("save");
+  }, [prevHeights, selectedPreset]);
 
   const handleReset = useCallback(() => {
-    setLayout(mergeLayouts(widgetIds));
+    clearGridState();
+    setLayout(mergeLayouts(widgetIds, PRESET_LAYOUTS[selectedPreset], selectedPreset));
+    setHidden({ ...PRESET_HIDDEN[selectedPreset] });
     setCollapsed({});
-    setHidden({});
     setPrevHeights({});
-  }, [widgetIds]);
+    setHasUnsavedChanges(false);
+    setSaveLabel("save");
+  }, [selectedPreset, widgetIds]);
 
   const handleLayoutChange = useCallback(
     (nextLayout: Layout) => {
@@ -267,7 +335,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
           const updated = nextMap.get(entry.i);
           if (!updated) return entry;
 
-          const fallback = defaultLayoutFor(entry.i);
+          const fallback = presetLayoutFor(entry.i, selectedPreset);
           const effectiveFallback = collapsed[entry.i]
             ? { ...fallback, h: 1, minH: 1 }
             : fallback;
@@ -280,9 +348,42 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
           }, effectiveFallback);
         })
       );
+      setHasUnsavedChanges(true);
+      setSaveLabel("save");
     },
-    [collapsed]
+    [collapsed, selectedPreset]
   );
+
+  const applyPreset = useCallback((preset: LayoutPresetId) => {
+    setSelectedPreset(preset);
+    setLayout(mergeLayouts(widgetIds, PRESET_LAYOUTS[preset], preset));
+    setHidden({ ...PRESET_HIDDEN[preset] });
+    setCollapsed({});
+    setPrevHeights({});
+    setHasUnsavedChanges(true);
+    setSaveLabel("save");
+  }, [widgetIds]);
+
+  const handleSaveLayout = useCallback(() => {
+    saveGridState({
+      preset: selectedPreset,
+      layout,
+      collapsed,
+      hidden,
+      prevHeights,
+    });
+    setHasUnsavedChanges(false);
+    setSaveLabel("saved");
+
+    if (saveTimerRef.current !== null) {
+      window.clearTimeout(saveTimerRef.current);
+    }
+
+    saveTimerRef.current = window.setTimeout(() => {
+      setSaveLabel("save");
+      saveTimerRef.current = null;
+    }, 1800);
+  }, [collapsed, hidden, layout, prevHeights, selectedPreset]);
 
   if (!mounted) return null;
 
@@ -293,6 +394,21 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
         className="flex h-8 shrink-0 items-center gap-2 border-b border-white/[0.05] px-3"
       >
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+          {(Object.keys(PRESET_LABELS) as LayoutPresetId[]).map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => applyPreset(preset)}
+              className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[9px] transition-colors ${
+                selectedPreset === preset
+                  ? "border-white/15 bg-white/[0.06] text-zinc-100"
+                  : "border-white/[0.08] text-zinc-500 hover:border-white/15 hover:text-zinc-200"
+              }`}
+            >
+              {PRESET_LABELS[preset]}
+            </button>
+          ))}
+
           {hiddenWidgets.map((widget) => (
             <button
               key={widget.id}
@@ -305,6 +421,20 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
             </button>
           ))}
         </div>
+
+        <button
+          type="button"
+          onClick={handleSaveLayout}
+          disabled={!hasUnsavedChanges}
+          className={`inline-flex shrink-0 items-center gap-1.5 rounded border px-2 py-0.5 text-[9px] transition-colors ${
+            hasUnsavedChanges
+              ? "border-emerald-500/20 text-emerald-300 hover:border-emerald-500/35"
+              : "border-white/[0.08] text-zinc-600"
+          }`}
+        >
+          {saveLabel === "saved" ? <Check className="h-2.5 w-2.5" /> : <Save className="h-2.5 w-2.5" />}
+          {saveLabel === "saved" ? "Saved" : "Save Layout"}
+        </button>
 
         <button
           type="button"
@@ -333,12 +463,13 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
               enabled: true,
               bounded: true,
               handle: ".widget-drag-handle",
+              threshold: 4,
             }}
             resizeConfig={{
               enabled: true,
               handles: ["s", "e", "se"],
             }}
-            compactor={getCompactor(null, false, true)}
+            compactor={getCompactor("horizontal", false, false)}
             autoSize={false}
             style={{ height: desktopGridHeight }}
             onLayoutChange={handleLayoutChange}
