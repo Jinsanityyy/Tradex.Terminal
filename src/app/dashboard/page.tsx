@@ -864,6 +864,90 @@ export default function DashboardPage() {
       confidence: contrarian?.riskFactor ?? 0,
     },
   ];
+  const agentOverviewCards: Array<{
+    id: string;
+    label: string;
+    bias: string;
+    confidence: number;
+    detail: string;
+    detail2?: string;
+    accent: "bull" | "bear" | "neutral";
+  }> = [
+    {
+      id: "master",
+      label: "Master Consensus",
+      bias: formatBiasLabel(finalBias),
+      confidence: master?.confidence ?? 0,
+      detail: master?.strategyMatch ?? signalReason,
+      detail2: master ? `${master.consensusScore > 0 ? "+" : ""}${master.consensusScore.toFixed(1)} consensus` : undefined,
+      accent:
+        finalBias === "bullish" ? "bull" : finalBias === "bearish" ? "bear" : "neutral" as const,
+    },
+    {
+      id: "trend",
+      label: "Trend Agent",
+      bias: formatBiasLabel(trend?.bias ?? "neutral"),
+      confidence: trend?.confidence ?? 0,
+      detail: trend?.reasons?.[0] ?? trend?.marketPhase ?? "Trend alignment is recalculating.",
+      detail2: trend?.momentumDirection ? `Momentum ${trend.momentumDirection}` : undefined,
+      accent:
+        trend?.bias === "bullish" ? "bull" : trend?.bias === "bearish" ? "bear" : "neutral" as const,
+    },
+    {
+      id: "smc",
+      label: "Price Action Agent",
+      bias: formatBiasLabel(smc?.bias ?? "neutral"),
+      confidence: smc?.confidence ?? 0,
+      detail: smc?.setupType ?? smc?.reasons?.[0] ?? "Structure context is recalculating.",
+      detail2: smc?.premiumDiscount ? `Zone ${smc.premiumDiscount}` : undefined,
+      accent:
+        smc?.bias === "bullish" ? "bull" : smc?.bias === "bearish" ? "bear" : "neutral" as const,
+    },
+    {
+      id: "news",
+      label: "News Agent",
+      bias: formatBiasLabel(news?.impact ?? "neutral"),
+      confidence: news?.confidence ?? 0,
+      detail: news?.dominantCatalyst ?? news?.reasons?.[0] ?? "Catalyst feed is recalculating.",
+      detail2: news?.riskScore != null ? `Risk ${news.riskScore}/100` : undefined,
+      accent:
+        news?.impact === "bullish" ? "bull" : news?.impact === "bearish" ? "bear" : "neutral" as const,
+    },
+    {
+      id: "risk",
+      label: "Risk Gate",
+      bias: risk ? (risk.valid ? "VALID" : "BLOCKED") : "NEUTRAL",
+      confidence: risk?.volatilityScore ?? 0,
+      detail: risk?.reasons?.[0] ?? risk?.warnings?.[0] ?? "Risk conditions are recalculating.",
+      detail2: risk ? `Grade ${risk.grade}` : undefined,
+      accent: risk ? (risk.valid ? "bull" : "bear") : "neutral" as const,
+    },
+    {
+      id: "contrarian",
+      label: "Contrarian Agent",
+      bias: contrarian?.challengesBias ? "ALERT" : "CLEAR",
+      confidence: contrarian?.riskFactor ?? 0,
+      detail: contrarian?.alternativeScenario ?? contrarian?.failureReasons?.[0] ?? "Contrarian checks are recalculating.",
+      detail2: contrarian?.trapType ? `Trap ${contrarian.trapType}` : undefined,
+      accent: contrarian?.challengesBias ? "bear" : "neutral" as const,
+    },
+    {
+      id: "execution",
+      label: "Execution Agent",
+      bias: signalConfig.label.toUpperCase(),
+      confidence: exec?.hasSetup ? 75 : 30,
+      detail: exec?.triggerCondition ?? signalReason,
+      detail2: exec?.direction && exec.direction !== "none" ? `Direction ${exec.direction.toUpperCase()}` : undefined,
+      accent:
+        exec?.direction === "long"
+          ? "bull"
+          : exec?.direction === "short"
+            ? "bear"
+            : signalState === "ARMED"
+              ? "bull"
+              : "neutral" as const,
+    },
+  ];
 
   const signalPreview = master?.strategyMatch ?? signalReason;
   const snapshotPreview = snap?.structure?.smcContext ?? "Structure context is recalculating from the latest feed.";
@@ -1112,6 +1196,34 @@ export default function DashboardPage() {
       content: (
         <div className="h-full min-h-0 overflow-y-auto p-3">
           <TrumpImpactPreview posts={trumpPosts} />
+        </div>
+      ),
+    },
+    {
+      id: "agents",
+      title: "7-Agent Overview",
+      headerRight: (
+        <Link href="/dashboard/brain" className={widgetActionClass}>
+          Brain
+        </Link>
+      ),
+      content: (
+        <div className="h-full min-h-0 overflow-y-auto p-2.5">
+          <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
+            {agentOverviewCards.map((agent) => (
+              <AgentMiniCard
+                key={agent.id}
+                label={agent.label}
+                bias={agent.bias}
+                confidence={agent.confidence}
+                detail={agent.detail}
+                detail2={agent.detail2}
+                isLoading={!data}
+                accent={agent.accent}
+                onClick={() => setActiveAgent(agent.id)}
+              />
+            ))}
+          </div>
         </div>
       ),
     },

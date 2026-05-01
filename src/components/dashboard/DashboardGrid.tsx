@@ -36,6 +36,7 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "community", x: 0, y: 14, w: 13, h: 6, minW: 6, minH: 5 },
     { i: "events", x: 13, y: 14, w: 6, h: 5, minW: 4, minH: 3 },
     { i: "sessions", x: 19, y: 14, w: 5, h: 5, minW: 4, minH: 3 },
+    { i: "agents", x: 0, y: 20, w: 24, h: 4, minW: 10, minH: 4 },
     { i: "economic-calendar", x: 0, y: 20, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "pnl-calendar", x: 12, y: 20, w: 12, h: 4, minW: 6, minH: 4 },
   ],
@@ -48,6 +49,7 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "sessions", x: 16, y: 16, w: 8, h: 4, minW: 4, minH: 3 },
     { i: "community", x: 0, y: 16, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "globe", x: 12, y: 16, w: 4, h: 4, minW: 4, minH: 4 },
+    { i: "agents", x: 0, y: 20, w: 24, h: 4, minW: 10, minH: 4 },
     { i: "economic-calendar", x: 0, y: 20, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "pnl-calendar", x: 12, y: 20, w: 12, h: 4, minW: 6, minH: 4 },
   ],
@@ -55,12 +57,14 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
 
 const PRESET_HIDDEN: Record<BuiltInPresetId, Record<string, boolean>> = {
   pro: {
+    agents: true,
     "economic-calendar": true,
     "pnl-calendar": true,
   },
   minimal: {
     community: true,
     globe: true,
+    agents: true,
     "economic-calendar": true,
     "pnl-calendar": true,
   },
@@ -329,7 +333,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
       setSelectedPreset(resolvedPreset.id);
       setLayout(mergeLayouts(widgetIds, saved.layout, resolvedPreset.id, savedCustomPresets));
       setCollapsed(saved.collapsed);
-      setHidden(saved.hidden);
+      setHidden({ ...resolvedPreset.hidden, ...saved.hidden });
       setPrevHeights(saved.prevHeights);
     } else {
       setSelectedPreset(resolvedPreset.id);
