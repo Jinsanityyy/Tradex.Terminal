@@ -744,12 +744,15 @@ export default function GlobeClient() {
 
     // ── Resize ────────────────────────────────────────────────────────────────
     const onResize = () => {
-      if (!el) return;
-      camera.aspect = el.clientWidth / el.clientHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(el.clientWidth, el.clientHeight);
+      syncRendererSize();
     };
     window.addEventListener('resize', onResize);
+    const resizeObserver =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => onResize())
+        : null;
+    resizeObserver?.observe(el);
+    if (el.parentElement) resizeObserver?.observe(el.parentElement);
 
     // ── Raycaster ─────────────────────────────────────────────────────────────
     const raycaster = new THREE.Raycaster();
@@ -807,6 +810,7 @@ export default function GlobeClient() {
     return () => {
       cancelAnimationFrame(frameRef.current);
       window.removeEventListener('resize', onResize);
+      resizeObserver?.disconnect();
       el.removeEventListener('mousemove', onMouseMove);
       controls.dispose();
       renderer.dispose();
@@ -822,10 +826,31 @@ export default function GlobeClient() {
     });
   }, [activeLayers]);
 
+  const syncRendererSize = useCallback(() => {
+    const el = mountRef.current;
+    const camera = cameraRef.current;
+    const renderer = rendererRef.current;
+    if (!el || !camera || !renderer) return;
+
+    const width = Math.max(el.clientWidth, 1);
+    const height = Math.max(el.clientHeight, 1);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height, false);
+  }, []);
+
   // Sync autoRotate when mode switches back to 3D
   useEffect(() => {
     if (is3D && controlsRef.current) controlsRef.current.autoRotate = true;
   }, [is3D]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      syncRendererSize();
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [is3D, isLayerPanelOpen, isFullscreen, syncRendererSize]);
 
   const toggleLayer = useCallback((key: LayerKey) => {
     setActiveLayers(prev => ({ ...prev, [key]: !prev[key] }));
