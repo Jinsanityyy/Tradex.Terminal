@@ -14,21 +14,21 @@ export interface WidgetDef {
   className?: string;
 }
 
-const COLS = 12;
+const COLS = 24;
 const MARGIN: [number, number] = [6, 6];
 const PADDING: [number, number] = [6, 6];
 const TOTAL_ROWS = 24;
-const STORAGE_KEY = "tradex-dashboard-grid-v2";
+const STORAGE_KEY = "tradex-dashboard-grid-v3";
 
 const DEFAULT_LAYOUT: Layout = [
-  { i: "chart", x: 0, y: 0, w: 8, h: 14, minW: 6, minH: 14 },
-  { i: "globe", x: 8, y: 0, w: 4, h: 7, minW: 3, minH: 5 },
-  { i: "mtf", x: 8, y: 7, w: 4, h: 4, minW: 3, minH: 3 },
-  { i: "trump", x: 8, y: 11, w: 4, h: 4, minW: 3, minH: 3 },
-  { i: "catalysts", x: 8, y: 15, w: 4, h: 5, minW: 3, minH: 4 },
-  { i: "community", x: 0, y: 14, w: 8, h: 6, minW: 4, minH: 5 },
-  { i: "events", x: 0, y: 20, w: 4, h: 4, minW: 3, minH: 3 },
-  { i: "sessions", x: 4, y: 20, w: 4, h: 4, minW: 3, minH: 3 },
+  { i: "chart", x: 0, y: 0, w: 10, h: 14, minW: 8, minH: 14 },
+  { i: "trump", x: 10, y: 0, w: 5, h: 5, minW: 4, minH: 3 },
+  { i: "globe", x: 19, y: 0, w: 5, h: 7, minW: 4, minH: 5 },
+  { i: "mtf", x: 10, y: 5, w: 5, h: 4, minW: 4, minH: 3 },
+  { i: "catalysts", x: 10, y: 9, w: 5, h: 5, minW: 4, minH: 4 },
+  { i: "community", x: 0, y: 14, w: 10, h: 6, minW: 6, minH: 5 },
+  { i: "events", x: 0, y: 20, w: 5, h: 4, minW: 4, minH: 3 },
+  { i: "sessions", x: 5, y: 20, w: 5, h: 4, minW: 4, minH: 3 },
 ];
 
 interface SavedGridState {
