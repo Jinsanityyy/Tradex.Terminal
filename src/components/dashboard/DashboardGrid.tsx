@@ -216,6 +216,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const addWidgetMenuRef = useRef<HTMLDivElement>(null);
   const saveTimerRef = useRef<number | null>(null);
+  const iframePointerStateRef = useRef<Array<{ frame: HTMLIFrameElement; pointerEvents: string }>>([]);
   const widgetSignature = useMemo(
     () => widgets.map((widget) => widget.id).join("|"),
     [widgets]
@@ -236,6 +237,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [saveLabel, setSaveLabel] = useState<"save" | "saved">("save");
   const [showAddWidgetMenu, setShowAddWidgetMenu] = useState(false);
+  const [interactionMode, setInteractionMode] = useState<"drag" | "resize" | null>(null);
 
   useEffect(() => {
     const saved = loadGridState();
@@ -299,6 +301,35 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     };
   }, []);
 
+  const releaseIframePointerEvents = useCallback(() => {
+    iframePointerStateRef.current.forEach(({ frame, pointerEvents }) => {
+      frame.style.pointerEvents = pointerEvents;
+    });
+    iframePointerStateRef.current = [];
+    document.body.classList.remove("dashboard-grid-interacting");
+  }, []);
+
+  const beginInteraction = useCallback((mode: "drag" | "resize") => {
+    setShowAddWidgetMenu(false);
+    setInteractionMode(mode);
+
+    const frames = Array.from(document.querySelectorAll("iframe"));
+    iframePointerStateRef.current = frames.map((frame) => ({
+      frame,
+      pointerEvents: frame.style.pointerEvents,
+    }));
+    frames.forEach((frame) => {
+      frame.style.pointerEvents = "none";
+    });
+
+    document.body.classList.add("dashboard-grid-interacting");
+  }, []);
+
+  const endInteraction = useCallback(() => {
+    setInteractionMode(null);
+    releaseIframePointerEvents();
+  }, [releaseIframePointerEvents]);
+
   useEffect(() => {
     if (!showAddWidgetMenu) return;
 
@@ -312,6 +343,36 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [showAddWidgetMenu]);
+
+  useEffect(() => {
+    if (!interactionMode) return;
+
+    const releaseInteraction = () => {
+      window.setTimeout(() => {
+        endInteraction();
+      }, 0);
+    };
+
+    window.addEventListener("mouseup", releaseInteraction, true);
+    window.addEventListener("touchend", releaseInteraction, true);
+    window.addEventListener("touchcancel", releaseInteraction, true);
+    window.addEventListener("pointerup", releaseInteraction, true);
+    window.addEventListener("blur", releaseInteraction, true);
+
+    return () => {
+      window.removeEventListener("mouseup", releaseInteraction, true);
+      window.removeEventListener("touchend", releaseInteraction, true);
+      window.removeEventListener("touchcancel", releaseInteraction, true);
+      window.removeEventListener("pointerup", releaseInteraction, true);
+      window.removeEventListener("blur", releaseInteraction, true);
+    };
+  }, [endInteraction, interactionMode]);
+
+  useEffect(() => {
+    return () => {
+      releaseIframePointerEvents();
+    };
+  }, [releaseIframePointerEvents]);
 
   const isDesktopGrid = gridWidth >= 1024;
   const desktopGridHeight =
@@ -582,10 +643,16 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
             compactor={getCompactor("vertical", false, false)}
             autoSize={false}
             style={{ height: desktopGridHeight }}
-            onDragStart={() => setShowAddWidgetMenu(false)}
-            onResizeStart={() => setShowAddWidgetMenu(false)}
-            onDragStop={(nextLayout) => commitGridLayout(nextLayout)}
-            onResizeStop={(nextLayout) => commitGridLayout(nextLayout)}
+            onDragStart={() => beginInteraction("drag")}
+            onResizeStart={() => beginInteraction("resize")}
+            onDragStop={(nextLayout) => {
+              commitGridLayout(nextLayout);
+              endInteraction();
+            }}
+            onResizeStop={(nextLayout) => {
+              commitGridLayout(nextLayout);
+              endInteraction();
+            }}
           >
             {orderedVisibleWidgets.map((widget) => (
               <div key={widget.id}>
@@ -624,6 +691,15 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
         </div>
       )}
 
+      {interactionMode ? (
+        <div
+          className={`fixed inset-0 z-40 bg-transparent touch-none ${
+            interactionMode === "resize" ? "cursor-se-resize" : "cursor-grabbing"
+          }`}
+          aria-hidden="true"
+        />
+      ) : null}
+
       <style>{`
         .react-resizable-handle {
           position: absolute;
@@ -631,6 +707,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
           height: 16px;
           opacity: 0;
           transition: opacity 0.15s ease;
+          touch-action: none;
         }
 
         .react-grid-item:hover .react-resizable-handle,
@@ -680,6 +757,10 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
         .react-grid-item.react-draggable-dragging,
         .react-grid-item.react-grid-item-resizing {
           z-index: 30;
+        }
+
+        .dashboard-grid-interacting {
+          user-select: none;
         }
 
         .react-grid-item.react-draggable-dragging .widget-card-body,
