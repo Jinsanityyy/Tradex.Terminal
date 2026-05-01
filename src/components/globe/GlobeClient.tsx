@@ -558,7 +558,7 @@ function FlatMapView({
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function GlobeClient() {
+export default function GlobeClient({ embedded = false }: { embedded?: boolean }) {
   const mountRef     = useRef<HTMLDivElement>(null);
   const rootRef      = useRef<HTMLDivElement>(null);
   const rendererRef  = useRef<THREE.WebGLRenderer | null>(null);
@@ -893,7 +893,16 @@ export default function GlobeClient() {
   return (
     <div
       ref={rootRef}
-      style={{ width: '100vw', height: '100vh', background: BLACK, display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: "'IBM Plex Sans', sans-serif", color: '#e8e8e8' }}
+      style={{
+        width: embedded ? '100%' : '100vw',
+        height: embedded ? '100%' : '100vh',
+        background: BLACK,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        fontFamily: "'IBM Plex Sans', sans-serif",
+        color: '#e8e8e8',
+      }}
     >
       {/* ── Top Bar ─────────────────────────────────────────────────────────── */}
       <div style={{ height: 44, background: '#0a0a0a', borderBottom: '1px solid #1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '0 16px', gap: 12, flexShrink: 0, zIndex: 20 }}>

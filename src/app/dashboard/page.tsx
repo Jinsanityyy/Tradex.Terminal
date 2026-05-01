@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +46,11 @@ import {
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import type { PnLData } from "@/app/api/pnl/route";
 import type { EconomicEvent } from "@/types";
+
+const EmbeddedGlobeClient = dynamic(() => import("@/components/globe/GlobeClient"), {
+  ssr: false,
+  loading: () => <div className="h-full w-full bg-black" />,
+});
 
 const SYMBOLS: { id: Symbol; tv: string; label: string; short: string; group: string }[] = [
   // Metals
@@ -1208,7 +1214,7 @@ export default function DashboardPage() {
   const dashboardWidgets = [
     {
       id: "chart",
-      title: `${symCfg.label} terminal`,
+      title: "Terminal",
       headerRight: (
         <>
           <button
@@ -1250,12 +1256,7 @@ export default function DashboardPage() {
       ),
       content: (
         <div className="h-full min-h-0 overflow-hidden bg-black">
-          <iframe
-            src="/globe"
-            title="TradeX Globe"
-            className="h-full w-full border-0"
-            loading="lazy"
-          />
+          <EmbeddedGlobeClient embedded />
         </div>
       ),
     },

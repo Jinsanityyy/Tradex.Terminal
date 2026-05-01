@@ -109,10 +109,6 @@ export function LiveTVPanel({
 
       <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-white/8 bg-black">
         <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-          <div
-            aria-hidden="true"
-            className="absolute left-0 top-0 z-10 h-14 w-52 bg-gradient-to-r from-black via-black to-black/35 sm:w-64 md:w-80"
-          />
           <iframe
             key={active.id}
             src={active.embedUrl}

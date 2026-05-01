@@ -58,7 +58,7 @@ function MiniAssetTicker({ symbol, price, changePercent }: { symbol: string; pri
 
 const TRADER_NAME_KEY = "tradex_trader_name";
 
-function UserMenu() {
+export function UserMenu() {
   const [email, setEmail] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [traderName, setTraderName] = useState("");
