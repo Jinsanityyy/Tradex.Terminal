@@ -141,6 +141,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
   }, [collapsed, hidden, layout, mounted, prevHeights]);
 
   useEffect(() => {
+    if (!mounted) return;
     const element = rootRef.current;
     if (!element) return;
 
@@ -168,7 +169,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     const observer = new ResizeObserver(updateMetrics);
     observer.observe(element);
     return () => observer.disconnect();
-  }, []);
+  }, [mounted]);
 
   const isDesktopGrid = gridWidth >= 1024;
 
