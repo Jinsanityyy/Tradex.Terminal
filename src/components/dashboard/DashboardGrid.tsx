@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import GridLayout, { type Layout, type LayoutItem } from "react-grid-layout";
+import GridLayout, { noCompactor, type Layout, type LayoutItem } from "react-grid-layout";
 import { Plus, RotateCcw } from "lucide-react";
 import { WidgetCard } from "./WidgetCard";
 
@@ -172,6 +172,10 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
   }, [mounted]);
 
   const isDesktopGrid = gridWidth >= 1024;
+  const desktopGridHeight =
+    rowHeight * TOTAL_ROWS +
+    (TOTAL_ROWS - 1) * MARGIN[1] +
+    PADDING[1] * 2;
 
   const orderedVisibleWidgets = [...widgets]
     .filter((widget) => !hidden[widget.id])
@@ -288,9 +292,9 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
       </div>
 
       {isDesktopGrid ? (
-        <div className="min-h-0 w-full max-w-none flex-1 overflow-hidden">
+        <div className="relative min-h-0 w-full max-w-none flex-1 overflow-hidden">
           <GridLayout
-            className="min-h-full w-full max-w-none"
+            className="absolute inset-0 h-full w-full max-w-none"
             layout={visibleLayout}
             width={gridWidth}
             gridConfig={{
@@ -302,12 +306,16 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
             }}
             dragConfig={{
               enabled: true,
+              bounded: true,
               handle: ".widget-drag-handle",
             }}
             resizeConfig={{
               enabled: true,
               handles: ["s", "e", "se"],
             }}
+            compactor={noCompactor}
+            autoSize={false}
+            style={{ height: desktopGridHeight }}
             onLayoutChange={handleLayoutChange}
           >
             {orderedVisibleWidgets.map((widget) => (
