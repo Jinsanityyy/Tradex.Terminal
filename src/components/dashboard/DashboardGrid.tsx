@@ -527,6 +527,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
             autoSize={false}
             style={{ height: desktopGridHeight }}
             onDragStart={() => setShowAddWidgetMenu(false)}
+            onResizeStart={() => setShowAddWidgetMenu(false)}
             onDragStop={(nextLayout) => commitGridLayout(nextLayout)}
             onResizeStop={(nextLayout) => commitGridLayout(nextLayout)}
           >
@@ -618,6 +619,52 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
           border: 1px dashed rgba(255, 255, 255, 0.14) !important;
           background: rgba(255, 255, 255, 0.04) !important;
           opacity: 1 !important;
+        }
+
+        .react-grid-item.react-draggable-dragging,
+        .react-grid-item.react-grid-item-resizing {
+          z-index: 30;
+        }
+
+        .react-grid-item.react-draggable-dragging .widget-card-body,
+        .react-grid-item.react-grid-item-resizing .widget-card-body,
+        .react-grid-item.react-draggable-dragging .widget-card-body *,
+        .react-grid-item.react-grid-item-resizing .widget-card-body * {
+          pointer-events: none !important;
+          user-select: none;
+        }
+
+        .react-grid-item.react-draggable-dragging .widget-card-body::after,
+        .react-grid-item.react-grid-item-resizing .widget-card-body::after {
+          position: absolute;
+          right: 12px;
+          bottom: 12px;
+          z-index: 4;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(8, 8, 10, 0.82);
+          padding: 4px 8px;
+          font-size: 10px;
+          letter-spacing: 0.08em;
+          color: rgba(244, 244, 245, 0.9);
+          backdrop-filter: blur(10px);
+        }
+
+        .react-grid-item.react-draggable-dragging .widget-card-body::after {
+          content: "Release to place here";
+        }
+
+        .react-grid-item.react-grid-item-resizing .widget-card-body::after {
+          content: "Release to set size";
+        }
+
+        .react-grid-item.react-draggable-dragging .widget-card-body::before,
+        .react-grid-item.react-grid-item-resizing .widget-card-body::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          z-index: 3;
+          background: linear-gradient(180deg, rgba(10, 10, 12, 0.08), rgba(10, 10, 12, 0.18));
         }
       `}</style>
     </div>

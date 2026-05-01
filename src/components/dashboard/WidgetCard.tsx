@@ -26,7 +26,7 @@ export function WidgetCard({
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-white/[0.06] bg-[hsl(var(--card))]",
+        "widget-card-shell flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-white/[0.06] bg-[hsl(var(--card))]",
         className
       )}
     >
@@ -63,7 +63,7 @@ export function WidgetCard({
         </button>
       </div>
 
-      {!isCollapsed ? <div className="min-h-0 flex-1 overflow-hidden">{children}</div> : null}
+      {!isCollapsed ? <div className="widget-card-body relative min-h-0 flex-1 overflow-hidden">{children}</div> : null}
     </div>
   );
 }
