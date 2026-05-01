@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { useQuotes } from '@/hooks/useMarketData';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const GLOBE_RADIUS = 2;
@@ -67,20 +68,53 @@ const MARKERS: MarkerData[] = [
 ];
 
 // ─── Ticker ───────────────────────────────────────────────────────────────────
-const TICKER = [
-  { pair: 'XAU/USD', price: '3,324.00', pct: '+0.37%', up: true  },
-  { pair: 'EUR/USD', price: '1.1342',   pct: '+0.16%', up: true  },
-  { pair: 'GBP/USD', price: '1.3421',   pct: '-0.17%', up: false },
-  { pair: 'USD/JPY', price: '142.34',   pct: '-0.39%', up: false },
-  { pair: 'DXY',     price: '104.20',   pct: '-0.12%', up: false },
-  { pair: 'AUD/USD', price: '0.6582',   pct: '+0.18%', up: true  },
-  { pair: 'USD/CHF', price: '0.8821',   pct: '+0.39%', up: true  },
-  { pair: 'USD/CAD', price: '1.3845',   pct: '-0.15%', up: false },
-  { pair: 'NZD/USD', price: '0.6021',   pct: '+0.13%', up: true  },
-  { pair: 'XAG/USD', price: '32.45',    pct: '+0.71%', up: true  },
-  { pair: 'BRENT',   price: '82.14',    pct: '-0.54%', up: false },
-  { pair: 'WTI',     price: '79.80',    pct: '-0.48%', up: false },
-];
+const TICKER_SYMBOL_ORDER = [
+  'XAUUSD',
+  'BTCUSD',
+  'EURUSD',
+  'GBPUSD',
+  'USDJPY',
+  'USOIL',
+  'ETHUSD',
+  'USDCAD',
+  'AUDUSD',
+  'USDCHF',
+  'NZDUSD',
+  'XAGUSD',
+] as const;
+
+const TICKER_LABELS: Record<string, string> = {
+  XAUUSD: 'XAU/USD',
+  BTCUSD: 'BTC/USD',
+  EURUSD: 'EUR/USD',
+  GBPUSD: 'GBP/USD',
+  USDJPY: 'USD/JPY',
+  USOIL: 'WTI',
+  ETHUSD: 'ETH/USD',
+  USDCAD: 'USD/CAD',
+  AUDUSD: 'AUD/USD',
+  USDCHF: 'USD/CHF',
+  NZDUSD: 'NZD/USD',
+  XAGUSD: 'XAG/USD',
+};
+
+const FOUR_DECIMAL_SYMBOLS = new Set(['EURUSD', 'GBPUSD', 'USDCAD', 'AUDUSD', 'USDCHF', 'NZDUSD']);
+
+function formatTickerPrice(symbol: string, price: number) {
+  if (!Number.isFinite(price)) return '--';
+  if (FOUR_DECIMAL_SYMBOLS.has(symbol)) return price.toFixed(4);
+  if (symbol === 'USDJPY') return price.toFixed(2);
+  if (symbol === 'BTCUSD') return price.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  if (symbol === 'XAUUSD' || symbol === 'XAGUSD' || symbol === 'ETHUSD' || symbol === 'USOIL') {
+    return price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  return price.toLocaleString(undefined, { maximumFractionDigits: price > 100 ? 2 : 4 });
+}
+
+function formatTickerPercent(changePercent: number) {
+  if (!Number.isFinite(changePercent)) return '0.00%';
+  return `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`;
+}
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 function latLonToVec3(lat: number, lon: number, r: number): THREE.Vector3 {
@@ -194,6 +228,7 @@ export default function GlobeClient() {
   const [utcTime, setUtcTime]         = useState('');
   const [is3D, setIs3D]               = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const { quotes } = useQuotes(15_000);
 
   // UTC clock
   useEffect(() => {
@@ -471,48 +506,32 @@ export default function GlobeClient() {
     conflict: 5, centralBanks: 5, economicEvents: 4, goldRegions: 6,
   };
 
+  const tickerItems = useMemo(() => {
+    const quoteMap = new Map(quotes.map((quote) => [quote.symbol, quote]));
+    const liveItems = TICKER_SYMBOL_ORDER
+      .map((symbol) => {
+        const quote = quoteMap.get(symbol);
+        if (!quote) return null;
+
+        return {
+          pair: TICKER_LABELS[symbol] ?? symbol,
+          price: formatTickerPrice(symbol, quote.price),
+          pct: formatTickerPercent(quote.changePercent),
+          up: quote.changePercent >= 0,
+        };
+      })
+      .filter(Boolean) as { pair: string; price: string; pct: string; up: boolean }[];
+
+    return liveItems;
+  }, [quotes]);
+
   return (
     <div
       ref={rootRef}
       style={{ width: '100vw', height: '100vh', background: BLACK, display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: "'IBM Plex Sans', sans-serif", color: '#e8e8e8' }}
     >
       {/* ── Top Bar ─────────────────────────────────────────────────────────── */}
-      <div style={{ height: 48, background: '#0a0a0a', borderBottom: '1px solid #1a1a1a', display: 'flex', alignItems: 'center', padding: '0 16px', gap: 16, flexShrink: 0, zIndex: 20 }}>
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 8 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 6, background: `linear-gradient(135deg, ${GOLD}, #a88420)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, color: BLACK, letterSpacing: -0.5 }}>T</div>
-          <span style={{ color: GOLD, fontWeight: 700, fontSize: 13, letterSpacing: 2 }}>TRADEX</span>
-        </div>
-        <div style={{ width: 1, height: 24, background: '#222' }} />
-        <span style={{ fontSize: 11, color: '#666', letterSpacing: 1.5, textTransform: 'uppercase' }}>Market Intelligence Globe</span>
-
-        <div style={{ flex: 1 }} />
-
-        {/* Pair badges */}
-        {[
-          { pair: 'XAU/USD', price: '3,324.80', up: true  },
-          { pair: 'EUR/USD', price: '1.1342',   up: true  },
-          { pair: 'GBP/USD', price: '1.3421',   up: false },
-        ].map(b => (
-          <div key={b.pair} style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#141414', border: '1px solid #222', borderRadius: 4, padding: '3px 8px' }}>
-            <span style={{ fontSize: 10, color: '#777', fontFamily: 'IBM Plex Mono, monospace' }}>{b.pair}</span>
-            <span style={{ fontSize: 11, color: b.up ? GREEN : '#ff4444', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 600 }}>{b.price}</span>
-            <span style={{ fontSize: 8, color: b.up ? GREEN : '#ff4444' }}>{b.up ? '▲' : '▼'}</span>
-          </div>
-        ))}
-
-        <div style={{ width: 1, height: 24, background: '#222' }} />
-
-        {/* Geo Risk */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <span style={{ fontSize: 10, color: '#666', letterSpacing: 1, textTransform: 'uppercase' }}>Geo Risk</span>
-          <div style={{ width: 72, height: 5, background: '#1e1e1e', borderRadius: 3, overflow: 'hidden' }}>
-            <div style={{ width: '68%', height: '100%', background: `linear-gradient(90deg, ${GOLD}, #e05a00)`, borderRadius: 3 }} />
-          </div>
-          <span style={{ fontSize: 11, color: GOLD, fontFamily: 'IBM Plex Mono, monospace', fontWeight: 600 }}>68%</span>
-        </div>
-
-        <div style={{ width: 1, height: 24, background: '#222' }} />
+      <div style={{ height: 44, background: '#0a0a0a', borderBottom: '1px solid #1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '0 16px', gap: 12, flexShrink: 0, zIndex: 20 }}>
         <span style={{ fontSize: 11, color: '#bbb', fontFamily: 'IBM Plex Mono, monospace', minWidth: 88 }}>{utcTime}</span>
 
         <div style={{ width: 1, height: 24, background: '#222' }} />
@@ -660,7 +679,7 @@ export default function GlobeClient() {
         {/* Right fade */}
         <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 32, background: 'linear-gradient(-90deg, #080808, transparent)', zIndex: 2, pointerEvents: 'none' }} />
         <div style={{ display: 'flex', animation: 'ticker-scroll 55s linear infinite', whiteSpace: 'nowrap' }}>
-          {[...TICKER, ...TICKER].map((item, i) => (
+          {[...(tickerItems.length > 0 ? tickerItems : []), ...(tickerItems.length > 0 ? tickerItems : [])].map((item, i) => (
             <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 22px' }}>
               <span style={{ fontSize: 11, color: '#999', fontFamily: 'IBM Plex Mono, monospace', letterSpacing: 0.5, fontWeight: 500 }}>{item.pair}</span>
               <span style={{ fontSize: 12, color: item.up ? GREEN : '#ff4444', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>{item.price}</span>
@@ -670,6 +689,11 @@ export default function GlobeClient() {
             </div>
           ))}
         </div>
+        {tickerItems.length === 0 && (
+          <div style={{ position: 'absolute', left: 16, fontSize: 11, color: '#666', fontFamily: 'IBM Plex Mono, monospace' }}>
+            Loading live market tape...
+          </div>
+        )}
       </div>
 
       <style>{`
