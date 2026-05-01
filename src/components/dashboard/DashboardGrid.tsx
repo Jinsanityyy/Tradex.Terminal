@@ -175,6 +175,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
   const orderedVisibleWidgets = [...widgets]
     .filter((widget) => !hidden[widget.id])
     .sort((left, right) => layoutOrder(layout, left.id) - layoutOrder(layout, right.id));
+
   const hiddenWidgets = widgets.filter((widget) => hidden[widget.id]);
   const visibleLayout = layout.filter((entry) => !hidden[entry.i]);
 
@@ -256,7 +257,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
   if (!mounted) return null;
 
   return (
-    <div ref={rootRef} className="flex h-full min-h-0 flex-col overflow-hidden">
+    <div ref={rootRef} className="flex h-full min-h-0 w-full max-w-none flex-col overflow-hidden">
       <div
         ref={toolbarRef}
         className="flex h-8 shrink-0 items-center gap-2 border-b border-white/[0.05] px-3"
@@ -286,9 +287,9 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
       </div>
 
       {isDesktopGrid ? (
-        <div className="min-h-0 flex-1 overflow-hidden">
+        <div className="min-h-0 w-full max-w-none flex-1 overflow-hidden">
           <GridLayout
-            className="min-h-full"
+            className="min-h-full w-full max-w-none"
             layout={visibleLayout}
             width={gridWidth}
             gridConfig={{
