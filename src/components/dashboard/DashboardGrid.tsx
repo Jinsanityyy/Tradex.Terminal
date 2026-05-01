@@ -353,7 +353,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     setShowAddWidgetMenu(false);
   }, [selectedPreset, widgetIds]);
 
-  const handleLayoutChange = useCallback(
+  const commitGridLayout = useCallback(
     (nextLayout: Layout) => {
       const nextMap = new Map(nextLayout.map((item) => [item.i, item]));
 
@@ -517,16 +517,18 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
               enabled: true,
               bounded: true,
               handle: ".widget-drag-handle",
-              threshold: 4,
+              threshold: 6,
             }}
             resizeConfig={{
               enabled: true,
               handles: ["s", "e", "se"],
             }}
-            compactor={getCompactor("horizontal", false, false)}
+            compactor={getCompactor("vertical", false, false)}
             autoSize={false}
             style={{ height: desktopGridHeight }}
-            onLayoutChange={handleLayoutChange}
+            onDragStart={() => setShowAddWidgetMenu(false)}
+            onDragStop={(nextLayout) => commitGridLayout(nextLayout)}
+            onResizeStop={(nextLayout) => commitGridLayout(nextLayout)}
           >
             {orderedVisibleWidgets.map((widget) => (
               <div key={widget.id}>
