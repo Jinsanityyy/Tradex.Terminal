@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import GridLayout, { getCompactor, type Layout, type LayoutItem } from "react-grid-layout";
-import { Check, Plus, RotateCcw, Save } from "lucide-react";
+import { Check, ChevronDown, Plus, RotateCcw, Save } from "lucide-react";
 import { WidgetCard } from "./WidgetCard";
 
 export interface WidgetDef {
@@ -18,7 +18,7 @@ const COLS = 24;
 const MARGIN: [number, number] = [6, 6];
 const PADDING: [number, number] = [6, 6];
 const TOTAL_ROWS = 24;
-const STORAGE_KEY = "tradex-dashboard-grid-v5";
+const STORAGE_KEY = "tradex-dashboard-grid-v6";
 
 type LayoutPresetId = "pro" | "minimal";
 
@@ -34,6 +34,8 @@ const PRESET_LAYOUTS: Record<LayoutPresetId, Layout> = {
     { i: "community", x: 0, y: 14, w: 13, h: 6, minW: 6, minH: 5 },
     { i: "events", x: 13, y: 14, w: 6, h: 5, minW: 4, minH: 3 },
     { i: "sessions", x: 19, y: 14, w: 5, h: 5, minW: 4, minH: 3 },
+    { i: "economic-calendar", x: 0, y: 20, w: 12, h: 4, minW: 6, minH: 4 },
+    { i: "pnl-calendar", x: 12, y: 20, w: 12, h: 4, minW: 6, minH: 4 },
   ],
   minimal: [
     { i: "chart", x: 0, y: 0, w: 16, h: 16, minW: 10, minH: 14 },
@@ -44,14 +46,21 @@ const PRESET_LAYOUTS: Record<LayoutPresetId, Layout> = {
     { i: "sessions", x: 16, y: 16, w: 8, h: 4, minW: 4, minH: 3 },
     { i: "community", x: 0, y: 16, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "globe", x: 12, y: 16, w: 4, h: 4, minW: 4, minH: 4 },
+    { i: "economic-calendar", x: 0, y: 20, w: 12, h: 4, minW: 6, minH: 4 },
+    { i: "pnl-calendar", x: 12, y: 20, w: 12, h: 4, minW: 6, minH: 4 },
   ],
 };
 
 const PRESET_HIDDEN: Record<LayoutPresetId, Record<string, boolean>> = {
-  pro: {},
+  pro: {
+    "economic-calendar": true,
+    "pnl-calendar": true,
+  },
   minimal: {
     community: true,
     globe: true,
+    "economic-calendar": true,
+    "pnl-calendar": true,
   },
 };
 
@@ -175,6 +184,7 @@ function layoutOrder(layout: Layout, id: string) {
 export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const addWidgetMenuRef = useRef<HTMLDivElement>(null);
   const saveTimerRef = useRef<number | null>(null);
   const widgetIds = useMemo(() => widgets.map((widget) => widget.id), [widgets]);
 
@@ -188,6 +198,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
   const [prevHeights, setPrevHeights] = useState<Record<string, number>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [saveLabel, setSaveLabel] = useState<"save" | "saved">("save");
+  const [showAddWidgetMenu, setShowAddWidgetMenu] = useState(false);
 
   useEffect(() => {
     const saved = loadGridState();
@@ -250,6 +261,20 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!showAddWidgetMenu) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!addWidgetMenuRef.current?.contains(target)) {
+        setShowAddWidgetMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [showAddWidgetMenu]);
 
   const isDesktopGrid = gridWidth >= 1024;
   const desktopGridHeight =
@@ -314,6 +339,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     );
     setHasUnsavedChanges(true);
     setSaveLabel("save");
+    setShowAddWidgetMenu(false);
   }, [prevHeights, selectedPreset]);
 
   const handleReset = useCallback(() => {
@@ -324,6 +350,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     setPrevHeights({});
     setHasUnsavedChanges(false);
     setSaveLabel("save");
+    setShowAddWidgetMenu(false);
   }, [selectedPreset, widgetIds]);
 
   const handleLayoutChange = useCallback(
@@ -362,6 +389,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     setPrevHeights({});
     setHasUnsavedChanges(true);
     setSaveLabel("save");
+    setShowAddWidgetMenu(false);
   }, [widgetIds]);
 
   const handleSaveLayout = useCallback(() => {
@@ -408,18 +436,44 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
               {PRESET_LABELS[preset]}
             </button>
           ))}
+        </div>
 
-          {hiddenWidgets.map((widget) => (
-            <button
-              key={widget.id}
-              type="button"
-              onClick={() => handleRestore(widget.id)}
-              className="inline-flex items-center gap-1 rounded border border-white/[0.08] px-2 py-0.5 text-[9px] text-zinc-500 transition-colors hover:border-white/15 hover:text-zinc-200"
-            >
-              <Plus className="h-2.5 w-2.5" />
-              {widget.title}
-            </button>
-          ))}
+        <div ref={addWidgetMenuRef} className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowAddWidgetMenu((state) => !state)}
+            disabled={hiddenWidgets.length === 0}
+            className={`inline-flex items-center gap-1.5 rounded border px-2 py-0.5 text-[9px] transition-colors ${
+              hiddenWidgets.length > 0
+                ? "border-white/[0.08] text-zinc-300 hover:border-white/15 hover:text-zinc-100"
+                : "border-white/[0.08] text-zinc-600"
+            }`}
+          >
+            <Plus className="h-2.5 w-2.5" />
+            Add Widget
+            <ChevronDown className="h-2.5 w-2.5" />
+          </button>
+
+          {showAddWidgetMenu && hiddenWidgets.length > 0 ? (
+            <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-white/[0.08] bg-[#0b0b0d]/95 p-1 shadow-2xl backdrop-blur">
+              <p className="px-2 py-1 text-[9px] font-medium uppercase tracking-[0.18em] text-zinc-600">
+                Available Widgets
+              </p>
+              <div className="space-y-1">
+                {hiddenWidgets.map((widget) => (
+                  <button
+                    key={widget.id}
+                    type="button"
+                    onClick={() => handleRestore(widget.id)}
+                    className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[10px] text-zinc-300 transition-colors hover:bg-white/[0.05] hover:text-zinc-100"
+                  >
+                    <span className="truncate">{widget.title}</span>
+                    <Plus className="h-3 w-3 shrink-0 text-zinc-500" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <button

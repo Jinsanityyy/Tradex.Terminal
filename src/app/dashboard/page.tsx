@@ -42,6 +42,7 @@ import {
   useMTFBias,
 } from "@/hooks/useMarketData";
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
+import type { PnLData } from "@/app/api/pnl/route";
 import type { EconomicEvent } from "@/types";
 
 const SYMBOLS: { id: Symbol; tv: string; label: string; short: string; group: string }[] = [
@@ -105,14 +106,16 @@ const TV_INTERVAL_LABELS: Record<string, string> = {
   "1": "1m", "5": "5m", "15": "15m", "30": "30m", "60": "1H", "240": "4H", "D": "1D",
 };
 
-const fetcher = (url: string) =>
+const jsonFetcher = <T,>(url: string) =>
   fetch(url).then((response) => {
     if (!response.ok) {
       throw new Error("Failed");
     }
 
-    return response.json() as Promise<AgentRunResult>;
+    return response.json() as Promise<T>;
   });
+
+const fetcher = (url: string) => jsonFetcher<AgentRunResult>(url);
 
 function biasColor(bias?: string) {
   if (bias === "bullish") return "text-emerald-400";
@@ -773,12 +776,50 @@ export default function DashboardPage() {
   const { posts: trumpPosts } = useTrumpPosts();
   const { tradeContext } = useMarketAnalysis();
   const { mtfData, mtfLoading } = useMTFBias(symbol);
+  const { data: pnlSnapshot, isLoading: pnlLoading } = useSWR<PnLData>(
+    "/api/pnl",
+    (url: string) => jsonFetcher<PnLData>(url),
+    { revalidateOnFocus: false, dedupingInterval: 300_000 }
+  );
 
   const upcomingEvents = events.filter((event) => event.status === "upcoming" || event.status === "live");
   const calendarPreview = upcomingEvents.length > 0 ? upcomingEvents.slice(0, 5) : events.slice(0, 5);
   const activeSessions = sessions.filter((session) => session.status === "active" || session.status === "closed");
   const sessionPreview = activeSessions.length > 0 ? activeSessions.slice(0, 3) : sessions.slice(0, 3);
   const primarySession = sessionPreview[0];
+  const now = new Date();
+  const currentMonth = now.getUTCMonth() + 1;
+  const currentYear = now.getUTCFullYear();
+  const currentMonthKey = `${currentYear}-${String(currentMonth).padStart(2, "0")}`;
+  const currentMonthLabel = now.toLocaleDateString("en-US", { month: "short" });
+  const liveCalendarCount = events.filter((event) => event.status === "live").length;
+  const calendarBullishCount = events.filter((event) => event.goldImpact === "bullish").length;
+  const calendarBearishCount = events.filter((event) => event.goldImpact === "bearish").length;
+  const calendarBias =
+    calendarBullishCount > calendarBearishCount
+      ? "Bullish"
+      : calendarBearishCount > calendarBullishCount
+        ? "Bearish"
+        : "Neutral";
+  const calendarBiasTone =
+    calendarBias === "Bullish"
+      ? "text-emerald-400"
+      : calendarBias === "Bearish"
+        ? "text-red-400"
+        : "text-zinc-400";
+  const monthPnl = pnlSnapshot?.monthly.find(
+    (entry) => entry.year === currentYear && entry.month === currentMonth
+  );
+  const monthPnlValue = monthPnl?.pnl ?? 0;
+  const monthTrades = monthPnl?.trades ?? 0;
+  const monthWins = monthPnl?.wins ?? 0;
+  const monthWinRate = monthTrades > 0 ? Math.round((monthWins / monthTrades) * 100) : 0;
+  const monthTradingDays = (pnlSnapshot?.daily ?? []).filter((entry) =>
+    entry.date.startsWith(currentMonthKey)
+  ).length;
+  const recentPnlDays = [...(pnlSnapshot?.daily ?? [])]
+    .sort((left, right) => right.date.localeCompare(left.date))
+    .slice(0, 4);
 
   const master = data?.agents.master;
   const exec = data?.agents.execution;
@@ -1117,6 +1158,140 @@ export default function DashboardPage() {
               detail="The event calendar will list the next high-impact releases here."
             />
           )}
+        </div>
+      ),
+    },
+    {
+      id: "economic-calendar",
+      title: "Economic Calendar",
+      headerRight: (
+        <Link href="/dashboard/economic-calendar" className={widgetActionClass}>
+          Open
+        </Link>
+      ),
+      content: (
+        <div className="h-full min-h-0 overflow-y-auto p-3">
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/35 p-2.5">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
+                  Bias
+                </p>
+                <p className={cn("mt-1 text-sm font-semibold", calendarBiasTone)}>{calendarBias}</p>
+              </div>
+              <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/35 p-2.5">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
+                  Live
+                </p>
+                <p className="mt-1 text-sm font-semibold text-[hsl(var(--foreground))]">{liveCalendarCount}</p>
+              </div>
+              <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/35 p-2.5">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
+                  Queue
+                </p>
+                <p className="mt-1 text-sm font-semibold text-[hsl(var(--foreground))]">{upcomingEvents.length}</p>
+              </div>
+            </div>
+
+            {calendarPreview.length > 0 ? (
+              <div className="space-y-3">
+                {calendarPreview.slice(0, 3).map((event) => (
+                  <SidebarEventPreview key={event.id} event={event} />
+                ))}
+              </div>
+            ) : (
+              <PanelPlaceholder
+                title="No scheduled events yet."
+                detail="Add this widget when you want a denser calendar board on the dashboard."
+              />
+            )}
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "pnl-calendar",
+      title: "PnL Calendar",
+      headerRight: (
+        <Link href="/dashboard/pnl-calendar" className={widgetActionClass}>
+          Open
+        </Link>
+      ),
+      content: (
+        <div className="h-full min-h-0 overflow-y-auto p-3">
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/35 p-2.5">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
+                  {currentMonthLabel} Net
+                </p>
+                <p
+                  className={cn(
+                    "mt-1 text-sm font-mono font-semibold",
+                    monthPnlValue > 0 ? "text-emerald-400" : monthPnlValue < 0 ? "text-red-400" : "text-zinc-300"
+                  )}
+                >
+                  {monthPnlValue > 0 ? "+" : ""}
+                  {monthPnlValue.toFixed(2)}
+                </p>
+              </div>
+              <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/35 p-2.5">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
+                  Win Rate
+                </p>
+                <p className="mt-1 text-sm font-semibold text-[hsl(var(--foreground))]">{monthWinRate}%</p>
+              </div>
+              <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/35 p-2.5">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
+                  Trades
+                </p>
+                <p className="mt-1 text-sm font-semibold text-[hsl(var(--foreground))]">{monthTrades}</p>
+              </div>
+              <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/35 p-2.5">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
+                  Active Days
+                </p>
+                <p className="mt-1 text-sm font-semibold text-[hsl(var(--foreground))]">{monthTradingDays}</p>
+              </div>
+            </div>
+
+            {pnlLoading ? (
+              <PanelPlaceholder
+                title="Loading PnL calendar."
+                detail="Pulling your current journal and trade performance snapshot."
+              />
+            ) : recentPnlDays.length > 0 ? (
+              <div className="space-y-2">
+                {recentPnlDays.map((entry) => (
+                  <div
+                    key={entry.date}
+                    className="flex items-center justify-between rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/35 px-3 py-2"
+                  >
+                    <div>
+                      <p className="text-[11px] font-medium text-[hsl(var(--foreground))]">{entry.date}</p>
+                      <p className="text-[10px] text-[hsl(var(--muted-foreground))]">
+                        {entry.trades} trades · {entry.wins} wins
+                      </p>
+                    </div>
+                    <p
+                      className={cn(
+                        "text-[11px] font-mono font-semibold",
+                        entry.pnl > 0 ? "text-emerald-400" : entry.pnl < 0 ? "text-red-400" : "text-zinc-300"
+                      )}
+                    >
+                      {entry.pnl > 0 ? "+" : ""}
+                      {entry.pnl.toFixed(2)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <PanelPlaceholder
+                title="No PnL entries yet."
+                detail="Add this widget when you want journal and performance visibility beside the terminal."
+              />
+            )}
+          </div>
         </div>
       ),
     },
