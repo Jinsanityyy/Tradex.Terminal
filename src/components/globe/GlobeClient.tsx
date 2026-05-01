@@ -68,16 +68,18 @@ const MARKERS: MarkerData[] = [
 
 // ─── Ticker ───────────────────────────────────────────────────────────────────
 const TICKER = [
-  { pair: 'XAU/USD', price: '3,324.80', pct: '+0.37%', up: true  },
+  { pair: 'XAU/USD', price: '3,324.00', pct: '+0.37%', up: true  },
   { pair: 'EUR/USD', price: '1.1342',   pct: '+0.16%', up: true  },
   { pair: 'GBP/USD', price: '1.3421',   pct: '-0.17%', up: false },
   { pair: 'USD/JPY', price: '142.34',   pct: '-0.39%', up: false },
+  { pair: 'DXY',     price: '104.20',   pct: '-0.12%', up: false },
   { pair: 'AUD/USD', price: '0.6582',   pct: '+0.18%', up: true  },
   { pair: 'USD/CHF', price: '0.8821',   pct: '+0.39%', up: true  },
   { pair: 'USD/CAD', price: '1.3845',   pct: '-0.15%', up: false },
   { pair: 'NZD/USD', price: '0.6021',   pct: '+0.13%', up: true  },
   { pair: 'XAG/USD', price: '32.45',    pct: '+0.71%', up: true  },
-  { pair: 'WTI/USD', price: '82.14',    pct: '-0.54%', up: false },
+  { pair: 'BRENT',   price: '82.14',    pct: '-0.54%', up: false },
+  { pair: 'WTI',     price: '79.80',    pct: '-0.48%', up: false },
 ];
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
@@ -301,25 +303,34 @@ export default function GlobeClient() {
       () => { /* texture failed — keep dark fallback */ },
     );
 
-    // ── Atmosphere glow (multi-layer, additive blending) ─────────────────────
-    const atmosLayers = [
-      { scale: 1.020, color: 0x1a5fd4, opacity: 0.28 },
-      { scale: 1.045, color: 0x1440c8, opacity: 0.13 },
-      { scale: 1.080, color: 0x0d2ea0, opacity: 0.07 },
-      { scale: 1.130, color: 0x081880, opacity: 0.04 },
-    ];
-    atmosLayers.forEach(({ scale, color, opacity }) => {
-      const geo = new THREE.SphereGeometry(GLOBE_RADIUS * scale, 64, 64);
-      const mat = new THREE.MeshBasicMaterial({
-        color,
-        transparent: true,
-        opacity,
-        side: THREE.BackSide,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      });
-      scene.add(new THREE.Mesh(geo, mat));
+    // ── Atmosphere — Fresnel rim-only glow (ShaderMaterial, FrontSide) ──────
+    // Renders transparent at the globe face, bright only at the silhouette edge.
+    const atmosGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.20, 64, 64);
+    const atmosMat = new THREE.ShaderMaterial({
+      vertexShader: `
+        varying vec3 vNormal;
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vNormal;
+        void main() {
+          // dot = 1 at front center, 0 at rim → glow only at rim
+          float fresnel = 1.0 - dot(normalize(vNormal), vec3(0.0, 0.0, 1.0));
+          float alpha   = pow(max(fresnel, 0.0), 4.2) * 0.88;
+          gl_FragColor  = vec4(0.22, 0.52, 1.0, alpha);
+        }
+      `,
+      transparent: true,
+      depthWrite:  false,
+      side:        THREE.FrontSide,
+      blending:    THREE.AdditiveBlending,
     });
+    const atmosMesh = new THREE.Mesh(atmosGeo, atmosMat);
+    atmosMesh.renderOrder = 1;
+    scene.add(atmosMesh);
 
     // ── Markers ───────────────────────────────────────────────────────────────
     markerMeshes.current = [];
@@ -335,18 +346,27 @@ export default function GlobeClient() {
     MARKERS.forEach(marker => {
       const g   = layerGroups[marker.layer]!;
       const cfg = LAYER_CONFIG[marker.layer];
-      const pos = latLonToVec3(marker.lat, marker.lon, GLOBE_RADIUS + 0.03);
+      const pos = latLonToVec3(marker.lat, marker.lon, GLOBE_RADIUS + 0.04);
 
-      const dotMat = new THREE.MeshPhongMaterial({ color: cfg.hexColor, emissive: cfg.hexColor, emissiveIntensity: 1.0 });
-      const dot    = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 12), dotMat);
+      // Outward normal from globe centre — used to orient the ring tangent to surface
+      const outward = pos.clone().normalize();
+
+      // Core dot — 2.5× bigger than before
+      const dotMat = new THREE.MeshPhongMaterial({
+        color: cfg.hexColor, emissive: cfg.hexColor, emissiveIntensity: 1.2,
+      });
+      const dot = new THREE.Mesh(new THREE.SphereGeometry(0.10, 16, 16), dotMat);
       dot.position.copy(pos);
       g.add(dot);
 
-      const ringMat = new THREE.MeshBasicMaterial({ color: cfg.hexColor, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
-      const ring    = new THREE.Mesh(new THREE.RingGeometry(0.055, 0.075, 24), ringMat);
+      // Pulse ring — align ring plane tangent to sphere (normal = outward radial)
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: cfg.hexColor, transparent: true, opacity: 0.7, side: THREE.DoubleSide,
+      });
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.14, 0.20, 32), ringMat);
       ring.position.copy(pos);
-      ring.lookAt(new THREE.Vector3(0, 0, 0));
-      ring.rotateX(Math.PI);
+      // Rotate so ring's +Z (its face normal) matches outward radial direction
+      ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), outward);
       g.add(ring);
 
       (dot as any).__markerData = marker;
@@ -403,9 +423,13 @@ export default function GlobeClient() {
       t += 0.016;
       controls.update();
       markerMeshes.current.forEach(({ ring }, i) => {
-        const s = 1 + 0.28 * Math.sin(t * 1.8 + i * 0.9);
+        const phase = t * 1.6 + i * 1.1;
+        // ring expands from 1→1.6 then snaps back (sawtooth-ish feel via sin)
+        const s = 1 + 0.55 * ((Math.sin(phase) + 1) / 2);
         ring.scale.setScalar(s);
-        (ring.material as THREE.MeshBasicMaterial).opacity = 0.25 + 0.3 * Math.sin(t * 1.8 + i * 0.9 + Math.PI);
+        // fade out as it expands
+        (ring.material as THREE.MeshBasicMaterial).opacity =
+          0.7 * (1 - (Math.sin(phase) + 1) / 2);
       });
       renderer.render(scene, camera);
     };
@@ -518,38 +542,43 @@ export default function GlobeClient() {
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
 
         {/* Sidebar */}
-        <div style={{ width: 220, background: '#0d0d0d', borderRight: '1px solid #181818', display: 'flex', flexDirection: 'column', padding: '16px 0', flexShrink: 0, zIndex: 10 }}>
-          <div style={{ padding: '0 14px 12px', borderBottom: '1px solid #1a1a1a', marginBottom: 8 }}>
-            <span style={{ fontSize: 9, color: '#555', letterSpacing: 2, textTransform: 'uppercase' }}>Data Layers</span>
+        <div style={{ width: 236, background: '#0d0d0d', borderRight: '1px solid #1e1e1e', display: 'flex', flexDirection: 'column', flexShrink: 0, zIndex: 10 }}>
+          <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid #1e1e1e' }}>
+            <span style={{ fontSize: 10, color: '#555', letterSpacing: 2, textTransform: 'uppercase' }}>Data Layers</span>
           </div>
-          {(Object.keys(LAYER_CONFIG) as LayerKey[]).map(key => {
-            const cfg    = LAYER_CONFIG[key];
-            const active = activeLayers[key];
-            return (
-              <button
-                key={key}
-                onClick={() => toggleLayer(key)}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', borderLeft: `2px solid ${active ? cfg.color : 'transparent'}`, transition: 'all 0.15s' }}
-              >
-                <div style={{ width: 14, height: 14, borderRadius: 3, border: `1.5px solid ${active ? cfg.color : '#333'}`, background: active ? cfg.color + '22' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {active && <div style={{ width: 7, height: 7, borderRadius: 1.5, background: cfg.color }} />}
-                </div>
-                <span style={{ fontSize: 10 }}>{cfg.icon}</span>
-                <span style={{ fontSize: 11, color: active ? '#e0e0e0' : '#555', flex: 1, lineHeight: 1.3 }}>{cfg.label}</span>
-                <span style={{ fontSize: 9, color: active ? cfg.color : '#333', fontFamily: 'IBM Plex Mono, monospace', background: active ? cfg.color + '18' : '#111', padding: '1px 5px', borderRadius: 3 }}>{layerCounts[key]}</span>
-              </button>
-            );
-          })}
-          <div style={{ flex: 1 }} />
+          <div style={{ flex: 1, padding: '6px 0' }}>
+            {(Object.keys(LAYER_CONFIG) as LayerKey[]).map(key => {
+              const cfg    = LAYER_CONFIG[key];
+              const active = activeLayers[key];
+              return (
+                <button
+                  key={key}
+                  onClick={() => toggleLayer(key)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 16px', background: active ? cfg.color + '0a' : 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', borderLeft: `3px solid ${active ? cfg.color : 'transparent'}`, transition: 'all 0.15s' }}
+                >
+                  {/* Custom checkbox */}
+                  <div style={{ width: 17, height: 17, borderRadius: 4, border: `2px solid ${active ? cfg.color : '#3a3a3a'}`, background: active ? cfg.color + '25' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}>
+                    {active && <div style={{ width: 8, height: 8, borderRadius: 2, background: cfg.color }} />}
+                  </div>
+                  <span style={{ fontSize: 13 }}>{cfg.icon}</span>
+                  <span style={{ fontSize: 12, color: active ? '#ececec' : '#666', flex: 1, lineHeight: 1.35, fontWeight: active ? 500 : 400 }}>{cfg.label}</span>
+                  <span style={{ fontSize: 10, color: active ? cfg.color : '#3a3a3a', fontFamily: 'IBM Plex Mono, monospace', background: active ? cfg.color + '18' : '#141414', padding: '2px 6px', borderRadius: 4, minWidth: 22, textAlign: 'center' }}>{layerCounts[key]}</span>
+                </button>
+              );
+            })}
+          </div>
           {/* Legend */}
-          <div style={{ padding: '12px 14px', borderTop: '1px solid #181818' }}>
-            <div style={{ fontSize: 9, color: '#444', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>Legend</div>
-            {(Object.keys(LAYER_CONFIG) as LayerKey[]).map(key => (
-              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
-                <div style={{ width: 7, height: 7, borderRadius: '50%', background: LAYER_CONFIG[key].color, boxShadow: `0 0 5px ${LAYER_CONFIG[key].color}` }} />
-                <span style={{ fontSize: 9, color: '#555' }}>{LAYER_CONFIG[key].label}</span>
-              </div>
-            ))}
+          <div style={{ padding: '14px 16px', borderTop: '1px solid #1e1e1e' }}>
+            <div style={{ fontSize: 10, color: '#444', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 }}>Legend</div>
+            {(Object.keys(LAYER_CONFIG) as LayerKey[]).map(key => {
+              const cfg = LAYER_CONFIG[key];
+              return (
+                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 8 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: cfg.color, boxShadow: `0 0 7px ${cfg.color}, 0 0 14px ${cfg.color}60`, flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, color: '#666' }}>{cfg.label}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -625,14 +654,19 @@ export default function GlobeClient() {
       </div>
 
       {/* ── Ticker tape ─────────────────────────────────────────────────────── */}
-      <div style={{ height: 32, background: '#0a0a0a', borderTop: '1px solid #181818', overflow: 'hidden', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-        <div style={{ display: 'flex', animation: 'ticker-scroll 40s linear infinite', whiteSpace: 'nowrap' }}>
+      <div style={{ height: 36, background: '#080808', borderTop: '1px solid #1e1e1e', overflow: 'hidden', display: 'flex', alignItems: 'center', flexShrink: 0, position: 'relative' }}>
+        {/* Left fade */}
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 32, background: 'linear-gradient(90deg, #080808, transparent)', zIndex: 2, pointerEvents: 'none' }} />
+        {/* Right fade */}
+        <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 32, background: 'linear-gradient(-90deg, #080808, transparent)', zIndex: 2, pointerEvents: 'none' }} />
+        <div style={{ display: 'flex', animation: 'ticker-scroll 55s linear infinite', whiteSpace: 'nowrap' }}>
           {[...TICKER, ...TICKER].map((item, i) => (
-            <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 20px', borderRight: '1px solid #181818' }}>
-              <span style={{ fontSize: 10, color: '#777', fontFamily: 'IBM Plex Mono, monospace', letterSpacing: 0.5 }}>{item.pair}</span>
-              <span style={{ fontSize: 11, color: item.up ? GREEN : '#ff4444', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 600 }}>{item.price}</span>
-              <span style={{ fontSize: 9, color: item.up ? GREEN : '#ff4444', fontFamily: 'IBM Plex Mono, monospace' }}>{item.pct}</span>
-              <span style={{ fontSize: 8, color: item.up ? GREEN : '#ff4444' }}>{item.up ? '▲' : '▼'}</span>
+            <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 22px' }}>
+              <span style={{ fontSize: 11, color: '#999', fontFamily: 'IBM Plex Mono, monospace', letterSpacing: 0.5, fontWeight: 500 }}>{item.pair}</span>
+              <span style={{ fontSize: 12, color: item.up ? GREEN : '#ff4444', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>{item.price}</span>
+              <span style={{ fontSize: 10, color: item.up ? GREEN : '#ff4444', fontFamily: 'IBM Plex Mono, monospace' }}>{item.pct}</span>
+              <span style={{ fontSize: 9, color: item.up ? GREEN : '#ff4444' }}>{item.up ? '▲' : '▼'}</span>
+              <span style={{ fontSize: 10, color: '#2a2a2a', marginLeft: 4 }}>|</span>
             </div>
           ))}
         </div>
