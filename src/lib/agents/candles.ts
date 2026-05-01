@@ -28,7 +28,7 @@ interface CandleMetrics {
   driftPercent: number;
 }
 
-const FINNHUB_SYMBOLS: Record<Symbol, FinnhubConfig> = {
+const FINNHUB_SYMBOLS: Partial<Record<Symbol, FinnhubConfig>> = {
   XAUUSD: {
     endpoint: "forex",
     symbols: ["OANDA:XAU_USD", "FOREXCOM:XAUUSD", "OANDA:XAUUSD"],
@@ -47,7 +47,7 @@ const FINNHUB_SYMBOLS: Record<Symbol, FinnhubConfig> = {
   },
 };
 
-const YAHOO_SYMBOLS: Record<Symbol, Record<Timeframe, YahooConfig>> = {
+const YAHOO_SYMBOLS: Partial<Record<Symbol, Record<Timeframe, YahooConfig>>> = {
   XAUUSD: {
     M5: { symbol: "GC=F", interval: "5m", lookbackSeconds: 7 * 24 * 60 * 60 },
     M15: { symbol: "GC=F", interval: "15m", lookbackSeconds: 14 * 24 * 60 * 60 },
@@ -251,10 +251,15 @@ async function fetchFinnhubCandles(symbol: Symbol, timeframe: Timeframe): Promis
   const apiKey = process.env.FINNHUB_API_KEY;
   const config = FINNHUB_SYMBOLS[symbol];
   const resolution = FINNHUB_RESOLUTION[timeframe];
-  const endpoint = `finnhub/${config.endpoint}/candle`;
+  const endpoint = config ? `finnhub/${config.endpoint}/candle` : "finnhub/unsupported";
   const to = Math.floor(Date.now() / 1000);
   const fromBase = to - getWindowSeconds(timeframe);
   const from = fromBase < to ? fromBase : to - 3600;
+
+  if (!config) {
+    logCandleDebug({ symbol, timeframe, endpoint, provider: "finnhub", status: "unsupported_symbol" });
+    return null;
+  }
 
   if (!apiKey) {
     logCandleDebug({ symbol, timeframe, endpoint, provider: "finnhub", status: "missing_key" });
@@ -337,8 +342,14 @@ async function fetchFinnhubCandles(symbol: Symbol, timeframe: Timeframe): Promis
 }
 
 export async function fetchYahooCandles(symbol: Symbol, timeframe: Timeframe): Promise<CandleBar[] | null> {
-  const config = YAHOO_SYMBOLS[symbol][timeframe];
+  const config = YAHOO_SYMBOLS[symbol]?.[timeframe];
   const endpoint = "yahoo/chart";
+
+  if (!config) {
+    logCandleDebug({ symbol, timeframe, endpoint, provider: "yahoo", status: "unsupported_symbol" });
+    return null;
+  }
+
   const to = Math.floor(Date.now() / 1000);
   const fromBase = to - config.lookbackSeconds;
   const from = fromBase < to ? fromBase : to - 3600;
