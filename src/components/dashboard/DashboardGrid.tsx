@@ -17,7 +17,8 @@ export interface WidgetDef {
 const COLS = 24;
 const MARGIN: [number, number] = [6, 6];
 const PADDING: [number, number] = [6, 6];
-const TOTAL_ROWS = 24;
+const DEFAULT_VIEW_ROWS = 24;
+const MAX_GRID_ROWS = 60;
 const STORAGE_KEY = "tradex-dashboard-grid-v7";
 const PRESET_STORAGE_KEY = "tradex-dashboard-custom-presets-v1";
 
@@ -191,7 +192,7 @@ function presetLayoutFor(id: string, preset: LayoutPresetId, customPresets: Cust
     PRESET_LAYOUTS[DEFAULT_PRESET].find((item) => item.i === id) ?? {
     i: id,
     x: 0,
-    y: TOTAL_ROWS,
+    y: DEFAULT_VIEW_ROWS,
     w: 4,
     h: 4,
     minW: 3,
@@ -203,11 +204,11 @@ function normalizeLayoutItem(item: LayoutItem, fallback: LayoutItem): LayoutItem
   const minW = fallback.minW ?? 1;
   const minH = fallback.minH ?? 1;
   const maxW = Math.min(fallback.maxW ?? COLS, COLS);
-  const maxH = Math.min(fallback.maxH ?? TOTAL_ROWS, TOTAL_ROWS);
+  const maxH = Math.min(fallback.maxH ?? MAX_GRID_ROWS, MAX_GRID_ROWS);
   const w = Math.max(minW, Math.min(item.w ?? fallback.w, maxW));
   const h = Math.max(minH, Math.min(item.h ?? fallback.h, maxH));
   const x = Math.max(0, Math.min(item.x ?? fallback.x, COLS - w));
-  const y = Math.max(0, Math.min(item.y ?? fallback.y, TOTAL_ROWS - h));
+  const y = Math.max(0, Math.min(item.y ?? fallback.y, MAX_GRID_ROWS - h));
 
   return {
     ...item,
@@ -240,7 +241,7 @@ function mergeLayouts(
           ...fallback,
           i: id,
           x: (index % 3) * 4,
-          y: TOTAL_ROWS + Math.floor(index / 3) * 4,
+          y: DEFAULT_VIEW_ROWS + Math.floor(index / 3) * 4,
         }, fallback);
       }
 
@@ -273,7 +274,7 @@ function itemsCollide(a: LayoutItem, b: LayoutItem) {
 }
 
 function findAvailableSlot(layout: Layout, candidate: LayoutItem) {
-  const maxY = Math.max(0, TOTAL_ROWS - candidate.h);
+  const maxY = Math.max(0, MAX_GRID_ROWS - candidate.h);
   const maxX = Math.max(0, COLS - candidate.w);
 
   for (let y = 0; y <= maxY; y += 1) {
@@ -360,11 +361,11 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
       const availableHeight =
         height -
         toolbarHeight -
-        (TOTAL_ROWS - 1) * MARGIN[1] -
+        (DEFAULT_VIEW_ROWS - 1) * MARGIN[1] -
         PADDING[1] * 2;
 
       setGridWidth(Math.max(width, 640));
-      setRowHeight(Math.max(30, Math.floor(availableHeight / TOTAL_ROWS)));
+      setRowHeight(Math.max(30, Math.floor(availableHeight / DEFAULT_VIEW_ROWS)));
     };
 
     updateMetrics();
@@ -484,10 +485,6 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
   }, [releaseIframePointerEvents]);
 
   const isDesktopGrid = gridWidth >= 1024;
-  const desktopGridHeight =
-    rowHeight * TOTAL_ROWS +
-    (TOTAL_ROWS - 1) * MARGIN[1] +
-    PADDING[1] * 2;
 
   const orderedVisibleWidgets = [...widgets]
     .filter((widget) => !hidden[widget.id])
@@ -495,6 +492,14 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
 
   const hiddenWidgets = widgets.filter((widget) => hidden[widget.id]);
   const visibleLayout = layout.filter((entry) => !hidden[entry.i]);
+  const occupiedRows = Math.max(
+    DEFAULT_VIEW_ROWS,
+    visibleLayout.reduce((maxRows, entry) => Math.max(maxRows, entry.y + entry.h), 0)
+  );
+  const desktopGridHeight =
+    rowHeight * occupiedRows +
+    Math.max(0, occupiedRows - 1) * MARGIN[1] +
+    PADDING[1] * 2;
   const presetOptions = [
     ...((Object.keys(PRESET_LABELS) as BuiltInPresetId[]).map((preset) => ({
       id: preset as LayoutPresetId,
@@ -860,59 +865,61 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
       </div>
 
       {isDesktopGrid ? (
-        <div className="relative min-h-0 w-full max-w-none flex-1 overflow-hidden">
-          <GridLayout
-            className="absolute inset-0 h-full w-full max-w-none"
-            layout={visibleLayout}
-            width={gridWidth}
-            gridConfig={{
-              cols: COLS,
-              rowHeight,
-              margin: MARGIN,
-              containerPadding: PADDING,
-              maxRows: TOTAL_ROWS,
-            }}
-            dragConfig={{
-              enabled: true,
-              bounded: true,
-              handle: ".widget-drag-handle",
-              threshold: 6,
-            }}
-            resizeConfig={{
-              enabled: true,
-              handles: ["n", "s", "e", "w", "ne", "nw", "se", "sw"],
-            }}
-            compactor={getCompactor("vertical", false, false)}
-            autoSize={false}
-            style={{ height: desktopGridHeight }}
-            onDragStart={() => beginInteraction("drag")}
-            onResizeStart={() => beginInteraction("resize")}
-            onDragStop={(nextLayout) => {
-              commitGridLayout(nextLayout);
-              endInteraction();
-              notifyEmbeddedWidgets();
-            }}
-            onResizeStop={(nextLayout) => {
-              commitGridLayout(nextLayout);
-              endInteraction();
-              notifyEmbeddedWidgets();
-            }}
-          >
-            {orderedVisibleWidgets.map((widget) => (
-              <div key={widget.id}>
-                <WidgetCard
-                  title={widget.title}
-                  isCollapsed={collapsed[widget.id] ?? false}
-                  onCollapse={() => handleCollapse(widget.id)}
-                  onClose={() => handleClose(widget.id)}
-                  headerRight={widget.headerRight}
-                  className={widget.className}
-                >
-                  {widget.content}
-                </WidgetCard>
-              </div>
-            ))}
-          </GridLayout>
+        <div className="min-h-0 w-full max-w-none flex-1 overflow-y-auto overflow-x-hidden pr-1 pb-4">
+          <div className="relative w-full min-w-0" style={{ height: desktopGridHeight }}>
+            <GridLayout
+              className="relative h-full w-full max-w-none"
+              layout={visibleLayout}
+              width={gridWidth}
+              gridConfig={{
+                cols: COLS,
+                rowHeight,
+                margin: MARGIN,
+                containerPadding: PADDING,
+                maxRows: MAX_GRID_ROWS,
+              }}
+              dragConfig={{
+                enabled: true,
+                bounded: true,
+                handle: ".widget-drag-handle",
+                threshold: 6,
+              }}
+              resizeConfig={{
+                enabled: true,
+                handles: ["n", "s", "e", "w", "ne", "nw", "se", "sw"],
+              }}
+              compactor={getCompactor("vertical", false, false)}
+              autoSize={false}
+              style={{ height: desktopGridHeight }}
+              onDragStart={() => beginInteraction("drag")}
+              onResizeStart={() => beginInteraction("resize")}
+              onDragStop={(nextLayout) => {
+                commitGridLayout(nextLayout);
+                endInteraction();
+                notifyEmbeddedWidgets();
+              }}
+              onResizeStop={(nextLayout) => {
+                commitGridLayout(nextLayout);
+                endInteraction();
+                notifyEmbeddedWidgets();
+              }}
+            >
+              {orderedVisibleWidgets.map((widget) => (
+                <div key={widget.id}>
+                  <WidgetCard
+                    title={widget.title}
+                    isCollapsed={collapsed[widget.id] ?? false}
+                    onCollapse={() => handleCollapse(widget.id)}
+                    onClose={() => handleClose(widget.id)}
+                    headerRight={widget.headerRight}
+                    className={widget.className}
+                  >
+                    {widget.content}
+                  </WidgetCard>
+                </div>
+              ))}
+            </GridLayout>
+          </div>
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
