@@ -192,7 +192,10 @@ export function AgentCommandRoom({ data, loading=false }: {
       `}</style>
 
       {/* ── IMAGE + PINS ── */}
-      <div style={{ position:"relative", width:"100%", background:"#07090f", lineHeight:0 }}>
+      <div
+        className="relative w-full overflow-hidden bg-[#07090f] leading-none lg:max-h-[55vh]"
+        style={{ lineHeight:0 }}
+      >
         <img
           src={HQ_IMAGE}
           alt="TradeX Agent HQ"
