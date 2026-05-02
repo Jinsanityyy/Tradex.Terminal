@@ -674,7 +674,11 @@ export function TradingViewChart({
   const urgent = secondsLeft <= 60;
 
   return (
-    <div className={cn("flex w-full flex-col overflow-hidden", heightClass)} style={{ background: "#000000" }}>
+    <div
+      className={cn("flex w-full flex-col overflow-hidden", heightClass)}
+      style={{ background: "#000000" }}
+      onContextMenu={(event) => event.preventDefault()}
+    >
 
       {/* TradeX custom header — symbol picker + timeframes + candle countdown */}
       <div className="flex h-[38px] shrink-0 items-center justify-between gap-2 border-b border-white/5 px-2.5" style={{ background: "#000000" }}>

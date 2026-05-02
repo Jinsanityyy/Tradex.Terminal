@@ -317,6 +317,71 @@ function itemsCollide(a: LayoutItem, b: LayoutItem) {
   );
 }
 
+function itemsOverlapVertically(a: LayoutItem, b: LayoutItem) {
+  return a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function adjustSiblingWidthsForRightResize(
+  baselineLayout: Layout,
+  proposedLayout: Layout,
+  oldItem: LayoutItem | null,
+  newItem: LayoutItem | null
+): Layout {
+  if (!oldItem || !newItem) return proposedLayout;
+
+  const oldRight = oldItem.x + oldItem.w;
+  const newRight = newItem.x + newItem.w;
+  if (newRight <= oldRight) return proposedLayout;
+
+  const proposedMap = new Map(proposedLayout.map((item) => [item.i, { ...item }]));
+  const target = proposedMap.get(newItem.i);
+  if (!target) return proposedLayout;
+
+  const rightNeighbors = baselineLayout
+    .filter((item) => item.i !== newItem.i)
+    .filter((item) => itemsOverlapVertically(item, oldItem))
+    .filter((item) => item.x >= oldRight || item.x + item.w > oldRight)
+    .sort((left, right) => left.x - right.x);
+
+  if (rightNeighbors.length === 0) {
+    return proposedLayout;
+  }
+
+  const totalAvailableWidth = COLS - (target.x + target.w);
+  const totalMinimumWidth = rightNeighbors.reduce(
+    (sum, item) => sum + (proposedMap.get(item.i)?.minW ?? item.minW ?? 1),
+    0
+  );
+
+  if (totalAvailableWidth < totalMinimumWidth) {
+    return proposedLayout;
+  }
+
+  let cursor = target.x + target.w;
+
+  rightNeighbors.forEach((neighbor, index) => {
+    const current = proposedMap.get(neighbor.i) ?? { ...neighbor };
+    const minW = current.minW ?? neighbor.minW ?? 1;
+    const minWidthForRest = rightNeighbors
+      .slice(index + 1)
+      .reduce((sum, item) => sum + (proposedMap.get(item.i)?.minW ?? item.minW ?? 1), 0);
+    const maxWidth = Math.max(minW, COLS - cursor - minWidthForRest);
+    const nextWidth = Math.max(minW, Math.min(neighbor.w, maxWidth));
+
+    proposedMap.set(neighbor.i, {
+      ...current,
+      x: cursor,
+      y: neighbor.y,
+      w: nextWidth,
+      h: neighbor.h,
+    });
+
+    cursor += nextWidth;
+  });
+
+  return proposedLayout.map((item) => proposedMap.get(item.i) ?? item);
+}
+
 function findAvailableSlot(layout: Layout, candidate: LayoutItem) {
   const maxY = Math.max(0, MAX_GRID_ROWS - candidate.h);
   const maxX = Math.max(0, COLS - candidate.w);
@@ -343,6 +408,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
   const saveMenuRef = useRef<HTMLDivElement>(null);
   const saveTimerRef = useRef<number | null>(null);
   const iframePointerStateRef = useRef<Array<{ frame: HTMLIFrameElement; pointerEvents: string }>>([]);
+  const resizeBaselineRef = useRef<Layout | null>(null);
   const widgetSignature = useMemo(
     () => widgets.map((widget) => widget.id).join("|"),
     [widgets]
@@ -695,6 +761,17 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     [collapsed, customPresets, selectedPreset]
   );
 
+  const buildResizeAwareLayout = useCallback(
+    (nextLayout: Layout, oldItem: LayoutItem | null, newItem: LayoutItem | null) =>
+      adjustSiblingWidthsForRightResize(
+        resizeBaselineRef.current ?? layout,
+        nextLayout,
+        oldItem,
+        newItem
+      ),
+    [layout]
+  );
+
   const applyPreset = useCallback((preset: LayoutPresetId) => {
     const resolved = resolvePreset(preset, customPresets);
     const nextCollapsed = { ...resolved.collapsed };
@@ -973,14 +1050,22 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
               autoSize={false}
               style={{ height: desktopGridHeight }}
               onDragStart={() => beginInteraction("drag")}
-              onResizeStart={() => beginInteraction("resize")}
+              onResizeStart={() => {
+                resizeBaselineRef.current = cloneLayout(layout);
+                beginInteraction("resize");
+              }}
               onDragStop={(nextLayout) => {
                 commitGridLayout(nextLayout);
                 endInteraction();
                 notifyEmbeddedWidgets();
               }}
-              onResizeStop={(nextLayout) => {
-                commitGridLayout(nextLayout);
+              onResize={(nextLayout, oldItem, newItem) => {
+                setLayout(buildResizeAwareLayout(nextLayout, oldItem, newItem));
+              }}
+              onResizeStop={(nextLayout, oldItem, newItem) => {
+                const adjustedLayout = buildResizeAwareLayout(nextLayout, oldItem, newItem);
+                commitGridLayout(adjustedLayout);
+                resizeBaselineRef.current = null;
                 endInteraction();
                 notifyEmbeddedWidgets();
               }}
