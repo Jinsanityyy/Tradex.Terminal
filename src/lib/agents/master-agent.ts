@@ -56,6 +56,34 @@ Return ONLY valid JSON:
   "strategyMatch": "named strategy or null"
 }`;
 
+function describePriceActionPattern(setupType: string): string {
+  switch (setupType) {
+    case "BOS":
+      return "breakout continuation";
+    case "CHoCH":
+      return "trend-shift reversal";
+    case "OB":
+      return "range retest";
+    case "FVG":
+      return "gap fill";
+    case "Sweep":
+      return "stop-run reversal";
+    default:
+      return "no clear pattern";
+  }
+}
+
+function describeRangeContext(zone: string): string {
+  switch (zone) {
+    case "DISCOUNT":
+      return "lower half of the range";
+    case "PREMIUM":
+      return "upper half of the range";
+    default:
+      return "mid-range balance";
+  }
+}
+
 async function runLLMMaster(
   client: Anthropic,
   snapshot: MarketSnapshot,
@@ -83,7 +111,7 @@ CONSENSUS SCORE: ${consensusScore.toFixed(1)} → preliminary bias: ${preliminar
 
 AGENT SIGNALS:
 [TREND] ${trend.bias.toUpperCase()} @ ${trend.confidence}% | Phase: ${trend.marketPhase} | TF aligned: ${trend.timeframeBias.aligned}
-[PA] ${smc.bias.toUpperCase()} @ ${smc.confidence}% | Setup: ${smc.setupType} | Break: ${smc.bosDetected} | Sweep: ${smc.liquiditySweepDetected}
+[PA] ${smc.bias.toUpperCase()} @ ${smc.confidence}% | Pattern: ${describePriceActionPattern(smc.setupType)} | Break confirmed: ${smc.bosDetected} | Trend shift: ${smc.chochDetected} | Stop run: ${smc.liquiditySweepDetected}
 [NEWS] ${news.impact.toUpperCase()} @ ${news.confidence}% | Regime: ${news.regime} | Risk: ${news.riskScore}/100
 [RISK] ${risk.valid ? "VALID" : "INVALID"} | Grade: ${risk.grade} | Session: ${risk.sessionScore}/100 | Vol: ${risk.volatilityScore}/100
 [EXECUTION] ${execution.hasSetup ? execution.direction.toUpperCase() : "NO SETUP"} | Entry: ${execution.entry ?? "none"} | SL: ${execution.stopLoss ?? "none"} | TP1: ${execution.tp1 ?? "none"} | RR: ${execution.rrRatio ?? "N/A"}
@@ -133,7 +161,7 @@ function buildSupports(
     if (smc.reasons.length > 0) {
       supports.push(`Price Action (${smc.bias.toUpperCase()} ${smc.confidence}%): ${smc.reasons[0]}`);
     } else {
-      supports.push(`PA Agent: ${smc.setupType} setup — ${smc.premiumDiscount} zone`);
+      supports.push(`Price Action: ${describePriceActionPattern(smc.setupType)} — ${describeRangeContext(smc.premiumDiscount)}`);
     }
 
     if (news.reasons.length > 0) {
@@ -142,7 +170,7 @@ function buildSupports(
       supports.push(`Macro: ${news.dominantCatalyst.slice(0, 90)}`);
     }
 
-    supports.push(`Market phase: ${trend.marketPhase} — ${trend.momentumDirection} momentum, ${smc.premiumDiscount} zone`);
+    supports.push(`Market phase: ${trend.marketPhase} — ${trend.momentumDirection} momentum, price sitting in the ${describeRangeContext(smc.premiumDiscount)}`);
     return supports.slice(0, 4);
   }
 
@@ -152,7 +180,7 @@ function buildSupports(
   }
 
   if (smc.bias === finalBias && smc.setupPresent) {
-    supports.push(`PA Agent ${smc.confidence}%: ${smc.setupType} setup ${smc.bosDetected ? "— structure break confirmed" : smc.liquiditySweepDetected ? "— sweep executed" : "— structure present"}`);
+    supports.push(`Price Action Agent ${smc.confidence}%: ${describePriceActionPattern(smc.setupType)} ${smc.bosDetected ? "— structure break confirmed" : smc.liquiditySweepDetected ? "— stop run already printed" : "— structure present"}`);
   }
 
   if (news.impact === finalBias && news.confidence >= 40) {
@@ -160,14 +188,14 @@ function buildSupports(
   }
 
   if (execution.hasSetup && ((execution.direction === "long" && isBull) || (execution.direction === "short" && !isBull))) {
-    supports.push(`Execution Agent: clean setup — entry ${execution.entry?.toFixed(4)}, RR ${execution.rrRatio?.toFixed(1) ?? "N/A"}:1, trigger: ${execution.trigger}`);
+    supports.push(`Execution Agent: clean structure-based setup — entry ${execution.entry?.toFixed(4)}, RR ${execution.rrRatio?.toFixed(1) ?? "N/A"}:1, trigger: ${execution.trigger}`);
   }
 
   if (smc.premiumDiscount === "DISCOUNT" && isBull) {
-    supports.push("Price at DISCOUNT zone — institutional buy pressure zone, optimal long entry territory");
+    supports.push("Price is holding in the lower half of the range — buyers have room to defend support and extend the move");
   }
   if (smc.premiumDiscount === "PREMIUM" && !isBull) {
-    supports.push("Price at PREMIUM zone — institutional sell pressure zone, optimal short entry territory");
+    supports.push("Price is trading in the upper half of the range — sellers have room to fade strength from resistance");
   }
 
   // Fallback: always include at least the dominant trend reason
@@ -196,7 +224,7 @@ function buildInvalidations(
   }
 
   if (smc.invalidationLevel !== null) {
-    invalidations.push(`PA invalidation: break/close through ${smc.invalidationLevel.toFixed(4)} negates ${smc.bias} structure`);
+    invalidations.push(`Price action invalidation: break/close through ${smc.invalidationLevel.toFixed(4)} negates the current ${smc.bias} structure`);
   }
 
   if (execution.stopLoss !== null) {

@@ -115,7 +115,8 @@ export interface TrendAgentOutput {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Agent 2 — SMC Agent
+// Agent 2 — Price Action Agent
+// Legacy field names are preserved for compatibility with the existing pipeline.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface SMCKeyLevels {
@@ -346,12 +347,12 @@ export const DEFAULT_WEIGHTS: ScoringWeights = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const STRATEGY_CATALOG = [
-  { id: "ob-bos", name: "OB + BOS Continuation", description: "Order block retest after break of structure" },
-  { id: "fvg-fill", name: "FVG Fill + Momentum", description: "Fair value gap mitigation with momentum alignment" },
-  { id: "sweep-reversal", name: "Sweep & Reverse", description: "Liquidity sweep below/above equal highs/lows then reversal" },
-  { id: "choch-reentry", name: "CHoCH Re-entry", description: "Change of character followed by pullback entry" },
-  { id: "premium-short", name: "Premium Zone Short", description: "Sell into premium zone with bearish structure" },
-  { id: "discount-long", name: "Discount Zone Long", description: "Buy from discount zone with bullish structure" },
+  { id: "ob-bos", name: "Support/Resistance Break Continuation", description: "Support or resistance retest after a clean structure break" },
+  { id: "fvg-fill", name: "Gap Fill + Momentum", description: "Imbalance fill with momentum alignment" },
+  { id: "sweep-reversal", name: "Stop-Run Reversal", description: "Failed break below/above a key level followed by reversal" },
+  { id: "choch-reentry", name: "Trend Shift Re-entry", description: "Trend shift followed by a pullback entry" },
+  { id: "premium-short", name: "Upper-Range Short", description: "Sell from upper-range resistance with bearish structure" },
+  { id: "discount-long", name: "Lower-Range Long", description: "Buy from lower-range support with bullish structure" },
   { id: "session-open", name: "Session Open Break", description: "Directional break at London or NY open" },
   { id: "news-continuation", name: "News Continuation", description: "High-impact news aligning with technical setup" },
 ] as const;

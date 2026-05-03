@@ -174,37 +174,37 @@ export function matchStrategy(
   if (liquiditySweepDetected && bosDetected) {
     if (bias === "neutral") return undefined;
     return bias === "bullish"
-      ? "Sweep & Reverse — Long (Lows swept, bullish structure break confirmed)"
-      : "Sweep & Reverse — Short (Highs swept, bearish structure break confirmed)";
+      ? "Stop-Run Reversal — Long (Lows swept, bullish structure break confirmed)"
+      : "Stop-Run Reversal — Short (Highs swept, bearish structure break confirmed)";
   }
 
   if (setupType === "OB" && bosDetected) {
     if (bias === "neutral") return undefined;
     return bias === "bullish"
-      ? "S/R Retest + Break — Long (Support zone retest after upside structure break)"
-      : "S/R Retest + Break — Short (Resistance zone retest after downside structure break)";
+      ? "Support Retest + Break — Long (Support retest after upside structure break)"
+      : "Resistance Retest + Break — Short (Resistance retest after downside structure break)";
   }
 
   if (setupType === "FVG") {
     if (bias === "neutral") return undefined;
     return bias === "bullish"
-      ? "Imbalance Fill — Long (Price returning to fill gap below, bullish continuation)"
-      : "Imbalance Fill — Short (Price returning to fill gap above, bearish continuation)";
+      ? "Gap Fill Continuation — Long (Price returning to fill gap below, bullish continuation)"
+      : "Gap Fill Continuation — Short (Price returning to fill gap above, bearish continuation)";
   }
 
   if (chochDetected) {
     if (bias === "neutral") return undefined;
     return bias === "bullish"
-      ? "Reversal Re-entry — Long (Bearish-to-bullish flip, pullback entry on retest)"
-      : "Reversal Re-entry — Short (Bullish-to-bearish flip, rally-sell on retest)";
+      ? "Trend Shift Re-entry — Long (Bearish-to-bullish flip, pullback entry on retest)"
+      : "Trend Shift Re-entry — Short (Bullish-to-bearish flip, rally-sell on retest)";
   }
 
   if (premiumDiscount === "DISCOUNT" && bias === "bullish") {
-    return "Discount Zone Long — Price at structural support, mean-reversion + continuation potential";
+    return "Lower-Range Long — Price at support, mean-reversion + continuation potential";
   }
 
   if (premiumDiscount === "PREMIUM" && bias === "bearish") {
-    return "Premium Zone Short — Price at structural resistance, mean-reversion + continuation potential";
+    return "Upper-Range Short — Price at resistance, mean-reversion + continuation potential";
   }
 
   if (news.riskScore > 60 && news.impact !== "neutral") {

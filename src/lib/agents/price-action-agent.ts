@@ -24,17 +24,17 @@ import type {
 // LLM Prompt
 // ─────────────────────────────────────────────────────────────────────────────
 
-const PA_SYSTEM_PROMPT = `You are an elite Price Action analyst. You read markets through raw price — candles, structure, and momentum. You do not rely on indicators.
+const PA_SYSTEM_PROMPT = `You are an elite Price Action analyst. You read markets through raw price — candles, structure, range behavior, and momentum. You do not rely on indicators or institutional-flow narratives.
 
 Your job: analyze the provided market data and identify the highest-probability price action setup.
 
 FRAMEWORK:
 - Market structure: identify whether price is making higher highs / higher lows (bullish) or lower highs / lower lows (bearish)
 - Structure break (BOS): a decisive close beyond the most recent swing high (bullish BOS) or swing low (bearish BOS)
-- Reversal (CHoCH): a structural shift — previous trend broken, new swing forming in the opposite direction
-- Support/Resistance zone (OB): a key price level where price previously reversed with strong conviction — expect reaction on retest
-- Imbalance/Gap (FVG): a price area skipped over by a strong momentum candle — acts as a magnet for price to return and fill
-- Sweep: price temporarily breaches a key level to grab liquidity (stop hunt) before reversing with force
+- Reversal shift (legacy CHoCH field): a structural shift — previous trend broken, new swing forming in the opposite direction
+- Support/Resistance retest (legacy OB field): a key price level where price previously reversed with strong conviction — expect reaction on retest
+- Imbalance/Gap (legacy FVG field): a price area skipped over by a strong momentum candle — acts as a magnet for price to return and fill
+- Stop run / failed break (legacy Sweep field): price temporarily breaches a key level before snapping back with force
 - Consolidation: price ranging between two levels — expect breakout in direction of higher timeframe bias
 - Expansion: strong directional move with large-bodied candles and increasing momentum
 
@@ -54,7 +54,8 @@ CRITICAL OUTPUT RULES:
 - All price levels must be precise numbers based on the actual data provided
 - Return null for levels you cannot identify with confidence
 - Do not invent setups that don't exist in the data
-- setupType mapping: "BOS" = structure break, "CHoCH" = reversal setup, "OB" = S/R zone retest, "FVG" = imbalance fill, "Sweep" = liquidity sweep reversal, "None" = no clear setup
+- setupType mapping: "BOS" = breakout continuation, "CHoCH" = trend-shift reversal, "OB" = support/resistance retest, "FVG" = gap fill, "Sweep" = stop-run reversal, "None" = no clear setup
+- premiumDiscount mapping: "PREMIUM" = upper range, "EQUILIBRIUM" = midpoint, "DISCOUNT" = lower range
 
 Return exactly this JSON structure:
 {
@@ -214,7 +215,7 @@ function runRuleBasedPA(snapshot: MarketSnapshot): SMCAgentOutput {
   const setupPresent = setupType !== "None";
 
   // ── Key levels ────────────────────────────────────────────────────────────
-  // S/R zone (mapped to orderBlock fields)
+  // Support / resistance zone (mapped to legacy orderBlock fields)
   const srRange = current * 0.003;
   const obHigh  = bosUp || (htfBias === "bullish" && inDiscount)
     ? parseFloat((current + srRange * 0.5).toFixed(4))
@@ -223,7 +224,7 @@ function runRuleBasedPA(snapshot: MarketSnapshot): SMCAgentOutput {
     ? parseFloat((current - srRange * 0.5).toFixed(4))
     : null;
 
-  // Imbalance / gap levels (price skipped between prevClose and current)
+  // Imbalance / gap levels (mapped to legacy FVG fields)
   const gapSize = current - prevClose;
   const fvgHigh = gapSize < 0 ? parseFloat(Math.max(current, prevClose).toFixed(4)) : null;
   const fvgLow  = gapSize > 0 ? parseFloat(Math.min(current, prevClose).toFixed(4)) : null;
@@ -270,15 +271,15 @@ function runRuleBasedPA(snapshot: MarketSnapshot): SMCAgentOutput {
   if (bearishRejection)
     reasons.push(`Bearish rejection candle — long upper wick at premium zone (${current.toFixed(4)}), buyers failed to hold highs`);
   if (liquiditySweepDetected)
-    reasons.push(`Liquidity sweep — extended wick grabbed stops at ${htfBias === "bullish" ? `${low.toFixed(4)} (lows)` : `${high.toFixed(4)} (highs)`}, reversal likely`);
+    reasons.push(`Stop run detected — extended wick ran ${htfBias === "bullish" ? `${low.toFixed(4)} (lows)` : `${high.toFixed(4)} (highs)`} before snapping back, reversal risk elevated`);
   if (engulfing && closeStrong)
     reasons.push(`Bullish engulfing candle — full absorption of prior range, strong close near ${high.toFixed(4)}`);
   if (engulfing && !closeStrong)
     reasons.push(`Bearish engulfing candle — full absorption of prior range, strong close near ${low.toFixed(4)}`);
   if (inDiscount && htfBias === "bullish")
-    reasons.push(`Price at discount zone (${current.toFixed(4)} < equilibrium ${equilibrium.toFixed(4)}) — structural buy zone, pullback entry opportunity`);
+    reasons.push(`Price is trading in the lower half of the range (${current.toFixed(4)} below midpoint ${equilibrium.toFixed(4)}) — pullback buyers still have room to defend structure`);
   if (inPremium && htfBias === "bearish")
-    reasons.push(`Price at premium zone (${current.toFixed(4)} > equilibrium ${equilibrium.toFixed(4)}) — structural sell zone, rally-sell opportunity`);
+    reasons.push(`Price is trading in the upper half of the range (${current.toFixed(4)} above midpoint ${equilibrium.toFixed(4)}) — rally sellers still have room to defend resistance`);
   if (pos52w > 85)
     reasons.push(`Price near 52-week high (${pos52w}% of range) — key resistance area, watch for distribution or breakout`);
   if (pos52w < 15)
@@ -286,7 +287,7 @@ function runRuleBasedPA(snapshot: MarketSnapshot): SMCAgentOutput {
 
   if (reasons.length === 0) {
     reasons.push(`HTF ${htfBias} bias at ${htfConfidence}% — no confirmed structure break, monitor for entry trigger`);
-    reasons.push(`Price in ${zone.toLowerCase()} zone — ${zone === "PREMIUM" ? "above equilibrium, short setups preferred" : zone === "DISCOUNT" ? "below equilibrium, long setups preferred" : "at equilibrium, directional edge unclear"}`);
+    reasons.push(`Price is in the ${zone === "PREMIUM" ? "upper range" : zone === "DISCOUNT" ? "lower range" : "mid-range"} — ${zone === "PREMIUM" ? "watch for resistance reactions" : zone === "DISCOUNT" ? "watch for support reactions" : "directional edge remains mixed"}`);
     reasons.push(`No strong candle signal — wait for rejection candle or breakout close to confirm direction`);
   }
 

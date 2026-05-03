@@ -107,6 +107,34 @@ function BiasIcon({ bias }: { bias: string }) {
   return <Minus className="h-3.5 w-3.5 text-zinc-500" />;
 }
 
+function formatPriceActionPattern(setupType: string): string {
+  switch (setupType) {
+    case "BOS":
+      return "Breakout continuation";
+    case "CHoCH":
+      return "Trend shift reversal";
+    case "OB":
+      return "Range retest";
+    case "FVG":
+      return "Gap fill";
+    case "Sweep":
+      return "Stop-run reversal";
+    default:
+      return "No clear pattern";
+  }
+}
+
+function formatRangeContext(zone: string): string {
+  switch (zone) {
+    case "DISCOUNT":
+      return "Lower range";
+    case "PREMIUM":
+      return "Upper range";
+    default:
+      return "Mid range";
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Per-Agent Detail Views
 // ─────────────────────────────────────────────────────────────────────────────
@@ -156,22 +184,22 @@ function TrendAgentDetail({ data }: { data: AgentRunResult }) {
   );
 }
 
-function SMCAgentDetail({ data }: { data: AgentRunResult }) {
+function PriceActionAgentDetail({ data }: { data: AgentRunResult }) {
   const a = data.agents.smc;
   const kl = a.keyLevels;
   return (
     <div className="space-y-5">
       <StatRow>
-        <Stat label="Setup Type" value={a.setupType} accent />
-        <Stat label="Zone" value={a.premiumDiscount} />
-        <Stat label="Setup Present" value={a.setupPresent ? "Yes" : "No"} />
+        <Stat label="Pattern" value={formatPriceActionPattern(a.setupType)} accent />
+        <Stat label="Range Context" value={formatRangeContext(a.premiumDiscount)} />
+        <Stat label="Setup Ready" value={a.setupPresent ? "Yes" : "No"} />
       </StatRow>
 
       <div className="grid grid-cols-3 gap-2">
         {[
           { label: "Structure Break", value: a.bosDetected, color: a.bosDetected ? "text-emerald-400" : "text-zinc-600" },
-          { label: "CHoCH", value: a.chochDetected, color: a.chochDetected ? "text-amber-400" : "text-zinc-600" },
-          { label: "Liq. Sweep", value: a.liquiditySweepDetected, color: a.liquiditySweepDetected ? "text-amber-400" : "text-zinc-600" },
+          { label: "Trend Shift", value: a.chochDetected, color: a.chochDetected ? "text-amber-400" : "text-zinc-600" },
+          { label: "Stop Run", value: a.liquiditySweepDetected, color: a.liquiditySweepDetected ? "text-amber-400" : "text-zinc-600" },
         ].map(({ label, value, color }) => (
           <div key={label} className="flex flex-col items-center gap-1.5 p-3 rounded-lg bg-white/3 border border-white/5">
             {value
@@ -186,12 +214,12 @@ function SMCAgentDetail({ data }: { data: AgentRunResult }) {
         <SectionLabel label="Key Levels" />
         <div className="space-y-1.5">
           {[
-            { label: "Order Block High", value: kl.orderBlockHigh },
-            { label: "Order Block Low",  value: kl.orderBlockLow },
-            { label: "FVG High",         value: kl.fvgHigh },
-            { label: "FVG Low",          value: kl.fvgLow },
-            { label: "Liquidity Target", value: kl.liquidityTarget },
-            { label: "Sweep Level",      value: kl.sweepLevel },
+            { label: "Resistance", value: kl.orderBlockHigh },
+            { label: "Support", value: kl.orderBlockLow },
+            { label: "Gap High", value: kl.fvgHigh },
+            { label: "Gap Low", value: kl.fvgLow },
+            { label: "Next Target", value: kl.liquidityTarget },
+            { label: "Rejection Level", value: kl.sweepLevel },
           ].filter(l => l.value != null).map(({ label, value }) => (
             <div key={label} className="flex justify-between items-center px-3 py-1.5 rounded bg-white/3">
               <span className="text-[10px] text-zinc-500">{label}</span>
@@ -568,7 +596,7 @@ const AGENT_CONFIG: Record<string, {
     icon: <Activity className="h-4 w-4" />,
     getBias: d => d.agents.smc.bias,
     getConf: d => d.agents.smc.confidence,
-    View: SMCAgentDetail,
+    View: PriceActionAgentDetail,
   },
   news: {
     label: "News Agent",
