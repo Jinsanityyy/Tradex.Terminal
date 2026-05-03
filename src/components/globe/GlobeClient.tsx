@@ -578,6 +578,24 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
   const [isLayerPanelOpen, setIsLayerPanelOpen] = useState(true);
   const { quotes } = useQuotes(15_000);
 
+  const syncRendererSize = useCallback(() => {
+    const el = mountRef.current;
+    const camera = cameraRef.current;
+    const renderer = rendererRef.current;
+    if (!el || !camera || !renderer) return;
+
+    const width = Math.max(el.clientWidth, 1);
+    const height = Math.max(el.clientHeight, 1);
+
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height, true);
+    renderer.setViewport(0, 0, width, height);
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
+    renderer.domElement.style.display = 'block';
+  }, []);
+
   // Fullscreen listener
   useEffect(() => {
     const onChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -610,8 +628,11 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
 
     // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(el.clientWidth, el.clientHeight);
+    renderer.setSize(el.clientWidth, el.clientHeight, true);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
+    renderer.domElement.style.display = 'block';
     el.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -747,12 +768,14 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
       syncRendererSize();
     };
     window.addEventListener('resize', onResize);
+    window.addEventListener('tradex-dashboard-layout-change', onResize);
     const resizeObserver =
       typeof ResizeObserver !== 'undefined'
         ? new ResizeObserver(() => onResize())
         : null;
     resizeObserver?.observe(el);
     if (el.parentElement) resizeObserver?.observe(el.parentElement);
+    if (rootRef.current) resizeObserver?.observe(rootRef.current);
 
     // ── Raycaster ─────────────────────────────────────────────────────────────
     const raycaster = new THREE.Raycaster();
@@ -810,6 +833,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
     return () => {
       cancelAnimationFrame(frameRef.current);
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('tradex-dashboard-layout-change', onResize);
       resizeObserver?.disconnect();
       el.removeEventListener('mousemove', onMouseMove);
       controls.dispose();
@@ -826,30 +850,23 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
     });
   }, [activeLayers]);
 
-  const syncRendererSize = useCallback(() => {
-    const el = mountRef.current;
-    const camera = cameraRef.current;
-    const renderer = rendererRef.current;
-    if (!el || !camera || !renderer) return;
-
-    const width = Math.max(el.clientWidth, 1);
-    const height = Math.max(el.clientHeight, 1);
-    camera.aspect = width / height;
-    camera.updateProjectionMatrix();
-    renderer.setSize(width, height, false);
-  }, []);
-
   // Sync autoRotate when mode switches back to 3D
   useEffect(() => {
     if (is3D && controlsRef.current) controlsRef.current.autoRotate = true;
   }, [is3D]);
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
+    const firstFrame = window.requestAnimationFrame(() => {
+      syncRendererSize();
+    });
+    const secondFrame = window.requestAnimationFrame(() => {
       syncRendererSize();
     });
 
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
   }, [is3D, isLayerPanelOpen, isFullscreen, syncRendererSize]);
 
   const toggleLayer = useCallback((key: LayerKey) => {
