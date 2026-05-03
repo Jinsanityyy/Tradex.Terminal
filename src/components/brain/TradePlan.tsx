@@ -27,6 +27,59 @@ interface TradePlanProps {
   loading?: boolean;
 }
 
+function getExecutionMode(signalState?: SignalState, hasTradePlan?: boolean) {
+  if (!hasTradePlan || signalState === "NO_TRADE") {
+    return {
+      label: "WAIT",
+      tone: "warning" as const,
+      hint: "No trigger yet",
+    };
+  }
+
+  if (signalState === "ARMED") {
+    return {
+      label: "EXECUTE",
+      tone: "positive" as const,
+      hint: "Trigger is live",
+    };
+  }
+
+  return {
+    label: "PREPARE",
+    tone: "warning" as const,
+    hint: "Setup is forming",
+  };
+}
+
+function ExecutionStateStrip({
+  signalState,
+  hasTradePlan,
+  reason,
+}: {
+  signalState?: SignalState;
+  hasTradePlan: boolean;
+  reason?: string;
+}) {
+  const mode = getExecutionMode(signalState, hasTradePlan);
+  const toneClasses =
+    mode.tone === "positive"
+      ? "border-emerald-500/18 bg-emerald-500/6 text-emerald-300"
+      : "border-amber-500/18 bg-amber-500/6 text-amber-300";
+
+  return (
+    <div className={cn("mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3.5 py-3", toneClasses)}>
+      <div>
+        <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Action State</div>
+        <div className="mt-1 text-[14px] font-semibold tracking-tight">{mode.label}</div>
+      </div>
+      <div className="min-w-0 flex-1 text-right">
+        <div className="text-[10px] text-zinc-500">{mode.hint}</div>
+        {reason ? <div className="mt-1 text-[11px] leading-5 text-zinc-400">{reason}</div> : null}
+      </div>
+    </div>
+  );
+}
+
 function SignalStateBanner({
   state,
   reason,
@@ -110,7 +163,7 @@ function LotSizeCalculator({
   return (
     <div className="rounded-xl border border-white/6 bg-white/[0.03] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
       <div className="mb-3 flex items-center gap-2">
-        <Calculator className="h-3.5 w-3.5 text-violet-400" />
+        <Calculator className="h-3.5 w-3.5 text-amber-300" />
         <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Lot Size Calculator</span>
         <span className="ml-auto text-[10px] text-zinc-600">@ {riskPercent}% risk</span>
       </div>
@@ -123,7 +176,7 @@ function LotSizeCalculator({
             className={cn(
               "rounded px-2 py-1 text-[10px] font-semibold transition-all",
               accountSize === preset
-                ? "border border-violet-500/30 bg-violet-500/20 text-violet-300"
+                ? "border border-amber-500/30 bg-amber-500/20 text-amber-300"
                 : "border border-white/8 bg-white/4 text-zinc-500 hover:text-zinc-300"
             )}
           >
@@ -134,7 +187,7 @@ function LotSizeCalculator({
           type="number"
           value={accountSize}
           onChange={(event) => setAccountSize(Math.max(100, Number(event.target.value)))}
-          className="w-20 rounded border border-white/8 bg-[#0d0d0d] px-2 py-1 text-right text-[10px] text-zinc-300 outline-none focus:border-violet-500/40 [color-scheme:dark]"
+          className="w-20 rounded border border-white/8 bg-[#0d0d0d] px-2 py-1 text-right text-[10px] text-zinc-300 outline-none focus:border-amber-500/40 [color-scheme:dark]"
           placeholder="Custom"
         />
       </div>
@@ -142,7 +195,7 @@ function LotSizeCalculator({
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Recommended Size</div>
-          <div className="mt-1 text-xl font-black font-mono text-violet-300">{displayLots}</div>
+          <div className="mt-1 text-xl font-black font-mono text-amber-300">{displayLots}</div>
         </div>
         <div className="space-y-1 text-right">
           <div className="text-[10px] text-zinc-600">Risk amount</div>
@@ -243,7 +296,8 @@ function NoTradeCard({
             <Shield className="h-4.5 w-4.5 text-amber-400" />
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-amber-400">No Active Trade Plan</div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-300/80">Patience Mode</div>
+            <div className="mt-1 text-sm font-semibold text-amber-400">No valid structure. Stay out.</div>
             <p className="mt-1 max-w-md text-[11px] leading-5 text-zinc-500">
               Consensus or risk conditions are not strong enough yet. Stand aside and wait for structure to improve.
             </p>
@@ -315,6 +369,7 @@ export function TradePlan({
   if (!tradePlan) {
     return (
       <div className="flex h-full w-full flex-col">
+        <ExecutionStateStrip signalState={signalState} hasTradePlan={false} reason={signalStateReason ?? noTradeContext?.blocker} />
         {signalState && signalStateReason && signalState !== "NO_TRADE" ? (
           <SignalStateBanner state={signalState} reason={signalStateReason} distanceToEntry={distanceToEntry} />
         ) : null}
@@ -328,6 +383,7 @@ export function TradePlan({
 
   return (
     <>
+      <ExecutionStateStrip signalState={signalState} hasTradePlan reason={signalStateReason ?? tradePlan.triggerCondition} />
       {signalState && signalStateReason ? (
         <SignalStateBanner state={signalState} reason={signalStateReason} distanceToEntry={distanceToEntry} />
       ) : null}
