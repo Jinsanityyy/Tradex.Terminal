@@ -248,12 +248,12 @@ export function BrainTerminal() {
     <div className="w-full min-w-0 space-y-4 pb-2">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-violet-500/20 bg-violet-500/15">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-violet-500/20 bg-violet-500/15 shadow-[0_0_24px_rgba(139,92,246,0.12)]">
             <Brain className="h-4.5 w-4.5 text-violet-400" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-base font-bold text-white">Multi-Agent Brain</h1>
-            <p className="text-[11px] text-zinc-400">7-agent consensus engine - Price Action + Macro + Risk</p>
+            <h1 className="text-base font-semibold tracking-tight text-white">Multi-Agent Brain</h1>
+            <p className="text-[11px] text-zinc-400">7-agent consensus engine for price action, macro, and risk alignment</p>
           </div>
         </div>
 
@@ -287,7 +287,7 @@ export function BrainTerminal() {
       </div>
 
       {data?.snapshot && !loading && (
-        <div className="rounded-xl border border-white/6 bg-[#0d0d0d]/60 px-3 py-2">
+        <div className="rounded-2xl border border-white/6 bg-[linear-gradient(180deg,rgba(15,15,15,0.9),rgba(10,10,10,0.82))] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
           <SnapshotBar
             snapshot={data.snapshot}
             livePrice={liveQuote?.price}
@@ -314,10 +314,18 @@ export function BrainTerminal() {
       {/* ── Analysis ────────────────────────────────────────────────────── */}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.02fr)_minmax(360px,0.98fr)]">
         <div className="min-h-0 min-w-0 space-y-2.5">
-          <div className="flex items-center gap-2">
-            <Brain className="h-4 w-4 text-violet-400" />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-300">
-              Master Consensus
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-white/6 bg-white/[0.02] px-3 py-2.5">
+            <div>
+              <div className="flex items-center gap-2">
+                <Brain className="h-4 w-4 text-violet-400" />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-300">
+                  Master Consensus
+                </span>
+              </div>
+              <p className="mt-1 text-[11px] text-zinc-500">Primary decision layer driven by weighted agent agreement.</p>
+            </div>
+            <span className="hidden rounded-full border border-emerald-500/12 bg-emerald-500/5 px-2.5 py-1 text-[10px] text-zinc-500 md:inline-flex">
+              Weighted agent blend
             </span>
           </div>
           <ConsensusPanel
@@ -335,17 +343,20 @@ export function BrainTerminal() {
         </div>
 
         <div className="min-h-0 min-w-0 space-y-2.5">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Target className="h-4 w-4 text-zinc-400" />
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-300">
-                Execution Plan
-              </span>
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-white/6 bg-white/[0.02] px-3 py-2.5">
+            <div>
+              <div className="flex items-center gap-2">
+                <Target className="h-4 w-4 text-zinc-400" />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-300">
+                  Execution Plan
+                </span>
+              </div>
+              <p className="mt-1 text-[11px] text-zinc-500">Actionable trigger, invalidation, and management block.</p>
             </div>
             {data ? (
               <button
                 onClick={() => openDrawer("execution")}
-                className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500 transition-colors hover:text-zinc-300"
+                className="text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-500 transition-colors hover:text-zinc-300"
               >
                 Open Detail
               </button>
@@ -374,9 +385,12 @@ export function BrainTerminal() {
       </div>
 
       {(loading || data) && (
-        <div className="space-y-3">
+        <div className="space-y-3 rounded-2xl border border-white/6 bg-[linear-gradient(180deg,rgba(13,13,13,0.8),rgba(9,9,9,0.92))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Support Agents</h2>
+            <div>
+              <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-300">Support Agents</h2>
+              <p className="mt-1 text-[11px] text-zinc-500">Secondary reads that support or challenge the primary decision layer.</p>
+            </div>
             {data && (
               <span className="rounded-lg border border-white/8 bg-white/4 px-3 py-1.5 text-[11px] text-zinc-400">
                 {alignedCount}/{data.agents.master.agentConsensus.length} aligned
@@ -395,13 +409,13 @@ export function BrainTerminal() {
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-4 rounded-2xl border border-white/6 bg-[linear-gradient(180deg,rgba(12,12,12,0.78),rgba(9,9,9,0.9))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-200">Detailed View</h2>
-            <p className="text-xs text-zinc-500">Keep the explanation drawer and activity feed accessible below the decision cards.</p>
+            <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-200">Detailed View</h2>
+            <p className="text-xs text-zinc-500">Operational feed and deeper explanation stay accessible below the decision layer.</p>
           </div>
-          <div className="text-[11px] text-zinc-500">Scroll continues below</div>
+          <div className="rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[11px] text-zinc-500">Scroll continues below</div>
         </div>
 
         <div>

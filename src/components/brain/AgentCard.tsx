@@ -79,7 +79,7 @@ export function AgentCard({
 
   if (loading) {
     return (
-      <div className="min-h-[180px] animate-pulse rounded-xl border border-white/6 bg-[#111]/60 p-4">
+      <div className="min-h-[170px] animate-pulse rounded-2xl border border-white/6 bg-[#111]/60 p-4">
         <div className="mb-3 h-4 w-24 rounded bg-white/8" />
         <div className="mb-2 h-5 w-16 rounded bg-white/6" />
         <div className="h-1 w-full rounded bg-white/5" />
@@ -90,28 +90,29 @@ export function AgentCard({
   return (
     <div
       className={cn(
-        "flex h-full min-h-[180px] flex-col rounded-xl border bg-[#0d0d0d]/80 backdrop-blur-sm transition-all duration-200",
+        "flex h-full min-h-[170px] flex-col rounded-2xl border bg-[linear-gradient(180deg,rgba(14,14,14,0.94),rgba(10,10,10,0.92))] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-sm transition-all duration-200",
         colors.bg,
         colors.border,
         onClick && "cursor-pointer hover:brightness-110 hover:ring-1 hover:ring-white/10"
       )}
       onClick={onClick}
     >
+      <div className={cn("h-px w-full", bias === "bullish" || bias === "valid" ? "bg-emerald-400/35" : bias === "bearish" || bias === "invalid" ? "bg-red-400/35" : bias === "opposing" ? "bg-orange-400/35" : "bg-white/10")} />
       <div className="p-4 pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
-            <div className={cn("text-sm", colors.text)}>{icon}</div>
+            <div className={cn("rounded-lg border border-white/8 bg-white/[0.03] p-2 text-sm", colors.text)}>{icon}</div>
             <div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] leading-none text-zinc-400">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] leading-none text-zinc-400">
                 {label}
               </div>
-              <div className={cn("mt-1 text-[15px] font-bold leading-none", colors.text)}>
+              <div className={cn("mt-1 text-[15px] font-semibold leading-none", colors.text)}>
                 {getBiasLabel(bias, isGate)}
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-1 rounded-md border border-white/8 bg-white/4 px-2 py-1">
+          <div className="flex items-center gap-1 rounded-full border border-white/8 bg-white/[0.04] px-2.5 py-1">
             {isGate ? (
               bias === "valid" ? (
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
@@ -129,6 +130,7 @@ export function AgentCard({
 
       {reasons.length > 0 ? (
         <div className="px-4 pb-3">
+          <div className="mb-1 text-[9px] font-medium uppercase tracking-[0.12em] text-zinc-500">Primary Read</div>
           <p className="line-clamp-3 text-[12px] leading-5 text-zinc-400">{reasons[0]}</p>
         </div>
       ) : null}
@@ -143,15 +145,17 @@ export function AgentCard({
       ) : null}
 
       {Object.keys(extra).length > 0 ? (
-        <div className="mt-auto grid grid-cols-2 gap-x-3 gap-y-2 px-4 pb-4">
+        <div className="mt-auto rounded-t-xl border-t border-white/6 bg-white/[0.02] px-4 pb-4 pt-3">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2">
           {Object.entries(extra).slice(0, 4).map(([key, value]) => (
             <div key={key} className="flex flex-col gap-0.5">
-              <span className="text-[9px] uppercase tracking-[0.18em] text-zinc-500">{key}</span>
+              <span className="text-[9px] uppercase tracking-[0.14em] text-zinc-500">{key}</span>
               <span className={cn("text-[12px] font-mono font-semibold leading-5", colors.text)}>
                 {value === null ? "--" : String(value)}
               </span>
             </div>
           ))}
+          </div>
         </div>
       ) : null}
     </div>

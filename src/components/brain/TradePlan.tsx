@@ -70,7 +70,7 @@ function SignalStateBanner({
     <div className={cn("mb-3 rounded-xl border px-3.5 py-3", config.bg, config.border)}>
       <div className="flex items-center gap-2">
         <span className={cn("h-2 w-2 rounded-full", config.dot)} />
-        <span className={cn("text-[10px] font-bold uppercase tracking-[0.18em]", config.labelColor)}>
+        <span className={cn("text-[10px] font-semibold uppercase tracking-[0.14em]", config.labelColor)}>
           {config.label}
         </span>
         {distanceToEntry != null && state !== "NO_TRADE" ? (
@@ -103,10 +103,10 @@ function LotSizeCalculator({
   const displayLots = lots < 0.01 ? "< 0.01" : lots.toFixed(lots >= 1 ? 2 : lots >= 0.1 ? 2 : 3);
 
   return (
-    <div className="rounded-lg border border-white/6 bg-white/3 p-3">
+    <div className="rounded-xl border border-white/6 bg-white/[0.03] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
       <div className="mb-3 flex items-center gap-2">
         <Calculator className="h-3.5 w-3.5 text-violet-400" />
-        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">Lot Size Calculator</span>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Lot Size Calculator</span>
         <span className="ml-auto text-[10px] text-zinc-600">@ {riskPercent}% risk</span>
       </div>
 
@@ -136,7 +136,7 @@ function LotSizeCalculator({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Recommended Size</div>
+          <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Recommended Size</div>
           <div className="mt-1 text-xl font-black font-mono text-violet-300">{displayLots}</div>
         </div>
         <div className="space-y-1 text-right">
@@ -182,7 +182,7 @@ function PriceRow({
         <div className="flex items-center gap-2.5">
           {icon ? <div className={color}>{icon}</div> : null}
           <div>
-            <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">{label}</div>
+            <div className="text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-500">{label}</div>
             {sublabel ? <div className="mt-0.5 max-w-52 truncate text-[11px] text-zinc-500">{sublabel}</div> : null}
           </div>
         </div>
@@ -204,7 +204,7 @@ function PriceRow({
       </button>
 
       {expanded && explanation ? (
-        <div className="pb-3 px-1">
+        <div className="px-1 pb-3">
           <div className="rounded-lg border border-white/6 bg-white/3 px-3 py-2.5">
             <p className="text-[11px] leading-5 text-zinc-400">{explanation}</p>
           </div>
@@ -237,7 +237,7 @@ export function TradePlan({
 }: TradePlanProps) {
   if (loading) {
     return (
-      <div className="space-y-3 rounded-xl border border-white/6 bg-[#111]/60 p-4 animate-pulse">
+      <div className="animate-pulse space-y-3 rounded-xl border border-white/6 bg-[#111]/60 p-4">
         <div className="h-5 w-28 rounded bg-white/8" />
         {[...Array(4)].map((_, index) => (
           <div key={index} className="h-10 w-full rounded bg-white/5" />
@@ -267,35 +267,54 @@ export function TradePlan({
       ) : null}
 
       <div
-        className="overflow-hidden rounded-xl border bg-[#0d0d0d]/80 backdrop-blur-sm"
+        className="overflow-hidden rounded-2xl border bg-[linear-gradient(180deg,rgba(14,14,14,0.95),rgba(10,10,10,0.92))] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-sm"
         style={{ borderColor: isLong ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)" }}
       >
-        <div className={cn("flex items-center justify-between border-b border-white/5 px-4 py-3", isLong ? "bg-emerald-500/8" : "bg-red-500/8")}>
+        <div className={cn("flex items-center justify-between border-b border-white/5 px-4 py-3.5", isLong ? "bg-emerald-500/8" : "bg-red-500/8")}>
           <div className="flex items-center gap-2.5">
             {isLong ? <TrendingUp className="h-4 w-4 text-emerald-400" /> : <TrendingDown className="h-4 w-4 text-red-400" />}
             <div>
-              <div className={cn("text-sm font-bold", isLong ? "text-emerald-400" : "text-red-400")}>
-                {isLong ? "LONG" : "SHORT"} · {tradePlan.trigger}
+              <div className={cn("text-sm font-semibold", isLong ? "text-emerald-400" : "text-red-400")}>
+                {isLong ? "LONG" : "SHORT"} - {tradePlan.trigger}
               </div>
               <div className="mt-0.5 text-[11px] text-zinc-400">Execution-ready plan with defined invalidation.</div>
             </div>
           </div>
 
-          <div className="grid gap-1 text-right sm:grid-cols-2 sm:gap-4">
-            <div>
-              <div className="text-[9px] uppercase tracking-[0.18em] text-zinc-500">RR Ratio</div>
+          <div className="grid gap-2 text-right sm:grid-cols-2 sm:gap-3">
+            <div className="rounded-lg border border-white/6 bg-black/20 px-3 py-2">
+              <div className="text-[9px] uppercase tracking-[0.14em] text-zinc-500">RR Ratio</div>
               <div className={cn("mt-1 text-sm font-mono font-bold", tradePlan.rrRatio >= 2 ? "text-emerald-400" : "text-amber-400")}>
                 {tradePlan.rrRatio.toFixed(1)}:1
               </div>
             </div>
-            <div>
-              <div className="text-[9px] uppercase tracking-[0.18em] text-zinc-500">Max Risk</div>
+            <div className="rounded-lg border border-white/6 bg-black/20 px-3 py-2">
+              <div className="text-[9px] uppercase tracking-[0.14em] text-zinc-500">Max Risk</div>
               <div className="mt-1 text-sm font-mono font-bold text-zinc-200">{tradePlan.maxRiskPercent}%</div>
             </div>
           </div>
         </div>
 
-        <div className="px-4 py-1">
+        <div className="grid gap-2 border-b border-white/5 bg-white/[0.02] px-4 py-3 sm:grid-cols-4">
+          <div className="rounded-lg border border-white/6 bg-black/10 px-3 py-2">
+            <div className="text-[9px] uppercase tracking-[0.12em] text-zinc-500">Bias</div>
+            <div className={cn("mt-1 text-[12px] font-semibold", entryColor)}>{isLong ? "Long" : "Short"}</div>
+          </div>
+          <div className="rounded-lg border border-white/6 bg-black/10 px-3 py-2">
+            <div className="text-[9px] uppercase tracking-[0.12em] text-zinc-500">Trigger</div>
+            <div className="mt-1 text-[12px] font-semibold text-zinc-200">{tradePlan.trigger}</div>
+          </div>
+          <div className="rounded-lg border border-white/6 bg-black/10 px-3 py-2">
+            <div className="text-[9px] uppercase tracking-[0.12em] text-zinc-500">Entry Zone</div>
+            <div className="mt-1 text-[12px] font-semibold text-zinc-200">{tradePlan.entryZone}</div>
+          </div>
+          <div className="rounded-lg border border-white/6 bg-black/10 px-3 py-2">
+            <div className="text-[9px] uppercase tracking-[0.12em] text-zinc-500">State</div>
+            <div className="mt-1 text-[12px] font-semibold text-zinc-200">{signalState ?? "ACTIVE"}</div>
+          </div>
+        </div>
+
+        <div className="px-4 py-2">
           <PriceRow
             label="Entry"
             value={tradePlan.entry}
@@ -327,27 +346,29 @@ export function TradePlan({
           ) : null}
         </div>
 
-        <div className="space-y-3 px-4 pb-4 pt-2">
+        <div className="grid gap-3 px-4 pb-4 pt-2 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
           <LotSizeCalculator entry={tradePlan.entry} stopLoss={tradePlan.stopLoss} riskPercent={tradePlan.maxRiskPercent} />
 
-          <div className="rounded-lg border border-white/6 bg-white/3 p-3">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">Trigger Condition</div>
-            <p className="mt-2 text-[12px] leading-5 text-zinc-400">{tradePlan.triggerCondition}</p>
-          </div>
-
-          {tradePlan.managementNotes.length > 0 ? (
-            <div className="rounded-lg border border-white/6 bg-white/3 p-3">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">Trade Management</div>
-              <div className="mt-3 space-y-2.5">
-                {tradePlan.managementNotes.map((note, index) => (
-                  <div key={index} className="flex items-start gap-2.5">
-                    <ArrowRight className="mt-0.5 h-3 w-3 shrink-0 text-zinc-500" />
-                    <p className="text-[12px] leading-5 text-zinc-400">{note}</p>
-                  </div>
-                ))}
-              </div>
+          <div className="space-y-3">
+            <div className="rounded-xl border border-white/6 bg-white/[0.03] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Trigger Condition</div>
+              <p className="mt-2 text-[12px] leading-5 text-zinc-400">{tradePlan.triggerCondition}</p>
             </div>
-          ) : null}
+
+            {tradePlan.managementNotes.length > 0 ? (
+              <div className="rounded-xl border border-white/6 bg-white/[0.03] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Trade Management</div>
+                <div className="mt-3 space-y-2.5">
+                  {tradePlan.managementNotes.map((note, index) => (
+                    <div key={index} className="flex items-start gap-2.5">
+                      <ArrowRight className="mt-0.5 h-3 w-3 shrink-0 text-zinc-500" />
+                      <p className="text-[12px] leading-5 text-zinc-400">{note}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     </>

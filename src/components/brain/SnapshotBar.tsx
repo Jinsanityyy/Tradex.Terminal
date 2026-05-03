@@ -58,13 +58,20 @@ export function SnapshotBar({ snapshot, livePrice, liveChangePercent }: Snapshot
   ];
 
   return (
-    <div className="flex items-center gap-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+    <div
+      className="flex items-center gap-2 overflow-x-auto rounded-xl border border-white/6 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] px-2 py-1.5"
+      style={{ scrollbarWidth: "none" }}
+    >
+      <div className="hidden shrink-0 items-center gap-2 rounded-lg border border-emerald-500/12 bg-emerald-500/[0.04] px-3 py-1.5 md:flex">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+        <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Live Bias Snapshot</span>
+      </div>
       {fields.map((f, i) => (
         <React.Fragment key={f.label}>
-          {i > 0 && <div className="h-6 w-px shrink-0 bg-white/8" />}
-          <div className="flex shrink-0 flex-col items-center px-3">
-            <span className="text-[9px] uppercase tracking-[0.18em] text-zinc-500">{f.label}</span>
-            <span className={cn("mt-0.5 text-[11px] font-mono font-semibold", f.color)}>{f.value}</span>
+          {i > 0 && <div className="hidden h-6 w-px shrink-0 bg-white/8 md:block" />}
+          <div className="flex shrink-0 flex-col rounded-lg border border-transparent px-3 py-1.5 md:min-w-[78px] md:items-center md:bg-white/[0.02]">
+            <span className="text-[9px] font-medium uppercase tracking-[0.14em] text-zinc-500">{f.label}</span>
+            <span className={cn("mt-1 text-[11px] font-mono font-semibold", f.color)}>{f.value}</span>
           </div>
         </React.Fragment>
       ))}
