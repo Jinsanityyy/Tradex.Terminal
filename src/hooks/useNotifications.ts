@@ -4,7 +4,9 @@ import { useEffect, useRef, useCallback } from "react";
 import { useCatalysts, useTrumpPosts } from "./useMarketData";
 import { createClient } from "@/lib/supabase/client";
 
-export type NotifType = "news" | "trump" | "chat";
+export const CUSTOM_NOTIFICATION_EVENT = "tradex-custom-notification";
+
+export type NotifType = "news" | "trump" | "chat" | "agent";
 
 export interface Notif {
   id: string;
@@ -127,6 +129,20 @@ export function useNotifications(onNotif: NotifCallback) {
     return () => {
       clearTimeout(timer);
       sb.removeChannel(channel);
+    };
+  }, []);
+
+  // Custom dashboard notifications
+  useEffect(() => {
+    const handleCustomNotification = (event: Event) => {
+      const customEvent = event as CustomEvent<Notif | undefined>;
+      if (!customEvent.detail) return;
+      onNotifRef.current(customEvent.detail);
+    };
+
+    window.addEventListener(CUSTOM_NOTIFICATION_EVENT, handleCustomNotification as EventListener);
+    return () => {
+      window.removeEventListener(CUSTOM_NOTIFICATION_EVENT, handleCustomNotification as EventListener);
     };
   }, []);
 }

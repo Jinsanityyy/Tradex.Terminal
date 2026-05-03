@@ -35,6 +35,7 @@ import { LiveTVPanel } from "@/components/shared/LiveTVPanel";
 import { SessionSummaryCard } from "@/components/shared/SessionSummaryCard";
 import { TrumpImpactPreview } from "@/components/shared/TrumpFeedPanel";
 import { MTFBiasPanel } from "@/components/shared/MTFBiasPanel";
+import { useSettings } from "@/contexts/SettingsContext";
 import {
   useEconomicCalendar,
   useTrumpPosts,
@@ -43,6 +44,7 @@ import {
   useMarketAnalysis,
   useMTFBias,
 } from "@/hooks/useMarketData";
+import { CUSTOM_NOTIFICATION_EVENT, type Notif } from "@/hooks/useNotifications";
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import type { PnLData } from "@/app/api/pnl/route";
 import type { EconomicEvent } from "@/types";
@@ -738,6 +740,7 @@ function SidebarEventPreview({ event }: { event: EconomicEvent }) {
 }
 
 export default function DashboardPage() {
+  const { settings } = useSettings();
   const [symbol, setSymbol] = useState<Symbol>("XAUUSD");
   const [timeframe, setTimeframe] = useState<Timeframe>("H1");
   const [chartInterval, setChartInterval] = useState("60");
@@ -746,6 +749,7 @@ export default function DashboardPage() {
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
   const [manualTrades, setManualTrades] = useState<ManualTrade[]>([]);
   const intervalDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const armedAlertKeyRef = useRef<string | null>(null);
 
   const symCfg = SYMBOLS.find((entry) => entry.id === symbol) ?? SYMBOLS[0];
 
@@ -1098,6 +1102,81 @@ export default function DashboardPage() {
     { label: "Confidence", value: confidenceLabel, mono: true },
     { label: "Max Risk", value: maxRiskLabel, mono: true },
   ];
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !settings.notifications.biasChanges) return;
+
+    const armedSignalKey =
+      signalState === "ARMED" && exec?.hasSetup
+        ? [
+            symbol,
+            timeframe,
+            exec.direction ?? "none",
+            tradePlan?.entry ?? "na",
+            tradePlan?.stopLoss ?? "na",
+            tradePlan?.tp1 ?? "na",
+          ].join("|")
+        : null;
+
+    if (!armedSignalKey) {
+      armedAlertKeyRef.current = null;
+      return;
+    }
+
+    const seenStorageKey = "tradex_execution_armed_alerts_v1";
+    let seenSignals = new Set<string>();
+
+    try {
+      const raw = sessionStorage.getItem(seenStorageKey);
+      if (raw) {
+        seenSignals = new Set<string>(JSON.parse(raw));
+      }
+    } catch {
+      seenSignals = new Set<string>();
+    }
+
+    const alreadySeen = seenSignals.has(armedSignalKey);
+    const sameAsCurrent = armedAlertKeyRef.current === armedSignalKey;
+
+    if (!alreadySeen && !sameAsCurrent) {
+      const notif: Notif = {
+        id: crypto.randomUUID(),
+        type: "agent",
+        title: `${symCfg.short} ${timeframe} Execution Armed`,
+        body:
+          exec?.direction && exec.direction !== "none"
+            ? `${exec.direction.toUpperCase()} setup armed. ${entryTrigger}`
+            : `Execution setup armed. ${entryTrigger}`,
+        timestamp: Date.now(),
+      };
+
+      window.dispatchEvent(
+        new CustomEvent(CUSTOM_NOTIFICATION_EVENT, {
+          detail: notif,
+        })
+      );
+
+      seenSignals.add(armedSignalKey);
+      try {
+        sessionStorage.setItem(seenStorageKey, JSON.stringify(Array.from(seenSignals).slice(-25)));
+      } catch {}
+    }
+
+    armedAlertKeyRef.current = armedSignalKey;
+  }, [
+    settings.notifications.biasChanges,
+    signalState,
+    exec?.hasSetup,
+    exec?.direction,
+    symbol,
+    timeframe,
+    tradePlan?.entry,
+    tradePlan?.stopLoss,
+    tradePlan?.tp1,
+    entryTrigger,
+    symCfg.short,
+  ]);
+
   const executionMetrics = [
     { label: "Entry", value: tradePlan?.entry != null ? formatTradePrice(tradePlan.entry) : "--", mono: true },
     { label: "Stop", value: invalidationLabel, tone: "text-red-300", mono: true },
