@@ -56,8 +56,8 @@ function ScoreBar({ score }: { score: number }) {
   const width = `${Math.min(50, Math.abs(score) / 2)}%`;
 
   return (
-    <div className="space-y-1.5">
-      <div className="flex justify-between text-[10px] uppercase tracking-[0.14em] text-zinc-500">
+    <div className="space-y-1">
+      <div className="flex justify-between text-[9px] uppercase tracking-[0.12em] text-zinc-500">
         <span>Bearish</span>
         <span className="font-mono text-zinc-300">{score > 0 ? "+" : ""}{score.toFixed(1)}</span>
         <span>Bullish</span>
@@ -87,8 +87,8 @@ function AgentBar({ item }: { item: AgentConsensusItem }) {
           : "bg-zinc-600";
 
   return (
-    <div className="grid grid-cols-[88px_minmax(0,1fr)_42px] items-center gap-2.5">
-      <span className="truncate text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-500">
+    <div className="grid grid-cols-[80px_minmax(0,1fr)_42px] items-center gap-2">
+      <span className="truncate text-[9px] font-medium uppercase tracking-[0.12em] text-zinc-500">
         {AGENT_LABELS[item.agentId] ?? item.agentId}
       </span>
       <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
@@ -113,9 +113,9 @@ export function ConsensusPanel({
 }: ConsensusPanelProps) {
   if (loading) {
     return (
-      <div className="min-h-[260px] animate-pulse rounded-xl border border-white/6 bg-[#111]/60 p-4">
-        <div className="mb-4 h-5 w-36 rounded bg-white/8" />
-        <div className="mb-4 h-14 rounded bg-white/6" />
+      <div className="min-h-[210px] animate-pulse rounded-xl border border-white/6 bg-[#111]/60 p-4">
+        <div className="mb-3 h-5 w-36 rounded bg-white/8" />
+        <div className="mb-3 h-12 rounded bg-white/6" />
         <div className="space-y-2">
           {[...Array(5)].map((_, index) => (
             <div key={index} className="h-4 rounded bg-white/5" />
@@ -130,24 +130,24 @@ export function ConsensusPanel({
   return (
     <div
       className={cn(
-        "h-full min-h-[260px] rounded-xl border bg-[#0d0d0d]/80 p-4 backdrop-blur-sm",
+        "h-full min-h-[210px] rounded-xl border bg-[#0d0d0d]/80 p-4 backdrop-blur-sm",
         cfg.border,
         onClick && "cursor-pointer transition-all hover:brightness-110 hover:ring-1 hover:ring-white/10"
       )}
       onClick={onClick}
     >
-      <div className={cn("rounded-xl border px-4 py-3", cfg.bg, cfg.border)}>
+      <div className={cn("rounded-xl border px-3.5 py-2.5", cfg.bg, cfg.border)}>
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <div className={cfg.color}>{cfg.icon}</div>
             <div>
-              <div className={cn("text-sm font-bold tracking-tight", cfg.color)}>{cfg.label}</div>
-              <div className="mt-1 text-[11px] text-zinc-400">{confidence}% weighted consensus</div>
+              <div className={cn("text-[13px] font-bold tracking-tight", cfg.color)}>{cfg.label}</div>
+              <div className="mt-0.5 text-[10px] text-zinc-400">{confidence}% weighted consensus</div>
             </div>
           </div>
-          <div className={cn("text-2xl font-black font-mono", cfg.color)}>
+          <div className={cn("text-xl font-black font-mono", cfg.color)}>
             {confidence}
-            <span className="text-sm font-normal opacity-60">%</span>
+            <span className="text-[11px] font-normal opacity-60">%</span>
           </div>
         </div>
       </div>
@@ -158,13 +158,13 @@ export function ConsensusPanel({
         </div>
       ) : null}
 
-      <div className="mt-4">
+      <div className="mt-3">
         <ScoreBar score={consensusScore} />
       </div>
 
-      <div className="mt-4 space-y-2.5">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">Agent Breakdown</div>
-        <div className="space-y-2.5">
+      <div className="mt-3 space-y-2">
+        <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Agent Breakdown</div>
+        <div className="space-y-2">
           {agentConsensus.map((item) => (
             <AgentBar key={item.agentId} item={item} />
           ))}
@@ -172,11 +172,11 @@ export function ConsensusPanel({
       </div>
 
       {strategyMatch ? (
-        <div className="mt-4 flex items-start gap-2 rounded-lg border border-white/6 bg-white/3 px-3 py-2.5">
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-white/6 bg-white/3 px-3 py-2.5">
           <Zap className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
           <div>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">Strategy Match</div>
-            <div className="mt-1 text-[12px] leading-5 text-amber-300">{strategyMatch}</div>
+            <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Strategy Match</div>
+            <div className="mt-1 text-[11px] leading-5 text-amber-300">{strategyMatch}</div>
           </div>
         </div>
       ) : null}
