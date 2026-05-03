@@ -312,7 +312,7 @@ export function BrainTerminal() {
       <AgentCommandRoom data={data ?? null} loading={loading && !data} />
 
       {/* ── Analysis ────────────────────────────────────────────────────── */}
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.02fr)_minmax(360px,0.98fr)]">
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.02fr)_minmax(360px,0.98fr)]">
         <div className="min-w-0 space-y-2.5">
           <div className="flex items-center gap-2">
             <Brain className="h-4 w-4 text-violet-400" />
