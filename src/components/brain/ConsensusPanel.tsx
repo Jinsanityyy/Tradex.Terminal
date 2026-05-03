@@ -143,7 +143,7 @@ export function ConsensusPanel({
   return (
     <div
       className={cn(
-        "flex h-full min-h-[210px] flex-col overflow-hidden rounded-2xl border bg-[linear-gradient(180deg,rgba(6,16,14,0.92),rgba(10,10,10,0.9))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-sm",
+        "flex min-h-[210px] flex-col overflow-hidden rounded-2xl border bg-[linear-gradient(180deg,rgba(6,16,14,0.92),rgba(10,10,10,0.9))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-sm",
         cfg.border,
         onClick && "cursor-pointer transition-all hover:brightness-110 hover:ring-1 hover:ring-white/10"
       )}

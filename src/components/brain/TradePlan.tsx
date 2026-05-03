@@ -214,9 +214,14 @@ function PriceRow({
   );
 }
 
-function NoTradeCard() {
+function NoTradeCard({ fillHeight = false }: { fillHeight?: boolean }) {
   return (
-    <div className="rounded-xl border border-amber-500/15 bg-amber-500/5 p-5 text-center">
+    <div
+      className={cn(
+        "rounded-2xl border border-amber-500/15 bg-amber-500/5 p-5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]",
+        fillHeight && "flex h-full min-h-[430px] flex-col items-center justify-center"
+      )}
+    >
       <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-amber-500/20 bg-amber-500/10">
         <Shield className="h-4.5 w-4.5 text-amber-400" />
       </div>
@@ -248,12 +253,12 @@ export function TradePlan({
 
   if (!tradePlan) {
     return (
-      <>
+      <div className="flex h-full flex-col">
         {signalState && signalStateReason && signalState !== "NO_TRADE" ? (
           <SignalStateBanner state={signalState} reason={signalStateReason} distanceToEntry={distanceToEntry} />
         ) : null}
-        <NoTradeCard />
-      </>
+        <NoTradeCard fillHeight />
+      </div>
     );
   }
 

@@ -313,7 +313,7 @@ export function BrainTerminal() {
 
       {/* ── Analysis ────────────────────────────────────────────────────── */}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.02fr)_minmax(360px,0.98fr)]">
-        <div className="min-h-0 min-w-0 space-y-2.5">
+        <div className="flex min-h-0 min-w-0 flex-col gap-2.5">
           <div className="flex items-center justify-between gap-3 rounded-xl border border-white/6 bg-white/[0.02] px-3 py-2.5">
             <div>
               <div className="flex items-center gap-2">
@@ -342,7 +342,7 @@ export function BrainTerminal() {
           />
         </div>
 
-        <div className="min-h-0 min-w-0 space-y-2.5">
+        <div className="flex min-h-0 min-w-0 flex-col gap-2.5">
           <div className="flex items-center justify-between gap-2 rounded-xl border border-white/6 bg-white/[0.02] px-3 py-2.5">
             <div>
               <div className="flex items-center gap-2">
@@ -362,25 +362,27 @@ export function BrainTerminal() {
               </button>
             ) : null}
           </div>
-          <TradePlan
-            tradePlan={data?.agents.master.tradePlan ?? null}
-            signalState={
-              !data
-                ? undefined
-                : data.agents.master.finalBias === "no-trade"
-                  ? "NO_TRADE"
-                  : data.agents.execution.signalState
-            }
-            signalStateReason={
-              data?.agents.master.finalBias === "no-trade"
-                ? (data.agents.master.noTradeReason ?? "Insufficient consensus - stand aside.")
-                : data?.agents.execution.signalStateReason
-            }
-            distanceToEntry={
-              data?.agents.master.finalBias === "no-trade" ? null : data?.agents.execution.distanceToEntry
-            }
-            loading={loading && !data}
-          />
+          <div className="flex flex-1">
+            <TradePlan
+              tradePlan={data?.agents.master.tradePlan ?? null}
+              signalState={
+                !data
+                  ? undefined
+                  : data.agents.master.finalBias === "no-trade"
+                    ? "NO_TRADE"
+                    : data.agents.execution.signalState
+              }
+              signalStateReason={
+                data?.agents.master.finalBias === "no-trade"
+                  ? (data.agents.master.noTradeReason ?? "Insufficient consensus - stand aside.")
+                  : data?.agents.execution.signalStateReason
+              }
+              distanceToEntry={
+                data?.agents.master.finalBias === "no-trade" ? null : data?.agents.execution.distanceToEntry
+              }
+              loading={loading && !data}
+            />
+          </div>
         </div>
       </div>
 
