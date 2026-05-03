@@ -19,6 +19,11 @@ interface TradePlanProps {
   signalState?: SignalState;
   signalStateReason?: string;
   distanceToEntry?: number | null;
+  noTradeContext?: {
+    blocker: string;
+    watchItems: string[];
+    stats: Array<{ label: string; value: string }>;
+  };
   loading?: boolean;
 }
 
@@ -214,21 +219,76 @@ function PriceRow({
   );
 }
 
-function NoTradeCard({ fillHeight = false }: { fillHeight?: boolean }) {
+function NoTradeCard({
+  fillHeight = false,
+  context,
+}: {
+  fillHeight?: boolean;
+  context?: {
+    blocker: string;
+    watchItems: string[];
+    stats: Array<{ label: string; value: string }>;
+  };
+}) {
   return (
     <div
       className={cn(
-        "w-full rounded-2xl border border-amber-500/15 bg-amber-500/5 p-5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]",
-        fillHeight && "flex h-full min-h-[430px] flex-col items-center justify-center self-stretch"
+        "w-full rounded-2xl border border-amber-500/15 bg-amber-500/5 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]",
+        fillHeight && "flex h-full min-h-[430px] flex-col self-stretch"
       )}
     >
-      <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-amber-500/20 bg-amber-500/10">
-        <Shield className="h-4.5 w-4.5 text-amber-400" />
+      <div className="flex h-full flex-col justify-between gap-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-amber-500/20 bg-amber-500/10">
+            <Shield className="h-4.5 w-4.5 text-amber-400" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-amber-400">No Active Trade Plan</div>
+            <p className="mt-1 max-w-md text-[11px] leading-5 text-zinc-500">
+              Consensus or risk conditions are not strong enough yet. Stand aside and wait for structure to improve.
+            </p>
+          </div>
+        </div>
+
+        {context?.stats?.length ? (
+          <div className="grid gap-2 sm:grid-cols-3">
+            {context.stats.slice(0, 3).map((item) => (
+              <div key={item.label} className="rounded-xl border border-white/6 bg-white/[0.03] px-3 py-3">
+                <div className="text-[9px] font-medium uppercase tracking-[0.14em] text-zinc-500">{item.label}</div>
+                <div className="mt-1 text-[13px] font-semibold text-zinc-200">{item.value}</div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="grid flex-1 gap-3 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+          <div className="rounded-xl border border-amber-500/10 bg-black/10 px-4 py-3">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-300/80">Primary blocker</div>
+            <p className="mt-2 text-[12px] leading-5 text-zinc-400">
+              {context?.blocker ?? "Risk and structure are not aligned enough to justify a live execution plan yet."}
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-white/6 bg-white/[0.03] px-4 py-3">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Watch next</div>
+            <div className="mt-2 space-y-2.5">
+              {(context?.watchItems?.length
+                ? context.watchItems
+                : [
+                    "Wait for cleaner price agreement between trend and execution.",
+                    "Monitor the next structure break before considering entries.",
+                    "Let the risk gate reopen before forcing a setup.",
+                  ]
+              ).slice(0, 3).map((item, index) => (
+                <div key={`${item}-${index}`} className="flex items-start gap-2.5">
+                  <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400/80" />
+                  <p className="text-[12px] leading-5 text-zinc-400">{item}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
-      <div className="text-sm font-semibold text-amber-400">No Active Trade Plan</div>
-      <p className="mx-auto mt-2 max-w-xs text-[11px] leading-5 text-zinc-500">
-        Consensus or risk conditions are not strong enough yet. Stand aside and wait for structure to improve.
-      </p>
     </div>
   );
 }
@@ -238,6 +298,7 @@ export function TradePlan({
   signalState,
   signalStateReason,
   distanceToEntry,
+  noTradeContext,
   loading,
 }: TradePlanProps) {
   if (loading) {
@@ -257,7 +318,7 @@ export function TradePlan({
         {signalState && signalStateReason && signalState !== "NO_TRADE" ? (
           <SignalStateBanner state={signalState} reason={signalStateReason} distanceToEntry={distanceToEntry} />
         ) : null}
-        <NoTradeCard fillHeight />
+        <NoTradeCard fillHeight context={noTradeContext} />
       </div>
     );
   }

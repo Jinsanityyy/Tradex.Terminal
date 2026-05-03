@@ -102,14 +102,47 @@ function getAlignedAgentCount(data: AgentRunResult) {
   }).length;
 }
 
+type SupportCardPriority = "lead" | "support" | "watch";
+
+function getBiasDirection(bias: string): number {
+  if (bias === "bullish" || bias === "valid") return 1;
+  if (bias === "bearish" || bias === "invalid") return -1;
+  return 0;
+}
+
+function buildNoTradeContext(data: AgentRunResult) {
+  const blocker =
+    data.agents.master.noTradeReason ??
+    data.agents.execution.signalStateReason ??
+    data.agents.risk.reasons[0] ??
+    "Structure and risk are not aligned enough to justify a live plan yet.";
+
+  const watchItems = [
+    data.agents.smc.reasons[0],
+    data.agents.trend.reasons[0],
+    data.agents.execution.hasSetup ? data.agents.execution.triggerCondition : "Wait for a cleaner trigger before opening risk.",
+  ].filter(Boolean) as string[];
+
+  return {
+    blocker,
+    watchItems,
+    stats: [
+      { label: "Consensus", value: `${data.agents.master.confidence}%` },
+      { label: "Risk Gate", value: data.agents.risk.valid ? `Valid ${data.agents.risk.grade}` : `Blocked ${data.agents.risk.grade}` },
+      { label: "Execution", value: data.agents.execution.hasSetup ? "Setup ready" : "Waiting" },
+    ],
+  };
+}
+
 function getAgentCards(data: AgentRunResult) {
   const { agents } = data;
   const tfBias = agents.trend.timeframeBias;
   const tfCount = (["M5", "M15", "H1", "H4"] as const).filter(
     (timeframe) => tfBias[timeframe] === agents.trend.bias
   ).length;
+  const masterDirection = getBiasDirection(agents.master.finalBias);
 
-  return [
+  const cards = [
     {
       agentId: "trend",
       label: "Trend Agent",
@@ -124,6 +157,8 @@ function getAgentCards(data: AgentRunResult) {
         "MA Align": agents.trend.maAlignment ? "Yes" : "No",
         "TF Sync": agents.trend.timeframeBias.aligned ? "All 4" : `${tfCount}/4`,
       } as Record<string, string | number | boolean | null>,
+      statusLabel: "Trend Lead",
+      priority: masterDirection !== 0 && getBiasDirection(agents.trend.bias) === masterDirection ? ("lead" as SupportCardPriority) : ("support" as SupportCardPriority),
     },
     {
       agentId: "smc",
@@ -139,6 +174,8 @@ function getAgentCards(data: AgentRunResult) {
         Break: agents.smc.bosDetected ? "Yes" : "No",
         Sweep: agents.smc.liquiditySweepDetected ? "Detected" : "No",
       } as Record<string, string | number | boolean | null>,
+      statusLabel: "Execution Context",
+      priority: masterDirection !== 0 && getBiasDirection(agents.smc.bias) === masterDirection ? ("lead" as SupportCardPriority) : ("support" as SupportCardPriority),
     },
     {
       agentId: "news",
@@ -152,6 +189,8 @@ function getAgentCards(data: AgentRunResult) {
         Risk: `${agents.news.riskScore}/100`,
         Catalysts: `${agents.news.catalysts.length} found`,
       } as Record<string, string | number | boolean | null>,
+      statusLabel: "Macro Context",
+      priority: agents.news.riskScore >= 65 ? ("watch" as SupportCardPriority) : ("support" as SupportCardPriority),
     },
     {
       agentId: "risk",
@@ -168,6 +207,8 @@ function getAgentCards(data: AgentRunResult) {
         "Max Risk": `${agents.risk.maxRiskPercent}%`,
       } as Record<string, string | number | boolean | null>,
       isGate: true,
+      statusLabel: "Risk Control",
+      priority: agents.risk.valid ? ("support" as SupportCardPriority) : ("watch" as SupportCardPriority),
     },
     {
       agentId: "contrarian",
@@ -181,8 +222,12 @@ function getAgentCards(data: AgentRunResult) {
         Risk: `${agents.contrarian.riskFactor}%`,
         "Opp Liq": agents.contrarian.oppositeLiquidity?.toFixed(4) ?? "--",
       } as Record<string, string | number | boolean | null>,
+      statusLabel: "Counter Read",
+      priority: agents.contrarian.challengesBias ? ("watch" as SupportCardPriority) : ("support" as SupportCardPriority),
     },
   ];
+
+  return cards;
 }
 
 // Map agent Symbol → quote symbol used by useQuotes / ticker
@@ -207,6 +252,8 @@ export function BrainTerminal() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [highlightAgentId, setHighlightAgentId] = useState<string | undefined>();
+  const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
+  const [hoveredAgentId, setHoveredAgentId] = useState<string | null>(null);
 
   // Live price from the 30s quotes feed — overrides the stale snapshot price
   const { quotes } = useQuotes(60_000);
@@ -215,6 +262,7 @@ export function BrainTerminal() {
 
   const openDrawer = useCallback((agentId?: string) => {
     setHighlightAgentId(agentId);
+    setActiveAgentId(agentId ?? null);
     setDrawerOpen(true);
   }, []);
 
@@ -243,6 +291,24 @@ export function BrainTerminal() {
   const loading = isLoading || isRefreshing;
   const secondaryCards = data ? getAgentCards(data) : [];
   const alignedCount = data ? getAlignedAgentCount(data) : 0;
+  const focusedAgentId = hoveredAgentId ?? activeAgentId ?? null;
+  const noTradeContext = data ? buildNoTradeContext(data) : undefined;
+  const supportSummary = data
+    ? [
+        { label: "Aligned", value: `${alignedCount}/${data.agents.master.agentConsensus.length}`, tone: "neutral" },
+        { label: "Macro", value: data.agents.news.regime, tone: "neutral" },
+        {
+          label: "Execution",
+          value: data.agents.execution.hasSetup ? "Setup ready" : "Waiting",
+          tone: data.agents.execution.hasSetup ? "positive" : "warning",
+        },
+        {
+          label: "Risk Gate",
+          value: data.agents.risk.valid ? `Valid ${data.agents.risk.grade}` : `Blocked ${data.agents.risk.grade}`,
+          tone: data.agents.risk.valid ? "positive" : "warning",
+        },
+      ]
+    : [];
 
   return (
     <div className="w-full min-w-0 space-y-4 pb-2">
@@ -309,7 +375,13 @@ export function BrainTerminal() {
       )}
 
       {/* ── Live Command Room ─────────────────────────────────────────────── */}
-      <AgentCommandRoom data={data ?? null} loading={loading && !data} />
+      <AgentCommandRoom
+        data={data ?? null}
+        loading={loading && !data}
+        focusedAgentId={focusedAgentId}
+        onHoverAgentChange={setHoveredAgentId}
+        onSelectAgentChange={setActiveAgentId}
+      />
 
       {/* ── Analysis ────────────────────────────────────────────────────── */}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.02fr)_minmax(360px,0.98fr)]">
@@ -380,6 +452,7 @@ export function BrainTerminal() {
               distanceToEntry={
                 data?.agents.master.finalBias === "no-trade" ? null : data?.agents.execution.distanceToEntry
               }
+              noTradeContext={noTradeContext}
               loading={loading && !data}
             />
           </div>
@@ -399,13 +472,42 @@ export function BrainTerminal() {
               </span>
             )}
           </div>
+          {!!supportSummary.length && (
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+              {supportSummary.map((item) => (
+                <div
+                  key={item.label}
+                  className={cn(
+                    "rounded-xl border px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]",
+                    item.tone === "positive"
+                      ? "border-emerald-500/14 bg-emerald-500/5"
+                      : item.tone === "warning"
+                        ? "border-amber-500/14 bg-amber-500/5"
+                        : "border-white/6 bg-white/[0.02]"
+                  )}
+                >
+                  <div className="text-[9px] font-medium uppercase tracking-[0.14em] text-zinc-500">{item.label}</div>
+                  <div className="mt-1 text-[13px] font-semibold text-zinc-200">{item.value}</div>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             {loading && !data
               ? [...Array(5)].map((_, index) => (
                   <AgentCard key={index} agentId="" label="" icon={null} bias="neutral" confidence={0} loading />
                 ))
               : secondaryCards.map((card) => (
-                  <AgentCard key={card.agentId} {...card} onClick={() => openDrawer(card.agentId)} />
+                  <AgentCard
+                    key={card.agentId}
+                    {...card}
+                    active={focusedAgentId === card.agentId}
+                    onHoverChange={(active) => setHoveredAgentId(active ? card.agentId : null)}
+                    onClick={() => {
+                      setActiveAgentId(card.agentId);
+                      openDrawer(card.agentId);
+                    }}
+                  />
                 ))}
           </div>
         </div>

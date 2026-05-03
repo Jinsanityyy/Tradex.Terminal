@@ -10,13 +10,17 @@ interface AgentCardProps {
   icon: React.ReactNode;
   bias: string;
   confidence: number;
+  statusLabel?: string;
   reasons?: string[];
   invalidationLevel?: number | null;
   extra?: Record<string, string | number | boolean | null>;
   warnings?: string[];
   isGate?: boolean;
   loading?: boolean;
+  active?: boolean;
+  priority?: "lead" | "support" | "watch";
   onClick?: () => void;
+  onHoverChange?: (active: boolean) => void;
 }
 
 const BIAS_COLORS: Record<string, { bg: string; border: string; text: string }> = {
@@ -68,14 +72,20 @@ export function AgentCard({
   icon,
   bias,
   confidence,
+  statusLabel,
   reasons = [],
   extra = {},
   warnings = [],
   isGate = false,
   loading = false,
+  active = false,
+  priority = "support",
   onClick,
+  onHoverChange,
 }: AgentCardProps) {
   const colors = BIAS_COLORS[bias] ?? BIAS_COLORS.neutral;
+  const priorityLabel =
+    priority === "lead" ? "Lead Alignment" : priority === "watch" ? "Counter Read" : "Support Read";
 
   if (loading) {
     return (
@@ -93,9 +103,16 @@ export function AgentCard({
         "flex h-full min-h-[170px] flex-col rounded-2xl border bg-[linear-gradient(180deg,rgba(14,14,14,0.94),rgba(10,10,10,0.92))] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-sm transition-all duration-200",
         colors.bg,
         colors.border,
-        onClick && "cursor-pointer hover:brightness-110 hover:ring-1 hover:ring-white/10"
+        priority === "lead" && "shadow-[0_0_0_1px_rgba(16,185,129,0.14),inset_0_1px_0_rgba(255,255,255,0.03)]",
+        priority === "watch" && "opacity-95",
+        active
+          ? "ring-1 ring-white/12 brightness-110 translate-y-[-1px]"
+          : onClick && "hover:brightness-110 hover:ring-1 hover:ring-white/10",
+        onClick && "cursor-pointer"
       )}
       onClick={onClick}
+      onMouseEnter={() => onHoverChange?.(true)}
+      onMouseLeave={() => onHoverChange?.(false)}
     >
       <div className={cn("h-px w-full", bias === "bullish" || bias === "valid" ? "bg-emerald-400/35" : bias === "bearish" || bias === "invalid" ? "bg-red-400/35" : bias === "opposing" ? "bg-orange-400/35" : "bg-white/10")} />
       <div className="p-4 pb-3">
@@ -109,6 +126,7 @@ export function AgentCard({
               <div className={cn("mt-1 text-[15px] font-semibold leading-none", colors.text)}>
                 {getBiasLabel(bias, isGate)}
               </div>
+              <div className="mt-1 text-[10px] text-zinc-500">{statusLabel ?? priorityLabel}</div>
             </div>
           </div>
 
