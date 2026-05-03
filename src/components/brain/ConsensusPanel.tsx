@@ -130,7 +130,7 @@ export function ConsensusPanel({
   return (
     <div
       className={cn(
-        "min-h-[210px] rounded-xl border bg-[#0d0d0d]/80 p-4 backdrop-blur-sm",
+        "flex h-full min-h-[210px] flex-col overflow-hidden rounded-xl border bg-[#0d0d0d]/80 p-4 backdrop-blur-sm",
         cfg.border,
         onClick && "cursor-pointer transition-all hover:brightness-110 hover:ring-1 hover:ring-white/10"
       )}
