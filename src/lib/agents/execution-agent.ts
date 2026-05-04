@@ -109,15 +109,20 @@ export async function runExecutionAgent(
         entryZone = `Current price ${current.toFixed(current > 100 ? 1 : 4)} — entering at market (fib levels not resolved)`;
       }
 
-      // SL above last swing high (short) or below last swing low (long)
+      // SL just outside fib 70.5% zone boundary — if price exits the valid
+      // retracement zone, the setup is invalidated. Much tighter than using
+      // the full swing high/low, which creates unnecessarily wide stops.
+      const buffer = current * 0.003; // 0.3% buffer beyond fib zone edge
       if (isBullish) {
-        const slRef = keyLevels.orderBlockLow ?? (low * 0.995);
-        stopLoss  = invalidationLevel ?? (slRef * 0.998);
-        slZone    = `Below swing low ${slRef.toFixed(slRef > 100 ? 1 : 4)} — bullish structure negated on close through`;
+        // Long: fib705 is the deepest valid pullback. SL below it.
+        const slRef = fib705 ?? keyLevels.orderBlockLow ?? low;
+        stopLoss = slRef - buffer;
+        slZone   = `Below Fib 70.5% at ${slRef.toFixed(slRef > 100 ? 1 : 4)} — pullback beyond valid zone, setup invalid`;
       } else {
-        const slRef = keyLevels.orderBlockHigh ?? (high * 1.005);
-        stopLoss  = invalidationLevel ?? (slRef * 1.002);
-        slZone    = `Above swing high ${slRef.toFixed(slRef > 100 ? 1 : 4)} — bearish structure negated on close through`;
+        // Short: fib705 is the highest valid retracement. SL above it.
+        const slRef = fib705 ?? keyLevels.orderBlockHigh ?? high;
+        stopLoss = slRef + buffer;
+        slZone   = `Above Fib 70.5% at ${slRef.toFixed(slRef > 100 ? 1 : 4)} — retracement beyond valid zone, setup invalid`;
       }
 
       trigger = setupType === "FibShort"
@@ -126,13 +131,17 @@ export async function runExecutionAgent(
 
     } else if (setupType === "BOS_Continuation" && bosDetected) {
       // ── BOS pullback entry ────────────────────────────────────────────
-      // Enter on first pullback after BOS; 38% retrace of the BOS candle
       const pullback = dayRange * 0.38;
-      entry    = isBullish ? current - pullback : current + pullback;
-      stopLoss = isBullish ? entry * 0.997 : entry * 1.003;
-      trigger  = `BOS pullback — enter on retracement after ${isBullish ? "bullish" : "bearish"} structure break`;
+      entry     = isBullish ? current - pullback : current + pullback;
+      // SL at the BOS breakout level — if price closes back through it, BOS failed
+      const bosLevel  = keyLevels.sweepLevel;
+      const bosBuffer = current * 0.002;
+      stopLoss  = isBullish
+        ? (bosLevel !== null ? bosLevel - bosBuffer : entry * 0.997)
+        : (bosLevel !== null ? bosLevel + bosBuffer : entry * 1.003);
+      trigger   = `BOS pullback — enter on retracement after ${isBullish ? "bullish" : "bearish"} structure break`;
       entryZone = `BOS pullback ~${entry.toFixed(entry > 100 ? 1 : 4)} — 38% retrace of break candle`;
-      slZone    = `${isBullish ? "Below" : "Above"} BOS origin — structure break fails on close through`;
+      slZone    = `${isBullish ? "Below" : "Above"} BOS level ${bosLevel !== null ? bosLevel.toFixed(bosLevel > 100 ? 1 : 4) : "breakout origin"} — structure break fails on close through`;
 
     } else {
       return createNoTrade(
@@ -144,10 +153,17 @@ export async function runExecutionAgent(
       );
     }
 
+    // ── Enforce minimum SL distance (avoid noise-stops) ─────────────────
+    const minRisk = current * 0.0015; // 0.15% minimum
+    if (Math.abs(entry - stopLoss) < minRisk) {
+      stopLoss = isBullish ? entry - minRisk : entry + minRisk;
+    }
+
     // ── TP Levels ─────────────────────────────────────────────────────────
-    const riskDist   = Math.abs(entry - stopLoss);
-    const tp1MaxDist = riskDist * 2.5;
-    const tp2Dist    = riskDist * 4;
+    const riskDist    = Math.abs(entry - stopLoss);
+    const minTp1Dist  = riskDist * 1.5; // TP1 must be at least 1.5R — never less
+    const tp1MaxDist  = riskDist * 5;   // use natural swing target up to 5R away
+    const tp2Dist     = riskDist * 3;   // TP2 always at 3R from entry
 
     let tp1: number;
     let tp2: number;
@@ -155,19 +171,26 @@ export async function runExecutionAgent(
 
     if (isBullish) {
       const target    = keyLevels.liquidityTarget;
-      const useTarget = target !== null && target > entry && (target - entry) <= tp1MaxDist;
+      // Use swing target only if it's far enough (≥ 1.5R) and not too far (≤ 5R)
+      const useTarget = target !== null
+        && target > entry
+        && (target - entry) >= minTp1Dist
+        && (target - entry) <= tp1MaxDist;
       tp1     = useTarget ? target! : entry + riskDist * 2;
-      tp2     = Math.max(entry + tp2Dist, tp1 + riskDist);
+      tp2     = entry + tp2Dist;
       tp1Zone = useTarget
-        ? `Previous swing high / resistance ${tp1.toFixed(tp1 > 100 ? 1 : 4)} — TP target`
+        ? `Previous swing high / resistance ${tp1.toFixed(tp1 > 100 ? 1 : 4)} — TP1 target`
         : `2R target ${tp1.toFixed(tp1 > 100 ? 1 : 4)}`;
     } else {
       const target    = keyLevels.liquidityTarget;
-      const useTarget = target !== null && target < entry && (entry - target) <= tp1MaxDist;
+      const useTarget = target !== null
+        && target < entry
+        && (entry - target) >= minTp1Dist
+        && (entry - target) <= tp1MaxDist;
       tp1     = useTarget ? target! : entry - riskDist * 2;
-      tp2     = Math.min(entry - tp2Dist, tp1 - riskDist);
+      tp2     = entry - tp2Dist;
       tp1Zone = useTarget
-        ? `Previous swing low / support ${tp1.toFixed(tp1 > 100 ? 1 : 4)} — TP target`
+        ? `Previous swing low / support ${tp1.toFixed(tp1 > 100 ? 1 : 4)} — TP1 target`
         : `2R target ${tp1.toFixed(tp1 > 100 ? 1 : 4)}`;
     }
 

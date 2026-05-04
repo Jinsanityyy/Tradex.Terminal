@@ -123,11 +123,24 @@ export function computeConsensus(
   const normalizedScore = clamp(Math.round((rawSum / (totalWeight * 100)) * 100 * 100) / 100, -100, 100);
 
   // ── Risk Gate ─────────────────────────────────────────────────────────────
-  // If risk agent invalidates, force no-trade
   const riskBlocks = !risk.valid;
 
+  // ── Structure Gate (PRIORITY RULE) ────────────────────────────────────────
+  // If trend is bearish AND smc has no BOS → block ALL bullish signals.
+  // Price action structure takes priority over any indicator consensus.
+  const trendBearish    = trend.bias === "bearish";
+  const trendBullish    = trend.bias === "bullish";
+  const smcBosConfirmed = smc.bosDetected && smc.chochDetected;
+
+  // Block bullish signals in a bearish structure (no BOS = no reversal confirmation)
+  const structureBlocksLong  = trendBearish && !smcBosConfirmed && normalizedScore > 0;
+  // Block bearish signals in a bullish structure
+  const structureBlocksShort = trendBullish && !smc.bosDetected && normalizedScore < 0;
+
+  // Fibonacci gate: if no fib zone confluence, no trade regardless of indicators
+  const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None";
+
   // ── Final Bias Decision ───────────────────────────────────────────────────
-  // Threshold: ±25 for a directional signal (requires meaningful consensus)
   const BULL_THRESHOLD = 25;
   const BEAR_THRESHOLD = -25;
 
@@ -135,15 +148,24 @@ export function computeConsensus(
   let noTradeReason: string | undefined;
 
   if (riskBlocks) {
-    finalBias = "no-trade";
+    finalBias     = "no-trade";
     noTradeReason = `Risk gate: ${risk.warnings[0] ?? "Risk conditions not met"}`;
+  } else if (structureBlocksLong) {
+    finalBias     = "no-trade";
+    noTradeReason = `Structure gate: Trend is BEARISH — bullish signals blocked. Require confirmed BOS to upside before going long.`;
+  } else if (structureBlocksShort) {
+    finalBias     = "no-trade";
+    noTradeReason = `Structure gate: Trend is BULLISH — bearish signals blocked. Require confirmed BOS to downside before going short.`;
+  } else if (noFibZone && Math.abs(normalizedScore) < 50) {
+    finalBias     = "no-trade";
+    noTradeReason = `Fib gate: No price in 0.5–0.705 retracement zone and no confirmed setup. Waiting for fib confluence.`;
   } else if (normalizedScore >= BULL_THRESHOLD) {
     finalBias = "bullish";
   } else if (normalizedScore <= BEAR_THRESHOLD) {
     finalBias = "bearish";
   } else {
-    finalBias = "no-trade";
-    noTradeReason = `Consensus score ${normalizedScore.toFixed(1)} within neutral band (±${BULL_THRESHOLD}). Insufficient directional agreement across agents.`;
+    finalBias     = "no-trade";
+    noTradeReason = `Consensus ${normalizedScore.toFixed(1)} within neutral band (±${BULL_THRESHOLD}). Insufficient directional agreement.`;
   }
 
   // ── Confidence from consensus strength ────────────────────────────────────
@@ -168,32 +190,62 @@ export function matchStrategy(
   trend: TrendAgentOutput,
   news: NewsAgentOutput
 ): string | undefined {
-  const { setupType, liquiditySweepDetected, bosDetected, chochDetected, premiumDiscount } = smc;
+  const { setupType, bosDetected, chochDetected, liquiditySweepDetected: inFibZone, premiumDiscount } = smc;
   const bias = smc.bias;
 
-  if (liquiditySweepDetected && bosDetected) {
-    if (bias === "neutral") return undefined;
+  if (bias === "neutral") return undefined;
+
+  // ── New Fibonacci/PA setup types (from smc-agent.ts) ─────────────────────
+  if (setupType === "FibShort") {
+    return bosDetected
+      ? "Fib Short + BOS Continuation — Bearish structure confirmed, price retrace to 0.618–0.705 fib zone"
+      : "Fib Short — Trend Continuation (LH+LL structure, price in 0.5–0.705 fib retracement zone)";
+  }
+
+  if (setupType === "FibLong") {
+    return chochDetected
+      ? "Fib Long — Post-BOS Reversal (Bearish structure broken, HL formed, fib retracement entry)"
+      : "Fib Long — Bullish Continuation (HH+HL structure, price in 0.5–0.705 fib pullback zone)";
+  }
+
+  if (setupType === "BOS_Continuation" && bosDetected) {
+    return bias === "bullish"
+      ? "BOS Continuation — Long (Upside structure break with momentum, pullback entry)"
+      : "BOS Continuation — Short (Downside structure break with momentum, pullback entry)";
+  }
+
+  if (setupType === "BOS" && bosDetected) {
+    return bias === "bullish"
+      ? "Bullish BOS — Awaiting fib pullback for entry"
+      : "Bearish BOS — Awaiting fib pullback for entry";
+  }
+
+  if (inFibZone) {
+    return bias === "bullish"
+      ? "Fib Zone Long — In 0.5–0.705 retracement, awaiting bullish candle confirmation"
+      : "Fib Zone Short — In 0.5–0.705 retracement, awaiting bearish candle confirmation";
+  }
+
+  // ── Legacy PA setup types (from price-action-agent.ts) ───────────────────
+  if (setupType === "Sweep" && bosDetected) {
     return bias === "bullish"
       ? "Stop-Run Reversal — Long (Lows swept, bullish structure break confirmed)"
       : "Stop-Run Reversal — Short (Highs swept, bearish structure break confirmed)";
   }
 
   if (setupType === "OB" && bosDetected) {
-    if (bias === "neutral") return undefined;
     return bias === "bullish"
       ? "Support Retest + Break — Long (Support retest after upside structure break)"
       : "Resistance Retest + Break — Short (Resistance retest after downside structure break)";
   }
 
   if (setupType === "FVG") {
-    if (bias === "neutral") return undefined;
     return bias === "bullish"
       ? "Gap Fill Continuation — Long (Price returning to fill gap below, bullish continuation)"
       : "Gap Fill Continuation — Short (Price returning to fill gap above, bearish continuation)";
   }
 
   if (chochDetected) {
-    if (bias === "neutral") return undefined;
     return bias === "bullish"
       ? "Trend Shift Re-entry — Long (Bearish-to-bullish flip, pullback entry on retest)"
       : "Trend Shift Re-entry — Short (Bullish-to-bearish flip, rally-sell on retest)";
