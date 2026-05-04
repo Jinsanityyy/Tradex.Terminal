@@ -616,7 +616,7 @@ export function BrainTerminal() {
           </div>
 
           {!sniperMode ? (
-            <div className="h-[340px] overflow-hidden rounded-[28px] border border-cyan-500/15 bg-black/40 shadow-[0_0_40px_rgba(6,182,212,0.08)]">
+            <div className="rounded-[28px] border border-cyan-500/15 bg-black/40 shadow-[0_0_40px_rgba(6,182,212,0.08)] [&>*]:h-auto [&>*]:min-h-0 [&_img]:h-auto [&_img]:w-full [&_img]:object-contain">
               <AgentCommandRoom
                 data={data}
                 loading={false}
