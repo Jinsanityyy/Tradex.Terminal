@@ -27,8 +27,25 @@ export type DirectionalBias = "bullish" | "bearish" | "neutral";
 export type TradeDirection = "long" | "short" | "none";
 export type FinalBias = "bullish" | "bearish" | "no-trade";
 export type PriceZone = "PREMIUM" | "EQUILIBRIUM" | "DISCOUNT";
-export type SetupType = "OB" | "FVG" | "BOS" | "CHoCH" | "Sweep" | "None";
-export type MarketPhase = "Accumulation" | "Manipulation" | "Expansion" | "Distribution" | "Pullback" | "Range";
+export type SetupType =
+  | "OB"
+  | "FVG"
+  | "BOS"
+  | "BOS_Continuation"
+  | "CHoCH"
+  | "Sweep"
+  | "FibShort"
+  | "FibLong"
+  | "None";
+export type MarketPhase =
+  | "Accumulation"
+  | "Manipulation"
+  | "Expansion"
+  | "Distribution"
+  | "Pullback"
+  | "Range"
+  | "Reversal"
+  | "Breakout";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Market Snapshot — normalized input for all agents
