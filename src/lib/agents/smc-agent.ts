@@ -69,7 +69,7 @@ Return ONLY valid JSON:
 {
   "bias": "bullish" | "bearish" | "neutral",
   "confidence": 0-100,
-  "setupType": "FibShort" | "FibLong" | "BOS_Continuation" | "BOS" | "CHoCH" | "None",
+  "setupType": "FibShort" | "FibLong" | "BOS_Continuation" | "None",
   "setupPresent": true | false,
   "bosDetected": true | false,
   "chochDetected": true | false,
@@ -89,6 +89,20 @@ Return ONLY valid JSON:
   "reasons": ["reason1", "reason2", "reason3"],
   "invalidationLevel": <price or null>
 }`;
+
+function normalizeLLMSetupType(setupType: unknown, bosDetected: boolean): SetupType {
+  switch (setupType) {
+    case "FibShort":
+    case "FibLong":
+    case "BOS_Continuation":
+    case "None":
+      return setupType;
+    case "BOS":
+      return bosDetected ? "BOS_Continuation" : "None";
+    default:
+      return "None";
+  }
+}
 
 async function runLLMAnalysis(
   client: Anthropic,
@@ -143,13 +157,14 @@ Return JSON only.`.trim();
   const raw     = msg.content[0].type === "text" ? msg.content[0].text : "";
   const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
   const parsed  = JSON.parse(cleaned);
+  const normalizedSetupType = normalizeLLMSetupType(parsed.setupType, Boolean(parsed.bosDetected));
 
   return {
     agentId: "smc",
     bias: parsed.bias as DirectionalBias,
     confidence: parsed.confidence,
-    setupType: parsed.setupType as SetupType,
-    setupPresent: parsed.setupPresent,
+    setupType: normalizedSetupType,
+    setupPresent: normalizedSetupType !== "None",
     keyLevels: parsed.keyLevels as SMCKeyLevels,
     premiumDiscount: parsed.premiumDiscount as PriceZone,
     liquiditySweepDetected: parsed.liquiditySweepDetected,

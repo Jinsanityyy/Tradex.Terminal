@@ -31,31 +31,39 @@ export async function runExecutionAgent(
     const { current, high, low, dayRange } = price;
     const { htfBias, htfConfidence } = structure;
     const { session, rsi, macdHist } = indicators;
+    const createNoTrade = (reason: string, notes?: string[]): ExecutionAgentOutput => ({
+      agentId: "execution",
+      hasSetup: false,
+      direction: "none",
+      entry: null,
+      stopLoss: null,
+      tp1: null,
+      tp2: null,
+      rrRatio: null,
+      trigger: "None",
+      triggerCondition: reason,
+      managementNotes: notes ?? [
+        "Wait for price to reach the Fibonacci entry zone (0.5–0.705 retracement)",
+        "Only arm execution when the stop is structural and the reward-to-risk is acceptable",
+      ],
+      entryZone: "No valid entry zone",
+      slZone: "No SL — no trade",
+      tp1Zone: "No target — no trade",
+      signalState: "NO_TRADE",
+      signalStateReason: reason,
+      distanceToEntry: null,
+      processingTime: Date.now() - start,
+    });
 
     // ── Pre-conditions ────────────────────────────────────────────────────
     if (htfBias === "neutral" || htfConfidence < 45 || !smc.setupPresent) {
       const noTradeMsg = !smc.setupPresent
         ? `No valid Fibonacci setup — ${smc.reasons[0] ?? "stand aside"}`
         : "Insufficient directional conviction — stand aside";
-      return {
-        agentId: "execution",
-        hasSetup: false,
-        direction: "none",
-        entry: null, stopLoss: null, tp1: null, tp2: null, rrRatio: null,
-        trigger: "None",
-        triggerCondition: noTradeMsg,
-        managementNotes: [
-          "Wait for price to reach the Fibonacci entry zone (0.5–0.705 retracement)",
-          "Monitor RSI and MACD for alignment with trend direction",
-        ],
-        entryZone: "No valid entry zone",
-        slZone: "No SL — no trade",
-        tp1Zone: "No target — no trade",
-        signalState: "NO_TRADE",
-        signalStateReason: "No confirmed setup. Stand aside.",
-        distanceToEntry: null,
-        processingTime: Date.now() - start,
-      };
+      return createNoTrade(noTradeMsg, [
+        "Wait for price to reach the Fibonacci entry zone (0.5–0.705 retracement)",
+        "Monitor RSI and MACD for alignment with trend direction",
+      ]);
     }
 
     const isBullish  = htfBias === "bullish";
@@ -70,7 +78,7 @@ export async function runExecutionAgent(
     //   orderBlockLow  = support   / last swing low   (SL ref for long)
     //   liquidityTarget = TP target (previous swing low for short, high for long)
     //   sweepLevel = BOS level
-    const { keyLevels, setupType, bosDetected, liquiditySweepDetected: inFibZone } = smc;
+    const { keyLevels, setupType, bosDetected, invalidationLevel } = smc;
     const fib618 = keyLevels.fvgMid;
     const fib50  = keyLevels.fvgLow;
     const fib705 = keyLevels.fvgHigh;
@@ -104,11 +112,11 @@ export async function runExecutionAgent(
       // SL above last swing high (short) or below last swing low (long)
       if (isBullish) {
         const slRef = keyLevels.orderBlockLow ?? (low * 0.995);
-        stopLoss  = slRef * 0.998;
+        stopLoss  = invalidationLevel ?? (slRef * 0.998);
         slZone    = `Below swing low ${slRef.toFixed(slRef > 100 ? 1 : 4)} — bullish structure negated on close through`;
       } else {
         const slRef = keyLevels.orderBlockHigh ?? (high * 1.005);
-        stopLoss  = slRef * 1.002;
+        stopLoss  = invalidationLevel ?? (slRef * 1.002);
         slZone    = `Above swing high ${slRef.toFixed(slRef > 100 ? 1 : 4)} — bearish structure negated on close through`;
       }
 
@@ -127,12 +135,13 @@ export async function runExecutionAgent(
       slZone    = `${isBullish ? "Below" : "Above"} BOS origin — structure break fails on close through`;
 
     } else {
-      // ── Market order fallback ─────────────────────────────────────────
-      entry    = current;
-      stopLoss = isBullish ? current * 0.985 : current * 1.015;
-      trigger  = "Market order";
-      entryZone = `Current price ${current.toFixed(current > 100 ? 1 : 4)}`;
-      slZone    = `${isBullish ? "Below" : "Above"} ${stopLoss.toFixed(stopLoss > 100 ? 1 : 4)}`;
+      return createNoTrade(
+        `Unsupported setup type "${setupType}" — wait for FibShort, FibLong, or BOS pullback confirmation before executing.`,
+        [
+          `Current setup type "${setupType}" is not allowed to auto-execute because it can produce oversized stops.`,
+          "Wait for a clean Fibonacci entry or a BOS continuation pullback before arming the trade.",
+        ]
+      );
     }
 
     // ── TP Levels ─────────────────────────────────────────────────────────
@@ -172,13 +181,23 @@ export async function runExecutionAgent(
     const reward  = Math.abs(tp1 - entry);
     const rrRatio = risk > 0 ? parseFloat((reward / risk).toFixed(2)) : null;
 
+    if (rrRatio !== null && rrRatio < 1) {
+      return createNoTrade(
+        `Reward-to-risk too weak (${rrRatio}:1) — skip execution until stop placement tightens or TP improves.`,
+        [
+          `Current setup only offers ${rrRatio}:1 to TP1, which is too weak for execution.`,
+          "Wait for a deeper retracement or a tighter structural invalidation before taking the trade.",
+        ]
+      );
+    }
+
     // ── Trigger condition ─────────────────────────────────────────────────
     const triggerCondition =
       (setupType === "FibShort" || setupType === "FibLong")
         ? `Wait for price to enter fib zone ${entryZone}. Confirm with ${isBullish ? "bullish" : "bearish"} rejection wick or momentum candle on M5/M15. RSI must be ${isBullish ? ">45 and rising" : "<55 and falling"}. MACD histogram must be ${isBullish ? "positive or crossing up" : "negative or crossing down"}.`
         : trigger === "BOS pullback"
           ? `Enter on first pullback after BOS (38% retrace). Confirm ${isBullish ? "bullish" : "bearish"} candle on M15 before entering.`
-          : `Market entry at ${current.toFixed(current > 100 ? 1 : 4)} with structural SL at ${stopLoss.toFixed(stopLoss > 100 ? 1 : 4)}`;
+          : `Stand aside until a valid execution setup forms.`;
 
     // ── Management notes ──────────────────────────────────────────────────
     const managementNotes: string[] = [
