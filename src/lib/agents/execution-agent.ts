@@ -1,14 +1,12 @@
 /**
  * Agent 5 — Execution Agent (Rule-Based)
  *
- * Produces exact trade execution plan:
- * - Entry price (OB/FVG/sweep level)
- * - Stop Loss (structural invalidation)
- * - TP1, TP2 (liquidity targets)
- * - Trigger condition
- * - Management notes
- *
- * Does NOT force a setup if conditions are weak.
+ * Produces the exact trade execution plan using:
+ * - Fibonacci zones (0.5 / 0.618 / 0.705) from the Structure+Fib agent
+ * - RSI + MACD confirmation for entry quality
+ * - Swing high/low for Stop Loss placement
+ * - Previous swing low/high for Take Profit targeting
+ * - Signal state: ARMED / PENDING / TRIGGERED / INVALIDATED / NO_TRADE
  */
 
 import type {
@@ -16,10 +14,10 @@ import type {
 } from "./schemas";
 
 function roundToPrecision(value: number, price: number): number {
-  if (price > 10000) return Math.round(value);       // BTC: round to whole
-  if (price > 1000)  return Math.round(value * 10) / 10;  // Gold: 1 decimal
-  if (price > 10)    return Math.round(value * 100) / 100; // normal FX: 2dp
-  return Math.round(value * 100000) / 100000;        // nano FX: 5dp
+  if (price > 10000) return Math.round(value);
+  if (price > 1000)  return Math.round(value * 10) / 10;
+  if (price > 10)    return Math.round(value * 100) / 100;
+  return Math.round(value * 100000) / 100000;
 }
 
 export async function runExecutionAgent(
@@ -30,113 +28,138 @@ export async function runExecutionAgent(
 
   try {
     const { price, structure, indicators } = snapshot;
-    const { current, high, low, prevClose, dayRange } = price;
-    const { htfBias, htfConfidence, zone } = structure;
-    const { session } = indicators;
+    const { current, high, low, dayRange } = price;
+    const { htfBias, htfConfidence } = structure;
+    const { session, rsi, macdHist } = indicators;
 
-    // ── Pre-conditions check ───────────────────────────────────────────────
-    // No execution plan if bias is neutral or confidence too low
-    if (htfBias === "neutral" || htfConfidence < 45) {
+    // ── Pre-conditions ────────────────────────────────────────────────────
+    if (htfBias === "neutral" || htfConfidence < 45 || !smc.setupPresent) {
+      const noTradeMsg = !smc.setupPresent
+        ? `No valid Fibonacci setup — ${smc.reasons[0] ?? "stand aside"}`
+        : "Insufficient directional conviction — stand aside";
       return {
         agentId: "execution",
         hasSetup: false,
         direction: "none",
         entry: null, stopLoss: null, tp1: null, tp2: null, rrRatio: null,
         trigger: "None",
-        triggerCondition: "No directional bias — stand aside, no execution plan generated",
-        managementNotes: ["Wait for clear BOS + HTF bias confirmation", "Monitor for session open catalyst"],
+        triggerCondition: noTradeMsg,
+        managementNotes: [
+          "Wait for price to reach the Fibonacci entry zone (0.5–0.705 retracement)",
+          "Monitor RSI and MACD for alignment with trend direction",
+        ],
         entryZone: "No valid entry zone",
-        slZone: "No SL required — no trade",
+        slZone: "No SL — no trade",
         tp1Zone: "No target — no trade",
         signalState: "NO_TRADE",
-        signalStateReason: "No directional bias detected. Stand aside and wait for clear setup.",
+        signalStateReason: "No confirmed setup. Stand aside.",
         distanceToEntry: null,
         processingTime: Date.now() - start,
       };
     }
 
-    const isBullish = htfBias === "bullish";
+    const isBullish  = htfBias === "bullish";
     const direction: TradeDirection = isBullish ? "long" : "short";
 
-    // ── Use SMC levels if available ────────────────────────────────────────
-    const { keyLevels, setupType, bosDetected, liquiditySweepDetected } = smc;
+    // ── Extract Fibonacci levels from structure agent ─────────────────────
+    // Field mapping from SMCKeyLevels (renamed for clarity in this agent):
+    //   fvgMid  = Fib 61.8% — optimal entry level
+    //   fvgLow  = Fib 50%   — entry zone bottom (short) / top (long)
+    //   fvgHigh = Fib 70.5% — entry zone top (short) / bottom (long)
+    //   orderBlockHigh = resistance / last swing high (SL ref for short)
+    //   orderBlockLow  = support   / last swing low   (SL ref for long)
+    //   liquidityTarget = TP target (previous swing low for short, high for long)
+    //   sweepLevel = BOS level
+    const { keyLevels, setupType, bosDetected, liquiditySweepDetected: inFibZone } = smc;
+    const fib618 = keyLevels.fvgMid;
+    const fib50  = keyLevels.fvgLow;
+    const fib705 = keyLevels.fvgHigh;
+
+    // ── RSI + MACD confirmation context ──────────────────────────────────
+    const rsiBearishOk  = rsi < 55 && rsi > 20; // not overbought, bearish momentum acceptable
+    const rsiBullishOk  = rsi > 45 && rsi < 80; // not oversold, bullish momentum acceptable
+    const macdConfirms  = isBullish ? macdHist > 0 : macdHist < 0;
+    const indicatorOk   = isBullish ? rsiBullishOk : rsiBearishOk;
+
     let entry: number;
     let stopLoss: number;
     let trigger: string;
     let entryZone: string;
     let slZone: string;
 
-    if (setupType === "OB" && keyLevels.orderBlockHigh !== null && keyLevels.orderBlockLow !== null) {
-      entry    = isBullish ? keyLevels.orderBlockLow  : keyLevels.orderBlockHigh;
-      stopLoss = isBullish
-        ? keyLevels.orderBlockLow  * 0.997  // 0.3% below OB low
-        : keyLevels.orderBlockHigh * 1.003;  // 0.3% above OB high
-      trigger    = "OB retest";
-      entryZone  = `${isBullish ? "Bullish" : "Bearish"} OB ${keyLevels.orderBlockLow?.toFixed(4)}–${keyLevels.orderBlockHigh?.toFixed(4)}`;
-      slZone     = `${isBullish ? "Below" : "Above"} OB ${isBullish ? "low" : "high"} — thesis invalid on close through`;
-    } else if (setupType === "FVG" && keyLevels.fvgMid !== null) {
-      entry    = keyLevels.fvgMid;
-      stopLoss = isBullish
-        ? (keyLevels.fvgLow ?? entry) * 0.998
-        : (keyLevels.fvgHigh ?? entry) * 1.002;
-      trigger    = "FVG fill";
-      entryZone  = `FVG midpoint ${keyLevels.fvgMid?.toFixed(4)} (${keyLevels.fvgLow?.toFixed(4)}–${keyLevels.fvgHigh?.toFixed(4)})`;
-      slZone     = `${isBullish ? "Below" : "Above"} FVG ${isBullish ? "low" : "high"} — imbalance invalidated`;
-    } else if (setupType === "Sweep" && liquiditySweepDetected) {
-      entry    = isBullish ? low * 1.001 : high * 0.999; // entry just after sweep
-      stopLoss = isBullish ? low * 0.997 : high * 1.003;
-      trigger    = "Sweep reversal";
-      entryZone  = `Post-sweep ${isBullish ? "buy" : "sell"} — entry above/below swept level ${isBullish ? low.toFixed(4) : high.toFixed(4)}`;
-      slZone     = `${isBullish ? "Below" : "Above"} sweep level — ${isBullish ? "lows" : "highs"} must hold`;
-    } else if (bosDetected) {
-      // BOS pullback entry
-      const pullback = dayRange * 0.38; // 38% Fibonacci of day range
+    if (setupType === "FibShort" || setupType === "FibLong") {
+      // ── Fibonacci zone entry ──────────────────────────────────────────
+      // Prefer fib61.8 (golden ratio); fallback to current if already in zone
+      const fibEntry = fib618 ?? fib705 ?? fib50;
+
+      if (fibEntry !== null) {
+        entry = fibEntry;
+        entryZone = `Fib 61.8% zone ${fib50 !== null ? `(50%: ${fib50.toFixed(fib50 > 100 ? 1 : 4)}` : "("}–70.5%: ${fib705 !== null ? fib705.toFixed(fib705 > 100 ? 1 : 4) : "N/A"}) | Ideal entry: ${fibEntry.toFixed(fibEntry > 100 ? 1 : 4)}`;
+      } else {
+        // No fib levels computed yet — use current price as entry
+        entry     = current;
+        entryZone = `Current price ${current.toFixed(current > 100 ? 1 : 4)} — entering at market (fib levels not resolved)`;
+      }
+
+      // SL above last swing high (short) or below last swing low (long)
+      if (isBullish) {
+        const slRef = keyLevels.orderBlockLow ?? (low * 0.995);
+        stopLoss  = slRef * 0.998;
+        slZone    = `Below swing low ${slRef.toFixed(slRef > 100 ? 1 : 4)} — bullish structure negated on close through`;
+      } else {
+        const slRef = keyLevels.orderBlockHigh ?? (high * 1.005);
+        stopLoss  = slRef * 1.002;
+        slZone    = `Above swing high ${slRef.toFixed(slRef > 100 ? 1 : 4)} — bearish structure negated on close through`;
+      }
+
+      trigger = setupType === "FibShort"
+        ? `Fib zone short — RSI ${rsi.toFixed(0)}, MACD ${macdHist > 0 ? "+" : ""}${macdHist.toFixed(4)}`
+        : `Fib zone long (post-BOS) — RSI ${rsi.toFixed(0)}, MACD ${macdHist > 0 ? "+" : ""}${macdHist.toFixed(4)}`;
+
+    } else if (setupType === "BOS_Continuation" && bosDetected) {
+      // ── BOS pullback entry ────────────────────────────────────────────
+      // Enter on first pullback after BOS; 38% retrace of the BOS candle
+      const pullback = dayRange * 0.38;
       entry    = isBullish ? current - pullback : current + pullback;
       stopLoss = isBullish ? entry * 0.997 : entry * 1.003;
-      trigger    = "BOS pullback";
-      entryZone  = `BOS pullback zone ~${entry.toFixed(4)} — ${isBullish ? "38% retracement of bullish BOS" : "38% retrace of bearish BOS"}`;
-      slZone     = `${isBullish ? "Below" : "Above"} BOS origin — ${isBullish ? "low" : "high"} of displacement candle`;
+      trigger  = `BOS pullback — enter on retracement after ${isBullish ? "bullish" : "bearish"} structure break`;
+      entryZone = `BOS pullback ~${entry.toFixed(entry > 100 ? 1 : 4)} — 38% retrace of break candle`;
+      slZone    = `${isBullish ? "Below" : "Above"} BOS origin — structure break fails on close through`;
+
     } else {
-      // Market order / current price entry
+      // ── Market order fallback ─────────────────────────────────────────
       entry    = current;
       stopLoss = isBullish ? current * 0.985 : current * 1.015;
-      trigger    = "Market order";
-      entryZone  = `Current price ${current.toFixed(4)} — no premium structure entry available`;
-      slZone     = `${isBullish ? "Below" : "Above"} ${stopLoss.toFixed(4)} — structural floor/ceiling`;
+      trigger  = "Market order";
+      entryZone = `Current price ${current.toFixed(current > 100 ? 1 : 4)}`;
+      slZone    = `${isBullish ? "Below" : "Above"} ${stopLoss.toFixed(stopLoss > 100 ? 1 : 4)}`;
     }
 
-    // ── TP Levels ──────────────────────────────────────────────────────────
-    // TP1 = nearest structural level, capped at 2.5R (realistic partial exit)
-    // TP2 = secondary target at 4R, always beyond TP1
-    const riskDist    = Math.abs(entry - stopLoss);
-    const tp1MaxDist  = riskDist * 2.5;  // hard cap: TP1 never more than 2.5R away
-    const tp2Distance = riskDist * 4;    // TP2 at 4R
+    // ── TP Levels ─────────────────────────────────────────────────────────
+    const riskDist   = Math.abs(entry - stopLoss);
+    const tp1MaxDist = riskDist * 2.5;
+    const tp2Dist    = riskDist * 4;
 
     let tp1: number;
     let tp2: number;
     let tp1Zone: string;
 
     if (isBullish) {
-      // Use liquidityTarget only if it's within 2.5R — otherwise fall back to 2R
-      const target = keyLevels.liquidityTarget;
+      const target    = keyLevels.liquidityTarget;
       const useTarget = target !== null && target > entry && (target - entry) <= tp1MaxDist;
-      tp1 = useTarget ? target! : entry + riskDist * 2;
-      // TP2 must always be above TP1
-      const rawTp2 = entry + tp2Distance;
-      tp2 = rawTp2 > tp1 ? rawTp2 : tp1 + riskDist;
+      tp1     = useTarget ? target! : entry + riskDist * 2;
+      tp2     = Math.max(entry + tp2Dist, tp1 + riskDist);
       tp1Zone = useTarget
-        ? `Session high / resistance ${tp1.toFixed(4)} — nearest liquidity above`
-        : `2R target ${tp1.toFixed(4)} — nearest structural resistance`;
+        ? `Previous swing high / resistance ${tp1.toFixed(tp1 > 100 ? 1 : 4)} — TP target`
+        : `2R target ${tp1.toFixed(tp1 > 100 ? 1 : 4)}`;
     } else {
-      const target = keyLevels.liquidityTarget;
+      const target    = keyLevels.liquidityTarget;
       const useTarget = target !== null && target < entry && (entry - target) <= tp1MaxDist;
-      tp1 = useTarget ? target! : entry - riskDist * 2;
-      // TP2 must always be below TP1
-      const rawTp2 = entry - tp2Distance;
-      tp2 = rawTp2 < tp1 ? rawTp2 : tp1 - riskDist;
+      tp1     = useTarget ? target! : entry - riskDist * 2;
+      tp2     = Math.min(entry - tp2Dist, tp1 - riskDist);
       tp1Zone = useTarget
-        ? `Session low / support ${tp1.toFixed(4)} — nearest liquidity below`
-        : `2R target ${tp1.toFixed(4)} — nearest structural support`;
+        ? `Previous swing low / support ${tp1.toFixed(tp1 > 100 ? 1 : 4)} — TP target`
+        : `2R target ${tp1.toFixed(tp1 > 100 ? 1 : 4)}`;
     }
 
     // Precision rounding
@@ -145,40 +168,32 @@ export async function runExecutionAgent(
     tp1      = roundToPrecision(tp1, current);
     tp2      = roundToPrecision(tp2, current);
 
-    // RR ratio
-    const risk   = Math.abs(entry - stopLoss);
-    const reward = Math.abs(tp1 - entry);
+    const risk    = Math.abs(entry - stopLoss);
+    const reward  = Math.abs(tp1 - entry);
     const rrRatio = risk > 0 ? parseFloat((reward / risk).toFixed(2)) : null;
 
-    // ── Trigger Condition ──────────────────────────────────────────────────
+    // ── Trigger condition ─────────────────────────────────────────────────
     const triggerCondition =
-      trigger === "OB retest"
-        ? `Wait for price to return to ${entryZone}, then confirm with ${isBullish ? "bullish" : "bearish"} rejection candle (engulfing, pin bar, or strong close) on M5/M15 before entering`
-        : trigger === "FVG fill"
-        ? `Wait for price to fill into FVG zone ${entryZone}. Look for ${isBullish ? "bullish" : "bearish"} displacement candle to confirm reversal within the gap`
-        : trigger === "Sweep reversal"
-        ? `Enter once ${isBullish ? "equal lows" : "equal highs"} are swept and price shows strong reversal candle closing back above/below sweep level`
+      (setupType === "FibShort" || setupType === "FibLong")
+        ? `Wait for price to enter fib zone ${entryZone}. Confirm with ${isBullish ? "bullish" : "bearish"} rejection wick or momentum candle on M5/M15. RSI must be ${isBullish ? ">45 and rising" : "<55 and falling"}. MACD histogram must be ${isBullish ? "positive or crossing up" : "negative or crossing down"}.`
         : trigger === "BOS pullback"
-        ? `Enter on first pullback to discount/premium after BOS. Confirm with ${isBullish ? "bullish" : "bearish"} momentum resumption on M15`
-        : `Market order execution — entry at current price ${current.toFixed(4)} with structural stop ${stopLoss.toFixed(4)}`;
+          ? `Enter on first pullback after BOS (38% retrace). Confirm ${isBullish ? "bullish" : "bearish"} candle on M15 before entering.`
+          : `Market entry at ${current.toFixed(current > 100 ? 1 : 4)} with structural SL at ${stopLoss.toFixed(stopLoss > 100 ? 1 : 4)}`;
 
-    // ── Management Notes ──────────────────────────────────────────────────
+    // ── Management notes ──────────────────────────────────────────────────
     const managementNotes: string[] = [
-      `Scale out 50% at TP1 (${tp1.toFixed(4)}) — reduce risk-to-zero on remaining position`,
-      `Move SL to breakeven after TP1 is reached`,
-      `Let remainder run to TP2 (${tp2.toFixed(4)}) with trailing stop`,
+      `Scale out 50% at TP1 (${tp1.toFixed(tp1 > 100 ? 1 : 4)}) — reduce position risk`,
+      `Move SL to breakeven after TP1 hit`,
+      `Let remainder run to TP2 (${tp2.toFixed(tp2 > 100 ? 1 : 4)}) with trailing stop`,
     ];
 
-    if (session === "Asia") managementNotes.push("Asia session entry — tighter targets, expect ranging until London open");
-    if (session === "London") managementNotes.push("London session — highest-probability window, full position size valid");
-    if (session === "New York") managementNotes.push("NY session — watch for reversal at London high/low before TP2");
-    if (smc.chochDetected) managementNotes.push("CHoCH detected — consider partial entry (50%) until full confirmation");
+    if (!macdConfirms) managementNotes.push("MACD not fully aligned — consider reduced position size (50%)");
+    if (!indicatorOk)  managementNotes.push("RSI at extreme — consider waiting for indicator reset before entering");
+    if (session === "Asia") managementNotes.push("Asia session — tighter targets, expect range until London open");
+    if (session === "London") managementNotes.push("London session — highest probability window, full size valid");
+    if (session === "New York") managementNotes.push("NY session — watch for London high/low reversal before TP2");
 
-    // ── Signal State ──────────────────────────────────────────────────────────
-    // Tells traders WHEN to act — not just what the setup is.
-    // ARMED:   price is within 0.5% of entry → enter now
-    // PENDING: price is away from entry but within 2% → wait for pullback
-    // EXPIRED: price has moved >2% away from entry → setup invalidated, don't chase
+    // ── Signal state ──────────────────────────────────────────────────────
     const distanceToEntry = Math.abs(current - entry) / entry * 100;
     const pricePastEntry  = isBullish ? current > entry : current < entry;
 
@@ -186,21 +201,23 @@ export async function runExecutionAgent(
     let signalStateReason: string;
 
     if (pricePastEntry && distanceToEntry > 0.3) {
-      // Price already moved past entry in the right direction — missed, don't chase
-      signalState = "EXPIRED";
-      signalStateReason = `Price already moved ${distanceToEntry.toFixed(2)}% past entry zone. Do NOT chase — wait for the next setup.`;
+      signalState       = "EXPIRED";
+      signalStateReason = `Price moved ${distanceToEntry.toFixed(2)}% past entry. Do NOT chase — wait for next setup.`;
     } else if (distanceToEntry <= 0.5) {
-      // Price is at or very near entry zone → execute now
-      signalState = "ARMED";
-      signalStateReason = `Price is ${distanceToEntry.toFixed(2)}% from entry zone. Setup is active — confirm trigger and execute.`;
+      signalState       = "ARMED";
+      signalStateReason = `Price ${distanceToEntry.toFixed(2)}% from entry. Setup ACTIVE — confirm candle trigger before executing.`;
     } else if (distanceToEntry <= 2.0) {
-      // Price is approaching entry zone → monitor and prepare
-      signalState = "PENDING";
-      signalStateReason = `Price is ${distanceToEntry.toFixed(2)}% from entry zone. Wait for price to return to ${entry.toFixed(entry > 100 ? 1 : 4)} before entering.`;
+      signalState       = "PENDING";
+      signalStateReason = `Price ${distanceToEntry.toFixed(2)}% from entry zone. Wait for price to reach ${entry.toFixed(entry > 100 ? 1 : 4)}.`;
     } else {
-      // Price is far from entry zone → wait, not urgent
-      signalState = "PENDING";
-      signalStateReason = `Price is ${distanceToEntry.toFixed(2)}% away from entry zone at ${entry.toFixed(entry > 100 ? 1 : 4)}. Monitor — no action yet.`;
+      signalState       = "PENDING";
+      signalStateReason = `Price ${distanceToEntry.toFixed(2)}% away from fib entry at ${entry.toFixed(entry > 100 ? 1 : 4)}. Monitor — no action yet.`;
+    }
+
+    // Invalidate if BOS in wrong direction occurred
+    if (smc.chochDetected && !smc.bosDetected) {
+      signalState       = "EXPIRED";
+      signalStateReason = "Structure shifted in opposite direction — setup invalidated. Stand aside.";
     }
 
     return {
@@ -223,6 +240,7 @@ export async function runExecutionAgent(
       distanceToEntry: parseFloat(distanceToEntry.toFixed(2)),
       processingTime: Date.now() - start,
     };
+
   } catch (err) {
     return {
       agentId: "execution",

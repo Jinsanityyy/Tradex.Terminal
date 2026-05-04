@@ -1,16 +1,16 @@
 /**
- * Agent 2 — SMC Agent (LLM-Powered)
+ * Agent 2 — Structure & Fibonacci Agent
  *
- * Analyzes Smart Money Concepts:
- * - BOS / CHoCH detection
- * - Order Block identification
- * - Fair Value Gap detection
- * - Liquidity sweep detection
- * - Premium / Discount zone assessment
- * - Probable liquidity targets
+ * Pure Price Action + Fibonacci retracement + RSI + MACD + Moving Averages.
+ * NO SMC, NO ICT, NO Order Blocks, NO Fair Value Gaps, NO Liquidity Sweeps.
  *
- * Uses Claude for deep structural analysis when API key available.
- * Falls back to rule-based logic for reliability.
+ * Logic:
+ * 1. Detect market structure from candles: HH+HL (bullish) | LH+LL (bearish)
+ * 2. Find latest impulse move (swing high → low for bearish, low → high for bullish)
+ * 3. Compute Fibonacci retracement levels: 0.5, 0.618, 0.705
+ * 4. SHORT: bearish structure + price in 0.5–0.705 fib zone + RSI <55 + rejection/momentum candle
+ * 5. LONG: BOS to upside ONLY + HL formed + fib zone + RSI >45 + bullish candle + MA supportive
+ * 6. NO TRADE if no fib confluence
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -18,50 +18,73 @@ import type {
   MarketSnapshot, SMCAgentOutput, SMCKeyLevels,
   DirectionalBias, SetupType, PriceZone,
 } from "./schemas";
+import { fetchYahooCandles, type CandleBar } from "./candles";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LLM Prompt
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SMC_SYSTEM_PROMPT = `You are an elite Smart Money Concepts (SMC) / ICT analyst. You think in terms of institutional order flow — not retail indicators.
+const STRUCTURE_FIB_SYSTEM_PROMPT = `You are a trading analyst using Price Action, Fibonacci retracement, RSI, MACD, and Moving Averages.
 
-Your job: analyze the provided market structure data and identify the highest-probability SMC setup.
+STRICTLY FORBIDDEN: SMC, ICT, Order Blocks, Fair Value Gaps, Liquidity sweeps, Wyckoff phases.
 
-RULES:
-- BOS (Break of Structure): displacement candle breaking beyond last swing high/low with conviction
-- CHoCH (Change of Character): structural shift — previous trend broken, new direction forming
-- Order Block (OB): the last opposing candle before a displacement move (last bearish before rally = bullish OB; last bullish before drop = bearish OB)
-- FVG (Fair Value Gap): imbalance between prevClose and current range that price will likely fill
-- Liquidity sweep: price runs beyond equal highs/lows to grab retail stops before reversing
-- Premium: above equilibrium — smart money sells here
-- Discount: below equilibrium — smart money buys here
+ALLOWED TOOLS:
+1. Market structure: Higher Highs (HH) + Higher Lows (HL) = BULLISH; Lower Highs (LH) + Lower Lows (LL) = BEARISH
+2. Break of Structure (BOS): close beyond last swing high/low — structural shift
+3. Fibonacci retracement on the last impulse move: ONLY zones 0.5, 0.618, 0.705 are valid entries
+4. Support & Resistance: key swing highs and lows
+5. Candle behavior: rejection wicks, momentum closes, engulfing candles
+6. RSI: above 50 = bullish momentum, below 50 = bearish momentum; divergence = weakness
+7. MACD histogram: positive = bullish momentum, negative = bearish; crossover = direction shift
+8. Moving Averages: EMA 20/50/200. Price > EMA20 > EMA50 = bullish stack; Price < EMA20 < EMA50 = bearish stack
 
-CRITICAL OUTPUT RULES:
-- Respond with ONLY valid JSON, no markdown, no code blocks
-- All price levels must be precise numbers based on the actual data provided
-- Return null for levels you cannot identify with confidence
-- Do not invent setups that don't exist in the data
+SHORT SETUP (trend continuation):
+- Bearish structure (LH + LL) confirmed
+- Price retraced to 0.5–0.705 fib zone of last bearish impulse
+- RSI below 55 (not overbought) — preferably 40–55
+- MACD histogram negative or crossing down
+- MA bearish (price below EMA20)
+- Bearish rejection candle OR bearish momentum candle
+- Setup: "FibShort"
 
-Return exactly this JSON structure:
+LONG SETUP (reversal — STRICT):
+- Price BROKE above last lower high (BOS to upside)
+- Higher low formed after BOS
+- Price retraced to 0.5–0.705 fib zone of post-BOS bullish impulse
+- RSI above 45 and rising
+- MACD histogram positive or crossing up
+- MA supportive (price above EMA20 or EMA20 turning up)
+- Bullish rejection candle OR bullish momentum
+- Setup: "FibLong"
+
+BOS only (no fib):
+- Setup: "BOS_Continuation"
+
+NO TRADE rules:
+- No fib zone confluence → "None"
+- Bearish structure + no BOS → no long ever
+- RSI extreme (>75 for short entry, <25 for long entry from reversal) = low quality
+
+Return ONLY valid JSON:
 {
   "bias": "bullish" | "bearish" | "neutral",
   "confidence": 0-100,
-  "setupType": "OB" | "FVG" | "BOS" | "CHoCH" | "Sweep" | "None",
+  "setupType": "FibShort" | "FibLong" | "BOS_Continuation" | "BOS" | "CHoCH" | "None",
   "setupPresent": true | false,
   "bosDetected": true | false,
   "chochDetected": true | false,
   "liquiditySweepDetected": true | false,
   "premiumDiscount": "PREMIUM" | "EQUILIBRIUM" | "DISCOUNT",
   "keyLevels": {
-    "orderBlockHigh": <price or null>,
-    "orderBlockLow": <price or null>,
-    "fvgHigh": <price or null>,
-    "fvgLow": <price or null>,
-    "fvgMid": <price or null>,
-    "liquidityTarget": <price or null>,
-    "sweepLevel": <price or null>,
-    "premiumZoneTop": <price or null>,
-    "discountZoneBottom": <price or null>
+    "orderBlockHigh": <resistance / last swing high or null>,
+    "orderBlockLow": <support / last swing low or null>,
+    "fvgHigh": <fib 70.5% level or null>,
+    "fvgLow": <fib 50% level or null>,
+    "fvgMid": <fib 61.8% level or null>,
+    "liquidityTarget": <TP target: previous swing low (short) or high (long) or null>,
+    "sweepLevel": <BOS breakout level or null>,
+    "premiumZoneTop": <impulse high or null>,
+    "discountZoneBottom": <impulse low or null>
   },
   "reasons": ["reason1", "reason2", "reason3"],
   "invalidationLevel": <price or null>
@@ -69,62 +92,57 @@ Return exactly this JSON structure:
 
 async function runLLMAnalysis(
   client: Anthropic,
-  snapshot: MarketSnapshot
+  snapshot: MarketSnapshot,
+  maData: { ma20: number | null; ma50: number | null; ma200: number | null; maStack: string }
 ): Promise<SMCAgentOutput> {
   const start = Date.now();
   const { price, structure, indicators } = snapshot;
 
-  const fvgHigh = price.current > price.prevClose
-    ? null
-    : price.prevClose;  // bearish FVG above
-  const fvgLow = price.current < price.prevClose
-    ? null
-    : price.prevClose;  // bullish FVG below
-
-  const eq = structure.equilibrium;
-  const premiumTop = eq + (price.high - eq) * 0.5;
-  const discountBottom = eq - (eq - price.low) * 0.5;
+  const body       = Math.abs(price.current - price.open);
+  const range      = price.high - price.low;
+  const upperWick  = price.high - Math.max(price.current, price.open);
+  const lowerWick  = Math.min(price.current, price.open) - price.low;
+  const closePos   = range > 0 ? ((price.current - price.low) / range * 100).toFixed(0) : "50";
+  const bodyRatio  = range > 0 ? (body / range * 100).toFixed(0) : "0";
 
   const userMessage = `
-Analyze ${snapshot.symbolDisplay} (${snapshot.symbol}) for SMC/ICT setup.
+Analyze ${snapshot.symbolDisplay} (${snapshot.symbol}) — Fibonacci + Price Action setup.
 
 PRICE ACTION (${snapshot.timeframe}):
 - Current: ${price.current} | Open: ${price.open} | High: ${price.high} | Low: ${price.low} | Prev Close: ${price.prevClose}
-- Change: ${price.changePercent > 0 ? "+" : ""}${price.changePercent.toFixed(2)}% (${price.change > 0 ? "+" : ""}${price.change.toFixed(4)})
-- Day range: ${price.dayRange.toFixed(4)} | Position in range: ${price.positionInDay}%
+- Change: ${price.changePercent > 0 ? "+" : ""}${price.changePercent.toFixed(2)}%
+- Candle: body ${bodyRatio}%, close at ${closePos}% of range | Upper wick: ${upperWick.toFixed(4)} | Lower wick: ${lowerWick.toFixed(4)}
 
-STRUCTURE:
-- 52-week range: ${structure.low52w} – ${structure.high52w}
-- 52w position: ${structure.pos52w}% (${structure.zone})
-- Equilibrium: ${eq.toFixed(4)}
-- Is in discount: ${structure.inDiscount} | Is in premium: ${structure.inPremium}
-- HTF conviction: ${structure.htfBias.toUpperCase()} at ${structure.htfConfidence}%
-- SMC context: ${structure.smcContext}
+MARKET STRUCTURE:
+- 52-week: ${structure.low52w} – ${structure.high52w} | Position: ${structure.pos52w}% (${structure.zone})
+- HTF conviction: ${structure.htfBias.toUpperCase()} @ ${structure.htfConfidence}%
+- Structure context: ${structure.smcContext}
 
-MOMENTUM:
-- RSI(14): ${indicators.rsi.toFixed(1)}
-- MACD hist proxy: ${indicators.macdHist > 0 ? "positive" : "negative"}
+INDICATORS:
+- RSI(14): ${indicators.rsi.toFixed(1)} (${indicators.rsi > 70 ? "overbought" : indicators.rsi < 30 ? "oversold" : indicators.rsi > 50 ? "bullish momentum" : "bearish momentum"})
+- MACD histogram: ${indicators.macdHist > 0 ? "+" : ""}${indicators.macdHist.toFixed(4)} (${indicators.macdHist > 0 ? "bullish" : "bearish"})
+- EMA20: ${maData.ma20 !== null ? maData.ma20.toFixed(4) : "N/A"} | EMA50: ${maData.ma50 !== null ? maData.ma50.toFixed(4) : "N/A"} | EMA200: ${maData.ma200 !== null ? maData.ma200.toFixed(4) : "N/A"}
+- MA Stack: ${maData.maStack.toUpperCase()} (${maData.maStack === "bullish" ? "price > EMA20 > EMA50" : maData.maStack === "bearish" ? "price < EMA20 < EMA50" : "mixed"})
 - Session: ${indicators.session}
 
-IMBALANCE REFERENCES:
-- Potential FVG above (bearish): ${fvgHigh?.toFixed(4) ?? "none"}
-- Potential FVG below (bullish): ${fvgLow?.toFixed(4) ?? "none"}
-- Premium zone top estimate: ${premiumTop.toFixed(4)}
-- Discount zone bottom estimate: ${discountBottom.toFixed(4)}
-
-IDENTIFY the most actionable SMC setup based on this data. Place precise price levels.
+TASK:
+1. Identify market structure (HH+HL or LH+LL) from the data above
+2. Find the last impulse move and compute fib levels (50%, 61.8%, 70.5%)
+3. Check if current price is in the 0.5–0.705 fib entry zone
+4. SHORT: bearish structure + fib zone + RSI + MACD bearish
+5. LONG: ONLY if BOS to upside confirmed
 Return JSON only.`.trim();
 
   const msg = await client.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 900,
-    system: SMC_SYSTEM_PROMPT,
+    system: STRUCTURE_FIB_SYSTEM_PROMPT,
     messages: [{ role: "user", content: userMessage }],
   });
 
-  const raw = msg.content[0].type === "text" ? msg.content[0].text : "";
+  const raw     = msg.content[0].type === "text" ? msg.content[0].text : "";
   const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
-  const parsed = JSON.parse(cleaned);
+  const parsed  = JSON.parse(cleaned);
 
   return {
     agentId: "smc",
@@ -144,124 +162,412 @@ Return JSON only.`.trim();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Rule-Based Fallback
+// Swing Detection
 // ─────────────────────────────────────────────────────────────────────────────
 
-function runRuleBasedSMC(snapshot: MarketSnapshot): SMCAgentOutput {
+interface SwingPoint { price: number; index: number; }
+
+function detectSwings(candles: CandleBar[], strength = 3): { highs: SwingPoint[]; lows: SwingPoint[] } {
+  const highs: SwingPoint[] = [];
+  const lows: SwingPoint[]  = [];
+  for (let i = strength; i < candles.length - strength; i++) {
+    let isHigh = true;
+    let isLow  = true;
+    for (let j = i - strength; j <= i + strength; j++) {
+      if (j === i) continue;
+      if (candles[j].h >= candles[i].h) isHigh = false;
+      if (candles[j].l <= candles[i].l) isLow  = false;
+    }
+    if (isHigh) highs.push({ price: candles[i].h, index: i });
+    if (isLow)  lows.push({ price: candles[i].l, index: i });
+  }
+  return { highs, lows };
+}
+
+interface StructureResult {
+  direction: "bullish" | "bearish" | "neutral";
+  highs: SwingPoint[];
+  lows: SwingPoint[];
+  bosDetected: boolean;
+  bosLevel: number | null;
+  chochDetected: boolean;
+}
+
+function analyzeStructure(candles: CandleBar[], currentPrice: number): StructureResult {
+  const { highs, lows } = detectSwings(candles);
+
+  if (highs.length < 2 || lows.length < 2) {
+    return { direction: "neutral", highs, lows, bosDetected: false, bosLevel: null, chochDetected: false };
+  }
+
+  const rH = highs.slice(-3);
+  const rL = lows.slice(-3);
+  const isHH = rH[rH.length - 1].price > rH[rH.length - 2].price;
+  const isHL = rL[rL.length - 1].price > rL[rL.length - 2].price;
+  const isLH = rH[rH.length - 1].price < rH[rH.length - 2].price;
+  const isLL = rL[rL.length - 1].price < rL[rL.length - 2].price;
+
+  let direction: "bullish" | "bearish" | "neutral" = "neutral";
+  if (isHH && isHL) direction = "bullish";
+  else if (isLH && isLL) direction = "bearish";
+
+  // BOS: price breaks last swing high/low
+  const lastH = highs[highs.length - 1].price;
+  const lastL = lows[lows.length - 1].price;
+  let bosDetected   = false;
+  let bosLevel: number | null = null;
+  let chochDetected = false;
+
+  if (direction === "bearish" && currentPrice > lastH) {
+    bosDetected   = true;
+    bosLevel      = lastH;
+    chochDetected = true; // bearish structure broken — potential reversal
+  } else if (direction === "bullish" && currentPrice < lastL) {
+    bosDetected   = true;
+    bosLevel      = lastL;
+    chochDetected = true;
+  }
+
+  return { direction, highs, lows, bosDetected, bosLevel, chochDetected };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fibonacci
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface FibResult {
+  impulseHigh: number;
+  impulseLow: number;
+  fib50: number;
+  fib618: number;
+  fib705: number;
+  inZone: boolean; // price is between fib50 and fib705
+}
+
+function computeFib(
+  impulseHigh: number,
+  impulseLow: number,
+  currentPrice: number,
+  direction: "bullish" | "bearish"
+): FibResult {
+  const r = impulseHigh - impulseLow;
+  if (r <= 0) return { impulseHigh, impulseLow, fib50: impulseHigh, fib618: impulseHigh, fib705: impulseHigh, inZone: false };
+
+  let fib50: number, fib618: number, fib705: number, inZone: boolean;
+
+  if (direction === "bearish") {
+    // Bearish impulse: high → low. Retracement goes UP from the low.
+    fib50  = impulseLow + 0.5   * r;
+    fib618 = impulseLow + 0.618 * r;
+    fib705 = impulseLow + 0.705 * r;
+    inZone = currentPrice >= fib50 && currentPrice <= fib705;
+  } else {
+    // Bullish impulse: low → high. Retracement goes DOWN from the high.
+    fib50  = impulseHigh - 0.5   * r;
+    fib618 = impulseHigh - 0.618 * r;
+    fib705 = impulseHigh - 0.705 * r;
+    inZone = currentPrice <= fib50 && currentPrice >= fib705;
+  }
+
+  return { impulseHigh, impulseLow, fib50, fib618, fib705, inZone };
+}
+
+function findLatestImpulse(
+  highs: SwingPoint[],
+  lows: SwingPoint[],
+  direction: "bullish" | "bearish"
+): { impulseHigh: number; impulseLow: number } | null {
+  if (direction === "bearish" && highs.length > 0 && lows.length > 0) {
+    const lastH   = highs[highs.length - 1];
+    const laterLs = lows.filter(l => l.index > lastH.index);
+    const lastL   = laterLs.length > 0 ? laterLs[laterLs.length - 1] : lows[lows.length - 1];
+    if (lastL.price < lastH.price) return { impulseHigh: lastH.price, impulseLow: lastL.price };
+  }
+  if (direction === "bullish" && highs.length > 0 && lows.length > 0) {
+    const lastL   = lows[lows.length - 1];
+    const laterHs = highs.filter(h => h.index > lastL.index);
+    const lastH   = laterHs.length > 0 ? laterHs[laterHs.length - 1] : highs[highs.length - 1];
+    if (lastH.price > lastL.price) return { impulseHigh: lastH.price, impulseLow: lastL.price };
+  }
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rule-Based Core
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function runRuleBasedStructureFib(snapshot: MarketSnapshot): Promise<SMCAgentOutput> {
   const start = Date.now();
   const { price, structure, indicators } = snapshot;
+  const { current, high, low, open, prevClose } = price;
 
-  const { htfBias, htfConfidence, zone, smcContext, inDiscount, inPremium, equilibrium, high52w, low52w } = structure;
-  const { changePercent, current, high, low, prevClose } = price;
+  // ── Fetch candles ─────────────────────────────────────────────────────────
+  let candles: CandleBar[] = [];
+  try {
+    const fetched = await fetchYahooCandles(snapshot.symbol, snapshot.timeframe);
+    if (fetched && fetched.length >= 10) candles = fetched;
+  } catch { /* fall through to snapshot-only fallback */ }
 
-  // BOS detection from conviction smcContext
-  const bosUp   = smcContext.includes("BOS to upside");
-  const bosDown = smcContext.includes("BOS to downside");
-  const bosDetected = bosUp || bosDown;
-
-  // CHoCH: structural shift
-  const chochDetected = smcContext.includes("CHoCH") || (
-    (structure.pos52w > 65 && changePercent < -0.6) ||
-    (structure.pos52w < 35 && changePercent > 0.6)
-  );
-
-  // Liquidity sweep: large intraday move that recovered (wick detection proxy)
-  const range = high - low;
-  const body  = Math.abs(current - price.open);
-  const liquiditySweepDetected = range > 0 && (range - body) / range > 0.4 && Math.abs(changePercent) > 0.5;
-
-  // Setup type priority: Sweep > BOS > CHoCH > OB/FVG > None
-  let setupType: SetupType = "None";
-  if (liquiditySweepDetected) setupType = "Sweep";
-  else if (bosDetected) setupType = "BOS";
-  else if (chochDetected) setupType = "CHoCH";
-  else if (htfConfidence > 60) setupType = htfBias === "neutral" ? "None" : "OB";
-
-  const setupPresent = setupType !== "None";
-
-  // OB levels (simplified: last session's key levels)
-  const obRange = current * 0.003; // 0.3% range for OB zone
-  const obHigh = bosUp ? parseFloat((current - obRange * 0.5).toFixed(4)) : null;
-  const obLow  = bosUp ? parseFloat((current - obRange * 1.5).toFixed(4)) : null;
-
-  // FVG levels: imbalance between prevClose and intraday range
-  const fvgGap = current - prevClose;
-  const fvgHigh = fvgGap < 0 ? parseFloat(Math.max(current, prevClose).toFixed(4)) : null;
-  const fvgLow  = fvgGap > 0 ? parseFloat(Math.min(current, prevClose).toFixed(4)) : null;
-  const fvgMid  = (fvgHigh !== null && fvgLow !== null)
-    ? parseFloat(((fvgHigh + fvgLow) / 2).toFixed(4))
-    : null;
-
-  // Liquidity targets: nearest equal highs/lows
-  const nearHigh52 = structure.pos52w > 85;
-  const nearLow52  = structure.pos52w < 15;
-  const liquidityTarget = htfBias === "bullish"
-    ? parseFloat((high * 1.005).toFixed(4))
-    : parseFloat((low * 0.995).toFixed(4));
-
-  const sweepLevel = liquiditySweepDetected
-    ? htfBias === "bullish"
-      ? parseFloat(low.toFixed(4))
-      : parseFloat(high.toFixed(4))
-    : null;
-
-  const premiumZoneTop     = parseFloat((equilibrium + (high - equilibrium) * 0.6).toFixed(4));
-  const discountZoneBottom = parseFloat((equilibrium - (equilibrium - low) * 0.6).toFixed(4));
-
-  // Bias: follow HTF but adjust for current zone and setup
-  let bias: DirectionalBias = htfBias;
-  if (setupType === "Sweep") {
-    // After sweep, expect reversal in opposite direction of sweep
-    bias = htfBias; // follow structural bias
+  // ── Structure analysis ────────────────────────────────────────────────────
+  let structResult: StructureResult;
+  if (candles.length >= 10) {
+    structResult = analyzeStructure(candles, current);
+  } else {
+    // Snapshot-based approximation when no candles
+    const htfDir = structure.htfBias === "neutral" ? "bearish" : structure.htfBias;
+    structResult = {
+      direction: htfDir as "bullish" | "bearish",
+      highs: [{ price: high, index: 0 }],
+      lows:  [{ price: low,  index: 1 }],
+      bosDetected:   structure.smcContext.includes("BOS to upside"),
+      bosLevel:      structure.smcContext.includes("BOS to upside") ? high : null,
+      chochDetected: structure.smcContext.includes("CHoCH"),
+    };
   }
 
-  let confidence = htfConfidence;
-  if (setupPresent && bosDetected) confidence = Math.min(95, confidence + 10);
-  if (chochDetected) confidence = Math.min(90, confidence + 5);
+  const { direction, highs, lows, bosDetected, bosLevel, chochDetected } = structResult;
 
+  // ── Fibonacci ─────────────────────────────────────────────────────────────
+  // After BOS in bearish structure, compute bullish fib for reversal entry
+  const fibDirection = (bosDetected && chochDetected && direction === "bearish") ? "bullish" : direction;
+  const effectiveDir = fibDirection === "neutral" ? "bearish" : fibDirection;
+  const impulse      = findLatestImpulse(highs, lows, effectiveDir);
+
+  let fib: FibResult | null = null;
+  if (impulse) {
+    fib = computeFib(impulse.impulseHigh, impulse.impulseLow, current, effectiveDir);
+  } else if (candles.length === 0) {
+    // Fallback: use day's H/L as rough impulse proxy
+    fib = computeFib(high, low, current, effectiveDir);
+  }
+
+  const inFibZone = fib?.inZone ?? false;
+
+  // ── Candle behavior ───────────────────────────────────────────────────────
+  const candleRange = high - low;
+  const candleBody  = Math.abs(current - open);
+  const upperWick   = high - Math.max(current, open);
+  const lowerWick   = Math.min(current, open) - low;
+  const closeRatio  = candleRange > 0 ? (current - low) / candleRange : 0.5;
+  const bodyRatio   = candleRange > 0 ? candleBody / candleRange : 0;
+
+  const bearishRejection = upperWick > candleBody * 1.5 && closeRatio < 0.45;
+  const bullishRejection = lowerWick > candleBody * 1.5 && closeRatio > 0.55;
+  const bearishMomentum  = bodyRatio > 0.55 && current < open && closeRatio < 0.4;
+  const bullishMomentum  = bodyRatio > 0.55 && current > open && closeRatio > 0.6;
+
+  // ── RSI + MACD context ────────────────────────────────────────────────────
+  const { rsi, macdHist } = indicators;
+  const rsiOverbought  = rsi > 70;
+  const rsiOversold    = rsi < 30;
+  const rsiBearish     = rsi < 50;
+  const rsiBullish     = rsi > 50;
+  const macdBearish    = macdHist < 0;
+  const macdBullish    = macdHist > 0;
+
+  // ── MA context ────────────────────────────────────────────────────────────
+  const maaBearish = structure.htfBias === "bearish" && structure.inPremium;
+  const maaBullish = structure.htfBias === "bullish" && structure.inDiscount;
+
+  // ── STRICT HIERARCHY: Structure → Fib → RSI/MACD ────────────────────────
+  //
+  // 1. STRUCTURE determines direction. Cannot be overridden.
+  //    Bearish (LH+LL) → only SHORT or NO TRADE
+  //    Bullish (HH+HL) → only LONG or NO TRADE
+  //    Bearish + BOS to upside → only LONG (post-reversal)
+  //
+  // 2. FIBONACCI is the mandatory entry filter.
+  //    Not in 0.5–0.705 zone → NO TRADE (structure can be right, still no trade)
+  //
+  // 3. RSI + MACD modify CONFIDENCE only. Cannot flip direction.
+  //    Aligned with structure → boost confidence
+  //    Counter-trend → reduce confidence (but does NOT generate opposite signal)
+
+  let setupType: SetupType = "None";
+  let bias: DirectionalBias = "neutral";
+
+  if (direction === "bearish" && !bosDetected) {
+    // ── BEARISH STRUCTURE → SHORT ONLY ────────────────────────────────────
+    bias = "bearish";
+    if (inFibZone) {
+      if (bearishRejection || bearishMomentum) {
+        setupType = "FibShort"; // candle confirmation in zone
+      } else {
+        setupType = "FibShort"; // in zone, ARMED — awaiting candle trigger
+      }
+    }
+    // Not in zone → NO TRADE (but bias stays bearish as structural context)
+    if (!inFibZone) setupType = "None";
+
+  } else if (bosDetected && chochDetected) {
+    // ── BOS CONFIRMED → LONG ONLY (reversal after bearish structure break) ──
+    bias = "bullish";
+    if (inFibZone) {
+      setupType = "FibLong";
+    } else {
+      setupType = "BOS_Continuation"; // BOS fired, waiting for fib pullback
+    }
+
+  } else if (direction === "bullish" && !bosDetected) {
+    // ── BULLISH STRUCTURE → LONG ONLY ─────────────────────────────────────
+    bias = "bullish";
+    if (inFibZone) {
+      if (bullishRejection || bullishMomentum) {
+        setupType = "FibLong";
+      } else {
+        setupType = "FibLong"; // in zone, ARMED
+      }
+    }
+    if (!inFibZone) setupType = "None";
+  }
+
+  // ── RSI/MACD: confidence modifiers only (DO NOT change direction) ─────────
+  // These are applied to confidence score below — never to bias or setupType.
+
+  // No fib or no structure → no trade
+  if (setupType === "None") bias = "neutral";
+
+  // ── Key levels ────────────────────────────────────────────────────────────
+  const round = (v: number): number => {
+    if (v > 1000) return Math.round(v * 10) / 10;
+    if (v > 10)   return Math.round(v * 100) / 100;
+    return Math.round(v * 100000) / 100000;
+  };
+
+  const lastH    = highs.length > 0 ? highs[highs.length - 1].price : null;
+  const lastL    = lows.length  > 0 ? lows[lows.length - 1].price   : null;
+  const prevL    = lows.length  > 1 ? lows[lows.length - 2].price   : null;
+  const prevH    = highs.length > 1 ? highs[highs.length - 2].price : null;
+  const tpTarget = bias === "bearish"
+    ? (prevL ?? (lastL ? round(lastL * 0.995) : null))
+    : (prevH ?? (lastH ? round(lastH * 1.005) : null));
+
+  const keyLevels: SMCKeyLevels = {
+    orderBlockHigh:      lastH ? round(lastH) : null,         // resistance / SL ref for short
+    orderBlockLow:       lastL ? round(lastL) : null,          // support
+    fvgHigh:             fib   ? round(fib.fib705)  : null,   // fib 70.5%
+    fvgLow:              fib   ? round(fib.fib50)   : null,   // fib 50%
+    fvgMid:              fib   ? round(fib.fib618)  : null,   // fib 61.8% (ideal entry)
+    liquidityTarget:     tpTarget !== undefined ? tpTarget : null, // TP target
+    sweepLevel:          bosLevel ? round(bosLevel) : null,    // BOS level
+    premiumZoneTop:      fib   ? round(fib.impulseHigh) : null,
+    discountZoneBottom:  fib   ? round(fib.impulseLow)  : null,
+  };
+
+  // ── Confidence: structure + fib = base; RSI/MACD = modifiers only ────────
+  let confidence = 25;
+
+  // Structure (primary) — direction must be clear
+  if (direction !== "neutral") confidence += 20;
+
+  // Fibonacci (entry filter) — in zone is mandatory for full confidence
+  if (inFibZone) confidence += 25;
+  if (fib) {
+    // Golden zone (0.618–0.705): optimal risk/reward area
+    const inGolden = effectiveDir === "bearish"
+      ? (current >= fib.fib618 && current <= fib.fib705)
+      : (current >= fib.fib705 && current <= fib.fib618);
+    if (inGolden) confidence += 10;
+  }
+
+  // Candle confirmation (price action)
+  if (bearishRejection || bullishRejection) confidence += 12;
+  if (bearishMomentum  || bullishMomentum)  confidence += 8;
+  if (bosDetected)   confidence += 8;
+
+  // RSI modifier (confirmation only — cannot exceed ±10 total contribution)
+  // Aligned = +, counter-trend = -
+  if (bias === "bearish") {
+    if (rsiBearish)     confidence += 5;      // confirms direction
+    if (rsiOverbought)  confidence -= 8;      // overbought SHORT entry = caution but don't block
+    if (rsiBullish && !rsiOverbought) confidence -= 5; // RSI bullish but structure bearish = reduce
+  }
+  if (bias === "bullish") {
+    if (rsiBullish)     confidence += 5;
+    if (rsiOversold)    confidence -= 8;
+    if (rsiBearish && !rsiOversold) confidence -= 5;
+  }
+
+  // MACD modifier (confirmation only — ±5 max)
+  if (bias === "bearish" && macdBearish) confidence += 5;
+  if (bias === "bearish" && macdBullish) confidence -= 5;
+  if (bias === "bullish" && macdBullish) confidence += 5;
+  if (bias === "bullish" && macdBearish) confidence -= 5;
+
+  if (setupType === "None") confidence = Math.min(30, confidence);
+  confidence = Math.min(93, Math.max(20, confidence));
+
+  // ── Zone classification ───────────────────────────────────────────────────
+  let zone: PriceZone = structure.zone;
+  if (fib) {
+    if (effectiveDir === "bearish") {
+      zone = current > fib.fib705 ? "PREMIUM" : current >= fib.fib50 ? "EQUILIBRIUM" : "DISCOUNT";
+    } else {
+      zone = current < fib.fib705 ? "DISCOUNT" : current <= fib.fib50 ? "EQUILIBRIUM" : "PREMIUM";
+    }
+  }
+
+  // ── Reasons (hierarchy: structure → fib → candle → indicators) ──────────
   const reasons: string[] = [];
 
-  if (bosUp)  reasons.push(`BOS to upside confirmed — displacement above ${prevClose.toFixed(4)}, institutional order flow bullish`);
-  if (bosDown) reasons.push(`BOS to downside confirmed — displacement below ${prevClose.toFixed(4)}, institutional order flow bearish`);
-  if (chochDetected) reasons.push(`CHoCH detected — structural trend shifting, monitor for new BOS confirmation`);
-  if (liquiditySweepDetected) reasons.push(`Liquidity sweep detected — large wick indicates stop hunt, ${htfBias === "bullish" ? "buy-side" : "sell-side"} liquidity grabbed`);
-  if (inDiscount) reasons.push(`Price at ${zone} (${current.toFixed(4)} < equilibrium ${equilibrium.toFixed(4)}) — institutional buy zone, OB/FVG long setups valid`);
-  if (inPremium) reasons.push(`Price at ${zone} (${current.toFixed(4)} > equilibrium ${equilibrium.toFixed(4)}) — institutional sell zone, OB/FVG short setups valid`);
-  if (nearHigh52) reasons.push(`Price near 52-week high (${structure.pos52w}% of range) — external liquidity above, sweep potential`);
-  if (nearLow52)  reasons.push(`Price near 52-week low (${structure.pos52w}% of range) — external liquidity below, sweep potential`);
-
-  if (reasons.length === 0) {
-    reasons.push(`HTF ${htfBias} bias at ${htfConfidence}% conviction — awaiting structure confirmation`);
-    reasons.push(`${zone} zone — ${zone === "PREMIUM" ? "sell pressure area" : zone === "DISCOUNT" ? "buy pressure area" : "neutral zone, no directional edge"}`);
-    reasons.push(`No confirmed BOS/CHoCH — monitor for structural trigger before entering`);
+  // 1. Structure (primary decision)
+  if (direction === "bearish" && !bosDetected) {
+    reasons.push(`[STRUCTURE] Bearish: Lower Highs + Lower Lows confirmed → ONLY SHORT signals valid`);
+  } else if (direction === "bullish" && !bosDetected) {
+    reasons.push(`[STRUCTURE] Bullish: Higher Highs + Higher Lows confirmed → ONLY LONG signals valid`);
+  } else if (bosDetected && chochDetected) {
+    reasons.push(`[BOS] Break of Structure at ${round(bosLevel!)} — bearish structure invalidated, reversal underway`);
+  } else {
+    reasons.push(`[STRUCTURE] Neutral — no clear HH/HL or LH/LL pattern yet. No trade.`);
   }
 
+  // 2. Fibonacci (entry filter)
+  if (fib) {
+    if (inFibZone) {
+      reasons.push(`[FIB ZONE ✓] Price at ${round(current)} — INSIDE entry zone | 50%: ${round(fib.fib50)} | 61.8%: ${round(fib.fib618)} | 70.5%: ${round(fib.fib705)}`);
+    } else {
+      reasons.push(`[FIB ZONE ✗] No entry — price outside 0.5–0.705 zone | 50%: ${round(fib.fib50)} | 61.8%: ${round(fib.fib618)} | 70.5%: ${round(fib.fib705)}`);
+    }
+  } else {
+    reasons.push(`[FIB] No impulse move identified — awaiting clear swing high/low for fib calculation`);
+  }
+
+  // 3. Candle confirmation
+  if (bearishRejection) reasons.push(`[CANDLE] Bearish rejection — upper wick at ${round(current)} signals seller dominance`);
+  if (bullishRejection) reasons.push(`[CANDLE] Bullish rejection — lower wick at ${round(current)} signals buyer defense`);
+  if (bearishMomentum)  reasons.push(`[CANDLE] Bearish momentum — strong close near low, sellers in control`);
+  if (bullishMomentum)  reasons.push(`[CANDLE] Bullish momentum — strong close near high, buyers in control`);
+
+  // 4. RSI/MACD (confirmation — note if counter-trend)
+  const rsiStatus = rsi > 70 ? "overbought (caution — reduces confidence on shorts)" : rsi < 30 ? "oversold (caution — reduces confidence on longs)" : rsi > 50 ? "bullish momentum" : "bearish momentum";
+  const macdStatus = macdBullish ? "bullish momentum" : "bearish momentum";
+  const counterTrend = (bias === "bearish" && (rsiBullish || macdBullish)) || (bias === "bullish" && (rsiBearish || macdBearish));
+  reasons.push(`[INDICATORS] RSI ${rsi.toFixed(1)} (${rsiStatus}) | MACD ${macdHist > 0 ? "+" : ""}${macdHist.toFixed(4)} (${macdStatus})${counterTrend ? " — COUNTER-TREND: confidence reduced" : " — aligned with structure"}`);
+
+  if (setupType === "None" && direction !== "neutral") {
+    reasons.push(`[NO TRADE] Structure is ${direction} but price is NOT in the 0.5–0.705 fib zone. Waiting for retracement.`);
+  } else if (setupType === "None") {
+    reasons.push(`[NO TRADE] No clear structure. Stand aside until HH+HL or LH+LL forms.`);
+  }
+
+  // ── Invalidation ─────────────────────────────────────────────────────────
   const step = current > 1000 ? 5 : current > 100 ? 1 : 0.0005;
-  const invalidationLevel = bias === "bullish"
-    ? parseFloat((Math.floor(low * 0.998 / step) * step).toFixed(4))
-    : bias === "bearish"
-    ? parseFloat((Math.ceil(high * 1.002 / step) * step).toFixed(4))
-    : null;
+  const invalidationLevel =
+    setupType === "FibShort"
+      ? (lastH ? round(Math.ceil(lastH * 1.002 / step) * step) : null)
+      : setupType === "FibLong"
+        ? (lastL ? round(Math.floor(lastL * 0.998 / step) * step) : null)
+        : null;
 
   return {
     agentId: "smc",
     bias,
     confidence: Math.round(confidence),
     setupType,
-    setupPresent,
-    keyLevels: {
-      orderBlockHigh: obHigh,
-      orderBlockLow: obLow,
-      fvgHigh,
-      fvgLow,
-      fvgMid,
-      liquidityTarget,
-      sweepLevel,
-      premiumZoneTop,
-      discountZoneBottom,
-    },
+    setupPresent: setupType !== "None",
+    keyLevels,
     premiumDiscount: zone,
-    liquiditySweepDetected,
+    liquiditySweepDetected: inFibZone, // repurposed: true = price is in fib entry zone
     bosDetected,
     chochDetected,
     reasons: reasons.slice(0, 5),
@@ -271,7 +577,7 @@ function runRuleBasedSMC(snapshot: MarketSnapshot): SMCAgentOutput {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main Agent Function
+// Main Export
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function runSMCAgent(
@@ -283,20 +589,22 @@ export async function runSMCAgent(
   if (anthropicApiKey) {
     try {
       const client = new Anthropic({ apiKey: anthropicApiKey });
-      return await runLLMAnalysis(client, snapshot);
+      // Fetch MA data to enrich the LLM prompt
+      const { getMAFromCandles } = await import("./candles");
+      const maData = await getMAFromCandles(snapshot.symbol, snapshot.timeframe, snapshot.price.current);
+      return await runLLMAnalysis(client, snapshot, maData);
     } catch (err) {
-      console.warn("SMC Agent LLM fallback:", err);
+      console.warn("[smc-agent] LLM fallback:", err);
     }
   }
 
-  // Rule-based fallback
   try {
-    return runRuleBasedSMC(snapshot);
+    return await runRuleBasedStructureFib(snapshot);
   } catch (err) {
     return {
       agentId: "smc",
       bias: "neutral",
-      confidence: 30,
+      confidence: 25,
       setupType: "None",
       setupPresent: false,
       keyLevels: {
@@ -309,7 +617,7 @@ export async function runSMCAgent(
       liquiditySweepDetected: false,
       bosDetected: false,
       chochDetected: false,
-      reasons: ["SMC analysis failed — defaulting to neutral"],
+      reasons: ["Structure + Fibonacci analysis failed — defaulting to neutral"],
       invalidationLevel: null,
       processingTime: Date.now() - start,
       error: String(err),

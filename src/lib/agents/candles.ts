@@ -26,6 +26,17 @@ interface CandleMetrics {
   rsi: number;
   positionInRange: number;
   driftPercent: number;
+  ma20: number | null;   // 20-period EMA
+  ma50: number | null;   // 50-period EMA
+  ma200: number | null;  // 200-period EMA
+  maStack: "bullish" | "bearish" | "neutral"; // price vs MA alignment
+}
+
+export interface MALevels {
+  ma20: number | null;
+  ma50: number | null;
+  ma200: number | null;
+  maStack: "bullish" | "bearish" | "neutral";
 }
 
 const FINNHUB_SYMBOLS: Partial<Record<Symbol, FinnhubConfig>> = {
@@ -161,6 +172,16 @@ function buildSyntheticCandles(price: number): CandleBar[] {
   }));
 }
 
+function computeEMA(closes: number[], period: number): number | null {
+  if (closes.length < period) return null;
+  const k = 2 / (period + 1);
+  let ema = closes.slice(0, period).reduce((sum, c) => sum + c, 0) / period;
+  for (let i = period; i < closes.length; i++) {
+    ema = closes[i] * k + ema * (1 - k);
+  }
+  return ema;
+}
+
 function computeRsi(closes: number[], period = 14): number {
   if (closes.length <= period) return 50;
 
@@ -206,11 +227,27 @@ function computeMetrics(candles: CandleBar[]): CandleMetrics {
   const trendBase = trendWindow[0] ?? last.o;
   const driftPercent = trendBase !== 0 ? ((last.c - trendBase) / trendBase) * 100 : 0;
 
+  const ma20  = computeEMA(closes, 20);
+  const ma50  = computeEMA(closes, 50);
+  const ma200 = computeEMA(closes, 200);
+  const price = last.c;
+
+  let maStack: "bullish" | "bearish" | "neutral" = "neutral";
+  if (ma20 !== null && ma50 !== null && price > ma20 && ma20 > ma50) {
+    maStack = "bullish";
+  } else if (ma20 !== null && ma50 !== null && price < ma20 && ma20 < ma50) {
+    maStack = "bearish";
+  }
+
   return {
     changePercent,
     rsi: computeRsi(closes),
     positionInRange,
     driftPercent,
+    ma20,
+    ma50,
+    ma200,
+    maStack,
   };
 }
 
@@ -227,20 +264,33 @@ function deriveBiasFromMetrics(
   metrics: CandleMetrics,
   htfBias: DirectionalBias
 ): DirectionalBias {
+  const maBoostBull = metrics.maStack === "bullish";
+  const maBoostBear = metrics.maStack === "bearish";
+
   switch (timeframe) {
     case "H4":
+      // H4: RSI + price change required; MA stack as tiebreaker
       if (metrics.changePercent > 0.15 && metrics.rsi > 52) return "bullish";
       if (metrics.changePercent < -0.15 && metrics.rsi < 48) return "bearish";
+      if (maBoostBull) return "bullish";
+      if (maBoostBear) return "bearish";
       return deriveDirectionalFallback(metrics) !== "neutral" ? deriveDirectionalFallback(metrics) : htfBias;
     case "H1":
+      // H1: price change primary; MA stack confirms
+      if (metrics.changePercent > 0.15 && (metrics.rsi > 50 || maBoostBull)) return "bullish";
+      if (metrics.changePercent < -0.15 && (metrics.rsi < 50 || maBoostBear)) return "bearish";
       if (metrics.changePercent > 0.15) return "bullish";
       if (metrics.changePercent < -0.15) return "bearish";
       return deriveDirectionalFallback(metrics);
     case "M15":
+      // M15: RSI + change; MA stack as secondary
       if (metrics.changePercent > 0.3 && metrics.rsi > 52) return "bullish";
       if (metrics.changePercent < -0.3 && metrics.rsi < 48) return "bearish";
+      if (metrics.changePercent > 0.3 && maBoostBull) return "bullish";
+      if (metrics.changePercent < -0.3 && maBoostBear) return "bearish";
       return deriveDirectionalFallback(metrics);
     case "M5":
+      // M5: range position + direction; MA context
       if (metrics.positionInRange > 65 && metrics.changePercent > 0) return "bullish";
       if (metrics.positionInRange < 35 && metrics.changePercent < 0) return "bearish";
       return deriveDirectionalFallback(metrics);
@@ -522,4 +572,23 @@ export async function getTimeframeBiasFromCandles(
   timeframeBias.aligned = bullishCount >= 3 || bearishCount >= 3;
 
   return timeframeBias;
+}
+
+export async function getMAFromCandles(
+  symbol: Symbol,
+  timeframe: Timeframe,
+  currentPrice?: number
+): Promise<MALevels> {
+  try {
+    const candles = await getReliableCandles(symbol, timeframe, currentPrice);
+    const metrics = computeMetrics(candles);
+    return {
+      ma20:    metrics.ma20,
+      ma50:    metrics.ma50,
+      ma200:   metrics.ma200,
+      maStack: metrics.maStack,
+    };
+  } catch {
+    return { ma20: null, ma50: null, ma200: null, maStack: "neutral" };
+  }
 }

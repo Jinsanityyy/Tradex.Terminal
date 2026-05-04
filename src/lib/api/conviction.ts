@@ -8,7 +8,7 @@
  *   confidence >= 55  → directional bias (bullish | bearish)
  *   confidence < 55   → neutral (no tradeable edge)
  *
- * Structure (BOS/CHoCH/OB/FVG) determines SETUP READINESS (LTF), NOT this bias.
+ * Structure (BOS/CHoCH) determines SETUP READINESS (LTF), NOT this bias.
  */
 
 export interface ConvictionResult {
@@ -51,12 +51,12 @@ export function deriveConvictionBias(
   if (choch)   score = choch && pctChange > 0 ? Math.max(score, 20) : Math.min(score, -20);
 
   // ── Premium / Discount alignment ─────────────────────────────────────────
-  if (pctChange > 0 && inDiscount) score += 15; // institutional buy zone
-  if (pctChange < 0 && inPremium)  score -= 15; // institutional sell zone
-  if (pctChange > 0 && inPremium)  score -= 5;  // buying into premium = risky
-  if (pctChange < 0 && inDiscount) score += 5;  // selling into discount = risky
+  if (pctChange > 0 && inDiscount) score += 15; // rising from support
+  if (pctChange < 0 && inPremium)  score -= 15; // falling from resistance
+  if (pctChange > 0 && inPremium)  score -= 5;  // buying into resistance = risky
+  if (pctChange < 0 && inDiscount) score += 5;  // selling into support = risky
 
-  // ── RSI (secondary — confirms, not primary) ───────────────────────────────
+  // ── RSI (confirms momentum direction) ────────────────────────────────────
   if      (rsi > 70) score -= 10;
   else if (rsi > 60) score += 12;
   else if (rsi > 50) score += 6;
@@ -71,7 +71,7 @@ export function deriveConvictionBias(
   else if (pos52 > 0.2) score -= 8;
   else                  score -= 12;
 
-  // ── MACD proxy (secondary) ────────────────────────────────────────────────
+  // ── MACD histogram (momentum direction) ──────────────────────────────────
   if (macdHist > 0) score += Math.min(15, macdHist * 30);
   else              score += Math.max(-15, macdHist * 30);
 
