@@ -566,28 +566,27 @@ export function BrainTerminal() {
       ) : null}
 
       {data ? (
-        <div className="rounded-[24px] border border-white/6 bg-[linear-gradient(180deg,rgba(12,13,16,0.97),rgba(8,9,12,0.95))] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-          <div className="flex flex-col xl:flex-row">
-            {/* ── Brain Decision ─────────────────────────────────────────── */}
-            <div className="flex-1 min-w-0 p-5 xl:p-6">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start">
+
+          {/* ── LEFT COLUMN -- all agents + execution ──────────────────── */}
+          <div className="min-w-0 space-y-4">
+
+            {/* Brain Decision */}
+            <div className="rounded-[24px] border border-white/6 bg-[linear-gradient(180deg,rgba(12,13,16,0.97),rgba(8,9,12,0.95))] p-5 xl:p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
               <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Brain Output</div>
               <div className={cn("mt-2.5 inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]", decisionToneClasses)}>
                 {brainDecision.subLabel}
               </div>
-              <div
-                className={cn(
-                  "mt-3 text-[32px] font-semibold tracking-[-0.04em] sm:text-[40px] leading-none",
-                  brainDecision.tone === "warning" ? "text-amber-300"
-                  : brainDecision.tone === "negative" ? "text-red-300"
-                  : brainDecision.tone === "positive" ? "text-emerald-300"
-                  : "text-white"
-                )}
-              >
+              <div className={cn(
+                "mt-3 text-[32px] font-semibold tracking-[-0.04em] sm:text-[40px] leading-none",
+                brainDecision.tone === "warning" ? "text-amber-300"
+                : brainDecision.tone === "negative" ? "text-red-300"
+                : brainDecision.tone === "positive" ? "text-emerald-300"
+                : "text-white"
+              )}>
                 {brainDecision.label}
               </div>
               <p className="mt-3 max-w-2xl text-[13px] leading-[1.65] text-zinc-400">{brainDecision.detail}</p>
-
-              {/* Inline stats strip — replaces the redundant 4-chip row */}
               <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-white/5 pt-4">
                 {[
                   { label: "Confidence", value: `${data.agents.master.confidence}%`, tone: brainDecision.tone },
@@ -609,10 +608,146 @@ export function BrainTerminal() {
               </div>
             </div>
 
-            {/* ── Command Room (compact) ─────────────────────────────────── */}
+            {/* Trade Plan */}
+            <TradePlan
+              tradePlan={data.agents.master.tradePlan ?? null}
+              signalState={data.agents.master.finalBias === "no-trade" ? "NO_TRADE" : data.agents.execution.signalState}
+              signalStateReason={
+                data.agents.master.finalBias === "no-trade"
+                  ? (data.agents.master.noTradeReason ?? "Insufficient consensus - stand aside.")
+                  : data.agents.execution.signalStateReason
+              }
+              distanceToEntry={data.agents.master.finalBias === "no-trade" ? null : data.agents.execution.distanceToEntry}
+              noTradeContext={noTradeContext}
+              loading={loading && !data}
+            />
+
+            {/* Decision Drivers -- all 5 agents */}
+            <div className="space-y-3 rounded-2xl border border-white/6 bg-[linear-gradient(180deg,rgba(12,12,12,0.82),rgba(9,9,9,0.92))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-300">Decision Drivers</h2>
+                  <p className="mt-1 text-[11px] text-zinc-500">All agents remain visible for full transparency.</p>
+                </div>
+                <button
+                  onClick={() => setShowFilters((current) => !current)}
+                  className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/4 px-3 py-1.5 text-[11px] text-zinc-400 transition-colors hover:bg-white/8 hover:text-zinc-200"
+                >
+                  {showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                  {showFilters ? "Hide secondary" : "Show secondary"}
+                </button>
+              </div>
+
+              <div className="grid gap-3 xl:grid-cols-2">
+                <DriverCard
+                  title="Trend"
+                  bias={data.agents.trend.bias.toUpperCase()}
+                  confidence={data.agents.trend.confidence}
+                  detail={data.agents.trend.reasons[0] ?? "No trend read available."}
+                  meta={[
+                    { label: "Phase", value: String(data.agents.trend.marketPhase) },
+                    { label: "Momentum", value: String(data.agents.trend.momentumDirection) },
+                    { label: "Alignment", value: data.agents.trend.maAlignment ? "Aligned" : "Mixed" },
+                  ]}
+                  tone={trendTone}
+                  icon={<TrendingUp className="h-4 w-4" />}
+                  onClick={() => openDrawer("trend")}
+                />
+                <DriverCard
+                  title="Price Action"
+                  bias={data.agents.smc.bias.toUpperCase()}
+                  confidence={data.agents.smc.confidence}
+                  detail={data.agents.smc.reasons[0] ?? "No price action read available."}
+                  meta={[
+                    { label: "Pattern", value: String(data.agents.smc.setupType) },
+                    { label: "Range", value: String(data.agents.smc.premiumDiscount) },
+                    { label: "Trigger", value: data.agents.smc.liquiditySweepDetected ? "Stop run" : "Waiting" },
+                  ]}
+                  tone={paTone}
+                  icon={<Activity className="h-4 w-4" />}
+                  onClick={() => openDrawer("smc")}
+                />
+              </div>
+
+              {showFilters ? (
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {secondaryIntelCards.map((card) => {
+                    const cardTone: "positive" | "negative" | "warning" | "neutral" =
+                      card.bias === "bullish" || card.bias === "valid" ? "positive"
+                      : card.bias === "bearish" || card.bias === "opposing" ? "negative"
+                      : card.priority === "watch" || card.bias === "invalid" ? "warning"
+                      : "neutral";
+                    return (
+                      <DriverCard
+                        key={card.agentId}
+                        title={card.label}
+                        bias={card.bias.toUpperCase()}
+                        confidence={card.confidence}
+                        detail={card.reasons[0] ?? "No data."}
+                        meta={Object.entries(card.extra ?? {}).slice(0, 3).map(([label, value]) => ({ label, value: String(value ?? "--") }))}
+                        tone={cardTone}
+                        icon={card.icon}
+                        onClick={() => {
+                          setActiveAgentId(card.agentId);
+                          openDrawer(card.agentId);
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-white/8 bg-white/[0.02] px-4 py-5 text-sm text-zinc-500">
+                  Secondary agents collapsed. Click "Show secondary" to bring them back.
+                </div>
+              )}
+            </div>
+
+            {/* Detailed Layer */}
+            {showDetailLayer ? (
+              <div className="space-y-4 rounded-2xl border border-white/6 bg-[linear-gradient(180deg,rgba(11,13,16,0.92),rgba(8,9,12,0.94))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Agent Activity Log</h2>
+                  <button
+                    onClick={() => setShowDetailLayer(false)}
+                    className="flex items-center gap-1.5 text-[11px] text-zinc-500 transition-colors hover:text-zinc-300"
+                  >
+                    <EyeOff className="h-3.5 w-3.5" />
+                    Hide
+                  </button>
+                </div>
+                <AgentActivityLog data={data} loading={false} timestamp={data.timestamp} />
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3 border-t border-white/5 pt-3">
+                <span className="text-[11px] text-zinc-600">Full agent log hidden for clarity.</span>
+                <button
+                  onClick={() => setShowDetailLayer(true)}
+                  className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/[0.03] px-3 py-1.5 text-[11px] text-zinc-500 transition-colors hover:bg-white/6 hover:text-zinc-300"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  Show agent log
+                </button>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-1 text-[11px] text-zinc-500">
+              <div className="flex items-center gap-1.5">
+                <Clock className="h-3 w-3" />
+                <span>{data.totalProcessingTime}ms processing</span>
+              </div>
+              {data.cached ? <span className="rounded bg-white/4 px-2 py-0.5 text-zinc-500">CACHED</span> : null}
+              <span>{new Date(data.timestamp).toLocaleTimeString()}</span>
+            </div>
+          </div>
+
+          {/* ── RIGHT COLUMN -- pixel visual + sidebar ─────────────────── */}
+          <div className="space-y-3 xl:sticky xl:top-4">
+
+            {/* Command Room -- tall pixel visual */}
             {!sniperMode ? (
-              <div className="relative overflow-hidden border-t border-white/5 xl:border-t-0 xl:border-l xl:w-[340px] xl:flex-shrink-0 rounded-b-[24px] xl:rounded-b-none xl:rounded-r-[24px]">
-                <div className="relative z-0 h-full max-h-[220px] xl:max-h-none xl:h-full [&>*]:h-full [&>*]:min-h-0 [&>*]:w-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover [&_img]:object-top">
+              <div className="relative overflow-hidden rounded-[24px] border border-white/6 min-h-[480px] xl:min-h-[580px]">
+                <div className="absolute inset-0 [&>*]:h-full [&>*]:w-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover [&_img]:object-top">
                   <AgentCommandRoom
                     data={data}
                     loading={false}
@@ -621,7 +756,7 @@ export function BrainTerminal() {
                     onSelectAgentChange={setActiveAgentId}
                   />
                 </div>
-                <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black/40 via-transparent to-transparent xl:bg-gradient-to-l" />
+                <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
                 <div className="pointer-events-none absolute left-3 top-3 z-20 rounded-md border border-cyan-300/15 bg-black/30 px-2 py-1 font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-cyan-200/80 backdrop-blur-sm">
                   X TRADEX
                 </div>
@@ -637,28 +772,8 @@ export function BrainTerminal() {
                 </div>
               </div>
             ) : null}
-          </div>
-        </div>
-      ) : null}
 
-      {data ? (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_340px]">
-          <div>
-            <TradePlan
-              tradePlan={data.agents.master.tradePlan ?? null}
-              signalState={data.agents.master.finalBias === "no-trade" ? "NO_TRADE" : data.agents.execution.signalState}
-              signalStateReason={
-                data.agents.master.finalBias === "no-trade"
-                  ? (data.agents.master.noTradeReason ?? "Insufficient consensus - stand aside.")
-                  : data.agents.execution.signalStateReason
-              }
-              distanceToEntry={data.agents.master.finalBias === "no-trade" ? null : data.agents.execution.distanceToEntry}
-              noTradeContext={noTradeContext}
-              loading={loading && !data}
-            />
-          </div>
-
-          <div className="space-y-3">
+            {/* Risk Gate */}
             <div className="rounded-2xl border border-white/6 bg-[linear-gradient(180deg,rgba(13,13,13,0.9),rgba(10,10,10,0.9))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
               <div className="flex items-center gap-2">
                 <Shield className={cn("h-4 w-4", data.agents.risk.valid ? "text-emerald-300" : "text-amber-300")} />
@@ -674,6 +789,7 @@ export function BrainTerminal() {
               </p>
             </div>
 
+            {/* What To Do Next */}
             <div className="rounded-2xl border border-white/6 bg-[linear-gradient(180deg,rgba(13,13,13,0.9),rgba(10,10,10,0.9))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
               <div className="flex items-center gap-2">
                 <ArrowRight className="h-4 w-4 text-zinc-300" />
@@ -695,125 +811,6 @@ export function BrainTerminal() {
             </div>
 
           </div>
-        </div>
-      ) : null}
-
-      {data ? (
-        <div className="space-y-3 rounded-2xl border border-white/6 bg-[linear-gradient(180deg,rgba(12,12,12,0.82),rgba(9,9,9,0.92))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-300">Decision Drivers</h2>
-              <p className="mt-1 text-[11px] text-zinc-500">All agents remain visible for full transparency.</p>
-            </div>
-            <button
-              onClick={() => setShowFilters((current) => !current)}
-              className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/4 px-3 py-1.5 text-[11px] text-zinc-400 transition-colors hover:bg-white/8 hover:text-zinc-200"
-            >
-              {showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              {showFilters ? "Hide secondary agents" : "Show secondary agents"}
-            </button>
-          </div>
-
-          <div className="grid gap-3 xl:grid-cols-2">
-            <DriverCard
-              title="Trend"
-              bias={data.agents.trend.bias.toUpperCase()}
-              confidence={data.agents.trend.confidence}
-              detail={data.agents.trend.reasons[0] ?? "No trend read available."}
-              meta={[
-                { label: "Phase", value: String(data.agents.trend.marketPhase) },
-                { label: "Momentum", value: String(data.agents.trend.momentumDirection) },
-                { label: "Alignment", value: data.agents.trend.maAlignment ? "Aligned" : "Mixed" },
-              ]}
-              tone={trendTone}
-              icon={<TrendingUp className="h-4 w-4" />}
-              onClick={() => openDrawer("trend")}
-            />
-            <DriverCard
-              title="Price Action"
-              bias={data.agents.smc.bias.toUpperCase()}
-              confidence={data.agents.smc.confidence}
-              detail={data.agents.smc.reasons[0] ?? "No price action read available."}
-              meta={[
-                { label: "Pattern", value: String(data.agents.smc.setupType) },
-                { label: "Range", value: String(data.agents.smc.premiumDiscount) },
-                { label: "Trigger", value: data.agents.smc.liquiditySweepDetected ? "Stop run" : "Waiting" },
-              ]}
-              tone={paTone}
-              icon={<Activity className="h-4 w-4" />}
-              onClick={() => openDrawer("smc")}
-            />
-          </div>
-
-          {showFilters ? (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {secondaryIntelCards.map((card) => {
-                const cardTone: "positive" | "negative" | "warning" | "neutral" =
-                  card.bias === "bullish" || card.bias === "valid" ? "positive"
-                  : card.bias === "bearish" || card.bias === "opposing" ? "negative"
-                  : card.priority === "watch" || card.bias === "invalid" ? "warning"
-                  : "neutral";
-                return (
-                  <DriverCard
-                    key={card.agentId}
-                    title={card.label}
-                    bias={card.bias.toUpperCase()}
-                    confidence={card.confidence}
-                    detail={card.reasons[0] ?? "No data."}
-                    meta={Object.entries(card.extra ?? {}).slice(0, 3).map(([label, value]) => ({ label, value: String(value ?? "--") }))}
-                    tone={cardTone}
-                    icon={card.icon}
-                    onClick={() => {
-                      setActiveAgentId(card.agentId);
-                      openDrawer(card.agentId);
-                    }}
-                  />
-                );
-              })}
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-white/8 bg-white/[0.02] px-4 py-5 text-sm text-zinc-500">
-              Secondary agents are temporarily collapsed. Click “Show secondary agents” to bring them back.
-            </div>
-          )}
-        </div>
-      ) : null}
-
-      {showDetailLayer && data ? (
-        <div className="space-y-4 rounded-2xl border border-white/6 bg-[linear-gradient(180deg,rgba(11,13,16,0.92),rgba(8,9,12,0.94))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Agent Activity Log</h2>
-            <button
-              onClick={() => setShowDetailLayer(false)}
-              className="flex items-center gap-1.5 text-[11px] text-zinc-500 transition-colors hover:text-zinc-300"
-            >
-              <EyeOff className="h-3.5 w-3.5" />
-              Hide
-            </button>
-          </div>
-          <AgentActivityLog data={data} loading={false} timestamp={data.timestamp} />
-        </div>
-      ) : (
-        <div className="flex items-center justify-between gap-3 border-t border-white/5 pt-3">
-          <span className="text-[11px] text-zinc-600">Full agent log hidden for clarity.</span>
-          <button
-            onClick={() => setShowDetailLayer(true)}
-            className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/[0.03] px-3 py-1.5 text-[11px] text-zinc-500 transition-colors hover:bg-white/6 hover:text-zinc-300"
-          >
-            <Eye className="h-3.5 w-3.5" />
-            Show agent log
-          </button>
-        </div>
-      )}
-
-      {data ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-1 text-[11px] text-zinc-500">
-          <div className="flex items-center gap-1.5">
-            <Clock className="h-3 w-3" />
-            <span>{data.totalProcessingTime}ms processing</span>
-          </div>
-          {data.cached ? <span className="rounded bg-white/4 px-2 py-0.5 text-zinc-500">CACHED</span> : null}
-          <span>{new Date(data.timestamp).toLocaleTimeString()}</span>
         </div>
       ) : null}
 
