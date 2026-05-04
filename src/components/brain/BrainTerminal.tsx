@@ -1,30 +1,14 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import {
-  Activity,
-  ArrowRight,
-  Brain,
-  ChevronDown,
-  ChevronUp,
-  Clock,
-  Crosshair,
-  Eye,
-  EyeOff,
-  FlipHorizontal2,
-  Newspaper,
-  RefreshCw,
-  Shield,
-  TrendingUp,
-} from "lucide-react";
+import { Brain, Clock, Crosshair, RefreshCw } from "lucide-react";
 import useSWR from "swr";
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import { useQuotes } from "@/hooks/useMarketData";
-import { AgentActivityLog } from "./AgentActivityLog";
-import { AgentCommandRoom } from "./AgentCommandRoom";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
-import { TradePlan } from "./TradePlan";
+
+// ── Constants ─────────────────────────────────────────────────────────
 
 const SYMBOLS: { id: Symbol; label: string; sub: string }[] = [
   { id: "XAUUSD", label: "XAU/USD", sub: "Gold" },
@@ -35,351 +19,173 @@ const SYMBOLS: { id: Symbol; label: string; sub: string }[] = [
 
 const TIMEFRAMES: Timeframe[] = ["M15", "H1", "H4"];
 
+const SYMBOL_TO_QUOTE: Partial<Record<Symbol, string>> = {
+  XAUUSD: "XAU/USD", EURUSD: "EUR/USD", GBPUSD: "GBP/USD",
+  BTCUSD: "BTC/USD", ETHUSD: "ETH/USD", USDJPY: "USD/JPY",
+};
+
 const fetcher = (url: string) =>
-  fetch(url).then((response) => {
-    if (!response.ok) throw new Error("Failed to fetch agents");
-    return response.json() as Promise<AgentRunResult>;
+  fetch(url).then((r) => {
+    if (!r.ok) throw new Error("fetch failed");
+    return r.json() as Promise<AgentRunResult>;
   });
 
-function timeframeToMs(timeframe: Timeframe) {
-  switch (timeframe) {
-    case "M15":
-      return 15 * 60 * 1000;
-    case "H1":
-      return 60 * 60 * 1000;
-    case "H4":
-      return 4 * 60 * 60 * 1000;
-    default:
-      return 15 * 60 * 1000;
-  }
+// ── Helpers ───────────────────────────────────────────────────────────
+
+function timeframeMs(tf: Timeframe) {
+  if (tf === "M15") return 15 * 60 * 1000;
+  if (tf === "H1") return 60 * 60 * 1000;
+  return 4 * 60 * 60 * 1000;
 }
 
-function formatCountdown(msLeft: number) {
-  const totalSeconds = Math.max(0, Math.floor(msLeft / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  if (hours > 0) {
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-  }
-
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+function countdown(msLeft: number) {
+  const s = Math.max(0, Math.floor(msLeft / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
 }
 
-function getCandleCloseCountdown(nowMs: number, timeframe: Timeframe) {
-  const span = timeframeToMs(timeframe);
-  const nextClose = Math.ceil(nowMs / span) * span;
-  return formatCountdown(nextClose - nowMs);
+type Tone = "green" | "red" | "yellow" | "gray";
+
+function tone(state: string): Tone {
+  const s = state.toLowerCase();
+  if (["bullish", "long", "valid", "armed", "aligned", "open"].includes(s)) return "green";
+  if (["bearish", "short", "invalid", "opposing", "expired", "blocked"].includes(s)) return "red";
+  if (["neutral", "pending", "no_trade", "no-trade"].includes(s)) return "yellow";
+  return "gray";
 }
 
-function getExecutionActionState(data: AgentRunResult | undefined): {
-  label: "WAIT" | "PREPARE" | "EXECUTE";
-  tone: "positive" | "negative" | "warning" | "neutral";
-  detail: string;
-} {
-  if (!data || data.agents.master.finalBias === "no-trade" || !data.agents.master.tradePlan) {
-    return {
-      label: "WAIT",
-      tone: "warning",
-      detail: data?.agents.master.noTradeReason ?? "No valid structure. Stay out.",
-    };
-  }
+const TONE_CLS: Record<Tone, { label: string; bar: string; border: string; bg: string; badge: string }> = {
+  green: {
+    label: "text-emerald-400",
+    bar: "bg-emerald-400",
+    border: "border-emerald-500/18",
+    bg: "bg-emerald-500/[0.04]",
+    badge: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+  },
+  red: {
+    label: "text-red-400",
+    bar: "bg-red-400",
+    border: "border-red-500/18",
+    bg: "bg-red-500/[0.04]",
+    badge: "text-red-400 bg-red-500/10 border-red-500/20",
+  },
+  yellow: {
+    label: "text-amber-400",
+    bar: "bg-amber-400",
+    border: "border-amber-500/18",
+    bg: "bg-amber-500/[0.03]",
+    badge: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+  },
+  gray: {
+    label: "text-zinc-500",
+    bar: "bg-zinc-700",
+    border: "border-white/6",
+    bg: "bg-white/[0.015]",
+    badge: "text-zinc-500 bg-white/4 border-white/8",
+  },
+};
 
-  if (data.agents.execution.signalState === "ARMED") {
-    return {
-      label: "EXECUTE",
-      tone: data.agents.master.finalBias === "bearish" ? "negative" : "positive",
-      detail: data.agents.execution.triggerCondition || "Trigger is live.",
-    };
-  }
+// ── Agent Card ────────────────────────────────────────────────────────
 
-  return {
-    label: "PREPARE",
-    tone: "warning",
-    detail: data.agents.execution.signalStateReason || "Setup is forming. Wait for trigger confirmation.",
-  };
-}
-
-function getBiasDirection(bias: string): number {
-  if (bias === "bullish" || bias === "valid") return 1;
-  if (bias === "bearish" || bias === "invalid") return -1;
-  return 0;
-}
-
-function getAlignedAgentCount(data: AgentRunResult) {
-  return data.agents.master.agentConsensus.filter((item) => {
-    if (data.agents.master.finalBias === "bullish") return item.weightedScore > 0;
-    if (data.agents.master.finalBias === "bearish") return item.weightedScore < 0;
-    return false;
-  }).length;
-}
-
-type SupportCardPriority = "lead" | "support" | "watch";
-
-function buildNoTradeContext(data: AgentRunResult) {
-  const blocker =
-    data.agents.master.noTradeReason ??
-    data.agents.execution.signalStateReason ??
-    data.agents.risk.reasons[0] ??
-    "Structure and risk are not aligned enough to justify a live plan yet.";
-
-  const watchItems = [
-    data.agents.smc.reasons[0],
-    data.agents.trend.reasons[0],
-    data.agents.execution.hasSetup ? data.agents.execution.triggerCondition : "Wait for a cleaner trigger before opening risk.",
-  ].filter(Boolean) as string[];
-
-  return {
-    blocker,
-    watchItems,
-    stats: [
-      { label: "Consensus", value: `${data.agents.master.confidence}%` },
-      { label: "Risk Gate", value: data.agents.risk.valid ? `Open ${data.agents.risk.grade}` : `Blocked ${data.agents.risk.grade}` },
-      { label: "Execution", value: data.agents.execution.hasSetup ? "Setup ready" : "Waiting" },
-    ],
-  };
-}
-
-function getAgentCards(data: AgentRunResult) {
-  const { agents } = data;
-  const tfBias = agents.trend.timeframeBias;
-  const tfCount = (["M5", "M15", "H1", "H4"] as const).filter((timeframe) => tfBias[timeframe] === agents.trend.bias).length;
-  const masterDirection = getBiasDirection(agents.master.finalBias);
-
-  return [
-    {
-      agentId: "trend",
-      label: "Trend Agent",
-      icon: <TrendingUp className="h-4 w-4" />,
-      bias: agents.trend.bias,
-      confidence: agents.trend.confidence,
-      reasons: agents.trend.reasons,
-      invalidationLevel: agents.trend.invalidationLevel,
-      extra: {
-        Phase: agents.trend.marketPhase as string,
-        Momentum: agents.trend.momentumDirection as string,
-        Align: agents.trend.maAlignment ? "Yes" : "No",
-        Sync: agents.trend.timeframeBias.aligned ? "All 4" : `${tfCount}/4`,
-      } as Record<string, string | number | boolean | null>,
-      statusLabel: "Primary driver",
-      priority:
-        masterDirection !== 0 && getBiasDirection(agents.trend.bias) === masterDirection
-          ? ("lead" as SupportCardPriority)
-          : ("support" as SupportCardPriority),
-    },
-    {
-      agentId: "smc",
-      label: "Price Action Agent",
-      icon: <Activity className="h-4 w-4" />,
-      bias: agents.smc.bias,
-      confidence: agents.smc.confidence,
-      reasons: agents.smc.reasons,
-      invalidationLevel: agents.smc.invalidationLevel,
-      extra: {
-        Pattern: agents.smc.setupType as string,
-        Range: agents.smc.premiumDiscount as string,
-        Break: agents.smc.bosDetected ? "Yes" : "No",
-        Trigger: agents.smc.liquiditySweepDetected ? "Stop run" : "Waiting",
-      } as Record<string, string | number | boolean | null>,
-      statusLabel: "Primary driver",
-      priority:
-        masterDirection !== 0 && getBiasDirection(agents.smc.bias) === masterDirection
-          ? ("lead" as SupportCardPriority)
-          : ("support" as SupportCardPriority),
-    },
-    {
-      agentId: "news",
-      label: "News Filter",
-      icon: <Newspaper className="h-4 w-4" />,
-      bias: agents.news.impact,
-      confidence: agents.news.confidence,
-      reasons: agents.news.reasons,
-      extra: {
-        Regime: agents.news.regime,
-        Risk: `${agents.news.riskScore}/100`,
-        Catalysts: `${agents.news.catalysts.length} found`,
-      } as Record<string, string | number | boolean | null>,
-      statusLabel: "Secondary filter",
-      priority: agents.news.riskScore >= 65 ? ("watch" as SupportCardPriority) : ("support" as SupportCardPriority),
-    },
-    {
-      agentId: "risk",
-      label: "Risk Gate",
-      icon: <Shield className="h-4 w-4" />,
-      bias: agents.risk.valid ? "valid" : "invalid",
-      confidence: agents.risk.sessionScore,
-      reasons: agents.risk.reasons,
-      warnings: agents.risk.warnings,
-      extra: {
-        Grade: agents.risk.grade,
-        Session: `${agents.risk.sessionScore}/100`,
-        Vol: `${agents.risk.volatilityScore}/100`,
-        "Max Risk": `${agents.risk.maxRiskPercent}%`,
-      } as Record<string, string | number | boolean | null>,
-      isGate: true,
-      statusLabel: "Secondary filter",
-      priority: agents.risk.valid ? ("support" as SupportCardPriority) : ("watch" as SupportCardPriority),
-    },
-    {
-      agentId: "contrarian",
-      label: "Contrarian",
-      icon: <FlipHorizontal2 className="h-4 w-4" />,
-      bias: agents.contrarian.challengesBias ? "opposing" : "neutral",
-      confidence: agents.contrarian.trapConfidence,
-      reasons: agents.contrarian.failureReasons,
-      extra: {
-        Trap: agents.contrarian.trapType ?? "None",
-        Risk: `${agents.contrarian.riskFactor}%`,
-        "Opp Liq": agents.contrarian.oppositeLiquidity?.toFixed(4) ?? "--",
-      } as Record<string, string | number | boolean | null>,
-      statusLabel: "Secondary filter",
-      priority: agents.contrarian.challengesBias ? ("watch" as SupportCardPriority) : ("support" as SupportCardPriority),
-    },
-  ];
-}
-
-function SymbolSelector({ value, onChange }: { value: Symbol; onChange: (value: Symbol) => void }) {
-  return (
-    <div className="flex gap-1 rounded-lg border border-white/8 bg-white/4 p-1">
-      {SYMBOLS.map((symbol) => (
-        <button
-          key={symbol.id}
-          onClick={() => onChange(symbol.id)}
-          className={cn(
-            "flex flex-col items-center rounded-md px-2.5 py-1.5 text-center transition-all",
-            value === symbol.id ? "bg-white/10 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-300"
-          )}
-        >
-          <span className="text-[11px] font-bold">{symbol.label}</span>
-          <span className="mt-0.5 text-[9px] opacity-60">{symbol.sub}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function TimeframeSelector({ value, onChange }: { value: Timeframe; onChange: (value: Timeframe) => void }) {
-  return (
-    <div className="flex gap-1 rounded-lg border border-white/8 bg-white/4 p-1">
-      {TIMEFRAMES.map((timeframe) => (
-        <button
-          key={timeframe}
-          onClick={() => onChange(timeframe)}
-          className={cn(
-            "rounded-md px-2.5 py-1.5 text-[11px] font-bold transition-all",
-            value === timeframe ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"
-          )}
-        >
-          {timeframe}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function DetailChip({
-  label,
-  value,
-  tone = "neutral",
-}: {
-  label: string;
-  value: string;
-  tone?: "positive" | "negative" | "warning" | "neutral";
-}) {
-  const classes =
-    tone === "positive"
-      ? "border-emerald-500/14 bg-emerald-500/6 text-emerald-300"
-      : tone === "negative"
-        ? "border-red-500/14 bg-red-500/6 text-red-300"
-        : tone === "warning"
-          ? "border-amber-500/14 bg-amber-500/6 text-amber-300"
-          : "border-white/8 bg-white/[0.03] text-zinc-300";
-
-  return (
-    <div className={cn("rounded-xl border px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]", classes)}>
-      <div className="text-[9px] font-medium uppercase tracking-[0.14em] text-zinc-500">{label}</div>
-      <div className="mt-1 text-[13px] font-semibold">{value}</div>
-    </div>
-  );
-}
-
-function DriverCard({
-  title,
-  bias,
+function AgentCard({
+  name,
+  state,
   confidence,
-  detail,
-  meta,
-  tone,
-  icon,
+  insight,
+  trigger,
   onClick,
 }: {
-  title: string;
-  bias: string;
+  name: string;
+  state: string;
   confidence: number;
-  detail: string;
-  meta: Array<{ label: string; value: string }>;
-  tone: "positive" | "negative" | "warning" | "neutral";
-  icon: React.ReactNode;
+  insight: string;
+  trigger?: string;
   onClick?: () => void;
 }) {
-  const accent =
-    tone === "positive"
-      ? "border-emerald-500/16 bg-emerald-500/5 text-emerald-300"
-      : tone === "negative"
-        ? "border-red-500/16 bg-red-500/5 text-red-300"
-        : tone === "warning"
-          ? "border-amber-500/16 bg-amber-500/5 text-amber-300"
-          : "border-white/8 bg-white/[0.03] text-zinc-300";
+  const t = tone(state);
+  const cls = TONE_CLS[t];
 
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "w-full rounded-2xl border p-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-all hover:brightness-110 hover:ring-1 hover:ring-white/10",
-        accent
+        "flex flex-col gap-2.5 rounded-xl border p-4 text-left transition-all hover:brightness-110 active:scale-[0.99]",
+        cls.border, cls.bg
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="rounded-lg border border-white/8 bg-white/[0.03] p-2">{icon}</div>
-          <div>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{title}</div>
-            <div className="mt-1 text-[14px] font-semibold tracking-tight">{bias}</div>
-          </div>
-        </div>
-        <div className="text-right">
-          <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-500">Confidence</div>
-          <div className="mt-1 font-mono text-[14px] font-semibold">{confidence}%</div>
-        </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500">
+          {name}
+        </span>
+        {trigger ? (
+          <span className={cn("rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em]", cls.badge)}>
+            {trigger}
+          </span>
+        ) : null}
       </div>
-      <p className="mt-4 text-[12px] leading-5 text-zinc-400">{detail}</p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        {meta.map((item) => (
-          <div key={item.label} className="rounded-xl border border-white/6 bg-white/[0.02] px-3 py-2.5">
-            <div className="text-[9px] uppercase tracking-[0.14em] text-zinc-500">{item.label}</div>
-            <div className="mt-1 text-[12px] font-semibold text-zinc-200">{item.value}</div>
-          </div>
-        ))}
+
+      <div className="flex items-baseline justify-between gap-2">
+        <span className={cn("text-[15px] font-bold tracking-tight leading-none", cls.label)}>
+          {state.toUpperCase()}
+        </span>
+        <span className="font-mono text-[13px] font-semibold text-zinc-400">{confidence}%</span>
+      </div>
+
+      <p className="line-clamp-1 text-[11px] leading-[1.4] text-zinc-500">{insight}</p>
+
+      <div className="h-[2px] w-full overflow-hidden rounded-full bg-white/5">
+        <div className={cn("h-full rounded-full transition-all duration-700", cls.bar)} style={{ width: `${Math.min(100, confidence)}%` }} />
       </div>
     </button>
   );
 }
 
-const SYMBOL_TO_QUOTE: Partial<Record<Symbol, string>> = {
-  XAUUSD: "XAU/USD",
-  XAGUSD: "XAG/USD",
-  EURUSD: "EUR/USD",
-  GBPUSD: "GBP/USD",
-  USDJPY: "USD/JPY",
-  USDCAD: "USD/CAD",
-  USDCHF: "USD/CHF",
-  AUDUSD: "AUD/USD",
-  NZDUSD: "NZD/USD",
-  BTCUSD: "BTC/USD",
-  ETHUSD: "ETH/USD",
-};
+// ── Symbol / Timeframe Selectors ──────────────────────────────────────
+
+function SymbolSelector({ value, onChange }: { value: Symbol; onChange: (v: Symbol) => void }) {
+  return (
+    <div className="flex gap-1 rounded-lg border border-white/8 bg-white/[0.03] p-1">
+      {SYMBOLS.map((s) => (
+        <button
+          key={s.id}
+          onClick={() => onChange(s.id)}
+          className={cn(
+            "flex flex-col items-center rounded-md px-2.5 py-1.5 text-center transition-all",
+            value === s.id ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"
+          )}
+        >
+          <span className="text-[11px] font-bold">{s.label}</span>
+          <span className="mt-0.5 text-[9px] opacity-60">{s.sub}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TimeframeSelector({ value, onChange }: { value: Timeframe; onChange: (v: Timeframe) => void }) {
+  return (
+    <div className="flex gap-1 rounded-lg border border-white/8 bg-white/[0.03] p-1">
+      {TIMEFRAMES.map((tf) => (
+        <button
+          key={tf}
+          onClick={() => onChange(tf)}
+          className={cn(
+            "rounded-md px-2.5 py-1.5 text-[11px] font-bold transition-all",
+            value === tf ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"
+          )}
+        >
+          {tf}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────
 
 export function BrainTerminal() {
   const [symbol, setSymbol] = useState<Symbol>("XAUUSD");
@@ -388,33 +194,24 @@ export function BrainTerminal() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [highlightAgentId, setHighlightAgentId] = useState<string | undefined>();
-  const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
-  const [hoveredAgentId, setHoveredAgentId] = useState<string | null>(null);
   const [sniperMode, setSniperMode] = useState(false);
-  const [showFilters, setShowFilters] = useState(true);
-  const [showDetailLayer, setShowDetailLayer] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   const { quotes } = useQuotes(60_000);
   const quoteSymbol = SYMBOL_TO_QUOTE[symbol];
-  const liveQuote = quoteSymbol ? quotes.find((quote) => quote.symbol === quoteSymbol) : undefined;
+  const liveQuote = quoteSymbol ? quotes.find((q) => q.symbol === quoteSymbol) : undefined;
 
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, []);
 
-  const openDrawer = useCallback((agentId?: string) => {
-    setHighlightAgentId(agentId);
-    setActiveAgentId(agentId ?? null);
-    setDrawerOpen(true);
-  }, []);
-
   const apiUrl = `/api/agents/run?symbol=${symbol}&timeframe=${timeframe}`;
-  const { data, isLoading, error } = useSWR<AgentRunResult>([apiUrl, refreshKey], ([url]) => fetcher(url as string), {
-    revalidateOnFocus: false,
-    dedupingInterval: 60_000,
-  });
+  const { data, isLoading, error } = useSWR<AgentRunResult>(
+    [apiUrl, refreshKey],
+    ([url]) => fetcher(url as string),
+    { revalidateOnFocus: false, dedupingInterval: 60_000 }
+  );
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -424,126 +221,138 @@ export function BrainTerminal() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ symbol, timeframe, forceRefresh: true }),
       });
-      setRefreshKey((current) => current + 1);
+      setRefreshKey((k) => k + 1);
     } finally {
       setIsRefreshing(false);
     }
   }, [symbol, timeframe]);
 
   const loading = isLoading || isRefreshing;
-  const supportCards = data ? getAgentCards(data) : [];
-  const secondaryIntelCards = supportCards.filter((card) => card.agentId !== "trend" && card.agentId !== "smc");
-  const focusedAgentId = hoveredAgentId ?? activeAgentId ?? null;
-  const noTradeContext = data ? buildNoTradeContext(data) : undefined;
-  const alignedCount = data ? getAlignedAgentCount(data) : 0;
-  const actionState = getExecutionActionState(data);
-  const actionLabel = actionState?.label ?? "WAIT";
-  const candleClose = getCandleCloseCountdown(nowMs, timeframe);
 
-  const snapshotPrice = data?.snapshot?.price != null ? Number(data.snapshot.price) : null;
-  const safePrice =
-    liveQuote?.price != null
-      ? liveQuote.price
-      : snapshotPrice != null && Number.isFinite(snapshotPrice)
-        ? snapshotPrice
-        : null;
+  const livePriceLabel = liveQuote?.price != null
+    ? liveQuote.price.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    : null;
 
-  const livePriceLabel =
-    safePrice != null
-      ? `${SYMBOLS.find((item) => item.id === symbol)?.label ?? symbol} ${safePrice.toLocaleString(undefined, {
-          maximumFractionDigits: 2,
-        })}`
-      : "--";
+  const candleClose = countdown(Math.ceil(nowMs / timeframeMs(timeframe)) * timeframeMs(timeframe) - nowMs);
 
-  const brainDecision = useMemo(() => {
-    if (!data) {
-      return {
-        label: "WAIT",
-        subLabel: "Awaiting brain output",
-        detail: "Loading decision engine.",
-        tone: "neutral" as const,
-      };
-    }
+  // ── Derived display data ─────────────────────────────────────────────
 
-    if (actionState.label === "WAIT") {
-      return {
-        label: "NO TRADE",
-        subLabel: "Patience Mode",
-        detail: data.agents.master.noTradeReason ?? "No valid structure. Stay out.",
-        tone: "warning" as const,
-      };
-    }
+  const master = data?.agents.master;
+  const tr = data?.agents.trend;
+  const smc = data?.agents.smc;
+  const news = data?.agents.news;
+  const contrarian = data?.agents.contrarian;
+  const execution = data?.agents.execution;
+  const structure = data?.snapshot.structure;
 
-    const direction = data.agents.master.finalBias === "bearish" ? "SHORT" : "LONG";
-    const tone = data.agents.master.finalBias === "bearish" ? ("negative" as const) : ("positive" as const);
+  const masterBias = master?.finalBias ?? "no-trade";
+  const masterLabel =
+    masterBias === "no-trade" ? "NO TRADE"
+    : masterBias === "bullish" ? `LONG ${symbol}`
+    : `SHORT ${symbol}`;
+  const masterReason =
+    master?.noTradeReason ?? master?.supports?.[0] ?? "Awaiting analysis";
+  const masterTone = masterBias === "bullish" ? "green" : masterBias === "bearish" ? "red" : "yellow";
+  const masterCls = TONE_CLS[masterTone as Tone];
 
-    return {
-      label: `${actionState.label} ${direction}`,
-      subLabel: actionState.label === "EXECUTE" ? "Live execution state" : "Trigger forming",
-      detail:
-        actionState.label === "EXECUTE"
-          ? "All conditions aligned. Execute the plan."
-          : data.agents.execution.triggerCondition || "Setup is forming. Wait for trigger confirmation.",
-      tone,
-    };
-  }, [actionState.label, data]);
+  // HTF Bias — from structure data
+  const htfState = structure?.htfBias ?? "neutral";
+  const htfConf = structure?.htfConfidence ?? 0;
+  const htfInsight = structure
+    ? `${structure.zone} zone · ${structure.pos52w.toFixed(0)}% of 52-wk range`
+    : "No structure data";
 
-  const decisionToneClasses =
-    brainDecision.tone === "positive"
-      ? "border-emerald-500/16 bg-emerald-500/6 text-emerald-300"
-      : brainDecision.tone === "negative"
-        ? "border-red-500/16 bg-red-500/6 text-red-300"
-        : brainDecision.tone === "warning"
-          ? "border-amber-500/16 bg-amber-500/6 text-amber-300"
-          : "border-white/8 bg-white/[0.03] text-zinc-200";
+  // Liquidity — sweep/BOS focus
+  const liqState = smc?.liquiditySweepDetected
+    ? smc.bias
+    : smc?.bosDetected
+      ? smc.bias
+      : "neutral";
+  const liqInsight = smc?.liquiditySweepDetected
+    ? `Sweep detected · ${smc.setupType}`
+    : smc?.bosDetected
+      ? `BOS confirmed · ${smc.setupType}`
+      : smc?.reasons[0] ?? "No trigger";
+  const liqTrigger = smc?.liquiditySweepDetected ? "Sweep" : smc?.bosDetected ? "BOS" : "Waiting";
 
-  const trendTone = data?.agents.trend.bias === "bullish" ? "positive" : data?.agents.trend.bias === "bearish" ? "negative" : "neutral";
-  const paTone = data?.agents.smc.bias === "bullish" ? "positive" : data?.agents.smc.bias === "bearish" ? "negative" : "warning";
+  // Price Action — setup focus
+  const paInsight = smc
+    ? `${smc.setupType} · ${smc.premiumDiscount}`
+    : "No setup";
+  const paTrigger = smc?.setupPresent ? "Active" : "Waiting";
+
+  // Contrarian
+  const contraState = contrarian?.challengesBias ? "opposing" : "neutral";
+  const contraInsight = contrarian
+    ? (contrarian.trapType ?? contrarian.failureReasons[0] ?? "No counter-signal")
+    : "No data";
+  const contraTrigger = contrarian ? `Risk ${contrarian.riskFactor}%` : undefined;
+
+  // Execution
+  const execStateRaw = execution?.signalState ?? "NO_TRADE";
+  const execState = execStateRaw === "ARMED"
+    ? (execution?.direction === "long" ? "bullish" : "bearish")
+    : execStateRaw === "EXPIRED" ? "expired"
+    : "neutral";
+  const execConf = execution?.rrRatio
+    ? Math.min(90, Math.round(execution.rrRatio * 20))
+    : 0;
+  const execInsight = execution?.entry && execution?.rrRatio
+    ? `Entry ${execution.entry} · RR ${execution.rrRatio}:1`
+    : (execution?.signalStateReason ?? "No signal");
+  const execTrigger = execStateRaw;
+
+  const openDrawer = useCallback((agentId: string) => {
+    setHighlightAgentId(agentId);
+    setDrawerOpen(true);
+  }, []);
 
   return (
     <div className="w-full min-w-0 space-y-4 pb-4">
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04]">
-            <Brain className="h-4.5 w-4.5 text-zinc-200" />
+
+      {/* ── Header ──────────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04]">
+            <Brain className="h-4 w-4 text-zinc-300" />
           </div>
-          <div className="min-w-0">
-            <h1 className="text-base font-semibold tracking-tight text-white">Brain</h1>
-            <p className="text-[11px] text-zinc-500">Decision layer only. Confirm, filter, execute.</p>
+          <div>
+            <h1 className="text-[15px] font-semibold tracking-tight text-white">Brain</h1>
+            <p className="text-[11px] text-zinc-600">7-agent decision engine</p>
           </div>
+          {livePriceLabel ? (
+            <div className="ml-2 rounded-lg border border-white/8 bg-white/[0.03] px-3 py-1.5">
+              <span className="font-mono text-[13px] font-semibold text-zinc-200">{livePriceLabel}</span>
+            </div>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <SymbolSelector
-            value={symbol}
-            onChange={(value) => {
-              setSymbol(value);
-              setRefreshKey((current) => current + 1);
-            }}
-          />
-          <TimeframeSelector
-            value={timeframe}
-            onChange={(value) => {
-              setTimeframe(value);
-              setRefreshKey((current) => current + 1);
-            }}
-          />
-          <button
-            onClick={() => setSniperMode((current) => !current)}
-            className={cn(
-              "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-all",
-              sniperMode ? "border-amber-500/20 bg-amber-500/12 text-amber-300" : "border-white/10 bg-white/4 text-zinc-400 hover:bg-white/8 hover:text-white"
-            )}
-          >
-            <Crosshair className="h-3.5 w-3.5" />
-            Sniper Mode
-          </button>
+          <SymbolSelector value={symbol} onChange={(v) => { setSymbol(v); setRefreshKey((k) => k + 1); }} />
+          <TimeframeSelector value={timeframe} onChange={(v) => { setTimeframe(v); setRefreshKey((k) => k + 1); }} />
+          {!sniperMode ? (
+            <button
+              onClick={() => setSniperMode(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-semibold text-zinc-500 transition-all hover:text-zinc-300"
+            >
+              <Crosshair className="h-3.5 w-3.5" />
+              Sniper
+            </button>
+          ) : (
+            <button
+              onClick={() => setSniperMode(false)}
+              className="flex items-center gap-1.5 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-[11px] font-semibold text-amber-300 transition-all"
+            >
+              <Crosshair className="h-3.5 w-3.5" />
+              Sniper ON
+            </button>
+          )}
           <button
             onClick={handleRefresh}
             disabled={loading}
             className={cn(
-              "flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/4 px-3 py-1.5 text-[11px] font-semibold text-zinc-400 transition-all hover:bg-white/8 hover:text-white",
-              loading && "cursor-not-allowed opacity-50"
+              "flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-semibold text-zinc-500 transition-all hover:text-zinc-300",
+              loading && "cursor-not-allowed opacity-40"
             )}
           >
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
@@ -552,277 +361,147 @@ export function BrainTerminal() {
         </div>
       </div>
 
+      {/* ── Loading skeleton ─────────────────────────────────────────── */}
       {loading && !data ? (
-        <div className="animate-pulse rounded-2xl border border-white/6 bg-[#0d0d0d]/60 px-4 py-6">
-          <div className="h-12 w-64 rounded bg-white/4" />
-          <div className="mt-3 h-5 w-full rounded bg-white/4" />
+        <div className="animate-pulse space-y-3">
+          <div className="rounded-2xl border border-white/6 bg-white/[0.02] px-5 py-5">
+            <div className="h-7 w-48 rounded-lg bg-white/5" />
+            <div className="mt-2 h-3 w-80 rounded bg-white/[0.03]" />
+          </div>
+          <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="rounded-xl border border-white/6 bg-white/[0.02] p-4">
+                <div className="h-2.5 w-16 rounded bg-white/5" />
+                <div className="mt-3 h-5 w-20 rounded bg-white/5" />
+                <div className="mt-3 h-2 w-full rounded bg-white/[0.03]" />
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
 
       {error ? (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3">
-          <p className="text-sm text-red-400">Failed to load brain output. Check API keys and try again.</p>
+        <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-[12px] text-red-400">
+          Failed to load agent data. Check your API key and try again.
         </div>
       ) : null}
 
       {data ? (
-        <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
-
-          {/* ── LEFT COLUMN -- all agents + execution ──────────────────── */}
-          <div className="min-w-0 space-y-4">
-
-            {/* Brain Decision */}
-            <div className="rounded-[24px] border border-white/6 bg-[linear-gradient(180deg,rgba(12,13,16,0.97),rgba(8,9,12,0.95))] p-5 xl:p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Brain Output</div>
-              <div className={cn("mt-2.5 inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]", decisionToneClasses)}>
-                {brainDecision.subLabel}
+        <>
+          {/* ── Master Decision Bar ──────────────────────────────────── */}
+          <div className={cn(
+            "rounded-2xl border px-5 py-4",
+            masterTone === "green" ? "border-emerald-500/20 bg-emerald-500/[0.05]"
+            : masterTone === "red" ? "border-red-500/20 bg-red-500/[0.05]"
+            : "border-amber-500/16 bg-amber-500/[0.03]"
+          )}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-5">
+                <span className={cn("text-[26px] font-bold tracking-tight leading-none", masterCls.label)}>
+                  {masterLabel}
+                </span>
+                <span className="text-[12px] leading-5 text-zinc-500 sm:max-w-lg line-clamp-1">
+                  {masterReason}
+                </span>
               </div>
-              <div className={cn(
-                "mt-3 text-[32px] font-semibold tracking-[-0.04em] sm:text-[40px] leading-none",
-                brainDecision.tone === "warning" ? "text-amber-300"
-                : brainDecision.tone === "negative" ? "text-red-300"
-                : brainDecision.tone === "positive" ? "text-emerald-300"
-                : "text-white"
-              )}>
-                {brainDecision.label}
-              </div>
-              <p className="mt-3 max-w-2xl text-[13px] leading-[1.65] text-zinc-400">{brainDecision.detail}</p>
-              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-white/5 pt-4">
-                {[
-                  { label: "Confidence", value: `${data.agents.master.confidence}%`, tone: brainDecision.tone },
-                  { label: "Agents", value: `${alignedCount}/${data.agents.master.agentConsensus.length} aligned` },
-                  { label: "Candle close", value: candleClose },
-                  { label: "Price", value: livePriceLabel },
-                ].map((stat) => (
-                  <div key={stat.label} className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-zinc-500">{stat.label}</span>
-                    <span className={cn(
-                      "text-[11px] font-semibold",
-                      stat.tone === "positive" ? "text-emerald-300"
-                      : stat.tone === "negative" ? "text-red-300"
-                      : stat.tone === "warning" ? "text-amber-300"
-                      : "text-zinc-200"
-                    )}>{stat.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Trade Plan */}
-            <TradePlan
-              tradePlan={data.agents.master.tradePlan ?? null}
-              signalState={data.agents.master.finalBias === "no-trade" ? "NO_TRADE" : data.agents.execution.signalState}
-              signalStateReason={
-                data.agents.master.finalBias === "no-trade"
-                  ? (data.agents.master.noTradeReason ?? "Insufficient consensus - stand aside.")
-                  : data.agents.execution.signalStateReason
-              }
-              distanceToEntry={data.agents.master.finalBias === "no-trade" ? null : data.agents.execution.distanceToEntry}
-              noTradeContext={noTradeContext}
-              loading={loading && !data}
-            />
-
-            {/* Decision Drivers -- all 5 agents */}
-            <div className="space-y-3 rounded-2xl border border-white/6 bg-[linear-gradient(180deg,rgba(12,12,12,0.82),rgba(9,9,9,0.92))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-300">Decision Drivers</h2>
-                  <p className="mt-1 text-[11px] text-zinc-500">All agents remain visible for full transparency.</p>
+              <div className="flex shrink-0 items-center gap-5">
+                <div className="text-right">
+                  <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-600">Confidence</div>
+                  <div className="font-mono text-[16px] font-bold text-zinc-300">{master?.confidence ?? 0}%</div>
                 </div>
-                <button
-                  onClick={() => setShowFilters((current) => !current)}
-                  className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/4 px-3 py-1.5 text-[11px] text-zinc-400 transition-colors hover:bg-white/8 hover:text-zinc-200"
-                >
-                  {showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                  {showFilters ? "Hide secondary" : "Show secondary"}
-                </button>
-              </div>
-
-              <div className="grid gap-3 xl:grid-cols-2">
-                <DriverCard
-                  title="Trend"
-                  bias={data.agents.trend.bias.toUpperCase()}
-                  confidence={data.agents.trend.confidence}
-                  detail={data.agents.trend.reasons[0] ?? "No trend read available."}
-                  meta={[
-                    { label: "Phase", value: String(data.agents.trend.marketPhase) },
-                    { label: "Momentum", value: String(data.agents.trend.momentumDirection) },
-                    { label: "Alignment", value: data.agents.trend.maAlignment ? "Aligned" : "Mixed" },
-                  ]}
-                  tone={trendTone}
-                  icon={<TrendingUp className="h-4 w-4" />}
-                  onClick={() => openDrawer("trend")}
-                />
-                <DriverCard
-                  title="Price Action"
-                  bias={data.agents.smc.bias.toUpperCase()}
-                  confidence={data.agents.smc.confidence}
-                  detail={data.agents.smc.reasons[0] ?? "No price action read available."}
-                  meta={[
-                    { label: "Pattern", value: String(data.agents.smc.setupType) },
-                    { label: "Range", value: String(data.agents.smc.premiumDiscount) },
-                    { label: "Trigger", value: data.agents.smc.liquiditySweepDetected ? "Stop run" : "Waiting" },
-                  ]}
-                  tone={paTone}
-                  icon={<Activity className="h-4 w-4" />}
-                  onClick={() => openDrawer("smc")}
-                />
-              </div>
-
-              {showFilters ? (
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {secondaryIntelCards.map((card) => {
-                    const cardTone: "positive" | "negative" | "warning" | "neutral" =
-                      card.bias === "bullish" || card.bias === "valid" ? "positive"
-                      : card.bias === "bearish" || card.bias === "opposing" ? "negative"
-                      : card.priority === "watch" || card.bias === "invalid" ? "warning"
-                      : "neutral";
-                    return (
-                      <DriverCard
-                        key={card.agentId}
-                        title={card.label}
-                        bias={card.bias.toUpperCase()}
-                        confidence={card.confidence}
-                        detail={card.reasons[0] ?? "No data."}
-                        meta={Object.entries(card.extra ?? {}).slice(0, 3).map(([label, value]) => ({ label, value: String(value ?? "--") }))}
-                        tone={cardTone}
-                        icon={card.icon}
-                        onClick={() => {
-                          setActiveAgentId(card.agentId);
-                          openDrawer(card.agentId);
-                        }}
-                      />
-                    );
-                  })}
+                <div className="text-right">
+                  <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-600">Candle</div>
+                  <div className="font-mono text-[16px] font-bold text-zinc-300">{candleClose}</div>
                 </div>
-              ) : (
-                <div className="rounded-xl border border-dashed border-white/8 bg-white/[0.02] px-4 py-5 text-sm text-zinc-500">
-                  Secondary agents collapsed. Click "Show secondary" to bring them back.
-                </div>
-              )}
-            </div>
-
-            {/* Detailed Layer */}
-            {showDetailLayer ? (
-              <div className="space-y-4 rounded-2xl border border-white/6 bg-[linear-gradient(180deg,rgba(11,13,16,0.92),rgba(8,9,12,0.94))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Agent Activity Log</h2>
-                  <button
-                    onClick={() => setShowDetailLayer(false)}
-                    className="flex items-center gap-1.5 text-[11px] text-zinc-500 transition-colors hover:text-zinc-300"
-                  >
-                    <EyeOff className="h-3.5 w-3.5" />
-                    Hide
-                  </button>
-                </div>
-                <AgentActivityLog data={data} loading={false} timestamp={data.timestamp} />
               </div>
-            ) : (
-              <div className="flex items-center justify-between gap-3 border-t border-white/5 pt-3">
-                <span className="text-[11px] text-zinc-600">Full agent log hidden for clarity.</span>
-                <button
-                  onClick={() => setShowDetailLayer(true)}
-                  className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/[0.03] px-3 py-1.5 text-[11px] text-zinc-500 transition-colors hover:bg-white/6 hover:text-zinc-300"
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                  Show agent log
-                </button>
-              </div>
-            )}
-
-            {/* Footer */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-1 text-[11px] text-zinc-500">
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-3 w-3" />
-                <span>{data.totalProcessingTime}ms processing</span>
-              </div>
-              {data.cached ? <span className="rounded bg-white/4 px-2 py-0.5 text-zinc-500">CACHED</span> : null}
-              <span>{new Date(data.timestamp).toLocaleTimeString()}</span>
             </div>
           </div>
 
-          {/* ── RIGHT COLUMN -- full-height pixel visual ──────────────── */}
-          {!sniperMode ? (
-            <div className="xl:sticky xl:top-4 xl:h-[calc(100vh-5rem)]">
-              <div className="relative h-full overflow-hidden rounded-[24px] border border-white/6 min-h-[480px]">
+          {/* ── Divider label ────────────────────────────────────────── */}
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">Market Bias Layer</span>
+            <div className="flex-1 border-t border-white/5" />
+          </div>
 
-                {/* Pixel visual fills the full container */}
-                <div className="absolute inset-0 [&>*]:h-full [&>*]:w-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover [&_img]:object-top">
-                  <AgentCommandRoom
-                    data={data}
-                    loading={false}
-                    focusedAgentId={focusedAgentId}
-                    onHoverAgentChange={setHoveredAgentId}
-                    onSelectAgentChange={setActiveAgentId}
-                  />
-                </div>
+          {/* ── Row 1: Market Bias (4 agents) ───────────────────────── */}
+          <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
+            <AgentCard
+              name="Trend"
+              state={tr?.bias ?? "neutral"}
+              confidence={tr?.confidence ?? 0}
+              insight={tr?.reasons[0] ?? "No data"}
+              trigger={tr?.marketPhase}
+              onClick={() => openDrawer("trend")}
+            />
+            <AgentCard
+              name="HTF Bias"
+              state={htfState}
+              confidence={htfConf}
+              insight={htfInsight}
+              trigger={structure?.zone}
+            />
+            <AgentCard
+              name="Liquidity"
+              state={liqState}
+              confidence={smc?.confidence ?? 0}
+              insight={liqInsight}
+              trigger={liqTrigger}
+              onClick={() => openDrawer("smc")}
+            />
+            <AgentCard
+              name="News / Macro"
+              state={news?.impact ?? "neutral"}
+              confidence={news?.confidence ?? 0}
+              insight={news?.dominantCatalyst ?? news?.reasons[0] ?? "No catalyst"}
+              trigger={news?.regime}
+              onClick={() => openDrawer("news")}
+            />
+          </div>
 
-                {/* Bottom gradient scrim for overlay cards */}
-                <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+          {/* ── Divider label ────────────────────────────────────────── */}
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">Execution Layer</span>
+            <div className="flex-1 border-t border-white/5" />
+          </div>
 
-                {/* Top-left: TRADEX badge */}
-                <div className="pointer-events-none absolute left-3 top-3 z-20 rounded-md border border-cyan-300/15 bg-black/30 px-2 py-1 font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-cyan-200/80 backdrop-blur-sm">
-                  X TRADEX
-                </div>
+          {/* ── Row 2: Execution (3 agents) ─────────────────────────── */}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <AgentCard
+              name="Price Action"
+              state={smc?.bias ?? "neutral"}
+              confidence={smc?.confidence ?? 0}
+              insight={paInsight}
+              trigger={paTrigger}
+              onClick={() => openDrawer("smc")}
+            />
+            <AgentCard
+              name="Contrarian"
+              state={contraState}
+              confidence={contrarian?.trapConfidence ?? 0}
+              insight={contraInsight}
+              trigger={contraTrigger}
+              onClick={() => openDrawer("contrarian")}
+            />
+            <AgentCard
+              name="Execution"
+              state={execState}
+              confidence={execConf}
+              insight={execInsight}
+              trigger={execTrigger}
+              onClick={() => openDrawer("execution")}
+            />
+          </div>
 
-                {/* Top-right: live status */}
-                <div className="pointer-events-none absolute right-3 top-3 z-20 flex items-center gap-2 rounded-md border border-cyan-300/15 bg-black/35 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-zinc-300 backdrop-blur-md">
-                  <span>{symbol}</span>
-                  <span className={trendTone === "positive" ? "text-emerald-300" : trendTone === "negative" ? "text-red-300" : "text-zinc-400"}>
-                    {data.agents.trend.bias.toUpperCase()}
-                  </span>
-                  <span className={actionState.tone === "warning" ? "text-amber-300" : actionState.tone === "negative" ? "text-red-300" : actionState.tone === "positive" ? "text-emerald-300" : "text-zinc-400"}>
-                    {actionState.label}
-                  </span>
-                  <span className="text-cyan-300">{data.agents.master.confidence}%</span>
-                </div>
-
-                {/* Bottom overlay: Risk Gate + What To Do Next */}
-                <div className="absolute bottom-0 left-0 right-0 z-20 space-y-2 p-3">
-                  {/* Risk Gate */}
-                  <div className="rounded-xl border border-white/10 bg-black/60 p-3 backdrop-blur-md">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <Shield className={cn("h-3.5 w-3.5", data.agents.risk.valid ? "text-emerald-300" : "text-amber-300")} />
-                        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Risk Gate</span>
-                      </div>
-                      <span className={cn("text-[13px] font-semibold tracking-tight", data.agents.risk.valid ? "text-emerald-300" : "text-amber-300")}>
-                        {data.agents.risk.valid ? "OPEN" : "BLOCKED"}
-                      </span>
-                    </div>
-                    <p className="mt-1.5 text-[11px] leading-4 text-zinc-400 line-clamp-2">
-                      {data.agents.risk.valid
-                        ? data.agents.risk.reasons[0] ?? "Risk conditions are acceptable."
-                        : `${data.agents.risk.reasons[0] ?? "Risk conditions are not acceptable."}`}
-                    </p>
-                  </div>
-
-                  {/* What To Do Next */}
-                  <div className="rounded-xl border border-white/10 bg-black/60 p-3 backdrop-blur-md">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <ArrowRight className="h-3.5 w-3.5 text-zinc-400" />
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">What To Do Next</span>
-                    </div>
-                    <div className="space-y-1.5">
-                      {((actionLabel === "WAIT"
-                        ? noTradeContext?.watchItems
-                        : [data.agents.execution.triggerCondition, data.agents.master.tradePlan?.managementNotes?.[0]]) ?? [])
-                        .filter(Boolean)
-                        .slice(0, 2)
-                        .map((item, index) => (
-                          <div key={`${item}-${index}`} className="flex items-start gap-2">
-                            <span className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-500" />
-                            <p className="text-[11px] leading-4 text-zinc-400 line-clamp-2">{item}</p>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                </div>
-
-              </div>
+          {/* ── Footer ──────────────────────────────────────────────── */}
+          <div className="flex flex-wrap items-center gap-3 border-t border-white/5 pt-2 text-[11px] text-zinc-600">
+            <div className="flex items-center gap-1.5">
+              <Clock className="h-3 w-3" />
+              <span>{data.totalProcessingTime}ms</span>
             </div>
-          ) : null}
-        </div>
+            {data.cached ? <span className="rounded bg-white/4 px-1.5 py-0.5 text-[10px]">CACHED</span> : null}
+            <span className="ml-auto">{new Date(data.timestamp).toLocaleTimeString()}</span>
+          </div>
+        </>
       ) : null}
 
       {data ? (
