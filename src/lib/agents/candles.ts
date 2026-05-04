@@ -259,24 +259,59 @@ function deriveDirectionalFallback(metrics: CandleMetrics): DirectionalBias {
   return "neutral";
 }
 
+function isStrongOppositionToHTF(
+  metrics: CandleMetrics,
+  htfBias: DirectionalBias
+): boolean {
+  if (htfBias === "bullish") {
+    return (
+      metrics.changePercent < -0.25 &&
+      metrics.driftPercent < -0.2 &&
+      metrics.rsi < 48 &&
+      (metrics.maStack === "bearish" || metrics.positionInRange < 45)
+    );
+  }
+
+  if (htfBias === "bearish") {
+    return (
+      metrics.changePercent > 0.25 &&
+      metrics.driftPercent > 0.2 &&
+      metrics.rsi > 52 &&
+      (metrics.maStack === "bullish" || metrics.positionInRange > 55)
+    );
+  }
+
+  return false;
+}
+
 function deriveBiasFromMetrics(
   timeframe: Timeframe,
   metrics: CandleMetrics,
-  htfBias: DirectionalBias
+  htfBias: DirectionalBias,
+  htfConfidence: number
 ): DirectionalBias {
   const maBoostBull = metrics.maStack === "bullish";
   const maBoostBear = metrics.maStack === "bearish";
+  const anchorToHTF =
+    (timeframe === "H1" || timeframe === "H4") &&
+    htfBias !== "neutral" &&
+    htfConfidence >= 60 &&
+    !isStrongOppositionToHTF(metrics, htfBias);
+
+  if (anchorToHTF) {
+    return htfBias;
+  }
 
   switch (timeframe) {
     case "H4":
-      // H4: RSI + price change required; MA stack as tiebreaker
+      // H4: RSI + price change required; MA stack only confirms, never overrides alone
       if (metrics.changePercent > 0.15 && metrics.rsi > 52) return "bullish";
       if (metrics.changePercent < -0.15 && metrics.rsi < 48) return "bearish";
-      if (maBoostBull) return "bullish";
-      if (maBoostBear) return "bearish";
+      if (metrics.driftPercent > 0.2 && maBoostBull) return "bullish";
+      if (metrics.driftPercent < -0.2 && maBoostBear) return "bearish";
       return deriveDirectionalFallback(metrics) !== "neutral" ? deriveDirectionalFallback(metrics) : htfBias;
     case "H1":
-      // H1: price change primary; MA stack confirms
+      // H1: price change primary; MA stack confirms but should not fight strong HTF structure by itself
       if (metrics.changePercent > 0.15 && (metrics.rsi > 50 || maBoostBull)) return "bullish";
       if (metrics.changePercent < -0.15 && (metrics.rsi < 50 || maBoostBear)) return "bearish";
       if (metrics.changePercent > 0.15) return "bullish";
@@ -533,6 +568,7 @@ async function getReliableCandles(
 export async function getTimeframeBiasFromCandles(
   symbol: Symbol,
   htfBias: DirectionalBias,
+  htfConfidence = 50,
   currentPrice?: number
 ): Promise<TimeframeBias> {
   const timeframes: Timeframe[] = ["M5", "M15", "H1", "H4"];
@@ -540,7 +576,7 @@ export async function getTimeframeBiasFromCandles(
     timeframes.map(async (timeframe) => {
       const candles = await getReliableCandles(symbol, timeframe, currentPrice);
       const metrics = computeMetrics(candles);
-      const bias = deriveBiasFromMetrics(timeframe, metrics, htfBias);
+      const bias = deriveBiasFromMetrics(timeframe, metrics, htfBias, htfConfidence);
 
       logCandleDebug({
         symbol,

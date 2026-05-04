@@ -144,6 +144,7 @@ async function resolveTimeframeBias(snapshot: MarketSnapshot): Promise<Timeframe
     return await getTimeframeBiasFromCandles(
       snapshot.symbol,
       snapshot.structure.htfBias,
+      snapshot.structure.htfConfidence,
       snapshot.price.current
     );
   } catch {
