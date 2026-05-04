@@ -88,6 +88,35 @@ const TONE_CLS: Record<Tone, { label: string; bar: string; border: string; bg: s
   },
 };
 
+// ── Pixel diagnostic helpers ──────────────────────────────────────────
+
+type DiagTag = { k: string; v: string };
+
+function fmtPrice(v: number | null | undefined): string {
+  if (v == null) return "—";
+  if (v > 10000) return v.toFixed(0);
+  if (v > 100) return v.toFixed(1);
+  if (v > 1) return v.toFixed(4);
+  return v.toFixed(5);
+}
+
+function DiagStrip({ tags }: { tags: DiagTag[] }) {
+  if (!tags.length) return null;
+  return (
+    <div className="flex flex-wrap gap-1 border-t border-white/5 pt-2">
+      {tags.map(({ k, v }) => (
+        <span
+          key={k}
+          className="inline-flex items-center gap-0.5 rounded border border-white/6 bg-white/[0.025] px-1.5 py-0.5 font-mono text-[8.5px] tracking-wide"
+        >
+          <span className="text-zinc-600">{k}:</span>
+          <span className="text-zinc-400">{v}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // ── Agent Card ────────────────────────────────────────────────────────
 
 function AgentCard({
@@ -96,6 +125,7 @@ function AgentCard({
   confidence,
   insight,
   trigger,
+  tags,
   onClick,
 }: {
   name: string;
@@ -103,6 +133,7 @@ function AgentCard({
   confidence: number;
   insight: string;
   trigger?: string;
+  tags?: DiagTag[];
   onClick?: () => void;
 }) {
   const t = tone(state);
@@ -140,6 +171,8 @@ function AgentCard({
       <div className="h-[2px] w-full overflow-hidden rounded-full bg-white/5">
         <div className={cn("h-full rounded-full transition-all duration-700", cls.bar)} style={{ width: `${Math.min(100, confidence)}%` }} />
       </div>
+
+      {tags && tags.length > 0 ? <DiagStrip tags={tags} /> : null}
     </button>
   );
 }
@@ -298,9 +331,76 @@ export function BrainTerminal() {
     ? Math.min(90, Math.round(execution.rrRatio * 20))
     : 0;
   const execInsight = execution?.entry && execution?.rrRatio
-    ? `Entry ${execution.entry} · RR ${execution.rrRatio}:1`
+    ? `Entry ${fmtPrice(execution.entry)} · RR ${execution.rrRatio.toFixed(2)}:1`
     : (execution?.signalStateReason ?? "No signal");
   const execTrigger = execStateRaw;
+
+  // ── Timeframe alignment (computed, not trusting .aligned field) ──────
+  const tfSyncLabel = tr
+    ? ([tr.timeframeBias.M5, tr.timeframeBias.M15, tr.timeframeBias.H1, tr.timeframeBias.H4]
+        .every(b => b === tr.bias)
+        ? "ALL 4"
+        : (() => {
+            const matching = (["M5","M15","H1","H4"] as const).filter(k => tr.timeframeBias[k] === tr.bias);
+            return matching.length > 0 ? `${matching.join("+")} ONLY` : "MIXED";
+          })()
+      )
+    : "—";
+
+  // ── Pixel diagnostic tags (real data only, "—" fallback) ─────────────
+
+  const trendTags: DiagTag[] = tr ? [
+    { k: "PHASE", v: tr.marketPhase },
+    { k: "MOMENTUM", v: tr.momentumDirection.toUpperCase() },
+    { k: "TF SYNC", v: tfSyncLabel },
+    { k: "MA", v: tr.maAlignment ? "ALIGNED" : "MIXED" },
+    { k: "INVL", v: fmtPrice(tr.invalidationLevel) },
+  ] : [];
+
+  const htfTags: DiagTag[] = structure ? [
+    { k: "ZONE", v: structure.zone },
+    { k: "52W POS", v: `${structure.pos52w.toFixed(0)}%` },
+    { k: "EQ LVL", v: fmtPrice(structure.equilibrium) },
+    { k: "SESSION", v: data?.snapshot.indicators.session ?? "—" },
+  ] : [];
+
+  const liqTags: DiagTag[] = smc ? [
+    { k: "SWEEP", v: smc.liquiditySweepDetected ? "YES" : "NO" },
+    { k: "BOS", v: smc.bosDetected ? "YES" : "NO" },
+    { k: "CHOCH", v: smc.chochDetected ? "YES" : "NO" },
+    { k: "SETUP", v: smc.setupType },
+    { k: "LIQ TGT", v: fmtPrice(smc.keyLevels.liquidityTarget) },
+  ] : [];
+
+  const newsTags: DiagTag[] = news ? [
+    { k: "REGIME", v: news.regime },
+    { k: "RISK", v: `${news.riskScore}/100` },
+    { k: "EVENTS", v: `${news.catalysts.length}` },
+    { k: "IMPACT", v: news.impact.toUpperCase() },
+  ] : [];
+
+  const paTags: DiagTag[] = smc ? [
+    { k: "PATTERN", v: smc.setupType },
+    { k: "RANGE", v: smc.premiumDiscount },
+    { k: "RES", v: fmtPrice(smc.keyLevels.orderBlockHigh) },
+    { k: "SUP", v: fmtPrice(smc.keyLevels.orderBlockLow) },
+    { k: "FIB 61.8", v: fmtPrice(smc.keyLevels.fvgMid) },
+  ] : [];
+
+  const contraTags: DiagTag[] = contrarian ? [
+    { k: "TRAP", v: contrarian.trapType ?? "NONE" },
+    { k: "RISK", v: `${contrarian.riskFactor}%` },
+    { k: "CONF", v: `${contrarian.trapConfidence}%` },
+    { k: "OPP LIQ", v: fmtPrice(contrarian.oppositeLiquidity) },
+  ] : [];
+
+  const execTags: DiagTag[] = execution ? [
+    { k: "ENTRY", v: fmtPrice(execution.entry) },
+    { k: "SL", v: fmtPrice(execution.stopLoss) },
+    { k: "TP1", v: fmtPrice(execution.tp1) },
+    { k: "TP2", v: fmtPrice(execution.tp2) },
+    { k: "RR", v: execution.rrRatio != null ? `${execution.rrRatio.toFixed(2)}:1` : "—" },
+  ] : [];
 
   const openDrawer = useCallback((agentId: string) => {
     setHighlightAgentId(agentId);
@@ -429,8 +529,9 @@ export function BrainTerminal() {
               name="Trend"
               state={tr?.bias ?? "neutral"}
               confidence={tr?.confidence ?? 0}
-              insight={tr?.reasons[0] ?? "No data"}
+              insight={tr?.reasons[0] ?? "—"}
               trigger={tr?.marketPhase}
+              tags={trendTags}
               onClick={() => openDrawer("trend")}
             />
             <AgentCard
@@ -439,6 +540,7 @@ export function BrainTerminal() {
               confidence={htfConf}
               insight={htfInsight}
               trigger={structure?.zone}
+              tags={htfTags}
             />
             <AgentCard
               name="Liquidity"
@@ -446,14 +548,16 @@ export function BrainTerminal() {
               confidence={smc?.confidence ?? 0}
               insight={liqInsight}
               trigger={liqTrigger}
+              tags={liqTags}
               onClick={() => openDrawer("smc")}
             />
             <AgentCard
               name="News / Macro"
               state={news?.impact ?? "neutral"}
               confidence={news?.confidence ?? 0}
-              insight={news?.dominantCatalyst ?? news?.reasons[0] ?? "No catalyst"}
+              insight={news?.dominantCatalyst ?? news?.reasons[0] ?? "—"}
               trigger={news?.regime}
+              tags={newsTags}
               onClick={() => openDrawer("news")}
             />
           </div>
@@ -472,6 +576,7 @@ export function BrainTerminal() {
               confidence={smc?.confidence ?? 0}
               insight={paInsight}
               trigger={paTrigger}
+              tags={paTags}
               onClick={() => openDrawer("smc")}
             />
             <AgentCard
@@ -480,6 +585,7 @@ export function BrainTerminal() {
               confidence={contrarian?.trapConfidence ?? 0}
               insight={contraInsight}
               trigger={contraTrigger}
+              tags={contraTags}
               onClick={() => openDrawer("contrarian")}
             />
             <AgentCard
@@ -488,6 +594,7 @@ export function BrainTerminal() {
               confidence={execConf}
               insight={execInsight}
               trigger={execTrigger}
+              tags={execTags}
               onClick={() => openDrawer("execution")}
             />
           </div>
