@@ -741,12 +741,12 @@ export function BrainTerminal() {
             </div>
           </div>
 
-          {/* ── RIGHT COLUMN -- pixel visual + sidebar ─────────────────── */}
-          <div className="space-y-3 xl:sticky xl:top-4">
+          {/* ── RIGHT COLUMN -- full-height pixel visual ──────────────── */}
+          {!sniperMode ? (
+            <div className="xl:sticky xl:top-4 xl:h-[calc(100vh-5rem)]">
+              <div className="relative h-full overflow-hidden rounded-[24px] border border-white/6 min-h-[480px]">
 
-            {/* Command Room -- tall pixel visual */}
-            {!sniperMode ? (
-              <div className="relative overflow-hidden rounded-[24px] border border-white/6 min-h-[480px] xl:min-h-[580px]">
+                {/* Pixel visual fills the full container */}
                 <div className="absolute inset-0 [&>*]:h-full [&>*]:w-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover [&_img]:object-top">
                   <AgentCommandRoom
                     data={data}
@@ -756,10 +756,16 @@ export function BrainTerminal() {
                     onSelectAgentChange={setActiveAgentId}
                   />
                 </div>
-                <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+
+                {/* Bottom gradient scrim for overlay cards */}
+                <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+
+                {/* Top-left: TRADEX badge */}
                 <div className="pointer-events-none absolute left-3 top-3 z-20 rounded-md border border-cyan-300/15 bg-black/30 px-2 py-1 font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-cyan-200/80 backdrop-blur-sm">
                   X TRADEX
                 </div>
+
+                {/* Top-right: live status */}
                 <div className="pointer-events-none absolute right-3 top-3 z-20 flex items-center gap-2 rounded-md border border-cyan-300/15 bg-black/35 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-zinc-300 backdrop-blur-md">
                   <span>{symbol}</span>
                   <span className={trendTone === "positive" ? "text-emerald-300" : trendTone === "negative" ? "text-red-300" : "text-zinc-400"}>
@@ -770,47 +776,52 @@ export function BrainTerminal() {
                   </span>
                   <span className="text-cyan-300">{data.agents.master.confidence}%</span>
                 </div>
-              </div>
-            ) : null}
 
-            {/* Risk Gate */}
-            <div className="rounded-2xl border border-white/6 bg-[linear-gradient(180deg,rgba(13,13,13,0.9),rgba(10,10,10,0.9))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-              <div className="flex items-center gap-2">
-                <Shield className={cn("h-4 w-4", data.agents.risk.valid ? "text-emerald-300" : "text-amber-300")} />
-                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-300">Risk Gate</div>
-              </div>
-              <div className={cn("mt-3 text-[22px] font-semibold tracking-tight", data.agents.risk.valid ? "text-emerald-300" : "text-amber-300")}>
-                {data.agents.risk.valid ? "OPEN" : "BLOCKED"}
-              </div>
-              <p className="mt-2 text-[12px] leading-5 text-zinc-400">
-                {data.agents.risk.valid
-                  ? data.agents.risk.reasons[0] ?? "Risk conditions are acceptable."
-                  : `Blocked: ${data.agents.risk.reasons[0] ?? "Risk conditions are not acceptable."}`}
-              </p>
-            </div>
-
-            {/* What To Do Next */}
-            <div className="rounded-2xl border border-white/6 bg-[linear-gradient(180deg,rgba(13,13,13,0.9),rgba(10,10,10,0.9))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-              <div className="flex items-center gap-2">
-                <ArrowRight className="h-4 w-4 text-zinc-300" />
-                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-300">What To Do Next</div>
-              </div>
-              <div className="mt-3 space-y-2.5">
-                {((actionLabel === "WAIT"
-                  ? noTradeContext?.watchItems
-                  : [data.agents.execution.triggerCondition, data.agents.master.tradePlan?.managementNotes?.[0], data.agents.master.tradePlan?.managementNotes?.[1]]) ?? [])
-                  .filter(Boolean)
-                  .slice(0, 3)
-                  .map((item, index) => (
-                    <div key={`${item}-${index}`} className="flex items-start gap-2.5">
-                      <span className="mt-[7px] h-1.5 w-1.5 rounded-full bg-zinc-500" />
-                      <p className="text-[12px] leading-5 text-zinc-400">{item}</p>
+                {/* Bottom overlay: Risk Gate + What To Do Next */}
+                <div className="absolute bottom-0 left-0 right-0 z-20 space-y-2 p-3">
+                  {/* Risk Gate */}
+                  <div className="rounded-xl border border-white/10 bg-black/60 p-3 backdrop-blur-md">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <Shield className={cn("h-3.5 w-3.5", data.agents.risk.valid ? "text-emerald-300" : "text-amber-300")} />
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Risk Gate</span>
+                      </div>
+                      <span className={cn("text-[13px] font-semibold tracking-tight", data.agents.risk.valid ? "text-emerald-300" : "text-amber-300")}>
+                        {data.agents.risk.valid ? "OPEN" : "BLOCKED"}
+                      </span>
                     </div>
-                  ))}
+                    <p className="mt-1.5 text-[11px] leading-4 text-zinc-400 line-clamp-2">
+                      {data.agents.risk.valid
+                        ? data.agents.risk.reasons[0] ?? "Risk conditions are acceptable."
+                        : `${data.agents.risk.reasons[0] ?? "Risk conditions are not acceptable."}`}
+                    </p>
+                  </div>
+
+                  {/* What To Do Next */}
+                  <div className="rounded-xl border border-white/10 bg-black/60 p-3 backdrop-blur-md">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <ArrowRight className="h-3.5 w-3.5 text-zinc-400" />
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">What To Do Next</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {((actionLabel === "WAIT"
+                        ? noTradeContext?.watchItems
+                        : [data.agents.execution.triggerCondition, data.agents.master.tradePlan?.managementNotes?.[0]]) ?? [])
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((item, index) => (
+                          <div key={`${item}-${index}`} className="flex items-start gap-2">
+                            <span className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-500" />
+                            <p className="text-[11px] leading-4 text-zinc-400 line-clamp-2">{item}</p>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </div>
-
-          </div>
+          ) : null}
         </div>
       ) : null}
 
