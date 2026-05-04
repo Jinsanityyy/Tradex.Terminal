@@ -566,7 +566,7 @@ export function BrainTerminal() {
       ) : null}
 
       {data ? (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start">
+        <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
 
           {/* ── LEFT COLUMN -- all agents + execution ──────────────────── */}
           <div className="min-w-0 space-y-4">
