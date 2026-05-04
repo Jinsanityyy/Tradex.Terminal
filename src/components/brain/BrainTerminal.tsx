@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   Activity,
-  AlertTriangle,
   ArrowRight,
   Brain,
   ChevronDown,
@@ -17,15 +16,12 @@ import {
   Newspaper,
   RefreshCw,
   Shield,
-  Sparkles,
-  Target,
   TrendingUp,
 } from "lucide-react";
 import useSWR from "swr";
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import { useQuotes } from "@/hooks/useMarketData";
 import { AgentActivityLog } from "./AgentActivityLog";
-import { AgentCard } from "./AgentCard";
 import { AgentCommandRoom } from "./AgentCommandRoom";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
 import { TradePlan } from "./TradePlan";
@@ -570,103 +566,84 @@ export function BrainTerminal() {
       ) : null}
 
       {data ? (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-          <div className="rounded-[28px] border border-white/6 bg-[linear-gradient(180deg,rgba(12,13,16,0.96),rgba(8,9,12,0.94))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-            <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-              <div className="min-w-0 flex-1">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Brain Output</div>
-                <div className={cn("mt-3 inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]", decisionToneClasses)}>
-                  {brainDecision.subLabel}
-                </div>
-                <div
-                  className={cn(
-                    "mt-4 text-[30px] font-semibold tracking-[-0.04em] sm:text-[38px]",
-                    brainDecision.tone === "warning"
-                      ? "text-amber-300"
-                      : brainDecision.tone === "negative"
-                        ? "text-red-300"
-                        : brainDecision.tone === "positive"
-                          ? "text-emerald-300"
-                          : "text-white"
-                  )}
-                >
-                  {brainDecision.label}
-                </div>
-                <p className="mt-3 max-w-3xl text-[14px] leading-6 text-zinc-400">{brainDecision.detail}</p>
+        <div className="rounded-[24px] border border-white/6 bg-[linear-gradient(180deg,rgba(12,13,16,0.97),rgba(8,9,12,0.95))] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+          <div className="flex flex-col xl:flex-row">
+            {/* ── Brain Decision ─────────────────────────────────────────── */}
+            <div className="flex-1 min-w-0 p-5 xl:p-6">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Brain Output</div>
+              <div className={cn("mt-2.5 inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]", decisionToneClasses)}>
+                {brainDecision.subLabel}
               </div>
+              <div
+                className={cn(
+                  "mt-3 text-[32px] font-semibold tracking-[-0.04em] sm:text-[40px] leading-none",
+                  brainDecision.tone === "warning" ? "text-amber-300"
+                  : brainDecision.tone === "negative" ? "text-red-300"
+                  : brainDecision.tone === "positive" ? "text-emerald-300"
+                  : "text-white"
+                )}
+              >
+                {brainDecision.label}
+              </div>
+              <p className="mt-3 max-w-2xl text-[13px] leading-[1.65] text-zinc-400">{brainDecision.detail}</p>
 
-              <div className="grid w-full gap-2 sm:grid-cols-2 xl:w-[260px] xl:grid-cols-1">
-                <DetailChip
-                  label="Risk Gate"
-                  value={data.agents.risk.valid ? `OPEN · ${data.agents.risk.grade}` : `BLOCKED · ${data.agents.risk.grade}`}
-                  tone={data.agents.risk.valid ? "positive" : "warning"}
-                />
-                <DetailChip label="Candle Close" value={candleClose} tone="neutral" />
-                <DetailChip label="Aligned Agents" value={`${alignedCount}/${data.agents.master.agentConsensus.length}`} tone="neutral" />
-                <DetailChip label="Live Price" value={livePriceLabel} tone="neutral" />
+              {/* Inline stats strip — replaces the redundant 4-chip row */}
+              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-white/5 pt-4">
+                {[
+                  { label: "Confidence", value: `${data.agents.master.confidence}%`, tone: brainDecision.tone },
+                  { label: "Agents", value: `${alignedCount}/${data.agents.master.agentConsensus.length} aligned` },
+                  { label: "Candle close", value: candleClose },
+                  { label: "Price", value: livePriceLabel },
+                ].map((stat) => (
+                  <div key={stat.label} className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-zinc-500">{stat.label}</span>
+                    <span className={cn(
+                      "text-[11px] font-semibold",
+                      stat.tone === "positive" ? "text-emerald-300"
+                      : stat.tone === "negative" ? "text-red-300"
+                      : stat.tone === "warning" ? "text-amber-300"
+                      : "text-zinc-200"
+                    )}>{stat.value}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="mt-5 grid gap-2 md:grid-cols-3 xl:grid-cols-4">
-              <DetailChip label="Trend" value={data.agents.trend.bias.toUpperCase()} tone={trendTone} />
-              <DetailChip label="Price Action" value={data.agents.smc.bias.toUpperCase()} tone={paTone} />
-              <DetailChip label="Execution State" value={actionState.label} tone={actionState.tone} />
-              <DetailChip label="Confidence" value={`${data.agents.master.confidence}%`} tone={brainDecision.tone} />
-            </div>
+            {/* ── Command Room (compact) ─────────────────────────────────── */}
+            {!sniperMode ? (
+              <div className="relative overflow-hidden border-t border-white/5 xl:border-t-0 xl:border-l xl:w-[340px] xl:flex-shrink-0 rounded-b-[24px] xl:rounded-b-none xl:rounded-r-[24px]">
+                <div className="relative z-0 h-full max-h-[220px] xl:max-h-none xl:h-full [&>*]:h-full [&>*]:min-h-0 [&>*]:w-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover [&_img]:object-top">
+                  <AgentCommandRoom
+                    data={data}
+                    loading={false}
+                    focusedAgentId={focusedAgentId}
+                    onHoverAgentChange={setHoveredAgentId}
+                    onSelectAgentChange={setActiveAgentId}
+                  />
+                </div>
+                <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black/40 via-transparent to-transparent xl:bg-gradient-to-l" />
+                <div className="pointer-events-none absolute left-3 top-3 z-20 rounded-md border border-cyan-300/15 bg-black/30 px-2 py-1 font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-cyan-200/80 backdrop-blur-sm">
+                  X TRADEX
+                </div>
+                <div className="pointer-events-none absolute right-3 top-3 z-20 flex items-center gap-2 rounded-md border border-cyan-300/15 bg-black/35 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-zinc-300 backdrop-blur-md">
+                  <span>{symbol}</span>
+                  <span className={trendTone === "positive" ? "text-emerald-300" : trendTone === "negative" ? "text-red-300" : "text-zinc-400"}>
+                    {data.agents.trend.bias.toUpperCase()}
+                  </span>
+                  <span className={actionState.tone === "warning" ? "text-amber-300" : actionState.tone === "negative" ? "text-red-300" : actionState.tone === "positive" ? "text-emerald-300" : "text-zinc-400"}>
+                    {actionState.label}
+                  </span>
+                  <span className="text-cyan-300">{data.agents.master.confidence}%</span>
+                </div>
+              </div>
+            ) : null}
           </div>
-
-          {!sniperMode ? (
-            <div className="relative overflow-hidden rounded-[28px] border border-cyan-500/15 bg-black/40 shadow-[0_0_40px_rgba(6,182,212,0.08)]">
-              <div className="relative z-0 w-full [&>*]:h-auto [&>*]:min-h-0 [&>*]:w-full [&_img]:h-auto [&_img]:w-full [&_img]:object-contain">
-                <AgentCommandRoom
-                  data={data}
-                  loading={false}
-                  focusedAgentId={focusedAgentId}
-                  onHoverAgentChange={setHoveredAgentId}
-                  onSelectAgentChange={setActiveAgentId}
-                />
-              </div>
-
-              <div className="pointer-events-none absolute inset-0 z-10 bg-black/10" />
-
-              <div className="pointer-events-none absolute left-4 top-3 z-20 rounded-lg border border-cyan-300/15 bg-black/25 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-200/85 backdrop-blur-sm">
-                X TRADEX
-              </div>
-
-              <div className="pointer-events-none absolute right-4 top-3 z-20 flex items-center gap-3 rounded-lg border border-cyan-300/15 bg-black/30 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-zinc-300 backdrop-blur-md">
-                <span>{symbol}</span>
-                <span className={trendTone === "positive" ? "text-emerald-300" : trendTone === "negative" ? "text-red-300" : "text-zinc-300"}>
-                  {data.agents.trend.bias.toUpperCase()}
-                </span>
-                <span className={actionState.tone === "positive" ? "text-emerald-300" : actionState.tone === "negative" ? "text-red-300" : actionState.tone === "warning" ? "text-amber-300" : "text-zinc-300"}>
-                  {actionState.label}
-                </span>
-                <span className="text-cyan-200">{data.agents.master.confidence}%</span>
-              </div>
-            </div>
-          ) : null}
         </div>
       ) : null}
 
       {data ? (
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_340px]">
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-white/6 bg-white/[0.02] px-3 py-2.5">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Target className="h-4 w-4 text-zinc-300" />
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-300">Execution Instruction</span>
-                </div>
-                <p className="mt-1 text-[11px] text-zinc-500">Entry, invalidation, target, and trigger only.</p>
-              </div>
-              <button
-                onClick={() => openDrawer("execution")}
-                className="text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-500 transition-colors hover:text-zinc-300"
-              >
-                Open Detail
-              </button>
-            </div>
-
+          <div>
             <TradePlan
               tradePlan={data.agents.master.tradePlan ?? null}
               signalState={data.agents.master.finalBias === "no-trade" ? "NO_TRADE" : data.agents.execution.signalState}
@@ -717,22 +694,6 @@ export function BrainTerminal() {
               </div>
             </div>
 
-            {!sniperMode ? (
-              <div className="rounded-2xl border border-white/6 bg-[linear-gradient(180deg,rgba(13,13,13,0.9),rgba(10,10,10,0.9))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-zinc-300" />
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-300">Minimal Justification</div>
-                </div>
-                <div className="mt-3 space-y-2">
-                  <p className="text-[12px] leading-5 text-zinc-400">
-                    <span className="text-zinc-200">Trend:</span> {data.agents.trend.reasons[0]}
-                  </p>
-                  <p className="text-[12px] leading-5 text-zinc-400">
-                    <span className="text-zinc-200">Price Action:</span> {data.agents.smc.reasons[0]}
-                  </p>
-                </div>
-              </div>
-            ) : null}
           </div>
         </div>
       ) : null}
@@ -786,18 +747,29 @@ export function BrainTerminal() {
 
           {showFilters ? (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {secondaryIntelCards.map((card) => (
-                <AgentCard
-                  key={card.agentId}
-                  {...card}
-                  active={focusedAgentId === card.agentId}
-                  onHoverChange={(active) => setHoveredAgentId(active ? card.agentId : null)}
-                  onClick={() => {
-                    setActiveAgentId(card.agentId);
-                    openDrawer(card.agentId);
-                  }}
-                />
-              ))}
+              {secondaryIntelCards.map((card) => {
+                const cardTone: "positive" | "negative" | "warning" | "neutral" =
+                  card.bias === "bullish" || card.bias === "valid" ? "positive"
+                  : card.bias === "bearish" || card.bias === "opposing" ? "negative"
+                  : card.priority === "watch" || card.bias === "invalid" ? "warning"
+                  : "neutral";
+                return (
+                  <DriverCard
+                    key={card.agentId}
+                    title={card.label}
+                    bias={card.bias.toUpperCase()}
+                    confidence={card.confidence}
+                    detail={card.reasons[0] ?? "No data."}
+                    meta={Object.entries(card.extra ?? {}).slice(0, 3).map(([label, value]) => ({ label, value: String(value ?? "--") }))}
+                    tone={cardTone}
+                    icon={card.icon}
+                    onClick={() => {
+                      setActiveAgentId(card.agentId);
+                      openDrawer(card.agentId);
+                    }}
+                  />
+                );
+              })}
             </div>
           ) : (
             <div className="rounded-xl border border-dashed border-white/8 bg-white/[0.02] px-4 py-5 text-sm text-zinc-500">
@@ -810,45 +782,27 @@ export function BrainTerminal() {
       {showDetailLayer && data ? (
         <div className="space-y-4 rounded-2xl border border-white/6 bg-[linear-gradient(180deg,rgba(11,13,16,0.92),rgba(8,9,12,0.94))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-200">Detailed Layer</h2>
-              <p className="text-xs text-zinc-500">Full operational log only. Pixel floor is now part of the top Brain identity layer.</p>
-            </div>
+            <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Agent Activity Log</h2>
             <button
               onClick={() => setShowDetailLayer(false)}
-              className="rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[11px] text-zinc-500 transition-colors hover:text-zinc-300"
+              className="flex items-center gap-1.5 text-[11px] text-zinc-500 transition-colors hover:text-zinc-300"
             >
-              Hide detailed layer
+              <EyeOff className="h-3.5 w-3.5" />
+              Hide
             </button>
           </div>
-
           <AgentActivityLog data={data} loading={false} timestamp={data.timestamp} />
         </div>
       ) : (
-        <div className="rounded-2xl border border-white/6 bg-[linear-gradient(180deg,rgba(12,12,12,0.78),rgba(9,9,9,0.9))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-200">Detailed Layer</h2>
-              <p className="text-xs text-zinc-500">Keep the full log hidden unless you need deeper context.</p>
-            </div>
-            <button
-              onClick={() => setShowDetailLayer((current) => !current)}
-              className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/4 px-3 py-1.5 text-[11px] text-zinc-400 transition-colors hover:bg-white/8 hover:text-zinc-200"
-            >
-              {showDetailLayer ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-              Show detailed layer
-            </button>
-          </div>
-
-          <div className="mt-3 flex min-h-[110px] items-center justify-center rounded-2xl border border-dashed border-white/8 bg-white/[0.02] px-4 py-8 text-center">
-            <div className="max-w-md">
-              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-amber-500/20 bg-amber-500/10">
-                <Sparkles className="h-4 w-4 text-amber-300" />
-              </div>
-              <p className="text-sm font-medium text-zinc-200">Detailed layer is hidden for faster decision-making.</p>
-              <p className="mt-1 text-[12px] leading-5 text-zinc-500">Expand it only when you need the full agent logs or slower justification.</p>
-            </div>
-          </div>
+        <div className="flex items-center justify-between gap-3 border-t border-white/5 pt-3">
+          <span className="text-[11px] text-zinc-600">Full agent log hidden for clarity.</span>
+          <button
+            onClick={() => setShowDetailLayer(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/[0.03] px-3 py-1.5 text-[11px] text-zinc-500 transition-colors hover:bg-white/6 hover:text-zinc-300"
+          >
+            <Eye className="h-3.5 w-3.5" />
+            Show agent log
+          </button>
         </div>
       )}
 
