@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   Activity,
-  AlertTriangle,
   ArrowRight,
   Brain,
   ChevronDown,
@@ -38,6 +37,20 @@ const SYMBOLS: { id: Symbol; label: string; sub: string }[] = [
 ];
 
 const TIMEFRAMES: Timeframe[] = ["M15", "H1", "H4"];
+
+const SYMBOL_TO_QUOTE: Partial<Record<Symbol, string>> = {
+  XAUUSD: "XAU/USD",
+  XAGUSD: "XAG/USD",
+  EURUSD: "EUR/USD",
+  GBPUSD: "GBP/USD",
+  USDJPY: "USD/JPY",
+  USDCAD: "USD/CAD",
+  USDCHF: "USD/CHF",
+  AUDUSD: "AUD/USD",
+  NZDUSD: "NZD/USD",
+  BTCUSD: "BTC/USD",
+  ETHUSD: "ETH/USD",
+};
 
 const fetcher = (url: string) =>
   fetch(url).then((response) => {
@@ -86,7 +99,7 @@ function getExecutionActionState(data: AgentRunResult | undefined): {
     return {
       label: "WAIT",
       tone: "warning",
-      detail: data?.agents.master.noTradeReason ?? "No valid structure. Stay out.",
+      detail: data?.agents.master.noTradeReason ?? "No clean price action setup. Stand aside.",
     };
   }
 
@@ -101,7 +114,7 @@ function getExecutionActionState(data: AgentRunResult | undefined): {
   return {
     label: "PREPARE",
     tone: "warning",
-    detail: data.agents.execution.signalStateReason || "Setup is forming. Wait for trigger confirmation.",
+    detail: data.agents.execution.signalStateReason || "Setup is forming. Wait for candle confirmation.",
   };
 }
 
@@ -126,19 +139,19 @@ function buildNoTradeContext(data: AgentRunResult) {
     data.agents.master.noTradeReason ??
     data.agents.execution.signalStateReason ??
     data.agents.risk.reasons[0] ??
-    "Structure and risk are not aligned enough to justify a live plan yet.";
+    "Price structure and risk conditions are not clean enough for execution.";
 
   const watchItems = [
     data.agents.smc.reasons[0],
     data.agents.trend.reasons[0],
-    data.agents.execution.hasSetup ? data.agents.execution.triggerCondition : "Wait for a cleaner trigger before opening risk.",
+    data.agents.execution.hasSetup ? data.agents.execution.triggerCondition : "Wait for a cleaner candle close at the level.",
   ].filter(Boolean) as string[];
 
   return {
     blocker,
     watchItems,
     stats: [
-      { label: "Consensus", value: `${data.agents.master.confidence}%` },
+      { label: "Confidence", value: `${data.agents.master.confidence}%` },
       { label: "Risk Gate", value: data.agents.risk.valid ? `Open ${data.agents.risk.grade}` : `Blocked ${data.agents.risk.grade}` },
       { label: "Execution", value: data.agents.execution.hasSetup ? "Setup ready" : "Waiting" },
     ],
@@ -154,19 +167,19 @@ function getAgentCards(data: AgentRunResult) {
   return [
     {
       agentId: "trend",
-      label: "Trend Agent",
+      label: "Market Bias",
       icon: <TrendingUp className="h-4 w-4" />,
       bias: agents.trend.bias,
       confidence: agents.trend.confidence,
       reasons: agents.trend.reasons,
       invalidationLevel: agents.trend.invalidationLevel,
       extra: {
-        Phase: agents.trend.marketPhase as string,
+        Structure: agents.trend.marketPhase as string,
         Momentum: agents.trend.momentumDirection as string,
-        Align: agents.trend.maAlignment ? "Yes" : "No",
-        Sync: agents.trend.timeframeBias.aligned ? "All 4" : `${tfCount}/4`,
+        Direction: agents.trend.maAlignment ? "Clean" : "Mixed",
+        Timeframes: agents.trend.timeframeBias.aligned ? "Aligned" : `${tfCount}/4`,
       } as Record<string, string | number | boolean | null>,
-      statusLabel: "Primary driver",
+      statusLabel: "Primary",
       priority:
         masterDirection !== 0 && getBiasDirection(agents.trend.bias) === masterDirection
           ? ("lead" as SupportCardPriority)
@@ -174,7 +187,7 @@ function getAgentCards(data: AgentRunResult) {
     },
     {
       agentId: "smc",
-      label: "Price Action Agent",
+      label: "Candle Confirmation",
       icon: <Activity className="h-4 w-4" />,
       bias: agents.smc.bias,
       confidence: agents.smc.confidence,
@@ -182,11 +195,11 @@ function getAgentCards(data: AgentRunResult) {
       invalidationLevel: agents.smc.invalidationLevel,
       extra: {
         Pattern: agents.smc.setupType as string,
-        Range: agents.smc.premiumDiscount as string,
-        Break: agents.smc.bosDetected ? "Yes" : "No",
-        Trigger: agents.smc.liquiditySweepDetected ? "Stop run" : "Waiting",
+        Zone: agents.smc.premiumDiscount as string,
+        Close: agents.smc.bosDetected ? "Confirmed" : "Waiting",
+        Rejection: agents.smc.liquiditySweepDetected ? "Visible" : "None",
       } as Record<string, string | number | boolean | null>,
-      statusLabel: "Primary driver",
+      statusLabel: "Primary",
       priority:
         masterDirection !== 0 && getBiasDirection(agents.smc.bias) === masterDirection
           ? ("lead" as SupportCardPriority)
@@ -204,7 +217,7 @@ function getAgentCards(data: AgentRunResult) {
         Risk: `${agents.news.riskScore}/100`,
         Catalysts: `${agents.news.catalysts.length} found`,
       } as Record<string, string | number | boolean | null>,
-      statusLabel: "Secondary filter",
+      statusLabel: "Filter",
       priority: agents.news.riskScore >= 65 ? ("watch" as SupportCardPriority) : ("support" as SupportCardPriority),
     },
     {
@@ -218,26 +231,26 @@ function getAgentCards(data: AgentRunResult) {
       extra: {
         Grade: agents.risk.grade,
         Session: `${agents.risk.sessionScore}/100`,
-        Vol: `${agents.risk.volatilityScore}/100`,
+        Volatility: `${agents.risk.volatilityScore}/100`,
         "Max Risk": `${agents.risk.maxRiskPercent}%`,
       } as Record<string, string | number | boolean | null>,
       isGate: true,
-      statusLabel: "Secondary filter",
+      statusLabel: "Gate",
       priority: agents.risk.valid ? ("support" as SupportCardPriority) : ("watch" as SupportCardPriority),
     },
     {
       agentId: "contrarian",
-      label: "Contrarian",
+      label: "Invalidation Check",
       icon: <FlipHorizontal2 className="h-4 w-4" />,
       bias: agents.contrarian.challengesBias ? "opposing" : "neutral",
       confidence: agents.contrarian.trapConfidence,
       reasons: agents.contrarian.failureReasons,
       extra: {
-        Trap: agents.contrarian.trapType ?? "None",
+        Conflict: agents.contrarian.trapType ?? "None",
         Risk: `${agents.contrarian.riskFactor}%`,
-        "Opp Liq": agents.contrarian.oppositeLiquidity?.toFixed(4) ?? "--",
+        "Opp Level": agents.contrarian.oppositeLiquidity?.toFixed(4) ?? "--",
       } as Record<string, string | number | boolean | null>,
-      statusLabel: "Secondary filter",
+      statusLabel: "Check",
       priority: agents.contrarian.challengesBias ? ("watch" as SupportCardPriority) : ("support" as SupportCardPriority),
     },
   ];
@@ -308,82 +321,81 @@ function DetailChip({
   );
 }
 
-function DriverCard({
+function MinimalDriverCard({
   title,
-  bias,
+  value,
   confidence,
   detail,
   meta,
   tone,
-  icon,
   onClick,
 }: {
   title: string;
-  bias: string;
+  value: string;
   confidence: number;
   detail: string;
   meta: Array<{ label: string; value: string }>;
   tone: "positive" | "negative" | "warning" | "neutral";
-  icon: React.ReactNode;
   onClick?: () => void;
 }) {
   const accent =
     tone === "positive"
-      ? "border-emerald-500/16 bg-emerald-500/5 text-emerald-300"
+      ? "border-emerald-500/18 bg-emerald-500/[0.045] text-emerald-300"
       : tone === "negative"
-        ? "border-red-500/16 bg-red-500/5 text-red-300"
+        ? "border-red-500/18 bg-red-500/[0.045] text-red-300"
         : tone === "warning"
-          ? "border-amber-500/16 bg-amber-500/5 text-amber-300"
-          : "border-white/8 bg-white/[0.03] text-zinc-300";
+          ? "border-amber-500/18 bg-amber-500/[0.045] text-amber-300"
+          : "border-white/8 bg-white/[0.025] text-zinc-300";
 
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "w-full rounded-2xl border p-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-all hover:brightness-110 hover:ring-1 hover:ring-white/10",
+        "group w-full rounded-2xl border p-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] transition-all hover:brightness-110",
         accent
       )}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="rounded-lg border border-white/8 bg-white/[0.03] p-2">{icon}</div>
-          <div>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{title}</div>
-            <div className="mt-1 text-[14px] font-semibold tracking-tight">{bias}</div>
-          </div>
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">{title}</div>
+          <div className="mt-1 text-[18px] font-semibold tracking-tight">{value}</div>
         </div>
         <div className="text-right">
-          <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-500">Confidence</div>
-          <div className="mt-1 font-mono text-[14px] font-semibold">{confidence}%</div>
+          <div className="text-[9px] uppercase tracking-[0.14em] text-zinc-500">Confidence</div>
+          <div className="mt-1 font-mono text-[15px] font-semibold">{confidence}%</div>
         </div>
       </div>
-      <p className="mt-4 text-[12px] leading-5 text-zinc-400">{detail}</p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[0.05]">
+        <div
+          className={cn(
+            "h-full rounded-full",
+            tone === "positive"
+              ? "bg-emerald-400"
+              : tone === "negative"
+                ? "bg-red-400"
+                : tone === "warning"
+                  ? "bg-amber-400"
+                  : "bg-zinc-500"
+          )}
+          style={{ width: `${Math.max(0, Math.min(confidence, 100))}%` }}
+        />
+      </div>
+
+      <p className="mt-3 line-clamp-2 text-[12px] leading-5 text-zinc-400">{detail}</p>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
         {meta.map((item) => (
-          <div key={item.label} className="rounded-xl border border-white/6 bg-white/[0.02] px-3 py-2.5">
+          <div key={item.label} className="rounded-xl border border-white/6 bg-black/15 px-3 py-2">
             <div className="text-[9px] uppercase tracking-[0.14em] text-zinc-500">{item.label}</div>
-            <div className="mt-1 text-[12px] font-semibold text-zinc-200">{item.value}</div>
+            <div className="mt-1 truncate text-[12px] font-semibold text-zinc-200">{item.value}</div>
           </div>
         ))}
       </div>
     </button>
   );
 }
-
-const SYMBOL_TO_QUOTE: Partial<Record<Symbol, string>> = {
-  XAUUSD: "XAU/USD",
-  XAGUSD: "XAG/USD",
-  EURUSD: "EUR/USD",
-  GBPUSD: "GBP/USD",
-  USDJPY: "USD/JPY",
-  USDCAD: "USD/CAD",
-  USDCHF: "USD/CHF",
-  AUDUSD: "AUD/USD",
-  NZDUSD: "NZD/USD",
-  BTCUSD: "BTC/USD",
-  ETHUSD: "ETH/USD",
-};
 
 export function BrainTerminal() {
   const [symbol, setSymbol] = useState<Symbol>("XAUUSD");
@@ -463,8 +475,8 @@ export function BrainTerminal() {
     if (!data) {
       return {
         label: "WAIT",
-        subLabel: "Awaiting brain output",
-        detail: "Loading decision engine.",
+        subLabel: "Awaiting price read",
+        detail: "Loading price action state.",
         tone: "neutral" as const,
       };
     }
@@ -472,8 +484,8 @@ export function BrainTerminal() {
     if (actionState.label === "WAIT") {
       return {
         label: "NO TRADE",
-        subLabel: "Patience Mode",
-        detail: data.agents.master.noTradeReason ?? "No valid structure. Stay out.",
+        subLabel: "No clean confirmation",
+        detail: data.agents.master.noTradeReason ?? "No clean price action setup. Stand aside.",
         tone: "warning" as const,
       };
     }
@@ -486,8 +498,8 @@ export function BrainTerminal() {
       subLabel: actionState.label === "EXECUTE" ? "Live execution state" : "Trigger forming",
       detail:
         actionState.label === "EXECUTE"
-          ? "All conditions aligned. Execute the plan."
-          : data.agents.execution.triggerCondition || "Setup is forming. Wait for trigger confirmation.",
+          ? "Conditions aligned. Execute only according to the plan."
+          : data.agents.execution.triggerCondition || "Wait for candle close confirmation at the level.",
       tone,
     };
   }, [actionState.label, data]);
@@ -502,7 +514,7 @@ export function BrainTerminal() {
           : "border-white/8 bg-white/[0.03] text-zinc-200";
 
   const trendTone = data?.agents.trend.bias === "bullish" ? "positive" : data?.agents.trend.bias === "bearish" ? "negative" : "neutral";
-  const paTone = data?.agents.smc.bias === "bullish" ? "positive" : data?.agents.smc.bias === "bearish" ? "negative" : "warning";
+  const candleTone = data?.agents.smc.bias === "bullish" ? "positive" : data?.agents.smc.bias === "bearish" ? "negative" : "warning";
 
   return (
     <div className="w-full min-w-0 space-y-4 pb-4">
@@ -513,7 +525,7 @@ export function BrainTerminal() {
           </div>
           <div className="min-w-0">
             <h1 className="text-base font-semibold tracking-tight text-white">Brain</h1>
-            <p className="text-[11px] text-zinc-500">Decision layer only. Confirm, filter, execute.</p>
+            <p className="text-[11px] text-zinc-500">Pure price action decision layer. Confirm, filter, execute.</p>
           </div>
         </div>
 
@@ -536,11 +548,13 @@ export function BrainTerminal() {
             onClick={() => setSniperMode((current) => !current)}
             className={cn(
               "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-all",
-              sniperMode ? "border-amber-500/20 bg-amber-500/12 text-amber-300" : "border-white/10 bg-white/4 text-zinc-400 hover:bg-white/8 hover:text-white"
+              sniperMode
+                ? "border-emerald-500/20 bg-emerald-500/12 text-emerald-300"
+                : "border-white/10 bg-white/4 text-zinc-400 hover:bg-white/8 hover:text-white"
             )}
           >
             <Crosshair className="h-3.5 w-3.5" />
-            Sniper Mode
+            Focus Mode
           </button>
           <button
             onClick={handleRefresh}
@@ -602,21 +616,21 @@ export function BrainTerminal() {
                   tone={data.agents.risk.valid ? "positive" : "warning"}
                 />
                 <DetailChip label="Candle Close" value={candleClose} tone="neutral" />
-                <DetailChip label="Aligned Agents" value={`${alignedCount}/${data.agents.master.agentConsensus.length}`} tone="neutral" />
+                <DetailChip label="Aligned Reads" value={`${alignedCount}/${data.agents.master.agentConsensus.length}`} tone="neutral" />
                 <DetailChip label="Live Price" value={livePriceLabel} tone="neutral" />
               </div>
             </div>
 
             <div className="mt-5 grid gap-2 md:grid-cols-3 xl:grid-cols-4">
-              <DetailChip label="Trend" value={data.agents.trend.bias.toUpperCase()} tone={trendTone} />
-              <DetailChip label="Price Action" value={data.agents.smc.bias.toUpperCase()} tone={paTone} />
+              <DetailChip label="Market Bias" value={data.agents.trend.bias.toUpperCase()} tone={trendTone} />
+              <DetailChip label="Candle Confirmation" value={data.agents.smc.bias.toUpperCase()} tone={candleTone} />
               <DetailChip label="Execution State" value={actionState.label} tone={actionState.tone} />
               <DetailChip label="Confidence" value={`${data.agents.master.confidence}%`} tone={brainDecision.tone} />
             </div>
           </div>
 
           {!sniperMode ? (
-            <div className="rounded-[28px] border border-cyan-500/15 bg-black/40 shadow-[0_0_40px_rgba(6,182,212,0.08)] [&>*]:h-auto [&>*]:min-h-0 [&_img]:h-auto [&_img]:w-full [&_img]:object-contain">
+            <div className="relative aspect-[16/9] overflow-hidden rounded-[28px] border border-cyan-500/15 bg-black/40 shadow-[0_0_40px_rgba(6,182,212,0.08)] [&>*]:h-full [&>*]:w-full [&_img]:h-full [&_img]:w-full [&_img]:object-contain">
               <AgentCommandRoom
                 data={data}
                 loading={false}
@@ -624,6 +638,22 @@ export function BrainTerminal() {
                 onHoverAgentChange={setHoveredAgentId}
                 onSelectAgentChange={setActiveAgentId}
               />
+
+              <div className="pointer-events-none absolute inset-x-3 top-3 flex items-center justify-between rounded-xl border border-cyan-400/15 bg-black/45 px-3 py-2 backdrop-blur-sm">
+                <div className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.8)]" />
+                  <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-200">
+                    {symbol} · {timeframe}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.14em] text-zinc-300">
+                  <span>{data.agents.trend.bias}</span>
+                  <span className="text-emerald-300">{actionState.label}</span>
+                  <span>{data.agents.master.confidence}%</span>
+                </div>
+              </div>
+
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
             </div>
           ) : null}
         </div>
@@ -638,7 +668,7 @@ export function BrainTerminal() {
                   <Target className="h-4 w-4 text-zinc-300" />
                   <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-300">Execution Instruction</span>
                 </div>
-                <p className="mt-1 text-[11px] text-zinc-500">Entry, invalidation, target, and trigger only.</p>
+                <p className="mt-1 text-[11px] text-zinc-500">Entry, stop loss, take profit, and trigger only.</p>
               </div>
               <button
                 onClick={() => openDrawer("execution")}
@@ -653,7 +683,7 @@ export function BrainTerminal() {
               signalState={data.agents.master.finalBias === "no-trade" ? "NO_TRADE" : data.agents.execution.signalState}
               signalStateReason={
                 data.agents.master.finalBias === "no-trade"
-                  ? (data.agents.master.noTradeReason ?? "Insufficient consensus - stand aside.")
+                  ? (data.agents.master.noTradeReason ?? "Insufficient confirmation - stand aside.")
                   : data.agents.execution.signalStateReason
               }
               distanceToEntry={data.agents.master.finalBias === "no-trade" ? null : data.agents.execution.distanceToEntry}
@@ -664,10 +694,7 @@ export function BrainTerminal() {
 
           <div className="space-y-3">
             <div className="rounded-2xl border border-white/6 bg-[linear-gradient(180deg,rgba(13,13,13,0.9),rgba(10,10,10,0.9))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-              <div className="flex items-center gap-2">
-                <Shield className={cn("h-4 w-4", data.agents.risk.valid ? "text-emerald-300" : "text-amber-300")} />
-                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-300">Risk Gate</div>
-              </div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-300">Risk Gate</div>
               <div className={cn("mt-3 text-[22px] font-semibold tracking-tight", data.agents.risk.valid ? "text-emerald-300" : "text-amber-300")}>
                 {data.agents.risk.valid ? "OPEN" : "BLOCKED"}
               </div>
@@ -700,16 +727,13 @@ export function BrainTerminal() {
 
             {!sniperMode ? (
               <div className="rounded-2xl border border-white/6 bg-[linear-gradient(180deg,rgba(13,13,13,0.9),rgba(10,10,10,0.9))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-zinc-300" />
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-300">Minimal Justification</div>
-                </div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-300">Minimal Price Read</div>
                 <div className="mt-3 space-y-2">
                   <p className="text-[12px] leading-5 text-zinc-400">
-                    <span className="text-zinc-200">Trend:</span> {data.agents.trend.reasons[0]}
+                    <span className="text-zinc-200">Market Bias:</span> {data.agents.trend.reasons[0]}
                   </p>
                   <p className="text-[12px] leading-5 text-zinc-400">
-                    <span className="text-zinc-200">Price Action:</span> {data.agents.smc.reasons[0]}
+                    <span className="text-zinc-200">Candle Confirmation:</span> {data.agents.smc.reasons[0]}
                   </p>
                 </div>
               </div>
@@ -723,44 +747,42 @@ export function BrainTerminal() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-300">Decision Drivers</h2>
-              <p className="mt-1 text-[11px] text-zinc-500">All agents remain visible for full transparency.</p>
+              <p className="mt-1 text-[11px] text-zinc-500">Price movement, candle confirmation, and risk only.</p>
             </div>
             <button
               onClick={() => setShowFilters((current) => !current)}
               className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/4 px-3 py-1.5 text-[11px] text-zinc-400 transition-colors hover:bg-white/8 hover:text-zinc-200"
             >
               {showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              {showFilters ? "Hide secondary agents" : "Show secondary agents"}
+              {showFilters ? "Hide secondary filters" : "Show secondary filters"}
             </button>
           </div>
 
           <div className="grid gap-3 xl:grid-cols-2">
-            <DriverCard
-              title="Trend"
-              bias={data.agents.trend.bias.toUpperCase()}
+            <MinimalDriverCard
+              title="Market Bias"
+              value={data.agents.trend.bias.toUpperCase()}
               confidence={data.agents.trend.confidence}
-              detail={data.agents.trend.reasons[0] ?? "No trend read available."}
+              detail={data.agents.trend.reasons[0] ?? "No market bias read available."}
               meta={[
-                { label: "Phase", value: String(data.agents.trend.marketPhase) },
+                { label: "Structure", value: String(data.agents.trend.marketPhase) },
                 { label: "Momentum", value: String(data.agents.trend.momentumDirection) },
-                { label: "Alignment", value: data.agents.trend.maAlignment ? "Aligned" : "Mixed" },
+                { label: "Direction", value: data.agents.trend.maAlignment ? "Clean" : "Mixed" },
               ]}
               tone={trendTone}
-              icon={<TrendingUp className="h-4 w-4" />}
               onClick={() => openDrawer("trend")}
             />
-            <DriverCard
-              title="Price Action"
-              bias={data.agents.smc.bias.toUpperCase()}
+            <MinimalDriverCard
+              title="Candle Confirmation"
+              value={data.agents.smc.bias.toUpperCase()}
               confidence={data.agents.smc.confidence}
-              detail={data.agents.smc.reasons[0] ?? "No price action read available."}
+              detail={data.agents.smc.reasons[0] ?? "No candle confirmation read available."}
               meta={[
                 { label: "Pattern", value: String(data.agents.smc.setupType) },
-                { label: "Range", value: String(data.agents.smc.premiumDiscount) },
-                { label: "Trigger", value: data.agents.smc.liquiditySweepDetected ? "Stop run" : "Waiting" },
+                { label: "Zone", value: String(data.agents.smc.premiumDiscount) },
+                { label: "Rejection", value: data.agents.smc.liquiditySweepDetected ? "Visible" : "Waiting" },
               ]}
-              tone={paTone}
-              icon={<Activity className="h-4 w-4" />}
+              tone={candleTone}
               onClick={() => openDrawer("smc")}
             />
           </div>
@@ -782,7 +804,7 @@ export function BrainTerminal() {
             </div>
           ) : (
             <div className="rounded-xl border border-dashed border-white/8 bg-white/[0.02] px-4 py-5 text-sm text-zinc-500">
-              Secondary agents are temporarily collapsed. Click “Show secondary agents” to bring them back.
+              Secondary filters are collapsed. Market Bias and Candle Confirmation remain visible.
             </div>
           )}
         </div>
@@ -793,7 +815,7 @@ export function BrainTerminal() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-200">Detailed Layer</h2>
-              <p className="text-xs text-zinc-500">Full operational log only. Pixel floor is now part of the top Brain identity layer.</p>
+              <p className="text-xs text-zinc-500">Full operational log only.</p>
             </div>
             <button
               onClick={() => setShowDetailLayer(false)}
@@ -810,7 +832,7 @@ export function BrainTerminal() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-200">Detailed Layer</h2>
-              <p className="text-xs text-zinc-500">Keep the full log hidden unless you need deeper context.</p>
+              <p className="text-xs text-zinc-500">Keep logs hidden unless you need deeper context.</p>
             </div>
             <button
               onClick={() => setShowDetailLayer((current) => !current)}
@@ -823,11 +845,11 @@ export function BrainTerminal() {
 
           <div className="mt-3 flex min-h-[110px] items-center justify-center rounded-2xl border border-dashed border-white/8 bg-white/[0.02] px-4 py-8 text-center">
             <div className="max-w-md">
-              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-amber-500/20 bg-amber-500/10">
-                <Sparkles className="h-4 w-4 text-amber-300" />
+              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10">
+                <Sparkles className="h-4 w-4 text-emerald-300" />
               </div>
               <p className="text-sm font-medium text-zinc-200">Detailed layer is hidden for faster decision-making.</p>
-              <p className="mt-1 text-[12px] leading-5 text-zinc-500">Expand it only when you need the full agent logs or slower justification.</p>
+              <p className="mt-1 text-[12px] leading-5 text-zinc-500">Expand only when you need the full log.</p>
             </div>
           </div>
         </div>
