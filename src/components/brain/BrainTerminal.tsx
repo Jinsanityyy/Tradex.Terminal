@@ -19,7 +19,6 @@ import {
   Shield,
   Sparkles,
   Target,
-  TrendingDown,
   TrendingUp,
 } from "lucide-react";
 import useSWR from "swr";
@@ -86,7 +85,7 @@ function getExecutionActionState(data: AgentRunResult | undefined): {
   if (!data || data.agents.master.finalBias === "no-trade" || !data.agents.master.tradePlan) {
     return {
       label: "WAIT",
-      tone: "warning" as const,
+      tone: "warning",
       detail: data?.agents.master.noTradeReason ?? "No valid structure. Stay out.",
     };
   }
@@ -94,14 +93,14 @@ function getExecutionActionState(data: AgentRunResult | undefined): {
   if (data.agents.execution.signalState === "ARMED") {
     return {
       label: "EXECUTE",
-      tone: data.agents.master.finalBias === "bearish" ? ("negative" as const) : ("positive" as const),
+      tone: data.agents.master.finalBias === "bearish" ? "negative" : "positive",
       detail: data.agents.execution.triggerCondition || "Trigger is live.",
     };
   }
 
   return {
     label: "PREPARE",
-    tone: "warning" as const,
+    tone: "warning",
     detail: data.agents.execution.signalStateReason || "Setup is forming. Wait for trigger confirmation.",
   };
 }
@@ -244,13 +243,7 @@ function getAgentCards(data: AgentRunResult) {
   ];
 }
 
-function SymbolSelector({
-  value,
-  onChange,
-}: {
-  value: Symbol;
-  onChange: (value: Symbol) => void;
-}) {
+function SymbolSelector({ value, onChange }: { value: Symbol; onChange: (value: Symbol) => void }) {
   return (
     <div className="flex gap-1 rounded-lg border border-white/8 bg-white/4 p-1">
       {SYMBOLS.map((symbol) => (
@@ -270,13 +263,7 @@ function SymbolSelector({
   );
 }
 
-function TimeframeSelector({
-  value,
-  onChange,
-}: {
-  value: Timeframe;
-  onChange: (value: Timeframe) => void;
-}) {
+function TimeframeSelector({ value, onChange }: { value: Timeframe; onChange: (value: Timeframe) => void }) {
   return (
     <div className="flex gap-1 rounded-lg border border-white/8 bg-white/4 p-1">
       {TIMEFRAMES.map((timeframe) => (
@@ -408,7 +395,7 @@ export function BrainTerminal() {
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
   const [hoveredAgentId, setHoveredAgentId] = useState<string | null>(null);
   const [sniperMode, setSniperMode] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   const [showDetailLayer, setShowDetailLayer] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
@@ -456,6 +443,21 @@ export function BrainTerminal() {
   const actionState = getExecutionActionState(data);
   const actionLabel = actionState?.label ?? "WAIT";
   const candleClose = getCandleCloseCountdown(nowMs, timeframe);
+
+  const snapshotPrice = data?.snapshot?.price != null ? Number(data.snapshot.price) : null;
+  const safePrice =
+    liveQuote?.price != null
+      ? liveQuote.price
+      : snapshotPrice != null && Number.isFinite(snapshotPrice)
+        ? snapshotPrice
+        : null;
+
+  const livePriceLabel =
+    safePrice != null
+      ? `${SYMBOLS.find((item) => item.id === symbol)?.label ?? symbol} ${safePrice.toLocaleString(undefined, {
+          maximumFractionDigits: 2,
+        })}`
+      : "--";
 
   const brainDecision = useMemo(() => {
     if (!data) {
@@ -568,47 +570,62 @@ export function BrainTerminal() {
       ) : null}
 
       {data ? (
-        <div className="rounded-[28px] border border-white/6 bg-[linear-gradient(180deg,rgba(12,13,16,0.96),rgba(8,9,12,0.94))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-            <div className="min-w-0 flex-1">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Brain Output</div>
-              <div className={cn("mt-3 inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]", decisionToneClasses)}>
-                {brainDecision.subLabel}
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+          <div className="rounded-[28px] border border-white/6 bg-[linear-gradient(180deg,rgba(12,13,16,0.96),rgba(8,9,12,0.94))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+            <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Brain Output</div>
+                <div className={cn("mt-3 inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]", decisionToneClasses)}>
+                  {brainDecision.subLabel}
+                </div>
+                <div
+                  className={cn(
+                    "mt-4 text-[34px] font-semibold tracking-[-0.04em] sm:text-[48px]",
+                    brainDecision.tone === "warning"
+                      ? "text-amber-300"
+                      : brainDecision.tone === "negative"
+                        ? "text-red-300"
+                        : brainDecision.tone === "positive"
+                          ? "text-emerald-300"
+                          : "text-white"
+                  )}
+                >
+                  {brainDecision.label}
+                </div>
+                <p className="mt-3 max-w-3xl text-[14px] leading-6 text-zinc-400">{brainDecision.detail}</p>
               </div>
-              <div className={cn("mt-4 text-[34px] font-semibold tracking-[-0.04em] sm:text-[48px]", brainDecision.tone === "warning" ? "text-amber-300" : brainDecision.tone === "negative" ? "text-red-300" : brainDecision.tone === "positive" ? "text-emerald-300" : "text-white")}>
-                {brainDecision.label}
+
+              <div className="grid w-full gap-2 sm:grid-cols-2 xl:w-[320px] xl:grid-cols-1">
+                <DetailChip
+                  label="Risk Gate"
+                  value={data.agents.risk.valid ? `OPEN · ${data.agents.risk.grade}` : `BLOCKED · ${data.agents.risk.grade}`}
+                  tone={data.agents.risk.valid ? "positive" : "warning"}
+                />
+                <DetailChip label="Candle Close" value={candleClose} tone="neutral" />
+                <DetailChip label="Aligned Agents" value={`${alignedCount}/${data.agents.master.agentConsensus.length}`} tone="neutral" />
+                <DetailChip label="Live Price" value={livePriceLabel} tone="neutral" />
               </div>
-              <p className="mt-3 max-w-3xl text-[14px] leading-6 text-zinc-400">{brainDecision.detail}</p>
             </div>
 
-            <div className="grid w-full gap-2 sm:grid-cols-2 xl:w-[360px] xl:grid-cols-1">
-              <DetailChip
-                label="Risk Gate"
-                value={data.agents.risk.valid ? `OPEN · ${data.agents.risk.grade}` : `BLOCKED · ${data.agents.risk.grade}`}
-                tone={data.agents.risk.valid ? "positive" : "warning"}
-              />
-              <DetailChip label="Candle Close" value={candleClose} tone="neutral" />
-              <DetailChip label="Aligned Agents" value={`${alignedCount}/${data.agents.master.agentConsensus.length}`} tone="neutral" />
-              <DetailChip
-                label="Live Price"
-                value={
-                  liveQuote
-                    ? `${quoteSymbol} ${liveQuote.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
-                    : data.snapshot
-                      ? `${SYMBOLS.find((item) => item.id === symbol)?.label ?? symbol} ${Number(data.snapshot.price).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
-                      : "--"
-                }
-                tone="neutral"
-              />
+            <div className="mt-5 grid gap-2 md:grid-cols-3 xl:grid-cols-4">
+              <DetailChip label="Trend" value={data.agents.trend.bias.toUpperCase()} tone={trendTone} />
+              <DetailChip label="Price Action" value={data.agents.smc.bias.toUpperCase()} tone={paTone} />
+              <DetailChip label="Execution State" value={actionState.label} tone={actionState.tone} />
+              <DetailChip label="Confidence" value={`${data.agents.master.confidence}%`} tone={brainDecision.tone} />
             </div>
           </div>
 
-          <div className="mt-5 grid gap-2 md:grid-cols-3 xl:grid-cols-4">
-            <DetailChip label="Trend" value={data.agents.trend.bias.toUpperCase()} tone={trendTone} />
-            <DetailChip label="Price Action" value={data.agents.smc.bias.toUpperCase()} tone={paTone} />
-            <DetailChip label="Execution State" value={actionState.label} tone={actionState.tone} />
-            <DetailChip label="Confidence" value={`${data.agents.master.confidence}%`} tone={brainDecision.tone} />
-          </div>
+          {!sniperMode ? (
+            <div className="overflow-hidden rounded-[28px] border border-cyan-500/15 bg-black/40 shadow-[0_0_40px_rgba(6,182,212,0.08)]">
+              <AgentCommandRoom
+                data={data}
+                loading={false}
+                focusedAgentId={focusedAgentId}
+                onHoverAgentChange={setHoveredAgentId}
+                onSelectAgentChange={setActiveAgentId}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -655,7 +672,9 @@ export function BrainTerminal() {
                 {data.agents.risk.valid ? "OPEN" : "BLOCKED"}
               </div>
               <p className="mt-2 text-[12px] leading-5 text-zinc-400">
-                {data.agents.risk.valid ? data.agents.risk.reasons[0] ?? "Risk conditions are acceptable." : `Blocked: ${data.agents.risk.reasons[0] ?? "Risk conditions are not acceptable."}`}
+                {data.agents.risk.valid
+                  ? data.agents.risk.reasons[0] ?? "Risk conditions are acceptable."
+                  : `Blocked: ${data.agents.risk.reasons[0] ?? "Risk conditions are not acceptable."}`}
               </p>
             </div>
 
@@ -704,14 +723,14 @@ export function BrainTerminal() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-300">Decision Drivers</h2>
-              <p className="mt-1 text-[11px] text-zinc-500">Only the core reasons that should influence the trade decision.</p>
+              <p className="mt-1 text-[11px] text-zinc-500">All agents remain visible for full transparency.</p>
             </div>
             <button
               onClick={() => setShowFilters((current) => !current)}
               className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/4 px-3 py-1.5 text-[11px] text-zinc-400 transition-colors hover:bg-white/8 hover:text-zinc-200"
             >
               {showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              {showFilters ? "Hide filters" : "Show filters"}
+              {showFilters ? "Hide secondary agents" : "Show secondary agents"}
             </button>
           </div>
 
@@ -763,7 +782,7 @@ export function BrainTerminal() {
             </div>
           ) : (
             <div className="rounded-xl border border-dashed border-white/8 bg-white/[0.02] px-4 py-5 text-sm text-zinc-500">
-              News, contrarian, and minor filters are hidden until you ask for them.
+              Secondary agents are temporarily collapsed. Click “Show secondary agents” to bring them back.
             </div>
           )}
         </div>
@@ -774,7 +793,7 @@ export function BrainTerminal() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-200">Detailed Layer</h2>
-              <p className="text-xs text-zinc-500">Optional floor view and full operational log.</p>
+              <p className="text-xs text-zinc-500">Full operational log only. Pixel floor is now part of the top Brain identity layer.</p>
             </div>
             <button
               onClick={() => setShowDetailLayer(false)}
@@ -784,16 +803,6 @@ export function BrainTerminal() {
             </button>
           </div>
 
-          {!sniperMode ? (
-            <AgentCommandRoom
-              data={data}
-              loading={false}
-              focusedAgentId={focusedAgentId}
-              onHoverAgentChange={setHoveredAgentId}
-              onSelectAgentChange={setActiveAgentId}
-            />
-          ) : null}
-
           <AgentActivityLog data={data} loading={false} timestamp={data.timestamp} />
         </div>
       ) : (
@@ -801,7 +810,7 @@ export function BrainTerminal() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-200">Detailed Layer</h2>
-              <p className="text-xs text-zinc-500">Keep the floor and the full log hidden unless you need deeper context.</p>
+              <p className="text-xs text-zinc-500">Keep the full log hidden unless you need deeper context.</p>
             </div>
             <button
               onClick={() => setShowDetailLayer((current) => !current)}
@@ -819,7 +828,7 @@ export function BrainTerminal() {
               </div>
               <p className="text-sm font-medium text-zinc-200">Detailed layer is hidden for faster decision-making.</p>
               <p className="mt-1 text-[12px] leading-5 text-zinc-500">
-                Expand it only when you need the command floor, full agent logs, or slower justification.
+                Expand it only when you need the full agent logs or slower justification.
               </p>
             </div>
           </div>
