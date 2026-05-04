@@ -570,8 +570,8 @@ export function BrainTerminal() {
       ) : null}
 
       {data ? (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
-          <div className="rounded-[28px] border border-white/6 bg-[linear-gradient(180deg,rgba(12,13,16,0.96),rgba(8,9,12,0.94))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <div className="min-h-[340px] rounded-[28px] border border-white/6 bg-[linear-gradient(180deg,rgba(12,13,16,0.96),rgba(8,9,12,0.94))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
               <div className="min-w-0 flex-1">
                 <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Brain Output</div>
@@ -595,7 +595,7 @@ export function BrainTerminal() {
                 <p className="mt-3 max-w-3xl text-[14px] leading-6 text-zinc-400">{brainDecision.detail}</p>
               </div>
 
-              <div className="grid w-full gap-2 sm:grid-cols-2 xl:w-[320px] xl:grid-cols-1">
+              <div className="grid w-full gap-2 sm:grid-cols-2 xl:w-[260px] xl:grid-cols-1">
                 <DetailChip
                   label="Risk Gate"
                   value={data.agents.risk.valid ? `OPEN · ${data.agents.risk.grade}` : `BLOCKED · ${data.agents.risk.grade}`}
@@ -616,7 +616,7 @@ export function BrainTerminal() {
           </div>
 
           {!sniperMode ? (
-            <div className="overflow-hidden rounded-[28px] border border-cyan-500/15 bg-black/40 shadow-[0_0_40px_rgba(6,182,212,0.08)]">
+            <div className="h-[340px] overflow-hidden rounded-[28px] border border-cyan-500/15 bg-black/40 shadow-[0_0_40px_rgba(6,182,212,0.08)]">
               <AgentCommandRoom
                 data={data}
                 loading={false}
@@ -827,9 +827,7 @@ export function BrainTerminal() {
                 <Sparkles className="h-4 w-4 text-amber-300" />
               </div>
               <p className="text-sm font-medium text-zinc-200">Detailed layer is hidden for faster decision-making.</p>
-              <p className="mt-1 text-[12px] leading-5 text-zinc-500">
-                Expand it only when you need the full agent logs or slower justification.
-              </p>
+              <p className="mt-1 text-[12px] leading-5 text-zinc-500">Expand it only when you need the full agent logs or slower justification.</p>
             </div>
           </div>
         </div>
