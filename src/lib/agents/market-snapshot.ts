@@ -182,7 +182,7 @@ export async function buildMarketSnapshot(
   const effPctChange = cfg.invertBias ? -pctChange : pctChange;
   const effHigh      = cfg.invertBias ? close * 2 - structuralLow  : structuralHigh;
   const effLow       = cfg.invertBias ? close * 2 - structuralHigh : structuralLow;
-  const effMacd      = effPctChange * 0.01;
+  const effMacd      = effPctChange * 0.05;
   const effRsi       = cfg.invertBias ? 100 - rsiVal : rsiVal;
 
   const { bias, confidence, smcContext } = deriveConvictionBias(

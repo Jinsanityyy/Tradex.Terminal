@@ -399,7 +399,7 @@ function deriveBiasFromMetrics(
   const anchorToHTF =
     (timeframe === "H1" || timeframe === "H4") &&
     htfBias !== "neutral" &&
-    htfConfidence >= 60 &&
+    htfConfidence >= 50 &&
     !isStrongOppositionToHTF(metrics, htfBias);
 
   if (anchorToHTF) {
@@ -408,25 +408,25 @@ function deriveBiasFromMetrics(
 
   switch (timeframe) {
     case "H4":
-      // H4: RSI + price change required; MA stack only confirms, never overrides alone
-      if (metrics.changePercent > 0.15 && metrics.rsi > 52) return "bullish";
-      if (metrics.changePercent < -0.15 && metrics.rsi < 48) return "bearish";
-      if (metrics.driftPercent > 0.2 && maBoostBull) return "bullish";
-      if (metrics.driftPercent < -0.2 && maBoostBear) return "bearish";
+      // H4: lower threshold to 0.08% — gold/forex can be directional on small H4 moves
+      if (metrics.changePercent > 0.08 && metrics.rsi > 51) return "bullish";
+      if (metrics.changePercent < -0.08 && metrics.rsi < 49) return "bearish";
+      if (metrics.driftPercent > 0.15 && maBoostBull) return "bullish";
+      if (metrics.driftPercent < -0.15 && maBoostBear) return "bearish";
       return deriveDirectionalFallback(metrics) !== "neutral" ? deriveDirectionalFallback(metrics) : htfBias;
     case "H1":
-      // H1: price change primary; MA stack confirms but should not fight strong HTF structure by itself
-      if (metrics.changePercent > 0.15 && (metrics.rsi > 50 || maBoostBull)) return "bullish";
-      if (metrics.changePercent < -0.15 && (metrics.rsi < 50 || maBoostBear)) return "bearish";
-      if (metrics.changePercent > 0.15) return "bullish";
-      if (metrics.changePercent < -0.15) return "bearish";
+      // H1: lower threshold to 0.08%; MA stack or RSI confirms
+      if (metrics.changePercent > 0.08 && (metrics.rsi > 50 || maBoostBull)) return "bullish";
+      if (metrics.changePercent < -0.08 && (metrics.rsi < 50 || maBoostBear)) return "bearish";
+      if (metrics.changePercent > 0.08) return "bullish";
+      if (metrics.changePercent < -0.08) return "bearish";
       return deriveDirectionalFallback(metrics);
     case "M15":
-      // M15: RSI + change; MA stack as secondary
-      if (metrics.changePercent > 0.3 && metrics.rsi > 52) return "bullish";
-      if (metrics.changePercent < -0.3 && metrics.rsi < 48) return "bearish";
-      if (metrics.changePercent > 0.3 && maBoostBull) return "bullish";
-      if (metrics.changePercent < -0.3 && maBoostBear) return "bearish";
+      // M15: lower threshold to 0.15% (was 0.3%); RSI tighter to midline
+      if (metrics.changePercent > 0.15 && metrics.rsi > 51) return "bullish";
+      if (metrics.changePercent < -0.15 && metrics.rsi < 49) return "bearish";
+      if (metrics.changePercent > 0.15 && maBoostBull) return "bullish";
+      if (metrics.changePercent < -0.15 && maBoostBear) return "bearish";
       return deriveDirectionalFallback(metrics);
     case "M5":
       // M5: range position + direction; MA context
