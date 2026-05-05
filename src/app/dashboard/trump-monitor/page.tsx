@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { TrumpFeedPanel } from "@/components/shared/TrumpFeedPanel";
 import { ConvictionMeter } from "@/components/shared/ConvictionMeter";
 import { useTrumpPosts } from "@/hooks/useMarketData";
+import { useTruthSocialPosts } from "@/hooks/useTruthSocialPosts";
 import { cn } from "@/lib/utils";
 import { UserCircle, Filter, Hash, TrendingUp, Wifi, WifiOff } from "lucide-react";
 
@@ -15,12 +16,22 @@ const filterTags = ["all", "tariffs", "china", "fed", "crypto", "oil", "trade-po
 export default function TrumpMonitorPage() {
   const [activeFilter, setActiveFilter] = useState("all");
   const [activeSource, setActiveSource] = useState("all");
-  const { posts: trumpPosts, isLive, feedSource, sources } = useTrumpPosts(60_000);
+  const { posts: serverPosts, isLive, feedSource, sources } = useTrumpPosts(60_000);
+  const { posts: tsPosts, status: tsStatus } = useTruthSocialPosts();
+
+  // Merge: TS posts first, then server posts (deduplicated by content)
+  const tsIds = new Set(tsPosts.map(p => p.id));
+  const allPosts = [
+    ...tsPosts,
+    ...serverPosts.filter(p => !tsIds.has(p.id)),
+  ];
+
+  const trumpPosts = allPosts;
 
   // Unique sources available in current posts
-  const availableSources = ["all", ...Array.from(new Set(trumpPosts.map(p => p.source)))];
+  const availableSources = ["all", ...Array.from(new Set(allPosts.map(p => p.source)))];
 
-  const filtered = trumpPosts
+  const filtered = allPosts
     .filter(p => activeSource === "all" || p.source === activeSource)
     .filter(p => activeFilter === "all" || p.tags.includes(activeFilter) || p.policyCategory.toLowerCase() === activeFilter);
 
@@ -152,6 +163,9 @@ export default function TrumpMonitorPage() {
       {/* Source filter */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Source</span>
+        {tsStatus === "loading" && (
+          <span className="text-[10px] text-amber-500 animate-pulse">fetching Truth Social...</span>
+        )}
         {availableSources.map((src) => {
           const isTruthSocial = src === "Truth Social";
           const isActive = activeSource === src;
