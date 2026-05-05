@@ -6,8 +6,10 @@ export const dynamic = "force-dynamic";
 let cache: { data: TrumpPost[]; ts: number } = { data: [], ts: 0 };
 const CACHE_TTL = 120_000; // 2 min
 
-// Trump's Truth Social account ID (public Mastodon-compatible API)
-const TRUTH_SOCIAL_ACCOUNT_ID = "107780257626128497";
+// Trump's Truth Social handle
+const TRUTH_SOCIAL_HANDLE = "realDonaldTrump";
+// Cached resolved account ID (refreshed per process restart)
+let _resolvedAccountId: string | null = null;
 
 // Policy categories & their keywords
 const POLICY_MAP: { category: string; keywords: string[]; assets: string[] }[] = [
@@ -153,64 +155,119 @@ async function analyzeGoldUSD(content: string, category: string): Promise<{
   }
 }
 
-// ── Source 1: Truth Social (Mastodon-compatible public API) ──────────────────
-async function fetchTruthSocial(): Promise<Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">[]> {
+const TS_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Accept": "application/json, text/html, */*",
+  "Accept-Language": "en-US,en;q=0.9",
+};
+
+function mapStatuses(statuses: { id: string; created_at: string; content: string; reblog: unknown | null; in_reply_to_id: string | null }[]) {
+  const own = statuses.filter(s => !s.reblog && !s.in_reply_to_id && s.content);
+  return own.slice(0, 10).map((s) => {
+    const text = stripHtml(s.content);
+    const { category, assets, tags } = classifyPost(text);
+    const sentiment = deriveSentiment(text);
+    const impactScore = deriveImpactScore(text);
+    const template = IMPACT_TEMPLATES[category] ?? IMPACT_TEMPLATES.Government;
+    return {
+      id: `ts-${s.id}`,
+      timestamp: s.created_at,
+      content: text,
+      source: "Truth Social" as const,
+      sentimentClassification: sentiment,
+      impactScore,
+      affectedAssets: [...new Set(assets)],
+      policyCategory: category,
+      whyItMatters: template.whyItMatters,
+      potentialReaction: template.reaction,
+      tags,
+    };
+  });
+}
+
+// Lookup Trump's account ID dynamically so the hardcoded ID never goes stale
+async function resolveAccountId(): Promise<string | null> {
+  if (_resolvedAccountId) return _resolvedAccountId;
+  try {
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 6000);
+    const res = await fetch(
+      `https://truthsocial.com/api/v1/accounts/lookup?acct=${TRUTH_SOCIAL_HANDLE}`,
+      { signal: ctrl.signal, cache: "no-store", headers: TS_HEADERS }
+    );
+    if (!res.ok) return null;
+    const data: { id: string } = await res.json();
+    _resolvedAccountId = data.id;
+    console.log(`[trump/truth-social] resolved account ID: ${data.id}`);
+    return data.id;
+  } catch {
+    return null;
+  }
+}
+
+// ── Source 1a: Truth Social Mastodon API ─────────────────────────────────────
+async function fetchTruthSocialAPI(accountId: string): Promise<Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">[]> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
-
   try {
     const res = await fetch(
-      `https://truthsocial.com/api/v1/accounts/${TRUTH_SOCIAL_ACCOUNT_ID}/statuses?limit=20&exclude_reblogs=true`,
-      {
-        signal: controller.signal,
-        cache: "no-store",
-        headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; TradeX/1.0)",
-          "Accept": "application/json",
-        },
-      }
+      `https://truthsocial.com/api/v1/accounts/${accountId}/statuses?limit=20&exclude_reblogs=true`,
+      { signal: controller.signal, cache: "no-store", headers: TS_HEADERS }
     );
     clearTimeout(timer);
-
-    if (!res.ok) throw new Error(`Truth Social HTTP ${res.status}`);
-
-    const statuses: {
-      id: string;
-      created_at: string;
-      content: string;
-      reblog: unknown | null;
-      in_reply_to_id: string | null;
-    }[] = await res.json();
-
-    // Keep only original posts (not replies, not reblogs), with real content
-    const ownPosts = statuses.filter(s => !s.reblog && !s.in_reply_to_id && s.content);
-
-    return ownPosts.slice(0, 10).map((s) => {
-      const text = stripHtml(s.content);
-      const { category, assets, tags } = classifyPost(text);
-      const sentiment = deriveSentiment(text);
-      const impactScore = deriveImpactScore(text);
-      const template = IMPACT_TEMPLATES[category] ?? IMPACT_TEMPLATES.Government;
-
-      return {
-        id: `ts-${s.id}`,
-        timestamp: s.created_at,
-        content: text,
-        source: "Truth Social",
-        sentimentClassification: sentiment,
-        impactScore,
-        affectedAssets: [...new Set(assets)],
-        policyCategory: category,
-        whyItMatters: template.whyItMatters,
-        potentialReaction: template.reaction,
-        tags,
-      };
-    });
+    if (!res.ok) throw new Error(`Truth Social API HTTP ${res.status}`);
+    const statuses: { id: string; created_at: string; content: string; reblog: unknown | null; in_reply_to_id: string | null }[] = await res.json();
+    return mapStatuses(statuses);
   } catch (err) {
     clearTimeout(timer);
-    console.error("[trump/truth-social]", err);
+    console.error("[trump/truth-social-api]", err);
     return [];
   }
+}
+
+// ── Source 1b: Truth Social RSS feed (fallback) ───────────────────────────────
+async function fetchTruthSocialRSS(): Promise<Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">[]> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(
+      `https://truthsocial.com/@${TRUTH_SOCIAL_HANDLE}.rss`,
+      { signal: controller.signal, cache: "no-store", headers: { ...TS_HEADERS, Accept: "application/rss+xml, text/xml, */*" } }
+    );
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(`Truth Social RSS HTTP ${res.status}`);
+    const xml = await res.text();
+
+    // Simple regex-based RSS item extraction (no external deps)
+    const items: { id: string; created_at: string; content: string; reblog: null; in_reply_to_id: null }[] = [];
+    const itemMatches = xml.matchAll(/<item>([\s\S]*?)<\/item>/g);
+    for (const match of itemMatches) {
+      const block = match[1];
+      const guid    = (block.match(/<guid[^>]*>([\s\S]*?)<\/guid>/)?.[1] ?? "").trim();
+      const pubDate = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] ?? "").trim();
+      const desc    = (block.match(/<description>([\s\S]*?)<\/description>/)?.[1] ?? "").replace(/<!\[CDATA\[([\s\S]*?)\]\]>/, "$1").trim();
+      if (!desc) continue;
+      items.push({ id: guid || String(Date.now() + items.length), created_at: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(), content: desc, reblog: null, in_reply_to_id: null });
+    }
+    return mapStatuses(items);
+  } catch (err) {
+    clearTimeout(timer);
+    console.error("[trump/truth-social-rss]", err);
+    return [];
+  }
+}
+
+// ── Source 1: Truth Social (API → RSS fallback) ───────────────────────────────
+async function fetchTruthSocial(): Promise<Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">[]> {
+  // Try API with dynamic account ID first
+  const accountId = await resolveAccountId();
+  if (accountId) {
+    const apiPosts = await fetchTruthSocialAPI(accountId);
+    if (apiPosts.length > 0) return apiPosts;
+  }
+  // Fallback: RSS feed
+  console.log("[trump] API failed or no ID, trying RSS");
+  return fetchTruthSocialRSS();
 }
 
 // ── Source 2: Finnhub news filtered for Trump ────────────────────────────────
