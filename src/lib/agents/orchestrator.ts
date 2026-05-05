@@ -14,7 +14,7 @@ import type {
 import { DEFAULT_WEIGHTS } from "./schemas";
 import { buildMarketSnapshot, buildMockSnapshot } from "./market-snapshot";
 import { runTrendAgent }     from "./trend-agent";
-import { runSMCAgent } from "./smc-agent";
+import { runPriceActionAgent } from "./price-action-agent";
 import { runNewsAgent }      from "./news-agent";
 import { runRiskAgent }      from "./risk-agent";
 import { runExecutionAgent } from "./execution-agent";
@@ -296,7 +296,7 @@ export async function runAgentOrchestrator(
   const [trend, newsAgent, smc] = await Promise.all([
     runTrendAgent(snapshot, apiKey),
     runNewsAgent(snapshot, apiKey),
-    runSMCAgent(snapshot, apiKey),
+    runPriceActionAgent(snapshot, apiKey),
   ]);
 
   // ── Phase 2: Risk, Execution, Contrarian depend on trend + smc ──────────
