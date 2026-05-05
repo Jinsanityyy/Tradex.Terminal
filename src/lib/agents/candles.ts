@@ -146,6 +146,19 @@ function getMaxCurrentPriceDrift(symbol: Symbol): number {
   }
 }
 
+function getExpectedCandleSeconds(timeframe: Timeframe): number {
+  switch (timeframe) {
+    case "M5":
+      return 5 * 60;
+    case "M15":
+      return 15 * 60;
+    case "H1":
+      return 60 * 60;
+    case "H4":
+      return 4 * 60 * 60;
+  }
+}
+
 function candlesMatchCurrentPrice(
   symbol: Symbol,
   candles: CandleBar[],
@@ -160,6 +173,28 @@ function candlesMatchCurrentPrice(
 
   const drift = Math.abs(lastClose - currentPrice) / currentPrice;
   return drift <= getMaxCurrentPriceDrift(symbol);
+}
+
+function candlesMatchTimeframeCadence(
+  timeframe: Timeframe,
+  candles: CandleBar[]
+): boolean {
+  const normalized = normalizeCandles(candles);
+  if (normalized.length < 12) return false;
+
+  const sample = normalized.slice(-Math.min(normalized.length, 48));
+  if (sample.length < 12) return false;
+
+  const firstTs = sample[0]?.t;
+  const lastTs = sample[sample.length - 1]?.t;
+  if (!Number.isFinite(firstTs) || !Number.isFinite(lastTs) || lastTs <= firstTs) return false;
+
+  const expected = getExpectedCandleSeconds(timeframe);
+  const spanSeconds = lastTs - firstTs;
+  const idealSpan = expected * (sample.length - 1);
+
+  // Allow for market closures / weekend gaps, but reject obviously sparse series
+  return spanSeconds <= idealSpan * 3.5;
 }
 
 function aggregateCandles(candles: CandleBar[], size: number): CandleBar[] {
@@ -276,6 +311,48 @@ function computeMetrics(candles: CandleBar[]): CandleMetrics {
     ma200,
     maStack,
   };
+}
+
+function getMaxMADrift(symbol: Symbol, timeframe: Timeframe): number {
+  if (symbol === "BTCUSD") {
+    switch (timeframe) {
+      case "M5":
+        return 0.08;
+      case "M15":
+        return 0.12;
+      case "H1":
+        return 0.18;
+      case "H4":
+        return 0.25;
+    }
+  }
+
+  switch (timeframe) {
+    case "M5":
+      return 0.03;
+    case "M15":
+      return 0.05;
+    case "H1":
+      return 0.08;
+    case "H4":
+      return 0.12;
+  }
+}
+
+function candlesHavePlausibleMAs(
+  symbol: Symbol,
+  timeframe: Timeframe,
+  candles: CandleBar[],
+  currentPrice?: number
+): boolean {
+  if (!currentPrice || !Number.isFinite(currentPrice) || currentPrice <= 0) return true;
+
+  const metrics = computeMetrics(candles);
+  const threshold = getMaxMADrift(symbol, timeframe);
+  const ma20Drift = metrics.ma20 != null ? Math.abs(metrics.ma20 - currentPrice) / currentPrice : 0;
+  const ma50Drift = metrics.ma50 != null ? Math.abs(metrics.ma50 - currentPrice) / currentPrice : 0;
+
+  return ma20Drift <= threshold && ma50Drift <= threshold;
 }
 
 function deriveDirectionalFallback(metrics: CandleMetrics): DirectionalBias {
@@ -562,6 +639,16 @@ async function getReliableCandles(
   for (const provider of providers) {
     const candles = await provider.fetcher();
     if (!hasValidCandles(candles ?? [])) continue;
+    if (!candlesMatchTimeframeCadence(timeframe, candles!)) {
+      logCandleDebug({
+        symbol,
+        timeframe,
+        endpoint: "validation",
+        provider: provider.name,
+        status: "rejected_bad_cadence",
+      });
+      continue;
+    }
     if (!candlesMatchCurrentPrice(symbol, candles!, currentPrice)) {
       logCandleDebug({
         symbol,
@@ -569,6 +656,16 @@ async function getReliableCandles(
         endpoint: "validation",
         provider: provider.name,
         status: "rejected_current_price_drift",
+      });
+      continue;
+    }
+    if (!candlesHavePlausibleMAs(symbol, timeframe, candles!, currentPrice)) {
+      logCandleDebug({
+        symbol,
+        timeframe,
+        endpoint: "validation",
+        provider: provider.name,
+        status: "rejected_ma_drift",
       });
       continue;
     }
