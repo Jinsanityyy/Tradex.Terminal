@@ -73,7 +73,7 @@ function SessionClock({ label, timezone }: { label: string; timezone: string }) 
 function SessionTimerBar() {
   const sessions = useSessionCountdowns();
   return (
-    <div className="hidden xl:flex items-center gap-3 border-r border-[hsl(var(--border))] pr-3">
+    <div className="hidden lg:flex items-center gap-3 border-r border-[hsl(var(--border))] pr-3">
       {sessions.map((s) => (
         <div key={s.label} className="flex items-center gap-1.5">
           {/* dot indicator */}
