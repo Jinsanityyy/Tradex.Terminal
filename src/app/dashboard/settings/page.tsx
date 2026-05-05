@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Palette, BarChart3, Globe, Bell, Filter, RotateCcw, Save, CheckCircle2, ShieldCheck, ShieldOff, Smartphone, Loader2, AlertCircle } from "lucide-react";
+import { Palette, BarChart3, Globe, Bell, Filter, RotateCcw, Save, CheckCircle2, ShieldCheck, ShieldOff, Smartphone, Loader2, AlertCircle, DollarSign } from "lucide-react";
 import {
   useSettings, applyVisualSettings, DEFAULTS,
   Settings, Theme, Density, TimeZone, DateFormat, RefreshInterval, ImpactThreshold,
@@ -457,6 +457,55 @@ export default function SettingsPage() {
               labels={{ all: "All", "medium+": "Medium+", "high-only": "High Only" }}
             />
           </SettingRow>
+        </CardContent>
+      </Card>
+
+      {/* Risk Management */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <DollarSign className="h-4 w-4 text-amber-400" /> Risk Management
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SettingRow label="Account Balance" description="Your trading account size — used by the lot size calculator">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-[hsl(var(--muted-foreground))]">$</span>
+              <input
+                type="number"
+                min={100}
+                step={100}
+                value={draft.accountBalance}
+                onChange={(e) => update("accountBalance", Math.max(100, Number(e.target.value)))}
+                className="w-28 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-2 py-1 text-right text-[11px] font-mono text-[hsl(var(--foreground))] outline-none focus:border-[hsl(var(--primary))]/50 [color-scheme:dark]"
+              />
+            </div>
+          </SettingRow>
+          <SettingRow label="Risk Per Trade" description="Default % of account risked per trade in the lot size calculator">
+            <div className="flex items-center gap-1.5">
+              {[0.5, 1, 1.5, 2, 3].map((pct) => (
+                <button
+                  key={pct}
+                  onClick={() => update("riskPerTrade", pct)}
+                  className={cn(
+                    "rounded-md px-2.5 py-1 text-[10px] font-medium transition-all border",
+                    draft.riskPerTrade === pct
+                      ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
+                      : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
+                  )}
+                >
+                  {pct}%
+                </button>
+              ))}
+            </div>
+          </SettingRow>
+          {/* Preview */}
+          <div className="mt-3 rounded-lg border border-[hsl(var(--border))]/50 bg-[hsl(var(--secondary))]/40 px-3 py-2.5 flex items-center justify-between">
+            <span className="text-[10px] text-[hsl(var(--muted-foreground))]">Max risk amount at {draft.riskPerTrade}%</span>
+            <span className="text-sm font-mono font-bold text-amber-400">
+              ${(draft.accountBalance * draft.riskPerTrade / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+            </span>
+          </div>
         </CardContent>
       </Card>
 

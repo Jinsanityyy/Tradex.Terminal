@@ -26,6 +26,8 @@ export interface Settings {
   };
   feedCategories: string[];
   autoRefreshInterval: RefreshInterval;
+  accountBalance: number;
+  riskPerTrade: number;
 }
 
 export const DEFAULTS: Settings = {
@@ -45,6 +47,8 @@ export const DEFAULTS: Settings = {
   },
   feedCategories: ["Central Banks", "Inflation", "Tariffs", "Geopolitics", "Crypto", "Energy"],
   autoRefreshInterval: "15s",
+  accountBalance: 10000,
+  riskPerTrade: 1,
 };
 
 interface SettingsContextValue {

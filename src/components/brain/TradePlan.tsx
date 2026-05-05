@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SignalState, TradePlan as TradePlanType } from "@/lib/agents/schemas";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface TradePlanProps {
   tradePlan: TradePlanType | null;
@@ -151,7 +152,8 @@ function LotSizeCalculator({
   stopLoss: number;
   riskPercent: number;
 }) {
-  const [accountSize, setAccountSize] = useState(10000);
+  const { settings } = useSettings();
+  const [accountSize, setAccountSize] = useState(() => settings.accountBalance ?? 10000);
   const slPoints = Math.abs(entry - stopLoss);
   const pointValue = entry > 100 ? 100 : 10;
   const riskAmount = accountSize * (riskPercent / 100);
