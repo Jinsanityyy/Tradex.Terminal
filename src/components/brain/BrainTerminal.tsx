@@ -549,40 +549,68 @@ export function BrainTerminal() {
               onClick={() => openDrawer("execution")}
             />
 
-            {/* Trade Plan card — shows real entry/SL/TP data */}
-            {execution?.hasSetup && execution.entry != null ? (
-              <button
-                onClick={() => openDrawer("execution")}
-                className="flex flex-col gap-2 border-t-2 border-t-violet-500/60 bg-[hsl(var(--card))] px-3 py-3 text-left transition-all hover:bg-white/[0.04] min-h-[140px]"
-              >
-                <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-600">Trade Plan</span>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 flex-1">
-                  {[
-                    { label: "ENTRY", value: fmtPrice(execution.entry)    },
-                    { label: "SL",    value: fmtPrice(execution.stopLoss) },
-                    { label: "TP1",   value: fmtPrice(execution.tp1)      },
-                    { label: "TP2",   value: fmtPrice(execution.tp2)      },
-                  ].map(({ label, value }) => (
-                    <div key={label} className="flex flex-col gap-0.5">
-                      <span className="text-[9px] font-mono text-zinc-700">{label}</span>
-                      <span className="text-[12px] font-mono font-bold text-zinc-300">{value}</span>
-                    </div>
-                  ))}
-                </div>
-                {execution.rrRatio != null && (
-                  <div className="flex items-center justify-between border-t border-white/5 pt-1.5">
-                    <span className="text-[9px] text-zinc-700 uppercase tracking-wider">Risk / Reward</span>
-                    <span className="font-mono text-[13px] font-black text-violet-400">{execution.rrRatio.toFixed(2)}:1</span>
+            {/* Master Agent card — always opens master drawer */}
+            {(() => {
+              const masterConf    = master?.confidence ?? 0;
+              const masterInsight = finalBias !== "no-trade"
+                ? (master?.strategyMatch ?? `${finalBias.toUpperCase()} signal confirmed`)
+                : (master?.noTradeReason ?? "Insufficient consensus to trade");
+              const rawScore      = master?.consensusScore;
+              const consensusLabel = rawScore != null
+                ? (rawScore > 0 ? `+${rawScore.toFixed(0)}` : rawScore.toFixed(0))
+                : "—";
+              const cls = TONE_CLS[masterTone];
+
+              return (
+                <button
+                  onClick={() => openDrawer("master")}
+                  className={cn(
+                    "flex flex-col gap-2 border-t-2 bg-[hsl(var(--card))] px-3 py-3 text-left transition-all hover:bg-white/[0.04] min-h-[140px]",
+                    cls.border
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-600">Master Agent</span>
+                    <span className={cn("text-[9px] font-bold uppercase tracking-[0.1em]", cls.text)}>
+                      {fmt(finalBias)}
+                    </span>
                   </div>
-                )}
-              </button>
-            ) : (
-              <div className="flex flex-col gap-2 border-t-2 border-t-zinc-700/20 bg-[hsl(var(--card))] px-3 py-3 min-h-[140px]">
-                <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-700">Trade Plan</span>
-                <span className="text-[10px] text-zinc-700 mt-1">No active execution plan.</span>
-                <span className="text-[9px] text-zinc-800">Signal must reach ARMED state before executing.</span>
-              </div>
-            )}
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[8px]">
+                      <span className="text-zinc-700 uppercase tracking-widest">Confidence</span>
+                      <span className={cn("font-mono font-bold", cls.text)}>{masterConf}%</span>
+                    </div>
+                    <div className="h-[3px] w-full rounded-full bg-white/5">
+                      <div className={cn("h-full rounded-full", cls.bar)} style={{ width: `${masterConf}%` }} />
+                    </div>
+                  </div>
+
+                  <p className="flex-1 text-[10px] leading-snug text-zinc-400 line-clamp-2">{masterInsight}</p>
+
+                  <div className="flex items-center justify-between border-t border-white/5 pt-1.5">
+                    <span className="text-[9px] text-zinc-700 uppercase tracking-wider">Consensus</span>
+                    <span className={cn("font-mono text-[12px] font-black", cls.text)}>{consensusLabel}</span>
+                  </div>
+
+                  {execution?.hasSetup && execution.entry != null && (
+                    <div className="grid grid-cols-4 gap-x-2 gap-y-1 border-t border-white/5 pt-1.5">
+                      {[
+                        { label: "ENT", value: fmtPrice(execution.entry)    },
+                        { label: "SL",  value: fmtPrice(execution.stopLoss) },
+                        { label: "TP1", value: fmtPrice(execution.tp1)      },
+                        { label: "RR",  value: execution.rrRatio != null ? `${execution.rrRatio.toFixed(1)}:1` : "—" },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="flex flex-col gap-0.5">
+                          <span className="text-[8px] font-mono text-zinc-700">{label}</span>
+                          <span className="text-[10px] font-mono font-bold text-zinc-300">{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </button>
+              );
+            })()}
           </div>
 
           {/* Footer */}
