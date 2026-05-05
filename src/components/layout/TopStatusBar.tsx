@@ -70,7 +70,7 @@ function SessionClock({ label, timezone }: { label: string; timezone: string }) 
   );
 }
 
-function SessionTimerBar() {
+export function SessionTimerBar() {
   const sessions = useSessionCountdowns();
   return (
     <div className="hidden lg:flex items-center gap-3 border-r border-[hsl(var(--border))] pr-3">
