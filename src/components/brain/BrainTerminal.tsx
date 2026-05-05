@@ -117,6 +117,40 @@ function DiagStrip({ tags }: { tags: DiagTag[] }) {
   );
 }
 
+function formatPriceActionPattern(setupType: string): string {
+  switch (setupType) {
+    case "BOS":
+      return "Breakout continuation";
+    case "BOS_Continuation":
+      return "BOS continuation";
+    case "CHoCH":
+      return "Trend shift reversal";
+    case "OB":
+      return "Range retest";
+    case "FVG":
+      return "Gap fill";
+    case "Sweep":
+      return "Stop-run reversal";
+    case "FibLong":
+      return "Discount fib entry";
+    case "FibShort":
+      return "Premium fib entry";
+    default:
+      return "No clear pattern";
+  }
+}
+
+function formatRangeContext(zone: string): string {
+  switch (zone) {
+    case "DISCOUNT":
+      return "Lower range";
+    case "PREMIUM":
+      return "Upper range";
+    default:
+      return "Mid range";
+  }
+}
+
 // ── Agent Card ────────────────────────────────────────────────────────
 
 function AgentCard({
@@ -310,9 +344,14 @@ export function BrainTerminal() {
 
   // Price Action — setup focus
   const paInsight = smc
-    ? `${smc.setupType} · ${smc.premiumDiscount}`
+    ? `${formatPriceActionPattern(smc.setupType)} · ${formatRangeContext(smc.premiumDiscount)}`
     : "No setup";
-  const paTrigger = smc?.setupPresent ? "Active" : "Waiting";
+  const paTrigger = smc?.setupPresent ? smc.setupType : "Waiting";
+
+  const riskState = data?.agents.risk.valid ? "valid" : "blocked";
+  const riskConf = data?.agents.risk.sessionScore ?? 0;
+  const riskInsight = data?.agents.risk.reasons[0] ?? "No risk assessment";
+  const riskTrigger = data?.agents.risk.grade ? `Grade ${data.agents.risk.grade}` : undefined;
 
   // Contrarian
   const contraState = contrarian?.challengesBias ? "opposing" : "neutral";
@@ -334,6 +373,11 @@ export function BrainTerminal() {
     ? `Entry ${fmtPrice(execution.entry)} · RR ${execution.rrRatio.toFixed(2)}:1`
     : (execution?.signalStateReason ?? "No signal");
   const execTrigger = execStateRaw;
+
+  const masterState = master?.finalBias ?? "no-trade";
+  const masterConf = master?.confidence ?? 0;
+  const masterInsight = master?.noTradeReason ?? master?.supports?.[0] ?? "Awaiting consensus";
+  const masterTrigger = master?.strategyMatch ?? "Consensus";
 
   // ── Timeframe alignment (computed, not trusting .aligned field) ──────
   const tfSyncLabel = tr
@@ -382,9 +426,17 @@ export function BrainTerminal() {
   const paTags: DiagTag[] = smc ? [
     { k: "PATTERN", v: smc.setupType },
     { k: "RANGE", v: smc.premiumDiscount },
-    { k: "RES", v: fmtPrice(smc.keyLevels.orderBlockHigh) },
-    { k: "SUP", v: fmtPrice(smc.keyLevels.orderBlockLow) },
-    { k: "FIB 61.8", v: fmtPrice(smc.keyLevels.fvgMid) },
+    { k: "BOS", v: smc.bosDetected ? "YES" : "NO" },
+    { k: "CHOCH", v: smc.chochDetected ? "YES" : "NO" },
+    { k: "TARGET", v: fmtPrice(smc.keyLevels.liquidityTarget) },
+  ] : [];
+
+  const riskTags: DiagTag[] = data?.agents.risk ? [
+    { k: "GRADE", v: data.agents.risk.grade },
+    { k: "MAX", v: `${data.agents.risk.maxRiskPercent}%` },
+    { k: "SESSION", v: `${data.agents.risk.sessionScore}/100` },
+    { k: "VOL", v: `${data.agents.risk.volatilityScore}/100` },
+    { k: "RR", v: data.agents.risk.estimatedRR != null ? `${data.agents.risk.estimatedRR.toFixed(2)}:1` : "—" },
   ] : [];
 
   const contraTags: DiagTag[] = contrarian ? [
@@ -400,6 +452,14 @@ export function BrainTerminal() {
     { k: "TP1", v: fmtPrice(execution.tp1) },
     { k: "TP2", v: fmtPrice(execution.tp2) },
     { k: "RR", v: execution.rrRatio != null ? `${execution.rrRatio.toFixed(2)}:1` : "—" },
+  ] : [];
+
+  const masterTags: DiagTag[] = master ? [
+    { k: "FINAL", v: master.finalBias.toUpperCase() },
+    { k: "SCORE", v: master.consensusScore.toFixed(1) },
+    { k: "SETUP", v: master.strategyMatch ?? "â€”" },
+    { k: "HTF", v: structure?.htfBias?.toUpperCase() ?? "â€”" },
+    { k: "EXEC", v: execution?.signalState ?? "â€”" },
   ] : [];
 
   const openDrawer = useCallback((agentId: string) => {
@@ -519,14 +579,14 @@ export function BrainTerminal() {
 
           {/* ── Divider label ────────────────────────────────────────── */}
           <div className="flex items-center gap-3">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">Market Bias Layer</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">Agent Deck</span>
             <div className="flex-1 border-t border-white/5" />
           </div>
 
           {/* ── Row 1: Market Bias (4 agents) ───────────────────────── */}
           <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
             <AgentCard
-              name="Trend"
+              name="Trend Agent"
               state={tr?.bias ?? "neutral"}
               confidence={tr?.confidence ?? 0}
               insight={tr?.reasons[0] ?? "—"}
@@ -535,24 +595,25 @@ export function BrainTerminal() {
               onClick={() => openDrawer("trend")}
             />
             <AgentCard
-              name="HTF Bias"
-              state={htfState}
-              confidence={htfConf}
-              insight={htfInsight}
-              trigger={structure?.zone}
-              tags={htfTags}
-            />
-            <AgentCard
-              name="Liquidity"
-              state={liqState}
+              name="Price Action Agent"
+              state={smc?.bias ?? "neutral"}
               confidence={smc?.confidence ?? 0}
-              insight={liqInsight}
-              trigger={liqTrigger}
-              tags={liqTags}
+              insight={paInsight}
+              trigger={paTrigger}
+              tags={paTags}
               onClick={() => openDrawer("smc")}
             />
             <AgentCard
-              name="News / Macro"
+              name="Risk Gate Agent"
+              state={riskState}
+              confidence={riskConf}
+              insight={riskInsight}
+              trigger={riskTrigger}
+              tags={riskTags}
+              onClick={() => openDrawer("risk")}
+            />
+            <AgentCard
+              name="News Agent"
               state={news?.impact ?? "neutral"}
               confidence={news?.confidence ?? 0}
               insight={news?.dominantCatalyst ?? news?.reasons[0] ?? "—"}
@@ -564,23 +625,23 @@ export function BrainTerminal() {
 
           {/* ── Divider label ────────────────────────────────────────── */}
           <div className="flex items-center gap-3">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">Execution Layer</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">Execution + Consensus</span>
             <div className="flex-1 border-t border-white/5" />
           </div>
 
           {/* ── Row 2: Execution (3 agents) ─────────────────────────── */}
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <AgentCard
-              name="Price Action"
-              state={smc?.bias ?? "neutral"}
-              confidence={smc?.confidence ?? 0}
-              insight={paInsight}
-              trigger={paTrigger}
-              tags={paTags}
-              onClick={() => openDrawer("smc")}
+              name="Execution Agent"
+              state={execState}
+              confidence={execConf}
+              insight={execInsight}
+              trigger={execTrigger}
+              tags={execTags}
+              onClick={() => openDrawer("execution")}
             />
             <AgentCard
-              name="Contrarian"
+              name="Contrarian Agent"
               state={contraState}
               confidence={contrarian?.trapConfidence ?? 0}
               insight={contraInsight}
@@ -589,13 +650,13 @@ export function BrainTerminal() {
               onClick={() => openDrawer("contrarian")}
             />
             <AgentCard
-              name="Execution"
-              state={execState}
-              confidence={execConf}
-              insight={execInsight}
-              trigger={execTrigger}
-              tags={execTags}
-              onClick={() => openDrawer("execution")}
+              name="Master Consensus"
+              state={masterState}
+              confidence={masterConf}
+              insight={masterInsight}
+              trigger={masterTrigger}
+              tags={masterTags}
+              onClick={() => openDrawer("master")}
             />
           </div>
 
