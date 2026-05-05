@@ -22,9 +22,14 @@ function buildId(result: AgentRunResult): string {
   return `${slot}_${result.symbol}_${result.timeframe}`;
 }
 
+// 60-minute cooldown per symbol+direction — prevents cron from logging a new
+// signal every 5 min when entry price drifts slightly but the setup is the same.
+const ARMED_COOLDOWN_MS = 60 * 60 * 1000;
+
 /**
- * Returns true if an identical armed signal is already OPEN for this symbol.
- * Prevents the same entry/SL/TP from being logged on every hourly agent run.
+ * Returns true if a same-direction armed signal for this symbol was already
+ * logged within the last 60 minutes. This stops near-identical BOS/OB/FVG
+ * setups from flooding history every time the cron ticks and price shifts slightly.
  */
 async function isDuplicateArmedSignal(result: AgentRunResult): Promise<boolean> {
   const plan = result.agents.master.tradePlan;
@@ -32,13 +37,14 @@ async function isDuplicateArmedSignal(result: AgentRunResult): Promise<boolean> 
 
   try {
     const openSignals = await getOpenSignals();
-    return openSignals.some(s =>
-      s.symbol === result.symbol &&
-      s.tradePlan !== null &&
-      s.tradePlan.entry     === plan.entry &&
-      s.tradePlan.stopLoss  === plan.stopLoss &&
-      s.tradePlan.tp1       === plan.tp1
-    );
+    const now = Date.now();
+    return openSignals.some(s => {
+      if (s.symbol !== result.symbol) return false;
+      if (!s.tradePlan) return false;
+      if (s.tradePlan.direction !== plan.direction) return false;
+      const age = now - new Date(s.timestamp).getTime();
+      return age < ARMED_COOLDOWN_MS;
+    });
   } catch {
     return false;
   }
