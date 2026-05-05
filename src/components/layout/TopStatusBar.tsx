@@ -6,6 +6,42 @@ import { useQuotes } from "@/hooks/useMarketData";
 import { TrendingUp, TrendingDown, Clock, Wifi, WifiOff, LogOut, User, Camera } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
+const SESSION_WINDOWS = [
+  { name: "Asia",     label: "TYO", tz: "Asia/Tokyo",        openUTC: 0,  closeUTC: 9,  color: "#A78BFA" },
+  { name: "London",   label: "LDN", tz: "Europe/London",     openUTC: 7,  closeUTC: 16, color: "#60A5FA" },
+  { name: "New York", label: "NYC", tz: "America/New_York",  openUTC: 13, closeUTC: 22, color: "#FCD34D" },
+] as const;
+
+function pad2(n: number) { return n.toString().padStart(2, "0"); }
+
+function useSessionCountdowns() {
+  const [now, setNow] = useState<Date>(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const utcSecs = now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds();
+
+  return SESSION_WINDOWS.map((s) => {
+    const openSecs  = s.openUTC  * 3600;
+    const closeSecs = s.closeUTC * 3600;
+    const isActive  = utcSecs >= openSecs && utcSecs < closeSecs;
+    const secs = isActive
+      ? closeSecs - utcSecs
+      : utcSecs < openSecs
+        ? openSecs - utcSecs
+        : 86400 - utcSecs + openSecs;
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s2 = secs % 60;
+    const localTime = now.toLocaleTimeString("en-US", {
+      timeZone: s.tz, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+    });
+    return { ...s, isActive, countdown: `${pad2(h)}:${pad2(m)}:${pad2(s2)}`, localTime, label2: isActive ? "closes" : "opens" };
+  });
+}
+
 function SessionClock({ label, timezone }: { label: string; timezone: string }) {
   const [time, setTime] = useState("");
 
@@ -30,6 +66,46 @@ function SessionClock({ label, timezone }: { label: string; timezone: string }) 
     <div className="flex items-center gap-1.5">
       <span className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">{label}</span>
       <span className="text-xs font-mono text-[hsl(var(--foreground))]">{time}</span>
+    </div>
+  );
+}
+
+function SessionTimerBar() {
+  const sessions = useSessionCountdowns();
+  return (
+    <div className="hidden xl:flex items-center gap-3 border-r border-[hsl(var(--border))] pr-3">
+      {sessions.map((s) => (
+        <div key={s.label} className="flex items-center gap-1.5">
+          {/* dot indicator */}
+          <div
+            className="h-1.5 w-1.5 rounded-full shrink-0"
+            style={{
+              background: s.isActive ? s.color : "hsl(var(--muted-foreground))",
+              opacity: s.isActive ? 1 : 0.35,
+              boxShadow: s.isActive ? `0 0 6px ${s.color}` : "none",
+            }}
+          />
+          {/* label + countdown */}
+          <span
+            className="text-[10px] font-bold uppercase tracking-wider"
+            style={{ color: s.isActive ? s.color : "hsl(var(--muted-foreground))", opacity: s.isActive ? 1 : 0.6 }}
+          >
+            {s.label}
+          </span>
+          <span className="text-[9px] font-mono tabular-nums" style={{ color: "hsl(var(--muted-foreground))" }}>
+            {s.localTime.slice(0, 5)}
+          </span>
+          <span
+            className="text-[9px] font-mono tabular-nums"
+            style={{ color: s.isActive ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))", opacity: s.isActive ? 1 : 0.5 }}
+          >
+            {s.countdown}
+          </span>
+          <span className="text-[8px] uppercase tracking-wider" style={{ color: "hsl(var(--muted-foreground))", opacity: 0.5 }}>
+            {s.label2}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -271,6 +347,9 @@ export function TopStatusBar() {
             </>
           )}
         </div>
+
+        {/* Session countdown timers — right of live indicator, left of user menu */}
+        <SessionTimerBar />
 
         <UserMenu />
       </div>
