@@ -155,18 +155,10 @@ async function analyzeGoldUSD(content: string, category: string): Promise<{
   }
 }
 
+// Match curl exactly — minimal headers only to avoid bot detection
 const TS_HEADERS = {
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-  "Accept": "application/json, text/plain, */*",
-  "Accept-Language": "en-US,en;q=0.9",
-  "Accept-Encoding": "gzip, deflate, br",
-  "Sec-Fetch-Dest": "empty",
-  "Sec-Fetch-Mode": "cors",
-  "Sec-Fetch-Site": "same-origin",
-  "Sec-CH-UA": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-  "Sec-CH-UA-Mobile": "?0",
-  "Sec-CH-UA-Platform": '"Windows"',
-  "Connection": "keep-alive",
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+  "Accept": "application/json",
 };
 
 function mapStatuses(statuses: { id: string; created_at: string; content: string; reblog: unknown | null; in_reply_to_id: string | null; card?: { title?: string; description?: string } | null }[]) {
@@ -208,7 +200,8 @@ async function resolveAccountId(): Promise<string | null> {
     _resolvedAccountId = data.id;
     console.log(`[trump/truth-social] resolved account ID: ${data.id}`);
     return data.id;
-  } catch {
+  } catch (err) {
+    console.error("[trump/lookup] ERROR:", err);
     return null;
   }
 }
