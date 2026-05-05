@@ -181,9 +181,18 @@ function TruthSocialCard({ post, onClick }: { post: TrumpPost; onClick: () => vo
         {/* Header row */}
         <div className="flex items-start gap-3 mb-3">
           {/* Avatar */}
-          <div className="shrink-0 h-10 w-10 rounded-full bg-gradient-to-br from-red-600 via-white to-blue-700 flex items-center justify-center text-base select-none border-2 border-amber-500/30">
-            🇺🇸
-          </div>
+          {post.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={post.avatarUrl}
+              alt="Donald J. Trump"
+              className="shrink-0 h-10 w-10 rounded-full object-cover border-2 border-amber-500/30"
+            />
+          ) : (
+            <div className="shrink-0 h-10 w-10 rounded-full bg-gradient-to-br from-red-600 via-white to-blue-700 flex items-center justify-center text-base select-none border-2 border-amber-500/30">
+              🇺🇸
+            </div>
+          )}
 
           {/* Name + username */}
           <div className="flex-1 min-w-0">
@@ -240,25 +249,6 @@ function TruthSocialCard({ post, onClick }: { post: TrumpPost; onClick: () => vo
           <span className="ml-auto">{dateStr}, {timeStr}</span>
         </div>
 
-        {/* Action buttons row */}
-        <div className="flex items-center justify-around mt-2 pt-2 border-t border-white/5">
-          {[
-            { icon: "💬", label: "Reply" },
-            { icon: "🔁", label: "ReTruth" },
-            { icon: "🤍", label: "Like" },
-            { icon: "🔖", label: "Bookmark" },
-            { icon: "↑", label: "Share" },
-          ].map(({ icon, label }) => (
-            <button
-              key={label}
-              onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-1 text-zinc-600 hover:text-zinc-300 text-[12px] px-2 py-1 rounded hover:bg-white/5 transition-colors"
-              title={label}
-            >
-              {icon}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Market analysis strip */}

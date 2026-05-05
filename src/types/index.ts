@@ -153,6 +153,7 @@ export interface TrumpPost {
   content: string;
   source: string;
   postUrl?: string;
+  avatarUrl?: string;
   retruths?: number;
   likes?: number;
   replies?: number;

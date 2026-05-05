@@ -55,6 +55,7 @@ type MastodonLike = {
   reblogs_count?: number;
   favourites_count?: number;
   replies_count?: number;
+  account?: { avatar?: string };
 };
 
 function normalizeItem(item: Record<string, unknown>): MastodonLike | null {
@@ -75,6 +76,13 @@ function normalizeItem(item: Record<string, unknown>): MastodonLike | null {
 
   const toNum = (v: unknown) => typeof v === "number" ? v : (v ? parseInt(String(v), 10) || undefined : undefined);
 
+  // Avatar: try various field names scrapers use
+  const avatarUrl = String(
+    (item.account as Record<string, unknown>)?.avatar ??
+    item.profilePicUrl ?? item.avatarUrl ?? item.avatar ??
+    item.userAvatar ?? item.profile_image_url ?? item.profileImageUrl ?? ""
+  ) || undefined;
+
   return {
     id,
     created_at: String(
@@ -91,7 +99,25 @@ function normalizeItem(item: Record<string, unknown>): MastodonLike | null {
     reblogs_count:    toNum(item.reblogs_count   ?? item.reblogsCount   ?? item.retruths     ?? item.retruths_count   ?? item.boosts_count),
     favourites_count: toNum(item.favourites_count ?? item.favouritesCount ?? item.likes        ?? item.likes_count      ?? item.like_count),
     replies_count:    toNum(item.replies_count    ?? item.repliesCount   ?? item.replies       ?? item.reply_count),
+    account: avatarUrl ? { avatar: avatarUrl } : undefined,
   };
+}
+
+// Fetch Trump's avatar URL from Truth Social account API (cached per process)
+let _cachedAvatar: string | null = null;
+async function fetchTrumpAvatar(): Promise<string | null> {
+  if (_cachedAvatar) return _cachedAvatar;
+  try {
+    const res = await fetch(
+      `https://truthsocial.com/api/v1/accounts/${process.env.TRUTH_SOCIAL_ACCOUNT_ID ?? "107780257626128497"}`,
+      { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(5000) }
+    );
+    if (res.ok) {
+      const data = await res.json() as { avatar?: string };
+      if (data.avatar) { _cachedAvatar = data.avatar; return data.avatar; }
+    }
+  } catch {}
+  return null;
 }
 
 // ── Apify provider ────────────────────────────────────────────────────────────
@@ -157,6 +183,15 @@ async function fetchViaApify(): Promise<Response> {
     .slice(0, 20);
 
   console.log(`[ts/apify] normalized (original posts only): ${normalized.length}`);
+
+  // Inject avatar if not already present in Apify data
+  const hasAvatar = normalized.some(p => p.account?.avatar);
+  if (!hasAvatar) {
+    const avatar = await fetchTrumpAvatar();
+    if (avatar) normalized.forEach(p => { p.account = { avatar }; });
+    console.log(`[ts/apify] avatar: ${avatar ? "fetched from TS API" : "unavailable"}`);
+  }
+
   return jsonPosts(normalized);
 }
 
