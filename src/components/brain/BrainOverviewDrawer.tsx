@@ -170,6 +170,8 @@ function DiagStrip({ tags }: { tags: DiagTag[] }) {
 
 function getTrendSyncLabel(data: AgentRunResult): string {
   const trend = data.agents.trend;
+  const votes = ["M5", "M15", "H1", "H4"] as const;
+  if (votes.every(tf => trend.timeframeBias[tf] === "neutral")) return "ALL NEUTRAL";
   const matching = (["M5", "M15", "H1", "H4"] as const).filter(
     tf => trend.timeframeBias[tf] === trend.bias
   );
@@ -285,9 +287,20 @@ function TrendAgentDetail({ data }: { data: AgentRunResult }) {
             </div>
           ))}
         </div>
-        <p className={cn("text-[10px] mt-2 px-1", a.timeframeBias.aligned ? "text-emerald-400" : "text-amber-400")}>
-          {a.timeframeBias.aligned ? "✓ All timeframes aligned" : "⚠ Mixed timeframe signals"}
-        </p>
+        <p className={cn(
+  "text-[10px] mt-2 px-1",
+  tfEntries.every(({ bias }) => bias === "neutral")
+    ? "text-zinc-400"
+    : a.timeframeBias.aligned
+      ? "text-emerald-400"
+      : "text-amber-400"
+)}>
+  {tfEntries.every(({ bias }) => bias === "neutral")
+    ? "All timeframes neutral"
+    : a.timeframeBias.aligned
+      ? "All timeframes aligned"
+      : "Mixed timeframe signals"}
+</p>
       </div>
 
       {a.invalidationLevel && (
@@ -725,8 +738,12 @@ function TrendAgentDetailPatched({ data }: { data: AgentRunResult }) {
             </div>
           ))}
         </div>
-        <p className={cn("text-[10px] mt-2 px-1", syncLabel === "ALL 4" ? "text-emerald-400" : "text-amber-400")}>
-          {syncLabel === "ALL 4" ? "All timeframes aligned" : `${syncLabel} aligned with ${a.bias.toUpperCase()} bias`}
+        <p className={cn("text-[10px] mt-2 px-1", syncLabel === "ALL 4" ? "text-emerald-400" : syncLabel === "ALL NEUTRAL" ? "text-zinc-400" : "text-amber-400")}>
+          {syncLabel === "ALL 4"
+            ? "All timeframes aligned"
+            : syncLabel === "ALL NEUTRAL"
+              ? "All timeframes neutral"
+              : `${syncLabel} aligned with ${a.bias.toUpperCase()} bias`}
         </p>
       </div>
 
@@ -1097,3 +1114,4 @@ export function BrainOverviewDrawer({ open, onClose, data, highlightAgentId }: B
     </>
   );
 }
+

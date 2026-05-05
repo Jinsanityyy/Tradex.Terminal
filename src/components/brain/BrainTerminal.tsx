@@ -381,13 +381,17 @@ export function BrainTerminal() {
 
   // ── Timeframe alignment (computed, not trusting .aligned field) ──────
   const tfSyncLabel = tr
-    ? ([tr.timeframeBias.M5, tr.timeframeBias.M15, tr.timeframeBias.H1, tr.timeframeBias.H4]
-        .every(b => b === tr.bias)
-        ? "ALL 4"
-        : (() => {
-            const matching = (["M5","M15","H1","H4"] as const).filter(k => tr.timeframeBias[k] === tr.bias);
-            return matching.length > 0 ? `${matching.join("+")} ONLY` : "MIXED";
-          })()
+    ? (([tr.timeframeBias.M5, tr.timeframeBias.M15, tr.timeframeBias.H1, tr.timeframeBias.H4]
+        .every(b => b === "neutral"))
+        ? "ALL NEUTRAL"
+        : ([tr.timeframeBias.M5, tr.timeframeBias.M15, tr.timeframeBias.H1, tr.timeframeBias.H4]
+            .every(b => b === tr.bias)
+            ? "ALL 4"
+            : (() => {
+                const matching = (["M5","M15","H1","H4"] as const).filter(k => tr.timeframeBias[k] === tr.bias);
+                return matching.length > 0 ? `${matching.join("+")} ONLY` : "MIXED";
+              })()
+          )
       )
     : "—";
 
@@ -683,3 +687,4 @@ export function BrainTerminal() {
     </div>
   );
 }
+

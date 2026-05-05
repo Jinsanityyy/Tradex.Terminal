@@ -98,13 +98,30 @@ function deriveLog(data: AgentRunResult): LogEntry[] {
         : "info",
   });
 
-  if (agents.trend.timeframeBias.aligned) {
+  const trendVotes = [
+    agents.trend.timeframeBias.M5,
+    agents.trend.timeframeBias.M15,
+    agents.trend.timeframeBias.H1,
+    agents.trend.timeframeBias.H4,
+  ];
+  const trendAllNeutral = trendVotes.every(v => v === "neutral");
+  const trendAllDirectional = agents.trend.timeframeBias.aligned && !trendAllNeutral;
+
+  if (trendAllDirectional) {
     entries.push({
       id: "trend-tf",
       agentId: "trend",
       agentLabel: "Trend Agent",
-      message: "All timeframes aligned — directional conviction confirmed",
+      message: "All directional timeframes aligned - directional conviction confirmed",
       type: agents.trend.bias === "bullish" ? "bullish" : "bearish",
+    });
+  } else if (trendAllNeutral) {
+    entries.push({
+      id: "trend-tf-neutral",
+      agentId: "trend",
+      agentLabel: "Trend Agent",
+      message: "All timeframes neutral - no directional trend edge",
+      type: "info",
     });
   } else if (agents.trend.reasons[1]) {
     entries.push({
@@ -405,3 +422,4 @@ export function AgentActivityLog({
     </div>
   );
 }
+
