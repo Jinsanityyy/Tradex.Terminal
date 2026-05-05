@@ -14,11 +14,15 @@ const filterTags = ["all", "tariffs", "china", "fed", "crypto", "oil", "trade-po
 
 export default function TrumpMonitorPage() {
   const [activeFilter, setActiveFilter] = useState("all");
+  const [activeSource, setActiveSource] = useState("all");
   const { posts: trumpPosts, isLive, feedSource, sources } = useTrumpPosts(60_000);
 
-  const filtered = activeFilter === "all"
-    ? trumpPosts
-    : trumpPosts.filter(p => p.tags.includes(activeFilter) || p.policyCategory.toLowerCase() === activeFilter);
+  // Unique sources available in current posts
+  const availableSources = ["all", ...Array.from(new Set(trumpPosts.map(p => p.source)))];
+
+  const filtered = trumpPosts
+    .filter(p => activeSource === "all" || p.source === activeSource)
+    .filter(p => activeFilter === "all" || p.tags.includes(activeFilter) || p.policyCategory.toLowerCase() === activeFilter);
 
   const avgImpact = trumpPosts.length > 0 ? Math.round(trumpPosts.reduce((s, p) => s + p.impactScore, 0) / trumpPosts.length) : 0;
 
@@ -145,7 +149,30 @@ export default function TrumpMonitorPage() {
         </Card>
       </div>
 
-      {/* Filters */}
+      {/* Source filter */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Source</span>
+        {availableSources.map((src) => {
+          const isTruthSocial = src === "Truth Social";
+          const isActive = activeSource === src;
+          return (
+            <button
+              key={src}
+              onClick={() => setActiveSource(src)}
+              className={cn(
+                "rounded-md border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider transition-all",
+                isActive && isTruthSocial ? "border-amber-500/50 bg-amber-500/10 text-amber-400" :
+                isActive ? "border-blue-500/50 bg-blue-500/10 text-blue-400" :
+                "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
+              )}
+            >
+              {isTruthSocial ? "✦ " : ""}{src === "all" ? "All Sources" : src}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Topic filters */}
       <div className="flex items-center gap-2 flex-wrap">
         <Filter className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />
         {filterTags.map((tag) => (
