@@ -7,6 +7,7 @@ import useSWR from "swr";
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import { useQuotes } from "@/hooks/useMarketData";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
+import { AgentCommandRoom } from "./AgentCommandRoom";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -467,6 +468,19 @@ export function BrainTerminal() {
               </div>
             </div>
           </button>
+
+          {/* ── Pixel Command Room ────────────────────────────────────────── */}
+          <AgentCommandRoom
+            data={data}
+            loading={loading}
+            focusedAgentId={highlightId ?? null}
+            onSelectAgentChange={(agentId) => {
+              if (agentId) openDrawer(agentId);
+            }}
+            onHoverAgentChange={(agentId) => {
+              setHighlightId(agentId ?? undefined);
+            }}
+          />
 
           {/* Section label */}
           <div className="flex items-center gap-3">
