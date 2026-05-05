@@ -52,6 +52,9 @@ type MastodonLike = {
   reblog: null;
   in_reply_to_id: string | null;
   url?: string;
+  reblogs_count?: number;
+  favourites_count?: number;
+  replies_count?: number;
 };
 
 function normalizeItem(item: Record<string, unknown>): MastodonLike | null {
@@ -70,6 +73,8 @@ function normalizeItem(item: Record<string, unknown>): MastodonLike | null {
   const replyId = item.in_reply_to_id ?? item.inReplyToId ?? item.reply_to ?? null;
   if (isRepost || replyId) return null;
 
+  const toNum = (v: unknown) => typeof v === "number" ? v : (v ? parseInt(String(v), 10) || undefined : undefined);
+
   return {
     id,
     created_at: String(
@@ -83,6 +88,9 @@ function normalizeItem(item: Record<string, unknown>): MastodonLike | null {
       item.url ?? item.postUrl ?? item.statusUrl ?? item.link ??
       `https://truthsocial.com/@${USERNAME}/${id}`
     ),
+    reblogs_count:    toNum(item.reblogs_count   ?? item.reblogsCount   ?? item.retruths     ?? item.retruths_count   ?? item.boosts_count),
+    favourites_count: toNum(item.favourites_count ?? item.favouritesCount ?? item.likes        ?? item.likes_count      ?? item.like_count),
+    replies_count:    toNum(item.replies_count    ?? item.repliesCount   ?? item.replies       ?? item.reply_count),
   };
 }
 

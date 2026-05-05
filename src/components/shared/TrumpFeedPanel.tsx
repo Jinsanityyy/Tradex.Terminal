@@ -158,6 +158,124 @@ function TrumpPostDetail({ post }: { post: TrumpPost }) {
   );
 }
 
+// ── Truth Social native post card ─────────────────────────────────────────────
+
+function fmtCount(n?: number) {
+  if (n == null) return null;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+  return String(n);
+}
+
+function TruthSocialCard({ post, onClick }: { post: TrumpPost; onClick: () => void }) {
+  const date = new Date(post.timestamp);
+  const dateStr = date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const timeStr = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+
+  return (
+    <div
+      onClick={onClick}
+      className="cursor-pointer rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] hover:border-amber-500/40 hover:bg-amber-500/[0.03] transition-all"
+    >
+      {/* Card body */}
+      <div className="p-4">
+        {/* Header row */}
+        <div className="flex items-start gap-3 mb-3">
+          {/* Avatar */}
+          <div className="shrink-0 h-10 w-10 rounded-full bg-gradient-to-br from-red-600 via-white to-blue-700 flex items-center justify-center text-base select-none border-2 border-amber-500/30">
+            🇺🇸
+          </div>
+
+          {/* Name + username */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[13px] font-bold text-[hsl(var(--foreground))]">Donald J. Trump</span>
+              {/* Verified checkmark — Truth Social red */}
+              <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="12" fill="#E8222E" />
+                <path d="M7 12.5l3.5 3.5 6.5-7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {post.postUrl && (
+                <a
+                  href={post.postUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="ml-auto text-[10px] text-amber-500/60 hover:text-amber-400 flex items-center gap-0.5"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+            </div>
+            <span className="text-[11px] text-zinc-500">@realDonaldTrump</span>
+          </div>
+
+          {/* Impact badge */}
+          <div className="shrink-0 flex items-center gap-1">
+            <Flame className={cn("h-3.5 w-3.5", post.impactScore >= 7 ? "text-amber-400" : "text-zinc-600")} />
+            <span className="text-[11px] font-mono font-bold text-zinc-300">{post.impactScore}/10</span>
+          </div>
+        </div>
+
+        {/* Post text */}
+        <p className="text-[13px] text-[hsl(var(--foreground))] leading-relaxed whitespace-pre-wrap break-words mb-3">
+          {post.content}
+        </p>
+
+        {/* Gold/USD impact inline */}
+        {(post.goldImpact || post.usdImpact) && (
+          <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+            <ImpactBadge impact={post.goldImpact} label="GOLD" />
+            <ImpactBadge impact={post.usdImpact} label="USD" />
+          </div>
+        )}
+
+        {/* Footer: counts + timestamp */}
+        <div className="flex items-center gap-4 pt-2 border-t border-white/5 text-zinc-500 text-[11px]">
+          {fmtCount(post.retruths) != null && (
+            <span><strong className="text-zinc-300">{fmtCount(post.retruths)}</strong> ReTruths</span>
+          )}
+          {fmtCount(post.likes) != null && (
+            <span><strong className="text-zinc-300">{fmtCount(post.likes)}</strong> Likes</span>
+          )}
+          <span className="ml-auto">{dateStr}, {timeStr}</span>
+        </div>
+
+        {/* Action buttons row */}
+        <div className="flex items-center justify-around mt-2 pt-2 border-t border-white/5">
+          {[
+            { icon: "💬", label: "Reply" },
+            { icon: "🔁", label: "ReTruth" },
+            { icon: "🤍", label: "Like" },
+            { icon: "🔖", label: "Bookmark" },
+            { icon: "↑", label: "Share" },
+          ].map(({ icon, label }) => (
+            <button
+              key={label}
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-1 text-zinc-600 hover:text-zinc-300 text-[12px] px-2 py-1 rounded hover:bg-white/5 transition-colors"
+              title={label}
+            >
+              {icon}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Market analysis strip */}
+      <div className="border-t border-amber-500/10 bg-amber-500/[0.03] px-4 py-2 rounded-b-xl">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant={post.sentimentClassification} className="text-[10px]">{post.sentimentClassification}</Badge>
+          <Badge variant="outline" className="text-[10px]">{post.policyCategory}</Badge>
+          {post.tags.slice(0, 3).map(t => (
+            <span key={t} className="text-[10px] font-mono text-zinc-600">#{t}</span>
+          ))}
+          <span className="ml-auto text-[10px] text-zinc-600 italic">click for full analysis</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function TrumpFeedPanel({ posts, limit, compact = false }: TrumpFeedPanelProps) {
   const items = limit ? posts.slice(0, limit) : posts;
   const [selected, setSelected] = useState<TrumpPost | null>(null);
@@ -175,7 +293,16 @@ export function TrumpFeedPanel({ posts, limit, compact = false }: TrumpFeedPanel
   return (
     <>
       <div className="space-y-2">
-        {items.map((post) => (
+        {items.map((post) => {
+          // Truth Social posts get the native card design
+          if (post.source === "Truth Social") {
+            return (
+              <TruthSocialCard key={post.id} post={post} onClick={() => setSelected(post)} />
+            );
+          }
+
+          // News posts keep the existing compact card
+          return (
           <Card key={post.id} onClick={() => setSelected(post)} className={cn(
             "transition-all hover:border-amber-500/30 cursor-pointer",
             post.impactScore >= 8 && "border-amber-500/20 bg-amber-500/[0.02]"
@@ -185,30 +312,7 @@ export function TrumpFeedPanel({ posts, limit, compact = false }: TrumpFeedPanel
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2">
                   <UserCircle className="h-4 w-4 text-amber-400 shrink-0" />
-                  {post.postUrl ? (
-                    <a
-                      href={post.postUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className={cn(
-                        "inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded hover:underline",
-                        post.source === "Truth Social"
-                          ? "bg-amber-500/15 text-amber-400 border border-amber-500/25"
-                          : "text-[hsl(var(--muted-foreground))]"
-                      )}
-                    >
-                      {post.source === "Truth Social" ? "✦ " : ""}{post.source}
-                      <ExternalLink className="h-2.5 w-2.5 opacity-60" />
-                    </a>
-                  ) : (
-                    <span className={cn(
-                      "text-[10px] font-semibold px-1.5 py-0.5 rounded",
-                      post.source === "Truth Social"
-                        ? "bg-amber-500/15 text-amber-400 border border-amber-500/25"
-                        : "text-[hsl(var(--muted-foreground))]"
-                    )}>{post.source}</span>
-                  )}
+                  <span className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))]">{post.source}</span>
                   <span className="text-[10px] text-[hsl(var(--muted-foreground))]">{timeAgo(post.timestamp)}</span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -278,7 +382,8 @@ export function TrumpFeedPanel({ posts, limit, compact = false }: TrumpFeedPanel
               )}
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </div>
 
       <DetailModal
