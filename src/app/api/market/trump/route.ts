@@ -157,14 +157,22 @@ async function analyzeGoldUSD(content: string, category: string): Promise<{
 
 const TS_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-  "Accept": "application/json, text/html, */*",
+  "Accept": "application/json, text/plain, */*",
   "Accept-Language": "en-US,en;q=0.9",
+  "Accept-Encoding": "gzip, deflate, br",
+  "Sec-Fetch-Dest": "empty",
+  "Sec-Fetch-Mode": "cors",
+  "Sec-Fetch-Site": "same-origin",
+  "Sec-CH-UA": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+  "Sec-CH-UA-Mobile": "?0",
+  "Sec-CH-UA-Platform": '"Windows"',
+  "Connection": "keep-alive",
 };
 
-function mapStatuses(statuses: { id: string; created_at: string; content: string; reblog: unknown | null; in_reply_to_id: string | null }[]) {
-  const own = statuses.filter(s => !s.reblog && !s.in_reply_to_id && s.content);
+function mapStatuses(statuses: { id: string; created_at: string; content: string; reblog: unknown | null; in_reply_to_id: string | null; card?: { title?: string; description?: string } | null }[]) {
+  const own = statuses.filter(s => !s.reblog && !s.in_reply_to_id && (s.content || s.card?.title));
   return own.slice(0, 10).map((s) => {
-    const text = stripHtml(s.content);
+    const text = stripHtml(s.content) || s.card?.title || s.card?.description || "";
     const { category, assets, tags } = classifyPost(text);
     const sentiment = deriveSentiment(text);
     const impactScore = deriveImpactScore(text);
@@ -216,7 +224,7 @@ async function fetchTruthSocialAPI(accountId: string): Promise<Omit<TrumpPost, "
     );
     clearTimeout(timer);
     if (!res.ok) throw new Error(`Truth Social API HTTP ${res.status}`);
-    const statuses: { id: string; created_at: string; content: string; reblog: unknown | null; in_reply_to_id: string | null }[] = await res.json();
+    const statuses: { id: string; created_at: string; content: string; reblog: unknown | null; in_reply_to_id: string | null; card?: { title?: string; description?: string } | null }[] = await res.json();
     return mapStatuses(statuses);
   } catch (err) {
     clearTimeout(timer);
