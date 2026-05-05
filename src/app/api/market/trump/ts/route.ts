@@ -8,7 +8,10 @@
  *
  * Always returns a Mastodon-compatible status array OR { configured: false, error: "..." }
  */
-export const runtime = "edge";
+// Switch to Node.js runtime so we can set maxDuration for Apify sync runs
+// (Edge runtime cannot have maxDuration > 30s on Vercel)
+export const runtime = "nodejs";
+export const maxDuration = 60; // seconds — requires Vercel Pro or higher
 
 const PROVIDER   = (process.env.TRUTH_SOCIAL_PROVIDER ?? "").toLowerCase().trim();
 const USERNAME   = process.env.TRUTH_SOCIAL_USERNAME ?? "realDonaldTrump";
@@ -97,15 +100,23 @@ async function fetchViaApify(): Promise<Response> {
   let fetchOpts: RequestInit;
 
   if (APIFY_RUN_MODE === "sync") {
-    // Trigger new run and wait for results (25s timeout — may hit Vercel limit)
-    fetchUrl = `https://api.apify.com/v2/acts/${encodeURIComponent(APIFY_ACTOR_ID)}/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=25&memory=256&maxItems=20`;
+    // muhammetakkurtt/truth-social-scraper: run-sync-get-dataset-items
+    // Vercel serverless max execution: 60s (Pro) / 10s (Hobby). Use Pro or Edge.
+    fetchUrl = `https://api.apify.com/v2/acts/${encodeURIComponent(APIFY_ACTOR_ID)}/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=55&memory=256`;
     fetchOpts = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ usernames: [USERNAME], maxItems: 20, resultsLimit: 20 }),
-      signal: AbortSignal.timeout(28_000),
+      // muhammetakkurtt/truth-social-scraper input schema
+      body: JSON.stringify({
+        username: USERNAME,           // primary field name for this actor
+        usernames: [USERNAME],        // fallback if actor uses array format
+        maxPosts: 20,
+        maxItems: 20,
+        resultsLimit: 20,
+      }),
+      signal: AbortSignal.timeout(58_000),
     };
-    console.log(`[ts/apify] sync run: ${APIFY_ACTOR_ID}`);
+    console.log(`[ts/apify] sync run: ${APIFY_ACTOR_ID} username=${USERNAME}`);
   } else {
     // Fetch last successful run's dataset (instant — requires scheduled actor in Apify)
     fetchUrl = `https://api.apify.com/v2/acts/${encodeURIComponent(APIFY_ACTOR_ID)}/runs/last/dataset/items?token=${APIFY_TOKEN}&limit=30&status=SUCCEEDED`;
