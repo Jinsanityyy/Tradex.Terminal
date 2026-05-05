@@ -23,6 +23,18 @@ const NEWS_SYSTEM = `You are the Macro & News Analysis Agent in a professional m
 
 Your job: analyze real news headlines and determine how they affect the specified asset. Think like a macro-focused fund manager.
 
+STEP 1 — FILTER: Before analyzing, identify and EXCLUDE headlines with zero financial market relevance:
+- Entertainment: movies, box office, TV shows, music, awards
+- Sports: games, tournaments, player transfers
+- Non-systemic corporate: airline CEO quotes, celebrity lawsuits, product launches
+- Lifestyle: fashion, food, travel, health tips
+Only analyze headlines that could plausibly move institutional capital or risk appetite.
+
+STEP 2 — WEIGHT: Not all headlines are equal.
+- HIGH-impact catalyst (military attack, central bank surprise, systemic risk): counts 3× in overall direction
+- MEDIUM: counts 1×; LOW: counts 0.5×
+- If any HIGH-impact catalyst has a clear direction, it DOMINATES unless directly contradicted by another HIGH-impact event
+
 MACRO REGIMES:
 - geopolitical: war, sanctions, conflict → safe-haven bid (gold), risk-off
 - fed-policy: Fed, FOMC, rate decisions → USD impact, rate-sensitive moves
@@ -31,12 +43,15 @@ MACRO REGIMES:
 - macro-data: GDP, NFP, employment → forward guidance, risk appetite
 - calm: no major catalysts → technical price action dominates
 
-ASSET IMPACT RULES:
-- XAUUSD (Gold): bullish on geopolitical risk, inflation, rate cuts, dollar weakness; bearish on rate hikes, dollar strength, risk-on
+ASSET IMPACT RULES — STRICT:
+- XAUUSD (Gold):
+  * BULLISH: military conflict, Iran escalation, oil chokepoint closure (Hormuz), nuclear threat, Fed rate cuts, dollar weakness, banking crisis, inflation surge, sanctions
+  * BEARISH: ceasefire/peace deal, Fed rate hike surprise, strong USD rally, risk-on equity surge, inflation easing sharply
+  * CRITICAL: Geopolitical military action (Iran attacking ships, Hormuz tension, nuclear threat) = ALWAYS BULLISH for gold. Do NOT let irrelevant neutral news cancel this.
+  * CRITICAL: If riskScore >= 70 and regime is geopolitical, impact must be "bullish" for XAUUSD unless there is explicit ceasefire/de-escalation news
 - EURUSD: bullish on ECB hawkish, dollar weakness, risk-on; bearish on ECB dovish, dollar strength, euro crisis
 - GBPUSD: bullish on BOE hawkish, risk-on, UK data beat; bearish on BOE dovish, UK recession, dollar strength
 - BTCUSD: bullish on institutional adoption, ETF news, rate cuts, risk-on; bearish on regulation, bans, rate hikes
-- Other forex: impact based on relative central bank tone and risk appetite
 
 Return ONLY valid JSON:
 {
@@ -51,19 +66,34 @@ Return ONLY valid JSON:
   "reasons": ["reason1", "reason2", "reason3"]
 }`;
 
+// Headlines with no financial market relevance — filter before LLM call
+const IRRELEVANT_PATTERNS = [
+  /box office|movie season|film opens|blockbuster|\boscars?\b|\bemmys?\b|\bgrammys?\b/i,
+  /\bspirit airlines\b.*ceo|airline ceo.*collapse|airline.*runway/i,
+  /elon musk.*twitter|twitter.*buyout.*lawsuit|twitter.*2022/i,
+  /celebrity|actress|actor|reality tv|nfl draft|nba playoffs|world cup|olympics/i,
+  /fashion week|restaurant|recipe|travel guide|hotel review/i,
+];
+
+function isMarketRelevant(text: string): boolean {
+  return !IRRELEVANT_PATTERNS.some(r => r.test(text));
+}
+
 async function runLLMNews(client: Anthropic, snapshot: MarketSnapshot): Promise<NewsAgentOutput> {
   const start = Date.now();
   const { recentNews, symbol } = snapshot;
 
-  const headlineList = recentNews.slice(0, 10).map((n, i) =>
-    `${i + 1}. "${n.headline}" — ${n.summary.slice(0, 80)}`
+  // Pre-filter irrelevant headlines so LLM focuses only on market-moving news
+  const relevantNews = recentNews.filter(n => isMarketRelevant(`${n.headline} ${n.summary}`));
+  const headlineList = relevantNews.slice(0, 10).map((n, i) =>
+    `${i + 1}. "${n.headline}" — ${n.summary.slice(0, 100)}`
   ).join("\n");
 
   const msg = `
 Analyze macro/news impact for ${snapshot.symbolDisplay} (${snapshot.symbol}).
 
-RECENT NEWS HEADLINES:
-${headlineList || "No news available — assume calm macro environment"}
+MARKET-RELEVANT NEWS (irrelevant headlines already filtered out):
+${headlineList || "No relevant market news available — assume calm macro environment"}
 
 MARKET CONTEXT:
 - Asset: ${snapshot.symbolDisplay}
@@ -72,7 +102,8 @@ MARKET CONTEXT:
 - HTF Bias from structure: ${snapshot.structure.htfBias.toUpperCase()} at ${snapshot.structure.htfConfidence}%
 - Session: ${snapshot.indicators.session}
 
-Determine: what is the macro regime? How does current news flow impact this specific asset? What could flip the bias?`.trim();
+REMINDER: Apply the HIGH-impact dominance rule. If any HIGH-impact geopolitical event (military conflict, Iran, nuclear, Hormuz) is present for XAUUSD, the overall impact must be "bullish" unless contradicted by explicit de-escalation.
+Determine: macro regime, weighted directional impact for this asset, and what could flip the bias.`.trim();
 
   const response = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
@@ -276,18 +307,27 @@ export async function runNewsAgent(snapshot: MarketSnapshot, anthropicApiKey?: s
       };
     }
 
-    const combinedText = recentNews
+    // Filter out irrelevant headlines before analysis
+    const relevantNews = recentNews.filter(n => isMarketRelevant(`${n.headline} ${n.summary}`));
+    const newsToProcess = relevantNews.length > 0 ? relevantNews : recentNews;
+
+    const combinedText = newsToProcess
       .map(n => `${n.headline} ${n.summary}`)
       .join(" ");
 
     const regime = detectRegime(combinedText);
 
     // Classify each news item
-    const catalysts: CatalystEvent[] = recentNews.slice(0, 8).map(n => {
+    const HIGH_IMPACT_KEYWORDS = [
+      "fed", "fomc", "rate", "cpi", "nfp", "payrolls", "gdp", "war", "tariff", "trump",
+      "iran", "hormuz", "nuclear", "military", "attack", "conflict", "escalation",
+      "ceasefire", "sanctions", "missile", "explosion", "firing",
+    ];
+
+    const catalysts: CatalystEvent[] = newsToProcess.slice(0, 8).map(n => {
       const text = `${n.headline} ${n.summary}`;
       const direction = getAssetNewsImpact(symbol, text);
-      const isHighImpact =
-        textContainsAny(text, ["fed", "fomc", "rate", "cpi", "nfp", "payrolls", "gdp", "war", "tariff", "trump"]);
+      const isHighImpact = textContainsAny(text, HIGH_IMPACT_KEYWORDS);
       return {
         headline: n.headline.slice(0, 100),
         impact: isHighImpact ? "high" : "medium",
@@ -298,19 +338,38 @@ export async function runNewsAgent(snapshot: MarketSnapshot, anthropicApiKey?: s
 
     const hasHighImpact = catalysts.some(c => c.impact === "high");
 
-    // Dominant directional impact
+    // Weighted voting: HIGH = 3×, MEDIUM = 1×  (not flat counting)
+    let bullWeight = 0;
+    let bearWeight = 0;
+    let neutralWeight = 0;
+    for (const c of catalysts) {
+      const w = c.impact === "high" ? 3 : 1;
+      if (c.direction === "bullish") bullWeight += w;
+      else if (c.direction === "bearish") bearWeight += w;
+      else neutralWeight += w;
+    }
     const bullCount = catalysts.filter(c => c.direction === "bullish").length;
     const bearCount = catalysts.filter(c => c.direction === "bearish").length;
     const neutralCount = catalysts.length - bullCount - bearCount;
 
     let impact: DirectionalBias = "neutral";
-    if (bullCount > bearCount && bullCount > neutralCount) impact = "bullish";
-    else if (bearCount > bullCount && bearCount > neutralCount) impact = "bearish";
+    if (bullWeight > bearWeight && bullWeight > neutralWeight) impact = "bullish";
+    else if (bearWeight > bullWeight && bearWeight > neutralWeight) impact = "bearish";
 
-    // Confidence based on directional clarity
-    const dominance = Math.max(bullCount, bearCount);
-    const total = catalysts.length || 1;
-    const rawConf = (dominance / total) * 100;
+    // Geopolitical override: military escalation events always make gold bullish
+    // unless there's an equally-weighted explicit de-escalation/ceasefire signal
+    if (symbol === "XAUUSD" && regime === "geopolitical" && bullWeight >= bearWeight) {
+      const hasEscalation = textContainsAny(combinedText, [
+        "iran", "hormuz", "nuclear", "military", "attack", "fired at", "conflict", "escalation", "missile", "war",
+      ]);
+      const hasCeasefire = textContainsAny(combinedText, ["ceasefire", "peace deal", "de-escalation", "agreement reached"]);
+      if (hasEscalation && !hasCeasefire) impact = "bullish";
+    }
+
+    // Confidence based on weighted directional clarity
+    const totalWeight = bullWeight + bearWeight + neutralWeight || 1;
+    const dominanceWeight = Math.max(bullWeight, bearWeight);
+    const rawConf = (dominanceWeight / totalWeight) * 100;
     const confidence = Math.round(Math.min(90, Math.max(30, rawConf)));
 
     // Dominant catalyst
