@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import * as https from "node:https";
 import type { TrumpPost } from "@/types";
 
-// Use node:https (HTTP/1.1) instead of fetch (HTTP/2) — Truth Social blocks HTTP/2 bot requests
-function httpsGet(url: string): Promise<string> {
+// HTTP/1.1 GET via node:https — handles gzip/deflate decompression + redirects
+import * as zlib from "node:zlib";
+
+function httpsGet(url: string, redirects = 5): Promise<string> {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
     const req = https.get(
@@ -12,15 +14,35 @@ function httpsGet(url: string): Promise<string> {
         path: u.pathname + u.search,
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-          "Accept": "application/json",
+          "Accept": "application/json, */*",
+          "Accept-Encoding": "gzip, deflate",
           "Host": u.hostname,
         },
       },
       (res) => {
+        // Follow redirects
+        if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location && redirects > 0) {
+          res.resume();
+          return httpsGet(res.headers.location, redirects - 1).then(resolve).catch(reject);
+        }
+        if (res.statusCode && res.statusCode >= 400) {
+          res.resume();
+          return reject(new Error(`HTTP ${res.statusCode}`));
+        }
+        const encoding = res.headers["content-encoding"] ?? "";
         const chunks: Buffer[] = [];
         res.on("data", (c: Buffer) => chunks.push(c));
-        res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
         res.on("error", reject);
+        res.on("end", () => {
+          const raw = Buffer.concat(chunks);
+          if (encoding === "gzip") {
+            zlib.gunzip(raw, (err, buf) => err ? reject(err) : resolve(buf.toString("utf8")));
+          } else if (encoding === "deflate") {
+            zlib.inflate(raw, (err, buf) => err ? reject(err) : resolve(buf.toString("utf8")));
+          } else {
+            resolve(raw.toString("utf8"));
+          }
+        });
       }
     );
     req.setTimeout(10_000, () => { req.destroy(); reject(new Error("timeout")); });
@@ -244,49 +266,51 @@ async function fetchTruthSocialAPI(accountId: string): Promise<Omit<TrumpPost, "
   }
 }
 
-// ── Source 1b: Truth Social RSS feed (fallback) ───────────────────────────────
-async function fetchTruthSocialRSS(): Promise<Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">[]> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
-  try {
-    const res = await fetch(
-      `https://truthsocial.com/@${TRUTH_SOCIAL_HANDLE}.rss`,
-      { signal: controller.signal, cache: "no-store", headers: { ...TS_HEADERS, Accept: "application/rss+xml, text/xml, */*" } }
-    );
-    clearTimeout(timer);
-    if (!res.ok) throw new Error(`Truth Social RSS HTTP ${res.status}`);
-    const xml = await res.text();
-
-    // Simple regex-based RSS item extraction (no external deps)
-    const items: { id: string; created_at: string; content: string; reblog: null; in_reply_to_id: null }[] = [];
-    const itemMatches = xml.matchAll(/<item>([\s\S]*?)<\/item>/g);
-    for (const match of itemMatches) {
-      const block = match[1];
-      const guid    = (block.match(/<guid[^>]*>([\s\S]*?)<\/guid>/)?.[1] ?? "").trim();
-      const pubDate = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] ?? "").trim();
-      const desc    = (block.match(/<description>([\s\S]*?)<\/description>/)?.[1] ?? "").replace(/<!\[CDATA\[([\s\S]*?)\]\]>/, "$1").trim();
-      if (!desc) continue;
-      items.push({ id: guid || String(Date.now() + items.length), created_at: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(), content: desc, reblog: null, in_reply_to_id: null });
-    }
-    return mapStatuses(items);
-  } catch (err) {
-    clearTimeout(timer);
-    console.error("[trump/truth-social-rss]", err);
-    return [];
-  }
+// ── Source 1: Truth Social (node:https HTTP/1.1) ─────────────────────────────
+async function fetchTruthSocial(): Promise<Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">[]> {
+  const accountId = await resolveAccountId();
+  if (!accountId) return [];
+  return fetchTruthSocialAPI(accountId);
 }
 
-// ── Source 1: Truth Social (API → RSS fallback) ───────────────────────────────
-async function fetchTruthSocial(): Promise<Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">[]> {
-  // Try API with dynamic account ID first
-  const accountId = await resolveAccountId();
-  if (accountId) {
-    const apiPosts = await fetchTruthSocialAPI(accountId);
-    if (apiPosts.length > 0) return apiPosts;
+// ── Source 2b: Google News RSS (no API key, always available) ────────────────
+async function fetchGoogleNewsTrump(): Promise<Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">[]> {
+  try {
+    const xml = await httpsGet("https://news.google.com/rss/search?q=Trump&hl=en-US&gl=US&ceid=US:en");
+    const items: Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">[] = [];
+    const blocks = xml.matchAll(/<item>([\s\S]*?)<\/item>/g);
+    for (const m of blocks) {
+      const b = m[1];
+      const title   = (b.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? "").replace(/<!\[CDATA\[([\s\S]*?)\]\]>/, "$1").trim();
+      const pubDate = (b.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] ?? "").trim();
+      const guid    = (b.match(/<guid[^>]*>([\s\S]*?)<\/guid>/)?.[1] ?? "").trim();
+      if (!title) continue;
+      const text = stripHtml(title);
+      const { category, assets, tags } = classifyPost(text);
+      const sentiment = deriveSentiment(text);
+      const impactScore = deriveImpactScore(text);
+      const template = IMPACT_TEMPLATES[category] ?? IMPACT_TEMPLATES.Government;
+      items.push({
+        id: `gn-${guid || items.length}`,
+        timestamp: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
+        content: text,
+        source: "Google News",
+        sentimentClassification: sentiment,
+        impactScore,
+        affectedAssets: [...new Set(assets)],
+        policyCategory: category,
+        whyItMatters: template.whyItMatters,
+        potentialReaction: template.reaction,
+        tags,
+      });
+      if (items.length >= 10) break;
+    }
+    console.log(`[trump/google-news] got ${items.length} items`);
+    return items;
+  } catch (err) {
+    console.error("[trump/google-news] ERROR:", err);
+    return [];
   }
-  // Fallback: RSS feed
-  console.log("[trump] API failed or no ID, trying RSS");
-  return fetchTruthSocialRSS();
 }
 
 // ── Source 2: Finnhub news filtered for Trump ────────────────────────────────
@@ -355,17 +379,22 @@ export async function GET(req: Request) {
     return NextResponse.json({ data: cache.data, timestamp: cache.ts, cached: true, sources });
   }
 
-  // Try Truth Social first, then Finnhub as backup
+  // Source priority: Truth Social → Finnhub → Google News
   let rawPosts = await fetchTruthSocial();
   let feedSource = "Truth Social";
 
   if (rawPosts.length === 0) {
-    console.log("[trump] Truth Social returned nothing, trying Finnhub");
+    console.log("[trump] Truth Social failed, trying Finnhub");
     rawPosts = await fetchFinnhubTrump();
     feedSource = "Finnhub/News";
   }
 
-  // Nothing from any source — return empty (never fake data)
+  if (rawPosts.length === 0) {
+    console.log("[trump] Finnhub failed, trying Google News");
+    rawPosts = await fetchGoogleNewsTrump();
+    feedSource = "Google News";
+  }
+
   if (rawPosts.length === 0) {
     return NextResponse.json({ data: [], timestamp: Date.now(), empty: true, feedSource: "none" });
   }
