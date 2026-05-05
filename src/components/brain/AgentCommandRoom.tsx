@@ -22,30 +22,32 @@ function deriveStates(d:AgentRunResult):Record<string,AgentState> {
   const {agents} = d;
   const bias = agents.master.finalBias;
   return {
+    // Directional bias always wins regardless of confidence.
+    // Confidence only resolves neutral → idle (low) vs alert (mid).
     trend:
-      agents.trend.bias==="bullish"&&agents.trend.confidence>=52?"bull":
-      agents.trend.bias==="bearish"&&agents.trend.confidence>=52?"bear":
-      agents.trend.confidence<35?"idle":"alert",
+      agents.trend.bias==="bullish" ? "bull" :
+      agents.trend.bias==="bearish" ? "bear" :
+      agents.trend.confidence<35    ? "idle" : "alert",
     smc:
-      agents.smc.liquiditySweepDetected?"alert":
-      agents.smc.setupPresent&&agents.smc.bias==="bullish"?"bull":
-      agents.smc.setupPresent&&agents.smc.bias==="bearish"?"bear":
-      agents.smc.confidence<35?"idle":"alert",
+      agents.smc.bias==="bullish"   ? "bull" :
+      agents.smc.bias==="bearish"   ? "bear" :
+      agents.smc.liquiditySweepDetected ? "alert" :
+      agents.smc.confidence<35      ? "idle" : "alert",
     news:
-      agents.news.riskScore>=65?"alert":
-      agents.news.impact==="bullish"?"bull":
-      agents.news.impact==="bearish"?"bear":"idle",
-    risk:       agents.risk.valid?"approved":"blocked",
+      agents.news.impact==="bullish" ? "bull" :
+      agents.news.impact==="bearish" ? "bear" :
+      agents.news.riskScore>=65      ? "alert" : "idle",
+    risk:       agents.risk.valid ? "approved" : "blocked",
     contrarian:
-      agents.contrarian.challengesBias&&agents.contrarian.trapConfidence>=60?"blocked":
-      agents.contrarian.challengesBias?"alert":"idle",
+      agents.contrarian.challengesBias&&agents.contrarian.trapConfidence>=60 ? "blocked" :
+      agents.contrarian.challengesBias ? "alert" : "idle",
     master:
-      bias==="bullish"&&agents.master.confidence>=65?"bull":
-      bias==="bearish"&&agents.master.confidence>=65?"bear":
-      bias==="no-trade"?"analyzing":"alert",
+      bias==="bullish" ? "bull" :
+      bias==="bearish" ? "bear" :
+      bias==="no-trade" ? "analyzing" : "alert",
     execution:
-      agents.execution.hasSetup&&agents.risk.valid&&bias!=="no-trade"?"armed":
-      agents.execution.hasSetup?"alert":"idle",
+      agents.execution.hasSetup&&agents.risk.valid&&bias!=="no-trade" ? "armed" :
+      agents.execution.hasSetup ? "alert" : "idle",
   };
 }
 
