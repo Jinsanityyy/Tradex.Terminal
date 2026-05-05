@@ -11,6 +11,7 @@ export type SignalStatus =
   | "win_tp1"         // hit first take-profit
   | "win_tp2"         // hit second take-profit
   | "loss_sl"         // hit stop-loss
+  | "invalidated"     // setup became invalid before entry triggered (bias flip or pullback missed)
   | "expired"         // open > 24h, never resolved
   | "informational";  // no-trade signal, closed after 4h
 

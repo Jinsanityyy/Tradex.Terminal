@@ -150,6 +150,29 @@ function resolveSignal(signal: SignalRecord, currentPrice: number): Resolution |
     };
   }
 
+  // Pullback missed: price moved 1R away from signal price in the wrong direction,
+  // meaning the entry zone can no longer be naturally reached — setup is gone.
+  const isPullbackSetup =
+    (direction === "long"  && entry < signal.priceAtSignal) ||
+    (direction === "short" && entry > signal.priceAtSignal);
+  if (isPullbackSetup) {
+    const pullbackMissed =
+      direction === "long"
+        ? currentPrice > signal.priceAtSignal + riskDist   // price ran up, no dip to entry coming
+        : currentPrice < signal.priceAtSignal - riskDist;  // price dropped, no rally to entry coming
+    if (pullbackMissed) {
+      return {
+        status: "invalidated",
+        outcome: {
+          resolvedAt: new Date().toISOString(),
+          priceAtResolution: currentPrice,
+          pnlPercent: 0,
+          pnlR: 0,
+        },
+      };
+    }
+  }
+
   // Expiry: 24h without any hit
   if (ageMs >= SIGNAL_EXPIRY_MS) {
     const pnlPct = direction === "long"

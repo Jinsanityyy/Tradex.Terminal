@@ -7,7 +7,7 @@
 
 import type { AgentRunResult } from "@/lib/agents/schemas";
 import type { SignalRecord, SignalTradePlan } from "./types";
-import { saveSignal, getOpenSignals } from "./storage";
+import { saveSignal, getOpenSignals, updateSignal } from "./storage";
 
 /**
  * Build a stable, unique ID from agent run metadata.
@@ -64,6 +64,36 @@ function extractTradePlan(result: AgentRunResult): SignalTradePlan | null {
     tp2:       plan.tp2,
     rrRatio:   plan.rrRatio,
   };
+}
+
+/**
+ * When a new directional signal fires, mark any open signals in the opposite
+ * direction for the same symbol as invalidated (bias has flipped).
+ */
+async function invalidateOpposingSignals(result: AgentRunResult): Promise<void> {
+  const plan = result.agents.master.tradePlan;
+  if (!plan) return;
+  try {
+    const open = await getOpenSignals();
+    const opposing = open.filter(s =>
+      s.symbol === result.symbol &&
+      s.tradePlan !== null &&
+      s.tradePlan.direction !== plan.direction
+    );
+    await Promise.all(opposing.map(s =>
+      updateSignal(s.id, {
+        status: "invalidated",
+        outcome: {
+          resolvedAt: new Date().toISOString(),
+          priceAtResolution: result.snapshot.price.current,
+          pnlPercent: 0,
+          pnlR: 0,
+        },
+      })
+    ));
+  } catch {
+    // non-critical — never block the main log flow
+  }
 }
 
 /**
@@ -134,7 +164,15 @@ export async function logSignal(result: AgentRunResult): Promise<SignalRecord | 
       },
     };
 
-    return await saveSignal(record);
+    const saved = await saveSignal(record);
+
+    // If this is a new directional armed signal, close out any open signals
+    // in the opposite direction — the bias has flipped, those setups are gone.
+    if (saved && record.tradePlan) {
+      await invalidateOpposingSignals(result);
+    }
+
+    return saved;
   } catch (err) {
     console.warn("[signal-logger] Failed to log signal:", err);
     return null;

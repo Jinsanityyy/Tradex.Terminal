@@ -41,6 +41,7 @@ function statusLabel(s: SignalStatus): string {
     case "win_tp1": return "TP1 HIT";
     case "win_tp2": return "TP2 HIT";
     case "loss_sl": return "SL HIT";
+    case "invalidated": return "INVALID";
     case "expired": return "EXPIRED";
     case "open":    return "OPEN";
     case "informational": return "INFO";
@@ -52,6 +53,7 @@ function statusColor(s: SignalStatus): string {
     case "win_tp1":
     case "win_tp2": return "text-green-400 bg-green-500/10 border-green-500/30";
     case "loss_sl": return "text-red-400 bg-red-500/10 border-red-500/30";
+    case "invalidated": return "text-orange-400 bg-orange-500/10 border-orange-500/30";
     case "expired": return "text-zinc-400 bg-zinc-500/10 border-zinc-500/30";
     case "open":    return "text-amber-400 bg-amber-500/10 border-amber-500/30";
     case "informational": return "text-violet-400 bg-violet-500/10 border-violet-500/30";
