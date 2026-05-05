@@ -45,6 +45,7 @@ import {
   useMarketAnalysis,
   useMTFBias,
 } from "@/hooks/useMarketData";
+import { useTruthSocialPosts } from "@/hooks/useTruthSocialPosts";
 import { CUSTOM_NOTIFICATION_EVENT, type Notif } from "@/hooks/useNotifications";
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import type { PnLData } from "@/app/api/pnl/route";
@@ -812,7 +813,11 @@ export default function DashboardPage() {
   const { events } = useEconomicCalendar();
   const { catalysts } = useCatalysts();
   const { sessions } = useSessions();
-  const { posts: trumpPosts } = useTrumpPosts();
+  const { posts: serverTrumpPosts } = useTrumpPosts();
+  const { posts: tsTrumpPosts } = useTruthSocialPosts();
+  // TS posts first, server posts deduplicated after (same logic as trump-monitor page)
+  const tsIds = new Set(tsTrumpPosts.map(p => p.id));
+  const trumpPosts = [...tsTrumpPosts, ...serverTrumpPosts.filter(p => !tsIds.has(p.id))];
   const { tradeContext } = useMarketAnalysis();
   const { mtfData, mtfLoading } = useMTFBias(symbol);
   const { data: pnlSnapshot, isLoading: pnlLoading } = useSWR<PnLData>(
