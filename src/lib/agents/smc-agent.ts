@@ -18,7 +18,7 @@ import type {
   MarketSnapshot, SMCAgentOutput, SMCKeyLevels,
   DirectionalBias, SetupType, PriceZone,
 } from "./schemas";
-import { fetchYahooCandles, type CandleBar } from "./candles";
+import { getValidatedCandles, type CandleBar } from "./candles";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LLM Prompt
@@ -319,7 +319,11 @@ async function runRuleBasedStructureFib(snapshot: MarketSnapshot): Promise<SMCAg
   // ── Fetch candles ─────────────────────────────────────────────────────────
   let candles: CandleBar[] = [];
   try {
-    const fetched = await fetchYahooCandles(snapshot.symbol, snapshot.timeframe);
+    const fetched = await getValidatedCandles(
+      snapshot.symbol,
+      snapshot.timeframe,
+      current
+    );
     if (fetched && fetched.length >= 10) candles = fetched;
   } catch { /* fall through to snapshot-only fallback */ }
 

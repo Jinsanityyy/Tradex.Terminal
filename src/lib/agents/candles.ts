@@ -624,11 +624,11 @@ export async function fetchYahooCandles(symbol: Symbol, timeframe: Timeframe): P
   }
 }
 
-async function getReliableCandles(
+async function resolveReliableCandles(
   symbol: Symbol,
   timeframe: Timeframe,
   currentPrice?: number
-): Promise<CandleBar[]> {
+): Promise<CandleBar[] | null> {
   const key = cacheKey(symbol, timeframe);
 
   const providers = [
@@ -686,6 +686,26 @@ async function getReliableCandles(
     });
     return cachedCandles!;
   }
+
+  return null;
+}
+
+export async function getValidatedCandles(
+  symbol: Symbol,
+  timeframe: Timeframe,
+  currentPrice?: number
+): Promise<CandleBar[] | null> {
+  return resolveReliableCandles(symbol, timeframe, currentPrice);
+}
+
+async function getReliableCandles(
+  symbol: Symbol,
+  timeframe: Timeframe,
+  currentPrice?: number
+): Promise<CandleBar[]> {
+  const key = cacheKey(symbol, timeframe);
+  const resolved = await resolveReliableCandles(symbol, timeframe, currentPrice);
+  if (resolved) return resolved;
 
   const synthetic = buildSyntheticCandles(currentPrice ?? 0);
   lastKnownCandles.set(key, synthetic);
