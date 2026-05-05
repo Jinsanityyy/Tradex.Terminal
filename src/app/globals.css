@@ -283,6 +283,113 @@ iframe,
   --t-glow-mul:     0.4;
 }
 
+/* Pink — dark terminal with rose/pink chrome */
+[data-theme="pink"] {
+  --background: 340 28% 7%;
+  --foreground: 340 15% 96%;
+  --card: 340 22% 10%;
+  --card-foreground: 340 15% 96%;
+  --popover: 340 22% 10%;
+  --popover-foreground: 340 15% 96%;
+  --primary: 330 85% 68%;
+  --primary-foreground: 340 28% 7%;
+  --secondary: 340 18% 15%;
+  --secondary-foreground: 340 15% 96%;
+  --muted: 340 14% 20%;
+  --muted-foreground: 340 10% 58%;
+  --accent: 295 65% 62%;
+  --accent-foreground: 340 28% 7%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 95%;
+  --border: 340 14% 17%;
+  --input: 340 14% 17%;
+  --ring: 330 85% 68%;
+
+  --chart-green: 142 71% 45%;
+  --chart-blue: 295 65% 62%;
+  --chart-amber: 38 92% 50%;
+  --chart-red: 0 84% 60%;
+  --chart-purple: 330 85% 68%;
+
+  --t-bg:           #0e0709;
+  --t-card:         #180c12;
+  --t-card-2:       #1e1018;
+  --t-border:       rgba(255, 100, 160, 0.10);
+  --t-border-sub:   rgba(255, 100, 160, 0.06);
+  --t-text:         #F5E8F0;
+  --t-muted:        #9E8490;
+  --t-glow-green:   rgba(0, 200, 150, 0.08);
+  --t-glow-red:     rgba(255, 77, 79, 0.10);
+  --t-glow-amber:   rgba(245, 158, 11, 0.08);
+  --t-glow-mul:     1;
+}
+
+/* Light — clean day-mode terminal */
+[data-theme="light"] {
+  --background: 210 20% 97%;
+  --foreground: 220 30% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 30% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 30% 10%;
+  --primary: 142 60% 32%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 18% 90%;
+  --secondary-foreground: 220 30% 10%;
+  --muted: 210 16% 84%;
+  --muted-foreground: 220 18% 42%;
+  --accent: 217 80% 48%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 75% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 210 16% 80%;
+  --input: 210 16% 80%;
+  --ring: 142 60% 32%;
+
+  --chart-green: 142 60% 32%;
+  --chart-blue: 217 80% 48%;
+  --chart-amber: 38 85% 42%;
+  --chart-red: 0 75% 50%;
+  --chart-purple: 270 60% 52%;
+
+  --t-bg:           #F2F5F9;
+  --t-card:         #FFFFFF;
+  --t-card-2:       #EBEEf4;
+  --t-border:       rgba(0, 0, 0, 0.08);
+  --t-border-sub:   rgba(0, 0, 0, 0.05);
+  --t-text:         #111827;
+  --t-muted:        #52627A;
+  --t-glow-green:   rgba(0, 120, 60, 0.06);
+  --t-glow-red:     rgba(180, 40, 40, 0.06);
+  --t-glow-amber:   rgba(180, 110, 0, 0.05);
+  --t-glow-mul:     0.4;
+}
+
+/* Light mode overrides for hardcoded dark utility classes */
+[data-theme="light"] body {
+  color: hsl(var(--foreground));
+}
+[data-theme="light"] .bg-\[\#0c0d11\],
+[data-theme="light"] .bg-\[\#070707\],
+[data-theme="light"] .bg-\[#0c0d11\] {
+  background: hsl(var(--card)) !important;
+}
+[data-theme="light"] .border-white\/8,
+[data-theme="light"] .border-white\/10,
+[data-theme="light"] .border-white\/5 {
+  border-color: hsl(var(--border)) !important;
+}
+[data-theme="light"] .text-zinc-400,
+[data-theme="light"] .text-zinc-500 {
+  color: hsl(var(--muted-foreground)) !important;
+}
+[data-theme="light"] .text-white {
+  color: hsl(var(--foreground)) !important;
+}
+[data-theme="light"] .bg-white\/4 {
+  background: hsl(var(--secondary)) !important;
+}
+
 /* ── Theme-aware utility classes ────────────────────── */
 .t-bg       { background: var(--t-bg); }
 .t-card     { background: var(--t-card); }

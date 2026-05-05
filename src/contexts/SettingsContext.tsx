@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 
-export type Theme = "dark" | "midnight" | "oled";
+export type Theme = "dark" | "midnight" | "oled" | "pink" | "light";
 export type Density = "compact" | "default" | "expanded";
 export type TimeZone = "ET" | "CT" | "PT" | "UTC" | "GMT";
 export type DateFormat = "MM/DD" | "DD/MM" | "YYYY-MM-DD";
@@ -59,6 +59,12 @@ export function applyVisualSettings(theme: Theme, density: Density, animations: 
   const root = document.documentElement;
   root.setAttribute("data-theme", theme);
   root.setAttribute("data-density", density);
+  // Light theme needs to remove the "dark" class so dark: Tailwind prefixes don't apply
+  if (theme === "light") {
+    root.classList.remove("dark");
+  } else {
+    root.classList.add("dark");
+  }
   if (animations) {
     root.classList.remove("no-animations");
   } else {

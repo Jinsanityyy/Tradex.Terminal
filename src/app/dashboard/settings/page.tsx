@@ -411,10 +411,10 @@ export default function SettingsPage() {
         <CardContent>
           <SettingRow label="Theme" description="Terminal color scheme — previewed live, saved on click Save">
             <Pills<Theme>
-              options={["dark", "midnight", "oled"]}
+              options={["dark", "midnight", "oled", "pink", "light"]}
               value={draft.theme}
               onChange={(v) => update("theme", v)}
-              labels={{ dark: "Dark", midnight: "Midnight", oled: "OLED" }}
+              labels={{ dark: "Dark", midnight: "Midnight", oled: "OLED", pink: "Pink", light: "Light" }}
             />
           </SettingRow>
           <SettingRow label="Layout Density" description="Compact shows more data, expanded improves readability">
