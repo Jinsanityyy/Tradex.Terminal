@@ -288,12 +288,14 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
                   transform:"translate(-50%,-50%)",
                   cursor:"pointer",
                   zIndex:100,
-                  width:46,
-                  height:46,
+                  width:72,
+                  height:72,
                   display:"flex",
                   alignItems:"center",
                   justifyContent:"center",
                   pointerEvents:"all",
+                  touchAction:"manipulation",
+                  WebkitTapHighlightColor:"transparent",
                 }}
               >
                 {/* Outer pulse ring */}
