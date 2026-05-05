@@ -1,20 +1,31 @@
 import { NextResponse } from "next/server";
-import { execFile } from "child_process";
-import { promisify } from "util";
+import * as https from "node:https";
 import type { TrumpPost } from "@/types";
 
-const execFileAsync = promisify(execFile);
-
-async function curlGet(url: string): Promise<string> {
-  const curlBin = process.platform === "win32" ? "curl.exe" : "curl";
-  const { stdout } = await execFileAsync(curlBin, [
-    "-s",
-    "--max-time", "10",
-    "-A", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    "-H", "Accept: application/json",
-    url,
-  ]);
-  return stdout;
+// Use node:https (HTTP/1.1) instead of fetch (HTTP/2) — Truth Social blocks HTTP/2 bot requests
+function httpsGet(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const req = https.get(
+      {
+        hostname: u.hostname,
+        path: u.pathname + u.search,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Accept": "application/json",
+          "Host": u.hostname,
+        },
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (c: Buffer) => chunks.push(c));
+        res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+        res.on("error", reject);
+      }
+    );
+    req.setTimeout(10_000, () => { req.destroy(); reject(new Error("timeout")); });
+    req.on("error", reject);
+  });
 }
 
 export const dynamic = "force-dynamic";
@@ -205,7 +216,7 @@ function mapStatuses(statuses: { id: string; created_at: string; content: string
 async function resolveAccountId(): Promise<string | null> {
   if (_resolvedAccountId) return _resolvedAccountId;
   try {
-    const raw = await curlGet(`https://truthsocial.com/api/v1/accounts/lookup?acct=${TRUTH_SOCIAL_HANDLE}`);
+    const raw = await httpsGet(`https://truthsocial.com/api/v1/accounts/lookup?acct=${TRUTH_SOCIAL_HANDLE}`);
     const data: { id: string } = JSON.parse(raw);
     _resolvedAccountId = data.id;
     console.log(`[trump/lookup] resolved account ID: ${data.id}`);
@@ -221,7 +232,7 @@ async function fetchTruthSocialAPI(accountId: string): Promise<Omit<TrumpPost, "
   try {
     const url = `https://truthsocial.com/api/v1/accounts/${accountId}/statuses?limit=20&exclude_reblogs=true`;
     console.log(`[trump/truth-social-api] fetching via curl: ${url}`);
-    const raw = await curlGet(url);
+    const raw = await httpsGet(url);
     const statuses: { id: string; created_at: string; content: string; reblog: unknown | null; in_reply_to_id: string | null; card?: { title?: string; description?: string } | null }[] = JSON.parse(raw);
     console.log(`[trump/truth-social-api] got ${statuses.length} statuses`);
     const mapped = mapStatuses(statuses);
