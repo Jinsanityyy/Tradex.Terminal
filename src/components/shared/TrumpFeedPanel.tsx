@@ -171,7 +171,12 @@ export function TrumpFeedPanel({ posts, limit, compact = false }: TrumpFeedPanel
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2">
                   <UserCircle className="h-4 w-4 text-amber-400 shrink-0" />
-                  <span className="text-[10px] text-[hsl(var(--muted-foreground))]">{post.source}</span>
+                  <span className={cn(
+                    "text-[10px] font-semibold px-1.5 py-0.5 rounded",
+                    post.source === "Truth Social"
+                      ? "bg-amber-500/15 text-amber-400 border border-amber-500/25"
+                      : "text-[hsl(var(--muted-foreground))]"
+                  )}>{post.source}</span>
                   <span className="text-[10px] text-[hsl(var(--muted-foreground))]">{timeAgo(post.timestamp)}</span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">

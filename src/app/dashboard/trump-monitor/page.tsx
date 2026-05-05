@@ -14,7 +14,7 @@ const filterTags = ["all", "tariffs", "china", "fed", "crypto", "oil", "trade-po
 
 export default function TrumpMonitorPage() {
   const [activeFilter, setActiveFilter] = useState("all");
-  const { posts: trumpPosts, isLive } = useTrumpPosts(60_000);
+  const { posts: trumpPosts, isLive, feedSource, sources } = useTrumpPosts(60_000);
 
   const filtered = activeFilter === "all"
     ? trumpPosts
@@ -52,11 +52,27 @@ export default function TrumpMonitorPage() {
           </h1>
           <p className="text-xs text-[hsl(var(--muted-foreground))]">Policy posts and market impact tracker</p>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
+          {/* Feed source indicator */}
+          {feedSource === "Truth Social" ? (
+            <span className="flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
+              ✦ Truth Social
+            </span>
+          ) : feedSource === "Finnhub/News" ? (
+            <span className="flex items-center gap-1 rounded-md border border-zinc-500/30 bg-zinc-500/10 px-2 py-0.5 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+              News Feed
+            </span>
+          ) : null}
+          {/* Sources list */}
+          {sources.length > 0 && (
+            <span className="text-[10px] text-zinc-600">
+              {sources.join(", ")}
+            </span>
+          )}
           {isLive ? (
-            <><Wifi className="h-3 w-3 text-emerald-500" /><span className="text-[10px] text-emerald-500 font-medium">LIVE FEED</span></>
+            <span className="flex items-center gap-1"><Wifi className="h-3 w-3 text-emerald-500" /><span className="text-[10px] text-emerald-500 font-medium">LIVE</span></span>
           ) : (
-            <><WifiOff className="h-3 w-3 text-amber-500" /><span className="text-[10px] text-amber-500 font-medium">CACHED</span></>
+            <span className="flex items-center gap-1"><WifiOff className="h-3 w-3 text-amber-500" /><span className="text-[10px] text-amber-500 font-medium">CACHED</span></span>
           )}
         </div>
       </div>

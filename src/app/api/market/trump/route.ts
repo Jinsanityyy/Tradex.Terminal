@@ -329,20 +329,23 @@ async function fetchFinnhubTrump(): Promise<Omit<TrumpPost, "goldImpact" | "gold
 
 export async function GET() {
   if (cache.data.length > 0 && Date.now() - cache.ts < CACHE_TTL) {
-    return NextResponse.json({ data: cache.data, timestamp: cache.ts, cached: true });
+    const sources = [...new Set(cache.data.map(p => p.source))];
+    return NextResponse.json({ data: cache.data, timestamp: cache.ts, cached: true, sources });
   }
 
   // Try Truth Social first, then Finnhub as backup
   let rawPosts = await fetchTruthSocial();
+  let feedSource = "Truth Social";
 
   if (rawPosts.length === 0) {
     console.log("[trump] Truth Social returned nothing, trying Finnhub");
     rawPosts = await fetchFinnhubTrump();
+    feedSource = "Finnhub/News";
   }
 
   // Nothing from any source — return empty (never fake data)
   if (rawPosts.length === 0) {
-    return NextResponse.json({ data: [], timestamp: Date.now(), empty: true });
+    return NextResponse.json({ data: [], timestamp: Date.now(), empty: true, feedSource: "none" });
   }
 
   // Enrich with Claude Gold/USD analysis (parallel, best-effort)
@@ -362,5 +365,6 @@ export async function GET() {
   });
 
   cache = { data: posts, ts: Date.now() };
-  return NextResponse.json({ data: posts, timestamp: Date.now(), count: posts.length });
+  const sources = [...new Set(posts.map(p => p.source))];
+  return NextResponse.json({ data: posts, timestamp: Date.now(), count: posts.length, feedSource, sources });
 }

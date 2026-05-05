@@ -90,6 +90,8 @@ export function useTrumpPosts(refreshInterval = 120_000) {
   const { data, error, isLoading } = useSWR<{
     data: TrumpPost[];
     timestamp: number;
+    feedSource?: string;
+    sources?: string[];
   }>("/api/market/trump", fetcher, {
     refreshInterval,
     revalidateOnFocus: false,
@@ -102,6 +104,8 @@ export function useTrumpPosts(refreshInterval = 120_000) {
   return {
     posts: hasLive ? liveData : [],
     isLive: hasLive,
+    feedSource: data?.feedSource ?? null,
+    sources: data?.sources ?? [],
     isLoading,
     error,
   };
