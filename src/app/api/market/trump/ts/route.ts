@@ -63,10 +63,12 @@ function normalizeItem(item: Record<string, unknown>): MastodonLike | null {
   ).trim();
   if (!id || !text) return null;
 
+  // Filter out reposts and replies here — return null so they never reach mapTruthSocialStatus
   const isRepost = Boolean(
     item.repost ?? item.reblog ?? item.isRepost ?? item.isReblog ?? item.is_repost
   );
   const replyId = item.in_reply_to_id ?? item.inReplyToId ?? item.reply_to ?? null;
+  if (isRepost || replyId) return null;
 
   return {
     id,
@@ -75,8 +77,8 @@ function normalizeItem(item: Record<string, unknown>): MastodonLike | null {
       item.publishedAt ?? item.timestamp ?? new Date().toISOString()
     ),
     content: text,
-    reblog: isRepost ? ({} as null) : null,
-    in_reply_to_id: replyId ? String(replyId) : null,
+    reblog: null,
+    in_reply_to_id: null,
     url: String(
       item.url ?? item.postUrl ?? item.statusUrl ?? item.link ??
       `https://truthsocial.com/@${USERNAME}/${id}`
