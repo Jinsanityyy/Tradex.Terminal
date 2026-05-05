@@ -783,3 +783,78 @@ export async function getMAFromCandles(
     return { ma20: null, ma50: null, ma200: null, maStack: "neutral" };
   }
 }
+
+// ─── Daily (D1) Structure ─────────────────────────────────────────────────────
+
+export interface DailyStructure {
+  drift20d: number;       // % change over last 20 daily closes (structural trend)
+  rsi14d: number;         // 14-period RSI of daily closes
+  structuralHigh: number; // 20-day range high
+  structuralLow: number;  // 20-day range low
+}
+
+const DAILY_YAHOO: Partial<Record<Symbol, string>> = {
+  XAUUSD: "GC=F",
+  EURUSD: "EURUSD=X",
+  GBPUSD: "GBPUSD=X",
+  BTCUSD: "BTC-USD",
+};
+
+export async function getDailyStructure(symbol: Symbol): Promise<DailyStructure | null> {
+  const yahooSymbol = DAILY_YAHOO[symbol];
+  if (!yahooSymbol) return null;
+
+  const to   = Math.floor(Date.now() / 1000);
+  const from = to - 90 * 24 * 60 * 60; // 90 calendar days
+  const url  = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=1d&period1=${from}&period2=${to}&includePrePost=false`;
+
+  try {
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) return null;
+
+    const payload = await response.json();
+    const result    = payload?.chart?.result?.[0];
+    const timestamps: number[] = Array.isArray(result?.timestamp) ? result.timestamp : [];
+    const q         = result?.indicators?.quote?.[0] ?? {};
+    const closeArr: unknown[] = Array.isArray(q.close)  ? q.close  : [];
+    const highArr:  unknown[] = Array.isArray(q.high)   ? q.high   : [];
+    const lowArr:   unknown[] = Array.isArray(q.low)    ? q.low    : [];
+    const openArr:  unknown[] = Array.isArray(q.open)   ? q.open   : [];
+    const volArr:   unknown[] = Array.isArray(q.volume) ? q.volume : [];
+
+    const candles = normalizeCandles(
+      timestamps.map((ts, i) => {
+        const c = Number(closeArr[i]);
+        return {
+          t: ts,
+          o: Number.isFinite(Number(openArr[i])) ? Number(openArr[i]) : c,
+          h: Number.isFinite(Number(highArr[i])) ? Number(highArr[i]) : c,
+          l: Number.isFinite(Number(lowArr[i]))  ? Number(lowArr[i])  : c,
+          c,
+          v: Number(volArr[i]) || 0,
+        };
+      })
+    );
+
+    if (!hasValidCandles(candles) || candles.length < 15) return null;
+
+    const window20       = candles.slice(-20);
+    const closes         = candles.map(bar => bar.c);
+    const last           = candles[candles.length - 1];
+    const base           = candles[Math.max(0, candles.length - 20)];
+    const drift20d       = base.c > 0 ? ((last.c - base.c) / base.c) * 100 : 0;
+    const rsi14d         = computeRsi(closes);
+    const structuralHigh = Math.max(...window20.map(bar => bar.h));
+    const structuralLow  = Math.min(...window20.map(bar => bar.l));
+
+    console.log("[mtf-candles]", JSON.stringify({
+      symbol, interval: "D1", provider: "yahoo", status: "ok",
+      candles: candles.length, drift20d: drift20d.toFixed(2), rsi14d: rsi14d.toFixed(1),
+    }));
+
+    return { drift20d, rsi14d, structuralHigh, structuralLow };
+  } catch (err) {
+    console.log("[mtf-candles]", JSON.stringify({ symbol, interval: "D1", provider: "yahoo", status: "error", error: String(err) }));
+    return null;
+  }
+}

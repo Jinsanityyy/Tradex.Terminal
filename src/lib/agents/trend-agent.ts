@@ -71,8 +71,9 @@ PRICE DATA:
 MARKET STRUCTURE:
 - 52-week range: ${structure.low52w} - ${structure.high52w}
 - Position: ${structure.pos52w}% of range (${structure.zone})
-- HTF Bias: ${structure.htfBias.toUpperCase()} at ${structure.htfConfidence}% conviction
+- HTF Bias (D1-anchored): ${structure.htfBias.toUpperCase()} at ${structure.htfConfidence}% conviction
 - Structure context: ${structure.smcContext}
+- NOTE: HTF bias is derived from 20-day daily drift — weight this heavily over intraday % change
 
 INDICATORS:
 - RSI(14): ${indicators.rsi.toFixed(1)} (${indicators.rsi > 70 ? "overbought" : indicators.rsi < 30 ? "oversold" : indicators.rsi > 50 ? "bullish" : "bearish"})

@@ -6,7 +6,7 @@
  */
 
 import type { MarketSnapshot, Symbol, Timeframe, PriceZone } from "./schemas";
-import type { CandleBar } from "./candles";
+import type { CandleBar, DailyStructure } from "./candles";
 import { deriveConvictionBias } from "@/lib/api/conviction";
 
 interface RawQuote {
@@ -140,7 +140,8 @@ export async function buildMarketSnapshot(
   rawQuote: RawQuote,
   news: RawNewsItem[],
   rsi?: number,
-  timeframeCandles?: CandleBar[]
+  timeframeCandles?: CandleBar[],
+  dailyStructure?: DailyStructure
 ): Promise<MarketSnapshot> {
   const cfg = SYMBOL_CONFIG[symbol] ?? { display: symbol, apiSymbol: symbol, invertBias: false };
   const timeframeContext = deriveTimeframePriceContext(timeframeCandles);
@@ -185,10 +186,26 @@ export async function buildMarketSnapshot(
   const effMacd      = effPctChange * 0.05;
   const effRsi       = cfg.invertBias ? 100 - rsiVal : rsiVal;
 
-  const { bias, confidence, smcContext } = deriveConvictionBias(
-    effRsi, effPctChange, close, high52w, low52w, effMacd,
-    effHigh, effLow, open, prevClose
+  // Use D1 (20-day) drift for structural conviction — this captures the real multi-day trend
+  // rather than today's single-candle % change which can mislead on counter-trend bounces.
+  const d1Drift = dailyStructure?.drift20d;
+  const d1Rsi   = dailyStructure?.rsi14d;
+  const convPct  = d1Drift != null ? (cfg.invertBias ? -d1Drift : d1Drift) : effPctChange;
+  const convRsi  = d1Rsi   != null ? (cfg.invertBias ? 100 - d1Rsi : d1Rsi) : effRsi;
+  const convHigh = dailyStructure?.structuralHigh ?? effHigh;
+  const convLow  = dailyStructure?.structuralLow  ?? effLow;
+  const convMacd = convPct * 0.05;
+
+  const { bias, confidence, smcContext: rawSmcContext } = deriveConvictionBias(
+    convRsi, convPct, close, high52w, low52w, convMacd,
+    convHigh, convLow, open, prevClose
   );
+
+  // Append D1 trend context so agents see it in their prompts
+  const d1Suffix = dailyStructure != null
+    ? ` | D1 20d drift: ${d1Drift! > 0 ? "+" : ""}${d1Drift!.toFixed(1)}% | D1 RSI: ${d1Rsi!.toFixed(0)}`
+    : "";
+  const smcContext = rawSmcContext + d1Suffix;
 
   const range52  = high52w - low52w;
   const pos52w   = range52 > 0 ? ((close - low52w) / range52) * 100 : 50;
