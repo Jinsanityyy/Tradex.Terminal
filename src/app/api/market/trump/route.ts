@@ -216,19 +216,22 @@ async function resolveAccountId(): Promise<string | null> {
 // ── Source 1a: Truth Social Mastodon API ─────────────────────────────────────
 async function fetchTruthSocialAPI(accountId: string): Promise<Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">[]> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
+  const timer = setTimeout(() => controller.abort(), 10000);
   try {
-    const res = await fetch(
-      `https://truthsocial.com/api/v1/accounts/${accountId}/statuses?limit=20&exclude_reblogs=true`,
-      { signal: controller.signal, cache: "no-store", headers: TS_HEADERS }
-    );
+    const url = `https://truthsocial.com/api/v1/accounts/${accountId}/statuses?limit=20&exclude_reblogs=true`;
+    console.log(`[trump/truth-social-api] fetching ${url}`);
+    const res = await fetch(url, { signal: controller.signal, cache: "no-store", headers: TS_HEADERS });
     clearTimeout(timer);
+    console.log(`[trump/truth-social-api] HTTP ${res.status} content-type=${res.headers.get("content-type")}`);
     if (!res.ok) throw new Error(`Truth Social API HTTP ${res.status}`);
     const statuses: { id: string; created_at: string; content: string; reblog: unknown | null; in_reply_to_id: string | null; card?: { title?: string; description?: string } | null }[] = await res.json();
-    return mapStatuses(statuses);
+    console.log(`[trump/truth-social-api] got ${statuses.length} statuses`);
+    const mapped = mapStatuses(statuses);
+    console.log(`[trump/truth-social-api] mapped ${mapped.length} posts after filter`);
+    return mapped;
   } catch (err) {
     clearTimeout(timer);
-    console.error("[trump/truth-social-api]", err);
+    console.error("[trump/truth-social-api] ERROR:", err);
     return [];
   }
 }
@@ -335,8 +338,11 @@ async function fetchFinnhubTrump(): Promise<Omit<TrumpPost, "goldImpact" | "gold
   }
 }
 
-export async function GET() {
-  if (cache.data.length > 0 && Date.now() - cache.ts < CACHE_TTL) {
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const forceRefresh = searchParams.get("refresh") === "1";
+
+  if (!forceRefresh && cache.data.length > 0 && Date.now() - cache.ts < CACHE_TTL) {
     const sources = [...new Set(cache.data.map(p => p.source))];
     return NextResponse.json({ data: cache.data, timestamp: cache.ts, cached: true, sources });
   }
