@@ -94,6 +94,8 @@ const FINNHUB_RESOLUTION: Record<Timeframe, string> = {
 
 const lastKnownCandles = new Map<string, CandleBar[]>();
 
+const YAHOO_FIRST_SYMBOLS = new Set<Symbol>(["XAUUSD"]);
+
 function logCandleDebug(payload: Record<string, unknown>) {
   console.log("[mtf-candles]", JSON.stringify(payload));
 }
@@ -133,6 +135,33 @@ function normalizeCandles(candles: CandleBar[]): CandleBar[] {
       isFiniteNumber(bar.o)
     )
     .sort((a, b) => a.t - b.t);
+}
+
+function getMaxCurrentPriceDrift(symbol: Symbol): number {
+  switch (symbol) {
+    case "BTCUSD":
+      return 0.05;
+    case "XAUUSD":
+      return 0.02;
+    default:
+      return 0.015;
+  }
+}
+
+function candlesMatchCurrentPrice(
+  symbol: Symbol,
+  candles: CandleBar[],
+  currentPrice?: number
+): boolean {
+  if (!currentPrice || !Number.isFinite(currentPrice) || currentPrice <= 0) return true;
+  if (!hasValidCandles(candles)) return false;
+
+  const normalized = normalizeCandles(candles);
+  const lastClose = normalized[normalized.length - 1]?.c;
+  if (!Number.isFinite(lastClose) || !lastClose || lastClose <= 0) return false;
+
+  const drift = Math.abs(lastClose - currentPrice) / currentPrice;
+  return drift <= getMaxCurrentPriceDrift(symbol);
 }
 
 function aggregateCandles(candles: CandleBar[], size: number): CandleBar[] {
@@ -527,20 +556,36 @@ async function getReliableCandles(
 ): Promise<CandleBar[]> {
   const key = cacheKey(symbol, timeframe);
 
-  const finnhubCandles = await fetchFinnhubCandles(symbol, timeframe);
-  if (hasValidCandles(finnhubCandles ?? [])) {
-    lastKnownCandles.set(key, finnhubCandles!);
-    return finnhubCandles!;
-  }
+  const providers = YAHOO_FIRST_SYMBOLS.has(symbol)
+    ? [
+        { name: "yahoo", fetcher: () => fetchYahooCandles(symbol, timeframe) },
+        { name: "finnhub", fetcher: () => fetchFinnhubCandles(symbol, timeframe) },
+      ]
+    : [
+        { name: "finnhub", fetcher: () => fetchFinnhubCandles(symbol, timeframe) },
+        { name: "yahoo", fetcher: () => fetchYahooCandles(symbol, timeframe) },
+      ];
 
-  const yahooCandles = await fetchYahooCandles(symbol, timeframe);
-  if (hasValidCandles(yahooCandles ?? [])) {
-    lastKnownCandles.set(key, yahooCandles!);
-    return yahooCandles!;
+  for (const provider of providers) {
+    const candles = await provider.fetcher();
+    if (!hasValidCandles(candles ?? [])) continue;
+    if (!candlesMatchCurrentPrice(symbol, candles!, currentPrice)) {
+      logCandleDebug({
+        symbol,
+        timeframe,
+        endpoint: "validation",
+        provider: provider.name,
+        status: "rejected_current_price_drift",
+      });
+      continue;
+    }
+
+    lastKnownCandles.set(key, candles!);
+    return candles!;
   }
 
   const cachedCandles = lastKnownCandles.get(key);
-  if (hasValidCandles(cachedCandles ?? [])) {
+  if (hasValidCandles(cachedCandles ?? []) && candlesMatchCurrentPrice(symbol, cachedCandles!, currentPrice)) {
     logCandleDebug({
       symbol,
       timeframe,
