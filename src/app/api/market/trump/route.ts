@@ -1,5 +1,21 @@
 import { NextResponse } from "next/server";
+import { execFile } from "child_process";
+import { promisify } from "util";
 import type { TrumpPost } from "@/types";
+
+const execFileAsync = promisify(execFile);
+
+async function curlGet(url: string): Promise<string> {
+  const curlBin = process.platform === "win32" ? "curl.exe" : "curl";
+  const { stdout } = await execFileAsync(curlBin, [
+    "-s",
+    "--max-time", "10",
+    "-A", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "-H", "Accept: application/json",
+    url,
+  ]);
+  return stdout;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -189,16 +205,10 @@ function mapStatuses(statuses: { id: string; created_at: string; content: string
 async function resolveAccountId(): Promise<string | null> {
   if (_resolvedAccountId) return _resolvedAccountId;
   try {
-    const ctrl = new AbortController();
-    setTimeout(() => ctrl.abort(), 6000);
-    const res = await fetch(
-      `https://truthsocial.com/api/v1/accounts/lookup?acct=${TRUTH_SOCIAL_HANDLE}`,
-      { signal: ctrl.signal, cache: "no-store", headers: TS_HEADERS }
-    );
-    if (!res.ok) return null;
-    const data: { id: string } = await res.json();
+    const raw = await curlGet(`https://truthsocial.com/api/v1/accounts/lookup?acct=${TRUTH_SOCIAL_HANDLE}`);
+    const data: { id: string } = JSON.parse(raw);
     _resolvedAccountId = data.id;
-    console.log(`[trump/truth-social] resolved account ID: ${data.id}`);
+    console.log(`[trump/lookup] resolved account ID: ${data.id}`);
     return data.id;
   } catch (err) {
     console.error("[trump/lookup] ERROR:", err);
@@ -208,22 +218,16 @@ async function resolveAccountId(): Promise<string | null> {
 
 // ── Source 1a: Truth Social Mastodon API ─────────────────────────────────────
 async function fetchTruthSocialAPI(accountId: string): Promise<Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">[]> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10000);
   try {
     const url = `https://truthsocial.com/api/v1/accounts/${accountId}/statuses?limit=20&exclude_reblogs=true`;
-    console.log(`[trump/truth-social-api] fetching ${url}`);
-    const res = await fetch(url, { signal: controller.signal, cache: "no-store", headers: TS_HEADERS });
-    clearTimeout(timer);
-    console.log(`[trump/truth-social-api] HTTP ${res.status} content-type=${res.headers.get("content-type")}`);
-    if (!res.ok) throw new Error(`Truth Social API HTTP ${res.status}`);
-    const statuses: { id: string; created_at: string; content: string; reblog: unknown | null; in_reply_to_id: string | null; card?: { title?: string; description?: string } | null }[] = await res.json();
+    console.log(`[trump/truth-social-api] fetching via curl: ${url}`);
+    const raw = await curlGet(url);
+    const statuses: { id: string; created_at: string; content: string; reblog: unknown | null; in_reply_to_id: string | null; card?: { title?: string; description?: string } | null }[] = JSON.parse(raw);
     console.log(`[trump/truth-social-api] got ${statuses.length} statuses`);
     const mapped = mapStatuses(statuses);
     console.log(`[trump/truth-social-api] mapped ${mapped.length} posts after filter`);
     return mapped;
   } catch (err) {
-    clearTimeout(timer);
     console.error("[trump/truth-social-api] ERROR:", err);
     return [];
   }
