@@ -17,7 +17,7 @@ export default function TrumpMonitorPage() {
   const [activeFilter, setActiveFilter] = useState("all");
   const [activeSource, setActiveSource] = useState("all");
   const { posts: serverPosts, isLive, feedSource, sources } = useTrumpPosts(60_000);
-  const { posts: tsPosts, status: tsStatus } = useTruthSocialPosts();
+  const { posts: tsPosts, status: tsStatus, errorMsg: tsError } = useTruthSocialPosts();
 
   // Merge: TS posts first, then server posts (deduplicated by content)
   const tsIds = new Set(tsPosts.map(p => p.id));
@@ -164,13 +164,23 @@ export default function TrumpMonitorPage() {
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Source</span>
         {tsStatus === "loading" && (
-          <span className="text-[10px] text-amber-500 animate-pulse">fetching Truth Social...</span>
+          <span className="text-[10px] text-amber-500 animate-pulse">fetching Truth Social…</span>
+        )}
+        {tsStatus === "unconfigured" && (
+          <span
+            className="text-[10px] text-zinc-500 cursor-help"
+            title={tsError ?? "Set TRUTH_SOCIAL_PROVIDER in env"}
+          >
+            ✦ Truth Social — not configured
+          </span>
         )}
         {tsStatus === "error" && (
-          <span className="text-[10px] text-red-500">Truth Social unavailable</span>
-        )}
-        {tsStatus === "ok" && tsPosts.length === 0 && (
-          <span className="text-[10px] text-zinc-600">TS: no posts (all filtered)</span>
+          <span
+            className="text-[10px] text-red-500/80 cursor-help"
+            title={tsError ?? "Provider returned an error"}
+          >
+            ✦ Truth Social — provider error
+          </span>
         )}
         {availableSources.map((src) => {
           const isTruthSocial = src === "Truth Social";

@@ -1,50 +1,202 @@
+/**
+ * Truth Social provider proxy — /api/market/trump/ts
+ *
+ * Provider selection via TRUTH_SOCIAL_PROVIDER env var:
+ *   "apify"        — Apify actor (recommended, set APIFY_TOKEN + APIFY_ACTOR_ID)
+ *   "scrapcreators"— ScrapeCreators API (set SCRAPCREATORS_API_KEY)
+ *   unset/empty    — returns 503 "not configured"
+ *
+ * Always returns a Mastodon-compatible status array OR { configured: false, error: "..." }
+ */
 export const runtime = "edge";
 
-const TS_ACCOUNT_ID = process.env.TRUTH_SOCIAL_ACCOUNT_ID ?? "107780257626128497";
-const TS_USERNAME   = process.env.TRUTH_SOCIAL_USERNAME   ?? "realDonaldTrump";
-const TS_ENABLED    = process.env.TRUTH_SOCIAL_ENABLED !== "false";
+const PROVIDER   = (process.env.TRUTH_SOCIAL_PROVIDER ?? "").toLowerCase().trim();
+const USERNAME   = process.env.TRUTH_SOCIAL_USERNAME ?? "realDonaldTrump";
 
-export async function GET() {
-  if (!TS_ENABLED) {
-    return new Response(JSON.stringify({ error: "Truth Social disabled" }), {
-      status: 503,
-      headers: { "Content-Type": "application/json" },
-    });
+// Apify
+const APIFY_TOKEN    = process.env.APIFY_TOKEN ?? "";
+const APIFY_ACTOR_ID = process.env.APIFY_ACTOR_ID ?? "";
+// "dataset" = fetch last run (fast, requires scheduled actor)
+// "sync"    = trigger new run and wait (slower, ~20-30s, may timeout on Vercel)
+const APIFY_RUN_MODE = (process.env.APIFY_RUN_MODE ?? "dataset").toLowerCase();
+
+// ScrapeCreators
+const SC_KEY = process.env.SCRAPCREATORS_API_KEY ?? "";
+
+// ── Response helpers ──────────────────────────────────────────────────────────
+
+function jsonError(status: number, error: string, configured = true) {
+  return new Response(JSON.stringify({ error, configured }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+function jsonPosts(posts: object[]) {
+  return new Response(JSON.stringify(posts), {
+    headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=60" },
+  });
+}
+
+// ── Normalizer ────────────────────────────────────────────────────────────────
+// Converts any scraper's output schema → Mastodon-compatible status object
+// so the existing mapTruthSocialStatus() in classify.ts can process it unchanged.
+
+type MastodonLike = {
+  id: string;
+  created_at: string;
+  content: string;
+  reblog: null;
+  in_reply_to_id: string | null;
+  url?: string;
+};
+
+function normalizeItem(item: Record<string, unknown>): MastodonLike | null {
+  const id = String(
+    item.id ?? item.statusId ?? item.status_id ?? item.postId ?? ""
+  ).trim();
+  const text = String(
+    item.text ?? item.content ?? item.full_text ?? item.body ?? item.message ?? ""
+  ).trim();
+  if (!id || !text) return null;
+
+  const isRepost = Boolean(
+    item.repost ?? item.reblog ?? item.isRepost ?? item.isReblog ?? item.is_repost
+  );
+  const replyId = item.in_reply_to_id ?? item.inReplyToId ?? item.reply_to ?? null;
+
+  return {
+    id,
+    created_at: String(
+      item.created_at ?? item.createdAt ?? item.date ??
+      item.publishedAt ?? item.timestamp ?? new Date().toISOString()
+    ),
+    content: text,
+    reblog: isRepost ? ({} as null) : null,
+    in_reply_to_id: replyId ? String(replyId) : null,
+    url: String(
+      item.url ?? item.postUrl ?? item.statusUrl ?? item.link ??
+      `https://truthsocial.com/@${USERNAME}/${id}`
+    ),
+  };
+}
+
+// ── Apify provider ────────────────────────────────────────────────────────────
+
+async function fetchViaApify(): Promise<Response> {
+  if (!APIFY_TOKEN) {
+    console.error("[ts/apify] APIFY_TOKEN not set");
+    return jsonError(503, "Apify token missing. Set APIFY_TOKEN in your environment variables.", false);
+  }
+  if (!APIFY_ACTOR_ID) {
+    console.error("[ts/apify] APIFY_ACTOR_ID not set");
+    return jsonError(503, "Apify actor ID missing. Find a Truth Social scraper on apify.com/store and set APIFY_ACTOR_ID.", false);
   }
 
-  const url = `https://truthsocial.com/api/v1/accounts/${TS_ACCOUNT_ID}/statuses?limit=20&exclude_reblogs=true`;
+  let fetchUrl: string;
+  let fetchOpts: RequestInit;
 
+  if (APIFY_RUN_MODE === "sync") {
+    // Trigger new run and wait for results (25s timeout — may hit Vercel limit)
+    fetchUrl = `https://api.apify.com/v2/acts/${encodeURIComponent(APIFY_ACTOR_ID)}/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=25&memory=256&maxItems=20`;
+    fetchOpts = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usernames: [USERNAME], maxItems: 20, resultsLimit: 20 }),
+      signal: AbortSignal.timeout(28_000),
+    };
+    console.log(`[ts/apify] sync run: ${APIFY_ACTOR_ID}`);
+  } else {
+    // Fetch last successful run's dataset (instant — requires scheduled actor in Apify)
+    fetchUrl = `https://api.apify.com/v2/acts/${encodeURIComponent(APIFY_ACTOR_ID)}/runs/last/dataset/items?token=${APIFY_TOKEN}&limit=30&status=SUCCEEDED`;
+    fetchOpts = { signal: AbortSignal.timeout(10_000) };
+    console.log(`[ts/apify] last-run dataset: ${APIFY_ACTOR_ID}`);
+  }
+
+  let res: Response;
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
+    res = await fetch(fetchUrl, fetchOpts);
+  } catch (err) {
+    console.error("[ts/apify] fetch error:", err);
+    return jsonError(500, `Apify request failed: ${String(err)}`);
+  }
 
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-      },
-    });
-    clearTimeout(timer);
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error(`[ts/apify] HTTP ${res.status}: ${body.slice(0, 300)}`);
+    return jsonError(res.status, `Apify HTTP ${res.status}: ${body.slice(0, 200)}`);
+  }
 
-    if (!res.ok) {
-      return new Response(
-        JSON.stringify({ error: `Truth Social HTTP ${res.status}`, username: TS_USERNAME }),
-        { status: res.status, headers: { "Content-Type": "application/json" } }
-      );
-    }
+  const raw: Record<string, unknown>[] = await res.json().catch(() => []);
+  console.log(`[ts/apify] raw items: ${raw.length}`);
 
-    const data = await res.json();
-    return new Response(JSON.stringify(data), {
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=60",
-      },
+  const normalized = raw
+    .map(normalizeItem)
+    .filter((x): x is MastodonLike => x !== null && x.reblog === null && x.in_reply_to_id === null)
+    .slice(0, 20);
+
+  console.log(`[ts/apify] normalized (original posts only): ${normalized.length}`);
+  return jsonPosts(normalized);
+}
+
+// ── ScrapeCreators provider ───────────────────────────────────────────────────
+
+async function fetchViaScrapeCreators(): Promise<Response> {
+  if (!SC_KEY) {
+    console.error("[ts/scrapcreators] SCRAPCREATORS_API_KEY not set");
+    return jsonError(503, "ScrapeCreators API key missing. Set SCRAPCREATORS_API_KEY in your environment variables.", false);
+  }
+
+  // Try common ScrapeCreators Truth Social endpoint patterns
+  const url = `https://api.scrapecreators.com/v1/truthsocial/user-posts?username=${encodeURIComponent(USERNAME)}&limit=20`;
+  console.log(`[ts/scrapcreators] GET ${url}`);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: { "x-api-key": SC_KEY, Accept: "application/json" },
+      signal: AbortSignal.timeout(15_000),
     });
   } catch (err) {
-    return new Response(
-      JSON.stringify({ error: String(err) }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    console.error("[ts/scrapcreators] fetch error:", err);
+    return jsonError(500, `ScrapeCreators request failed: ${String(err)}`);
   }
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error(`[ts/scrapcreators] HTTP ${res.status}: ${body.slice(0, 300)}`);
+    return jsonError(res.status, `ScrapeCreators HTTP ${res.status}: ${body.slice(0, 200)}`);
+  }
+
+  const data = await res.json().catch(() => ({}));
+  // ScrapeCreators may wrap results in { posts, data, statuses, items } or return array directly
+  const rawItems: Record<string, unknown>[] = Array.isArray(data)
+    ? data
+    : (data.posts ?? data.data ?? data.statuses ?? data.items ?? data.results ?? []);
+
+  console.log(`[ts/scrapcreators] raw items: ${rawItems.length}`);
+
+  const normalized = rawItems
+    .map(normalizeItem)
+    .filter((x): x is MastodonLike => x !== null && x.reblog === null && x.in_reply_to_id === null)
+    .slice(0, 20);
+
+  console.log(`[ts/scrapcreators] normalized: ${normalized.length}`);
+  return jsonPosts(normalized);
+}
+
+// ── Main handler ──────────────────────────────────────────────────────────────
+
+export async function GET() {
+  console.log(`[ts] provider="${PROVIDER}" username="${USERNAME}"`);
+
+  if (PROVIDER === "apify") return fetchViaApify();
+  if (PROVIDER === "scrapcreators") return fetchViaScrapeCreators();
+
+  console.warn("[ts] TRUTH_SOCIAL_PROVIDER not set or unrecognized:", PROVIDER || "(empty)");
+  return jsonError(
+    503,
+    `Truth Social provider not configured. Set TRUTH_SOCIAL_PROVIDER=apify (and APIFY_TOKEN + APIFY_ACTOR_ID) or TRUTH_SOCIAL_PROVIDER=scrapcreators (and SCRAPCREATORS_API_KEY) in your environment variables.`,
+    false
+  );
 }
