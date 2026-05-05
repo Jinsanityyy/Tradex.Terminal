@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { TRACKED_ASSETS, twelveQuoteToSnapshot } from "@/lib/api/market-data";
+import { fetchFinnhubQuoteMap } from "@/lib/api/finnhub-market";
 import type { AssetSnapshot } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -231,8 +232,9 @@ export async function GET() {
 
     console.log(`[quotes] Cycle ${cycle}: multi-source fetch`);
 
-    // Fetch from all free sources in parallel
-    const [cryptoData, forexData, metalsData] = await Promise.all([
+    // Fetch from Finnhub first when available, then fall back to other sources
+    const [finnhubData, cryptoData, forexData, metalsData] = await Promise.all([
+      fetchFinnhubQuoteMap(),
       fetchCrypto(),
       fetchForexRates(),
       fetchMetals(),
@@ -240,14 +242,24 @@ export async function GET() {
 
     let newQuotes = 0;
 
-    // Apply free source data first
+    for (const [sym, quote] of Object.entries(finnhubData)) {
+      rawCache[sym] = quote;
+      newQuotes++;
+    }
+
+    // Apply fallback data only when Finnhub did not provide the symbol
     for (const [sym, quote] of Object.entries(cryptoData)) {
+      if (finnhubData[sym]) continue;
       rawCache[sym] = quote;
       newQuotes++;
     }
     for (const [sym, quote] of Object.entries(forexData)) {
+      if (finnhubData[sym]) continue;
       rawCache[sym] = quote;
       newQuotes++;
+    }
+    if (finnhubData["XAU/USD"]) {
+      delete metalsData["XAU/USD"];
     }
     for (const [sym, quote] of Object.entries(metalsData)) {
       // Always apply Yahoo Finance metals — real-time data overwrites stale cache
@@ -257,6 +269,7 @@ export async function GET() {
 
     // Try Twelve Data for missing symbols (oil, metals real-time)
     const coveredSymbols = new Set([
+      ...Object.keys(finnhubData),
       ...Object.keys(cryptoData),
       ...Object.keys(forexData),
       ...Object.keys(metalsData),

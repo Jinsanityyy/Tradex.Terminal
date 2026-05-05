@@ -35,8 +35,11 @@ export async function ensureCacheWarm(): Promise<void> {
 
   warming = true;
   try {
-    // Warm from CoinGecko (crypto) + Yahoo (forex/commodities)
-    const [cryptoRes, goldRes, eurRes, gbpRes, jpyRes, oilRes] = await Promise.all([
+    const { fetchFinnhubQuoteMap } = await import("@/lib/api/finnhub-market");
+
+    // Warm from Finnhub first when available, then fall back to free sources
+    const [finnhubQuotes, cryptoRes, goldRes, eurRes, gbpRes, jpyRes, oilRes] = await Promise.all([
+      fetchFinnhubQuoteMap(),
       fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,litecoin&vs_currencies=usd&include_24hr_change=true", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
       fetch("https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=5d", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
       fetch("https://query1.finance.yahoo.com/v8/finance/chart/EURUSD=X?interval=1d&range=5d", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
@@ -69,10 +72,15 @@ export async function ensureCacheWarm(): Promise<void> {
       };
     };
 
+    for (const [sym, quote] of Object.entries(finnhubQuotes)) {
+      quotesMap.set(sym, quote);
+    }
+
     // Crypto
     if (cryptoRes) {
       const map: Record<string, string> = { "BTC/USD": "bitcoin", "ETH/USD": "ethereum", "LTC/USD": "litecoin" };
       for (const [sym, id] of Object.entries(map)) {
+        if (finnhubQuotes[sym]) continue;
         const coin = cryptoRes[id];
         if (coin?.usd) {
           const pct = coin.usd_24h_change || 0;
@@ -90,6 +98,7 @@ export async function ensureCacheWarm(): Promise<void> {
       ["XAU/USD", goldRes], ["EUR/USD", eurRes], ["GBP/USD", gbpRes], ["USD/JPY", jpyRes], ["CL", oilRes],
     ];
     for (const [sym, raw] of yahooEntries) {
+      if (finnhubQuotes[sym]) continue;
       const parsed = parseYahoo(raw);
       if (parsed) quotesMap.set(sym, { symbol: sym, name: "", ...parsed });
     }

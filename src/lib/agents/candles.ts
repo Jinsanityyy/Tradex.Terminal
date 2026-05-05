@@ -94,8 +94,6 @@ const FINNHUB_RESOLUTION: Record<Timeframe, string> = {
 
 const lastKnownCandles = new Map<string, CandleBar[]>();
 
-const YAHOO_FIRST_SYMBOLS = new Set<Symbol>(["XAUUSD"]);
-
 function logCandleDebug(payload: Record<string, unknown>) {
   console.log("[mtf-candles]", JSON.stringify(payload));
 }
@@ -556,15 +554,10 @@ async function getReliableCandles(
 ): Promise<CandleBar[]> {
   const key = cacheKey(symbol, timeframe);
 
-  const providers = YAHOO_FIRST_SYMBOLS.has(symbol)
-    ? [
-        { name: "yahoo", fetcher: () => fetchYahooCandles(symbol, timeframe) },
-        { name: "finnhub", fetcher: () => fetchFinnhubCandles(symbol, timeframe) },
-      ]
-    : [
-        { name: "finnhub", fetcher: () => fetchFinnhubCandles(symbol, timeframe) },
-        { name: "yahoo", fetcher: () => fetchYahooCandles(symbol, timeframe) },
-      ];
+  const providers = [
+    { name: "finnhub", fetcher: () => fetchFinnhubCandles(symbol, timeframe) },
+    { name: "yahoo", fetcher: () => fetchYahooCandles(symbol, timeframe) },
+  ];
 
   for (const provider of providers) {
     const candles = await provider.fetcher();
