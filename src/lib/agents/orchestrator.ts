@@ -13,6 +13,7 @@ import type {
 } from "./schemas";
 import { DEFAULT_WEIGHTS } from "./schemas";
 import { buildMarketSnapshot, buildMockSnapshot } from "./market-snapshot";
+import { getValidatedCandles } from "./candles";
 import { runTrendAgent }     from "./trend-agent";
 import { runPriceActionAgent } from "./price-action-agent";
 import { runNewsAgent }      from "./news-agent";
@@ -278,11 +279,21 @@ export async function runAgentOrchestrator(
   // ── Build normalized snapshot ────────────────────────────────────────────
   let snapshot;
   if (quote && !(quote as Record<string, unknown>).code) {
+    const quoteClose = typeof quote.close === "string"
+      ? parseFloat(quote.close)
+      : 0;
+    const timeframeCandles = await getValidatedCandles(
+      symbol,
+      timeframe,
+      Number.isFinite(quoteClose) && quoteClose > 0 ? quoteClose : undefined
+    );
+
     snapshot = await buildMarketSnapshot(
       symbol, timeframe,
       quote as unknown as Parameters<typeof buildMarketSnapshot>[2],
       news,
-      rsi
+      rsi,
+      timeframeCandles ?? undefined
     );
   } else {
     // Fallback to mock data

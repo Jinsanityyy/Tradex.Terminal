@@ -6,6 +6,7 @@
  */
 
 import type { MarketSnapshot, Symbol, Timeframe, PriceZone } from "./schemas";
+import type { CandleBar } from "./candles";
 import { deriveConvictionBias } from "@/lib/api/conviction";
 
 interface RawQuote {
@@ -24,6 +25,18 @@ interface RawNewsItem {
   datetime: number;
 }
 
+interface TimeframePriceContext {
+  close: number;
+  open: number;
+  high: number;
+  low: number;
+  prevClose: number;
+  rangeHigh: number;
+  rangeLow: number;
+  positionInRange: number;
+  rsi: number | null;
+}
+
 const SYMBOL_CONFIG: Partial<Record<Symbol, {
   display: string;
   apiSymbol: string;
@@ -34,6 +47,74 @@ const SYMBOL_CONFIG: Partial<Record<Symbol, {
   GBPUSD: { display: "GBP/USD",              apiSymbol: "GBP/USD", invertBias: false },
   BTCUSD: { display: "Bitcoin (BTCUSD)",     apiSymbol: "BTC/USD", invertBias: false },
 };
+
+function normalizeCandles(candles: CandleBar[]): CandleBar[] {
+  return candles
+    .filter((bar) =>
+      Number.isFinite(bar.t) &&
+      Number.isFinite(bar.o) &&
+      Number.isFinite(bar.h) &&
+      Number.isFinite(bar.l) &&
+      Number.isFinite(bar.c)
+    )
+    .sort((a, b) => a.t - b.t);
+}
+
+function computeRsiFromCloses(closes: number[], period = 14): number | null {
+  if (closes.length <= period) return null;
+
+  let gains = 0;
+  let losses = 0;
+
+  for (let i = 1; i <= period; i += 1) {
+    const delta = closes[i] - closes[i - 1];
+    if (delta >= 0) gains += delta;
+    else losses -= delta;
+  }
+
+  let avgGain = gains / period;
+  let avgLoss = losses / period;
+
+  for (let i = period + 1; i < closes.length; i += 1) {
+    const delta = closes[i] - closes[i - 1];
+    const gain = Math.max(delta, 0);
+    const loss = Math.max(-delta, 0);
+    avgGain = ((avgGain * (period - 1)) + gain) / period;
+    avgLoss = ((avgLoss * (period - 1)) + loss) / period;
+  }
+
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return 100 - (100 / (1 + rs));
+}
+
+function deriveTimeframePriceContext(candles?: CandleBar[]): TimeframePriceContext | null {
+  if (!candles?.length) return null;
+
+  const normalized = normalizeCandles(candles);
+  if (normalized.length < 2) return null;
+
+  const last = normalized[normalized.length - 1];
+  const prev = normalized[normalized.length - 2];
+  const rangeWindow = normalized.slice(-Math.min(normalized.length, 20));
+  const rangeHigh = Math.max(...rangeWindow.map((bar) => bar.h));
+  const rangeLow = Math.min(...rangeWindow.map((bar) => bar.l));
+  const range = rangeHigh - rangeLow;
+  const positionInRange = range > 0 ? ((last.c - rangeLow) / range) * 100 : 50;
+  const rsi = computeRsiFromCloses(normalized.map((bar) => bar.c));
+
+  return {
+    close: last.c,
+    open: last.o,
+    high: last.h,
+    low: last.l,
+    prevClose: prev.c,
+    rangeHigh,
+    rangeLow,
+    positionInRange,
+    rsi,
+  };
+}
 
 // Session detection
 function getSession(utcHour: number): string {
@@ -58,27 +139,32 @@ export async function buildMarketSnapshot(
   timeframe: Timeframe,
   rawQuote: RawQuote,
   news: RawNewsItem[],
-  rsi?: number
+  rsi?: number,
+  timeframeCandles?: CandleBar[]
 ): Promise<MarketSnapshot> {
   const cfg = SYMBOL_CONFIG[symbol] ?? { display: symbol, apiSymbol: symbol, invertBias: false };
+  const timeframeContext = deriveTimeframePriceContext(timeframeCandles);
 
-  const close       = parseFloat(rawQuote.close) || 0;
-  const open        = parseFloat(rawQuote.open        ?? rawQuote.close) || close;
-  const high        = parseFloat(rawQuote.high        ?? rawQuote.close) || close;
-  const low         = parseFloat(rawQuote.low         ?? rawQuote.close) || close;
-  const prevClose   = parseFloat(rawQuote.previous_close ?? rawQuote.close) || close;
-  const pctChange   = parseFloat(rawQuote.percent_change ?? "0") || 0;
+  const quoteClose     = parseFloat(rawQuote.close) || 0;
+  const close          = timeframeContext?.close ?? quoteClose;
+  const open           = timeframeContext?.open ?? (parseFloat(rawQuote.open ?? rawQuote.close) || close);
+  const high           = timeframeContext?.high ?? (parseFloat(rawQuote.high ?? rawQuote.close) || close);
+  const low            = timeframeContext?.low ?? (parseFloat(rawQuote.low ?? rawQuote.close) || close);
+  const prevClose      = timeframeContext?.prevClose ?? (parseFloat(rawQuote.previous_close ?? rawQuote.close) || close);
+  const pctChange      = prevClose !== 0 ? ((close - prevClose) / prevClose) * 100 : (parseFloat(rawQuote.percent_change ?? "0") || 0);
   const high52w     = parseFloat(rawQuote.fifty_two_week?.high ?? String(close * 1.1));
   const low52w      = parseFloat(rawQuote.fifty_two_week?.low  ?? String(close * 0.9));
+  const structuralHigh = timeframeContext?.rangeHigh ?? high;
+  const structuralLow = timeframeContext?.rangeLow ?? low;
 
   const dayRange      = high - low;
-  const positionInDay = dayRange > 0 ? ((close - low) / dayRange) * 100 : 50;
+  const positionInDay = timeframeContext?.positionInRange ?? (dayRange > 0 ? ((close - low) / dayRange) * 100 : 50);
 
   // Derive pseudo-RSI from available data if real RSI not provided.
   // Real RSI requires 14 candles of history which we don't have from daily quotes.
   // This approximation uses: position in day's range, 52-week position, and daily % change.
   // It won't match a real RSI chart exactly, but correctly reflects overbought/oversold conditions.
-  const derivedRsi = rsi ?? (() => {
+  const derivedRsi = timeframeContext?.rsi ?? rsi ?? (() => {
     const rangeFactor    = positionInDay;                        // 0-100 based on day's H/L
     const weekFactor     = (() => {
       const r52 = (parseFloat(rawQuote.fifty_two_week?.high ?? String(close * 1.1)) -
@@ -94,8 +180,8 @@ export async function buildMarketSnapshot(
 
   // Effective values for bias (invert EUR/USD since it's a DXY proxy)
   const effPctChange = cfg.invertBias ? -pctChange : pctChange;
-  const effHigh      = cfg.invertBias ? close * 2 - low  : high;
-  const effLow       = cfg.invertBias ? close * 2 - high : low;
+  const effHigh      = cfg.invertBias ? close * 2 - structuralLow  : structuralHigh;
+  const effLow       = cfg.invertBias ? close * 2 - structuralHigh : structuralLow;
   const effMacd      = effPctChange * 0.01;
   const effRsi       = cfg.invertBias ? 100 - rsiVal : rsiVal;
 
@@ -106,7 +192,7 @@ export async function buildMarketSnapshot(
 
   const range52  = high52w - low52w;
   const pos52w   = range52 > 0 ? ((close - low52w) / range52) * 100 : 50;
-  const equilibrium = (high + low) / 2;
+  const equilibrium = (structuralHigh + structuralLow) / 2;
   const inDiscount  = close < equilibrium;
   const inPremium   = close > equilibrium;
 
