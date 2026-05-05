@@ -266,11 +266,41 @@ async function fetchTruthSocialAPI(accountId: string): Promise<Omit<TrumpPost, "
   }
 }
 
-// ── Source 1: Truth Social (node:https HTTP/1.1) ─────────────────────────────
+// ── Source 1a-proxy: Truth Social via allorigins.win ─────────────────────────
+// Vercel IPs are blocked by Truth Social — route through a CORS proxy
+const TS_ACCOUNT_ID = "107780257626128497"; // realDonaldTrump — hardcoded as backup
+
+async function fetchTruthSocialViaProxy(): Promise<Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">[]> {
+  try {
+    const target = `https://truthsocial.com/api/v1/accounts/${TS_ACCOUNT_ID}/statuses?limit=20&exclude_reblogs=true`;
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(target)}`;
+    console.log("[trump/proxy] fetching via allorigins.win");
+    const res = await fetch(proxyUrl, { cache: "no-store", next: { revalidate: 0 } });
+    if (!res.ok) throw new Error(`proxy HTTP ${res.status}`);
+    const wrapper: { contents: string; status: { http_code: number } } = await res.json();
+    if (wrapper.status.http_code !== 200) throw new Error(`TS returned ${wrapper.status.http_code} via proxy`);
+    const statuses: { id: string; created_at: string; content: string; reblog: unknown | null; in_reply_to_id: string | null; card?: { title?: string; description?: string } | null }[] = JSON.parse(wrapper.contents);
+    console.log(`[trump/proxy] got ${statuses.length} statuses`);
+    const mapped = mapStatuses(statuses);
+    console.log(`[trump/proxy] mapped ${mapped.length} posts`);
+    return mapped;
+  } catch (err) {
+    console.error("[trump/proxy] ERROR:", err);
+    return [];
+  }
+}
+
+// ── Source 1: Truth Social (direct → proxy fallback) ─────────────────────────
 async function fetchTruthSocial(): Promise<Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">[]> {
+  // Try direct node:https first (works locally)
   const accountId = await resolveAccountId();
-  if (!accountId) return [];
-  return fetchTruthSocialAPI(accountId);
+  if (accountId) {
+    const direct = await fetchTruthSocialAPI(accountId);
+    if (direct.length > 0) return direct;
+  }
+  // Vercel IPs blocked — try via proxy
+  console.log("[trump] direct failed, trying proxy");
+  return fetchTruthSocialViaProxy();
 }
 
 // ── Source 2b: Google News RSS (no API key, always available) ────────────────
