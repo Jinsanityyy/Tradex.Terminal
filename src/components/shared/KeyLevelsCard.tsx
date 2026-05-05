@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { ChevronDown, ChevronUp, AlertTriangle, Zap, Settings2, Filter, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { ChevronDown, ChevronUp, AlertTriangle, Zap, Settings2, Filter, CheckCircle2, Clock, XCircle, Calculator } from "lucide-react";
+import { useSettings } from "@/contexts/SettingsContext";
 import type { KeyLevel } from "@/app/api/market/keylevels/route";
 import type { AssetAIAnalysis } from "@/types";
 
@@ -750,9 +751,14 @@ interface KeyLevelsCardProps {
 }
 
 export function KeyLevelsCard({ levels, compact = false, aiAnalysisMap = {} }: KeyLevelsCardProps) {
+  const { settings } = useSettings();
   const [lotSize, setLotSize] = useState(0.01);
   const [showLotInput, setShowLotInput] = useState(false);
   const [strictMode, setStrictMode] = useState(false);
+  const [calcMode, setCalcMode] = useState<"preset" | "account">("preset");
+  const [calcBalance, setCalcBalance] = useState(() => settings.accountBalance ?? 10000);
+  const [calcRisk, setCalcRisk] = useState(() => settings.riskPerTrade ?? 1);
+  const [calcSlPts, setCalcSlPts] = useState<number>(20);
 
   if (levels.length === 0) return null;
 
@@ -837,51 +843,149 @@ export function KeyLevelsCard({ levels, compact = false, aiAnalysisMap = {} }: K
       )}
 
       {/* ── Lot Size Panel ────────────────────────────────────── */}
-      {showLotInput && (
-        <div className="px-3 sm:px-5 py-3 flex items-center gap-2 sm:gap-3 flex-wrap"
-          style={{ borderBottom: "1px solid var(--t-border-sub)", background: "var(--t-card-2)" }}>
-          <span className="text-[9px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>Lot Size</span>
+      {showLotInput && (() => {
+        // Account-based calc: riskAmount / (slPts × pipValuePerLot)
+        // Gold/BTC: pipValuePerLot = 1 per point per lot (100 oz × $1 = $100/pt/lot → but standard is $1/pt per 0.01 lot → $100/pt/lot)
+        // Forex: $10/pip per 1.0 lot = $0.10/pip per 0.01 lot
+        const riskAmt = calcBalance * (calcRisk / 100);
+        const pipValPerLot = 100; // Gold: $100/point/lot (1 lot = 100 oz)
+        const calcLots = calcSlPts > 0 ? riskAmt / (calcSlPts * pipValPerLot) : 0;
+        const calcLotsDisplay = calcLots < 0.001 ? "< 0.001" : calcLots.toFixed(calcLots >= 1 ? 2 : calcLots >= 0.1 ? 3 : 3);
 
-          {LOT_PRESETS.map(l => (
-            <button
-              key={l}
-              onClick={() => setLotSize(l)}
-              className="px-2.5 py-1 rounded text-[10px] font-mono font-semibold transition-all"
-              style={{
-                background: lotSize === l ? "#00C89615" : "var(--t-card)",
-                border: `1px solid ${lotSize === l ? "#00C89640" : "var(--t-border-sub)"}`,
-                color: lotSize === l ? "#00C896" : "var(--t-muted)",
-              }}
-            >
-              {l.toFixed(2)}
-            </button>
-          ))}
+        return (
+          <div style={{ borderBottom: "1px solid var(--t-border-sub)", background: "var(--t-card-2)" }}>
+            {/* Mode toggle */}
+            <div className="flex items-center gap-1 px-3 sm:px-5 pt-3 pb-2">
+              {(["preset", "account"] as const).map(m => (
+                <button
+                  key={m}
+                  onClick={() => setCalcMode(m)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-semibold transition-all"
+                  style={{
+                    background: calcMode === m ? "#00C89615" : "transparent",
+                    border: `1px solid ${calcMode === m ? "#00C89640" : "var(--t-border-sub)"}`,
+                    color: calcMode === m ? "#00C896" : "var(--t-muted)",
+                  }}
+                >
+                  {m === "account" && <Calculator className="h-3 w-3" />}
+                  {m === "preset" ? "Preset" : "Account"}
+                </button>
+              ))}
+            </div>
 
-          <input
-            type="number"
-            min={0.01}
-            max={100}
-            step={0.01}
-            value={lotSize}
-            onChange={e => {
-              const v = parseFloat(e.target.value);
-              if (!isNaN(v) && v > 0) setLotSize(parseFloat(v.toFixed(2)));
-            }}
-            className="w-20 rounded px-2 py-1 text-[10px] font-mono outline-none"
-            style={{
-              background: "var(--t-card)",
-              border: "1px solid var(--t-border-sub)",
-              color: "var(--t-text)",
-            }}
-          />
-          <span className="text-[9px]" style={{ color: "var(--t-muted)" }}>
-            Pip value (forex): <span style={{ color: "var(--t-text)" }}>
-              ${(lotSize / 0.01 * 0.10).toFixed(2)}/pip
-            </span>
-            <span className="ml-2" style={{ color: "#8B949E60" }}>· Gold: $1/point</span>
-          </span>
-        </div>
-      )}
+            {calcMode === "preset" ? (
+              /* ── Preset mode ── */
+              <div className="px-3 sm:px-5 pb-3 flex items-center gap-2 flex-wrap">
+                {LOT_PRESETS.map(l => (
+                  <button
+                    key={l}
+                    onClick={() => setLotSize(l)}
+                    className="px-2.5 py-1 rounded text-[10px] font-mono font-semibold transition-all"
+                    style={{
+                      background: lotSize === l ? "#00C89615" : "var(--t-card)",
+                      border: `1px solid ${lotSize === l ? "#00C89640" : "var(--t-border-sub)"}`,
+                      color: lotSize === l ? "#00C896" : "var(--t-muted)",
+                    }}
+                  >
+                    {l.toFixed(2)}
+                  </button>
+                ))}
+                <input
+                  type="number"
+                  min={0.01}
+                  max={100}
+                  step={0.01}
+                  value={lotSize}
+                  onChange={e => {
+                    const v = parseFloat(e.target.value);
+                    if (!isNaN(v) && v > 0) setLotSize(parseFloat(v.toFixed(2)));
+                  }}
+                  className="w-20 rounded px-2 py-1 text-[10px] font-mono outline-none"
+                  style={{ background: "var(--t-card)", border: "1px solid var(--t-border-sub)", color: "var(--t-text)" }}
+                />
+                <span className="text-[9px]" style={{ color: "var(--t-muted)" }}>
+                  Pip value (forex): <span style={{ color: "var(--t-text)" }}>${(lotSize / 0.01 * 0.10).toFixed(2)}/pip</span>
+                  <span className="ml-2" style={{ color: "#8B949E60" }}>· Gold: $1/pt</span>
+                </span>
+              </div>
+            ) : (
+              /* ── Account-based mode ── */
+              <div className="px-3 sm:px-5 pb-3 space-y-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  {/* Balance */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>Balance</span>
+                    <span className="text-[9px]" style={{ color: "var(--t-muted)" }}>$</span>
+                    <input
+                      type="number"
+                      min={100}
+                      step={100}
+                      value={calcBalance}
+                      onChange={e => setCalcBalance(Math.max(100, Number(e.target.value)))}
+                      className="w-24 rounded px-2 py-1 text-[10px] font-mono text-right outline-none"
+                      style={{ background: "var(--t-card)", border: "1px solid var(--t-border-sub)", color: "var(--t-text)" }}
+                    />
+                  </div>
+                  {/* Risk % */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>Risk</span>
+                    {[0.5, 1, 1.5, 2].map(r => (
+                      <button
+                        key={r}
+                        onClick={() => setCalcRisk(r)}
+                        className="px-2 py-1 rounded text-[10px] font-mono font-semibold transition-all"
+                        style={{
+                          background: calcRisk === r ? "#F59E0B15" : "var(--t-card)",
+                          border: `1px solid ${calcRisk === r ? "#F59E0B40" : "var(--t-border-sub)"}`,
+                          color: calcRisk === r ? "#F59E0B" : "var(--t-muted)",
+                        }}
+                      >
+                        {r}%
+                      </button>
+                    ))}
+                  </div>
+                  {/* SL distance */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>SL pts</span>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={calcSlPts}
+                      onChange={e => setCalcSlPts(Math.max(1, Number(e.target.value)))}
+                      className="w-16 rounded px-2 py-1 text-[10px] font-mono text-right outline-none"
+                      style={{ background: "var(--t-card)", border: "1px solid var(--t-border-sub)", color: "var(--t-text)" }}
+                    />
+                  </div>
+                </div>
+
+                {/* Result */}
+                <div className="flex items-center justify-between rounded-lg px-3 py-2"
+                  style={{ background: "#00C89610", border: "1px solid #00C89625" }}>
+                  <div>
+                    <div className="text-[9px] uppercase tracking-widest mb-0.5" style={{ color: "#00C89680" }}>Recommended Lot Size</div>
+                    <div className="text-xl font-black font-mono" style={{ color: "#00C896" }}>{calcLotsDisplay}</div>
+                  </div>
+                  <div className="text-right space-y-0.5">
+                    <div className="text-[9px]" style={{ color: "var(--t-muted)" }}>Risk amount</div>
+                    <div className="text-sm font-mono font-bold" style={{ color: "var(--t-text)" }}>${riskAmt.toFixed(0)}</div>
+                    <div className="text-[9px]" style={{ color: "var(--t-muted)" }}>SL distance</div>
+                    <div className="text-[10px] font-mono" style={{ color: "var(--t-muted)" }}>{calcSlPts} pts</div>
+                  </div>
+                  <button
+                    onClick={() => { setLotSize(parseFloat(calcLots.toFixed(3))); setCalcMode("preset"); }}
+                    className="ml-3 px-3 py-1.5 rounded text-[10px] font-bold transition-all"
+                    style={{ background: "#00C896", color: "#000", opacity: calcLots > 0 ? 1 : 0.4 }}
+                    disabled={calcLots <= 0}
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── Asset Rows ───────────────────────────────────────── */}
       <div className="p-3 space-y-2">
