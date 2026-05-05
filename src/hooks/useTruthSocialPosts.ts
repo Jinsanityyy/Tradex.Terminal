@@ -4,20 +4,19 @@ import { useEffect, useState } from "react";
 import type { TrumpPost } from "@/types";
 import { mapTruthSocialStatus } from "@/lib/trump/classify";
 
-const TS_ACCOUNT_ID = "107780257626128497";
-const TS_URL = `https://truthsocial.com/api/v1/accounts/${TS_ACCOUNT_ID}/statuses?limit=20&exclude_reblogs=true`;
+// Uses our own Edge Runtime proxy (/api/market/trump/ts)
+// Edge runs on Cloudflare IPs — not blocked by Truth Social like AWS Lambda (Vercel default)
+const PROXY_URL = "/api/market/trump/ts";
 const CACHE_KEY = "tradex_ts_posts";
 const CACHE_TTL = 5 * 60 * 1000; // 5 min
 
 type CachedTS = { posts: TrumpPost[]; ts: number };
 
-// Browser-side fetch — uses the user's own IP (not Vercel's blocked IPs)
 export function useTruthSocialPosts() {
   const [posts, setPosts] = useState<TrumpPost[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
 
   useEffect(() => {
-    // Check session cache first
     try {
       const raw = sessionStorage.getItem(CACHE_KEY);
       if (raw) {
@@ -32,14 +31,9 @@ export function useTruthSocialPosts() {
 
     setStatus("loading");
 
-    fetch(TS_URL, {
-      headers: {
-        "Accept": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      },
-    })
+    fetch(PROXY_URL)
       .then(async (res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw new Error(`Proxy HTTP ${res.status}`);
         const statuses: {
           id: string;
           created_at: string;
@@ -48,6 +42,8 @@ export function useTruthSocialPosts() {
           in_reply_to_id: string | null;
           card?: { title?: string; description?: string } | null;
         }[] = await res.json();
+
+        if (!Array.isArray(statuses)) throw new Error("unexpected response shape");
 
         const mapped = statuses
           .map(mapTruthSocialStatus)

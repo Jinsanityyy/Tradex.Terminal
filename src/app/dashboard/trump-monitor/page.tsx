@@ -166,6 +166,12 @@ export default function TrumpMonitorPage() {
         {tsStatus === "loading" && (
           <span className="text-[10px] text-amber-500 animate-pulse">fetching Truth Social...</span>
         )}
+        {tsStatus === "error" && (
+          <span className="text-[10px] text-red-500">Truth Social unavailable</span>
+        )}
+        {tsStatus === "ok" && tsPosts.length === 0 && (
+          <span className="text-[10px] text-zinc-600">TS: no posts (all filtered)</span>
+        )}
         {availableSources.map((src) => {
           const isTruthSocial = src === "Truth Social";
           const isActive = activeSource === src;
