@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TradeX Terminal — Ultimate User Guide</title>
+<style>
+  /* ── Reset & Base ─────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green:   #00c97a;
+    --red:     #ff4466;
+    --amber:   #ffaa00;
+    --cyan:    #00e5ff;
+    --blue:    #3b82f6;
+    --ink:     #111827;
+    --muted:   #374151;
+    --border:  #e5e7eb;
+    --surface: #f9fafb;
+    --card:    #ffffff;
+    --accent-bg: #f0fdf4;
+  }
+
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 10pt;
+    line-height: 1.6;
+    color: var(--ink);
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* ── Print Setup ──────────────────────────────────────────────────── */
+  @page {
+    size: A4;
+    margin: 18mm 16mm 18mm 16mm;
+  }
+  @media print {
+    .no-print { display: none !important; }
+    .page-break { page-break-before: always; }
+    .avoid-break { page-break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
+  }
+
+  /* ── Download Button ──────────────────────────────────────────────── */
+  .dl-bar {
+    position: fixed; top: 0; left: 0; right: 0;
+    background: #111827;
+    padding: 10px 24px;
+    display: flex; align-items: center; gap: 16px;
+    z-index: 999;
+  }
+  .dl-bar span { color: #9ca3af; font-size: 12px; }
+  .dl-btn {
+    background: var(--green);
+    color: #111;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+  }
+  .dl-btn:hover { background: #00e58a; }
+  .dl-logo { color: var(--green); font-weight: 900; font-size: 15px; letter-spacing: 0.12em; }
+
+  /* ── Main Content ─────────────────────────────────────────────────── */
+  .content { max-width: 780px; margin: 0 auto; padding: 68px 0 40px; }
+  @media print { .content { padding-top: 0; } }
+
+  /* ── Cover Page ───────────────────────────────────────────────────── */
+  .cover {
+    min-height: 240px;
+    background: linear-gradient(135deg, #0a0e1a 0%, #0d1729 60%, #0a1a0f 100%);
+    border-radius: 12px;
+    padding: 48px 40px 40px;
+    margin-bottom: 40px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 80% 50%, rgba(0,201,122,0.08) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .cover-tag {
+    display: inline-block;
+    background: rgba(0,201,122,0.12);
+    border: 1px solid rgba(0,201,122,0.3);
+    color: var(--green);
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    padding: 3px 12px;
+    border-radius: 3px;
+    margin-bottom: 16px;
+    font-family: ui-monospace, monospace;
+  }
+  .cover-title {
+    color: #fff;
+    font-size: 30pt;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin-bottom: 8px;
+  }
+  .cover-title span { color: var(--green); }
+  .cover-sub {
+    color: #6b7280;
+    font-size: 11pt;
+    margin-bottom: 28px;
+  }
+  .cover-meta {
+    display: flex; gap: 24px; flex-wrap: wrap;
+  }
+  .cover-chip {
+    display: flex; align-items: center; gap: 6px;
+    color: #9ca3af; font-size: 8.5pt;
+    font-family: ui-monospace, monospace;
+  }
+  .cover-chip .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    display: inline-block;
+  }
+
+  /* ── TOC ──────────────────────────────────────────────────────────── */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px 28px;
+    margin-bottom: 40px;
+  }
+  .toc-title {
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: #9ca3af;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .toc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 32px; }
+  .toc-item { display: flex; align-items: baseline; gap: 6px; font-size: 9.5pt; }
+  .toc-num { color: var(--green); font-weight: 700; font-family: ui-monospace, monospace; font-size: 8pt; min-width: 18px; }
+  .toc-label { color: var(--muted); }
+
+  /* ── Section Headings ─────────────────────────────────────────────── */
+  .section { margin-bottom: 36px; }
+  .section-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+  }
+  .section-num {
+    background: var(--green);
+    color: #111;
+    font-size: 7.5pt;
+    font-weight: 900;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-family: ui-monospace, monospace;
+  }
+  .section-title { font-size: 16pt; font-weight: 800; color: var(--ink); }
+  .section-icon { font-size: 13pt; }
+
+  h3 { font-size: 11pt; font-weight: 700; color: var(--ink); margin: 18px 0 8px; }
+  h4 { font-size: 9.5pt; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin: 14px 0 6px; }
+  p { margin-bottom: 8px; color: #374151; font-size: 9.5pt; }
+
+  /* ── Cards ────────────────────────────────────────────────────────── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+  }
+  .card-green { border-left: 3px solid var(--green); background: var(--accent-bg); }
+  .card-red   { border-left: 3px solid var(--red); background: #fff5f7; }
+  .card-amber { border-left: 3px solid var(--amber); background: #fffbeb; }
+  .card-cyan  { border-left: 3px solid var(--cyan); background: #f0fdff; }
+  .card-blue  { border-left: 3px solid var(--blue); background: #eff6ff; }
+
+  /* ── Agent Grid ───────────────────────────────────────────────────── */
+  .agent-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  .agent-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    background: var(--card);
+  }
+  .agent-num {
+    display: inline-block;
+    font-size: 7pt; font-weight: 900;
+    font-family: ui-monospace, monospace;
+    color: var(--green);
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+  .agent-name { font-size: 10pt; font-weight: 800; color: var(--ink); margin-bottom: 3px; }
+  .agent-role { font-size: 8pt; color: #9ca3af; margin-bottom: 6px; }
+  .agent-desc { font-size: 8.5pt; color: var(--muted); line-height: 1.5; }
+
+  /* ── Signal Legend ────────────────────────────────────────────────── */
+  .signal-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 9pt;
+  }
+  .signal-row:last-child { border-bottom: none; }
+  .signal-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .signal-label { font-weight: 700; width: 65px; font-family: ui-monospace, monospace; font-size: 8pt; }
+  .signal-desc { color: var(--muted); flex: 1; }
+  .signal-action { font-size: 8pt; font-weight: 600; }
+
+  /* ── Table ────────────────────────────────────────────────────────── */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 8.5pt; }
+  th { background: #f3f4f6; padding: 8px 10px; text-align: left; font-weight: 700; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); border-bottom: 1px solid var(--border); }
+  td { padding: 7px 10px; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td strong { font-weight: 700; color: var(--ink); }
+
+  /* ── Badge ────────────────────────────────────────────────────────── */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px; border-radius: 3px;
+    font-size: 7.5pt; font-weight: 700;
+    font-family: ui-monospace, monospace;
+    letter-spacing: 0.08em;
+  }
+  .badge-green { background: rgba(0,201,122,0.12); color: #059669; border: 1px solid rgba(0,201,122,0.3); }
+  .badge-red   { background: rgba(255,68,102,0.1); color: #dc2626; border: 1px solid rgba(255,68,102,0.3); }
+  .badge-amber { background: rgba(255,170,0,0.1);  color: #d97706; border: 1px solid rgba(255,170,0,0.3); }
+  .badge-cyan  { background: rgba(0,229,255,0.1);  color: #0891b2; border: 1px solid rgba(0,229,255,0.3); }
+  .badge-gray  { background: #f3f4f6; color: #6b7280; border: 1px solid var(--border); }
+
+  /* ── Workflow Steps ───────────────────────────────────────────────── */
+  .steps { counter-reset: step; }
+  .step {
+    display: flex; gap: 14px; margin-bottom: 14px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .step-num {
+    counter-increment: step;
+    background: var(--ink);
+    color: #fff;
+    font-size: 9pt; font-weight: 900;
+    min-width: 26px; height: 26px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-family: ui-monospace, monospace;
+  }
+  .step-content {}
+  .step-title { font-weight: 700; font-size: 10pt; color: var(--ink); margin-bottom: 3px; }
+  .step-body { font-size: 9pt; color: var(--muted); }
+
+  /* ── Tip / Warning ────────────────────────────────────────────────── */
+  .tip {
+    display: flex; gap: 10px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin: 10px 0;
+    font-size: 8.5pt;
+    line-height: 1.5;
+  }
+  .tip-icon { font-size: 12pt; flex-shrink: 0; margin-top: 1px; }
+  .tip-green { background: var(--accent-bg); border: 1px solid rgba(0,201,122,0.25); color: #065f46; }
+  .tip-amber { background: #fffbeb; border: 1px solid rgba(255,170,0,0.3); color: #92400e; }
+  .tip-red   { background: #fff5f7; border: 1px solid rgba(255,68,102,0.25); color: #9b1c1c; }
+
+  /* ── Pixel Room Legend ────────────────────────────────────────────── */
+  .room-legend { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .room-chip {
+    display: flex; align-items: center; gap: 7px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 8.5pt;
+  }
+  .room-ring {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 2px solid currentColor;
+    flex-shrink: 0;
+  }
+
+  /* ── Footer ───────────────────────────────────────────────────────── */
+  .guide-footer {
+    margin-top: 48px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 8pt; color: #9ca3af;
+  }
+  .guide-footer strong { color: var(--green); }
+
+  /* ── Column Layout ────────────────────────────────────────────────── */
+  .cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .cols-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+  /* ── Divider ──────────────────────────────────────────────────────── */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+  ul { padding-left: 18px; margin-bottom: 8px; }
+  li { font-size: 9pt; color: var(--muted); margin-bottom: 3px; }
+  li strong { color: var(--ink); }
+
+  .mono { font-family: ui-monospace, monospace; font-size: 8.5pt; }
+  .green { color: #059669; font-weight: 700; }
+  .red   { color: #dc2626; font-weight: 700; }
+  .amber { color: #d97706; font-weight: 700; }
+  .cyan  { color: #0891b2; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<!-- Download Bar -->
+<div class="dl-bar no-print">
+  <span class="dl-logo">TRADEX</span>
+  <span>Ultimate User Guide — Press the button or use Ctrl+P → Save as PDF</span>
+  <button class="dl-btn" onclick="window.print()">⬇ Download as PDF</button>
+</div>
+
+<div class="content">
+
+  <!-- ═══════════════════════════════════════════════════════ COVER -->
+  <div class="cover avoid-break">
+    <div class="cover-tag">OFFICIAL DOCUMENTATION · v2.0</div>
+    <div class="cover-title"><span>TradeX</span> Terminal</div>
+    <div class="cover-title" style="font-size:18pt; color:#d1d5db; font-weight:400; margin-top:-4px;">Ultimate User Guide</div>
+    <div class="cover-sub">7-Agent AI Decision Engine · Pixel Command Room · Multi-Timeframe Analysis</div>
+    <div class="cover-meta">
+      <div class="cover-chip"><span class="dot"></span> XAU/USD · EUR/USD · GBP/USD · BTC/USD</div>
+      <div class="cover-chip"><span class="dot"></span> M15 · H1 · H4 Timeframes</div>
+      <div class="cover-chip"><span class="dot"></span> Real-Time Market Intelligence</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ TOC -->
+  <div class="toc avoid-break">
+    <div class="toc-title">Table of Contents</div>
+    <div class="toc-grid">
+      <div class="toc-item"><span class="toc-num">01</span><span class="toc-label">Platform Overview</span></div>
+      <div class="toc-item"><span class="toc-num">07</span><span class="toc-label">Session Intelligence</span></div>
+      <div class="toc-item"><span class="toc-num">02</span><span class="toc-label">Navigation & Layout</span></div>
+      <div class="toc-item"><span class="toc-num">08</span><span class="toc-label">News Flow & Catalysts</span></div>
+      <div class="toc-item"><span class="toc-num">03</span><span class="toc-label">Brain Terminal (Core)</span></div>
+      <div class="toc-item"><span class="toc-num">09</span><span class="toc-label">Economic Calendar</span></div>
+      <div class="toc-item"><span class="toc-num">04</span><span class="toc-label">7-Agent System Deep Dive</span></div>
+      <div class="toc-item"><span class="toc-num">10</span><span class="toc-label">Trump Monitor</span></div>
+      <div class="toc-item"><span class="toc-num">05</span><span class="toc-label">Market Bias Page</span></div>
+      <div class="toc-item"><span class="toc-num">11</span><span class="toc-label">Signal History & PnL</span></div>
+      <div class="toc-item"><span class="toc-num">06</span><span class="toc-label">Asset Matrix</span></div>
+      <div class="toc-item"><span class="toc-num">12</span><span class="toc-label">Complete Trading Workflow</span></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ 01 OVERVIEW -->
+  <div class="section avoid-break">
+    <div class="section-header">
+      <div class="section-num">01</div>
+      <div class="section-title">Platform Overview</div>
+    </div>
+
+    <p>TradeX Terminal is a professional-grade, AI-powered multi-asset trading intelligence platform. It uses a 7-agent debate system where specialist AI agents independently analyze price action, news, risk, and structure — then debate each other before a Master Agent renders a final verdict.</p>
+
+    <div class="cols-2" style="margin-top:14px;">
+      <div class="card card-green">
+        <h3 style="margin-top:0;">What TradeX Does</h3>
+        <ul>
+          <li>Analyzes XAU/USD, EUR/USD, GBP/USD, and BTC/USD</li>
+          <li>Runs 7 independent AI agents per analysis</li>
+          <li>Detects Break of Structure, CHoCH, liquidity sweeps</li>
+          <li>Anchors conviction to 20-day daily trend (not just today's candle)</li>
+          <li>Provides entry, stop-loss, and take-profit levels</li>
+          <li>Monitors live news, geopolitical events, and economic data</li>
+        </ul>
+      </div>
+      <div class="card card-blue">
+        <h3 style="margin-top:0;">Key Differentiators</h3>
+        <ul>
+          <li><strong>D1 Anchoring:</strong> Conviction uses 20-day drift — not just today's ±%</li>
+          <li><strong>7-Agent Debate:</strong> Agents challenge each other before final decision</li>
+          <li><strong>News Filtering:</strong> Irrelevant headlines removed before AI analysis</li>
+          <li><strong>Weighted Voting:</strong> HIGH-impact events outweigh neutral noise</li>
+          <li><strong>Visual Command Room:</strong> Agent states shown as interactive pixel art</li>
+          <li><strong>Risk Gate:</strong> Hard block on poor-session or high-volatility trades</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card card-amber" style="margin-top:4px;">
+      <strong>⚠ Important:</strong> TradeX provides analytical intelligence, not financial advice. All signals are tools to inform — not replace — your own risk management and trading decisions.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ 02 NAVIGATION -->
+  <div class="section avoid-break">
+    <div class="section-header">
+      <div class="section-num">02</div>
+      <div class="section-title">Navigation & Layout</div>
+    </div>
+
+    <p>The sidebar on the left provides access to all modules. On smaller screens, navigation collapses to a bottom tab bar. The sidebar can be hidden to maximize workspace.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Page</th>
+          <th>Icon</th>
+          <th>Purpose</th>
+          <th>Best Used For</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Dashboard</strong></td><td>⊞</td><td>Live price quotes, AI briefing overview, quick session view</td><td>Morning scan, quick market check</td></tr>
+        <tr><td><strong>Brain Terminal</strong></td><td>🧠</td><td>7-agent AI analysis engine (core feature)</td><td>Full trade setup analysis</td></tr>
+        <tr><td><strong>Market Bias</strong></td><td>◎</td><td>HTF bias per asset with conviction score</td><td>Bias alignment check</td></tr>
+        <tr><td><strong>Asset Matrix</strong></td><td>⊠</td><td>Correlated assets, macro regime snapshot</td><td>Inter-market analysis</td></tr>
+        <tr><td><strong>Catalysts</strong></td><td>⚡</td><td>Live news, economic events, live TV streams</td><td>Pre-news awareness</td></tr>
+        <tr><td><strong>Economic Calendar</strong></td><td>📅</td><td>Scheduled high-impact economic releases</td><td>Avoiding news traps</td></tr>
+        <tr><td><strong>Trump Monitor</strong></td><td>👤</td><td>Political statement tracker affecting markets</td><td>Gold/USD macro awareness</td></tr>
+        <tr><td><strong>Session Intelligence</strong></td><td>🕐</td><td>Active session, optimal trade windows</td><td>Timing entries correctly</td></tr>
+        <tr><td><strong>News Flow</strong></td><td>📰</td><td>Real-time financial news aggregator</td><td>Staying informed intraday</td></tr>
+        <tr><td><strong>PnL Calendar</strong></td><td>📊</td><td>Trade history and performance tracking</td><td>Performance review</td></tr>
+        <tr><td><strong>Signal History</strong></td><td>📋</td><td>Archive of all Brain Terminal signals</td><td>Backtesting agent accuracy</td></tr>
+        <tr><td><strong>Settings</strong></td><td>⚙</td><td>API keys, preferences, theme</td><td>Initial setup</td></tr>
+      </tbody>
+    </table>
+
+    <div class="tip tip-green">
+      <span class="tip-icon">💡</span>
+      <span><strong>Pro tip:</strong> The Brain Terminal (🧠) is the core of the platform. Start there every session. Use other pages to provide additional context before committing to a trade.</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ 03 BRAIN TERMINAL -->
+  <div class="section page-break">
+    <div class="section-header">
+      <div class="section-num">03</div>
+      <div class="section-title">Brain Terminal — Core Feature</div>
+    </div>
+
+    <p>The Brain Terminal is the central intelligence hub. It orchestrates 7 AI agents, runs a structured debate, and delivers a Master Decision with confidence score, consensus score, entry/exit levels, and a visual command room.</p>
+
+    <h3>Layout at a Glance</h3>
+    <table>
+      <thead><tr><th>Zone</th><th>What You See</th><th>What It Means</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Header Bar</strong></td><td>Symbol selector (XAU/USD etc.), Timeframe (M15/H1/H4), Sniper mode, Refresh</td><td>Controls what the agents analyze</td></tr>
+        <tr><td><strong>Master Consensus Bar</strong></td><td>LONG/SHORT/NO TRADE in large text, Confidence %, Consensus Score, Candle countdown</td><td>The final AI verdict — the only number that matters for direction</td></tr>
+        <tr><td><strong>Pixel Command Room</strong></td><td>Visual command room with 7 colored agent pins</td><td>At-a-glance signal state for all agents</td></tr>
+        <tr><td><strong>Agent Cards (Row 1)</strong></td><td>Trend · Price Action · News · Risk Gate</td><td>Independent analysis from 4 specialist agents</td></tr>
+        <tr><td><strong>Agent Cards (Row 2)</strong></td><td>Contrarian · Execution Agent · Master Agent</td><td>Execution setup, counter-signals, and final verdict card</td></tr>
+        <tr><td><strong>Pixel View Matrix</strong></td><td>Compact 7-row table of all agents</td><td>Quick scan of all states and key metrics at once</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Master Consensus Bar — Reading the Numbers</h3>
+    <div class="cols-3">
+      <div class="card card-green">
+        <h4 style="margin-top:0;">Confidence %</h4>
+        <p style="font-size:9pt;">How certain the Master Agent is. <br><strong>≥70%</strong> = high conviction trade<br><strong>50–69%</strong> = moderate, tighten size<br><strong>&lt;50%</strong> = stand aside</p>
+      </div>
+      <div class="card">
+        <h4 style="margin-top:0;">Consensus Score</h4>
+        <p style="font-size:9pt;">Range: −100 to +100<br><strong>+40 and above</strong> = strong bullish alignment<br><strong>−40 and below</strong> = strong bearish alignment<br><strong>Within ±20</strong> = mixed — no trade</p>
+      </div>
+      <div class="card">
+        <h4 style="margin-top:0;">Candle Countdown</h4>
+        <p style="font-size:9pt;">Time remaining in the current candle. Useful for timing entries — wait for a candle close to confirm structure before executing.</p>
+      </div>
+    </div>
+
+    <h3>Pixel Command Room</h3>
+    <p>The visual command room shows each of the 7 agents as interactive pin characters positioned on a trading floor background. Each pin glows with the agent's current signal color:</p>
+
+    <div class="room-legend" style="margin: 12px 0;">
+      <div class="room-chip"><div class="room-ring" style="color:#00c97a; border-color:#00c97a;"></div><div><strong class="green">Green</strong><br><span style="font-size:8pt; color:#6b7280;">BULLISH / VALID</span></div></div>
+      <div class="room-chip"><div class="room-ring" style="color:#ff4466; border-color:#ff4466;"></div><div><strong class="red">Red</strong><br><span style="font-size:8pt; color:#6b7280;">BEARISH / BLOCKED</span></div></div>
+      <div class="room-chip"><div class="room-ring" style="color:#00e5ff; border-color:#00e5ff;"></div><div><strong class="cyan">Cyan</strong><br><span style="font-size:8pt; color:#6b7280;">ARMED (ready)</span></div></div>
+      <div class="room-chip"><div class="room-ring" style="color:#ffaa00; border-color:#ffaa00;"></div><div><strong class="amber">Amber</strong><br><span style="font-size:8pt; color:#6b7280;">ALERT / NEUTRAL</span></div></div>
+      <div class="room-chip"><div class="room-ring" style="color:#3b82f6; border-color:#3b82f6;"></div><div><strong style="color:#2563eb;">Blue</strong><br><span style="font-size:8pt; color:#6b7280;">ANALYZING</span></div></div>
+      <div class="room-chip"><div class="room-ring" style="color:#374151; border-color:#374151;"></div><div><strong style="color:#374151;">Dim</strong><br><span style="font-size:8pt; color:#6b7280;">IDLE (no signal)</span></div></div>
+    </div>
+
+    <p><strong>Clicking any agent pin</strong> opens that agent's full detail drawer showing all data, reasons, and indicators.</p>
+
+    <div class="tip tip-green">
+      <span class="tip-icon">💡</span>
+      <span><strong>Ideal setup:</strong> When Trend, Price Action, and Master all glow RED simultaneously → strong bearish consensus. When Risk Gate is GREEN (approved) and Execution is CYAN (armed) → setup is ready to execute.</span>
+    </div>
+
+    <h3>Sniper Mode</h3>
+    <p>Click the <span class="badge badge-amber">SNIPER</span> button in the header to enable Sniper Mode. In this mode, only setups with the highest conviction scores and strict execution criteria are surfaced — filtering out marginal signals.</p>
+
+    <h3>Refresh vs Cache</h3>
+    <div class="cols-2">
+      <div class="card">
+        <h4 style="margin-top:0;">CACHED badge</h4>
+        <p style="font-size:9pt;">The data is from the last analysis run (max 5 minutes old). This is normal — agents cache to save API calls and processing time.</p>
+      </div>
+      <div class="card">
+        <h4 style="margin-top:0;">Manual Refresh</h4>
+        <p style="font-size:9pt;">Click <strong>Refresh</strong> to force a fresh analysis run. Use before making any trade decision to ensure you have the most current data.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ 04 AGENTS DEEP DIVE -->
+  <div class="section page-break">
+    <div class="section-header">
+      <div class="section-num">04</div>
+      <div class="section-title">7-Agent System — Deep Dive</div>
+    </div>
+
+    <p>Each agent operates independently, analyzing a different dimension of the market. They then debate each other, and the Master Agent adjudicates. Click any agent card or pin to open its full detail drawer.</p>
+
+    <div class="agent-grid">
+      <div class="agent-card avoid-break">
+        <div class="agent-num">AGENT 01</div>
+        <div class="agent-name">Trend Agent</div>
+        <div class="agent-role">Macro Bias Analyst</div>
+        <div class="agent-desc">Determines the dominant trend using multi-timeframe candle data (M5, M15, H1, H4). Checks for Higher Highs/Lows (bullish) or Lower Highs/Lows (bearish). Also computes EMA 20/50/200 stack and RSI momentum. <strong>D1 anchored</strong> — uses 20-day daily drift as the primary HTF signal.</div>
+      </div>
+      <div class="agent-card avoid-break">
+        <div class="agent-num">AGENT 02</div>
+        <div class="agent-name">Price Action Agent</div>
+        <div class="agent-role">Structure Analyst</div>
+        <div class="agent-desc">Detects Smart Money Concepts: Break of Structure (BOS), Change of Character (CHoCH), liquidity sweeps, order blocks, and Fair Value Gaps. Determines if price is in a premium or discount zone relative to the equilibrium. Provides setup type and invalidation level.</div>
+      </div>
+      <div class="agent-card avoid-break">
+        <div class="agent-num">AGENT 03</div>
+        <div class="agent-name">News Agent</div>
+        <div class="agent-role">Fundamentals Analyst</div>
+        <div class="agent-desc">Filters market-relevant news (removes entertainment/non-financial noise), classifies macro regime (geopolitical, fed-policy, inflation, tariff), and applies weighted voting — HIGH-impact events (3×) dominate over neutral noise. Iran/Hormuz conflicts always trigger BULLISH for gold.</div>
+      </div>
+      <div class="agent-card avoid-break">
+        <div class="agent-num">AGENT 04</div>
+        <div class="agent-name">Risk Gate</div>
+        <div class="agent-role">Risk Management Agent</div>
+        <div class="agent-desc">Acts as a hard gatekeeper. Evaluates session quality (London = 90/100, NY = 80/100, Asia = 40/100), volatility, spread conditions, and overall trade grade (A–F). If Risk Gate is BLOCKED (red), all other bullish signals are overridden — no trade.</div>
+      </div>
+      <div class="agent-card avoid-break">
+        <div class="agent-num">AGENT 05</div>
+        <div class="agent-name">Execution Agent</div>
+        <div class="agent-role">Entry Timing Agent</div>
+        <div class="agent-desc">Calculates the precise entry price, stop-loss, TP1, and TP2 levels. Computes the Risk:Reward ratio. Signal states: WATCHING (scanning) → ARMED (conditions met, entry imminent) → NO TRADE (conditions not met). Only executes when RR ≥ 1.5.</div>
+      </div>
+      <div class="agent-card avoid-break">
+        <div class="agent-num">AGENT 06</div>
+        <div class="agent-name">Contrarian Agent</div>
+        <div class="agent-role">Counter-Signal Analyst</div>
+        <div class="agent-desc">Actively looks for reasons NOT to take the trade. Identifies bull/bear traps, overextended moves, liquidity voids, and Asia session false moves. Issues ALERT when it has high conviction the majority bias is wrong. Acts as a devil's advocate — keep it in view.</div>
+      </div>
+      <div class="agent-card" style="grid-column: 1 / -1; display:flex; gap:20px; align-items:flex-start;">
+        <div style="flex:1;">
+          <div class="agent-num">AGENT 07 · MASTER</div>
+          <div class="agent-name">Master Agent — Chief Market Officer</div>
+          <div class="agent-role">Final Decision Arbiter</div>
+          <div class="agent-desc">Receives all 6 agent outputs, observes the inter-agent debate, and renders the final verdict. Uses a weighted consensus score (−100 to +100) gated through structure checks (BOS must confirm direction), Risk Gate status, Fibonacci confluence, and overall evidence quality. The Master Agent is the only output you need to act on.</div>
+        </div>
+        <div style="flex-shrink:0; min-width:180px;">
+          <div class="signal-row"><div class="signal-dot" style="background:#00c97a;"></div><div class="signal-label green">BULLISH</div><div class="signal-desc">Long bias — look for entries on pullbacks to support</div></div>
+          <div class="signal-row"><div class="signal-dot" style="background:#ff4466;"></div><div class="signal-label red">BEARISH</div><div class="signal-desc">Short bias — look for entries at resistance rejections</div></div>
+          <div class="signal-row"><div class="signal-dot" style="background:#9ca3af;"></div><div class="signal-label" style="color:#6b7280;">NO TRADE</div><div class="signal-desc">Insufficient consensus — stay out of the market</div></div>
+        </div>
+      </div>
+    </div>
+
+    <h3>The Debate System</h3>
+    <p>After all 6 specialist agents complete their independent analysis, a <strong>Debate Phase</strong> runs where agents with disagreeing views issue direct challenges to each other. The Master Agent adjudicates after reading the full debate. This prevents any single agent from dominating and forces the system to account for conflicting evidence.</p>
+
+    <div class="tip tip-amber">
+      <span class="tip-icon">⚠️</span>
+      <span><strong>When agents disagree:</strong> If the Contrarian Agent is BLOCKED (red) while Master is BULLISH — treat the trade with extra caution. Reduce position size or wait for a cleaner setup.</span>
+    </div>
+
+    <h3>Agent Detail Drawer</h3>
+    <p>Click any agent card, pin, or row in the Pixel View matrix to open its full detail drawer. The drawer shows:</p>
+    <div class="cols-2">
+      <ul>
+        <li>Full reasoning (bullet points from the AI)</li>
+        <li>All timeframe biases (M5/M15/H1/H4)</li>
+        <li>Key indicator values (RSI, MACD, ATR)</li>
+      </ul>
+      <ul>
+        <li>Invalidation level — where the thesis breaks</li>
+        <li>Entry / SL / TP levels (Execution Agent)</li>
+        <li>Cached data age and last update time</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ 05 MARKET BIAS -->
+  <div class="section page-break">
+    <div class="section-header">
+      <div class="section-num">05</div>
+      <div class="section-title">Market Bias Page</div>
+    </div>
+
+    <p>The Market Bias page provides a quick, asset-by-asset HTF directional bias summary across all 4 supported pairs. Useful for a fast morning scan before going into the Brain Terminal for deeper analysis.</p>
+
+    <div class="cols-2">
+      <div class="card">
+        <h3 style="margin-top:0;">What You See</h3>
+        <ul>
+          <li><strong>HTF Bias:</strong> Bullish / Bearish / Neutral per asset</li>
+          <li><strong>Conviction %:</strong> How strong the bias is (0–100)</li>
+          <li><strong>SMC Context:</strong> BOS, zone, 52w position summary</li>
+          <li><strong>Key Levels:</strong> Support, resistance, equilibrium</li>
+          <li><strong>Data Age Bar:</strong> How fresh the analysis is</li>
+        </ul>
+      </div>
+      <div class="card card-green">
+        <h3 style="margin-top:0;">How to Use It</h3>
+        <ul>
+          <li>Check in the morning — gives you bias alignment across all assets</li>
+          <li>If XAU/USD shows BEARISH at 75%+, look for short setups in Brain Terminal</li>
+          <li>If EUR/USD is also showing BEARISH — DXY strengthening, confirms gold short</li>
+          <li>Conviction below 50% = no clear edge, skip that asset for the session</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="tip tip-green">
+      <span class="tip-icon">💡</span>
+      <span><strong>Inter-market confirmation:</strong> EUR/USD is inversely correlated to DXY. If EUR/USD shows BEARISH bias, that means the USD is strong → which is generally BEARISH for Gold. Use this cross-confirmation before trading.</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ 06 ASSET MATRIX -->
+  <div class="section avoid-break">
+    <div class="section-header">
+      <div class="section-num">06</div>
+      <div class="section-title">Asset Matrix</div>
+    </div>
+
+    <p>The Asset Matrix shows all 4 assets side-by-side with live price, daily change, and key metrics — plus a correlation matrix and macro regime summary.</p>
+
+    <h3>Correlation Matrix (Key Relationships)</h3>
+    <table>
+      <thead><tr><th>Pair</th><th>Correlation</th><th>Trading Implication</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Gold ↔ DXY</strong></td><td class="red">−0.82 (strong inverse)</td><td>USD weakness = gold goes up. USD strength = gold under pressure.</td></tr>
+        <tr><td><strong>Gold ↔ US10Y Yields</strong></td><td class="red">−0.65 (inverse)</td><td>Rising yields = bearish for gold. Rate cut expectations = bullish for gold.</td></tr>
+        <tr><td><strong>DXY ↔ EUR/USD</strong></td><td class="red">−0.97 (near perfect inverse)</td><td>EUR/USD falling = USD strengthening = potential gold headwind.</td></tr>
+        <tr><td><strong>SPX ↔ VIX</strong></td><td class="red">−0.88 (strong inverse)</td><td>Rising VIX = risk-off = gold and safe-haven demand increases.</td></tr>
+        <tr><td><strong>BTC ↔ NDX</strong></td><td class="green">+0.62 (moderate)</td><td>Bitcoin follows risk appetite; bearish when equity risk-off kicks in.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Macro Regime Indicators</h3>
+    <div class="cols-3">
+      <div class="card"><strong>Risk Sentiment</strong><br><span style="font-size:9pt;">Risk-Off = safe-haven bid (gold up, BTC uncertain). Risk-On = equities and crypto favor growth.</span></div>
+      <div class="card"><strong>Rate Regime</strong><br><span style="font-size:9pt;">Dovish Pivot (rate cuts expected) = bullish for gold and BTC. Hawkish = bearish for both.</span></div>
+      <div class="card"><strong>USD Regime</strong><br><span style="font-size:9pt;">Weakening USD = all USD-denominated commodities rise (gold, oil). Strong USD = headwind.</span></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ 07 SESSION INTELLIGENCE -->
+  <div class="section avoid-break">
+    <div class="section-header">
+      <div class="section-num">07</div>
+      <div class="section-title">Session Intelligence</div>
+    </div>
+
+    <p>Markets don't move uniformly across all 24 hours. Session Intelligence shows which trading session is currently active and how suitable it is for trading.</p>
+
+    <table>
+      <thead><tr><th>Session</th><th>UTC Hours</th><th>Score</th><th>Characteristics</th><th>Best For</th></tr></thead>
+      <tbody>
+        <tr><td><strong>London</strong></td><td>08:00–13:00</td><td class="green">90/100</td><td>Highest institutional volume, strong directional moves, tight spreads</td><td>All trade types — preferred session</td></tr>
+        <tr><td><strong>New York</strong></td><td>13:00–21:00</td><td class="green">80/100</td><td>High volume, London/NY overlap (13–17 UTC) is the most liquid period</td><td>Momentum trades, news plays</td></tr>
+        <tr><td><strong>Asia</strong></td><td>00:00–08:00</td><td class="amber">40/100</td><td>Lower liquidity, accumulation phase, false moves common</td><td>Avoid entries — wait for London</td></tr>
+        <tr><td><strong>Closed</strong></td><td>21:00–00:00</td><td class="red">20/100</td><td>Minimal volume, wide spreads, gaps possible</td><td>Do not trade</td></tr>
+      </tbody>
+    </table>
+
+    <div class="tip tip-amber">
+      <span class="tip-icon">⚠️</span>
+      <span><strong>Asia session trap:</strong> The Contrarian Agent specifically flags moves during the Asia session as potential traps. Prices often reverse when London opens. Always wait for London confirmation before acting on an Asia move.</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ 08 NEWS FLOW & CATALYSTS -->
+  <div class="section page-break">
+    <div class="section-header">
+      <div class="section-num">08</div>
+      <div class="section-title">News Flow & Catalysts</div>
+    </div>
+
+    <p>The Catalysts page and News Flow page give you real-time awareness of market-moving events. The Brain Terminal's News Agent automatically reads and filters this data — but reviewing it manually gives you additional context.</p>
+
+    <div class="cols-2">
+      <div>
+        <h3>Catalysts Page</h3>
+        <ul>
+          <li><strong>Live Catalysts:</strong> Events actively moving the market right now</li>
+          <li><strong>Economic Events:</strong> Scheduled releases (NFP, CPI, FOMC)</li>
+          <li><strong>Live TV Streams:</strong> Bloomberg, CNBC, Reuters, Al Jazeera</li>
+          <li><strong>News Feed:</strong> Filtered financial headlines in real-time</li>
+          <li><strong>Live Ticker:</strong> Scrolling headline bar at top</li>
+        </ul>
+      </div>
+      <div>
+        <h3>How News Affects Gold (Key Rules)</h3>
+        <div class="signal-row"><div class="signal-dot" style="background:#00c97a;"></div><div class="signal-desc"><strong>Bullish for Gold:</strong> Iran conflict, military escalation, Hormuz closure, rate cuts, dollar weakness, banking crisis, safe-haven demand</div></div>
+        <div class="signal-row"><div class="signal-dot" style="background:#ff4466;"></div><div class="signal-desc"><strong>Bearish for Gold:</strong> Ceasefire, peace deal, Fed rate hike surprise, strong USD, risk-on equity surge</div></div>
+        <div class="signal-row"><div class="signal-dot" style="background:#ffaa00;"></div><div class="signal-desc"><strong>Watch:</strong> FOMC minutes, Powell speeches, CPI surprises — can flip gold bias quickly</div></div>
+      </div>
+    </div>
+
+    <div class="tip tip-red">
+      <span class="tip-icon">🚫</span>
+      <span><strong>Avoid trading 30 minutes before/after</strong> high-impact releases (NFP, CPI, FOMC). The economic calendar will flag these as HIGH impact. Risk Gate will automatically score lower during these windows.</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ 09 ECONOMIC CALENDAR -->
+  <div class="section avoid-break">
+    <div class="section-header">
+      <div class="section-num">09</div>
+      <div class="section-title">Economic Calendar</div>
+    </div>
+
+    <p>Shows all scheduled economic releases sorted by impact level. Essential for avoiding news traps and planning your trading window.</p>
+
+    <div class="cols-2">
+      <table>
+        <thead><tr><th>Impact Level</th><th>Examples</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-red">HIGH</span></td><td>NFP, CPI, FOMC, GDP</td><td>Avoid entries ±30 min</td></tr>
+          <tr><td><span class="badge badge-amber">MEDIUM</span></td><td>PMI, Retail Sales, PPI</td><td>Reduce size, widen SL</td></tr>
+          <tr><td><span class="badge badge-gray">LOW</span></td><td>Building permits, minor data</td><td>Usually ignorable</td></tr>
+        </tbody>
+      </table>
+      <div class="card card-amber">
+        <h4 style="margin-top:0;">Filter by Date</h4>
+        <p style="font-size:9pt;">Use the date filter at the top of the Economic Calendar to jump to a specific day. This lets you plan your trading week by seeing what high-impact events are scheduled ahead of time.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ 10 TRUMP MONITOR -->
+  <div class="section avoid-break">
+    <div class="section-header">
+      <div class="section-num">10</div>
+      <div class="section-title">Trump Monitor</div>
+    </div>
+
+    <p>Tracks political statements and social media posts that have a documented history of moving financial markets — particularly gold, USD, and equity indices. Trump tariff announcements and geopolitical statements frequently cause immediate gold spikes.</p>
+
+    <div class="cols-2">
+      <div class="card card-amber">
+        <h4 style="margin-top:0;">Why It Matters for Gold</h4>
+        <p style="font-size:9pt;">Trump tariff threats → risk-off → <strong class="green">gold up</strong><br>
+        Trade deal announcements → risk-on → <strong class="red">gold pressure</strong><br>
+        Dollar-weakening statements → <strong class="green">gold up</strong><br>
+        Fed criticism (dovish pressure) → <strong class="green">gold up</strong></p>
+      </div>
+      <div class="card">
+        <h4 style="margin-top:0;">How to Use It</h4>
+        <p style="font-size:9pt;">Monitor this page before US market open (13:00 UTC). A major political statement in the morning can move gold 50–100 pips within minutes. If a statement appears that aligns with your Brain Terminal signal → higher conviction.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ 11 SIGNAL HISTORY & PNL -->
+  <div class="section avoid-break">
+    <div class="section-header">
+      <div class="section-num">11</div>
+      <div class="section-title">Signal History & PnL Calendar</div>
+    </div>
+
+    <div class="cols-2">
+      <div>
+        <h3>Signal History</h3>
+        <p>Archives every Brain Terminal analysis run with the full agent consensus, bias, confidence score, and entry levels. Use this to:</p>
+        <ul>
+          <li>Review past signal accuracy over time</li>
+          <li>Identify which conditions produce the best signals</li>
+          <li>Track how often the Master Agent is correct at different confidence levels</li>
+          <li>Compare today's context to historical similar setups</li>
+        </ul>
+      </div>
+      <div>
+        <h3>PnL Calendar</h3>
+        <p>Visual calendar showing your trade performance day-by-day. Helps you identify:</p>
+        <ul>
+          <li>Which sessions you perform best in</li>
+          <li>Overtrading days (too many entries)</li>
+          <li>Drawdown streaks that indicate a strategy mismatch</li>
+          <li>Monthly performance trends</li>
+        </ul>
+        <div class="tip tip-green" style="margin-top:8px;">
+          <span class="tip-icon">💡</span>
+          <span style="font-size:8pt;">If you have 3+ consecutive losing days, stop trading and re-examine your bias alignment with the Brain Terminal before resuming.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ 12 WORKFLOW -->
+  <div class="section page-break">
+    <div class="section-header">
+      <div class="section-num">12</div>
+      <div class="section-title">Complete Trading Workflow</div>
+    </div>
+
+    <p>This is the recommended step-by-step process for using TradeX Terminal to arrive at a trade decision. Follow this sequence every session.</p>
+
+    <div class="steps">
+
+      <div class="step avoid-break">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-title">Morning Scan — Session & Calendar Check (5 min)</div>
+          <div class="step-body">Open <strong>Session Intelligence</strong> — confirm you're in London or NY session (score ≥ 80). Open <strong>Economic Calendar</strong> — flag any HIGH-impact events in the next 4 hours. If a HIGH event is within 30 minutes, wait. Check <strong>Trump Monitor</strong> for any recent geopolitical statements.</div>
+        </div>
+      </div>
+
+      <div class="step avoid-break">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-title">Macro Bias Check — Market Bias & Asset Matrix (3 min)</div>
+          <div class="step-body">Open <strong>Market Bias</strong> and note the HTF bias for your intended asset. If trading gold, also check EUR/USD bias (inverse correlation). Open <strong>Asset Matrix</strong> to see the macro regime. If the regime is "Risk-Off + Geopolitical + Weakening USD" → strong tailwind for gold longs.</div>
+        </div>
+      </div>
+
+      <div class="step avoid-break">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-title">News Awareness — Catalysts & News Flow (3 min)</div>
+          <div class="step-body">Open <strong>Catalysts</strong> and scan active catalysts for your asset. Are there geopolitical events (bullish gold) or risk-on headlines (bearish gold)? Note the dominant macro narrative. This context will match (or contradict) what the News Agent reports in the Brain Terminal.</div>
+        </div>
+      </div>
+
+      <div class="step avoid-break">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <div class="step-title">Brain Terminal Analysis — Select Asset & Timeframe</div>
+          <div class="step-body">Open <strong>Brain Terminal</strong>. Select your asset (e.g., XAU/USD) and timeframe (H1 recommended for swing, M15 for intraday). Click <strong>Refresh</strong> to force a fresh analysis. Wait for all 7 agents to complete their analysis (usually 15–30 seconds).</div>
+        </div>
+      </div>
+
+      <div class="step avoid-break">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <div class="step-title">Read the Pixel Command Room — At-a-Glance Check</div>
+          <div class="step-body">Look at the command room pin colors. For a valid short setup you want to see: Trend (red) + PA (red) + Master (red) + Risk (green) + Execution (cyan). If most are amber or mixed — no trade setup yet. The visual unanimity of reds or greens is the fastest signal.</div>
+        </div>
+      </div>
+
+      <div class="step avoid-break">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <div class="step-title">Master Consensus Bar — Validate the Signal</div>
+          <div class="step-body">Check: <strong>Direction</strong> (LONG/SHORT/NO TRADE) · <strong>Confidence ≥ 70%</strong> (minimum for trade consideration) · <strong>Consensus Score ≥ ±40</strong> (confirms majority alignment). If any of these thresholds aren't met, stand aside regardless of how good the candle looks.</div>
+        </div>
+      </div>
+
+      <div class="step avoid-break">
+        <div class="step-num">7</div>
+        <div class="step-content">
+          <div class="step-title">Click Each Agent Card — Verify the Full Picture</div>
+          <div class="step-body">Open the <strong>Trend Agent</strong> drawer: check TF sync (M5+H1+H4 aligned?), invalidation level. Open <strong>Price Action Agent</strong>: BOS confirmed? Zone (Premium/Discount)? Open <strong>Risk Gate</strong>: Grade A or B? Session score ≥ 60? Open <strong>Contrarian Agent</strong>: Is it CLEAR or ALERT? If ALERT — read its reasons carefully.</div>
+        </div>
+      </div>
+
+      <div class="step avoid-break">
+        <div class="step-num">8</div>
+        <div class="step-content">
+          <div class="step-title">Execution Agent — Get Your Trade Levels</div>
+          <div class="step-body">Open the <strong>Execution Agent</strong> drawer. If Signal State is <span class="badge badge-cyan">ARMED</span> — the setup is live. Note: Entry price, Stop-Loss level, TP1 and TP2, and Risk:Reward ratio. Only accept trades with <strong>RR ≥ 1.5:1</strong> (ideally 2:1 or better). If signal is WATCHING — wait for ARMED state before entering.</div>
+        </div>
+      </div>
+
+      <div class="step avoid-break">
+        <div class="step-num">9</div>
+        <div class="step-content">
+          <div class="step-title">Final Cross-Check — Everything Must Align</div>
+          <div class="step-body">
+            Before executing, run this mental checklist:
+            <br><span class="green">✓</span> Session score ≥ 80 (London or NY)
+            <br><span class="green">✓</span> No HIGH-impact news in next 30 min
+            <br><span class="green">✓</span> Master confidence ≥ 70%, consensus ≥ ±40
+            <br><span class="green">✓</span> Risk Gate VALID (green)
+            <br><span class="green">✓</span> Execution signal ARMED (cyan)
+            <br><span class="green">✓</span> RR ratio ≥ 1.5:1
+            <br><span class="green">✓</span> Contrarian Agent CLEAR or low trap confidence
+            <br><span class="red">✗</span> If any box fails → NO TRADE
+          </div>
+        </div>
+      </div>
+
+      <div class="step avoid-break">
+        <div class="step-num">10</div>
+        <div class="step-content">
+          <div class="step-title">Execute & Monitor — Log in PnL Calendar</div>
+          <div class="step-body">Place the trade using the Brain Terminal's levels. Set your SL at the Execution Agent's stop-loss and TP at TP1 first (take partial profits). Move SL to break-even after TP1 hit. After the trade closes, log the outcome in the <strong>PnL Calendar</strong> for performance tracking.</div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <h3>Quick Signal Cheat Sheet</h3>
+    <table>
+      <thead><tr><th>What You See</th><th>What It Means</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td>Master: <span class="badge badge-green">BULLISH</span> · Conf 78% · Score +52</td><td>Strong buy signal, agents aligned</td><td class="green">Look for long entry at support</td></tr>
+        <tr><td>Master: <span class="badge badge-red">BEARISH</span> · Conf 72% · Score −48</td><td>Strong sell signal, majority bearish</td><td class="red">Look for short entry at resistance</td></tr>
+        <tr><td>Master: NO TRADE · Conf 45%</td><td>Mixed signals, no clear edge</td><td>Stand aside — wait for clarity</td></tr>
+        <tr><td>Risk Gate: <span class="badge badge-red">BLOCKED</span></td><td>Conditions unfavorable (Asia session, high spread, pre-news)</td><td>Do not trade regardless of bias</td></tr>
+        <tr><td>Contrarian: <span class="badge badge-red">ALERT</span> (60%+ trap confidence)</td><td>High probability of a trap setup</td><td>Reduce size or skip the trade</td></tr>
+        <tr><td>Execution: <span class="badge badge-cyan">ARMED</span> + RR 2.1:1</td><td>Entry conditions met, good risk:reward</td><td class="green">Execute with full size</td></tr>
+        <tr><td>Execution: WATCHING</td><td>Setup developing but not confirmed</td><td>Monitor — do not enter yet</td></tr>
+        <tr><td>All agents: Majority amber (alert)</td><td>Conflicting or low-conviction environment</td><td>No trade — wait for session transition</td></tr>
+      </tbody>
+    </table>
+
+    <hr class="divider" />
+
+    <h3>Timeframe Selection Guide</h3>
+    <div class="cols-3">
+      <div class="card">
+        <h4 style="margin-top:0;">M15 (15-Minute)</h4>
+        <p style="font-size:9pt;">Best for <strong>scalping</strong> and intraday quick trades. Faster signals, smaller RR ratios typically. Requires more active monitoring. Use during London/NY overlap (13:00–17:00 UTC).</p>
+      </div>
+      <div class="card card-green">
+        <h4 style="margin-top:0;">H1 (1-Hour) ← Recommended</h4>
+        <p style="font-size:9pt;">Best for <strong>intraday swing trades</strong>. Good balance of signal quality and trade duration. Entry held for hours. Provides the most reliable agent consensus in typical market conditions.</p>
+      </div>
+      <div class="card">
+        <h4 style="margin-top:0;">H4 (4-Hour)</h4>
+        <p style="font-size:9pt;">Best for <strong>multi-day position trades</strong>. Fewer signals, higher quality. Requires wider stop-losses. Best used when the D1 trend is very clear and you want to ride a larger move.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════ GLOSSARY -->
+  <div class="section page-break">
+    <div class="section-header">
+      <div class="section-num" style="background:#6b7280;">GL</div>
+      <div class="section-title">Glossary of Terms</div>
+    </div>
+
+    <div class="cols-2">
+      <div>
+        <table>
+          <thead><tr><th>Term</th><th>Definition</th></tr></thead>
+          <tbody>
+            <tr><td><strong>BOS</strong></td><td>Break of Structure — price closes beyond the last swing high/low, confirming a structural shift</td></tr>
+            <tr><td><strong>CHoCH</strong></td><td>Change of Character — early signal of potential trend reversal before full BOS</td></tr>
+            <tr><td><strong>HTF</strong></td><td>Higher TimeFrame — the dominant trend from D1/H4 that all LTF signals must align with</td></tr>
+            <tr><td><strong>LTF</strong></td><td>Lower TimeFrame — M5/M15/H1 used for precise entries within the HTF bias</td></tr>
+            <tr><td><strong>Liquidity Sweep</strong></td><td>Price temporarily breaks a key level (sweeping stop-losses) before reversing — often a trap</td></tr>
+            <tr><td><strong>Premium Zone</strong></td><td>Price is above equilibrium — expensive area, look for shorts or avoid longs</td></tr>
+            <tr><td><strong>Discount Zone</strong></td><td>Price is below equilibrium — value area, look for longs or avoid shorts</td></tr>
+            <tr><td><strong>Equilibrium</strong></td><td>Midpoint of the 20-period structural range — fair value price</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <table>
+          <thead><tr><th>Term</th><th>Definition</th></tr></thead>
+          <tbody>
+            <tr><td><strong>D1 Drift</strong></td><td>20-day % change in price — used by TradeX as the primary trend conviction input</td></tr>
+            <tr><td><strong>RSI</strong></td><td>Relative Strength Index — momentum indicator. Above 70 = overbought, below 30 = oversold</td></tr>
+            <tr><td><strong>MACD Hist</strong></td><td>MACD histogram — positive = expanding bullish momentum, negative = bearish</td></tr>
+            <tr><td><strong>ATR Proxy</strong></td><td>Approximate Average True Range — measures volatility. High = wider stops needed</td></tr>
+            <tr><td><strong>Consensus Score</strong></td><td>Weighted sum of all agent votes, −100 to +100. Used to determine final bias direction</td></tr>
+            <tr><td><strong>RR Ratio</strong></td><td>Risk:Reward — e.g., 2.0:1 means you risk 1 to make 2. Minimum acceptable: 1.5:1</td></tr>
+            <tr><td><strong>ARMED</strong></td><td>Execution Agent state meaning all entry conditions are met — trade is ready to place</td></tr>
+            <tr><td><strong>Risk Gate</strong></td><td>Hard block that prevents trading when session quality, volatility, or news conditions are poor</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════ FOOTER -->
+  <div class="guide-footer">
+    <span><strong>TradeX Terminal</strong> · Ultimate User Guide · v2.0</span>
+    <span>7-Agent AI Decision Engine · Multi-Asset · Multi-Timeframe</span>
+    <span>For personal use only — not financial advice</span>
+  </div>
+
+</div><!-- /content -->
+</body>
+</html>
