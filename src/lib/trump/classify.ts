@@ -74,6 +74,7 @@ export function mapTruthSocialStatus(s: {
   content: string;
   reblog: unknown | null;
   in_reply_to_id: string | null;
+  url?: string;
   card?: { title?: string; description?: string } | null;
 }): Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning"> | null {
   if (s.reblog || s.in_reply_to_id) return null;
@@ -86,6 +87,7 @@ export function mapTruthSocialStatus(s: {
     timestamp: s.created_at,
     content: text,
     source: "Truth Social",
+    postUrl: s.url ?? `https://truthsocial.com/@realDonaldTrump/${s.id}`,
     sentimentClassification: deriveSentiment(text),
     impactScore: deriveImpactScore(text),
     affectedAssets: [...new Set(assets)],

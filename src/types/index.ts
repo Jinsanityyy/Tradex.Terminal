@@ -152,6 +152,7 @@ export interface TrumpPost {
   timestamp: string;
   content: string;
   source: string;
+  postUrl?: string;
   sentimentClassification: Bias;
   impactScore: number; // 1-10
   affectedAssets: string[];

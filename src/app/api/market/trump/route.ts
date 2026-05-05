@@ -306,7 +306,12 @@ async function fetchTruthSocial(): Promise<Omit<TrumpPost, "goldImpact" | "goldR
 // ── Source 2b: Google News RSS (no API key, always available) ────────────────
 async function fetchGoogleNewsTrump(): Promise<Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">[]> {
   try {
-    const xml = await httpsGet("https://news.google.com/rss/search?q=Trump&hl=en-US&gl=US&ceid=US:en");
+    const r = await fetch("https://news.google.com/rss/search?q=Trump+policy&hl=en-US&gl=US&ceid=US:en", {
+      cache: "no-store",
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1)" },
+    });
+    if (!r.ok) throw new Error(`Google News HTTP ${r.status}`);
+    const xml = await r.text();
     const items: Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">[] = [];
     const blocks = xml.matchAll(/<item>([\s\S]*?)<\/item>/g);
     for (const m of blocks) {
@@ -409,18 +414,14 @@ export async function GET(req: Request) {
     return NextResponse.json({ data: cache.data, timestamp: cache.ts, cached: true, sources });
   }
 
-  // Source priority: Truth Social → Finnhub → Google News
-  let rawPosts = await fetchTruthSocial();
-  let feedSource = "Truth Social";
+  // Truth Social is blocked on Vercel (AWS Lambda IPs) — skip server-side attempts.
+  // Browser-side hook handles Truth Social via edge proxy or CORS proxy.
+  // Server fallback chain: Finnhub → Google News RSS
+  let rawPosts = await fetchFinnhubTrump();
+  let feedSource = "Finnhub/News";
 
   if (rawPosts.length === 0) {
-    console.log("[trump] Truth Social failed, trying Finnhub");
-    rawPosts = await fetchFinnhubTrump();
-    feedSource = "Finnhub/News";
-  }
-
-  if (rawPosts.length === 0) {
-    console.log("[trump] Finnhub failed, trying Google News");
+    console.log("[trump] Finnhub empty/no key, trying Google News RSS");
     rawPosts = await fetchGoogleNewsTrump();
     feedSource = "Google News";
   }

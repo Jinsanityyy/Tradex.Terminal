@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn, timeAgo } from "@/lib/utils";
-import { UserCircle, AlertTriangle, ArrowRight, Flame, ChevronRight, TrendingUp, TrendingDown, Minus, Target, Shield } from "lucide-react";
+import { UserCircle, AlertTriangle, ArrowRight, Flame, ChevronRight, TrendingUp, TrendingDown, Minus, Target, Shield, ExternalLink } from "lucide-react";
 import type { TrumpPost } from "@/types";
 import { DetailModal } from "./DetailModal";
 
@@ -140,6 +140,20 @@ function TrumpPostDetail({ post }: { post: TrumpPost }) {
           ))}
         </div>
       </div>
+
+      {/* View original post link */}
+      {post.postUrl && (
+        <a
+          href={post.postUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="flex items-center gap-1.5 text-[10px] text-amber-400/70 hover:text-amber-400 transition-colors"
+        >
+          <ExternalLink className="h-3 w-3" />
+          View on {post.source}
+        </a>
+      )}
     </div>
   );
 }
@@ -171,12 +185,30 @@ export function TrumpFeedPanel({ posts, limit, compact = false }: TrumpFeedPanel
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2">
                   <UserCircle className="h-4 w-4 text-amber-400 shrink-0" />
-                  <span className={cn(
-                    "text-[10px] font-semibold px-1.5 py-0.5 rounded",
-                    post.source === "Truth Social"
-                      ? "bg-amber-500/15 text-amber-400 border border-amber-500/25"
-                      : "text-[hsl(var(--muted-foreground))]"
-                  )}>{post.source}</span>
+                  {post.postUrl ? (
+                    <a
+                      href={post.postUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className={cn(
+                        "inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded hover:underline",
+                        post.source === "Truth Social"
+                          ? "bg-amber-500/15 text-amber-400 border border-amber-500/25"
+                          : "text-[hsl(var(--muted-foreground))]"
+                      )}
+                    >
+                      {post.source === "Truth Social" ? "✦ " : ""}{post.source}
+                      <ExternalLink className="h-2.5 w-2.5 opacity-60" />
+                    </a>
+                  ) : (
+                    <span className={cn(
+                      "text-[10px] font-semibold px-1.5 py-0.5 rounded",
+                      post.source === "Truth Social"
+                        ? "bg-amber-500/15 text-amber-400 border border-amber-500/25"
+                        : "text-[hsl(var(--muted-foreground))]"
+                    )}>{post.source}</span>
+                  )}
                   <span className="text-[10px] text-[hsl(var(--muted-foreground))]">{timeAgo(post.timestamp)}</span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
