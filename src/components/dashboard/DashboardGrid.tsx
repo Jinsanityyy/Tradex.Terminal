@@ -32,6 +32,7 @@ const OPTIONAL_WIDGET_DEFAULTS: Record<string, boolean> = {
   agents: true,
   "economic-calendar": true,
   "pnl-calendar": true,
+  "lot-calculator": true,
 };
 
 const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
@@ -48,6 +49,7 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "agents", x: 0, y: 20, w: 24, h: 4, minW: 10, minH: 4 },
     { i: "economic-calendar", x: 0, y: 20, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "pnl-calendar", x: 12, y: 20, w: 12, h: 4, minW: 6, minH: 4 },
+    { i: "lot-calculator", x: 0, y: 24, w: 8, h: 8, minW: 6, minH: 7 },
   ],
   minimal: [
     { i: "chart", x: 0, y: 0, w: 16, h: 16, minW: 10, minH: 14 },
@@ -62,6 +64,7 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "agents", x: 0, y: 20, w: 24, h: 4, minW: 10, minH: 4 },
     { i: "economic-calendar", x: 0, y: 20, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "pnl-calendar", x: 12, y: 20, w: 12, h: 4, minW: 6, minH: 4 },
+    { i: "lot-calculator", x: 0, y: 24, w: 8, h: 8, minW: 6, minH: 7 },
   ],
 };
 

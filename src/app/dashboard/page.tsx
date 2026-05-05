@@ -33,6 +33,8 @@ import { CatalystFeed } from "@/components/shared/CatalystFeed";
 import { DetailModal } from "@/components/shared/DetailModal";
 import { LiveTVPanel } from "@/components/shared/LiveTVPanel";
 import { SessionSummaryCard } from "@/components/shared/SessionSummaryCard";
+import { SessionTimersWidget } from "@/components/shared/SessionTimersWidget";
+import { LotCalculatorWidget } from "@/components/shared/LotCalculatorWidget";
 import { TrumpImpactPreview } from "@/components/shared/TrumpFeedPanel";
 import { MTFBiasPanel } from "@/components/shared/MTFBiasPanel";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -1634,21 +1636,24 @@ export default function DashboardPage() {
       id: "sessions",
       title: "Sessions",
       content: (
-        <div className="h-full min-h-0 overflow-y-auto p-3">
-          <div className="space-y-3">
-            {sessionPreview.filter((session) => session.status === "active").length > 0 ? (
-              sessionPreview
+        <div className="h-full min-h-0 overflow-y-auto">
+          <SessionTimersWidget />
+          {sessionPreview.filter((session) => session.status === "active").length > 0 && (
+            <div className="px-3 pb-3 space-y-3">
+              {sessionPreview
                 .filter((session) => session.status === "active")
-                .map((session) => <SessionSummaryCard key={session.session} session={session} />)
-            ) : (
-              <PanelPlaceholder
-                title="No active session."
-                detail="Markets are currently between sessions."
-              />
-            )}
-          </div>
+                .map((session) => (
+                  <SessionSummaryCard key={session.session} session={session} />
+                ))}
+            </div>
+          )}
         </div>
       ),
+    },
+    {
+      id: "lot-calculator",
+      title: "Lot Size Calculator",
+      content: <LotCalculatorWidget />,
     },
   ];
 
