@@ -2,279 +2,130 @@
 
 import React, { useState } from "react";
 import { Calculator } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useSettings } from "@/contexts/SettingsContext";
 
-interface AssetConfig {
-  label: string;
-  // dollarPerPoint per 1.0 lot (Gold: 100, BTC: 1, Forex: 100000 * pipSize)
-  dollarPerPointPerLot: number;
-  pointLabel: string;
-  defaultSL: number;
-  placeholder: string;
-}
-
-const ASSETS: Record<string, AssetConfig> = {
-  XAUUSD: {
-    label: "Gold (XAU/USD)",
-    dollarPerPointPerLot: 100,
-    pointLabel: "pts ($1/pt)",
-    defaultSL: 15,
-    placeholder: "e.g. 4700",
-  },
-  EURUSD: {
-    label: "EUR/USD",
-    dollarPerPointPerLot: 10,       // $10/pip/lot
-    pointLabel: "pips",
-    defaultSL: 20,
-    placeholder: "e.g. 1.0850",
-  },
-  GBPUSD: {
-    label: "GBP/USD",
-    dollarPerPointPerLot: 10,
-    pointLabel: "pips",
-    defaultSL: 25,
-    placeholder: "e.g. 1.2700",
-  },
-  BTCUSD: {
-    label: "Bitcoin (BTC)",
-    dollarPerPointPerLot: 1,
-    pointLabel: "pts ($1/pt)",
-    defaultSL: 500,
-    placeholder: "e.g. 65000",
-  },
-  CUSTOM: {
-    label: "Custom",
-    dollarPerPointPerLot: 10,
-    pointLabel: "units",
-    defaultSL: 20,
-    placeholder: "any asset",
-  },
-};
-
+const ACCOUNT_PRESETS = [1000, 5000, 10000, 25000, 50000, 100000];
 const RISK_PRESETS = [0.5, 1, 1.5, 2, 3];
-
-function fmt(n: number, decimals = 2) {
-  return n.toLocaleString(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: decimals,
-  });
-}
 
 export function LotCalculatorWidget() {
   const { settings } = useSettings();
-
-  const [asset, setAsset] = useState<string>("XAUUSD");
-  const [balance, setBalance] = useState(() => settings.accountBalance ?? 10000);
+  const [accountSize, setAccountSize] = useState(() => settings.accountBalance ?? 10000);
   const [riskPct, setRiskPct] = useState(() => settings.riskPerTrade ?? 1);
-  const [entry, setEntry] = useState<string>("");
-  const [sl, setSl] = useState<string>("");
-  const [manualSL, setManualSL] = useState<string>("");
+  const [entry, setEntry] = useState("");
+  const [stopLoss, setStopLoss] = useState("");
 
-  const cfg = ASSETS[asset];
-
-  // SL distance: prefer entry-sl price difference if both provided, else manual pts
   const entryNum = parseFloat(entry);
-  const slNum = parseFloat(sl);
-  const manualSlNum = parseFloat(manualSL) || cfg.defaultSL;
+  const slNum = parseFloat(stopLoss);
+  const hasValidPrices = !isNaN(entryNum) && !isNaN(slNum) && entryNum > 0 && slNum > 0;
 
-  const slPts =
-    !isNaN(entryNum) && !isNaN(slNum) && entryNum > 0 && slNum > 0
-      ? Math.abs(entryNum - slNum)
-      : manualSlNum;
-
-  const riskAmt = balance * (riskPct / 100);
-  const rawLots = slPts > 0 ? riskAmt / (slPts * cfg.dollarPerPointPerLot) : 0;
-
-  const lots = rawLots >= 0.01 ? parseFloat(rawLots.toFixed(2)) : parseFloat(rawLots.toFixed(3));
-  const lotsDisplay = rawLots <= 0 ? "—" : rawLots < 0.001 ? "< 0.001" : lots.toFixed(lots >= 1 ? 2 : 3);
-  const hasResult = rawLots > 0;
+  const slPoints = hasValidPrices ? Math.abs(entryNum - slNum) : 0;
+  const pointValue = hasValidPrices && entryNum > 100 ? 100 : 10;
+  const riskAmount = accountSize * (riskPct / 100);
+  const rawLots = slPoints > 0 ? riskAmount / (slPoints * pointValue) : 0;
+  const lots =
+    rawLots >= 1
+      ? parseFloat(rawLots.toFixed(2))
+      : rawLots >= 0.1
+      ? parseFloat(rawLots.toFixed(2))
+      : parseFloat(rawLots.toFixed(3));
+  const displayLots = rawLots <= 0 ? "—" : lots < 0.01 ? "< 0.01" : lots.toFixed(lots >= 1 ? 2 : lots >= 0.1 ? 2 : 3);
 
   return (
     <div className="p-3 space-y-3 h-full overflow-y-auto">
-      {/* Asset selector */}
-      <div className="flex flex-wrap gap-1">
-        {Object.entries(ASSETS).map(([key, c]) => (
+      {/* Account presets */}
+      <div className="flex flex-wrap gap-1.5">
+        {ACCOUNT_PRESETS.map((preset) => (
           <button
-            key={key}
-            onClick={() => setAsset(key)}
-            className="px-2.5 py-1 rounded text-[10px] font-semibold transition-all"
-            style={{
-              background: asset === key ? "#00C89615" : "var(--t-card)",
-              border: `1px solid ${asset === key ? "#00C89640" : "var(--t-border-sub)"}`,
-              color: asset === key ? "#00C896" : "var(--t-muted)",
-            }}
+            key={preset}
+            onClick={() => setAccountSize(preset)}
+            className={cn(
+              "rounded px-2 py-1 text-[10px] font-semibold transition-all",
+              accountSize === preset
+                ? "border border-amber-500/30 bg-amber-500/20 text-amber-300"
+                : "border border-white/[0.08] bg-white/[0.04] text-zinc-500 hover:text-zinc-300"
+            )}
           >
-            {key === "CUSTOM" ? "Custom" : key}
+            ${preset >= 1000 ? `${preset / 1000}k` : preset}
+          </button>
+        ))}
+        <input
+          type="number"
+          value={accountSize}
+          onChange={(e) => setAccountSize(Math.max(100, Number(e.target.value)))}
+          className="w-20 rounded border border-white/[0.08] bg-[#0d0d0d] px-2 py-1 text-right text-[10px] text-zinc-300 outline-none focus:border-amber-500/40 [color-scheme:dark]"
+          placeholder="Custom"
+        />
+      </div>
+
+      {/* Risk % */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[10px] uppercase tracking-wider text-zinc-500">Risk</span>
+        {RISK_PRESETS.map((r) => (
+          <button
+            key={r}
+            onClick={() => setRiskPct(r)}
+            className={cn(
+              "rounded px-2 py-1 text-[10px] font-semibold transition-all",
+              riskPct === r
+                ? "border border-amber-500/30 bg-amber-500/20 text-amber-300"
+                : "border border-white/[0.08] bg-white/[0.04] text-zinc-500 hover:text-zinc-300"
+            )}
+          >
+            {r}%
           </button>
         ))}
       </div>
 
-      {/* Account + Risk */}
-      <div
-        className="rounded-xl p-3 space-y-2"
-        style={{ background: "var(--t-card)", border: "1px solid var(--t-border-sub)" }}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-[10px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>
-            Balance
-          </span>
-          <div className="flex items-center gap-1">
-            <span className="text-[10px]" style={{ color: "var(--t-muted)" }}>$</span>
-            <input
-              type="number"
-              min={100}
-              step={100}
-              value={balance}
-              onChange={(e) => setBalance(Math.max(100, Number(e.target.value)))}
-              className="w-24 rounded px-2 py-1 text-right text-[10px] font-mono outline-none"
-              style={{
-                background: "var(--t-bg)",
-                border: "1px solid var(--t-border-sub)",
-                color: "var(--t-text)",
-              }}
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-[10px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>
-            Risk %
-          </span>
-          <div className="flex items-center gap-1 flex-wrap justify-end">
-            {RISK_PRESETS.map((r) => (
-              <button
-                key={r}
-                onClick={() => setRiskPct(r)}
-                className="px-2 py-1 rounded text-[10px] font-mono font-semibold transition-all"
-                style={{
-                  background: riskPct === r ? "#F59E0B15" : "var(--t-bg)",
-                  border: `1px solid ${riskPct === r ? "#F59E0B40" : "var(--t-border-sub)"}`,
-                  color: riskPct === r ? "#F59E0B" : "var(--t-muted)",
-                }}
-              >
-                {r}%
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* Entry + SL inputs */}
-      <div
-        className="rounded-xl p-3 space-y-2"
-        style={{ background: "var(--t-card)", border: "1px solid var(--t-border-sub)" }}
-      >
-        <div className="text-[9px] uppercase tracking-widest mb-1" style={{ color: "var(--t-muted)" }}>
-          Price Inputs (optional — or enter SL distance below)
-        </div>
+      <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 space-y-2">
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <div className="text-[9px] mb-1" style={{ color: "var(--t-muted)" }}>Entry</div>
+            <div className="text-[9px] uppercase tracking-wider text-zinc-500 mb-1">Entry</div>
             <input
               type="number"
               min={0}
               step="any"
               value={entry}
               onChange={(e) => setEntry(e.target.value)}
-              placeholder={cfg.placeholder}
-              className="w-full rounded px-2 py-1.5 text-[10px] font-mono outline-none"
-              style={{
-                background: "var(--t-bg)",
-                border: "1px solid var(--t-border-sub)",
-                color: "var(--t-text)",
-              }}
+              placeholder="e.g. 3250"
+              className="w-full rounded border border-white/[0.08] bg-[#0d0d0d] px-2 py-1.5 text-[10px] font-mono text-zinc-300 outline-none focus:border-amber-500/40 [color-scheme:dark]"
             />
           </div>
           <div>
-            <div className="text-[9px] mb-1" style={{ color: "var(--t-muted)" }}>Stop Loss</div>
+            <div className="text-[9px] uppercase tracking-wider text-zinc-500 mb-1">Stop Loss</div>
             <input
               type="number"
               min={0}
               step="any"
-              value={sl}
-              onChange={(e) => setSl(e.target.value)}
-              placeholder={cfg.placeholder}
-              className="w-full rounded px-2 py-1.5 text-[10px] font-mono outline-none"
-              style={{
-                background: "var(--t-bg)",
-                border: "1px solid var(--t-border-sub)",
-                color: "var(--t-text)",
-              }}
+              value={stopLoss}
+              onChange={(e) => setStopLoss(e.target.value)}
+              placeholder="e.g. 3235"
+              className="w-full rounded border border-white/[0.08] bg-[#0d0d0d] px-2 py-1.5 text-[10px] font-mono text-zinc-300 outline-none focus:border-amber-500/40 [color-scheme:dark]"
             />
           </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-[9px] whitespace-nowrap" style={{ color: "var(--t-muted)" }}>
-            Or SL distance ({cfg.pointLabel}):
-          </span>
-          <input
-            type="number"
-            min={0.1}
-            step={0.1}
-            value={manualSL}
-            onChange={(e) => setManualSL(e.target.value)}
-            placeholder={String(cfg.defaultSL)}
-            className="w-20 rounded px-2 py-1 text-[10px] font-mono outline-none"
-            style={{
-              background: "var(--t-bg)",
-              border: "1px solid var(--t-border-sub)",
-              color: "var(--t-text)",
-            }}
-          />
-          {!isNaN(entryNum) && !isNaN(slNum) && entryNum > 0 && slNum > 0 && (
-            <span className="text-[9px]" style={{ color: "#00C896" }}>
-              Auto: {slPts.toFixed(slPts > 10 ? 1 : 4)} pts
-            </span>
-          )}
         </div>
       </div>
 
       {/* Result */}
-      <div
-        className="rounded-xl p-4"
-        style={{
-          background: hasResult ? "#00C89610" : "var(--t-card)",
-          border: `1px solid ${hasResult ? "#00C89640" : "var(--t-border-sub)"}`,
-        }}
-      >
-        <div className="flex items-center gap-2 mb-3">
-          <Calculator className="h-3.5 w-3.5" style={{ color: hasResult ? "#00C896" : "var(--t-muted)" }} />
-          <span className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: hasResult ? "#00C89680" : "var(--t-muted)" }}>
-            {cfg.label}
-          </span>
+      <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+        <div className="mb-3 flex items-center gap-2">
+          <Calculator className="h-3.5 w-3.5 text-amber-300" />
+          <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Lot Size Calculator</span>
+          <span className="ml-auto text-[10px] text-zinc-600">@ {riskPct}% risk</span>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <div className="text-[9px] uppercase tracking-widest mb-1" style={{ color: "var(--t-muted)", opacity: 0.6 }}>
-              Lot Size
-            </div>
-            <div
-              className="text-3xl font-black font-mono"
-              style={{ color: hasResult ? "#00C896" : "var(--t-muted)" }}
-            >
-              {lotsDisplay}
-            </div>
+            <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Recommended Size</div>
+            <div className="mt-1 text-xl font-black font-mono text-amber-300">{displayLots}</div>
           </div>
-          <div className="space-y-1.5 text-right">
-            <div>
-              <div className="text-[9px]" style={{ color: "var(--t-muted)", opacity: 0.6 }}>Dollar risk</div>
-              <div className="text-sm font-mono font-bold" style={{ color: "var(--t-text)" }}>
-                ${fmt(riskAmt)}
-              </div>
-            </div>
-            <div>
-              <div className="text-[9px]" style={{ color: "var(--t-muted)", opacity: 0.6 }}>SL distance</div>
-              <div className="text-xs font-mono" style={{ color: "var(--t-muted)" }}>
-                {slPts > 0 ? `${slPts.toFixed(slPts > 10 ? 1 : 4)} ${cfg.pointLabel}` : "—"}
-              </div>
-            </div>
-            <div>
-              <div className="text-[9px]" style={{ color: "var(--t-muted)", opacity: 0.6 }}>Pip value/lot</div>
-              <div className="text-xs font-mono" style={{ color: "var(--t-muted)" }}>
-                ${cfg.dollarPerPointPerLot}/pt
-              </div>
+          <div className="space-y-1 text-right">
+            <div className="text-[10px] text-zinc-600">Risk amount</div>
+            <div className="text-sm font-mono font-semibold text-zinc-300">${riskAmount.toFixed(0)}</div>
+            <div className="text-[10px] text-zinc-600">SL distance</div>
+            <div className="text-xs font-mono text-zinc-400">
+              {slPoints > 0 ? `${slPoints.toFixed(entryNum > 100 ? 1 : 4)} pts` : "—"}
             </div>
           </div>
         </div>
