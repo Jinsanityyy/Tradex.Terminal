@@ -8,8 +8,6 @@ import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import { useQuotes } from "@/hooks/useMarketData";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
 
-// ── Constants ─────────────────────────────────────────────────────────
-
 const SYMBOLS: { id: Symbol; label: string; sub: string }[] = [
   { id: "XAUUSD", label: "XAU/USD", sub: "Gold" },
   { id: "EURUSD", label: "EUR/USD", sub: "Euro" },
@@ -20,8 +18,12 @@ const SYMBOLS: { id: Symbol; label: string; sub: string }[] = [
 const TIMEFRAMES: Timeframe[] = ["M15", "H1", "H4"];
 
 const SYMBOL_TO_QUOTE: Partial<Record<Symbol, string>> = {
-  XAUUSD: "XAU/USD", EURUSD: "EUR/USD", GBPUSD: "GBP/USD",
-  BTCUSD: "BTC/USD", ETHUSD: "ETH/USD", USDJPY: "USD/JPY",
+  XAUUSD: "XAU/USD",
+  EURUSD: "EUR/USD",
+  GBPUSD: "GBP/USD",
+  BTCUSD: "BTC/USD",
+  ETHUSD: "ETH/USD",
+  USDJPY: "USD/JPY",
 };
 
 const fetcher = (url: string) =>
@@ -29,8 +31,6 @@ const fetcher = (url: string) =>
     if (!r.ok) throw new Error("fetch failed");
     return r.json() as Promise<AgentRunResult>;
   });
-
-// ── Helpers ───────────────────────────────────────────────────────────
 
 function timeframeMs(tf: Timeframe) {
   if (tf === "M15") return 15 * 60 * 1000;
@@ -47,171 +47,85 @@ function countdown(msLeft: number) {
   return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
 }
 
-type Tone = "green" | "red" | "yellow" | "gray";
-
-function tone(state: string): Tone {
-  const s = state.toLowerCase();
-  if (["bullish", "long", "valid", "armed", "aligned", "open"].includes(s)) return "green";
-  if (["bearish", "short", "invalid", "opposing", "expired", "blocked"].includes(s)) return "red";
-  if (["neutral", "pending", "no_trade", "no-trade"].includes(s)) return "yellow";
-  return "gray";
+function formatBiasLabel(bias?: string) {
+  if (!bias) return "NEUTRAL";
+  return bias.replace(/[-_]/g, " ").toUpperCase();
 }
 
-const TONE_CLS: Record<Tone, { label: string; bar: string; border: string; bg: string; badge: string }> = {
-  green: {
-    label: "text-emerald-400",
-    bar: "bg-emerald-400",
-    border: "border-emerald-500/18",
-    bg: "bg-emerald-500/[0.04]",
-    badge: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  },
-  red: {
-    label: "text-red-400",
-    bar: "bg-red-400",
-    border: "border-red-500/18",
-    bg: "bg-red-500/[0.04]",
-    badge: "text-red-400 bg-red-500/10 border-red-500/20",
-  },
-  yellow: {
-    label: "text-amber-400",
-    bar: "bg-amber-400",
-    border: "border-amber-500/18",
-    bg: "bg-amber-500/[0.03]",
-    badge: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  },
-  gray: {
-    label: "text-zinc-500",
-    bar: "bg-zinc-700",
-    border: "border-white/6",
-    bg: "bg-white/[0.015]",
-    badge: "text-zinc-500 bg-white/4 border-white/8",
-  },
-};
-
-// ── Pixel diagnostic helpers ──────────────────────────────────────────
-
-type DiagTag = { k: string; v: string };
-
-function fmtPrice(v: number | null | undefined): string {
-  if (v == null) return "—";
-  if (v > 10000) return v.toFixed(0);
-  if (v > 100) return v.toFixed(1);
-  if (v > 1) return v.toFixed(4);
-  return v.toFixed(5);
-}
-
-function DiagStrip({ tags }: { tags: DiagTag[] }) {
-  if (!tags.length) return null;
-  return (
-    <div className="flex flex-wrap gap-1 border-t border-white/5 pt-2">
-      {tags.map(({ k, v }) => (
-        <span
-          key={k}
-          className="inline-flex items-center gap-0.5 rounded border border-white/6 bg-white/[0.025] px-1.5 py-0.5 font-mono text-[8.5px] tracking-wide"
-        >
-          <span className="text-zinc-600">{k}:</span>
-          <span className="text-zinc-400">{v}</span>
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function formatPriceActionPattern(setupType: string): string {
-  switch (setupType) {
-    case "BOS":
-      return "Breakout continuation";
-    case "BOS_Continuation":
-      return "BOS continuation";
-    case "CHoCH":
-      return "Trend shift reversal";
-    case "OB":
-      return "Range retest";
-    case "FVG":
-      return "Gap fill";
-    case "Sweep":
-      return "Stop-run reversal";
-    case "FibLong":
-      return "Discount fib entry";
-    case "FibShort":
-      return "Premium fib entry";
+function signalStateConfig(state?: string) {
+  switch (state) {
+    case "ARMED":
+      return { label: "ARMED", accent: "bull" as const };
+    case "PENDING":
+      return { label: "PENDING", accent: "neutral" as const };
+    case "EXPIRED":
+      return { label: "EXPIRED", accent: "neutral" as const };
     default:
-      return "No clear pattern";
+      return { label: "NO TRADE", accent: "neutral" as const };
   }
 }
-
-function formatRangeContext(zone: string): string {
-  switch (zone) {
-    case "DISCOUNT":
-      return "Lower range";
-    case "PREMIUM":
-      return "Upper range";
-    default:
-      return "Mid range";
-  }
-}
-
-// ── Agent Card ────────────────────────────────────────────────────────
 
 function AgentCard({
-  name,
-  state,
+  label,
+  bias,
   confidence,
-  insight,
-  trigger,
-  tags,
+  detail,
+  detail2,
+  accent,
+  loading = false,
   onClick,
 }: {
-  name: string;
-  state: string;
+  label: string;
+  bias: string;
   confidence: number;
-  insight: string;
-  trigger?: string;
-  tags?: DiagTag[];
+  detail: string;
+  detail2?: string;
+  accent: "bull" | "bear" | "neutral";
+  loading?: boolean;
   onClick?: () => void;
 }) {
-  const t = tone(state);
-  const cls = TONE_CLS[t];
+  const accentColor = accent === "bull" ? "bg-emerald-500" : accent === "bear" ? "bg-red-500" : "bg-zinc-600";
+  const biasTextColor = accent === "bull" ? "text-emerald-400" : accent === "bear" ? "text-red-400" : "text-zinc-500";
+  const borderColor = accent === "bull" ? "border-t-emerald-500/60" : accent === "bear" ? "border-t-red-500/60" : "border-t-zinc-700/40";
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[152px] flex-col gap-3 border-t-2 border-t-zinc-700/40 bg-[hsl(var(--card))] px-3 py-4">
+        <div className="h-2.5 w-24 rounded bg-white/6" />
+        <div className="h-4 w-20 rounded bg-white/5" />
+        <div className="flex items-center gap-2">
+          <div className="h-1 flex-1 rounded-full bg-white/5" />
+          <div className="h-3 w-8 rounded bg-white/5" />
+        </div>
+        <div className="h-3 w-full rounded bg-white/[0.03]" />
+        <div className="h-3 w-2/3 rounded bg-white/[0.025]" />
+      </div>
+    );
+  }
 
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "flex flex-col gap-2.5 rounded-xl border p-4 text-left transition-all hover:brightness-110 active:scale-[0.99]",
-        cls.border, cls.bg
+        "flex min-h-[152px] flex-col gap-3 border-t-2 bg-[hsl(var(--card))] px-3 py-4 text-left transition-all",
+        borderColor,
+        onClick && "hover:bg-white/[0.05]"
       )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500">
-          {name}
-        </span>
-        {trigger ? (
-          <span className={cn("rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em]", cls.badge)}>
-            {trigger}
-          </span>
-        ) : null}
+      <span className="truncate text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-600">{label}</span>
+      <span className={cn("text-[14px] font-bold uppercase leading-none", biasTextColor)}>{bias}</span>
+      <div className="flex items-center gap-2">
+        <div className="h-1 flex-1 overflow-hidden rounded-full bg-zinc-800">
+          <div className={cn("h-full rounded-full transition-all", accentColor)} style={{ width: `${Math.min(100, confidence)}%` }} />
+        </div>
+        <span className="w-7 shrink-0 text-right font-mono text-[10px] text-zinc-500">{confidence}%</span>
       </div>
-
-      <div className="flex items-baseline justify-between gap-2">
-        <span className={cn("text-[15px] font-bold tracking-tight leading-none", cls.label)}>
-          {state.toUpperCase()}
-        </span>
-        <span className="font-mono text-[13px] font-semibold text-zinc-400">{confidence}%</span>
-      </div>
-
-      <p className="line-clamp-1 text-[11px] leading-[1.4] text-zinc-500">{insight}</p>
-
-      <div className="h-[2px] w-full overflow-hidden rounded-full bg-white/5">
-        <div className={cn("h-full rounded-full transition-all duration-700", cls.bar)} style={{ width: `${Math.min(100, confidence)}%` }} />
-      </div>
-
-      {tags && tags.length > 0 ? <DiagStrip tags={tags} /> : null}
+      <span className="line-clamp-1 text-[10px] leading-tight text-zinc-500">{detail}</span>
+      {detail2 ? <span className="line-clamp-1 text-[10px] leading-tight text-zinc-600">{detail2}</span> : null}
     </button>
   );
 }
-
-// ── Symbol / Timeframe Selectors ──────────────────────────────────────
 
 function SymbolSelector({ value, onChange }: { value: Symbol; onChange: (v: Symbol) => void }) {
   return (
@@ -251,8 +165,6 @@ function TimeframeSelector({ value, onChange }: { value: Timeframe; onChange: (v
     </div>
   );
 }
-
-// ── Main Component ────────────────────────────────────────────────────
 
 export function BrainTerminal() {
   const [symbol, setSymbol] = useState<Symbol>("XAUUSD");
@@ -294,187 +206,114 @@ export function BrainTerminal() {
     }
   }, [symbol, timeframe]);
 
-  const loading = isLoading || isRefreshing;
-
-  const livePriceLabel = liveQuote?.price != null
-    ? liveQuote.price.toLocaleString(undefined, { maximumFractionDigits: 2 })
-    : null;
-
-  const candleClose = countdown(Math.ceil(nowMs / timeframeMs(timeframe)) * timeframeMs(timeframe) - nowMs);
-
-  // ── Derived display data ─────────────────────────────────────────────
-
-  const master = data?.agents.master;
-  const tr = data?.agents.trend;
-  const smc = data?.agents.smc;
-  const news = data?.agents.news;
-  const contrarian = data?.agents.contrarian;
-  const execution = data?.agents.execution;
-  const structure = data?.snapshot.structure;
-
-  const masterBias = master?.finalBias ?? "no-trade";
-  const masterLabel =
-    masterBias === "no-trade" ? "NO TRADE"
-    : masterBias === "bullish" ? `LONG ${symbol}`
-    : `SHORT ${symbol}`;
-  const masterReason =
-    master?.noTradeReason ?? master?.supports?.[0] ?? "Awaiting analysis";
-  const masterTone = masterBias === "bullish" ? "green" : masterBias === "bearish" ? "red" : "yellow";
-  const masterCls = TONE_CLS[masterTone as Tone];
-
-  // HTF Bias — from structure data
-  const htfState = structure?.htfBias ?? "neutral";
-  const htfConf = structure?.htfConfidence ?? 0;
-  const htfInsight = structure
-    ? `${structure.zone} zone · ${structure.pos52w.toFixed(0)}% of 52-wk range`
-    : "No structure data";
-
-  // Liquidity — sweep/BOS focus
-  const liqState = smc?.liquiditySweepDetected
-    ? smc.bias
-    : smc?.bosDetected
-      ? smc.bias
-      : "neutral";
-  const liqInsight = smc?.liquiditySweepDetected
-    ? `Sweep detected · ${smc.setupType}`
-    : smc?.bosDetected
-      ? `BOS confirmed · ${smc.setupType}`
-      : smc?.reasons[0] ?? "No trigger";
-  const liqTrigger = smc?.liquiditySweepDetected ? "Sweep" : smc?.bosDetected ? "BOS" : "Waiting";
-
-  // Price Action — setup focus
-  const paInsight = smc
-    ? `${formatPriceActionPattern(smc.setupType)} · ${formatRangeContext(smc.premiumDiscount)}`
-    : "No setup";
-  const paTrigger = smc?.setupPresent ? smc.setupType : "Waiting";
-
-  const riskState = data?.agents.risk.valid ? "valid" : "blocked";
-  const riskConf = data?.agents.risk.sessionScore ?? 0;
-  const riskInsight = data?.agents.risk.reasons[0] ?? "No risk assessment";
-  const riskTrigger = data?.agents.risk.grade ? `Grade ${data.agents.risk.grade}` : undefined;
-
-  // Contrarian
-  const contraState = contrarian?.challengesBias ? "opposing" : "neutral";
-  const contraInsight = contrarian
-    ? (contrarian.trapType ?? contrarian.failureReasons[0] ?? "No counter-signal")
-    : "No data";
-  const contraTrigger = contrarian ? `Risk ${contrarian.riskFactor}%` : undefined;
-
-  // Execution
-  const execStateRaw = execution?.signalState ?? "NO_TRADE";
-  const execState = execStateRaw === "ARMED"
-    ? (execution?.direction === "long" ? "bullish" : "bearish")
-    : execStateRaw === "EXPIRED" ? "expired"
-    : "neutral";
-  const execConf = execution?.rrRatio
-    ? Math.min(90, Math.round(execution.rrRatio * 20))
-    : 0;
-  const execInsight = execution?.entry && execution?.rrRatio
-    ? `Entry ${fmtPrice(execution.entry)} · RR ${execution.rrRatio.toFixed(2)}:1`
-    : (execution?.signalStateReason ?? "No signal");
-  const execTrigger = execStateRaw;
-
-  const masterState = master?.finalBias ?? "no-trade";
-  const masterConf = master?.confidence ?? 0;
-  const masterInsight = master?.noTradeReason ?? master?.supports?.[0] ?? "Awaiting consensus";
-  const masterTrigger = master?.strategyMatch ?? "Consensus";
-
-  // ── Timeframe alignment (computed, not trusting .aligned field) ──────
-  const tfSyncLabel = tr
-    ? (([tr.timeframeBias.M5, tr.timeframeBias.M15, tr.timeframeBias.H1, tr.timeframeBias.H4]
-        .every(b => b === "neutral"))
-        ? "ALL NEUTRAL"
-        : ([tr.timeframeBias.M5, tr.timeframeBias.M15, tr.timeframeBias.H1, tr.timeframeBias.H4]
-            .every(b => b === tr.bias)
-            ? "ALL 4"
-            : (() => {
-                const matching = (["M5","M15","H1","H4"] as const).filter(k => tr.timeframeBias[k] === tr.bias);
-                return matching.length > 0 ? `${matching.join("+")} ONLY` : "MIXED";
-              })()
-          )
-      )
-    : "—";
-
-  // ── Pixel diagnostic tags (real data only, "—" fallback) ─────────────
-
-  const trendTags: DiagTag[] = tr ? [
-    { k: "PHASE", v: tr.marketPhase },
-    { k: "MOMENTUM", v: tr.momentumDirection.toUpperCase() },
-    { k: "TF SYNC", v: tfSyncLabel },
-    { k: "MA", v: tr.maAlignment ? "ALIGNED" : "MIXED" },
-    { k: "INVL", v: fmtPrice(tr.invalidationLevel) },
-  ] : [];
-
-  const htfTags: DiagTag[] = structure ? [
-    { k: "ZONE", v: structure.zone },
-    { k: "52W POS", v: `${structure.pos52w.toFixed(0)}%` },
-    { k: "EQ LVL", v: fmtPrice(structure.equilibrium) },
-    { k: "SESSION", v: data?.snapshot.indicators.session ?? "—" },
-  ] : [];
-
-  const liqTags: DiagTag[] = smc ? [
-    { k: "SWEEP", v: smc.liquiditySweepDetected ? "YES" : "NO" },
-    { k: "BOS", v: smc.bosDetected ? "YES" : "NO" },
-    { k: "CHOCH", v: smc.chochDetected ? "YES" : "NO" },
-    { k: "SETUP", v: smc.setupType },
-    { k: "LIQ TGT", v: fmtPrice(smc.keyLevels.liquidityTarget) },
-  ] : [];
-
-  const newsTags: DiagTag[] = news ? [
-    { k: "REGIME", v: news.regime },
-    { k: "RISK", v: `${news.riskScore}/100` },
-    { k: "EVENTS", v: `${news.catalysts.length}` },
-    { k: "IMPACT", v: news.impact.toUpperCase() },
-  ] : [];
-
-  const paTags: DiagTag[] = smc ? [
-    { k: "PATTERN", v: smc.setupType },
-    { k: "RANGE", v: smc.premiumDiscount },
-    { k: "BOS", v: smc.bosDetected ? "YES" : "NO" },
-    { k: "CHOCH", v: smc.chochDetected ? "YES" : "NO" },
-    { k: "TARGET", v: fmtPrice(smc.keyLevels.liquidityTarget) },
-  ] : [];
-
-  const riskTags: DiagTag[] = data?.agents.risk ? [
-    { k: "GRADE", v: data.agents.risk.grade },
-    { k: "MAX", v: `${data.agents.risk.maxRiskPercent}%` },
-    { k: "SESSION", v: `${data.agents.risk.sessionScore}/100` },
-    { k: "VOL", v: `${data.agents.risk.volatilityScore}/100` },
-    { k: "RR", v: data.agents.risk.estimatedRR != null ? `${data.agents.risk.estimatedRR.toFixed(2)}:1` : "—" },
-  ] : [];
-
-  const contraTags: DiagTag[] = contrarian ? [
-    { k: "TRAP", v: contrarian.trapType ?? "NONE" },
-    { k: "RISK", v: `${contrarian.riskFactor}%` },
-    { k: "CONF", v: `${contrarian.trapConfidence}%` },
-    { k: "OPP LIQ", v: fmtPrice(contrarian.oppositeLiquidity) },
-  ] : [];
-
-  const execTags: DiagTag[] = execution ? [
-    { k: "ENTRY", v: fmtPrice(execution.entry) },
-    { k: "SL", v: fmtPrice(execution.stopLoss) },
-    { k: "TP1", v: fmtPrice(execution.tp1) },
-    { k: "TP2", v: fmtPrice(execution.tp2) },
-    { k: "RR", v: execution.rrRatio != null ? `${execution.rrRatio.toFixed(2)}:1` : "—" },
-  ] : [];
-
-  const masterTags: DiagTag[] = master ? [
-    { k: "FINAL", v: master.finalBias.toUpperCase() },
-    { k: "SCORE", v: master.consensusScore.toFixed(1) },
-    { k: "SETUP", v: master.strategyMatch ?? "â€”" },
-    { k: "HTF", v: structure?.htfBias?.toUpperCase() ?? "â€”" },
-    { k: "EXEC", v: execution?.signalState ?? "â€”" },
-  ] : [];
-
   const openDrawer = useCallback((agentId: string) => {
     setHighlightAgentId(agentId);
     setDrawerOpen(true);
   }, []);
 
+  const loading = isLoading || isRefreshing;
+  const livePriceLabel = liveQuote?.price != null
+    ? liveQuote.price.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    : null;
+  const candleClose = countdown(Math.ceil(nowMs / timeframeMs(timeframe)) * timeframeMs(timeframe) - nowMs);
+
+  const master = data?.agents.master;
+  const trend = data?.agents.trend;
+  const smc = data?.agents.smc;
+  const news = data?.agents.news;
+  const risk = data?.agents.risk;
+  const contrarian = data?.agents.contrarian;
+  const execution = data?.agents.execution;
+
+  const finalBias = master?.finalBias ?? "no-trade";
+  const signalState = finalBias === "no-trade" ? "NO_TRADE" : execution?.signalState;
+  const signalConfig = signalStateConfig(signalState);
+  const signalReason =
+    execution?.signalStateReason ??
+    master?.noTradeReason ??
+    "No active trade plan. Monitor the terminal for the next valid setup.";
+
+  const agentOverviewCards: Array<{
+    id: string;
+    label: string;
+    bias: string;
+    confidence: number;
+    detail: string;
+    detail2?: string;
+    accent: "bull" | "bear" | "neutral";
+  }> = [
+    {
+      id: "master",
+      label: "Master Consensus",
+      bias: formatBiasLabel(finalBias),
+      confidence: master?.confidence ?? 0,
+      detail: master?.strategyMatch ?? signalReason,
+      detail2: master ? `${master.consensusScore > 0 ? "+" : ""}${master.consensusScore.toFixed(1)} consensus` : undefined,
+      accent: finalBias === "bullish" ? "bull" : finalBias === "bearish" ? "bear" : "neutral",
+    },
+    {
+      id: "trend",
+      label: "Trend Agent",
+      bias: formatBiasLabel(trend?.bias ?? "neutral"),
+      confidence: trend?.confidence ?? 0,
+      detail: trend?.reasons?.[0] ?? trend?.marketPhase ?? "Trend alignment is recalculating.",
+      detail2: trend?.momentumDirection ? `Momentum ${trend.momentumDirection}` : undefined,
+      accent: trend?.bias === "bullish" ? "bull" : trend?.bias === "bearish" ? "bear" : "neutral",
+    },
+    {
+      id: "smc",
+      label: "Price Action Agent",
+      bias: formatBiasLabel(smc?.bias ?? "neutral"),
+      confidence: smc?.confidence ?? 0,
+      detail: smc?.setupType ?? smc?.reasons?.[0] ?? "Structure context is recalculating.",
+      detail2: smc?.premiumDiscount ? `Zone ${smc.premiumDiscount}` : undefined,
+      accent: smc?.bias === "bullish" ? "bull" : smc?.bias === "bearish" ? "bear" : "neutral",
+    },
+    {
+      id: "news",
+      label: "News Agent",
+      bias: formatBiasLabel(news?.impact ?? "neutral"),
+      confidence: news?.confidence ?? 0,
+      detail: news?.dominantCatalyst ?? news?.reasons?.[0] ?? "Catalyst feed is recalculating.",
+      detail2: news?.riskScore != null ? `Risk ${news.riskScore}/100` : undefined,
+      accent: news?.impact === "bullish" ? "bull" : news?.impact === "bearish" ? "bear" : "neutral",
+    },
+    {
+      id: "risk",
+      label: "Risk Gate",
+      bias: risk ? (risk.valid ? "VALID" : "BLOCKED") : "NEUTRAL",
+      confidence: risk?.volatilityScore ?? 0,
+      detail: risk?.reasons?.[0] ?? risk?.warnings?.[0] ?? "Risk conditions are recalculating.",
+      detail2: risk ? `Grade ${risk.grade}` : undefined,
+      accent: risk ? (risk.valid ? "bull" : "bear") : "neutral",
+    },
+    {
+      id: "contrarian",
+      label: "Contrarian Agent",
+      bias: contrarian?.challengesBias ? "ALERT" : "CLEAR",
+      confidence: contrarian?.riskFactor ?? 0,
+      detail: contrarian?.alternativeScenario ?? contrarian?.failureReasons?.[0] ?? "Contrarian checks are recalculating.",
+      detail2: contrarian?.trapType ? `Trap ${contrarian.trapType}` : undefined,
+      accent: contrarian?.challengesBias ? "bear" : "neutral",
+    },
+    {
+      id: "execution",
+      label: "Execution Agent",
+      bias: signalConfig.label,
+      confidence: execution?.hasSetup ? 75 : 30,
+      detail: execution?.triggerCondition ?? signalReason,
+      detail2: execution?.direction && execution.direction !== "none" ? `Direction ${execution.direction.toUpperCase()}` : undefined,
+      accent:
+        execution?.direction === "long"
+          ? "bull"
+          : execution?.direction === "short"
+            ? "bear"
+            : signalConfig.accent,
+    },
+  ];
+
   return (
     <div className="w-full min-w-0 space-y-4 pb-4">
-
-      {/* ── Header ──────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04]">
@@ -525,20 +364,23 @@ export function BrainTerminal() {
         </div>
       </div>
 
-      {/* ── Loading skeleton ─────────────────────────────────────────── */}
       {loading && !data ? (
         <div className="animate-pulse space-y-3">
-          <div className="rounded-2xl border border-white/6 bg-white/[0.02] px-5 py-5">
-            <div className="h-7 w-48 rounded-lg bg-white/5" />
-            <div className="mt-2 h-3 w-80 rounded bg-white/[0.03]" />
+          <div className="flex items-center gap-3">
+            <div className="h-3 w-28 rounded bg-white/5" />
+            <div className="h-px flex-1 bg-white/[0.05]" />
           </div>
-          <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="rounded-xl border border-white/6 bg-white/[0.02] p-4">
-                <div className="h-2.5 w-16 rounded bg-white/5" />
-                <div className="mt-3 h-5 w-20 rounded bg-white/5" />
-                <div className="mt-3 h-2 w-full rounded bg-white/[0.03]" />
-              </div>
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
+            {[...Array(7)].map((_, i) => (
+              <AgentCard
+                key={i}
+                label="Loading"
+                bias="NEUTRAL"
+                confidence={0}
+                detail="—"
+                accent="neutral"
+                loading
+              />
             ))}
           </div>
         </div>
@@ -552,119 +394,36 @@ export function BrainTerminal() {
 
       {data ? (
         <>
-          {/* ── Master Decision Bar ──────────────────────────────────── */}
-          <div className={cn(
-            "rounded-2xl border px-5 py-4",
-            masterTone === "green" ? "border-emerald-500/20 bg-emerald-500/[0.05]"
-            : masterTone === "red" ? "border-red-500/20 bg-red-500/[0.05]"
-            : "border-amber-500/16 bg-amber-500/[0.03]"
-          )}>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-5">
-                <span className={cn("text-[26px] font-bold tracking-tight leading-none", masterCls.label)}>
-                  {masterLabel}
-                </span>
-                <span className="text-[12px] leading-5 text-zinc-500 sm:max-w-lg line-clamp-1">
-                  {masterReason}
-                </span>
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">7-Agent Overview</span>
+            <div className="flex-1 border-t border-white/5" />
+            <div className="hidden items-center gap-5 text-right sm:flex">
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-600">Confidence</div>
+                <div className="font-mono text-[12px] font-bold text-zinc-300">{master?.confidence ?? 0}%</div>
               </div>
-              <div className="flex shrink-0 items-center gap-5">
-                <div className="text-right">
-                  <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-600">Confidence</div>
-                  <div className="font-mono text-[16px] font-bold text-zinc-300">{master?.confidence ?? 0}%</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-600">Candle</div>
-                  <div className="font-mono text-[16px] font-bold text-zinc-300">{candleClose}</div>
-                </div>
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-600">Candle</div>
+                <div className="font-mono text-[12px] font-bold text-zinc-300">{candleClose}</div>
               </div>
             </div>
           </div>
 
-          {/* ── Divider label ────────────────────────────────────────── */}
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">Agent Deck</span>
-            <div className="flex-1 border-t border-white/5" />
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
+            {agentOverviewCards.map((agent) => (
+              <AgentCard
+                key={agent.id}
+                label={agent.label}
+                bias={agent.bias}
+                confidence={agent.confidence}
+                detail={agent.detail}
+                detail2={agent.detail2}
+                accent={agent.accent}
+                onClick={() => openDrawer(agent.id)}
+              />
+            ))}
           </div>
 
-          {/* ── Row 1: Market Bias (4 agents) ───────────────────────── */}
-          <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
-            <AgentCard
-              name="Trend Agent"
-              state={tr?.bias ?? "neutral"}
-              confidence={tr?.confidence ?? 0}
-              insight={tr?.reasons[0] ?? "—"}
-              trigger={tr?.marketPhase}
-              tags={trendTags}
-              onClick={() => openDrawer("trend")}
-            />
-            <AgentCard
-              name="Price Action Agent"
-              state={smc?.bias ?? "neutral"}
-              confidence={smc?.confidence ?? 0}
-              insight={paInsight}
-              trigger={paTrigger}
-              tags={paTags}
-              onClick={() => openDrawer("smc")}
-            />
-            <AgentCard
-              name="Risk Gate Agent"
-              state={riskState}
-              confidence={riskConf}
-              insight={riskInsight}
-              trigger={riskTrigger}
-              tags={riskTags}
-              onClick={() => openDrawer("risk")}
-            />
-            <AgentCard
-              name="News Agent"
-              state={news?.impact ?? "neutral"}
-              confidence={news?.confidence ?? 0}
-              insight={news?.dominantCatalyst ?? news?.reasons[0] ?? "—"}
-              trigger={news?.regime}
-              tags={newsTags}
-              onClick={() => openDrawer("news")}
-            />
-          </div>
-
-          {/* ── Divider label ────────────────────────────────────────── */}
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">Execution + Consensus</span>
-            <div className="flex-1 border-t border-white/5" />
-          </div>
-
-          {/* ── Row 2: Execution (3 agents) ─────────────────────────── */}
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <AgentCard
-              name="Execution Agent"
-              state={execState}
-              confidence={execConf}
-              insight={execInsight}
-              trigger={execTrigger}
-              tags={execTags}
-              onClick={() => openDrawer("execution")}
-            />
-            <AgentCard
-              name="Contrarian Agent"
-              state={contraState}
-              confidence={contrarian?.trapConfidence ?? 0}
-              insight={contraInsight}
-              trigger={contraTrigger}
-              tags={contraTags}
-              onClick={() => openDrawer("contrarian")}
-            />
-            <AgentCard
-              name="Master Consensus"
-              state={masterState}
-              confidence={masterConf}
-              insight={masterInsight}
-              trigger={masterTrigger}
-              tags={masterTags}
-              onClick={() => openDrawer("master")}
-            />
-          </div>
-
-          {/* ── Footer ──────────────────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-3 border-t border-white/5 pt-2 text-[11px] text-zinc-600">
             <div className="flex items-center gap-1.5">
               <Clock className="h-3 w-3" />
@@ -687,4 +446,3 @@ export function BrainTerminal() {
     </div>
   );
 }
-
