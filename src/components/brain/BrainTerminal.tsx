@@ -475,7 +475,8 @@ export function BrainTerminal() {
             loading={loading}
             focusedAgentId={highlightId ?? null}
             onSelectAgentChange={(agentId) => {
-              if (agentId) openDrawer(agentId);
+              setHighlightId(agentId ?? undefined);
+              setDrawerOpen(false);
             }}
             onHoverAgentChange={(agentId) => {
               setHighlightId(agentId ?? undefined);
