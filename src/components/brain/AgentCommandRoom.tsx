@@ -166,7 +166,7 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
   const showPrices     = !!activePinData && (activePinData.stateKey==="master"||activePinData.stateKey==="execution") && !!tradePlan;
   const sigState       = data?.agents.execution?.signalState;
   const showProgress   = !!activePinData && (activePinData.stateKey==="execution"||activePinData.stateKey==="master");
-  const progressStep   = !data ? 0 : sigState==="ARMED" ? 1 : 0;
+  const progressStep   = !data || finalBias === "no-trade" ? 0 : sigState==="ARMED" ? 1 : 0;
   const progressSteps  = ["ARMED","TRIGGERED","COMPLETE"] as const;
 
   return (
