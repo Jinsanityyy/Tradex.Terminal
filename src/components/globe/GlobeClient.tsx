@@ -411,7 +411,7 @@ function FlatMapView({
                 >
                   <div style={{ width: 10, height: 10, borderRadius: '50%', background: active ? cfg.color : '#30343a', boxShadow: active ? `0 0 10px ${cfg.color}` : 'none', flexShrink: 0 }} />
                   <span style={{ flex: 1, fontSize: 11, color: active ? '#e5e7eb' : '#70757d', fontWeight: 600 }}>{cfg.label}</span>
-                  <span style={{ minWidth: 24, borderRadius: 999, background: active ? `${cfg.color}18` : '#12151b', padding: '2px 7px', textAlign: 'center', fontSize: 10, fontFamily: 'IBM Plex Mono, monospace', color: active ? cfg.color : '#4d5158' }}>
+                  <span style={{ minWidth: 24, borderRadius: 999, background: active ? `${cfg.color}18` : '#12151b', padding: '2px 7px', textAlign: 'center', fontSize: 10, fontFamily: 'Roboto Mono, monospace', color: active ? cfg.color : '#4d5158' }}>
                     {layerCounts[key]}
                   </span>
                 </button>
@@ -508,10 +508,10 @@ function FlatMapView({
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', rowGap: 6 }}>
                   {(['xauusd', 'eurusd', 'gbpusd'] as const).map((pair) => (
                     <div key={pair} style={{ display: 'contents' }}>
-                      <span style={{ fontSize: 11, color: '#8c8880', fontFamily: 'IBM Plex Mono, monospace' }}>
+                      <span style={{ fontSize: 11, color: '#8c8880', fontFamily: 'Roboto Mono, monospace' }}>
                         {pair === 'xauusd' ? 'XAU/USD' : pair === 'eurusd' ? 'EUR/USD' : 'GBP/USD'}
                       </span>
-                      <span style={{ fontSize: 11, color: selectedMarker.impact[pair].startsWith('+') ? GREEN : selectedMarker.impact[pair].startsWith('-') ? '#ff544a' : GOLD, fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>
+                      <span style={{ fontSize: 11, color: selectedMarker.impact[pair].startsWith('+') ? GREEN : selectedMarker.impact[pair].startsWith('-') ? '#ff544a' : GOLD, fontFamily: 'Roboto Mono, monospace', fontWeight: 700 }}>
                         {selectedMarker.impact[pair]}
                       </span>
                     </div>
@@ -917,7 +917,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        fontFamily: "'IBM Plex Sans', sans-serif",
+        fontFamily: "'Roboto', sans-serif",
         color: '#e8e8e8',
       }}
     >
@@ -976,7 +976,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
                     </div>
                     <span style={{ fontSize: 13 }}>{cfg.icon}</span>
                     <span style={{ fontSize: 12, color: active ? '#ececec' : '#666', flex: 1, lineHeight: 1.35, fontWeight: active ? 500 : 400 }}>{cfg.label}</span>
-                    <span style={{ fontSize: 10, color: active ? cfg.color : '#3a3a3a', fontFamily: 'IBM Plex Mono, monospace', background: active ? cfg.color + '18' : '#141414', padding: '2px 6px', borderRadius: 4, minWidth: 22, textAlign: 'center' }}>{layerCounts[key]}</span>
+                    <span style={{ fontSize: 10, color: active ? cfg.color : '#3a3a3a', fontFamily: 'Roboto Mono, monospace', background: active ? cfg.color + '18' : '#141414', padding: '2px 6px', borderRadius: 4, minWidth: 22, textAlign: 'center' }}>{layerCounts[key]}</span>
                   </button>
                 );
               })}
@@ -1072,10 +1072,10 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
                   <div style={{ fontSize: 9, color: '#444', letterSpacing: 1, marginBottom: 5 }}>MARKET IMPACT</div>
                   {(['xauusd', 'eurusd', 'gbpusd'] as const).map(p => (
                     <div key={p} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                      <span style={{ fontSize: 9, color: '#555', fontFamily: 'IBM Plex Mono, monospace' }}>
+                      <span style={{ fontSize: 9, color: '#555', fontFamily: 'Roboto Mono, monospace' }}>
                         {p === 'xauusd' ? 'XAU/USD' : p === 'eurusd' ? 'EUR/USD' : 'GBP/USD'}
                       </span>
-                      <span style={{ fontSize: 9, fontFamily: 'IBM Plex Mono, monospace', fontWeight: 600, color: td.impact[p].startsWith('+') ? GREEN : td.impact[p].startsWith('-') ? '#ff4444' : GOLD }}>
+                      <span style={{ fontSize: 9, fontFamily: 'Roboto Mono, monospace', fontWeight: 600, color: td.impact[p].startsWith('+') ? GREEN : td.impact[p].startsWith('-') ? '#ff4444' : GOLD }}>
                         {td.impact[p]}
                       </span>
                     </div>
@@ -1103,16 +1103,16 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
         <div style={{ display: 'flex', animation: 'ticker-scroll 55s linear infinite', whiteSpace: 'nowrap' }}>
           {[...(tickerItems.length > 0 ? tickerItems : []), ...(tickerItems.length > 0 ? tickerItems : [])].map((item, i) => (
             <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 22px' }}>
-              <span style={{ fontSize: 11, color: '#999', fontFamily: 'IBM Plex Mono, monospace', letterSpacing: 0.5, fontWeight: 500 }}>{item.pair}</span>
-              <span style={{ fontSize: 12, color: item.up ? GREEN : '#ff4444', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>{item.price}</span>
-              <span style={{ fontSize: 10, color: item.up ? GREEN : '#ff4444', fontFamily: 'IBM Plex Mono, monospace' }}>{item.pct}</span>
+              <span style={{ fontSize: 11, color: '#999', fontFamily: 'Roboto Mono, monospace', letterSpacing: 0.5, fontWeight: 500 }}>{item.pair}</span>
+              <span style={{ fontSize: 12, color: item.up ? GREEN : '#ff4444', fontFamily: 'Roboto Mono, monospace', fontWeight: 700 }}>{item.price}</span>
+              <span style={{ fontSize: 10, color: item.up ? GREEN : '#ff4444', fontFamily: 'Roboto Mono, monospace' }}>{item.pct}</span>
               <span style={{ fontSize: 9, color: item.up ? GREEN : '#ff4444' }}>{item.up ? '▲' : '▼'}</span>
               <span style={{ fontSize: 10, color: '#2a2a2a', marginLeft: 4 }}>|</span>
             </div>
           ))}
         </div>
         {tickerItems.length === 0 && (
-          <div style={{ position: 'absolute', left: 16, fontSize: 11, color: '#666', fontFamily: 'IBM Plex Mono, monospace' }}>
+          <div style={{ position: 'absolute', left: 16, fontSize: 11, color: '#666', fontFamily: 'Roboto Mono, monospace' }}>
             Loading live market tape...
           </div>
         )}

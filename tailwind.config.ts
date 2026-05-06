@@ -7,8 +7,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["'IBM Plex Sans'", "system-ui", "-apple-system", "sans-serif"],
-        mono: ["'IBM Plex Mono'", "'Courier New'", "monospace"],
+        sans: ["'Roboto'", "system-ui", "-apple-system", "sans-serif"],
+        mono: ["'Roboto Mono'", "'Courier New'", "monospace"],
       },
     },
   },

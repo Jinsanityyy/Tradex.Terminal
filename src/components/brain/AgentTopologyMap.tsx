@@ -452,7 +452,7 @@ export function AgentTopologyMap({ data, loading = false }: AgentTopologyMapProp
                   fontWeight="700"
                   fill={c.labelColor}
                   letterSpacing="0.08em"
-                  fontFamily="ui-monospace, monospace"
+                  fontFamily="'Roboto Mono', monospace"
                 >
                   {n.label}
                 </text>
@@ -465,7 +465,7 @@ export function AgentTopologyMap({ data, loading = false }: AgentTopologyMapProp
                   fontWeight="500"
                   fill={c.labelColor}
                   opacity="0.6"
-                  fontFamily="ui-monospace, monospace"
+                  fontFamily="'Roboto Mono', monospace"
                 >
                   {stateLabel(n.id, st)}
                 </text>
@@ -555,7 +555,7 @@ export function AgentTopologyMap({ data, loading = false }: AgentTopologyMapProp
                     fontSize="11"
                     fontWeight="800"
                     fill={c.labelColor}
-                    fontFamily="ui-monospace, monospace"
+                    fontFamily="'Roboto Mono', monospace"
                   >
                     {data.agents.master.confidence}%
                   </text>
@@ -568,7 +568,7 @@ export function AgentTopologyMap({ data, loading = false }: AgentTopologyMapProp
                     fontWeight="500"
                     fill={c.labelColor}
                     opacity="0.7"
-                    fontFamily="ui-monospace, monospace"
+                    fontFamily="'Roboto Mono', monospace"
                   >
                     {alignedCount}/{totalAgents} ALIGNED
                   </text>
@@ -581,7 +581,7 @@ export function AgentTopologyMap({ data, loading = false }: AgentTopologyMapProp
                   fontWeight="700"
                   fill={c.labelColor}
                   letterSpacing="0.08em"
-                  fontFamily="ui-monospace, monospace"
+                  fontFamily="'Roboto Mono', monospace"
                 >
                   MASTER
                 </text>
@@ -592,7 +592,7 @@ export function AgentTopologyMap({ data, loading = false }: AgentTopologyMapProp
                   fontWeight="600"
                   fill={c.labelColor}
                   opacity="0.6"
-                  fontFamily="ui-monospace, monospace"
+                  fontFamily="'Roboto Mono', monospace"
                 >
                   CONSENSUS
                 </text>
@@ -661,7 +661,7 @@ export function AgentTopologyMap({ data, loading = false }: AgentTopologyMapProp
                   fontWeight="700"
                   fill={c.labelColor}
                   opacity="0.8"
-                  fontFamily="ui-monospace, monospace"
+                  fontFamily="'Roboto Mono', monospace"
                 >
                   {stateLabel("execution", st)}
                 </text>
@@ -673,7 +673,7 @@ export function AgentTopologyMap({ data, loading = false }: AgentTopologyMapProp
                   fontWeight="700"
                   fill={c.labelColor}
                   letterSpacing="0.08em"
-                  fontFamily="ui-monospace, monospace"
+                  fontFamily="'Roboto Mono', monospace"
                 >
                   EXECUTION
                 </text>
@@ -684,7 +684,7 @@ export function AgentTopologyMap({ data, loading = false }: AgentTopologyMapProp
                   fontWeight="600"
                   fill={c.labelColor}
                   opacity="0.6"
-                  fontFamily="ui-monospace, monospace"
+                  fontFamily="'Roboto Mono', monospace"
                 >
                   AGENT
                 </text>
@@ -700,7 +700,7 @@ export function AgentTopologyMap({ data, loading = false }: AgentTopologyMapProp
             textAnchor="middle"
             fontSize="8"
             fill="#3f3f46"
-            fontFamily="ui-monospace, monospace"
+            fontFamily="'Roboto Mono', monospace"
           >
             ──────────►
           </text>
@@ -720,7 +720,7 @@ export function AgentTopologyMap({ data, loading = false }: AgentTopologyMapProp
                 fontSize="7.5"
                 fill={item.color}
                 opacity="0.7"
-                fontFamily="ui-monospace, monospace"
+                fontFamily="'Roboto Mono', monospace"
                 fontWeight="600"
                 letterSpacing="0.06em"
               >

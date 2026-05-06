@@ -45,7 +45,7 @@ html {
 body {
   background: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  font-family: 'Roboto', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100dvh;
@@ -54,7 +54,7 @@ body {
 /* Mono for numbers, prices, codes */
 .font-mono, code, kbd, samp, pre,
 [class*="tabular"], [class*="font-mono"] {
-  font-family: 'IBM Plex Mono', 'Courier New', monospace !important;
+  font-family: 'Roboto Mono', 'Courier New', monospace !important;
 }
 
 /* Scrollbar */
