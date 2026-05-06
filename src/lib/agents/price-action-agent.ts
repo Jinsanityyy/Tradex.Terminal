@@ -1,14 +1,8 @@
 /**
- * Agent 2 — Price Action Agent (LLM-Powered)
+ * Agent 2 — Price Action Agent (Jade Cap Intraday Liquidity & Volatility Model)
  *
- * Analyzes pure price action:
- * - Market structure (swing highs / swing lows)
- * - Trend continuation vs pullback
- * - Breakout vs failed breakout
- * - Candle rejection / momentum candles
- * - Support & resistance interaction
- * - Consolidation vs expansion phase
- * - Retest quality and close strength
+ * Jade Cap rules: Daily Bias → Session Levels → Liquidity Sweep (NY 13:00–18:00 UTC)
+ * → FVG Detection → Entry/SL/TP.  Reported 68.2% WR on XAUUSD M15, 16-month backtest.
  *
  * Uses Claude for deep structural analysis when API key available.
  * Falls back to rule-based logic for reliability.
@@ -24,62 +18,79 @@ import type {
 // LLM Prompt
 // ─────────────────────────────────────────────────────────────────────────────
 
-const PA_SYSTEM_PROMPT = `You are an elite Price Action analyst. You read markets through raw price — candles, structure, range behavior, and momentum. You do not rely on indicators or institutional-flow narratives.
+const JADE_CAP_SYSTEM = `You are an elite intraday analyst implementing the Jade Cap Intraday Liquidity & Volatility Model (68.2% WR, XAUUSD M15, 16-month backtest).
 
-Your job: analyze the provided market data and identify the highest-probability price action setup.
+JADE CAP RULES:
 
-FRAMEWORK:
-- Market structure: identify whether price is making higher highs / higher lows (bullish) or lower highs / lower lows (bearish)
-- Structure break (BOS): a decisive close beyond the most recent swing high (bullish BOS) or swing low (bearish BOS)
-- Reversal shift (legacy CHoCH field): a structural shift — previous trend broken, new swing forming in the opposite direction
-- Support/Resistance retest (legacy OB field): a key price level where price previously reversed with strong conviction — expect reaction on retest
-- Imbalance/Gap (legacy FVG field): a price area skipped over by a strong momentum candle — acts as a magnet for price to return and fill
-- Stop run / failed break (legacy Sweep field): price temporarily breaches a key level before snapping back with force
-- Consolidation: price ranging between two levels — expect breakout in direction of higher timeframe bias
-- Expansion: strong directional move with large-bodied candles and increasing momentum
+STEP 1 — DAILY BIAS
+- HTF structure bullish (prev day close > open) → bias = "bullish"
+- HTF structure bearish (prev day close < open) → bias = "bearish"
 
-CANDLE ANALYSIS:
-- Rejection candles (pin bars, hammers, shooting stars): long wicks signal failed move, expect reversal
-- Engulfing candles: full body absorption of prior candle — strong directional signal
-- Inside bars: consolidation within prior candle range — expect breakout
-- Close strength: where price closes within the candle range matters — close near high is bullish, near low is bearish
+STEP 2 — SESSION LEVELS
+- Asian High/Low: 00:00–08:00 UTC range
+- London High/Low: 08:00–13:00 UTC range
+- PDH/PDL: previous day high/low
 
-ENTRY LOGIC:
-- Trend continuation: enter on pullback to support/resistance or imbalance fill, in direction of structure
-- Reversal: enter on structure break + retest confirmation
-- Breakout: enter on decisive close beyond consolidation range with momentum confirmation
+STEP 3 — LIQUIDITY SWEEP (NY session 13:00–18:00 UTC ONLY)
+- Price wicks past a session level by $2+ (XAUUSD) but closes BACK INSIDE = sweep
+- liquiditySweepDetected = true; swept level → keyLevels.sweepLevel
+- Confidence: 50 base + modifier per sweep level:
+  London Low  → +15  (76% WR — best setup)
+  PDH         → +10  (71.4% WR)
+  Asian High  → +10  (70% WR)
+  Asian Low   → +5   (60% WR)
+  London High → +0   (43% WR — flag only, do NOT recommend trading)
+
+STEP 4 — FVG DETECTION (scan 8 candles after sweep)
+- Bullish FVG: candle[i-1].high < candle[i+1].low
+- Bearish FVG: candle[i-1].low > candle[i+1].high
+- Record fvgHigh, fvgLow, fvgMid; setupType = "FVG"; setupPresent = true
+
+STEP 5 — LEVELS
+- Entry: FVG midpoint
+- Stop Loss: sweep extreme + $5 buffer → invalidationLevel
+- Take Profit: 1.5R → keyLevels.liquidityTarget
+
+FIELD MAPPING:
+- bias             → daily bias (Step 1)
+- confidence       → 50 base + sweep modifier (0 if no sweep)
+- setupType        → "FVG" | "Sweep" | "None"
+- setupPresent     → true only if liquidity sweep confirmed
+- bosDetected      → true if sweep direction aligns with daily bias
+- chochDetected    → true if FVG forms after the sweep
+- liquiditySweepDetected → true when sweep confirmed in NY session
+- premiumDiscount  → "PREMIUM" (upper 50% of day range), "DISCOUNT" (lower 50%), "EQUILIBRIUM"
+- reasons          → swept level type, FVG zone, daily bias, session
 
 CRITICAL OUTPUT RULES:
 - Respond with ONLY valid JSON, no markdown, no code blocks
-- All price levels must be precise numbers based on the actual data provided
-- Return null for levels you cannot identify with confidence
-- Do not invent setups that don't exist in the data
-- setupType mapping: "BOS" = breakout continuation, "CHoCH" = trend-shift reversal, "OB" = support/resistance retest, "FVG" = gap fill, "Sweep" = stop-run reversal, "None" = no clear setup
-- premiumDiscount mapping: "PREMIUM" = upper range, "EQUILIBRIUM" = midpoint, "DISCOUNT" = lower range
+- No sweep outside NY session (13:00–18:00 UTC): setupPresent = false, setupType = "None"
+- London High sweep: confidence = 50, flag in reasons, do NOT set setupPresent = true
+- All price levels must be precise numbers or null
 
-Return exactly this JSON structure:
+Return exactly this JSON:
 {
   "bias": "bullish" | "bearish" | "neutral",
   "confidence": 0-100,
-  "setupType": "OB" | "FVG" | "BOS" | "CHoCH" | "Sweep" | "None",
+  "setupType": "FVG" | "Sweep" | "None",
   "setupPresent": true | false,
   "bosDetected": true | false,
   "chochDetected": true | false,
   "liquiditySweepDetected": true | false,
   "premiumDiscount": "PREMIUM" | "EQUILIBRIUM" | "DISCOUNT",
   "keyLevels": {
-    "orderBlockHigh": <key resistance level or null>,
-    "orderBlockLow": <key support level or null>,
-    "fvgHigh": <imbalance top or null>,
-    "fvgLow": <imbalance bottom or null>,
-    "fvgMid": <imbalance midpoint or null>,
-    "liquidityTarget": <next target level or null>,
-    "sweepLevel": <swept level or null>,
+    "orderBlockHigh": null,
+    "orderBlockLow": null,
+    "fvgHigh": <FVG top or null>,
+    "fvgLow": <FVG bottom or null>,
+    "fvgMid": <FVG midpoint or null>,
+    "liquidityTarget": <1.5R TP or null>,
+    "sweepLevel": <swept session level or null>,
     "premiumZoneTop": <upper range boundary or null>,
     "discountZoneBottom": <lower range boundary or null>
   },
   "reasons": ["reason1", "reason2", "reason3"],
-  "invalidationLevel": <price or null>
+  "invalidationLevel": <SL = sweep extreme + $5 buffer, or null>
 }`;
 
 async function runLLMAnalysis(
@@ -88,216 +99,286 @@ async function runLLMAnalysis(
 ): Promise<SMCAgentOutput> {
   const start = Date.now();
   const { price, structure, indicators } = snapshot;
+  const { current, open, high, low, prevClose, dayRange, positionInDay } = price;
+  const { sessionHour, session } = indicators;
+  const { htfBias, htfConfidence, equilibrium, zone, pos52w } = structure;
 
-  const eq = structure.equilibrium;
-  const premiumTop = eq + (price.high - eq) * 0.5;
-  const discountBottom = eq - (eq - price.low) * 0.5;
+  const upperWick   = high - Math.max(current, open);
+  const lowerWick   = Math.min(current, open) - low;
+  const candleRange = high - low;
+  const candleBody  = Math.abs(current - open);
+  const bodyRatio   = candleRange > 0 ? ((candleBody / candleRange) * 100).toFixed(0) : "0";
+  const closePos    = candleRange > 0 ? (((current - low) / candleRange) * 100).toFixed(0) : "50";
+  const inNYSession = sessionHour >= 13 && sessionHour < 18;
 
-  // Candle body analysis
-  const body = Math.abs(price.current - price.open);
-  const range = price.high - price.low;
-  const upperWick = price.high - Math.max(price.current, price.open);
-  const lowerWick = Math.min(price.current, price.open) - price.low;
-  const closePosition = range > 0 ? ((price.current - price.low) / range * 100).toFixed(0) : "50";
-  const bodyRatio = range > 0 ? (body / range * 100).toFixed(0) : "0";
+  // Estimated session levels from day range
+  const asianHigh  = parseFloat((equilibrium + dayRange * 0.18).toFixed(4));
+  const asianLow   = parseFloat((equilibrium - dayRange * 0.18).toFixed(4));
+  const londonHigh = parseFloat((equilibrium + dayRange * 0.27).toFixed(4));
+  const londonLow  = parseFloat((equilibrium - dayRange * 0.27).toFixed(4));
+  const pdh        = parseFloat((prevClose + dayRange * 0.40).toFixed(4));
+  const pdl        = parseFloat((prevClose - dayRange * 0.40).toFixed(4));
+
+  const wickHighTarget = high > londonHigh ? "PAST London High"
+    : high > asianHigh ? "PAST Asian High"
+    : high > pdh       ? "PAST PDH"
+    : "within session range";
+  const wickLowTarget = low < londonLow ? "PAST London Low"
+    : low < asianLow ? "PAST Asian Low"
+    : low < pdl      ? "PAST PDL"
+    : "within session range";
+  const closedBackInside =
+    (high > londonHigh && current < londonHigh) || (low < londonLow && current > londonLow) ||
+    (high > asianHigh  && current < asianHigh)  || (low < asianLow  && current > asianLow)  ||
+    (high > pdh        && current < pdh)         || (low < pdl       && current > pdl);
 
   const userMessage = `
-Analyze ${snapshot.symbolDisplay} (${snapshot.symbol}) for Price Action setup.
+Analyze ${snapshot.symbolDisplay} (${snapshot.symbol}) — Jade Cap Intraday Liquidity & Volatility Model.
 
-PRICE ACTION (${snapshot.timeframe}):
-- Current: ${price.current} | Open: ${price.open} | High: ${price.high} | Low: ${price.low} | Prev Close: ${price.prevClose}
-- Change: ${price.changePercent > 0 ? "+" : ""}${price.changePercent.toFixed(2)}% (${price.change > 0 ? "+" : ""}${price.change.toFixed(4)})
-- Day range: ${price.dayRange.toFixed(4)} | Close position in range: ${closePosition}%
-- Candle body ratio: ${bodyRatio}% | Upper wick: ${upperWick.toFixed(4)} | Lower wick: ${lowerWick.toFixed(4)}
+CURRENT CANDLE (${snapshot.timeframe}):
+- Close: ${current} | Open: ${open} | High: ${high} | Low: ${low} | Prev Close: ${prevClose}
+- Body ratio: ${bodyRatio}% | Upper wick: ${upperWick.toFixed(4)} | Lower wick: ${lowerWick.toFixed(4)}
+- Close position in candle: ${closePos}% | Day range position: ${positionInDay.toFixed(0)}%
 
-MARKET STRUCTURE:
-- 52-week range: ${structure.low52w} – ${structure.high52w}
-- 52w position: ${structure.pos52w}% (${structure.zone})
-- Equilibrium / midpoint: ${eq.toFixed(4)}
-- Price in discount zone: ${structure.inDiscount} | Price in premium zone: ${structure.inPremium}
-- HTF conviction: ${structure.htfBias.toUpperCase()} at ${structure.htfConfidence}%
-- Structure context: ${structure.smcContext}
+SESSION CONTEXT:
+- Current session: ${session} | UTC hour: ${sessionHour}
+- NY session sweep window (13:00–18:00 UTC): ${inNYSession ? "OPEN" : "CLOSED"}
 
-MOMENTUM:
-- RSI(14): ${indicators.rsi.toFixed(1)} (${indicators.rsi > 70 ? "overbought" : indicators.rsi < 30 ? "oversold" : "neutral"})
-- MACD histogram: ${indicators.macdHist > 0 ? "positive (bullish momentum)" : "negative (bearish momentum)"}
-- Session: ${indicators.session}
+DAILY BIAS (Step 1):
+- HTF bias: ${htfBias.toUpperCase()} @ ${htfConfidence}% | Prev close: ${prevClose} | Day open: ${open}
+- Day range: ${dayRange.toFixed(4)} | Equilibrium: ${equilibrium.toFixed(4)} | Zone: ${zone}
+- 52-week position: ${pos52w.toFixed(1)}%
 
-KEY ZONE ESTIMATES:
-- Premium zone top: ${premiumTop.toFixed(4)}
-- Discount zone bottom: ${discountBottom.toFixed(4)}
+ESTIMATED SESSION LEVELS (Step 2):
+- Asian High/Low: ${asianHigh} / ${asianLow}
+- London High/Low: ${londonHigh} / ${londonLow}
+- PDH/PDL (est.): ${pdh} / ${pdl}
 
-IDENTIFY the most actionable price action setup. Consider structure, momentum, candle patterns, and key levels. Return JSON only.`.trim();
+WICK ANALYSIS (Step 3 — Sweep Detection):
+- Upper wick extends: ${wickHighTarget}
+- Lower wick extends: ${wickLowTarget}
+- Price closed back inside swept level: ${closedBackInside ? "YES" : "NO"}
+
+INDICATORS:
+- RSI(14): ${indicators.rsi.toFixed(1)}
+- MACD histogram: ${indicators.macdHist > 0 ? "positive" : "negative"}
+
+Apply Jade Cap rules. Only flag a sweep if in NY session AND wick exceeds level. Return JSON only.`.trim();
 
   const msg = await client.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 900,
-    system: PA_SYSTEM_PROMPT,
+    system: JADE_CAP_SYSTEM,
     messages: [{ role: "user", content: userMessage }],
   });
 
-  const raw = msg.content[0].type === "text" ? msg.content[0].text : "";
+  const raw     = msg.content[0].type === "text" ? msg.content[0].text : "";
   const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
-  const parsed = JSON.parse(cleaned);
+  const parsed  = JSON.parse(cleaned);
 
   return {
-    agentId: "smc",
-    bias: parsed.bias as DirectionalBias,
-    confidence: parsed.confidence,
-    setupType: parsed.setupType as SetupType,
-    setupPresent: parsed.setupPresent,
-    keyLevels: parsed.keyLevels as SMCKeyLevels,
-    premiumDiscount: parsed.premiumDiscount as PriceZone,
+    agentId:               "smc",
+    bias:                  parsed.bias as DirectionalBias,
+    confidence:            parsed.confidence,
+    setupType:             parsed.setupType as SetupType,
+    setupPresent:          parsed.setupPresent,
+    keyLevels:             parsed.keyLevels as SMCKeyLevels,
+    premiumDiscount:       parsed.premiumDiscount as PriceZone,
     liquiditySweepDetected: parsed.liquiditySweepDetected,
-    bosDetected: parsed.bosDetected,
-    chochDetected: parsed.chochDetected,
-    reasons: parsed.reasons,
-    invalidationLevel: parsed.invalidationLevel,
-    processingTime: Date.now() - start,
+    bosDetected:           parsed.bosDetected,
+    chochDetected:         parsed.chochDetected,
+    reasons:               parsed.reasons,
+    invalidationLevel:     parsed.invalidationLevel,
+    processingTime:        Date.now() - start,
   };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Rule-Based Fallback
+// Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function runRuleBasedPA(snapshot: MarketSnapshot): SMCAgentOutput {
+// $2 for XAUUSD; scaled ~0.07% of price for other instruments
+function sweepMinDollar(symbol: string, price: number): number {
+  if (symbol === "XAUUSD") return 2;
+  if (symbol === "XAGUSD" || symbol === "XPTUSD") return 0.5;
+  if (price > 5_000) return price * 0.001;   // BTCUSD, indices
+  if (price > 100)   return price * 0.002;
+  return 0.0002;                              // forex
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rule-Based Fallback — Jade Cap
+// ─────────────────────────────────────────────────────────────────────────────
+
+function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   const start = Date.now();
   const { price, structure, indicators } = snapshot;
+  const { current, open, high, low, prevClose, dayRange } = price;
+  const { sessionHour, session } = indicators;
+  const { htfBias, htfConfidence, equilibrium, zone } = structure;
 
-  const {
-    htfBias, htfConfidence, zone, smcContext,
-    inDiscount, inPremium, equilibrium, pos52w,
-  } = structure;
-  const { changePercent, current, high, low, open, prevClose } = price;
+  // ── STEP 1: Daily bias ─────────────────────────────────────────────────────
+  // Jade Cap: prev day close > open → bullish; use HTF bias as daily proxy
+  const dailyBias: DirectionalBias = htfBias !== "neutral" ? htfBias
+    : current > prevClose ? "bullish"
+    : current < prevClose ? "bearish"
+    : "neutral";
 
-  // ── Candle analysis ───────────────────────────────────────────────────────
-  const candleRange = high - low;
-  const candleBody  = Math.abs(current - open);
+  // ── STEP 2: Session level estimates ───────────────────────────────────────
+  // Approximate from equilibrium + daily range fractions
+  const asianHigh  = equilibrium + dayRange * 0.18;
+  const asianLow   = equilibrium - dayRange * 0.18;
+  const londonHigh = equilibrium + dayRange * 0.27;
+  const londonLow  = equilibrium - dayRange * 0.27;
+  // PDH/PDL estimated from prev close ± 40% of day range
+  const pdh = prevClose + dayRange * 0.40;
+  const pdl = prevClose - dayRange * 0.40;
+
+  // ── STEP 3: Liquidity sweep detection (NY session: 13:00–18:00 UTC) ───────
+  const inNYSession = sessionHour >= 13 && sessionHour < 18;
+  const minSweep    = sweepMinDollar(snapshot.symbol, current);
   const upperWick   = high - Math.max(current, open);
   const lowerWick   = Math.min(current, open) - low;
-  const closeStrong = current > prevClose;                          // closed up
-  const closeInUpperHalf = candleRange > 0 && (current - low) / candleRange > 0.5;
-  const rejectionCandle = candleRange > 0 && candleBody / candleRange < 0.35;  // long wick relative to body
-  const engulfing = candleBody > Math.abs(prevClose - open) * 1.1 && candleRange > 0;
 
-  // ── Structure break detection ─────────────────────────────────────────────
-  const bosUp   = smcContext.includes("BOS to upside") || (changePercent > 0.8 && closeInUpperHalf);
-  const bosDown = smcContext.includes("BOS to downside") || (changePercent < -0.8 && !closeInUpperHalf);
-  const bosDetected = bosUp || bosDown;
+  // Sweep candidates — priority: London Low (+15) > PDH (+10) > Asian High (+10)
+  //                              > Asian Low (+5) > London High (+0, flag only)
+  let liquiditySweepDetected = false;
+  let sweepLevel: number | null = null;
+  let sweepLabel = "";
+  let sweepModifier = 0;
+  let sweepBias: DirectionalBias = dailyBias;
 
-  // ── Reversal (CHoCH) detection ────────────────────────────────────────────
-  const chochDetected = smcContext.includes("CHoCH") || (
-    rejectionCandle && (
-      (inPremium && lowerWick > upperWick * 1.5)  ||  // bearish rejection at top
-      (inDiscount && upperWick < lowerWick * 1.5)     // bullish rejection at bottom… wait, invert
-    )
-  );
+  if (inNYSession) {
+    if (lowerWick >= minSweep && low < londonLow && current > londonLow) {
+      liquiditySweepDetected = true;
+      sweepLevel  = londonLow;
+      sweepLabel  = "London Low";
+      sweepModifier = 15;
+      sweepBias   = "bullish";
+    } else if (upperWick >= minSweep && high > pdh && current < pdh) {
+      liquiditySweepDetected = true;
+      sweepLevel  = pdh;
+      sweepLabel  = "PDH";
+      sweepModifier = 10;
+      sweepBias   = "bearish";
+    } else if (upperWick >= minSweep && high > asianHigh && current < asianHigh) {
+      liquiditySweepDetected = true;
+      sweepLevel  = asianHigh;
+      sweepLabel  = "Asian High";
+      sweepModifier = 10;
+      sweepBias   = "bearish";
+    } else if (lowerWick >= minSweep && low < asianLow && current > asianLow) {
+      liquiditySweepDetected = true;
+      sweepLevel  = asianLow;
+      sweepLabel  = "Asian Low";
+      sweepModifier = 5;
+      sweepBias   = "bullish";
+    } else if (upperWick >= minSweep && high > londonHigh && current < londonHigh) {
+      // London High — 43% WR, flag only, do not trade
+      liquiditySweepDetected = true;
+      sweepLevel  = londonHigh;
+      sweepLabel  = "London High";
+      sweepModifier = 0;
+      sweepBias   = "bearish";
+    }
+  }
 
-  // Fix: bullish rejection = long lower wick in discount; bearish = long upper wick in premium
-  const bullishRejection = inDiscount && lowerWick > upperWick * 1.5 && lowerWick > candleBody;
-  const bearishRejection = inPremium  && upperWick > lowerWick * 1.5 && upperWick > candleBody;
-  const reversalSignal = bullishRejection || bearishRejection || chochDetected;
+  // ── STEP 4: FVG detection (approximated from single candle body) ──────────
+  // After a sweep, a meaningful body away from the wick extreme signals imbalance
+  const candleRange  = high - low;
+  const candleBody   = Math.abs(current - open);
+  const bodyTop      = Math.max(current, open);
+  const bodyBottom   = Math.min(current, open);
 
-  // ── Sweep detection: large wick grabbing liquidity then reversing ─────────
-  const sweepRatio = candleRange > 0 ? (candleRange - candleBody) / candleRange : 0;
-  const liquiditySweepDetected = sweepRatio > 0.4 && Math.abs(changePercent) > 0.5;
+  let fvgHigh: number | null = null;
+  let fvgLow:  number | null = null;
+  let fvgMid:  number | null = null;
 
-  // ── Setup type priority ───────────────────────────────────────────────────
-  // Sweep > BOS > CHoCH > S/R zone (OB) > Imbalance (FVG) > None
-  let setupType: SetupType = "None";
-  if (liquiditySweepDetected) setupType = "Sweep";
-  else if (bosDetected) setupType = "BOS";
-  else if (reversalSignal) setupType = "CHoCH";
-  else if (htfConfidence > 55 && (inDiscount || inPremium)) setupType = "OB";
-  else if (Math.abs(current - prevClose) > price.dayRange * 0.3) setupType = "FVG";
+  if (liquiditySweepDetected && sweepLabel !== "London High" && candleBody >= candleRange * 0.25) {
+    fvgLow  = parseFloat(bodyBottom.toFixed(4));
+    fvgHigh = parseFloat(bodyTop.toFixed(4));
+    fvgMid  = parseFloat(((fvgHigh + fvgLow) / 2).toFixed(4));
+  }
 
-  const setupPresent = setupType !== "None";
+  const fvgDetected = fvgHigh !== null && fvgLow !== null;
 
-  // ── Key levels ────────────────────────────────────────────────────────────
-  // Support / resistance zone (mapped to legacy orderBlock fields)
-  const srRange = current * 0.003;
-  const obHigh  = bosUp || (htfBias === "bullish" && inDiscount)
-    ? parseFloat((current + srRange * 0.5).toFixed(4))
-    : null;
-  const obLow   = bosUp || (htfBias === "bullish" && inDiscount)
-    ? parseFloat((current - srRange * 0.5).toFixed(4))
-    : null;
+  // ── Setup classification ───────────────────────────────────────────────────
+  // London High sweep: don't promote to a tradeable setup (setupPresent = false)
+  const isLowConfidenceSweep = sweepLabel === "London High";
+  const setupType: SetupType = fvgDetected ? "FVG" : liquiditySweepDetected ? "Sweep" : "None";
+  const setupPresent = liquiditySweepDetected && !isLowConfidenceSweep;
 
-  // Imbalance / gap levels (mapped to legacy FVG fields)
-  const gapSize = current - prevClose;
-  const fvgHigh = gapSize < 0 ? parseFloat(Math.max(current, prevClose).toFixed(4)) : null;
-  const fvgLow  = gapSize > 0 ? parseFloat(Math.min(current, prevClose).toFixed(4)) : null;
-  const fvgMid  = (fvgHigh !== null && fvgLow !== null)
-    ? parseFloat(((fvgHigh + fvgLow) / 2).toFixed(4))
-    : null;
+  // ── Bias ───────────────────────────────────────────────────────────────────
+  const bias: DirectionalBias = liquiditySweepDetected ? sweepBias : dailyBias;
 
-  // Next target level (equal highs/lows or session extremes)
-  const liquidityTarget = htfBias === "bullish"
-    ? parseFloat((high * 1.004).toFixed(4))
-    : parseFloat((low * 0.996).toFixed(4));
+  // ── BOS / CHoCH (per Jade Cap field mapping) ───────────────────────────────
+  const bosDetected   = liquiditySweepDetected && bias === dailyBias;
+  const chochDetected = fvgDetected;
 
-  const sweepLevel = liquiditySweepDetected
-    ? htfBias === "bullish"
-      ? parseFloat(low.toFixed(4))
-      : parseFloat(high.toFixed(4))
-    : null;
+  // ── Confidence: 50 base + sweep modifier ─────────────────────────────────
+  const confidence = liquiditySweepDetected ? Math.min(95, 50 + sweepModifier) : 40;
+
+  // ── STEP 5: Levels ─────────────────────────────────────────────────────────
+  const entryPrice = fvgMid ?? current;
+  // SL = sweep extreme + $5 buffer (sweepMinDollar * 2.5 → $5 for XAUUSD)
+  const slBuffer   = minSweep * 2.5;
+
+  let invalidationLevel: number | null = null;
+  if (liquiditySweepDetected && !isLowConfidenceSweep) {
+    invalidationLevel = sweepBias === "bullish"
+      ? parseFloat((low  - slBuffer).toFixed(4))
+      : parseFloat((high + slBuffer).toFixed(4));
+  }
+
+  // TP = 1.5R from entry
+  const riskDist = invalidationLevel !== null
+    ? Math.abs(entryPrice - invalidationLevel)
+    : dayRange * 0.25;
+  const liquidityTarget = bias === "bullish"
+    ? parseFloat((entryPrice + riskDist * 1.5).toFixed(4))
+    : parseFloat((entryPrice - riskDist * 1.5).toFixed(4));
 
   const premiumZoneTop     = parseFloat((equilibrium + (high - equilibrium) * 0.6).toFixed(4));
-  const discountZoneBottom = parseFloat((equilibrium - (equilibrium - low) * 0.6).toFixed(4));
-
-  // ── Bias determination ────────────────────────────────────────────────────
-  let bias: DirectionalBias = htfBias;
-
-  // Override towards reversal if strong rejection signal
-  if (bullishRejection && htfBias !== "bearish") bias = "bullish";
-  if (bearishRejection && htfBias !== "bullish") bias = "bearish";
-
-  // ── Confidence ────────────────────────────────────────────────────────────
-  let confidence = htfConfidence;
-  if (setupPresent && bosDetected)   confidence = Math.min(95, confidence + 10);
-  if (reversalSignal && engulfing)   confidence = Math.min(90, confidence + 8);
-  if (liquiditySweepDetected)        confidence = Math.min(88, confidence + 6);
+  const discountZoneBottom = parseFloat((equilibrium - (equilibrium - low)  * 0.6).toFixed(4));
+  const premiumDiscount: PriceZone = zone;
 
   // ── Reasons ───────────────────────────────────────────────────────────────
   const reasons: string[] = [];
 
-  if (bosUp)
-    reasons.push(`Bullish structure break — price closed above prior swing high ${prevClose.toFixed(4)}, continuation bias in effect`);
-  if (bosDown)
-    reasons.push(`Bearish structure break — price closed below prior swing low ${prevClose.toFixed(4)}, breakdown bias in effect`);
-  if (bullishRejection)
-    reasons.push(`Bullish rejection candle — long lower wick at discount zone (${current.toFixed(4)}), sellers failed to hold lows`);
-  if (bearishRejection)
-    reasons.push(`Bearish rejection candle — long upper wick at premium zone (${current.toFixed(4)}), buyers failed to hold highs`);
-  if (liquiditySweepDetected)
-    reasons.push(`Stop run detected — extended wick ran ${htfBias === "bullish" ? `${low.toFixed(4)} (lows)` : `${high.toFixed(4)} (highs)`} before snapping back, reversal risk elevated`);
-  if (engulfing && closeStrong)
-    reasons.push(`Bullish engulfing candle — full absorption of prior range, strong close near ${high.toFixed(4)}`);
-  if (engulfing && !closeStrong)
-    reasons.push(`Bearish engulfing candle — full absorption of prior range, strong close near ${low.toFixed(4)}`);
-  if (inDiscount && htfBias === "bullish")
-    reasons.push(`Price is trading in the lower half of the range (${current.toFixed(4)} below midpoint ${equilibrium.toFixed(4)}) — pullback buyers still have room to defend structure`);
-  if (inPremium && htfBias === "bearish")
-    reasons.push(`Price is trading in the upper half of the range (${current.toFixed(4)} above midpoint ${equilibrium.toFixed(4)}) — rally sellers still have room to defend resistance`);
-  if (pos52w > 85)
-    reasons.push(`Price near 52-week high (${pos52w}% of range) — key resistance area, watch for distribution or breakout`);
-  if (pos52w < 15)
-    reasons.push(`Price near 52-week low (${pos52w}% of range) — key support area, watch for accumulation or breakdown`);
-
-  if (reasons.length === 0) {
-    reasons.push(`HTF ${htfBias} bias at ${htfConfidence}% — no confirmed structure break, monitor for entry trigger`);
-    reasons.push(`Price is in the ${zone === "PREMIUM" ? "upper range" : zone === "DISCOUNT" ? "lower range" : "mid-range"} — ${zone === "PREMIUM" ? "watch for resistance reactions" : zone === "DISCOUNT" ? "watch for support reactions" : "directional edge remains mixed"}`);
-    reasons.push(`No strong candle signal — wait for rejection candle or breakout close to confirm direction`);
+  if (liquiditySweepDetected && sweepLevel !== null) {
+    const WR_BY_LABEL: Record<string, string> = {
+      "London Low": "76%", "PDH": "71.4%", "Asian High": "70%",
+      "Asian Low": "60%", "London High": "43% — flag only, no trade",
+    };
+    reasons.push(
+      `${sweepLabel} sweep confirmed in NY session — wick past ${sweepLevel.toFixed(4)}, closed back inside | historical WR: ${WR_BY_LABEL[sweepLabel] ?? "n/a"}`
+    );
+  } else {
+    reasons.push(
+      `No liquidity sweep — ${inNYSession
+        ? "NY window open (13:00–18:00 UTC) but no wick past estimated session levels"
+        : `outside NY sweep window (current: ${session}, hour ${sessionHour} UTC)`}`
+    );
   }
 
-  // ── Invalidation level ────────────────────────────────────────────────────
-  const step = current > 1000 ? 5 : current > 100 ? 1 : 0.0005;
-  const invalidationLevel = bias === "bullish"
-    ? parseFloat((Math.floor(low * 0.998 / step) * step).toFixed(4))
-    : bias === "bearish"
-    ? parseFloat((Math.ceil(high * 1.002 / step) * step).toFixed(4))
-    : null;
+  if (fvgDetected) {
+    reasons.push(`FVG: ${fvgLow?.toFixed(4)}–${fvgHigh?.toFixed(4)} | entry at midpoint ${fvgMid?.toFixed(4)}`);
+  }
+
+  reasons.push(
+    `Daily bias: ${dailyBias.toUpperCase()} (HTF ${htfConfidence}% conviction) — sweep direction ${liquiditySweepDetected && bias === dailyBias ? "ALIGNS ✓" : "does not align"} with daily bias`
+  );
+  reasons.push(
+    `Session: ${session} | UTC hour: ${sessionHour} | NY sweep window: ${inNYSession ? "OPEN" : "CLOSED"}`
+  );
+
+  if (isLowConfidenceSweep) {
+    reasons.push("London High sweep (43% WR) — below minimum confidence threshold, no trade recommended");
+  } else if (invalidationLevel !== null && fvgMid !== null) {
+    reasons.push(
+      `Plan: Entry ${fvgMid.toFixed(4)}, SL ${invalidationLevel.toFixed(4)}, TP ${liquidityTarget.toFixed(4)} (1.5R)`
+    );
+  }
 
   return {
     agentId: "smc",
@@ -306,20 +387,20 @@ function runRuleBasedPA(snapshot: MarketSnapshot): SMCAgentOutput {
     setupType,
     setupPresent,
     keyLevels: {
-      orderBlockHigh: obHigh,
-      orderBlockLow: obLow,
+      orderBlockHigh:      null,
+      orderBlockLow:       null,
       fvgHigh,
       fvgLow,
       fvgMid,
       liquidityTarget,
-      sweepLevel,
+      sweepLevel:          sweepLevel !== null ? parseFloat(sweepLevel.toFixed(4)) : null,
       premiumZoneTop,
       discountZoneBottom,
     },
-    premiumDiscount: zone,
+    premiumDiscount,
     liquiditySweepDetected,
     bosDetected,
-    chochDetected: reversalSignal,
+    chochDetected,
     reasons: reasons.slice(0, 5),
     invalidationLevel,
     processingTime: Date.now() - start,
@@ -341,12 +422,12 @@ export async function runPriceActionAgent(
       const client = new Anthropic({ apiKey: anthropicApiKey });
       return await runLLMAnalysis(client, snapshot);
     } catch (err) {
-      console.warn("Price Action Agent LLM fallback:", err);
+      console.warn("Jade Cap Agent LLM fallback:", err);
     }
   }
 
   try {
-    return runRuleBasedPA(snapshot);
+    return runJadeCapRuleBased(snapshot);
   } catch (err) {
     return {
       agentId: "smc",
@@ -364,7 +445,7 @@ export async function runPriceActionAgent(
       liquiditySweepDetected: false,
       bosDetected: false,
       chochDetected: false,
-      reasons: ["Price action analysis failed — defaulting to neutral"],
+      reasons: ["Jade Cap analysis failed — defaulting to neutral"],
       invalidationLevel: null,
       processingTime: Date.now() - start,
       error: String(err),
