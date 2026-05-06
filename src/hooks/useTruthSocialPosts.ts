@@ -16,6 +16,15 @@ export function useTruthSocialPosts() {
   const [posts,  setPosts]  = useState<TrumpPost[]>([]);
   const [status, setStatus] = useState<TSStatus>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+
+  function refresh() {
+    try { sessionStorage.removeItem(RATE_LIMIT_KEY); } catch {}
+    try { sessionStorage.removeItem(CACHE_KEY); } catch {}
+    setPosts([]);
+    setErrorMsg(null);
+    setTick(t => t + 1);
+  }
 
   useEffect(() => {
     // Return cached data immediately if still fresh
@@ -35,7 +44,6 @@ export function useTruthSocialPosts() {
     try {
       const last = parseInt(sessionStorage.getItem(RATE_LIMIT_KEY) ?? "0", 10);
       if (Date.now() - last < MIN_POLL_MS) {
-        // Silently skip — keep previous status
         return;
       }
     } catch {}
@@ -92,7 +100,7 @@ export function useTruthSocialPosts() {
         setStatus("error");
         setErrorMsg(String(err));
       });
-  }, []);
+  }, [tick]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { posts, status, errorMsg };
+  return { posts, status, errorMsg, refresh };
 }

@@ -9,7 +9,7 @@ import { ConvictionMeter } from "@/components/shared/ConvictionMeter";
 import { useTrumpPosts } from "@/hooks/useMarketData";
 import { useTruthSocialPosts } from "@/hooks/useTruthSocialPosts";
 import { cn } from "@/lib/utils";
-import { UserCircle, Filter, Hash, TrendingUp, Wifi, WifiOff } from "lucide-react";
+import { UserCircle, Filter, Hash, TrendingUp, Wifi, WifiOff, RefreshCw } from "lucide-react";
 
 const filterTags = ["all", "tariffs", "china", "fed", "crypto", "oil", "trade-policy", "geopolitics"];
 
@@ -17,7 +17,7 @@ export default function TrumpMonitorPage() {
   const [activeFilter, setActiveFilter] = useState("all");
   const [activeSource, setActiveSource] = useState("all");
   const { posts: serverPosts, isLive, feedSource, sources } = useTrumpPosts(60_000);
-  const { posts: tsPosts, status: tsStatus, errorMsg: tsError } = useTruthSocialPosts();
+  const { posts: tsPosts, status: tsStatus, errorMsg: tsError, refresh: tsRefresh } = useTruthSocialPosts();
 
   // Merge: TS posts first, then server posts (deduplicated by content)
   const tsIds = new Set(tsPosts.map(p => p.id));
@@ -175,11 +175,17 @@ export default function TrumpMonitorPage() {
           </span>
         )}
         {tsStatus === "error" && (
-          <span
-            className="text-[10px] text-red-500/80 cursor-help"
-            title={tsError ?? "Provider returned an error"}
-          >
-            ✦ Truth Social — provider error
+          <span className="flex items-center gap-1.5">
+            <span className="text-[10px] text-red-500/80">
+              ✦ Truth Social — {tsError ? tsError.slice(0, 80) : "provider error"}
+            </span>
+            <button
+              onClick={tsRefresh}
+              className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] text-zinc-500 hover:text-zinc-300 border border-white/8 hover:border-white/16 transition-colors"
+            >
+              <RefreshCw className="h-2.5 w-2.5" />
+              retry
+            </button>
           </span>
         )}
         {availableSources.map((src) => {
