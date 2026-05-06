@@ -213,9 +213,53 @@ function TrendAgentDetail({ data }: { data: AgentRunResult }) {
   );
 }
 
+function JadeCapSessionBanner({ utcHour }: { utcHour: number }) {
+  const inWindow = utcHour >= 13 && utcHour < 18;
+  if (inWindow) return null;
+
+  // Hours until 13:00 UTC
+  const hoursUntil = utcHour >= 18
+    ? 24 - utcHour + 13
+    : 13 - utcHour;
+  const hh = Math.floor(hoursUntil);
+  const mm = Math.round((hoursUntil - hh) * 60);
+
+  return (
+    <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/6 border border-amber-500/15">
+      <div className="mt-0.5 h-2 w-2 rounded-full bg-amber-500/50 shrink-0 animate-pulse" />
+      <div className="space-y-0.5">
+        <p className="text-[11px] font-semibold text-amber-400">
+          JADE CAP — NY Window Closed
+        </p>
+        <p className="text-[10px] text-zinc-500 leading-relaxed">
+          Active <span className="text-zinc-400 font-mono">13:00–18:00 UTC</span>.
+          {" "}Opens in ~<span className="text-zinc-400 font-mono">{hh}h {mm}m</span>.
+          Watching for Asian/London level sweeps then.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function PriceActionAgentDetail({ data }: { data: AgentRunResult }) {
   const a = data.agents.smc;
   const kl = a.keyLevels;
+  const utcHour = new Date().getUTCHours();
+  const inNYWindow = utcHour >= 13 && utcHour < 18;
+  const hasSetup = a.setupPresent || a.liquiditySweepDetected || a.bosDetected || a.chochDetected;
+
+  const keyLevelRows = [
+    { label: "Resistance / OB High",  value: kl.orderBlockHigh   },
+    { label: "Support / OB Low",      value: kl.orderBlockLow    },
+    { label: "FVG High",              value: kl.fvgHigh          },
+    { label: "FVG Low",               value: kl.fvgLow           },
+    { label: "FVG Entry (mid)",       value: kl.fvgMid           },
+    { label: "Liquidity Target",      value: kl.liquidityTarget  },
+    { label: "Sweep Level / SL",      value: kl.sweepLevel       },
+    { label: "Premium Zone Top",      value: kl.premiumZoneTop   },
+    { label: "Discount Zone Bottom",  value: kl.discountZoneBottom },
+  ].filter(l => l.value != null);
+
   return (
     <div className="space-y-5">
       <PixelRow tags={[
@@ -228,48 +272,72 @@ function PriceActionAgentDetail({ data }: { data: AgentRunResult }) {
         { k: "INVL",    v: fmtPrice(a.invalidationLevel) },
       ]} />
 
+      {/* Session banner — only shown outside NY window */}
+      <JadeCapSessionBanner utcHour={utcHour} />
+
       <StatRow>
         <Stat label="Pattern" value={formatPAPattern(a.setupType)} accent />
         <Stat label="Range Context" value={formatZone(a.premiumDiscount)} />
-        <Stat label="Setup Ready" value={a.setupPresent ? "Yes" : "No"} />
+        <Stat
+          label="Setup Ready"
+          value={
+            <span className={hasSetup ? "text-emerald-400" : inNYWindow ? "text-zinc-400" : "text-zinc-600"}>
+              {hasSetup ? "Yes" : inNYWindow ? "Watching" : "Window closed"}
+            </span>
+          }
+        />
       </StatRow>
 
-      <div className="grid grid-cols-3 gap-2">
-        {[
-          { label: "Structure Break", active: a.bosDetected,              cls: "text-emerald-400" },
-          { label: "Trend Shift",     active: a.chochDetected,            cls: "text-amber-400"   },
-          { label: "Stop Run",        active: a.liquiditySweepDetected,   cls: "text-amber-400"   },
-        ].map(({ label, active, cls }) => (
-          <div key={label} className="flex flex-col items-center gap-1.5 p-3 rounded-lg bg-white/3 border border-white/5">
-            {active ? <CheckCircle className="h-4 w-4 text-emerald-400" /> : <XCircle className="h-4 w-4 text-zinc-700" />}
-            <span className={cn("text-[9px] text-center", active ? cls : "text-zinc-600")}>{label}</span>
-          </div>
-        ))}
-      </div>
-
+      {/* Signal conditions */}
       <div>
-        <SectionLabel label="Key Levels" />
-        <div className="space-y-1.5">
+        <SectionLabel label="JADE CAP Conditions" />
+        <div className="grid grid-cols-3 gap-2">
           {[
-            { label: "Resistance",      value: kl.orderBlockHigh   },
-            { label: "Support",         value: kl.orderBlockLow    },
-            { label: "Gap High",        value: kl.fvgHigh          },
-            { label: "Gap Low",         value: kl.fvgLow           },
-            { label: "Next Target",     value: kl.liquidityTarget  },
-            { label: "Rejection Level", value: kl.sweepLevel       },
-          ].filter(l => l.value != null).map(({ label, value }) => (
-            <div key={label} className="flex justify-between items-center px-3 py-1.5 rounded bg-white/3">
-              <span className="text-[10px] text-zinc-500">{label}</span>
-              <span className="text-[11px] font-mono text-zinc-300">{fmtPrice(value as number)}</span>
+            { label: "Sweep Detected", active: a.liquiditySweepDetected, cls: "text-amber-400"   },
+            { label: "CHoCH / BOS",    active: a.chochDetected || a.bosDetected, cls: "text-emerald-400" },
+            { label: "FVG Entry",      active: a.setupType === "FVG",     cls: "text-emerald-400" },
+          ].map(({ label, active, cls }) => (
+            <div key={label} className={cn(
+              "flex flex-col items-center gap-1.5 p-3 rounded-lg border",
+              active ? "bg-emerald-500/6 border-emerald-500/20" : "bg-white/3 border-white/5"
+            )}>
+              {active
+                ? <CheckCircle className="h-4 w-4 text-emerald-400" />
+                : <XCircle className={cn("h-4 w-4", inNYWindow ? "text-zinc-500" : "text-zinc-700")} />}
+              <span className={cn("text-[9px] text-center leading-tight", active ? cls : inNYWindow ? "text-zinc-500" : "text-zinc-700")}>
+                {label}
+              </span>
             </div>
           ))}
         </div>
       </div>
 
+      {/* Key levels */}
+      <div>
+        <SectionLabel label="Key Levels" />
+        {keyLevelRows.length > 0 ? (
+          <div className="space-y-1.5">
+            {keyLevelRows.map(({ label, value }) => (
+              <div key={label} className="flex justify-between items-center px-3 py-1.5 rounded bg-white/3">
+                <span className="text-[10px] text-zinc-500">{label}</span>
+                <span className="text-[11px] font-mono text-zinc-300">{fmtPrice(value as number)}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[11px] text-zinc-600 px-1">
+            {inNYWindow
+              ? "No key levels detected yet — watching for sweep."
+              : "Levels populate when NY sweep window opens (13:00 UTC)."}
+          </p>
+        )}
+      </div>
+
       {a.invalidationLevel != null && (
         <div className="p-3 rounded-lg bg-red-500/6 border border-red-500/15">
-          <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Invalidation Level</p>
+          <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Stop Loss Level</p>
           <p className="text-sm font-mono font-bold text-red-400">{fmtPrice(a.invalidationLevel)}</p>
+          <p className="text-[10px] text-zinc-500 mt-1">Sweep extreme + $5 buffer — thesis invalid below.</p>
         </div>
       )}
 
