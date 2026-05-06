@@ -151,24 +151,30 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
                 </Link>
               );
             })}
+
+            {/* Divider */}
+            <div className="my-1.5 border-t border-[hsl(var(--border))]" />
+
+            {/* Trading Knowledge */}
+            <button
+              onClick={onOpenKnowledge}
+              className={cn(
+                "group flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-[13px] font-medium transition-all duration-150",
+                "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]",
+                isCompact && "justify-center px-2"
+              )}
+              title={isCompact ? "Trading Knowledge" : undefined}
+            >
+              <GraduationCap className="h-[18px] w-[18px] shrink-0 text-violet-400/80 group-hover:text-violet-400 transition-colors" />
+              {!isCompact && <span className="truncate">Trading Knowledge</span>}
+              {!isCompact && (
+                <span className="ml-auto text-[9px] font-bold uppercase tracking-wider text-violet-400/70 bg-violet-400/10 px-1.5 py-0.5 rounded">
+                  New
+                </span>
+              )}
+            </button>
           </div>
         </nav>
-
-        {/* Knowledge Base Button */}
-        <div className="px-2 pb-2">
-          <button
-            onClick={onOpenKnowledge}
-            className={cn(
-              "group flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-[13px] font-medium transition-all duration-150",
-              "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]",
-              isCompact && "justify-center px-2"
-            )}
-            title={isCompact ? "Trading Knowledge" : undefined}
-          >
-            <GraduationCap className="h-[18px] w-[18px] shrink-0 text-violet-400/80 group-hover:text-violet-400 transition-colors" />
-            {!isCompact && <span className="truncate">Trading Knowledge</span>}
-          </button>
-        </div>
 
         {/* Bottom */}
         <div className="border-t border-[hsl(var(--border))] p-3">
