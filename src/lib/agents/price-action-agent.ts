@@ -283,6 +283,18 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
     }
   }
 
+  // Bias consistency: discard sweep when it contradicts the daily bias
+  // Bullish signal requires sweep of a LOW + bullish daily bias
+  // Bearish signal requires sweep of a HIGH + bearish daily bias
+  let sweepAgainstBiasReason = "";
+  if (liquiditySweepDetected && sweepBias !== dailyBias) {
+    sweepAgainstBiasReason = "Sweep detected but against daily bias — no trade";
+    liquiditySweepDetected = false;
+    sweepLevel    = null;
+    sweepLabel    = "";
+    sweepModifier = 0;
+  }
+
   // ── STEP 4: FVG detection (approximated from single candle body) ──────────
   // After a sweep, a meaningful body away from the wick extreme signals imbalance
   const candleRange  = high - low;
@@ -330,13 +342,15 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
       : parseFloat((high + slBuffer).toFixed(4));
   }
 
-  // TP = 1.5R from entry
+  // TP = exactly 1.5R; null when no valid SL exists (prevents inflated targets)
   const riskDist = invalidationLevel !== null
     ? Math.abs(entryPrice - invalidationLevel)
-    : dayRange * 0.25;
-  const liquidityTarget = bias === "bullish"
-    ? parseFloat((entryPrice + riskDist * 1.5).toFixed(4))
-    : parseFloat((entryPrice - riskDist * 1.5).toFixed(4));
+    : null;
+  const liquidityTarget = riskDist !== null
+    ? (bias === "bullish"
+        ? parseFloat((entryPrice + riskDist * 1.5).toFixed(4))
+        : parseFloat((entryPrice - riskDist * 1.5).toFixed(4)))
+    : null;
 
   const premiumZoneTop     = parseFloat((equilibrium + (high - equilibrium) * 0.6).toFixed(4));
   const discountZoneBottom = parseFloat((equilibrium - (equilibrium - low)  * 0.6).toFixed(4));
@@ -345,7 +359,9 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   // ── Reasons ───────────────────────────────────────────────────────────────
   const reasons: string[] = [];
 
-  if (liquiditySweepDetected && sweepLevel !== null) {
+  if (sweepAgainstBiasReason) {
+    reasons.push(sweepAgainstBiasReason);
+  } else if (liquiditySweepDetected && sweepLevel !== null) {
     const WR_BY_LABEL: Record<string, string> = {
       "London Low": "76%", "PDH": "71.4%", "Asian High": "70%",
       "Asian Low": "60%", "London High": "43% — flag only, no trade",
@@ -374,7 +390,7 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
 
   if (isLowConfidenceSweep) {
     reasons.push("London High sweep (43% WR) — below minimum confidence threshold, no trade recommended");
-  } else if (invalidationLevel !== null && fvgMid !== null) {
+  } else if (invalidationLevel !== null && fvgMid !== null && liquidityTarget !== null) {
     reasons.push(
       `Plan: Entry ${fvgMid.toFixed(4)}, SL ${invalidationLevel.toFixed(4)}, TP ${liquidityTarget.toFixed(4)} (1.5R)`
     );
