@@ -305,15 +305,13 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
                   </Link>
                 );
               })}
-            </div>
 
-            {/* Knowledge Base button in mobile drawer */}
-            <div className="px-4 pb-1">
+              {/* Trading Knowledge — inside the grid so it's always visible */}
               <button
                 onClick={() => { setMobileMenuOpen(false); onOpenKnowledge?.(); }}
-                className="flex w-full flex-col items-center gap-2.5 rounded-xl border border-[hsl(var(--border))] px-2 py-4 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))] transition-all"
+                className="flex flex-col items-center gap-2.5 rounded-xl border border-violet-500/30 bg-violet-500/5 px-2 py-4 text-violet-400 transition-all hover:bg-violet-500/10"
               >
-                <GraduationCap className="h-5 w-5 text-violet-400/80" />
+                <GraduationCap className="h-5 w-5" />
                 <span className="text-[10px] font-semibold text-center leading-tight">Knowledge</span>
               </button>
             </div>
