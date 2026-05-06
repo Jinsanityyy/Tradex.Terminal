@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { 
-  Calendar, TrendingUp, Activity, 
+import {
+  Calendar, TrendingUp, Activity,
   Radio, Brain, Clock, History, DollarSign,
   Shield, AtSign, Newspaper, LayoutGrid,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, GraduationCap
 } from "lucide-react";
 import { MobileBrain } from "@/components/mobile/MobileBrain";
+import { TradingKnowledgeContent } from "@/components/shared/TradingKnowledgeSidebar";
 
 // Lazy load only pages that don't have routing issues
 import dynamic from "next/dynamic";
@@ -33,18 +34,19 @@ interface AppDef {
 }
 
 const ALL_APPS: AppDef[] = [
-  { id: "market-bias",          label: "Market Bias",     icon: TrendingUp, color: "#10b981", component: MarketBiasPage },
-  { id: "market-intelligence",  label: "Intelligence",    icon: Brain,      color: "#8b5cf6", component: MarketIntelPage },
-  { id: "asset-matrix",         label: "Asset Matrix",    icon: LayoutGrid, color: "#3b82f6", component: AssetMatrixPage },
-  { id: "session-intelligence", label: "Sessions",        icon: Clock,      color: "#f59e0b", component: SessionIntelPage },
-  { id: "catalysts",            label: "Catalysts",       icon: Newspaper,  color: "#ef4444", component: CatalystsPage },
-  { id: "economic-calendar",    label: "Calendar",        icon: Calendar,   color: "#3b82f6", component: CalendarPage },
-  { id: "trump-monitor",        label: "Trump",           icon: AtSign,     color: "#f59e0b", component: TrumpPage },
-  { id: "news-flow",            label: "News Flow",       icon: Radio,      color: "#10b981", component: NewsFlowPage },
-  { id: "signals",              label: "Signals",         icon: Activity,   color: "#10b981", component: SignalsPage },
-  { id: "pnl-calendar",         label: "PnL Calendar",   icon: DollarSign, color: "#f59e0b", component: PnlCalendarPage },
-  { id: "brain",                label: "Brain Terminal",  icon: Brain,      color: "#8b5cf6", component: MobileBrain },
-  { id: "settings",             label: "Settings",        icon: Shield,     color: "#6b7280", component: SettingsPage },
+  { id: "market-bias",          label: "Market Bias",     icon: TrendingUp,    color: "#10b981", component: MarketBiasPage },
+  { id: "market-intelligence",  label: "Intelligence",    icon: Brain,         color: "#8b5cf6", component: MarketIntelPage },
+  { id: "asset-matrix",         label: "Asset Matrix",    icon: LayoutGrid,    color: "#3b82f6", component: AssetMatrixPage },
+  { id: "session-intelligence", label: "Sessions",        icon: Clock,         color: "#f59e0b", component: SessionIntelPage },
+  { id: "catalysts",            label: "Catalysts",       icon: Newspaper,     color: "#ef4444", component: CatalystsPage },
+  { id: "economic-calendar",    label: "Calendar",        icon: Calendar,      color: "#3b82f6", component: CalendarPage },
+  { id: "trump-monitor",        label: "Trump",           icon: AtSign,        color: "#f59e0b", component: TrumpPage },
+  { id: "news-flow",            label: "News Flow",       icon: Radio,         color: "#10b981", component: NewsFlowPage },
+  { id: "signals",              label: "Signals",         icon: Activity,      color: "#10b981", component: SignalsPage },
+  { id: "pnl-calendar",         label: "PnL Calendar",   icon: DollarSign,    color: "#f59e0b", component: PnlCalendarPage },
+  { id: "brain",                label: "Brain Terminal",  icon: Brain,         color: "#8b5cf6", component: MobileBrain },
+  { id: "knowledge",            label: "Knowledge",       icon: GraduationCap, color: "#a78bfa", component: TradingKnowledgeContent },
+  { id: "settings",             label: "Settings",        icon: Shield,        color: "#6b7280", component: SettingsPage },
 ];
 
 const FOLDERS = [
@@ -64,7 +66,7 @@ const FOLDERS = [
     id: "trading",
     label: "Trading",
     color: "#10b981",
-    appIds: ["signals", "pnl-calendar", "brain", "settings"],
+    appIds: ["signals", "pnl-calendar", "brain", "knowledge"],
   },
 ];
 
