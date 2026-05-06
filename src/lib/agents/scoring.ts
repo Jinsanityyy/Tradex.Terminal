@@ -220,6 +220,13 @@ export function matchStrategy(
       : "Bearish BOS — Awaiting fib pullback for entry";
   }
 
+  // Jade Cap: NY sweep + FVG/Sweep is the highest-probability named setup in the system
+  if (inFibZone && (setupType === "FVG" || setupType === "Sweep")) {
+    return bias === "bullish"
+      ? "Jade Cap NY Sweep Long — session lows swept, FVG entry at midpoint"
+      : "Jade Cap NY Sweep Short — session highs swept, FVG entry at midpoint";
+  }
+
   if (inFibZone) {
     return bias === "bullish"
       ? "Fib Zone Long — In 0.5–0.705 retracement, awaiting bullish candle confirmation"
