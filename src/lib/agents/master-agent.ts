@@ -45,6 +45,7 @@ ADJUDICATION RULES:
 - Strong challenges from multiple agents (>2) against majority = reduce confidence or flip to no-trade
 - Weight the QUALITY of the debate arguments, not just the count
 - Be terse and tactical. This is a live trade decision.
+- JADE CAP: When PA Agent shows "Stop run: true" + FVG or Sweep setup, this is a Jade Cap NY liquidity sweep confirmation — the highest-probability pattern in the system (68%+ WR). Weight this heavily when daily bias aligns (bosDetected: true). London Low sweep = 76% WR, PDH/Asian High = 71%, Asian Low = 60%. London High sweep (43%) = flag only, do not trade.
 
 Return ONLY valid JSON:
 {
@@ -56,7 +57,7 @@ Return ONLY valid JSON:
   "strategyMatch": "named strategy or null"
 }`;
 
-function describePriceActionPattern(setupType: string): string {
+function describePriceActionPattern(setupType: string, liquiditySweep = false): string {
   switch (setupType) {
     case "BOS":
       return "breakout continuation";
@@ -65,9 +66,9 @@ function describePriceActionPattern(setupType: string): string {
     case "OB":
       return "range retest";
     case "FVG":
-      return "gap fill";
+      return liquiditySweep ? "Jade Cap sweep + FVG" : "gap fill";
     case "Sweep":
-      return "stop-run reversal";
+      return liquiditySweep ? "Jade Cap sweep" : "stop-run reversal";
     default:
       return "no clear pattern";
   }
@@ -111,7 +112,7 @@ CONSENSUS SCORE: ${consensusScore.toFixed(1)} → preliminary bias: ${preliminar
 
 AGENT SIGNALS:
 [TREND] ${trend.bias.toUpperCase()} @ ${trend.confidence}% | Phase: ${trend.marketPhase} | TF aligned: ${trend.timeframeBias.aligned}
-[PA] ${smc.bias.toUpperCase()} @ ${smc.confidence}% | Pattern: ${describePriceActionPattern(smc.setupType)} | Break confirmed: ${smc.bosDetected} | Trend shift: ${smc.chochDetected} | Stop run: ${smc.liquiditySweepDetected}
+[PA] ${smc.bias.toUpperCase()} @ ${smc.confidence}% | Pattern: ${describePriceActionPattern(smc.setupType, smc.liquiditySweepDetected)} | Break confirmed: ${smc.bosDetected} | Trend shift: ${smc.chochDetected} | Stop run: ${smc.liquiditySweepDetected}
 [NEWS] ${news.impact.toUpperCase()} @ ${news.confidence}% | Regime: ${news.regime} | Risk: ${news.riskScore}/100
 [RISK] ${risk.valid ? "VALID" : "INVALID"} | Grade: ${risk.grade} | Session: ${risk.sessionScore}/100 | Vol: ${risk.volatilityScore}/100
 [EXECUTION] ${execution.hasSetup ? execution.direction.toUpperCase() : "NO SETUP"} | Entry: ${execution.entry ?? "none"} | SL: ${execution.stopLoss ?? "none"} | TP1: ${execution.tp1 ?? "none"} | RR: ${execution.rrRatio ?? "N/A"}
@@ -180,7 +181,11 @@ function buildSupports(
   }
 
   if (smc.bias === finalBias && smc.setupPresent) {
-    supports.push(`Price Action Agent ${smc.confidence}%: ${describePriceActionPattern(smc.setupType)} ${smc.bosDetected ? "— structure break confirmed" : smc.liquiditySweepDetected ? "— stop run already printed" : "— structure present"}`);
+    const isJadeCap = smc.liquiditySweepDetected && (smc.setupType === "FVG" || smc.setupType === "Sweep");
+    supports.push(isJadeCap
+      ? `Price Action ${smc.confidence}%: Jade Cap — NY session ${isBull ? "lows" : "highs"} swept${smc.keyLevels.sweepLevel ? ` at ${smc.keyLevels.sweepLevel.toFixed(2)}` : ""}, ${smc.setupType === "FVG" && smc.keyLevels.fvgMid ? `FVG entry at ${smc.keyLevels.fvgMid.toFixed(2)}` : "sweep reversal entry"} — ${smc.bosDetected ? "aligns with daily bias ✓" : "note: conflicts with daily bias"}`
+      : `Price Action Agent ${smc.confidence}%: ${describePriceActionPattern(smc.setupType, smc.liquiditySweepDetected)} ${smc.bosDetected ? "— structure break confirmed" : smc.liquiditySweepDetected ? "— stop run already printed" : "— structure present"}`
+    );
   }
 
   if (news.impact === finalBias && news.confidence >= 40) {

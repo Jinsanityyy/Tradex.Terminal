@@ -34,7 +34,9 @@ export async function runExecutionAgent(
     const { htfBias, htfConfidence } = structure;
     const { session } = indicators;
 
-    if (htfBias === "neutral" || htfConfidence < 45) {
+    // Allow Jade Cap confirmed sweeps through even when HTF is neutral/low-confidence
+    const jadeCapSweepActive = smc.liquiditySweepDetected && smc.setupPresent && smc.bias !== "neutral";
+    if (!jadeCapSweepActive && (htfBias === "neutral" || htfConfidence < 45)) {
       return {
         agentId: "execution",
         hasSetup: false,
@@ -60,10 +62,12 @@ export async function runExecutionAgent(
       };
     }
 
-    const isBullish = htfBias === "bullish";
-    const direction: TradeDirection = isBullish ? "long" : "short";
-
     const { keyLevels, setupType, bosDetected, liquiditySweepDetected } = smc;
+    // Jade Cap: when sweep confirmed, direction follows sweep bias; otherwise use HTF
+    const isBullish = (liquiditySweepDetected && smc.bias !== "neutral")
+      ? smc.bias === "bullish"
+      : htfBias === "bullish";
+    const direction: TradeDirection = isBullish ? "long" : "short";
     let entry: number;
     let stopLoss: number;
     let trigger: string;
@@ -80,18 +84,29 @@ export async function runExecutionAgent(
       slZone = `${isBullish ? "Below" : "Above"} OB ${isBullish ? "low" : "high"} — thesis invalid on close through`;
     } else if (setupType === "FVG" && keyLevels.fvgMid !== null) {
       entry = keyLevels.fvgMid;
-      stopLoss = isBullish
-        ? (keyLevels.fvgLow ?? entry) * 0.998
-        : (keyLevels.fvgHigh ?? entry) * 1.002;
-      trigger = "FVG fill";
-      entryZone = `FVG midpoint ${keyLevels.fvgMid?.toFixed(4)} (${keyLevels.fvgLow?.toFixed(4)}–${keyLevels.fvgHigh?.toFixed(4)})`;
-      slZone = `${isBullish ? "Below" : "Above"} FVG ${isBullish ? "low" : "high"} — imbalance invalidated`;
+      // Jade Cap: prefer pre-computed invalidationLevel (sweep extreme + $5 buffer)
+      stopLoss = smc.invalidationLevel !== null
+        ? smc.invalidationLevel
+        : isBullish
+          ? (keyLevels.fvgLow ?? entry) * 0.998
+          : (keyLevels.fvgHigh ?? entry) * 1.002;
+      trigger = liquiditySweepDetected ? "Jade Cap sweep + FVG" : "FVG fill";
+      entryZone = `FVG midpoint ${keyLevels.fvgMid.toFixed(4)} (${keyLevels.fvgLow?.toFixed(4)}–${keyLevels.fvgHigh?.toFixed(4)})`;
+      slZone = smc.invalidationLevel !== null
+        ? `Sweep extreme + buffer at ${smc.invalidationLevel.toFixed(4)} — close through invalidates setup`
+        : `${isBullish ? "Below" : "Above"} FVG ${isBullish ? "low" : "high"} — imbalance invalidated`;
     } else if (setupType === "Sweep" && liquiditySweepDetected) {
-      entry = isBullish ? low * 1.001 : high * 0.999;
-      stopLoss = isBullish ? low * 0.997 : high * 1.003;
-      trigger = "Sweep reversal";
-      entryZone = `Post-sweep ${isBullish ? "buy" : "sell"} — entry above/below swept level ${isBullish ? low.toFixed(4) : high.toFixed(4)}`;
-      slZone = `${isBullish ? "Below" : "Above"} sweep level — ${isBullish ? "lows" : "highs"} must hold`;
+      const sweepRef = keyLevels.sweepLevel ?? (isBullish ? low : high);
+      entry = isBullish ? sweepRef * 1.001 : sweepRef * 0.999;
+      // Jade Cap: SL = sweep extreme + buffer (pre-computed as invalidationLevel)
+      stopLoss = smc.invalidationLevel !== null
+        ? smc.invalidationLevel
+        : isBullish ? low * 0.997 : high * 1.003;
+      trigger = "Jade Cap sweep";
+      entryZone = `Post-sweep ${isBullish ? "buy" : "sell"} — swept level ${sweepRef.toFixed(4)}`;
+      slZone = smc.invalidationLevel !== null
+        ? `Sweep extreme + buffer at ${smc.invalidationLevel.toFixed(4)} — thesis invalid on break`
+        : `${isBullish ? "Below" : "Above"} sweep level — ${isBullish ? "lows" : "highs"} must hold`;
     } else if (bosDetected) {
       const pullback = dayRange * 0.38;
       entry = isBullish ? current - pullback : current + pullback;
@@ -144,16 +159,21 @@ export async function runExecutionAgent(
     const reward = Math.abs(tp1 - entry);
     const rrRatio = risk > 0 ? parseFloat((reward / risk).toFixed(2)) : null;
 
+    const p = entry > 100 ? 1 : 4;
     const triggerCondition =
       trigger === "OB retest"
         ? `Wait for price to return to ${entryZone}, then confirm with ${isBullish ? "bullish" : "bearish"} rejection candle (engulfing, pin bar, or strong close) on M5/M15 before entering`
-        : trigger === "FVG fill"
-          ? `Wait for price to fill into FVG zone ${entryZone}. Look for ${isBullish ? "bullish" : "bearish"} displacement candle to confirm reversal within the gap`
-          : trigger === "Sweep reversal"
-            ? `Enter once ${isBullish ? "equal lows" : "equal highs"} are swept and price shows strong reversal candle closing back above/below sweep level`
-            : trigger === "BOS pullback"
-              ? `Enter on first pullback to discount/premium after BOS. Confirm with ${isBullish ? "bullish" : "bearish"} momentum resumption on M15`
-              : `Market order execution — entry at current price ${current.toFixed(4)} with structural stop ${stopLoss.toFixed(4)}`;
+        : trigger === "Jade Cap sweep + FVG"
+          ? `Jade Cap confirmed — NY session ${isBullish ? "lows" : "highs"} swept, FVG formed. Enter at FVG midpoint ${entry.toFixed(p)}. Confirm with ${isBullish ? "bullish" : "bearish"} M15 close back inside swept level. SL at sweep extreme + buffer (${stopLoss.toFixed(p)}).`
+          : trigger === "Jade Cap sweep"
+            ? `Jade Cap sweep confirmed in NY session. Wait for ${isBullish ? "bullish" : "bearish"} M15 candle close back inside swept level, then enter at ${entry.toFixed(p)}. SL at ${stopLoss.toFixed(p)}.`
+            : trigger === "FVG fill"
+              ? `Wait for price to fill into FVG zone ${entryZone}. Look for ${isBullish ? "bullish" : "bearish"} displacement candle to confirm reversal within the gap`
+              : trigger === "Sweep reversal"
+                ? `Enter once ${isBullish ? "equal lows" : "equal highs"} are swept and price shows strong reversal candle closing back above/below sweep level`
+                : trigger === "BOS pullback"
+                  ? `Enter on first pullback to discount/premium after BOS. Confirm with ${isBullish ? "bullish" : "bearish"} momentum resumption on M15`
+                  : `Market order execution — entry at current price ${current.toFixed(4)} with structural stop ${stopLoss.toFixed(4)}`;
 
     const managementNotes: string[] = [
       `Scale out 50% at TP1 (${tp1.toFixed(4)}) — reduce risk-to-zero on remaining position`,
@@ -164,7 +184,8 @@ export async function runExecutionAgent(
     if (session === "Asia") managementNotes.push("Asia session entry — tighter targets, expect ranging until London open");
     if (session === "London") managementNotes.push("London session — highest-probability window, full position size valid");
     if (session === "New York") managementNotes.push("NY session — watch for reversal at London high/low before TP2");
-    if (smc.chochDetected) managementNotes.push("CHoCH detected — consider partial entry (50%) until full confirmation");
+    if (liquiditySweepDetected) managementNotes.push("Jade Cap setup — enter only on M15 candle close back inside swept session level; do not enter mid-wick");
+    if (smc.chochDetected && !liquiditySweepDetected) managementNotes.push("CHoCH detected — consider partial entry (50%) until full confirmation");
 
     const distanceToEntry = Math.abs(current - entry) / entry * 100;
     const pricePastEntry = isBullish ? current > entry : current < entry;
