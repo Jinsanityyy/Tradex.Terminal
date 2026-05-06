@@ -24,6 +24,7 @@ const navItems = [
   { label: "News Flow",           href: "/dashboard/news-flow",              icon: Newspaper },
   { label: "PnL Calendar",        href: "/dashboard/pnl-calendar",           icon: BarChart2, accent2: true },
   { label: "Signal History",      href: "/dashboard/signals",                icon: History },
+  { label: "Learn",               href: "/dashboard/learn",                  icon: GraduationCap },
   { label: "Settings",            href: "/dashboard/settings",               icon: Settings },
 ];
 
