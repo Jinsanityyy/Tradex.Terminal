@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Target, Zap, CalendarDays, UserCircle,
   Grid3X3, Clock, Newspaper, Settings,
-  ChevronLeft, ChevronRight, BarChart2, Menu, X, History,
+  ChevronLeft, ChevronRight, BarChart2, Menu, X, History, GraduationCap,
 } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 
@@ -30,7 +30,11 @@ const navItems = [
 // 4 items shown in the mobile bottom tab bar
 const MOBILE_TAB_ITEMS = [navItems[0], navItems[1], navItems[7], navItems[2]];
 
-export function Sidebar() {
+interface SidebarProps {
+  onOpenKnowledge?: () => void;
+}
+
+export function Sidebar({ onOpenKnowledge }: SidebarProps) {
   const pathname = usePathname();
   const [viewportWidth, setViewportWidth] = useState(1440);
   const [desktopHidden, setDesktopHidden] = useState(false);
@@ -149,6 +153,22 @@ export function Sidebar() {
             })}
           </div>
         </nav>
+
+        {/* Knowledge Base Button */}
+        <div className="px-2 pb-2">
+          <button
+            onClick={onOpenKnowledge}
+            className={cn(
+              "group flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-[13px] font-medium transition-all duration-150",
+              "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]",
+              isCompact && "justify-center px-2"
+            )}
+            title={isCompact ? "Trading Knowledge" : undefined}
+          >
+            <GraduationCap className="h-[18px] w-[18px] shrink-0 text-violet-400/80 group-hover:text-violet-400 transition-colors" />
+            {!isCompact && <span className="truncate">Trading Knowledge</span>}
+          </button>
+        </div>
 
         {/* Bottom */}
         <div className="border-t border-[hsl(var(--border))] p-3">
@@ -279,6 +299,17 @@ export function Sidebar() {
                   </Link>
                 );
               })}
+            </div>
+
+            {/* Knowledge Base button in mobile drawer */}
+            <div className="px-4 pb-1">
+              <button
+                onClick={() => { setMobileMenuOpen(false); onOpenKnowledge?.(); }}
+                className="flex w-full flex-col items-center gap-2.5 rounded-xl border border-[hsl(var(--border))] px-2 py-4 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))] transition-all"
+              >
+                <GraduationCap className="h-5 w-5 text-violet-400/80" />
+                <span className="text-[10px] font-semibold text-center leading-tight">Knowledge</span>
+              </button>
             </div>
 
             {/* Live indicator */}
