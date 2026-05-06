@@ -123,9 +123,41 @@ export async function runExecutionAgent(
     }
 
     const riskDist = Math.abs(entry - stopLoss);
-    let tp1 = isBullish ? entry + riskDist * 1.5 : entry - riskDist * 1.5;
-    let tp2 = isBullish ? entry + riskDist * 2.5 : entry - riskDist * 2.5;
-    const tp1Zone = `1.5R target ${tp1.toFixed(entry > 100 ? 2 : 4)}`;
+    const tp1MaxDist = riskDist * 2.5;
+    const tp2Distance = riskDist * 4;
+
+    let tp1: number;
+    let tp2: number;
+    let tp1Zone: string;
+
+    if (isBullish) {
+      const target = keyLevels.liquidityTarget;
+      const useTarget = target !== null && target > entry && (target - entry) <= tp1MaxDist;
+      tp1 = useTarget ? target : entry + riskDist * 2;
+      const rawTp2 = entry + tp2Distance;
+      tp2 = rawTp2 > tp1 ? rawTp2 : tp1 + riskDist;
+      tp1Zone = useTarget
+        ? `Session high / resistance ${tp1.toFixed(4)} — nearest liquidity above`
+        : `2R target ${tp1.toFixed(4)} — nearest structural resistance`;
+    } else {
+      const target = keyLevels.liquidityTarget;
+      const useTarget = target !== null && target < entry && (entry - target) <= tp1MaxDist;
+      tp1 = useTarget ? target : entry - riskDist * 2;
+      const rawTp2 = entry - tp2Distance;
+      tp2 = rawTp2 < tp1 ? rawTp2 : tp1 - riskDist;
+      tp1Zone = useTarget
+        ? `Session low / support ${tp1.toFixed(4)} — nearest liquidity below`
+        : `2R target ${tp1.toFixed(4)} — nearest structural support`;
+    }
+
+    // Hard caps: TP1 ≤ 1.5R, TP2 ≤ 2.5R from entry
+    if (isBullish) {
+      tp1 = Math.min(tp1, entry + riskDist * 1.5);
+      tp2 = Math.min(tp2, entry + riskDist * 2.5);
+    } else {
+      tp1 = Math.max(tp1, entry - riskDist * 1.5);
+      tp2 = Math.max(tp2, entry - riskDist * 2.5);
+    }
 
     entry = roundToPrecision(entry, current);
     stopLoss = roundToPrecision(stopLoss, current);
