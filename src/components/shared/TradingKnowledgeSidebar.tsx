@@ -1,7 +1,17 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { X, Search, ChevronDown, ChevronRight, BookOpen } from "lucide-react";
+import {
+  X, Search, ChevronDown, ChevronRight, BookOpen,
+  BarChart2, CandlestickChart, TrendingUp, Activity,
+  ShieldCheck, Crosshair, Building2, Brain,
+  type LucideIcon,
+} from "lucide-react";
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  BookOpen, BarChart2, CandlestickChart, TrendingUp,
+  Activity, ShieldCheck, Crosshair, Building2, Brain,
+};
 import { cn } from "@/lib/utils";
 import { TRADING_KNOWLEDGE, KnowledgeCategory, KnowledgeItem } from "@/data/trading-knowledge";
 
@@ -163,7 +173,7 @@ function CategorySection({
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-[hsl(var(--secondary))]/60 transition-colors"
       >
-        <span className="text-base leading-none">{category.emoji}</span>
+        {(() => { const Icon = ICON_MAP[category.icon] ?? BookOpen; return <Icon className="h-3.5 w-3.5 shrink-0 text-zinc-500" />; })()}
         <span className="flex-1 text-left text-[13px] font-semibold text-[hsl(var(--foreground))]">
           {category.label}
         </span>
@@ -251,7 +261,7 @@ export function TradingKnowledgeContent() {
               {searchResults.map(({ category, item }) => (
                 <div key={item.id}>
                   <p className="text-[10px] text-[hsl(var(--muted-foreground))] px-2 mb-1">
-                    {category.emoji} {category.label}
+                    {(() => { const Icon = ICON_MAP[category.icon] ?? BookOpen; return <><Icon className="inline h-3 w-3 mr-1 text-zinc-500" />{category.label}</>; })()}
                   </p>
                   <ItemCard item={item} />
                 </div>

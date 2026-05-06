@@ -9,7 +9,7 @@ export interface KnowledgeItem {
 export interface KnowledgeCategory {
   id: string;
   label: string;
-  emoji: string;
+  icon: string;
   items: KnowledgeItem[];
 }
 
@@ -17,7 +17,7 @@ export const TRADING_KNOWLEDGE: KnowledgeCategory[] = [
   {
     id: "basics",
     label: "Basics",
-    emoji: "📘",
+    icon: "BookOpen",
     items: [
       {
         id: "what-is-trading",
@@ -150,7 +150,7 @@ If you risk $100, stop is 20 pips, pip value is $1 → 100 ÷ (20 × 1) = 5 mini
   {
     id: "technical-analysis",
     label: "Technical Analysis",
-    emoji: "📊",
+    icon: "BarChart2",
     items: [
       {
         id: "support-resistance",
@@ -252,7 +252,7 @@ Running total of up-volume minus down-volume. Divergence between OBV and price c
   {
     id: "candlesticks",
     label: "Candlestick Patterns",
-    emoji: "🕯️",
+    icon: "CandlestickChart",
     items: [
       {
         id: "candle-anatomy",
@@ -421,7 +421,7 @@ Confirm with the next candle's direction.`,
   {
     id: "chart-patterns",
     label: "Chart Patterns",
-    emoji: "📈",
+    icon: "TrendingUp",
     items: [
       {
         id: "head-shoulders",
@@ -563,7 +563,7 @@ In a wedge, both lines slope the same direction. In a triangle, they converge fr
   {
     id: "indicators",
     label: "Indicators",
-    emoji: "🔬",
+    icon: "Activity",
     items: [
       {
         id: "moving-averages",
@@ -710,7 +710,7 @@ Fibonacci levels become much more powerful when they align with other factors:
   {
     id: "risk-management",
     label: "Risk Management",
-    emoji: "🛡️",
+    icon: "ShieldCheck",
     items: [
       {
         id: "risk-reward",
@@ -833,7 +833,7 @@ A 50% loss requires a 100% gain to recover. This is why limiting drawdown is mor
   {
     id: "strategies",
     label: "Strategies",
-    emoji: "⚙️",
+    icon: "Crosshair",
     items: [
       {
         id: "trend-following",
@@ -964,7 +964,7 @@ After the initial volatility settles (5–15 minutes), identify the new directio
   {
     id: "smc",
     label: "Smart Money Concepts",
-    emoji: "🏦",
+    icon: "Building2",
     items: [
       {
         id: "smc-overview",
@@ -1141,7 +1141,7 @@ The best trades come when an Order Block or FVG sits within the discount zone (f
   {
     id: "psychology",
     label: "Psychology",
-    emoji: "🧠",
+    icon: "Brain",
     items: [
       {
         id: "trading-psychology-basics",
