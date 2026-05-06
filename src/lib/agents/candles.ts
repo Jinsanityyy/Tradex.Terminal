@@ -788,6 +788,7 @@ export async function getMAFromCandles(
 
 export interface DailyStructure {
   drift20d: number;       // % change over last 20 daily closes (structural trend)
+  drift5d: number;        // % change over last 5 daily closes (recent momentum)
   rsi14d: number;         // 14-period RSI of daily closes
   structuralHigh: number; // 20-day range high
   structuralLow: number;  // 20-day range low
@@ -841,18 +842,20 @@ export async function getDailyStructure(symbol: Symbol): Promise<DailyStructure 
     const window20       = candles.slice(-20);
     const closes         = candles.map(bar => bar.c);
     const last           = candles[candles.length - 1];
-    const base           = candles[Math.max(0, candles.length - 20)];
-    const drift20d       = base.c > 0 ? ((last.c - base.c) / base.c) * 100 : 0;
+    const base20         = candles[Math.max(0, candles.length - 20)];
+    const base5          = candles[Math.max(0, candles.length - 5)];
+    const drift20d       = base20.c > 0 ? ((last.c - base20.c) / base20.c) * 100 : 0;
+    const drift5d        = base5.c  > 0 ? ((last.c - base5.c)  / base5.c)  * 100 : 0;
     const rsi14d         = computeRsi(closes);
     const structuralHigh = Math.max(...window20.map(bar => bar.h));
     const structuralLow  = Math.min(...window20.map(bar => bar.l));
 
     console.log("[mtf-candles]", JSON.stringify({
       symbol, interval: "D1", provider: "yahoo", status: "ok",
-      candles: candles.length, drift20d: drift20d.toFixed(2), rsi14d: rsi14d.toFixed(1),
+      candles: candles.length, drift20d: drift20d.toFixed(2), drift5d: drift5d.toFixed(2), rsi14d: rsi14d.toFixed(1),
     }));
 
-    return { drift20d, rsi14d, structuralHigh, structuralLow };
+    return { drift20d, drift5d, rsi14d, structuralHigh, structuralLow };
   } catch (err) {
     console.log("[mtf-candles]", JSON.stringify({ symbol, interval: "D1", provider: "yahoo", status: "error", error: String(err) }));
     return null;
