@@ -22,6 +22,16 @@ function roundToPrecision(value: number, price: number): number {
   return Math.round(value * 100000) / 100000;
 }
 
+// ── JADE CAP Timeframe Risk Limits ────────────────────────────────────────────
+// fallbackSlPct : SL % used when no structural level exists
+// maxSlPct      : reject setup if SL exceeds this % of price (R:R would be unworkable)
+const TF_SL_PCT: Record<string, { fallback: number; max: number }> = {
+  M15: { fallback: 0.003, max: 0.005 },  // ~10 pts / max ~16 pts  @ $3300 Gold
+  H1:  { fallback: 0.006, max: 0.012 },  // ~20 pts / max ~40 pts  @ $3300 Gold
+  H4:  { fallback: 0.015, max: 0.030 },  // ~50 pts / max ~99 pts  @ $3300 Gold
+  D1:  { fallback: 0.030, max: 0.075 },  // ~99 pts / max ~248 pts @ $3300 Gold
+};
+
 export async function runExecutionAgent(
   snapshot: MarketSnapshot,
   smc: SMCAgentOutput
@@ -115,11 +125,12 @@ export async function runExecutionAgent(
       entryZone = `BOS pullback zone ~${entry.toFixed(4)} — ${isBullish ? "38% retracement of bullish BOS" : "38% retrace of bearish BOS"}`;
       slZone = `${isBullish ? "Below" : "Above"} BOS origin — ${isBullish ? "low" : "high"} of displacement candle`;
     } else {
-      entry = current;
-      stopLoss = isBullish ? current * 0.985 : current * 1.015;
-      trigger = "Market order";
+      const slPct = (TF_SL_PCT[snapshot.timeframe ?? "H1"] ?? TF_SL_PCT.H1).fallback;
+      entry    = current;
+      stopLoss = isBullish ? entry * (1 - slPct) : entry * (1 + slPct);
+      trigger  = "Market order";
       entryZone = `Current price ${current.toFixed(4)} — no premium structure entry available`;
-      slZone = `${isBullish ? "Below" : "Above"} ${stopLoss.toFixed(4)} — structural floor/ceiling`;
+      slZone    = `${isBullish ? "Below" : "Above"} ${stopLoss.toFixed(4)} — structural floor/ceiling`;
     }
 
     const riskDist = Math.abs(entry - stopLoss);
@@ -148,41 +159,88 @@ export async function runExecutionAgent(
       };
     }
 
-    const tp1MaxDist = riskDist * 2.5;
-    const tp2Distance = riskDist * 4;
+    // ── JADE CAP: reject setup if SL is too wide for the timeframe ───────────
+    const tfLimits   = TF_SL_PCT[snapshot.timeframe ?? "H1"] ?? TF_SL_PCT.H1;
+    const maxRiskDist = current * tfLimits.max;
+    if (riskDist > maxRiskDist) {
+      return {
+        agentId: "execution",
+        hasSetup: false,
+        direction: "none",
+        entry: null, stopLoss: null, tp1: null, tp2: null, rrRatio: null,
+        trigger: "None",
+        triggerCondition: `SL distance ${riskDist.toFixed(1)} pts exceeds ${snapshot.timeframe ?? "H1"} max (${maxRiskDist.toFixed(1)} pts) — R:R unworkable`,
+        managementNotes: ["SL too far from entry for this timeframe — skip setup and wait for a tighter structure"],
+        entryZone: "Invalid — SL exceeds timeframe maximum",
+        slZone: "Invalid", tp1Zone: "No target",
+        signalState: "NO_TRADE",
+        signalStateReason: `SL of ${riskDist.toFixed(1)} pts is too wide for ${snapshot.timeframe ?? "H1"} (max ${maxRiskDist.toFixed(1)} pts). JADE CAP: stand aside.`,
+        distanceToEntry: null,
+        processingTime: Date.now() - start,
+      };
+    }
+
+    // ── JADE CAP TP levels ────────────────────────────────────────────────────
+    // TP1 = nearest opposing liquidity target (1.0R–1.5R typical)
+    // TP2 = next major liquidity pool       (2.0R–2.5R typical)
+    // Only use liquidityTarget from PA agent if it falls within 0.5R–2.0R band
+    const tp1MaxDist  = riskDist * 2.0;
+    const tp2Distance = riskDist * 2.5;
 
     let tp1: number;
     let tp2: number;
     let tp1Zone: string;
 
     if (isBullish) {
-      const target = keyLevels.liquidityTarget;
-      const useTarget = target !== null && target > entry && (target - entry) <= tp1MaxDist;
-      tp1 = useTarget ? target : entry + riskDist * 2;
+      const target    = keyLevels.liquidityTarget;
+      const tgtDist   = target !== null ? target - entry : -1;
+      const useTarget = target !== null && tgtDist > riskDist * 0.5 && tgtDist <= tp1MaxDist;
+      tp1 = useTarget ? target : entry + riskDist * 1.5;
       const rawTp2 = entry + tp2Distance;
       tp2 = rawTp2 > tp1 ? rawTp2 : tp1 + riskDist;
       tp1Zone = useTarget
-        ? `Session high / resistance ${tp1.toFixed(4)} — nearest liquidity above`
-        : `2R target ${tp1.toFixed(4)} — nearest structural resistance`;
+        ? `Liquidity target ${tp1.toFixed(4)} — nearest EQH / opposing pool above`
+        : `1.5R target ${tp1.toFixed(4)} — nearest structural resistance`;
     } else {
-      const target = keyLevels.liquidityTarget;
-      const useTarget = target !== null && target < entry && (entry - target) <= tp1MaxDist;
-      tp1 = useTarget ? target : entry - riskDist * 2;
+      const target    = keyLevels.liquidityTarget;
+      const tgtDist   = target !== null ? entry - target : -1;
+      const useTarget = target !== null && tgtDist > riskDist * 0.5 && tgtDist <= tp1MaxDist;
+      tp1 = useTarget ? target : entry - riskDist * 1.5;
       const rawTp2 = entry - tp2Distance;
       tp2 = rawTp2 < tp1 ? rawTp2 : tp1 - riskDist;
       tp1Zone = useTarget
-        ? `Session low / support ${tp1.toFixed(4)} — nearest liquidity below`
-        : `2R target ${tp1.toFixed(4)} — nearest structural support`;
+        ? `Liquidity target ${tp1.toFixed(4)} — nearest EQL / opposing pool below`
+        : `1.5R target ${tp1.toFixed(4)} — nearest structural support`;
     }
 
-    entry = roundToPrecision(entry, current);
+    entry    = roundToPrecision(entry, current);
     stopLoss = roundToPrecision(stopLoss, current);
-    tp1 = roundToPrecision(tp1, current);
-    tp2 = roundToPrecision(tp2, current);
+    tp1      = roundToPrecision(tp1, current);
+    tp2      = roundToPrecision(tp2, current);
 
-    const risk = Math.abs(entry - stopLoss);
-    const reward = Math.abs(tp1 - entry);
+    // R:R is expressed as TP2 potential (full trade target per JADE CAP)
+    const risk    = Math.abs(entry - stopLoss);
+    const reward  = Math.abs(tp2 - entry);
     const rrRatio = risk > 0 ? parseFloat((reward / risk).toFixed(2)) : null;
+
+    // JADE CAP: minimum 1:2 R:R required — if TP2 can't reach 2R, skip the trade
+    if (rrRatio !== null && rrRatio < 2.0) {
+      return {
+        agentId: "execution",
+        hasSetup: false,
+        direction: "none",
+        entry: null, stopLoss: null, tp1: null, tp2: null, rrRatio,
+        trigger: "None",
+        triggerCondition: `R:R ${rrRatio}:1 below JADE CAP minimum 1:2 — skip trade`,
+        managementNotes: ["Nearest liquidity target does not offer 1:2 R:R — stand aside"],
+        entryZone: "Invalid — insufficient R:R",
+        slZone: "Invalid", tp1Zone: "No target",
+        signalState: "NO_TRADE",
+        signalStateReason: `R:R ${rrRatio}:1 below minimum 1:2. JADE CAP rule: do not trade setups with R:R < 2:1.`,
+        distanceToEntry: null,
+        processingTime: Date.now() - start,
+      };
+    }
 
     const p = entry > 100 ? 1 : 4;
     const triggerCondition =
