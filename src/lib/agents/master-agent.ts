@@ -320,13 +320,18 @@ export async function runMasterAgent(
         stopLoss: execution.stopLoss,
         tp1: execution.tp1,
         tp2: execution.tp2,
+        tp3: execution.tp3,
         rrRatio: execution.rrRatio ?? 2,
+        grade: execution.grade,
+        confluenceCount: execution.confluenceCount,
+        confluenceFactors: execution.confluenceFactors,
         maxRiskPercent: risk.maxRiskPercent,
         trigger: execution.trigger,
         triggerCondition: execution.triggerCondition,
         entryZone: execution.entryZone,
         slZone: execution.slZone,
         tp1Zone: execution.tp1Zone,
+        tp3Zone: execution.tp3Zone,
         managementNotes: execution.managementNotes,
       };
     }

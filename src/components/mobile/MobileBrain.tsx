@@ -81,13 +81,15 @@ export function MobileBrain() {
 
   // Signal state
   const sigState = isNoTrade ? "NO_TRADE" : exec?.signalState;
-  const sigLabel = sigState === "ARMED" ? "🟢 ARMED — ENTER NOW"
-    : sigState === "PENDING" ? "🟡 PENDING — WAIT"
-    : sigState === "EXPIRED" ? "⚪ EXPIRED — STAND ASIDE"
+  const sigLabel = sigState === "ARMED"   ? "🟢 ARMED — ENTER NOW"
+    : sigState === "PENDING"  ? "🟡 PENDING — WAIT"
+    : sigState === "EXPIRED"  ? "⚪ EXPIRED — STAND ASIDE"
+    : sigState === "WAIT"     ? "🟠 WAIT — SUBOPTIMAL SETUP"
     : "⛔ NO TRADE";
-  const sigColor = sigState === "ARMED" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
-    : sigState === "PENDING" ? "text-amber-400 bg-amber-500/10 border-amber-500/30"
-    : sigState === "EXPIRED" ? "text-zinc-400 bg-zinc-800/60 border-zinc-600/30"
+  const sigColor = sigState === "ARMED"   ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
+    : sigState === "PENDING"  ? "text-amber-400 bg-amber-500/10 border-amber-500/30"
+    : sigState === "EXPIRED"  ? "text-zinc-400 bg-zinc-800/60 border-zinc-600/30"
+    : sigState === "WAIT"     ? "text-orange-400 bg-orange-500/10 border-orange-500/30"
     : "text-zinc-500 bg-zinc-900/60 border-zinc-700/20";
 
   const [view, setView] = useState<"brain" | "newsroom">("brain");
@@ -175,12 +177,21 @@ export function MobileBrain() {
             <span className={cn("text-[12px] font-bold uppercase", tradePlan.direction === "long" ? "text-emerald-400" : "text-red-400")}>
               {tradePlan.direction} · {tradePlan.trigger}
             </span>
+            {tradePlan.grade && (
+              <span className={cn("ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded border",
+                tradePlan.grade === "A+" ? "text-emerald-300 bg-emerald-500/20 border-emerald-500/40"
+                : tradePlan.grade === "A" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
+                : "text-amber-400 bg-amber-500/10 border-amber-500/20")}>
+                {tradePlan.grade}
+              </span>
+            )}
           </div>
           <StatRow label="Entry"    value={tradePlan.entry.toFixed(tradePlan.entry > 100 ? 2 : 4)} color="text-zinc-100" />
           <StatRow label="Stop Loss" value={tradePlan.stopLoss.toFixed(tradePlan.stopLoss > 100 ? 2 : 4)} color="text-red-400" />
           <StatRow label="TP1"      value={tradePlan.tp1.toFixed(tradePlan.tp1 > 100 ? 2 : 4)} color="text-emerald-400" />
           {tradePlan.tp2 && <StatRow label="TP2" value={tradePlan.tp2.toFixed(tradePlan.tp2 > 100 ? 2 : 4)} color="text-emerald-300" />}
-          <StatRow label="Risk : Reward" value={`1 : ${tradePlan.rrRatio}`} color={(tradePlan.rrRatio ?? 0) >= 2 ? "text-emerald-400" : "text-amber-400"} />
+          {tradePlan.tp3 && <StatRow label="TP3" value={tradePlan.tp3.toFixed(tradePlan.tp3 > 100 ? 2 : 4)} color="text-sky-400" />}
+          <StatRow label="Risk : Reward" value={`1 : ${tradePlan.rrRatio}`} color={(tradePlan.rrRatio ?? 0) >= 3 ? "text-emerald-400" : (tradePlan.rrRatio ?? 0) >= 2.5 ? "text-emerald-500" : "text-amber-400"} />
           <StatRow label="Max Risk"  value={`${tradePlan.maxRiskPercent}%`} />
           {master?.strategyMatch && !isNoTrade && (
             <div className="mt-3 pt-3 border-t border-white/5">

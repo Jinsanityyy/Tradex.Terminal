@@ -314,7 +314,7 @@ export async function runAgentOrchestrator(
   // ── Phase 2: Risk, Execution, Contrarian depend on trend + smc ──────────
   const [risk, execution, contrarian] = await Promise.all([
     runRiskAgent(snapshot),
-    runExecutionAgent(snapshot, smc),
+    runExecutionAgent(snapshot, smc, newsAgent),
     runContrarianAgent(snapshot, trend, smc, apiKey),
   ]);
 

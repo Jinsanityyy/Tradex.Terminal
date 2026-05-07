@@ -228,7 +228,8 @@ export interface RiskAgentOutput {
 // Agent 5 — Execution Agent
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type SignalState = "ARMED" | "PENDING" | "EXPIRED" | "NO_TRADE";
+export type SignalState = "ARMED" | "PENDING" | "EXPIRED" | "NO_TRADE" | "WAIT";
+export type SetupGrade = "A+" | "A" | "B+" | "B" | "C";
 
 export interface ExecutionAgentOutput {
   agentId: "execution";
@@ -238,16 +239,21 @@ export interface ExecutionAgentOutput {
   stopLoss: number | null;
   tp1: number | null;
   tp2: number | null;
+  tp3: number | null;              // H4 setups: 5R extended target
   rrRatio: number | null;
+  grade: SetupGrade;               // A+ | A | B+ | B | C
+  confluenceCount: number;         // 0–10 factors passed
+  confluenceFactors: string[];     // which factors passed
   trigger: string;
   triggerCondition: string;
   managementNotes: string[];
   entryZone: string;
   slZone: string;
   tp1Zone: string;
-  signalState: SignalState;         // NEW: ARMED | PENDING | EXPIRED | NO_TRADE
-  signalStateReason: string;        // NEW: human-readable explanation
-  distanceToEntry: number | null;   // NEW: % distance from current price to entry
+  tp3Zone: string;
+  signalState: SignalState;
+  signalStateReason: string;
+  distanceToEntry: number | null;  // % distance from current price to entry
   processingTime: number;
   error?: string;
 }
@@ -279,13 +285,18 @@ export interface TradePlan {
   stopLoss: number;
   tp1: number;
   tp2: number | null;
+  tp3: number | null;
   rrRatio: number;
+  grade: SetupGrade;
+  confluenceCount: number;
+  confluenceFactors: string[];
   maxRiskPercent: number;
   trigger: string;
   triggerCondition: string;
   entryZone: string;
   slZone: string;
   tp1Zone: string;
+  tp3Zone: string;
   managementNotes: string[];
 }
 
