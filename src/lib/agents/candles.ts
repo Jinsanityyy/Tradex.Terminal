@@ -1,4 +1,5 @@
 import type { DirectionalBias, Symbol, Timeframe, TimeframeBias } from "./schemas";
+import { fetchYahooCandles } from "@/lib/api/yahoo-finance";
 
 export interface CandleBar {
   t: number;
@@ -573,6 +574,33 @@ async function fetchTwelvedataCandles(symbol: Symbol, timeframe: Timeframe): Pro
   }
 }
 
+const YAHOO_DISPLAY_SYMBOLS: Partial<Record<Symbol, string>> = {
+  XAUUSD: "XAU/USD",
+  EURUSD: "EUR/USD",
+  GBPUSD: "GBP/USD",
+  BTCUSD: "BTC/USD",
+};
+
+async function fetchYahooFallbackCandles(symbol: Symbol, timeframe: Timeframe): Promise<CandleBar[] | null> {
+  const displaySym = YAHOO_DISPLAY_SYMBOLS[symbol];
+  if (!displaySym) return null;
+
+  logCandleDebug({ symbol, timeframe, endpoint: "yahoo/chart", provider: "yahoo", status: "request" });
+  try {
+    const bars = await fetchYahooCandles(displaySym, timeframe);
+    if (!bars || bars.length === 0) {
+      logCandleDebug({ symbol, timeframe, endpoint: "yahoo/chart", provider: "yahoo", status: "no_data" });
+      return null;
+    }
+    const candles = normalizeCandles(bars);
+    logCandleDebug({ symbol, timeframe, endpoint: "yahoo/chart", provider: "yahoo", status: hasValidCandles(candles) ? "ok" : "no_data", candles: candles.length });
+    return hasValidCandles(candles) ? candles : null;
+  } catch (error) {
+    logCandleDebug({ symbol, timeframe, endpoint: "yahoo/chart", provider: "yahoo", status: "error", error: String(error) });
+    return null;
+  }
+}
+
 async function resolveReliableCandles(
   symbol: Symbol,
   timeframe: Timeframe,
@@ -583,6 +611,7 @@ async function resolveReliableCandles(
   const providers = [
     { name: "finnhub",     fetcher: () => fetchFinnhubCandles(symbol, timeframe) },
     { name: "twelvedata",  fetcher: () => fetchTwelvedataCandles(symbol, timeframe) },
+    { name: "yahoo",       fetcher: () => fetchYahooFallbackCandles(symbol, timeframe) },
   ];
 
   for (const provider of providers) {
@@ -822,12 +851,28 @@ async function fetchTwelvedataDailyCandles(symbol: Symbol): Promise<CandleBar[] 
 }
 
 export async function getDailyStructure(symbol: Symbol): Promise<DailyStructure | null> {
-  // Primary: Finnhub D1 candles (real-time, no delay)
+  // Primary: Finnhub D1 candles
   let candles = await fetchFinnhubDailyCandles(symbol);
 
-  // Fallback: Twelve Data daily (still real-time, no Yahoo delays)
+  // Fallback 1: Twelve Data daily
   if (!candles || !hasValidCandles(candles)) {
     candles = await fetchTwelvedataDailyCandles(symbol);
+  }
+
+  // Fallback 2: Yahoo Finance daily (free, no API key needed)
+  if (!candles || !hasValidCandles(candles)) {
+    const displaySym = YAHOO_DISPLAY_SYMBOLS[symbol];
+    if (displaySym) {
+      try {
+        const yahooBars = await fetchYahooCandles(displaySym, "D1");
+        if (yahooBars && yahooBars.length > 0) {
+          candles = normalizeCandles(yahooBars);
+          console.log("[mtf-candles]", JSON.stringify({ symbol, interval: "D1", provider: "yahoo", status: "ok", candles: candles.length }));
+        }
+      } catch {
+        // skip
+      }
+    }
   }
 
   if (!candles || !hasValidCandles(candles) || candles.length < 15) return null;

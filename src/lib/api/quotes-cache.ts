@@ -94,6 +94,24 @@ export async function ensureCacheWarm(): Promise<void> {
       }
     }
 
+    // Yahoo Finance fallback — fills any symbol still missing after Finnhub + CoinGecko
+    const { fetchYahooQuote } = await import("@/lib/api/yahoo-finance");
+    const yahooSymbols = ["XAU/USD", "EUR/USD", "GBP/USD", "BTC/USD"];
+    await Promise.all(
+      yahooSymbols.map(async (sym) => {
+        if (quotesMap.has(sym)) return;
+        try {
+          const q = await fetchYahooQuote(sym);
+          if (q) {
+            quotesMap.set(sym, { name: "", ...q });
+            console.log(`[quotes-cache] Yahoo Finance fallback: ${sym} = ${q.close}`);
+          }
+        } catch {
+          // symbol not available via Yahoo — skip
+        }
+      })
+    );
+
     lastWarmTs = Date.now();
     console.log(`[quotes-cache] Refreshed ${quotesMap.size} quotes`);
   } catch (e: any) {
