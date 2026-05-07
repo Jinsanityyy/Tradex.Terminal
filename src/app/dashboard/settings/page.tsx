@@ -482,14 +482,14 @@ export default function SettingsPage() {
             </div>
           </SettingRow>
           <SettingRow label="Risk Per Trade" description="Default % of account risked per trade in the lot size calculator">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap justify-end">
               {[0.5, 1, 1.5, 2, 3].map((pct) => (
                 <button
                   key={pct}
                   onClick={() => update("riskPerTrade", pct)}
                   className={cn(
                     "rounded-md px-2.5 py-1 text-[10px] font-medium transition-all border",
-                    draft.riskPerTrade === pct
+                    draft.riskPerTrade === pct && [0.5, 1, 1.5, 2, 3].includes(draft.riskPerTrade)
                       ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
                       : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
                   )}
@@ -497,6 +497,22 @@ export default function SettingsPage() {
                   {pct}%
                 </button>
               ))}
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min={0.1}
+                  max={100}
+                  step={0.1}
+                  value={draft.riskPerTrade}
+                  onChange={(e) => {
+                    const v = parseFloat(e.target.value);
+                    if (!isNaN(v) && v > 0) update("riskPerTrade", parseFloat(v.toFixed(1)));
+                  }}
+                  className="w-16 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-2 py-1 text-right text-[10px] font-mono text-[hsl(var(--foreground))] outline-none focus:border-amber-500/50 [color-scheme:dark]"
+                  placeholder="Custom"
+                />
+                <span className="text-[10px] text-[hsl(var(--muted-foreground))]">%</span>
+              </div>
             </div>
           </SettingRow>
           {/* Preview */}

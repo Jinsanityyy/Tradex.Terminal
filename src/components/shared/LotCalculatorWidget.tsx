@@ -67,7 +67,7 @@ export function LotCalculatorWidget() {
             onClick={() => setRiskPct(r)}
             className={cn(
               "rounded px-2 py-1 text-[10px] font-semibold transition-all",
-              riskPct === r
+              riskPct === r && RISK_PRESETS.includes(riskPct)
                 ? "border border-amber-500/30 bg-amber-500/20 text-amber-300"
                 : "border border-white/[0.08] bg-white/[0.04] text-zinc-500 hover:text-zinc-300"
             )}
@@ -75,6 +75,20 @@ export function LotCalculatorWidget() {
             {r}%
           </button>
         ))}
+        <input
+          type="number"
+          min={0.1}
+          max={100}
+          step={0.1}
+          value={riskPct}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value);
+            if (!isNaN(v) && v > 0) setRiskPct(parseFloat(v.toFixed(1)));
+          }}
+          className="w-16 rounded border border-white/[0.08] bg-[#0d0d0d] px-2 py-1 text-right text-[10px] text-zinc-300 outline-none focus:border-amber-500/40 [color-scheme:dark]"
+          placeholder="Custom"
+        />
+        <span className="text-[10px] text-zinc-600">%</span>
       </div>
 
       {/* Entry + SL inputs */}
