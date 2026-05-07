@@ -835,10 +835,10 @@ export function BrainOverviewDrawer({ open, onClose, data, highlightAgentId }: B
       {/* Modal */}
       <div className="fixed inset-0 z-[125] flex items-center justify-center p-4 pointer-events-none">
         <div className={cn(
-          "w-full max-w-lg max-h-[88vh] flex flex-col pointer-events-auto",
+          "w-full max-w-lg max-h-[88vh] flex flex-col",
           "bg-[#0f0f11] border border-white/10 rounded-2xl shadow-2xl",
           "transition-all duration-200",
-          open ? "opacity-100 scale-100" : "opacity-0 scale-95"
+          open ? "opacity-100 scale-100 pointer-events-auto" : "opacity-0 scale-95 pointer-events-none"
         )}>
 
           {/* Header */}

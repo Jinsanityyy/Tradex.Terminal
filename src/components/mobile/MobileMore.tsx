@@ -133,6 +133,9 @@ export function MobileMore() {
   }
 
   // Main folder grid
+  const settingsApp = ALL_APPS.find(a => a.id === "settings")!;
+  const SettingsIcon = settingsApp.icon;
+
   return (
     <div className="flex flex-col h-full bg-[hsl(var(--background))]">
       <div className="flex-1 overflow-y-auto px-6 py-6 pb-4">
@@ -160,6 +163,23 @@ export function MobileMore() {
               </button>
             );
           })}
+        </div>
+
+        {/* Settings standalone row */}
+        <div className="mt-8">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 mb-4">Account</p>
+          <button
+            onClick={() => setActiveAppId("settings")}
+            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl active:opacity-60"
+            style={{ background: `${settingsApp.color}15`, border: `1px solid ${settingsApp.color}30` }}
+          >
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{ background: `${settingsApp.color}22`, border: `1px solid ${settingsApp.color}40` }}>
+              <SettingsIcon className="h-5 w-5" style={{ color: settingsApp.color }} />
+            </div>
+            <span className="text-[13px] font-medium text-zinc-200">{settingsApp.label}</span>
+            <ChevronRight className="h-4 w-4 text-zinc-600 ml-auto" />
+          </button>
         </div>
       </div>
     </div>
