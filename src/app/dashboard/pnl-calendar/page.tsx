@@ -51,8 +51,6 @@ interface ManualTrade {
   notes?: string;
 }
 
-const MANUAL_TRADES_KEY = "tradex_manual_trades";
-
 type ExchangeKey = "binance" | "bybit" | "okx" | "mt5";
 
 const EXCHANGE_META: Record<ExchangeKey, { name: string; color: string; bg: string; logo: string }> = {
@@ -360,28 +358,29 @@ function ManualTradeModal({
   const [feesStr, setFeesStr] = useState("");
   const [notes, setNotes] = useState("");
 
+  const [saving, setSaving] = useState(false);
   const pnlNum = parseFloat(pnlStr);
   const feesNum = parseFloat(feesStr) || 0;
   const isValidPnl = pnlStr !== "" && !isNaN(pnlNum);
   const isWin = isValidPnl && pnlNum > 0;
 
-  function save() {
-    if (!isValidPnl || !date) {
-      toast.error("Date and P&L are required");
-      return;
-    }
-    const trade: ManualTrade = {
-      id: `mt_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      date,
-      symbol,
-      direction,
-      pnl: parseFloat(pnlNum.toFixed(2)),
-      fees: parseFloat(feesNum.toFixed(2)),
-      notes: notes.trim() || undefined,
-    };
-    onSaved(trade);
-    toast.success(`Trade logged: ${pnlNum >= 0 ? "+" : ""}$${Math.abs(pnlNum).toFixed(2)}`);
-    onClose();
+  async function save() {
+    if (!isValidPnl || !date) { toast.error("Date and P&L are required"); return; }
+    setSaving(true);
+    try {
+      const authHeaders = await getAuthHeaders();
+      const res = await fetch("/api/manual-trades", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ date, symbol, direction, pnl: parseFloat(pnlNum.toFixed(2)), fees: parseFloat(feesNum.toFixed(2)), notes: notes.trim() || null }),
+      });
+      const json = await res.json();
+      if (!res.ok) { toast.error(json.error ?? "Failed to save trade"); return; }
+      onSaved(json as ManualTrade);
+      toast.success(`Trade logged: ${pnlNum >= 0 ? "+" : ""}$${Math.abs(pnlNum).toFixed(2)}`);
+      onClose();
+    } catch { toast.error("Failed to save trade"); }
+    finally { setSaving(false); }
   }
 
   return (
@@ -517,11 +516,11 @@ function ManualTradeModal({
             </button>
             <button
               onClick={save}
-              disabled={!isValidPnl || !date}
+              disabled={!isValidPnl || !date || saving}
               className="flex-[2] flex items-center justify-center gap-2 rounded-lg bg-[hsl(var(--primary))]/15 border border-[hsl(var(--primary))]/30 py-2.5 text-sm font-semibold text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/25 disabled:opacity-40 transition-all"
             >
-              <Plus className="h-4 w-4" />
-              Log Trade
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              {saving ? "Saving…" : "Log Trade"}
             </button>
           </div>
         </div>
@@ -709,64 +708,47 @@ export default function PnLCalendarPage() {
   const [journalDate, setJournalDate] = useState<string | null>(null);
   const [journalEntries, setJournalEntries] = useState<Map<string, JournalEntry>>(new Map());
 
-  // Manual trades — stored in localStorage, merged with exchange data
+  // Manual trades — synced with Supabase (cross-device via user account)
   const [manualTrades, setManualTrades] = useState<ManualTrade[]>([]);
 
-  // Load manual trades from localStorage on mount
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(MANUAL_TRADES_KEY);
-      if (raw) setManualTrades(JSON.parse(raw));
-    } catch {}
-  }, []);
-
-  function saveManualTrades(updated: ManualTrade[]) {
-    setManualTrades(updated);
-    try { localStorage.setItem(MANUAL_TRADES_KEY, JSON.stringify(updated)); } catch {}
-  }
-
   function addManualTrade(trade: ManualTrade) {
-    saveManualTrades([...manualTrades, trade]);
+    setManualTrades(prev => [trade, ...prev]);
+    // /api/pnl already aggregates manual trades — reload calendar
+    loadData();
   }
 
-  function deleteManualTrade(id: string) {
-    saveManualTrades(manualTrades.filter(t => t.id !== id));
-  }
-
-  // Merge exchange daily data with manual trades → single source of truth for calendar/stats
-  const mergedDaily = useMemo(() => {
-    const map = new Map<string, DailyPnL>();
-    daily.forEach(d => map.set(d.date, { ...d }));
-    for (const t of manualTrades) {
-      const existing = map.get(t.date) ?? { date: t.date, pnl: 0, trades: 0, wins: 0, fees: 0 };
-      map.set(t.date, {
-        ...existing,
-        pnl: parseFloat((existing.pnl + t.pnl).toFixed(4)),
-        fees: parseFloat((existing.fees + t.fees).toFixed(4)),
-        trades: existing.trades + 1,
-        wins: existing.wins + (t.pnl > 0 ? 1 : 0),
+  async function deleteManualTrade(id: string) {
+    try {
+      const authHeaders = await getAuthHeaders();
+      const res = await fetch(`/api/manual-trades?id=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: authHeaders,
       });
-    }
-    return Array.from(map.values());
-  }, [daily, manualTrades]);
+      if (!res.ok) { toast.error("Failed to delete trade"); return; }
+      setManualTrades(prev => prev.filter(t => t.id !== id));
+      loadData(); // refresh calendar totals
+      toast.success("Trade removed");
+    } catch { toast.error("Failed to delete trade"); }
+  }
 
+  // /api/pnl now aggregates both exchange + manual trades server-side
   const dailyMap = useMemo(() => {
     const m = new Map<string, DailyPnL>();
-    mergedDaily.forEach(d => m.set(d.date, d));
+    daily.forEach(d => m.set(d.date, d));
     return m;
-  }, [mergedDaily]);
+  }, [daily]);
 
   const monthStats = useMemo(() => {
     const key = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`;
     let trades = 0, wins = 0, pnl = 0, fees = 0;
-    mergedDaily.forEach(d => {
+    daily.forEach(d => {
       if (d.date.startsWith(key)) {
         trades += d.trades; wins += d.wins; pnl += d.pnl; fees += d.fees;
       }
     });
     const winPct = trades > 0 ? Math.round((wins / trades) * 100) : 0;
     return { trades, wins, pnl, fees, winPct };
-  }, [mergedDaily, viewYear, viewMonth]);
+  }, [daily, viewYear, viewMonth]);
 
   const calDays = useMemo(() => {
     const first = new Date(viewYear, viewMonth, 1);
@@ -799,15 +781,18 @@ export default function PnLCalendarPage() {
     try {
       const authHeaders = await getAuthHeaders();
       const qs = selectedConn !== "all" ? `?connectionId=${selectedConn}` : "";
-      const [pnlRes, connRes] = await Promise.all([
+      const [pnlRes, connRes, manualRes] = await Promise.all([
         fetch(`/api/pnl${qs}`, { headers: authHeaders }),
         fetch("/api/exchanges/list", { headers: authHeaders }),
+        fetch("/api/manual-trades", { headers: authHeaders }),
       ]);
-      const pnlData = await pnlRes.json();
-      const connData = await connRes.json();
+      const pnlData    = await pnlRes.json();
+      const connData   = await connRes.json();
+      const manualData = await manualRes.json();
       if (Array.isArray(connData.data)) setConnections(connData.data);
       setDaily(pnlData.daily ?? []);
       setMonthly(pnlData.monthly ?? []);
+      if (Array.isArray(manualData)) setManualTrades(manualData);
     } finally {
       setLoading(false);
     }
