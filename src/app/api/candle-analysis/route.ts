@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import Groq from "groq-sdk";
 
 export const dynamic = "force-dynamic";
 
@@ -90,18 +90,21 @@ ${newsHeadlines.length > 0 ? newsHeadlines.map(h => `â€¢ ${h}`).join("\n") : "â€
 Explain why this candle moved. Return JSON only.
 `.trim();
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 500 });
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) return NextResponse.json({ error: "GROQ_API_KEY not configured" }, { status: 500 });
 
-    const client = new Anthropic({ apiKey });
-    const msg = await client.messages.create({
-      model: "claude-sonnet-4-6",
+    const groq = new Groq({ apiKey });
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
       max_tokens: 700,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt }],
+      temperature: 0.3,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user",   content: userPrompt },
+      ],
     });
 
-    const raw     = msg.content[0].type === "text" ? msg.content[0].text : "";
+    const raw     = completion.choices[0]?.message?.content ?? "";
     const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
 
     let parsed: any;
