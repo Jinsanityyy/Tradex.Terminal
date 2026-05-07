@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import Groq from "groq-sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const dynamic = "force-dynamic";
 
@@ -90,21 +90,21 @@ ${newsHeadlines.length > 0 ? newsHeadlines.map(h => `â€¢ ${h}`).join("\n") : "â€
 Explain why this candle moved. Return JSON only.
 `.trim();
 
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) return NextResponse.json({ error: "GROQ_API_KEY not configured" }, { status: 500 });
+    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    if (!apiKey) return NextResponse.json({ error: "GOOGLE_AI_API_KEY not configured" }, { status: 500 });
 
-    const groq = new Groq({ apiKey });
-    const completion = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
-      max_tokens: 700,
-      temperature: 0.3,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user",   content: userPrompt },
-      ],
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      systemInstruction: SYSTEM_PROMPT,
     });
 
-    const raw     = completion.choices[0]?.message?.content ?? "";
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+      generationConfig: { maxOutputTokens: 700, temperature: 0.3 },
+    });
+
+    const raw     = result.response.text();
     const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
 
     let parsed: any;

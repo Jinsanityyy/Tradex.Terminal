@@ -129,8 +129,16 @@ function AnalysisPanel({
           </div>
         )}
 
+        {/* Error inside panel */}
+        {result && !loading && (result as any).error && (
+          <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-red-500/8 border border-red-500/20">
+            <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
+            <p className="text-[10px] text-red-400 leading-snug">{(result as any).error}</p>
+          </div>
+        )}
+
         {/* Results */}
-        {result && !loading && (
+        {result && !loading && !(result as any).error && (
           <>
             {/* Sentiment + magnitude */}
             <div className="flex items-center gap-2">
@@ -279,8 +287,8 @@ export function CandleChart({
       if (data.error) throw new Error(data.error);
       setAnalysisResult(data as CandleAnalysisResult);
     } catch (e: any) {
-      setAnalysisResult(null);
-      setError(e.message ?? "Analysis failed");
+      setAnalysisResult({ error: e.message ?? "Analysis failed" } as any);
+      setError(null); // clear chart-level error — show inside panel only
     } finally {
       setAnalysisLoading(false);
     }
