@@ -438,32 +438,31 @@ export function CandleChart({
     chartRef.current  = chart;
     seriesRef.current = series;
 
-    // Single click handler — reads latest tf/candles via refs, never stale
-    chart.subscribeClick((param: any) => {
-      if (!param.time) return;
-      const clickedTime = param.time as number;
+    // Native click on container — more reliable than subscribeClick in v5
+    const handleClick = (e: MouseEvent) => {
+      const rect = el.getBoundingClientRect();
+      const x    = e.clientX - rect.left;
+
+      // Convert pixel x → unix timestamp via chart timeScale
+      const clickedTime = chart.timeScale().coordinateToTime(x) as number | null;
+      if (!clickedTime) return;
+
       const tf = timeframeRef.current;
 
-      // Try seriesData first (v5 preferred), then closest-match fallback
-      const barData = param.seriesData?.get(series);
+      // Find nearest candle
       let candle: RawCandle | undefined;
-
-      if (barData && typeof barData.open === "number") {
-        candle = { t: clickedTime, o: barData.open, h: barData.high, l: barData.low, c: barData.close };
-      } else {
-        // Closest candle within one full period
-        const period = tfWindowSecs(tf);
-        let bestDist = period;
-        for (const b of candlesRef.current) {
-          const d = Math.abs(b.t - clickedTime);
-          if (d < bestDist) { bestDist = d; candle = b; }
-        }
+      let bestDist = tfWindowSecs(tf); // max tolerance = 1 full period
+      for (const b of candlesRef.current) {
+        const d = Math.abs(b.t - clickedTime);
+        if (d < bestDist) { bestDist = d; candle = b; }
       }
 
       if (!candle) return;
       const analysis = analyseCandle(candle, candlesRef.current, newsRef.current, tf);
       setSelectedRef.current({ candle, analysis });
-    });
+    };
+
+    el.addEventListener("click", handleClick);
 
     const ro = new ResizeObserver(() => {
       if (el) chart.resize(el.clientWidth, height);
@@ -471,6 +470,7 @@ export function CandleChart({
     ro.observe(el);
 
     return () => {
+      el.removeEventListener("click", handleClick);
       ro.disconnect();
       chart.remove();
       chartRef.current  = null;
