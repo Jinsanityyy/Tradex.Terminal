@@ -352,7 +352,9 @@ export function CandleChart({
   const seriesRef         = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const candlesRef        = useRef<RawCandle[]>([]);
   const newsRef           = useRef<NewsItem[]>([]);
-  const clickHandlerRef   = useRef<((p: any) => void) | null>(null);
+  // Refs so click handler always sees latest values without re-subscribing
+  const timeframeRef      = useRef<Timeframe>(defaultTimeframe);
+  const setSelectedRef    = useRef<(v: { candle: RawCandle; analysis: InstantAnalysis } | null) => void>(() => {});
 
   const [symbol,    setSymbol]    = useState<Symbol>(defaultSymbol);
   const [timeframe, setTimeframe] = useState<Timeframe>(defaultTimeframe);
@@ -360,6 +362,10 @@ export function CandleChart({
   const [error,     setError]     = useState<string | null>(null);
 
   const [selected,  setSelected]  = useState<{ candle: RawCandle; analysis: InstantAnalysis } | null>(null);
+
+  // Keep refs in sync so click handler never has stale values
+  useEffect(() => { timeframeRef.current = timeframe; }, [timeframe]);
+  useEffect(() => { setSelectedRef.current = setSelected; }, []);
 
   // ── Pre-fetch news once on mount ───────────────────────────────────────────
   useEffect(() => {
@@ -394,57 +400,7 @@ export function CandleChart({
     }
   }, []);
 
-  // ── Register click handler ─────────────────────────────────────────────────
-  const registerClickHandler = useCallback((tf: Timeframe) => {
-    const chart = chartRef.current;
-    if (!chart) return;
-
-    // Remove old handler
-    if (clickHandlerRef.current) {
-      chart.unsubscribeClick(clickHandlerRef.current);
-    }
-
-    const handler = (param: any) => {
-      if (!param.time || !param.point) return;
-
-      // v5: get bar data directly from the series at the clicked time
-      const barData = seriesRef.current
-        ? param.seriesData?.get(seriesRef.current)
-        : undefined;
-
-      const clickedTime = param.time as number;
-
-      // Use seriesData if available, else fall back to closest timestamp match
-      let candle: RawCandle | undefined;
-      if (barData && typeof barData.open === "number") {
-        candle = {
-          t: clickedTime,
-          o: barData.open,
-          h: barData.high,
-          l: barData.low,
-          c: barData.close,
-        };
-      } else {
-        // Closest match within 1 candle period
-        const halfPeriod = tfWindowSecs(tf) / 2;
-        candle = candlesRef.current.reduce<RawCandle | undefined>((best, b) => {
-          const d = Math.abs(b.t - clickedTime);
-          if (d > halfPeriod) return best;
-          if (!best) return b;
-          return d < Math.abs(best.t - clickedTime) ? b : best;
-        }, undefined);
-      }
-
-      if (!candle) return;
-      const analysis = analyseCandle(candle, candlesRef.current, newsRef.current, tf);
-      setSelected({ candle, analysis });
-    };
-
-    chart.subscribeClick(handler);
-    clickHandlerRef.current = handler;
-  }, []);
-
-  // ── Init chart ─────────────────────────────────────────────────────────────
+  // ── Init chart + click handler (single effect) ────────────────────────────
   useEffect(() => {
     const el = chartContainerRef.current;
     if (!el) return;
@@ -482,8 +438,35 @@ export function CandleChart({
     chartRef.current  = chart;
     seriesRef.current = series;
 
+    // Single click handler — reads latest tf/candles via refs, never stale
+    chart.subscribeClick((param: any) => {
+      if (!param.time) return;
+      const clickedTime = param.time as number;
+      const tf = timeframeRef.current;
+
+      // Try seriesData first (v5 preferred), then closest-match fallback
+      const barData = param.seriesData?.get(series);
+      let candle: RawCandle | undefined;
+
+      if (barData && typeof barData.open === "number") {
+        candle = { t: clickedTime, o: barData.open, h: barData.high, l: barData.low, c: barData.close };
+      } else {
+        // Closest candle within one full period
+        const period = tfWindowSecs(tf);
+        let bestDist = period;
+        for (const b of candlesRef.current) {
+          const d = Math.abs(b.t - clickedTime);
+          if (d < bestDist) { bestDist = d; candle = b; }
+        }
+      }
+
+      if (!candle) return;
+      const analysis = analyseCandle(candle, candlesRef.current, newsRef.current, tf);
+      setSelectedRef.current({ candle, analysis });
+    });
+
     const ro = new ResizeObserver(() => {
-      if (el && chart) chart.resize(el.clientWidth, height);
+      if (el) chart.resize(el.clientWidth, height);
     });
     ro.observe(el);
 
@@ -492,15 +475,9 @@ export function CandleChart({
       chart.remove();
       chartRef.current  = null;
       seriesRef.current = null;
-      clickHandlerRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [height]);
-
-  // Re-register click handler when timeframe changes
-  useEffect(() => {
-    if (chartRef.current) registerClickHandler(timeframe);
-  }, [timeframe, registerClickHandler]);
 
   // Fetch on symbol/timeframe change
   useEffect(() => {
