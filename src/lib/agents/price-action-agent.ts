@@ -319,7 +319,6 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   const confidence = liquiditySweepDetected ? Math.min(95, 50 + sweepModifier) : 40;
 
   // ── STEP 5: Levels ─────────────────────────────────────────────────────────
-  const entryPrice = fvgMid ?? current;
   // SL = sweep extreme + $5 buffer (sweepMinDollar * 2.5 → $5 for XAUUSD)
   const slBuffer   = minSweep * 2.5;
 
@@ -329,6 +328,13 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
       ? parseFloat((low  - slBuffer).toFixed(4))
       : parseFloat((high + slBuffer).toFixed(4));
   }
+
+  // Align entryPrice with what execution-agent will actually use:
+  // FVG setup → fvgMid | Sweep (no FVG) → sweepRef ± 0.1% | fallback → current
+  const sweepEntry = sweepLevel !== null
+    ? parseFloat((sweepBias === "bullish" ? sweepLevel * 1.001 : sweepLevel * 0.999).toFixed(4))
+    : null;
+  const entryPrice = fvgMid ?? sweepEntry ?? current;
 
   // TP = 1.5R from entry
   const riskDist = invalidationLevel !== null

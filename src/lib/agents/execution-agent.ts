@@ -123,6 +123,31 @@ export async function runExecutionAgent(
     }
 
     const riskDist = Math.abs(entry - stopLoss);
+
+    // Guard: if entry === SL (riskDist = 0), PA agent returned bad levels — no valid setup
+    if (riskDist === 0) {
+      return {
+        agentId: "execution",
+        hasSetup: false,
+        direction: "none",
+        entry: null,
+        stopLoss: null,
+        tp1: null,
+        tp2: null,
+        rrRatio: null,
+        trigger: "None",
+        triggerCondition: "Entry and stop loss are at the same price level — invalid setup data",
+        managementNotes: ["Wait for a valid setup with clear SL separation from entry"],
+        entryZone: "Invalid",
+        slZone: "Invalid",
+        tp1Zone: "No target",
+        signalState: "NO_TRADE",
+        signalStateReason: "Invalid setup: entry equals stop loss. PA agent returned conflicting levels.",
+        distanceToEntry: null,
+        processingTime: Date.now() - start,
+      };
+    }
+
     const tp1MaxDist = riskDist * 2.5;
     const tp2Distance = riskDist * 4;
 
