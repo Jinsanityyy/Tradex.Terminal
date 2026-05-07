@@ -438,36 +438,26 @@ export function CandleChart({
     chartRef.current  = chart;
     seriesRef.current = series;
 
-    // Official subscribeClick API — fires on every chart click with correct time
-    chart.subscribeClick((param) => {
-      // param.time is undefined when clicking outside data range,
-      // or a BusinessDay object for non-UTC series — guard both cases
-      if (!param.time || typeof param.time !== "number") return;
+    // coordinateToLogical maps pixel-x → bar index (float) — no time-format
+    // issues, works regardless of BusinessDay / UTC / string time modes.
+    const handleClick = (e: MouseEvent) => {
+      const bars = candlesRef.current;
+      if (!bars.length) return;
 
-      const clickedTime = param.time as number;
-      const tf          = timeframeRef.current;
-      const bars        = candlesRef.current;
-      if (bars.length === 0) return;
+      const rect    = el.getBoundingClientRect();
+      const x       = e.clientX - rect.left;
+      const logical = chart.timeScale().coordinateToLogical(x);
+      if (logical === null) return;
 
-      // Prefer exact candle from series hit-test; fall back to nearest in array
-      const item = param.seriesData.get(series);
-      let candle: RawCandle | undefined;
-
-      if (item && typeof item === "object" && "open" in item) {
-        const cd = item as { open: number; high: number; low: number; close: number };
-        candle = { t: clickedTime, o: cd.open, h: cd.high, l: cd.low, c: cd.close };
-      } else {
-        let bestDist = Infinity;
-        for (const b of bars) {
-          const d = Math.abs(b.t - clickedTime);
-          if (d < bestDist) { bestDist = d; candle = b; }
-        }
-      }
-
+      const idx    = Math.max(0, Math.min(bars.length - 1, Math.round(logical)));
+      const candle = bars[idx];
       if (!candle) return;
-      const analysis = analyseCandle(candle, bars, newsRef.current, tf);
+
+      const analysis = analyseCandle(candle, bars, newsRef.current, timeframeRef.current);
       setSelectedRef.current({ candle, analysis });
-    });
+    };
+
+    el.addEventListener("click", handleClick);
 
     const ro = new ResizeObserver(() => {
       if (el) chart.resize(el.clientWidth, height);
@@ -475,6 +465,7 @@ export function CandleChart({
     ro.observe(el);
 
     return () => {
+      el.removeEventListener("click", handleClick);
       ro.disconnect();
       chart.remove();
       chartRef.current  = null;
@@ -548,7 +539,7 @@ export function CandleChart({
       {/* Chart + panel */}
       <div className="flex flex-col lg:flex-row min-h-0">
         <div className={cn("relative", selected ? "lg:flex-1" : "w-full")}>
-          <div ref={chartContainerRef} className="w-full" style={{ height }} />
+          <div ref={chartContainerRef} className="w-full cursor-pointer" style={{ height }} />
         </div>
 
         {selected && (
