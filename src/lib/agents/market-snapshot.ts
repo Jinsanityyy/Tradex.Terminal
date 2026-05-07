@@ -5,7 +5,7 @@
  * into a unified MarketSnapshot object consumed by all agents.
  */
 
-import type { MarketSnapshot, Symbol, Timeframe, PriceZone } from "./schemas";
+import type { MarketSnapshot, Symbol, Timeframe, PriceZone, SnapshotCandle } from "./schemas";
 import type { CandleBar, DailyStructure } from "./candles";
 import { deriveConvictionBias } from "@/lib/api/conviction";
 
@@ -281,6 +281,10 @@ export async function buildMarketSnapshot(
       summary: n.summary || "",
       timestamp: n.datetime,
     })),
+    // Pass last 60 candles so price-action-agent can compute real session levels + FVG
+    recentCandles: timeframeCandles
+      ? (normalizeCandles(timeframeCandles).slice(-60) as SnapshotCandle[])
+      : undefined,
     volatilityHigh,
     isExtended,
     hasNewsCatalyst,

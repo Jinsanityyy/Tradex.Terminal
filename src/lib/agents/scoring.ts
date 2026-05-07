@@ -74,7 +74,8 @@ export function computeConsensus(
   risk: RiskAgentOutput,
   execution: ExecutionAgentOutput,
   contrarian: ContrarianAgentOutput,
-  weights: ScoringWeights
+  weights: ScoringWeights,
+  symbol?: string
 ): ScoringResult {
   const items: AgentConsensusItem[] = [];
 
@@ -87,8 +88,12 @@ export function computeConsensus(
   items.push(agentScore("smc", smc.bias, smc.confidence, clamp(smcWeight, 0, 0.5)));
 
   // ── News Agent (supports / opposes) ───────────────────────────────────────
-  // High riskScore reduces news agent confidence
-  const adjustedNewsConf = news.confidence * (1 - news.riskScore / 200);
+  // Safe-haven assets (gold/silver): geopolitical risk BOOSTS news confidence
+  // All other assets: high risk-score reduces news confidence (uncertainty drag)
+  const isSafeHaven = symbol === "XAUUSD" || symbol === "XAGUSD" || symbol === "XPTUSD";
+  const adjustedNewsConf = isSafeHaven && news.riskScore > 40
+    ? Math.min(95, news.confidence * (1 + news.riskScore / 300))
+    : news.confidence * (1 - news.riskScore / 200);
   items.push(agentScore("news", news.impact, Math.round(adjustedNewsConf), weights.news));
 
   // ── Execution Agent (confirms setup) ──────────────────────────────────────

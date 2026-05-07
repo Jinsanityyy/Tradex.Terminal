@@ -49,13 +49,17 @@ function estimateStopDistance(snapshot: MarketSnapshot): number {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function estimateRR(snapshot: MarketSnapshot, stopDistance: number): number | null {
-  const { current } = snapshot.price;
-  const { pos52w } = snapshot.structure;
-
-  // Target distance: 2x stop for typical SMC setups
-  const targetDistance = stopDistance * 2;
   if (stopDistance <= 0) return null;
-  return parseFloat((targetDistance / stopDistance).toFixed(2));
+  const { atrProxy } = snapshot.indicators;
+
+  // JADE CAP: TP2 = 2.5R. On volatile days liquidity pools are wider (better RR).
+  // On quiet sessions targets compress toward 1.5R minimum.
+  const targetMultiplier =
+    atrProxy > 1.5 ? 2.5 :   // active NY session — full 2.5R potential
+    atrProxy > 0.8 ? 2.0 :   // moderate vol — standard 2R
+    1.5;                       // quiet / Asia — minimum viable
+
+  return parseFloat(targetMultiplier.toFixed(2));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -90,6 +90,16 @@ export interface NewsSnapshot {
   timestamp: number;
 }
 
+// Inline candle type (mirrors CandleBar from candles.ts — kept here to avoid circular imports)
+export interface SnapshotCandle {
+  t: number;  // Unix timestamp in seconds
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+}
+
 export interface MarketSnapshot {
   symbol: Symbol;
   symbolDisplay: string;
@@ -99,6 +109,8 @@ export interface MarketSnapshot {
   structure: StructureData;
   indicators: IndicatorData;
   recentNews: NewsSnapshot[];
+  // Last ~60 candles — used by PA agent for real FVG detection & actual session levels
+  recentCandles?: SnapshotCandle[];
   // Derived convenience flags
   volatilityHigh: boolean;   // atrProxy > 1.0
   isExtended: boolean;       // rsi > 70 or rsi < 30

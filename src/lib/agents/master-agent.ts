@@ -264,7 +264,7 @@ export async function runMasterAgent(
   try {
     // ── Compute consensus ────────────────────────────────────────────────
     const { consensusScore, finalBias, confidence, agentConsensus, noTradeReason } =
-      computeConsensus(trend, smc, news, risk, execution, contrarian, weights);
+      computeConsensus(trend, smc, news, risk, execution, contrarian, weights, snapshot.symbol);
 
     // ── LLM synthesis (optional enhancement) ─────────────────────────────
     let llmResult: { finalBias: string; confidence: number; supports: string[]; invalidations: string[]; noTradeReason?: string; strategyMatch?: string } | null = null;
