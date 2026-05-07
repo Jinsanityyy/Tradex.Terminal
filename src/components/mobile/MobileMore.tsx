@@ -5,10 +5,11 @@ import {
   Calendar, TrendingUp, Activity,
   Radio, Brain, Clock, History, DollarSign,
   Shield, AtSign, Newspaper, LayoutGrid,
-  ChevronLeft, ChevronRight, GraduationCap
+  ChevronLeft, ChevronRight, GraduationCap, Zap
 } from "lucide-react";
 import { MobileBrain } from "@/components/mobile/MobileBrain";
 import { TradingKnowledgeContent } from "@/components/shared/TradingKnowledgeSidebar";
+import { CandleAnalysis } from "@/components/shared/CandleAnalysis";
 
 // Lazy load only pages that don't have routing issues
 import dynamic from "next/dynamic";
@@ -45,6 +46,7 @@ const ALL_APPS: AppDef[] = [
   { id: "signals",              label: "Signals",         icon: Activity,      color: "#10b981", component: SignalsPage },
   { id: "pnl-calendar",         label: "PnL Calendar",   icon: DollarSign,    color: "#f59e0b", component: PnlCalendarPage },
   { id: "brain",                label: "Brain Terminal",  icon: Brain,         color: "#8b5cf6", component: MobileBrain },
+  { id: "candle-analysis",      label: "Candle Analysis", icon: Zap,           color: "#7c3aed", component: CandleAnalysis },
   { id: "knowledge",            label: "Knowledge",       icon: GraduationCap, color: "#a78bfa", component: TradingKnowledgeContent },
   { id: "settings",             label: "Settings",        icon: Shield,        color: "#6b7280", component: SettingsPage },
 ];
@@ -66,7 +68,7 @@ const FOLDERS = [
     id: "trading",
     label: "Trading",
     color: "#10b981",
-    appIds: ["signals", "pnl-calendar", "brain", "knowledge"],
+    appIds: ["signals", "pnl-calendar", "brain", "candle-analysis"],
   },
 ];
 
