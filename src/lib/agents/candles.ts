@@ -14,13 +14,6 @@ interface FinnhubConfig {
   symbols: string[];
 }
 
-interface YahooConfig {
-  symbol: string;
-  interval: string;
-  lookbackSeconds: number;
-  aggregateSize?: number;
-}
-
 interface CandleMetrics {
   changePercent: number;
   rsi: number;
@@ -58,31 +51,18 @@ const FINNHUB_SYMBOLS: Partial<Record<Symbol, FinnhubConfig>> = {
   },
 };
 
-const YAHOO_SYMBOLS: Partial<Record<Symbol, Record<Timeframe, YahooConfig>>> = {
-  XAUUSD: {
-    M5: { symbol: "GC=F", interval: "5m", lookbackSeconds: 7 * 24 * 60 * 60 },
-    M15: { symbol: "GC=F", interval: "15m", lookbackSeconds: 14 * 24 * 60 * 60 },
-    H1: { symbol: "GC=F", interval: "60m", lookbackSeconds: 30 * 24 * 60 * 60 },
-    H4: { symbol: "GC=F", interval: "60m", lookbackSeconds: 60 * 24 * 60 * 60, aggregateSize: 4 },
-  },
-  EURUSD: {
-    M5: { symbol: "EURUSD=X", interval: "5m", lookbackSeconds: 7 * 24 * 60 * 60 },
-    M15: { symbol: "EURUSD=X", interval: "15m", lookbackSeconds: 14 * 24 * 60 * 60 },
-    H1: { symbol: "EURUSD=X", interval: "60m", lookbackSeconds: 30 * 24 * 60 * 60 },
-    H4: { symbol: "EURUSD=X", interval: "60m", lookbackSeconds: 60 * 24 * 60 * 60, aggregateSize: 4 },
-  },
-  GBPUSD: {
-    M5: { symbol: "GBPUSD=X", interval: "5m", lookbackSeconds: 7 * 24 * 60 * 60 },
-    M15: { symbol: "GBPUSD=X", interval: "15m", lookbackSeconds: 14 * 24 * 60 * 60 },
-    H1: { symbol: "GBPUSD=X", interval: "60m", lookbackSeconds: 30 * 24 * 60 * 60 },
-    H4: { symbol: "GBPUSD=X", interval: "60m", lookbackSeconds: 60 * 24 * 60 * 60, aggregateSize: 4 },
-  },
-  BTCUSD: {
-    M5: { symbol: "BTC-USD", interval: "5m", lookbackSeconds: 7 * 24 * 60 * 60 },
-    M15: { symbol: "BTC-USD", interval: "15m", lookbackSeconds: 14 * 24 * 60 * 60 },
-    H1: { symbol: "BTC-USD", interval: "60m", lookbackSeconds: 30 * 24 * 60 * 60 },
-    H4: { symbol: "BTC-USD", interval: "60m", lookbackSeconds: 60 * 24 * 60 * 60, aggregateSize: 4 },
-  },
+const TWELVEDATA_SYMBOLS: Partial<Record<Symbol, string>> = {
+  XAUUSD: "XAU/USD",
+  EURUSD: "EUR/USD",
+  GBPUSD: "GBP/USD",
+  BTCUSD: "BTC/USD",
+};
+
+const TWELVEDATA_INTERVAL: Record<Timeframe, string> = {
+  M5:  "5min",
+  M15: "15min",
+  H1:  "1h",
+  H4:  "4h",
 };
 
 const FINNHUB_RESOLUTION: Record<Timeframe, string> = {
@@ -530,96 +510,65 @@ async function fetchFinnhubCandles(symbol: Symbol, timeframe: Timeframe): Promis
   return null;
 }
 
-export async function fetchYahooCandles(symbol: Symbol, timeframe: Timeframe): Promise<CandleBar[] | null> {
-  const config = YAHOO_SYMBOLS[symbol]?.[timeframe];
-  const endpoint = "yahoo/chart";
+async function fetchTwelvedataCandles(symbol: Symbol, timeframe: Timeframe): Promise<CandleBar[] | null> {
+  const apiKey = process.env.TWELVEDATA_API_KEY;
+  const tdSymbol = TWELVEDATA_SYMBOLS[symbol];
+  const interval = TWELVEDATA_INTERVAL[timeframe];
+  const endpoint = "twelvedata/time_series";
 
-  if (!config) {
-    logCandleDebug({ symbol, timeframe, endpoint, provider: "yahoo", status: "unsupported_symbol" });
+  if (!tdSymbol) {
+    logCandleDebug({ symbol, timeframe, endpoint, provider: "twelvedata", status: "unsupported_symbol" });
+    return null;
+  }
+  if (!apiKey) {
+    logCandleDebug({ symbol, timeframe, endpoint, provider: "twelvedata", status: "missing_key" });
     return null;
   }
 
-  const to = Math.floor(Date.now() / 1000);
-  const fromBase = to - config.lookbackSeconds;
-  const from = fromBase < to ? fromBase : to - 3600;
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${config.symbol}?interval=${config.interval}&period1=${from}&period2=${to}&includePrePost=false&events=div%2Csplits`;
+  const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(tdSymbol)}&interval=${interval}&outputsize=200&apikey=${apiKey}`;
 
-  logCandleDebug({
-    symbol,
-    timeframe,
-    endpoint,
-    provider: "yahoo",
-    providerSymbol: config.symbol,
-    from,
-    to,
-    status: "request",
-  });
+  logCandleDebug({ symbol, timeframe, endpoint, provider: "twelvedata", tdSymbol, status: "request" });
 
   try {
     const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) {
-      logCandleDebug({
-        symbol,
-        timeframe,
-        endpoint,
-        provider: "yahoo",
-        providerSymbol: config.symbol,
-        status: `http_${response.status}`,
-      });
+      logCandleDebug({ symbol, timeframe, endpoint, provider: "twelvedata", status: `http_${response.status}` });
       return null;
     }
 
     const payload = await response.json();
-    const result = payload?.chart?.result?.[0];
-    const timestamps = Array.isArray(result?.timestamp) ? result.timestamp : [];
-    const quote = result?.indicators?.quote?.[0];
-    const open = Array.isArray(quote?.open) ? quote.open : [];
-    const high = Array.isArray(quote?.high) ? quote.high : [];
-    const low = Array.isArray(quote?.low) ? quote.low : [];
-    const close = Array.isArray(quote?.close) ? quote.close : [];
-    const volume = Array.isArray(quote?.volume) ? quote.volume : [];
+    if (payload?.code || payload?.status === "error" || !Array.isArray(payload?.values)) {
+      logCandleDebug({ symbol, timeframe, endpoint, provider: "twelvedata", status: "api_error", message: payload?.message });
+      return null;
+    }
+
+    // Twelve Data returns newest-first — reverse to get chronological order
+    const values: { datetime: string; open: string; high: string; low: string; close: string; volume: string }[] =
+      [...payload.values].reverse();
 
     const candles = normalizeCandles(
-      timestamps.map((timestamp: number, index: number) => {
-        const closeValue = Number(close[index]);
-        const openValue = Number(open[index]);
-        const highValue = Number(high[index]);
-        const lowValue = Number(low[index]);
-
+      values.map((bar) => {
+        const c = parseFloat(bar.close);
         return {
-          t: timestamp,
-          o: Number.isFinite(openValue) ? openValue : closeValue,
-          h: Number.isFinite(highValue) ? highValue : closeValue,
-          l: Number.isFinite(lowValue) ? lowValue : closeValue,
-          c: closeValue,
-          v: Number(volume[index]) || 0,
+          t: Math.floor(new Date(bar.datetime + "Z").getTime() / 1000),
+          o: parseFloat(bar.open) || c,
+          h: parseFloat(bar.high) || c,
+          l: parseFloat(bar.low) || c,
+          c,
+          v: parseFloat(bar.volume) || 0,
         };
       })
     );
 
-    const finalized = config.aggregateSize ? aggregateCandles(candles, config.aggregateSize) : candles;
-
     logCandleDebug({
-      symbol,
-      timeframe,
-      endpoint,
-      provider: "yahoo",
-      providerSymbol: config.symbol,
-      status: hasValidCandles(finalized) ? "ok" : "no_data",
-      candles: finalized.length,
+      symbol, timeframe, endpoint, provider: "twelvedata", tdSymbol,
+      status: hasValidCandles(candles) ? "ok" : "no_data",
+      candles: candles.length,
     });
 
-    return hasValidCandles(finalized) ? finalized : null;
+    return hasValidCandles(candles) ? candles : null;
   } catch (error) {
-    logCandleDebug({
-      symbol,
-      timeframe,
-      endpoint,
-      provider: "yahoo",
-      providerSymbol: config.symbol,
-      status: "error",
-      error: String(error),
-    });
+    logCandleDebug({ symbol, timeframe, endpoint, provider: "twelvedata", status: "error", error: String(error) });
     return null;
   }
 }
@@ -632,8 +581,8 @@ async function resolveReliableCandles(
   const key = cacheKey(symbol, timeframe);
 
   const providers = [
-    { name: "finnhub", fetcher: () => fetchFinnhubCandles(symbol, timeframe) },
-    { name: "yahoo", fetcher: () => fetchYahooCandles(symbol, timeframe) },
+    { name: "finnhub",     fetcher: () => fetchFinnhubCandles(symbol, timeframe) },
+    { name: "twelvedata",  fetcher: () => fetchTwelvedataCandles(symbol, timeframe) },
   ];
 
   for (const provider of providers) {
@@ -794,70 +743,110 @@ export interface DailyStructure {
   structuralLow: number;  // 20-day range low
 }
 
-const DAILY_YAHOO: Partial<Record<Symbol, string>> = {
-  XAUUSD: "GC=F",
-  EURUSD: "EURUSD=X",
-  GBPUSD: "GBPUSD=X",
-  BTCUSD: "BTC-USD",
-};
-
-export async function getDailyStructure(symbol: Symbol): Promise<DailyStructure | null> {
-  const yahooSymbol = DAILY_YAHOO[symbol];
-  if (!yahooSymbol) return null;
+async function fetchFinnhubDailyCandles(symbol: Symbol): Promise<CandleBar[] | null> {
+  const apiKey = process.env.FINNHUB_API_KEY;
+  const config = FINNHUB_SYMBOLS[symbol];
+  if (!config || !apiKey) return null;
 
   const to   = Math.floor(Date.now() / 1000);
-  const from = to - 90 * 24 * 60 * 60; // 90 calendar days
-  const url  = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=1d&period1=${from}&period2=${to}&includePrePost=false`;
+  const from = to - 100 * 24 * 60 * 60;
 
+  for (const providerSymbol of config.symbols) {
+    const url = `https://finnhub.io/api/v1/${config.endpoint}/candle?symbol=${providerSymbol}&resolution=D&from=${from}&to=${to}&token=${apiKey}`;
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) continue;
+
+      const payload = await response.json();
+      if (payload?.s !== "ok" || !Array.isArray(payload?.c) || payload.c.length === 0) continue;
+
+      const candles = normalizeCandles(
+        payload.c.map((close: number, index: number) => ({
+          t: payload.t?.[index],
+          o: payload.o?.[index] ?? close,
+          h: payload.h?.[index] ?? close,
+          l: payload.l?.[index] ?? close,
+          c: close,
+          v: payload.v?.[index] ?? 0,
+        }))
+      );
+
+      if (hasValidCandles(candles)) {
+        console.log("[mtf-candles]", JSON.stringify({ symbol, interval: "D1", provider: "finnhub", providerSymbol, status: "ok", candles: candles.length }));
+        return candles;
+      }
+    } catch {
+      // try next provider symbol
+    }
+  }
+  return null;
+}
+
+async function fetchTwelvedataDailyCandles(symbol: Symbol): Promise<CandleBar[] | null> {
+  const apiKey = process.env.TWELVEDATA_API_KEY;
+  const tdSymbol = TWELVEDATA_SYMBOLS[symbol];
+  if (!tdSymbol || !apiKey) return null;
+
+  const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(tdSymbol)}&interval=1day&outputsize=100&apikey=${apiKey}`;
   try {
     const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) return null;
 
     const payload = await response.json();
-    const result    = payload?.chart?.result?.[0];
-    const timestamps: number[] = Array.isArray(result?.timestamp) ? result.timestamp : [];
-    const q         = result?.indicators?.quote?.[0] ?? {};
-    const closeArr: unknown[] = Array.isArray(q.close)  ? q.close  : [];
-    const highArr:  unknown[] = Array.isArray(q.high)   ? q.high   : [];
-    const lowArr:   unknown[] = Array.isArray(q.low)    ? q.low    : [];
-    const openArr:  unknown[] = Array.isArray(q.open)   ? q.open   : [];
-    const volArr:   unknown[] = Array.isArray(q.volume) ? q.volume : [];
+    if (payload?.code || payload?.status === "error" || !Array.isArray(payload?.values)) return null;
+
+    const values: { datetime: string; open: string; high: string; low: string; close: string; volume: string }[] =
+      [...payload.values].reverse();
 
     const candles = normalizeCandles(
-      timestamps.map((ts, i) => {
-        const c = Number(closeArr[i]);
+      values.map((bar) => {
+        const c = parseFloat(bar.close);
         return {
-          t: ts,
-          o: Number.isFinite(Number(openArr[i])) ? Number(openArr[i]) : c,
-          h: Number.isFinite(Number(highArr[i])) ? Number(highArr[i]) : c,
-          l: Number.isFinite(Number(lowArr[i]))  ? Number(lowArr[i])  : c,
+          t: Math.floor(new Date(bar.datetime + "Z").getTime() / 1000),
+          o: parseFloat(bar.open) || c,
+          h: parseFloat(bar.high) || c,
+          l: parseFloat(bar.low) || c,
           c,
-          v: Number(volArr[i]) || 0,
+          v: parseFloat(bar.volume) || 0,
         };
       })
     );
 
-    if (!hasValidCandles(candles) || candles.length < 15) return null;
-
-    const window20       = candles.slice(-20);
-    const closes         = candles.map(bar => bar.c);
-    const last           = candles[candles.length - 1];
-    const base20         = candles[Math.max(0, candles.length - 20)];
-    const base5          = candles[Math.max(0, candles.length - 5)];
-    const drift20d       = base20.c > 0 ? ((last.c - base20.c) / base20.c) * 100 : 0;
-    const drift5d        = base5.c  > 0 ? ((last.c - base5.c)  / base5.c)  * 100 : 0;
-    const rsi14d         = computeRsi(closes);
-    const structuralHigh = Math.max(...window20.map(bar => bar.h));
-    const structuralLow  = Math.min(...window20.map(bar => bar.l));
-
-    console.log("[mtf-candles]", JSON.stringify({
-      symbol, interval: "D1", provider: "yahoo", status: "ok",
-      candles: candles.length, drift20d: drift20d.toFixed(2), drift5d: drift5d.toFixed(2), rsi14d: rsi14d.toFixed(1),
-    }));
-
-    return { drift20d, drift5d, rsi14d, structuralHigh, structuralLow };
-  } catch (err) {
-    console.log("[mtf-candles]", JSON.stringify({ symbol, interval: "D1", provider: "yahoo", status: "error", error: String(err) }));
+    if (hasValidCandles(candles)) {
+      console.log("[mtf-candles]", JSON.stringify({ symbol, interval: "D1", provider: "twelvedata", status: "ok", candles: candles.length }));
+    }
+    return hasValidCandles(candles) ? candles : null;
+  } catch {
     return null;
   }
+}
+
+export async function getDailyStructure(symbol: Symbol): Promise<DailyStructure | null> {
+  // Primary: Finnhub D1 candles (real-time, no delay)
+  let candles = await fetchFinnhubDailyCandles(symbol);
+
+  // Fallback: Twelve Data daily (still real-time, no Yahoo delays)
+  if (!candles || !hasValidCandles(candles)) {
+    candles = await fetchTwelvedataDailyCandles(symbol);
+  }
+
+  if (!candles || !hasValidCandles(candles) || candles.length < 15) return null;
+
+  const window20       = candles.slice(-20);
+  const closes         = candles.map(bar => bar.c);
+  const last           = candles[candles.length - 1];
+  const base20         = candles[Math.max(0, candles.length - 20)];
+  const base5          = candles[Math.max(0, candles.length - 5)];
+  const drift20d       = base20.c > 0 ? ((last.c - base20.c) / base20.c) * 100 : 0;
+  const drift5d        = base5.c  > 0 ? ((last.c - base5.c)  / base5.c)  * 100 : 0;
+  const rsi14d         = computeRsi(closes);
+  const structuralHigh = Math.max(...window20.map(bar => bar.h));
+  const structuralLow  = Math.min(...window20.map(bar => bar.l));
+
+  console.log("[mtf-candles]", JSON.stringify({
+    symbol, interval: "D1", provider: "resolved", status: "ok",
+    candles: candles.length, drift20d: drift20d.toFixed(2), drift5d: drift5d.toFixed(2), rsi14d: rsi14d.toFixed(1),
+  }));
+
+  return { drift20d, drift5d, rsi14d, structuralHigh, structuralLow };
 }

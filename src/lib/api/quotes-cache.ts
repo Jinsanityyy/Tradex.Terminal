@@ -37,38 +37,29 @@ export async function ensureCacheWarm(): Promise<void> {
   try {
     const { fetchFinnhubQuoteMap } = await import("@/lib/api/finnhub-market");
 
-    // Warm from Finnhub first when available, then fall back to free sources
-    const [finnhubQuotes, cryptoRes, goldRes, eurRes, gbpRes, jpyRes, oilRes] = await Promise.all([
+    // Warm from Finnhub first, then Twelve Data for supplementary symbols
+    const tdKey = process.env.TWELVEDATA_API_KEY ?? "";
+    const [finnhubQuotes, cryptoRes, tdSupplementRes] = await Promise.all([
       fetchFinnhubQuoteMap(),
       fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,litecoin&vs_currencies=usd&include_24hr_change=true", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch("https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=5d", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch("https://query1.finance.yahoo.com/v8/finance/chart/EURUSD=X?interval=1d&range=5d", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch("https://query1.finance.yahoo.com/v8/finance/chart/GBPUSD=X?interval=1d&range=5d", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch("https://query1.finance.yahoo.com/v8/finance/chart/JPY=X?interval=1d&range=5d", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch("https://query1.finance.yahoo.com/v8/finance/chart/CL=F?interval=1d&range=5d", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
+      // Twelve Data batch quote for supplementary symbols not covered by Finnhub
+      tdKey
+        ? fetch(`https://api.twelvedata.com/quote?symbol=USD%2FJPY,WTI%2FUSD&apikey=${tdKey}`, { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null)
+        : Promise.resolve(null),
     ]);
 
-    const parseYahoo = (data: any) => {
-      const meta = data?.chart?.result?.[0]?.meta;
-      if (!meta?.regularMarketPrice) return null;
-      const price = meta.regularMarketPrice;
-      const prev = meta.chartPreviousClose || price;
+    const parseTwelveQuote = (data: any, sym: string): Omit<CachedQuote, "symbol" | "name"> | null => {
+      const q = data?.[sym] ?? data;
+      if (!q?.close || q?.code) return null;
+      const price = parseFloat(q.close);
+      const prev  = parseFloat(q.previous_close ?? q.close);
       const change = price - prev;
       const pct = prev ? (change / prev) * 100 : 0;
-
-      const w52high = meta.fiftyTwoWeekHigh || meta.regularMarketDayHigh || null;
-      const w52low  = meta.fiftyTwoWeekLow  || meta.regularMarketDayLow  || null;
-
       return {
         close: price.toString(), previous_close: prev.toString(),
-        open: (meta.regularMarketOpen || price).toString(),
-        high: (meta.regularMarketDayHigh || price).toString(),
-        low: (meta.regularMarketDayLow || price).toString(),
-        change: change.toString(), percent_change: pct.toString(),
-        is_market_open: true,
-        ...(w52high && w52low ? {
-          fifty_two_week: { high: w52high.toString(), low: w52low.toString() }
-        } : {}),
+        open: q.open ?? price.toString(), high: q.high ?? price.toString(), low: q.low ?? price.toString(),
+        change: change.toString(), percent_change: pct.toString(), is_market_open: q.is_market_open ?? true,
+        ...(q.fifty_two_week ? { fifty_two_week: { high: q.fifty_two_week.high, low: q.fifty_two_week.low } } : {}),
       };
     };
 
@@ -76,7 +67,7 @@ export async function ensureCacheWarm(): Promise<void> {
       quotesMap.set(sym, quote);
     }
 
-    // Crypto
+    // Crypto via CoinGecko
     if (cryptoRes) {
       const map: Record<string, string> = { "BTC/USD": "bitcoin", "ETH/USD": "ethereum", "LTC/USD": "litecoin" };
       for (const [sym, id] of Object.entries(map)) {
@@ -93,14 +84,14 @@ export async function ensureCacheWarm(): Promise<void> {
       }
     }
 
-    // Yahoo symbols
-    const yahooEntries: [string, any][] = [
-      ["XAU/USD", goldRes], ["EUR/USD", eurRes], ["GBP/USD", gbpRes], ["USD/JPY", jpyRes], ["CL", oilRes],
-    ];
-    for (const [sym, raw] of yahooEntries) {
-      if (finnhubQuotes[sym]) continue;
-      const parsed = parseYahoo(raw);
-      if (parsed) quotesMap.set(sym, { symbol: sym, name: "", ...parsed });
+    // Twelve Data supplementary symbols
+    if (tdSupplementRes) {
+      const tdEntries: [string, string][] = [["USD/JPY", "USD/JPY"], ["CL", "WTI/USD"]];
+      for (const [displaySym, tdSym] of tdEntries) {
+        if (finnhubQuotes[displaySym]) continue;
+        const parsed = parseTwelveQuote(tdSupplementRes, tdSym);
+        if (parsed) quotesMap.set(displaySym, { symbol: displaySym, name: "", ...parsed });
+      }
     }
 
     lastWarmTs = Date.now();
