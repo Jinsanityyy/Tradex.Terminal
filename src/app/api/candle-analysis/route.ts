@@ -95,7 +95,7 @@ Explain why this candle moved. Return JSON only.
 
     const groq = new Groq({ apiKey });
     const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: "llama-3.1-8b-instant",
       max_tokens: 700,
       temperature: 0.3,
       messages: [
