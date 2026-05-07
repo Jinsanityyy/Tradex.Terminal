@@ -227,50 +227,53 @@ function AnalysisPanel({
   candle,
   analysis,
   timeframe,
+  symbol,
   onClose,
 }: {
   candle:    RawCandle;
   analysis:  InstantAnalysis;
   timeframe: Timeframe;
+  symbol:    Symbol;
   onClose:   () => void;
 }) {
-  const p    = candle.o > 100 ? 2 : 4;
-  const bull = candle.c > candle.o;
+  const p         = candle.o > 100 ? 2 : 4;
+  const bull      = candle.c > candle.o;
+  const changePct = ((candle.c - candle.o) / candle.o) * 100;
+  const dt        = new Date(candle.t * 1000);
 
   return (
     <div className="flex flex-col h-full">
+
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-white/5 shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded-md bg-violet-500/15 border border-violet-500/25 flex items-center justify-center">
-            <Zap className="h-3 w-3 text-violet-400" />
-          </div>
-          <span className="text-[12px] font-bold text-zinc-200">Why did this candle move?</span>
+      <div className="flex items-start justify-between px-4 pt-4 pb-3 border-b border-white/5 shrink-0">
+        <div>
+          <p className="text-[9px] text-zinc-500 uppercase tracking-wider mb-0.5">Candle Analysis</p>
+          <p className="text-[14px] font-bold text-zinc-100 leading-tight">{symbol}</p>
+          <p className="text-[9px] text-zinc-600 font-mono mt-0.5">
+            {dt.toLocaleDateString()} · {dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {timeframe}
+          </p>
         </div>
-        <button onClick={onClose} className="text-zinc-600 hover:text-zinc-400 transition-colors p-1">
+        <button onClick={onClose} className="text-zinc-600 hover:text-zinc-300 transition-colors p-1 mt-0.5">
           <X className="h-4 w-4" />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
 
-        {/* OHLC card */}
+        {/* OHLC strip */}
         <div className={cn(
           "rounded-xl border px-3 py-2.5",
           bull ? "bg-emerald-500/6 border-emerald-500/20" : "bg-red-500/6 border-red-500/20"
         )}>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2.5">
             <div className="flex items-center gap-2">
               <SentimentIcon s={analysis.sentiment} />
-              <span className={cn("text-[11px] font-bold", sentimentColor(analysis.sentiment))}>
-                {analysis.pattern}
+              <span className={cn("text-[12px] font-bold", sentimentColor(analysis.sentiment))}>
+                {changePct > 0 ? "+" : ""}{changePct.toFixed(2)}%
               </span>
-              <MagnitudeBadge m={analysis.magnitude} />
             </div>
+            <MagnitudeBadge m={analysis.magnitude} />
           </div>
-          <p className="text-[9px] font-mono text-zinc-600 mb-2">
-            {new Date(candle.t * 1000).toUTCString().slice(0, 25)} · {timeframe}
-          </p>
           <div className="grid grid-cols-4 gap-1">
             {(["o","h","l","c"] as const).map(k => (
               <div key={k} className="text-center bg-black/20 rounded-lg py-1.5">
@@ -284,50 +287,47 @@ function AnalysisPanel({
           </div>
         </div>
 
-        {/* Summary */}
-        <div className="bg-white/3 rounded-xl border border-white/6 px-3 py-2.5">
-          <p className="text-[8px] uppercase tracking-wider text-zinc-600 mb-1.5 flex items-center gap-1">
-            <Zap className="h-2.5 w-2.5" /> Summary
+        {/* What happened? */}
+        <div>
+          <p className="text-[11px] font-bold text-violet-400 uppercase tracking-wider mb-2">What happened?</p>
+          <p className="text-[12px] font-semibold text-zinc-200 leading-snug mb-2.5">
+            {analysis.pattern}
           </p>
-          <p className="text-[11px] text-zinc-200 leading-relaxed">{analysis.summary}</p>
-        </div>
-
-        {/* Drivers */}
-        <div className="bg-white/3 rounded-xl border border-white/6 px-3 py-2.5">
-          <p className="text-[8px] uppercase tracking-wider text-zinc-600 mb-2 flex items-center gap-1">
-            <AlertCircle className="h-2.5 w-2.5" /> Key Drivers
-          </p>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {analysis.drivers.map((d, i) => (
-              <div key={i} className="flex items-start gap-1.5">
-                <span className="text-violet-400 text-[10px] mt-0.5 shrink-0">›</span>
-                <p className="text-[10px] text-zinc-300 leading-snug">{d}</p>
+              <div key={i} className="flex items-start gap-2">
+                <span className="text-violet-400 text-[12px] leading-none mt-0.5 shrink-0">•</span>
+                <p className="text-[11px] text-zinc-300 leading-snug">{d}</p>
               </div>
             ))}
           </div>
         </div>
 
         {/* Technicals */}
-        <div className="bg-white/3 rounded-xl border border-white/6 px-3 py-2.5">
-          <p className="text-[8px] uppercase tracking-wider text-zinc-600 mb-1.5 flex items-center gap-1">
-            <BarChart2 className="h-2.5 w-2.5" /> Price Action Context
-          </p>
-          <p className="text-[10px] text-zinc-400 leading-relaxed">{analysis.technicals}</p>
+        <div>
+          <p className="text-[11px] font-bold text-violet-400 uppercase tracking-wider mb-2">Technicals</p>
+          <p className="text-[11px] text-zinc-400 leading-relaxed">{analysis.technicals}</p>
         </div>
 
-        {/* Related news */}
-        {analysis.relatedNews.length > 0 && (
-          <div className="bg-white/3 rounded-xl border border-white/6 px-3 py-2.5">
-            <p className="text-[8px] uppercase tracking-wider text-zinc-600 mb-2 flex items-center gap-1">
-              <Newspaper className="h-2.5 w-2.5" /> Active News This Window
-            </p>
-            <div className="space-y-1.5">
-              {analysis.relatedNews.map((h, i) => (
-                <p key={i} className="text-[10px] text-zinc-400 leading-snug border-l-2 border-violet-500/30 pl-2">{h}</p>
-              ))}
+        {/* Relevant News */}
+        <div>
+          <p className="text-[11px] font-bold text-violet-400 uppercase tracking-wider mb-2">Relevant News</p>
+          {analysis.relatedNews.length > 0 ? (
+            <div className="rounded-xl border border-white/8 overflow-hidden">
+              <div className="px-3 py-1.5 bg-white/4 border-b border-white/6 flex items-center gap-1.5">
+                <AlertCircle className="h-2.5 w-2.5 text-amber-400" />
+                <span className="text-[9px] font-bold uppercase tracking-widest text-amber-400">Hot Headlines</span>
+              </div>
+              <div className="divide-y divide-white/5">
+                {analysis.relatedNews.map((h, i) => (
+                  <p key={i} className="px-3 py-2.5 text-[11px] text-zinc-300 leading-snug">{h}</p>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <p className="text-[11px] text-zinc-600 italic">No headlines found near this candle's window.</p>
+          )}
+        </div>
 
       </div>
     </div>
@@ -438,31 +438,36 @@ export function CandleChart({
     chartRef.current  = chart;
     seriesRef.current = series;
 
-    // Native click on container — more reliable than subscribeClick in v5
-    const handleClick = (e: MouseEvent) => {
-      const rect = el.getBoundingClientRect();
-      const x    = e.clientX - rect.left;
+    // Official subscribeClick API — fires on every chart click with correct time
+    chart.subscribeClick((param) => {
+      // param.time is undefined when clicking outside data range,
+      // or a BusinessDay object for non-UTC series — guard both cases
+      if (!param.time || typeof param.time !== "number") return;
 
-      // Convert pixel x → unix timestamp via chart timeScale
-      const clickedTime = chart.timeScale().coordinateToTime(x) as number | null;
-      if (!clickedTime) return;
+      const clickedTime = param.time as number;
+      const tf          = timeframeRef.current;
+      const bars        = candlesRef.current;
+      if (bars.length === 0) return;
 
-      const tf = timeframeRef.current;
-
-      // Find nearest candle
+      // Prefer exact candle from series hit-test; fall back to nearest in array
+      const item = param.seriesData.get(series);
       let candle: RawCandle | undefined;
-      let bestDist = tfWindowSecs(tf); // max tolerance = 1 full period
-      for (const b of candlesRef.current) {
-        const d = Math.abs(b.t - clickedTime);
-        if (d < bestDist) { bestDist = d; candle = b; }
+
+      if (item && typeof item === "object" && "open" in item) {
+        const cd = item as { open: number; high: number; low: number; close: number };
+        candle = { t: clickedTime, o: cd.open, h: cd.high, l: cd.low, c: cd.close };
+      } else {
+        let bestDist = Infinity;
+        for (const b of bars) {
+          const d = Math.abs(b.t - clickedTime);
+          if (d < bestDist) { bestDist = d; candle = b; }
+        }
       }
 
       if (!candle) return;
-      const analysis = analyseCandle(candle, candlesRef.current, newsRef.current, tf);
+      const analysis = analyseCandle(candle, bars, newsRef.current, tf);
       setSelectedRef.current({ candle, analysis });
-    };
-
-    el.addEventListener("click", handleClick);
+    });
 
     const ro = new ResizeObserver(() => {
       if (el) chart.resize(el.clientWidth, height);
@@ -470,7 +475,6 @@ export function CandleChart({
     ro.observe(el);
 
     return () => {
-      el.removeEventListener("click", handleClick);
       ro.disconnect();
       chart.remove();
       chartRef.current  = null;
@@ -548,11 +552,12 @@ export function CandleChart({
         </div>
 
         {selected && (
-          <div className="lg:w-72 border-t lg:border-t-0 lg:border-l border-white/5 overflow-hidden" style={{ height }}>
+          <div className="lg:w-80 border-t lg:border-t-0 lg:border-l border-white/5 overflow-hidden" style={{ height }}>
             <AnalysisPanel
               candle={selected.candle}
               analysis={selected.analysis}
               timeframe={timeframe}
+              symbol={symbol}
               onClose={() => setSelected(null)}
             />
           </div>
