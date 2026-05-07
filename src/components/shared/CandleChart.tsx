@@ -405,11 +405,37 @@ export function CandleChart({
     }
 
     const handler = (param: any) => {
-      if (!param.time) return;
-      const candle = candlesRef.current.find(c => c.t === (param.time as number));
-      if (!candle) return;
+      if (!param.time || !param.point) return;
 
-      // Instant — no API call, analyse from in-memory data
+      // v5: get bar data directly from the series at the clicked time
+      const barData = seriesRef.current
+        ? param.seriesData?.get(seriesRef.current)
+        : undefined;
+
+      const clickedTime = param.time as number;
+
+      // Use seriesData if available, else fall back to closest timestamp match
+      let candle: RawCandle | undefined;
+      if (barData && typeof barData.open === "number") {
+        candle = {
+          t: clickedTime,
+          o: barData.open,
+          h: barData.high,
+          l: barData.low,
+          c: barData.close,
+        };
+      } else {
+        // Closest match within 1 candle period
+        const halfPeriod = tfWindowSecs(tf) / 2;
+        candle = candlesRef.current.reduce<RawCandle | undefined>((best, b) => {
+          const d = Math.abs(b.t - clickedTime);
+          if (d > halfPeriod) return best;
+          if (!best) return b;
+          return d < Math.abs(best.t - clickedTime) ? b : best;
+        }, undefined);
+      }
+
+      if (!candle) return;
       const analysis = analyseCandle(candle, candlesRef.current, newsRef.current, tf);
       setSelected({ candle, analysis });
     };
