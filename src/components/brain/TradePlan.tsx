@@ -407,9 +407,9 @@ export function TradePlan({
 
           <div className="grid gap-2 text-right sm:grid-cols-2 sm:gap-3">
             <div className="rounded-lg border border-white/6 bg-black/20 px-3 py-2">
-              <div className="text-[9px] uppercase tracking-[0.14em] text-zinc-500">RR Ratio</div>
+              <div className="text-[9px] uppercase tracking-[0.14em] text-zinc-500">Risk : Reward</div>
               <div className={cn("mt-1 text-sm font-mono font-bold", tradePlan.rrRatio >= 2 ? "text-emerald-400" : "text-amber-400")}>
-                {tradePlan.rrRatio.toFixed(1)}:1
+                1 : {tradePlan.rrRatio.toFixed(1)}
               </div>
             </div>
             <div className="rounded-lg border border-white/6 bg-black/20 px-3 py-2">

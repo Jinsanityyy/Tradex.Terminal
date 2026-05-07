@@ -519,7 +519,7 @@ function ExecutionAgentDetail({ data }: { data: AgentRunResult }) {
         { k: "SL",     v: fmtPrice(a.stopLoss) },
         { k: "TP1",    v: fmtPrice(a.tp1) },
         { k: "TP2",    v: fmtPrice(a.tp2) },
-        { k: "RR",     v: a.rrRatio != null ? `${a.rrRatio.toFixed(2)}:1` : "—" },
+        { k: "R:R",    v: a.rrRatio != null ? `1:${a.rrRatio.toFixed(2)}` : "—" },
         { k: "DIST",   v: a.distanceToEntry != null ? `${a.distanceToEntry.toFixed(2)}%` : "—" },
       ]} />
 
@@ -556,8 +556,9 @@ function ExecutionAgentDetail({ data }: { data: AgentRunResult }) {
 
           {a.rrRatio != null && (
             <div className="p-3 rounded-xl bg-violet-500/8 border border-violet-500/20 text-center">
-              <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Risk / Reward</p>
-              <p className="text-xl font-black text-violet-400">{a.rrRatio.toFixed(2)}:1</p>
+              <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Risk : Reward</p>
+              <p className="text-xl font-black text-violet-400">1 : {a.rrRatio.toFixed(2)}</p>
+              <p className="text-[9px] text-zinc-500 mt-1">risk $1 → earn ${a.rrRatio.toFixed(2)}</p>
             </div>
           )}
         </>

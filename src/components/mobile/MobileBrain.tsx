@@ -180,7 +180,7 @@ export function MobileBrain() {
           <StatRow label="Stop Loss" value={tradePlan.stopLoss.toFixed(tradePlan.stopLoss > 100 ? 2 : 4)} color="text-red-400" />
           <StatRow label="TP1"      value={tradePlan.tp1.toFixed(tradePlan.tp1 > 100 ? 2 : 4)} color="text-emerald-400" />
           {tradePlan.tp2 && <StatRow label="TP2" value={tradePlan.tp2.toFixed(tradePlan.tp2 > 100 ? 2 : 4)} color="text-emerald-300" />}
-          <StatRow label="R:R Ratio" value={`${tradePlan.rrRatio}:1`} color={(tradePlan.rrRatio ?? 0) >= 2 ? "text-emerald-400" : "text-amber-400"} />
+          <StatRow label="Risk : Reward" value={`1 : ${tradePlan.rrRatio}`} color={(tradePlan.rrRatio ?? 0) >= 2 ? "text-emerald-400" : "text-amber-400"} />
           <StatRow label="Max Risk"  value={`${tradePlan.maxRiskPercent}%`} />
           {master?.strategyMatch && !isNoTrade && (
             <div className="mt-3 pt-3 border-t border-white/5">
