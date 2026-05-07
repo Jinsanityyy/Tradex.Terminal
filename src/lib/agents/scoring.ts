@@ -223,8 +223,8 @@ export function matchStrategy(
   // Jade Cap: NY sweep + FVG/Sweep is the highest-probability named setup in the system
   if (inFibZone && (setupType === "FVG" || setupType === "Sweep")) {
     return bias === "bullish"
-      ? "Jade Cap NY Sweep Long — session lows swept, FVG entry at midpoint"
-      : "Jade Cap NY Sweep Short — session highs swept, FVG entry at midpoint";
+      ? "NY Sweep Long — session lows swept, FVG entry at midpoint"
+      : "NY Sweep Short — session highs swept, FVG entry at midpoint";
   }
 
   if (inFibZone) {

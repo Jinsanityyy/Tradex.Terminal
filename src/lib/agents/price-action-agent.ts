@@ -445,7 +445,7 @@ export async function runPriceActionAgent(
       liquiditySweepDetected: false,
       bosDetected: false,
       chochDetected: false,
-      reasons: ["Jade Cap analysis failed — defaulting to neutral"],
+      reasons: ["Price action analysis failed — defaulting to neutral"],
       invalidationLevel: null,
       processingTime: Date.now() - start,
       error: String(err),

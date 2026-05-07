@@ -331,8 +331,8 @@ export function buildMockSnapshot(symbol: Symbol, timeframe: Timeframe): MarketS
       rsi:             63,
       macdHist:        0.003,
       atrProxy:        0.62,
-      session:         "London",
-      sessionHour:     10,
+      session:         getSession(new Date().getUTCHours()),
+      sessionHour:     new Date().getUTCHours(),
     },
     recentNews: [
       {

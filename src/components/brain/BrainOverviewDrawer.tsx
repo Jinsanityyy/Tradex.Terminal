@@ -229,7 +229,7 @@ function JadeCapSessionBanner({ utcHour }: { utcHour: number }) {
       <div className="mt-0.5 h-2 w-2 rounded-full bg-amber-500/50 shrink-0 animate-pulse" />
       <div className="space-y-0.5">
         <p className="text-[11px] font-semibold text-amber-400">
-          JADE CAP — NY Window Closed
+          NY Sweep Window — Closed
         </p>
         <p className="text-[10px] text-zinc-500 leading-relaxed">
           Active <span className="text-zinc-400 font-mono">13:00–18:00 UTC</span>.
@@ -290,7 +290,7 @@ function PriceActionAgentDetail({ data }: { data: AgentRunResult }) {
 
       {/* Signal conditions */}
       <div>
-        <SectionLabel label="JADE CAP Conditions" />
+        <SectionLabel label="Signal Conditions" />
         <div className="grid grid-cols-3 gap-2">
           {[
             { label: "Sweep Detected", active: a.liquiditySweepDetected, cls: "text-amber-400"   },
