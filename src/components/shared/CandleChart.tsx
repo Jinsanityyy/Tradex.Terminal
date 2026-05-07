@@ -29,12 +29,7 @@ interface InstantAnalysis {
 }
 
 const SYMBOLS: { id: Symbol; label: string }[] = [
-  { id: "XAUUSD", label: "Gold"    },
-  { id: "BTCUSD", label: "BTC"     },
-  { id: "EURUSD", label: "EUR/USD" },
-  { id: "GBPUSD", label: "GBP/USD" },
-  { id: "USDJPY", label: "USD/JPY" },
-  { id: "ETHUSD", label: "ETH"     },
+  { id: "XAUUSD", label: "Gold (XAU/USD)" },
 ];
 
 const TIMEFRAMES: { id: Timeframe; label: string }[] = [
