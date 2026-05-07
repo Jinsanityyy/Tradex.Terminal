@@ -100,23 +100,22 @@ export async function runExecutionAgent(
         : isBullish
           ? (keyLevels.fvgLow ?? entry) * 0.998
           : (keyLevels.fvgHigh ?? entry) * 1.002;
-      trigger = liquiditySweepDetected ? "NY sweep + FVG" : "FVG fill";
-      entryZone = `FVG midpoint ${keyLevels.fvgMid.toFixed(4)} (${keyLevels.fvgLow?.toFixed(4)}–${keyLevels.fvgHigh?.toFixed(4)})`;
+      trigger = liquiditySweepDetected ? "Structure Reversal" : "Imbalance Fill";
+      entryZone = `${isBullish ? "Buy" : "Sell"} zone ${keyLevels.fvgMid.toFixed(4)} — price action imbalance area`;
       slZone = smc.invalidationLevel !== null
-        ? `Sweep extreme + buffer at ${smc.invalidationLevel.toFixed(4)} — close through invalidates setup`
-        : `${isBullish ? "Below" : "Above"} FVG ${isBullish ? "low" : "high"} — imbalance invalidated`;
+        ? `Structural invalidation at ${smc.invalidationLevel.toFixed(4)} — close through negates the setup`
+        : `${isBullish ? "Below" : "Above"} entry zone — structure must hold`;
     } else if (setupType === "Sweep" && liquiditySweepDetected) {
       const sweepRef = keyLevels.sweepLevel ?? (isBullish ? low : high);
       entry = isBullish ? sweepRef * 1.001 : sweepRef * 0.999;
-      // Jade Cap: SL = sweep extreme + buffer (pre-computed as invalidationLevel)
       stopLoss = smc.invalidationLevel !== null
         ? smc.invalidationLevel
         : isBullish ? low * 0.997 : high * 1.003;
-      trigger = "NY sweep";
-      entryZone = `Post-sweep ${isBullish ? "buy" : "sell"} — swept level ${sweepRef.toFixed(4)}`;
+      trigger = "Momentum Shift";
+      entryZone = `${isBullish ? "Buy" : "Sell"} entry at key structural level ${entry.toFixed(4)}`;
       slZone = smc.invalidationLevel !== null
-        ? `Sweep extreme + buffer at ${smc.invalidationLevel.toFixed(4)} — thesis invalid on break`
-        : `${isBullish ? "Below" : "Above"} sweep level — ${isBullish ? "lows" : "highs"} must hold`;
+        ? `Structural invalidation at ${smc.invalidationLevel.toFixed(4)} — thesis invalid on break`
+        : `${isBullish ? "Below" : "Above"} key level — ${isBullish ? "support" : "resistance"} must hold`;
     } else if (bosDetected) {
       const pullback = dayRange * 0.38;
       entry = isBullish ? current - pullback : current + pullback;
@@ -174,7 +173,7 @@ export async function runExecutionAgent(
         entryZone: "Invalid — SL exceeds timeframe maximum",
         slZone: "Invalid", tp1Zone: "No target",
         signalState: "NO_TRADE",
-        signalStateReason: `SL of ${riskDist.toFixed(1)} pts is too wide for ${snapshot.timeframe ?? "H1"} (max ${maxRiskDist.toFixed(1)} pts). JADE CAP: stand aside.`,
+        signalStateReason: `SL of ${riskDist.toFixed(1)} pts is too wide for ${snapshot.timeframe ?? "H1"} (max ${maxRiskDist.toFixed(1)} pts). Stand aside and wait for a tighter structure.`,
         distanceToEntry: null,
         processingTime: Date.now() - start,
       };
@@ -199,7 +198,7 @@ export async function runExecutionAgent(
       const rawTp2 = entry + tp2Distance;
       tp2 = rawTp2 > tp1 ? rawTp2 : tp1 + riskDist;
       tp1Zone = useTarget
-        ? `Liquidity target ${tp1.toFixed(4)} — nearest EQH / opposing pool above`
+        ? `First target ${tp1.toFixed(4)} — nearest resistance above`
         : `1.5R target ${tp1.toFixed(4)} — nearest structural resistance`;
     } else {
       const target    = keyLevels.liquidityTarget;
@@ -209,7 +208,7 @@ export async function runExecutionAgent(
       const rawTp2 = entry - tp2Distance;
       tp2 = rawTp2 < tp1 ? rawTp2 : tp1 - riskDist;
       tp1Zone = useTarget
-        ? `Liquidity target ${tp1.toFixed(4)} — nearest EQL / opposing pool below`
+        ? `First target ${tp1.toFixed(4)} — nearest support below`
         : `1.5R target ${tp1.toFixed(4)} — nearest structural support`;
     }
 
@@ -231,12 +230,12 @@ export async function runExecutionAgent(
         direction: "none",
         entry: null, stopLoss: null, tp1: null, tp2: null, rrRatio,
         trigger: "None",
-        triggerCondition: `R:R ${rrRatio}:1 below JADE CAP minimum 1:2 — skip trade`,
-        managementNotes: ["Nearest liquidity target does not offer 1:2 R:R — stand aside"],
+        triggerCondition: `R:R ${rrRatio}:1 below minimum 1:2 — skip trade`,
+        managementNotes: ["Nearest price target does not offer 1:2 R:R — stand aside"],
         entryZone: "Invalid — insufficient R:R",
         slZone: "Invalid", tp1Zone: "No target",
         signalState: "NO_TRADE",
-        signalStateReason: `R:R ${rrRatio}:1 below minimum 1:2. JADE CAP rule: do not trade setups with R:R < 2:1.`,
+        signalStateReason: `R:R ${rrRatio}:1 below minimum 1:2 — do not trade setups with insufficient reward potential.`,
         distanceToEntry: null,
         processingTime: Date.now() - start,
       };
@@ -246,17 +245,15 @@ export async function runExecutionAgent(
     const triggerCondition =
       trigger === "OB retest"
         ? `Wait for price to return to ${entryZone}, then confirm with ${isBullish ? "bullish" : "bearish"} rejection candle (engulfing, pin bar, or strong close) on M5/M15 before entering`
-        : trigger === "NY sweep + FVG"
-          ? `NY session ${isBullish ? "lows" : "highs"} swept, FVG formed. Enter at FVG midpoint ${entry.toFixed(p)}. Confirm with ${isBullish ? "bullish" : "bearish"} M15 close back inside swept level. SL at sweep extreme + buffer (${stopLoss.toFixed(p)}).`
-          : trigger === "NY sweep"
-            ? `NY session liquidity sweep confirmed. Wait for ${isBullish ? "bullish" : "bearish"} M15 candle close back inside swept level, then enter at ${entry.toFixed(p)}. SL at ${stopLoss.toFixed(p)}.`
-            : trigger === "FVG fill"
-              ? `Wait for price to fill into FVG zone ${entryZone}. Look for ${isBullish ? "bullish" : "bearish"} displacement candle to confirm reversal within the gap`
-              : trigger === "Sweep reversal"
-                ? `Enter once ${isBullish ? "equal lows" : "equal highs"} are swept and price shows strong reversal candle closing back above/below sweep level`
-                : trigger === "BOS pullback"
-                  ? `Enter on first pullback to discount/premium after BOS. Confirm with ${isBullish ? "bullish" : "bearish"} momentum resumption on M15`
-                  : `Market order execution — entry at current price ${current.toFixed(4)} with structural stop ${stopLoss.toFixed(4)}`;
+        : trigger === "Structure Reversal"
+          ? `${isBullish ? "Bullish" : "Bearish"} price action structure confirmed. Enter at ${entry.toFixed(p)} on confirmed ${isBullish ? "bullish" : "bearish"} M15 close. SL at ${stopLoss.toFixed(p)}.`
+          : trigger === "Momentum Shift"
+            ? `${isBullish ? "Bullish" : "Bearish"} momentum shift confirmed. Wait for ${isBullish ? "bullish" : "bearish"} M15 candle close to confirm direction, then enter at ${entry.toFixed(p)}. SL at ${stopLoss.toFixed(p)}.`
+            : trigger === "Imbalance Fill"
+              ? `Wait for price to fill into the imbalance zone ${entryZone}. Look for ${isBullish ? "bullish" : "bearish"} displacement candle to confirm reversal within the zone`
+              : trigger === "BOS pullback"
+                ? `Enter on first pullback after structure break. Confirm with ${isBullish ? "bullish" : "bearish"} momentum resumption on M15`
+                : `Market order execution — entry at current price ${current.toFixed(4)} with structural stop ${stopLoss.toFixed(4)}`;
 
     const managementNotes: string[] = [
       `Scale out 50% at TP1 (${tp1.toFixed(4)}) — reduce risk-to-zero on remaining position`,
@@ -264,10 +261,10 @@ export async function runExecutionAgent(
       `Let remainder run to TP2 (${tp2.toFixed(4)}) with trailing stop`,
     ];
 
-    if (session === "Asia") managementNotes.push("Asia session entry — tighter targets, expect ranging until London open");
+    if (session === "Asia") managementNotes.push("Asia session entry — tighter targets, expect ranging until next major session opens");
     if (session === "London") managementNotes.push("London session — highest-probability window, full position size valid");
-    if (session === "New York") managementNotes.push("NY session — watch for reversal at London high/low before TP2");
-    if (liquiditySweepDetected) managementNotes.push("NY sweep setup — enter only on M15 candle close back inside swept session level; do not enter mid-wick");
+    if (session === "New York") managementNotes.push("New York session — monitor prior session highs/lows as potential reversal areas before TP2");
+    if (liquiditySweepDetected) managementNotes.push("Enter only on confirmed M15 candle close in the direction of the setup — do not enter mid-candle");
     if (smc.chochDetected && !liquiditySweepDetected) managementNotes.push("CHoCH detected — consider partial entry (50%) until full confirmation");
 
     const distanceToEntry = Math.abs(current - entry) / entry * 100;

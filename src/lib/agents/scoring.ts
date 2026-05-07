@@ -225,11 +225,10 @@ export function matchStrategy(
       : "Bearish BOS — Awaiting fib pullback for entry";
   }
 
-  // Jade Cap: NY sweep + FVG/Sweep is the highest-probability named setup in the system
   if (inFibZone && (setupType === "FVG" || setupType === "Sweep")) {
     return bias === "bullish"
-      ? "NY Sweep Long — session lows swept, FVG entry at midpoint"
-      : "NY Sweep Short — session highs swept, FVG entry at midpoint";
+      ? "Structure Reversal Long — price action setup confirmed, entry at imbalance zone"
+      : "Structure Reversal Short — price action setup confirmed, entry at imbalance zone";
   }
 
   if (inFibZone) {
@@ -241,8 +240,8 @@ export function matchStrategy(
   // ── Legacy PA setup types (from price-action-agent.ts) ───────────────────
   if (setupType === "Sweep" && bosDetected) {
     return bias === "bullish"
-      ? "Stop-Run Reversal — Long (Lows swept, bullish structure break confirmed)"
-      : "Stop-Run Reversal — Short (Highs swept, bearish structure break confirmed)";
+      ? "Momentum Shift — Long (Bullish structure break confirmed)"
+      : "Momentum Shift — Short (Bearish structure break confirmed)";
   }
 
   if (setupType === "OB" && bosDetected) {

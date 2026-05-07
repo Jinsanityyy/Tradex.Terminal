@@ -66,9 +66,9 @@ function describePriceActionPattern(setupType: string, liquiditySweep = false): 
     case "OB":
       return "range retest";
     case "FVG":
-      return liquiditySweep ? "NY sweep + FVG" : "gap fill";
+      return liquiditySweep ? "structure reversal" : "imbalance fill";
     case "Sweep":
-      return liquiditySweep ? "NY sweep" : "stop-run reversal";
+      return liquiditySweep ? "momentum shift reversal" : "stop-run reversal";
     default:
       return "no clear pattern";
   }
@@ -181,10 +181,10 @@ function buildSupports(
   }
 
   if (smc.bias === finalBias && smc.setupPresent) {
-    const isNYSweep = smc.liquiditySweepDetected && (smc.setupType === "FVG" || smc.setupType === "Sweep");
-    supports.push(isNYSweep
-      ? `Price Action ${smc.confidence}%: NY session ${isBull ? "lows" : "highs"} swept${smc.keyLevels.sweepLevel ? ` at ${smc.keyLevels.sweepLevel.toFixed(2)}` : ""}, ${smc.setupType === "FVG" && smc.keyLevels.fvgMid ? `FVG entry at ${smc.keyLevels.fvgMid.toFixed(2)}` : "sweep reversal entry"} — ${smc.bosDetected ? "aligns with daily bias ✓" : "note: conflicts with daily bias"}`
-      : `Price Action Agent ${smc.confidence}%: ${describePriceActionPattern(smc.setupType, smc.liquiditySweepDetected)} ${smc.bosDetected ? "— structure break confirmed" : smc.liquiditySweepDetected ? "— stop run already printed" : "— structure present"}`
+    const hasReversal = smc.liquiditySweepDetected && (smc.setupType === "FVG" || smc.setupType === "Sweep");
+    supports.push(hasReversal
+      ? `Price Action ${smc.confidence}%: ${isBull ? "Bullish" : "Bearish"} reversal confirmed${smc.keyLevels.sweepLevel ? ` at ${smc.keyLevels.sweepLevel.toFixed(2)}` : ""}${smc.keyLevels.fvgMid ? ` — entry zone ${smc.keyLevels.fvgMid.toFixed(2)}` : ""} — ${smc.bosDetected ? "aligns with daily bias ✓" : "note: conflicts with daily bias"}`
+      : `Price Action Agent ${smc.confidence}%: ${describePriceActionPattern(smc.setupType, smc.liquiditySweepDetected)} ${smc.bosDetected ? "— structure break confirmed" : smc.liquiditySweepDetected ? "— reversal signal printed" : "— structure present"}`
     );
   }
 

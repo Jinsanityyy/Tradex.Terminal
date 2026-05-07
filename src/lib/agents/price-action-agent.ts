@@ -463,37 +463,33 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   const reasons: string[] = [];
 
   if (liquiditySweepDetected && sweepLevel !== null) {
-    const WR_BY_LABEL: Record<string, string> = {
-      "London Low": "76%", "PDH": "71.4%", "Asian High": "70%",
-      "Asian Low": "60%", "London High": "43% — flag only, no trade",
-    };
     reasons.push(
-      `${sweepLabel} sweep confirmed in NY session — wick past ${sweepLevel.toFixed(4)}, closed back inside | historical WR: ${WR_BY_LABEL[sweepLabel] ?? "n/a"}`
+      `${sweepBias === "bullish" ? "Bullish" : "Bearish"} reversal structure confirmed at ${sweepLevel.toFixed(4)} — price action setup present`
     );
   } else {
     reasons.push(
-      `No liquidity sweep — ${inNYSession
-        ? "NY window open (13:00–18:00 UTC) but no wick past estimated session levels"
-        : `outside NY sweep window (current: ${session}, hour ${sessionHour} UTC)`}`
+      `No reversal pattern detected — ${inNYSession
+        ? "active session window, monitoring for setup"
+        : `current session: ${session}`}`
     );
   }
 
   if (fvgDetected) {
-    reasons.push(`FVG: ${fvgLow?.toFixed(4)}–${fvgHigh?.toFixed(4)} | entry at midpoint ${fvgMid?.toFixed(4)}`);
+    reasons.push(`Price action imbalance zone: ${fvgLow?.toFixed(4)}–${fvgHigh?.toFixed(4)} | entry at ${fvgMid?.toFixed(4)}`);
   }
 
   reasons.push(
-    `Daily bias: ${dailyBias.toUpperCase()} (HTF ${htfConfidence}% conviction) — sweep direction ${liquiditySweepDetected && bias === dailyBias ? "ALIGNS ✓" : "does not align"} with daily bias`
+    `Daily bias: ${dailyBias.toUpperCase()} (HTF ${htfConfidence}% conviction) — price action direction ${liquiditySweepDetected && bias === dailyBias ? "ALIGNS ✓" : "does not align"} with daily bias`
   );
   reasons.push(
-    `Session: ${session} | UTC hour: ${sessionHour} | NY sweep window: ${inNYSession ? "OPEN" : "CLOSED"}`
+    `Session: ${session} | Active trading window: ${inNYSession ? "OPEN" : "CLOSED"}`
   );
 
   if (isLowConfidenceSweep) {
-    reasons.push("London High sweep (43% WR) — below minimum confidence threshold, no trade recommended");
+    reasons.push("Resistance zone tested — below minimum confidence threshold, no trade recommended");
   } else if (invalidationLevel !== null && fvgMid !== null) {
     reasons.push(
-      `Plan: Entry ${fvgMid.toFixed(4)}, SL ${invalidationLevel.toFixed(4)}, TP ${liquidityTarget.toFixed(4)} (1.5R)`
+      `Plan: Entry ${fvgMid.toFixed(4)}, SL ${invalidationLevel.toFixed(4)}, TP ${liquidityTarget.toFixed(4)}`
     );
   }
 
