@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -366,7 +367,7 @@ function DrillDownModal({
   const circumference = 2 * Math.PI * 36;
   const strokeDashoffset = circumference - (confidence / 100) * circumference;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-3 sm:p-4" onClick={onClose}>
       <div
         className="w-full max-w-lg rounded-2xl overflow-hidden flex flex-col shadow-2xl"
@@ -618,7 +619,8 @@ function DrillDownModal({
 
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

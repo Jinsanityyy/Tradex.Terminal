@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +13,10 @@ interface DetailModalProps {
 }
 
 export function DetailModal({ open, onClose, children, title }: DetailModalProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
+
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -19,9 +24,9 @@ export function DetailModal({ open, onClose, children, title }: DetailModalProps
     return () => document.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
       <div
         className="absolute inset-0 bg-black/72 backdrop-blur-[6px]"
@@ -39,6 +44,7 @@ export function DetailModal({ open, onClose, children, title }: DetailModalProps
         </div>
         <div className="min-h-0 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
