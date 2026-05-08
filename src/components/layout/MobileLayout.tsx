@@ -150,11 +150,11 @@ export function MobileLayout() {
         setAvatar(b64);
         localStorage.setItem("tradex_avatar", b64);
         window.dispatchEvent(new StorageEvent("storage", { key: "tradex_avatar", newValue: b64 }));
-        const supabase = createClient();
-        if (supabase) {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) supabase.from("profiles").upsert({ id: user.id, avatar_url: b64 });
-        }
+        fetch("/api/profile/avatar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ avatarUrl: b64 }),
+        }).catch(() => {});
       };
       img.src = ev.target?.result as string;
     };
