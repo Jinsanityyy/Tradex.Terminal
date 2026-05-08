@@ -705,15 +705,34 @@ export function TradingViewChart({
     }
     const widget = widgetRef.current;
     if (!widget) return;
-    const apply = () => {
+
+    const applyResolution = (resolution: string) => {
+      // Try activeChart() first (newer TV API), fall back to chart()
       try {
-        widget.chart().setResolution(activeInterval.value, () => {});
-      } catch {}
+        const chart = typeof widget.activeChart === "function"
+          ? widget.activeChart()
+          : widget.chart();
+        if (chart && typeof chart.setResolution === "function") {
+          chart.setResolution(resolution, () => {});
+          return;
+        }
+      } catch (e) {
+        console.warn("[TradingView] setResolution via chart() failed:", e);
+      }
+      // Last resort: setSymbol preserves drawings when only resolution changes
+      try {
+        if (typeof widget.setSymbol === "function") {
+          widget.setSymbol(latestSymbolRef.current, resolution, () => {});
+        }
+      } catch (e) {
+        console.warn("[TradingView] setSymbol fallback failed:", e);
+      }
     };
+
     if (chartReadyRef.current) {
-      apply();
+      applyResolution(activeInterval.value);
     } else if (typeof widget.onChartReady === "function") {
-      widget.onChartReady(apply);
+      widget.onChartReady(() => applyResolution(activeInterval.value));
     }
     onIntervalChange?.(activeInterval.value);
   }, [activeInterval.value]); // eslint-disable-line react-hooks/exhaustive-deps
