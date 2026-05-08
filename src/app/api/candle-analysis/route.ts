@@ -64,8 +64,7 @@ async function callGemini(prompt: string): Promise<string> {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            contents: [{ role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\n---\n\n${prompt}` }] }],
             generationConfig: { maxOutputTokens: 700, temperature: 0.3 },
           }),
         }
