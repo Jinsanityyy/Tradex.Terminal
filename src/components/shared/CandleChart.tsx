@@ -571,7 +571,9 @@ export function CandleChart({
               summary:     ai.summary     ?? prev.analysis.summary,
               drivers:     Array.isArray(ai.catalysts) && ai.catalysts.length ? ai.catalysts : prev.analysis.drivers,
               technicals:  ai.technicals  ?? prev.analysis.technicals,
-              relatedNews: ai.newsContext?.trim() ? [ai.newsContext.trim()] : prev.analysis.relatedNews,
+              relatedNews: prev.analysis.relatedNews.length > 0
+                ? prev.analysis.relatedNews
+                : (ai.newsContext?.trim() ? [ai.newsContext.trim()] : []),
             };
             aiCacheRef.current.set(cacheKey, merged);
             return { candle, aiLoading: false, analysis: merged };
