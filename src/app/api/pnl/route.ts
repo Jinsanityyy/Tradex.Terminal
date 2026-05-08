@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
 
     if (connectionId) query = query.eq("connection_id", connectionId);
 
-    const [{ data: trades, error }, { data: manualTrades }] = await Promise.all([
+    const [{ data: trades }, { data: manualTrades }] = await Promise.all([
       query,
       supabase
         .from("manual_trades")
@@ -57,7 +57,6 @@ export async function GET(req: NextRequest) {
         .eq("user_id", user.id)
         .gte("date", since.split("T")[0]),
     ]);
-    if (error) throw error;
 
     const dailyMap = new Map<string, DailyPnL>();
     const monthlyMap = new Map<string, MonthlyPnL>();
