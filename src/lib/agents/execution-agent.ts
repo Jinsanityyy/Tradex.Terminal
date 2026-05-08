@@ -285,28 +285,38 @@ export async function runExecutionAgent(
 
     } else if (setupType === "FVG" && keyLevels.fvgMid !== null) {
       entry    = keyLevels.fvgMid;
-      stopLoss = smc.invalidationLevel !== null
-        ? smc.invalidationLevel
-        : isBullish
-          ? (keyLevels.fvgLow  ?? entry) - buf
-          : (keyLevels.fvgHigh ?? entry) + buf;
+      // Validate invalidationLevel is on the correct side before using it
+      const fvgInvValid = smc.invalidationLevel !== null &&
+        (isBullish ? smc.invalidationLevel < entry : smc.invalidationLevel > entry);
+      if (fvgInvValid) {
+        stopLoss = smc.invalidationLevel!;
+        slZone   = `Structural invalidation at ${smc.invalidationLevel!.toFixed(4)} — close through negates setup`;
+      } else if (isBullish) {
+        const fvgFloor = keyLevels.fvgLow !== null && keyLevels.fvgLow < entry ? keyLevels.fvgLow : entry - buf * 2;
+        stopLoss = fvgFloor - buf;
+        slZone   = `Below FVG low ${fvgFloor.toFixed(4)} — structure must hold`;
+      } else {
+        const fvgCeil = keyLevels.fvgHigh !== null && keyLevels.fvgHigh > entry ? keyLevels.fvgHigh : entry + buf * 2;
+        stopLoss = fvgCeil + buf;
+        slZone   = `Above FVG high ${fvgCeil.toFixed(4)} — structure must hold`;
+      }
       trigger  = liquiditySweepDetected ? "Structure Reversal" : "Imbalance Fill";
       entryZone = `${isBullish ? "Buy" : "Sell"} zone ${keyLevels.fvgMid.toFixed(4)} — price action imbalance area`;
-      slZone   = smc.invalidationLevel !== null
-        ? `Structural invalidation at ${smc.invalidationLevel.toFixed(4)} — close through negates setup`
-        : `${isBullish ? "Below" : "Above"} entry zone — structure must hold`;
       entryInStructure = true;
 
     } else if (setupType === "Sweep" && liquiditySweepDetected) {
       const sweepRef = keyLevels.sweepLevel ?? (isBullish ? low : high);
       entry    = isBullish ? sweepRef * 1.001 : sweepRef * 0.999;
-      stopLoss = smc.invalidationLevel !== null
-        ? smc.invalidationLevel
+      // Validate invalidationLevel direction before using
+      const sweepInvValid = smc.invalidationLevel !== null &&
+        (isBullish ? smc.invalidationLevel < entry : smc.invalidationLevel > entry);
+      stopLoss = sweepInvValid
+        ? smc.invalidationLevel!
         : isBullish ? low - buf : high + buf;
       trigger  = "Momentum Shift";
       entryZone = `${isBullish ? "Buy" : "Sell"} entry at key structural level ${entry.toFixed(4)}`;
-      slZone   = smc.invalidationLevel !== null
-        ? `Structural invalidation at ${smc.invalidationLevel.toFixed(4)} — thesis invalid on break`
+      slZone   = sweepInvValid
+        ? `Structural invalidation at ${smc.invalidationLevel!.toFixed(4)} — thesis invalid on break`
         : `${isBullish ? "Below" : "Above"} key level — structure must hold`;
       entryInStructure = false; // sweep without OB/FVG
 
@@ -321,6 +331,13 @@ export async function runExecutionAgent(
 
     } else {
       return noTradeResult(start, "No valid structural setup — no OB, FVG, or confirmed sweep present");
+    }
+
+    // ── SL directional validation — catch any remaining inversions ───────
+    if ((isBullish && stopLoss >= entry) || (!isBullish && stopLoss <= entry)) {
+      return noTradeResult(start,
+        `Invalid stop loss: ${direction} entry ${entry.toFixed(1)} but SL ${stopLoss.toFixed(1)} is on the wrong side — structural levels are inconsistent`
+      );
     }
 
     // ── SL validation ─────────────────────────────────────────────────────
