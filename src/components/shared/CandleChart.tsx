@@ -280,21 +280,17 @@ function AnalysisPanel({
         </div>
 
         <div>
-          <p className="text-[11px] font-bold text-violet-400 uppercase tracking-wider mb-2">Relevant News</p>
+          <p className="text-[11px] font-bold text-violet-400 uppercase tracking-wider mb-2">Macro Context</p>
           {analysis.relatedNews.length > 0 ? (
-            <div className="rounded-xl border border-white/8 overflow-hidden">
-              <div className="px-3 py-1.5 bg-white/4 border-b border-white/6 flex items-center gap-1.5">
-                <AlertCircle className="h-2.5 w-2.5 text-amber-400" />
-                <span className="text-[9px] font-bold uppercase tracking-widest text-amber-400">Hot Headlines</span>
-              </div>
+            <div className="rounded-xl border border-white/8 bg-white/3 overflow-hidden">
               <div className="divide-y divide-white/5">
                 {analysis.relatedNews.map((h, i) => (
-                  <p key={i} className="px-3 py-2.5 text-[11px] text-zinc-300 leading-snug">{h}</p>
+                  <p key={i} className="px-3 py-2.5 text-[11px] text-zinc-300 leading-relaxed">{h}</p>
                 ))}
               </div>
             </div>
-          ) : (
-            <p className="text-[11px] text-zinc-600 italic">No headlines found near this candle's window.</p>
+          ) : aiLoading ? null : (
+            <p className="text-[11px] text-zinc-600 italic">No macro context available.</p>
           )}
         </div>
       </div>
@@ -502,7 +498,7 @@ export function CandleChart({
                 summary:     ai.summary     ?? prev.analysis.summary,
                 drivers:     Array.isArray(ai.catalysts) && ai.catalysts.length ? ai.catalysts : prev.analysis.drivers,
                 technicals:  ai.technicals  ?? prev.analysis.technicals,
-                relatedNews: ai.newsContext ? [ai.newsContext] : prev.analysis.relatedNews,
+                relatedNews: ai.newsContext?.trim() ? [ai.newsContext.trim()] : prev.analysis.relatedNews,
               },
             };
           });

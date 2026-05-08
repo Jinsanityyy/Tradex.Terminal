@@ -31,7 +31,7 @@ Respond with ONLY valid JSON:
 {
   "summary": "1–2 sentence TL;DR of what drove this candle",
   "technicals": "2–3 sentence price-action breakdown: structure, imbalance, momentum, reversal or continuation",
-  "newsContext": "2–3 sentence macro/fundamental context at that time",
+  "newsContext": "2–3 sentence macro/fundamental context — ALWAYS provide this using your training knowledge of what was happening in markets, Fed policy, geopolitics, and macro trends at or near that date. Never leave this empty.",
   "catalysts": ["bullet 1", "bullet 2", "bullet 3"],
   "sentiment": "bullish" | "bearish" | "neutral",
   "magnitude": "major" | "moderate" | "minor"
@@ -41,7 +41,8 @@ Rules:
 - Generic terms only — no proprietary strategy names
 - Catalysts: max 4 bullets, each under 12 words
 - If doji or small body: explain consolidation / indecision
-- magnitude: major = body > 0.5%, moderate = 0.2–0.5%, minor = < 0.2%`;
+- magnitude: major = body > 0.5%, moderate = 0.2–0.5%, minor = < 0.2%
+- newsContext: REQUIRED. If no headlines are provided, use your training knowledge of macro events near the candle date. For gold (XAUUSD), consider: Fed rate decisions, USD strength/weakness, geopolitical risk, inflation data, safe-haven demand.`;
 
 export async function POST(req: NextRequest) {
   try {
