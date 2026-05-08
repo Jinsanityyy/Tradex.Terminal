@@ -428,8 +428,19 @@ export function TradingViewChart({
 
   const selectSymbol = useCallback((value: string) => {
     setActiveSymbol(value);
+    latestSymbolRef.current = value;
     setPickerOpen(false);
     setQuery("");
+    // Call TV API directly — onChartReady fires immediately when chart is ready
+    const widget = widgetRef.current;
+    if (!widget || typeof widget.onChartReady !== "function") return;
+    widget.onChartReady(() => {
+      try {
+        if (typeof widget.setSymbol === "function") {
+          widget.setSymbol(value, latestIntervalRef.current, () => {});
+        }
+      } catch (e) { console.warn("[TV] setSymbol failed:", e); }
+    });
   }, []);
 
   const syncWidgetSize = useCallback(() => {
@@ -677,65 +688,6 @@ export function TradingViewChart({
     };
   }, [layoutRevision, syncWidgetSize]); // symbol/interval handled via API calls below
 
-  // ── SYMBOL CHANGE — call TradingView API, never destroy the widget ──────────
-  useEffect(() => {
-    latestSymbolRef.current = activeSymbol;
-    const widget = widgetRef.current;
-    if (!widget) return;
-    const apply = () => {
-      try {
-        if (typeof widget.setSymbol === "function") {
-          widget.setSymbol(activeSymbol, latestIntervalRef.current, () => {});
-        }
-      } catch {}
-    };
-    if (chartReadyRef.current) {
-      apply();
-    } else if (typeof widget.onChartReady === "function") {
-      widget.onChartReady(apply);
-    }
-  }, [activeSymbol]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── INTERVAL CHANGE — call TradingView API, never destroy the widget ─────────
-  useEffect(() => {
-    latestIntervalRef.current = activeInterval.value;
-    if (isFirstIntervalRender.current) {
-      isFirstIntervalRender.current = false;
-      return; // skip on mount — widget already created with correct interval
-    }
-    const widget = widgetRef.current;
-    if (!widget) return;
-
-    const applyResolution = (resolution: string) => {
-      // Try activeChart() first (newer TV API), fall back to chart()
-      try {
-        const chart = typeof widget.activeChart === "function"
-          ? widget.activeChart()
-          : widget.chart();
-        if (chart && typeof chart.setResolution === "function") {
-          chart.setResolution(resolution, () => {});
-          return;
-        }
-      } catch (e) {
-        console.warn("[TradingView] setResolution via chart() failed:", e);
-      }
-      // Last resort: setSymbol preserves drawings when only resolution changes
-      try {
-        if (typeof widget.setSymbol === "function") {
-          widget.setSymbol(latestSymbolRef.current, resolution, () => {});
-        }
-      } catch (e) {
-        console.warn("[TradingView] setSymbol fallback failed:", e);
-      }
-    };
-
-    if (chartReadyRef.current) {
-      applyResolution(activeInterval.value);
-    } else if (typeof widget.onChartReady === "function") {
-      widget.onChartReady(() => applyResolution(activeInterval.value));
-    }
-    onIntervalChange?.(activeInterval.value);
-  }, [activeInterval.value]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const urgent = secondsLeft <= 60;
 
@@ -810,7 +762,24 @@ export function TradingViewChart({
             {INTERVALS.map(interval => (
               <button key={interval.value} onClick={() => {
                 setActiveInterval(interval);
+                latestIntervalRef.current = interval.value;
                 onIntervalChange?.(interval.value);
+                // Call TV API directly — no widget rebuild, drawings preserved
+                const w = widgetRef.current;
+                if (!w || typeof w.onChartReady !== "function") return;
+                w.onChartReady(() => {
+                  try {
+                    const chart = typeof w.chart === "function" ? w.chart()
+                      : typeof w.activeChart === "function" ? w.activeChart() : null;
+                    if (chart && typeof chart.setResolution === "function") {
+                      chart.setResolution(interval.value, () => {});
+                    } else if (typeof w.setSymbol === "function") {
+                      w.setSymbol(latestSymbolRef.current, interval.value, () => {});
+                    }
+                  } catch {
+                    try { w.setSymbol(latestSymbolRef.current, interval.value, () => {}); } catch {}
+                  }
+                });
               }}
                 className={cn("rounded px-2 py-1 text-[11px] font-semibold transition-all border",
                   activeInterval.value === interval.value
