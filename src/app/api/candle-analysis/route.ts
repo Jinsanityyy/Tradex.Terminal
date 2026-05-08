@@ -133,7 +133,8 @@ Explain why this candle moved. Return JSON only.`;
       return NextResponse.json({ error: "Gemini unavailable", geminiError: e?.message ?? String(e) }, { status: 503 });
     }
 
-    const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    const cleaned = jsonMatch ? jsonMatch[0] : raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
     let parsed: any;
     try { parsed = JSON.parse(cleaned); }
     catch { return NextResponse.json({ error: "AI parse failed", raw }, { status: 500 }); }
