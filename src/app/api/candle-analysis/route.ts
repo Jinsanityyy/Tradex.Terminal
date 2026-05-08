@@ -46,15 +46,20 @@ async function callGemini(prompt: string): Promise<string> {
   const apiKey = process.env.GOOGLE_AI_API_KEY;
   if (!apiKey) throw new Error("No GOOGLE_AI_API_KEY");
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
-    systemInstruction: SYSTEM_PROMPT,
-  });
-  const result = await model.generateContent({
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: { maxOutputTokens: 700, temperature: 0.3 },
-  });
-  return result.response.text();
+  // Try newer model first, fall back to 1.5-flash
+  for (const modelName of ["gemini-2.0-flash", "gemini-1.5-flash"]) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName, systemInstruction: SYSTEM_PROMPT });
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 700, temperature: 0.3 },
+      });
+      return result.response.text();
+    } catch (e: any) {
+      if (modelName === "gemini-1.5-flash") throw e; // last model, rethrow
+    }
+  }
+  throw new Error("No model succeeded");
 }
 
 export async function POST(req: NextRequest) {
