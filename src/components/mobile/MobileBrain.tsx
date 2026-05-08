@@ -317,18 +317,32 @@ function StandAsideCard({ exec, isWait }: {
 export function MobileBrain() {
   const [symbol, setSymbol] = useState<Symbol>("XAUUSD");
   const [timeframe, setTimeframe] = useState<Timeframe>("H1");
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   const { data, isLoading, mutate } = useSWR<AgentRunResult>(
-    `/api/agents/run?symbol=${symbol}&timeframe=${timeframe}&t=${refreshKey}`,
+    `/api/agents/run?symbol=${symbol}&timeframe=${timeframe}`,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 300_000 }
   );
 
   const handleRefresh = useCallback(async () => {
-    setRefreshKey(k => k + 1);
-    await mutate();
-  }, [mutate]);
+    setRefreshing(true);
+    try {
+      await mutate(
+        fetch("/api/agents/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ symbol, timeframe, forceRefresh: true }),
+        }).then(r => {
+          if (!r.ok) throw new Error("Agent run failed");
+          return r.json() as Promise<AgentRunResult>;
+        }),
+        { revalidate: false }
+      );
+    } finally {
+      setRefreshing(false);
+    }
+  }, [mutate, symbol, timeframe]);
 
   const master     = data?.agents.master;
   const exec       = data?.agents.execution;
@@ -405,10 +419,10 @@ export function MobileBrain() {
                 {tf}
               </button>
             ))}
-            <button onClick={handleRefresh} disabled={isLoading}
+            <button onClick={handleRefresh} disabled={isLoading || refreshing}
               className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-[10px] text-zinc-500 disabled:opacity-60">
-              <RefreshCw className={cn("h-3 w-3", isLoading && "animate-spin")} />
-              {isLoading ? "Running…" : "Refresh"}
+              <RefreshCw className={cn("h-3 w-3", (isLoading || refreshing) && "animate-spin")} />
+              {(isLoading || refreshing) ? "Running…" : "Refresh"}
             </button>
           </div>
 

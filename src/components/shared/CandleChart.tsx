@@ -15,13 +15,14 @@ interface RawCandle { t: number; o: number; h: number; l: number; c: number }
 interface NewsItem { headline: string; timestamp: string; sentiment?: string }
 
 interface InstantAnalysis {
-  sentiment:   "bullish" | "bearish" | "neutral";
-  magnitude:   "major" | "moderate" | "minor";
-  pattern:     string;
-  summary:     string;
-  drivers:     string[];
-  technicals:  string;
-  relatedNews: string[];
+  sentiment:      "bullish" | "bearish" | "neutral";
+  magnitude:      "major" | "moderate" | "minor";
+  pattern:        string;
+  summary:        string;
+  drivers:        string[];
+  technicals:     string;
+  relatedNews:    string[];
+  aiMacroContext?: string;
 }
 
 const SYMBOLS: { id: Symbol; label: string }[] = [
@@ -301,21 +302,32 @@ function AnalysisPanel({
 
         <div>
           <p className="text-[11px] font-bold text-violet-400 uppercase tracking-wider mb-2">Macro Context</p>
-          {analysis.relatedNews.length > 0 ? (
-            <div className="rounded-xl border border-white/8 bg-white/3 overflow-hidden">
-              <div className="divide-y divide-white/5">
+
+          {/* Real news headlines from the API */}
+          {analysis.relatedNews.length > 0 && (
+            <div className="mb-3">
+              <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1.5">Headlines</p>
+              <div className="rounded-xl border border-white/8 bg-white/3 overflow-hidden divide-y divide-white/5">
                 {analysis.relatedNews.map((h, i) => (
                   <p key={i} className="px-3 py-2.5 text-[11px] text-zinc-300 leading-relaxed">{h}</p>
                 ))}
               </div>
             </div>
-          ) : aiLoading ? (
-            <p className="text-[11px] text-zinc-600 italic">Fetching AI context…</p>
-          ) : aiFailed ? (
-            <p className="text-[11px] text-amber-600/70 italic">AI analysis failed — check your Google AI API key or tap retry above.</p>
-          ) : (
-            <p className="text-[11px] text-zinc-600 italic">No macro context returned by AI.</p>
           )}
+
+          {/* AI macro analysis — separate from headlines */}
+          {analysis.aiMacroContext ? (
+            <div>
+              <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1.5">AI Macro Analysis</p>
+              <p className="text-[11px] text-zinc-400 leading-relaxed">{analysis.aiMacroContext}</p>
+            </div>
+          ) : aiLoading ? (
+            <p className="text-[11px] text-zinc-600 italic">Fetching AI macro analysis…</p>
+          ) : aiFailed ? (
+            <p className="text-[11px] text-amber-600/70 italic">AI analysis failed — tap retry above.</p>
+          ) : !analysis.relatedNews.length ? (
+            <p className="text-[11px] text-zinc-600 italic">No macro context available.</p>
+          ) : null}
         </div>
       </div>
     </div>
@@ -565,15 +577,14 @@ export function CandleChart({
           setSelected(prev => {
             if (prev?.candle.t !== candle.t) return prev;
             const merged: InstantAnalysis = {
-              sentiment:   ai.sentiment   ?? prev.analysis.sentiment,
-              magnitude:   ai.magnitude   ?? prev.analysis.magnitude,
-              pattern:     prev.analysis.pattern,
-              summary:     ai.summary     ?? prev.analysis.summary,
-              drivers:     Array.isArray(ai.catalysts) && ai.catalysts.length ? ai.catalysts : prev.analysis.drivers,
-              technicals:  ai.technicals  ?? prev.analysis.technicals,
-              relatedNews: prev.analysis.relatedNews.length > 0
-                ? prev.analysis.relatedNews
-                : (ai.newsContext?.trim() ? [ai.newsContext.trim()] : []),
+              sentiment:      ai.sentiment  ?? prev.analysis.sentiment,
+              magnitude:      ai.magnitude  ?? prev.analysis.magnitude,
+              pattern:        prev.analysis.pattern,
+              summary:        ai.summary    ?? prev.analysis.summary,
+              drivers:        Array.isArray(ai.catalysts) && ai.catalysts.length ? ai.catalysts : prev.analysis.drivers,
+              technicals:     ai.technicals ?? prev.analysis.technicals,
+              relatedNews:    prev.analysis.relatedNews,
+              aiMacroContext: ai.newsContext?.trim() || undefined,
             };
             aiCacheRef.current.set(cacheKey, merged);
             return { candle, aiLoading: false, analysis: merged };
