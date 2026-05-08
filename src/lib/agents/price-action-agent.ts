@@ -31,7 +31,8 @@ STEP 2 — SESSION LEVELS
 - London High/Low: 08:00–13:00 UTC range
 - PDH/PDL: previous day high/low
 
-STEP 3 — LIQUIDITY SWEEP (NY session 13:00–18:00 UTC ONLY)
+STEP 3 — LIQUIDITY SWEEP (JadeCap NY Kill Zone: 13:30–15:30 UTC ONLY)
+- Corresponds to 9:30–11:30 AM EST — JadeCap's exact kill zone
 - Price wicks past a session level by $2+ (XAUUSD) but closes BACK INSIDE = sweep
 - liquiditySweepDetected = true; swept level → keyLevels.sweepLevel
 - Confidence: 50 base + modifier per sweep level:
@@ -64,7 +65,7 @@ FIELD MAPPING:
 
 CRITICAL OUTPUT RULES:
 - Respond with ONLY valid JSON, no markdown, no code blocks
-- No sweep outside NY session (13:00–18:00 UTC): setupPresent = false, setupType = "None"
+- No sweep outside JadeCap NY Kill Zone (13:30–15:30 UTC): setupPresent = false, setupType = "None"
 - London High sweep: confidence = 50, flag in reasons, do NOT set setupPresent = true
 - All price levels must be precise numbers or null
 
@@ -109,7 +110,10 @@ async function runLLMAnalysis(
   const candleBody  = Math.abs(current - open);
   const bodyRatio   = candleRange > 0 ? ((candleBody / candleRange) * 100).toFixed(0) : "0";
   const closePos    = candleRange > 0 ? (((current - low) / candleRange) * 100).toFixed(0) : "50";
-  const inNYSession = sessionHour >= 13 && sessionHour < 18;
+  const sessionMinute = new Date().getUTCMinutes();
+  // JadeCap NY Kill Zone: 9:30–11:30 AM EST = 13:30–15:30 UTC
+  const inNYSession = (sessionHour > 13 || (sessionHour === 13 && sessionMinute >= 30))
+                   && (sessionHour < 15  || (sessionHour === 15 && sessionMinute <  30));
 
   // Estimated session levels from day range
   const asianHigh  = parseFloat((equilibrium + dayRange * 0.18).toFixed(4));
@@ -339,7 +343,10 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
 
   // ── STEP 2: Session levels — real from candles, estimated fallback ────────
   const minSweep    = sweepMinDollar(snapshot.symbol, current);
-  const inNYSession = sessionHour >= 13 && sessionHour < 18;
+  const sessionMinuteLogic = new Date().getUTCMinutes();
+  // JadeCap NY Kill Zone: 9:30–11:30 AM EST = 13:30–15:30 UTC
+  const inNYSession = (sessionHour > 13 || (sessionHour === 13 && sessionMinuteLogic >= 30))
+                   && (sessionHour < 15  || (sessionHour === 15 && sessionMinuteLogic <  30));
   const upperWick   = high - Math.max(current, open);
   const lowerWick   = Math.min(current, open) - low;
 
@@ -430,8 +437,8 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   const confidence = liquiditySweepDetected ? Math.min(95, 50 + sweepModifier) : 40;
 
   // ── STEP 5: Levels ─────────────────────────────────────────────────────────
-  // SL = sweep extreme + $5 buffer (sweepMinDollar * 2.5 → $5 for XAUUSD)
-  const slBuffer   = minSweep * 2.5;
+  // SL = sweep extreme + $1 buffer (sweepMinDollar * 0.5 → $1 for XAUUSD) — JadeCap: SL just beyond sweep wick
+  const slBuffer   = minSweep * 0.5;
 
   let invalidationLevel: number | null = null;
   if (liquiditySweepDetected && !isLowConfidenceSweep) {
@@ -447,13 +454,13 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
     : null;
   const entryPrice = fvgMid ?? sweepEntry ?? current;
 
-  // TP = 1.5R from entry
+  // TP = 2.0R from entry — JadeCap minimum (62.9% WR backtest)
   const riskDist = invalidationLevel !== null
     ? Math.abs(entryPrice - invalidationLevel)
     : dayRange * 0.25;
   const liquidityTarget = bias === "bullish"
-    ? parseFloat((entryPrice + riskDist * 1.5).toFixed(4))
-    : parseFloat((entryPrice - riskDist * 1.5).toFixed(4));
+    ? parseFloat((entryPrice + riskDist * 2.0).toFixed(4))
+    : parseFloat((entryPrice - riskDist * 2.0).toFixed(4));
 
   const premiumZoneTop     = parseFloat((equilibrium + (high - equilibrium) * 0.6).toFixed(4));
   const discountZoneBottom = parseFloat((equilibrium - (equilibrium - low)  * 0.6).toFixed(4));

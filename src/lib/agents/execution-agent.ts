@@ -37,7 +37,8 @@ const GOLD_SYMS = new Set(["XAUUSD", "XAGUSD", "XPTUSD"]);
 
 // Killzone windows (UTC hours, inclusive start, exclusive end)
 const LONDON_KZ = { start: 8,  end: 11 };
-const NY_KZ     = { start: 13, end: 16 };
+// JadeCap NY Kill Zone = 9:30–11:30 AM EST = 13:30–15:30 UTC exactly
+const NY_KZ = { startHour: 13, startMin: 30, endHour: 15, endMin: 30 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -49,7 +50,7 @@ function roundToPrecision(value: number, price: number): number {
 }
 
 function slBuffer(symbol: string): number {
-  if (symbol === "XAUUSD") return 4;
+  if (symbol === "XAUUSD") return 1;   // JadeCap: SL just $1 beyond sweep wick
   if (symbol === "XAGUSD") return 0.05;
   if (symbol === "XPTUSD") return 3;
   if (symbol === "BTCUSD" || symbol === "ETHUSD") return 50;
@@ -225,8 +226,13 @@ export async function runExecutionAgent(
     const { session, sessionHour } = indicators;
 
     // ── Killzone ──────────────────────────────────────────────────────────
-    const inLondonKZ = session === "London"   && sessionHour >= LONDON_KZ.start && sessionHour < LONDON_KZ.end;
-    const inNYKZ     = session === "New York" && sessionHour >= NY_KZ.start     && sessionHour < NY_KZ.end;
+    const inLondonKZ = session === "London" && sessionHour >= LONDON_KZ.start && sessionHour < LONDON_KZ.end;
+    // Minute-aware JadeCap NY Kill Zone check (13:30–15:30 UTC)
+    const nowDate   = new Date(snapshot.timestamp);
+    const nowMinUTC = nowDate.getUTCMinutes();
+    const inNYKZ    = session === "New York" &&
+      (sessionHour > NY_KZ.startHour || (sessionHour === NY_KZ.startHour && nowMinUTC >= NY_KZ.startMin)) &&
+      (sessionHour < NY_KZ.endHour   || (sessionHour === NY_KZ.endHour   && nowMinUTC <  NY_KZ.endMin));
     const inKillzone = inLondonKZ || inNYKZ;
 
     // ── Major news check ───────────────────────────────────────────────────

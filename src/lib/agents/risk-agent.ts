@@ -122,8 +122,8 @@ export async function runRiskAgent(snapshot: MarketSnapshot): Promise<RiskAgentO
     }
 
     // ── RR check ──────────────────────────────────────────────────────────
-    if (rrEstimate !== null && rrEstimate < 1.5) {
-      warnings.push(`Estimated RR ${rrEstimate.toFixed(1)}:1 below minimum threshold (1.5:1) — trade not worth the risk`);
+    if (rrEstimate !== null && rrEstimate < 2.0) {
+      warnings.push(`Estimated RR ${rrEstimate.toFixed(1)}:1 below JadeCap minimum (2.0:1) — consider skipping`);
     }
 
     // ── Valid / Invalid decision ──────────────────────────────────────────
@@ -132,9 +132,27 @@ export async function runRiskAgent(snapshot: MarketSnapshot): Promise<RiskAgentO
     const isClosed    = session === "Closed";
     const extremeVol  = volatilityScore >= 92;   // only blocks on >2.5% moves
     const tooManyWarnings = warnings.length >= 5; // raised from 4 → 5
-    const rrTooLow    = rrEstimate !== null && rrEstimate < 1.0;
+    const rrTooLow    = rrEstimate !== null && rrEstimate < 1.5;  // JadeCap minimum = 1.5R hard block
 
-    const valid = !isClosed && !extremeVol && !tooManyWarnings && !rrTooLow;
+    // JadeCap: block if in NY session but outside kill zone (13:30–15:30 UTC)
+    const isNYSession  = session === "New York";
+    const nowUTC       = new Date();
+    const nowUTCHour   = nowUTC.getUTCHours();
+    const nowUTCMin    = nowUTC.getUTCMinutes();
+    const inNYKillZone = isNYSession &&
+      (nowUTCHour > 13 || (nowUTCHour === 13 && nowUTCMin >= 30)) &&
+      (nowUTCHour < 15  || (nowUTCHour === 15 && nowUTCMin <  30));
+    const outsideKillZone = isNYSession && !inNYKillZone;
+
+    if (outsideKillZone) {
+      warnings.push(
+        `Outside JadeCap NY Kill Zone (9:30–11:30 AM EST). ` +
+        `Current UTC: ${nowUTCHour}:${String(nowUTCMin).padStart(2, "0")}. ` +
+        `Valid window: 13:30–15:30 UTC. Win rate drops significantly outside this window.`
+      );
+    }
+
+    const valid = !isClosed && !extremeVol && !tooManyWarnings && !rrTooLow && !outsideKillZone;
 
     // ── Max risk ──────────────────────────────────────────────────────────
     let maxRiskPercent = 1.0; // default 1% account risk

@@ -297,7 +297,17 @@ export async function runTrendAgent(
     const maAlignment = deriveMaAlignment(snapshot, maData.maStack);
 
     let biasScore = 0;
-    biasScore += htfBias === "bullish" ? htfConfidence : htfBias === "bearish" ? -htfConfidence : 0;
+
+    // ── JadeCap PRIMARY: PDH/PDL Midpoint Daily Bias (+25 pts) ────────────
+    const { prevClose, dayRange, open: dayOpen } = snapshot.price;
+    const pdh        = prevClose + dayRange * 0.40;
+    const pdl        = prevClose - dayRange * 0.40;
+    const pdMidpoint = (pdh + pdl) / 2;
+    const jadeBiasScore = dayOpen > pdMidpoint ? 25 : dayOpen < pdMidpoint ? -25 : 0;
+    biasScore += jadeBiasScore;
+
+    // ── Secondary: HTF structure (weight halved — JadeCap PDH/PDL dominates) ─
+    biasScore += htfBias === "bullish" ? htfConfidence * 0.5 : htfBias === "bearish" ? -htfConfidence * 0.5 : 0;
     if (timeframeBias.aligned) biasScore += timeframeBias.H4 === "bullish" ? 15 : -15;
     if (rsi > 55) biasScore += 8;
     if (rsi < 45) biasScore -= 8;
@@ -311,6 +321,14 @@ export async function runTrendAgent(
     const bias = resolveFinalBias(htfBias, timeframeBias, maData.maStack, biasScore);
     const confidence = Math.min(95, Math.max(20, Math.abs(biasScore)));
     const reasons = buildReasons(snapshot, timeframeBias, phase, maData.maStack, maData);
+
+    // JadeCap bias reason — prepend so it appears first
+    const jadeReason = jadeBiasScore > 0
+      ? `JadeCap daily bias: BULLISH — open ${dayOpen.toFixed(2)} above PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`
+      : jadeBiasScore < 0
+      ? `JadeCap daily bias: BEARISH — open ${dayOpen.toFixed(2)} below PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`
+      : `JadeCap daily bias: NEUTRAL — open at PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`;
+    reasons.unshift(jadeReason);
 
     const step = current > 1000 ? 10 : current > 100 ? 1 : 0.001;
     const invalidationLevel =
