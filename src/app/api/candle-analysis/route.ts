@@ -42,7 +42,7 @@ Rules:
 - For XAUUSD: consider Fed policy, USD strength, geopolitical risk, inflation, central bank buying`;
 
 async function callGemini(prompt: string): Promise<string> {
-  const apiKey = process.env.GOOGLE_AI_API_KEY;
+  const apiKey = (process.env.GOOGLE_AI_API_KEY ?? "").trim();
   if (!apiKey) throw new Error("No GOOGLE_AI_API_KEY");
 
   // Try models across both API versions
@@ -157,11 +157,10 @@ Explain why this candle moved. Return JSON only.`;
 }
 
 export async function GET() {
-  const apiKey = process.env.GOOGLE_AI_API_KEY;
+  const apiKey = (process.env.GOOGLE_AI_API_KEY ?? "").trim();
   if (!apiKey) {
     return NextResponse.json({ ok: false, error: "GOOGLE_AI_API_KEY is not set in environment variables" });
   }
-  // List available models so we know exactly what this key can access
   try {
     const [v1Res, v1betaRes] = await Promise.all([
       fetch(`https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`),
@@ -172,13 +171,14 @@ export async function GET() {
     const v1Models     = (v1Data.models     ?? []).map((m: any) => m.name);
     const v1betaModels = (v1betaData.models ?? []).map((m: any) => m.name);
     return NextResponse.json({
-      keyPresent: true,
+      keyLength:     apiKey.length,
+      keyPrefix:     apiKey.slice(0, 8) + "...",
       v1_models:     v1Models,
       v1beta_models: v1betaModels,
       v1_error:      v1Data.error?.message     ?? null,
       v1beta_error:  v1betaData.error?.message ?? null,
     });
   } catch (e: any) {
-    return NextResponse.json({ ok: false, keyPresent: true, error: e?.message ?? String(e) });
+    return NextResponse.json({ ok: false, error: e?.message ?? String(e) });
   }
 }
