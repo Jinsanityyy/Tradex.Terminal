@@ -200,7 +200,7 @@ function MagnitudeBadge({ m }: { m: string }) {
 // ── Analysis Panel ────────────────────────────────────────────────────────────
 
 function AnalysisPanel({
-  candle, analysis, timeframe, symbol, onClose, aiLoading,
+  candle, analysis, timeframe, symbol, onClose, aiLoading, aiFailed, onRetry,
 }: {
   candle:     RawCandle;
   analysis:   InstantAnalysis;
@@ -208,6 +208,8 @@ function AnalysisPanel({
   symbol:     Symbol;
   onClose:    () => void;
   aiLoading?: boolean;
+  aiFailed?:  boolean;
+  onRetry?:   () => void;
 }) {
   const p         = candle.o > 100 ? 2 : 4;
   const bull      = candle.c > candle.o;
@@ -227,6 +229,11 @@ function AnalysisPanel({
             <p className="text-[9px] text-violet-400/70 mt-0.5 flex items-center gap-1">
               <RefreshCw className="h-2.5 w-2.5 animate-spin inline" /> AI analyzing…
             </p>
+          )}
+          {aiFailed && !aiLoading && (
+            <button onClick={onRetry} className="text-[9px] text-amber-500/80 hover:text-amber-400 mt-0.5 flex items-center gap-1 transition-colors">
+              <RefreshCw className="h-2.5 w-2.5 inline" /> AI failed — tap to retry
+            </button>
           )}
         </div>
         <button onClick={onClose} className="text-zinc-600 hover:text-zinc-300 transition-colors p-1 mt-0.5">
@@ -289,8 +296,12 @@ function AnalysisPanel({
                 ))}
               </div>
             </div>
-          ) : aiLoading ? null : (
-            <p className="text-[11px] text-zinc-600 italic">No macro context available.</p>
+          ) : aiLoading ? (
+            <p className="text-[11px] text-zinc-600 italic">Fetching AI context…</p>
+          ) : aiFailed ? (
+            <p className="text-[11px] text-amber-600/70 italic">AI analysis failed — check your Google AI API key or tap retry above.</p>
+          ) : (
+            <p className="text-[11px] text-zinc-600 italic">No macro context returned by AI.</p>
           )}
         </div>
       </div>
@@ -437,7 +448,7 @@ export function CandleChart({
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState<string | null>(null);
   const [bars,      setBars]      = useState<RawCandle[]>([]);
-  const [selected,  setSelected]  = useState<{ candle: RawCandle; analysis: InstantAnalysis; aiLoading?: boolean } | null>(null);
+  const [selected,  setSelected]  = useState<{ candle: RawCandle; analysis: InstantAnalysis; aiLoading?: boolean; aiFailed?: boolean } | null>(null);
 
   useEffect(() => {
     fetch("/api/market/news", { cache: "no-store" })
@@ -507,8 +518,13 @@ export function CandleChart({
       }
     } catch { /* fall through — keep local analysis */ }
 
-    setSelected(prev => prev?.candle.t === candle.t ? { ...prev, aiLoading: false } : prev);
+    setSelected(prev => prev?.candle.t === candle.t ? { ...prev, aiLoading: false, aiFailed: true } : prev);
   }, [bars, timeframe, symbol]);
+
+  const retryAI = useCallback((candle: RawCandle) => {
+    setSelected(prev => prev ? { ...prev, aiLoading: true, aiFailed: false } : prev);
+    handleSelect(candle);
+  }, [handleSelect]);
 
   return (
     <div className="flex flex-col bg-[hsl(var(--card))] rounded-2xl border border-white/6 overflow-hidden">
@@ -591,6 +607,8 @@ export function CandleChart({
               symbol={symbol}
               onClose={() => setSelected(null)}
               aiLoading={selected.aiLoading}
+              aiFailed={selected.aiFailed}
+              onRetry={() => retryAI(selected.candle)}
             />
           </div>
         )}
