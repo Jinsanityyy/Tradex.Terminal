@@ -200,13 +200,14 @@ function MagnitudeBadge({ m }: { m: string }) {
 // ── Analysis Panel ────────────────────────────────────────────────────────────
 
 function AnalysisPanel({
-  candle, analysis, timeframe, symbol, onClose,
+  candle, analysis, timeframe, symbol, onClose, aiLoading,
 }: {
-  candle:    RawCandle;
-  analysis:  InstantAnalysis;
-  timeframe: Timeframe;
-  symbol:    Symbol;
-  onClose:   () => void;
+  candle:     RawCandle;
+  analysis:   InstantAnalysis;
+  timeframe:  Timeframe;
+  symbol:     Symbol;
+  onClose:    () => void;
+  aiLoading?: boolean;
 }) {
   const p         = candle.o > 100 ? 2 : 4;
   const bull      = candle.c > candle.o;
@@ -222,6 +223,11 @@ function AnalysisPanel({
           <p className="text-[9px] text-zinc-600 font-mono mt-0.5">
             {dt.toLocaleDateString()} · {dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {timeframe}
           </p>
+          {aiLoading && (
+            <p className="text-[9px] text-violet-400/70 mt-0.5 flex items-center gap-1">
+              <RefreshCw className="h-2.5 w-2.5 animate-spin inline" /> AI analyzing…
+            </p>
+          )}
         </div>
         <button onClick={onClose} className="text-zinc-600 hover:text-zinc-300 transition-colors p-1 mt-0.5">
           <X className="h-4 w-4" />
@@ -435,7 +441,7 @@ export function CandleChart({
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState<string | null>(null);
   const [bars,      setBars]      = useState<RawCandle[]>([]);
-  const [selected,  setSelected]  = useState<{ candle: RawCandle; analysis: InstantAnalysis } | null>(null);
+  const [selected,  setSelected]  = useState<{ candle: RawCandle; analysis: InstantAnalysis; aiLoading?: boolean } | null>(null);
 
   useEffect(() => {
     fetch("/api/market/news", { cache: "no-store" })
@@ -464,14 +470,49 @@ export function CandleChart({
     fetchCandles(symbol, timeframe);
   }, [symbol, timeframe, fetchCandles]);
 
-  const handleSelect = useCallback((candle: RawCandle) => {
+  const handleSelect = useCallback(async (candle: RawCandle) => {
     setSelected(prev => {
-      // Toggle off if same candle
       if (prev?.candle.t === candle.t) return null;
       const analysis = analyseCandle(candle, bars, newsRef.current, timeframe);
-      return { candle, analysis };
+      return { candle, analysis, aiLoading: true };
     });
-  }, [bars, timeframe]);
+
+    // Upgrade to AI analysis in background
+    try {
+      const idx = bars.findIndex(b => b.t === candle.t);
+      const context = bars.slice(Math.max(0, idx - 10), Math.min(bars.length, idx + 3));
+      const res = await fetch("/api/candle-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbol, timeframe, candle, context }),
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (res.ok) {
+        const ai = await res.json();
+        if (!ai.error) {
+          setSelected(prev => {
+            if (prev?.candle.t !== candle.t) return prev;
+            return {
+              candle,
+              aiLoading: false,
+              analysis: {
+                sentiment:   ai.sentiment   ?? prev.analysis.sentiment,
+                magnitude:   ai.magnitude   ?? prev.analysis.magnitude,
+                pattern:     prev.analysis.pattern,
+                summary:     ai.summary     ?? prev.analysis.summary,
+                drivers:     Array.isArray(ai.catalysts) && ai.catalysts.length ? ai.catalysts : prev.analysis.drivers,
+                technicals:  ai.technicals  ?? prev.analysis.technicals,
+                relatedNews: ai.newsContext ? [ai.newsContext] : prev.analysis.relatedNews,
+              },
+            };
+          });
+          return;
+        }
+      }
+    } catch { /* fall through — keep local analysis */ }
+
+    setSelected(prev => prev?.candle.t === candle.t ? { ...prev, aiLoading: false } : prev);
+  }, [bars, timeframe, symbol]);
 
   return (
     <div className="flex flex-col bg-[hsl(var(--card))] rounded-2xl border border-white/6 overflow-hidden">
@@ -553,6 +594,7 @@ export function CandleChart({
               timeframe={timeframe}
               symbol={symbol}
               onClose={() => setSelected(null)}
+              aiLoading={selected.aiLoading}
             />
           </div>
         )}

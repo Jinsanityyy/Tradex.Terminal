@@ -62,6 +62,7 @@ export function CommunityPanel() {
   const [traderName, setTraderName]   = useState("Trader");
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [myAvatar, setMyAvatar]       = useState<string | null>(null);
+  const [avatarMap, setAvatarMap]     = useState<Record<string, string>>({});
   const bottomRef  = useRef<HTMLDivElement>(null);
   const typingTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -118,6 +119,20 @@ export function CommunityPanel() {
       .order("created_at", { ascending: true }).limit(100)
       .then(({ data }) => { if (data) setMessages(data as Message[]); });
   }, [supabase]);
+
+  useEffect(() => {
+    if (!supabase || messages.length === 0) return;
+    const ids = [...new Set(messages.map(m => m.user_id).filter(id => id !== userId && !avatarMap[id]))];
+    if (ids.length === 0) return;
+    supabase.from("profiles").select("id, avatar_url").in("id", ids)
+      .then(({ data }) => {
+        if (!data) return;
+        const patch: Record<string, string> = {};
+        for (const p of data) { if (p.avatar_url) patch[p.id] = p.avatar_url; }
+        if (Object.keys(patch).length > 0) setAvatarMap(prev => ({ ...prev, ...patch }));
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, supabase, userId]);
 
   useEffect(() => {
     if (!supabase || !userId) return;
@@ -232,7 +247,7 @@ export function CommunityPanel() {
               return (
                 <div key={msg.id} className={cn("flex gap-2 mb-1.5", isOwn && "flex-row-reverse")}>
                   <div className="w-6 shrink-0 flex items-end">
-                    {showAvatar && <Avatar userId={msg.user_id} name={msg.display_name} email={null} photo={isOwn ? myAvatar : null} />}
+                    {showAvatar && <Avatar userId={msg.user_id} name={msg.display_name} email={null} photo={isOwn ? myAvatar : (avatarMap[msg.user_id] ?? null)} />}
                   </div>
                   <div className={cn("flex-1 min-w-0", isOwn && "flex flex-col items-end")}>
                     {showAvatar && (

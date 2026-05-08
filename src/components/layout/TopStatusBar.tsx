@@ -170,9 +170,25 @@ export function UserMenu() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const base64 = ev.target?.result as string;
-      setAvatar(base64);
-      localStorage.setItem("tradex_avatar", base64);
+      const img = new Image();
+      img.onload = async () => {
+        const MAX = 80;
+        const ratio = Math.min(MAX / img.width, MAX / img.height, 1);
+        const canvas = document.createElement("canvas");
+        canvas.width  = Math.round(img.width  * ratio);
+        canvas.height = Math.round(img.height * ratio);
+        canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const b64 = canvas.toDataURL("image/jpeg", 0.85);
+        setAvatar(b64);
+        localStorage.setItem("tradex_avatar", b64);
+        window.dispatchEvent(new StorageEvent("storage", { key: "tradex_avatar", newValue: b64 }));
+        const supabase = createClient();
+        if (supabase) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) supabase.from("profiles").upsert({ id: user.id, avatar_url: b64 });
+        }
+      };
+      img.src = ev.target?.result as string;
     };
     reader.readAsDataURL(file);
   }
