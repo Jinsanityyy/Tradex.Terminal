@@ -309,8 +309,7 @@ function AnalysisPanel({
   );
 }
 
-// ── Custom SVG Candle Chart ───────────────────────────────────────────────────
-// No third-party library — React onClick on SVG elements is 100% reliable.
+// ── Custom SVG Candle Chart — supports pinch-to-zoom and pan ─────────────────
 
 function SvgCandleChart({ bars, selected, onSelect, height }: {
   bars:     RawCandle[];
@@ -320,7 +319,17 @@ function SvgCandleChart({ bars, selected, onSelect, height }: {
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [cw, setCw] = useState(0);
+  const [visibleCount, setVisibleCount] = useState<number | null>(null);
+  const [panOffset,    setPanOffset]    = useState(0);
 
+  // Refs for gesture tracking — avoids stale closures in native listeners
+  const touchRef = useRef({
+    mode: "none" as "none" | "pan" | "pinch",
+    startX: 0, startOff: 0, startDist: 0, startCount: 0, hasMoved: false,
+  });
+  const latestRef = useRef({ N: 10, offset: 0, chartW: 0, slot: 1, maxOff: 0, barsLen: 0 });
+
+  // Resize observer
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -330,34 +339,91 @@ function SvgCandleChart({ bars, selected, onSelect, height }: {
     return () => ro.disconnect();
   }, []);
 
+  // Reset zoom+pan when the bar dataset changes (symbol/TF switch)
+  useEffect(() => {
+    setVisibleCount(null);
+    setPanOffset(0);
+  }, [bars]);
+
+  // Native touch listeners (passive:false on move to allow preventDefault)
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+
+    function pinchDist(e: TouchEvent) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function onStart(e: TouchEvent) {
+      const t = touchRef.current;
+      t.hasMoved = false;
+      const { N, offset } = latestRef.current;
+      if (e.touches.length >= 2) {
+        t.mode = "pinch"; t.startDist = pinchDist(e); t.startCount = N; t.startOff = offset;
+      } else {
+        t.mode = "pan"; t.startX = e.touches[0].clientX; t.startOff = offset;
+      }
+    }
+
+    function onMove(e: TouchEvent) {
+      e.preventDefault();
+      const t = touchRef.current;
+      const { N, slot, maxOff, barsLen } = latestRef.current;
+      if (t.mode === "pinch" && e.touches.length >= 2) {
+        const ratio = t.startDist / pinchDist(e);
+        const next  = Math.max(5, Math.min(barsLen, Math.round(t.startCount * ratio)));
+        if (next !== N) { t.hasMoved = true; setVisibleCount(next); }
+      } else if (t.mode === "pan" && e.touches.length === 1) {
+        const dx = e.touches[0].clientX - t.startX;
+        if (Math.abs(dx) > 4) t.hasMoved = true;
+        const next = Math.max(0, Math.min(maxOff, t.startOff + Math.round(dx / slot)));
+        setPanOffset(next);
+      }
+    }
+
+    function onEnd() { touchRef.current.mode = "none"; }
+
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove",  onMove,  { passive: false });
+    el.addEventListener("touchend",   onEnd,   { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove",  onMove);
+      el.removeEventListener("touchend",   onEnd);
+    };
+  }, []); // registers once; reads current values via latestRef
+
+  // ── Derived layout ────────────────────────────────────────────────────────
   const PL = 4, PR = 62, PT = 14, PB = 26;
   const chartW = Math.max(0, cw - PL - PR);
   const chartH = Math.max(0, height - PT - PB);
 
-  if (!cw || !bars.length) {
-    return <div ref={wrapRef} className="w-full" style={{ height }} />;
-  }
+  if (!cw || !bars.length) return <div ref={wrapRef} className="w-full" style={{ height }} />;
 
-  // Last N bars that fit (min 5 px per slot)
-  const N       = Math.min(bars.length, Math.max(10, Math.floor(chartW / 5)));
-  const visible = bars.slice(-N);
-  const slot    = chartW / N;
-  const barW    = Math.max(1.5, slot * 0.65);
+  const autoN  = Math.min(bars.length, Math.max(10, Math.floor(chartW / 5)));
+  const N      = Math.max(5, Math.min(bars.length, visibleCount ?? autoN));
+  const maxOff = Math.max(0, bars.length - N);
+  const offset = Math.max(0, Math.min(maxOff, panOffset));
+  const slot   = chartW / N;
+  const barW   = Math.max(1.5, slot * 0.65);
 
-  // Price range with 6% padding
+  // Keep latestRef in sync for gesture handlers
+  latestRef.current = { N, offset, chartW, slot, maxOff, barsLen: bars.length };
+
+  const visible = bars.slice(bars.length - offset - N, bars.length - offset || undefined);
+
   const pHigh = Math.max(...visible.map(b => b.h));
   const pLow  = Math.min(...visible.map(b => b.l));
   const pPad  = (pHigh - pLow) * 0.06 || pHigh * 0.002;
-  const pMax  = pHigh + pPad;
-  const pMin  = pLow  - pPad;
-  const pRng  = pMax  - pMin || 1;
+  const pMax  = pHigh + pPad, pMin = pLow - pPad;
+  const pRng  = pMax - pMin || 1;
   const pToY  = (p: number) => chartH - ((p - pMin) / pRng) * chartH;
 
   const prec   = visible[0].o > 100 ? 1 : 4;
   const pTicks = [0, 0.25, 0.5, 0.75, 1].map(r => pMin + r * pRng);
-
-  // Time labels — ~5 evenly spaced
-  const tStep   = Math.max(1, Math.floor(N / 5));
+  const tStep  = Math.max(1, Math.floor(N / 5));
   const tLabels = visible.map((b, i) => ({ b, i })).filter(({ i }) => i % tStep === 0);
 
   return (
@@ -365,41 +431,34 @@ function SvgCandleChart({ bars, selected, onSelect, height }: {
       <svg width={cw} height={height} style={{ display: "block" }}>
         <g transform={`translate(${PL},${PT})`}>
 
-          {/* Horizontal grid */}
           {pTicks.map((p, i) => (
             <line key={i} x1={0} y1={pToY(p)} x2={chartW} y2={pToY(p)}
               stroke="rgba(255,255,255,0.04)" strokeWidth={1} />
           ))}
 
-          {/* Candles */}
           {visible.map((c, i) => {
-            const cx   = i * slot + slot / 2;
-            const bull = c.c >= c.o;
-            const col  = bull ? "#10b981" : "#ef4444";
-            const bTop = pToY(Math.max(c.o, c.c));
-            const bBot = pToY(Math.min(c.o, c.c));
-            const bH   = Math.max(1, bBot - bTop);
+            const cx    = i * slot + slot / 2;
+            const bull  = c.c >= c.o;
+            const col   = bull ? "#10b981" : "#ef4444";
+            const bTop  = pToY(Math.max(c.o, c.c));
+            const bBot  = pToY(Math.min(c.o, c.c));
+            const bH    = Math.max(1, bBot - bTop);
             const isSel = selected?.t === c.t;
-
             return (
-              <g key={c.t} onClick={() => onSelect(c)} style={{ cursor: "pointer" }}>
-                {/* Full-column hit area */}
+              <g key={c.t}
+                onClick={() => { if (!touchRef.current.hasMoved) onSelect(c); }}
+                style={{ cursor: "pointer" }}>
                 <rect x={i * slot} y={0} width={slot} height={chartH}
                   fill={isSel ? "rgba(139,92,246,0.07)" : "transparent"} />
-                {/* Wick */}
-                <line x1={cx} y1={pToY(c.h)} x2={cx} y2={pToY(c.l)}
-                  stroke={col} strokeWidth={1} />
-                {/* Body */}
+                <line x1={cx} y1={pToY(c.h)} x2={cx} y2={pToY(c.l)} stroke={col} strokeWidth={1} />
                 <rect x={cx - barW / 2} y={bTop} width={barW} height={bH}
                   fill={col} stroke={isSel ? "#a78bfa" : "none"}
                   strokeWidth={isSel ? 1.5 : 0} opacity={0.9} />
-                {/* Selection dot above candle */}
                 {isSel && <circle cx={cx} cy={bTop - 7} r={2.5} fill="#a78bfa" />}
               </g>
             );
           })}
 
-          {/* Price axis */}
           {pTicks.map((p, i) => (
             <text key={i} x={chartW + 5} y={pToY(p)}
               fill="#52525b" fontSize={9} fontFamily="ui-monospace,monospace"
@@ -408,16 +467,14 @@ function SvgCandleChart({ bars, selected, onSelect, height }: {
             </text>
           ))}
 
-          {/* Time axis */}
           {tLabels.map(({ b, i }) => {
             const cx = i * slot + slot / 2;
             const dt = new Date(b.t * 1000);
-            const lbl = `${String(dt.getHours()).padStart(2,"0")}:${String(dt.getMinutes()).padStart(2,"0")}`;
             return (
               <text key={b.t} x={cx} y={chartH + 18}
                 fill="#52525b" fontSize={9} fontFamily="ui-monospace,monospace"
                 textAnchor="middle">
-                {lbl}
+                {`${String(dt.getHours()).padStart(2,"0")}:${String(dt.getMinutes()).padStart(2,"0")}`}
               </text>
             );
           })}
