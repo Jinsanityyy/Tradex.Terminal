@@ -45,17 +45,15 @@ async function callGemini(prompt: string): Promise<string> {
   const apiKey = (process.env.GOOGLE_AI_API_KEY ?? "").trim();
   if (!apiKey) throw new Error("No GOOGLE_AI_API_KEY");
 
-  // Try models across both API versions
+  // Use only models confirmed available via ListModels
   const attempts = [
-    { version: "v1",     model: "gemini-2.0-flash" },
-    { version: "v1",     model: "gemini-1.5-flash" },
-    { version: "v1beta", model: "gemini-2.5-flash-preview-05-20" },
+    { version: "v1beta", model: "gemini-2.5-flash" },
     { version: "v1beta", model: "gemini-2.0-flash" },
+    { version: "v1beta", model: "gemini-2.0-flash-001" },
     { version: "v1beta", model: "gemini-2.0-flash-lite" },
-    { version: "v1",     model: "gemini-1.5-pro" },
   ];
 
-  let lastErr = "No model succeeded";
+  const errors: string[] = [];
   for (const { version, model } of attempts) {
     try {
       const res = await fetch(
@@ -71,25 +69,17 @@ async function callGemini(prompt: string): Promise<string> {
       );
       const data = await res.json();
       if (!res.ok) {
-        lastErr = `[${version}/${model}] ${data?.error?.message ?? `HTTP ${res.status}`}`;
+        errors.push(`[${model}] ${data?.error?.message ?? `HTTP ${res.status}`}`);
         continue;
       }
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (text) return text;
-      lastErr = `[${version}/${model}] empty response`;
+      errors.push(`[${model}] empty response — finishReason: ${data?.candidates?.[0]?.finishReason ?? "unknown"}`);
     } catch (e: any) {
-      lastErr = `[${version}/${model}] ${e?.message ?? String(e)}`;
+      errors.push(`[${model}] ${e?.message ?? String(e)}`);
     }
   }
-  // All models failed — fetch available models to show in error
-  try {
-    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-    const listData = await listRes.json();
-    const names = (listData.models ?? []).slice(0, 6).map((m: any) => m.name).join(", ");
-    if (names) lastErr += ` | Available models: ${names}`;
-    else if (listData.error) lastErr += ` | ListModels error: ${listData.error.message}`;
-  } catch {}
-  throw new Error(lastErr);
+  throw new Error(errors.join(" | ") || "All models failed");
 }
 
 export async function POST(req: NextRequest) {
