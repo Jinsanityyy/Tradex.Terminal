@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const dynamic = "force-dynamic";
 
@@ -45,21 +44,44 @@ Rules:
 async function callGemini(prompt: string): Promise<string> {
   const apiKey = process.env.GOOGLE_AI_API_KEY;
   if (!apiKey) throw new Error("No GOOGLE_AI_API_KEY");
-  const genAI = new GoogleGenerativeAI(apiKey);
-  // Try newer model first, fall back to 1.5-flash
-  for (const modelName of ["gemini-2.0-flash", "gemini-1.5-flash"]) {
+
+  // Try models in order — raw fetch so we control the endpoint exactly
+  const models = [
+    "gemini-2.5-flash-preview-05-20",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-1.5-flash-latest",
+    "gemini-1.5-flash-001",
+  ];
+
+  let lastErr = "No model succeeded";
+  for (const model of models) {
     try {
-      const model = genAI.getGenerativeModel({ model: modelName, systemInstruction: SYSTEM_PROMPT });
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 700, temperature: 0.3 },
-      });
-      return result.response.text();
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: 700, temperature: 0.3 },
+          }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        lastErr = `[${model}] ${data?.error?.message ?? `HTTP ${res.status}`}`;
+        continue;
+      }
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) return text;
+      lastErr = `[${model}] empty response`;
     } catch (e: any) {
-      if (modelName === "gemini-1.5-flash") throw e; // last model, rethrow
+      lastErr = `[${model}] ${e?.message ?? String(e)}`;
     }
   }
-  throw new Error("No model succeeded");
+  throw new Error(lastErr);
 }
 
 export async function POST(req: NextRequest) {
