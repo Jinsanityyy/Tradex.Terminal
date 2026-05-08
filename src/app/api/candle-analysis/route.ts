@@ -45,20 +45,21 @@ async function callGemini(prompt: string): Promise<string> {
   const apiKey = process.env.GOOGLE_AI_API_KEY;
   if (!apiKey) throw new Error("No GOOGLE_AI_API_KEY");
 
-  // Try models in order — raw fetch so we control the endpoint exactly
-  const models = [
-    "gemini-2.5-flash-preview-05-20",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
-    "gemini-1.5-flash-latest",
-    "gemini-1.5-flash-001",
+  // Try models across both API versions
+  const attempts = [
+    { version: "v1",     model: "gemini-2.0-flash" },
+    { version: "v1",     model: "gemini-1.5-flash" },
+    { version: "v1beta", model: "gemini-2.5-flash-preview-05-20" },
+    { version: "v1beta", model: "gemini-2.0-flash" },
+    { version: "v1beta", model: "gemini-2.0-flash-lite" },
+    { version: "v1",     model: "gemini-1.5-pro" },
   ];
 
   let lastErr = "No model succeeded";
-  for (const model of models) {
+  for (const { version, model } of attempts) {
     try {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -71,14 +72,14 @@ async function callGemini(prompt: string): Promise<string> {
       );
       const data = await res.json();
       if (!res.ok) {
-        lastErr = `[${model}] ${data?.error?.message ?? `HTTP ${res.status}`}`;
+        lastErr = `[${version}/${model}] ${data?.error?.message ?? `HTTP ${res.status}`}`;
         continue;
       }
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (text) return text;
-      lastErr = `[${model}] empty response`;
+      lastErr = `[${version}/${model}] empty response`;
     } catch (e: any) {
-      lastErr = `[${model}] ${e?.message ?? String(e)}`;
+      lastErr = `[${version}/${model}] ${e?.message ?? String(e)}`;
     }
   }
   throw new Error(lastErr);
