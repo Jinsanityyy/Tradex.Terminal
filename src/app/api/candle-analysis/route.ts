@@ -135,5 +135,14 @@ Explain why this candle moved. Return JSON only.`;
 }
 
 export async function GET() {
-  return NextResponse.json({ message: "Use POST with { symbol, timeframe, candle, context }" });
+  const apiKey = process.env.GOOGLE_AI_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json({ ok: false, error: "GOOGLE_AI_API_KEY is not set in environment variables" });
+  }
+  try {
+    const result = await callGemini("Reply with exactly this JSON: {\"test\":\"ok\"}");
+    return NextResponse.json({ ok: true, keyPresent: true, geminiResponse: result.slice(0, 200) });
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, keyPresent: true, error: e?.message ?? String(e) });
+  }
 }
