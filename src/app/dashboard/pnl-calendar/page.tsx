@@ -793,6 +793,8 @@ export default function PnLCalendarPage() {
       setDaily(pnlData.daily ?? []);
       setMonthly(pnlData.monthly ?? []);
       if (Array.isArray(manualData)) setManualTrades(manualData);
+    } catch (err: any) {
+      toast.error("Failed to load data: " + (err.message ?? "unknown error"));
     } finally {
       setLoading(false);
     }
@@ -841,6 +843,39 @@ export default function PnLCalendarPage() {
     await fetch(`/api/exchanges/${id}`, { method: "DELETE", headers: authHeaders });
     await loadData();
   }
+
+  // One-time migration: move old localStorage trades → Supabase
+  useEffect(() => {
+    const OLD_KEY = "tradex_manual_trades";
+    try {
+      const raw = localStorage.getItem(OLD_KEY);
+      if (!raw) return;
+      const old: ManualTrade[] = JSON.parse(raw);
+      if (!Array.isArray(old) || old.length === 0) { localStorage.removeItem(OLD_KEY); return; }
+
+      getAuthHeaders().then(async (headers) => {
+        let migrated = 0;
+        for (const t of old) {
+          try {
+            const res = await fetch("/api/manual-trades", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", ...headers },
+              body: JSON.stringify({ date: t.date, symbol: t.symbol, direction: t.direction, pnl: t.pnl, fees: t.fees ?? 0, notes: t.notes }),
+            });
+            if (res.ok) migrated++;
+          } catch { /* skip individual failure */ }
+        }
+        localStorage.removeItem(OLD_KEY);
+        if (migrated > 0) {
+          toast.success(`Migrated ${migrated} trade${migrated > 1 ? "s" : ""} from local storage`);
+          loadData();
+        }
+      });
+    } catch { /* malformed localStorage data — just clear it */
+      localStorage.removeItem("tradex_manual_trades");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => { loadData(); }, [selectedConn]);
   useEffect(() => { loadJournalEntries(); }, [viewYear, viewMonth]);
