@@ -511,7 +511,8 @@ export function CandleChart({
   defaultTimeframe = "H1",
   height           = 420,
 }: CandleChartProps) {
-  const newsRef = useRef<NewsItem[]>([]);
+  const newsRef     = useRef<NewsItem[]>([]);
+  const aiCacheRef  = useRef<Map<string, InstantAnalysis>>(new Map());
 
   const [symbol,    setSymbol]    = useState<Symbol>(defaultSymbol);
   const [timeframe, setTimeframe] = useState<Timeframe>(defaultTimeframe);
@@ -548,6 +549,7 @@ export function CandleChart({
   }, [symbol, timeframe, fetchCandles]);
 
   const doAIFetch = useCallback(async (candle: RawCandle) => {
+    const cacheKey = `${symbol}-${timeframe}-${candle.t}`;
     try {
       const idx = bars.findIndex(b => b.t === candle.t);
       const context = bars.slice(Math.max(0, idx - 10), Math.min(bars.length, idx + 3));
@@ -555,35 +557,31 @@ export function CandleChart({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ symbol, timeframe, candle, context }),
-        signal: AbortSignal.timeout(20_000),
+        signal: AbortSignal.timeout(25_000),
       });
       if (res.ok) {
         const ai = await res.json();
         if (!ai.error) {
           setSelected(prev => {
             if (prev?.candle.t !== candle.t) return prev;
-            return {
-              candle,
-              aiLoading: false,
-              analysis: {
-                sentiment:   ai.sentiment   ?? prev.analysis.sentiment,
-                magnitude:   ai.magnitude   ?? prev.analysis.magnitude,
-                pattern:     prev.analysis.pattern,
-                summary:     ai.summary     ?? prev.analysis.summary,
-                drivers:     Array.isArray(ai.catalysts) && ai.catalysts.length ? ai.catalysts : prev.analysis.drivers,
-                technicals:  ai.technicals  ?? prev.analysis.technicals,
-                relatedNews: ai.newsContext?.trim() ? [ai.newsContext.trim()] : prev.analysis.relatedNews,
-              },
+            const merged: InstantAnalysis = {
+              sentiment:   ai.sentiment   ?? prev.analysis.sentiment,
+              magnitude:   ai.magnitude   ?? prev.analysis.magnitude,
+              pattern:     prev.analysis.pattern,
+              summary:     ai.summary     ?? prev.analysis.summary,
+              drivers:     Array.isArray(ai.catalysts) && ai.catalysts.length ? ai.catalysts : prev.analysis.drivers,
+              technicals:  ai.technicals  ?? prev.analysis.technicals,
+              relatedNews: ai.newsContext?.trim() ? [ai.newsContext.trim()] : prev.analysis.relatedNews,
             };
+            aiCacheRef.current.set(cacheKey, merged);
+            return { candle, aiLoading: false, analysis: merged };
           });
           return;
         }
-        // ok=true but error field in body
         setSelected(prev => prev?.candle.t === candle.t
           ? { ...prev, aiLoading: false, aiFailed: true, aiError: String(ai.error) }
           : prev);
       } else {
-        // Non-OK response — read body to surface the real Gemini error
         const body = await res.json().catch(() => ({}));
         const errMsg = body.geminiError ?? body.error ?? `HTTP ${res.status}`;
         setSelected(prev => prev?.candle.t === candle.t
@@ -598,15 +596,18 @@ export function CandleChart({
   }, [bars, timeframe, symbol]);
 
   const handleSelect = useCallback(async (candle: RawCandle) => {
+    const cacheKey = `${symbol}-${timeframe}-${candle.t}`;
+    const cached = aiCacheRef.current.get(cacheKey);
     let isDeselect = false;
     setSelected(prev => {
       if (prev?.candle.t === candle.t) { isDeselect = true; return null; }
-      const analysis = analyseCandle(candle, bars, newsRef.current, timeframe);
-      return { candle, analysis, aiLoading: true };
+      const base = analyseCandle(candle, bars, newsRef.current, timeframe);
+      if (cached) return { candle, aiLoading: false, analysis: cached };
+      return { candle, analysis: base, aiLoading: true };
     });
-    if (isDeselect) return;
+    if (isDeselect || cached) return;
     await doAIFetch(candle);
-  }, [bars, timeframe, doAIFetch]);
+  }, [bars, timeframe, symbol, doAIFetch]);
 
   const retryAI = useCallback((candle: RawCandle) => {
     setSelected(prev => prev ? { ...prev, aiLoading: true, aiFailed: false, aiError: undefined } : prev);

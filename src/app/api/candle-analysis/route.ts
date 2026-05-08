@@ -81,6 +81,14 @@ async function callGemini(prompt: string): Promise<string> {
       lastErr = `[${version}/${model}] ${e?.message ?? String(e)}`;
     }
   }
+  // All models failed — fetch available models to show in error
+  try {
+    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    const listData = await listRes.json();
+    const names = (listData.models ?? []).slice(0, 6).map((m: any) => m.name).join(", ");
+    if (names) lastErr += ` | Available models: ${names}`;
+    else if (listData.error) lastErr += ` | ListModels error: ${listData.error.message}`;
+  } catch {}
   throw new Error(lastErr);
 }
 
