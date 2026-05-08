@@ -232,9 +232,16 @@ function AnalysisPanel({
             </p>
           )}
           {aiFailed && !aiLoading && (
-            <button onClick={onRetry} className="text-[9px] text-amber-500/80 hover:text-amber-400 mt-0.5 flex items-center gap-1 transition-colors">
-              <RefreshCw className="h-2.5 w-2.5 inline" /> AI failed — tap to retry
-            </button>
+            <div className="mt-0.5 flex items-center gap-2">
+              <button onClick={onRetry} className="text-[9px] text-amber-500/80 hover:text-amber-400 flex items-center gap-1 transition-colors">
+                <RefreshCw className="h-2.5 w-2.5 inline" /> AI failed — tap to retry
+              </button>
+              <button
+                onClick={() => window.open('/api/candle-analysis', '_blank')}
+                className="text-[9px] text-zinc-600 hover:text-zinc-400 underline transition-colors">
+                debug
+              </button>
+            </div>
           )}
           {aiFailed && (
             <p className="text-[9px] text-red-400/80 mt-1 font-mono break-all leading-tight">
