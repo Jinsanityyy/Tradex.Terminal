@@ -115,13 +115,13 @@ ${newsHeadlines.length > 0 ? newsHeadlines.map(h => `â€¢ ${h}`).join("\n") : "â€
 
 Explain why this candle moved. Return JSON only.`;
 
-    // Try Anthropic first, fall back to Gemini
+    // Try Gemini first, fall back to Anthropic
     let raw: string;
     try {
-      raw = await callAnthropic(userPrompt);
+      raw = await callGemini(userPrompt);
     } catch {
       try {
-        raw = await callGemini(userPrompt);
+        raw = await callAnthropic(userPrompt);
       } catch {
         return NextResponse.json({ error: "Both AI providers unavailable" }, { status: 503 });
       }
