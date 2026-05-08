@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const dynamic = "force-dynamic";
@@ -42,19 +41,6 @@ Rules:
 - catalysts: max 4 bullets, each under 12 words
 - newsContext REQUIRED — use training knowledge if no headlines provided
 - For XAUUSD: consider Fed policy, USD strength, geopolitical risk, inflation, central bank buying`;
-
-async function callAnthropic(prompt: string): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("No ANTHROPIC_API_KEY");
-  const client = new Anthropic({ apiKey });
-  const msg = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 700,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: prompt }],
-  });
-  return (msg.content[0] as any).text as string;
-}
 
 async function callGemini(prompt: string): Promise<string> {
   const apiKey = process.env.GOOGLE_AI_API_KEY;
@@ -115,23 +101,11 @@ ${newsHeadlines.length > 0 ? newsHeadlines.map(h => `• ${h}`).join("\n") : "�
 
 Explain why this candle moved. Return JSON only.`;
 
-    // Try Gemini first, fall back to Anthropic
     let raw: string;
-    let geminiErr = "", anthropicErr = "";
     try {
       raw = await callGemini(userPrompt);
     } catch (e: any) {
-      geminiErr = e?.message ?? String(e);
-      try {
-        raw = await callAnthropic(userPrompt);
-      } catch (e2: any) {
-        anthropicErr = e2?.message ?? String(e2);
-        return NextResponse.json({
-          error: "Both AI providers unavailable",
-          geminiError: geminiErr,
-          anthropicError: anthropicErr,
-        }, { status: 503 });
-      }
+      return NextResponse.json({ error: "Gemini unavailable", geminiError: e?.message ?? String(e) }, { status: 503 });
     }
 
     const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
