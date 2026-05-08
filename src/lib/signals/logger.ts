@@ -104,6 +104,7 @@ async function invalidateOpposingSignals(result: AgentRunResult): Promise<void> 
 export async function logSignal(result: AgentRunResult): Promise<SignalRecord | null> {
   try {
     const master = result.agents.master;
+    const snapshot = result.snapshot;
 
     // Don't log directional signals without a trade plan — no entry/SL/TP = nothing actionable.
     // These occur when execution agent has no valid setup (e.g. wrong session, no structure).
@@ -116,9 +117,6 @@ export async function logSignal(result: AgentRunResult): Promise<SignalRecord | 
     if (await isDuplicateArmedSignal(result)) {
       return null;
     }
-
-    const master = result.agents.master;
-    const snapshot = result.snapshot;
 
     const record: SignalRecord = {
       id: buildId(result),
