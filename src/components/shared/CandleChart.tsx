@@ -538,14 +538,7 @@ export function CandleChart({
     fetchCandles(symbol, timeframe);
   }, [symbol, timeframe, fetchCandles]);
 
-  const handleSelect = useCallback(async (candle: RawCandle) => {
-    setSelected(prev => {
-      if (prev?.candle.t === candle.t) return null;
-      const analysis = analyseCandle(candle, bars, newsRef.current, timeframe);
-      return { candle, analysis, aiLoading: true };
-    });
-
-    // Upgrade to AI analysis in background
+  const doAIFetch = useCallback(async (candle: RawCandle) => {
     try {
       const idx = bars.findIndex(b => b.t === candle.t);
       const context = bars.slice(Math.max(0, idx - 10), Math.min(bars.length, idx + 3));
@@ -560,7 +553,6 @@ export function CandleChart({
         if (!ai.error) {
           setSelected(prev => {
             if (prev?.candle.t !== candle.t) return prev;
-
             return {
               candle,
               aiLoading: false,
@@ -577,19 +569,40 @@ export function CandleChart({
           });
           return;
         }
+        // ok=true but error field in body
+        setSelected(prev => prev?.candle.t === candle.t
+          ? { ...prev, aiLoading: false, aiFailed: true, aiError: String(ai.error) }
+          : prev);
+      } else {
+        // Non-OK response — read body to surface the real Gemini error
+        const body = await res.json().catch(() => ({}));
+        const errMsg = body.geminiError ?? body.error ?? `HTTP ${res.status}`;
+        setSelected(prev => prev?.candle.t === candle.t
+          ? { ...prev, aiLoading: false, aiFailed: true, aiError: String(errMsg) }
+          : prev);
       }
     } catch (e: any) {
-      setSelected(prev => prev?.candle.t === candle.t ? { ...prev, aiLoading: false, aiFailed: true, aiError: e?.message } : prev);
-      return;
+      setSelected(prev => prev?.candle.t === candle.t
+        ? { ...prev, aiLoading: false, aiFailed: true, aiError: e?.message ?? "Network error" }
+        : prev);
     }
-
-    setSelected(prev => prev?.candle.t === candle.t ? { ...prev, aiLoading: false, aiFailed: true } : prev);
   }, [bars, timeframe, symbol]);
 
+  const handleSelect = useCallback(async (candle: RawCandle) => {
+    let isDeselect = false;
+    setSelected(prev => {
+      if (prev?.candle.t === candle.t) { isDeselect = true; return null; }
+      const analysis = analyseCandle(candle, bars, newsRef.current, timeframe);
+      return { candle, analysis, aiLoading: true };
+    });
+    if (isDeselect) return;
+    await doAIFetch(candle);
+  }, [bars, timeframe, doAIFetch]);
+
   const retryAI = useCallback((candle: RawCandle) => {
-    setSelected(prev => prev ? { ...prev, aiLoading: true, aiFailed: false } : prev);
-    handleSelect(candle);
-  }, [handleSelect]);
+    setSelected(prev => prev ? { ...prev, aiLoading: true, aiFailed: false, aiError: undefined } : prev);
+    doAIFetch(candle);
+  }, [doAIFetch]);
 
   return (
     <div className="flex flex-col bg-[hsl(var(--card))] rounded-2xl border border-white/6 overflow-hidden">
