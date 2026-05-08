@@ -229,8 +229,14 @@ export async function runExecutionAgent(
     const inNYKZ     = session === "New York" && sessionHour >= NY_KZ.start     && sessionHour < NY_KZ.end;
     const inKillzone = inLondonKZ || inNYKZ;
 
-    // ── Major news check (no trade if riskScore > 80) ─────────────────────
-    if (news.riskScore > 80) {
+    // ── Major news check ───────────────────────────────────────────────────
+    // Safe-haven assets (XAU/XAG/XPT): high geopolitical risk is BULLISH for gold.
+    // Only block when risk is extreme (>95) AND news is not bullish.
+    // All other assets: block above 80 as usual.
+    const riskBlocksExec = GOLD_SYMS.has(symbol)
+      ? news.riskScore > 95 && news.impact !== "bullish"
+      : news.riskScore > 80;
+    if (riskBlocksExec) {
       return noTradeResult(start, `Elevated macro risk (${news.riskScore}/100) — stand aside until risk clears`);
     }
 
