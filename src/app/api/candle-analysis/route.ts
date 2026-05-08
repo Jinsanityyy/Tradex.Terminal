@@ -137,7 +137,7 @@ Explain why this candle moved. Return JSON only.`;
     const cleaned = jsonMatch ? jsonMatch[0] : raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
     let parsed: any;
     try { parsed = JSON.parse(cleaned); }
-    catch { return NextResponse.json({ error: "AI parse failed", raw }, { status: 500 }); }
+    catch { return NextResponse.json({ error: `AI parse failed. Raw: ${raw.slice(0, 200)}`, raw }, { status: 500 }); }
 
     return NextResponse.json({
       symbol, timeframe, candleTime,
