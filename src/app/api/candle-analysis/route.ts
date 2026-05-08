@@ -62,7 +62,7 @@ async function callGemini(prompt: string): Promise<string> {
         `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${apiKey}`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
           body: JSON.stringify({
             contents: [{ role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\n---\n\n${prompt}` }] }],
             generationConfig: { maxOutputTokens: 700, temperature: 0.3 },
