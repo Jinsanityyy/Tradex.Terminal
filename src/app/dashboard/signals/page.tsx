@@ -213,10 +213,17 @@ export default function SignalsPage() {
     const raw = data?.recent ?? [];
     const seen = new Set<string>();
     return raw.filter(s => {
-      // Hide directional open signals with no trade plan — these are junk rows
-      // logged before the execution agent fix (no entry/SL/TP available).
-      if (!s.tradePlan && s.finalBias !== "no-trade" && s.status === "open") return false;
-      if (!s.tradePlan) return true; // show informational no-trade signals
+      // Hide ANY directional signal without a trade plan — these are junk rows
+      // (logged before the execution agent fix; may be open or cleaned to informational).
+      if (!s.tradePlan && s.finalBias !== "no-trade") return false;
+      // Show genuine no-trade informational signals
+      if (!s.tradePlan) return true;
+      // Hide signals with inverted SL — stop loss on wrong side of entry.
+      // Long: SL must be below entry. Short: SL must be above entry.
+      const invertedSL =
+        (s.finalBias === "bullish" && s.tradePlan.stopLoss > s.tradePlan.entry) ||
+        (s.finalBias === "bearish" && s.tradePlan.stopLoss < s.tradePlan.entry);
+      if (invertedSL) return false;
       const key = `${s.symbol}_${s.tradePlan.entry}_${s.tradePlan.stopLoss}_${s.tradePlan.tp1}_${s.status}`;
       if (seen.has(key)) return false;
       seen.add(key);
