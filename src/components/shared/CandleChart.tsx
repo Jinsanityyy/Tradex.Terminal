@@ -684,8 +684,8 @@ export function CandleChart({
       )}
 
       {/* Chart + panel */}
-      <div className="flex flex-col lg:flex-row min-h-0">
-        <div className={cn("relative", selected ? "lg:flex-1" : "w-full")}>
+      <div className="flex flex-col min-h-0">
+        <div className="relative w-full">
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center z-10">
               <RefreshCw className="h-5 w-5 text-violet-400/50 animate-spin" />
@@ -700,7 +700,7 @@ export function CandleChart({
         </div>
 
         {selected && (
-          <div className="lg:w-80 border-t lg:border-t-0 lg:border-l border-white/5 overflow-hidden" style={{ height }}>
+          <div className="border-t border-white/5 overflow-hidden" style={{ height: 380 }}>
             <AnalysisPanel
               candle={selected.candle}
               analysis={selected.analysis}
