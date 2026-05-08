@@ -63,7 +63,7 @@ async function callGemini(prompt: string): Promise<string> {
           headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
           body: JSON.stringify({
             contents: [{ role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\n---\n\n${prompt}` }] }],
-            generationConfig: { maxOutputTokens: 700, temperature: 0.3 },
+            generationConfig: { maxOutputTokens: 2000, temperature: 0.3 },
           }),
         }
       );
