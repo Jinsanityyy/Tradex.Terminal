@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const { user } = await getAuthUser(req);
+    const { user, supabase } = await getAuthUser(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { avatarUrl } = await req.json();
@@ -14,12 +14,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "avatarUrl required" }, { status: 400 });
     }
 
-    const service = getServiceClient();
-    if (!service) return NextResponse.json({ error: "Service client unavailable" }, { status: 500 });
+    // Prefer service role (bypasses RLS); fall back to user's own session
+    const db = getServiceClient() ?? supabase;
 
-    const { error } = await service
+    const { error } = await db
       .from("profiles")
-      .upsert({ id: user.id, avatar_url: avatarUrl }, { onConflict: "id" });
+      .update({ avatar_url: avatarUrl })
+      .eq("id", user.id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
