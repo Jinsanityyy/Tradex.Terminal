@@ -103,6 +103,15 @@ async function invalidateOpposingSignals(result: AgentRunResult): Promise<void> 
  */
 export async function logSignal(result: AgentRunResult): Promise<SignalRecord | null> {
   try {
+    const master = result.agents.master;
+
+    // Don't log directional signals without a trade plan — no entry/SL/TP = nothing actionable.
+    // These occur when execution agent has no valid setup (e.g. wrong session, no structure).
+    // Only informational no-trade signals are allowed without a trade plan.
+    if (master.finalBias !== "no-trade" && !master.tradePlan) {
+      return null;
+    }
+
     // Skip if an open armed signal with the exact same entry/SL/TP already exists.
     if (await isDuplicateArmedSignal(result)) {
       return null;
