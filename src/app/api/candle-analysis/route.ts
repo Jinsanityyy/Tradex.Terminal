@@ -161,9 +161,23 @@ export async function GET() {
   if (!apiKey) {
     return NextResponse.json({ ok: false, error: "GOOGLE_AI_API_KEY is not set in environment variables" });
   }
+  // List available models so we know exactly what this key can access
   try {
-    const result = await callGemini("Reply with exactly this JSON: {\"test\":\"ok\"}");
-    return NextResponse.json({ ok: true, keyPresent: true, geminiResponse: result.slice(0, 200) });
+    const [v1Res, v1betaRes] = await Promise.all([
+      fetch(`https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`),
+      fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`),
+    ]);
+    const v1Data     = await v1Res.json().catch(() => ({}));
+    const v1betaData = await v1betaRes.json().catch(() => ({}));
+    const v1Models     = (v1Data.models     ?? []).map((m: any) => m.name);
+    const v1betaModels = (v1betaData.models ?? []).map((m: any) => m.name);
+    return NextResponse.json({
+      keyPresent: true,
+      v1_models:     v1Models,
+      v1beta_models: v1betaModels,
+      v1_error:      v1Data.error?.message     ?? null,
+      v1beta_error:  v1betaData.error?.message ?? null,
+    });
   } catch (e: any) {
     return NextResponse.json({ ok: false, keyPresent: true, error: e?.message ?? String(e) });
   }
