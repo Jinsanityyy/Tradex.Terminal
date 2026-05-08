@@ -200,7 +200,7 @@ function MagnitudeBadge({ m }: { m: string }) {
 // ── Analysis Panel ────────────────────────────────────────────────────────────
 
 function AnalysisPanel({
-  candle, analysis, timeframe, symbol, onClose, aiLoading, aiFailed, onRetry,
+  candle, analysis, timeframe, symbol, onClose, aiLoading, aiFailed, aiError, onRetry,
 }: {
   candle:     RawCandle;
   analysis:   InstantAnalysis;
@@ -209,6 +209,7 @@ function AnalysisPanel({
   onClose:    () => void;
   aiLoading?: boolean;
   aiFailed?:  boolean;
+  aiError?:   string;
   onRetry?:   () => void;
 }) {
   const p         = candle.o > 100 ? 2 : 4;
@@ -234,6 +235,9 @@ function AnalysisPanel({
             <button onClick={onRetry} className="text-[9px] text-amber-500/80 hover:text-amber-400 mt-0.5 flex items-center gap-1 transition-colors">
               <RefreshCw className="h-2.5 w-2.5 inline" /> AI failed — tap to retry
             </button>
+          )}
+          {aiFailed && aiError && (
+            <p className="text-[8px] text-zinc-600 mt-0.5 font-mono break-all">{aiError}</p>
           )}
         </div>
         <button onClick={onClose} className="text-zinc-600 hover:text-zinc-300 transition-colors p-1 mt-0.5">
@@ -505,7 +509,7 @@ export function CandleChart({
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState<string | null>(null);
   const [bars,      setBars]      = useState<RawCandle[]>([]);
-  const [selected,  setSelected]  = useState<{ candle: RawCandle; analysis: InstantAnalysis; aiLoading?: boolean; aiFailed?: boolean } | null>(null);
+  const [selected,  setSelected]  = useState<{ candle: RawCandle; analysis: InstantAnalysis; aiLoading?: boolean; aiFailed?: boolean; aiError?: string } | null>(null);
 
   useEffect(() => {
     fetch("/api/market/news", { cache: "no-store" })
@@ -556,6 +560,7 @@ export function CandleChart({
         if (!ai.error) {
           setSelected(prev => {
             if (prev?.candle.t !== candle.t) return prev;
+
             return {
               candle,
               aiLoading: false,
@@ -573,7 +578,10 @@ export function CandleChart({
           return;
         }
       }
-    } catch { /* fall through — keep local analysis */ }
+    } catch (e: any) {
+      setSelected(prev => prev?.candle.t === candle.t ? { ...prev, aiLoading: false, aiFailed: true, aiError: e?.message } : prev);
+      return;
+    }
 
     setSelected(prev => prev?.candle.t === candle.t ? { ...prev, aiLoading: false, aiFailed: true } : prev);
   }, [bars, timeframe, symbol]);
@@ -665,6 +673,7 @@ export function CandleChart({
               onClose={() => setSelected(null)}
               aiLoading={selected.aiLoading}
               aiFailed={selected.aiFailed}
+              aiError={selected.aiError}
               onRetry={() => retryAI(selected.candle)}
             />
           </div>

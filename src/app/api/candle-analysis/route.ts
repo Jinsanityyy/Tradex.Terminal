@@ -117,13 +117,20 @@ Explain why this candle moved. Return JSON only.`;
 
     // Try Gemini first, fall back to Anthropic
     let raw: string;
+    let geminiErr = "", anthropicErr = "";
     try {
       raw = await callGemini(userPrompt);
-    } catch {
+    } catch (e: any) {
+      geminiErr = e?.message ?? String(e);
       try {
         raw = await callAnthropic(userPrompt);
-      } catch {
-        return NextResponse.json({ error: "Both AI providers unavailable" }, { status: 503 });
+      } catch (e2: any) {
+        anthropicErr = e2?.message ?? String(e2);
+        return NextResponse.json({
+          error: "Both AI providers unavailable",
+          geminiError: geminiErr,
+          anthropicError: anthropicErr,
+        }, { status: 503 });
       }
     }
 
