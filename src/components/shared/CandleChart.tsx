@@ -515,16 +515,16 @@ function SvgCandleChart({ bars, selected, onSelect, height }: {
 interface CandleChartProps {
   defaultSymbol?:    Symbol;
   defaultTimeframe?: Timeframe;
-  height?:           number;
 }
 
 export function CandleChart({
   defaultSymbol    = "XAUUSD",
   defaultTimeframe = "H1",
-  height           = 420,
 }: CandleChartProps) {
   const newsRef     = useRef<NewsItem[]>([]);
   const aiCacheRef  = useRef<Map<string, InstantAnalysis>>(new Map());
+  const chartAreaRef = useRef<HTMLDivElement>(null);
+  const [chartHeight, setChartHeight] = useState(300);
 
   const [symbol,    setSymbol]    = useState<Symbol>(defaultSymbol);
   const [timeframe, setTimeframe] = useState<Timeframe>(defaultTimeframe);
@@ -538,6 +538,17 @@ export function CandleChart({
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.data) newsRef.current = d.data; })
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const el = chartAreaRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      const h = entries[0].contentRect.height;
+      if (h > 0) setChartHeight(h);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
   const fetchCandles = useCallback(async (sym: Symbol, tf: Timeframe) => {
@@ -628,7 +639,7 @@ export function CandleChart({
   }, [doAIFetch]);
 
   return (
-    <div className="flex flex-col bg-[hsl(var(--card))] rounded-2xl border border-white/6 overflow-hidden">
+    <div className="h-full flex flex-col bg-[hsl(var(--card))] rounded-2xl border border-white/6 overflow-hidden">
 
       {/* Toolbar */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-white/5 flex-wrap shrink-0">
@@ -683,38 +694,37 @@ export function CandleChart({
         </div>
       )}
 
-      {/* Chart + panel */}
-      <div className="flex flex-col min-h-0">
-        <div className="relative w-full">
-          {loading && (
-            <div className="absolute inset-0 flex items-center justify-center z-10">
-              <RefreshCw className="h-5 w-5 text-violet-400/50 animate-spin" />
-            </div>
-          )}
-          <SvgCandleChart
-            bars={bars}
-            selected={selected?.candle ?? null}
-            onSelect={handleSelect}
-            height={height}
-          />
-        </div>
-
-        {selected && (
-          <div className="border-t border-white/5 overflow-hidden" style={{ height: 380 }}>
-            <AnalysisPanel
-              candle={selected.candle}
-              analysis={selected.analysis}
-              timeframe={timeframe}
-              symbol={symbol}
-              onClose={() => setSelected(null)}
-              aiLoading={selected.aiLoading}
-              aiFailed={selected.aiFailed}
-              aiError={selected.aiError}
-              onRetry={() => retryAI(selected.candle)}
-            />
+      {/* Chart — fills all remaining space above the panel */}
+      <div ref={chartAreaRef} className="flex-1 min-h-0 relative">
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center z-10">
+            <RefreshCw className="h-5 w-5 text-violet-400/50 animate-spin" />
           </div>
         )}
+        <SvgCandleChart
+          bars={bars}
+          selected={selected?.candle ?? null}
+          onSelect={handleSelect}
+          height={chartHeight}
+        />
       </div>
+
+      {/* Analysis panel — fixed-height bottom section, no page scroll needed */}
+      {selected && (
+        <div className="shrink-0 border-t border-white/5" style={{ height: 340 }}>
+          <AnalysisPanel
+            candle={selected.candle}
+            analysis={selected.analysis}
+            timeframe={timeframe}
+            symbol={symbol}
+            onClose={() => setSelected(null)}
+            aiLoading={selected.aiLoading}
+            aiFailed={selected.aiFailed}
+            aiError={selected.aiError}
+            onRetry={() => retryAI(selected.candle)}
+          />
+        </div>
+      )}
     </div>
   );
 }
