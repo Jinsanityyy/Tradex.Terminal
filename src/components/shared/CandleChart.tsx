@@ -438,14 +438,20 @@ export function CandleChart({
     chartRef.current  = chart;
     seriesRef.current = series;
 
-    // coordinateToLogical maps pixel-x → bar index (float) — no time-format
-    // issues, works regardless of BusinessDay / UTC / string time modes.
-    const handleClick = (e: MouseEvent) => {
+    // Dual click detection — belt-and-suspenders
+    // LW charts v5 may stop propagation on its canvas, so we listen in
+    // CAPTURE phase (fires before the canvas sees it) as the primary path.
+    // subscribeClick serves as secondary in case capture is blocked.
+    let lastTs = 0; // debounce so both handlers don't fire simultaneously
+
+    const resolveClick = (x: number) => {
+      const now = Date.now();
+      if (now - lastTs < 80) return; // skip duplicate within 80 ms
+      lastTs = now;
+
       const bars = candlesRef.current;
       if (!bars.length) return;
 
-      const rect    = el.getBoundingClientRect();
-      const x       = e.clientX - rect.left;
       const logical = chart.timeScale().coordinateToLogical(x);
       if (logical === null) return;
 
@@ -457,7 +463,17 @@ export function CandleChart({
       setSelectedRef.current({ candle, analysis });
     };
 
-    el.addEventListener("click", handleClick);
+    // Primary: native capture listener — fires before LW charts canvas handler
+    const handleClick = (e: MouseEvent) => {
+      const rect = el.getBoundingClientRect();
+      resolveClick(e.clientX - rect.left);
+    };
+    el.addEventListener("click", handleClick, true); // capture = true
+
+    // Secondary: official subscribeClick using pixel coord (avoids time-format issues)
+    chart.subscribeClick((param) => {
+      if (param.point) resolveClick(param.point.x);
+    });
 
     const ro = new ResizeObserver(() => {
       if (el) chart.resize(el.clientWidth, height);
@@ -465,7 +481,7 @@ export function CandleChart({
     ro.observe(el);
 
     return () => {
-      el.removeEventListener("click", handleClick);
+      el.removeEventListener("click", handleClick, true);
       ro.disconnect();
       chart.remove();
       chartRef.current  = null;
