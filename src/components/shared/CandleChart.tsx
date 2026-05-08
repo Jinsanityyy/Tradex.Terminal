@@ -2,12 +2,8 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
-  createChart, ColorType, CrosshairMode, CandlestickSeries,
-  type IChartApi, type ISeriesApi, type CandlestickData, type Time,
-} from "lightweight-charts";
-import {
   RefreshCw, Zap, TrendingUp, TrendingDown, Minus,
-  BarChart2, Newspaper, AlertCircle, X,
+  AlertCircle, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Symbol, Timeframe } from "@/lib/agents/schemas";
@@ -21,11 +17,11 @@ interface NewsItem { headline: string; timestamp: string; sentiment?: string }
 interface InstantAnalysis {
   sentiment:   "bullish" | "bearish" | "neutral";
   magnitude:   "major" | "moderate" | "minor";
-  pattern:     string;   // e.g. "Bullish Engulfing", "Doji", "Hammer"
-  summary:     string;   // 1-2 sentence plain English
-  drivers:     string[]; // bullet points
-  technicals:  string;   // context from surrounding candles
-  relatedNews: string[]; // headlines within ±2h of candle
+  pattern:     string;
+  summary:     string;
+  drivers:     string[];
+  technicals:  string;
+  relatedNews: string[];
 }
 
 const SYMBOLS: { id: Symbol; label: string }[] = [
@@ -39,7 +35,7 @@ const TIMEFRAMES: { id: Timeframe; label: string }[] = [
   { id: "H4",  label: "4H"  },
 ];
 
-// ── Rule-based candle analyser — runs instantly from in-memory data ───────────
+// ── Rule-based analyser ───────────────────────────────────────────────────────
 
 function tfWindowSecs(tf: Timeframe): number {
   return { M5: 300, M15: 900, H1: 3600, H4: 14400 }[tf];
@@ -58,7 +54,6 @@ function detectPattern(c: RawCandle, prev: RawCandle | null): string {
   const topRatio  = topWick / range;
   const botRatio  = botWick / range;
 
-  // Doji
   if (bodyRatio < 0.08) {
     if (topRatio > 0.4 && botRatio > 0.4) return "Long-Legged Doji";
     if (topRatio > 0.6) return "Gravestone Doji";
@@ -66,11 +61,9 @@ function detectPattern(c: RawCandle, prev: RawCandle | null): string {
     return "Doji";
   }
 
-  // Hammer / Shooting star
   if (botRatio > 0.6 && bodyRatio < 0.3) return "Hammer";
   if (topRatio > 0.6 && bodyRatio < 0.3) return "Shooting Star";
 
-  // Engulfing
   if (prev) {
     const prevBody = Math.abs(prev.c - prev.o);
     const prevBull = prev.c > prev.o;
@@ -78,11 +71,9 @@ function detectPattern(c: RawCandle, prev: RawCandle | null): string {
     if (!bull && prevBull  && body > prevBody * 1.1) return "Bearish Engulfing";
   }
 
-  // Inside / outside bar
   if (prev && c.h < prev.h && c.l > prev.l) return "Inside Bar";
   if (prev && c.h > prev.h && c.l < prev.l) return "Outside Bar";
 
-  // Strong body
   if (bodyRatio > 0.75) return bull ? "Strong Bullish Candle" : "Strong Bearish Candle";
   if (bodyRatio > 0.5)  return bull ? "Bullish Candle"        : "Bearish Candle";
 
@@ -99,9 +90,9 @@ function analyseCandle(
   const prev = idx > 0 ? allBars[idx - 1] : null;
   const ctx  = allBars.slice(Math.max(0, idx - 5), idx);
 
-  const changePct  = ((candle.c - candle.o) / candle.o) * 100;
-  const bodyPct    = Math.abs(changePct);
-  const bull       = candle.c > candle.o;
+  const changePct = ((candle.c - candle.o) / candle.o) * 100;
+  const bodyPct   = Math.abs(changePct);
+  const bull      = candle.c > candle.o;
   const sentiment: "bullish" | "bearish" | "neutral" =
     bodyPct < 0.05 ? "neutral" : bull ? "bullish" : "bearish";
   const magnitude: "major" | "moderate" | "minor" =
@@ -109,57 +100,43 @@ function analyseCandle(
 
   const pattern = detectPattern(candle, prev);
 
-  // Trend context from last 5 candles
   const bullCount = ctx.filter(b => b.c > b.o).length;
   const prevTrend = ctx.length === 0 ? "neutral"
     : bullCount > ctx.length * 0.6 ? "bullish"
     : bullCount < ctx.length * 0.4 ? "bearish"
     : "mixed";
 
-  // ATR proxy — avg range of last 5 bars
   const avgRange = ctx.length > 0
     ? ctx.reduce((s, b) => s + (b.h - b.l), 0) / ctx.length
     : candle.h - candle.l;
   const relSize = avgRange > 0 ? (candle.h - candle.l) / avgRange : 1;
 
-  // Wick analysis
   const topWick = candle.h - Math.max(candle.o, candle.c);
   const botWick = Math.min(candle.o, candle.c) - candle.l;
   const range   = candle.h - candle.l || 1;
 
-  // ── Technicals string ──────────────────────────────────────────────────────
   const techParts: string[] = [];
-
-  if (relSize > 1.5)  techParts.push(`Above-average range candle (${relSize.toFixed(1)}× ATR).`);
-  if (relSize < 0.5)  techParts.push("Below-average range — low momentum candle.");
-
+  if (relSize > 1.5) techParts.push(`Above-average range candle (${relSize.toFixed(1)}× ATR).`);
+  if (relSize < 0.5) techParts.push("Below-average range — low momentum candle.");
   if (prevTrend === "bullish" && !bull)
     techParts.push("Breaks a short-term bullish sequence — possible momentum shift.");
   else if (prevTrend === "bearish" && bull)
     techParts.push("Reversal into a bearish sequence — counter-trend move.");
   else if (prevTrend !== "neutral")
     techParts.push(`Continuation within a ${prevTrend} short-term structure.`);
-
   if (topWick / range > 0.4)
     techParts.push("Long upper wick indicates sellers pushed price back from highs.");
   if (botWick / range > 0.4)
     techParts.push("Long lower wick indicates buyers absorbed selling pressure at lows.");
-
   const technicals = techParts.join(" ") || "No strong structural signal on this candle.";
 
-  // ── Related news — headlines within ±2 candle periods of this candle ───────
   const windowSecs = tfWindowSecs(tf) * 2;
   const relatedNews = news
-    .filter(n => {
-      const nts = new Date(n.timestamp).getTime() / 1000;
-      return Math.abs(nts - candle.t) <= windowSecs;
-    })
+    .filter(n => Math.abs(new Date(n.timestamp).getTime() / 1000 - candle.t) <= windowSecs)
     .map(n => n.headline)
     .slice(0, 3);
 
-  // ── Drivers ───────────────────────────────────────────────────────────────
   const drivers: string[] = [];
-
   if (pattern.includes("Engulfing"))
     drivers.push(`${pattern} — strong institutional order absorbed opposing side`);
   else if (pattern.includes("Doji"))
@@ -180,11 +157,8 @@ function analyseCandle(
     drivers.push(`Counter-trend move against recent ${prevTrend} pressure`);
   if (relatedNews.length > 0) drivers.push("Macro news active during this window — see below");
 
-  // ── Summary ───────────────────────────────────────────────────────────────
   const dir   = bull ? "bullish" : "bearish";
-  const p     = candle.o > 100 ? 2 : 5;
   const chStr = `${changePct > 0 ? "+" : ""}${changePct.toFixed(2)}%`;
-
   let summary = `${pattern} on ${tf} — ${chStr} move (${magnitude} impact). `;
   if (relatedNews.length > 0)
     summary += `Macro news was active during this window, likely contributing to ${dir} pressure.`;
@@ -196,7 +170,7 @@ function analyseCandle(
   return { sentiment, magnitude, pattern, summary, drivers, technicals, relatedNews };
 }
 
-// ── Analysis Panel UI ─────────────────────────────────────────────────────────
+// ── Small UI helpers ──────────────────────────────────────────────────────────
 
 function SentimentIcon({ s }: { s: string }) {
   if (s === "bullish") return <TrendingUp   className="h-3.5 w-3.5 text-emerald-400" />;
@@ -223,12 +197,10 @@ function MagnitudeBadge({ m }: { m: string }) {
   );
 }
 
+// ── Analysis Panel ────────────────────────────────────────────────────────────
+
 function AnalysisPanel({
-  candle,
-  analysis,
-  timeframe,
-  symbol,
-  onClose,
+  candle, analysis, timeframe, symbol, onClose,
 }: {
   candle:    RawCandle;
   analysis:  InstantAnalysis;
@@ -243,8 +215,6 @@ function AnalysisPanel({
 
   return (
     <div className="flex flex-col h-full">
-
-      {/* Header */}
       <div className="flex items-start justify-between px-4 pt-4 pb-3 border-b border-white/5 shrink-0">
         <div>
           <p className="text-[9px] text-zinc-500 uppercase tracking-wider mb-0.5">Candle Analysis</p>
@@ -259,8 +229,6 @@ function AnalysisPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-
-        {/* OHLC strip */}
         <div className={cn(
           "rounded-xl border px-3 py-2.5",
           bull ? "bg-emerald-500/6 border-emerald-500/20" : "bg-red-500/6 border-red-500/20"
@@ -287,12 +255,9 @@ function AnalysisPanel({
           </div>
         </div>
 
-        {/* What happened? */}
         <div>
           <p className="text-[11px] font-bold text-violet-400 uppercase tracking-wider mb-2">What happened?</p>
-          <p className="text-[12px] font-semibold text-zinc-200 leading-snug mb-2.5">
-            {analysis.pattern}
-          </p>
+          <p className="text-[12px] font-semibold text-zinc-200 leading-snug mb-2.5">{analysis.pattern}</p>
           <div className="space-y-2">
             {analysis.drivers.map((d, i) => (
               <div key={i} className="flex items-start gap-2">
@@ -303,13 +268,11 @@ function AnalysisPanel({
           </div>
         </div>
 
-        {/* Technicals */}
         <div>
           <p className="text-[11px] font-bold text-violet-400 uppercase tracking-wider mb-2">Technicals</p>
           <p className="text-[11px] text-zinc-400 leading-relaxed">{analysis.technicals}</p>
         </div>
 
-        {/* Relevant News */}
         <div>
           <p className="text-[11px] font-bold text-violet-400 uppercase tracking-wider mb-2">Relevant News</p>
           {analysis.relatedNews.length > 0 ? (
@@ -328,13 +291,131 @@ function AnalysisPanel({
             <p className="text-[11px] text-zinc-600 italic">No headlines found near this candle's window.</p>
           )}
         </div>
-
       </div>
     </div>
   );
 }
 
-// ── Main Chart Component ──────────────────────────────────────────────────────
+// ── Custom SVG Candle Chart ───────────────────────────────────────────────────
+// No third-party library — React onClick on SVG elements is 100% reliable.
+
+function SvgCandleChart({ bars, selected, onSelect, height }: {
+  bars:     RawCandle[];
+  selected: RawCandle | null;
+  onSelect: (c: RawCandle) => void;
+  height:   number;
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [cw, setCw] = useState(0);
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    setCw(el.clientWidth);
+    const ro = new ResizeObserver(() => setCw(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const PL = 4, PR = 62, PT = 14, PB = 26;
+  const chartW = Math.max(0, cw - PL - PR);
+  const chartH = Math.max(0, height - PT - PB);
+
+  if (!cw || !bars.length) {
+    return <div ref={wrapRef} className="w-full" style={{ height }} />;
+  }
+
+  // Last N bars that fit (min 5 px per slot)
+  const N       = Math.min(bars.length, Math.max(10, Math.floor(chartW / 5)));
+  const visible = bars.slice(-N);
+  const slot    = chartW / N;
+  const barW    = Math.max(1.5, slot * 0.65);
+
+  // Price range with 6% padding
+  const pHigh = Math.max(...visible.map(b => b.h));
+  const pLow  = Math.min(...visible.map(b => b.l));
+  const pPad  = (pHigh - pLow) * 0.06 || pHigh * 0.002;
+  const pMax  = pHigh + pPad;
+  const pMin  = pLow  - pPad;
+  const pRng  = pMax  - pMin || 1;
+  const pToY  = (p: number) => chartH - ((p - pMin) / pRng) * chartH;
+
+  const prec   = visible[0].o > 100 ? 1 : 4;
+  const pTicks = [0, 0.25, 0.5, 0.75, 1].map(r => pMin + r * pRng);
+
+  // Time labels — ~5 evenly spaced
+  const tStep   = Math.max(1, Math.floor(N / 5));
+  const tLabels = visible.map((b, i) => ({ b, i })).filter(({ i }) => i % tStep === 0);
+
+  return (
+    <div ref={wrapRef} className="w-full select-none" style={{ height }}>
+      <svg width={cw} height={height} style={{ display: "block" }}>
+        <g transform={`translate(${PL},${PT})`}>
+
+          {/* Horizontal grid */}
+          {pTicks.map((p, i) => (
+            <line key={i} x1={0} y1={pToY(p)} x2={chartW} y2={pToY(p)}
+              stroke="rgba(255,255,255,0.04)" strokeWidth={1} />
+          ))}
+
+          {/* Candles */}
+          {visible.map((c, i) => {
+            const cx   = i * slot + slot / 2;
+            const bull = c.c >= c.o;
+            const col  = bull ? "#10b981" : "#ef4444";
+            const bTop = pToY(Math.max(c.o, c.c));
+            const bBot = pToY(Math.min(c.o, c.c));
+            const bH   = Math.max(1, bBot - bTop);
+            const isSel = selected?.t === c.t;
+
+            return (
+              <g key={c.t} onClick={() => onSelect(c)} style={{ cursor: "pointer" }}>
+                {/* Full-column hit area */}
+                <rect x={i * slot} y={0} width={slot} height={chartH}
+                  fill={isSel ? "rgba(139,92,246,0.07)" : "transparent"} />
+                {/* Wick */}
+                <line x1={cx} y1={pToY(c.h)} x2={cx} y2={pToY(c.l)}
+                  stroke={col} strokeWidth={1} />
+                {/* Body */}
+                <rect x={cx - barW / 2} y={bTop} width={barW} height={bH}
+                  fill={col} stroke={isSel ? "#a78bfa" : "none"}
+                  strokeWidth={isSel ? 1.5 : 0} opacity={0.9} />
+                {/* Selection dot above candle */}
+                {isSel && <circle cx={cx} cy={bTop - 7} r={2.5} fill="#a78bfa" />}
+              </g>
+            );
+          })}
+
+          {/* Price axis */}
+          {pTicks.map((p, i) => (
+            <text key={i} x={chartW + 5} y={pToY(p)}
+              fill="#52525b" fontSize={9} fontFamily="ui-monospace,monospace"
+              dominantBaseline="middle">
+              {p.toFixed(prec)}
+            </text>
+          ))}
+
+          {/* Time axis */}
+          {tLabels.map(({ b, i }) => {
+            const cx = i * slot + slot / 2;
+            const dt = new Date(b.t * 1000);
+            const lbl = `${String(dt.getHours()).padStart(2,"0")}:${String(dt.getMinutes()).padStart(2,"0")}`;
+            return (
+              <text key={b.t} x={cx} y={chartH + 18}
+                fill="#52525b" fontSize={9} fontFamily="ui-monospace,monospace"
+                textAnchor="middle">
+                {lbl}
+              </text>
+            );
+          })}
+
+        </g>
+      </svg>
+    </div>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
 
 interface CandleChartProps {
   defaultSymbol?:    Symbol;
@@ -347,27 +428,15 @@ export function CandleChart({
   defaultTimeframe = "H1",
   height           = 420,
 }: CandleChartProps) {
-  const chartContainerRef = useRef<HTMLDivElement>(null);
-  const chartRef          = useRef<IChartApi | null>(null);
-  const seriesRef         = useRef<ISeriesApi<"Candlestick"> | null>(null);
-  const candlesRef        = useRef<RawCandle[]>([]);
-  const newsRef           = useRef<NewsItem[]>([]);
-  // Refs so click handler always sees latest values without re-subscribing
-  const timeframeRef      = useRef<Timeframe>(defaultTimeframe);
-  const setSelectedRef    = useRef<(v: { candle: RawCandle; analysis: InstantAnalysis } | null) => void>(() => {});
+  const newsRef = useRef<NewsItem[]>([]);
 
   const [symbol,    setSymbol]    = useState<Symbol>(defaultSymbol);
   const [timeframe, setTimeframe] = useState<Timeframe>(defaultTimeframe);
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState<string | null>(null);
-
+  const [bars,      setBars]      = useState<RawCandle[]>([]);
   const [selected,  setSelected]  = useState<{ candle: RawCandle; analysis: InstantAnalysis } | null>(null);
 
-  // Keep refs in sync so click handler never has stale values
-  useEffect(() => { timeframeRef.current = timeframe; }, [timeframe]);
-  useEffect(() => { setSelectedRef.current = setSelected; }, []);
-
-  // ── Pre-fetch news once on mount ───────────────────────────────────────────
   useEffect(() => {
     fetch("/api/market/news", { cache: "no-store" })
       .then(r => r.ok ? r.json() : null)
@@ -375,24 +444,15 @@ export function CandleChart({
       .catch(() => {});
   }, []);
 
-  // ── Fetch candles ──────────────────────────────────────────────────────────
   const fetchCandles = useCallback(async (sym: Symbol, tf: Timeframe) => {
     setLoading(true);
     setError(null);
     setSelected(null);
     try {
-      const res = await fetch(`/api/market/candles?symbol=${sym}&timeframe=${tf}`);
+      const res  = await fetch(`/api/market/candles?symbol=${sym}&timeframe=${tf}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      const bars: RawCandle[] = data.candles;
-      candlesRef.current = bars;
-
-      if (seriesRef.current) {
-        seriesRef.current.setData(
-          bars.map(b => ({ time: b.t as Time, open: b.o, high: b.h, low: b.l, close: b.c }))
-        );
-        chartRef.current?.timeScale().fitContent();
-      }
+      setBars(data.candles ?? []);
     } catch (e: any) {
       setError(e.message ?? "Failed to load candles");
     } finally {
@@ -400,102 +460,19 @@ export function CandleChart({
     }
   }, []);
 
-  // ── Init chart + click handler (single effect) ────────────────────────────
-  useEffect(() => {
-    const el = chartContainerRef.current;
-    if (!el) return;
-
-    const chart = createChart(el, {
-      layout: {
-        background: { type: ColorType.Solid, color: "transparent" },
-        textColor:  "#71717a",
-        fontFamily: "ui-monospace, monospace",
-      },
-      grid: {
-        vertLines: { color: "rgba(255,255,255,0.04)" },
-        horzLines: { color: "rgba(255,255,255,0.04)" },
-      },
-      crosshair: {
-        mode: CrosshairMode.Normal,
-        vertLine: { color: "rgba(139,92,246,0.4)", labelBackgroundColor: "#7c3aed" },
-        horzLine: { color: "rgba(139,92,246,0.4)", labelBackgroundColor: "#7c3aed" },
-      },
-      rightPriceScale: { borderColor: "rgba(255,255,255,0.06)" },
-      timeScale:       { borderColor: "rgba(255,255,255,0.06)", timeVisible: true, secondsVisible: false },
-      width:  el.clientWidth,
-      height,
-    });
-
-    const series = chart.addSeries(CandlestickSeries, {
-      upColor:         "#10b981",
-      downColor:       "#ef4444",
-      borderUpColor:   "#10b981",
-      borderDownColor: "#ef4444",
-      wickUpColor:     "#10b981",
-      wickDownColor:   "#ef4444",
-    });
-
-    chartRef.current  = chart;
-    seriesRef.current = series;
-
-    // Dual click detection — belt-and-suspenders
-    // LW charts v5 may stop propagation on its canvas, so we listen in
-    // CAPTURE phase (fires before the canvas sees it) as the primary path.
-    // subscribeClick serves as secondary in case capture is blocked.
-    let lastTs = 0; // debounce so both handlers don't fire simultaneously
-
-    const resolveClick = (x: number) => {
-      const now = Date.now();
-      if (now - lastTs < 80) return; // skip duplicate within 80 ms
-      lastTs = now;
-
-      const bars = candlesRef.current;
-      if (!bars.length) return;
-
-      const logical = chart.timeScale().coordinateToLogical(x);
-      if (logical === null) return;
-
-      const idx    = Math.max(0, Math.min(bars.length - 1, Math.round(logical)));
-      const candle = bars[idx];
-      if (!candle) return;
-
-      const analysis = analyseCandle(candle, bars, newsRef.current, timeframeRef.current);
-      setSelectedRef.current({ candle, analysis });
-    };
-
-    // Primary: native capture listener — fires before LW charts canvas handler
-    const handleClick = (e: MouseEvent) => {
-      const rect = el.getBoundingClientRect();
-      resolveClick(e.clientX - rect.left);
-    };
-    el.addEventListener("click", handleClick, true); // capture = true
-
-    // Secondary: official subscribeClick using pixel coord (avoids time-format issues)
-    chart.subscribeClick((param) => {
-      if (param.point) resolveClick(param.point.x);
-    });
-
-    const ro = new ResizeObserver(() => {
-      if (el) chart.resize(el.clientWidth, height);
-    });
-    ro.observe(el);
-
-    return () => {
-      el.removeEventListener("click", handleClick, true);
-      ro.disconnect();
-      chart.remove();
-      chartRef.current  = null;
-      seriesRef.current = null;
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [height]);
-
-  // Fetch on symbol/timeframe change
   useEffect(() => {
     fetchCandles(symbol, timeframe);
   }, [symbol, timeframe, fetchCandles]);
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  const handleSelect = useCallback((candle: RawCandle) => {
+    setSelected(prev => {
+      // Toggle off if same candle
+      if (prev?.candle.t === candle.t) return null;
+      const analysis = analyseCandle(candle, bars, newsRef.current, timeframe);
+      return { candle, analysis };
+    });
+  }, [bars, timeframe]);
+
   return (
     <div className="flex flex-col bg-[hsl(var(--card))] rounded-2xl border border-white/6 overflow-hidden">
 
@@ -538,7 +515,7 @@ export function CandleChart({
       </div>
 
       {/* Hint */}
-      {!selected && (
+      {!selected && !loading && bars.length > 0 && (
         <div className="px-4 pt-2 pb-0 flex items-center gap-1.5">
           <Zap className="h-2.5 w-2.5 text-violet-500/60" />
           <span className="text-[9px] text-zinc-600">Click any candle to instantly explain why it moved</span>
@@ -555,7 +532,17 @@ export function CandleChart({
       {/* Chart + panel */}
       <div className="flex flex-col lg:flex-row min-h-0">
         <div className={cn("relative", selected ? "lg:flex-1" : "w-full")}>
-          <div ref={chartContainerRef} className="w-full cursor-pointer" style={{ height }} />
+          {loading && (
+            <div className="absolute inset-0 flex items-center justify-center z-10">
+              <RefreshCw className="h-5 w-5 text-violet-400/50 animate-spin" />
+            </div>
+          )}
+          <SvgCandleChart
+            bars={bars}
+            selected={selected?.candle ?? null}
+            onSelect={handleSelect}
+            height={height}
+          />
         </div>
 
         {selected && (
