@@ -236,8 +236,10 @@ function AnalysisPanel({
               <RefreshCw className="h-2.5 w-2.5 inline" /> AI failed — tap to retry
             </button>
           )}
-          {aiFailed && aiError && (
-            <p className="text-[8px] text-zinc-600 mt-0.5 font-mono break-all">{aiError}</p>
+          {aiFailed && (
+            <p className="text-[9px] text-red-400/80 mt-1 font-mono break-all leading-tight">
+              {aiError ?? "Unknown error — check Vercel logs"}
+            </p>
           )}
         </div>
         <button onClick={onClose} className="text-zinc-600 hover:text-zinc-300 transition-colors p-1 mt-0.5">
