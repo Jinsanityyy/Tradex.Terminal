@@ -46,11 +46,26 @@ export function MobileLayout() {
       if (!data.session) { window.location.href = "/login"; } 
       else { setReady(true); }
     });
-    // Load saved name + avatar
+    // Load localStorage immediately as cache
     const saved = localStorage.getItem(TRADER_NAME_KEY);
     if (saved) setTraderName(saved);
     const savedAvatar = localStorage.getItem("tradex_avatar");
     if (savedAvatar) setAvatar(savedAvatar);
+    // Fetch fresh data from DB — overrides localStorage
+    fetch("/api/profile")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        if (data.display_name) {
+          setTraderName(data.display_name);
+          localStorage.setItem(TRADER_NAME_KEY, data.display_name);
+        }
+        if (data.avatar_url) {
+          setAvatar(data.avatar_url);
+          localStorage.setItem("tradex_avatar", data.avatar_url);
+        }
+      })
+      .catch(() => {});
 
     // Listen for new chat messages — increment badge
     let myUserId: string | null = null;
@@ -129,6 +144,11 @@ export function MobileLayout() {
     if (trimmed) {
       setTraderName(trimmed);
       localStorage.setItem(TRADER_NAME_KEY, trimmed);
+      fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ display_name: trimmed }),
+      }).catch(() => {});
     }
     setEditing(false);
   }
