@@ -404,6 +404,11 @@ export function TradingViewChart({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<any>(null);
   const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Refs to avoid rebuilding the widget on symbol/interval changes
+  const chartReadyRef = useRef(false);
+  const latestSymbolRef = useRef(initialSymbol);
+  const latestIntervalRef = useRef(INTERVALS[4].value);
+  const isFirstIntervalRender = useRef(true);
 
   const [activeSymbol, setActiveSymbol] = useState(initialSymbol);
   const [activeInterval, setActiveInterval] = useState(INTERVALS[4]);
@@ -527,6 +532,7 @@ export function TradingViewChart({
     if (!element) return;
 
     let isCancelled = false;
+    chartReadyRef.current = false;
     let widget: any = null;
     const containerId = `tv_widget_${++widgetCounter}`;
 
@@ -545,8 +551,8 @@ export function TradingViewChart({
           autosize: true,
           width: "100%",
           height: "100%",
-          symbol: activeSymbol,
-          interval: activeInterval.value,
+          symbol: latestSymbolRef.current,
+          interval: latestIntervalRef.current,
           timezone: "America/New_York",
           theme: "dark",
           style: "1",
@@ -561,8 +567,7 @@ export function TradingViewChart({
           studies: [],
           disabled_features: [
             "header_fullscreen_button",
-            "use_localstorage_for_settings",
-            "save_chart_properties_to_local_storage",
+            // localstorage re-enabled so drawings/studies persist across timeframe switches
             "create_volume_indicator_by_default",
             "create_volume_indicator_by_default_once",
             "timeframes_toolbar",
@@ -606,6 +611,7 @@ export function TradingViewChart({
 
       widget.onChartReady(() => {
         if (isCancelled) return;
+        chartReadyRef.current = true;
         try {
           if (typeof widget.applyOverrides === "function") {
             widget.applyOverrides({
@@ -669,7 +675,48 @@ export function TradingViewChart({
         element.innerHTML = "";
       }
     };
-  }, [activeInterval.value, activeSymbol, layoutRevision, syncWidgetSize]);
+  }, [layoutRevision, syncWidgetSize]); // symbol/interval handled via API calls below
+
+  // ── SYMBOL CHANGE — call TradingView API, never destroy the widget ──────────
+  useEffect(() => {
+    latestSymbolRef.current = activeSymbol;
+    const widget = widgetRef.current;
+    if (!widget) return;
+    const apply = () => {
+      try {
+        if (typeof widget.setSymbol === "function") {
+          widget.setSymbol(activeSymbol, latestIntervalRef.current, () => {});
+        }
+      } catch {}
+    };
+    if (chartReadyRef.current) {
+      apply();
+    } else if (typeof widget.onChartReady === "function") {
+      widget.onChartReady(apply);
+    }
+  }, [activeSymbol]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── INTERVAL CHANGE — call TradingView API, never destroy the widget ─────────
+  useEffect(() => {
+    latestIntervalRef.current = activeInterval.value;
+    if (isFirstIntervalRender.current) {
+      isFirstIntervalRender.current = false;
+      return; // skip on mount — widget already created with correct interval
+    }
+    const widget = widgetRef.current;
+    if (!widget) return;
+    const apply = () => {
+      try {
+        widget.chart().setResolution(activeInterval.value, () => {});
+      } catch {}
+    };
+    if (chartReadyRef.current) {
+      apply();
+    } else if (typeof widget.onChartReady === "function") {
+      widget.onChartReady(apply);
+    }
+    onIntervalChange?.(activeInterval.value);
+  }, [activeInterval.value]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const urgent = secondsLeft <= 60;
 
