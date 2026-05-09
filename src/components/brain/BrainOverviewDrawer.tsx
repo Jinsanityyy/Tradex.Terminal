@@ -337,7 +337,11 @@ function PriceActionAgentDetail({ data }: { data: AgentRunResult }) {
         <div className="p-3 rounded-lg bg-red-500/6 border border-red-500/15">
           <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Stop Loss Level</p>
           <p className="text-sm font-mono font-bold text-red-400">{fmtPrice(a.invalidationLevel)}</p>
-          <p className="text-[10px] text-zinc-500 mt-1">Sweep extreme + $1 buffer — thesis invalid below.</p>
+          <p className="text-[10px] text-zinc-500 mt-1">
+            {a.bias === "bearish"
+              ? "Sweep extreme + $1 buffer — thesis invalid above."
+              : "Sweep extreme + $1 buffer — thesis invalid below."}
+          </p>
         </div>
       )}
 

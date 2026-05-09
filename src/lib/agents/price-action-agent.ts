@@ -49,8 +49,13 @@ STEP 4 — FVG DETECTION (scan 8 candles after sweep)
 
 STEP 5 — LEVELS
 - Entry: FVG midpoint
-- Stop Loss: sweep extreme + $1 buffer → invalidationLevel  (JadeCap: SL just beyond wick)
+- Stop Loss → invalidationLevel  (JadeCap: SL just beyond sweep wick)
+  - BULLISH setup (swept a LOW, price reverses UP): SL = sweep low extreme − $1 buffer  → BELOW entry
+  - BEARISH setup (swept a HIGH, price reverses DOWN): SL = sweep high extreme + $1 buffer → ABOVE entry
+  - CRITICAL: For BEARISH, invalidationLevel MUST be greater than entry. For BULLISH, it MUST be less than entry.
 - Take Profit: 2.0R → keyLevels.liquidityTarget  (JadeCap minimum)
+  - BULLISH: liquidityTarget = entry + (riskDist × 2.0) → ABOVE entry
+  - BEARISH: liquidityTarget = entry − (riskDist × 2.0) → BELOW entry
 
 FIELD MAPPING:
 - bias             → daily bias (Step 1)
@@ -180,19 +185,46 @@ Apply Jade Cap rules. Only flag a sweep if in NY session AND wick exceeds level.
   const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
   const parsed  = JSON.parse(cleaned);
 
+  const isBullish = (parsed.bias as string) === "bullish";
+  const entryRef  = parsed.keyLevels?.fvgMid ?? null;
+  const slBuffer  = sweepMinDollar(snapshot.symbol, snapshot.price.current) * 0.5;
+
+  // Validate direction: BULLISH → SL below entry; BEARISH → SL above entry.
+  // If LLM returned the wrong side, fall back to structural extreme + buffer.
+  let invalidationLevel: number | null = parsed.invalidationLevel ?? null;
+  if (invalidationLevel !== null && entryRef !== null) {
+    const wrongSide = isBullish
+      ? invalidationLevel >= entryRef
+      : invalidationLevel <= entryRef;
+    if (wrongSide) {
+      invalidationLevel = isBullish
+        ? parseFloat((snapshot.price.low  - slBuffer).toFixed(4))
+        : parseFloat((snapshot.price.high + slBuffer).toFixed(4));
+    }
+  }
+
+  // Recompute liquidityTarget using the corrected invalidationLevel so TP stays 2.0R from SL.
+  const keyLevels = parsed.keyLevels as SMCKeyLevels;
+  if (invalidationLevel !== null && entryRef !== null) {
+    const riskDist = Math.abs(entryRef - invalidationLevel);
+    keyLevels.liquidityTarget = isBullish
+      ? parseFloat((entryRef + riskDist * 2.0).toFixed(4))
+      : parseFloat((entryRef - riskDist * 2.0).toFixed(4));
+  }
+
   return {
     agentId:               "smc",
     bias:                  parsed.bias as DirectionalBias,
     confidence:            parsed.confidence,
     setupType:             parsed.setupType as SetupType,
     setupPresent:          parsed.setupPresent,
-    keyLevels:             parsed.keyLevels as SMCKeyLevels,
+    keyLevels,
     premiumDiscount:       parsed.premiumDiscount as PriceZone,
     liquiditySweepDetected: parsed.liquiditySweepDetected,
     bosDetected:           parsed.bosDetected,
     chochDetected:         parsed.chochDetected,
     reasons:               parsed.reasons,
-    invalidationLevel:     parsed.invalidationLevel,
+    invalidationLevel,
     processingTime:        Date.now() - start,
   };
 }

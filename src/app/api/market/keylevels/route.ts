@@ -586,9 +586,25 @@ function calculateSMCLevels(
     stopLoss = aiOverride!.stopLoss ?? roundTo(
       bias === "bullish" ? entry - minSL * 3 : entry + minSL * 3, step
     );
+
+    // Directional validation: BEARISH → SL must be above entry; BULLISH → below.
+    // If AI returned the wrong side, replace with the structural fallback formula.
+    if (bias === "bearish" && stopLoss <= entry) {
+      const rawSL = roundTo(Math.max(high + atr * 0.7, r1 + atr * 0.3), step);
+      stopLoss = roundTo(Math.max(rawSL, entry + minSL), step);
+    } else if (bias === "bullish" && stopLoss >= entry) {
+      const rawSL = roundTo(Math.min(low - atr * 0.7, s1 - atr * 0.3), step);
+      stopLoss = roundTo(Math.min(rawSL, entry - minSL), step);
+    }
+
     tp1 = aiOverride!.tp1;
     tp2 = aiOverride!.tp2;
     tp3 = aiOverride!.tp3 ?? null;
+
+    // Validate TP direction and null out if on wrong side.
+    if (tp1 !== null && ((bias === "bearish" && tp1 >= entry) || (bias === "bullish" && tp1 <= entry))) tp1 = null;
+    if (tp2 !== null && ((bias === "bearish" && tp2 >= entry) || (bias === "bullish" && tp2 <= entry))) tp2 = null;
+    if (tp3 !== null && ((bias === "bearish" && tp3 >= entry) || (bias === "bullish" && tp3 <= entry))) tp3 = null;
 
   } else if (aiNoTrade) {
     // ── PATH B: AI found no setup ─────────────────────────────────────────────
