@@ -1,7 +1,7 @@
 /**
  * Agent 2 — Price Action Agent (Jade Cap Intraday Liquidity & Volatility Model)
  *
- * Jade Cap rules: Daily Bias → Session Levels → Liquidity Sweep (NY 13:00–18:00 UTC)
+ * Jade Cap rules: Daily Bias → Session Levels → Liquidity Sweep (JadeCap NY Kill Zone 13:30–15:30 UTC)
  * → FVG Detection → Entry/SL/TP.  Reported 68.2% WR on XAUUSD M15, 16-month backtest.
  *
  * Uses Claude for deep structural analysis when API key available.
@@ -49,8 +49,8 @@ STEP 4 — FVG DETECTION (scan 8 candles after sweep)
 
 STEP 5 — LEVELS
 - Entry: FVG midpoint
-- Stop Loss: sweep extreme + $5 buffer → invalidationLevel
-- Take Profit: 1.5R → keyLevels.liquidityTarget
+- Stop Loss: sweep extreme + $1 buffer → invalidationLevel  (JadeCap: SL just beyond wick)
+- Take Profit: 2.0R → keyLevels.liquidityTarget  (JadeCap minimum)
 
 FIELD MAPPING:
 - bias             → daily bias (Step 1)
@@ -85,13 +85,13 @@ Return exactly this JSON:
     "fvgHigh": <FVG top or null>,
     "fvgLow": <FVG bottom or null>,
     "fvgMid": <FVG midpoint or null>,
-    "liquidityTarget": <1.5R TP or null>,
+    "liquidityTarget": <2.0R TP or null>,
     "sweepLevel": <swept session level or null>,
     "premiumZoneTop": <upper range boundary or null>,
     "discountZoneBottom": <lower range boundary or null>
   },
   "reasons": ["reason1", "reason2", "reason3"],
-  "invalidationLevel": <SL = sweep extreme + $5 buffer, or null>
+  "invalidationLevel": <SL = sweep extreme + $1 buffer, or null>
 }`;
 
 async function runLLMAnalysis(
@@ -146,7 +146,7 @@ CURRENT CANDLE (${snapshot.timeframe}):
 
 SESSION CONTEXT:
 - Current session: ${session} | UTC hour: ${sessionHour}
-- NY session sweep window (13:00–18:00 UTC): ${inNYSession ? "OPEN" : "CLOSED"}
+- NY session sweep window (13:30–15:30 UTC): ${inNYSession ? "OPEN" : "CLOSED"}
 
 DAILY BIAS (Step 1):
 - HTF bias: ${htfBias.toUpperCase()} @ ${htfConfidence}% | Prev close: ${prevClose} | Day open: ${open}
