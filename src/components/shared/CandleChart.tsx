@@ -388,6 +388,7 @@ function SvgCandleChart({ bars, selected, onSelect, height }: {
     mode: "none" as "none" | "pan" | "pinch",
     startX: 0, startOff: 0, startDist: 0, startCount: 0, hasMoved: false,
   });
+  const mouseRef = useRef({ dragging: false, startX: 0, startOff: 0, moved: false });
   const latestRef = useRef({ N: 10, offset: 0, chartW: 0, slot: 1, maxOff: 0, barsLen: 0 });
 
   // Resize observer
@@ -446,13 +447,49 @@ function SvgCandleChart({ bars, selected, onSelect, height }: {
 
     function onEnd() { touchRef.current.mode = "none"; }
 
-    el.addEventListener("touchstart", onStart, { passive: true });
-    el.addEventListener("touchmove",  onMove,  { passive: false });
-    el.addEventListener("touchend",   onEnd,   { passive: true });
+    // ── Desktop: scroll wheel zoom ────────────────────────────────────────
+    function onWheel(e: WheelEvent) {
+      e.preventDefault();
+      const { N, barsLen } = latestRef.current;
+      const factor = e.deltaY > 0 ? 1.12 : 0.88;
+      const next = Math.max(5, Math.min(barsLen, Math.round(N * factor)));
+      setVisibleCount(next);
+    }
+
+    // ── Desktop: mouse drag pan ───────────────────────────────────────────
+    function onMouseDown(e: MouseEvent) {
+      if (e.button !== 0) return;
+      mouseRef.current = { dragging: true, startX: e.clientX, startOff: latestRef.current.offset, moved: false };
+      el.style.cursor = "grabbing";
+    }
+    function onMouseMove(e: MouseEvent) {
+      if (!mouseRef.current.dragging) return;
+      const dx = e.clientX - mouseRef.current.startX;
+      if (Math.abs(dx) > 3) mouseRef.current.moved = true;
+      const { slot, maxOff } = latestRef.current;
+      const next = Math.max(0, Math.min(maxOff, mouseRef.current.startOff - Math.round(dx / slot)));
+      setPanOffset(next);
+    }
+    function onMouseUp() {
+      mouseRef.current.dragging = false;
+      el.style.cursor = "";
+    }
+
+    el.addEventListener("touchstart",  onStart,     { passive: true  });
+    el.addEventListener("touchmove",   onMove,      { passive: false });
+    el.addEventListener("touchend",    onEnd,       { passive: true  });
+    el.addEventListener("wheel",       onWheel,     { passive: false });
+    el.addEventListener("mousedown",   onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup",   onMouseUp);
     return () => {
-      el.removeEventListener("touchstart", onStart);
-      el.removeEventListener("touchmove",  onMove);
-      el.removeEventListener("touchend",   onEnd);
+      el.removeEventListener("touchstart",  onStart);
+      el.removeEventListener("touchmove",   onMove);
+      el.removeEventListener("touchend",    onEnd);
+      el.removeEventListener("wheel",       onWheel);
+      el.removeEventListener("mousedown",   onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup",   onMouseUp);
     };
   }, []); // registers once; reads current values via latestRef
 
@@ -488,7 +525,29 @@ function SvgCandleChart({ bars, selected, onSelect, height }: {
   const tLabels = visible.map((b, i) => ({ b, i })).filter(({ i }) => i % tStep === 0);
 
   return (
-    <div ref={wrapRef} className="w-full select-none" style={{ height }}>
+    <div ref={wrapRef} className="w-full select-none relative" style={{ height }}>
+      {/* Desktop zoom controls */}
+      <div className="absolute top-2 right-[68px] hidden sm:flex items-center gap-1 z-10">
+        <button
+          onMouseDown={e => e.stopPropagation()}
+          onClick={() => setVisibleCount(Math.max(5, Math.round(N * 0.75)))}
+          className="h-6 w-6 rounded border border-white/10 bg-black/50 text-zinc-400 hover:text-zinc-100 text-[16px] leading-none flex items-center justify-center transition-colors"
+          title="Zoom in"
+        >+</button>
+        <button
+          onMouseDown={e => e.stopPropagation()}
+          onClick={() => setVisibleCount(Math.min(bars.length, Math.round(N * 1.33)))}
+          className="h-6 w-6 rounded border border-white/10 bg-black/50 text-zinc-400 hover:text-zinc-100 text-[16px] leading-none flex items-center justify-center transition-colors"
+          title="Zoom out"
+        >−</button>
+        <button
+          onMouseDown={e => e.stopPropagation()}
+          onClick={() => { setVisibleCount(null); setPanOffset(0); }}
+          className="h-6 px-2 rounded border border-white/10 bg-black/50 text-zinc-500 hover:text-zinc-300 text-[9px] uppercase tracking-wider transition-colors"
+          title="Reset view"
+        >fit</button>
+      </div>
+
       <svg width={cw} height={height} style={{ display: "block" }}>
         <g transform={`translate(${PL},${PT})`}>
 
@@ -507,7 +566,7 @@ function SvgCandleChart({ bars, selected, onSelect, height }: {
             const isSel = selected?.t === c.t;
             return (
               <g key={c.t}
-                onClick={() => { if (!touchRef.current.hasMoved) onSelect(c); }}
+                onClick={() => { if (!touchRef.current.hasMoved && !mouseRef.current.moved) onSelect(c); }}
                 style={{ cursor: "pointer" }}>
                 <rect x={i * slot} y={0} width={slot} height={chartH}
                   fill={isSel ? "rgba(139,92,246,0.07)" : "transparent"} />
