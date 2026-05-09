@@ -9,6 +9,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { anthropicCreate } from "./circuit-breaker";
 import type {
   MarketSnapshot, SMCAgentOutput, SMCKeyLevels,
   DirectionalBias, SetupType, PriceZone,
@@ -171,8 +172,8 @@ INDICATORS:
 
 Apply price action rules. Only flag a sweep if in NY session AND wick exceeds level. Return JSON only.`.trim();
 
-  const msg = await client.messages.create({
-    model: "claude-sonnet-4-6",
+  const msg = await anthropicCreate(client, {
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 900,
     system: JADE_CAP_SYSTEM,
     messages: [{ role: "user", content: userMessage }],

@@ -49,7 +49,7 @@ async function fromTwelveData(symbol: Symbol, tf: Timeframe): Promise<CandleBar[
       o: parseFloat(c.open), h: parseFloat(c.high),
       l: parseFloat(c.low),  c: parseFloat(c.close),
     })).filter(c => Number.isFinite(c.o) && c.o > 0);
-  } catch { return null; }
+  } catch (err) { console.error("[candles/twelvedata]", (err as Error)?.message ?? err); return null; }
 }
 
 async function fromFinnhub(symbol: Symbol, tf: Timeframe): Promise<CandleBar[] | null> {
@@ -67,7 +67,7 @@ async function fromFinnhub(symbol: Symbol, tf: Timeframe): Promise<CandleBar[] |
     return (d.t as number[]).map((t: number, i: number) => ({
       t, o: d.o[i], h: d.h[i], l: d.l[i], c: d.c[i],
     })).filter(c => Number.isFinite(c.o) && c.o > 0);
-  } catch { return null; }
+  } catch (err) { console.error("[candles/finnhub]", (err as Error)?.message ?? err); return null; }
 }
 
 async function fromYahoo(symbol: Symbol, tf: Timeframe): Promise<CandleBar[] | null> {
@@ -77,7 +77,7 @@ async function fromYahoo(symbol: Symbol, tf: Timeframe): Promise<CandleBar[] | n
     const bars = await fetchYahooCandles(display, tf);
     if (!bars?.length) return null;
     return bars.map(b => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c }));
-  } catch { return null; }
+  } catch (err) { console.error("[candles/yahoo]", (err as Error)?.message ?? err); return null; }
 }
 
 export async function GET(req: NextRequest) {

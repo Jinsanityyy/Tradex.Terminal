@@ -50,7 +50,7 @@ async function fetchCrypto(): Promise<Record<string, any>> {
         };
       }
     }
-  } catch { /* ignore */ }
+  } catch (err) { console.error("[quotes] fetch error:", (err as Error)?.message ?? err); }
   return results;
 }
 
@@ -105,7 +105,7 @@ async function fetchForexRates(): Promise<Record<string, any>> {
         is_market_open: true,
       };
     }
-  } catch { /* ignore */ }
+  } catch (err) { console.error("[quotes] fetch error:", (err as Error)?.message ?? err); }
   return results;
 }
 
@@ -152,7 +152,7 @@ async function fetchMetals(): Promise<Record<string, any>> {
     const oil = parseYahoo(oilRes, "CL", "Crude Oil");
     if (oil) results["CL"] = oil;
 
-  } catch { /* ignore */ }
+  } catch (err) { console.error("[quotes] fetch error:", (err as Error)?.message ?? err); }
   return results;
 }
 
@@ -209,7 +209,7 @@ async function fetchTwelveData(symbols: string[], apiKey: string): Promise<Recor
         if (r?.data) results[r.sym] = r.data;
       }
     }
-  } catch { /* ignore */ }
+  } catch (err) { console.error("[quotes] fetch error:", (err as Error)?.message ?? err); }
   return results;
 }
 
@@ -295,7 +295,7 @@ export async function GET() {
       for (const [sym, quote] of Object.entries(rawCache)) {
         sharedMap.set(sym, quote);
       }
-    } catch { /* ignore */ }
+    } catch (err) { console.error("[quotes] fetch error:", (err as Error)?.message ?? err); }
 
     // Build snapshots from all cached raw data
     const snapshots: AssetSnapshot[] = [];

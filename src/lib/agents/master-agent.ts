@@ -6,6 +6,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { anthropicCreate } from "./circuit-breaker";
 import type {
   MarketSnapshot,
   TrendAgentOutput,
@@ -124,7 +125,7 @@ ${news.catalysts.slice(0, 3).map(c => `• [${c.impact.toUpperCase()}] ${c.headl
 
 You have read the debate. Adjudicate. Return JSON only.`.trim();
 
-  const response = await client.messages.create({
+  const response = await anthropicCreate(client, {
     model: "claude-haiku-4-5-20251001",
     max_tokens: 700,
     system: MASTER_SYSTEM,

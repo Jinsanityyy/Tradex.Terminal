@@ -14,6 +14,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { anthropicCreate } from "./circuit-breaker";
 import type {
   MarketSnapshot, SMCAgentOutput, SMCKeyLevels,
   DirectionalBias, SetupType, PriceZone,
@@ -147,8 +148,8 @@ TASK:
 5. LONG: ONLY if BOS to upside confirmed
 Return JSON only.`.trim();
 
-  const msg = await client.messages.create({
-    model: "claude-sonnet-4-6",
+  const msg = await anthropicCreate(client, {
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 900,
     system: STRUCTURE_FIB_SYSTEM_PROMPT,
     messages: [{ role: "user", content: userMessage }],

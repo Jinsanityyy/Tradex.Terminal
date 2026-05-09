@@ -6,6 +6,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { anthropicCreate } from "./circuit-breaker";
 import type {
   AgentRunResult, Symbol, Timeframe, ScoringWeights, DebateEntry,
   TrendAgentOutput, SMCAgentOutput, NewsAgentOutput,
@@ -238,7 +239,7 @@ Generate the debate. Each agent argues their position and, if they disagree with
   }
 ]`.trim();
 
-  const response = await client.messages.create({
+  const response = await anthropicCreate(client, {
     model: "claude-haiku-4-5-20251001",
     max_tokens: 1200,
     system: DEBATE_SYSTEM,
