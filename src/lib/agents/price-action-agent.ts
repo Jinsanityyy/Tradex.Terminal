@@ -18,9 +18,9 @@ import type {
 // LLM Prompt
 // ─────────────────────────────────────────────────────────────────────────────
 
-const JADE_CAP_SYSTEM = `You are an elite intraday analyst implementing the Jade Cap Intraday Liquidity & Volatility Model (68.2% WR, XAUUSD M15, 16-month backtest).
+const JADE_CAP_SYSTEM = `You are an elite intraday price action analyst (68.2% WR, XAUUSD M15, 16-month backtest).
 
-JADE CAP RULES:
+PRICE ACTION RULES:
 
 STEP 1 — DAILY BIAS
 - HTF structure bullish (prev day close > open) → bias = "bullish"
@@ -31,8 +31,8 @@ STEP 2 — SESSION LEVELS
 - London High/Low: 08:00–13:00 UTC range
 - PDH/PDL: previous day high/low
 
-STEP 3 — LIQUIDITY SWEEP (JadeCap NY Kill Zone: 13:30–15:30 UTC ONLY)
-- Corresponds to 9:30–11:30 AM EST — JadeCap's exact kill zone
+STEP 3 — LIQUIDITY SWEEP (NY Kill Zone: 13:30–15:30 UTC ONLY)
+- Corresponds to 9:30–11:30 AM EST
 - Price wicks past a session level by $2+ (XAUUSD) but closes BACK INSIDE = sweep
 - liquiditySweepDetected = true; swept level → keyLevels.sweepLevel
 - Confidence: 50 base + modifier per sweep level:
@@ -49,8 +49,8 @@ STEP 4 — FVG DETECTION (scan 8 candles after sweep)
 
 STEP 5 — LEVELS
 - Entry: FVG midpoint
-- Stop Loss: sweep extreme + $1 buffer → invalidationLevel  (JadeCap: SL just beyond wick)
-- Take Profit: 2.0R → keyLevels.liquidityTarget  (JadeCap minimum)
+- Stop Loss: sweep extreme + $1 buffer → invalidationLevel
+- Take Profit: 2.0R → keyLevels.liquidityTarget
 
 FIELD MAPPING:
 - bias             → daily bias (Step 1)
@@ -65,7 +65,7 @@ FIELD MAPPING:
 
 CRITICAL OUTPUT RULES:
 - Respond with ONLY valid JSON, no markdown, no code blocks
-- No sweep outside JadeCap NY Kill Zone (13:30–15:30 UTC): setupPresent = false, setupType = "None"
+- No sweep outside NY Kill Zone (13:30–15:30 UTC): setupPresent = false, setupType = "None"
 - London High sweep: confidence = 50, flag in reasons, do NOT set setupPresent = true
 - All price levels must be precise numbers or null
 
@@ -111,7 +111,7 @@ async function runLLMAnalysis(
   const bodyRatio   = candleRange > 0 ? ((candleBody / candleRange) * 100).toFixed(0) : "0";
   const closePos    = candleRange > 0 ? (((current - low) / candleRange) * 100).toFixed(0) : "50";
   const sessionMinute = new Date().getUTCMinutes();
-  // JadeCap NY Kill Zone: 9:30–11:30 AM EST = 13:30–15:30 UTC
+  // NY Kill Zone: 9:30–11:30 AM EST = 13:30–15:30 UTC
   const inNYSession = (sessionHour > 13 || (sessionHour === 13 && sessionMinute >= 30))
                    && (sessionHour < 15  || (sessionHour === 15 && sessionMinute <  30));
 
@@ -137,7 +137,7 @@ async function runLLMAnalysis(
     (high > pdh        && current < pdh)         || (low < pdl       && current > pdl);
 
   const userMessage = `
-Analyze ${snapshot.symbolDisplay} (${snapshot.symbol}) — Jade Cap Intraday Liquidity & Volatility Model.
+Analyze ${snapshot.symbolDisplay} (${snapshot.symbol}) — Intraday Price Action Analysis.
 
 CURRENT CANDLE (${snapshot.timeframe}):
 - Close: ${current} | Open: ${open} | High: ${high} | Low: ${low} | Prev Close: ${prevClose}
@@ -167,7 +167,7 @@ INDICATORS:
 - RSI(14): ${indicators.rsi.toFixed(1)}
 - MACD histogram: ${indicators.macdHist > 0 ? "positive" : "negative"}
 
-Apply Jade Cap rules. Only flag a sweep if in NY session AND wick exceeds level. Return JSON only.`.trim();
+Apply price action rules. Only flag a sweep if in NY session AND wick exceeds level. Return JSON only.`.trim();
 
   const msg = await client.messages.create({
     model: "claude-sonnet-4-6",
@@ -379,7 +379,7 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   // ── STEP 2: Session levels — real from candles, estimated fallback ────────
   const minSweep    = sweepMinDollar(snapshot.symbol, current);
   const sessionMinuteLogic = new Date().getUTCMinutes();
-  // JadeCap NY Kill Zone: 9:30–11:30 AM EST = 13:30–15:30 UTC
+  // NY Kill Zone: 9:30–11:30 AM EST = 13:30–15:30 UTC
   const inNYSession = (sessionHour > 13 || (sessionHour === 13 && sessionMinuteLogic >= 30))
                    && (sessionHour < 15  || (sessionHour === 15 && sessionMinuteLogic <  30));
   const upperWick   = high - Math.max(current, open);

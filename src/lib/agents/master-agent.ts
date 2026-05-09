@@ -45,7 +45,7 @@ ADJUDICATION RULES:
 - Strong challenges from multiple agents (>2) against majority = reduce confidence or flip to no-trade
 - Weight the QUALITY of the debate arguments, not just the count
 - Be terse and tactical. This is a live trade decision.
-- JADE CAP: When PA Agent shows "Stop run: true" + FVG or Sweep setup, this is a Jade Cap NY liquidity sweep confirmation — the highest-probability pattern in the system (68%+ WR). Weight this heavily when daily bias aligns (bosDetected: true). London Low sweep = 76% WR, PDH/Asian High = 71%, Asian Low = 60%. London High sweep (43%) = flag only, do not trade.
+- When PA Agent shows "Stop run: true" + FVG or Sweep setup, this is a NY liquidity sweep confirmation — the highest-probability pattern in the system (68%+ WR). Weight this heavily when daily bias aligns (bosDetected: true). London Low sweep = 76% WR, PDH/Asian High = 71%, Asian Low = 60%. London High sweep (43%) = flag only, do not trade.
 
 Return ONLY valid JSON:
 {

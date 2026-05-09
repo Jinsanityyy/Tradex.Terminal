@@ -322,12 +322,12 @@ export async function runTrendAgent(
     const confidence = Math.min(95, Math.max(20, Math.abs(biasScore)));
     const reasons = buildReasons(snapshot, timeframeBias, phase, maData.maStack, maData);
 
-    // JadeCap bias reason — prepend so it appears first
+    // Daily bias reason — prepend so it appears first
     const jadeReason = jadeBiasScore > 0
-      ? `JadeCap daily bias: BULLISH — open ${dayOpen.toFixed(2)} above PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`
+      ? `Daily bias: BULLISH — open ${dayOpen.toFixed(2)} above PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`
       : jadeBiasScore < 0
-      ? `JadeCap daily bias: BEARISH — open ${dayOpen.toFixed(2)} below PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`
-      : `JadeCap daily bias: NEUTRAL — open at PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`;
+      ? `Daily bias: BEARISH — open ${dayOpen.toFixed(2)} below PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`
+      : `Daily bias: NEUTRAL — open at PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`;
     reasons.unshift(jadeReason);
 
     const step = current > 1000 ? 10 : current > 100 ? 1 : 0.001;

@@ -52,7 +52,7 @@ function estimateRR(snapshot: MarketSnapshot, stopDistance: number): number | nu
   if (stopDistance <= 0) return null;
   const { atrProxy } = snapshot.indicators;
 
-  // JADE CAP: TP2 = 2.5R. On volatile days liquidity pools are wider (better RR).
+  // TP2 = 2.5R. On volatile days liquidity pools are wider (better RR).
   // On quiet sessions targets compress toward 1.5R minimum.
   const targetMultiplier =
     atrProxy > 1.5 ? 2.5 :   // active NY session — full 2.5R potential
@@ -123,7 +123,7 @@ export async function runRiskAgent(snapshot: MarketSnapshot): Promise<RiskAgentO
 
     // ── RR check ──────────────────────────────────────────────────────────
     if (rrEstimate !== null && rrEstimate < 2.0) {
-      warnings.push(`Estimated RR ${rrEstimate.toFixed(1)}:1 below JadeCap minimum (2.0:1) — consider skipping`);
+      warnings.push(`Estimated RR ${rrEstimate.toFixed(1)}:1 below minimum RR (2.0:1) — consider skipping`);
     }
 
     // ── Valid / Invalid decision ──────────────────────────────────────────
@@ -132,9 +132,9 @@ export async function runRiskAgent(snapshot: MarketSnapshot): Promise<RiskAgentO
     const isClosed    = session === "Closed";
     const extremeVol  = volatilityScore >= 92;   // only blocks on >2.5% moves
     const tooManyWarnings = warnings.length >= 5; // raised from 4 → 5
-    const rrTooLow    = rrEstimate !== null && rrEstimate < 1.5;  // JadeCap minimum = 1.5R hard block
+    const rrTooLow    = rrEstimate !== null && rrEstimate < 1.5;  // minimum = 1.5R hard block
 
-    // JadeCap: block if in NY session but outside kill zone (13:30–15:30 UTC)
+    // Block if in NY session but outside kill zone (13:30–15:30 UTC)
     const isNYSession  = session === "New York";
     const nowUTC       = new Date();
     const nowUTCHour   = nowUTC.getUTCHours();
@@ -146,7 +146,7 @@ export async function runRiskAgent(snapshot: MarketSnapshot): Promise<RiskAgentO
 
     if (outsideKillZone) {
       warnings.push(
-        `Outside JadeCap NY Kill Zone (9:30–11:30 AM EST). ` +
+        `Outside NY Kill Zone (9:30–11:30 AM EST). ` +
         `Current UTC: ${nowUTCHour}:${String(nowUTCMin).padStart(2, "0")}. ` +
         `Valid window: 13:30–15:30 UTC. Win rate drops significantly outside this window.`
       );
