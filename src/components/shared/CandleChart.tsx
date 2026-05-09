@@ -675,33 +675,34 @@ export function CandleChart({
         </div>
       )}
 
-      {/* Chart — fills all remaining space above the panel */}
-      <div ref={chartAreaRef} className="flex-1 min-h-0 relative">
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center z-10">
-            <RefreshCw className="h-5 w-5 text-violet-400/50 animate-spin" />
-          </div>
-        )}
-        <SvgCandleChart
-          bars={bars}
-          selected={selected?.candle ?? null}
-          onSelect={handleSelect}
-          height={chartHeight}
-        />
-      </div>
-
-      {/* Analysis panel — fixed-height bottom section, no page scroll needed */}
-      {selected && (
-        <div className="shrink-0 border-t border-white/5" style={{ height: 340 }}>
-          <AnalysisPanel
-            candle={selected.candle}
-            analysis={selected.analysis}
-            timeframe={timeframe}
-            symbol={symbol}
-            onClose={() => setSelected(null)}
+      {/* Chart + side analysis panel */}
+      <div className="flex flex-1 min-h-0">
+        <div ref={chartAreaRef} className="flex-1 min-h-0 relative">
+          {loading && (
+            <div className="absolute inset-0 flex items-center justify-center z-10">
+              <RefreshCw className="h-5 w-5 text-violet-400/50 animate-spin" />
+            </div>
+          )}
+          <SvgCandleChart
+            bars={bars}
+            selected={selected?.candle ?? null}
+            onSelect={handleSelect}
+            height={chartHeight}
           />
         </div>
-      )}
+
+        {selected && (
+          <div className="w-72 shrink-0 border-l border-white/5 flex flex-col overflow-hidden">
+            <AnalysisPanel
+              candle={selected.candle}
+              analysis={selected.analysis}
+              timeframe={timeframe}
+              symbol={symbol}
+              onClose={() => setSelected(null)}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
