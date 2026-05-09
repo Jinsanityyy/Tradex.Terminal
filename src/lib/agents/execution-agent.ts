@@ -18,7 +18,7 @@ import type {
   SMCAgentOutput, NewsAgentOutput, SetupGrade, SignalState,
 } from "./schemas";
 
-// ── SL Limits — Gold absolute (pts), others %-based ──────────────────────────
+// ── SL Limits — Gold absolute (pts), others %-based ──────────────────────────────
 const GOLD_SL_LIMITS: Record<string, { min: number; max: number }> = {
   M5:  { min: 3,  max: 8   },
   M15: { min: 5,  max: 12  },
@@ -40,7 +40,7 @@ const LONDON_KZ = { start: 8,  end: 11 };
 // JadeCap NY Kill Zone = 9:30–11:30 AM EST = 13:30–15:30 UTC exactly
 const NY_KZ = { startHour: 13, startMin: 30, endHour: 15, endMin: 30 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────────────────
 
 function roundToPrecision(value: number, price: number): number {
   if (price > 10000) return Math.round(value);
@@ -66,7 +66,7 @@ function isSLInRange(riskDist: number, timeframe: string, symbol: string, price:
   return riskDist <= price * maxPct;
 }
 
-// ── Confluence Scoring — 10 factors ──────────────────────────────────────────
+// ── Confluence Scoring — 10 factors ──────────────────────────────────────────────
 
 interface ConfluenceFactor { id: string; label: string; pass: boolean }
 
@@ -139,7 +139,7 @@ function scoreConfluence(
   ];
 }
 
-// ── Grade Calculation ─────────────────────────────────────────────────────────
+// ── Grade Calculation ──────────────────────────────────────────────────────────────────
 
 function gradeSetup(
   rrRatio: number,
@@ -148,7 +148,6 @@ function gradeSetup(
   inKillzone: boolean,
   entryInStructure: boolean,
 ): SetupGrade {
-  // Hard requirement: entry must be in OB or FVG for A+/A
   if (!entryInStructure) {
     if (rrRatio >= 2.0 && confluenceCount >= 3) return "B+";
     if (rrRatio >= 2.0 && confluenceCount >= 2) return "B";
@@ -161,7 +160,7 @@ function gradeSetup(
   return "C";
 }
 
-// ── Result constructors ───────────────────────────────────────────────────────
+// ── Result constructors ─────────────────────────────────────────────────────────────────
 
 function noTradeResult(start: number, reason: string): ExecutionAgentOutput {
   return {
@@ -209,7 +208,7 @@ function waitResult(start: number, grade: "B+" | "B", reason: string): Execution
   };
 }
 
-// ── Main Export ───────────────────────────────────────────────────────────────
+// ── Main Export ─────────────────────────────────────────────────────────────────────────────
 
 export async function runExecutionAgent(
   snapshot: MarketSnapshot,
@@ -225,7 +224,7 @@ export async function runExecutionAgent(
     const { htfBias, htfConfidence } = structure;
     const { session, sessionHour } = indicators;
 
-    // ── Killzone ──────────────────────────────────────────────────────────
+    // ── Killzone ────────────────────────────────────────────────────────────────
     const inLondonKZ = session === "London" && sessionHour >= LONDON_KZ.start && sessionHour < LONDON_KZ.end;
     // Minute-aware JadeCap NY Kill Zone check (13:30–15:30 UTC)
     const nowDate   = new Date(snapshot.timestamp);
@@ -235,10 +234,7 @@ export async function runExecutionAgent(
       (sessionHour < NY_KZ.endHour   || (sessionHour === NY_KZ.endHour   && nowMinUTC <  NY_KZ.endMin));
     const inKillzone = inLondonKZ || inNYKZ;
 
-    // ── Major news check ───────────────────────────────────────────────────
-    // Safe-haven assets (XAU/XAG/XPT): high geopolitical risk is BULLISH for gold.
-    // Only block when risk is extreme (>95) AND news is not bullish.
-    // All other assets: block above 80 as usual.
+    // ── Major news check ─────────────────────────────────────────────────────────
     const riskBlocksExec = GOLD_SYMS.has(symbol)
       ? news.riskScore > 95 && news.impact !== "bullish"
       : news.riskScore > 80;
@@ -246,13 +242,13 @@ export async function runExecutionAgent(
       return noTradeResult(start, `Elevated macro risk (${news.riskScore}/100) — stand aside until risk clears`);
     }
 
-    // ── HTF bias check ────────────────────────────────────────────────────
+    // ── HTF bias check ──────────────────────────────────────────────────────────
     const sweepActive = smc.liquiditySweepDetected && smc.setupPresent && smc.bias !== "neutral";
     if (!sweepActive && (htfBias === "neutral" || htfConfidence < 45)) {
       return noTradeResult(start, "No directional bias confirmed — stand aside");
     }
 
-    // ── Direction ─────────────────────────────────────────────────────────
+    // ── Direction ─────────────────────────────────────────────────────────────────
     const { keyLevels, setupType, bosDetected, liquiditySweepDetected } = smc;
     const isBullish = (liquiditySweepDetected && smc.bias !== "neutral")
       ? smc.bias === "bullish"
@@ -260,7 +256,7 @@ export async function runExecutionAgent(
     const direction: TradeDirection = isBullish ? "long" : "short";
     const buf = slBuffer(symbol);
 
-    // ── Entry / SL construction ───────────────────────────────────────────
+    // ── Entry / SL construction ───────────────────────────────────────────────────
     let entry: number;
     let stopLoss: number;
     let trigger: string;
@@ -278,7 +274,6 @@ export async function runExecutionAgent(
       slZone   = `${isBullish ? "Below" : "Above"} OB ${isBullish ? "low" : "high"} — thesis invalid on close through`;
       entryInStructure = true;
 
-      // Skip if price moved more than 30% inside the OB
       const obRange  = keyLevels.orderBlockHigh - keyLevels.orderBlockLow;
       const depthPct = obRange > 0
         ? (isBullish
@@ -291,7 +286,7 @@ export async function runExecutionAgent(
 
     } else if (setupType === "FVG" && keyLevels.fvgMid !== null) {
       entry    = keyLevels.fvgMid;
-      // Validate invalidationLevel is on the correct side before using it
+      // Only use invalidationLevel if it's on the correct side
       const fvgInvValid = smc.invalidationLevel !== null &&
         (isBullish ? smc.invalidationLevel < entry : smc.invalidationLevel > entry);
       if (fvgInvValid) {
@@ -313,18 +308,17 @@ export async function runExecutionAgent(
     } else if (setupType === "Sweep" && liquiditySweepDetected) {
       const sweepRef = keyLevels.sweepLevel ?? (isBullish ? low : high);
       entry    = isBullish ? sweepRef * 1.001 : sweepRef * 0.999;
-      // Validate invalidationLevel direction before using
       const sweepInvValid = smc.invalidationLevel !== null &&
         (isBullish ? smc.invalidationLevel < entry : smc.invalidationLevel > entry);
       stopLoss = sweepInvValid
         ? smc.invalidationLevel!
-        : isBullish ? low - buf : high + buf;
+        : isBullish ? sweepRef * 0.999 - buf : sweepRef * 1.001 + buf;
       trigger  = "Momentum Shift";
       entryZone = `${isBullish ? "Buy" : "Sell"} entry at key structural level ${entry.toFixed(4)}`;
       slZone   = sweepInvValid
         ? `Structural invalidation at ${smc.invalidationLevel!.toFixed(4)} — thesis invalid on break`
-        : `${isBullish ? "Below" : "Above"} key level — structure must hold`;
-      entryInStructure = false; // sweep without OB/FVG
+        : `${isBullish ? "Below" : "Above"} key sweep level — structure must hold`;
+      entryInStructure = false;
 
     } else if (bosDetected) {
       const pullback = dayRange * 0.38;
@@ -339,14 +333,14 @@ export async function runExecutionAgent(
       return noTradeResult(start, "No valid structural setup — no OB, FVG, or confirmed sweep present");
     }
 
-    // ── SL directional validation — catch any remaining inversions ───────
+    // ── SL directional guard — catch any remaining inversions ─────────────────
     if ((isBullish && stopLoss >= entry) || (!isBullish && stopLoss <= entry)) {
       return noTradeResult(start,
-        `Invalid stop loss: ${direction} entry ${entry.toFixed(1)} but SL ${stopLoss.toFixed(1)} is on the wrong side — structural levels are inconsistent`
+        `Invalid stop loss: ${direction} entry ${entry.toFixed(1)} but SL ${stopLoss.toFixed(1)} is on wrong side — structural levels inconsistent`
       );
     }
 
-    // ── SL validation ─────────────────────────────────────────────────────
+    // ── SL validation ─────────────────────────────────────────────────────────────────
     const riskDist = Math.abs(entry - stopLoss);
 
     if (riskDist === 0) {
@@ -362,10 +356,7 @@ export async function runExecutionAgent(
       return waitResult(start, "B", `${limitMsg} — wait for tighter structure`);
     }
 
-    // ── TP Levels ─────────────────────────────────────────────────────────
-    // TP1 = 1.5R or nearest liquidity (scale 50%)
-    // TP2 = 3.0R (A+ minimum target)
-    // TP3 = 5.0R (H4 only, let 25% run)
+    // ── TP Levels ─────────────────────────────────────────────────────────────────
     const tp2Distance = riskDist * 3.0;
     const tp3Distance = riskDist * 5.0;
     const tp1MaxDist  = riskDist * 2.0;
@@ -420,16 +411,16 @@ export async function runExecutionAgent(
       return noTradeResult(start, "R:R calculation failed — zero risk distance");
     }
 
-    // ── Confluence scoring ────────────────────────────────────────────────
+    // ── Confluence scoring ──────────────────────────────────────────────────────────────
     const factors         = scoreConfluence(snapshot, smc, news, isBullish, inKillzone);
     const passedFactors   = factors.filter(f => f.pass);
     const confluenceCount = passedFactors.length;
     const confluenceFactors = passedFactors.map(f => f.label);
 
-    // ── Grade ─────────────────────────────────────────────────────────────
+    // ── Grade ────────────────────────────────────────────────────────────────────────
     const grade = gradeSetup(rrRatio, confluenceCount, slInRange, inKillzone, entryInStructure);
 
-    // ── Grade filter ──────────────────────────────────────────────────────
+    // ── Grade filter ──────────────────────────────────────────────────────────────────
     if (grade === "B+" || grade === "B") {
       const detail = grade === "B+"
         ? `R:R 1:${rrRatio} with ${confluenceCount}/10 confluence — needs stronger entry alignment`
@@ -440,7 +431,7 @@ export async function runExecutionAgent(
       return noTradeResult(start, `R:R 1:${rrRatio} / ${confluenceCount}/10 confluence — setup rejected`);
     }
 
-    // ── Trigger condition ─────────────────────────────────────────────────
+    // ── Trigger condition ──────────────────────────────────────────────────────────────
     const p = entry > 100 ? 1 : 4;
     const triggerCondition =
       trigger === "OB retest"
@@ -455,7 +446,7 @@ export async function runExecutionAgent(
                 ? `Enter on first pullback after structure break. Confirm with ${isBullish ? "bullish" : "bearish"} momentum resumption on M15`
                 : `Market order entry at ${current.toFixed(p)} with structural stop ${stopLoss.toFixed(p)}`;
 
-    // ── Management notes ──────────────────────────────────────────────────
+    // ── Management notes ──────────────────────────────────────────────────────────────
     const managementNotes: string[] = [
       `Scale out 50% at TP1 (${tp1.toFixed(p)}) — move SL to breakeven immediately after`,
       timeframe === "H4" && tp3 !== null
@@ -472,7 +463,6 @@ export async function runExecutionAgent(
     if (smc.chochDetected && !liquiditySweepDetected) managementNotes.push("CHoCH detected — consider partial entry (50%) until full confirmation");
     if (news.riskScore > 60) managementNotes.push(`Elevated macro risk (${news.riskScore}/100) — reduce position size by 50%`);
 
-    // ── Signal state — ARMED threshold tightened to 0.15% ─────────────────
     const distanceToEntry = Math.abs(current - entry) / entry * 100;
     const pricePastEntry  = isBullish ? current > entry : current < entry;
 
