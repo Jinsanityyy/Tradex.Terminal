@@ -6,12 +6,24 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Symbol, Timeframe } from "@/lib/agents/schemas";
+import type { EconomicEvent } from "@/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface RawCandle { t: number; o: number; h: number; l: number; c: number }
 
 interface NewsItem { headline: string; timestamp: string; sentiment?: string }
+
+interface MacroEvent {
+  event:            string;
+  impact:           "high" | "medium" | "low";
+  goldImpact:       "bullish" | "bearish" | "neutral";
+  goldReasoning:    string;
+  tradeImplication: string;
+  actual?:          string;
+  forecast?:        string;
+  status:           "upcoming" | "live" | "completed";
+}
 
 interface InstantAnalysis {
   sentiment:   "bullish" | "bearish" | "neutral";
@@ -21,6 +33,7 @@ interface InstantAnalysis {
   drivers:     string[];
   technicals:  string;
   relatedNews: string[];
+  macroEvents: MacroEvent[];
 }
 
 const SYMBOLS: { id: Symbol; label: string }[] = [
@@ -38,6 +51,11 @@ const TIMEFRAMES: { id: Timeframe; label: string }[] = [
 
 function tfWindowSecs(tf: Timeframe): number {
   return { M5: 300, M15: 900, H1: 3600, H4: 14400 }[tf];
+}
+
+function calendarWindowMs(tf: Timeframe): number {
+  // How far before/after a candle we search for macro events
+  return { M5: 7_200_000, M15: 10_800_000, H1: 21_600_000, H4: 43_200_000 }[tf];
 }
 
 function detectPattern(c: RawCandle, prev: RawCandle | null): string {
@@ -80,10 +98,11 @@ function detectPattern(c: RawCandle, prev: RawCandle | null): string {
 }
 
 function analyseCandle(
-  candle:  RawCandle,
-  allBars: RawCandle[],
-  news:    NewsItem[],
-  tf:      Timeframe,
+  candle:   RawCandle,
+  allBars:  RawCandle[],
+  news:     NewsItem[],
+  tf:       Timeframe,
+  calendar: EconomicEvent[],
 ): InstantAnalysis {
   const idx  = allBars.findIndex(b => b.t === candle.t);
   const prev = idx > 0 ? allBars[idx - 1] : null;
@@ -135,6 +154,24 @@ function analyseCandle(
     .map(n => n.headline)
     .slice(0, 3);
 
+  // Match economic calendar events near this candle
+  const candleMs  = candle.t * 1000;
+  const windowMs  = calendarWindowMs(tf);
+  const macroEvents: MacroEvent[] = calendar
+    .filter(e => e.utcTimestamp != null && Math.abs(e.utcTimestamp! - candleMs) <= windowMs)
+    .sort((a, b) => Math.abs(a.utcTimestamp! - candleMs) - Math.abs(b.utcTimestamp! - candleMs))
+    .slice(0, 4)
+    .map(e => ({
+      event:            e.event,
+      impact:           e.impact,
+      goldImpact:       e.goldImpact   ?? "neutral",
+      goldReasoning:    e.goldReasoning ?? "",
+      tradeImplication: e.tradeImplication ?? "",
+      actual:           e.actual,
+      forecast:         e.forecast !== "—" ? e.forecast : undefined,
+      status:           e.status,
+    }));
+
   const drivers: string[] = [];
   if (pattern.includes("Engulfing"))
     drivers.push(`${pattern} — strong institutional order absorbed opposing side`);
@@ -154,19 +191,22 @@ function analyseCandle(
   if (relSize > 1.5) drivers.push("Significantly larger range than recent candles — unusual activity");
   if (prevTrend !== "neutral" && sentiment !== prevTrend)
     drivers.push(`Counter-trend move against recent ${prevTrend} pressure`);
-  if (relatedNews.length > 0) drivers.push("Macro news active during this window — see below");
+  if (macroEvents.length > 0) drivers.push(`${macroEvents.length} economic event(s) near this candle — see Macro Context`);
+  else if (relatedNews.length > 0) drivers.push("Macro news active during this window — see below");
 
   const dir   = bull ? "bullish" : "bearish";
   const chStr = `${changePct > 0 ? "+" : ""}${changePct.toFixed(2)}%`;
   let summary = `${pattern} on ${tf} — ${chStr} move (${magnitude} impact). `;
-  if (relatedNews.length > 0)
+  if (macroEvents.length > 0)
+    summary += `${macroEvents.length} macro event(s) detected near this candle — likely a fundamental driver.`;
+  else if (relatedNews.length > 0)
     summary += `Macro news was active during this window, likely contributing to ${dir} pressure.`;
   else if (sentiment === "neutral")
     summary += "Market showed indecision with no strong directional bias.";
   else
     summary += `${sentiment === "bullish" ? "Buyers" : "Sellers"} were in control with ${prevTrend === sentiment ? "trend confirmation" : "counter-trend momentum"}.`;
 
-  return { sentiment, magnitude, pattern, summary, drivers, technicals, relatedNews };
+  return { sentiment, magnitude, pattern, summary, drivers, technicals, relatedNews, macroEvents };
 }
 
 // ── Small UI helpers ──────────────────────────────────────────────────────────
@@ -275,8 +315,42 @@ function AnalysisPanel({
         <div>
           <p className="text-[11px] font-bold text-violet-400 uppercase tracking-wider mb-2">Macro Context</p>
 
-          {/* Real news headlines from the API */}
-          {analysis.relatedNews.length > 0 && (
+          {/* Economic calendar events near this candle */}
+          {analysis.macroEvents.length > 0 && (
+            <div className="space-y-2 mb-3">
+              {analysis.macroEvents.map((e, i) => (
+                <div key={i} className="rounded-xl border border-white/8 bg-white/3 p-3 space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-[11px] font-semibold text-zinc-200 leading-snug">{e.event}</p>
+                    <span className={cn(
+                      "text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider shrink-0 mt-0.5",
+                      e.goldImpact === "bullish" ? "text-emerald-400 border-emerald-500/25 bg-emerald-500/10"
+                      : e.goldImpact === "bearish" ? "text-red-400 border-red-500/25 bg-red-500/10"
+                      : "text-zinc-400 border-zinc-600/25 bg-zinc-700/20"
+                    )}>
+                      {e.goldImpact} gold
+                    </span>
+                  </div>
+                  {(e.actual || e.forecast) && (
+                    <p className="text-[10px] text-zinc-500 font-mono">
+                      {e.actual   && `Actual: ${e.actual}`}
+                      {e.actual && e.forecast && " · "}
+                      {e.forecast && `Forecast: ${e.forecast}`}
+                    </p>
+                  )}
+                  {e.goldReasoning && (
+                    <p className="text-[10px] text-zinc-400 leading-relaxed">{e.goldReasoning}</p>
+                  )}
+                  {e.tradeImplication && (
+                    <p className="text-[10px] text-amber-400/80 leading-relaxed border-t border-white/5 pt-1.5 mt-1">{e.tradeImplication}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Fallback: news headlines */}
+          {analysis.macroEvents.length === 0 && analysis.relatedNews.length > 0 && (
             <div className="mb-3">
               <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1.5">Headlines</p>
               <div className="rounded-xl border border-white/8 bg-white/3 overflow-hidden divide-y divide-white/5">
@@ -287,8 +361,8 @@ function AnalysisPanel({
             </div>
           )}
 
-          {!analysis.relatedNews.length && (
-            <p className="text-[11px] text-zinc-600 italic">No macro context available.</p>
+          {analysis.macroEvents.length === 0 && !analysis.relatedNews.length && (
+            <p className="text-[11px] text-zinc-600 italic">No scheduled macro events near this candle.</p>
           )}
         </div>
       </div>
@@ -484,6 +558,7 @@ export function CandleChart({
   defaultTimeframe = "H1",
 }: CandleChartProps) {
   const newsRef      = useRef<NewsItem[]>([]);
+  const calendarRef  = useRef<EconomicEvent[]>([]);
   const chartAreaRef = useRef<HTMLDivElement>(null);
   const [chartHeight, setChartHeight] = useState(300);
 
@@ -498,6 +573,10 @@ export function CandleChart({
     fetch("/api/market/news", { cache: "no-store" })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.data) newsRef.current = d.data; })
+      .catch(() => {});
+    fetch("/api/market/calendar", { cache: "no-store" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.data) calendarRef.current = d.data; })
       .catch(() => {});
   }, []);
 
@@ -535,7 +614,7 @@ export function CandleChart({
   const handleSelect = useCallback((candle: RawCandle) => {
     setSelected(prev => {
       if (prev?.candle.t === candle.t) return null;
-      const analysis = analyseCandle(candle, bars, newsRef.current, timeframe);
+      const analysis = analyseCandle(candle, bars, newsRef.current, timeframe, calendarRef.current);
       return { candle, analysis };
     });
   }, [bars, timeframe]);
