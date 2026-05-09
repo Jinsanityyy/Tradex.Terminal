@@ -366,7 +366,7 @@ export function BrainTerminal() {
           ) : null}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
           <SymbolSelector value={symbol} onChange={(v) => { setSymbol(v); setRefreshKey((k) => k + 1); }} />
           <TimeframeSelector value={timeframe} onChange={(v) => { setTimeframe(v); setRefreshKey((k) => k + 1); }} />
           {!sniperMode ? (
@@ -438,6 +438,9 @@ export function BrainTerminal() {
                 <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-600">Master Consensus</span>
                 {data.cached && (
                   <span className="text-[8px] px-1.5 py-0.5 rounded bg-white/6 text-zinc-600 font-mono border border-white/6">CACHED</span>
+                )}
+                {nowMs - new Date(data.timestamp).getTime() > 90_000 && (
+                  <span className="text-[8px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 font-mono border border-amber-500/20">STALE</span>
                 )}
               </div>
               <span className={cn("text-[20px] font-black uppercase tracking-tight leading-tight", masterCls.text)}>
@@ -640,7 +643,7 @@ export function BrainTerminal() {
               <span className="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-700">Pixel View</span>
               <span className="text-[8px] font-mono text-zinc-800">7 AGENTS</span>
             </div>
-            <div className="divide-y divide-white/[0.04]">
+            <div className="divide-y divide-white/[0.04] overflow-x-auto" style={{ scrollbarWidth: "none" }}>
               {(
                 [
                   { id: "master",     label: "MASTER", bias: finalBias,                                                state: fmt(finalBias),                                          conf: master?.confidence ?? 0,     tags: masterTags     },
@@ -697,6 +700,9 @@ export function BrainTerminal() {
               <span>{data.totalProcessingTime}ms</span>
             </div>
             {data.cached ? <span className="rounded bg-white/4 px-1.5 py-0.5 font-mono border border-white/5">CACHED</span> : null}
+            {nowMs - new Date(data.timestamp).getTime() > 90_000 ? (
+              <span className="rounded bg-amber-500/10 px-1.5 py-0.5 font-mono border border-amber-500/20 text-amber-500">STALE</span>
+            ) : null}
             <span className="ml-auto font-mono">{new Date(data.timestamp).toLocaleTimeString()}</span>
           </div>
         </>

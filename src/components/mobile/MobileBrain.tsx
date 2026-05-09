@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import useSWR from "swr";
 import {
   RefreshCw, Shield, TrendingUp, TrendingDown, Newspaper,
@@ -64,7 +64,7 @@ function StatRow({ label, value, color, sub }: { label: string; value: string; c
 function AgentBar({ label, bias, conf, color }: { label: string; bias: string; conf: number; color: string }) {
   return (
     <div className="flex items-center gap-2 py-1.5">
-      <span className="text-[10px] text-zinc-500 w-[88px] shrink-0">{label}</span>
+      <span className="text-[10px] text-zinc-500 w-20 shrink-0">{label}</span>
       <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
         <div className="h-full rounded-full transition-all" style={{ width: `${conf}%`, backgroundColor: color }} />
       </div>
@@ -318,6 +318,12 @@ export function MobileBrain() {
   const [symbol, setSymbol] = useState<Symbol>("XAUUSD");
   const [timeframe, setTimeframe] = useState<Timeframe>("H1");
   const [refreshing, setRefreshing] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 5_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const { data, isLoading, mutate } = useSWR<AgentRunResult>(
     `/api/agents/run?symbol=${symbol}&timeframe=${timeframe}`,
@@ -392,7 +398,7 @@ export function MobileBrain() {
 
       {/* Brain view */}
       {view === "brain" && (
-        <div className="overflow-y-auto flex-1 px-4 py-4 space-y-4 pb-24">
+        <div className="overflow-y-auto overflow-x-hidden flex-1 px-4 py-4 space-y-4 pb-24 min-w-0">
 
           {/* Symbol + TF row */}
           <div className="flex gap-2 flex-wrap">
@@ -419,6 +425,9 @@ export function MobileBrain() {
                 {tf}
               </button>
             ))}
+            {data && nowMs - new Date(data.timestamp).getTime() > 90_000 && !(isLoading || refreshing) && (
+              <span className="ml-1 rounded bg-amber-500/10 px-1.5 py-0.5 font-mono text-[9px] border border-amber-500/20 text-amber-500">STALE</span>
+            )}
             <button onClick={handleRefresh} disabled={isLoading || refreshing}
               className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-[10px] text-zinc-500 disabled:opacity-60">
               <RefreshCw className={cn("h-3 w-3", (isLoading || refreshing) && "animate-spin")} />
@@ -447,13 +456,14 @@ export function MobileBrain() {
             />
           )}
 
-          {/* Trade Plan */}
-          {tradePlan && <TradePlanCard tradePlan={tradePlan} />}
-
-          {/* Stand aside / wait card (when no trade plan) */}
-          {data && !tradePlan && (
+          {/* Trade Plan / Stand aside — skeleton during refresh so stale state isn't shown */}
+          {(isLoading || refreshing) && data ? (
+            <div className="h-48 rounded-2xl bg-white/5 animate-pulse" />
+          ) : tradePlan ? (
+            <TradePlanCard tradePlan={tradePlan} />
+          ) : data ? (
             <StandAsideCard exec={exec} isWait={isWaitState} />
-          )}
+          ) : null}
 
           {/* Agent Consensus */}
           {data && (
