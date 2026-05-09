@@ -125,7 +125,7 @@ ${news.catalysts.slice(0, 3).map(c => `• [${c.impact.toUpperCase()}] ${c.headl
 You have read the debate. Adjudicate. Return JSON only.`.trim();
 
   const response = await client.messages.create({
-    model: "claude-sonnet-4-6",
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 700,
     system: MASTER_SYSTEM,
     messages: [{ role: "user", content: msg }],
