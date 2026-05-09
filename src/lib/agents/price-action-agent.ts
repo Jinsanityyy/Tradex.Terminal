@@ -494,8 +494,10 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   const reasons: string[] = [];
 
   if (liquiditySweepDetected && sweepLevel !== null) {
+    const wrPct = sweepModifier >= 15 ? "76%" : sweepModifier >= 10 ? "71%" : sweepModifier >= 5 ? "60%" : "43%";
+    const grade = sweepModifier >= 10 ? " (A+ pattern)" : sweepModifier >= 5 ? " (B+ pattern)" : " (low-WR, flag only)";
     reasons.push(
-      `${sweepBias === "bullish" ? "Bullish" : "Bearish"} reversal structure confirmed at ${sweepLevel.toFixed(4)} — price action setup present`
+      `${sweepBias === "bullish" ? "Bullish" : "Bearish"} liquidity sweep: ${sweepLabel} at ${sweepLevel.toFixed(4)} — ${wrPct} historical WR${grade}`
     );
   } else {
     reasons.push(

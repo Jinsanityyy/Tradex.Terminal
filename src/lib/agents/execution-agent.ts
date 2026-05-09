@@ -255,7 +255,9 @@ export async function runExecutionAgent(
       ? smc.bias === "bullish"
       : htfBias === "bullish";
     const direction: TradeDirection = isBullish ? "long" : "short";
-    const buf = slBuffer(symbol);
+    const buf    = slBuffer(symbol);
+    // For non-gold assets slBuffer returns 0, causing SL = entry on fallback paths — use 0.1% floor
+    const minBuf = buf > 0 ? buf : Math.max(current * 0.001, 0.0001);
 
     // ── Entry / SL construction ───────────────────────────────────────────────────
     let entry: number;
@@ -288,18 +290,19 @@ export async function runExecutionAgent(
     } else if (setupType === "FVG" && keyLevels.fvgMid !== null) {
       entry    = keyLevels.fvgMid;
       // Only use invalidationLevel if it's on the correct side
-      const fvgInvValid = smc.invalidationLevel !== null &&
-        (isBullish ? smc.invalidationLevel < entry : smc.invalidationLevel > entry);
-      if (fvgInvValid) {
-        stopLoss = smc.invalidationLevel!;
-        slZone   = `Structural invalidation at ${smc.invalidationLevel!.toFixed(4)} — close through negates setup`;
+      const fvgInvLevel = smc.invalidationLevel;
+      const fvgInvValid = fvgInvLevel !== null &&
+        (isBullish ? fvgInvLevel < entry : fvgInvLevel > entry);
+      if (fvgInvValid && fvgInvLevel !== null) {
+        stopLoss = fvgInvLevel;
+        slZone   = `Structural invalidation at ${fvgInvLevel.toFixed(4)} — close through negates setup`;
       } else if (isBullish) {
-        const fvgFloor = keyLevels.fvgLow !== null && keyLevels.fvgLow < entry ? keyLevels.fvgLow : entry - buf * 2;
-        stopLoss = fvgFloor - buf;
+        const fvgFloor = keyLevels.fvgLow !== null && keyLevels.fvgLow < entry ? keyLevels.fvgLow : entry - minBuf * 2;
+        stopLoss = fvgFloor - minBuf;
         slZone   = `Below FVG low ${fvgFloor.toFixed(4)} — structure must hold`;
       } else {
-        const fvgCeil = keyLevels.fvgHigh !== null && keyLevels.fvgHigh > entry ? keyLevels.fvgHigh : entry + buf * 2;
-        stopLoss = fvgCeil + buf;
+        const fvgCeil = keyLevels.fvgHigh !== null && keyLevels.fvgHigh > entry ? keyLevels.fvgHigh : entry + minBuf * 2;
+        stopLoss = fvgCeil + minBuf;
         slZone   = `Above FVG high ${fvgCeil.toFixed(4)} — structure must hold`;
       }
       trigger  = liquiditySweepDetected ? "Structure Reversal" : "Imbalance Fill";
@@ -307,24 +310,25 @@ export async function runExecutionAgent(
       entryInStructure = true;
 
     } else if (setupType === "Sweep" && liquiditySweepDetected) {
-      const sweepRef = keyLevels.sweepLevel ?? (isBullish ? low : high);
-      entry    = isBullish ? sweepRef * 1.001 : sweepRef * 0.999;
-      const sweepInvValid = smc.invalidationLevel !== null &&
-        (isBullish ? smc.invalidationLevel < entry : smc.invalidationLevel > entry);
-      stopLoss = sweepInvValid
-        ? smc.invalidationLevel!
+      const sweepRef    = keyLevels.sweepLevel ?? (isBullish ? low : high);
+      entry             = isBullish ? sweepRef * 1.001 : sweepRef * 0.999;
+      const sweepInvLvl = smc.invalidationLevel;
+      const sweepInvValid = sweepInvLvl !== null &&
+        (isBullish ? sweepInvLvl < entry : sweepInvLvl > entry);
+      stopLoss = sweepInvValid && sweepInvLvl !== null
+        ? sweepInvLvl
         : isBullish ? sweepRef * 0.999 - buf : sweepRef * 1.001 + buf;
       trigger  = "Momentum Shift";
       entryZone = `${isBullish ? "Buy" : "Sell"} entry at key structural level ${entry.toFixed(4)}`;
-      slZone   = sweepInvValid
-        ? `Structural invalidation at ${smc.invalidationLevel!.toFixed(4)} — thesis invalid on break`
+      slZone   = sweepInvValid && sweepInvLvl !== null
+        ? `Structural invalidation at ${sweepInvLvl.toFixed(4)} — thesis invalid on break`
         : `${isBullish ? "Below" : "Above"} key sweep level — structure must hold`;
       entryInStructure = false;
 
     } else if (bosDetected) {
       const pullback = dayRange * 0.38;
       entry    = isBullish ? current - pullback : current + pullback;
-      stopLoss = isBullish ? entry - buf : entry + buf;
+      stopLoss = isBullish ? entry - minBuf : entry + minBuf;
       trigger  = "BOS pullback";
       entryZone = `BOS pullback zone ~${entry.toFixed(4)}`;
       slZone   = `${isBullish ? "Below" : "Above"} BOS origin — displacement candle ${isBullish ? "low" : "high"}`;
