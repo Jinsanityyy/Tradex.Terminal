@@ -462,8 +462,13 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
     ? parseFloat((entryPrice + riskDist * 2.0).toFixed(4))
     : parseFloat((entryPrice - riskDist * 2.0).toFixed(4));
 
-  const premiumZoneTop     = parseFloat((equilibrium + (high - equilibrium) * 0.6).toFixed(4));
-  const discountZoneBottom = parseFloat((equilibrium - (equilibrium - low)  * 0.6).toFixed(4));
+  // Premium/Discount zones — use PDH/PDL method (JadeCap) so zones are
+  // always meaningful regardless of current candle size.
+  // prevClose ± dayRange*0.40 approximates the previous day high/low.
+  // If dayRange is suspiciously small (single candle), fall back to 0.4% of price.
+  const effectiveRange     = dayRange > current * 0.002 ? dayRange : current * 0.004;
+  const premiumZoneTop     = parseFloat((prevClose + effectiveRange * 0.40).toFixed(4));
+  const discountZoneBottom = parseFloat((prevClose - effectiveRange * 0.40).toFixed(4));
   const premiumDiscount: PriceZone = zone;
 
   // ── Reasons ───────────────────────────────────────────────────────────────
