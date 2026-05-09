@@ -404,11 +404,11 @@ export function TradingViewChart({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<any>(null);
   const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Refs to avoid rebuilding the widget on symbol/interval changes
+  // Chart state refs
   const chartReadyRef = useRef(false);
   const latestSymbolRef = useRef(initialSymbol);
   const latestIntervalRef = useRef(INTERVALS[4].value);
-  const isFirstIntervalRender = useRef(true);
+  const savedDataRef = useRef<any>(null);  // persists drawings across rebuilds
 
   const [activeSymbol, setActiveSymbol] = useState(initialSymbol);
   const [activeInterval, setActiveInterval] = useState(INTERVALS[4]);
@@ -427,20 +427,19 @@ export function TradingViewChart({
     : null;
 
   const selectSymbol = useCallback((value: string) => {
-    setActiveSymbol(value);
     latestSymbolRef.current = value;
     setPickerOpen(false);
     setQuery("");
-    // Call TV API directly — onChartReady fires immediately when chart is ready
-    const widget = widgetRef.current;
-    if (!widget || typeof widget.onChartReady !== "function") return;
-    widget.onChartReady(() => {
-      try {
-        if (typeof widget.setSymbol === "function") {
-          widget.setSymbol(value, latestIntervalRef.current, () => {});
-        }
-      } catch (e) { console.warn("[TV] setSymbol failed:", e); }
-    });
+    // Save drawings, then rebuild widget with new symbol
+    const w = widgetRef.current;
+    if (w && typeof w.save === "function") {
+      w.save((state: any) => {
+        savedDataRef.current = state;
+        setActiveSymbol(value); // triggers rebuild with saved_data
+      });
+    } else {
+      setActiveSymbol(value);
+    }
   }, []);
 
   const syncWidgetSize = useCallback(() => {
@@ -564,6 +563,7 @@ export function TradingViewChart({
           height: "100%",
           symbol: latestSymbolRef.current,
           interval: latestIntervalRef.current,
+          ...(savedDataRef.current ? { saved_data: savedDataRef.current } : {}),
           timezone: "America/New_York",
           theme: "dark",
           style: "1",
@@ -623,6 +623,20 @@ export function TradingViewChart({
       widget.onChartReady(() => {
         if (isCancelled) return;
         chartReadyRef.current = true;
+        // Auto-save chart state (drawings + studies) every 2s
+        const doSave = () => {
+          if (isCancelled) return;
+          try {
+            if (typeof widget.save === 'function') {
+              widget.save((state: any) => { savedDataRef.current = state; });
+            }
+          } catch {}
+        };
+        doSave();
+        const saveTimer = setInterval(doSave, 2000);
+        // Attach a one-time cleanup when element is cleared
+        const origCleanup = () => clearInterval(saveTimer);
+        (element as any).__tvSaveCleanup = origCleanup;
         try {
           if (typeof widget.applyOverrides === "function") {
             widget.applyOverrides({
@@ -683,10 +697,13 @@ export function TradingViewChart({
       }
 
       if (element) {
+        if (typeof (element as any).__tvSaveCleanup === 'function') {
+          (element as any).__tvSaveCleanup();
+        }
         element.innerHTML = "";
       }
     };
-  }, [layoutRevision, syncWidgetSize]); // symbol/interval handled via API calls below
+  }, [activeInterval.value, activeSymbol, layoutRevision, syncWidgetSize]);
 
 
   const urgent = secondsLeft <= 60;
@@ -761,25 +778,18 @@ export function TradingViewChart({
           <div className="flex items-center gap-0.5">
             {INTERVALS.map(interval => (
               <button key={interval.value} onClick={() => {
-                setActiveInterval(interval);
                 latestIntervalRef.current = interval.value;
                 onIntervalChange?.(interval.value);
-                // Call TV API directly — no widget rebuild, drawings preserved
+                // Save drawings first, then rebuild widget with new interval
                 const w = widgetRef.current;
-                if (!w || typeof w.onChartReady !== "function") return;
-                w.onChartReady(() => {
-                  try {
-                    const chart = typeof w.chart === "function" ? w.chart()
-                      : typeof w.activeChart === "function" ? w.activeChart() : null;
-                    if (chart && typeof chart.setResolution === "function") {
-                      chart.setResolution(interval.value, () => {});
-                    } else if (typeof w.setSymbol === "function") {
-                      w.setSymbol(latestSymbolRef.current, interval.value, () => {});
-                    }
-                  } catch {
-                    try { w.setSymbol(latestSymbolRef.current, interval.value, () => {}); } catch {}
-                  }
-                });
+                if (w && typeof w.save === "function") {
+                  w.save((state: any) => {
+                    savedDataRef.current = state;
+                    setActiveInterval(interval); // triggers widget rebuild with saved_data
+                  });
+                } else {
+                  setActiveInterval(interval);
+                }
               }}
                 className={cn("rounded px-2 py-1 text-[11px] font-semibold transition-all border",
                   activeInterval.value === interval.value
