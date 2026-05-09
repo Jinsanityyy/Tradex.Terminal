@@ -54,8 +54,123 @@ function tfWindowSecs(tf: Timeframe): number {
 }
 
 function calendarWindowMs(tf: Timeframe): number {
-  // How far before/after a candle we search for macro events
   return { M5: 7_200_000, M15: 10_800_000, H1: 21_600_000, H4: 43_200_000 }[tf];
+}
+
+// Always-available macro context derived from candle date/time — no external API needed
+function buildSessionContext(candleT: number): MacroEvent[] {
+  const dt  = new Date(candleT * 1000);
+  const utcH   = dt.getUTCHours();
+  const utcM   = dt.getUTCMinutes();
+  const dow    = dt.getUTCDay();   // 0=Sun … 6=Sat
+  const dom    = dt.getUTCDate();
+  const min    = utcH * 60 + utcM;
+  const events: MacroEvent[] = [];
+
+  // ── NY Kill Zone 13:30–15:30 UTC ────────────────────────────────────────
+  if (min >= 810 && min < 930) {
+    events.push({
+      event: "NY Kill Zone (9:30–11:30 AM EST)",
+      impact: "high",
+      goldImpact: "neutral",
+      goldReasoning: "Highest-probability gold move window. NY liquidity sweep setups fire here — institutional stops hunted above/below Asian and London highs/lows. This is the primary trade window.",
+      tradeImplication: "Watch for sweeps of Asian High or London Low then FVG entries. This window has 68%+ WR on A+ setups when daily bias aligns.",
+      status: "completed",
+    });
+  }
+
+  // ── London Kill Zone 08:00–10:00 UTC ────────────────────────────────────
+  if (min >= 480 && min < 600) {
+    events.push({
+      event: "London Open Kill Zone (08:00–10:00 UTC)",
+      impact: "high",
+      goldImpact: "neutral",
+      goldReasoning: "London open is a major liquidity injection. Price frequently sweeps Asian session highs/lows in the first hour as London desks position. Sets the directional bias for the NY session.",
+      tradeImplication: "Asian High sweep → bearish London bias. Asian Low sweep → bullish London bias. Counter-trend initial move typical before real direction continues.",
+      status: "completed",
+    });
+  }
+
+  // ── 8:30 AM EST data window 12:30–13:30 UTC ─────────────────────────────
+  if (min >= 750 && min < 810) {
+    const isFridayNFP = dow === 5 && dom <= 7;
+    const isTuesdayCPI = dow === 2 && dom >= 8 && dom <= 20;
+    if (isFridayNFP) {
+      events.push({
+        event: "Non-Farm Payrolls — First Friday of Month",
+        impact: "high",
+        goldImpact: "neutral",
+        goldReasoning: "NFP is the single most anticipated monthly release for gold. Jobs above estimate → Fed hawkish → gold drops. Jobs below → rate cut bets rise → gold rallies. Unemployment rate and wage growth equally important.",
+        tradeImplication: "Wait for 12:30 UTC spike to fully complete. Trade the pullback to the 12:30 open in the direction of the move. Never fade the first 5-min candle. Post-NFP trend holds 2–4 hours.",
+        status: "completed",
+      });
+    } else if (isTuesdayCPI) {
+      events.push({
+        event: "CPI Release Window — Mid-Month Tuesday",
+        impact: "high",
+        goldImpact: "neutral",
+        goldReasoning: "US CPI releases typically fall on the 2nd–3rd Tuesday of each month at 12:30 UTC. CPI is the most influential inflation gauge for Fed policy. Hot CPI (above estimate) = hawkish Fed = bearish gold. Soft CPI = dovish = bullish gold.",
+        tradeImplication: "Highest-conviction gold trade of the month. Confirm data direction, then enter on first 15-min pullback after the spike. Typical move: $20–60 in first 30 min.",
+        status: "completed",
+      });
+    } else if (dow === 4) {
+      events.push({
+        event: "Jobless Claims — Thursday 12:30 UTC",
+        impact: "medium",
+        goldImpact: "neutral",
+        goldReasoning: "Weekly Initial Jobless Claims released every Thursday at 12:30 UTC. Rising claims (above 250K) → labor market weakening → rate cut bets → gold bullish. Falling claims → tight labor market → hawkish Fed → gold bearish.",
+        tradeImplication: "Lower-impact than NFP/CPI but can still move gold $10–25. Trade with the trend already in play rather than fading.",
+        status: "completed",
+      });
+    } else {
+      events.push({
+        event: "US Data Release Window (8:30 AM EST / 12:30 UTC)",
+        impact: "high",
+        goldImpact: "neutral",
+        goldReasoning: "Major US economic releases cluster at 8:30 AM EST: CPI, NFP, GDP, Retail Sales, PPI, Trade Balance. These are the highest-volatility data points for gold. Direction depends on whether data beats or misses expectations vs. the Fed's reaction function.",
+        tradeImplication: "Do NOT trade 5 min before/after release. Wait for the spike candle to complete, then trade the retest. Hot data → gold drops. Soft data → gold rallies. 12:30 UTC is the most important minute of the trading day.",
+        status: "completed",
+      });
+    }
+  }
+
+  // ── 10:00 AM EST secondary data 14:00–15:00 UTC ─────────────────────────
+  if (min >= 840 && min < 900) {
+    events.push({
+      event: "Secondary US Data Window (10:00 AM EST / 14:00 UTC)",
+      impact: "medium",
+      goldImpact: "neutral",
+      goldReasoning: "Secondary US releases at 10:00 AM EST: ISM PMI, CB Consumer Confidence, JOLTS Job Openings, Existing Home Sales. Can extend or reverse the NY open move. ISM below 50 = contraction = gold bullish.",
+      tradeImplication: "If price already trending post-8:30, this fuels continuation. If market was flat, 10:00 AM data can spark the directional move for the day.",
+      status: "completed",
+    });
+  }
+
+  // ── FOMC Wednesdays 18:00–20:00 UTC ─────────────────────────────────────
+  if (dow === 3 && min >= 1080 && min < 1200) {
+    events.push({
+      event: "FOMC Rate Decision Window (Wed 18:00 UTC)",
+      impact: "high",
+      goldImpact: "neutral",
+      goldReasoning: "Federal Reserve rate decisions drive the largest single-session gold moves of any month. Hawkish surprise = gold drops $30–80. Dovish pivot or cut = gold spikes $30–100. Statement language ('patient', 'confident', 'appropriate') determines direction — not just the rate change.",
+      tradeImplication: "EXTREME VOLATILITY. Spreads widen at 18:00 UTC. Trade the re-test 15–30 min after initial reaction, not the spike itself. Direction often reverses during the Powell press conference.",
+      status: "completed",
+    });
+  }
+
+  // ── Asian session 00:00–08:00 UTC ───────────────────────────────────────
+  if (min >= 0 && min < 480 && dow >= 1 && dow <= 5) {
+    events.push({
+      event: "Asian Session — Range Building (00:00–08:00 UTC)",
+      impact: "medium",
+      goldImpact: "neutral",
+      goldReasoning: "Asian session establishes the day's reference range. Low volatility for gold as major liquidity is in Tokyo/Singapore. Price often consolidates. This range becomes the key level for London/NY sweeps later in the day.",
+      tradeImplication: "Asian High and Asian Low are critical sweep targets. Record these levels — London and NY sessions frequently sweep them before reversing to the true direction.",
+      status: "completed",
+    });
+  }
+
+  return events;
 }
 
 function detectPattern(c: RawCandle, prev: RawCandle | null): string {
@@ -154,13 +269,13 @@ function analyseCandle(
     .map(n => n.headline)
     .slice(0, 3);
 
-  // Match economic calendar events near this candle
+  // Match scheduled economic calendar events (from external API, if available)
   const candleMs  = candle.t * 1000;
   const windowMs  = calendarWindowMs(tf);
-  const macroEvents: MacroEvent[] = calendar
+  const calendarHits: MacroEvent[] = calendar
     .filter(e => e.utcTimestamp != null && Math.abs(e.utcTimestamp! - candleMs) <= windowMs)
     .sort((a, b) => Math.abs(a.utcTimestamp! - candleMs) - Math.abs(b.utcTimestamp! - candleMs))
-    .slice(0, 4)
+    .slice(0, 3)
     .map(e => ({
       event:            e.event,
       impact:           e.impact,
@@ -171,6 +286,16 @@ function analyseCandle(
       forecast:         e.forecast !== "—" ? e.forecast : undefined,
       status:           e.status,
     }));
+
+  // Session context — always available, derived from candle date/time
+  const sessionCtx = buildSessionContext(candle.t);
+
+  // Merge: calendar hits first (most specific), then session context (no duplicates by event name)
+  const calendarNames = new Set(calendarHits.map(e => e.event));
+  const macroEvents: MacroEvent[] = [
+    ...calendarHits,
+    ...sessionCtx.filter(e => !calendarNames.has(e.event)),
+  ].slice(0, 4);
 
   const drivers: string[] = [];
   if (pattern.includes("Engulfing"))
@@ -362,7 +487,7 @@ function AnalysisPanel({
           )}
 
           {analysis.macroEvents.length === 0 && !analysis.relatedNews.length && (
-            <p className="text-[11px] text-zinc-600 italic">No scheduled macro events near this candle.</p>
+            <p className="text-[11px] text-zinc-600 italic">No session context available for this candle.</p>
           )}
         </div>
       </div>
