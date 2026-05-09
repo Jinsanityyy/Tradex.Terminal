@@ -318,7 +318,7 @@ export async function runExecutionAgent(
         (isBullish ? smc.invalidationLevel < entry : smc.invalidationLevel > entry);
       stopLoss = sweepInvValid
         ? smc.invalidationLevel!
-        : isBullish ? low - buf : high + buf;
+        : isBullish ? sweepRef * 0.999 - buf : sweepRef * 1.001 + buf;
       trigger  = "Momentum Shift";
       entryZone = `${isBullish ? "Buy" : "Sell"} entry at key structural level ${entry.toFixed(4)}`;
       slZone   = sweepInvValid

@@ -197,9 +197,13 @@ Apply Jade Cap rules. Only flag a sweep if in NY session AND wick exceeds level.
       ? invalidationLevel >= entryRef
       : invalidationLevel <= entryRef;
     if (wrongSide) {
+      // FVG boundaries are guaranteed on the correct side of fvgMid by construction.
+      // Use them as fallback SL reference — far safer than current candle high/low.
+      const fvgFallbackHigh = (parsed.keyLevels?.fvgHigh as number | null | undefined) ?? snapshot.price.high;
+      const fvgFallbackLow  = (parsed.keyLevels?.fvgLow  as number | null | undefined) ?? snapshot.price.low;
       invalidationLevel = isBullish
-        ? parseFloat((snapshot.price.low  - slBuffer).toFixed(4))
-        : parseFloat((snapshot.price.high + slBuffer).toFixed(4));
+        ? parseFloat((fvgFallbackLow  - slBuffer).toFixed(4))
+        : parseFloat((fvgFallbackHigh + slBuffer).toFixed(4));
     }
   }
 
@@ -409,6 +413,7 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   let sweepLabel = "";
   let sweepModifier = 0;
   let sweepBias: DirectionalBias = dailyBias;
+  let sweepExtreme: number | null = null;
   let fvgHigh: number | null = null;
   let fvgLow:  number | null = null;
   let fvgMid:  number | null = null;
@@ -423,6 +428,7 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
       sweepLabel    = found.sweepLabel;
       sweepModifier = found.sweepModifier;
       sweepBias     = found.sweepBias;
+      sweepExtreme  = found.sweepExtreme;
       fvgHigh       = found.fvgHigh;
       fvgLow        = found.fvgLow;
       fvgMid        = found.fvgMid;
@@ -474,9 +480,13 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
 
   let invalidationLevel: number | null = null;
   if (liquiditySweepDetected && !isLowConfidenceSweep) {
+    // Use the actual sweep wick extreme (sc.l for bullish, sc.h for bearish).
+    // Falls back to current candle only when candle history was unavailable (Path B).
+    const slRef = sweepExtreme !== null ? sweepExtreme
+      : sweepBias === "bullish" ? low : high;
     invalidationLevel = sweepBias === "bullish"
-      ? parseFloat((low  - slBuffer).toFixed(4))
-      : parseFloat((high + slBuffer).toFixed(4));
+      ? parseFloat((slRef - slBuffer).toFixed(4))
+      : parseFloat((slRef + slBuffer).toFixed(4));
   }
 
   // Align entryPrice with what execution-agent will actually use:
