@@ -31,7 +31,9 @@ const CACHE_TTL = 300_000; // 5 minutes
 const cache = new Map<string, { result: AgentRunResult; ts: number }>();
 
 function cacheKey(symbol: Symbol, timeframe: Timeframe): string {
-  return `${symbol}_${timeframe}`;
+  // Include 1-minute UTC bucket so a Fed/news event invalidates the cache within 60s
+  const minBucket = Math.floor(Date.now() / 60_000);
+  return `${symbol}_${timeframe}_${minBucket}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -58,59 +60,55 @@ async function fetchMarketData(symbol: Symbol): Promise<{
     const quotes = getQuotesForSymbols([apiSymbol]);
     const quote = (quotes[apiSymbol] ?? null) as unknown as Record<string, string | { high: string; low: string }> | null;
 
-    // Fetch news — try Finnhub directly, fall back to project's shared news cache
-    let news: Array<{ headline: string; summary: string; datetime: number }> = [];
+    // Fetch news — Finnhub + internal fallback run in parallel (3s each), eliminating serial 10s latency
+    type RawNewsItem = { headline: string; summary: string; datetime: number };
     const finnhubKey = process.env.FINNHUB_API_KEY;
-    if (finnhubKey) {
-      try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 5000);
-        const res = await fetch(
-          `https://finnhub.io/api/v1/news?category=general&token=${finnhubKey}`,
-          { signal: controller.signal, cache: "no-store" }
-        );
-        clearTimeout(timer);
-        if (res.ok) {
+    const baseUrl    = process.env.NEXT_PUBLIC_APP_URL
+      ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+
+    const [finnhubNews, internalNews] = await Promise.all([
+      (async (): Promise<RawNewsItem[]> => {
+        if (!finnhubKey) return [];
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 3000);
+        try {
+          const res = await fetch(
+            `https://finnhub.io/api/v1/news?category=general&token=${finnhubKey}`,
+            { signal: ctrl.signal, cache: "no-store" }
+          );
+          clearTimeout(timer);
+          if (!res.ok) return [];
           const raw = await res.json();
-          news = (Array.isArray(raw) ? raw : []).slice(0, 20).map((n: Record<string, unknown>) => ({
+          return (Array.isArray(raw) ? raw : []).slice(0, 20).map((n: Record<string, unknown>) => ({
             headline: (n.headline as string) ?? "",
             summary:  (n.summary  as string) ?? "",
             datetime: (n.datetime as number) ?? 0,
           }));
-        }
-      } catch {
-        // fall through to internal route
-      }
-    }
-
-    // Fallback: use the project's own /api/market/news route (always works, no API key needed)
-    if (news.length === 0) {
-      try {
-        // Use relative URL for internal API calls — works in both local and Vercel
-        // NEXT_PUBLIC_APP_URL is optional; if missing we use the Vercel system URL
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL
-          ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 5000);
-        const res = await fetch(`${baseUrl}/api/market/news`, {
-          signal: controller.signal, cache: "no-store",
-        });
-        clearTimeout(timer);
-        if (res.ok) {
+        } catch { clearTimeout(timer); return []; }
+      })(),
+      (async (): Promise<RawNewsItem[]> => {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 3000);
+        try {
+          const res = await fetch(`${baseUrl}/api/market/news`, {
+            signal: ctrl.signal, cache: "no-store",
+          });
+          clearTimeout(timer);
+          if (!res.ok) return [];
           const raw = await res.json();
           const items = Array.isArray(raw) ? raw : (raw.data ?? raw.news ?? []);
-          news = items.slice(0, 20).map((n: Record<string, unknown>) => ({
+          return (items as Record<string, unknown>[]).slice(0, 20).map(n => ({
             headline: (n.headline as string) ?? (n.title as string) ?? "",
             summary:  (n.summary  as string) ?? (n.description as string) ?? "",
             datetime: (n.datetime as number | undefined)
-              ?? (n.timestamp ? new Date(n.timestamp as string).getTime() / 1000 : undefined)
+              ?? (n.timestamp  ? new Date(n.timestamp  as string).getTime() / 1000 : undefined)
               ?? (n.publishedAt ? new Date(n.publishedAt as string).getTime() / 1000 : 0),
           }));
-        }
-      } catch {
-        // no news available — agents will handle gracefully
-      }
-    }
+        } catch { clearTimeout(timer); return []; }
+      })(),
+    ]);
+    // Prefer live Finnhub data; fall back to internal route (which serves static fallback when no key)
+    let news: RawNewsItem[] = finnhubNews.length > 0 ? finnhubNews : internalNews;
 
     return { quote: quote as Record<string, string | { high: string; low: string }> | null, news };
   } catch {
@@ -319,8 +317,9 @@ export async function runAgentOrchestrator(
   ]);
 
   // ── Phase 3: Debate — agents challenge each other ────────────────────────
+  // Skip when risk gate is invalid — outcome is predetermined (no-trade), no debate needed
   let debate: DebateEntry[] | undefined;
-  if (apiKey) {
+  if (apiKey && risk.valid) {
     try {
       debate = await runDebatePhase(
         { symbolDisplay: snapshot.symbolDisplay, symbol, timeframe, price: snapshot.price },
