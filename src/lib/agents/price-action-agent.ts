@@ -180,13 +180,31 @@ Apply Jade Cap rules. Only flag a sweep if in NY session AND wick exceeds level.
   const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
   const parsed  = JSON.parse(cleaned);
 
+  // Directional validation: ensure liquidityTarget is on the correct side of entry.
+  // LLMs occasionally return the TP in the wrong direction (entry - 2R for bullish, etc.).
+  const kl = parsed.keyLevels ?? {};
+  const pEntry   = kl.fvgMid ?? null;
+  const pInv     = parsed.invalidationLevel ?? null;
+  const pBias    = parsed.bias as string;
+  if (pEntry != null && kl.liquidityTarget != null) {
+    const wrongDirection =
+      (pBias === "bullish" && kl.liquidityTarget <= pEntry) ||
+      (pBias === "bearish" && kl.liquidityTarget >= pEntry);
+    if (wrongDirection) {
+      const riskDist = pInv != null ? Math.abs(pEntry - pInv) : 0;
+      kl.liquidityTarget = riskDist > 0
+        ? parseFloat((pBias === "bullish" ? pEntry + riskDist * 2 : pEntry - riskDist * 2).toFixed(4))
+        : null;
+    }
+  }
+
   return {
     agentId:               "smc",
     bias:                  parsed.bias as DirectionalBias,
     confidence:            parsed.confidence,
     setupType:             parsed.setupType as SetupType,
     setupPresent:          parsed.setupPresent,
-    keyLevels:             parsed.keyLevels as SMCKeyLevels,
+    keyLevels:             kl as SMCKeyLevels,
     premiumDiscount:       parsed.premiumDiscount as PriceZone,
     liquiditySweepDetected: parsed.liquiditySweepDetected,
     bosDetected:           parsed.bosDetected,

@@ -580,14 +580,29 @@ function calculateSMCLevels(
   if (aiHasLevels) {
     // ── PATH A: full AI ───────────────────────────────────────────────────────
     // Claude placed entry/SL/TP from real market structure.
-    // TP1/TP2/TP3 are liquidity-based — null means no valid target was found.
-    // We pass them through as-is. No caps, no substitution, no R-multiple fallback.
+    // Validate TP direction: AI can return TP on the wrong side of entry.
+    // If wrong direction detected, fall back to R-multiple from the AI SL.
     entry    = aiOverride!.entry!;
     stopLoss = aiOverride!.stopLoss ?? roundTo(
       bias === "bullish" ? entry - minSL * 3 : entry + minSL * 3, step
     );
-    tp1 = aiOverride!.tp1;
-    tp2 = aiOverride!.tp2;
+    const aiR = Math.abs(entry - stopLoss);
+    const rawTp1 = aiOverride!.tp1;
+    const rawTp2 = aiOverride!.tp2;
+    const tp1WrongDir = rawTp1 != null && (
+      (bias === "bullish" && rawTp1 <= entry) ||
+      (bias === "bearish" && rawTp1 >= entry)
+    );
+    const tp2WrongDir = rawTp2 != null && (
+      (bias === "bullish" && rawTp2 <= entry) ||
+      (bias === "bearish" && rawTp2 >= entry)
+    );
+    tp1 = tp1WrongDir
+      ? (aiR > 0 ? roundTo(bias === "bullish" ? entry + aiR * 1.5 : entry - aiR * 1.5, step) : null)
+      : rawTp1;
+    tp2 = tp2WrongDir
+      ? (aiR > 0 ? roundTo(bias === "bullish" ? entry + aiR * 2.5 : entry - aiR * 2.5, step) : null)
+      : rawTp2;
     tp3 = aiOverride!.tp3 ?? null;
 
   } else if (aiNoTrade) {
