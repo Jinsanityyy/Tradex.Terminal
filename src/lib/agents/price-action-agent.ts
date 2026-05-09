@@ -476,6 +476,20 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
     : null;
   const entryPrice = fvgMid ?? sweepEntry ?? current;
 
+  // Directional validation for SL: if sweepExtreme was stale/wrong (e.g. Path B
+  // with a low pdh estimate), invalidationLevel may end up on the wrong side of
+  // entryPrice. Fall back to sweepLevel ± 2× buffer which is always structural.
+  if (invalidationLevel !== null && sweepLevel !== null) {
+    const invOnWrongSide = sweepBias === "bullish"
+      ? invalidationLevel >= entryPrice
+      : invalidationLevel <= entryPrice;
+    if (invOnWrongSide) {
+      invalidationLevel = sweepBias === "bullish"
+        ? parseFloat((sweepLevel - slBuffer * 2).toFixed(4))
+        : parseFloat((sweepLevel + slBuffer * 2).toFixed(4));
+    }
+  }
+
   // TP = 2.0R from entry — only meaningful when a valid setup exists.
   // When no setup, set null to avoid showing random levels in the overview.
   const riskDist = invalidationLevel !== null
