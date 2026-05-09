@@ -255,7 +255,7 @@ function PriceActionAgentDetail({ data }: { data: AgentRunResult }) {
     { label: "FVG Low",               value: kl.fvgLow           },
     { label: "FVG Entry (mid)",       value: kl.fvgMid           },
     { label: "Liquidity Target",      value: kl.liquidityTarget  },
-    { label: "Sweep Level / SL",      value: kl.sweepLevel       },
+    { label: "Sweep Level",            value: kl.sweepLevel       },
     { label: "Premium Zone Top",      value: kl.premiumZoneTop   },
     { label: "Discount Zone Bottom",  value: kl.discountZoneBottom },
   ].filter(l => l.value != null);
