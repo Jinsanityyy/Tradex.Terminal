@@ -180,19 +180,55 @@ Apply Jade Cap rules. Only flag a sweep if in NY session AND wick exceeds level.
   const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
   const parsed  = JSON.parse(cleaned);
 
+  const isBullish = (parsed.bias as string) === "bullish";
+  const entryRef  = (parsed.keyLevels?.fvgMid as number | null | undefined) ?? null;
+  const slBuf     = sweepMinDollar(snapshot.symbol, snapshot.price.current) * 0.5;
+
+  // Validate SL direction: BEARISH → must be above entry; BULLISH → must be below.
+  // LLM frequently returns the wrong side. Priority: sweepLevel > fvgHigh/Low > forced minimum.
+  let invalidationLevel: number | null = (parsed.invalidationLevel as number | null | undefined) ?? null;
+  if (invalidationLevel !== null && entryRef !== null) {
+    const wrongSide = isBullish ? invalidationLevel >= entryRef : invalidationLevel <= entryRef;
+    if (wrongSide) {
+      const sweepLvl = (parsed.keyLevels?.sweepLevel as number | null | undefined) ?? null;
+      const fvgH     = (parsed.keyLevels?.fvgHigh   as number | null | undefined) ?? null;
+      const fvgL     = (parsed.keyLevels?.fvgLow    as number | null | undefined) ?? null;
+      if (isBullish) {
+        const ref = (sweepLvl !== null && sweepLvl < entryRef) ? sweepLvl
+                  : (fvgL    !== null && fvgL    < entryRef) ? fvgL
+                  : entryRef - slBuf * 5;
+        invalidationLevel = parseFloat((ref - slBuf).toFixed(4));
+      } else {
+        const ref = (sweepLvl !== null && sweepLvl > entryRef) ? sweepLvl
+                  : (fvgH    !== null && fvgH    > entryRef) ? fvgH
+                  : entryRef + slBuf * 5;
+        invalidationLevel = parseFloat((ref + slBuf).toFixed(4));
+      }
+    }
+  }
+
+  // Recompute TP so it stays 2.0R from the corrected SL
+  const keyLevels = parsed.keyLevels as SMCKeyLevels;
+  if (invalidationLevel !== null && entryRef !== null) {
+    const riskDist = Math.abs(entryRef - invalidationLevel);
+    keyLevels.liquidityTarget = isBullish
+      ? parseFloat((entryRef + riskDist * 2.0).toFixed(4))
+      : parseFloat((entryRef - riskDist * 2.0).toFixed(4));
+  }
+
   return {
     agentId:               "smc",
     bias:                  parsed.bias as DirectionalBias,
     confidence:            parsed.confidence,
     setupType:             parsed.setupType as SetupType,
     setupPresent:          parsed.setupPresent,
-    keyLevels:             parsed.keyLevels as SMCKeyLevels,
+    keyLevels,
     premiumDiscount:       parsed.premiumDiscount as PriceZone,
     liquiditySweepDetected: parsed.liquiditySweepDetected,
     bosDetected:           parsed.bosDetected,
     chochDetected:         parsed.chochDetected,
     reasons:               parsed.reasons,
-    invalidationLevel:     parsed.invalidationLevel,
+    invalidationLevel,
     processingTime:        Date.now() - start,
   };
 }
@@ -335,7 +371,6 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   const { htfBias, htfConfidence, equilibrium, zone } = structure;
 
   // ── STEP 1: Daily bias ─────────────────────────────────────────────────────
-  // Jade Cap: prev day close > open → bullish; use HTF bias as daily proxy
   const dailyBias: DirectionalBias = htfBias !== "neutral" ? htfBias
     : current > prevClose ? "bullish"
     : current < prevClose ? "bearish"
@@ -350,7 +385,6 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   const upperWick   = high - Math.max(current, open);
   const lowerWick   = Math.min(current, open) - low;
 
-  // Start with estimated levels (equilibrium ± day-range fractions)
   let asianHigh  = equilibrium + dayRange * 0.18;
   let asianLow   = equilibrium - dayRange * 0.18;
   let londonHigh = equilibrium + dayRange * 0.27;
@@ -358,7 +392,6 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   let pdh        = prevClose + dayRange * 0.40;
   let pdl        = prevClose - dayRange * 0.40;
 
-  // Override with actual session levels when candle history is available
   const candles = snapshot.recentCandles as CandleSlim[] | undefined;
   if (candles && candles.length >= 10) {
     const real = computeActualSessionLevels(candles);
@@ -370,18 +403,16 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
     if (real.pdl        !== null) pdl        = real.pdl;
   }
 
-  // ── STEP 3 & 4: Sweep + FVG detection ────────────────────────────────────
-  // Priority: candle-history scan (3-candle FVG) → single-candle fallback (no FVG)
   let liquiditySweepDetected = false;
   let sweepLevel: number | null = null;
   let sweepLabel = "";
   let sweepModifier = 0;
   let sweepBias: DirectionalBias = dailyBias;
+  let sweepExtreme: number | null = null;
   let fvgHigh: number | null = null;
   let fvgLow:  number | null = null;
   let fvgMid:  number | null = null;
 
-  // Path A: candle history available → detect real 3-candle FVG after sweep
   if (candles && candles.length >= 10) {
     const real = computeActualSessionLevels(candles);
     const found = detectNYSweepAndFVG(candles, real, minSweep);
@@ -391,13 +422,13 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
       sweepLabel    = found.sweepLabel;
       sweepModifier = found.sweepModifier;
       sweepBias     = found.sweepBias;
+      sweepExtreme  = found.sweepExtreme;
       fvgHigh       = found.fvgHigh;
       fvgLow        = found.fvgLow;
       fvgMid        = found.fvgMid;
     }
   }
 
-  // Path B: no candles or no pattern found — single-candle sweep only (no FVG)
   if (!liquiditySweepDetected && inNYSession) {
     if (lowerWick >= minSweep && low < londonLow && current > londonLow) {
       liquiditySweepDetected = true;
@@ -415,46 +446,35 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
       liquiditySweepDetected = true;
       sweepLevel = londonHigh; sweepLabel = "London High"; sweepModifier = 0; sweepBias = "bearish";
     }
-    // Note: Path B sweeps have no FVG — fvgHigh/fvgLow/fvgMid remain null
   }
 
   const fvgDetected = fvgHigh !== null && fvgLow !== null;
-
-  // ── Setup classification ──────────────────────────────────────────────────
-  // FVG is REQUIRED for a tradeable setup — non-FVG sweeps lose -17.5R / 13% WR
   const isLowConfidenceSweep = sweepLabel === "London High";
   const setupType: SetupType = fvgDetected ? "FVG" : liquiditySweepDetected ? "Sweep" : "None";
   const setupPresent = liquiditySweepDetected && fvgDetected && !isLowConfidenceSweep;
-
-  // ── Bias ───────────────────────────────────────────────────────────────────
   const bias: DirectionalBias = liquiditySweepDetected ? sweepBias : dailyBias;
-
-  // ── BOS / CHoCH (per Jade Cap field mapping) ───────────────────────────────
   const bosDetected   = liquiditySweepDetected && bias === dailyBias;
   const chochDetected = fvgDetected;
-
-  // ── Confidence: 50 base + sweep modifier ─────────────────────────────────
   const confidence = liquiditySweepDetected ? Math.min(95, 50 + sweepModifier) : 40;
 
-  // ── STEP 5: Levels ─────────────────────────────────────────────────────────
-  // SL = sweep extreme + $1 buffer (sweepMinDollar * 0.5 → $1 for XAUUSD) — JadeCap: SL just beyond sweep wick
   const slBuffer   = minSweep * 0.5;
 
   let invalidationLevel: number | null = null;
   if (liquiditySweepDetected && !isLowConfidenceSweep) {
+    // Use actual sweep wick extreme (sc.l for bullish, sc.h for bearish).
+    // Falls back to current candle only when no candle history (Path B).
+    const slRef = sweepExtreme !== null ? sweepExtreme
+      : sweepBias === "bullish" ? low : high;
     invalidationLevel = sweepBias === "bullish"
-      ? parseFloat((low  - slBuffer).toFixed(4))
-      : parseFloat((high + slBuffer).toFixed(4));
+      ? parseFloat((slRef - slBuffer).toFixed(4))
+      : parseFloat((slRef + slBuffer).toFixed(4));
   }
 
-  // Align entryPrice with what execution-agent will actually use:
-  // FVG setup → fvgMid | Sweep (no FVG) → sweepRef ± 0.1% | fallback → current
   const sweepEntry = sweepLevel !== null
     ? parseFloat((sweepBias === "bullish" ? sweepLevel * 1.001 : sweepLevel * 0.999).toFixed(4))
     : null;
   const entryPrice = fvgMid ?? sweepEntry ?? current;
 
-  // TP = 2.0R from entry — JadeCap minimum (62.9% WR backtest)
   const riskDist = invalidationLevel !== null
     ? Math.abs(entryPrice - invalidationLevel)
     : dayRange * 0.25;
@@ -462,16 +482,11 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
     ? parseFloat((entryPrice + riskDist * 2.0).toFixed(4))
     : parseFloat((entryPrice - riskDist * 2.0).toFixed(4));
 
-  // Premium/Discount zones — use PDH/PDL method (JadeCap) so zones are
-  // always meaningful regardless of current candle size.
-  // prevClose ± dayRange*0.40 approximates the previous day high/low.
-  // If dayRange is suspiciously small (single candle), fall back to 0.4% of price.
   const effectiveRange     = dayRange > current * 0.002 ? dayRange : current * 0.004;
   const premiumZoneTop     = parseFloat((prevClose + effectiveRange * 0.40).toFixed(4));
   const discountZoneBottom = parseFloat((prevClose - effectiveRange * 0.40).toFixed(4));
   const premiumDiscount: PriceZone = zone;
 
-  // ── Reasons ───────────────────────────────────────────────────────────────
   const reasons: string[] = [];
 
   if (liquiditySweepDetected && sweepLevel !== null) {
