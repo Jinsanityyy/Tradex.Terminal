@@ -198,6 +198,29 @@ Apply Jade Cap rules. Only flag a sweep if in NY session AND wick exceeds level.
     }
   }
 
+  // Validate invalidationLevel (SL) direction: must be below entry for bullish, above for bearish
+  if (pEntry != null && parsed.invalidationLevel != null) {
+    const invWrongDir =
+      (pBias === "bullish" && parsed.invalidationLevel >= pEntry) ||
+      (pBias === "bearish" && parsed.invalidationLevel <= pEntry);
+    if (invWrongDir) {
+      const sweepLv = kl.sweepLevel as number | null | undefined;
+      const slBuf = sweepMinDollar(snapshot.symbol, pEntry);
+      parsed.invalidationLevel = sweepLv != null
+        ? parseFloat((pBias === "bullish" ? sweepLv - slBuf : sweepLv + slBuf).toFixed(4))
+        : null;
+      // Re-validate TP after SL correction
+      if (parsed.invalidationLevel != null && kl.liquidityTarget != null) {
+        const correctedRisk = Math.abs(pEntry - parsed.invalidationLevel);
+        if (correctedRisk > 0) {
+          kl.liquidityTarget = parseFloat(
+            (pBias === "bullish" ? pEntry + correctedRisk * 2 : pEntry - correctedRisk * 2).toFixed(4)
+          );
+        }
+      }
+    }
+  }
+
   return {
     agentId:               "smc",
     bias:                  parsed.bias as DirectionalBias,
