@@ -583,7 +583,7 @@ function SvgCandleChart({ bars, selected, onSelect, height }: {
 
     // ── Desktop: mouse drag pan ───────────────────────────────────────────
     function onMouseDown(e: MouseEvent) {
-      if (e.button !== 0) return;
+      if (e.button !== 0 || !el) return;
       mouseRef.current = { dragging: true, startX: e.clientX, startOff: latestRef.current.offset, moved: false };
       el.style.cursor = "grabbing";
     }
@@ -597,7 +597,7 @@ function SvgCandleChart({ bars, selected, onSelect, height }: {
     }
     function onMouseUp() {
       mouseRef.current.dragging = false;
-      el.style.cursor = "";
+      if (el) el.style.cursor = "";
     }
 
     el.addEventListener("touchstart",  onStart,     { passive: true  });
