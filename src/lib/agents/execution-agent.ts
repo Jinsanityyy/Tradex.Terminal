@@ -361,10 +361,15 @@ export async function runExecutionAgent(
       return waitResult(start, "B", `${limitMsg} — wait for tighter structure`);
     }
 
+    // ── Round entry/SL before TP so all levels are on the same precision grid ──
+    entry    = roundToPrecision(entry,    current);
+    stopLoss = roundToPrecision(stopLoss, current);
+    const riskDistRounded = Math.abs(entry - stopLoss);
+
     // ── TP Levels ─────────────────────────────────────────────────────────────────
-    const tp2Distance = riskDist * 3.0;
-    const tp3Distance = riskDist * 5.0;
-    const tp1MaxDist  = riskDist * 2.0;
+    const tp2Distance = riskDistRounded * 3.0;
+    const tp3Distance = riskDistRounded * 5.0;
+    const tp1MaxDist  = riskDistRounded * 2.0;
 
     let tp1: number;
     let tp2: number;
@@ -375,10 +380,10 @@ export async function runExecutionAgent(
     if (isBullish) {
       const target    = keyLevels.liquidityTarget;
       const tgtDist   = target !== null ? target - entry : -1;
-      const useTarget = target !== null && tgtDist > riskDist * 0.5 && tgtDist <= tp1MaxDist;
-      tp1     = useTarget ? target : entry + riskDist * 1.5;
+      const useTarget = target !== null && tgtDist > riskDistRounded * 0.5 && tgtDist <= tp1MaxDist;
+      tp1     = useTarget ? target : entry + riskDistRounded * 1.5;
       const rawTp2 = entry + tp2Distance;
-      tp2     = rawTp2 > tp1 ? rawTp2 : tp1 + riskDist * 1.5;
+      tp2     = rawTp2 > tp1 ? rawTp2 : tp1 + riskDistRounded * 1.5;
       tp1Zone = useTarget
         ? `First target ${tp1.toFixed(4)} — nearest resistance above`
         : `1.5R target ${tp1.toFixed(4)} — nearest structural resistance`;
@@ -389,10 +394,10 @@ export async function runExecutionAgent(
     } else {
       const target    = keyLevels.liquidityTarget;
       const tgtDist   = target !== null ? entry - target : -1;
-      const useTarget = target !== null && tgtDist > riskDist * 0.5 && tgtDist <= tp1MaxDist;
-      tp1     = useTarget ? target : entry - riskDist * 1.5;
+      const useTarget = target !== null && tgtDist > riskDistRounded * 0.5 && tgtDist <= tp1MaxDist;
+      tp1     = useTarget ? target : entry - riskDistRounded * 1.5;
       const rawTp2 = entry - tp2Distance;
-      tp2     = rawTp2 < tp1 ? rawTp2 : tp1 - riskDist * 1.5;
+      tp2     = rawTp2 < tp1 ? rawTp2 : tp1 - riskDistRounded * 1.5;
       tp1Zone = useTarget
         ? `First target ${tp1.toFixed(4)} — nearest support below`
         : `1.5R target ${tp1.toFixed(4)} — nearest structural support`;
@@ -402,15 +407,13 @@ export async function runExecutionAgent(
       }
     }
 
-    entry    = roundToPrecision(entry,    current);
-    stopLoss = roundToPrecision(stopLoss, current);
-    tp1      = roundToPrecision(tp1,      current);
-    tp2      = roundToPrecision(tp2,      current);
+    // entry and stopLoss already rounded above; round TP levels to same grid
+    tp1 = roundToPrecision(tp1, current);
+    tp2 = roundToPrecision(tp2, current);
     if (tp3 !== null) tp3 = roundToPrecision(tp3, current);
 
-    const risk    = Math.abs(entry - stopLoss);
     const reward  = Math.abs(tp2 - entry);
-    const rrRatio = risk > 0 ? parseFloat((reward / risk).toFixed(2)) : null;
+    const rrRatio = riskDistRounded > 0 ? parseFloat((reward / riskDistRounded).toFixed(2)) : null;
 
     if (rrRatio === null) {
       return noTradeResult(start, "R:R calculation failed — zero risk distance");

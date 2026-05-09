@@ -105,9 +105,12 @@ function getWindowSeconds(timeframe: Timeframe): number {
 }
 
 function normalizeCandles(candles: CandleBar[]): CandleBar[] {
+  const nowSec = Date.now() / 1000;
   return candles
     .filter((bar) =>
       isFiniteNumber(bar.t) &&
+      bar.t > 0 &&              // reject t=0 (uninitialized / API sentinel)
+      bar.t <= nowSec + 300 &&  // reject far-future candles (>5 min clock skew)
       isFiniteNumber(bar.c) &&
       isFiniteNumber(bar.h) &&
       isFiniteNumber(bar.l) &&

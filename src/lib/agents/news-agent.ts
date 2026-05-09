@@ -11,6 +11,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { anthropicCreate } from "./circuit-breaker";
 import type {
   MarketSnapshot, NewsAgentOutput, DirectionalBias, CatalystEvent,
 } from "./schemas";
@@ -105,7 +106,7 @@ MARKET CONTEXT:
 REMINDER: Apply the HIGH-impact dominance rule. If any HIGH-impact geopolitical event (military conflict, Iran, nuclear, Hormuz) is present for XAUUSD, the overall impact must be "bullish" unless contradicted by explicit de-escalation.
 Determine: macro regime, weighted directional impact for this asset, and what could flip the bias.`.trim();
 
-  const response = await client.messages.create({
+  const response = await anthropicCreate(client, {
     model: "claude-haiku-4-5-20251001",
     max_tokens: 700,
     system: NEWS_SYSTEM,

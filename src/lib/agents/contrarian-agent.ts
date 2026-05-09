@@ -9,6 +9,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { anthropicCreate } from "./circuit-breaker";
 import type { MarketSnapshot, ContrarianAgentOutput } from "./schemas";
 import type { TrendAgentOutput, SMCAgentOutput } from "./schemas";
 
@@ -70,7 +71,7 @@ MARKET DATA:
 
 Find the trap. Identify where the primary setup fails. Opposite liquidity level = where retail stops would be hunted.`.trim();
 
-  const response = await client.messages.create({
+  const response = await anthropicCreate(client, {
     model: "claude-haiku-4-5-20251001",
     max_tokens: 600,
     system: CONTRARIAN_SYSTEM,

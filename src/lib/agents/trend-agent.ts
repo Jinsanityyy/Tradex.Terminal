@@ -11,6 +11,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { anthropicCreate } from "./circuit-breaker";
 import type {
   MarketSnapshot,
   TrendAgentOutput,
@@ -84,7 +85,7 @@ INDICATORS:
 
 Determine trend bias, market phase, and give institutional-grade reasoning using structure + RSI + MACD + MA alignment.`.trim();
 
-  const response = await client.messages.create({
+  const response = await anthropicCreate(client, {
     model: "claude-haiku-4-5-20251001",
     max_tokens: 600,
     system: TREND_SYSTEM,
