@@ -84,7 +84,7 @@ export function computeConsensus(
 
   // ── SMC Agent (highest directional weight) ────────────────────────────────
   // Extra boost if a concrete setup is present
-  const smcWeight = weights.smc * (smc.setupPresent ? 1.2 : 0.8);
+  const smcWeight = weights.smc + (smc.setupPresent ? 0.08 : -0.05);
   items.push(agentScore("smc", smc.bias, smc.confidence, clamp(smcWeight, 0, 0.5)));
 
   // ── News Agent (supports / opposes) ───────────────────────────────────────

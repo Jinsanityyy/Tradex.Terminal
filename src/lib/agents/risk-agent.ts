@@ -132,7 +132,7 @@ export async function runRiskAgent(snapshot: MarketSnapshot): Promise<RiskAgentO
     const isClosed    = session === "Closed";
     const extremeVol  = volatilityScore >= 92;   // only blocks on >2.5% moves
     const tooManyWarnings = warnings.length >= 5; // raised from 4 → 5
-    const rrTooLow    = rrEstimate !== null && rrEstimate < 1.5;  // minimum = 1.5R hard block
+    const rrTooLow    = rrEstimate !== null && rrEstimate < 1.6;  // minimum = 1.6R hard block
 
     // Block if in NY session but outside kill zone (13:30–15:30 UTC)
     const isNYSession  = session === "New York";

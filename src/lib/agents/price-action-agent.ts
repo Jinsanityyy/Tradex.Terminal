@@ -110,10 +110,12 @@ async function runLLMAnalysis(
   const candleBody  = Math.abs(current - open);
   const bodyRatio   = candleRange > 0 ? ((candleBody / candleRange) * 100).toFixed(0) : "0";
   const closePos    = candleRange > 0 ? (((current - low) / candleRange) * 100).toFixed(0) : "50";
-  const sessionMinute = new Date().getUTCMinutes();
+  const nowForKZ = new Date();
+  const sessionMinute = nowForKZ.getUTCMinutes();
+  const sessionHourKZ = nowForKZ.getUTCHours();
   // NY Kill Zone: 9:30–11:30 AM EST = 13:30–15:30 UTC
-  const inNYSession = (sessionHour > 13 || (sessionHour === 13 && sessionMinute >= 30))
-                   && (sessionHour < 15  || (sessionHour === 15 && sessionMinute <  30));
+  const inNYSession = (sessionHourKZ > 13 || (sessionHourKZ === 13 && sessionMinute >= 30))
+                   && (sessionHourKZ < 15  || (sessionHourKZ === 15 && sessionMinute <  30));
 
   // Estimated session levels from day range
   const asianHigh  = parseFloat((equilibrium + dayRange * 0.18).toFixed(4));
@@ -378,10 +380,12 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
 
   // ── STEP 2: Session levels — real from candles, estimated fallback ────────
   const minSweep    = sweepMinDollar(snapshot.symbol, current);
-  const sessionMinuteLogic = new Date().getUTCMinutes();
+  const nowForKZLogic = new Date();
+  const sessionMinuteLogic = nowForKZLogic.getUTCMinutes();
+  const sessionHourKZLogic = nowForKZLogic.getUTCHours();
   // NY Kill Zone: 9:30–11:30 AM EST = 13:30–15:30 UTC
-  const inNYSession = (sessionHour > 13 || (sessionHour === 13 && sessionMinuteLogic >= 30))
-                   && (sessionHour < 15  || (sessionHour === 15 && sessionMinuteLogic <  30));
+  const inNYSession = (sessionHourKZLogic > 13 || (sessionHourKZLogic === 13 && sessionMinuteLogic >= 30))
+                   && (sessionHourKZLogic < 15  || (sessionHourKZLogic === 15 && sessionMinuteLogic <  30));
   const upperWick   = high - Math.max(current, open);
   const lowerWick   = Math.min(current, open) - low;
 

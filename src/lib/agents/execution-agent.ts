@@ -226,12 +226,13 @@ export async function runExecutionAgent(
 
     // ── Killzone ────────────────────────────────────────────────────────────────
     const inLondonKZ = session === "London" && sessionHour >= LONDON_KZ.start && sessionHour < LONDON_KZ.end;
-    // Minute-aware JadeCap NY Kill Zone check (13:30–15:30 UTC)
-    const nowDate   = new Date(snapshot.timestamp);
-    const nowMinUTC = nowDate.getUTCMinutes();
-    const inNYKZ    = session === "New York" &&
-      (sessionHour > NY_KZ.startHour || (sessionHour === NY_KZ.startHour && nowMinUTC >= NY_KZ.startMin)) &&
-      (sessionHour < NY_KZ.endHour   || (sessionHour === NY_KZ.endHour   && nowMinUTC <  NY_KZ.endMin));
+    // Minute-aware NY Kill Zone check (13:30–15:30 UTC) — both hour and minute from snapshot timestamp
+    const nowDate    = new Date(snapshot.timestamp);
+    const nowHourUTC = nowDate.getUTCHours();
+    const nowMinUTC  = nowDate.getUTCMinutes();
+    const inNYKZ     = session === "New York" &&
+      (nowHourUTC > NY_KZ.startHour || (nowHourUTC === NY_KZ.startHour && nowMinUTC >= NY_KZ.startMin)) &&
+      (nowHourUTC < NY_KZ.endHour   || (nowHourUTC === NY_KZ.endHour   && nowMinUTC <  NY_KZ.endMin));
     const inKillzone = inLondonKZ || inNYKZ;
 
     // ── Major news check ─────────────────────────────────────────────────────────
