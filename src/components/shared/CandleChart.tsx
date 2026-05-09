@@ -15,14 +15,14 @@ interface RawCandle { t: number; o: number; h: number; l: number; c: number }
 interface NewsItem { headline: string; timestamp: string; sentiment?: string }
 
 interface InstantAnalysis {
-  sentiment:      "bullish" | "bearish" | "neutral";
-  magnitude:      "major" | "moderate" | "minor";
-  pattern:        string;
-  summary:        string;
-  drivers:        string[];
-  technicals:     string;
-  relatedNews:    string[];
-  aiMacroContext?: string;
+  sentiment:   "bullish" | "bearish" | "neutral";
+  magnitude:   "major" | "moderate" | "minor";
+  pattern:     string;
+  summary:     string;
+  drivers:     string[];
+  technicals:  string;
+  relatedNews: string[];  // headlines within tight window of candle
+  sameDayNews: string[];  // other headlines from the same calendar day
 }
 
 const SYMBOLS: { id: Symbol; label: string }[] = [
@@ -131,11 +131,25 @@ function analyseCandle(
     techParts.push("Long lower wick indicates buyers absorbed selling pressure at lows.");
   const technicals = techParts.join(" ") || "No strong structural signal on this candle.";
 
+  // Headlines within tight window of the candle (most directly related)
   const windowSecs = tfWindowSecs(tf) * 2;
   const relatedNews = news
     .filter(n => Math.abs(new Date(n.timestamp).getTime() / 1000 - candle.t) <= windowSecs)
     .map(n => n.headline)
     .slice(0, 3);
+
+  // All other headlines from the same calendar day (macro context for that session)
+  const candleDate = new Date(candle.t * 1000);
+  const dayStart   = Date.UTC(candleDate.getUTCFullYear(), candleDate.getUTCMonth(), candleDate.getUTCDate());
+  const dayEnd     = dayStart + 86_400_000;
+  const relatedSet = new Set(relatedNews);
+  const sameDayNews = news
+    .filter(n => {
+      const ts = new Date(n.timestamp).getTime();
+      return ts >= dayStart && ts < dayEnd && !relatedSet.has(n.headline);
+    })
+    .map(n => n.headline)
+    .slice(0, 5);
 
   const drivers: string[] = [];
   if (pattern.includes("Engulfing"))
@@ -156,19 +170,22 @@ function analyseCandle(
   if (relSize > 1.5) drivers.push("Significantly larger range than recent candles — unusual activity");
   if (prevTrend !== "neutral" && sentiment !== prevTrend)
     drivers.push(`Counter-trend move against recent ${prevTrend} pressure`);
-  if (relatedNews.length > 0) drivers.push("Macro news active during this window — see below");
+  if (relatedNews.length > 0 || sameDayNews.length > 0)
+    drivers.push("Macro news active during this session — see below");
 
   const dir   = bull ? "bullish" : "bearish";
   const chStr = `${changePct > 0 ? "+" : ""}${changePct.toFixed(2)}%`;
   let summary = `${pattern} on ${tf} — ${chStr} move (${magnitude} impact). `;
   if (relatedNews.length > 0)
     summary += `Macro news was active during this window, likely contributing to ${dir} pressure.`;
+  else if (sameDayNews.length > 0)
+    summary += `Macro events that session may have influenced ${dir} flow.`;
   else if (sentiment === "neutral")
     summary += "Market showed indecision with no strong directional bias.";
   else
     summary += `${sentiment === "bullish" ? "Buyers" : "Sellers"} were in control with ${prevTrend === sentiment ? "trend confirmation" : "counter-trend momentum"}.`;
 
-  return { sentiment, magnitude, pattern, summary, drivers, technicals, relatedNews };
+  return { sentiment, magnitude, pattern, summary, drivers, technicals, relatedNews, sameDayNews };
 }
 
 // ── Small UI helpers ──────────────────────────────────────────────────────────
@@ -201,17 +218,13 @@ function MagnitudeBadge({ m }: { m: string }) {
 // ── Analysis Panel ────────────────────────────────────────────────────────────
 
 function AnalysisPanel({
-  candle, analysis, timeframe, symbol, onClose, aiLoading, aiFailed, aiError, onRetry,
+  candle, analysis, timeframe, symbol, onClose,
 }: {
-  candle:     RawCandle;
-  analysis:   InstantAnalysis;
-  timeframe:  Timeframe;
-  symbol:     Symbol;
-  onClose:    () => void;
-  aiLoading?: boolean;
-  aiFailed?:  boolean;
-  aiError?:   string;
-  onRetry?:   () => void;
+  candle:    RawCandle;
+  analysis:  InstantAnalysis;
+  timeframe: Timeframe;
+  symbol:    Symbol;
+  onClose:   () => void;
 }) {
   const p         = candle.o > 100 ? 2 : 4;
   const bull      = candle.c > candle.o;
@@ -227,28 +240,6 @@ function AnalysisPanel({
           <p className="text-[9px] text-zinc-600 font-mono mt-0.5">
             {dt.toLocaleDateString()} · {dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {timeframe}
           </p>
-          {aiLoading && (
-            <p className="text-[9px] text-violet-400/70 mt-0.5 flex items-center gap-1">
-              <RefreshCw className="h-2.5 w-2.5 animate-spin inline" /> AI analyzing…
-            </p>
-          )}
-          {aiFailed && !aiLoading && (
-            <div className="mt-0.5 flex items-center gap-2">
-              <button onClick={onRetry} className="text-[9px] text-amber-500/80 hover:text-amber-400 flex items-center gap-1 transition-colors">
-                <RefreshCw className="h-2.5 w-2.5 inline" /> AI failed — tap to retry
-              </button>
-              <button
-                onClick={() => window.open('/api/candle-analysis', '_blank')}
-                className="text-[9px] text-zinc-600 hover:text-zinc-400 underline transition-colors">
-                debug
-              </button>
-            </div>
-          )}
-          {aiFailed && (
-            <p className="text-[9px] text-red-400/80 mt-1 font-mono break-all leading-tight">
-              {aiError ?? "Unknown error — check Vercel logs"}
-            </p>
-          )}
         </div>
         <button onClick={onClose} className="text-zinc-600 hover:text-zinc-300 transition-colors p-1 mt-0.5">
           <X className="h-4 w-4" />
@@ -303,10 +294,9 @@ function AnalysisPanel({
         <div>
           <p className="text-[11px] font-bold text-violet-400 uppercase tracking-wider mb-2">Macro Context</p>
 
-          {/* Real news headlines from the API */}
           {analysis.relatedNews.length > 0 && (
             <div className="mb-3">
-              <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1.5">Headlines</p>
+              <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1.5">Headlines Near This Candle</p>
               <div className="rounded-xl border border-white/8 bg-white/3 overflow-hidden divide-y divide-white/5">
                 {analysis.relatedNews.map((h, i) => (
                   <p key={i} className="px-3 py-2.5 text-[11px] text-zinc-300 leading-relaxed">{h}</p>
@@ -315,19 +305,20 @@ function AnalysisPanel({
             </div>
           )}
 
-          {/* AI macro analysis — separate from headlines */}
-          {analysis.aiMacroContext ? (
+          {analysis.sameDayNews.length > 0 && (
             <div>
-              <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1.5">AI Macro Analysis</p>
-              <p className="text-[11px] text-zinc-400 leading-relaxed">{analysis.aiMacroContext}</p>
+              <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1.5">Events That Day</p>
+              <div className="rounded-xl border border-white/8 bg-white/3 overflow-hidden divide-y divide-white/5">
+                {analysis.sameDayNews.map((h, i) => (
+                  <p key={i} className="px-3 py-2.5 text-[11px] text-zinc-300 leading-relaxed">{h}</p>
+                ))}
+              </div>
             </div>
-          ) : aiLoading ? (
-            <p className="text-[11px] text-zinc-600 italic">Fetching AI macro analysis…</p>
-          ) : aiFailed ? (
-            <p className="text-[11px] text-amber-600/70 italic">AI analysis failed — tap retry above.</p>
-          ) : !analysis.relatedNews.length ? (
-            <p className="text-[11px] text-zinc-600 italic">No macro context available.</p>
-          ) : null}
+          )}
+
+          {analysis.relatedNews.length === 0 && analysis.sameDayNews.length === 0 && (
+            <p className="text-[11px] text-zinc-600 italic">No macro news available for this date.</p>
+          )}
         </div>
       </div>
     </div>
@@ -521,8 +512,7 @@ export function CandleChart({
   defaultSymbol    = "XAUUSD",
   defaultTimeframe = "H1",
 }: CandleChartProps) {
-  const newsRef     = useRef<NewsItem[]>([]);
-  const aiCacheRef  = useRef<Map<string, InstantAnalysis>>(new Map());
+  const newsRef      = useRef<NewsItem[]>([]);
   const chartAreaRef = useRef<HTMLDivElement>(null);
   const [chartHeight, setChartHeight] = useState(300);
 
@@ -531,7 +521,7 @@ export function CandleChart({
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState<string | null>(null);
   const [bars,      setBars]      = useState<RawCandle[]>([]);
-  const [selected,  setSelected]  = useState<{ candle: RawCandle; analysis: InstantAnalysis; aiLoading?: boolean; aiFailed?: boolean; aiError?: string } | null>(null);
+  const [selected,  setSelected]  = useState<{ candle: RawCandle; analysis: InstantAnalysis } | null>(null);
 
   useEffect(() => {
     fetch("/api/market/news", { cache: "no-store" })
@@ -571,72 +561,12 @@ export function CandleChart({
     fetchCandles(symbol, timeframe);
   }, [symbol, timeframe, fetchCandles]);
 
-  const doAIFetch = useCallback(async (candle: RawCandle) => {
-    const cacheKey = `${symbol}-${timeframe}-${candle.t}`;
-    try {
-      const idx = bars.findIndex(b => b.t === candle.t);
-      const context = bars.slice(Math.max(0, idx - 10), Math.min(bars.length, idx + 3));
-      const res = await fetch("/api/candle-analysis", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol, timeframe, candle, context }),
-        signal: AbortSignal.timeout(25_000),
-      });
-      if (res.ok) {
-        const ai = await res.json();
-        if (!ai.error) {
-          setSelected(prev => {
-            if (prev?.candle.t !== candle.t) return prev;
-            const merged: InstantAnalysis = {
-              sentiment:      ai.sentiment  ?? prev.analysis.sentiment,
-              magnitude:      ai.magnitude  ?? prev.analysis.magnitude,
-              pattern:        prev.analysis.pattern,
-              summary:        ai.summary    ?? prev.analysis.summary,
-              drivers:        Array.isArray(ai.catalysts) && ai.catalysts.length ? ai.catalysts : prev.analysis.drivers,
-              technicals:     ai.technicals ?? prev.analysis.technicals,
-              relatedNews:    prev.analysis.relatedNews,
-              aiMacroContext: ai.newsContext?.trim() || undefined,
-            };
-            aiCacheRef.current.set(cacheKey, merged);
-            return { candle, aiLoading: false, analysis: merged };
-          });
-          return;
-        }
-        setSelected(prev => prev?.candle.t === candle.t
-          ? { ...prev, aiLoading: false, aiFailed: true, aiError: String(ai.error) }
-          : prev);
-      } else {
-        const body = await res.json().catch(() => ({}));
-        const errMsg = body.geminiError ?? body.error ?? `HTTP ${res.status}`;
-        setSelected(prev => prev?.candle.t === candle.t
-          ? { ...prev, aiLoading: false, aiFailed: true, aiError: String(errMsg) }
-          : prev);
-      }
-    } catch (e: any) {
-      setSelected(prev => prev?.candle.t === candle.t
-        ? { ...prev, aiLoading: false, aiFailed: true, aiError: e?.message ?? "Network error" }
-        : prev);
-    }
-  }, [bars, timeframe, symbol]);
-
-  const handleSelect = useCallback(async (candle: RawCandle) => {
-    const cacheKey = `${symbol}-${timeframe}-${candle.t}`;
-    const cached = aiCacheRef.current.get(cacheKey);
-    let isDeselect = false;
+  const handleSelect = useCallback((candle: RawCandle) => {
     setSelected(prev => {
-      if (prev?.candle.t === candle.t) { isDeselect = true; return null; }
-      const base = analyseCandle(candle, bars, newsRef.current, timeframe);
-      if (cached) return { candle, aiLoading: false, analysis: cached };
-      return { candle, analysis: base, aiLoading: true };
+      if (prev?.candle.t === candle.t) return null; // toggle off on re-click
+      return { candle, analysis: analyseCandle(candle, bars, newsRef.current, timeframe) };
     });
-    if (isDeselect || cached) return;
-    await doAIFetch(candle);
-  }, [bars, timeframe, symbol, doAIFetch]);
-
-  const retryAI = useCallback((candle: RawCandle) => {
-    setSelected(prev => prev ? { ...prev, aiLoading: true, aiFailed: false, aiError: undefined } : prev);
-    doAIFetch(candle);
-  }, [doAIFetch]);
+  }, [bars, timeframe]);
 
   return (
     <div className="h-full flex flex-col bg-[hsl(var(--card))] rounded-2xl border border-white/6 overflow-hidden">
@@ -709,7 +639,7 @@ export function CandleChart({
         />
       </div>
 
-      {/* Analysis panel — fixed-height bottom section, no page scroll needed */}
+      {/* Analysis panel — fixed-height bottom section */}
       {selected && (
         <div className="shrink-0 border-t border-white/5" style={{ height: 340 }}>
           <AnalysisPanel
@@ -718,10 +648,6 @@ export function CandleChart({
             timeframe={timeframe}
             symbol={symbol}
             onClose={() => setSelected(null)}
-            aiLoading={selected.aiLoading}
-            aiFailed={selected.aiFailed}
-            aiError={selected.aiError}
-            onRetry={() => retryAI(selected.candle)}
           />
         </div>
       )}
