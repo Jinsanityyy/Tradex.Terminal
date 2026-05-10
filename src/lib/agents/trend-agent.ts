@@ -300,10 +300,36 @@ export async function runTrendAgent(
     let biasScore = 0;
 
     // ── JadeCap PRIMARY: PDH/PDL Midpoint Daily Bias (+25 pts) ────────────
+    // Derive actual PDH/PDL from prior-day candles when available.
+    // Fallback to prevClose ± dayRange * 0.40 proxy only when no candle history exists.
     const { prevClose, dayRange, open: dayOpen } = snapshot.price;
-    const pdh        = prevClose + dayRange * 0.40;
-    const pdl        = prevClose - dayRange * 0.40;
-    const pdMidpoint = (pdh + pdl) / 2;
+    let pdh: number;
+    let pdl: number;
+
+    const recentCandles = snapshot.recentCandles;
+    if (recentCandles && recentCandles.length >= 2) {
+      const todayMidnight = new Date();
+      todayMidnight.setUTCHours(0, 0, 0, 0);
+      const todayMs   = todayMidnight.getTime();
+      const prevDayMs = todayMs - 86_400_000;
+      const prevDayCandles = recentCandles.filter(
+        c => c.t * 1000 >= prevDayMs && c.t * 1000 < todayMs
+      );
+      if (prevDayCandles.length >= 1) {
+        pdh = Math.max(...prevDayCandles.map(c => c.h));
+        pdl = Math.min(...prevDayCandles.map(c => c.l));
+      } else {
+        // No prior-day candles in history — use proxy
+        pdh = prevClose + dayRange * 0.40;
+        pdl = prevClose - dayRange * 0.40;
+      }
+    } else {
+      // No candle history at all — use proxy
+      pdh = prevClose + dayRange * 0.40;
+      pdl = prevClose - dayRange * 0.40;
+    }
+
+    const pdMidpoint    = (pdh + pdl) / 2;
     const jadeBiasScore = dayOpen > pdMidpoint ? 25 : dayOpen < pdMidpoint ? -25 : 0;
     biasScore += jadeBiasScore;
 

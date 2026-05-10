@@ -284,25 +284,33 @@ export async function runMasterAgent(
 
     // ── Structural override (HIGHEST PRIORITY — cannot be overridden by LLM) ─
     // Price action structure determines direction. LLM cannot override a bearish
-    // structure with bullish calls unless BOS to upside is confirmed.
-    const llmRaw          = (llmResult?.finalBias ?? finalBias) as "bullish" | "bearish" | "no-trade";
-    const bearishStruct   = trend.bias === "bearish";
-    const bullishStruct   = trend.bias === "bullish";
-    const bosToUpside     = smc.bosDetected && smc.chochDetected;
-    const bosToDownside   = smc.bosDetected && !smc.chochDetected;
-    const fibZoneActive   = smc.liquiditySweepDetected; // repurposed inFibZone flag
-    const noSetup         = smc.setupType === "None";
+    // structure with bullish calls unless a confirmed sweep + setup exist to the upside.
+    const llmRaw        = (llmResult?.finalBias ?? finalBias) as "bullish" | "bearish" | "no-trade";
+    const bearishStruct = trend.bias === "bearish";
+    const bullishStruct = trend.bias === "bullish";
+
+    // A reversal to upside is confirmed when: a bullish sweep occurred AND a setup (FVG/OB) formed.
+    // We deliberately do NOT require chochDetected because in this codebase chochDetected === fvgDetected,
+    // which would block legitimate bullish reversals that have a sweep but no FVG.
+    const bosToUpside   = smc.bosDetected && smc.setupPresent && smc.bias === "bullish";
+    // A reversal to downside is confirmed when: a bearish sweep/BOS occurred AND a setup formed.
+    const bosToDownside = smc.bosDetected && smc.setupPresent && smc.bias === "bearish";
+
+    // activeSetup: any confirmed structural setup (sweep, FVG, OB) present — used as the
+    // gate replacing the old "fibZoneActive" proxy (which was incorrectly mapped to liquiditySweepDetected).
+    const activeSetup = smc.setupPresent || smc.liquiditySweepDetected;
+    const noSetup     = smc.setupType === "None" && !smc.liquiditySweepDetected;
 
     let resolvedBias = llmRaw;
 
     if (llmRaw === "bullish" && bearishStruct && !bosToUpside) {
-      // Bearish structure + no BOS = block all long calls
+      // Bearish structure + no confirmed bullish reversal = block long calls
       resolvedBias = "no-trade";
     } else if (llmRaw === "bearish" && bullishStruct && !bosToDownside) {
-      // Bullish structure + no BOS = block all short calls
+      // Bullish structure + no confirmed bearish reversal = block short calls
       resolvedBias = "no-trade";
-    } else if (resolvedBias !== "no-trade" && !fibZoneActive && noSetup) {
-      // No fib zone + no confirmed setup = stand aside
+    } else if (resolvedBias !== "no-trade" && !activeSetup && noSetup) {
+      // No confirmed setup at all = stand aside
       resolvedBias = "no-trade";
     }
 

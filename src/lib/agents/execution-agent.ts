@@ -80,7 +80,9 @@ function scoreConfluence(
   const { structure, symbol } = snapshot;
 
   const macroAligned = GOLD_SYMS.has(symbol)
-    ? (isBullish ? news.riskScore > 25 : news.riskScore < 55)
+    // Gold long: any elevated risk environment supports safe-haven bid
+    // Gold short: requires explicit bearish macro (ceasefire, strong USD rally, etc.)
+    ? (isBullish ? news.riskScore > 25 : news.impact === "bearish")
     : ["EURUSD", "GBPUSD", "AUDUSD", "NZDUSD"].includes(symbol)
       ? (isBullish ? news.impact !== "bearish" : news.impact !== "bullish")
       : true;
@@ -106,11 +108,9 @@ function scoreConfluence(
       label: "BOS confirmed",
       pass: smc.bosDetected,
     },
-    {
-      id: "choch",
-      label: "CHoCH confirmed",
-      pass: smc.chochDetected,
-    },
+    // CHoCH is intentionally omitted here — in this codebase chochDetected === fvgDetected,
+    // so counting it alongside the FVG factor would double-count the same signal.
+    // The structural shift is already captured via bosDetected + fvgMid.
     {
       id: "fib_zone",
       label: isBullish ? "Price in discount retracement zone" : "Price in premium retracement zone",

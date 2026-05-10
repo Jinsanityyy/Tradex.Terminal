@@ -37,6 +37,17 @@ function cacheKey(symbol: Symbol, timeframe: Timeframe): string {
   return `${symbol}_${timeframe}_${minBucket}`;
 }
 
+// Evict all cache entries older than CACHE_TTL to prevent unbounded Map growth.
+// Called before each cache write so stale keys don't accumulate across long uptimes.
+function evictStaleCache(): void {
+  const now = Date.now();
+  for (const [key, entry] of cache.entries()) {
+    if (now - entry.ts > CACHE_TTL) {
+      cache.delete(key);
+    }
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Market Data Fetcher
 // ─────────────────────────────────────────────────────────────────────────────
@@ -358,6 +369,7 @@ export async function runAgentOrchestrator(
   };
 
   // ── Cache result ─────────────────────────────────────────────────────────
+  evictStaleCache();
   cache.set(key, { result, ts: Date.now() });
 
   // ── Log signal to history (fire-and-forget — never blocks the response) ──

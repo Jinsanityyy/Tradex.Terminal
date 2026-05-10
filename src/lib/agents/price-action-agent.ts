@@ -249,6 +249,16 @@ function sweepMinDollar(symbol: string, price: number): number {
   return 0.0002;                              // forex
 }
 
+// Minimum FVG gap size per instrument class.
+// Gold: $0.50 (noise floor); forex: 3 pips; crypto: ~0.05%; indices: ~0.10 pts
+function fvgMinGap(symbol: string, price: number): number {
+  if (symbol === "XAUUSD") return 0.5;
+  if (symbol === "XAGUSD" || symbol === "XPTUSD") return 0.05;
+  if (price > 5_000) return price * 0.0005;  // BTCUSD, indices — 0.05% of price
+  if (price > 100)   return price * 0.001;   // Indices (US500 etc.) — 0.1%
+  return 0.0003;                             // forex — ~3 pips
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Candle-Based Session Level & FVG Detection
 // Requires snapshot.recentCandles (populated by buildMarketSnapshot)
@@ -268,12 +278,12 @@ function computeActualSessionLevels(candles: CandleSlim[]) {
   const prevC   = candles.filter(c => c.t * 1000 >= prevDayMs && c.t * 1000 < todayMs);
 
   return {
-    asianHigh:  asianC.length  > 1 ? Math.max(...asianC.map(c => c.h))  : null,
-    asianLow:   asianC.length  > 1 ? Math.min(...asianC.map(c => c.l))  : null,
-    londonHigh: londonC.length > 1 ? Math.max(...londonC.map(c => c.h)) : null,
-    londonLow:  londonC.length > 1 ? Math.min(...londonC.map(c => c.l)) : null,
-    pdh:        prevC.length   > 0 ? Math.max(...prevC.map(c => c.h))   : null,
-    pdl:        prevC.length   > 0 ? Math.min(...prevC.map(c => c.l))   : null,
+    asianHigh:  asianC.length  >= 1 ? Math.max(...asianC.map(c => c.h))  : null,
+    asianLow:   asianC.length  >= 1 ? Math.min(...asianC.map(c => c.l))  : null,
+    londonHigh: londonC.length >= 1 ? Math.max(...londonC.map(c => c.h)) : null,
+    londonLow:  londonC.length >= 1 ? Math.min(...londonC.map(c => c.l)) : null,
+    pdh:        prevC.length   >= 1 ? Math.max(...prevC.map(c => c.h))   : null,
+    pdl:        prevC.length   >= 1 ? Math.min(...prevC.map(c => c.l))   : null,
   };
 }
 
@@ -288,17 +298,29 @@ interface SweepFVGResult {
   fvgMid:        number;
 }
 
-// Scan last 3 hours of NY candles for: sweep of session level → 3-candle FVG
+// Returns true if a candle's timestamp falls within the NY Kill Zone (13:30–15:30 UTC).
+function inNYKillZone(ts: number): boolean {
+  const d = new Date(ts * 1000);
+  const h = d.getUTCHours();
+  const m = d.getUTCMinutes();
+  const totalMin = h * 60 + m;
+  return totalMin >= 13 * 60 + 30 && totalMin < 15 * 60 + 30;
+}
+
+// Scan NY session candles for: sweep of session level within the kill zone → 3-candle FVG.
+// Only sweep candles whose timestamp falls inside 13:30–15:30 UTC are considered valid.
 // Returns the most recent complete pattern, or null.
 function detectNYSweepAndFVG(
   candles: CandleSlim[],
   levels: ReturnType<typeof computeActualSessionLevels>,
-  minSweep: number
+  minSweep: number,
+  minFvgGap: number
 ): SweepFVGResult | null {
   const toHour = (ts: number) => new Date(ts * 1000).getUTCHours();
+  // Widen scan window to 13:00–18:00 UTC so we have context candles before the kill zone.
   const nyC = candles
     .filter(c => { const h = toHour(c.t); return h >= 13 && h < 18; })
-    .slice(-12);
+    .slice(-24);
 
   if (nyC.length < 3) return null;
 
@@ -314,6 +336,10 @@ function detectNYSweepAndFVG(
 
   for (let i = 0; i < nyC.length - 2; i++) {
     const sc = nyC[i];
+
+    // Sweep candle must be within the official NY Kill Zone (13:30–15:30 UTC)
+    if (!inNYKillZone(sc.t)) continue;
+
     for (const tgt of targets) {
       if (tgt.label === "London High") continue; // 43% WR — skip
       let swept = false;
@@ -328,17 +354,17 @@ function detectNYSweepAndFVG(
       }
       if (!swept) continue;
 
-      // Require wick ≥ 2 pts beyond body (noise filter)
+      // Require wick extends meaningfully beyond the candle body (instrument-aware)
       const bodyBot = Math.min(sc.o, sc.c);
       const bodyTop = Math.max(sc.o, sc.c);
-      if (tgt.bias === "bullish" && sc.l > bodyBot - 2) continue;
-      if (tgt.bias === "bearish" && sc.h < bodyTop + 2) continue;
+      if (tgt.bias === "bullish" && sc.l > bodyBot - minSweep) continue;
+      if (tgt.bias === "bearish" && sc.h < bodyTop + minSweep) continue;
 
-      // Scan next 6 candles for 3-candle FVG (gap > $0.50 for gold)
+      // Scan next 6 candles for 3-candle FVG using instrument-aware gap threshold
       const post = nyC.slice(i + 1, i + 7);
       for (let j = 0; j + 2 < post.length; j++) {
         const c0 = post[j], c2 = post[j + 2];
-        if (tgt.bias === "bullish" && c2.l - c0.h > 0.5) {
+        if (tgt.bias === "bullish" && c2.l - c0.h > minFvgGap) {
           return {
             sweepLevel: tgt.level, sweepLabel: tgt.label, sweepModifier: tgt.mod,
             sweepBias: tgt.bias, sweepExtreme: extreme,
@@ -347,7 +373,7 @@ function detectNYSweepAndFVG(
             fvgMid:  parseFloat(((c0.h + c2.l) / 2).toFixed(4)),
           };
         }
-        if (tgt.bias === "bearish" && c0.l - c2.h > 0.5) {
+        if (tgt.bias === "bearish" && c0.l - c2.h > minFvgGap) {
           return {
             sweepLevel: tgt.level, sweepLabel: tgt.label, sweepModifier: tgt.mod,
             sweepBias: tgt.bias, sweepExtreme: extreme,
@@ -397,6 +423,7 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   let pdh        = prevClose + dayRange * 0.40;
   let pdl        = prevClose - dayRange * 0.40;
 
+  const minFvgGapVal = fvgMinGap(snapshot.symbol, current);
   const candles = snapshot.recentCandles as CandleSlim[] | undefined;
   if (candles && candles.length >= 10) {
     const real = computeActualSessionLevels(candles);
@@ -420,7 +447,7 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
 
   if (candles && candles.length >= 10) {
     const real = computeActualSessionLevels(candles);
-    const found = detectNYSweepAndFVG(candles, real, minSweep);
+    const found = detectNYSweepAndFVG(candles, real, minSweep, minFvgGapVal);
     if (found) {
       liquiditySweepDetected = true;
       sweepLevel    = found.sweepLevel;
