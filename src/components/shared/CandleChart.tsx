@@ -861,7 +861,7 @@ export function CandleChart({
 
       {/* Chart + analysis panel — bottom on mobile, side on desktop */}
       <div className="flex flex-col sm:flex-row flex-1 min-h-0">
-        <div ref={chartAreaRef} className="flex-1 min-h-0 relative">
+        <div ref={chartAreaRef} className="flex-1 min-h-0 relative overflow-hidden">
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center z-10">
               <RefreshCw className="h-5 w-5 text-violet-400/50 animate-spin" />
@@ -876,7 +876,7 @@ export function CandleChart({
         </div>
 
         {selected && (
-          <div className="shrink-0 border-t border-white/5 sm:border-t-0 sm:border-l sm:w-72 flex flex-col overflow-hidden" style={{ height: "auto" }}>
+          <div className="shrink-0 border-t border-white/5 sm:border-t-0 sm:border-l sm:w-72 flex flex-col overflow-hidden">
             <div className="h-72 sm:h-full flex flex-col overflow-hidden">
               <AnalysisPanel
                 candle={selected.candle}
