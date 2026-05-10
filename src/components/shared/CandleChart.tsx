@@ -706,7 +706,7 @@ function SvgCandleChart({ bars, selected, onSelect, height }: {
 
           {pTicks.map((p, i) => (
             <text key={i} x={chartW + 5} y={pToY(p)}
-              fill="#52525b" fontSize={9} fontFamily="ui-monospace,monospace"
+              fill="#52525b" fontSize={9} fontFamily="var(--font-geist-mono), monospace"
               dominantBaseline="middle">
               {p.toFixed(prec)}
             </text>
@@ -717,7 +717,7 @@ function SvgCandleChart({ bars, selected, onSelect, height }: {
             const dt = new Date(b.t * 1000);
             return (
               <text key={b.t} x={cx} y={chartH + 18}
-                fill="#52525b" fontSize={9} fontFamily="ui-monospace,monospace"
+                fill="#52525b" fontSize={9} fontFamily="var(--font-geist-mono), monospace"
                 textAnchor="middle">
                 {`${String(dt.getHours()).padStart(2,"0")}:${String(dt.getMinutes()).padStart(2,"0")}`}
               </text>
