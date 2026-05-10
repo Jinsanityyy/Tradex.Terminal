@@ -139,7 +139,7 @@ export async function runRiskAgent(snapshot: MarketSnapshot): Promise<RiskAgentO
     // London Kill Zone: 08:00–11:00 AM GMT = 08:00–11:00 UTC
     const isNYSession     = session === "New York";
     const isLondonSession = session === "London";
-    const nowUTC          = new Date();
+    const nowUTC          = new Date(snapshot.timestamp);
     const nowUTCHour      = nowUTC.getUTCHours();
     const nowUTCMin       = nowUTC.getUTCMinutes();
 
