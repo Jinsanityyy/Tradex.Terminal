@@ -71,7 +71,8 @@ Return ONLY valid JSON:
 const IRRELEVANT_PATTERNS = [
   /box office|movie season|film opens|blockbuster|\boscars?\b|\bemmys?\b|\bgrammys?\b/i,
   /\bspirit airlines\b.*ceo|airline ceo.*collapse|airline.*runway/i,
-  /elon musk.*twitter|twitter.*buyout.*lawsuit|twitter.*2022/i,
+  // Only suppress Elon Musk stories specifically about Twitter/X social drama (not Tesla, SpaceX, DOGE, xAI)
+  /elon musk.*(twitter|tweet|x\.com).*(lawsuit|buyout|banned|suspended)|twitter.*buyout.*lawsuit|twitter.*2022/i,
   /celebrity|actress|actor|reality tv|nfl draft|nba playoffs|world cup|olympics/i,
   /fashion week|restaurant|recipe|travel guide|hotel review/i,
 ];
@@ -322,7 +323,6 @@ function detectRegime(combinedText: string): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function computeRiskScore(regime: string, newsCount: number, hasHighImpact: boolean): number {
-  let score = 20; // base
   const regimeScores: Record<string, number> = {
     "geopolitical": 75,
     "inflation": 60,
@@ -331,7 +331,7 @@ function computeRiskScore(regime: string, newsCount: number, hasHighImpact: bool
     "macro-data": 50,
     "calm": 20,
   };
-  score = regimeScores[regime] ?? 20;
+  let score = regimeScores[regime] ?? 20;
   if (hasHighImpact) score = Math.min(95, score + 15);
   if (newsCount > 10) score = Math.min(90, score + 5);
   return Math.round(score);
@@ -470,14 +470,23 @@ export async function runNewsAgent(snapshot: MarketSnapshot, anthropicApiKey?: s
 
     // Tail risk events
     const tailRiskEvents: string[] = [];
-    if (textContainsAny(combinedText, ["nuclear", "escalation", "sanctions expanded"])) {
+    if (textContainsAny(combinedText, ["nuclear", "escalation", "sanctions expanded", "missile strike", "military offensive"])) {
       tailRiskEvents.push("Nuclear/military escalation risk — tail event with extreme volatility potential");
     }
-    if (textContainsAny(combinedText, ["bank failure", "financial crisis", "contagion"])) {
+    if (textContainsAny(combinedText, ["bank failure", "financial crisis", "contagion", "bank run", "credit crunch", "systemic risk"])) {
       tailRiskEvents.push("Systemic financial risk signals — potential liquidity crisis");
     }
-    if (textContainsAny(combinedText, ["black swan", "flash crash", "circuit breaker"])) {
+    if (textContainsAny(combinedText, ["black swan", "flash crash", "circuit breaker", "market halt", "trading suspended"])) {
       tailRiskEvents.push("Market structure stress indicators detected");
+    }
+    if (textContainsAny(combinedText, ["pandemic", "outbreak", "lockdown", "quarantine", "who emergency"])) {
+      tailRiskEvents.push("Pandemic/health emergency risk — potential demand shock and supply chain disruption");
+    }
+    if (textContainsAny(combinedText, ["sovereign default", "debt ceiling", "government shutdown", "credit downgrade", "imf bailout"])) {
+      tailRiskEvents.push("Sovereign credit risk — potential currency and bond market dislocation");
+    }
+    if (textContainsAny(combinedText, ["oil embargo", "energy crisis", "pipeline attack", "refinery explosion", "opec surprise"])) {
+      tailRiskEvents.push("Energy supply shock — commodity volatility spike expected");
     }
 
     // Reasoning

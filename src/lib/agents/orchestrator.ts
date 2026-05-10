@@ -119,8 +119,19 @@ async function fetchMarketData(symbol: Symbol): Promise<{
         } catch { clearTimeout(timer); return []; }
       })(),
     ]);
-    // Prefer live Finnhub data; fall back to internal route (which serves static fallback when no key)
-    let news: RawNewsItem[] = finnhubNews.length > 0 ? finnhubNews : internalNews;
+    // Merge both sources and deduplicate by normalised headline to avoid the same
+    // story being counted twice when Finnhub and the internal route overlap.
+    const seen = new Set<string>();
+    const dedup = (items: RawNewsItem[]): RawNewsItem[] =>
+      items.filter(n => {
+        const key = n.headline.trim().toLowerCase().slice(0, 80);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+    // Prefer Finnhub first (fresher), then fill gaps with internal news
+    let news: RawNewsItem[] = dedup([...finnhubNews, ...internalNews]);
 
     return { quote: quote as Record<string, string | { high: string; low: string }> | null, news };
   } catch {
@@ -155,10 +166,20 @@ async function runDebatePhase(
   contrarian: ContrarianAgentOutput,
   apiKey: string
 ): Promise<DebateEntry[]> {
-  // Compute majority bias from 6 agents (exclude master)
-  const biasVotes = [trend.bias, smc.bias, news.impact];
-  const bullVotes = biasVotes.filter(b => b === "bullish").length;
-  const bearVotes = biasVotes.filter(b => b === "bearish").length;
+  // Compute majority bias from all 6 agents (exclude master).
+  // Execution direction and contrarian challenge are included — execution counts
+  // as a directional vote; contrarian always counts as opposing the current leader.
+  const execVote = execution.direction === "long" ? "bullish"
+    : execution.direction === "short" ? "bearish"
+    : "neutral";
+  const biasVotes = [trend.bias, smc.bias, news.impact, execVote];
+  let bullVotes = biasVotes.filter(b => b === "bullish").length;
+  let bearVotes = biasVotes.filter(b => b === "bearish").length;
+  // Contrarian challenge counts as one vote against the current leader
+  if (contrarian.challengesBias) {
+    if (bullVotes > bearVotes) bearVotes += 1;
+    else if (bearVotes > bullVotes) bullVotes += 1;
+  }
   const majorityBias = bullVotes > bearVotes ? "bullish" : bearVotes > bullVotes ? "bearish" : "neutral";
 
   // Pre-compute stance values to avoid nested quotes inside template literals
@@ -288,6 +309,7 @@ export async function runAgentOrchestrator(
 
   // ── Build normalized snapshot ────────────────────────────────────────────
   let snapshot;
+  let isMockData = false;
   if (quote && !(quote as Record<string, unknown>).code) {
     const quoteClose = typeof quote.close === "string"
       ? parseFloat(quote.close)
@@ -307,8 +329,9 @@ export async function runAgentOrchestrator(
       dailyStructure ?? undefined
     );
   } else {
-    // Fallback to mock data
+    // Live quote unavailable — all agent outputs are based on synthetic data
     snapshot = buildMockSnapshot(symbol, timeframe);
+    isMockData = true;
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -366,6 +389,7 @@ export async function runAgentOrchestrator(
     debate,
     totalProcessingTime: Date.now() - start,
     cached: false,
+    isMockData,
   };
 
   // ── Cache result ─────────────────────────────────────────────────────────

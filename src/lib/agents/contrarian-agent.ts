@@ -213,10 +213,18 @@ export async function runContrarianAgent(
     }
 
     // Opposite liquidity: where are retail stops on the other side?
+    // Use an instrument-aware buffer instead of a fixed 0.5% (too large for forex, too small for BTC).
+    // Gold: $1.5 buffer; forex: 0.15% of price; crypto/indices: 0.25% of price.
     if (oppositeLiquidity === null) {
+      const liqBuf = snapshot.symbol === "XAUUSD" ? 1.5
+        : snapshot.symbol === "XAGUSD" || snapshot.symbol === "XPTUSD" ? 0.08
+        : current > 5000 ? current * 0.0025  // BTC, high-price indices
+        : current > 100  ? current * 0.002   // indices, mid-price
+        : current * 0.0015;                  // forex
+
       oppositeLiquidity = htfBias === "bullish"
-        ? parseFloat((low * 0.995).toFixed(4))  // equal lows below for bullish bias
-        : parseFloat((high * 1.005).toFixed(4)); // equal highs above for bearish bias
+        ? parseFloat((low - liqBuf).toFixed(4))   // equal lows below for bullish bias
+        : parseFloat((high + liqBuf).toFixed(4)); // equal highs above for bearish bias
     }
 
     // ── Contrarian Challenge ───────────────────────────────────────────────

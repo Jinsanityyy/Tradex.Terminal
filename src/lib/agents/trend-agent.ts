@@ -157,14 +157,21 @@ function deriveMomentumDirection(
   rsi: number,
   pctChange: number,
   macdHist: number,
-  maStack: string
+  maStack: string,
+  atrProxy: number
 ): "expanding" | "contracting" | "flat" {
-  const strongMove = Math.abs(pctChange) > 0.5;
+  // Scale thresholds relative to instrument volatility so a 0.5% move is "strong"
+  // for low-vol forex but noise for high-vol crypto or gold during news events.
+  // strongMoveThreshold = 50% of the instrument's typical daily ATR, floored at 0.2%.
+  const strongMoveThreshold = Math.max(0.2, atrProxy * 0.5);
+  const flatThreshold       = Math.max(0.05, atrProxy * 0.1);
+
+  const strongMove  = Math.abs(pctChange) > strongMoveThreshold;
   const macdAligned = (pctChange > 0 && macdHist > 0) || (pctChange < 0 && macdHist < 0);
-  const maAligned = (pctChange > 0 && maStack === "bullish") || (pctChange < 0 && maStack === "bearish");
+  const maAligned   = (pctChange > 0 && maStack === "bullish") || (pctChange < 0 && maStack === "bearish");
 
   if (strongMove && macdAligned && maAligned) return "expanding";
-  if (Math.abs(pctChange) < 0.2 && Math.abs(macdHist) < 0.001) return "flat";
+  if (Math.abs(pctChange) < flatThreshold && Math.abs(macdHist) < 0.001) return "flat";
   return "contracting";
 }
 
@@ -293,7 +300,7 @@ export async function runTrendAgent(
       .catch(() => ({ ma20: null, ma50: null, ma200: null, maStack: "neutral" as const }));
 
     const timeframeBias = await resolveTimeframeBias(snapshot);
-    const momentum = deriveMomentumDirection(rsi, changePercent, macdHist, maData.maStack);
+    const momentum = deriveMomentumDirection(rsi, changePercent, macdHist, maData.maStack, snapshot.indicators.atrProxy);
     const phase = derivePhase(snapshot, maData.maStack);
     const maAlignment = deriveMaAlignment(snapshot, maData.maStack);
 
@@ -357,13 +364,28 @@ export async function runTrendAgent(
       : `Daily bias: NEUTRAL — open at PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`;
     reasons.unshift(jadeReason);
 
-    const step = current > 1000 ? 10 : current > 100 ? 1 : 0.001;
-    const invalidationLevel =
-      bias === "bullish"
-        ? parseFloat((Math.floor(current * 0.985 / step) * step).toFixed(4))
-        : bias === "bearish"
-          ? parseFloat((Math.ceil(current * 1.015 / step) * step).toFixed(4))
-          : null;
+    // Invalidation level: prefer the most recent swing low/high from candle data.
+    // For bullish bias → last significant swing low (recent candle low below PDL or yesterday's low).
+    // For bearish bias → last significant swing high.
+    // Falls back to a ±1.5% proxy only when no candle data is available.
+    let invalidationLevel: number | null = null;
+    if (bias !== "neutral") {
+      if (recentCandles && recentCandles.length >= 3) {
+        const lookback = recentCandles.slice(-20); // last 20 candles
+        if (bias === "bullish") {
+          const swingLow = Math.min(...lookback.map(c => c.l));
+          invalidationLevel = parseFloat((swingLow * 0.999).toFixed(4));
+        } else {
+          const swingHigh = Math.max(...lookback.map(c => c.h));
+          invalidationLevel = parseFloat((swingHigh * 1.001).toFixed(4));
+        }
+      } else {
+        const step = current > 1000 ? 10 : current > 100 ? 1 : 0.001;
+        invalidationLevel = bias === "bullish"
+          ? parseFloat((Math.floor(current * 0.985 / step) * step).toFixed(4))
+          : parseFloat((Math.ceil(current * 1.015 / step) * step).toFixed(4));
+      }
+    }
 
     return {
       agentId: "trend",
