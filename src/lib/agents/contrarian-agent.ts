@@ -157,6 +157,7 @@ export async function runContrarianAgent(
 
     // Stop hunt: near 52-week extreme
     if (pos52w > 88) {
+      trapType = trapType ?? "stop hunt";
       riskFactor += 15;
       failureReasons.push(
         `Stop hunt risk: price at ${pos52w}% of 52-week range — equal highs above ${structure.high52w.toFixed(4)} are a magnet for stop runs before reversal`
@@ -165,6 +166,7 @@ export async function runContrarianAgent(
     }
 
     if (pos52w < 12) {
+      trapType = trapType ?? "stop hunt";
       riskFactor += 15;
       failureReasons.push(
         `Stop hunt risk: price at ${pos52w}% of 52-week range — equal lows below ${structure.low52w.toFixed(4)} are a magnet for stop runs before reversal`
@@ -211,14 +213,25 @@ export async function runContrarianAgent(
     }
 
     // Opposite liquidity: where are retail stops on the other side?
+    // Use an instrument-aware buffer instead of a fixed 0.5% (too large for forex, too small for BTC).
+    // Gold: $1.5 buffer; forex: 0.15% of price; crypto/indices: 0.25% of price.
     if (oppositeLiquidity === null) {
+      const liqBuf = snapshot.symbol === "XAUUSD" ? 1.5
+        : snapshot.symbol === "XAGUSD" || snapshot.symbol === "XPTUSD" ? 0.08
+        : current > 5000 ? current * 0.0025  // BTC, high-price indices
+        : current > 100  ? current * 0.002   // indices, mid-price
+        : current * 0.0015;                  // forex
+
       oppositeLiquidity = htfBias === "bullish"
-        ? parseFloat((low * 0.995).toFixed(4))  // equal lows below for bullish bias
-        : parseFloat((high * 1.005).toFixed(4)); // equal highs above for bearish bias
+        ? parseFloat((low - liqBuf).toFixed(4))   // equal lows below for bullish bias
+        : parseFloat((high + liqBuf).toFixed(4)); // equal highs above for bearish bias
     }
 
     // ── Contrarian Challenge ───────────────────────────────────────────────
-    const challengesBias = riskFactor > 40;
+    // Require riskFactor >= 50 AND a named trap type to avoid challenging on minor
+    // aggregated signals (e.g., Asia session alone + mild HTF divergence shouldn't
+    // be enough to challenge a well-supported primary thesis).
+    const challengesBias = riskFactor >= 50 && trapType !== null;
     const trapConfidence = Math.min(90, riskFactor);
 
     // ── Alternative Scenario ───────────────────────────────────────────────

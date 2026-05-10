@@ -80,7 +80,9 @@ function scoreConfluence(
   const { structure, symbol } = snapshot;
 
   const macroAligned = GOLD_SYMS.has(symbol)
-    ? (isBullish ? news.riskScore > 25 : news.riskScore < 55)
+    // Gold long: any elevated risk environment supports safe-haven bid
+    // Gold short: requires explicit bearish macro (ceasefire, strong USD rally, etc.)
+    ? (isBullish ? news.riskScore > 25 : news.impact === "bearish")
     : ["EURUSD", "GBPUSD", "AUDUSD", "NZDUSD"].includes(symbol)
       ? (isBullish ? news.impact !== "bearish" : news.impact !== "bullish")
       : true;
@@ -106,11 +108,9 @@ function scoreConfluence(
       label: "BOS confirmed",
       pass: smc.bosDetected,
     },
-    {
-      id: "choch",
-      label: "CHoCH confirmed",
-      pass: smc.chochDetected,
-    },
+    // CHoCH is intentionally omitted here — in this codebase chochDetected === fvgDetected,
+    // so counting it alongside the FVG factor would double-count the same signal.
+    // The structural shift is already captured via bosDetected + fvgMid.
     {
       id: "fib_zone",
       label: isBullish ? "Price in discount retracement zone" : "Price in premium retracement zone",
@@ -225,11 +225,14 @@ export async function runExecutionAgent(
     const { session, sessionHour } = indicators;
 
     // ── Killzone ────────────────────────────────────────────────────────────────
-    const inLondonKZ = session === "London" && sessionHour >= LONDON_KZ.start && sessionHour < LONDON_KZ.end;
-    // Minute-aware NY Kill Zone check (13:30–15:30 UTC) — both hour and minute from snapshot timestamp
-    const nowDate    = new Date(snapshot.timestamp);
-    const nowHourUTC = nowDate.getUTCHours();
-    const nowMinUTC  = nowDate.getUTCMinutes();
+    // Both London and NY kill zones derived from snapshot.timestamp for consistency.
+    // sessionHour from indicators is also derived from the same timestamp, but
+    // using the Date object directly ensures minute-level precision for both windows.
+    const snapDate   = new Date(snapshot.timestamp);
+    const nowHourUTC = snapDate.getUTCHours();
+    const nowMinUTC  = snapDate.getUTCMinutes();
+    const inLondonKZ = session === "London" &&
+      nowHourUTC >= LONDON_KZ.start && nowHourUTC < LONDON_KZ.end;
     const inNYKZ     = session === "New York" &&
       (nowHourUTC > NY_KZ.startHour || (nowHourUTC === NY_KZ.startHour && nowMinUTC >= NY_KZ.startMin)) &&
       (nowHourUTC < NY_KZ.endHour   || (nowHourUTC === NY_KZ.endHour   && nowMinUTC <  NY_KZ.endMin));
@@ -284,7 +287,8 @@ export async function runExecutionAgent(
             : (keyLevels.orderBlockHigh - current) / obRange)
         : 0;
       if (depthPct > 0.3) {
-        return waitResult(start, "B", "Price >30% into OB — wait for a fresh OB test");
+        // OB depth disqualifies this entry but the structure is still valid — B+ not B
+        return waitResult(start, "B+", "Price >30% into OB — wait for a fresh OB test");
       }
 
     } else if (setupType === "FVG" && keyLevels.fvgMid !== null) {
@@ -326,13 +330,22 @@ export async function runExecutionAgent(
       entryInStructure = false;
 
     } else if (bosDetected) {
-      const pullback = dayRange * 0.38;
-      entry    = isBullish ? current - pullback : current + pullback;
+      // Prefer a real structural level (FVG midpoint or sweep level) as the pullback entry.
+      // Fall back to a 38.2% Fibonacci approximation of the day range only when no level is available.
+      const structuralEntry =
+        keyLevels.fvgMid ??
+        (keyLevels.sweepLevel !== null
+          ? (isBullish ? keyLevels.sweepLevel * 1.001 : keyLevels.sweepLevel * 0.999)
+          : null);
+      const pullback = dayRange * 0.382;
+      entry    = structuralEntry ?? (isBullish ? current - pullback : current + pullback);
       stopLoss = isBullish ? entry - minBuf : entry + minBuf;
       trigger  = "BOS pullback";
-      entryZone = `BOS pullback zone ~${entry.toFixed(4)}`;
+      entryZone = structuralEntry
+        ? `BOS pullback to structural level ${entry.toFixed(4)}`
+        : `BOS pullback zone ~${entry.toFixed(4)} (38.2% fib estimate)`;
       slZone   = `${isBullish ? "Below" : "Above"} BOS origin — displacement candle ${isBullish ? "low" : "high"}`;
-      entryInStructure = false;
+      entryInStructure = structuralEntry !== null;
 
     } else {
       return noTradeResult(start, "No valid structural setup — no OB, FVG, or confirmed sweep present");

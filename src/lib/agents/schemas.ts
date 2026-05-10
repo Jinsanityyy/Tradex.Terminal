@@ -358,6 +358,7 @@ export interface AgentRunResult {
   debate?: DebateEntry[];
   totalProcessingTime: number;
   cached?: boolean;
+  isMockData?: boolean; // true when live quote failed and synthetic data was used
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

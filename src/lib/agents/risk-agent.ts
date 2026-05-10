@@ -134,21 +134,37 @@ export async function runRiskAgent(snapshot: MarketSnapshot): Promise<RiskAgentO
     const tooManyWarnings = warnings.length >= 5; // raised from 4 → 5
     const rrTooLow    = rrEstimate !== null && rrEstimate < 1.6;  // minimum = 1.6R hard block
 
-    // Block if in NY session but outside kill zone (13:30–15:30 UTC)
-    const isNYSession  = session === "New York";
-    const nowUTC       = new Date();
-    const nowUTCHour   = nowUTC.getUTCHours();
-    const nowUTCMin    = nowUTC.getUTCMinutes();
+    // Kill zone enforcement — only trade during high-probability session windows.
+    // NY Kill Zone:     09:30–11:30 AM EST = 13:30–15:30 UTC
+    // London Kill Zone: 08:00–11:00 AM GMT = 08:00–11:00 UTC
+    const isNYSession     = session === "New York";
+    const isLondonSession = session === "London";
+    const nowUTC          = new Date(snapshot.timestamp);
+    const nowUTCHour      = nowUTC.getUTCHours();
+    const nowUTCMin       = nowUTC.getUTCMinutes();
+
     const inNYKillZone = isNYSession &&
       (nowUTCHour > 13 || (nowUTCHour === 13 && nowUTCMin >= 30)) &&
       (nowUTCHour < 15  || (nowUTCHour === 15 && nowUTCMin <  30));
-    const outsideKillZone = isNYSession && !inNYKillZone;
+    const outsideNYKillZone = isNYSession && !inNYKillZone;
 
-    if (outsideKillZone) {
+    const inLondonKillZone  = isLondonSession && nowUTCHour >= 8 && nowUTCHour < 11;
+    const outsideLondonKillZone = isLondonSession && !inLondonKillZone;
+
+    const outsideKillZone = outsideNYKillZone || outsideLondonKillZone;
+
+    if (outsideNYKillZone) {
       warnings.push(
         `Outside NY Kill Zone (9:30–11:30 AM EST). ` +
         `Current UTC: ${nowUTCHour}:${String(nowUTCMin).padStart(2, "0")}. ` +
         `Valid window: 13:30–15:30 UTC. Win rate drops significantly outside this window.`
+      );
+    }
+    if (outsideLondonKillZone) {
+      warnings.push(
+        `Outside London Kill Zone (08:00–11:00 UTC). ` +
+        `Current UTC: ${nowUTCHour}:${String(nowUTCMin).padStart(2, "0")}. ` +
+        `Valid window: 08:00–11:00 UTC. Avoid entries during London consolidation hours.`
       );
     }
 
@@ -186,6 +202,7 @@ export async function runRiskAgent(snapshot: MarketSnapshot): Promise<RiskAgentO
         isClosed ? "Session closed" :
         extremeVol ? "Extreme volatility" :
         rrTooLow ? "RR below 1:1" :
+        outsideKillZone ? "Outside kill zone window" :
         "Multiple risk warnings"
       }`);
     } else {

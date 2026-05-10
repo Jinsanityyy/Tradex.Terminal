@@ -71,7 +71,8 @@ Return ONLY valid JSON:
 const IRRELEVANT_PATTERNS = [
   /box office|movie season|film opens|blockbuster|\boscars?\b|\bemmys?\b|\bgrammys?\b/i,
   /\bspirit airlines\b.*ceo|airline ceo.*collapse|airline.*runway/i,
-  /elon musk.*twitter|twitter.*buyout.*lawsuit|twitter.*2022/i,
+  // Only suppress Elon Musk stories specifically about Twitter/X social drama (not Tesla, SpaceX, DOGE, xAI)
+  /elon musk.*(twitter|tweet|x\.com).*(lawsuit|buyout|banned|suspended)|twitter.*buyout.*lawsuit|twitter.*2022/i,
   /celebrity|actress|actor|reality tv|nfl draft|nba playoffs|world cup|olympics/i,
   /fashion week|restaurant|recipe|travel guide|hotel review/i,
 ];
@@ -180,6 +181,57 @@ const BEARISH_BTC = [
   "china ban",
 ];
 
+// USDJPY: bullish = USD strength / JPY weakness; bearish = JPY safe-haven demand / USD weakness
+const BULLISH_USDJPY = [
+  "dollar strength", "dxy rally", "fed hawkish", "rate hike", "risk on",
+  "boj dovish", "boj yield curve control", "japan inflation low", "yen weakness",
+];
+
+const BEARISH_USDJPY = [
+  "dollar weakness", "fed dovish", "rate cut", "risk off", "safe haven",
+  "boj hawkish", "boj rate hike", "yen intervention", "japan rate hike",
+  "geopolitical", "war", "recession fears",
+];
+
+// USOIL / UKOIL: bullish = supply disruption / geopolitical risk; bearish = demand drop / supply glut
+const BULLISH_OIL = [
+  "opec cut", "oil supply cut", "iran sanctions", "hormuz", "oil embargo",
+  "russia oil", "energy crisis", "oil shortage", "demand surge", "geopolitical",
+  "war", "conflict", "military",
+];
+
+const BEARISH_OIL = [
+  "opec increase", "oil glut", "demand slowdown", "recession fears", "china slowdown",
+  "strategic reserve release", "us oil output", "shale production", "ceasefire",
+  "peace deal", "opec deal", "demand destruction",
+];
+
+// US equity indices (US500, US100, US30): bullish = risk-on / strong economy; bearish = risk-off / recession
+const BULLISH_INDICES = [
+  "risk on", "strong gdp", "jobs beat", "nfp beat", "fed pause", "rate cut",
+  "earnings beat", "soft landing", "consumer spending", "economic expansion",
+  "trade deal", "tariff removed",
+];
+
+const BEARISH_INDICES = [
+  "risk off", "recession", "rate hike", "fed hawkish", "earnings miss",
+  "tariff escalation", "trade war", "banking crisis", "inflation surge",
+  "hard landing", "layoffs", "unemployment rise", "market crash",
+];
+
+// Crypto alts (ETHUSD, SOLUSD, XRPUSD, etc.): closely correlated with BTC macro sentiment
+const BULLISH_CRYPTO_ALT = [
+  ...BULLISH_BTC,
+  "ethereum etf", "solana adoption", "defi growth", "nft demand", "layer 2",
+  "crypto bull", "altcoin rally",
+];
+
+const BEARISH_CRYPTO_ALT = [
+  ...BEARISH_BTC,
+  "ethereum regulation", "defi hack", "protocol exploit", "rug pull",
+  "altcoin crash", "crypto winter",
+];
+
 function textContainsAny(text: string, keywords: string[]): boolean {
   const lower = text.toLowerCase();
   return keywords.some(kw => lower.includes(kw.toLowerCase()));
@@ -195,36 +247,49 @@ function getAssetNewsImpact(
 ): "bullish" | "bearish" | "neutral" {
   const upper = symbol.toUpperCase();
 
-  if (upper === "XAUUSD") {
-    const bull = textContainsAny(text, BULLISH_GOLD);
-    const bear = textContainsAny(text, BEARISH_GOLD);
+  const resolve = (bullKw: string[], bearKw: string[]): "bullish" | "bearish" | "neutral" => {
+    const bull = textContainsAny(text, bullKw);
+    const bear = textContainsAny(text, bearKw);
     if (bull && !bear) return "bullish";
     if (bear && !bull) return "bearish";
     return "neutral";
+  };
+
+  if (upper === "XAUUSD" || upper === "XAGUSD" || upper === "XPTUSD") {
+    return resolve(BULLISH_GOLD, BEARISH_GOLD);
+  }
+  if (upper === "EURUSD") return resolve(BULLISH_EURUSD, BEARISH_EURUSD);
+  if (upper === "GBPUSD") return resolve(BULLISH_GBPUSD, BEARISH_GBPUSD);
+
+  // JPY pairs: USDJPY bullish = USD up, JPY down; for JPY-quoted pairs flip the result
+  if (upper === "USDJPY" || upper === "EURJPY" || upper === "GBPJPY" || upper === "AUDJPY" || upper === "CADJPY" || upper === "CHFJPY") {
+    return resolve(BULLISH_USDJPY, BEARISH_USDJPY);
   }
 
-  if (upper === "EURUSD") {
-    const bull = textContainsAny(text, BULLISH_EURUSD);
-    const bear = textContainsAny(text, BEARISH_EURUSD);
-    if (bull && !bear) return "bullish";
-    if (bear && !bull) return "bearish";
-    return "neutral";
+  // USD-base forex: USDCAD, USDCHF — bullish = USD strength
+  if (upper === "USDCAD" || upper === "USDCHF") {
+    return resolve(BULLISH_USDJPY, BEARISH_USDJPY); // same drivers as USDJPY (USD strength)
   }
 
-  if (upper === "GBPUSD") {
-    const bull = textContainsAny(text, BULLISH_GBPUSD);
-    const bear = textContainsAny(text, BEARISH_GBPUSD);
-    if (bull && !bear) return "bullish";
-    if (bear && !bull) return "bearish";
-    return "neutral";
+  // AUD / NZD pairs — risk-sensitive; bullish on risk-on, bearish on risk-off
+  if (upper === "AUDUSD" || upper === "NZDUSD" || upper === "AUDCAD" || upper === "AUDNZD") {
+    return resolve(BULLISH_INDICES, BEARISH_INDICES);
   }
 
-  if (upper === "BTCUSD") {
-    const bull = textContainsAny(text, BULLISH_BTC);
-    const bear = textContainsAny(text, BEARISH_BTC);
-    if (bull && !bear) return "bullish";
-    if (bear && !bull) return "bearish";
-    return "neutral";
+  // Oil
+  if (upper === "USOIL" || upper === "UKOIL") return resolve(BULLISH_OIL, BEARISH_OIL);
+
+  // Equity indices
+  if (["US500", "US100", "US30", "GER40", "UK100", "JPN225", "AUS200", "HK50"].includes(upper)) {
+    return resolve(BULLISH_INDICES, BEARISH_INDICES);
+  }
+
+  // BTC
+  if (upper === "BTCUSD") return resolve(BULLISH_BTC, BEARISH_BTC);
+
+  // Crypto alts — driven by same macro as BTC with alt-specific keywords
+  if (["ETHUSD", "SOLUSD", "XRPUSD", "BNBUSD", "ADAUSD", "DOTUSD", "LNKUSD"].includes(upper)) {
+    return resolve(BULLISH_CRYPTO_ALT, BEARISH_CRYPTO_ALT);
   }
 
   return "neutral";
@@ -258,7 +323,6 @@ function detectRegime(combinedText: string): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function computeRiskScore(regime: string, newsCount: number, hasHighImpact: boolean): number {
-  let score = 20; // base
   const regimeScores: Record<string, number> = {
     "geopolitical": 75,
     "inflation": 60,
@@ -267,7 +331,7 @@ function computeRiskScore(regime: string, newsCount: number, hasHighImpact: bool
     "macro-data": 50,
     "calm": 20,
   };
-  score = regimeScores[regime] ?? 20;
+  let score = regimeScores[regime] ?? 20;
   if (hasHighImpact) score = Math.min(95, score + 15);
   if (newsCount > 10) score = Math.min(90, score + 5);
   return Math.round(score);
@@ -406,14 +470,23 @@ export async function runNewsAgent(snapshot: MarketSnapshot, anthropicApiKey?: s
 
     // Tail risk events
     const tailRiskEvents: string[] = [];
-    if (textContainsAny(combinedText, ["nuclear", "escalation", "sanctions expanded"])) {
+    if (textContainsAny(combinedText, ["nuclear", "escalation", "sanctions expanded", "missile strike", "military offensive"])) {
       tailRiskEvents.push("Nuclear/military escalation risk — tail event with extreme volatility potential");
     }
-    if (textContainsAny(combinedText, ["bank failure", "financial crisis", "contagion"])) {
+    if (textContainsAny(combinedText, ["bank failure", "financial crisis", "contagion", "bank run", "credit crunch", "systemic risk"])) {
       tailRiskEvents.push("Systemic financial risk signals — potential liquidity crisis");
     }
-    if (textContainsAny(combinedText, ["black swan", "flash crash", "circuit breaker"])) {
+    if (textContainsAny(combinedText, ["black swan", "flash crash", "circuit breaker", "market halt", "trading suspended"])) {
       tailRiskEvents.push("Market structure stress indicators detected");
+    }
+    if (textContainsAny(combinedText, ["pandemic", "outbreak", "lockdown", "quarantine", "who emergency"])) {
+      tailRiskEvents.push("Pandemic/health emergency risk — potential demand shock and supply chain disruption");
+    }
+    if (textContainsAny(combinedText, ["sovereign default", "debt ceiling", "government shutdown", "credit downgrade", "imf bailout"])) {
+      tailRiskEvents.push("Sovereign credit risk — potential currency and bond market dislocation");
+    }
+    if (textContainsAny(combinedText, ["oil embargo", "energy crisis", "pipeline attack", "refinery explosion", "opec surprise"])) {
+      tailRiskEvents.push("Energy supply shock — commodity volatility spike expected");
     }
 
     // Reasoning
