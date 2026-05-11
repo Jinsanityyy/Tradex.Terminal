@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TradeX Terminal — Agent System Guide</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green:  #00c97a;
+    --red:    #ff4466;
+    --amber:  #ffaa00;
+    --cyan:   #00e5ff;
+    --blue:   #3b82f6;
+    --ink:    #111827;
+    --muted:  #6b7280;
+    --border: #e5e7eb;
+    --card:   #ffffff;
+    --bg:     #f9fafb;
+  }
+
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.65;
+    color: var(--ink);
+    background: #fff;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 32px 28px;
+  }
+
+  /* ── Cover ── */
+  .cover {
+    text-align: center;
+    padding: 48px 0 40px;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 36px;
+  }
+  .cover .logo-ring {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #111827 0%, #1e3a5f 100%);
+    margin-bottom: 16px;
+  }
+  .cover .logo-ring span { font-size: 28px; }
+  .cover h1 { font-size: 26pt; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 6px; }
+  .cover .sub { font-size: 13pt; color: var(--muted); margin-bottom: 4px; }
+  .cover .tag {
+    display: inline-block;
+    background: #111827; color: var(--green);
+    font-size: 8.5pt; font-weight: 700; letter-spacing: 1px;
+    padding: 3px 12px; border-radius: 4px; margin-top: 12px;
+  }
+
+  /* ── Sections ── */
+  h2 {
+    font-size: 14pt; font-weight: 800; margin: 32px 0 12px;
+    padding-bottom: 6px; border-bottom: 2px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  h2 .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: #111827; color: #fff; font-size: 9pt; font-weight: 800; flex-shrink: 0;
+  }
+  h3 { font-size: 11pt; font-weight: 700; margin: 20px 0 6px; }
+  p { margin-bottom: 10px; }
+
+  /* ── Agent Cards ── */
+  .agents-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 16px 0;
+  }
+  .agent-card {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    background: var(--card);
+  }
+  .agent-card .agent-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+  }
+  .agent-icon {
+    width: 36px; height: 36px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .agent-card .name { font-size: 10pt; font-weight: 800; }
+  .agent-card .role { font-size: 8.5pt; color: var(--muted); }
+  .agent-card p { font-size: 9pt; color: #374151; margin-bottom: 0; }
+
+  .agent-master {
+    grid-column: 1 / -1;
+    border-color: #111827;
+    background: #f8fafc;
+  }
+
+  /* icon colors */
+  .ic-trend    { background: #eff6ff; }
+  .ic-pa       { background: #f0fdf4; }
+  .ic-news     { background: #fffbeb; }
+  .ic-risk     { background: #fff1f2; }
+  .ic-exec     { background: #f5f3ff; }
+  .ic-contra   { background: #fff7ed; }
+  .ic-master   { background: #111827; }
+
+  /* ── Flow Diagram ── */
+  .flow {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 16px 0;
+    background: var(--bg);
+  }
+  .flow-row {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .flow-row:last-child { margin-bottom: 0; }
+  .flow-label {
+    font-size: 8pt; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    width: 64px; flex-shrink: 0;
+  }
+  .pill {
+    display: inline-block;
+    padding: 4px 10px; border-radius: 6px;
+    font-size: 8.5pt; font-weight: 700;
+    border: 1.5px solid;
+  }
+  .pill-dark  { background: #111827; color: #fff; border-color: #111827; }
+  .pill-green { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+  .pill-amber { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+  .pill-red   { background: #fff1f2; color: #9f1239; border-color: #fecdd3; }
+  .pill-blue  { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+  .pill-purple{ background: #f5f3ff; color: #5b21b6; border-color: #ddd6fe; }
+  .arrow { color: var(--muted); font-size: 13pt; }
+
+  /* ── Signal States ── */
+  .signal-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  .signal-table th {
+    background: #111827; color: #fff;
+    font-size: 8.5pt; font-weight: 700; padding: 8px 12px; text-align: left;
+  }
+  .signal-table td { padding: 8px 12px; font-size: 9pt; border-bottom: 1px solid var(--border); }
+  .signal-table tr:last-child td { border-bottom: none; }
+  .signal-table tr:nth-child(even) td { background: var(--bg); }
+
+  /* ── Key Concept Boxes ── */
+  .concept {
+    border-left: 4px solid;
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    margin: 14px 0;
+  }
+  .concept-blue  { border-color: var(--blue);  background: #eff6ff; }
+  .concept-green { border-color: var(--green); background: #f0fdf4; }
+  .concept-amber { border-color: var(--amber); background: #fffbeb; }
+  .concept-red   { border-color: var(--red);   background: #fff1f2; }
+
+  .concept .title { font-size: 9.5pt; font-weight: 800; margin-bottom: 4px; }
+  .concept p { font-size: 9pt; margin-bottom: 0; }
+
+  /* ── How To Use Steps ── */
+  .steps { list-style: none; margin: 12px 0; }
+  .steps li {
+    display: flex; gap: 14px; margin-bottom: 14px; align-items: flex-start;
+  }
+  .steps .step-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #111827; color: #fff;
+    font-size: 10pt; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+  }
+  .steps .step-body .step-title { font-weight: 800; font-size: 10pt; margin-bottom: 3px; }
+  .steps .step-body p { font-size: 9pt; margin-bottom: 0; color: #374151; }
+
+  /* ── Gate Table ── */
+  .gate-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  .gate-table th {
+    background: #111827; color: #fff;
+    font-size: 8.5pt; font-weight: 700; padding: 8px 12px; text-align: left;
+  }
+  .gate-table td { padding: 9px 12px; font-size: 9pt; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .gate-table tr:last-child td { border-bottom: none; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 8pt; font-weight: 700;
+  }
+  .badge-red    { background: #fff1f2; color: #9f1239; }
+  .badge-green  { background: #f0fdf4; color: #166534; }
+  .badge-amber  { background: #fffbeb; color: #92400e; }
+
+  /* ── Footer ── */
+  footer {
+    margin-top: 48px; padding-top: 16px;
+    border-top: 1.5px solid var(--border);
+    font-size: 8.5pt; color: var(--muted);
+    display: flex; justify-content: space-between;
+  }
+
+  /* ── Print ── */
+  @media print {
+    body { padding: 0; max-width: none; }
+    @page { margin: 18mm 16mm; size: A4; }
+    h2 { break-before: auto; }
+    .agents-grid { break-inside: avoid; }
+    .flow { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ COVER -->
+<div class="cover">
+  <div class="logo-ring"><span>🧠</span></div>
+  <h1>TradeX Terminal</h1>
+  <div class="sub">Multi-Agent Intelligence System</div>
+  <div class="sub" style="font-size:10pt;margin-top:4px;">Paano gumagana ang 7 Agents — Simplified Guide</div>
+  <div class="tag">NY SESSION LIQUIDITY MODEL</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ 1. OVERVIEW -->
+<h2><span class="num">1</span> Ano ang TradeX Terminal?</h2>
+
+<p>Ang TradeX Terminal ay isang AI-powered trading analysis platform na gumagamit ng <strong>7 na AI agents</strong> na nagtatrabaho nang sabay-sabay para ma-analyze ang market at mag-generate ng trade signals.</p>
+
+<div class="concept concept-blue">
+  <div class="title">Pangunahing Strategy: NY Session Liquidity Sweep (Jade Cap)</div>
+  <p>Ang sistema ay nakabatay sa isang tiyak na strategy lamang — ang <strong>New York session liquidity sweep</strong>. Nangangahulugan ito na walang trade signal ang ige-generate maliban na lang kung may confirmed na sweep ng isang session level (London Low, PDH, Asian High, atbp.) sa loob ng NY session (13:00–18:00 UTC).</p>
+</div>
+
+<p><strong>Simple na rule:</strong> Walang sweep = Walang trade. Lagi.</p>
+
+
+<!-- ═══════════════════════════════════════════════════════ 2. 7 AGENTS -->
+<h2><span class="num">2</span> Ang 7 Agents — Sino Sila?</h2>
+
+<div class="agents-grid">
+
+  <div class="agent-card">
+    <div class="agent-header">
+      <div class="agent-icon ic-trend">📈</div>
+      <div>
+        <div class="name">Agent 1 — Trend Agent</div>
+        <div class="role">Rule-based + AI</div>
+      </div>
+    </div>
+    <p>Tinutukoy kung ang overall na direksyon ng market ay <strong>bullish, bearish, o neutral</strong>. Ginagamit ang multi-timeframe analysis (M5, M15, H1, H4), RSI, MACD, at moving averages. Nagbibigay ng confidence level (0–100%) at market phase (Expansion, Pullback, Range, atbp.).</p>
+  </div>
+
+  <div class="agent-card">
+    <div class="agent-header">
+      <div class="agent-icon ic-pa">🔍</div>
+      <div>
+        <div class="name">Agent 2 — Price Action Agent</div>
+        <div class="role">AI (Claude Sonnet)</div>
+      </div>
+    </div>
+    <p>Pinakamahalagang agent. Nagde-detect ng <strong>NY session liquidity sweeps</strong> at FVG (Fair Value Gap). Ito ang nagsasabi kung may valid na setup o wala. Sinisigurado na ang bias ng sweep ay naaayon sa daily bias bago mag-proceed.</p>
+  </div>
+
+  <div class="agent-card">
+    <div class="agent-header">
+      <div class="agent-icon ic-news">📰</div>
+      <div>
+        <div class="name">Agent 3 — News Agent</div>
+        <div class="role">AI (Claude Haiku)</div>
+      </div>
+    </div>
+    <p>Nag-a-analyze ng macro news, economic events, at geopolitical risk. Nagbibigay ng <strong>risk score (0–100)</strong> at tinukoy kung ang news ay bullish, bearish, o neutral para sa asset. Nababago ang directional confidence batay sa news sentiment.</p>
+  </div>
+
+  <div class="agent-card">
+    <div class="agent-header">
+      <div class="agent-icon ic-risk">🛡️</div>
+      <div>
+        <div class="name">Agent 4 — Risk Gate</div>
+        <div class="role">Rule-based</div>
+      </div>
+    </div>
+    <p>Nagse-screen kung safe ba ang trade. Tinitingnan ang <strong>volatility, session quality, RR ratio, at RSI extremes</strong>. Nagbibigay ng risk grade (A–F). Kung invalid ang risk conditions, blocked ang lahat ng signals — walang override.</p>
+  </div>
+
+  <div class="agent-card">
+    <div class="agent-header">
+      <div class="agent-icon ic-exec">⚡</div>
+      <div>
+        <div class="name">Agent 5 — Execution Agent</div>
+        <div class="role">Rule-based</div>
+      </div>
+    </div>
+    <p>Nagko-compute ng exact na <strong>Entry, Stop Loss, TP1, at TP2</strong>. Ginagamit ang sweep level para sa SL (sweep extreme + buffer). Walang execution plan kung walang confirmed sweep — direktang NO_TRADE ang isasauli.</p>
+  </div>
+
+  <div class="agent-card">
+    <div class="agent-header">
+      <div class="agent-icon ic-contra">⚠️</div>
+      <div>
+        <div class="name">Agent 6 — Contrarian Agent</div>
+        <div class="role">AI (Claude Haiku)</div>
+      </div>
+    </div>
+    <p>Ang "devil's advocate" ng sistema. Hinahanap ang mga <strong>bull traps, bear traps, false breakouts, at stop hunts</strong>. Nagbibigay ng risk factor (0–100%) at alternative scenario. Mas mataas ang risk factor = mas kwestyonable ang setup.</p>
+  </div>
+
+  <div class="agent-card agent-master">
+    <div class="agent-header">
+      <div class="agent-icon ic-master" style="color:#fff;">👑</div>
+      <div>
+        <div class="name">Agent 7 — Master Agent</div>
+        <div class="role">AI (Claude Sonnet) — Final Adjudicator</div>
+      </div>
+    </div>
+    <p>Ang huling decision-maker. Nakikita ang lahat ng output ng 6 agents pati na ang debate. Nag-i-issue ng <strong>final verdict: LONG, SHORT, o NO TRADE</strong>. Gumagamit ng weighted scoring at structural gates. Ang signal nito ang lumalabas sa screen.</p>
+  </div>
+
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ 3. PIPELINE -->
+<h2><span class="num">3</span> Paano Sila Nagtatrabaho — Pipeline</h2>
+
+<div class="flow">
+  <div class="flow-row">
+    <span class="flow-label">Phase 1</span>
+    <span class="pill pill-blue">📈 Trend</span>
+    <span class="arrow">+</span>
+    <span class="pill pill-green">🔍 Price Action</span>
+    <span class="arrow">+</span>
+    <span class="pill pill-amber">📰 News</span>
+    <span class="arrow" style="margin-left:4px;">← sabay-sabay</span>
+  </div>
+  <div class="flow-row">
+    <span class="flow-label">Phase 2a</span>
+    <span class="pill pill-purple">⚡ Execution</span>
+    <span class="arrow">+</span>
+    <span class="pill" style="background:#fff7ed;color:#92400e;border-color:#fed7aa;">⚠️ Contrarian</span>
+    <span class="arrow" style="margin-left:4px;">← sabay-sabay (dep. sa Phase 1)</span>
+  </div>
+  <div class="flow-row">
+    <span class="flow-label">Phase 2b</span>
+    <span class="pill pill-red">🛡️ Risk Gate</span>
+    <span class="arrow" style="margin-left:4px;">← mag-isa (kailangan ang actual RR mula sa Execution)</span>
+  </div>
+  <div class="flow-row">
+    <span class="flow-label">Phase 3</span>
+    <span class="pill pill-dark">💬 Debate</span>
+    <span class="arrow" style="margin-left:4px;">← ang 6 agents ay nagtatalo sa isa't isa</span>
+  </div>
+  <div class="flow-row">
+    <span class="flow-label">Phase 4</span>
+    <span class="pill pill-dark">👑 Master</span>
+    <span class="arrow" style="margin-left:4px;">← nakita ang lahat → nagbibigay ng FINAL verdict</span>
+  </div>
+</div>
+
+<div class="concept concept-amber">
+  <div class="title">Bakit sequential ang Phase 2b?</div>
+  <p>Kailangan ng Risk Gate ang actual RR ratio mula sa Execution Agent para ma-grade nang tama ang trade quality. Hindi maaaring tumakbo ang Risk Gate nang sabay sa Execution — kailangan muna ang output ng Execution bilang input ng Risk.</p>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ 4. GATES -->
+<h2><span class="num">4</span> Mga Gate — Kailan NO TRADE?</h2>
+
+<p>Bago mag-issue ng signal, dumadaan ang sistema sa apat na "gates." Kung ang kahit isa ay failed, ang result ay <strong>NO TRADE</strong> — walang exceptions.</p>
+
+<table class="gate-table">
+  <thead>
+    <tr>
+      <th>Gate</th>
+      <th>Kondisyon para mag-block</th>
+      <th>Reason na ipinakita</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>🔒 Sweep Gate</strong></td>
+      <td>Walang confirmed NY session sweep</td>
+      <td><badge class="badge badge-red">Sweep gate: No confirmed NY session sweep</badge></td>
+    </tr>
+    <tr>
+      <td><strong>🛡️ Risk Gate</strong></td>
+      <td>Session closed / extreme volatility / RR &lt; 1:1 / maraming warnings</td>
+      <td><badge class="badge badge-red">Risk gate: [specific reason]</badge></td>
+    </tr>
+    <tr>
+      <td><strong>📊 Structure Gate</strong></td>
+      <td>Bullish signal sa bearish structure (walang BOS) o vice versa</td>
+      <td><badge class="badge badge-amber">Structure gate: Trend is BEARISH</badge></td>
+    </tr>
+    <tr>
+      <td><strong>📉 Consensus Gate</strong></td>
+      <td>Score ay nasa neutral band (±25) — hindi sapat ang directional agreement</td>
+      <td><badge class="badge badge-amber">Consensus within neutral band (±25)</badge></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="concept concept-green">
+  <div class="title">Sweep Override ng Structure Gate</div>
+  <p>Kung may confirmed sweep sa direksyon ng signal (hal. bearish sweep at bearish signal), ang sweep ay <strong>awtomatikong nag-o-override ng Structure Gate</strong>. Hindi na kailangan ng BOS confirmation kung sweeping na ang presyo sa tamang direksyon.</p>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ 5. SIGNAL STATES -->
+<h2><span class="num">5</span> Signal States — Anong Ibig Sabihin?</h2>
+
+<table class="signal-table">
+  <thead>
+    <tr>
+      <th>State</th>
+      <th>Ibig Sabihin</th>
+      <th>Aksyon</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="badge badge-green">ARMED</span></td>
+      <td>Presyo ay &lt;0.5% mula sa entry zone. Setup ay aktibo na.</td>
+      <td><strong>Handa ka na. Confirm ang trigger at mag-execute.</strong></td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-amber">PENDING</span></td>
+      <td>Presyo ay 0.5%–2% mula sa entry. Papalapit pa lamang.</td>
+      <td>Bantayan. Huwag mag-enter nang maaga.</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-red">EXPIRED</span></td>
+      <td>Lumipas na ang presyo sa entry zone ng &gt;0.3%.</td>
+      <td><strong>HUWAG HABULIN. Hintayin ang susunod na setup.</strong></td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-red">NO_TRADE</span></td>
+      <td>Walang valid na setup.</td>
+      <td>Stand aside. Walang trade ngayon.</td>
+    </tr>
+  </tbody>
+</table>
+
+
+<!-- ═══════════════════════════════════════════════════════ 6. HOW TO USE -->
+<h2><span class="num">6</span> Paano Gamitin ang Terminal</h2>
+
+<ol class="steps">
+  <li>
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <div class="step-title">Pumunta sa Brain Terminal</div>
+      <p>I-click ang <strong>"Brain"</strong> sa navigation. Ito ang pangunahing agent command room ng sistema.</p>
+    </div>
+  </li>
+  <li>
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <div class="step-title">Pumili ng Symbol at Timeframe</div>
+      <p>Piliin ang asset (XAUUSD, EURUSD, BTCUSD, atbp.) at timeframe (M5, M15, H1, H4). Para sa Jade Cap strategy, ang <strong>M15</strong> ang pinaka-recommended na timeframe.</p>
+    </div>
+  </li>
+  <li>
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <div class="step-title">I-run ang Analysis</div>
+      <p>I-click ang <strong>"Run Analysis"</strong> button. Tatakbo ang lahat ng 7 agents nang sabay-sabay (mga 5–15 segundo). May 5-minute cache — kung nag-run ka kamakailan, agahan ang result.</p>
+    </div>
+  </li>
+  <li>
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <div class="step-title">Tingnan ang Master Verdict</div>
+      <p>Ang pinakamalaking display ay ang <strong>Master Agent verdict</strong>: LONG, SHORT, o NO TRADE. Kasama ang confidence %, final bias, at execution plan (Entry, SL, TP1, TP2).</p>
+    </div>
+  </li>
+  <li>
+    <div class="step-num">5</div>
+    <div class="step-body">
+      <div class="step-title">Suriin ang Individual Agents</div>
+      <p>I-expand ang bawat agent card para makita ang detalye. Tingnan ang <strong>Price Action Agent</strong> — kung walang sweep na detected doon, ang lahat ng iba pang signal ay irrelevant.</p>
+    </div>
+  </li>
+  <li>
+    <div class="step-num">6</div>
+    <div class="step-body">
+      <div class="step-title">Basahin ang Debate</div>
+      <p>Ang <strong>Debate section</strong> ay nagpapakita kung paano nagtatalo ang 6 agents. Kung maraming challenge, mag-ingat — ibig sabihin ay may significant na disagreement sa setup.</p>
+    </div>
+  </li>
+  <li>
+    <div class="step-num">7</div>
+    <div class="step-body">
+      <div class="step-title">Tsek ang Signal State</div>
+      <p>Hanapin ang <strong>signal state</strong> ng Execution Agent: ARMED, PENDING, EXPIRED, o NO_TRADE. Kung EXPIRED na, huwag na mag-enter — hintayin ang susunod na sweep.</p>
+    </div>
+  </li>
+</ol>
+
+
+<!-- ═══════════════════════════════════════════════════════ 7. SWEEP GUIDE -->
+<h2><span class="num">7</span> Ang Sweep Model — Detalyadong Paliwanag</h2>
+
+<h3>Ano ang Liquidity Sweep?</h3>
+<p>Ang sweep ay nangyayari kapag ang presyo ay <strong>lumampas sa isang session level</strong> (hal. London Low) gamit ang wick, pero <strong>bumalik kaagad sa loob</strong> ng level bago magsara ang candle. Ito ay signal na inalis ng smart money ang mga stop orders ng retail traders bago ang tunay na move.</p>
+
+<h3>Session Levels at Priority</h3>
+<table class="signal-table">
+  <thead>
+    <tr>
+      <th>Level</th>
+      <th>Direksyon</th>
+      <th>Confidence Boost</th>
+      <th>Tradeable?</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>London Low</strong></td>
+      <td>Bullish sweep</td>
+      <td>+15 (pinakamataas)</td>
+      <td><span class="badge badge-green">OO</span></td>
+    </tr>
+    <tr>
+      <td><strong>PDH</strong> (Previous Day High)</td>
+      <td>Bearish sweep</td>
+      <td>+10</td>
+      <td><span class="badge badge-green">OO</span></td>
+    </tr>
+    <tr>
+      <td><strong>Asian High</strong></td>
+      <td>Bearish sweep</td>
+      <td>+10</td>
+      <td><span class="badge badge-green">OO</span></td>
+    </tr>
+    <tr>
+      <td><strong>Asian Low</strong></td>
+      <td>Bullish sweep</td>
+      <td>+5</td>
+      <td><span class="badge badge-green">OO</span></td>
+    </tr>
+    <tr>
+      <td><strong>London High</strong></td>
+      <td>Flag only</td>
+      <td>+0</td>
+      <td><span class="badge badge-red">HINDI</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Trade Setup Pagkatapos ng Sweep</h3>
+<p>Dalawang uri ng setup ang generated pagkatapos ng confirmed sweep:</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0;">
+  <div class="concept concept-green" style="margin:0;">
+    <div class="title">FVG Setup (mas malakas)</div>
+    <p>May Fair Value Gap na nabuo pagkatapos ng sweep. Entry = FVG midpoint. Kailangan: directional close (bullish sweep = candle magsara nang pataas).</p>
+  </div>
+  <div class="concept concept-blue" style="margin:0;">
+    <div class="title">Sweep Setup</div>
+    <p>Walang FVG pero confirmed sweep. Entry = sweep level + small buffer. Mas konting confirmation kaya mas mataas ang risk.</p>
+  </div>
+</div>
+
+<h3>SL at TP Computation</h3>
+<table class="signal-table">
+  <thead>
+    <tr><th>Level</th><th>Formula</th><th>Halimbawa (XAUUSD LONG)</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Entry</strong></td>
+      <td>FVG midpoint o sweep level + buffer</td>
+      <td>2,285.50</td>
+    </tr>
+    <tr>
+      <td><strong>Stop Loss</strong></td>
+      <td>Sweep extreme + $5 buffer (below low para LONG)</td>
+      <td>2,276.00 (below sweep low)</td>
+    </tr>
+    <tr>
+      <td><strong>TP1</strong></td>
+      <td>1.5R mula sa entry (capped)</td>
+      <td>2,299.75</td>
+    </tr>
+    <tr>
+      <td><strong>TP2</strong></td>
+      <td>2.5R mula sa entry (capped)</td>
+      <td>2,309.25</td>
+    </tr>
+  </tbody>
+</table>
+
+
+<!-- ═══════════════════════════════════════════════════════ 8. RISK -->
+<h2><span class="num">8</span> Risk Management — Dapat Malaman</h2>
+
+<table class="gate-table">
+  <thead>
+    <tr><th>Kondisyon</th><th>Max Risk %</th><th>Aksyon</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Normal na session (London/NY)</td>
+      <td><span class="badge badge-green">1.0%</span></td>
+      <td>Standard position size</td>
+    </tr>
+    <tr>
+      <td>Mataas na volatility (&gt;2% move)</td>
+      <td><span class="badge badge-amber">0.5%</span></td>
+      <td>Bawasan ang size, palawakin ang stops</td>
+    </tr>
+    <tr>
+      <td>Extreme volatility (&gt;2.5% move)</td>
+      <td><span class="badge badge-red">BLOCKED</span></td>
+      <td>Walang bagong position — news shock</td>
+    </tr>
+    <tr>
+      <td>3+ risk warnings</td>
+      <td><span class="badge badge-amber">0.5%</span></td>
+      <td>Maging mas maingat</td>
+    </tr>
+    <tr>
+      <td>RR &lt; 1.5:1</td>
+      <td>Warning lang</td>
+      <td>Hindi recommended pero hindi blocked</td>
+    </tr>
+    <tr>
+      <td>RR &lt; 1.0:1</td>
+      <td><span class="badge badge-red">BLOCKED</span></td>
+      <td>Trade hindi sulit — automatic invalid</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="concept concept-red">
+  <div class="title">Pinakamahalagang Rule</div>
+  <p>Huwag mag-enter kung ang signal state ay <strong>EXPIRED</strong>. Kapag lumipas na ang presyo sa entry zone, ang trade ay hindi na optimal. Hintayin ang susunod na sweep sa NY session. Ang paghabol ng presyo ay isa sa pinakamalaking pagkakamali sa intraday trading.</p>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ 9. SYMBOLS -->
+<h2><span class="num">9</span> Mga Supported na Assets</h2>
+
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0;">
+  <div style="border:1.5px solid var(--border);border-radius:8px;padding:12px;">
+    <div style="font-size:8.5pt;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;">Metals</div>
+    <div style="font-size:9pt;line-height:1.8;">XAUUSD (Gold)<br>XAGUSD (Silver)<br>XPTUSD (Platinum)</div>
+  </div>
+  <div style="border:1.5px solid var(--border);border-radius:8px;padding:12px;">
+    <div style="font-size:8.5pt;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;">Major Forex</div>
+    <div style="font-size:9pt;line-height:1.8;">EURUSD · GBPUSD<br>USDJPY · USDCHF<br>USDCAD · AUDUSD</div>
+  </div>
+  <div style="border:1.5px solid var(--border);border-radius:8px;padding:12px;">
+    <div style="font-size:8.5pt;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;">Crypto</div>
+    <div style="font-size:9pt;line-height:1.8;">BTCUSD · ETHUSD<br>SOLUSD · XRPUSD<br>BNBUSD · ADAUSD</div>
+  </div>
+  <div style="border:1.5px solid var(--border);border-radius:8px;padding:12px;">
+    <div style="font-size:8.5pt;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;">Indices</div>
+    <div style="font-size:9pt;line-height:1.8;">US500 · US100<br>US30 · GER40<br>UK100 · JPN225</div>
+  </div>
+  <div style="border:1.5px solid var(--border);border-radius:8px;padding:12px;">
+    <div style="font-size:8.5pt;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;">Commodities</div>
+    <div style="font-size:9pt;line-height:1.8;">USOIL · UKOIL<br>NATGAS · COPPER<br>CORN · WHEAT</div>
+  </div>
+  <div style="border:1.5px solid var(--border);border-radius:8px;padding:12px;">
+    <div style="font-size:8.5pt;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;">Cross Forex</div>
+    <div style="font-size:9pt;line-height:1.8;">EURJPY · GBPJPY<br>EURGBP · AUDJPY<br>GBPCAD · AUDNZD</div>
+  </div>
+</div>
+
+<div class="concept concept-blue">
+  <div class="title">Pinaka-optimal na Asset</div>
+  <p>Ang <strong>XAUUSD (Gold)</strong> ang pinaka-calibrated na asset para sa Jade Cap model. Ang lahat ng sweep thresholds ($2 minimum), session level estimates, at SL buffers ($5) ay tuned para sa gold. Gumagana rin ang ibang assets pero hindi ganoon ka-calibrated.</p>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ 10. CHEAT SHEET -->
+<h2><span class="num">10</span> Quick Cheat Sheet</h2>
+
+<div style="border:2px solid #111827;border-radius:10px;padding:20px;background:#f8fafc;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div>
+      <div style="font-size:9pt;font-weight:800;margin-bottom:8px;color:#111827;">✅ DAPAT GAWIN</div>
+      <ul style="list-style:none;font-size:9pt;line-height:2;">
+        <li>✔ Hintayin ang NY session (13:00–18:00 UTC)</li>
+        <li>✔ I-verify na may sweep ang Price Action Agent</li>
+        <li>✔ Tingnan ang signal state — ARMED lang ang papasukan</li>
+        <li>✔ Sundin ang SL at TP — huwag babaguhin</li>
+        <li>✔ Scale out 50% sa TP1, ilipat ang SL sa breakeven</li>
+        <li>✔ Tsek ang Risk Grade — C pataas ang minimum</li>
+      </ul>
+    </div>
+    <div>
+      <div style="font-size:9pt;font-weight:800;margin-bottom:8px;color:#9f1239;">❌ HUWAG GAWIN</div>
+      <ul style="list-style:none;font-size:9pt;line-height:2;">
+        <li>✘ Huwag mag-enter kung EXPIRED ang signal</li>
+        <li>✘ Huwag mag-trade kung NO_TRADE ang verdict</li>
+        <li>✘ Huwag baguhin ang SL para malayo sa entry</li>
+        <li>✘ Huwag mag-trade sa Asia session kung posible</li>
+        <li>✘ Huwag i-ignore ang Risk Gate warnings</li>
+        <li>✘ Huwag pumasok kung maraming debate challenges</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ FOOTER -->
+<footer>
+  <span>TradeX Terminal — Agent System Guide</span>
+  <span>Para sa internal na paggamit lamang · NY Session Liquidity Model</span>
+</footer>
+
+</body>
+</html>
