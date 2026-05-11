@@ -34,9 +34,10 @@ export async function runExecutionAgent(
     const { htfBias, htfConfidence } = structure;
     const { session } = indicators;
 
-    // Allow Jade Cap confirmed sweeps through even when HTF is neutral/low-confidence
+    // Jade Cap: ONLY generate an execution plan when a sweep is confirmed.
+    // No sweep = no structural trade trigger = no trade, regardless of HTF bias.
     const jadeCapSweepActive = smc.liquiditySweepDetected && smc.setupPresent && smc.bias !== "neutral";
-    if (!jadeCapSweepActive && (htfBias === "neutral" || htfConfidence < 45)) {
+    if (!jadeCapSweepActive) {
       return {
         agentId: "execution",
         hasSetup: false,
@@ -47,16 +48,16 @@ export async function runExecutionAgent(
         tp2: null,
         rrRatio: null,
         trigger: "None",
-        triggerCondition: "No directional bias — stand aside, no execution plan generated",
+        triggerCondition: "No confirmed sweep in NY session — stand aside, no execution plan generated",
         managementNotes: [
-          "Wait for clear BOS + HTF bias confirmation",
-          "Monitor for session open catalyst",
+          "Wait for NY session sweep (13:00–18:00 UTC) to form",
+          "Monitor London Low, Asian High/Low, PDH/PDL for sweep candidates",
         ],
         entryZone: "No valid entry zone",
         slZone: "No SL required — no trade",
         tp1Zone: "No target — no trade",
         signalState: "NO_TRADE",
-        signalStateReason: "No directional bias detected. Stand aside and wait for clear setup.",
+        signalStateReason: "No confirmed liquidity sweep. Jade Cap requires a sweep before entry.",
         distanceToEntry: null,
         processingTime: Date.now() - start,
       };

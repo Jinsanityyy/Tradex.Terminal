@@ -137,7 +137,7 @@ export function computeConsensus(
   // Block bearish signals in a bullish structure
   const structureBlocksShort = trendBullish && !smc.bosDetected && normalizedScore < 0;
 
-  // Fibonacci gate: if no fib zone confluence, no trade regardless of indicators
+  // Sweep gate: no confirmed NY session sweep = no trade regardless of consensus
   const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None";
 
   // ── Final Bias Decision ───────────────────────────────────────────────────
@@ -156,9 +156,9 @@ export function computeConsensus(
   } else if (structureBlocksShort) {
     finalBias     = "no-trade";
     noTradeReason = `Structure gate: Trend is BULLISH — bearish signals blocked. Require confirmed BOS to downside before going short.`;
-  } else if (noFibZone && Math.abs(normalizedScore) < 50) {
+  } else if (noFibZone) {
     finalBias     = "no-trade";
-    noTradeReason = `Fib gate: No price in 0.5–0.705 retracement zone and no confirmed setup. Waiting for fib confluence.`;
+    noTradeReason = `Sweep gate: No confirmed NY session sweep. Waiting for liquidity sweep before entry.`;
   } else if (normalizedScore >= BULL_THRESHOLD) {
     finalBias = "bullish";
   } else if (normalizedScore <= BEAR_THRESHOLD) {
