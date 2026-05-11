@@ -212,8 +212,10 @@ export async function runContrarianAgent(
     // Opposite liquidity: where are retail stops on the other side?
     if (oppositeLiquidity === null) {
       oppositeLiquidity = htfBias === "bullish"
-        ? parseFloat((low * 0.995).toFixed(4))  // equal lows below for bullish bias
-        : parseFloat((high * 1.005).toFixed(4)); // equal highs above for bearish bias
+        ? parseFloat((low * 0.995).toFixed(4))        // equal lows below for bullish bias
+        : htfBias === "bearish"
+        ? parseFloat((high * 1.005).toFixed(4))       // equal highs above for bearish bias
+        : parseFloat(((high + low) / 2).toFixed(4));  // neutral: midpoint of range
     }
 
     // ── Contrarian Challenge ───────────────────────────────────────────────

@@ -45,7 +45,7 @@ ADJUDICATION RULES:
 - Strong challenges from multiple agents (>2) against majority = reduce confidence or flip to no-trade
 - Weight the QUALITY of the debate arguments, not just the count
 - Be terse and tactical. This is a live trade decision.
-- JADE CAP: When PA Agent shows "Stop run: true" + FVG or Sweep setup, this is a Jade Cap NY liquidity sweep confirmation — the highest-probability pattern in the system (68%+ WR). Weight this heavily when daily bias aligns (bosDetected: true). London Low sweep = 76% WR, PDH/Asian High = 71%, Asian Low = 60%. London High sweep (43%) = flag only, do not trade.
+- NY SWEEP: When PA Agent shows "Stop run: true" + FVG or Sweep setup, this is a confirmed NY session liquidity sweep — the highest-probability pattern in the system. Weight this heavily when daily bias aligns (bosDetected: true). London Low = highest quality, PDH/Asian High = medium, Asian Low = lower. London High sweep = flag only, do not trade.
 
 Return ONLY valid JSON:
 {
@@ -66,9 +66,9 @@ function describePriceActionPattern(setupType: string, liquiditySweep = false): 
     case "OB":
       return "range retest";
     case "FVG":
-      return liquiditySweep ? "Jade Cap sweep + FVG" : "gap fill";
+      return liquiditySweep ? "NY sweep + FVG entry" : "gap fill";
     case "Sweep":
-      return liquiditySweep ? "Jade Cap sweep" : "stop-run reversal";
+      return liquiditySweep ? "NY session sweep" : "stop-run reversal";
     default:
       return "no clear pattern";
   }
@@ -181,9 +181,9 @@ function buildSupports(
   }
 
   if (smc.bias === finalBias && smc.setupPresent) {
-    const isJadeCap = smc.liquiditySweepDetected && (smc.setupType === "FVG" || smc.setupType === "Sweep");
-    supports.push(isJadeCap
-      ? `Price Action ${smc.confidence}%: Jade Cap — NY session ${isBull ? "lows" : "highs"} swept${smc.keyLevels.sweepLevel ? ` at ${smc.keyLevels.sweepLevel.toFixed(2)}` : ""}, ${smc.setupType === "FVG" && smc.keyLevels.fvgMid ? `FVG entry at ${smc.keyLevels.fvgMid.toFixed(2)}` : "sweep reversal entry"} — ${smc.bosDetected ? "aligns with daily bias ✓" : "note: conflicts with daily bias"}`
+    const isSweepSetup = smc.liquiditySweepDetected && (smc.setupType === "FVG" || smc.setupType === "Sweep");
+    supports.push(isSweepSetup
+      ? `Price Action ${smc.confidence}%: NY session ${isBull ? "lows" : "highs"} swept${smc.keyLevels.sweepLevel ? ` at ${smc.keyLevels.sweepLevel.toFixed(2)}` : ""}, ${smc.setupType === "FVG" && smc.keyLevels.fvgMid ? `FVG entry at ${smc.keyLevels.fvgMid.toFixed(2)}` : "sweep reversal entry"} — ${smc.bosDetected ? "aligns with daily bias ✓" : "note: conflicts with daily bias"}`
       : `Price Action Agent ${smc.confidence}%: ${describePriceActionPattern(smc.setupType, smc.liquiditySweepDetected)} ${smc.bosDetected ? "— structure break confirmed" : smc.liquiditySweepDetected ? "— stop run already printed" : "— structure present"}`
     );
   }
@@ -284,24 +284,29 @@ export async function runMasterAgent(
     // ── Structural override (HIGHEST PRIORITY — cannot be overridden by LLM) ─
     // Price action structure determines direction. LLM cannot override a bearish
     // structure with bullish calls unless BOS to upside is confirmed.
-    const llmRaw          = (llmResult?.finalBias ?? finalBias) as "bullish" | "bearish" | "no-trade";
-    const bearishStruct   = trend.bias === "bearish";
-    const bullishStruct   = trend.bias === "bullish";
-    const bosToUpside     = smc.bosDetected && smc.chochDetected;
-    const bosToDownside   = smc.bosDetected && !smc.chochDetected;
-    const fibZoneActive   = smc.liquiditySweepDetected; // repurposed inFibZone flag
-    const noSetup         = smc.setupType === "None";
+    const llmRaw        = (llmResult?.finalBias ?? finalBias) as "bullish" | "bearish" | "no-trade";
+    const bearishStruct = trend.bias === "bearish";
+    const bullishStruct = trend.bias === "bullish";
+    const noSetup       = smc.setupType === "None";
+    const sweepActive   = smc.liquiditySweepDetected;
+
+    // A confirmed sweep in the signal direction overrides the structural block.
+    // Without a sweep, require BOS+CHoCH combo to cross the trend gate.
+    const sweepBullish  = sweepActive && smc.bias === "bullish";
+    const sweepBearish  = sweepActive && smc.bias === "bearish";
+    const bosToUpside   = (smc.bosDetected && smc.chochDetected) || sweepBullish;
+    const bosToDownside = smc.bosDetected || sweepBearish;
 
     let resolvedBias = llmRaw;
 
     if (llmRaw === "bullish" && bearishStruct && !bosToUpside) {
-      // Bearish structure + no BOS = block all long calls
+      // Bearish trend + no confirmed bullish sweep/BOS = block longs
       resolvedBias = "no-trade";
     } else if (llmRaw === "bearish" && bullishStruct && !bosToDownside) {
-      // Bullish structure + no BOS = block all short calls
+      // Bullish trend + no confirmed bearish sweep/BOS = block shorts
       resolvedBias = "no-trade";
-    } else if (resolvedBias !== "no-trade" && !fibZoneActive && noSetup) {
-      // No fib zone + no confirmed setup = stand aside
+    } else if (resolvedBias !== "no-trade" && !sweepActive && noSetup) {
+      // No sweep + no setup = stand aside (sweep gate)
       resolvedBias = "no-trade";
     }
 

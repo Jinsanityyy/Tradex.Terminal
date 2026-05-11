@@ -318,7 +318,9 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   let fvgLow:  number | null = null;
   let fvgMid:  number | null = null;
 
-  if (liquiditySweepDetected && sweepLabel !== "London High" && candleBody >= candleRange * 0.25) {
+  // FVG requires a directional close confirming the sweep reversal
+  const closeConfirmsFVG = sweepBias === "bullish" ? current > open : current < open;
+  if (liquiditySweepDetected && sweepLabel !== "London High" && candleBody >= candleRange * 0.25 && closeConfirmsFVG) {
     fvgLow  = parseFloat(bodyBottom.toFixed(4));
     fvgHigh = parseFloat(bodyTop.toFixed(4));
     fvgMid  = parseFloat(((fvgHigh + fvgLow) / 2).toFixed(4));

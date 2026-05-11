@@ -87,9 +87,11 @@ export function computeConsensus(
   items.push(agentScore("smc", smc.bias, smc.confidence, clamp(smcWeight, 0, 0.5)));
 
   // ── News Agent (supports / opposes) ───────────────────────────────────────
-  // High riskScore reduces news agent confidence
-  const adjustedNewsConf = news.confidence * (1 - news.riskScore / 200);
-  items.push(agentScore("news", news.impact, Math.round(adjustedNewsConf), weights.news));
+  // Only dampen confidence for neutral news — preserve directional signals at full strength
+  const adjustedNewsConf = news.impact === "neutral"
+    ? Math.round(news.confidence * (1 - news.riskScore / 200))
+    : news.confidence;
+  items.push(agentScore("news", news.impact, adjustedNewsConf, weights.news));
 
   // ── Execution Agent (confirms setup) ──────────────────────────────────────
   // Only counts if execution has a valid setup
