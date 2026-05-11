@@ -122,6 +122,13 @@ export async function runExecutionAgent(
       slZone = `${isBullish ? "Below" : "Above"} ${stopLoss.toFixed(4)} — structural floor/ceiling`;
     }
 
+    // Hard guard: SL must be on the correct side of entry.
+    // smc.invalidationLevel from the LLM path can land on the wrong side
+    // (e.g. low-sweep formula applied to a short signal). Fix before riskDist
+    // drives every downstream TP/RR calculation.
+    if (isBullish && stopLoss >= entry) stopLoss = entry * 0.985;   // long: SL below
+    if (!isBullish && stopLoss <= entry) stopLoss = entry * 1.015;  // short: SL above
+
     const riskDist = Math.abs(entry - stopLoss);
     const tp1MaxDist = riskDist * 2.5;
     const tp2Distance = riskDist * 4;
