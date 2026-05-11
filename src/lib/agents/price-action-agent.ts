@@ -176,6 +176,18 @@ Apply the analysis rules above. Only flag a sweep if in NY session AND wick exce
   const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
   const parsed  = JSON.parse(cleaned);
 
+  // Validate invalidationLevel direction: SL must be on the correct side of entry.
+  // LLM can return a wrong-sided value (e.g. low - buffer for a short signal).
+  let validatedInvalidationLevel: number | null = parsed.invalidationLevel ?? null;
+  if (validatedInvalidationLevel !== null) {
+    const approxEntry: number = (parsed.keyLevels?.fvgMid as number | null) ?? current;
+    if (parsed.bias === "bullish" && validatedInvalidationLevel >= approxEntry) {
+      validatedInvalidationLevel = parseFloat((low * 0.998).toFixed(4));
+    } else if (parsed.bias === "bearish" && validatedInvalidationLevel <= approxEntry) {
+      validatedInvalidationLevel = parseFloat((high * 1.002).toFixed(4));
+    }
+  }
+
   return {
     agentId:               "smc",
     bias:                  parsed.bias as DirectionalBias,
@@ -188,7 +200,7 @@ Apply the analysis rules above. Only flag a sweep if in NY session AND wick exce
     bosDetected:           parsed.bosDetected,
     chochDetected:         parsed.chochDetected,
     reasons:               parsed.reasons,
-    invalidationLevel:     parsed.invalidationLevel,
+    invalidationLevel:     validatedInvalidationLevel,
     processingTime:        Date.now() - start,
   };
 }
