@@ -126,8 +126,8 @@ export async function runExecutionAgent(
     // smc.invalidationLevel from the LLM path can land on the wrong side
     // (e.g. low-sweep formula applied to a short signal). Fix before riskDist
     // drives every downstream TP/RR calculation.
-    if (isBullish && stopLoss >= entry) stopLoss = entry * 0.985;   // long: SL below
-    if (!isBullish && stopLoss <= entry) stopLoss = entry * 1.015;  // short: SL above
+    if (isBullish && stopLoss >= entry) stopLoss = low * 0.998;    // long: SL below candle low
+    if (!isBullish && stopLoss <= entry) stopLoss = high * 1.002;  // short: SL above candle high
 
     const riskDist = Math.abs(entry - stopLoss);
     const tp1MaxDist = riskDist * 2.5;
@@ -165,6 +165,12 @@ export async function runExecutionAgent(
       tp1 = Math.max(tp1, entry - riskDist * 1.5);
       tp2 = Math.max(tp2, entry - riskDist * 2.5);
     }
+
+    // Direction guard: TP must be on the correct side of entry
+    if (isBullish  && tp1 <= entry) tp1 = entry + riskDist * 1.5;
+    if (!isBullish && tp1 >= entry) tp1 = entry - riskDist * 1.5;
+    if (isBullish  && tp2 <= entry) tp2 = entry + riskDist * 2.5;
+    if (!isBullish && tp2 >= entry) tp2 = entry - riskDist * 2.5;
 
     entry = roundToPrecision(entry, current);
     stopLoss = roundToPrecision(stopLoss, current);
