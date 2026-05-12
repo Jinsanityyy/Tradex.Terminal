@@ -299,13 +299,22 @@ interface SweepFVGResult {
   fvgMid:        number;
 }
 
-// Returns true if a candle's timestamp falls within the NY Kill Zone (13:30–15:30 UTC).
-function inNYKillZone(ts: number): boolean {
+// Returns true if a candle's period OVERLAPS the NY Kill Zone (13:30–15:30 UTC).
+// Uses candle duration to compute end time — critical for H1/H4 where the candle
+// that opens at 13:00 UTC covers the first 30 min of the kill zone but its
+// timestamp (13:00) would incorrectly fail a simple ">= 13:30" check.
+function inNYKillZone(ts: number, timeframe = "M5"): boolean {
   const d = new Date(ts * 1000);
-  const h = d.getUTCHours();
-  const m = d.getUTCMinutes();
-  const totalMin = h * 60 + m;
-  return totalMin >= 13 * 60 + 30 && totalMin < 15 * 60 + 30;
+  const candleStartMin = d.getUTCHours() * 60 + d.getUTCMinutes();
+
+  const candleDuration =
+    timeframe === "H4"  ? 240 :
+    timeframe === "H1"  ? 60  :
+    timeframe === "M15" ? 15  : 5;
+
+  const candleEndMin = candleStartMin + candleDuration;
+  // Kill zone: 13:30–15:30 UTC = minutes 810–930
+  return candleStartMin < 930 && candleEndMin > 810;
 }
 
 // Scan NY session candles for: sweep of session level within the kill zone → 3-candle FVG.
@@ -315,13 +324,16 @@ function detectNYSweepAndFVG(
   candles: CandleSlim[],
   levels: ReturnType<typeof computeActualSessionLevels>,
   minSweep: number,
-  minFvgGap: number
+  minFvgGap: number,
+  timeframe = "M5"
 ): SweepFVGResult | null {
   const toHour = (ts: number) => new Date(ts * 1000).getUTCHours();
-  // Widen scan window to 13:00–18:00 UTC so we have context candles before the kill zone.
+  // Scan 12:00–18:00 UTC so H4 candles (open at 12:00, cover 12:00–16:00)
+  // and H1 candles (open at 13:00, cover 13:00–14:00 including kill zone start)
+  // are included. The inNYKillZone overlap check still gates which candles count as sweep candidates.
   const nyC = candles
-    .filter(c => { const h = toHour(c.t); return h >= 13 && h < 18; })
-    .slice(-24);
+    .filter(c => { const h = toHour(c.t); return h >= 12 && h < 18; })
+    .slice(-32);
 
   if (nyC.length < 3) return null;
 
@@ -338,8 +350,8 @@ function detectNYSweepAndFVG(
   for (let i = 0; i < nyC.length - 2; i++) {
     const sc = nyC[i];
 
-    // Sweep candle must be within the official NY Kill Zone (13:30–15:30 UTC)
-    if (!inNYKillZone(sc.t)) continue;
+    // Sweep candle period must overlap the NY Kill Zone (13:30–15:30 UTC)
+    if (!inNYKillZone(sc.t, timeframe)) continue;
 
     for (const tgt of targets) {
       if (tgt.label === "London High") continue; // 43% WR — skip
@@ -449,7 +461,7 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
 
   if (candles && candles.length >= 10) {
     const real = computeActualSessionLevels(candles);
-    const found = detectNYSweepAndFVG(candles, real, minSweep, minFvgGapVal);
+    const found = detectNYSweepAndFVG(candles, real, minSweep, minFvgGapVal, timeframe);
     if (found) {
       liquiditySweepDetected = true;
       sweepLevel    = found.sweepLevel;
