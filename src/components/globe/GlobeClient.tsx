@@ -211,13 +211,13 @@ function FlatMapView({
   const zoomReset = useCallback(() => setMapScale(1), []);
 
   return (
-    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', overflow: 'hidden', background: '#07090d' }}>
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'radial-gradient(circle at 50% 22%, rgba(255,255,255,0.03), transparent 35%), linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.2))', zIndex: 0, pointerEvents: 'none' }} />
+    <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#07090d', minHeight: 0 }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'radial-gradient(circle at 50% 22%, rgba(255,255,255,0.03), transparent 35%), linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.2))', zIndex: 0, pointerEvents: 'none' }} />
 
       <div
         style={{
           position: 'absolute',
-          top: 0, left: 0, right: 0, bottom: 0,
+          top: 0, left: 0,
           width: '100%', height: '100%',
           transform: `scale(${mapScale})`,
           transformOrigin: '50% 50%',
@@ -1001,7 +1001,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
           </div>
         )}
         {/* Globe / Map area */}
-        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', minWidth: 0, minHeight: 0 }}>
           {is3D && !isLayerPanelOpen && (
             <button
               type="button"
