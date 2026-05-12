@@ -24,6 +24,22 @@ interface MarkerData {
   layer: LayerKey;
 }
 
+interface LiveMarker {
+  id: string;
+  layer: LayerKey;
+  name: string;
+  lat: number;
+  lon: number;
+  desc: string;
+  impact: { xauusd: string; eurusd: string; gbpusd: string };
+  eventTime?: string;
+  actual?: string;
+  estimate?: string;
+  prev?: string;
+  source?: string;
+  isLive: boolean;
+}
+
 interface TooltipState {
   visible: boolean;
   x: number;
@@ -175,6 +191,7 @@ const HOTSPOT_SIZE: Record<LayerKey, number> = {
 
 // ─── 2D Flat Map View ─────────────────────────────────────────────────────────
 function FlatMapView({
+  markers,
   activeLayers,
   layerCounts,
   selectedMarker,
@@ -183,10 +200,11 @@ function FlatMapView({
   isPanelOpen,
   onTogglePanel,
 }: {
+  markers: LiveMarker[];
   activeLayers: Record<LayerKey, boolean>;
   layerCounts: Record<LayerKey, number>;
-  selectedMarker: MarkerData | null;
-  onSelectMarker: (data: MarkerData) => void;
+  selectedMarker: LiveMarker | null;
+  onSelectMarker: (data: LiveMarker) => void;
   onToggleLayer: (key: LayerKey) => void;
   isPanelOpen: boolean;
   onTogglePanel: () => void;
@@ -195,8 +213,8 @@ function FlatMapView({
   const [imgLoaded, setImgLoaded] = useState(false);
 
   const visibleMarkers = useMemo(
-    () => MARKERS.filter((marker) => activeLayers[marker.layer]),
-    [activeLayers]
+    () => markers.filter((marker) => activeLayers[marker.layer]),
+    [activeLayers, markers]
   );
 
   const relatedMarkers = useMemo(() => {
@@ -486,6 +504,11 @@ function FlatMapView({
                   <span style={{ fontSize: 11, color: '#8b867d', letterSpacing: 1.4, textTransform: 'uppercase' }}>
                     {LAYER_INTEL[selectedMarker.layer].tag}
                   </span>
+                  {selectedMarker.isLive && (
+                    <span style={{ fontSize: 8, color: GREEN, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', padding: '1px 5px', borderRadius: 3, border: `1px solid ${GREEN}30`, background: `${GREEN}10` }}>
+                      LIVE
+                    </span>
+                  )}
                 </div>
                 <div style={{ marginTop: 8, fontSize: 20, lineHeight: 1.15, fontWeight: 700, color: '#f2ede2', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {selectedMarker.name}
@@ -507,6 +530,46 @@ function FlatMapView({
                   <div style={{ fontSize: 15, fontWeight: 700, color: '#d9d5cc', textTransform: 'lowercase' }}>{selectedMarker.name}</div>
                 </div>
               </div>
+
+              {(selectedMarker.isLive || selectedMarker.eventTime || selectedMarker.actual || selectedMarker.estimate) && (
+                <div style={{ marginBottom: 14, padding: '8px 10px', borderRadius: 7, border: '1px solid #18221a', background: 'rgba(0,200,83,0.04)' }}>
+                  {selectedMarker.isLive && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: (selectedMarker.eventTime || selectedMarker.actual || selectedMarker.estimate) ? 8 : 0 }}>
+                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: GREEN, boxShadow: `0 0 5px ${GREEN}`, display: 'inline-block' }} />
+                      <span style={{ fontSize: 9, color: GREEN, fontWeight: 700, letterSpacing: 1.4, textTransform: 'uppercase' }}>Live Data</span>
+                      {selectedMarker.source && <span style={{ fontSize: 9, color: '#3d6348' }}> — {selectedMarker.source}</span>}
+                    </div>
+                  )}
+                  {selectedMarker.eventTime && (
+                    <div style={{ fontSize: 10, color: '#8c8880', fontFamily: 'IBM Plex Mono, monospace', marginBottom: (selectedMarker.actual || selectedMarker.estimate || selectedMarker.prev) ? 8 : 0 }}>
+                      <span style={{ color: '#535050', marginRight: 6 }}>EVENT</span>
+                      {selectedMarker.eventTime.slice(0, 16).replace('T', ' ')}
+                    </div>
+                  )}
+                  {(selectedMarker.actual || selectedMarker.estimate || selectedMarker.prev) && (
+                    <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                      {selectedMarker.actual && (
+                        <div>
+                          <div style={{ fontSize: 9, color: '#535050', letterSpacing: 1, marginBottom: 2 }}>ACTUAL</div>
+                          <div style={{ fontSize: 12, color: '#e2dccc', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>{selectedMarker.actual}</div>
+                        </div>
+                      )}
+                      {selectedMarker.estimate && (
+                        <div>
+                          <div style={{ fontSize: 9, color: '#535050', letterSpacing: 1, marginBottom: 2 }}>ESTIMATE</div>
+                          <div style={{ fontSize: 12, color: '#9b9792', fontFamily: 'IBM Plex Mono, monospace' }}>{selectedMarker.estimate}</div>
+                        </div>
+                      )}
+                      {selectedMarker.prev && (
+                        <div>
+                          <div style={{ fontSize: 9, color: '#535050', letterSpacing: 1, marginBottom: 2 }}>PREV</div>
+                          <div style={{ fontSize: 12, color: '#6e6b65', fontFamily: 'IBM Plex Mono, monospace' }}>{selectedMarker.prev}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div style={{ marginBottom: 14 }}>
                 <div style={{ fontSize: 10, color: '#64615c', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 }}>Market Impact</div>
@@ -577,7 +640,8 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
     conflict: true, centralBanks: true, economicEvents: true, goldRegions: true,
   });
   const [tooltip, setTooltip]         = useState<TooltipState>({ visible: false, x: 0, y: 0, data: null });
-  const [selectedMarker2D, setSelectedMarker2D] = useState<MarkerData | null>(MARKERS[0] ?? null);
+  const [selectedMarker2D, setSelectedMarker2D] = useState<LiveMarker | null>(null);
+  const [liveMarkers, setLiveMarkers] = useState<LiveMarker[]>([]);
   const [is3D, setIs3D]               = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLayerPanelOpen, setIsLayerPanelOpen] = useState(true);
@@ -606,6 +670,22 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
     const onChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', onChange);
     return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  // Live globe markers — fetch on mount, refresh every 5 minutes
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch('/api/globe/live');
+        if (res.ok) {
+          const data: { markers: LiveMarker[] } = await res.json();
+          setLiveMarkers(data.markers);
+        }
+      } catch { /* network failure — keep previous state */ }
+    };
+    load();
+    const timer = setInterval(load, 5 * 60 * 1000);
+    return () => clearInterval(timer);
   }, []);
 
   const toggleFullscreen = useCallback(() => {
@@ -882,16 +962,19 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
     setIsLayerPanelOpen((prev) => !prev);
   }, []);
 
-  const layerCounts: Record<LayerKey, number> = {
-    conflict: 5, centralBanks: 5, economicEvents: 4, goldRegions: 6,
-  };
+  const layerCounts = useMemo<Record<LayerKey, number>>(() => ({
+    conflict:       liveMarkers.filter(m => m.layer === 'conflict').length,
+    centralBanks:   liveMarkers.filter(m => m.layer === 'centralBanks').length,
+    economicEvents: liveMarkers.filter(m => m.layer === 'economicEvents').length,
+    goldRegions:    liveMarkers.filter(m => m.layer === 'goldRegions').length,
+  }), [liveMarkers]);
 
   useEffect(() => {
     if (!selectedMarker2D || !activeLayers[selectedMarker2D.layer]) {
-      const fallback = MARKERS.find((marker) => activeLayers[marker.layer]) ?? null;
+      const fallback = liveMarkers.find((marker) => activeLayers[marker.layer]) ?? null;
       setSelectedMarker2D(fallback);
     }
-  }, [activeLayers, selectedMarker2D]);
+  }, [activeLayers, selectedMarker2D, liveMarkers]);
 
   const tickerItems = useMemo(() => {
     const quoteMap = new Map(quotes.map((quote) => [quote.symbol, quote]));
@@ -1036,6 +1119,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
           {/* 2D flat map */}
           {!is3D && (
             <FlatMapView
+              markers={liveMarkers}
               activeLayers={activeLayers}
               layerCounts={layerCounts}
               selectedMarker={selectedMarker2D}
