@@ -607,8 +607,8 @@ function FlatMapView({
             </div>
           </>
         ) : (
-          <div style={{ padding: '18px 16px', color: '#9a958d', fontSize: 12 }}>
-            No live layers selected. Re-enable a data layer to populate the intelligence panel.
+          <div style={{ padding: '18px 16px', color: '#9a958d', fontSize: 12, lineHeight: 1.6 }}>
+            Click any marker on the map to view intelligence data.
           </div>
         )}
       </div>
@@ -826,19 +826,18 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
       // Outward normal from globe centre — used to orient the ring tangent to surface
       const outward = pos.clone().normalize();
 
-      // Core dot — 2.5× bigger than before
       const dotMat = new THREE.MeshPhongMaterial({
-        color: cfg.hexColor, emissive: cfg.hexColor, emissiveIntensity: 1.2,
+        color: cfg.hexColor, emissive: cfg.hexColor, emissiveIntensity: 1.4,
       });
-      const dot = new THREE.Mesh(new THREE.SphereGeometry(0.10, 16, 16), dotMat);
+      const dot = new THREE.Mesh(new THREE.SphereGeometry(0.055, 16, 16), dotMat);
       dot.position.copy(pos);
       g.add(dot);
 
       // Pulse ring — align ring plane tangent to sphere (normal = outward radial)
       const ringMat = new THREE.MeshBasicMaterial({
-        color: cfg.hexColor, transparent: true, opacity: 0.7, side: THREE.DoubleSide,
+        color: cfg.hexColor, transparent: true, opacity: 0.55, side: THREE.DoubleSide,
       });
-      const ring = new THREE.Mesh(new THREE.RingGeometry(0.14, 0.20, 32), ringMat);
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.08, 0.115, 32), ringMat);
       ring.position.copy(pos);
       // Rotate so ring's +Z (its face normal) matches outward radial direction
       ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), outward);
@@ -903,13 +902,10 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
       t += 0.016;
       controls.update();
       markerMeshes.current.forEach(({ ring }, i) => {
-        const phase = t * 1.6 + i * 1.1;
-        // ring expands from 1→1.6 then snaps back (sawtooth-ish feel via sin)
-        const s = 1 + 0.55 * ((Math.sin(phase) + 1) / 2);
-        ring.scale.setScalar(s);
-        // fade out as it expands
-        (ring.material as THREE.MeshBasicMaterial).opacity =
-          0.7 * (1 - (Math.sin(phase) + 1) / 2);
+        const phase = t * 1.2 + i * 1.1;
+        const expand = (Math.sin(phase) + 1) / 2;
+        ring.scale.setScalar(1 + 0.9 * expand);
+        (ring.material as THREE.MeshBasicMaterial).opacity = 0.5 * (1 - expand);
       });
       renderer.render(scene, camera);
     };
@@ -970,7 +966,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
   }), [liveMarkers]);
 
   useEffect(() => {
-    if (!selectedMarker2D || !activeLayers[selectedMarker2D.layer]) {
+    if (selectedMarker2D && !activeLayers[selectedMarker2D.layer]) {
       const fallback = liveMarkers.find((marker) => activeLayers[marker.layer]) ?? null;
       setSelectedMarker2D(fallback);
     }
