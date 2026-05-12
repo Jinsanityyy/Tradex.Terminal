@@ -1145,16 +1145,38 @@ export default function DashboardPage() {
     const sameAsCurrent = armedAlertKeyRef.current === armedSignalKey;
 
     if (!alreadySeen && !sameAsCurrent) {
-      const notif: Notif = {
-        id: crypto.randomUUID(),
-        type: "entry",
-        title: `${symCfg.short} ${timeframe} — Entry Armed`,
-        body:
-          exec?.direction && exec.direction !== "none"
-            ? `${exec.direction.toUpperCase()} setup armed. ${entryTrigger}`
-            : `Execution setup armed. ${entryTrigger}`,
-        timestamp: Date.now(),
-      };
+      const dir = exec?.direction;
+      const sl = tradePlan?.stopLoss;
+      const entryPrice = tradePlan?.entry;
+      // Check if price already blew past the stop loss (entry zone missed)
+      const entryMissed =
+        currentPrice > 0 && sl != null && entryPrice != null
+          ? dir === "long"
+            ? currentPrice < sl       // LONG: SL is below entry, price dropped past it
+            : currentPrice > sl       // SHORT: SL is above entry, price rallied past it
+          : false;
+
+      const notif: Notif = entryMissed
+        ? {
+            id: crypto.randomUUID(),
+            type: "agent",
+            title: `${symCfg.short} ${timeframe} — Entry Missed`,
+            body:
+              dir && dir !== "none"
+                ? `${dir.toUpperCase()} setup was armed but price already moved past entry. Setup may be invalidated.`
+                : `Setup was armed but entry was already missed.`,
+            timestamp: Date.now(),
+          }
+        : {
+            id: crypto.randomUUID(),
+            type: "entry",
+            title: `${symCfg.short} ${timeframe} — Entry Armed`,
+            body:
+              exec?.direction && exec.direction !== "none"
+                ? `${exec.direction.toUpperCase()} setup armed. ${entryTrigger}`
+                : `Execution setup armed. ${entryTrigger}`,
+            timestamp: Date.now(),
+          };
 
       window.dispatchEvent(
         new CustomEvent(CUSTOM_NOTIFICATION_EVENT, {
@@ -1181,6 +1203,7 @@ export default function DashboardPage() {
     tradePlan?.tp1,
     entryTrigger,
     symCfg.short,
+    currentPrice,
   ]);
 
   const executionMetrics = [
