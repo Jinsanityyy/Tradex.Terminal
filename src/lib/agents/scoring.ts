@@ -140,16 +140,18 @@ export function computeConsensus(
   const riskBlocks = !risk.valid;
 
   // ── Structure Gate (PRIORITY RULE) ────────────────────────────────────────
-  // If trend is bearish AND smc has no BOS → block ALL bullish signals.
-  // Price action structure takes priority over any indicator consensus.
+  // Block trades that go against structure WITHOUT a sweep+FVG confirmation.
+  // A liquidity sweep + CHoCH (FVG) IS the structural shift signal in JADE CAP —
+  // a bullish sweep in a bearish trend is a reversal, not a continuation.
+  // Only require bosDetected (trend-aligned) when there is NO FVG confirmation.
   const trendBearish    = trend.bias === "bearish";
   const trendBullish    = trend.bias === "bullish";
-  const smcBosConfirmed = smc.bosDetected && smc.chochDetected;
+  const smcBosConfirmed = smc.liquiditySweepDetected && smc.chochDetected;
 
-  // Block bullish signals in a bearish structure (no BOS = no reversal confirmation)
+  // Block bullish signals in bearish structure only when there's no sweep+FVG proof
   const structureBlocksLong  = trendBearish && !smcBosConfirmed && normalizedScore > 0;
-  // Block bearish signals in a bullish structure
-  const structureBlocksShort = trendBullish && !smc.bosDetected && normalizedScore < 0;
+  // Block bearish signals in bullish structure only when there's no sweep+FVG proof
+  const structureBlocksShort = trendBullish && !smcBosConfirmed && normalizedScore < 0;
 
   // Sweep gate: no confirmed NY session sweep = no trade regardless of consensus
   const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None";
@@ -172,10 +174,10 @@ export function computeConsensus(
     noTradeReason = `Risk gate: ${risk.warnings[0] ?? "Risk conditions not met"}`;
   } else if (structureBlocksLong) {
     finalBias     = "no-trade";
-    noTradeReason = `Structure gate: Trend BEARISH — longs blocked. Need bullish BOS + CHoCH confirmation before long entry.`;
+    noTradeReason = `Structure gate: Trend BEARISH — no sweep+FVG confirmation yet. Need a liquidity sweep of session lows with FVG to confirm reversal.`;
   } else if (structureBlocksShort) {
     finalBias     = "no-trade";
-    noTradeReason = `Structure gate: Trend BULLISH — shorts blocked. Need bearish BOS confirmation before short entry.`;
+    noTradeReason = `Structure gate: Trend BULLISH — no sweep+FVG confirmation yet. Need a liquidity sweep of session highs with FVG to confirm reversal.`;
   } else if (noFibZone) {
     finalBias     = "no-trade";
     noTradeReason = inKillZone
