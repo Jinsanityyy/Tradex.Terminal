@@ -196,6 +196,7 @@ function FlatMapView({
   layerCounts,
   selectedMarker,
   onSelectMarker,
+  onClosePanel,
   onToggleLayer,
   isPanelOpen,
   onTogglePanel,
@@ -205,6 +206,7 @@ function FlatMapView({
   layerCounts: Record<LayerKey, number>;
   selectedMarker: LiveMarker | null;
   onSelectMarker: (data: LiveMarker) => void;
+  onClosePanel: () => void;
   onToggleLayer: (key: LayerKey) => void;
   isPanelOpen: boolean;
   onTogglePanel: () => void;
@@ -493,8 +495,8 @@ function FlatMapView({
         ))}
       </div>
 
-      <div style={{ position: 'absolute', right: 18, bottom: 18, zIndex: 14, width: 'min(332px, 30vw)', minWidth: 290, borderRadius: 14, border: '1px solid #262119', background: 'rgba(11, 10, 8, 0.94)', boxShadow: '0 18px 42px rgba(0,0,0,0.52)', overflow: 'hidden' }}>
-        {selectedMarker ? (
+      {selectedMarker && (
+        <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', zIndex: 40, width: 'min(360px, 88vw)', borderRadius: 14, border: '1px solid #262119', background: 'rgba(11, 10, 8, 0.97)', boxShadow: '0 24px 60px rgba(0,0,0,0.72)', overflow: 'hidden', backdropFilter: 'blur(6px)' }}>
           <>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px 12px', borderBottom: '1px solid #1f1c17' }}>
               <div style={{ minWidth: 0 }}>
@@ -513,8 +515,18 @@ function FlatMapView({
                   {selectedMarker.name}
                 </div>
               </div>
-              <div style={{ marginLeft: 12, borderRadius: 999, border: `1px solid ${LAYER_INTEL[selectedMarker.layer].accent}30`, background: LAYER_INTEL[selectedMarker.layer].chip, padding: '4px 8px', fontSize: 10, color: LAYER_INTEL[selectedMarker.layer].accent, fontWeight: 700 }}>
-                {LAYER_INTEL[selectedMarker.layer].level}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 12, flexShrink: 0 }}>
+                <div style={{ borderRadius: 999, border: `1px solid ${LAYER_INTEL[selectedMarker.layer].accent}30`, background: LAYER_INTEL[selectedMarker.layer].chip, padding: '4px 8px', fontSize: 10, color: LAYER_INTEL[selectedMarker.layer].accent, fontWeight: 700 }}>
+                  {LAYER_INTEL[selectedMarker.layer].level}
+                </div>
+                <button
+                  type="button"
+                  onClick={onClosePanel}
+                  style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid #2a2620', background: 'rgba(255,255,255,0.04)', color: '#6b6660', cursor: 'pointer', fontSize: 15, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                  title="Close"
+                >
+                  ×
+                </button>
               </div>
             </div>
 
@@ -604,12 +616,8 @@ function FlatMapView({
               </div>
             </div>
           </>
-        ) : (
-          <div style={{ padding: '18px 16px', color: '#9a958d', fontSize: 12, lineHeight: 1.6 }}>
-            Click any marker on the map to view intelligence data.
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <div style={{ position: 'absolute', left: '50%', bottom: 16, transform: 'translateX(-50%)', zIndex: 14, display: 'flex', alignItems: 'center', gap: 14, borderRadius: 999, border: '1px solid #20242b', background: 'rgba(8,10,14,0.92)', padding: '8px 12px', boxShadow: '0 10px 24px rgba(0,0,0,0.35)' }}>
         {(Object.keys(LAYER_CONFIG) as LayerKey[]).map((key) => (
@@ -1118,6 +1126,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
               layerCounts={layerCounts}
               selectedMarker={selectedMarker2D}
               onSelectMarker={setSelectedMarker2D}
+              onClosePanel={() => setSelectedMarker2D(null)}
               onToggleLayer={toggleLayer}
               isPanelOpen={isLayerPanelOpen}
               onTogglePanel={toggleLayerPanel}
