@@ -210,7 +210,7 @@ function FlatMapView({
   const zoomReset = useCallback(() => setMapScale(1), []);
 
   return (
-    <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#07090d' }}>
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: '#07090d' }}>
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 22%, rgba(255,255,255,0.03), transparent 35%), linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.2))', zIndex: 0, pointerEvents: 'none' }} />
 
       <div
