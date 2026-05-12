@@ -192,6 +192,7 @@ function FlatMapView({
   onTogglePanel: () => void;
 }) {
   const [mapScale, setMapScale] = useState(1);
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   const visibleMarkers = useMemo(
     () => MARKERS.filter((marker) => activeLayers[marker.layer]),
@@ -210,13 +211,14 @@ function FlatMapView({
   const zoomReset = useCallback(() => setMapScale(1), []);
 
   return (
-    <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#07090d' }}>
-      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 22%, rgba(255,255,255,0.03), transparent 35%), linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.2))', zIndex: 0, pointerEvents: 'none' }} />
+    <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#07090d', minHeight: 0 }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'radial-gradient(circle at 50% 22%, rgba(255,255,255,0.03), transparent 35%), linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.2))', zIndex: 0, pointerEvents: 'none' }} />
 
       <div
         style={{
           position: 'absolute',
-          inset: 0,
+          top: 0, left: 0,
+          width: '100%', height: '100%',
           transform: `scale(${mapScale})`,
           transformOrigin: '50% 50%',
           transition: 'transform 160ms ease',
@@ -225,21 +227,24 @@ function FlatMapView({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={EARTH_NIGHT_URL}
-          alt="Earth night map"
+          alt=""
+          onLoad={() => setImgLoaded(true)}
           style={{
+            position: 'absolute',
+            top: 0, left: 0,
             width: '100%',
             height: '100%',
             objectFit: 'fill',
             display: 'block',
-            opacity: 0.44,
+            opacity: imgLoaded ? 0.44 : 0,
             filter: 'grayscale(1) contrast(1.22) brightness(0.43) saturate(0.15)',
           }}
           draggable={false}
         />
 
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(16,18,22,0.06), rgba(16,18,22,0.32))', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(180deg, rgba(16,18,22,0.06), rgba(16,18,22,0.32))', pointerEvents: 'none' }} />
 
-        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+        <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
           {[-60, -30, 0, 30, 60].map((lat) => (
             <line
               key={lat}
@@ -247,8 +252,8 @@ function FlatMapView({
               y1={`${((90 - lat) / 180) * 100}%`}
               x2="100%"
               y2={`${((90 - lat) / 180) * 100}%`}
-              stroke={lat === 0 ? '#4b3f1c' : '#ffffff0d'}
-              strokeWidth={lat === 0 ? 1 : 0.5}
+              stroke={lat === 0 ? '#6b5a2a' : '#ffffff18'}
+              strokeWidth={lat === 0 ? 1.5 : 0.5}
             />
           ))}
           {[-120, -60, 0, 60, 120].map((lon) => (
@@ -258,8 +263,8 @@ function FlatMapView({
               y1="0"
               x2={`${((lon + 180) / 360) * 100}%`}
               y2="100%"
-              stroke={lon === 0 ? '#4b3f1c' : '#ffffff0d'}
-              strokeWidth={lon === 0 ? 1 : 0.5}
+              stroke={lon === 0 ? '#6b5a2a' : '#ffffff18'}
+              strokeWidth={lon === 0 ? 1.5 : 0.5}
             />
           ))}
         </svg>
@@ -996,7 +1001,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
           </div>
         )}
         {/* Globe / Map area */}
-        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', minWidth: 0, minHeight: 0 }}>
           {is3D && !isLayerPanelOpen && (
             <button
               type="button"
