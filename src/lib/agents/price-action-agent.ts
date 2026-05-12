@@ -300,7 +300,7 @@ interface SweepFVGResult {
 }
 
 // Returns true if a candle's period OVERLAPS any of the three kill zones:
-//   Asian Kill Zone:  00:00–03:00 UTC = minutes 0–180   (8PM–11PM PHT)
+//   Asian Kill Zone:  00:00–03:00 UTC = minutes 0–180   (8AM–11AM PHT)
 //   London Kill Zone: 08:00–11:00 UTC = minutes 480–660 (4PM–7PM PHT)
 //   NY Kill Zone:     13:30–15:30 UTC = minutes 810–930 (9:30PM–11:30PM PHT)
 // Uses candle duration for overlap — critical for H1/H4 candles.
@@ -435,7 +435,7 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
               && (sessionHourKZLogic < 15  || (sessionHourKZLogic === 15 && sessionMinuteLogic <  30));
   // London Kill Zone: 08:00–11:00 UTC
   const inLondonKZ = sessionHourKZLogic >= 8 && sessionHourKZLogic < 11;
-  // Asian Kill Zone: 00:00–03:00 UTC (Tokyo open — 8PM–11PM PHT)
+  // Asian Kill Zone: 00:00–03:00 UTC (Tokyo open — 8AM–11AM PHT)
   const inAsianKZ = sessionHourKZLogic >= 0 && sessionHourKZLogic < 3;
   const inNYSession = inNYKZ || inLondonKZ || inAsianKZ;
   const upperWick   = high - Math.max(current, open);
@@ -567,7 +567,7 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
         : inLondonKZ
         ? "London Kill Zone active (08:00–11:00 UTC / 4:00–7:00 PM PHT), monitoring for sweep"
         : inAsianKZ
-        ? "Asian Kill Zone active (00:00–03:00 UTC / 8:00–11:00 PM PHT), monitoring for PDH/PDL sweep"
+        ? "Asian Kill Zone active (00:00–03:00 UTC / 8:00–11:00 AM PHT), monitoring for PDH/PDL sweep"
         : `current session: ${session}`}`
     );
   }

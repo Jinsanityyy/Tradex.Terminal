@@ -186,8 +186,8 @@ export function computeConsensus(
   } else if (noFibZone) {
     finalBias     = "no-trade";
     noTradeReason = inKillZone
-      ? `Sweep gate: Kill zone ACTIVE (${_inAsianKZ ? "Asian 8PM–11PM PHT" : _inLondonKZ ? "London 4PM–7PM PHT" : "NY 9:30PM–11:30PM PHT"}) — scanning for liquidity sweep of session levels. Standby for entry signal.`
-      : `Sweep gate: No confirmed session sweep. Best setups form during Asian (8PM–11PM PHT), London (4PM–7PM PHT), or NY (9:30PM–11:30PM PHT) kill zones.`;
+      ? `Sweep gate: Kill zone ACTIVE (${_inAsianKZ ? "Asian 8AM–11AM PHT" : _inLondonKZ ? "London 4PM–7PM PHT" : "NY 9:30PM–11:30PM PHT"}) — scanning for liquidity sweep of session levels. Standby for entry signal.`
+      : `Sweep gate: No confirmed session sweep. Best setups form during Asian (8AM–11AM PHT), London (4PM–7PM PHT), or NY (9:30PM–11:30PM PHT) kill zones.`;
   } else if (normalizedScore >= BULL_THRESHOLD) {
     finalBias = "bullish";
   } else if (normalizedScore <= BEAR_THRESHOLD) {

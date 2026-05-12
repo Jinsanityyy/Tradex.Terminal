@@ -140,7 +140,7 @@ export async function runRiskAgent(
     const rrTooLow    = rrEstimate !== null && rrEstimate < 1.6;  // minimum = 1.6R hard block
 
     // Kill zone enforcement — only trade during high-probability session windows.
-    // Asian Kill Zone:  00:00–03:00 UTC = 8:00–11:00 PM PHT (Tokyo open)
+    // Asian Kill Zone:  00:00–03:00 UTC = 8:00–11:00 AM PHT (Tokyo open)
     // NY Kill Zone:     09:30–11:30 AM EST = 13:30–15:30 UTC = 9:30–11:30 PM PHT
     // London Kill Zone: 08:00–11:00 AM GMT = 08:00–11:00 UTC = 4:00–7:00 PM PHT
     const isNYSession     = session === "New York";
@@ -183,7 +183,7 @@ export async function runRiskAgent(
     }
     if (outsideAsianKillZone && !setupConfirmed) {
       warnings.push(
-        `Outside Asian Kill Zone (8:00–11:00 PM PHT / 00:00–03:00 UTC). ` +
+        `Outside Asian Kill Zone (8:00–11:00 AM PHT / 00:00–03:00 UTC). ` +
         `Current UTC: ${nowUTCHour}:${String(nowUTCMin).padStart(2, "0")}. ` +
         `Asian session outside Tokyo open — lower liquidity, avoid new positions.`
       );
