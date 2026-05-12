@@ -607,8 +607,8 @@ function FlatMapView({
             </div>
           </>
         ) : (
-          <div style={{ padding: '18px 16px', color: '#9a958d', fontSize: 12 }}>
-            No live layers selected. Re-enable a data layer to populate the intelligence panel.
+          <div style={{ padding: '18px 16px', color: '#9a958d', fontSize: 12, lineHeight: 1.6 }}>
+            Click any marker on the map to view intelligence data.
           </div>
         )}
       </div>
@@ -966,7 +966,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
   }), [liveMarkers]);
 
   useEffect(() => {
-    if (!selectedMarker2D || !activeLayers[selectedMarker2D.layer]) {
+    if (selectedMarker2D && !activeLayers[selectedMarker2D.layer]) {
       const fallback = liveMarkers.find((marker) => activeLayers[marker.layer]) ?? null;
       setSelectedMarker2D(fallback);
     }
