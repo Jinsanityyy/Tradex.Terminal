@@ -342,7 +342,6 @@ function FlatMapView({
               />
               <button
                 type="button"
-                onMouseEnter={() => onSelectMarker(marker)}
                 onClick={() => onSelectMarker(marker)}
                 style={{
                   position: 'absolute',
