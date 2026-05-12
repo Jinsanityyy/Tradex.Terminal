@@ -123,8 +123,8 @@ function ConfidenceArc({ value, color }: { value: number; color: string }) {
           style={{ transition:"stroke-dashoffset 0.7s ease", filter:`drop-shadow(0 0 4px ${color}88)` }} />
       </svg>
       <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
-        <span style={{ color, fontSize:15, fontWeight:700, fontFamily:"ui-monospace,monospace", lineHeight:1 }}>{value}</span>
-        <span style={{ color:"#3a4a5a", fontSize:7, fontFamily:"ui-monospace,monospace" }}>%</span>
+        <span style={{ color, fontSize:15, fontWeight:700, fontFamily:"var(--font-geist-mono), monospace", lineHeight:1 }}>{value}</span>
+        <span style={{ color:"#3a4a5a", fontSize:7, fontFamily:"var(--font-geist-mono), monospace" }}>%</span>
       </div>
     </div>
   );
@@ -228,7 +228,7 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
             display:"flex", justifyContent:"space-between", alignItems:"center",
             pointerEvents:"none",
           }}>
-            <span style={{ color:"#22d3ee", fontSize:10, letterSpacing:"0.14em", fontFamily:"ui-monospace,monospace", whiteSpace:"nowrap" }}>
+            <span style={{ color:"#22d3ee", fontSize:10, letterSpacing:"0.14em", fontFamily:"var(--font-geist-mono), monospace", whiteSpace:"nowrap" }}>
               TRADEX · MULTI-AGENT FLOOR
             </span>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -236,13 +236,13 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
               <span style={{
                 fontSize:8, letterSpacing:"0.14em", padding:"2px 7px", borderRadius:99,
                 border:`1px solid ${session.color}55`, color:session.color,
-                background:session.color+"18", fontFamily:"ui-monospace,monospace",
+                background:session.color+"18", fontFamily:"var(--font-geist-mono), monospace",
                 display:"flex", alignItems:"center", gap:4,
               }}>
                 <span style={{ width:5, height:5, borderRadius:"50%", background:session.color, display:"inline-block", boxShadow:`0 0 5px ${session.color}` }} />
                 {session.label}
               </span>
-              <span style={{ color:biasColor, fontSize:13, fontWeight:700, letterSpacing:"0.15em", fontFamily:"ui-monospace,monospace" }}>
+              <span style={{ color:biasColor, fontSize:13, fontWeight:700, letterSpacing:"0.15em", fontFamily:"var(--font-geist-mono), monospace" }}>
                 {biasLabel}
               </span>
               <div style={{
@@ -251,7 +251,7 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
               }}>
                 <div style={{ width:`${conf}%`, height:"100%", background:biasColor }} />
               </div>
-              <span style={{ color:biasColor, fontSize:10, fontFamily:"ui-monospace,monospace" }}>{conf}%</span>
+              <span style={{ color:biasColor, fontSize:10, fontFamily:"var(--font-geist-mono), monospace" }}>{conf}%</span>
             </div>
           </div>
 
@@ -361,7 +361,7 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
                   opacity: isActive ? 1 : 0.5,
                   textShadow:`0 0 8px ${accent}`,
                   pointerEvents:"none",
-                  fontFamily:"ui-monospace,monospace",
+                  fontFamily:"var(--font-geist-mono), monospace",
                 }}>★</div>
               )}
 
@@ -382,7 +382,7 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
                 opacity: isActive || hoveredId === pin.stateKey ? 1 : 0,
                 pointerEvents:"none",
                 transition:"opacity 0.15s",
-                fontFamily:"ui-monospace,monospace",
+                fontFamily:"var(--font-geist-mono), monospace",
               }}>
                 {pin.isMaster ? "★ " : ""}{pin.label}
               </div>
@@ -415,17 +415,17 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
         }}>
           {/* Header */}
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10, flexWrap:"wrap" }}>
-            <span style={{ color:activeSC.accent, fontSize:14, fontWeight:700, letterSpacing:"0.18em", fontFamily:"ui-monospace,monospace" }}>
+            <span style={{ color:activeSC.accent, fontSize:14, fontWeight:700, letterSpacing:"0.18em", fontFamily:"var(--font-geist-mono), monospace" }}>
               {activePinData.isMaster ? "★ " : ""}{activePinData.label}
             </span>
             <span style={{
               fontSize:8, letterSpacing:"0.12em", padding:"2px 7px", borderRadius:2,
               border:`1px solid ${activeSC.accent}`, color:activeSC.accent,
-              background:activeSC.accent+"18", fontFamily:"ui-monospace,monospace",
+              background:activeSC.accent+"18", fontFamily:"var(--font-geist-mono), monospace",
             }}>
               {activeSC.badge}
             </span>
-            <span style={{ color:"#445566", fontSize:8, fontFamily:"ui-monospace,monospace", letterSpacing:"0.1em", marginLeft:"auto" }}>
+            <span style={{ color:"#445566", fontSize:8, fontFamily:"var(--font-geist-mono), monospace", letterSpacing:"0.1em", marginLeft:"auto" }}>
               {activePinData.role}
             </span>
           </div>
@@ -434,24 +434,24 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
           <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
             {/* Left: description + price tags + progress */}
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ color:"#667788", fontSize:10, lineHeight:1.8, fontFamily:"ui-monospace,monospace", marginBottom: showPrices||showProgress ? 10 : 0 }}>
+              <div style={{ color:"#667788", fontSize:10, lineHeight:1.8, fontFamily:"var(--font-geist-mono), monospace", marginBottom: showPrices||showProgress ? 10 : 0 }}>
                 {getAgentDesc(activePinData.stateKey, data)}
               </div>
 
               {/* Color-coded price tags */}
               {showPrices && tradePlan && (
                 <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginBottom: showProgress ? 10 : 0 }}>
-                  <span style={{ fontSize:9, padding:"3px 8px", borderRadius:2, border:"1px solid #ffffff22", color:"#aab4c0", fontFamily:"ui-monospace,monospace", letterSpacing:"0.1em" }}>
+                  <span style={{ fontSize:9, padding:"3px 8px", borderRadius:2, border:"1px solid #ffffff22", color:"#aab4c0", fontFamily:"var(--font-geist-mono), monospace", letterSpacing:"0.1em" }}>
                     ENTRY {tradePlan.entry.toFixed(tradePlan.entry > 100 ? 2 : 4)}
                   </span>
-                  <span style={{ fontSize:9, padding:"3px 8px", borderRadius:2, border:"1px solid #ff446644", color:"#ff7788", fontFamily:"ui-monospace,monospace", letterSpacing:"0.1em", background:"#ff00001a" }}>
+                  <span style={{ fontSize:9, padding:"3px 8px", borderRadius:2, border:"1px solid #ff446644", color:"#ff7788", fontFamily:"var(--font-geist-mono), monospace", letterSpacing:"0.1em", background:"#ff00001a" }}>
                     SL {tradePlan.stopLoss.toFixed(tradePlan.stopLoss > 100 ? 2 : 4)}
                   </span>
-                  <span style={{ fontSize:9, padding:"3px 8px", borderRadius:2, border:"1px solid #00ff9c44", color:"#00dd88", fontFamily:"ui-monospace,monospace", letterSpacing:"0.1em", background:"#00ff9c0f" }}>
+                  <span style={{ fontSize:9, padding:"3px 8px", borderRadius:2, border:"1px solid #00ff9c44", color:"#00dd88", fontFamily:"var(--font-geist-mono), monospace", letterSpacing:"0.1em", background:"#00ff9c0f" }}>
                     TP1 {tradePlan.tp1.toFixed(tradePlan.tp1 > 100 ? 2 : 4)}
                   </span>
                   {tradePlan.tp2 && (
-                    <span style={{ fontSize:9, padding:"3px 8px", borderRadius:2, border:"1px solid #00ff9c33", color:"#00bb77", fontFamily:"ui-monospace,monospace", letterSpacing:"0.1em", background:"#00ff9c08" }}>
+                    <span style={{ fontSize:9, padding:"3px 8px", borderRadius:2, border:"1px solid #00ff9c33", color:"#00bb77", fontFamily:"var(--font-geist-mono), monospace", letterSpacing:"0.1em", background:"#00ff9c08" }}>
                       TP2 {tradePlan.tp2.toFixed(tradePlan.tp2 > 100 ? 2 : 4)}
                     </span>
                   )}
@@ -475,7 +475,7 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
                             boxShadow: active ? `0 0 8px ${activeSC.accent}` : "none",
                             transition:"all 0.3s",
                           }} />
-                          <span style={{ fontSize:7, color: active ? activeSC.accent : done ? activeSC.accent+"aa" : "#1e2d3d", fontFamily:"ui-monospace,monospace", letterSpacing:"0.1em", whiteSpace:"nowrap" }}>
+                          <span style={{ fontSize:7, color: active ? activeSC.accent : done ? activeSC.accent+"aa" : "#1e2d3d", fontFamily:"var(--font-geist-mono), monospace", letterSpacing:"0.1em", whiteSpace:"nowrap" }}>
                             {step}
                           </span>
                         </div>
@@ -492,7 +492,7 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
             {/* Right: animated confidence arc */}
             <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4, flexShrink:0 }}>
               <ConfidenceArc value={confVal} color={activeSC.accent} />
-              <span style={{ fontSize:7, color:"#2a3a4a", letterSpacing:"0.15em", fontFamily:"ui-monospace,monospace" }}>CONFIDENCE</span>
+              <span style={{ fontSize:7, color:"#2a3a4a", letterSpacing:"0.15em", fontFamily:"var(--font-geist-mono), monospace" }}>CONFIDENCE</span>
             </div>
           </div>
         </div>

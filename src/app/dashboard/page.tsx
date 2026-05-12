@@ -1739,10 +1739,10 @@ export default function DashboardPage() {
 
       {/* Agent Detail Drawer */}
       {activeAgent && data && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" onClick={() => setActiveAgent(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setActiveAgent(null)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           <div
-            className="relative z-10 w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-white/10 bg-[hsl(var(--card))] shadow-2xl"
+            className="relative z-10 w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-2xl border border-white/10 bg-[hsl(var(--card))] shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}

@@ -23,7 +23,7 @@ const MAX_GRID_ROWS = 60;
 const STORAGE_KEY = "tradex-dashboard-grid-v7";
 const PRESET_STORAGE_KEY = "tradex-dashboard-custom-presets-v1";
 
-type BuiltInPresetId = "pro" | "minimal";
+type BuiltInPresetId = "pro" | "minimal" | "custom";
 type LayoutPresetId = BuiltInPresetId | string;
 
 const DEFAULT_PRESET: BuiltInPresetId = "pro";
@@ -66,6 +66,22 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "pnl-calendar", x: 12, y: 20, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "lot-calculator", x: 0, y: 24, w: 8, h: 8, minW: 6, minH: 7 },
   ],
+  // "Custom" starts as a copy of "pro" — users save over it via "Save Layout"
+  custom: [
+    { i: "chart", x: 0, y: 0, w: 13, h: 14, minW: 8, minH: 14 },
+    { i: "globe", x: 13, y: 0, w: 6, h: 7, minW: 4, minH: 5 },
+    { i: "live-tv", x: 13, y: 7, w: 11, h: 8, minW: 8, minH: 6 },
+    { i: "trump", x: 19, y: 0, w: 5, h: 4, minW: 4, minH: 3 },
+    { i: "mtf", x: 19, y: 4, w: 5, h: 4, minW: 4, minH: 3 },
+    { i: "catalysts", x: 13, y: 7, w: 11, h: 7, minW: 6, minH: 4 },
+    { i: "community", x: 0, y: 14, w: 13, h: 6, minW: 6, minH: 5 },
+    { i: "events", x: 13, y: 14, w: 6, h: 5, minW: 4, minH: 3 },
+    { i: "sessions", x: 19, y: 14, w: 5, h: 5, minW: 4, minH: 3 },
+    { i: "agents", x: 0, y: 20, w: 24, h: 4, minW: 10, minH: 4 },
+    { i: "economic-calendar", x: 0, y: 20, w: 12, h: 4, minW: 6, minH: 4 },
+    { i: "pnl-calendar", x: 12, y: 20, w: 12, h: 4, minW: 6, minH: 4 },
+    { i: "lot-calculator", x: 0, y: 24, w: 8, h: 8, minW: 6, minH: 7 },
+  ],
 };
 
 const PRESET_HIDDEN: Record<BuiltInPresetId, Record<string, boolean>> = {
@@ -77,11 +93,15 @@ const PRESET_HIDDEN: Record<BuiltInPresetId, Record<string, boolean>> = {
     community: true,
     globe: true,
   },
+  custom: {
+    ...OPTIONAL_WIDGET_DEFAULTS,
+  },
 };
 
 const PRESET_LABELS: Record<BuiltInPresetId, string> = {
   pro: "Pro Trader",
   minimal: "Minimalist",
+  custom: "Custom",
 };
 
 interface CustomPreset {
@@ -102,7 +122,7 @@ interface SavedGridState {
 }
 
 function isBuiltInPresetId(preset: LayoutPresetId): preset is BuiltInPresetId {
-  return preset === "pro" || preset === "minimal";
+  return preset === "pro" || preset === "minimal" || preset === "custom";
 }
 
 function cloneLayout(layout: Layout): Layout {
@@ -995,7 +1015,16 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
                 <span>Save workspace state</span>
                 <Save className="h-3 w-3 shrink-0 text-zinc-500" />
               </button>
-              {activeCustomPreset ? (
+              {selectedPreset === "custom" ? (
+                <button
+                  type="button"
+                  onClick={handleSaveLayout}
+                  className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[10px] text-zinc-300 transition-colors hover:bg-white/[0.05] hover:text-zinc-100"
+                >
+                  <span>Update Custom layout</span>
+                  <Check className="h-3 w-3 shrink-0 text-zinc-500" />
+                </button>
+              ) : activeCustomPreset ? (
                 <button
                   type="button"
                   onClick={handleUpdateCurrentPreset}

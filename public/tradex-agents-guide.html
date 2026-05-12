@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TradeX Terminal — Agent Intelligence Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  :root {
+    --bg: #07090f;
+    --bg2: #0d1117;
+    --card: #111620;
+    --card2: #161d2a;
+    --border: #1e2736;
+    --border2: #263041;
+    --text: #e8edf5;
+    --muted: #6b7a99;
+    --dim: #3a4560;
+    --green: #22c55e;
+    --green-dim: #16a34a33;
+    --green-border: #16a34a55;
+    --amber: #f59e0b;
+    --amber-dim: #d97706222;
+    --amber-border: #d9770655;
+    --red: #ef4444;
+    --red-dim: #dc262622;
+    --red-border: #dc262655;
+    --blue: #3b82f6;
+    --blue-dim: #2563eb22;
+    --blue-border: #2563eb55;
+    --purple: #a855f7;
+    --purple-dim: #9333ea22;
+    --purple-border: #9333ea55;
+    --cyan: #06b6d4;
+    --cyan-dim: #0891b222;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { background: var(--bg); }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 13px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    padding: 0;
+  }
+
+  /* ── PAGE LAYOUT ── */
+  .page {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 48px 40px;
+  }
+
+  /* ── COVER ── */
+  .cover {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 80px 40px;
+    background: var(--bg);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cover::before {
+    content: '';
+    position: absolute;
+    top: -200px; right: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, #22c55e08 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .cover-inner { max-width: 680px; position: relative; z-index: 1; }
+
+  .cover-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--green);
+    border: 1px solid var(--green-border);
+    background: var(--green-dim);
+    padding: 4px 12px;
+    border-radius: 4px;
+    margin-bottom: 28px;
+    text-transform: uppercase;
+  }
+
+  .cover-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .cover h1 {
+    font-size: 52px;
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #e8edf5 0%, #94a3b8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .cover-sub {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--green);
+    letter-spacing: -0.02em;
+    margin-bottom: 24px;
+  }
+
+  .cover-desc {
+    font-size: 15px;
+    color: var(--muted);
+    line-height: 1.7;
+    max-width: 520px;
+    margin-bottom: 48px;
+  }
+
+  .cover-meta {
+    display: flex;
+    gap: 32px;
+    border-top: 1px solid var(--border);
+    padding-top: 28px;
+  }
+
+  .cover-meta-item { display: flex; flex-direction: column; gap: 3px; }
+  .cover-meta-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--dim); }
+  .cover-meta-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  /* ── SECTION HEADERS ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--dim);
+    min-width: 24px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+  }
+
+  /* ── AGENT CARDS ── */
+  .agent-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 28px;
+    overflow: hidden;
+    page-break-inside: avoid;
+  }
+
+  .agent-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 22px 24px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .agent-icon {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .agent-header-text { flex: 1; }
+
+  .agent-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .agent-name {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin-bottom: 6px;
+  }
+
+  .agent-tagline {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .agent-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 5px;
+    align-self: flex-start;
+    flex-shrink: 0;
+  }
+
+  .agent-body { padding: 22px 24px; display: flex; flex-direction: column; gap: 20px; }
+
+  /* ── TWO-COL GRID ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+  /* ── MINI CARDS ── */
+  .mini-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+
+  .mini-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--dim);
+    margin-bottom: 6px;
+  }
+
+  .mini-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  /* ── BULLET LISTS ── */
+  .bullet-list { display: flex; flex-direction: column; gap: 7px; }
+
+  .bullet {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 12px;
+    color: #b0bcd4;
+    line-height: 1.5;
+  }
+
+  .bullet-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+
+  /* ── STEP FLOW ── */
+  .step-flow { display: flex; flex-direction: column; gap: 0; }
+
+  .step {
+    display: flex;
+    gap: 14px;
+    position: relative;
+  }
+
+  .step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 30px;
+    bottom: -1px;
+    width: 1px;
+    background: var(--border);
+  }
+
+  .step-num {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    background: var(--card2);
+    border: 1px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .step-content { padding-bottom: 16px; flex: 1; }
+  .step-title { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+  .step-desc { font-size: 11px; color: var(--muted); line-height: 1.55; }
+
+  /* ── SIGNAL TABLE ── */
+  .signal-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .signal-table th {
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--dim);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .signal-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    color: #b0bcd4;
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  .signal-table tr:last-child td { border-bottom: none; }
+  .signal-table tr:hover td { background: var(--card2); }
+
+  /* ── HIGHLIGHT BOX ── */
+  .highlight-box {
+    border-radius: 10px;
+    padding: 16px 18px;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .highlight-box .hl-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+
+  .hl-green  { background: var(--green-dim);  border: 1px solid var(--green-border);  color: #86efac; }
+  .hl-green .hl-label { color: var(--green); }
+  .hl-amber  { background: var(--amber-dim);  border: 1px solid var(--amber-border);  color: #fde68a; }
+  .hl-amber .hl-label { color: var(--amber); }
+  .hl-red    { background: var(--red-dim);    border: 1px solid var(--red-border);    color: #fca5a5; }
+  .hl-red .hl-label { color: var(--red); }
+  .hl-blue   { background: var(--blue-dim);   border: 1px solid var(--blue-border);   color: #93c5fd; }
+  .hl-blue .hl-label { color: var(--blue); }
+  .hl-purple { background: var(--purple-dim); border: 1px solid var(--purple-border); color: #d8b4fe; }
+  .hl-purple .hl-label { color: var(--purple); }
+  .hl-cyan   { background: var(--cyan-dim);   border: 1px solid var(--cyan-border);   color: #67e8f9; }
+  .hl-cyan .hl-label { color: var(--cyan); }
+
+  /* ── MONO TAG ── */
+  .mono { font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+  .tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--card2);
+    color: var(--muted);
+    margin: 1px;
+  }
+
+  /* ── SECTION BREAK ── */
+  .section-break {
+    height: 1px;
+    background: var(--border);
+    margin: 36px 0;
+  }
+
+  /* ── DIVIDER LABEL ── */
+  .divider-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 32px 0;
+  }
+
+  .divider-label::before,
+  .divider-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .divider-label span {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    white-space: nowrap;
+  }
+
+  /* ── WR PILL ── */
+  .wr-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--green-dim);
+    border: 1px solid var(--green-border);
+    border-radius: 100px;
+    padding: 3px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--green);
+  }
+
+  /* ── SECTION LABEL ── */
+  .section-lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--dim);
+    margin-bottom: 10px;
+  }
+
+  /* ── PRINT RULES ── */
+  @media print {
+    body { background: var(--bg) !important; }
+    .cover { page-break-after: always; min-height: auto; padding: 60px 40px; }
+    .agent-card { page-break-inside: avoid; }
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    @page { margin: 0; size: A4; }
+    .page { padding: 36px 36px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════
+     COVER
+══════════════════════════════════════════════════════════════ -->
+<div class="cover page">
+  <div class="cover-inner">
+    <div class="cover-tag"><span class="cover-dot"></span> TradeX Terminal</div>
+    <h1>Agent<br>Intelligence</h1>
+    <div class="cover-sub">Complete Strategy Guide</div>
+    <p class="cover-desc">
+      A breakdown of all 7 AI agents inside TradeX Terminal — what each one
+      analyzes, how the consensus system works, and how to read their outputs
+      to make better trading decisions.
+    </p>
+    <div class="cover-meta">
+      <div class="cover-meta-item">
+        <span class="cover-meta-label">Strategy</span>
+        <span class="cover-meta-value">JADE CAP + Multi-Agent</span>
+      </div>
+      <div class="cover-meta-item">
+        <span class="cover-meta-label">Primary Asset</span>
+        <span class="cover-meta-value">XAUUSD · M15 / H1</span>
+      </div>
+      <div class="cover-meta-item">
+        <span class="cover-meta-label">Agents</span>
+        <span class="cover-meta-value">7 Independent</span>
+      </div>
+      <div class="cover-meta-item">
+        <span class="cover-meta-label">Version</span>
+        <span class="cover-meta-value">2025</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     HOW THE SYSTEM WORKS
+══════════════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <div class="section-header">
+    <span class="section-num">00</span>
+    <span class="section-title">How the Multi-Agent System Works</span>
+  </div>
+
+  <p style="color:var(--muted); font-size:13px; line-height:1.75; margin-bottom:24px;">
+    TradeX Terminal runs 7 independent AI agents in parallel. Each agent analyzes a different
+    dimension of the market and returns a bias + confidence score. A Master Agent then
+    weighs all outputs through a consensus algorithm — including a debate phase where
+    agents challenge each other — before issuing a final trade decision.
+  </p>
+
+  <div class="step-flow" style="margin-bottom:28px;">
+    <div class="step">
+      <div class="step-num" style="color:var(--green);">01</div>
+      <div class="step-content">
+        <div class="step-title">Parallel Execution</div>
+        <div class="step-desc">All 6 analyst agents run simultaneously — Trend, Price Action (JADE CAP), News, Risk, Contrarian, Execution. No agent waits for another.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num" style="color:var(--amber);">02</div>
+      <div class="step-content">
+        <div class="step-title">Debate Phase</div>
+        <div class="step-desc">Agents challenge each other's conclusions. The Contrarian Agent specifically looks for flaws in the dominant thesis before Master votes.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num" style="color:var(--blue);">03</div>
+      <div class="step-content">
+        <div class="step-title">Weighted Consensus</div>
+        <div class="step-desc">Master Agent scores all outputs using weighted bias voting: PA/SMC 30% · Trend 25% · News 15% · Execution 10% · Contrarian 10% · Risk Gate 10%.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num" style="color:var(--purple);">04</div>
+      <div class="step-content">
+        <div class="step-title">Final Decision</div>
+        <div class="step-desc">Claude (LLM) reviews all agent data + debate output and issues: BULLISH / BEARISH / NO-TRADE with entry, SL, TP levels.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="highlight-box hl-blue">
+    <div class="hl-label">Scoring Weights</div>
+    PA Agent 30% · Trend 25% · News 15% · Risk Gate 10% · Contrarian 10% · Execution 10%
+    — the Risk Agent acts as a hard gate: if it returns BLOCKED, no trade fires regardless of consensus.
+  </div>
+
+  <div class="section-break"></div>
+
+  <!-- ── AGENT 1: TREND ── -->
+  <div class="section-header" style="margin-top:0;">
+    <span class="section-num">01</span>
+    <span class="section-title">The Agents — Detailed Breakdown</span>
+  </div>
+
+  <div class="agent-card">
+    <div class="agent-header">
+      <div class="agent-icon" style="background:#22c55e18; border:1px solid #22c55e33; color:var(--green);">
+        📈
+      </div>
+      <div class="agent-header-text">
+        <div class="agent-id" style="color:var(--green);">Agent 01 — Trend</div>
+        <div class="agent-name">Trend Agent</div>
+        <div class="agent-tagline">Determines the dominant directional bias using multi-timeframe price structure, momentum indicators, and moving average alignment.</div>
+      </div>
+      <div class="agent-badge" style="background:var(--green-dim); color:var(--green); border:1px solid var(--green-border);">WEIGHT 25%</div>
+    </div>
+
+    <div class="agent-body">
+      <div>
+        <div class="section-lbl">What It Analyzes</div>
+        <div class="two-col">
+          <div class="mini-card">
+            <div class="mini-label">Market Structure</div>
+            <div class="mini-value">HH + HL = Bullish · LH + LL = Bearish · BOS = trend shift confirmed</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-label">RSI (14)</div>
+            <div class="mini-value">Above 50 = bullish momentum · Below 50 = bearish · 70+ overbought · 30- oversold</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-label">MACD Histogram</div>
+            <div class="mini-value">Positive = expanding bullish · Negative = bearish · Divergence = weakening trend</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-label">EMA Stack (20 / 50 / 200)</div>
+            <div class="mini-value">Price &gt; EMA20 &gt; EMA50 = bullish stack · Inverted = bearish · EMA200 = long-term anchor</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-lbl">Market Phases It Detects</div>
+        <div class="three-col">
+          <div class="mini-card" style="border-color:var(--green-border);">
+            <div class="mini-label" style="color:var(--green);">Expansion</div>
+            <div class="mini-value" style="font-size:11px;">Strong structure + RSI trending + MACD aligned + MA stacked. Best for trend-following entries.</div>
+          </div>
+          <div class="mini-card" style="border-color:var(--amber-border);">
+            <div class="mini-label" style="color:var(--amber);">Pullback</div>
+            <div class="mini-value" style="font-size:11px;">Correction within intact trend. RSI resetting toward 50. Prime entry zone for continuation trades.</div>
+          </div>
+          <div class="mini-card" style="border-color:var(--blue-border);">
+            <div class="mini-label" style="color:var(--blue);">Reversal</div>
+            <div class="mini-value" style="font-size:11px;">BOS in opposite direction. RSI crossing 50. MACD crossing zero. High-risk zone, wait for confirmation.</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-label">Range</div>
+            <div class="mini-value" style="font-size:11px;">No clear HH/HL or LH/LL. RSI oscillating near 50. Flat MAs. Avoid directional trades.</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-label">Breakout</div>
+            <div class="mini-value" style="font-size:11px;">Momentum spike out of range. RSI expanding. MACD diverging. Can enter on retest.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="highlight-box hl-green">
+        <div class="hl-label">How to Maximize the Trend Agent</div>
+        Only trade setups where the Trend Agent agrees with your entry direction. If it says BEARISH but you want to buy — wait. The agent analyzes M5 / M15 / H1 / H4 simultaneously. When all 4 show "All 4 Aligned", that's a high-conviction environment. Low confidence (below 50%) = avoid trading that direction.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── AGENT 2: JADE CAP ── -->
+  <div class="agent-card" style="border-color:#a855f755;">
+    <div class="agent-header" style="border-color:#a855f733;">
+      <div class="agent-icon" style="background:#a855f718; border:1px solid #a855f733; color:var(--purple);">
+        ⚡
+      </div>
+      <div class="agent-header-text">
+        <div class="agent-id" style="color:var(--purple);">Agent 02 — Price Action (JADE CAP)</div>
+        <div class="agent-name">JADE CAP Agent</div>
+        <div class="agent-tagline">Intraday Liquidity &amp; Volatility Model. Detects NY session liquidity sweeps of Asian/London session levels, then enters on Fair Value Gaps.</div>
+      </div>
+      <div class="agent-badge" style="background:var(--purple-dim); color:var(--purple); border:1px solid var(--purple-border);">WEIGHT 30%</div>
+    </div>
+
+    <div class="agent-body">
+
+      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div class="wr-pill">68.2% Win Rate</div>
+        <span style="font-size:11px; color:var(--muted);">16-month backtest · XAUUSD M15 · 1.5R minimum target</span>
+      </div>
+
+      <div>
+        <div class="section-lbl">The 5-Step Process</div>
+        <div class="step-flow">
+          <div class="step">
+            <div class="step-num" style="color:var(--purple); border-color:#9333ea55;">1</div>
+            <div class="step-content">
+              <div class="step-title">Daily Bias</div>
+              <div class="step-desc">Previous daily candle: close above open = bullish day. Below = bearish day. This tells the model which direction to trade.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--purple); border-color:#9333ea55;">2</div>
+            <div class="step-content">
+              <div class="step-title">Session Levels</div>
+              <div class="step-desc">Maps key levels: Asian High/Low (00:00–08:00 UTC) · London High/Low (08:00–13:00 UTC) · Previous Day High/Low (PDH/PDL).</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--purple); border-color:#9333ea55;">3</div>
+            <div class="step-content">
+              <div class="step-title">NY Sweep Detection</div>
+              <div class="step-desc">13:00–18:00 UTC (9 PM–2 AM PHT): watches for price to sweep above/below a session level then reverse. Each level has a confidence modifier.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="color:var(--purple); border-color:#9333ea55;">4</div>
+            <div class="step-content">
+              <div class="step-title">FVG Detection</div>
+              <div class="step-desc">After the sweep, looks for a Fair Value Gap (price imbalance) created by the displacement move. This becomes the entry zone.</div>
+            </div>
+          </div>
+          <div class="step" style="padding-bottom:0;">
+            <div class="step-num" style="color:var(--purple); border-color:#9333ea55;">5</div>
+            <div class="step-content" style="padding-bottom:0;">
+              <div class="step-title">Entry Parameters</div>
+              <div class="step-desc">Entry at FVG midpoint · SL at sweep extreme + $5 buffer · TP at 1.5R minimum. Enter only on M15 candle close — never mid-wick.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-lbl">Sweep Level Win Rates</div>
+        <table class="signal-table">
+          <thead>
+            <tr>
+              <th>Level</th>
+              <th>Win Rate</th>
+              <th>Confidence Modifier</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="mono">London Low</span></td>
+              <td><span style="color:var(--green); font-weight:700;">76%</span></td>
+              <td>+15 pts</td>
+              <td>Highest confluence — London builds sell-side, NY sweeps it bullishly</td>
+            </tr>
+            <tr>
+              <td><span class="mono">PDH (Prev Day High)</span></td>
+              <td><span style="color:var(--green); font-weight:700;">71%</span></td>
+              <td>+10 pts</td>
+              <td>Institutional reference level — stop cluster above previous highs</td>
+            </tr>
+            <tr>
+              <td><span class="mono">Asian High</span></td>
+              <td><span style="color:var(--green); font-weight:700;">70%</span></td>
+              <td>+10 pts</td>
+              <td>Asia range extreme — high-probability NY sweep zone</td>
+            </tr>
+            <tr>
+              <td><span class="mono">Asian Low</span></td>
+              <td><span style="color:var(--amber); font-weight:700;">60%</span></td>
+              <td>+5 pts</td>
+              <td>Moderate confluence — valid but lower historical accuracy</td>
+            </tr>
+            <tr>
+              <td><span class="mono">London High</span></td>
+              <td style="color:var(--muted);">Flag only</td>
+              <td>+0 pts</td>
+              <td>Used as context marker only — do not enter on London High sweep alone</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <div class="section-lbl">Active Window (Philippine Time)</div>
+        <div class="two-col">
+          <div class="highlight-box hl-purple">
+            <div class="hl-label">NY Session Window</div>
+            <strong>9:00 PM – 2:00 AM PHT</strong><br/>
+            This is the ONLY time JADE CAP fires. Outside this window, the agent monitors bias only — no setup detection.
+          </div>
+          <div class="highlight-box hl-amber">
+            <div class="hl-label">Pre-Session Preparation</div>
+            Before 9 PM PHT, identify the Asian High/Low and London High/Low. Know the daily bias. Have levels marked. The sweep happens fast — be ready.
+          </div>
+        </div>
+      </div>
+
+      <div class="highlight-box hl-purple">
+        <div class="hl-label">How to Maximize the JADE CAP Agent</div>
+        Wait for Setup Ready = "Yes" AND Sweep Detected = checked. Never enter when Sweep Detected is unchecked.
+        The highest-probability trades are: Daily bias BULLISH + London Low sweep (76% WR). Daily bias BEARISH + PDH sweep (71% WR).
+        Always enter on a CLOSED M15 candle inside the FVG — never chase a wick.
+      </div>
+    </div>
+  </div>
+
+</div><!-- end page -->
+
+<!-- ══════════════════════════════════════════════════════════════
+     AGENTS 3–7
+══════════════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <!-- ── AGENT 3: NEWS ── -->
+  <div class="agent-card" style="border-color:#3b82f655;">
+    <div class="agent-header" style="border-color:#3b82f633;">
+      <div class="agent-icon" style="background:#3b82f618; border:1px solid #3b82f633; color:var(--blue);">
+        📰
+      </div>
+      <div class="agent-header-text">
+        <div class="agent-id" style="color:var(--blue);">Agent 03 — News</div>
+        <div class="agent-name">News Intelligence Agent</div>
+        <div class="agent-tagline">Analyzes macro headlines and catalysts in real-time, classifies market regime, and scores the risk environment for trading.</div>
+      </div>
+      <div class="agent-badge" style="background:var(--blue-dim); color:var(--blue); border:1px solid var(--blue-border);">WEIGHT 15%</div>
+    </div>
+
+    <div class="agent-body">
+      <div class="two-col">
+        <div>
+          <div class="section-lbl">Regimes It Classifies</div>
+          <div class="bullet-list">
+            <div class="bullet"><div class="bullet-dot" style="background:var(--red);"></div><span><strong>Geopolitical</strong> — wars, military action, sanctions. Safe-haven flows dominate (gold, DXY).</span></div>
+            <div class="bullet"><div class="bullet-dot" style="background:var(--amber);"></div><span><strong>Fed Policy</strong> — rate decisions, FOMC, Powell speeches. USD and gold react sharply.</span></div>
+            <div class="bullet"><div class="bullet-dot" style="background:var(--blue);"></div><span><strong>Inflation</strong> — CPI, PPI, PCE data. Gold and bonds are primary movers.</span></div>
+            <div class="bullet"><div class="bullet-dot" style="background:var(--green);"></div><span><strong>Tariff / Trade</strong> — Trump posts, trade war escalation. Risk-off across equities.</span></div>
+            <div class="bullet"><div class="bullet-dot" style="background:var(--muted);"></div><span><strong>Calm</strong> — no dominant macro theme. Price action / structure trades more reliable.</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="section-lbl">Risk Score Interpretation</div>
+          <div class="bullet-list" style="gap:10px;">
+            <div class="mini-card" style="border-color:var(--green-border);">
+              <div class="mini-label" style="color:var(--green);">0 – 35 (Low Risk)</div>
+              <div class="mini-value" style="font-size:11px;">Clean macro environment. Normal position sizing. Structure trades have high reliability.</div>
+            </div>
+            <div class="mini-card" style="border-color:var(--amber-border);">
+              <div class="mini-label" style="color:var(--amber);">36 – 65 (Moderate Risk)</div>
+              <div class="mini-value" style="font-size:11px;">Active macro theme. Reduce size slightly. Tighten SL. Avoid holding through high-impact events.</div>
+            </div>
+            <div class="mini-card" style="border-color:var(--red-border);">
+              <div class="mini-label" style="color:var(--red);">66 – 100 (High Risk)</div>
+              <div class="mini-value" style="font-size:11px;">Major event risk. Avoid new entries before data releases. Widen SL if already in trade or close.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="highlight-box hl-blue">
+        <div class="hl-label">How to Maximize the News Agent</div>
+        Check the regime and risk score BEFORE looking at any setup. If Risk Score is above 65, skip the trade even if JADE CAP fires. The News Agent overrides all technical setups when macro risk is extreme. "Bias Changers" listed in the drawer are events that could flip your trade — know them before entry.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── AGENT 4: RISK ── -->
+  <div class="agent-card" style="border-color:#ef444455;">
+    <div class="agent-header" style="border-color:#ef444433;">
+      <div class="agent-icon" style="background:#ef444418; border:1px solid #ef444433; color:var(--red);">
+        🛡
+      </div>
+      <div class="agent-header-text">
+        <div class="agent-id" style="color:var(--red);">Agent 04 — Risk</div>
+        <div class="agent-name">Risk Management Agent</div>
+        <div class="agent-tagline">Hard gate that blocks trades when conditions are unsafe. Checks volatility, session suitability, stop distance, and risk-reward ratio.</div>
+      </div>
+      <div class="agent-badge" style="background:var(--red-dim); color:var(--red); border:1px solid var(--red-border);">HARD GATE</div>
+    </div>
+
+    <div class="agent-body">
+      <div class="highlight-box hl-red" style="margin-bottom:4px;">
+        <div class="hl-label">Critical Rule</div>
+        If the Risk Agent returns BLOCKED, no trade fires — regardless of what every other agent says. It is the only agent with veto power over the Master Agent.
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="section-lbl">What It Checks</div>
+          <div class="bullet-list">
+            <div class="bullet"><div class="bullet-dot" style="background:var(--red);"></div><span><strong>Volatility</strong> — ATR proxy above threshold = too volatile to size normally</span></div>
+            <div class="bullet"><div class="bullet-dot" style="background:var(--red);"></div><span><strong>Session Score</strong> — London 90pts · NY 80pts · Asia 40pts · Closed 20pts</span></div>
+            <div class="bullet"><div class="bullet-dot" style="background:var(--red);"></div><span><strong>Stop Distance</strong> — SL too close = noise will hit it. Too far = R:R breaks.</span></div>
+            <div class="bullet"><div class="bullet-dot" style="background:var(--red);"></div><span><strong>R:R Ratio</strong> — minimum 1.5:1 required to validate trade</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="section-lbl">Risk Grades</div>
+          <div class="bullet-list" style="gap:6px;">
+            <div class="mini-card" style="border-color:var(--green-border); padding:10px 14px;">
+              <div class="mini-label" style="color:var(--green);">Grade A–B (Valid)</div>
+              <div class="mini-value" style="font-size:11px;">Good session + controlled volatility + valid R:R. Full size allowed.</div>
+            </div>
+            <div class="mini-card" style="border-color:var(--amber-border); padding:10px 14px;">
+              <div class="mini-label" style="color:var(--amber);">Grade C (Caution)</div>
+              <div class="mini-value" style="font-size:11px;">Marginal conditions. Reduce position to 50%. Tighten management.</div>
+            </div>
+            <div class="mini-card" style="border-color:var(--red-border); padding:10px 14px;">
+              <div class="mini-label" style="color:var(--red);">Grade D–F (Blocked)</div>
+              <div class="mini-value" style="font-size:11px;">Do not trade. Wrong session, extreme volatility, or R:R below minimum.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="highlight-box hl-red">
+        <div class="hl-label">How to Maximize the Risk Agent</div>
+        Never override a BLOCKED reading. Respect session scores — Asia (40pts) is a dangerous time to force trades. Check the Risk drawer when Execution shows ARMED: if Risk is BLOCKED, the armed signal is invalidated. Always know your stop distance before entry — the agent will flag if it's too tight or too wide.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── AGENT 5: CONTRARIAN ── -->
+  <div class="agent-card" style="border-color:#f59e0b55;">
+    <div class="agent-header" style="border-color:#f59e0b33;">
+      <div class="agent-icon" style="background:#f59e0b18; border:1px solid #f59e0b33; color:var(--amber);">
+        ⚠
+      </div>
+      <div class="agent-header-text">
+        <div class="agent-id" style="color:var(--amber);">Agent 05 — Contrarian</div>
+        <div class="agent-name">Contrarian Agent</div>
+        <div class="agent-tagline">Devil's advocate. Actively tries to find reasons why the dominant bias is WRONG. Detects bull traps, bear traps, false breakouts, and stop hunts.</div>
+      </div>
+      <div class="agent-badge" style="background:var(--amber-dim); color:var(--amber); border:1px solid var(--amber-border);">WEIGHT 10%</div>
+    </div>
+
+    <div class="agent-body">
+      <div class="two-col">
+        <div>
+          <div class="section-lbl">What It Detects</div>
+          <div class="bullet-list">
+            <div class="bullet"><div class="bullet-dot" style="background:var(--amber);"></div><span><strong>Bull Trap</strong> — price breaks above resistance but closes back under it. Retail longs trapped.</span></div>
+            <div class="bullet"><div class="bullet-dot" style="background:var(--amber);"></div><span><strong>Bear Trap</strong> — price breaks below support then reclaims it. Shorts squeezed.</span></div>
+            <div class="bullet"><div class="bullet-dot" style="background:var(--amber);"></div><span><strong>Stop Hunt</strong> — quick spike to a liquidity cluster then reversal. Smart money grabbing stops.</span></div>
+            <div class="bullet"><div class="bullet-dot" style="background:var(--amber);"></div><span><strong>False Breakout</strong> — momentum move that lacks structure confirmation. Fades quickly.</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="section-lbl">Output Interpretation</div>
+          <div class="bullet-list" style="gap:8px;">
+            <div class="mini-card">
+              <div class="mini-label">CLEAR</div>
+              <div class="mini-value" style="font-size:11px;">No counter-signals. Thesis unchallenged. Proceed with normal conviction.</div>
+            </div>
+            <div class="mini-card" style="border-color:var(--amber-border);">
+              <div class="mini-label" style="color:var(--amber);">ALERT (challenges = true)</div>
+              <div class="mini-value" style="font-size:11px;">Potential counter-signal found. Read the failure reasons. Consider reducing size.</div>
+            </div>
+            <div class="mini-card" style="border-color:var(--red-border);">
+              <div class="mini-label" style="color:var(--red);">ALERT + High Trap Confidence</div>
+              <div class="mini-value" style="font-size:11px;">Trap confidence &gt;60%. High probability the dominant bias is wrong. Skip the trade.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="highlight-box hl-amber">
+        <div class="hl-label">How to Maximize the Contrarian Agent</div>
+        Read the "failure reasons" in the drawer even when trading. They tell you exactly what would invalidate your trade. If Trap Confidence is above 60%, the Contrarian Agent is essentially screaming "this is a trap." The alternative scenario section shows what the market might actually be doing — use it as your worst-case planning.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── AGENT 6: EXECUTION ── -->
+  <div class="agent-card" style="border-color:#06b6d455;">
+    <div class="agent-header" style="border-color:#06b6d433;">
+      <div class="agent-icon" style="background:#06b6d418; border:1px solid #06b6d433; color:var(--cyan);">
+        🎯
+      </div>
+      <div class="agent-header-text">
+        <div class="agent-id" style="color:var(--cyan);">Agent 06 — Execution</div>
+        <div class="agent-name">Execution Agent</div>
+        <div class="agent-tagline">Entry timing specialist. Calculates the actual trade parameters — entry price, stop loss, take profits — and tracks signal states in real-time.</div>
+      </div>
+      <div class="agent-badge" style="background:var(--cyan-dim); color:var(--cyan); border:1px solid var(--cyan-border);">WEIGHT 10%</div>
+    </div>
+
+    <div class="agent-body">
+      <div>
+        <div class="section-lbl">Signal States</div>
+        <div class="three-col">
+          <div class="mini-card" style="border-color:var(--green-border);">
+            <div class="mini-label" style="color:var(--green);">ARMED</div>
+            <div class="mini-value" style="font-size:11px;">Live setup. Trigger condition met. Trade is ready to enter on next valid candle close.</div>
+          </div>
+          <div class="mini-card" style="border-color:var(--amber-border);">
+            <div class="mini-label" style="color:var(--amber);">PENDING</div>
+            <div class="mini-value" style="font-size:11px;">Conditions partially met. Watching for full confirmation. Do not enter yet.</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-label">EXPIRED</div>
+            <div class="mini-value" style="font-size:11px;">Setup was valid but the entry window has passed. Wait for next setup — do not chase.</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-label">NO TRADE</div>
+            <div class="mini-value" style="font-size:11px;">No valid setup found. No entry criteria met. Stay flat — this is the most common state.</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-lbl">Level Logic (JADE CAP integration)</div>
+        <div class="bullet-list">
+          <div class="bullet"><div class="bullet-dot" style="background:var(--cyan);"></div><span><strong>Entry</strong> — FVG midpoint after the sweep. If no FVG: first mitigation candle after sweep.</span></div>
+          <div class="bullet"><div class="bullet-dot" style="background:var(--cyan);"></div><span><strong>Stop Loss</strong> — sweep extreme (the candle that went furthest beyond the level) + $5 buffer. This is the invalidation point — if price closes here, the sweep thesis is wrong.</span></div>
+          <div class="bullet"><div class="bullet-dot" style="background:var(--cyan);"></div><span><strong>TP1</strong> — 1.5R from entry. Primary target. Move SL to breakeven after TP1 hit.</span></div>
+          <div class="bullet"><div class="bullet-dot" style="background:var(--cyan);"></div><span><strong>TP2 / TP3</strong> — 2R and 3R. Let runners ride with trailing SL to previous swing.</span></div>
+        </div>
+      </div>
+
+      <div class="highlight-box hl-cyan">
+        <div class="hl-label">How to Maximize the Execution Agent</div>
+        Only enter when signal state is ARMED AND Risk Agent is VALID. ARMED + BLOCKED = no trade.
+        The trigger condition text tells you exactly what candle to wait for.
+        Management notes tell you how to handle the trade after entry. Read them — they're agent-generated trade management instructions specific to the current setup.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── AGENT 7: MASTER ── -->
+  <div class="agent-card" style="border-color:var(--border2); background: linear-gradient(135deg, #111620 0%, #0d1117 100%);">
+    <div class="agent-header">
+      <div class="agent-icon" style="background:#ffffff08; border:1px solid #ffffff18; color:white; font-size:20px;">
+        👑
+      </div>
+      <div class="agent-header-text">
+        <div class="agent-id" style="color:var(--muted);">Agent 07 — Master</div>
+        <div class="agent-name" style="background:linear-gradient(135deg, #e8edf5, #94a3b8); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">Master CMO Agent</div>
+        <div class="agent-tagline">Chief Market Officer. Reviews all 6 agent outputs, runs a debate phase, then uses Claude AI to issue the final trade verdict — BULLISH, BEARISH, or NO-TRADE.</div>
+      </div>
+      <div class="agent-badge" style="background:#ffffff08; color:var(--text); border:1px solid var(--border2);">FINAL VOTE</div>
+    </div>
+
+    <div class="agent-body">
+      <div>
+        <div class="section-lbl">Consensus Scoring Formula</div>
+        <table class="signal-table">
+          <thead><tr><th>Agent</th><th>Weight</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td>Price Action (JADE CAP)</td><td><strong>30%</strong></td><td>Primary setup signal — highest weight</td></tr>
+            <tr><td>Trend Agent</td><td><strong>25%</strong></td><td>Directional bias confirmation</td></tr>
+            <tr><td>News Agent</td><td><strong>15%</strong></td><td>Macro environment filter</td></tr>
+            <tr><td>Risk Agent</td><td><strong>10%</strong></td><td>Hard gate — blocks trade if BLOCKED</td></tr>
+            <tr><td>Contrarian Agent</td><td><strong>10%</strong></td><td>Counter-signal pressure</td></tr>
+            <tr><td>Execution Agent</td><td><strong>10%</strong></td><td>Entry timing readiness</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="section-lbl">Trade Status Outputs</div>
+          <div class="bullet-list" style="gap:8px;">
+            <div class="mini-card" style="border-color:var(--green-border);">
+              <div class="mini-label" style="color:var(--green);">TRADE READY</div>
+              <div class="mini-value" style="font-size:11px;">Full consensus achieved. Entry, SL, TP levels provided. Highest confidence state.</div>
+            </div>
+            <div class="mini-card" style="border-color:var(--amber-border);">
+              <div class="mini-label" style="color:var(--amber);">WATCHLIST</div>
+              <div class="mini-value" style="font-size:11px;">Bias confirmed but setup not yet triggered. Monitor, do not enter.</div>
+            </div>
+            <div class="mini-card" style="border-color:var(--red-border);">
+              <div class="mini-label" style="color:var(--red);">NO TRADE</div>
+              <div class="mini-value" style="font-size:11px;">Agents disagree or risk blocked. Flat is a position — preserve capital.</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-lbl">Final Bias Outputs</div>
+          <div class="bullet-list" style="gap:8px;">
+            <div class="mini-card" style="border-color:var(--green-border);">
+              <div class="mini-label" style="color:var(--green);">BULLISH</div>
+              <div class="mini-value" style="font-size:11px;">Weighted consensus above threshold. Look for long entries on JADE CAP sweeps.</div>
+            </div>
+            <div class="mini-card" style="border-color:var(--red-border);">
+              <div class="mini-label" style="color:var(--red);">BEARISH</div>
+              <div class="mini-value" style="font-size:11px;">Weighted consensus bearish. Look for short entries or pass on longs.</div>
+            </div>
+            <div class="mini-card">
+              <div class="mini-label">NO-TRADE</div>
+              <div class="mini-value" style="font-size:11px;">Conflicting signals or extreme risk. The system's most protective state.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="highlight-box" style="background:#ffffff05; border:1px solid var(--border2); color:var(--muted);">
+        <div class="hl-label" style="color:var(--text);">How to Maximize the Master Agent</div>
+        The Master tab in the Brain drawer is the final word. Read the "supports" and "no-trade reasons" carefully — they are AI-generated explanations of why the consensus landed where it did. A high confidence Master (70%+) with TRADE READY = highest-quality signal the system produces. Below 50% confidence = the system is uncertain, treat as NO-TRADE.
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       QUICK REFERENCE
+  ══════════════════════════════════════════════════════ -->
+  <div class="divider-label"><span>Quick Reference — Reading the Brain</span></div>
+
+  <div class="section-header" style="margin-bottom:20px;">
+    <span class="section-num">02</span>
+    <span class="section-title">How to Read a Trade Signal Step by Step</span>
+  </div>
+
+  <div class="step-flow" style="margin-bottom:32px;">
+    <div class="step">
+      <div class="step-num" style="color:var(--text);">A</div>
+      <div class="step-content">
+        <div class="step-title">Check Master Bias + Confidence</div>
+        <div class="step-desc">Open Brain → MASTER tab. Is it BULLISH or BEARISH? What's the confidence? Below 50% = skip. Above 70% = high quality setup environment.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num" style="color:var(--text);">B</div>
+      <div class="step-content">
+        <div class="step-title">Check News Risk Score</div>
+        <div class="step-desc">NEWS tab → Risk Score. Above 65 = reduce or skip. Any high-impact events within 2 hours? Note the regime — it tells you which asset will move most.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num" style="color:var(--text);">C</div>
+      <div class="step-content">
+        <div class="step-title">Check Risk Agent Status</div>
+        <div class="step-desc">RISK tab → VALID or BLOCKED. If BLOCKED, stop here. Do not trade. If VALID, note the session score and volatility rating.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num" style="color:var(--text);">D</div>
+      <div class="step-content">
+        <div class="step-title">Wait for NY Window + JADE CAP Signal</div>
+        <div class="step-desc">PA tab → 9 PM PHT. Is Sweep Detected checked? Is Setup Ready "Yes"? If yes: note the FVG entry level, SL from sweep extreme, and TP at 1.5R.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num" style="color:var(--text);">E</div>
+      <div class="step-content">
+        <div class="step-title">Check Contrarian — No Active Alerts?</div>
+        <div class="step-desc">CONTRA tab → is it CLEAR? If ALERT with Trap Confidence above 60%, skip. If CLEAR, proceed with full size.</div>
+      </div>
+    </div>
+    <div class="step" style="padding-bottom:0;">
+      <div class="step-num" style="color:var(--green);">F</div>
+      <div class="step-content" style="padding-bottom:0;">
+        <div class="step-title" style="color:var(--green);">Execute on EXEC ARMED</div>
+        <div class="step-desc">EXEC tab → signal state ARMED. Read the trigger condition. Wait for M15 candle CLOSE inside FVG. Enter. Set SL. Set TP at 1.5R. Move SL to breakeven after TP1.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="highlight-box hl-green">
+    <div class="hl-label">Golden Rule</div>
+    All 6 conditions must align: Master BULLISH/BEARISH · News Risk below 65 · Risk VALID · JADE CAP Sweep Detected · Contrarian CLEAR · Execution ARMED.
+    If any one of these fails, the trade does not meet full criteria — reduce size or skip entirely.
+    The system is designed to keep you out of bad trades more than it gets you into good ones.
+  </div>
+
+  <div style="margin-top:48px; padding-top:24px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+    <div style="font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--dim); letter-spacing:0.14em; text-transform:uppercase;">
+      TradeX Terminal · Agent Intelligence Guide · 2025
+    </div>
+    <div style="font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--dim);">
+      JADE CAP · 7 Agents · 68.2% WR · XAUUSD M15
+    </div>
+  </div>
+
+</div><!-- end page -->
+
+<!-- ══════════ PRINT BUTTON (hidden in PDF) ══════════ -->
+<div style="position:fixed; bottom:24px; right:24px; z-index:999;">
+  <button onclick="window.print()"
+    style="background:#22c55e; color:#000; border:none; border-radius:10px; padding:12px 22px; font-family:'Inter',sans-serif; font-weight:700; font-size:13px; cursor:pointer; box-shadow:0 4px 20px #22c55e44;">
+    Save as PDF
+  </button>
+</div>
+
+</body>
+</html>

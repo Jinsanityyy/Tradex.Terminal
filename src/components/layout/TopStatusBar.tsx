@@ -149,10 +149,26 @@ export function UserMenu() {
     supabase.auth.getUser().then(({ data }) => {
       setEmail(data.user?.email ?? null);
     });
+    // Load localStorage immediately as cache
     const saved = localStorage.getItem(TRADER_NAME_KEY);
     if (saved) setTraderName(saved);
     const savedAvatar = localStorage.getItem("tradex_avatar");
     if (savedAvatar) setAvatar(savedAvatar);
+    // Fetch fresh data from DB — overrides localStorage
+    fetch("/api/profile")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        if (data.display_name) {
+          setTraderName(data.display_name);
+          localStorage.setItem(TRADER_NAME_KEY, data.display_name);
+        }
+        if (data.avatar_url) {
+          setAvatar(data.avatar_url);
+          localStorage.setItem("tradex_avatar", data.avatar_url);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   function saveName() {
@@ -160,6 +176,11 @@ export function UserMenu() {
     if (trimmed) {
       setTraderName(trimmed);
       localStorage.setItem(TRADER_NAME_KEY, trimmed);
+      fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ display_name: trimmed }),
+      }).catch(() => {});
     }
     setEditing(false);
     setOpen(false);
@@ -170,9 +191,25 @@ export function UserMenu() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const base64 = ev.target?.result as string;
-      setAvatar(base64);
-      localStorage.setItem("tradex_avatar", base64);
+      const img = new Image();
+      img.onload = async () => {
+        const MAX = 80;
+        const ratio = Math.min(MAX / img.width, MAX / img.height, 1);
+        const canvas = document.createElement("canvas");
+        canvas.width  = Math.round(img.width  * ratio);
+        canvas.height = Math.round(img.height * ratio);
+        canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const b64 = canvas.toDataURL("image/jpeg", 0.85);
+        setAvatar(b64);
+        localStorage.setItem("tradex_avatar", b64);
+        window.dispatchEvent(new StorageEvent("storage", { key: "tradex_avatar", newValue: b64 }));
+        fetch("/api/profile/avatar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ avatarUrl: b64 }),
+        }).catch(() => {});
+      };
+      img.src = ev.target?.result as string;
     };
     reader.readAsDataURL(file);
   }

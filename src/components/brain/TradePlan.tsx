@@ -123,6 +123,14 @@ function SignalStateBanner({
       labelColor: "text-zinc-500",
       textColor: "text-zinc-600",
     },
+    WAIT: {
+      bg: "bg-amber-950/40",
+      border: "border-amber-500/20",
+      dot: "bg-amber-500",
+      label: "WAIT",
+      labelColor: "text-amber-400",
+      textColor: "text-amber-200/60",
+    },
   }[state];
 
   return (
@@ -213,9 +221,26 @@ function LotSizeCalculator({
 const PRICE_ROW_EXPLANATIONS: Record<string, string> = {
   Entry: "Primary execution zone. Wait for price to trade into this level instead of chasing momentum.",
   "Stop Loss": "Invalidation level for the thesis. If price breaks this area, the setup is considered wrong.",
-  "Take Profit 1": "First partial target used to reduce exposure and protect the trade after early confirmation.",
-  "Take Profit 2": "Final objective at the next major structural target for the remaining position.",
+  "Take Profit 1": "First partial target — scale out 50% here and move SL to breakeven.",
+  "Take Profit 2": "Full position target at the next major structural level.",
+  "Take Profit 3": "Extended target for trailing 25% of position — H4 setups only. Run with a trailing stop.",
 };
+
+function GradeBadge({ grade }: { grade: string }) {
+  const cfg: Record<string, { bg: string; text: string; border: string }> = {
+    "A+": { bg: "bg-emerald-500/20", text: "text-emerald-300", border: "border-emerald-500/40" },
+    "A":  { bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/30" },
+    "B+": { bg: "bg-amber-500/15",   text: "text-amber-400",   border: "border-amber-500/30"   },
+    "B":  { bg: "bg-amber-500/10",   text: "text-amber-500",   border: "border-amber-500/20"   },
+    "C":  { bg: "bg-zinc-800",       text: "text-zinc-500",    border: "border-zinc-700"        },
+  };
+  const c = cfg[grade] ?? cfg["C"];
+  return (
+    <span className={`inline-flex items-center rounded border px-2 py-0.5 text-[10px] font-bold tracking-widest ${c.bg} ${c.text} ${c.border}`}>
+      {grade}
+    </span>
+  );
+}
 
 function PriceRow({
   label,
@@ -405,11 +430,17 @@ export function TradePlan({
             </div>
           </div>
 
-          <div className="grid gap-2 text-right sm:grid-cols-2 sm:gap-3">
+          <div className="grid gap-2 text-right sm:grid-cols-3 sm:gap-3">
             <div className="rounded-lg border border-white/6 bg-black/20 px-3 py-2">
-              <div className="text-[9px] uppercase tracking-[0.14em] text-zinc-500">RR Ratio</div>
-              <div className={cn("mt-1 text-sm font-mono font-bold", tradePlan.rrRatio >= 2 ? "text-emerald-400" : "text-amber-400")}>
-                {tradePlan.rrRatio.toFixed(1)}:1
+              <div className="text-[9px] uppercase tracking-[0.14em] text-zinc-500">Grade</div>
+              <div className="mt-1">
+                <GradeBadge grade={tradePlan.grade ?? "—"} />
+              </div>
+            </div>
+            <div className="rounded-lg border border-white/6 bg-black/20 px-3 py-2">
+              <div className="text-[9px] uppercase tracking-[0.14em] text-zinc-500">Risk : Reward</div>
+              <div className={cn("mt-1 text-sm font-mono font-bold", tradePlan.rrRatio >= 3 ? "text-emerald-400" : tradePlan.rrRatio >= 2.5 ? "text-emerald-500" : "text-amber-400")}>
+                1 : {tradePlan.rrRatio.toFixed(1)}
               </div>
             </div>
             <div className="rounded-lg border border-white/6 bg-black/20 px-3 py-2">
@@ -468,7 +499,32 @@ export function TradePlan({
               icon={<ChevronRight className="h-3.5 w-3.5" />}
             />
           ) : null}
+          {tradePlan.tp3 ? (
+            <PriceRow
+              label="Take Profit 3"
+              value={tradePlan.tp3}
+              sublabel={tradePlan.tp3Zone !== "N/A" ? tradePlan.tp3Zone : undefined}
+              color="text-sky-400"
+              icon={<ChevronRight className="h-3.5 w-3.5" />}
+            />
+          ) : null}
         </div>
+
+        {tradePlan.confluenceFactors && tradePlan.confluenceFactors.length > 0 ? (
+          <div className="border-t border-white/5 px-4 py-3">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Confluence</span>
+              <span className="ml-auto text-[10px] font-mono text-zinc-500">{tradePlan.confluenceCount}/10</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {tradePlan.confluenceFactors.map((f) => (
+                <span key={f} className="rounded border border-emerald-500/20 bg-emerald-500/8 px-2 py-0.5 text-[10px] text-emerald-400">
+                  ✓ {f}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <div className="grid gap-3 px-4 pb-4 pt-2 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
           <LotSizeCalculator entry={tradePlan.entry} stopLoss={tradePlan.stopLoss} riskPercent={tradePlan.maxRiskPercent} />

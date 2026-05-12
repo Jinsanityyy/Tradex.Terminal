@@ -91,3 +91,29 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
+
+/**
+ * DELETE /api/signals/cleanup
+ * Marks all open directional signals without a trade plan as "informational".
+ * These are junk rows logged before the execution agent was fixed.
+ */
+export async function DELETE() {
+  try {
+    const { getServiceClient } = await import("@/lib/supabase/service");
+    const db = getServiceClient();
+    if (!db) return NextResponse.json({ error: "No DB client" }, { status: 500 });
+
+    const { error, count } = await db
+      .from("signals")
+      .update({ status: "informational" })
+      .eq("status", "open")
+      .is("entry_price", null)
+      .neq("final_bias", "no-trade");
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, cleaned: count ?? 0 });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}

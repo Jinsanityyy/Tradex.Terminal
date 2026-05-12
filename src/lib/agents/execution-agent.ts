@@ -1,19 +1,46 @@
 /**
- * Agent 5 — Execution Agent (Rule-Based)
+ * Agent 5 — Execution Agent
  *
- * Produces exact trade execution plan:
- * - Entry price (OB/FVG/sweep level)
- * - Stop Loss (structural invalidation)
- * - TP1, TP2 (liquidity targets)
- * - Trigger condition
- * - Management notes
+ * Grades every setup against JADE CAP A+ criteria before producing a trade plan.
+ * Only A+ and A grade setups generate executable plans.
+ * B+/B → WAIT state. C → NO_TRADE.
  *
- * Does NOT force a setup if conditions are weak.
+ * Grade requirements:
+ *   A+ = R:R ≥ 1:3  + confluence ≥ 4 + SL in range + killzone active
+ *   A  = R:R ≥ 1:2.5 + confluence ≥ 3 + SL in range
+ *   B+ = R:R ≥ 1:2  + confluence ≥ 3                 → WAIT
+ *   B  = R:R ≥ 1:2  + confluence ≥ 2                 → WAIT
+ *   C  = anything below                               → NO TRADE
  */
 
 import type {
-  MarketSnapshot, ExecutionAgentOutput, TradeDirection, SMCAgentOutput,
+  MarketSnapshot, ExecutionAgentOutput, TradeDirection,
+  SMCAgentOutput, NewsAgentOutput, SetupGrade, SignalState,
 } from "./schemas";
+
+// ── SL Limits — Gold absolute (pts), others %-based ──────────────────────────────
+const GOLD_SL_LIMITS: Record<string, { min: number; max: number }> = {
+  M5:  { min: 3,  max: 8   },
+  M15: { min: 5,  max: 12  },
+  H1:  { min: 8,  max: 20  },
+  H4:  { min: 20, max: 45  },
+};
+
+const PCT_SL_MAX: Record<string, number> = {
+  M5:  0.003,
+  M15: 0.004,
+  H1:  0.008,
+  H4:  0.020,
+};
+
+const GOLD_SYMS = new Set(["XAUUSD", "XAGUSD", "XPTUSD"]);
+
+// Killzone windows (UTC hours, inclusive start, exclusive end)
+const LONDON_KZ = { start: 8,  end: 11 };
+// JadeCap NY Kill Zone = 9:30–11:30 AM EST = 13:30–15:30 UTC exactly
+const NY_KZ = { startHour: 13, startMin: 30, endHour: 15, endMin: 30 };
+
+// ── Helpers ─────────────────────────────────────────────────────────────────────────────
 
 function roundToPrecision(value: number, price: number): number {
   if (price > 10000) return Math.round(value);
@@ -22,212 +49,467 @@ function roundToPrecision(value: number, price: number): number {
   return Math.round(value * 100000) / 100000;
 }
 
+function slBuffer(symbol: string): number {
+  if (symbol === "XAUUSD") return 1;   // JadeCap: SL just $1 beyond sweep wick
+  if (symbol === "XAGUSD") return 0.05;
+  if (symbol === "XPTUSD") return 3;
+  if (symbol === "BTCUSD" || symbol === "ETHUSD") return 50;
+  return 0;
+}
+
+function isSLInRange(riskDist: number, timeframe: string, symbol: string, price: number): boolean {
+  if (GOLD_SYMS.has(symbol)) {
+    const lim = GOLD_SL_LIMITS[timeframe] ?? GOLD_SL_LIMITS.H1;
+    return riskDist >= lim.min && riskDist <= lim.max;
+  }
+  const maxPct = PCT_SL_MAX[timeframe] ?? PCT_SL_MAX.H1;
+  return riskDist <= price * maxPct;
+}
+
+// ── Confluence Scoring — 10 factors ──────────────────────────────────────────────
+
+interface ConfluenceFactor { id: string; label: string; pass: boolean }
+
+function scoreConfluence(
+  snapshot: MarketSnapshot,
+  smc: SMCAgentOutput,
+  news: NewsAgentOutput,
+  isBullish: boolean,
+  inKillzone: boolean,
+): ConfluenceFactor[] {
+  const { structure, symbol } = snapshot;
+
+  const macroAligned = GOLD_SYMS.has(symbol)
+    // Gold long: any elevated risk environment supports safe-haven bid
+    // Gold short: requires explicit bearish macro (ceasefire, strong USD rally, etc.)
+    ? (isBullish ? news.riskScore > 25 : news.impact === "bearish")
+    : ["EURUSD", "GBPUSD", "AUDUSD", "NZDUSD"].includes(symbol)
+      ? (isBullish ? news.impact !== "bearish" : news.impact !== "bullish")
+      : true;
+
+  return [
+    {
+      id: "htf_ob",
+      label: "HTF Order Block respected",
+      pass: smc.keyLevels.orderBlockHigh !== null && smc.keyLevels.orderBlockLow !== null,
+    },
+    {
+      id: "fvg",
+      label: "Fair Value Gap present",
+      pass: smc.keyLevels.fvgMid !== null,
+    },
+    {
+      id: "sweep",
+      label: "Liquidity sweep confirmed",
+      pass: smc.liquiditySweepDetected,
+    },
+    {
+      id: "bos",
+      label: "BOS confirmed",
+      pass: smc.bosDetected,
+    },
+    // CHoCH is intentionally omitted here — in this codebase chochDetected === fvgDetected,
+    // so counting it alongside the FVG factor would double-count the same signal.
+    // The structural shift is already captured via bosDetected + fvgMid.
+    {
+      id: "fib_zone",
+      label: isBullish ? "Price in discount retracement zone" : "Price in premium retracement zone",
+      pass: isBullish ? structure.inDiscount : structure.inPremium,
+    },
+    {
+      id: "killzone",
+      label: "Session killzone active",
+      pass: inKillzone,
+    },
+    {
+      id: "macro",
+      label: "Macro bias aligned",
+      pass: macroAligned,
+    },
+    {
+      id: "inducement",
+      label: "Inducement / equal H-L swept",
+      pass: smc.liquiditySweepDetected && smc.setupType !== "None",
+    },
+    {
+      id: "liq_pool",
+      label: "Clean liquidity pool as TP target",
+      pass: smc.keyLevels.liquidityTarget !== null,
+    },
+  ];
+}
+
+// ── Grade Calculation ──────────────────────────────────────────────────────────────────
+
+function gradeSetup(
+  rrRatio: number,
+  confluenceCount: number,
+  slInRange: boolean,
+  inKillzone: boolean,
+  entryInStructure: boolean,
+): SetupGrade {
+  if (!entryInStructure) {
+    if (rrRatio >= 2.0 && confluenceCount >= 3) return "B+";
+    if (rrRatio >= 2.0 && confluenceCount >= 2) return "B";
+    return "C";
+  }
+  if (rrRatio >= 3.0 && confluenceCount >= 4 && slInRange && inKillzone) return "A+";
+  if (rrRatio >= 2.5 && confluenceCount >= 3 && slInRange) return "A";
+  if (rrRatio >= 2.0 && confluenceCount >= 3) return "B+";
+  if (rrRatio >= 2.0 && confluenceCount >= 2) return "B";
+  return "C";
+}
+
+// ── Result constructors ─────────────────────────────────────────────────────────────────
+
+function noTradeResult(start: number, reason: string): ExecutionAgentOutput {
+  return {
+    agentId: "execution",
+    hasSetup: false,
+    direction: "none",
+    entry: null, stopLoss: null, tp1: null, tp2: null, tp3: null, rrRatio: null,
+    grade: "C",
+    confluenceCount: 0,
+    confluenceFactors: [],
+    trigger: "None",
+    triggerCondition: `NO TRADE — ${reason}`,
+    managementNotes: ["Stand aside — setup does not meet minimum quality criteria"],
+    entryZone: "No valid entry zone",
+    slZone: "No SL required",
+    tp1Zone: "No target",
+    tp3Zone: "N/A",
+    signalState: "NO_TRADE",
+    signalStateReason: `NO TRADE — ${reason}`,
+    distanceToEntry: null,
+    processingTime: Date.now() - start,
+  };
+}
+
+function waitResult(start: number, grade: "B+" | "B", reason: string): ExecutionAgentOutput {
+  return {
+    agentId: "execution",
+    hasSetup: false,
+    direction: "none",
+    entry: null, stopLoss: null, tp1: null, tp2: null, tp3: null, rrRatio: null,
+    grade,
+    confluenceCount: 0,
+    confluenceFactors: [],
+    trigger: "None",
+    triggerCondition: `WAIT — ${reason}`,
+    managementNotes: ["Suboptimal setup detected — monitoring for better entry conditions"],
+    entryZone: "Monitoring",
+    slZone: "No SL — waiting",
+    tp1Zone: "No target yet",
+    tp3Zone: "N/A",
+    signalState: "WAIT",
+    signalStateReason: `WAIT — Suboptimal setup. ${reason}`,
+    distanceToEntry: null,
+    processingTime: Date.now() - start,
+  };
+}
+
+// ── Main Export ─────────────────────────────────────────────────────────────────────────────
+
 export async function runExecutionAgent(
   snapshot: MarketSnapshot,
-  smc: SMCAgentOutput
+  smc: SMCAgentOutput,
+  news: NewsAgentOutput,
 ): Promise<ExecutionAgentOutput> {
   const start = Date.now();
 
   try {
-    const { price, structure, indicators } = snapshot;
+    const { price, structure, indicators, symbol } = snapshot;
+    const timeframe = snapshot.timeframe ?? "H1";
     const { current, high, low, dayRange } = price;
     const { htfBias, htfConfidence } = structure;
-    const { session } = indicators;
+    const { session, sessionHour } = indicators;
 
-    // Jade Cap: ONLY generate an execution plan when a sweep is confirmed.
-    // No sweep = no structural trade trigger = no trade, regardless of HTF bias.
-    const jadeCapSweepActive = smc.liquiditySweepDetected && smc.setupPresent && smc.bias !== "neutral";
-    if (!jadeCapSweepActive) {
-      return {
-        agentId: "execution",
-        hasSetup: false,
-        direction: "none",
-        entry: null,
-        stopLoss: null,
-        tp1: null,
-        tp2: null,
-        rrRatio: null,
-        trigger: "None",
-        triggerCondition: "No confirmed sweep in NY session — stand aside, no execution plan generated",
-        managementNotes: [
-          "Wait for NY session sweep (13:00–18:00 UTC) to form",
-          "Monitor London Low, Asian High/Low, PDH/PDL for sweep candidates",
-        ],
-        entryZone: "No valid entry zone",
-        slZone: "No SL required — no trade",
-        tp1Zone: "No target — no trade",
-        signalState: "NO_TRADE",
-        signalStateReason: "No confirmed liquidity sweep. Jade Cap requires a sweep before entry.",
-        distanceToEntry: null,
-        processingTime: Date.now() - start,
-      };
+    // ── Killzone ──────────────────────────────────────────────────────────────
+    const snapDate   = new Date(snapshot.timestamp);
+    const nowHourUTC = snapDate.getUTCHours();
+    const nowMinUTC  = snapDate.getUTCMinutes();
+    const inLondonKZ = session === "London" &&
+      nowHourUTC >= LONDON_KZ.start && nowHourUTC < LONDON_KZ.end;
+    const inNYKZ     = session === "New York" &&
+      (nowHourUTC > NY_KZ.startHour || (nowHourUTC === NY_KZ.startHour && nowMinUTC >= NY_KZ.startMin)) &&
+      (nowHourUTC < NY_KZ.endHour   || (nowHourUTC === NY_KZ.endHour   && nowMinUTC <  NY_KZ.endMin));
+    const inKillzone = inLondonKZ || inNYKZ;
+
+    // ── Major news check ─────────────────────────────────────────────────────
+    const riskBlocksExec = GOLD_SYMS.has(symbol)
+      ? news.riskScore > 95 && news.impact !== "bullish"
+      : news.riskScore > 80;
+    if (riskBlocksExec) {
+      return noTradeResult(start, `Elevated macro risk (${news.riskScore}/100) — stand aside until risk clears`);
     }
 
+    // ── HTF bias check ──────────────────────────────────────────────────────────
+    const sweepActive = smc.liquiditySweepDetected && smc.setupPresent && smc.bias !== "neutral";
+    if (!sweepActive && (htfBias === "neutral" || htfConfidence < 45)) {
+      return noTradeResult(start, "No directional bias confirmed — stand aside");
+    }
+
+    // ── Direction ─────────────────────────────────────────────────────────────────
     const { keyLevels, setupType, bosDetected, liquiditySweepDetected } = smc;
-    // Jade Cap: when sweep confirmed, direction follows sweep bias; otherwise use HTF
     const isBullish = (liquiditySweepDetected && smc.bias !== "neutral")
       ? smc.bias === "bullish"
       : htfBias === "bullish";
     const direction: TradeDirection = isBullish ? "long" : "short";
+    const buf    = slBuffer(symbol);
+    // For non-gold assets slBuffer returns 0, causing SL = entry on fallback paths — use 0.1% floor
+    const minBuf = buf > 0 ? buf : Math.max(current * 0.001, 0.0001);
+
+    // ── Entry / SL construction ───────────────────────────────────────────────────
     let entry: number;
     let stopLoss: number;
     let trigger: string;
     let entryZone: string;
     let slZone: string;
+    let entryInStructure = false;
 
     if (setupType === "OB" && keyLevels.orderBlockHigh !== null && keyLevels.orderBlockLow !== null) {
-      entry = isBullish ? keyLevels.orderBlockLow : keyLevels.orderBlockHigh;
+      entry    = isBullish ? keyLevels.orderBlockLow : keyLevels.orderBlockHigh;
       stopLoss = isBullish
-        ? keyLevels.orderBlockLow * 0.997
-        : keyLevels.orderBlockHigh * 1.003;
-      trigger = "OB retest";
-      entryZone = `${isBullish ? "Bullish" : "Bearish"} OB ${keyLevels.orderBlockLow?.toFixed(4)}–${keyLevels.orderBlockHigh?.toFixed(4)}`;
-      slZone = `${isBullish ? "Below" : "Above"} OB ${isBullish ? "low" : "high"} — thesis invalid on close through`;
+        ? keyLevels.orderBlockLow  - buf
+        : keyLevels.orderBlockHigh + buf;
+      trigger  = "OB retest";
+      entryZone = `${isBullish ? "Bullish" : "Bearish"} OB ${keyLevels.orderBlockLow.toFixed(4)}–${keyLevels.orderBlockHigh.toFixed(4)}`;
+      slZone   = `${isBullish ? "Below" : "Above"} OB ${isBullish ? "low" : "high"} — thesis invalid on close through`;
+      entryInStructure = true;
+
+      const obRange  = keyLevels.orderBlockHigh - keyLevels.orderBlockLow;
+      const depthPct = obRange > 0
+        ? (isBullish
+            ? (current - keyLevels.orderBlockLow)  / obRange
+            : (keyLevels.orderBlockHigh - current) / obRange)
+        : 0;
+      if (depthPct > 0.3) {
+        // OB depth disqualifies this entry but the structure is still valid — B+ not B
+        return waitResult(start, "B+", "Price >30% into OB — wait for a fresh OB test");
+      }
+
     } else if (setupType === "FVG" && keyLevels.fvgMid !== null) {
-      entry = keyLevels.fvgMid;
-      // Jade Cap: prefer pre-computed invalidationLevel (sweep extreme + $5 buffer)
-      stopLoss = smc.invalidationLevel !== null
-        ? smc.invalidationLevel
-        : isBullish
-          ? (keyLevels.fvgLow ?? entry) * 0.998
-          : (keyLevels.fvgHigh ?? entry) * 1.002;
-      trigger = liquiditySweepDetected ? "Jade Cap sweep + FVG" : "FVG fill";
-      entryZone = `FVG midpoint ${keyLevels.fvgMid.toFixed(4)} (${keyLevels.fvgLow?.toFixed(4)}–${keyLevels.fvgHigh?.toFixed(4)})`;
-      slZone = smc.invalidationLevel !== null
-        ? `Sweep extreme + buffer at ${smc.invalidationLevel.toFixed(4)} — close through invalidates setup`
-        : `${isBullish ? "Below" : "Above"} FVG ${isBullish ? "low" : "high"} — imbalance invalidated`;
+      entry    = keyLevels.fvgMid;
+      // Only use invalidationLevel if it's on the correct side
+      const fvgInvLevel = smc.invalidationLevel;
+      const fvgInvValid = fvgInvLevel !== null &&
+        (isBullish ? fvgInvLevel < entry : fvgInvLevel > entry);
+      if (fvgInvValid && fvgInvLevel !== null) {
+        stopLoss = fvgInvLevel;
+        slZone   = `Structural invalidation at ${fvgInvLevel.toFixed(4)} — close through negates setup`;
+      } else if (isBullish) {
+        const fvgFloor = keyLevels.fvgLow !== null && keyLevels.fvgLow < entry ? keyLevels.fvgLow : entry - minBuf * 2;
+        stopLoss = fvgFloor - minBuf;
+        slZone   = `Below FVG low ${fvgFloor.toFixed(4)} — structure must hold`;
+      } else {
+        const fvgCeil = keyLevels.fvgHigh !== null && keyLevels.fvgHigh > entry ? keyLevels.fvgHigh : entry + minBuf * 2;
+        stopLoss = fvgCeil + minBuf;
+        slZone   = `Above FVG high ${fvgCeil.toFixed(4)} — structure must hold`;
+      }
+      trigger  = liquiditySweepDetected ? "Structure Reversal" : "Imbalance Fill";
+      entryZone = `${isBullish ? "Buy" : "Sell"} zone ${keyLevels.fvgMid.toFixed(4)} — price action imbalance area`;
+      entryInStructure = true;
+
     } else if (setupType === "Sweep" && liquiditySweepDetected) {
-      const sweepRef = keyLevels.sweepLevel ?? (isBullish ? low : high);
-      entry = isBullish ? sweepRef * 1.001 : sweepRef * 0.999;
-      // Jade Cap: SL = sweep extreme + buffer (pre-computed as invalidationLevel)
-      stopLoss = smc.invalidationLevel !== null
-        ? smc.invalidationLevel
-        : isBullish ? low * 0.997 : high * 1.003;
-      trigger = "Jade Cap sweep";
-      entryZone = `Post-sweep ${isBullish ? "buy" : "sell"} — swept level ${sweepRef.toFixed(4)}`;
-      slZone = smc.invalidationLevel !== null
-        ? `Sweep extreme + buffer at ${smc.invalidationLevel.toFixed(4)} — thesis invalid on break`
-        : `${isBullish ? "Below" : "Above"} sweep level — ${isBullish ? "lows" : "highs"} must hold`;
+      const sweepRef    = keyLevels.sweepLevel ?? (isBullish ? low : high);
+      entry             = isBullish ? sweepRef * 1.001 : sweepRef * 0.999;
+      const sweepInvLvl = smc.invalidationLevel;
+      const sweepInvValid = sweepInvLvl !== null &&
+        (isBullish ? sweepInvLvl < entry : sweepInvLvl > entry);
+      stopLoss = sweepInvValid && sweepInvLvl !== null
+        ? sweepInvLvl
+        : isBullish ? sweepRef * 0.999 - buf : sweepRef * 1.001 + buf;
+      trigger  = "Momentum Shift";
+      entryZone = `${isBullish ? "Buy" : "Sell"} entry at key structural level ${entry.toFixed(4)}`;
+      slZone   = sweepInvValid && sweepInvLvl !== null
+        ? `Structural invalidation at ${sweepInvLvl.toFixed(4)} — thesis invalid on break`
+        : `${isBullish ? "Below" : "Above"} key sweep level — structure must hold`;
+      entryInStructure = false;
+
     } else if (bosDetected) {
-      const pullback = dayRange * 0.38;
-      entry = isBullish ? current - pullback : current + pullback;
-      stopLoss = isBullish ? entry * 0.997 : entry * 1.003;
-      trigger = "BOS pullback";
-      entryZone = `BOS pullback zone ~${entry.toFixed(4)} — ${isBullish ? "38% retracement of bullish BOS" : "38% retrace of bearish BOS"}`;
-      slZone = `${isBullish ? "Below" : "Above"} BOS origin — ${isBullish ? "low" : "high"} of displacement candle`;
+      // Prefer a real structural level (FVG midpoint or sweep level) as the pullback entry.
+      // Fall back to a 38.2% Fibonacci approximation of the day range only when no level is available.
+      const structuralEntry =
+        keyLevels.fvgMid ??
+        (keyLevels.sweepLevel !== null
+          ? (isBullish ? keyLevels.sweepLevel * 1.001 : keyLevels.sweepLevel * 0.999)
+          : null);
+      const pullback = dayRange * 0.382;
+      entry    = structuralEntry ?? (isBullish ? current - pullback : current + pullback);
+      stopLoss = isBullish ? entry - minBuf : entry + minBuf;
+      trigger  = "BOS pullback";
+      entryZone = structuralEntry
+        ? `BOS pullback to structural level ${entry.toFixed(4)}`
+        : `BOS pullback zone ~${entry.toFixed(4)} (38.2% fib estimate)`;
+      slZone   = `${isBullish ? "Below" : "Above"} BOS origin — displacement candle ${isBullish ? "low" : "high"}`;
+      entryInStructure = structuralEntry !== null;
+
     } else {
-      entry = current;
-      stopLoss = isBullish ? current * 0.985 : current * 1.015;
-      trigger = "Market order";
-      entryZone = `Current price ${current.toFixed(4)} — no premium structure entry available`;
-      slZone = `${isBullish ? "Below" : "Above"} ${stopLoss.toFixed(4)} — structural floor/ceiling`;
+      return noTradeResult(start, "No valid structural setup — no OB, FVG, or confirmed sweep present");
     }
 
-    // Hard guard: SL must be on the correct side of entry.
-    // smc.invalidationLevel from the LLM path can land on the wrong side
-    // (e.g. low-sweep formula applied to a short signal). Fix before riskDist
-    // drives every downstream TP/RR calculation.
-    if (isBullish && stopLoss >= entry) stopLoss = low * 0.998;    // long: SL below candle low
-    if (!isBullish && stopLoss <= entry) stopLoss = high * 1.002;  // short: SL above candle high
+    // ── SL directional guard — return no-trade on any remaining inversions ──
+    if ((isBullish && stopLoss >= entry) || (!isBullish && stopLoss <= entry)) {
+      return noTradeResult(start,
+        `Invalid stop loss: ${direction} entry ${entry.toFixed(1)} but SL ${stopLoss.toFixed(1)} is on wrong side — structural levels inconsistent`
+      );
+    }
+
 
     const riskDist = Math.abs(entry - stopLoss);
-    const tp1MaxDist = riskDist * 2.5;
-    const tp2Distance = riskDist * 4;
+
+    if (riskDist === 0) {
+      return noTradeResult(start, "Invalid setup: entry equals stop loss");
+    }
+
+    const slInRange = isSLInRange(riskDist, timeframe, symbol, current);
+
+    if (!slInRange) {
+      const limitMsg = GOLD_SYMS.has(symbol)
+        ? `Gold ${timeframe} SL limit is ${GOLD_SL_LIMITS[timeframe]?.max ?? 20} pts max — got ${riskDist.toFixed(1)} pts`
+        : `SL ${riskDist.toFixed(4)} exceeds ${((PCT_SL_MAX[timeframe] ?? 0.008) * 100).toFixed(1)}% max for ${timeframe}`;
+      return waitResult(start, "B", `${limitMsg} — wait for tighter structure`);
+    }
+
+    // ── Round entry/SL before TP so all levels are on the same precision grid ──
+    entry    = roundToPrecision(entry,    current);
+    stopLoss = roundToPrecision(stopLoss, current);
+    const riskDistRounded = Math.abs(entry - stopLoss);
+
+    // ── TP Levels ─────────────────────────────────────────────────────────────────
+    const tp2Distance = riskDistRounded * 3.0;
+    const tp3Distance = riskDistRounded * 5.0;
+    const tp1MaxDist  = riskDistRounded * 2.0;
 
     let tp1: number;
     let tp2: number;
+    let tp3: number | null = null;
     let tp1Zone: string;
+    let tp3Zone = "N/A";
 
     if (isBullish) {
-      const target = keyLevels.liquidityTarget;
-      const useTarget = target !== null && target > entry && (target - entry) <= tp1MaxDist;
-      tp1 = useTarget ? target : entry + riskDist * 2;
+      const target    = keyLevels.liquidityTarget;
+      const tgtDist   = target !== null ? target - entry : -1;
+      const useTarget = target !== null && tgtDist > riskDistRounded * 0.5 && tgtDist <= tp1MaxDist;
+      tp1     = useTarget ? target : entry + riskDistRounded * 1.5;
       const rawTp2 = entry + tp2Distance;
-      tp2 = rawTp2 > tp1 ? rawTp2 : tp1 + riskDist;
+      tp2     = rawTp2 > tp1 ? rawTp2 : tp1 + riskDistRounded * 1.5;
       tp1Zone = useTarget
-        ? `Session high / resistance ${tp1.toFixed(4)} — nearest liquidity above`
-        : `2R target ${tp1.toFixed(4)} — nearest structural resistance`;
+        ? `First target ${tp1.toFixed(4)} — nearest resistance above`
+        : `1.5R target ${tp1.toFixed(4)} — nearest structural resistance`;
+      if (timeframe === "H4") {
+        tp3 = entry + tp3Distance;
+        tp3Zone = `5R extended target ${tp3.toFixed(1)} — macro liquidity above`;
+      }
     } else {
-      const target = keyLevels.liquidityTarget;
-      const useTarget = target !== null && target < entry && (entry - target) <= tp1MaxDist;
-      tp1 = useTarget ? target : entry - riskDist * 2;
+      const target    = keyLevels.liquidityTarget;
+      const tgtDist   = target !== null ? entry - target : -1;
+      const useTarget = target !== null && tgtDist > riskDistRounded * 0.5 && tgtDist <= tp1MaxDist;
+      tp1     = useTarget ? target : entry - riskDistRounded * 1.5;
       const rawTp2 = entry - tp2Distance;
-      tp2 = rawTp2 < tp1 ? rawTp2 : tp1 - riskDist;
+      tp2     = rawTp2 < tp1 ? rawTp2 : tp1 - riskDistRounded * 1.5;
       tp1Zone = useTarget
-        ? `Session low / support ${tp1.toFixed(4)} — nearest liquidity below`
-        : `2R target ${tp1.toFixed(4)} — nearest structural support`;
+        ? `First target ${tp1.toFixed(4)} — nearest support below`
+        : `1.5R target ${tp1.toFixed(4)} — nearest structural support`;
+      if (timeframe === "H4") {
+        tp3 = entry - tp3Distance;
+        tp3Zone = `5R extended target ${tp3.toFixed(1)} — macro liquidity below`;
+      }
     }
 
-    // Hard caps: TP1 ≤ 1.5R, TP2 ≤ 2.5R from entry
+    // Hard caps: TP1 ≤ 1.5R, TP2 ≤ 2.5R from entry; direction guard included
     if (isBullish) {
-      tp1 = Math.min(tp1, entry + riskDist * 1.5);
-      tp2 = Math.min(tp2, entry + riskDist * 2.5);
+      tp1 = Math.min(tp1, entry + riskDistRounded * 1.5);
+      tp2 = Math.min(tp2, entry + riskDistRounded * 2.5);
+      if (tp1 <= entry) tp1 = entry + riskDistRounded * 1.5;
+      if (tp2 <= entry) tp2 = entry + riskDistRounded * 2.5;
     } else {
-      tp1 = Math.max(tp1, entry - riskDist * 1.5);
-      tp2 = Math.max(tp2, entry - riskDist * 2.5);
+      tp1 = Math.max(tp1, entry - riskDistRounded * 1.5);
+      tp2 = Math.max(tp2, entry - riskDistRounded * 2.5);
+      if (tp1 >= entry) tp1 = entry - riskDistRounded * 1.5;
+      if (tp2 >= entry) tp2 = entry - riskDistRounded * 2.5;
     }
-
-    // Direction guard: TP must be on the correct side of entry
-    if (isBullish  && tp1 <= entry) tp1 = entry + riskDist * 1.5;
-    if (!isBullish && tp1 >= entry) tp1 = entry - riskDist * 1.5;
-    if (isBullish  && tp2 <= entry) tp2 = entry + riskDist * 2.5;
-    if (!isBullish && tp2 >= entry) tp2 = entry - riskDist * 2.5;
-
-    entry = roundToPrecision(entry, current);
-    stopLoss = roundToPrecision(stopLoss, current);
     tp1 = roundToPrecision(tp1, current);
     tp2 = roundToPrecision(tp2, current);
+    if (tp3 !== null) tp3 = roundToPrecision(tp3, current);
 
-    const risk = Math.abs(entry - stopLoss);
-    const reward = Math.abs(tp1 - entry);
-    const rrRatio = risk > 0 ? parseFloat((reward / risk).toFixed(2)) : null;
+    const reward  = Math.abs(tp2 - entry);
+    const rrRatio = riskDistRounded > 0 ? parseFloat((reward / riskDistRounded).toFixed(2)) : null;
 
+    if (rrRatio === null) {
+      return noTradeResult(start, "R:R calculation failed — zero risk distance");
+    }
+
+    // ── Confluence scoring ──────────────────────────────────────────────────────────────
+    const factors         = scoreConfluence(snapshot, smc, news, isBullish, inKillzone);
+    const passedFactors   = factors.filter(f => f.pass);
+    const confluenceCount = passedFactors.length;
+    const confluenceFactors = passedFactors.map(f => f.label);
+
+    // ── Grade ────────────────────────────────────────────────────────────────────────
+    const grade = gradeSetup(rrRatio, confluenceCount, slInRange, inKillzone, entryInStructure);
+
+    // ── Grade filter ──────────────────────────────────────────────────────────────────
+    if (grade === "B+" || grade === "B") {
+      const detail = grade === "B+"
+        ? `R:R 1:${rrRatio} with ${confluenceCount}/10 confluence — needs stronger entry alignment`
+        : `R:R 1:${rrRatio} with only ${confluenceCount}/10 confluence`;
+      return waitResult(start, grade, detail);
+    }
+    if (grade === "C") {
+      return noTradeResult(start, `R:R 1:${rrRatio} / ${confluenceCount}/10 confluence — setup rejected`);
+    }
+
+    // ── Trigger condition ──────────────────────────────────────────────────────────────
     const p = entry > 100 ? 1 : 4;
     const triggerCondition =
       trigger === "OB retest"
         ? `Wait for price to return to ${entryZone}, then confirm with ${isBullish ? "bullish" : "bearish"} rejection candle (engulfing, pin bar, or strong close) on M5/M15 before entering`
-        : trigger === "Jade Cap sweep + FVG"
-          ? `Jade Cap confirmed — NY session ${isBullish ? "lows" : "highs"} swept, FVG formed. Enter at FVG midpoint ${entry.toFixed(p)}. Confirm with ${isBullish ? "bullish" : "bearish"} M15 close back inside swept level. SL at sweep extreme + buffer (${stopLoss.toFixed(p)}).`
-          : trigger === "Jade Cap sweep"
-            ? `Jade Cap sweep confirmed in NY session. Wait for ${isBullish ? "bullish" : "bearish"} M15 candle close back inside swept level, then enter at ${entry.toFixed(p)}. SL at ${stopLoss.toFixed(p)}.`
-            : trigger === "FVG fill"
-              ? `Wait for price to fill into FVG zone ${entryZone}. Look for ${isBullish ? "bullish" : "bearish"} displacement candle to confirm reversal within the gap`
-              : trigger === "Sweep reversal"
-                ? `Enter once ${isBullish ? "equal lows" : "equal highs"} are swept and price shows strong reversal candle closing back above/below sweep level`
-                : trigger === "BOS pullback"
-                  ? `Enter on first pullback to discount/premium after BOS. Confirm with ${isBullish ? "bullish" : "bearish"} momentum resumption on M15`
-                  : `Market order execution — entry at current price ${current.toFixed(4)} with structural stop ${stopLoss.toFixed(4)}`;
+        : trigger === "Structure Reversal"
+          ? `${isBullish ? "Bullish" : "Bearish"} price action structure confirmed. Enter at ${entry.toFixed(p)} on confirmed ${isBullish ? "bullish" : "bearish"} M15 candle close. SL at ${stopLoss.toFixed(p)}.`
+          : trigger === "Momentum Shift"
+            ? `${isBullish ? "Bullish" : "Bearish"} momentum shift confirmed. Wait for ${isBullish ? "bullish" : "bearish"} M15 close to confirm direction, then enter at ${entry.toFixed(p)}. SL at ${stopLoss.toFixed(p)}.`
+            : trigger === "Imbalance Fill"
+              ? `Wait for price to fill into the imbalance zone ${entryZone}. Look for ${isBullish ? "bullish" : "bearish"} displacement candle to confirm reversal within the zone`
+              : trigger === "BOS pullback"
+                ? `Enter on first pullback after structure break. Confirm with ${isBullish ? "bullish" : "bearish"} momentum resumption on M15`
+                : `Market order entry at ${current.toFixed(p)} with structural stop ${stopLoss.toFixed(p)}`;
 
+    // ── Management notes ──────────────────────────────────────────────────────────────
     const managementNotes: string[] = [
-      `Scale out 50% at TP1 (${tp1.toFixed(4)}) — reduce risk-to-zero on remaining position`,
-      "Move SL to breakeven after TP1 is reached",
-      `Let remainder run to TP2 (${tp2.toFixed(4)}) with trailing stop`,
+      `Scale out 50% at TP1 (${tp1.toFixed(p)}) — move SL to breakeven immediately after`,
+      timeframe === "H4" && tp3 !== null
+        ? `Trail 25% to TP3 (${tp3.toFixed(1)}) with trailing stop — let extended position run`
+        : `Let remaining 50% run to TP2 (${tp2.toFixed(p)}) with trailing stop`,
+      "Exit ALL if candle closes beyond SL level — no averaging into losing trades",
+      "Do not re-enter same setup after SL hit — wait for next confirmed signal",
     ];
 
-    if (session === "Asia") managementNotes.push("Asia session entry — tighter targets, expect ranging until London open");
-    if (session === "London") managementNotes.push("London session — highest-probability window, full position size valid");
-    if (session === "New York") managementNotes.push("NY session — watch for reversal at London high/low before TP2");
-    if (liquiditySweepDetected) managementNotes.push("Jade Cap setup — enter only on M15 candle close back inside swept session level; do not enter mid-wick");
+    if (session === "Asia")     managementNotes.push("Asia session entry — tighter targets, expect ranging until next major session opens");
+    if (session === "London")   managementNotes.push("London session — highest-probability window, full position size valid");
+    if (session === "New York") managementNotes.push("New York session — monitor prior session highs/lows as potential reversal areas before TP2");
+    if (liquiditySweepDetected) managementNotes.push("Enter only on confirmed M15 candle close in the direction of the setup — do not enter mid-candle");
     if (smc.chochDetected && !liquiditySweepDetected) managementNotes.push("CHoCH detected — consider partial entry (50%) until full confirmation");
+    if (news.riskScore > 60) managementNotes.push(`Elevated macro risk (${news.riskScore}/100) — reduce position size by 50%`);
 
     const distanceToEntry = Math.abs(current - entry) / entry * 100;
-    const pricePastEntry = isBullish ? current > entry : current < entry;
+    const pricePastEntry  = isBullish ? current > entry : current < entry;
 
-    let signalState: import("./schemas").SignalState;
+    let signalState: SignalState;
     let signalStateReason: string;
 
     if (pricePastEntry && distanceToEntry > 0.3) {
-      signalState = "EXPIRED";
+      signalState       = "EXPIRED";
       signalStateReason = `Price already moved ${distanceToEntry.toFixed(2)}% past entry zone. Do NOT chase — wait for the next setup.`;
-    } else if (distanceToEntry <= 0.5) {
-      signalState = "ARMED";
-      signalStateReason = `Price is ${distanceToEntry.toFixed(2)}% from entry zone. Setup is active — confirm trigger and execute.`;
-    } else if (distanceToEntry <= 2.0) {
-      signalState = "PENDING";
-      signalStateReason = `Price is ${distanceToEntry.toFixed(2)}% from entry zone. Wait for price to return to ${entry.toFixed(entry > 100 ? 1 : 4)} before entering.`;
+    } else if (distanceToEntry <= 0.15) {
+      signalState       = "ARMED";
+      signalStateReason = `${grade} setup — price is ${distanceToEntry.toFixed(2)}% from entry. Confirm trigger and execute.`;
+    } else if (distanceToEntry <= 1.0) {
+      signalState       = "PENDING";
+      signalStateReason = `Price is ${distanceToEntry.toFixed(2)}% from entry zone at ${entry.toFixed(p)}. Wait for price to return before entering.`;
     } else {
-      signalState = "PENDING";
-      signalStateReason = `Price is ${distanceToEntry.toFixed(2)}% away from entry zone at ${entry.toFixed(entry > 100 ? 1 : 4)}. Monitor — no action yet.`;
+      signalState       = "PENDING";
+      signalStateReason = `Price is ${distanceToEntry.toFixed(2)}% away from entry at ${entry.toFixed(p)}. Monitor — no action yet.`;
     }
 
     return {
@@ -238,34 +520,40 @@ export async function runExecutionAgent(
       stopLoss,
       tp1,
       tp2,
+      tp3,
       rrRatio,
+      grade,
+      confluenceCount,
+      confluenceFactors,
       trigger,
       triggerCondition,
       managementNotes,
       entryZone,
       slZone,
       tp1Zone,
+      tp3Zone,
       signalState,
       signalStateReason,
       distanceToEntry: parseFloat(distanceToEntry.toFixed(2)),
       processingTime: Date.now() - start,
     };
+
   } catch (err) {
     return {
       agentId: "execution",
       hasSetup: false,
       direction: "none",
-      entry: null,
-      stopLoss: null,
-      tp1: null,
-      tp2: null,
-      rrRatio: null,
+      entry: null, stopLoss: null, tp1: null, tp2: null, tp3: null, rrRatio: null,
+      grade: "C",
+      confluenceCount: 0,
+      confluenceFactors: [],
       trigger: "None",
       triggerCondition: "Execution planning failed",
       managementNotes: ["Fallback neutral execution"],
       entryZone: "No entry",
       slZone: "No SL",
       tp1Zone: "No TP",
+      tp3Zone: "N/A",
       signalState: "NO_TRADE",
       signalStateReason: "Execution planning failed. Stand aside.",
       distanceToEntry: null,

@@ -9,6 +9,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { anthropicCreate } from "./circuit-breaker";
 import type {
   MarketSnapshot, SMCAgentOutput, SMCKeyLevels,
   DirectionalBias, SetupType, PriceZone,
@@ -31,7 +32,8 @@ STEP 2 — SESSION LEVELS
 - London High/Low: 08:00–13:00 UTC range
 - PDH/PDL: previous day high/low
 
-STEP 3 — LIQUIDITY SWEEP (NY session 13:00–18:00 UTC ONLY)
+STEP 3 — LIQUIDITY SWEEP (NY Kill Zone: 13:30–15:30 UTC ONLY)
+- Corresponds to 9:30–11:30 AM EST
 - Price wicks past a session level by $2+ (XAUUSD) but closes BACK INSIDE = sweep
 - liquiditySweepDetected = true; swept level → keyLevels.sweepLevel
 - Confidence: 50 base + modifier per sweep level:
@@ -48,8 +50,8 @@ STEP 4 — FVG DETECTION (scan 8 candles after sweep)
 
 STEP 5 — LEVELS
 - Entry: FVG midpoint
-- Stop Loss: sweep extreme + $5 buffer → invalidationLevel
-- Take Profit: 1.5R → keyLevels.liquidityTarget
+- Stop Loss: sweep extreme + $1 buffer → invalidationLevel
+- Take Profit: 2.0R → keyLevels.liquidityTarget
 
 FIELD MAPPING:
 - bias             → daily bias (Step 1)
@@ -64,7 +66,7 @@ FIELD MAPPING:
 
 CRITICAL OUTPUT RULES:
 - Respond with ONLY valid JSON, no markdown, no code blocks
-- No sweep outside NY session (13:00–18:00 UTC): setupPresent = false, setupType = "None"
+- No sweep outside NY Kill Zone (13:30–15:30 UTC): setupPresent = false, setupType = "None"
 - London High sweep: confidence = 50, flag in reasons, do NOT set setupPresent = true
 - All price levels must be precise numbers or null
 
@@ -84,13 +86,13 @@ Return exactly this JSON:
     "fvgHigh": <FVG top or null>,
     "fvgLow": <FVG bottom or null>,
     "fvgMid": <FVG midpoint or null>,
-    "liquidityTarget": <1.5R TP or null>,
+    "liquidityTarget": <2.0R TP or null>,
     "sweepLevel": <swept session level or null>,
     "premiumZoneTop": <upper range boundary or null>,
     "discountZoneBottom": <lower range boundary or null>
   },
   "reasons": ["reason1", "reason2", "reason3"],
-  "invalidationLevel": <SL = sweep extreme + $5 buffer, or null>
+  "invalidationLevel": <SL = sweep extreme + $1 buffer, or null>
 }`;
 
 async function runLLMAnalysis(
@@ -109,7 +111,12 @@ async function runLLMAnalysis(
   const candleBody  = Math.abs(current - open);
   const bodyRatio   = candleRange > 0 ? ((candleBody / candleRange) * 100).toFixed(0) : "0";
   const closePos    = candleRange > 0 ? (((current - low) / candleRange) * 100).toFixed(0) : "50";
-  const inNYSession = sessionHour >= 13 && sessionHour < 18;
+  const nowForKZ = new Date();
+  const sessionMinute = nowForKZ.getUTCMinutes();
+  const sessionHourKZ = nowForKZ.getUTCHours();
+  // NY Kill Zone: 9:30–11:30 AM EST = 13:30–15:30 UTC
+  const inNYSession = (sessionHourKZ > 13 || (sessionHourKZ === 13 && sessionMinute >= 30))
+                   && (sessionHourKZ < 15  || (sessionHourKZ === 15 && sessionMinute <  30));
 
   // Estimated session levels from day range
   const asianHigh  = parseFloat((equilibrium + dayRange * 0.18).toFixed(4));
@@ -142,7 +149,7 @@ CURRENT CANDLE (${snapshot.timeframe}):
 
 SESSION CONTEXT:
 - Current session: ${session} | UTC hour: ${sessionHour}
-- NY session sweep window (13:00–18:00 UTC): ${inNYSession ? "OPEN" : "CLOSED"}
+- NY session sweep window (13:30–15:30 UTC): ${inNYSession ? "OPEN" : "CLOSED"}
 
 DAILY BIAS (Step 1):
 - HTF bias: ${htfBias.toUpperCase()} @ ${htfConfidence}% | Prev close: ${prevClose} | Day open: ${open}
@@ -165,8 +172,8 @@ INDICATORS:
 
 Apply the analysis rules above. Only flag a sweep if in NY session AND wick exceeds level. Return JSON only.`.trim();
 
-  const msg = await client.messages.create({
-    model: "claude-sonnet-4-6",
+  const msg = await anthropicCreate(client, {
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 900,
     system: JADE_CAP_SYSTEM,
     messages: [{ role: "user", content: userMessage }],
@@ -176,17 +183,42 @@ Apply the analysis rules above. Only flag a sweep if in NY session AND wick exce
   const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
   const parsed  = JSON.parse(cleaned);
 
-  // Validate invalidationLevel direction: SL must be on the correct side of entry.
-  // LLM can return a wrong-sided value (e.g. low - buffer for a short signal).
-  let validatedInvalidationLevel: number | null = parsed.invalidationLevel ?? null;
-  if (validatedInvalidationLevel !== null) {
-    const approxEntry: number = (parsed.keyLevels?.fvgMid as number | null) ?? current;
-    if (parsed.bias === "bullish" && validatedInvalidationLevel >= approxEntry) {
-      validatedInvalidationLevel = parseFloat((low * 0.998).toFixed(4));
-    } else if (parsed.bias === "bearish" && validatedInvalidationLevel <= approxEntry) {
-      validatedInvalidationLevel = parseFloat((high * 1.002).toFixed(4));
+  const isBullish = (parsed.bias as string) === "bullish";
+  const entryRef  = (parsed.keyLevels?.fvgMid as number | null | undefined) ?? null;
+  const slBuf     = sweepMinDollar(snapshot.symbol, snapshot.price.current) * 0.5;
+
+  // Validate SL direction. LLM frequently returns the wrong side.
+  // Priority: sweepLevel > fvgHigh/Low > forced minimum.
+  let invalidationLevel: number | null = (parsed.invalidationLevel as number | null | undefined) ?? null;
+  if (invalidationLevel !== null && entryRef !== null) {
+    const wrongSide = isBullish ? invalidationLevel >= entryRef : invalidationLevel <= entryRef;
+    if (wrongSide) {
+      const sweepLvl = (parsed.keyLevels?.sweepLevel as number | null | undefined) ?? null;
+      const fvgH     = (parsed.keyLevels?.fvgHigh   as number | null | undefined) ?? null;
+      const fvgL     = (parsed.keyLevels?.fvgLow    as number | null | undefined) ?? null;
+      if (isBullish) {
+        const ref = (sweepLvl !== null && sweepLvl < entryRef) ? sweepLvl
+                  : (fvgL    !== null && fvgL    < entryRef) ? fvgL
+                  : entryRef - slBuf * 5;
+        invalidationLevel = parseFloat((ref - slBuf).toFixed(4));
+      } else {
+        const ref = (sweepLvl !== null && sweepLvl > entryRef) ? sweepLvl
+                  : (fvgH    !== null && fvgH    > entryRef) ? fvgH
+                  : entryRef + slBuf * 5;
+        invalidationLevel = parseFloat((ref + slBuf).toFixed(4));
+      }
     }
   }
+
+  // Recompute TP so it stays 2.0R from the corrected SL
+  const keyLevels = parsed.keyLevels as SMCKeyLevels;
+  if (invalidationLevel !== null && entryRef !== null) {
+    const riskDist = Math.abs(entryRef - invalidationLevel);
+    keyLevels.liquidityTarget = isBullish
+      ? parseFloat((entryRef + riskDist * 2.0).toFixed(4))
+      : parseFloat((entryRef - riskDist * 2.0).toFixed(4));
+  }
+
 
   return {
     agentId:               "smc",
@@ -194,13 +226,13 @@ Apply the analysis rules above. Only flag a sweep if in NY session AND wick exce
     confidence:            parsed.confidence,
     setupType:             parsed.setupType as SetupType,
     setupPresent:          parsed.setupPresent,
-    keyLevels:             parsed.keyLevels as SMCKeyLevels,
+    keyLevels,
     premiumDiscount:       parsed.premiumDiscount as PriceZone,
     liquiditySweepDetected: parsed.liquiditySweepDetected,
     bosDetected:           parsed.bosDetected,
     chochDetected:         parsed.chochDetected,
     reasons:               parsed.reasons,
-    invalidationLevel:     validatedInvalidationLevel,
+    invalidationLevel,
     processingTime:        Date.now() - start,
   };
 }
@@ -218,6 +250,145 @@ function sweepMinDollar(symbol: string, price: number): number {
   return 0.0002;                              // forex
 }
 
+// Minimum FVG gap size per instrument class.
+// Gold: $0.50 (noise floor); forex: 3 pips; crypto: ~0.05%; indices: ~0.10 pts
+function fvgMinGap(symbol: string, price: number): number {
+  if (symbol === "XAUUSD") return 0.5;
+  if (symbol === "XAGUSD" || symbol === "XPTUSD") return 0.05;
+  if (price > 5_000) return price * 0.0005;  // BTCUSD, indices — 0.05% of price
+  if (price > 100)   return price * 0.001;   // Indices (US500 etc.) — 0.1%
+  return 0.0003;                             // forex — ~3 pips
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Candle-Based Session Level & FVG Detection
+// Requires snapshot.recentCandles (populated by buildMarketSnapshot)
+// ─────────────────────────────────────────────────────────────────────────────
+
+type CandleSlim = { t: number; o: number; h: number; l: number; c: number };
+
+function computeActualSessionLevels(candles: CandleSlim[]) {
+  const todayMidnight = new Date();
+  todayMidnight.setUTCHours(0, 0, 0, 0);
+  const todayMs   = todayMidnight.getTime();
+  const prevDayMs = todayMs - 86_400_000;
+  const toHour    = (ts: number) => new Date(ts * 1000).getUTCHours();
+
+  const asianC  = candles.filter(c => c.t * 1000 >= todayMs && toHour(c.t) < 8);
+  const londonC = candles.filter(c => c.t * 1000 >= todayMs && toHour(c.t) >= 8 && toHour(c.t) < 13);
+  const prevC   = candles.filter(c => c.t * 1000 >= prevDayMs && c.t * 1000 < todayMs);
+
+  return {
+    asianHigh:  asianC.length  >= 1 ? Math.max(...asianC.map(c => c.h))  : null,
+    asianLow:   asianC.length  >= 1 ? Math.min(...asianC.map(c => c.l))  : null,
+    londonHigh: londonC.length >= 1 ? Math.max(...londonC.map(c => c.h)) : null,
+    londonLow:  londonC.length >= 1 ? Math.min(...londonC.map(c => c.l)) : null,
+    pdh:        prevC.length   >= 1 ? Math.max(...prevC.map(c => c.h))   : null,
+    pdl:        prevC.length   >= 1 ? Math.min(...prevC.map(c => c.l))   : null,
+  };
+}
+
+interface SweepFVGResult {
+  sweepLevel:    number;
+  sweepLabel:    string;
+  sweepModifier: number;
+  sweepBias:     "bullish" | "bearish";
+  sweepExtreme:  number;
+  fvgHigh:       number;
+  fvgLow:        number;
+  fvgMid:        number;
+}
+
+// Returns true if a candle's timestamp falls within the NY Kill Zone (13:30–15:30 UTC).
+function inNYKillZone(ts: number): boolean {
+  const d = new Date(ts * 1000);
+  const h = d.getUTCHours();
+  const m = d.getUTCMinutes();
+  const totalMin = h * 60 + m;
+  return totalMin >= 13 * 60 + 30 && totalMin < 15 * 60 + 30;
+}
+
+// Scan NY session candles for: sweep of session level within the kill zone → 3-candle FVG.
+// Only sweep candles whose timestamp falls inside 13:30–15:30 UTC are considered valid.
+// Returns the most recent complete pattern, or null.
+function detectNYSweepAndFVG(
+  candles: CandleSlim[],
+  levels: ReturnType<typeof computeActualSessionLevels>,
+  minSweep: number,
+  minFvgGap: number
+): SweepFVGResult | null {
+  const toHour = (ts: number) => new Date(ts * 1000).getUTCHours();
+  // Widen scan window to 13:00–18:00 UTC so we have context candles before the kill zone.
+  const nyC = candles
+    .filter(c => { const h = toHour(c.t); return h >= 13 && h < 18; })
+    .slice(-24);
+
+  if (nyC.length < 3) return null;
+
+  type SweepTarget = { level: number; bias: "bullish" | "bearish"; label: string; mod: number };
+  const targets: SweepTarget[] = ([
+    levels.londonLow  !== null ? { level: levels.londonLow,  bias: "bullish" as const, label: "London Low",  mod: 15 } : null,
+    levels.pdh        !== null ? { level: levels.pdh,        bias: "bearish" as const, label: "PDH",         mod: 10 } : null,
+    levels.asianHigh  !== null ? { level: levels.asianHigh,  bias: "bearish" as const, label: "Asian High",  mod: 10 } : null,
+    levels.asianLow   !== null ? { level: levels.asianLow,   bias: "bullish" as const, label: "Asian Low",   mod: 5  } : null,
+    levels.pdl        !== null ? { level: levels.pdl,        bias: "bullish" as const, label: "PDL",         mod: 10 } : null,
+    levels.londonHigh !== null ? { level: levels.londonHigh, bias: "bearish" as const, label: "London High", mod: 0  } : null,
+  ] as (SweepTarget | null)[]).filter((x): x is SweepTarget => x !== null);
+
+  for (let i = 0; i < nyC.length - 2; i++) {
+    const sc = nyC[i];
+
+    // Sweep candle must be within the official NY Kill Zone (13:30–15:30 UTC)
+    if (!inNYKillZone(sc.t)) continue;
+
+    for (const tgt of targets) {
+      if (tgt.label === "London High") continue; // 43% WR — skip
+      let swept = false;
+      let extreme = 0;
+
+      if (tgt.bias === "bullish") {
+        swept   = sc.l < tgt.level - minSweep && sc.c > tgt.level;
+        extreme = sc.l;
+      } else {
+        swept   = sc.h > tgt.level + minSweep && sc.c < tgt.level;
+        extreme = sc.h;
+      }
+      if (!swept) continue;
+
+      // Require wick extends meaningfully beyond the candle body (instrument-aware)
+      const bodyBot = Math.min(sc.o, sc.c);
+      const bodyTop = Math.max(sc.o, sc.c);
+      if (tgt.bias === "bullish" && sc.l > bodyBot - minSweep) continue;
+      if (tgt.bias === "bearish" && sc.h < bodyTop + minSweep) continue;
+
+      // Scan next 6 candles for 3-candle FVG using instrument-aware gap threshold
+      const post = nyC.slice(i + 1, i + 7);
+      for (let j = 0; j + 2 < post.length; j++) {
+        const c0 = post[j], c2 = post[j + 2];
+        if (tgt.bias === "bullish" && c2.l - c0.h > minFvgGap) {
+          return {
+            sweepLevel: tgt.level, sweepLabel: tgt.label, sweepModifier: tgt.mod,
+            sweepBias: tgt.bias, sweepExtreme: extreme,
+            fvgHigh: parseFloat(c2.l.toFixed(4)),
+            fvgLow:  parseFloat(c0.h.toFixed(4)),
+            fvgMid:  parseFloat(((c0.h + c2.l) / 2).toFixed(4)),
+          };
+        }
+        if (tgt.bias === "bearish" && c0.l - c2.h > minFvgGap) {
+          return {
+            sweepLevel: tgt.level, sweepLabel: tgt.label, sweepModifier: tgt.mod,
+            sweepBias: tgt.bias, sweepExtreme: extreme,
+            fvgHigh: parseFloat(c0.l.toFixed(4)),
+            fvgLow:  parseFloat(c2.h.toFixed(4)),
+            fvgMid:  parseFloat(((c0.l + c2.h) / 2).toFixed(4)),
+          };
+        }
+      }
+    }
+  }
+  return null;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Rule-Based Fallback
 // ─────────────────────────────────────────────────────────────────────────────
@@ -230,179 +401,158 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   const { htfBias, htfConfidence, equilibrium, zone } = structure;
 
   // ── STEP 1: Daily bias ─────────────────────────────────────────────────────
-  // prev day close > open → bullish; use HTF bias as daily proxy
   const dailyBias: DirectionalBias = htfBias !== "neutral" ? htfBias
     : current > prevClose ? "bullish"
     : current < prevClose ? "bearish"
     : "neutral";
 
-  // ── STEP 2: Session level estimates ───────────────────────────────────────
-  // Approximate from equilibrium + daily range fractions
-  const asianHigh  = equilibrium + dayRange * 0.18;
-  const asianLow   = equilibrium - dayRange * 0.18;
-  const londonHigh = equilibrium + dayRange * 0.27;
-  const londonLow  = equilibrium - dayRange * 0.27;
-  // PDH/PDL estimated from prev close ± 40% of day range
-  const pdh = prevClose + dayRange * 0.40;
-  const pdl = prevClose - dayRange * 0.40;
-
-  // ── STEP 3: Liquidity sweep detection (NY session: 13:00–18:00 UTC) ───────
-  const inNYSession = sessionHour >= 13 && sessionHour < 18;
+  // ── STEP 2: Session levels — real from candles, estimated fallback ────────
   const minSweep    = sweepMinDollar(snapshot.symbol, current);
+  const nowForKZLogic = new Date();
+  const sessionMinuteLogic = nowForKZLogic.getUTCMinutes();
+  const sessionHourKZLogic = nowForKZLogic.getUTCHours();
+  // NY Kill Zone: 9:30–11:30 AM EST = 13:30–15:30 UTC
+  const inNYSession = (sessionHourKZLogic > 13 || (sessionHourKZLogic === 13 && sessionMinuteLogic >= 30))
+                   && (sessionHourKZLogic < 15  || (sessionHourKZLogic === 15 && sessionMinuteLogic <  30));
   const upperWick   = high - Math.max(current, open);
   const lowerWick   = Math.min(current, open) - low;
 
-  // Sweep candidates — priority: London Low (+15) > PDH (+10) > Asian High (+10)
-  //                              > Asian Low (+5) > London High (+0, flag only)
+  let asianHigh  = equilibrium + dayRange * 0.18;
+  let asianLow   = equilibrium - dayRange * 0.18;
+  let londonHigh = equilibrium + dayRange * 0.27;
+  let londonLow  = equilibrium - dayRange * 0.27;
+  let pdh        = prevClose + dayRange * 0.40;
+  let pdl        = prevClose - dayRange * 0.40;
+
+  const minFvgGapVal = fvgMinGap(snapshot.symbol, current);
+  const candles = snapshot.recentCandles as CandleSlim[] | undefined;
+  if (candles && candles.length >= 10) {
+    const real = computeActualSessionLevels(candles);
+    if (real.asianHigh  !== null) asianHigh  = real.asianHigh;
+    if (real.asianLow   !== null) asianLow   = real.asianLow;
+    if (real.londonHigh !== null) londonHigh = real.londonHigh;
+    if (real.londonLow  !== null) londonLow  = real.londonLow;
+    if (real.pdh        !== null) pdh        = real.pdh;
+    if (real.pdl        !== null) pdl        = real.pdl;
+  }
+
   let liquiditySweepDetected = false;
   let sweepLevel: number | null = null;
   let sweepLabel = "";
   let sweepModifier = 0;
   let sweepBias: DirectionalBias = dailyBias;
 
-  if (inNYSession) {
-    if (lowerWick >= minSweep && low < londonLow && current > londonLow) {
-      liquiditySweepDetected = true;
-      sweepLevel  = londonLow;
-      sweepLabel  = "London Low";
-      sweepModifier = 15;
-      sweepBias   = "bullish";
-    } else if (upperWick >= minSweep && high > pdh && current < pdh) {
-      liquiditySweepDetected = true;
-      sweepLevel  = pdh;
-      sweepLabel  = "PDH";
-      sweepModifier = 10;
-      sweepBias   = "bearish";
-    } else if (upperWick >= minSweep && high > asianHigh && current < asianHigh) {
-      liquiditySweepDetected = true;
-      sweepLevel  = asianHigh;
-      sweepLabel  = "Asian High";
-      sweepModifier = 10;
-      sweepBias   = "bearish";
-    } else if (lowerWick >= minSweep && low < asianLow && current > asianLow) {
-      liquiditySweepDetected = true;
-      sweepLevel  = asianLow;
-      sweepLabel  = "Asian Low";
-      sweepModifier = 5;
-      sweepBias   = "bullish";
-    } else if (upperWick >= minSweep && high > londonHigh && current < londonHigh) {
-      // London High — flag only, do not trade
-      liquiditySweepDetected = true;
-      sweepLevel  = londonHigh;
-      sweepLabel  = "London High";
-      sweepModifier = 0;
-      sweepBias   = "bearish";
-    }
-  }
-
-  // Bias consistency: discard sweep when it contradicts the daily bias
-  // Bullish signal requires sweep of a LOW + bullish daily bias
-  // Bearish signal requires sweep of a HIGH + bearish daily bias
-  let sweepAgainstBiasReason = "";
-  if (liquiditySweepDetected && sweepBias !== dailyBias) {
-    sweepAgainstBiasReason = "Sweep detected but against daily bias — no trade";
-    liquiditySweepDetected = false;
-    sweepLevel    = null;
-    sweepLabel    = "";
-    sweepModifier = 0;
-  }
-
-  // ── STEP 4: FVG detection (approximated from single candle body) ──────────
-  // After a sweep, a meaningful body away from the wick extreme signals imbalance
-  const candleRange  = high - low;
-  const candleBody   = Math.abs(current - open);
-  const bodyTop      = Math.max(current, open);
-  const bodyBottom   = Math.min(current, open);
-
+  let sweepExtreme: number | null = null;
   let fvgHigh: number | null = null;
   let fvgLow:  number | null = null;
   let fvgMid:  number | null = null;
 
-  // FVG requires a directional close confirming the sweep reversal
-  const closeConfirmsFVG = sweepBias === "bullish" ? current > open : current < open;
-  if (liquiditySweepDetected && sweepLabel !== "London High" && candleBody >= candleRange * 0.25 && closeConfirmsFVG) {
-    fvgLow  = parseFloat(bodyBottom.toFixed(4));
-    fvgHigh = parseFloat(bodyTop.toFixed(4));
-    fvgMid  = parseFloat(((fvgHigh + fvgLow) / 2).toFixed(4));
+  if (candles && candles.length >= 10) {
+    const real = computeActualSessionLevels(candles);
+    const found = detectNYSweepAndFVG(candles, real, minSweep, minFvgGapVal);
+    if (found) {
+      liquiditySweepDetected = true;
+      sweepLevel    = found.sweepLevel;
+      sweepLabel    = found.sweepLabel;
+      sweepModifier = found.sweepModifier;
+      sweepBias     = found.sweepBias;
+      sweepExtreme  = found.sweepExtreme;
+      fvgHigh       = found.fvgHigh;
+      fvgLow        = found.fvgLow;
+      fvgMid        = found.fvgMid;
+    }
+  }
+
+  if (!liquiditySweepDetected && inNYSession) {
+    if (lowerWick >= minSweep && low < londonLow && current > londonLow) {
+      liquiditySweepDetected = true;
+      sweepLevel = londonLow; sweepLabel = "London Low"; sweepModifier = 15; sweepBias = "bullish";
+    } else if (upperWick >= minSweep && high > pdh && current < pdh) {
+      liquiditySweepDetected = true;
+      sweepLevel = pdh; sweepLabel = "PDH"; sweepModifier = 10; sweepBias = "bearish";
+    } else if (upperWick >= minSweep && high > asianHigh && current < asianHigh) {
+      liquiditySweepDetected = true;
+      sweepLevel = asianHigh; sweepLabel = "Asian High"; sweepModifier = 10; sweepBias = "bearish";
+    } else if (lowerWick >= minSweep && low < asianLow && current > asianLow) {
+      liquiditySweepDetected = true;
+      sweepLevel = asianLow; sweepLabel = "Asian Low"; sweepModifier = 5; sweepBias = "bullish";
+    } else if (upperWick >= minSweep && high > londonHigh && current < londonHigh) {
+      liquiditySweepDetected = true;
+      sweepLevel = londonHigh; sweepLabel = "London High"; sweepModifier = 0; sweepBias = "bearish";
+    }
   }
 
   const fvgDetected = fvgHigh !== null && fvgLow !== null;
-
-  // ── Setup classification ───────────────────────────────────────────────────
-  // London High sweep: don't promote to a tradeable setup (setupPresent = false)
   const isLowConfidenceSweep = sweepLabel === "London High";
   const setupType: SetupType = fvgDetected ? "FVG" : liquiditySweepDetected ? "Sweep" : "None";
-  const setupPresent = liquiditySweepDetected && !isLowConfidenceSweep;
-
-  // ── Bias ───────────────────────────────────────────────────────────────────
+  const setupPresent = liquiditySweepDetected && fvgDetected && !isLowConfidenceSweep;
   const bias: DirectionalBias = liquiditySweepDetected ? sweepBias : dailyBias;
 
-  // ── BOS / CHoCH ───────────────────────────────────────────────────────────
+
   const bosDetected   = liquiditySweepDetected && bias === dailyBias;
   const chochDetected = fvgDetected;
-
-  // ── Confidence: 50 base + sweep modifier ─────────────────────────────────
   const confidence = liquiditySweepDetected ? Math.min(95, 50 + sweepModifier) : 40;
 
-  // ── STEP 5: Levels ─────────────────────────────────────────────────────────
-  const entryPrice = fvgMid ?? current;
-  // SL = sweep extreme + $5 buffer (sweepMinDollar * 2.5 → $5 for XAUUSD)
-  const slBuffer   = minSweep * 2.5;
+  const slBuffer   = minSweep * 0.5;
 
   let invalidationLevel: number | null = null;
   if (liquiditySweepDetected && !isLowConfidenceSweep) {
+    // Use actual sweep wick extreme (sc.l for bullish, sc.h for bearish).
+    // Falls back to current candle only when no candle history (Path B).
+    const slRef = sweepExtreme !== null ? sweepExtreme
+      : sweepBias === "bullish" ? low : high;
     invalidationLevel = sweepBias === "bullish"
-      ? parseFloat((low  - slBuffer).toFixed(4))
-      : parseFloat((high + slBuffer).toFixed(4));
+      ? parseFloat((slRef - slBuffer).toFixed(4))
+      : parseFloat((slRef + slBuffer).toFixed(4));
   }
 
-  // TP = exactly 1.5R; null when no valid SL exists (prevents inflated targets)
+  const sweepEntry = sweepLevel !== null
+    ? parseFloat((sweepBias === "bullish" ? sweepLevel * 1.001 : sweepLevel * 0.999).toFixed(4))
+    : null;
+  const entryPrice = fvgMid ?? sweepEntry ?? current;
+
   const riskDist = invalidationLevel !== null
     ? Math.abs(entryPrice - invalidationLevel)
-    : null;
-  const liquidityTarget = riskDist !== null
-    ? (bias === "bullish"
-        ? parseFloat((entryPrice + riskDist * 1.5).toFixed(4))
-        : parseFloat((entryPrice - riskDist * 1.5).toFixed(4)))
-    : null;
+    : dayRange * 0.25;
+  const liquidityTarget = bias === "bullish"
+    ? parseFloat((entryPrice + riskDist * 2.0).toFixed(4))
+    : parseFloat((entryPrice - riskDist * 2.0).toFixed(4));
 
-  const premiumZoneTop     = parseFloat((equilibrium + (high - equilibrium) * 0.6).toFixed(4));
-  const discountZoneBottom = parseFloat((equilibrium - (equilibrium - low)  * 0.6).toFixed(4));
+  const effectiveRange     = dayRange > current * 0.002 ? dayRange : current * 0.004;
+  const premiumZoneTop     = parseFloat((prevClose + effectiveRange * 0.40).toFixed(4));
+  const discountZoneBottom = parseFloat((prevClose - effectiveRange * 0.40).toFixed(4));
   const premiumDiscount: PriceZone = zone;
 
-  // ── Reasons ───────────────────────────────────────────────────────────────
   const reasons: string[] = [];
 
-  if (sweepAgainstBiasReason) {
-    reasons.push(sweepAgainstBiasReason);
-  } else if (liquiditySweepDetected && sweepLevel !== null) {
+  if (liquiditySweepDetected && sweepLevel !== null) {
     reasons.push(
       `${sweepLabel} liquidity sweep confirmed in NY session — wick past ${sweepLevel.toFixed(4)}, closed back inside`
     );
   } else {
     reasons.push(
-      `No liquidity sweep — ${inNYSession
-        ? "NY window open (13:00–18:00 UTC) but no wick past estimated session levels"
-        : `outside NY sweep window (current: ${session}, hour ${sessionHour} UTC)`}`
+      `No reversal pattern detected — ${inNYSession
+        ? "active session window, monitoring for setup"
+        : `current session: ${session}`}`
     );
   }
 
   if (fvgDetected) {
-    reasons.push(`FVG: ${fvgLow?.toFixed(4)}–${fvgHigh?.toFixed(4)} | entry at midpoint ${fvgMid?.toFixed(4)}`);
+    reasons.push(`Price action imbalance zone: ${fvgLow?.toFixed(4)}–${fvgHigh?.toFixed(4)} | entry at ${fvgMid?.toFixed(4)}`);
   }
 
   reasons.push(
-    `Daily bias: ${dailyBias.toUpperCase()} (HTF ${htfConfidence}% conviction) — sweep direction ${liquiditySweepDetected && bias === dailyBias ? "ALIGNS ✓" : "does not align"} with daily bias`
+    `Daily bias: ${dailyBias.toUpperCase()} (HTF ${htfConfidence}% conviction) — price action direction ${liquiditySweepDetected && bias === dailyBias ? "ALIGNS ✓" : "does not align"} with daily bias`
   );
   reasons.push(
-    `Session: ${session} | UTC hour: ${sessionHour} | NY sweep window: ${inNYSession ? "OPEN" : "CLOSED"}`
+    `Session: ${session} | Active trading window: ${inNYSession ? "OPEN" : "CLOSED"}`
   );
 
   if (isLowConfidenceSweep) {
     reasons.push("London High sweep — below minimum confidence threshold, no trade recommended");
-  } else if (invalidationLevel !== null && fvgMid !== null && liquidityTarget !== null) {
+  } else if (invalidationLevel !== null && fvgMid !== null) {
     reasons.push(
-      `Plan: Entry ${fvgMid.toFixed(4)}, SL ${invalidationLevel.toFixed(4)}, TP ${liquidityTarget.toFixed(4)} (1.5R)`
+      `Plan: Entry ${fvgMid.toFixed(4)}, SL ${invalidationLevel.toFixed(4)}, TP ${liquidityTarget.toFixed(4)}`
     );
   }
 

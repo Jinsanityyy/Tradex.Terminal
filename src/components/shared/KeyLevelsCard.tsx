@@ -927,7 +927,7 @@ export function KeyLevelsCard({ levels, compact = false, aiAnalysisMap = {} }: K
                     />
                   </div>
                   {/* Risk % */}
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="text-[9px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>Risk</span>
                     {[0.5, 1, 1.5, 2].map(r => (
                       <button
@@ -935,14 +935,28 @@ export function KeyLevelsCard({ levels, compact = false, aiAnalysisMap = {} }: K
                         onClick={() => setCalcRisk(r)}
                         className="px-2 py-1 rounded text-[10px] font-mono font-semibold transition-all"
                         style={{
-                          background: calcRisk === r ? "#F59E0B15" : "var(--t-card)",
-                          border: `1px solid ${calcRisk === r ? "#F59E0B40" : "var(--t-border-sub)"}`,
-                          color: calcRisk === r ? "#F59E0B" : "var(--t-muted)",
+                          background: calcRisk === r && [0.5, 1, 1.5, 2].includes(calcRisk) ? "#F59E0B15" : "var(--t-card)",
+                          border: `1px solid ${calcRisk === r && [0.5, 1, 1.5, 2].includes(calcRisk) ? "#F59E0B40" : "var(--t-border-sub)"}`,
+                          color: calcRisk === r && [0.5, 1, 1.5, 2].includes(calcRisk) ? "#F59E0B" : "var(--t-muted)",
                         }}
                       >
                         {r}%
                       </button>
                     ))}
+                    <input
+                      type="number"
+                      min={0.1}
+                      max={100}
+                      step={0.1}
+                      value={calcRisk}
+                      onChange={e => {
+                        const v = parseFloat(e.target.value);
+                        if (!isNaN(v) && v > 0) setCalcRisk(parseFloat(v.toFixed(1)));
+                      }}
+                      className="w-14 rounded px-2 py-1 text-[10px] font-mono text-right outline-none"
+                      style={{ background: "var(--t-card)", border: "1px solid var(--t-border-sub)", color: "var(--t-text)" }}
+                    />
+                    <span className="text-[9px]" style={{ color: "var(--t-muted)" }}>%</span>
                   </div>
                   {/* SL distance */}
                   <div className="flex items-center gap-1.5">

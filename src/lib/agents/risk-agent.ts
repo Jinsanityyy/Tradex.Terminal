@@ -49,13 +49,17 @@ function estimateStopDistance(snapshot: MarketSnapshot): number {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function estimateRR(snapshot: MarketSnapshot, stopDistance: number): number | null {
-  const { current } = snapshot.price;
-  const { pos52w } = snapshot.structure;
-
-  // Target distance: 2x stop for typical SMC setups
-  const targetDistance = stopDistance * 2;
   if (stopDistance <= 0) return null;
-  return parseFloat((targetDistance / stopDistance).toFixed(2));
+  const { atrProxy } = snapshot.indicators;
+
+  // TP2 = 2.5R. On volatile days liquidity pools are wider (better RR).
+  // On quiet sessions targets compress toward 1.5R minimum.
+  const targetMultiplier =
+    atrProxy > 1.5 ? 2.5 :   // active NY session — full 2.5R potential
+    atrProxy > 0.8 ? 2.0 :   // moderate vol — standard 2R
+    1.5;                       // quiet / Asia — minimum viable
+
+  return parseFloat(targetMultiplier.toFixed(2));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -133,9 +137,43 @@ export async function runRiskAgent(
     const isClosed    = session === "Closed";
     const extremeVol  = volatilityScore >= 92;   // only blocks on >2.5% moves
     const tooManyWarnings = warnings.length >= 5; // raised from 4 → 5
-    const rrTooLow    = rrEstimate !== null && rrEstimate < 1.0;
+    const rrTooLow    = rrEstimate !== null && rrEstimate < 1.6;  // minimum = 1.6R hard block
 
-    const valid = !isClosed && !extremeVol && !tooManyWarnings && !rrTooLow;
+    // Kill zone enforcement — only trade during high-probability session windows.
+    // NY Kill Zone:     09:30–11:30 AM EST = 13:30–15:30 UTC
+    // London Kill Zone: 08:00–11:00 AM GMT = 08:00–11:00 UTC
+    const isNYSession     = session === "New York";
+    const isLondonSession = session === "London";
+    const nowUTC          = new Date(snapshot.timestamp);
+    const nowUTCHour      = nowUTC.getUTCHours();
+    const nowUTCMin       = nowUTC.getUTCMinutes();
+
+    const inNYKillZone = isNYSession &&
+      (nowUTCHour > 13 || (nowUTCHour === 13 && nowUTCMin >= 30)) &&
+      (nowUTCHour < 15  || (nowUTCHour === 15 && nowUTCMin <  30));
+    const outsideNYKillZone = isNYSession && !inNYKillZone;
+
+    const inLondonKillZone  = isLondonSession && nowUTCHour >= 8 && nowUTCHour < 11;
+    const outsideLondonKillZone = isLondonSession && !inLondonKillZone;
+
+    const outsideKillZone = outsideNYKillZone || outsideLondonKillZone;
+
+    if (outsideNYKillZone) {
+      warnings.push(
+        `Outside NY Kill Zone (9:30–11:30 AM EST). ` +
+        `Current UTC: ${nowUTCHour}:${String(nowUTCMin).padStart(2, "0")}. ` +
+        `Valid window: 13:30–15:30 UTC. Win rate drops significantly outside this window.`
+      );
+    }
+    if (outsideLondonKillZone) {
+      warnings.push(
+        `Outside London Kill Zone (08:00–11:00 UTC). ` +
+        `Current UTC: ${nowUTCHour}:${String(nowUTCMin).padStart(2, "0")}. ` +
+        `Valid window: 08:00–11:00 UTC. Avoid entries during London consolidation hours.`
+      );
+    }
+
+    const valid = !isClosed && !extremeVol && !tooManyWarnings && !rrTooLow && !outsideKillZone;
 
     // ── Max risk ──────────────────────────────────────────────────────────
     let maxRiskPercent = 1.0; // default 1% account risk
@@ -169,6 +207,7 @@ export async function runRiskAgent(
         isClosed ? "Session closed" :
         extremeVol ? "Extreme volatility" :
         rrTooLow ? "RR below 1:1" :
+        outsideKillZone ? "Outside kill zone window" :
         "Multiple risk warnings"
       }`);
     } else {

@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Target, Zap, CalendarDays, UserCircle,
   Grid3X3, Clock, Newspaper, Settings,
-  ChevronLeft, ChevronRight, BarChart2, Menu, X, History, GraduationCap,
+  ChevronLeft, ChevronRight, BarChart2, Menu, X, History, GraduationCap, Lightbulb,
 } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 
@@ -24,7 +24,7 @@ const navItems = [
   { label: "News Flow",           href: "/dashboard/news-flow",              icon: Newspaper },
   { label: "PnL Calendar",        href: "/dashboard/pnl-calendar",           icon: BarChart2, accent2: true },
   { label: "Signal History",      href: "/dashboard/signals",                icon: History },
-  { label: "Learn",               href: "/dashboard/learn",                  icon: GraduationCap },
+  { label: "Candle Analysis",     href: "/dashboard/candle-analysis",        icon: Lightbulb },
   { label: "Settings",            href: "/dashboard/settings",               icon: Settings },
 ];
 

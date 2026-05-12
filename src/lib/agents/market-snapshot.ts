@@ -5,7 +5,7 @@
  * into a unified MarketSnapshot object consumed by all agents.
  */
 
-import type { MarketSnapshot, Symbol, Timeframe, PriceZone } from "./schemas";
+import type { MarketSnapshot, Symbol, Timeframe, PriceZone, SnapshotCandle } from "./schemas";
 import type { CandleBar, DailyStructure } from "./candles";
 import { deriveConvictionBias } from "@/lib/api/conviction";
 
@@ -186,10 +186,25 @@ export async function buildMarketSnapshot(
   const effMacd      = effPctChange * 0.05;
   const effRsi       = cfg.invertBias ? 100 - rsiVal : rsiVal;
 
-  // Use D1 (20-day) drift for structural conviction — this captures the real multi-day trend
-  // rather than today's single-candle % change which can mislead on counter-trend bounces.
-  const d1Drift = dailyStructure?.drift20d;
-  const d1Rsi   = dailyStructure?.rsi14d;
+  // For conviction, blend 5-day and 20-day drift weighted by timeframe:
+  // H1/H4 are intraday/swing TFs — weight recent 5-day momentum more heavily
+  // so a recovery like Gold's April→May bounce reads bullish rather than stuck
+  // in the older 20-day crash window.
+  const d1Drift20 = dailyStructure?.drift20d ?? null;
+  const d1Drift5  = dailyStructure?.drift5d  ?? null;
+  const d1Rsi     = dailyStructure?.rsi14d   ?? null;
+
+  const blendedDrift = (() => {
+    if (d1Drift5 == null && d1Drift20 == null) return null;
+    if (d1Drift5 == null) return d1Drift20;
+    if (d1Drift20 == null) return d1Drift5;
+    // H1/H4: 70% recent (5d), 30% structural (20d) — responsive to current momentum
+    // M5/M15: 60% recent, 40% structural — still need some structural context
+    const w5 = (timeframe === "H4" || timeframe === "H1") ? 0.70 : 0.60;
+    return d1Drift5 * w5 + d1Drift20 * (1 - w5);
+  })();
+
+  const d1Drift = blendedDrift;
   const convPct  = d1Drift != null ? (cfg.invertBias ? -d1Drift : d1Drift) : effPctChange;
   const convRsi  = d1Rsi   != null ? (cfg.invertBias ? 100 - d1Rsi : d1Rsi) : effRsi;
   const convHigh = dailyStructure?.structuralHigh ?? effHigh;
@@ -203,7 +218,7 @@ export async function buildMarketSnapshot(
 
   // Append D1 trend context so agents see it in their prompts
   const d1Suffix = dailyStructure != null
-    ? ` | D1 20d drift: ${d1Drift! > 0 ? "+" : ""}${d1Drift!.toFixed(1)}% | D1 RSI: ${d1Rsi!.toFixed(0)}`
+    ? ` | D1 5d drift: ${d1Drift5! > 0 ? "+" : ""}${d1Drift5!.toFixed(1)}% | D1 20d drift: ${d1Drift20! > 0 ? "+" : ""}${d1Drift20!.toFixed(1)}% | D1 RSI: ${d1Rsi!.toFixed(0)}`
     : "";
   const smcContext = rawSmcContext + d1Suffix;
 
@@ -266,6 +281,10 @@ export async function buildMarketSnapshot(
       summary: n.summary || "",
       timestamp: n.datetime,
     })),
+    // Pass last 60 candles so price-action-agent can compute real session levels + FVG
+    recentCandles: timeframeCandles
+      ? (normalizeCandles(timeframeCandles).slice(-60) as SnapshotCandle[])
+      : undefined,
     volatilityHigh,
     isExtended,
     hasNewsCatalyst,
@@ -275,10 +294,10 @@ export async function buildMarketSnapshot(
 // Mock snapshot for fallback / testing when market data is unavailable
 export function buildMockSnapshot(symbol: Symbol, timeframe: Timeframe): MarketSnapshot {
   const prices: Partial<Record<Symbol, number>> = {
-    XAUUSD: 3220.50,
-    EURUSD: 1.1345,
-    GBPUSD: 1.3120,
-    BTCUSD: 84500.00,
+    XAUUSD: 3310.00,
+    EURUSD: 1.1340,
+    GBPUSD: 1.3280,
+    BTCUSD: 97500.00,
   };
 
   const price = prices[symbol] ?? 1.0000;
@@ -316,8 +335,8 @@ export function buildMockSnapshot(symbol: Symbol, timeframe: Timeframe): MarketS
       rsi:             63,
       macdHist:        0.003,
       atrProxy:        0.62,
-      session:         "London",
-      sessionHour:     10,
+      session:         getSession(new Date().getUTCHours()),
+      sessionHour:     new Date().getUTCHours(),
     },
     recentNews: [
       {

@@ -90,6 +90,16 @@ export interface NewsSnapshot {
   timestamp: number;
 }
 
+// Inline candle type (mirrors CandleBar from candles.ts — kept here to avoid circular imports)
+export interface SnapshotCandle {
+  t: number;  // Unix timestamp in seconds
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+}
+
 export interface MarketSnapshot {
   symbol: Symbol;
   symbolDisplay: string;
@@ -99,6 +109,8 @@ export interface MarketSnapshot {
   structure: StructureData;
   indicators: IndicatorData;
   recentNews: NewsSnapshot[];
+  // Last ~60 candles — used by PA agent for real FVG detection & actual session levels
+  recentCandles?: SnapshotCandle[];
   // Derived convenience flags
   volatilityHigh: boolean;   // atrProxy > 1.0
   isExtended: boolean;       // rsi > 70 or rsi < 30
@@ -216,7 +228,8 @@ export interface RiskAgentOutput {
 // Agent 5 — Execution Agent
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type SignalState = "ARMED" | "PENDING" | "EXPIRED" | "NO_TRADE";
+export type SignalState = "ARMED" | "PENDING" | "EXPIRED" | "NO_TRADE" | "WAIT";
+export type SetupGrade = "A+" | "A" | "B+" | "B" | "C";
 
 export interface ExecutionAgentOutput {
   agentId: "execution";
@@ -226,16 +239,21 @@ export interface ExecutionAgentOutput {
   stopLoss: number | null;
   tp1: number | null;
   tp2: number | null;
+  tp3: number | null;              // H4 setups: 5R extended target
   rrRatio: number | null;
+  grade: SetupGrade;               // A+ | A | B+ | B | C
+  confluenceCount: number;         // 0–10 factors passed
+  confluenceFactors: string[];     // which factors passed
   trigger: string;
   triggerCondition: string;
   managementNotes: string[];
   entryZone: string;
   slZone: string;
   tp1Zone: string;
-  signalState: SignalState;         // NEW: ARMED | PENDING | EXPIRED | NO_TRADE
-  signalStateReason: string;        // NEW: human-readable explanation
-  distanceToEntry: number | null;   // NEW: % distance from current price to entry
+  tp3Zone: string;
+  signalState: SignalState;
+  signalStateReason: string;
+  distanceToEntry: number | null;  // % distance from current price to entry
   processingTime: number;
   error?: string;
 }
@@ -267,13 +285,18 @@ export interface TradePlan {
   stopLoss: number;
   tp1: number;
   tp2: number | null;
+  tp3: number | null;
   rrRatio: number;
+  grade: SetupGrade;
+  confluenceCount: number;
+  confluenceFactors: string[];
   maxRiskPercent: number;
   trigger: string;
   triggerCondition: string;
   entryZone: string;
   slZone: string;
   tp1Zone: string;
+  tp3Zone: string;
   managementNotes: string[];
 }
 
@@ -335,6 +358,7 @@ export interface AgentRunResult {
   debate?: DebateEntry[];
   totalProcessingTime: number;
   cached?: boolean;
+  isMockData?: boolean; // true when live quote failed and synthetic data was used
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

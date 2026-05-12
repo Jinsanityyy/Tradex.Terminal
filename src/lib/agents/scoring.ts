@@ -74,7 +74,8 @@ export function computeConsensus(
   risk: RiskAgentOutput,
   execution: ExecutionAgentOutput,
   contrarian: ContrarianAgentOutput,
-  weights: ScoringWeights
+  weights: ScoringWeights,
+  symbol?: string
 ): ScoringResult {
   const items: AgentConsensusItem[] = [];
 
@@ -82,25 +83,36 @@ export function computeConsensus(
   items.push(agentScore("trend", trend.bias, trend.confidence, weights.trend));
 
   // ── SMC Agent (highest directional weight) ────────────────────────────────
-  // Extra boost if a concrete setup is present
-  const smcWeight = weights.smc * (smc.setupPresent ? 1.2 : 0.8);
+  // Boost weight when a concrete setup is confirmed. No penalty when absent —
+  // the agent's confidence is already low (40) when no setup is present, which
+  // naturally reduces its contribution without a separate weight cut.
+  const smcWeight = weights.smc + (smc.setupPresent ? 0.08 : 0);
   items.push(agentScore("smc", smc.bias, smc.confidence, clamp(smcWeight, 0, 0.5)));
 
   // ── News Agent (supports / opposes) ───────────────────────────────────────
-  // Only dampen confidence for neutral news — preserve directional signals at full strength
-  const adjustedNewsConf = news.impact === "neutral"
-    ? Math.round(news.confidence * (1 - news.riskScore / 200))
-    : news.confidence;
-  items.push(agentScore("news", news.impact, adjustedNewsConf, weights.news));
+  // Safe-haven assets (gold/silver): geopolitical risk BOOSTS news confidence.
+  // All other assets: high uncertainty reduces directional conviction (but doesn't
+  // eliminate the signal — a high-risk environment with bearish news is still bearish).
+  // Floor the confidence at 30% to preserve the directional signal even under stress.
+  const isSafeHaven = symbol === "XAUUSD" || symbol === "XAGUSD" || symbol === "XPTUSD";
+  const adjustedNewsConf = isSafeHaven && news.riskScore > 40
+    ? Math.min(95, news.confidence * (1 + news.riskScore / 300))
+    : Math.max(30, news.confidence * (1 - news.riskScore / 250));
+  items.push(agentScore("news", news.impact, Math.round(adjustedNewsConf), weights.news));
 
   // ── Execution Agent (confirms setup) ──────────────────────────────────────
-  // Only counts if execution has a valid setup
+  // Confidence scales with setup grade so an A+ and a B+ don't contribute equally.
   const execBias = execution.hasSetup
     ? execution.direction === "long" ? "bullish"
     : execution.direction === "short" ? "bearish"
     : "neutral"
     : "neutral";
-  const execConf = execution.hasSetup ? 70 : 30;
+  const execConf = execution.hasSetup
+    ? execution.grade === "A+" ? 90
+    : execution.grade === "A"  ? 78
+    : execution.grade === "B+" ? 62
+    : 45  // "B" — partial setup quality
+    : 25; // no setup
   items.push(agentScore("execution", execBias, execConf, weights.execution));
 
   // ── Contrarian Agent (penalty factor) ────────────────────────────────────
@@ -213,8 +225,8 @@ export function matchStrategy(
   // ── Structure-based setups ─────────────────────────────────────────────────
   if (setupType === "Sweep" && bosDetected) {
     return bias === "bullish"
-      ? "Stop-Run Reversal — Long (Lows swept, bullish structure break confirmed)"
-      : "Stop-Run Reversal — Short (Highs swept, bearish structure break confirmed)";
+      ? "Momentum Shift — Long (Bullish structure break confirmed)"
+      : "Momentum Shift — Short (Bearish structure break confirmed)";
   }
 
   if (setupType === "OB" && bosDetected) {

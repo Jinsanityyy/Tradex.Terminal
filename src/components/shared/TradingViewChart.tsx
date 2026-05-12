@@ -404,6 +404,11 @@ export function TradingViewChart({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<any>(null);
   const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Chart state refs
+  const chartReadyRef = useRef(false);
+  const latestSymbolRef = useRef(initialSymbol);
+  const latestIntervalRef = useRef(INTERVALS[4].value);
+  const savedDataRef = useRef<any>(null);  // persists drawings across rebuilds
 
   const [activeSymbol, setActiveSymbol] = useState(initialSymbol);
   const [activeInterval, setActiveInterval] = useState(INTERVALS[4]);
@@ -422,9 +427,19 @@ export function TradingViewChart({
     : null;
 
   const selectSymbol = useCallback((value: string) => {
-    setActiveSymbol(value);
+    latestSymbolRef.current = value;
     setPickerOpen(false);
     setQuery("");
+    // Save drawings, then rebuild widget with new symbol
+    const w = widgetRef.current;
+    if (w && typeof w.save === "function") {
+      w.save((state: any) => {
+        savedDataRef.current = state;
+        setActiveSymbol(value); // triggers rebuild with saved_data
+      });
+    } else {
+      setActiveSymbol(value);
+    }
   }, []);
 
   const syncWidgetSize = useCallback(() => {
@@ -527,6 +542,7 @@ export function TradingViewChart({
     if (!element) return;
 
     let isCancelled = false;
+    chartReadyRef.current = false;
     let widget: any = null;
     const containerId = `tv_widget_${++widgetCounter}`;
 
@@ -545,8 +561,9 @@ export function TradingViewChart({
           autosize: true,
           width: "100%",
           height: "100%",
-          symbol: activeSymbol,
-          interval: activeInterval.value,
+          symbol: latestSymbolRef.current,
+          interval: latestIntervalRef.current,
+          ...(savedDataRef.current ? { saved_data: savedDataRef.current } : {}),
           timezone: "America/New_York",
           theme: "dark",
           style: "1",
@@ -561,8 +578,7 @@ export function TradingViewChart({
           studies: [],
           disabled_features: [
             "header_fullscreen_button",
-            "use_localstorage_for_settings",
-            "save_chart_properties_to_local_storage",
+            // localstorage re-enabled so drawings/studies persist across timeframe switches
             "create_volume_indicator_by_default",
             "create_volume_indicator_by_default_once",
             "timeframes_toolbar",
@@ -606,6 +622,21 @@ export function TradingViewChart({
 
       widget.onChartReady(() => {
         if (isCancelled) return;
+        chartReadyRef.current = true;
+        // Auto-save chart state (drawings + studies) every 2s
+        const doSave = () => {
+          if (isCancelled) return;
+          try {
+            if (typeof widget.save === 'function') {
+              widget.save((state: any) => { savedDataRef.current = state; });
+            }
+          } catch {}
+        };
+        doSave();
+        const saveTimer = setInterval(doSave, 2000);
+        // Attach a one-time cleanup when element is cleared
+        const origCleanup = () => clearInterval(saveTimer);
+        (element as any).__tvSaveCleanup = origCleanup;
         try {
           if (typeof widget.applyOverrides === "function") {
             widget.applyOverrides({
@@ -666,10 +697,14 @@ export function TradingViewChart({
       }
 
       if (element) {
+        if (typeof (element as any).__tvSaveCleanup === 'function') {
+          (element as any).__tvSaveCleanup();
+        }
         element.innerHTML = "";
       }
     };
   }, [activeInterval.value, activeSymbol, layoutRevision, syncWidgetSize]);
+
 
   const urgent = secondsLeft <= 60;
 
@@ -743,8 +778,18 @@ export function TradingViewChart({
           <div className="flex items-center gap-0.5">
             {INTERVALS.map(interval => (
               <button key={interval.value} onClick={() => {
-                setActiveInterval(interval);
+                latestIntervalRef.current = interval.value;
                 onIntervalChange?.(interval.value);
+                // Save drawings first, then rebuild widget with new interval
+                const w = widgetRef.current;
+                if (w && typeof w.save === "function") {
+                  w.save((state: any) => {
+                    savedDataRef.current = state;
+                    setActiveInterval(interval); // triggers widget rebuild with saved_data
+                  });
+                } else {
+                  setActiveInterval(interval);
+                }
               }}
                 className={cn("rounded px-2 py-1 text-[11px] font-semibold transition-all border",
                   activeInterval.value === interval.value

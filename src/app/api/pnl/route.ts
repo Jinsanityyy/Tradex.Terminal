@@ -49,15 +49,20 @@ export async function GET(req: NextRequest) {
 
     if (connectionId) query = query.eq("connection_id", connectionId);
 
-    const { data: trades, error } = await query;
-    if (error) throw error;
+    const [{ data: trades }, { data: manualTrades }] = await Promise.all([
+      query,
+      supabase
+        .from("manual_trades")
+        .select("pnl, fees, date")
+        .eq("user_id", user.id)
+        .gte("date", since.split("T")[0]),
+    ]);
 
     const dailyMap = new Map<string, DailyPnL>();
     const monthlyMap = new Map<string, MonthlyPnL>();
 
-    for (const t of (trades ?? [])) {
-      const d = new Date(t.closed_at);
-      const date = d.toISOString().split("T")[0];
+    function upsertDay(date: string, pnl: number, fee: number) {
+      const d = new Date(date + "T00:00:00Z");
       const year = d.getUTCFullYear();
       const month = d.getUTCMonth() + 1;
       const monthKey = `${year}-${month}`;
@@ -66,18 +71,27 @@ export async function GET(req: NextRequest) {
         dailyMap.set(date, { date, pnl: 0, trades: 0, wins: 0, fees: 0 });
       }
       const day = dailyMap.get(date)!;
-      day.pnl = parseFloat((day.pnl + (t.pnl ?? 0)).toFixed(4));
-      day.fees = parseFloat((day.fees + (t.fee ?? 0)).toFixed(4));
+      day.pnl   = parseFloat((day.pnl   + pnl).toFixed(4));
+      day.fees  = parseFloat((day.fees  + fee).toFixed(4));
       day.trades += 1;
-      if ((t.pnl ?? 0) > 0) day.wins += 1;
+      if (pnl > 0) day.wins += 1;
 
       if (!monthlyMap.has(monthKey)) {
         monthlyMap.set(monthKey, { year, month, pnl: 0, trades: 0, wins: 0 });
       }
       const mo = monthlyMap.get(monthKey)!;
-      mo.pnl = parseFloat((mo.pnl + (t.pnl ?? 0)).toFixed(4));
+      mo.pnl    = parseFloat((mo.pnl + pnl).toFixed(4));
       mo.trades += 1;
-      if ((t.pnl ?? 0) > 0) mo.wins += 1;
+      if (pnl > 0) mo.wins += 1;
+    }
+
+    for (const t of (trades ?? [])) {
+      const date = new Date(t.closed_at).toISOString().split("T")[0];
+      upsertDay(date, t.pnl ?? 0, t.fee ?? 0);
+    }
+
+    for (const t of (manualTrades ?? [])) {
+      upsertDay(t.date, t.pnl ?? 0, t.fees ?? 0);
     }
 
     return NextResponse.json({

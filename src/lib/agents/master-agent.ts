@@ -6,6 +6,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { anthropicCreate } from "./circuit-breaker";
 import type {
   MarketSnapshot,
   TrendAgentOutput,
@@ -124,8 +125,8 @@ ${news.catalysts.slice(0, 3).map(c => `• [${c.impact.toUpperCase()}] ${c.headl
 
 You have read the debate. Adjudicate. Return JSON only.`.trim();
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-6",
+  const response = await anthropicCreate(client, {
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 700,
     system: MASTER_SYSTEM,
     messages: [{ role: "user", content: msg }],
@@ -264,7 +265,7 @@ export async function runMasterAgent(
   try {
     // ── Compute consensus ────────────────────────────────────────────────
     const { consensusScore, finalBias, confidence, agentConsensus, noTradeReason } =
-      computeConsensus(trend, smc, news, risk, execution, contrarian, weights);
+      computeConsensus(trend, smc, news, risk, execution, contrarian, weights, snapshot.symbol);
 
     // ── LLM synthesis (optional enhancement) ─────────────────────────────
     let llmResult: { finalBias: string; confidence: number; supports: string[]; invalidations: string[]; noTradeReason?: string; strategyMatch?: string } | null = null;
@@ -283,30 +284,27 @@ export async function runMasterAgent(
 
     // ── Structural override (HIGHEST PRIORITY — cannot be overridden by LLM) ─
     // Price action structure determines direction. LLM cannot override a bearish
-    // structure with bullish calls unless BOS to upside is confirmed.
+    // structure with bullish calls unless a confirmed sweep + setup exist to the upside.
     const llmRaw        = (llmResult?.finalBias ?? finalBias) as "bullish" | "bearish" | "no-trade";
     const bearishStruct = trend.bias === "bearish";
     const bullishStruct = trend.bias === "bullish";
-    const noSetup       = smc.setupType === "None";
-    const sweepActive   = smc.liquiditySweepDetected;
 
-    // A confirmed sweep in the signal direction overrides the structural block.
-    // Without a sweep, require BOS+CHoCH combo to cross the trend gate.
-    const sweepBullish  = sweepActive && smc.bias === "bullish";
-    const sweepBearish  = sweepActive && smc.bias === "bearish";
-    const bosToUpside   = (smc.bosDetected && smc.chochDetected) || sweepBullish;
-    const bosToDownside = smc.bosDetected || sweepBearish;
+    const bosToUpside   = smc.bosDetected && smc.setupPresent && smc.bias === "bullish";
+    const bosToDownside = smc.bosDetected && smc.setupPresent && smc.bias === "bearish";
+
+    const activeSetup = smc.setupPresent || smc.liquiditySweepDetected;
+    const noSetup     = smc.setupType === "None" && !smc.liquiditySweepDetected;
 
     let resolvedBias = llmRaw;
 
     if (llmRaw === "bullish" && bearishStruct && !bosToUpside) {
-      // Bearish trend + no confirmed bullish sweep/BOS = block longs
+      // Bearish structure + no confirmed bullish reversal = block long calls
       resolvedBias = "no-trade";
     } else if (llmRaw === "bearish" && bullishStruct && !bosToDownside) {
-      // Bullish trend + no confirmed bearish sweep/BOS = block shorts
+      // Bullish structure + no confirmed bearish reversal = block short calls
       resolvedBias = "no-trade";
-    } else if (resolvedBias !== "no-trade" && !sweepActive && noSetup) {
-      // No sweep + no setup = stand aside (sweep gate)
+    } else if (resolvedBias !== "no-trade" && !activeSetup && noSetup) {
+      // No confirmed setup at all = stand aside
       resolvedBias = "no-trade";
     }
 
@@ -325,13 +323,18 @@ export async function runMasterAgent(
         stopLoss: execution.stopLoss,
         tp1: execution.tp1,
         tp2: execution.tp2,
+        tp3: execution.tp3,
         rrRatio: execution.rrRatio ?? 2,
+        grade: execution.grade,
+        confluenceCount: execution.confluenceCount,
+        confluenceFactors: execution.confluenceFactors,
         maxRiskPercent: risk.maxRiskPercent,
         trigger: execution.trigger,
         triggerCondition: execution.triggerCondition,
         entryZone: execution.entryZone,
         slZone: execution.slZone,
         tp1Zone: execution.tp1Zone,
+        tp3Zone: execution.tp3Zone,
         managementNotes: execution.managementNotes,
       };
     }

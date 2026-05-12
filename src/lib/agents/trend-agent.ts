@@ -11,6 +11,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { anthropicCreate } from "./circuit-breaker";
 import type {
   MarketSnapshot,
   TrendAgentOutput,
@@ -84,7 +85,7 @@ INDICATORS:
 
 Determine trend bias, market phase, and give institutional-grade reasoning using structure + RSI + MACD + MA alignment.`.trim();
 
-  const response = await client.messages.create({
+  const response = await anthropicCreate(client, {
     model: "claude-haiku-4-5-20251001",
     max_tokens: 600,
     system: TREND_SYSTEM,
@@ -156,14 +157,21 @@ function deriveMomentumDirection(
   rsi: number,
   pctChange: number,
   macdHist: number,
-  maStack: string
+  maStack: string,
+  atrProxy: number
 ): "expanding" | "contracting" | "flat" {
-  const strongMove = Math.abs(pctChange) > 0.5;
+  // Scale thresholds relative to instrument volatility so a 0.5% move is "strong"
+  // for low-vol forex but noise for high-vol crypto or gold during news events.
+  // strongMoveThreshold = 50% of the instrument's typical daily ATR, floored at 0.2%.
+  const strongMoveThreshold = Math.max(0.2, atrProxy * 0.5);
+  const flatThreshold       = Math.max(0.05, atrProxy * 0.1);
+
+  const strongMove  = Math.abs(pctChange) > strongMoveThreshold;
   const macdAligned = (pctChange > 0 && macdHist > 0) || (pctChange < 0 && macdHist < 0);
-  const maAligned = (pctChange > 0 && maStack === "bullish") || (pctChange < 0 && maStack === "bearish");
+  const maAligned   = (pctChange > 0 && maStack === "bullish") || (pctChange < 0 && maStack === "bearish");
 
   if (strongMove && macdAligned && maAligned) return "expanding";
-  if (Math.abs(pctChange) < 0.2 && Math.abs(macdHist) < 0.001) return "flat";
+  if (Math.abs(pctChange) < flatThreshold && Math.abs(macdHist) < 0.001) return "flat";
   return "contracting";
 }
 
@@ -292,12 +300,48 @@ export async function runTrendAgent(
       .catch(() => ({ ma20: null, ma50: null, ma200: null, maStack: "neutral" as const }));
 
     const timeframeBias = await resolveTimeframeBias(snapshot);
-    const momentum = deriveMomentumDirection(rsi, changePercent, macdHist, maData.maStack);
+    const momentum = deriveMomentumDirection(rsi, changePercent, macdHist, maData.maStack, snapshot.indicators.atrProxy);
     const phase = derivePhase(snapshot, maData.maStack);
     const maAlignment = deriveMaAlignment(snapshot, maData.maStack);
 
     let biasScore = 0;
-    biasScore += htfBias === "bullish" ? htfConfidence : htfBias === "bearish" ? -htfConfidence : 0;
+
+    // ── JadeCap PRIMARY: PDH/PDL Midpoint Daily Bias (+25 pts) ────────────
+    // Derive actual PDH/PDL from prior-day candles when available.
+    // Fallback to prevClose ± dayRange * 0.40 proxy only when no candle history exists.
+    const { prevClose, dayRange, open: dayOpen } = snapshot.price;
+    let pdh: number;
+    let pdl: number;
+
+    const recentCandles = snapshot.recentCandles;
+    if (recentCandles && recentCandles.length >= 2) {
+      const todayMidnight = new Date();
+      todayMidnight.setUTCHours(0, 0, 0, 0);
+      const todayMs   = todayMidnight.getTime();
+      const prevDayMs = todayMs - 86_400_000;
+      const prevDayCandles = recentCandles.filter(
+        c => c.t * 1000 >= prevDayMs && c.t * 1000 < todayMs
+      );
+      if (prevDayCandles.length >= 1) {
+        pdh = Math.max(...prevDayCandles.map(c => c.h));
+        pdl = Math.min(...prevDayCandles.map(c => c.l));
+      } else {
+        // No prior-day candles in history — use proxy
+        pdh = prevClose + dayRange * 0.40;
+        pdl = prevClose - dayRange * 0.40;
+      }
+    } else {
+      // No candle history at all — use proxy
+      pdh = prevClose + dayRange * 0.40;
+      pdl = prevClose - dayRange * 0.40;
+    }
+
+    const pdMidpoint    = (pdh + pdl) / 2;
+    const jadeBiasScore = dayOpen > pdMidpoint ? 25 : dayOpen < pdMidpoint ? -25 : 0;
+    biasScore += jadeBiasScore;
+
+    // ── Secondary: HTF structure (weight halved — JadeCap PDH/PDL dominates) ─
+    biasScore += htfBias === "bullish" ? htfConfidence * 0.5 : htfBias === "bearish" ? -htfConfidence * 0.5 : 0;
     if (timeframeBias.aligned) biasScore += timeframeBias.H4 === "bullish" ? 15 : -15;
     if (rsi > 55) biasScore += 8;
     if (rsi < 45) biasScore -= 8;
@@ -312,13 +356,36 @@ export async function runTrendAgent(
     const confidence = Math.min(95, Math.max(20, Math.abs(biasScore)));
     const reasons = buildReasons(snapshot, timeframeBias, phase, maData.maStack, maData);
 
-    const step = current > 1000 ? 10 : current > 100 ? 1 : 0.001;
-    const invalidationLevel =
-      bias === "bullish"
-        ? parseFloat((Math.floor(current * 0.985 / step) * step).toFixed(4))
-        : bias === "bearish"
-          ? parseFloat((Math.ceil(current * 1.015 / step) * step).toFixed(4))
-          : null;
+    // Daily bias reason — prepend so it appears first
+    const jadeReason = jadeBiasScore > 0
+      ? `Daily bias: BULLISH — open ${dayOpen.toFixed(2)} above PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`
+      : jadeBiasScore < 0
+      ? `Daily bias: BEARISH — open ${dayOpen.toFixed(2)} below PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`
+      : `Daily bias: NEUTRAL — open at PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`;
+    reasons.unshift(jadeReason);
+
+    // Invalidation level: prefer the most recent swing low/high from candle data.
+    // For bullish bias → last significant swing low (recent candle low below PDL or yesterday's low).
+    // For bearish bias → last significant swing high.
+    // Falls back to a ±1.5% proxy only when no candle data is available.
+    let invalidationLevel: number | null = null;
+    if (bias !== "neutral") {
+      if (recentCandles && recentCandles.length >= 3) {
+        const lookback = recentCandles.slice(-20); // last 20 candles
+        if (bias === "bullish") {
+          const swingLow = Math.min(...lookback.map(c => c.l));
+          invalidationLevel = parseFloat((swingLow * 0.999).toFixed(4));
+        } else {
+          const swingHigh = Math.max(...lookback.map(c => c.h));
+          invalidationLevel = parseFloat((swingHigh * 1.001).toFixed(4));
+        }
+      } else {
+        const step = current > 1000 ? 10 : current > 100 ? 1 : 0.001;
+        invalidationLevel = bias === "bullish"
+          ? parseFloat((Math.floor(current * 0.985 / step) * step).toFixed(4))
+          : parseFloat((Math.ceil(current * 1.015 / step) * step).toFixed(4));
+      }
+    }
 
     return {
       agentId: "trend",
