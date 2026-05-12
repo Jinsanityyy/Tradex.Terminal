@@ -153,6 +153,12 @@ export function computeConsensus(
 
   // Sweep gate: no confirmed NY session sweep = no trade regardless of consensus
   const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None";
+  // Check if we're currently inside the NY Kill Zone (13:30–15:30 UTC = 9:30–11:30 AM ET)
+  const _nowUTC   = new Date();
+  const _utcH     = _nowUTC.getUTCHours();
+  const _utcM     = _nowUTC.getUTCMinutes();
+  const inKillZone = (_utcH > 13 || (_utcH === 13 && _utcM >= 30))
+                  && (_utcH < 15  || (_utcH === 15 && _utcM <  30));
 
   // ── Final Bias Decision ───────────────────────────────────────────────────
   const BULL_THRESHOLD = 25;
@@ -166,13 +172,15 @@ export function computeConsensus(
     noTradeReason = `Risk gate: ${risk.warnings[0] ?? "Risk conditions not met"}`;
   } else if (structureBlocksLong) {
     finalBias     = "no-trade";
-    noTradeReason = `Structure gate: Trend is BEARISH — bullish signals blocked. Require confirmed BOS to upside before going long.`;
+    noTradeReason = `Structure gate: Trend BEARISH — longs blocked. Need bullish BOS + CHoCH confirmation before long entry.`;
   } else if (structureBlocksShort) {
     finalBias     = "no-trade";
-    noTradeReason = `Structure gate: Trend is BULLISH — bearish signals blocked. Require confirmed BOS to downside before going short.`;
+    noTradeReason = `Structure gate: Trend BULLISH — shorts blocked. Need bearish BOS confirmation before short entry.`;
   } else if (noFibZone) {
     finalBias     = "no-trade";
-    noTradeReason = `Sweep gate: No confirmed NY session sweep. Waiting for liquidity sweep before entry.`;
+    noTradeReason = inKillZone
+      ? `Sweep gate: Kill zone ACTIVE (NY 9:30–11:30 AM ET) — scanning for liquidity sweep of session levels. Standby for entry signal.`
+      : `Sweep gate: No confirmed NY session sweep. Best setups form during NY Kill Zone (9:30–11:30 AM ET).`;
   } else if (normalizedScore >= BULL_THRESHOLD) {
     finalBias = "bullish";
   } else if (normalizedScore <= BEAR_THRESHOLD) {
