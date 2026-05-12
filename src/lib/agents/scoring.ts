@@ -157,12 +157,15 @@ export function computeConsensus(
   // When consensus is strong (≥35), allow the execution agent to grade the setup quality —
   // a strong multi-agent agreement without a sweep can still produce a valid directional signal.
   const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None" && Math.abs(normalizedScore) < 35;
-  // Check if we're currently inside the NY Kill Zone (13:30–15:30 UTC = 9:30–11:30 AM ET)
+  // Check if currently inside any kill zone for message context
   const _nowUTC   = new Date();
   const _utcH     = _nowUTC.getUTCHours();
   const _utcM     = _nowUTC.getUTCMinutes();
-  const inKillZone = (_utcH > 13 || (_utcH === 13 && _utcM >= 30))
-                  && (_utcH < 15  || (_utcH === 15 && _utcM <  30));
+  const _inAsianKZ  = _utcH >= 0  && _utcH < 3;
+  const _inLondonKZ = _utcH >= 8  && _utcH < 11;
+  const _inNYKZ     = (_utcH > 13 || (_utcH === 13 && _utcM >= 30))
+                   && (_utcH < 15  || (_utcH === 15 && _utcM <  30));
+  const inKillZone  = _inAsianKZ || _inLondonKZ || _inNYKZ;
 
   // ── Final Bias Decision ───────────────────────────────────────────────────
   const BULL_THRESHOLD = 25;
@@ -183,8 +186,8 @@ export function computeConsensus(
   } else if (noFibZone) {
     finalBias     = "no-trade";
     noTradeReason = inKillZone
-      ? `Sweep gate: Kill zone ACTIVE (NY 9:30–11:30 AM ET) — scanning for liquidity sweep of session levels. Standby for entry signal.`
-      : `Sweep gate: No confirmed NY session sweep. Best setups form during NY Kill Zone (9:30–11:30 AM ET).`;
+      ? `Sweep gate: Kill zone ACTIVE (${_inAsianKZ ? "Asian 8PM–11PM PHT" : _inLondonKZ ? "London 4PM–7PM PHT" : "NY 9:30PM–11:30PM PHT"}) — scanning for liquidity sweep of session levels. Standby for entry signal.`
+      : `Sweep gate: No confirmed session sweep. Best setups form during Asian (8PM–11PM PHT), London (4PM–7PM PHT), or NY (9:30PM–11:30PM PHT) kill zones.`;
   } else if (normalizedScore >= BULL_THRESHOLD) {
     finalBias = "bullish";
   } else if (normalizedScore <= BEAR_THRESHOLD) {

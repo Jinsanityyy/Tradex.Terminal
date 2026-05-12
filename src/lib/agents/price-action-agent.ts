@@ -299,11 +299,11 @@ interface SweepFVGResult {
   fvgMid:        number;
 }
 
-// Returns true if a candle's period OVERLAPS either kill zone:
-//   NY Kill Zone:     13:30–15:30 UTC = minutes 810–930
-//   London Kill Zone: 08:00–11:00 UTC = minutes 480–660
-// Uses candle duration for overlap — critical for H1/H4 where e.g. the 13:00 UTC
-// candle covers the first 30 min of the NY kill zone.
+// Returns true if a candle's period OVERLAPS any of the three kill zones:
+//   Asian Kill Zone:  00:00–03:00 UTC = minutes 0–180   (8PM–11PM PHT)
+//   London Kill Zone: 08:00–11:00 UTC = minutes 480–660 (4PM–7PM PHT)
+//   NY Kill Zone:     13:30–15:30 UTC = minutes 810–930 (9:30PM–11:30PM PHT)
+// Uses candle duration for overlap — critical for H1/H4 candles.
 function inKillZone(ts: number, timeframe = "M5"): boolean {
   const d = new Date(ts * 1000);
   const candleStartMin = d.getUTCHours() * 60 + d.getUTCMinutes();
@@ -314,9 +314,10 @@ function inKillZone(ts: number, timeframe = "M5"): boolean {
     timeframe === "M15" ? 15  : 5;
 
   const candleEndMin = candleStartMin + candleDuration;
-  const inNYKZ     = candleStartMin < 930 && candleEndMin > 810; // 13:30–15:30 UTC
+  const inAsianKZ  = candleStartMin < 180 && candleEndMin > 0;   // 00:00–03:00 UTC
   const inLondonKZ = candleStartMin < 660 && candleEndMin > 480; // 08:00–11:00 UTC
-  return inNYKZ || inLondonKZ;
+  const inNYKZ     = candleStartMin < 930 && candleEndMin > 810; // 13:30–15:30 UTC
+  return inAsianKZ || inLondonKZ || inNYKZ;
 }
 
 // Scan NY session candles for: sweep of session level within the kill zone → 3-candle FVG.
@@ -330,13 +331,14 @@ function detectNYSweepAndFVG(
   timeframe = "M5"
 ): SweepFVGResult | null {
   const toHour = (ts: number) => new Date(ts * 1000).getUTCHours();
-  // Scan 07:00–18:00 UTC to capture both kill zones:
-  //   London Kill Zone: 08:00–11:00 UTC (H4 candle opens at 08:00, H1 at 07:00 overlaps)
+  // Scan 00:00–18:00 UTC to capture all three kill zones:
+  //   Asian Kill Zone:  00:00–03:00 UTC
+  //   London Kill Zone: 08:00–11:00 UTC (H4 at 08:00, H1 at 07:00 overlaps)
   //   NY Kill Zone:     13:30–15:30 UTC (H4 at 12:00, H1 at 13:00)
-  // The inKillZone overlap check still gates which candles are valid sweep candidates.
+  // The inKillZone overlap check gates which candles are valid sweep candidates.
   const nyC = candles
-    .filter(c => { const h = toHour(c.t); return h >= 7 && h < 18; })
-    .slice(-48);
+    .filter(c => { const h = toHour(c.t); return h < 18; })
+    .slice(-60);
 
   if (nyC.length < 3) return null;
 
@@ -433,7 +435,9 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
               && (sessionHourKZLogic < 15  || (sessionHourKZLogic === 15 && sessionMinuteLogic <  30));
   // London Kill Zone: 08:00–11:00 UTC
   const inLondonKZ = sessionHourKZLogic >= 8 && sessionHourKZLogic < 11;
-  const inNYSession = inNYKZ || inLondonKZ;
+  // Asian Kill Zone: 00:00–03:00 UTC (Tokyo open — 8PM–11PM PHT)
+  const inAsianKZ = sessionHourKZLogic >= 0 && sessionHourKZLogic < 3;
+  const inNYSession = inNYKZ || inLondonKZ || inAsianKZ;
   const upperWick   = high - Math.max(current, open);
   const lowerWick   = Math.min(current, open) - low;
 
@@ -559,9 +563,11 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   } else {
     reasons.push(
       `No reversal pattern detected — ${inNYKZ
-        ? "NY Kill Zone active (13:30–15:30 UTC), monitoring for sweep"
+        ? "NY Kill Zone active (13:30–15:30 UTC / 9:30–11:30 PM PHT), monitoring for sweep"
         : inLondonKZ
-        ? "London Kill Zone active (08:00–11:00 UTC), monitoring for sweep"
+        ? "London Kill Zone active (08:00–11:00 UTC / 4:00–7:00 PM PHT), monitoring for sweep"
+        : inAsianKZ
+        ? "Asian Kill Zone active (00:00–03:00 UTC / 8:00–11:00 PM PHT), monitoring for PDH/PDL sweep"
         : `current session: ${session}`}`
     );
   }
