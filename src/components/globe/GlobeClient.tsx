@@ -32,11 +32,11 @@ interface TooltipState {
 }
 
 // ─── Layer config ─────────────────────────────────────────────────────────────
-const LAYER_CONFIG: Record<LayerKey, { label: string; color: string; hexColor: number; icon: string }> = {
-  conflict:       { label: 'Conflict Zones',         color: '#ff4444', hexColor: 0xff4444, icon: '⚠' },
-  centralBanks:   { label: 'Central Banks',           color: GREEN,     hexColor: 0x00C853, icon: '🏦' },
-  economicEvents: { label: 'Economic Events',         color: '#4db8ff', hexColor: 0x4db8ff, icon: '📊' },
-  goldRegions:    { label: 'Gold Producing Regions',  color: GOLD,      hexColor: 0xD4AF37, icon: '⛏' },
+const LAYER_CONFIG: Record<LayerKey, { label: string; color: string; hexColor: number; icon: string; code: string }> = {
+  conflict:       { label: 'Conflict Zones',         color: '#c0392b', hexColor: 0xc0392b, icon: '▲', code: 'CFZ' },
+  centralBanks:   { label: 'Central Banks',           color: '#27ae60', hexColor: 0x27ae60, icon: '◆', code: 'CBK' },
+  economicEvents: { label: 'Economic Events',         color: '#2980b9', hexColor: 0x2980b9, icon: '●', code: 'ECO' },
+  goldRegions:    { label: 'Gold Producing Regions',  color: '#b8962e', hexColor: 0xb8962e, icon: '◈', code: 'GLD' },
 };
 
 // ─── Marker data ──────────────────────────────────────────────────────────────

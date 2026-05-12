@@ -151,7 +151,7 @@ export function computeConsensus(
   // Block bearish signals in a bullish structure
   const structureBlocksShort = trendBullish && !smc.bosDetected && normalizedScore < 0;
 
-  // Fibonacci gate: if no fib zone confluence, no trade regardless of indicators
+  // Sweep gate: no confirmed NY session sweep = no trade regardless of consensus
   const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None";
 
   // ── Final Bias Decision ───────────────────────────────────────────────────
@@ -170,9 +170,9 @@ export function computeConsensus(
   } else if (structureBlocksShort) {
     finalBias     = "no-trade";
     noTradeReason = `Structure gate: Trend is BULLISH — bearish signals blocked. Require confirmed BOS to downside before going short.`;
-  } else if (noFibZone && Math.abs(normalizedScore) < 50) {
+  } else if (noFibZone) {
     finalBias     = "no-trade";
-    noTradeReason = `Fib gate: No price in 0.5–0.705 retracement zone and no confirmed setup. Waiting for fib confluence.`;
+    noTradeReason = `Sweep gate: No confirmed NY session sweep. Waiting for liquidity sweep before entry.`;
   } else if (normalizedScore >= BULL_THRESHOLD) {
     finalBias = "bullish";
   } else if (normalizedScore <= BEAR_THRESHOLD) {
@@ -204,49 +204,25 @@ export function matchStrategy(
   trend: TrendAgentOutput,
   news: NewsAgentOutput
 ): string | undefined {
-  const { setupType, bosDetected, chochDetected, liquiditySweepDetected: inFibZone, premiumDiscount } = smc;
+  const { setupType, bosDetected, chochDetected, liquiditySweepDetected: sweepConfirmed, premiumDiscount } = smc;
   const bias = smc.bias;
 
   if (bias === "neutral") return undefined;
 
-  // ── New Fibonacci/PA setup types (from smc-agent.ts) ─────────────────────
-  if (setupType === "FibShort") {
-    return bosDetected
-      ? "Fib Short + BOS Continuation — Bearish structure confirmed, price retrace to 0.618–0.705 fib zone"
-      : "Fib Short — Trend Continuation (LH+LL structure, price in 0.5–0.705 fib retracement zone)";
-  }
-
-  if (setupType === "FibLong") {
-    return chochDetected
-      ? "Fib Long — Post-BOS Reversal (Bearish structure broken, HL formed, fib retracement entry)"
-      : "Fib Long — Bullish Continuation (HH+HL structure, price in 0.5–0.705 fib pullback zone)";
-  }
-
-  if (setupType === "BOS_Continuation" && bosDetected) {
+  // ── NY liquidity sweep setups (price-action-agent) ────────────────────────
+  if (sweepConfirmed && (setupType === "FVG" || setupType === "Sweep")) {
     return bias === "bullish"
-      ? "BOS Continuation — Long (Upside structure break with momentum, pullback entry)"
-      : "BOS Continuation — Short (Downside structure break with momentum, pullback entry)";
+      ? "NY Sweep Long — session lows swept, FVG entry at midpoint"
+      : "NY Sweep Short — session highs swept, FVG entry at midpoint";
   }
 
-  if (setupType === "BOS" && bosDetected) {
+  if (sweepConfirmed) {
     return bias === "bullish"
-      ? "Bullish BOS — Awaiting fib pullback for entry"
-      : "Bearish BOS — Awaiting fib pullback for entry";
+      ? "Sweep Long — liquidity swept, awaiting bullish candle confirmation"
+      : "Sweep Short — liquidity swept, awaiting bearish candle confirmation";
   }
 
-  if (inFibZone && (setupType === "FVG" || setupType === "Sweep")) {
-    return bias === "bullish"
-      ? "Structure Reversal Long — price action setup confirmed, entry at imbalance zone"
-      : "Structure Reversal Short — price action setup confirmed, entry at imbalance zone";
-  }
-
-  if (inFibZone) {
-    return bias === "bullish"
-      ? "Fib Zone Long — In 0.5–0.705 retracement, awaiting bullish candle confirmation"
-      : "Fib Zone Short — In 0.5–0.705 retracement, awaiting bearish candle confirmation";
-  }
-
-  // ── Legacy PA setup types (from price-action-agent.ts) ───────────────────
+  // ── Structure-based setups ─────────────────────────────────────────────────
   if (setupType === "Sweep" && bosDetected) {
     return bias === "bullish"
       ? "Momentum Shift — Long (Bullish structure break confirmed)"

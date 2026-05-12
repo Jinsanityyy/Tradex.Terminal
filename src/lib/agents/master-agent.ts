@@ -46,7 +46,7 @@ ADJUDICATION RULES:
 - Strong challenges from multiple agents (>2) against majority = reduce confidence or flip to no-trade
 - Weight the QUALITY of the debate arguments, not just the count
 - Be terse and tactical. This is a live trade decision.
-- When PA Agent shows "Stop run: true" + FVG or Sweep setup, this is a NY liquidity sweep confirmation — the highest-probability pattern in the system (68%+ WR). Weight this heavily when daily bias aligns (bosDetected: true). London Low sweep = 76% WR, PDH/Asian High = 71%, Asian Low = 60%. London High sweep (43%) = flag only, do not trade.
+- NY SWEEP: When PA Agent shows "Stop run: true" + FVG or Sweep setup, this is a confirmed NY session liquidity sweep — the highest-probability pattern in the system. Weight this heavily when daily bias aligns (bosDetected: true). London Low = highest quality, PDH/Asian High = medium, Asian Low = lower. London High sweep = flag only, do not trade.
 
 Return ONLY valid JSON:
 {
@@ -67,9 +67,9 @@ function describePriceActionPattern(setupType: string, liquiditySweep = false): 
     case "OB":
       return "range retest";
     case "FVG":
-      return liquiditySweep ? "structure reversal" : "imbalance fill";
+      return liquiditySweep ? "NY sweep + FVG entry" : "gap fill";
     case "Sweep":
-      return liquiditySweep ? "momentum shift reversal" : "stop-run reversal";
+      return liquiditySweep ? "NY session sweep" : "stop-run reversal";
     default:
       return "no clear pattern";
   }
@@ -182,10 +182,10 @@ function buildSupports(
   }
 
   if (smc.bias === finalBias && smc.setupPresent) {
-    const hasReversal = smc.liquiditySweepDetected && (smc.setupType === "FVG" || smc.setupType === "Sweep");
-    supports.push(hasReversal
-      ? `Price Action ${smc.confidence}%: ${isBull ? "Bullish" : "Bearish"} reversal confirmed${smc.keyLevels.sweepLevel ? ` at ${smc.keyLevels.sweepLevel.toFixed(2)}` : ""}${smc.keyLevels.fvgMid ? ` — entry zone ${smc.keyLevels.fvgMid.toFixed(2)}` : ""} — ${smc.bosDetected ? "aligns with daily bias ✓" : "note: conflicts with daily bias"}`
-      : `Price Action Agent ${smc.confidence}%: ${describePriceActionPattern(smc.setupType, smc.liquiditySweepDetected)} ${smc.bosDetected ? "— structure break confirmed" : smc.liquiditySweepDetected ? "— reversal signal printed" : "— structure present"}`
+    const isSweepSetup = smc.liquiditySweepDetected && (smc.setupType === "FVG" || smc.setupType === "Sweep");
+    supports.push(isSweepSetup
+      ? `Price Action ${smc.confidence}%: NY session ${isBull ? "lows" : "highs"} swept${smc.keyLevels.sweepLevel ? ` at ${smc.keyLevels.sweepLevel.toFixed(2)}` : ""}, ${smc.setupType === "FVG" && smc.keyLevels.fvgMid ? `FVG entry at ${smc.keyLevels.fvgMid.toFixed(2)}` : "sweep reversal entry"} — ${smc.bosDetected ? "aligns with daily bias ✓" : "note: conflicts with daily bias"}`
+      : `Price Action Agent ${smc.confidence}%: ${describePriceActionPattern(smc.setupType, smc.liquiditySweepDetected)} ${smc.bosDetected ? "— structure break confirmed" : smc.liquiditySweepDetected ? "— stop run already printed" : "— structure present"}`
     );
   }
 
@@ -289,15 +289,9 @@ export async function runMasterAgent(
     const bearishStruct = trend.bias === "bearish";
     const bullishStruct = trend.bias === "bullish";
 
-    // A reversal to upside is confirmed when: a bullish sweep occurred AND a setup (FVG/OB) formed.
-    // We deliberately do NOT require chochDetected because in this codebase chochDetected === fvgDetected,
-    // which would block legitimate bullish reversals that have a sweep but no FVG.
     const bosToUpside   = smc.bosDetected && smc.setupPresent && smc.bias === "bullish";
-    // A reversal to downside is confirmed when: a bearish sweep/BOS occurred AND a setup formed.
     const bosToDownside = smc.bosDetected && smc.setupPresent && smc.bias === "bearish";
 
-    // activeSetup: any confirmed structural setup (sweep, FVG, OB) present — used as the
-    // gate replacing the old "fibZoneActive" proxy (which was incorrectly mapped to liquiditySweepDetected).
     const activeSetup = smc.setupPresent || smc.liquiditySweepDetected;
     const noSetup     = smc.setupType === "None" && !smc.liquiditySweepDetected;
 

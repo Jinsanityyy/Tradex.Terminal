@@ -224,10 +224,7 @@ export async function runExecutionAgent(
     const { htfBias, htfConfidence } = structure;
     const { session, sessionHour } = indicators;
 
-    // ── Killzone ────────────────────────────────────────────────────────────────
-    // Both London and NY kill zones derived from snapshot.timestamp for consistency.
-    // sessionHour from indicators is also derived from the same timestamp, but
-    // using the Date object directly ensures minute-level precision for both windows.
+    // ── Killzone ──────────────────────────────────────────────────────────────
     const snapDate   = new Date(snapshot.timestamp);
     const nowHourUTC = snapDate.getUTCHours();
     const nowMinUTC  = snapDate.getUTCMinutes();
@@ -238,7 +235,7 @@ export async function runExecutionAgent(
       (nowHourUTC < NY_KZ.endHour   || (nowHourUTC === NY_KZ.endHour   && nowMinUTC <  NY_KZ.endMin));
     const inKillzone = inLondonKZ || inNYKZ;
 
-    // ── Major news check ─────────────────────────────────────────────────────────
+    // ── Major news check ─────────────────────────────────────────────────────
     const riskBlocksExec = GOLD_SYMS.has(symbol)
       ? news.riskScore > 95 && news.impact !== "bullish"
       : news.riskScore > 80;
@@ -351,14 +348,14 @@ export async function runExecutionAgent(
       return noTradeResult(start, "No valid structural setup — no OB, FVG, or confirmed sweep present");
     }
 
-    // ── SL directional guard — catch any remaining inversions ─────────────────
+    // ── SL directional guard — return no-trade on any remaining inversions ──
     if ((isBullish && stopLoss >= entry) || (!isBullish && stopLoss <= entry)) {
       return noTradeResult(start,
         `Invalid stop loss: ${direction} entry ${entry.toFixed(1)} but SL ${stopLoss.toFixed(1)} is on wrong side — structural levels inconsistent`
       );
     }
 
-    // ── SL validation ─────────────────────────────────────────────────────────────────
+
     const riskDist = Math.abs(entry - stopLoss);
 
     if (riskDist === 0) {
@@ -420,7 +417,18 @@ export async function runExecutionAgent(
       }
     }
 
-    // entry and stopLoss already rounded above; round TP levels to same grid
+    // Hard caps: TP1 ≤ 1.5R, TP2 ≤ 2.5R from entry; direction guard included
+    if (isBullish) {
+      tp1 = Math.min(tp1, entry + riskDistRounded * 1.5);
+      tp2 = Math.min(tp2, entry + riskDistRounded * 2.5);
+      if (tp1 <= entry) tp1 = entry + riskDistRounded * 1.5;
+      if (tp2 <= entry) tp2 = entry + riskDistRounded * 2.5;
+    } else {
+      tp1 = Math.max(tp1, entry - riskDistRounded * 1.5);
+      tp2 = Math.max(tp2, entry - riskDistRounded * 2.5);
+      if (tp1 >= entry) tp1 = entry - riskDistRounded * 1.5;
+      if (tp2 >= entry) tp2 = entry - riskDistRounded * 2.5;
+    }
     tp1 = roundToPrecision(tp1, current);
     tp2 = roundToPrecision(tp2, current);
     if (tp3 !== null) tp3 = roundToPrecision(tp3, current);

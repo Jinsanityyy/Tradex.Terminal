@@ -1,8 +1,8 @@
 /**
- * Agent 2 — Price Action Agent (Jade Cap Intraday Liquidity & Volatility Model)
+ * Agent 2 — Price Action Agent (Intraday Liquidity & Volatility Model)
  *
- * Jade Cap rules: Daily Bias → Session Levels → Liquidity Sweep (JadeCap NY Kill Zone 13:30–15:30 UTC)
- * → FVG Detection → Entry/SL/TP.  Reported 68.2% WR on XAUUSD M15, 16-month backtest.
+ * Rules: Daily Bias → Session Levels → Liquidity Sweep (NY 13:00–18:00 UTC)
+ * → FVG Detection → Entry/SL/TP.
  *
  * Uses Claude for deep structural analysis when API key available.
  * Falls back to rule-based logic for reliability.
@@ -19,9 +19,9 @@ import type {
 // LLM Prompt
 // ─────────────────────────────────────────────────────────────────────────────
 
-const JADE_CAP_SYSTEM = `You are an elite intraday price action analyst (68.2% WR, XAUUSD M15, 16-month backtest).
+const JADE_CAP_SYSTEM = `You are an elite intraday analyst implementing a session-based price action model.
 
-PRICE ACTION RULES:
+ANALYSIS RULES:
 
 STEP 1 — DAILY BIAS
 - HTF structure bullish (prev day close > open) → bias = "bullish"
@@ -37,11 +37,11 @@ STEP 3 — LIQUIDITY SWEEP (NY Kill Zone: 13:30–15:30 UTC ONLY)
 - Price wicks past a session level by $2+ (XAUUSD) but closes BACK INSIDE = sweep
 - liquiditySweepDetected = true; swept level → keyLevels.sweepLevel
 - Confidence: 50 base + modifier per sweep level:
-  London Low  → +15  (76% WR — best setup)
-  PDH         → +10  (71.4% WR)
-  Asian High  → +10  (70% WR)
-  Asian Low   → +5   (60% WR)
-  London High → +0   (43% WR — flag only, do NOT recommend trading)
+  London Low  → +15  (best setup)
+  PDH         → +10
+  Asian High  → +10
+  Asian Low   → +5
+  London High → +0   (flag only, do NOT recommend trading)
 
 STEP 4 — FVG DETECTION (scan 8 candles after sweep)
 - Bullish FVG: candle[i-1].high < candle[i+1].low
@@ -140,7 +140,7 @@ async function runLLMAnalysis(
     (high > pdh        && current < pdh)         || (low < pdl       && current > pdl);
 
   const userMessage = `
-Analyze ${snapshot.symbolDisplay} (${snapshot.symbol}) — Intraday Price Action Analysis.
+Analyze ${snapshot.symbolDisplay} (${snapshot.symbol}) — session-based price action model.
 
 CURRENT CANDLE (${snapshot.timeframe}):
 - Close: ${current} | Open: ${open} | High: ${high} | Low: ${low} | Prev Close: ${prevClose}
@@ -170,7 +170,7 @@ INDICATORS:
 - RSI(14): ${indicators.rsi.toFixed(1)}
 - MACD histogram: ${indicators.macdHist > 0 ? "positive" : "negative"}
 
-Apply price action rules. Only flag a sweep if in NY session AND wick exceeds level. Return JSON only.`.trim();
+Apply the analysis rules above. Only flag a sweep if in NY session AND wick exceeds level. Return JSON only.`.trim();
 
   const msg = await anthropicCreate(client, {
     model: "claude-haiku-4-5-20251001",
@@ -187,8 +187,8 @@ Apply price action rules. Only flag a sweep if in NY session AND wick exceeds le
   const entryRef  = (parsed.keyLevels?.fvgMid as number | null | undefined) ?? null;
   const slBuf     = sweepMinDollar(snapshot.symbol, snapshot.price.current) * 0.5;
 
-  // Validate SL direction: BEARISH → must be above entry; BULLISH → must be below.
-  // LLM frequently returns the wrong side. Priority: sweepLevel > fvgHigh/Low > forced minimum.
+  // Validate SL direction. LLM frequently returns the wrong side.
+  // Priority: sweepLevel > fvgHigh/Low > forced minimum.
   let invalidationLevel: number | null = (parsed.invalidationLevel as number | null | undefined) ?? null;
   if (invalidationLevel !== null && entryRef !== null) {
     const wrongSide = isBullish ? invalidationLevel >= entryRef : invalidationLevel <= entryRef;
@@ -218,6 +218,7 @@ Apply price action rules. Only flag a sweep if in NY session AND wick exceeds le
       ? parseFloat((entryRef + riskDist * 2.0).toFixed(4))
       : parseFloat((entryRef - riskDist * 2.0).toFixed(4));
   }
+
 
   return {
     agentId:               "smc",
@@ -389,7 +390,7 @@ function detectNYSweepAndFVG(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Rule-Based Fallback — Jade Cap
+// Rule-Based Fallback
 // ─────────────────────────────────────────────────────────────────────────────
 
 function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
@@ -440,6 +441,7 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   let sweepLabel = "";
   let sweepModifier = 0;
   let sweepBias: DirectionalBias = dailyBias;
+
   let sweepExtreme: number | null = null;
   let fvgHigh: number | null = null;
   let fvgLow:  number | null = null;
@@ -485,6 +487,8 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   const setupType: SetupType = fvgDetected ? "FVG" : liquiditySweepDetected ? "Sweep" : "None";
   const setupPresent = liquiditySweepDetected && fvgDetected && !isLowConfidenceSweep;
   const bias: DirectionalBias = liquiditySweepDetected ? sweepBias : dailyBias;
+
+
   const bosDetected   = liquiditySweepDetected && bias === dailyBias;
   const chochDetected = fvgDetected;
   const confidence = liquiditySweepDetected ? Math.min(95, 50 + sweepModifier) : 40;
@@ -522,10 +526,8 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   const reasons: string[] = [];
 
   if (liquiditySweepDetected && sweepLevel !== null) {
-    const wrPct = sweepModifier >= 15 ? "76%" : sweepModifier >= 10 ? "71%" : sweepModifier >= 5 ? "60%" : "43%";
-    const grade = sweepModifier >= 10 ? " (A+ pattern)" : sweepModifier >= 5 ? " (B+ pattern)" : " (low-WR, flag only)";
     reasons.push(
-      `${sweepBias === "bullish" ? "Bullish" : "Bearish"} liquidity sweep: ${sweepLabel} at ${sweepLevel.toFixed(4)} — ${wrPct} historical WR${grade}`
+      `${sweepLabel} liquidity sweep confirmed in NY session — wick past ${sweepLevel.toFixed(4)}, closed back inside`
     );
   } else {
     reasons.push(
@@ -547,7 +549,7 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   );
 
   if (isLowConfidenceSweep) {
-    reasons.push("Resistance zone tested — below minimum confidence threshold, no trade recommended");
+    reasons.push("London High sweep — below minimum confidence threshold, no trade recommended");
   } else if (invalidationLevel !== null && fvgMid !== null) {
     reasons.push(
       `Plan: Entry ${fvgMid.toFixed(4)}, SL ${invalidationLevel.toFixed(4)}, TP ${liquidityTarget.toFixed(4)}`
@@ -596,7 +598,7 @@ export async function runPriceActionAgent(
       const client = new Anthropic({ apiKey: anthropicApiKey });
       return await runLLMAnalysis(client, snapshot);
     } catch (err) {
-      console.warn("Jade Cap Agent LLM fallback:", err);
+      console.warn("Price action agent LLM fallback:", err);
     }
   }
 

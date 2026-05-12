@@ -66,7 +66,11 @@ function estimateRR(snapshot: MarketSnapshot, stopDistance: number): number | nu
 // Main Agent Function
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function runRiskAgent(snapshot: MarketSnapshot): Promise<RiskAgentOutput> {
+export async function runRiskAgent(
+  snapshot: MarketSnapshot,
+  executionRR?: number | null,
+  executionHasSetup?: boolean
+): Promise<RiskAgentOutput> {
   const start = Date.now();
 
   try {
@@ -77,7 +81,8 @@ export async function runRiskAgent(snapshot: MarketSnapshot): Promise<RiskAgentO
     const volatilityScore = computeVolatilityScore(snapshot);
     const sessionScore    = getSessionScore(session);
     const stopDistance    = estimateStopDistance(snapshot);
-    const rrEstimate      = estimateRR(snapshot, stopDistance);
+    // Use actual execution RR when available; fall back to null (no estimate)
+    const rrEstimate      = executionRR ?? null;
     const warnings: string[] = [];
 
     // ── Volatility checks ─────────────────────────────────────────────────
@@ -121,9 +126,9 @@ export async function runRiskAgent(snapshot: MarketSnapshot): Promise<RiskAgentO
       warnings.push(`Price near 52-week low (${structure.pos52w}% of range) — external liquidity below, stop-hunt risk elevated`);
     }
 
-    // ── RR check ──────────────────────────────────────────────────────────
-    if (rrEstimate !== null && rrEstimate < 2.0) {
-      warnings.push(`Estimated RR ${rrEstimate.toFixed(1)}:1 below minimum RR (2.0:1) — consider skipping`);
+    // ── RR check (uses actual execution RR, not an estimate) ─────────────
+    if (rrEstimate !== null && rrEstimate < 1.5) {
+      warnings.push(`RR ${rrEstimate.toFixed(1)}:1 below minimum threshold (1.5:1) — trade not worth the risk`);
     }
 
     // ── Valid / Invalid decision ──────────────────────────────────────────
@@ -178,7 +183,7 @@ export async function runRiskAgent(snapshot: MarketSnapshot): Promise<RiskAgentO
     if (warnings.length >= 3) maxRiskPercent = Math.min(maxRiskPercent, 0.5);
 
     const grade = evaluateRiskGrade(
-      volatilityScore, sessionScore, true, rrEstimate, warnings
+      volatilityScore, sessionScore, executionHasSetup ?? false, rrEstimate, warnings
     );
 
     // ── Reasons ───────────────────────────────────────────────────────────
@@ -193,7 +198,7 @@ export async function runRiskAgent(snapshot: MarketSnapshot): Promise<RiskAgentO
         volatilityScore >= 40 ? "moderate — standard risk parameters apply" :
         "low — tight stops, potentially coiling for a move"
       }`,
-      `Estimated stop distance: ${stopDistance.toFixed(4)} | Estimated RR: ${rrEstimate?.toFixed(1) ?? "N/A"}:1`,
+      `Stop distance: ${stopDistance.toFixed(4)} | RR: ${rrEstimate?.toFixed(1) ?? "N/A"}:1${rrEstimate != null ? " (actual)" : " (no setup)"}`,
       `Risk grade: ${grade} | Max risk: ${maxRiskPercent}% of account`,
     ];
 

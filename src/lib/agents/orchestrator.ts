@@ -305,7 +305,7 @@ export async function runAgentOrchestrator(
   }
 
   // ── Fetch market data ────────────────────────────────────────────────────
-  const { quote, news, rsi } = await fetchMarketData(symbol);
+  const { quote, news } = await fetchMarketData(symbol);
 
   // ── Build normalized snapshot ────────────────────────────────────────────
   let snapshot;
@@ -324,7 +324,7 @@ export async function runAgentOrchestrator(
       symbol, timeframe,
       quote as unknown as Parameters<typeof buildMarketSnapshot>[2],
       news,
-      rsi,
+      undefined,
       timeframeCandles ?? undefined,
       dailyStructure ?? undefined
     );
@@ -344,12 +344,14 @@ export async function runAgentOrchestrator(
     runPriceActionAgent(snapshot, apiKey),
   ]);
 
-  // ── Phase 2: Risk, Execution, Contrarian depend on trend + smc ──────────
-  const [risk, execution, contrarian] = await Promise.all([
-    runRiskAgent(snapshot),
+  // ── Phase 2a: Execution + Contrarian — depend on trend + smc ────────────
+  const [execution, contrarian] = await Promise.all([
     runExecutionAgent(snapshot, smc, newsAgent),
     runContrarianAgent(snapshot, trend, smc, apiKey),
   ]);
+
+  // ── Phase 2b: Risk — uses actual RR + setup presence from execution ──────
+  const risk = await runRiskAgent(snapshot, execution.rrRatio, execution.hasSetup);
 
   // ── Phase 3: Debate — agents challenge each other ────────────────────────
   // Skip when risk gate is invalid — outcome is predetermined (no-trade), no debate needed

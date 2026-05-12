@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TradeX Terminal — Multi-Agent Intelligence System</title>
+<style>
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Fonts ── */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  --black:   #000000;
+  --surface: #0a0a0a;
+  --card:    #0d0d0d;
+  --border:  rgba(255,255,255,0.06);
+  --muted:   #374151;
+  --subtle:  #1f2937;
+  --text:    #f1f5f9;
+  --dim:     #94a3b8;
+  --dimmer:  #475569;
+
+  --green:   #10b981;
+  --sky:     #0ea5e9;
+  --red:     #ef4444;
+  --amber:   #f59e0b;
+  --violet:  #8b5cf6;
+  --orange:  #f97316;
+  --blue:    #3b82f6;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--black);
+  min-height: 100vh;
+}
+
+.mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+
+/* ── Grid background ── */
+.grid-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-color: #000;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.grid-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(14,165,233,0.06), transparent);
+}
+
+/* ── Layout ── */
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ══════════════════════════════════════════════════════
+   HERO
+══════════════════════════════════════════════════════ */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 80px 0 60px;
+}
+
+/* Status bar */
+.status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+  padding-bottom: 20px;
+  margin-bottom: 36px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: var(--dimmer);
+}
+.status-online {
+  color: var(--green);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dot-pulse {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+.status-item { display: flex; align-items: center; gap: 8px; }
+.status-label { color: var(--muted); }
+.status-val-green  { color: var(--green); }
+.status-val-sky    { color: var(--sky); }
+.status-val-amber  { color: var(--amber); }
+.status-val-dim    { color: var(--dimmer); }
+
+/* Eyebrow */
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.eyebrow span {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  color: var(--dimmer);
+  text-transform: uppercase;
+}
+.eyebrow-line {
+  height: 1px;
+  width: 120px;
+  background: linear-gradient(to right, rgba(255,255,255,0.1), transparent);
+}
+
+/* Main heading */
+.hero-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(42px, 8vw, 88px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #fff;
+  margin-bottom: 8px;
+}
+.hero-title .accent { color: var(--sky); }
+.cursor {
+  display: inline-block;
+  width: 10px;
+  height: 0.85em;
+  background: var(--sky);
+  margin-left: 6px;
+  vertical-align: middle;
+  animation: blink 0.9s step-end infinite;
+}
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+/* Sub-heading */
+.hero-sub {
+  font-size: 14px;
+  color: var(--dim);
+  max-width: 680px;
+  margin-top: 20px;
+  line-height: 1.75;
+}
+.hero-sub strong { color: #cbd5e1; font-weight: 500; }
+
+/* CTA row */
+.cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 28px;
+}
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--sky);
+  color: #000;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 10px 20px;
+  border-radius: 6px;
+  text-decoration: none;
+  letter-spacing: 0.05em;
+  transition: background 0.15s;
+}
+.btn-primary:hover { background: #38bdf8; }
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--dim);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 10px 20px;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-secondary:hover { border-color: rgba(255,255,255,0.3); color: #e2e8f0; }
+
+/* Stat pills */
+.stat-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 28px;
+}
+.stat-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid;
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  background: rgba(0,0,0,0.5);
+}
+.pill-red    { border-color: rgba(239,68,68,0.3);   color: #f87171; }
+.pill-violet { border-color: rgba(139,92,246,0.3);  color: #c4b5fd; }
+.pill-sky    { border-color: rgba(14,165,233,0.3);  color: #7dd3fc; }
+.stat-pill .pill-label { color: var(--dimmer); }
+
+/* No Sweep Alert */
+.no-sweep-alert {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(239,68,68,0.35);
+  border-radius: 6px;
+  background: rgba(127,29,29,0.15);
+  padding: 12px 16px 12px 20px;
+  margin-top: 32px;
+}
+.no-sweep-alert::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--red);
+}
+.alert-inner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.alert-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  flex-shrink: 0;
+  margin-top: 2px;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.alert-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #f87171;
+  text-transform: uppercase;
+}
+.alert-body {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.alert-emphasis { color: #f87171; font-weight: 700; }
+.alert-desc { color: var(--dim); margin-left: 8px; }
+
+/* Pipeline diagram */
+.pipeline {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 36px;
+}
+.pipe-phase {
+  border: 1px solid;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  background: rgba(0,0,0,0.6);
+  min-width: 90px;
+}
+.pipe-phase.sky    { border-color: rgba(14,165,233,0.4); color: #7dd3fc; }
+.pipe-phase.violet { border-color: rgba(139,92,246,0.4); color: #c4b5fd; }
+.pipe-phase.red    { border-color: rgba(239,68,68,0.4);  color: #f87171; }
+.pipe-phase.slate  { border-color: rgba(100,116,139,0.4); color: #94a3b8; }
+.pipe-phase.amber  { border-color: rgba(245,158,11,0.4); color: #fcd34d; }
+.pipe-label { font-weight: 700; font-size: 10px; margin-bottom: 2px; }
+.pipe-desc  { color: var(--dimmer); font-size: 8px; margin-top: 2px; }
+.pipe-note  { color: rgba(255,255,255,0.25); font-size: 8px; margin-top: 1px; }
+.pipe-arrow {
+  color: var(--muted);
+  font-size: 18px;
+  align-self: center;
+  margin: 0 2px;
+  line-height: 1;
+}
+
+/* ══════════════════════════════════════════════════════
+   AGENTS SECTION
+══════════════════════════════════════════════════════ */
+.agents-section {
+  padding: 80px 0;
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+.section-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.section-eyebrow span {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  color: var(--dimmer);
+  text-transform: uppercase;
+}
+.section-line {
+  flex: 1;
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+}
+
+.section-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(22px, 4vw, 34px);
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+}
+
+.section-desc {
+  font-size: 13px;
+  color: var(--dim);
+  max-width: 680px;
+  line-height: 1.75;
+  margin-bottom: 20px;
+}
+.section-desc strong { color: #cbd5e1; font-weight: 500; }
+
+/* Legend */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--dimmer);
+  letter-spacing: 0.05em;
+}
+.legend-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+}
+
+/* Agent grid */
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+
+.agent-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+.agent-card:hover { box-shadow: 0 0 28px rgba(255,255,255,0.04); }
+.agent-card.master { grid-column: 1 / -1; }
+
+/* Top accent line */
+.card-accent-line {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+
+/* Index watermark */
+.card-index {
+  position: absolute;
+  top: 14px; right: 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 900;
+  color: rgba(255,255,255,0.05);
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+
+/* Card header */
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.card-icon {
+  width: 38px; height: 38px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  border: 1px solid;
+}
+.card-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.03em;
+  margin-bottom: 3px;
+}
+.card-role {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--dimmer);
+  letter-spacing: 0.05em;
+  line-height: 1.4;
+}
+
+/* Badges row */
+.badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+.badge-dot { width: 6px; height: 6px; border-radius: 50%; }
+.badge-green  { border-color: rgba(16,185,129,0.4); color: #6ee7b7; }
+.badge-sky    { border-color: rgba(14,165,233,0.35); color: #7dd3fc; }
+.badge-red    { border-color: rgba(239,68,68,0.4);  color: #f87171; }
+.badge-amber  { border-color: rgba(245,158,11,0.4); color: #fcd34d; }
+.badge-rule   { border-color: rgba(100,116,139,0.3); color: #94a3b8; }
+.badge-llm    { border-color: rgba(139,92,246,0.35); color: #c4b5fd; }
+.badge-hybrid { border-color: rgba(245,158,11,0.35); color: #fcd34d; }
+.badge-gate   { border-color: rgba(239,68,68,0.5); color: #f87171; background: rgba(127,29,29,0.2); }
+.badge-master { border-color: rgba(14,165,233,0.5); color: #7dd3fc; background: rgba(7,89,133,0.2); }
+
+.model-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: rgba(100,116,139,0.7);
+  letter-spacing: 0.05em;
+  margin-left: auto;
+}
+
+/* Card description */
+.card-desc {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.7;
+  margin-bottom: 14px;
+}
+
+/* Output fields */
+.outputs-toggle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  transition: color 0.15s;
+}
+.outputs-toggle:hover { color: #94a3b8; }
+.outputs-panel {
+  display: none;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.outputs-panel.open { display: block; }
+.outputs-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.outputs-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.output-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  color: var(--dimmer);
+  letter-spacing: 0.05em;
+}
+
+/* ── Risk gate callout ── */
+.risk-callout {
+  margin-top: 28px;
+  border: 1px solid rgba(239,68,68,0.2);
+  border-radius: 10px;
+  background: rgba(127,29,29,0.08);
+  padding: 20px;
+}
+.risk-callout-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.risk-callout-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+}
+.risk-callout-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #f87171;
+  text-transform: uppercase;
+}
+.risk-callout-desc {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.75;
+  margin-bottom: 14px;
+}
+.risk-callout-desc code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: #f87171;
+  background: rgba(127,29,29,0.35);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.risk-callout-desc strong { color: #cbd5e1; font-weight: 500; }
+.conditions-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.conditions-list { list-style: none; }
+.conditions-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: #64748b;
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+.conditions-list li::before {
+  content: '✗';
+  color: #9f1239;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ── Sweep chart section ── */
+.sweep-section {
+  padding: 60px 0 80px;
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+.sweep-chart {
+  margin-top: 32px;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  background: #070707;
+  padding: 24px;
+  overflow: hidden;
+}
+.chart-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  color: var(--dimmer);
+  margin-bottom: 16px;
+  text-transform: uppercase;
+}
+
+.chart-area {
+  position: relative;
+  height: 200px;
+  border-left: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+/* Price line via SVG */
+.chart-svg { width: 100%; height: 100%; overflow: visible; }
+
+/* Level labels */
+.level-line {
+  position: absolute;
+  left: 0; right: 0;
+  border-top: 1px dashed;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.level-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  padding: 1px 5px;
+  border-radius: 2px;
+  margin-right: 4px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.level-pdh   { border-color: rgba(245,158,11,0.4); }
+.level-pdh .level-tag   { background: rgba(120,53,15,0.4); color: #fcd34d; }
+.level-asian { border-color: rgba(14,165,233,0.3); }
+.level-asian .level-tag { background: rgba(7,89,133,0.3); color: #7dd3fc; }
+.level-lonlo { border-color: rgba(16,185,129,0.4); }
+.level-lonlo .level-tag { background: rgba(6,78,59,0.3); color: #6ee7b7; }
+
+/* Annotations */
+.sweep-annotation {
+  position: absolute;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+}
+
+/* Signal flow steps */
+.signal-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-top: 24px;
+}
+.signal-step {
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.02);
+}
+.step-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--dimmer);
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+}
+.step-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.step-desc {
+  font-size: 11px;
+  color: var(--dimmer);
+  line-height: 1.5;
+}
+
+/* ── Footer ── */
+footer {
+  border-top: 1px solid rgba(255,255,255,0.05);
+  padding: 24px 0;
+}
+.footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  color: rgba(100,116,139,0.5);
+}
+
+/* ── Print ── */
+@media print {
+  .grid-bg { display: none; }
+  body { background: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @page { margin: 12mm; size: A4; }
+}
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .hero-title { font-size: 40px; }
+  .pipeline { gap: 2px; }
+  .pipe-arrow { font-size: 14px; }
+  .pipe-phase { min-width: 70px; padding: 6px 8px; }
+  .agent-grid { grid-template-columns: 1fr; }
+  .agent-card.master { grid-column: auto; }
+}
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+
+<!-- ══════════════════════════════════════════════════════
+     HERO
+══════════════════════════════════════════════════════ -->
+<section class="hero">
+  <div class="container">
+
+    <!-- Status bar -->
+    <div class="status-bar">
+      <span class="status-online mono">
+        <span class="dot-pulse"></span>
+        SYSTEM ONLINE
+      </span>
+      <span class="status-item">
+        <span class="status-label">AGENTS</span>
+        <span class="status-val-green">7 / 7 ONLINE</span>
+      </span>
+      <span class="status-item">
+        <span class="status-label">SESSION</span>
+        <span class="status-val-sky">NY 13:00–18:00 UTC</span>
+      </span>
+      <span class="status-item">
+        <span class="status-label">STRATEGY</span>
+        <span class="status-val-amber">JADE CAP v2</span>
+      </span>
+      <span class="status-item">
+        <span class="status-label">CACHE TTL</span>
+        <span class="status-val-dim">300s</span>
+      </span>
+    </div>
+
+    <!-- Eyebrow -->
+    <div class="eyebrow">
+      <span>Multi-Agent Intelligence System</span>
+      <div class="eyebrow-line"></div>
+    </div>
+
+    <!-- Main title -->
+    <h1 class="hero-title">
+      TRADEX<br>
+      <span class="accent">TERMINAL</span><span class="cursor"></span>
+    </h1>
+
+    <!-- Sub -->
+    <p class="hero-sub">
+      Seven specialized agents — Trend, Price Action, News, Risk Gate, Execution,
+      Contrarian, and Master — run in a structured pipeline to produce a single,
+      auditable trade decision.
+      <strong>No sweep detected in the NY session window = the entire pipeline short-circuits.</strong>
+    </p>
+
+    <!-- CTAs -->
+    <div class="cta-row">
+      <a href="/login" class="btn-primary">
+        ⚡ LAUNCH TERMINAL
+      </a>
+      <a href="#agents" class="btn-secondary">
+        VIEW AGENTS ↓
+      </a>
+    </div>
+
+    <!-- Stat pills -->
+    <div class="stat-pills">
+      <span class="stat-pill pill-red">
+        🛡️ <span class="pill-label">Risk Gate:</span> Hard override — no bypass
+      </span>
+      <span class="stat-pill pill-violet">
+        ⚡ <span class="pill-label">Signal States:</span> ARMED / PENDING / EXPIRED
+      </span>
+      <span class="stat-pill pill-sky">
+        🕐 <span class="pill-label">NY Window:</span> 13:00 – 18:00 UTC only
+      </span>
+    </div>
+
+    <!-- No Sweep Alert -->
+    <div class="no-sweep-alert">
+      <div class="alert-inner">
+        <div class="alert-dot"></div>
+        <div>
+          <div class="alert-tag">SYSTEM CONSTRAINT</div>
+          <div class="alert-body" style="margin-top:4px;">
+            <span class="alert-emphasis">NO SWEEP = NO TRADE</span>
+            <span class="alert-desc">
+              — All 7 agents are idle until a confirmed NY session liquidity sweep is
+              detected. Risk Gate, consensus scoring, and execution planning are bypassed entirely.
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pipeline diagram -->
+    <div class="pipeline">
+      <div class="pipe-phase sky">
+        <div class="pipe-label">P1</div>
+        <div class="pipe-desc">Trend · PA · News</div>
+        <div class="pipe-note">parallel</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-phase violet">
+        <div class="pipe-label">P2a</div>
+        <div class="pipe-desc">Exec · Contrarian</div>
+        <div class="pipe-note">parallel</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-phase red">
+        <div class="pipe-label">P2b</div>
+        <div class="pipe-desc">Risk Gate</div>
+        <div class="pipe-note">sequential</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-phase slate">
+        <div class="pipe-label">P3</div>
+        <div class="pipe-desc">Debate</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-phase amber">
+        <div class="pipe-label">P4</div>
+        <div class="pipe-desc">Master</div>
+        <div class="pipe-note">verdict</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     AGENT GRID
+══════════════════════════════════════════════════════ -->
+<section class="agents-section" id="agents">
+  <div class="container">
+
+    <div class="section-eyebrow">
+      <span>Architecture</span>
+      <div class="section-line"></div>
+    </div>
+    <h2 class="section-title">THE 7-AGENT PIPELINE</h2>
+    <p class="section-desc">
+      Each agent runs its own analysis independently. Phase ordering is strict —
+      Risk Gate runs <strong>after</strong> Execution (needs actual RR). Master sees all outputs
+      <strong>plus the structured inter-agent debate</strong> before issuing a verdict.
+    </p>
+
+    <!-- Legend -->
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6;"></div> LLM — Claude model</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#475569;"></div> Rule-based — deterministic</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;"></div> Hybrid</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ef4444;"></div> Hard gate — overrides all signals</div>
+    </div>
+
+    <!-- Cards -->
+    <div class="agent-grid">
+
+      <!-- A01 Trend -->
+      <div class="agent-card" style="--accent:#3b82f6;" onclick="toggleOutputs(this)">
+        <div class="card-accent-line" style="background:linear-gradient(90deg,#3b82f620,transparent);"></div>
+        <div class="card-index">A01</div>
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(59,130,246,0.1);border-color:rgba(59,130,246,0.25);">📈</div>
+          <div>
+            <div class="card-name">Trend Agent</div>
+            <div class="card-role">Multi-timeframe directional bias</div>
+          </div>
+        </div>
+        <div class="badges">
+          <span class="badge badge-sky">
+            <span class="badge-dot" style="background:#7dd3fc;animation:pulse 2s infinite;"></span>
+            SCANNING
+          </span>
+          <span class="badge badge-hybrid">HYBRID</span>
+          <span class="model-label">claude-haiku-4-5</span>
+        </div>
+        <p class="card-desc">
+          Computes directional bias across M5/M15/H1/H4 using RSI, MACD histogram,
+          and MA stack alignment. Assigns a confidence score and market phase.
+          Feeds the consensus engine as one of three Phase 1 agents.
+        </p>
+        <button class="outputs-toggle">▼ SHOW OUTPUTS</button>
+        <div class="outputs-panel">
+          <div class="outputs-label">Output Fields</div>
+          <div class="outputs-tags">
+            <span class="output-tag">bias</span>
+            <span class="output-tag">confidence</span>
+            <span class="output-tag">marketPhase</span>
+            <span class="output-tag">timeframeBias</span>
+            <span class="output-tag">invalidationLevel</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- A02 Price Action -->
+      <div class="agent-card" onclick="toggleOutputs(this)">
+        <div class="card-accent-line" style="background:linear-gradient(90deg,#10b98120,transparent);"></div>
+        <div class="card-index">A02</div>
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.25);">🔍</div>
+          <div>
+            <div class="card-name">Price Action Agent</div>
+            <div class="card-role">NY session liquidity sweep detection</div>
+          </div>
+        </div>
+        <div class="badges">
+          <span class="badge badge-green">
+            <span class="badge-dot" style="background:#6ee7b7;animation:pulse 1.5s infinite;"></span>
+            ACTIVE
+          </span>
+          <span class="badge badge-llm">LLM</span>
+          <span class="model-label">claude-sonnet-4-6</span>
+        </div>
+        <p class="card-desc">
+          Detects session-level liquidity sweeps (London Low, PDH, Asian High/Low)
+          within the NY window (13:00–18:00 UTC). Identifies FVGs post-sweep,
+          validates sweep direction against daily bias.
+          <strong style="color:#cbd5e1;">Primary gatekeeper for entry eligibility.</strong>
+        </p>
+        <button class="outputs-toggle">▼ SHOW OUTPUTS</button>
+        <div class="outputs-panel">
+          <div class="outputs-label">Output Fields</div>
+          <div class="outputs-tags">
+            <span class="output-tag">liquiditySweepDetected</span>
+            <span class="output-tag">sweepLevel</span>
+            <span class="output-tag">setupType</span>
+            <span class="output-tag">fvgMid</span>
+            <span class="output-tag">invalidationLevel</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- A03 News -->
+      <div class="agent-card" onclick="toggleOutputs(this)">
+        <div class="card-accent-line" style="background:linear-gradient(90deg,#f59e0b20,transparent);"></div>
+        <div class="card-index">A03</div>
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.25);">📰</div>
+          <div>
+            <div class="card-name">News Agent</div>
+            <div class="card-role">Macro & geopolitical risk scoring</div>
+          </div>
+        </div>
+        <div class="badges">
+          <span class="badge badge-sky">
+            <span class="badge-dot" style="background:#7dd3fc;"></span>
+            SCANNING
+          </span>
+          <span class="badge badge-llm">LLM</span>
+          <span class="model-label">claude-haiku-4-5</span>
+        </div>
+        <p class="card-desc">
+          Parses live news feed and economic calendar. Classifies each event as
+          bullish/bearish/neutral with an impact score. Computes a composite
+          riskScore (0–100). Directional signals retain full weight;
+          only neutral signals are dampened during high-risk events.
+        </p>
+        <button class="outputs-toggle">▼ SHOW OUTPUTS</button>
+        <div class="outputs-panel">
+          <div class="outputs-label">Output Fields</div>
+          <div class="outputs-tags">
+            <span class="output-tag">impact</span>
+            <span class="output-tag">riskScore</span>
+            <span class="output-tag">regime</span>
+            <span class="output-tag">dominantCatalyst</span>
+            <span class="output-tag">biasChangers</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- A04 Risk Gate -->
+      <div class="agent-card" style="border-color:rgba(239,68,68,0.2);" onclick="toggleOutputs(this)">
+        <div class="card-accent-line" style="background:linear-gradient(90deg,#ef444440,transparent);"></div>
+        <div class="card-index">A04</div>
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);">🛡️</div>
+          <div>
+            <div class="card-name">Risk Gate</div>
+            <div class="card-role">Hard-block validator — overrides all signals</div>
+          </div>
+        </div>
+        <div class="badges">
+          <span class="badge badge-red">
+            <span class="badge-dot" style="background:#f87171;animation:pulse 1s infinite;"></span>
+            GATING
+          </span>
+          <span class="badge badge-rule">RULE-BASED</span>
+          <span class="badge badge-gate">HARD GATE</span>
+        </div>
+        <p class="card-desc">
+          Pure rule-based logic with no AI path. Evaluates volatility score,
+          session quality, actual RR ratio from Execution Agent, RSI extremes,
+          and 52-week position. Five hard-block conditions. Grade A–F issued
+          to Master Agent. Runs sequentially after Execution (Phase 2b).
+        </p>
+        <button class="outputs-toggle">▼ SHOW OUTPUTS</button>
+        <div class="outputs-panel">
+          <div class="outputs-label">Output Fields</div>
+          <div class="outputs-tags">
+            <span class="output-tag">valid</span>
+            <span class="output-tag">grade</span>
+            <span class="output-tag">volatilityScore</span>
+            <span class="output-tag">sessionScore</span>
+            <span class="output-tag">warnings</span>
+            <span class="output-tag">maxRiskPercent</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- A05 Execution -->
+      <div class="agent-card" onclick="toggleOutputs(this)">
+        <div class="card-accent-line" style="background:linear-gradient(90deg,#8b5cf620,transparent);"></div>
+        <div class="card-index">A05</div>
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(139,92,246,0.1);border-color:rgba(139,92,246,0.25);">⚡</div>
+          <div>
+            <div class="card-name">Execution Agent</div>
+            <div class="card-role">Entry / SL / TP computation</div>
+          </div>
+        </div>
+        <div class="badges">
+          <span class="badge badge-sky">
+            <span class="badge-dot" style="background:#7dd3fc;"></span>
+            SCANNING
+          </span>
+          <span class="badge badge-rule">RULE-BASED</span>
+        </div>
+        <p class="card-desc">
+          Generates a precise execution plan only when a sweep is confirmed.
+          Entry at FVG midpoint or sweep level. SL = sweep extreme +
+          instrument-specific buffer. TP capped at 1.5R / 2.5R.
+          Outputs signal state: ARMED / PENDING / EXPIRED / NO_TRADE.
+        </p>
+        <button class="outputs-toggle">▼ SHOW OUTPUTS</button>
+        <div class="outputs-panel">
+          <div class="outputs-label">Output Fields</div>
+          <div class="outputs-tags">
+            <span class="output-tag">entry</span>
+            <span class="output-tag">stopLoss</span>
+            <span class="output-tag">tp1</span>
+            <span class="output-tag">tp2</span>
+            <span class="output-tag">rrRatio</span>
+            <span class="output-tag">signalState</span>
+            <span class="output-tag">triggerCondition</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- A06 Contrarian -->
+      <div class="agent-card" onclick="toggleOutputs(this)">
+        <div class="card-accent-line" style="background:linear-gradient(90deg,#f9731620,transparent);"></div>
+        <div class="card-index">A06</div>
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(249,115,22,0.1);border-color:rgba(249,115,22,0.25);">⚠️</div>
+          <div>
+            <div class="card-name">Contrarian Agent</div>
+            <div class="card-role">Devil's advocate — trap & failure detection</div>
+          </div>
+        </div>
+        <div class="badges">
+          <span class="badge badge-sky">
+            <span class="badge-dot" style="background:#7dd3fc;"></span>
+            SCANNING
+          </span>
+          <span class="badge badge-llm">LLM</span>
+          <span class="model-label">claude-haiku-4-5</span>
+        </div>
+        <p class="card-desc">
+          Challenges the primary thesis. Scans for bull/bear traps, false BOS,
+          stop-hunt magnets at 52-week extremes, HTF-LTF divergence, and CHoCH
+          uncertainty. Returns riskFactor (0–100) that acts as a headwind
+          in consensus scoring.
+        </p>
+        <button class="outputs-toggle">▼ SHOW OUTPUTS</button>
+        <div class="outputs-panel">
+          <div class="outputs-label">Output Fields</div>
+          <div class="outputs-tags">
+            <span class="output-tag">challengesBias</span>
+            <span class="output-tag">trapType</span>
+            <span class="output-tag">riskFactor</span>
+            <span class="output-tag">oppositeLiquidity</span>
+            <span class="output-tag">alternativeScenario</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- A07 Master — full width -->
+      <div class="agent-card master" style="border-color:rgba(14,165,233,0.2);background:#07111d;" onclick="toggleOutputs(this)">
+        <div class="card-accent-line" style="background:linear-gradient(90deg,#0ea5e960,transparent);"></div>
+        <div class="card-index">A07</div>
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(14,165,233,0.15);border-color:rgba(14,165,233,0.35);font-size:20px;">👑</div>
+          <div>
+            <div class="card-name" style="font-size:14px;">Master Agent</div>
+            <div class="card-role">Final verdict — sees all agents + inter-agent debate</div>
+          </div>
+        </div>
+        <div class="badges">
+          <span class="badge badge-amber">
+            <span class="badge-dot" style="background:#fcd34d;animation:pulse 1.8s infinite;"></span>
+            ADJUDICATING
+          </span>
+          <span class="badge badge-llm">LLM</span>
+          <span class="badge badge-master">FINAL ADJUDICATOR</span>
+          <span class="model-label">claude-sonnet-4-6</span>
+        </div>
+        <p class="card-desc">
+          Final adjudicator. Receives all 6 agent outputs plus the structured
+          inter-agent debate. Applies weighted consensus scoring, structural gates
+          (BOS/sweep override), and sweep-first enforcement before issuing a final
+          directional verdict with supporting rationale. The only agent with full
+          pipeline visibility.
+        </p>
+        <button class="outputs-toggle">▼ SHOW OUTPUTS</button>
+        <div class="outputs-panel">
+          <div class="outputs-label">Output Fields</div>
+          <div class="outputs-tags">
+            <span class="output-tag">finalBias</span>
+            <span class="output-tag">confidence</span>
+            <span class="output-tag">verdict</span>
+            <span class="output-tag">rationale</span>
+            <span class="output-tag">keyLevels</span>
+            <span class="output-tag">supports</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /agent-grid -->
+
+    <!-- Risk Gate callout -->
+    <div class="risk-callout">
+      <div class="risk-callout-header">
+        <div class="risk-callout-dot"></div>
+        <div class="risk-callout-title">AGENT 4 — RISK GATE — SYSTEM OVERRIDE</div>
+      </div>
+      <p class="risk-callout-desc">
+        The Risk Gate runs <strong>after</strong> the Execution Agent (Phase 2b) to receive
+        the actual computed RR ratio. If any hard-block condition fires, the gate sets
+        <code>valid = false</code> and the Master Agent issues NO TRADE — regardless of what
+        Trend, Price Action, or News returned. There is no AI fallback, no confidence
+        weighting, and no override path.
+      </p>
+      <div class="conditions-label">HARD-BLOCK CONDITIONS — ANY ONE FIRES = BLOCKED</div>
+      <ul class="conditions-list">
+        <li>Session closed (after-hours / Closed state)</li>
+        <li>Volatility &gt; 2.5% daily move (ATR proxy exceeds extreme threshold)</li>
+        <li>RR ratio &lt; 1:1 (actual RR from Execution Agent, not estimated)</li>
+        <li>5 or more concurrent risk warnings accumulated</li>
+        <li>RSI deeply overbought (&gt;78) or deeply oversold (&lt;22)</li>
+      </ul>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     SWEEP CHART
+══════════════════════════════════════════════════════ -->
+<section class="sweep-section" id="strategy">
+  <div class="container">
+
+    <div class="section-eyebrow">
+      <span>Strategy</span>
+      <div class="section-line"></div>
+    </div>
+    <h2 class="section-title">NY SESSION LIQUIDITY SWEEP</h2>
+    <p class="section-desc">
+      The system waits for price to wick past a session level, close back inside,
+      then form a Fair Value Gap — all within the 13:00–18:00 UTC New York window.
+      <strong>London High sweeps are flagged but never traded.</strong>
+    </p>
+
+    <!-- CSS price chart -->
+    <div class="sweep-chart">
+      <div class="chart-label">XAUUSD · M15 · NY SESSION SWEEP EXAMPLE</div>
+
+      <div style="position:relative;">
+
+        <!-- Level lines -->
+        <div class="level-line level-pdh" style="top:18px;">
+          <span class="level-tag">PDH · Previous Day High</span>
+        </div>
+        <div class="level-line level-asian" style="top:72px;">
+          <span class="level-tag">Asian High</span>
+        </div>
+        <div class="level-line level-lonlo" style="top:148px;">
+          <span class="level-tag">London Low</span>
+        </div>
+
+        <!-- SVG price action -->
+        <svg class="chart-svg" viewBox="0 0 800 200" preserveAspectRatio="none" style="height:200px;display:block;">
+          <!-- Grid lines -->
+          <line x1="0" y1="50" x2="800" y2="50" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+          <line x1="0" y1="100" x2="800" y2="100" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+          <line x1="0" y1="150" x2="800" y2="150" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+          <line x1="160" y1="0" x2="160" y2="200" stroke="rgba(255,255,255,0.03)" stroke-width="1" stroke-dasharray="4,4"/>
+          <line x1="320" y1="0" x2="320" y2="200" stroke="rgba(255,255,255,0.03)" stroke-width="1" stroke-dasharray="4,4"/>
+          <line x1="480" y1="0" x2="480" y2="200" stroke="rgba(255,255,255,0.03)" stroke-width="1" stroke-dasharray="4,4"/>
+          <line x1="640" y1="0" x2="640" y2="200" stroke="rgba(255,255,255,0.03)" stroke-width="1" stroke-dasharray="4,4"/>
+
+          <!-- NY session zone -->
+          <rect x="320" y="0" width="480" height="200" fill="rgba(14,165,233,0.03)"/>
+          <text x="328" y="14" fill="rgba(14,165,233,0.35)" font-family="JetBrains Mono,monospace" font-size="9" letter-spacing="1">NY SESSION OPEN</text>
+
+          <!-- Price path before NY -->
+          <polyline points="0,120 40,115 80,118 120,110 160,105 200,100 240,95 280,100 320,105"
+            fill="none" stroke="#475569" stroke-width="1.5"/>
+
+          <!-- Sweep down to London Low (bullish sweep) -->
+          <!-- Wick going below London Low at ~148 -->
+          <polyline points="320,105 360,118 400,130 420,175 430,160 450,148 480,120"
+            fill="none" stroke="#64748b" stroke-width="1.5"/>
+
+          <!-- Wick tip highlight -->
+          <circle cx="420" cy="175" r="3" fill="#10b981" opacity="0.8"/>
+          <line x1="420" y1="148" x2="420" y2="175" stroke="#10b981" stroke-width="1.5" opacity="0.6" stroke-dasharray="2,2"/>
+
+          <!-- Sweep label -->
+          <text x="425" y="178" fill="#10b981" font-family="JetBrains Mono,monospace" font-size="9" opacity="0.9">SWEEP ↑</text>
+
+          <!-- Recovery + FVG + impulse up -->
+          <polyline points="480,120 500,108 520,95 540,85 560,72 580,65 600,70 640,60 680,48 720,38 760,30 800,22"
+            fill="none" stroke="#22c55e" stroke-width="2"/>
+
+          <!-- FVG zone -->
+          <rect x="490" y="85" width="60" height="35" fill="rgba(16,185,129,0.08)" stroke="rgba(16,185,129,0.3)" stroke-width="1" stroke-dasharray="3,2"/>
+          <text x="492" y="98" fill="#10b981" font-family="JetBrains Mono,monospace" font-size="8" opacity="0.9">FVG</text>
+          <text x="492" y="110" fill="#10b981" font-family="JetBrains Mono,monospace" font-size="7" opacity="0.6">ENTRY</text>
+
+          <!-- TP1 line -->
+          <line x1="550" y1="60" x2="800" y2="60" stroke="rgba(245,158,11,0.3)" stroke-width="1" stroke-dasharray="4,3"/>
+          <text x="652" y="56" fill="rgba(245,158,11,0.7)" font-family="JetBrains Mono,monospace" font-size="9">TP1 · 1.5R</text>
+
+          <!-- SL line -->
+          <line x1="420" y1="185" x2="800" y2="185" stroke="rgba(239,68,68,0.25)" stroke-width="1" stroke-dasharray="4,3"/>
+          <text x="650" y="197" fill="rgba(239,68,68,0.6)" font-family="JetBrains Mono,monospace" font-size="9">SL · sweep extreme + buffer</text>
+
+          <!-- Candle bodies (simplified) -->
+          <rect x="330" y="110" width="8" height="8" fill="#475569" rx="1"/>
+          <rect x="345" y="113" width="8" height="10" fill="#475569" rx="1"/>
+          <rect x="360" y="118" width="8" height="14" fill="#475569" rx="1"/>
+          <rect x="375" y="122" width="8" height="14" fill="#374151" rx="1"/>
+          <rect x="440" y="148" width="8" height="14" fill="#22c55e" rx="1" opacity="0.8"/>
+          <rect x="455" y="140" width="8" height="16" fill="#22c55e" rx="1" opacity="0.9"/>
+          <rect x="470" y="120" width="8" height="22" fill="#22c55e" rx="1"/>
+          <rect x="485" y="108" width="8" height="18" fill="#22c55e" rx="1"/>
+          <rect x="500" y="95" width="8" height="16" fill="#22c55e" rx="1"/>
+          <rect x="515" y="85" width="8" height="14" fill="#22c55e" rx="1"/>
+
+          <!-- Time labels -->
+          <text x="8" y="195" fill="rgba(100,116,139,0.5)" font-family="JetBrains Mono,monospace" font-size="8">08:00</text>
+          <text x="158" y="195" fill="rgba(100,116,139,0.5)" font-family="JetBrains Mono,monospace" font-size="8">10:00</text>
+          <text x="316" y="195" fill="rgba(14,165,233,0.6)" font-family="JetBrains Mono,monospace" font-size="8">13:00</text>
+          <text x="476" y="195" fill="rgba(100,116,139,0.5)" font-family="JetBrains Mono,monospace" font-size="8">15:00</text>
+          <text x="636" y="195" fill="rgba(100,116,139,0.5)" font-family="JetBrains Mono,monospace" font-size="8">17:00</text>
+        </svg>
+      </div>
+
+      <!-- Signal steps -->
+      <div class="signal-steps">
+        <div class="signal-step">
+          <div class="step-num">STEP 01</div>
+          <div class="step-title" style="color:#7dd3fc;">Daily Bias</div>
+          <div class="step-desc">HTF structure bullish (prev day close > open) → bias = bullish</div>
+        </div>
+        <div class="signal-step">
+          <div class="step-num">STEP 02</div>
+          <div class="step-title" style="color:#94a3b8;">Session Levels</div>
+          <div class="step-desc">Asian High/Low · London High/Low · PDH/PDL are mapped</div>
+        </div>
+        <div class="signal-step">
+          <div class="step-num">STEP 03</div>
+          <div class="step-title" style="color:#6ee7b7;">NY Sweep</div>
+          <div class="step-desc">Price wicks past London Low, closes back inside. Sweep confirmed.</div>
+        </div>
+        <div class="signal-step">
+          <div class="step-num">STEP 04</div>
+          <div class="step-title" style="color:#c4b5fd;">FVG Detection</div>
+          <div class="step-desc">Imbalance forms after sweep. Entry = FVG midpoint. Close confirms direction.</div>
+        </div>
+        <div class="signal-step">
+          <div class="step-num">STEP 05</div>
+          <div class="step-title" style="color:#fcd34d;">Execution</div>
+          <div class="step-desc">SL = sweep extreme + buffer. TP1 = 1.5R. TP2 = 2.5R. Signal: ARMED.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <span>TRADEX TERMINAL © 2025</span>
+      <span>NY SESSION LIQUIDITY MODEL · JADE CAP v2</span>
+      <span>7-AGENT PIPELINE · CLAUDE SONNET + HAIKU</span>
+      <span>INTERNAL USE ONLY</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+function toggleOutputs(card) {
+  const panel = card.querySelector('.outputs-panel');
+  const btn   = card.querySelector('.outputs-toggle');
+  if (!panel) return;
+  const isOpen = panel.classList.toggle('open');
+  btn.textContent = isOpen ? '▲ HIDE OUTPUTS' : '▼ SHOW OUTPUTS';
+}
+
+// Hover glow
+document.querySelectorAll('.agent-card').forEach(card => {
+  const accentMatch = card.style.cssText.match(/--accent:\s*(#[0-9a-fA-F]+)/);
+  const accent = accentMatch ? accentMatch[1] : '#ffffff';
+
+  card.addEventListener('mouseenter', () => {
+    card.style.boxShadow = `0 0 28px rgba(${hexToRgb(accent)},0.1)`;
+    card.style.borderColor = `rgba(${hexToRgb(accent)},0.35)`;
+  });
+  card.addEventListener('mouseleave', () => {
+    card.style.boxShadow = '';
+    card.style.borderColor = '';
+  });
+});
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return `${r},${g},${b}`;
+}
+</script>
+
+</body>
+</html>

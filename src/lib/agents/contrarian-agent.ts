@@ -223,8 +223,10 @@ export async function runContrarianAgent(
         : current * 0.0015;                  // forex
 
       oppositeLiquidity = htfBias === "bullish"
-        ? parseFloat((low - liqBuf).toFixed(4))   // equal lows below for bullish bias
-        : parseFloat((high + liqBuf).toFixed(4)); // equal highs above for bearish bias
+        ? parseFloat((low * 0.995).toFixed(4))
+        : htfBias === "bearish"
+        ? parseFloat((high * 1.005).toFixed(4))
+        : parseFloat(((high + low) / 2).toFixed(4));
     }
 
     // ── Contrarian Challenge ───────────────────────────────────────────────
