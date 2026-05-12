@@ -354,7 +354,8 @@ function detectNYSweepAndFVG(
     if (!inNYKillZone(sc.t, timeframe)) continue;
 
     for (const tgt of targets) {
-      if (tgt.label === "London High") continue; // 43% WR — skip
+      // London High: skip ONLY when no FVG confirmation will come — the full loop still
+      // runs so that the FVG scan executes. Bias-alignment guard is in runJadeCapRuleBased.
       let swept = false;
       let extreme = 0;
 
@@ -473,6 +474,10 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
       fvgHigh       = found.fvgHigh;
       fvgLow        = found.fvgLow;
       fvgMid        = found.fvgMid;
+      // London High with FVG + aligned bias is a valid setup — upgrade confidence
+      if (found.sweepLabel === "London High" && found.fvgHigh !== null && found.sweepBias === dailyBias) {
+        sweepModifier = 8;
+      }
     }
   }
 
@@ -496,7 +501,10 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   }
 
   const fvgDetected = fvgHigh !== null && fvgLow !== null;
-  const isLowConfidenceSweep = sweepLabel === "London High";
+  // London High is only low-confidence when there's no FVG OR the sweep is counter-trend.
+  // A London High sweep with a confirmed FVG aligned with daily bias is a valid setup.
+  const isLowConfidenceSweep = sweepLabel === "London High" &&
+    !(fvgDetected && sweepBias === dailyBias);
   const setupType: SetupType = fvgDetected ? "FVG" : liquiditySweepDetected ? "Sweep" : "None";
   const setupPresent = liquiditySweepDetected && fvgDetected && !isLowConfidenceSweep;
   const bias: DirectionalBias = liquiditySweepDetected ? sweepBias : dailyBias;
