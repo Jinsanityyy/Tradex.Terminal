@@ -537,7 +537,6 @@ function FlatMapView({
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: (selectedMarker.eventTime || selectedMarker.actual || selectedMarker.estimate) ? 8 : 0 }}>
                       <span style={{ width: 5, height: 5, borderRadius: '50%', background: GREEN, boxShadow: `0 0 5px ${GREEN}`, display: 'inline-block' }} />
                       <span style={{ fontSize: 9, color: GREEN, fontWeight: 700, letterSpacing: 1.4, textTransform: 'uppercase' }}>Live Data</span>
-                      {selectedMarker.source && <span style={{ fontSize: 9, color: '#3d6348' }}> — {selectedMarker.source}</span>}
                     </div>
                   )}
                   {selectedMarker.eventTime && (
