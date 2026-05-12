@@ -12,12 +12,12 @@
     --red:    #ff4466;
     --amber:  #ffaa00;
     --cyan:   #00e5ff;
-    --blue:   #3b82f6;
-    --ink:    #111827;
-    --muted:  #6b7280;
-    --border: #e5e7eb;
-    --card:   #ffffff;
-    --bg:     #f9fafb;
+    --blue:   #60a5fa;
+    --ink:    #f1f5f9;
+    --muted:  #94a3b8;
+    --border: #1e293b;
+    --card:   #0f172a;
+    --bg:     #0a0f1e;
   }
 
   body {
@@ -25,7 +25,7 @@
     font-size: 10.5pt;
     line-height: 1.65;
     color: var(--ink);
-    background: #fff;
+    background: var(--bg);
     max-width: 780px;
     margin: 0 auto;
     padding: 32px 28px;
@@ -44,15 +44,17 @@
     justify-content: center;
     width: 72px; height: 72px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #111827 0%, #1e3a5f 100%);
+    background: linear-gradient(135deg, #1e293b 0%, #0f3460 100%);
+    border: 2px solid #334155;
     margin-bottom: 16px;
   }
   .cover .logo-ring span { font-size: 28px; }
-  .cover h1 { font-size: 26pt; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 6px; }
+  .cover h1 { font-size: 26pt; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 6px; color: #f8fafc; }
   .cover .sub { font-size: 13pt; color: var(--muted); margin-bottom: 4px; }
   .cover .tag {
     display: inline-block;
-    background: #111827; color: var(--green);
+    background: #0d2137; color: var(--green);
+    border: 1px solid #164e3b;
     font-size: 8.5pt; font-weight: 700; letter-spacing: 1px;
     padding: 3px 12px; border-radius: 4px; margin-top: 12px;
   }
@@ -61,15 +63,16 @@
   h2 {
     font-size: 14pt; font-weight: 800; margin: 32px 0 12px;
     padding-bottom: 6px; border-bottom: 2px solid var(--border);
-    display: flex; align-items: center; gap: 8px;
+    display: flex; align-items: center; gap: 8px; color: #f8fafc;
   }
   h2 .num {
     display: inline-flex; align-items: center; justify-content: center;
     width: 26px; height: 26px; border-radius: 50%;
-    background: #111827; color: #fff; font-size: 9pt; font-weight: 800; flex-shrink: 0;
+    background: #1e40af; color: #fff; font-size: 9pt; font-weight: 800; flex-shrink: 0;
   }
-  h3 { font-size: 11pt; font-weight: 700; margin: 20px 0 6px; }
-  p { margin-bottom: 10px; }
+  h3 { font-size: 11pt; font-weight: 700; margin: 20px 0 6px; color: #e2e8f0; }
+  p { margin-bottom: 10px; color: #cbd5e1; }
+  strong { color: #f1f5f9; }
 
   /* ── Agent Cards ── */
   .agents-grid {
@@ -82,7 +85,7 @@
     border: 1.5px solid var(--border);
     border-radius: 10px;
     padding: 14px 16px;
-    background: var(--card);
+    background: #0f172a;
   }
   .agent-card .agent-header {
     display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
@@ -92,24 +95,24 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 18px; flex-shrink: 0;
   }
-  .agent-card .name { font-size: 10pt; font-weight: 800; }
+  .agent-card .name { font-size: 10pt; font-weight: 800; color: #f1f5f9; }
   .agent-card .role { font-size: 8.5pt; color: var(--muted); }
-  .agent-card p { font-size: 9pt; color: #374151; margin-bottom: 0; }
+  .agent-card p { font-size: 9pt; color: #94a3b8; margin-bottom: 0; }
 
   .agent-master {
     grid-column: 1 / -1;
-    border-color: #111827;
-    background: #f8fafc;
+    border-color: #1e40af;
+    background: #0d1b35;
   }
 
-  /* icon colors */
-  .ic-trend    { background: #eff6ff; }
-  .ic-pa       { background: #f0fdf4; }
-  .ic-news     { background: #fffbeb; }
-  .ic-risk     { background: #fff1f2; }
-  .ic-exec     { background: #f5f3ff; }
-  .ic-contra   { background: #fff7ed; }
-  .ic-master   { background: #111827; }
+  /* icon colors — darkened tints */
+  .ic-trend    { background: #172554; }
+  .ic-pa       { background: #052e16; }
+  .ic-news     { background: #1c1408; }
+  .ic-risk     { background: #1f0a10; }
+  .ic-exec     { background: #1e1030; }
+  .ic-contra   { background: #1c120a; }
+  .ic-master   { background: #1e40af; }
 
   /* ── Flow Diagram ── */
   .flow {
@@ -117,7 +120,7 @@
     border-radius: 10px;
     padding: 20px;
     margin: 16px 0;
-    background: var(--bg);
+    background: #0d1520;
   }
   .flow-row {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -135,23 +138,23 @@
     font-size: 8.5pt; font-weight: 700;
     border: 1.5px solid;
   }
-  .pill-dark  { background: #111827; color: #fff; border-color: #111827; }
-  .pill-green { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
-  .pill-amber { background: #fffbeb; color: #92400e; border-color: #fde68a; }
-  .pill-red   { background: #fff1f2; color: #9f1239; border-color: #fecdd3; }
-  .pill-blue  { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
-  .pill-purple{ background: #f5f3ff; color: #5b21b6; border-color: #ddd6fe; }
+  .pill-dark  { background: #1e293b; color: #f1f5f9; border-color: #334155; }
+  .pill-green { background: #052e16; color: #4ade80; border-color: #166534; }
+  .pill-amber { background: #1c1408; color: #fbbf24; border-color: #92400e; }
+  .pill-red   { background: #1f0a10; color: #f87171; border-color: #9f1239; }
+  .pill-blue  { background: #172554; color: #93c5fd; border-color: #1e40af; }
+  .pill-purple{ background: #1e1030; color: #c4b5fd; border-color: #5b21b6; }
   .arrow { color: var(--muted); font-size: 13pt; }
 
   /* ── Signal States ── */
   .signal-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
   .signal-table th {
-    background: #111827; color: #fff;
+    background: #1e293b; color: #f1f5f9;
     font-size: 8.5pt; font-weight: 700; padding: 8px 12px; text-align: left;
   }
-  .signal-table td { padding: 8px 12px; font-size: 9pt; border-bottom: 1px solid var(--border); }
+  .signal-table td { padding: 8px 12px; font-size: 9pt; border-bottom: 1px solid var(--border); color: #cbd5e1; }
   .signal-table tr:last-child td { border-bottom: none; }
-  .signal-table tr:nth-child(even) td { background: var(--bg); }
+  .signal-table tr:nth-child(even) td { background: #0d1520; }
 
   /* ── Key Concept Boxes ── */
   .concept {
@@ -160,13 +163,13 @@
     border-radius: 0 8px 8px 0;
     margin: 14px 0;
   }
-  .concept-blue  { border-color: var(--blue);  background: #eff6ff; }
-  .concept-green { border-color: var(--green); background: #f0fdf4; }
-  .concept-amber { border-color: var(--amber); background: #fffbeb; }
-  .concept-red   { border-color: var(--red);   background: #fff1f2; }
+  .concept-blue  { border-color: var(--blue);  background: #0d1f3c; }
+  .concept-green { border-color: var(--green); background: #041f10; }
+  .concept-amber { border-color: var(--amber); background: #1a1200; }
+  .concept-red   { border-color: var(--red);   background: #1f0a10; }
 
-  .concept .title { font-size: 9.5pt; font-weight: 800; margin-bottom: 4px; }
-  .concept p { font-size: 9pt; margin-bottom: 0; }
+  .concept .title { font-size: 9.5pt; font-weight: 800; margin-bottom: 4px; color: #f1f5f9; }
+  .concept p { font-size: 9pt; margin-bottom: 0; color: #94a3b8; }
 
   /* ── How To Use Steps ── */
   .steps { list-style: none; margin: 12px 0; }
@@ -175,29 +178,30 @@
   }
   .steps .step-num {
     width: 28px; height: 28px; border-radius: 50%;
-    background: #111827; color: #fff;
+    background: #1e40af; color: #fff;
     font-size: 10pt; font-weight: 800;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0; margin-top: 1px;
   }
-  .steps .step-body .step-title { font-weight: 800; font-size: 10pt; margin-bottom: 3px; }
-  .steps .step-body p { font-size: 9pt; margin-bottom: 0; color: #374151; }
+  .steps .step-body .step-title { font-weight: 800; font-size: 10pt; margin-bottom: 3px; color: #f1f5f9; }
+  .steps .step-body p { font-size: 9pt; margin-bottom: 0; color: #94a3b8; }
 
   /* ── Gate Table ── */
   .gate-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
   .gate-table th {
-    background: #111827; color: #fff;
+    background: #1e293b; color: #f1f5f9;
     font-size: 8.5pt; font-weight: 700; padding: 8px 12px; text-align: left;
   }
-  .gate-table td { padding: 9px 12px; font-size: 9pt; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .gate-table td { padding: 9px 12px; font-size: 9pt; border-bottom: 1px solid var(--border); vertical-align: top; color: #cbd5e1; }
   .gate-table tr:last-child td { border-bottom: none; }
+  .gate-table tr:nth-child(even) td { background: #0d1520; }
   .badge {
     display: inline-block; padding: 2px 8px; border-radius: 4px;
     font-size: 8pt; font-weight: 700;
   }
-  .badge-red    { background: #fff1f2; color: #9f1239; }
-  .badge-green  { background: #f0fdf4; color: #166534; }
-  .badge-amber  { background: #fffbeb; color: #92400e; }
+  .badge-red    { background: #1f0a10; color: #f87171; }
+  .badge-green  { background: #052e16; color: #4ade80; }
+  .badge-amber  { background: #1c1408; color: #fbbf24; }
 
   /* ── Footer ── */
   footer {
@@ -209,7 +213,7 @@
 
   /* ── Print ── */
   @media print {
-    body { padding: 0; max-width: none; }
+    body { padding: 0; max-width: none; background: #0a0f1e; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     @page { margin: 18mm 16mm; size: A4; }
     h2 { break-before: auto; }
     .agents-grid { break-inside: avoid; }
@@ -558,11 +562,11 @@
 <h3>Trade Setup Pagkatapos ng Sweep</h3>
 <p>Dalawang uri ng setup ang generated pagkatapos ng confirmed sweep:</p>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0;">
-  <div class="concept concept-green" style="margin:0;">
+  <div class="concept concept-green" style="margin:0;background:#041f10;border-color:#00c97a;">
     <div class="title">FVG Setup (mas malakas)</div>
     <p>May Fair Value Gap na nabuo pagkatapos ng sweep. Entry = FVG midpoint. Kailangan: directional close (bullish sweep = candle magsara nang pataas).</p>
   </div>
-  <div class="concept concept-blue" style="margin:0;">
+  <div class="concept concept-blue" style="margin:0;background:#0d1f3c;border-color:#60a5fa;">
     <div class="title">Sweep Setup</div>
     <p>Walang FVG pero confirmed sweep. Entry = sweep level + small buffer. Mas konting confirmation kaya mas mataas ang risk.</p>
   </div>
@@ -649,29 +653,29 @@
 <h2><span class="num">9</span> Mga Supported na Assets</h2>
 
 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0;">
-  <div style="border:1.5px solid var(--border);border-radius:8px;padding:12px;">
+  <div style="border:1.5px solid var(--border);border-radius:8px;padding:12px;background:#0f172a;">
     <div style="font-size:8.5pt;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;">Metals</div>
-    <div style="font-size:9pt;line-height:1.8;">XAUUSD (Gold)<br>XAGUSD (Silver)<br>XPTUSD (Platinum)</div>
+    <div style="font-size:9pt;line-height:1.8;color:#cbd5e1;">XAUUSD (Gold)<br>XAGUSD (Silver)<br>XPTUSD (Platinum)</div>
   </div>
-  <div style="border:1.5px solid var(--border);border-radius:8px;padding:12px;">
+  <div style="border:1.5px solid var(--border);border-radius:8px;padding:12px;background:#0f172a;">
     <div style="font-size:8.5pt;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;">Major Forex</div>
-    <div style="font-size:9pt;line-height:1.8;">EURUSD · GBPUSD<br>USDJPY · USDCHF<br>USDCAD · AUDUSD</div>
+    <div style="font-size:9pt;line-height:1.8;color:#cbd5e1;">EURUSD · GBPUSD<br>USDJPY · USDCHF<br>USDCAD · AUDUSD</div>
   </div>
-  <div style="border:1.5px solid var(--border);border-radius:8px;padding:12px;">
+  <div style="border:1.5px solid var(--border);border-radius:8px;padding:12px;background:#0f172a;">
     <div style="font-size:8.5pt;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;">Crypto</div>
-    <div style="font-size:9pt;line-height:1.8;">BTCUSD · ETHUSD<br>SOLUSD · XRPUSD<br>BNBUSD · ADAUSD</div>
+    <div style="font-size:9pt;line-height:1.8;color:#cbd5e1;">BTCUSD · ETHUSD<br>SOLUSD · XRPUSD<br>BNBUSD · ADAUSD</div>
   </div>
-  <div style="border:1.5px solid var(--border);border-radius:8px;padding:12px;">
+  <div style="border:1.5px solid var(--border);border-radius:8px;padding:12px;background:#0f172a;">
     <div style="font-size:8.5pt;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;">Indices</div>
-    <div style="font-size:9pt;line-height:1.8;">US500 · US100<br>US30 · GER40<br>UK100 · JPN225</div>
+    <div style="font-size:9pt;line-height:1.8;color:#cbd5e1;">US500 · US100<br>US30 · GER40<br>UK100 · JPN225</div>
   </div>
-  <div style="border:1.5px solid var(--border);border-radius:8px;padding:12px;">
+  <div style="border:1.5px solid var(--border);border-radius:8px;padding:12px;background:#0f172a;">
     <div style="font-size:8.5pt;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;">Commodities</div>
-    <div style="font-size:9pt;line-height:1.8;">USOIL · UKOIL<br>NATGAS · COPPER<br>CORN · WHEAT</div>
+    <div style="font-size:9pt;line-height:1.8;color:#cbd5e1;">USOIL · UKOIL<br>NATGAS · COPPER<br>CORN · WHEAT</div>
   </div>
-  <div style="border:1.5px solid var(--border);border-radius:8px;padding:12px;">
+  <div style="border:1.5px solid var(--border);border-radius:8px;padding:12px;background:#0f172a;">
     <div style="font-size:8.5pt;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;">Cross Forex</div>
-    <div style="font-size:9pt;line-height:1.8;">EURJPY · GBPJPY<br>EURGBP · AUDJPY<br>GBPCAD · AUDNZD</div>
+    <div style="font-size:9pt;line-height:1.8;color:#cbd5e1;">EURJPY · GBPJPY<br>EURGBP · AUDJPY<br>GBPCAD · AUDNZD</div>
   </div>
 </div>
 
@@ -684,11 +688,11 @@
 <!-- ═══════════════════════════════════════════════════════ 10. CHEAT SHEET -->
 <h2><span class="num">10</span> Quick Cheat Sheet</h2>
 
-<div style="border:2px solid #111827;border-radius:10px;padding:20px;background:#f8fafc;">
+<div style="border:2px solid #1e40af;border-radius:10px;padding:20px;background:#0d1b35;">
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
     <div>
-      <div style="font-size:9pt;font-weight:800;margin-bottom:8px;color:#111827;">✅ DAPAT GAWIN</div>
-      <ul style="list-style:none;font-size:9pt;line-height:2;">
+      <div style="font-size:9pt;font-weight:800;margin-bottom:8px;color:#4ade80;">✅ DAPAT GAWIN</div>
+      <ul style="list-style:none;font-size:9pt;line-height:2;color:#94a3b8;">
         <li>✔ Hintayin ang NY session (13:00–18:00 UTC)</li>
         <li>✔ I-verify na may sweep ang Price Action Agent</li>
         <li>✔ Tingnan ang signal state — ARMED lang ang papasukan</li>
@@ -698,8 +702,8 @@
       </ul>
     </div>
     <div>
-      <div style="font-size:9pt;font-weight:800;margin-bottom:8px;color:#9f1239;">❌ HUWAG GAWIN</div>
-      <ul style="list-style:none;font-size:9pt;line-height:2;">
+      <div style="font-size:9pt;font-weight:800;margin-bottom:8px;color:#f87171;">❌ HUWAG GAWIN</div>
+      <ul style="list-style:none;font-size:9pt;line-height:2;color:#94a3b8;">
         <li>✘ Huwag mag-enter kung EXPIRED ang signal</li>
         <li>✘ Huwag mag-trade kung NO_TRADE ang verdict</li>
         <li>✘ Huwag baguhin ang SL para malayo sa entry</li>
