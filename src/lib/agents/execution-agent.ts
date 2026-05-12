@@ -327,8 +327,8 @@ export async function runExecutionAgent(
       entryInStructure = false;
 
     } else if (bosDetected) {
-      // Prefer a real structural level (FVG midpoint or sweep level) as the pullback entry.
-      // Fall back to a 38.2% Fibonacci approximation of the day range only when no level is available.
+      // BOS pullback entry: prefer a real structural level (FVG midpoint or sweep level).
+      // Falls back to 38.2% Fib approximation of the day range only when no level is available.
       const structuralEntry =
         keyLevels.fvgMid ??
         (keyLevels.sweepLevel !== null
@@ -336,15 +336,25 @@ export async function runExecutionAgent(
           : null);
       const pullback = dayRange * 0.382;
       entry    = structuralEntry ?? (isBullish ? current - pullback : current + pullback);
-      stopLoss = isBullish ? entry - minBuf : entry + minBuf;
+      // Use the candle's wick extreme as SL, not just minBuf (minBuf is too tight for H1+)
+      const candleExtreme = isBullish ? low : high;
+      stopLoss = isBullish ? candleExtreme - buf : candleExtreme + buf;
       trigger  = "BOS pullback";
       entryZone = structuralEntry
         ? `BOS pullback to structural level ${entry.toFixed(4)}`
         : `BOS pullback zone ~${entry.toFixed(4)} (38.2% fib estimate)`;
-      slZone   = `${isBullish ? "Below" : "Above"} BOS origin — displacement candle ${isBullish ? "low" : "high"}`;
+      slZone   = `${isBullish ? "Below" : "Above"} BOS displacement candle ${isBullish ? "low" : "high"} ${candleExtreme.toFixed(4)}`;
       entryInStructure = structuralEntry !== null;
 
     } else {
+      // No specific structure found. If HTF bias is directional and confident, downgrade to WAIT
+      // rather than NO_TRADE — direction is confirmed, entry structure is just not formed yet.
+      const hasBias = htfBias !== "neutral" && htfConfidence >= 45;
+      if (hasBias) {
+        return waitResult(start, "B",
+          `HTF ${htfBias} bias at ${htfConfidence}% confidence but no sweep, FVG, or OB in current session — awaiting structure formation`
+        );
+      }
       return noTradeResult(start, "No valid structural setup — no OB, FVG, or confirmed sweep present");
     }
 
