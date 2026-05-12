@@ -158,14 +158,18 @@ export async function runRiskAgent(
 
     const outsideKillZone = outsideNYKillZone || outsideLondonKillZone;
 
-    if (outsideNYKillZone) {
+    // If execution found a setup, the sweep formed during the kill zone by definition.
+    // Don't block based on time — the setup remains valid until price invalidates it.
+    const setupConfirmed = executionHasSetup === true;
+
+    if (outsideNYKillZone && !setupConfirmed) {
       warnings.push(
         `Outside NY Kill Zone (9:30–11:30 AM EST). ` +
         `Current UTC: ${nowUTCHour}:${String(nowUTCMin).padStart(2, "0")}. ` +
         `Valid window: 13:30–15:30 UTC. Win rate drops significantly outside this window.`
       );
     }
-    if (outsideLondonKillZone) {
+    if (outsideLondonKillZone && !setupConfirmed) {
       warnings.push(
         `Outside London Kill Zone (08:00–11:00 UTC). ` +
         `Current UTC: ${nowUTCHour}:${String(nowUTCMin).padStart(2, "0")}. ` +
@@ -173,7 +177,7 @@ export async function runRiskAgent(
       );
     }
 
-    const valid = !isClosed && !extremeVol && !tooManyWarnings && !rrTooLow && !outsideKillZone;
+    const valid = !isClosed && !extremeVol && !tooManyWarnings && !rrTooLow && (!outsideKillZone || setupConfirmed);
 
     // ── Max risk ──────────────────────────────────────────────────────────
     let maxRiskPercent = 1.0; // default 1% account risk

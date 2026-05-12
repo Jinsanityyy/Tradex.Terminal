@@ -411,6 +411,7 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   const { current, open, high, low, prevClose, dayRange } = price;
   const { sessionHour, session } = indicators;
   const { htfBias, htfConfidence, equilibrium, zone } = structure;
+  const timeframe = snapshot.timeframe ?? "M5";
 
   // ── STEP 1: Daily bias ─────────────────────────────────────────────────────
   const dailyBias: DirectionalBias = htfBias !== "neutral" ? htfBias
@@ -605,6 +606,21 @@ export async function runPriceActionAgent(
 ): Promise<SMCAgentOutput> {
   const start = Date.now();
 
+  // Phase 1: Rule-based sweep detection using actual candle history.
+  // The LLM only sees the current single candle and cannot detect sweeps
+  // that occurred on previous candles — rule-based scan is authoritative here.
+  let ruleResult: SMCAgentOutput | null = null;
+  try {
+    ruleResult = runJadeCapRuleBased(snapshot);
+    // Confirmed sweep + FVG setup found — return immediately, no LLM needed
+    if (ruleResult.liquiditySweepDetected && ruleResult.setupPresent) {
+      return ruleResult;
+    }
+  } catch (err) {
+    console.warn("Price action agent rule-based scan failed:", err);
+  }
+
+  // Phase 2: LLM for broader structural analysis when no candle sweep is confirmed
   if (anthropicApiKey) {
     try {
       const client = new Anthropic({ apiKey: anthropicApiKey });
@@ -614,6 +630,8 @@ export async function runPriceActionAgent(
     }
   }
 
+  // Phase 3: Return rule-based result or fresh fallback
+  if (ruleResult) return ruleResult;
   try {
     return runJadeCapRuleBased(snapshot);
   } catch (err) {
