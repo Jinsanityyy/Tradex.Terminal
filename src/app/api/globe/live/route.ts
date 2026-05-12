@@ -181,7 +181,6 @@ export async function GET() {
           const key_ = `${ev.country}-${layer}`;
           if (seen.has(key_)) continue;
           seen.add(key_);
-
           markers.push({
             id: `cal-${ev.country}-${ev.event}-${ev.time}`.replace(/\s+/g, "_"),
             layer,
