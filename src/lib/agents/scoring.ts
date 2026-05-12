@@ -153,8 +153,10 @@ export function computeConsensus(
   // Block bearish signals in bullish structure only when there's no sweep+FVG proof
   const structureBlocksShort = trendBullish && !smcBosConfirmed && normalizedScore < 0;
 
-  // Sweep gate: no confirmed NY session sweep = no trade regardless of consensus
-  const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None";
+  // Sweep gate: no confirmed session sweep AND consensus is weak = no trade.
+  // When consensus is strong (≥35), allow the execution agent to grade the setup quality —
+  // a strong multi-agent agreement without a sweep can still produce a valid directional signal.
+  const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None" && Math.abs(normalizedScore) < 35;
   // Check if we're currently inside the NY Kill Zone (13:30–15:30 UTC = 9:30–11:30 AM ET)
   const _nowUTC   = new Date();
   const _utcH     = _nowUTC.getUTCHours();
