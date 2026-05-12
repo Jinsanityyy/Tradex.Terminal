@@ -1147,8 +1147,8 @@ export default function DashboardPage() {
     if (!alreadySeen && !sameAsCurrent) {
       const notif: Notif = {
         id: crypto.randomUUID(),
-        type: "agent",
-        title: `${symCfg.short} ${timeframe} Execution Armed`,
+        type: "entry",
+        title: `${symCfg.short} ${timeframe} — Entry Armed`,
         body:
           exec?.direction && exec.direction !== "none"
             ? `${exec.direction.toUpperCase()} setup armed. ${entryTrigger}`

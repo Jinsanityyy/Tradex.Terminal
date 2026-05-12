@@ -23,6 +23,7 @@ export interface Settings {
     biasChanges: boolean;
     trumpPosts: boolean;
     sessionHandoffs: boolean;
+    alertSound: boolean;
   };
   feedCategories: string[];
   autoRefreshInterval: RefreshInterval;
@@ -44,6 +45,7 @@ export const DEFAULTS: Settings = {
     biasChanges: true,
     trumpPosts: false,
     sessionHandoffs: false,
+    alertSound: true,
   },
   feedCategories: ["Central Banks", "Inflation", "Tariffs", "Geopolitics", "Crypto", "Energy"],
   autoRefreshInterval: "15s",

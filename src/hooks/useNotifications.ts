@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 
 export const CUSTOM_NOTIFICATION_EVENT = "tradex-custom-notification";
 
-export type NotifType = "news" | "trump" | "chat" | "agent";
+export type NotifType = "news" | "trump" | "chat" | "agent" | "entry";
 
 export interface Notif {
   id: string;

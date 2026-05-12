@@ -558,12 +558,13 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {(["highImpactEvents", "biasChanges", "trumpPosts", "sessionHandoffs"] as const).map((key) => {
+          {(["highImpactEvents", "biasChanges", "trumpPosts", "sessionHandoffs", "alertSound"] as const).map((key) => {
             const info: Record<string, [string, string]> = {
               highImpactEvents: ["High Impact Events", "Alert when high-impact events are released"],
               biasChanges: ["Bias Changes", "Notify when major bias shifts are detected"],
               trumpPosts: ["Trump Posts", "Alert on high-impact Trump-related content"],
               sessionHandoffs: ["Session Handoffs", "Summary notification when sessions transition"],
+              alertSound: ["Entry Alert Sound", "Play an alarm tone when a trade setup becomes armed"],
             };
             const [label, desc] = info[key];
             return (
