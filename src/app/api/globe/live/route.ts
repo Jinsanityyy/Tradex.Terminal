@@ -174,19 +174,20 @@ export async function GET() {
           const loc = COUNTRY_LOC[ev.country];
           if (!loc) continue;
 
-          const key_ = `${ev.country}-${ev.event}`;
-          if (seen.has(key_)) continue;
-          seen.add(key_);
-
           const isCB = CB_KEYWORDS.some((k) => ev.event.toLowerCase().includes(k));
           const layer: LiveMarker["layer"] = isCB ? "centralBanks" : "economicEvents";
+
+          // One marker per country per layer — keep the soonest event
+          const key_ = `${ev.country}-${layer}`;
+          if (seen.has(key_)) continue;
+          seen.add(key_);
 
           markers.push({
             id: `cal-${ev.country}-${ev.event}-${ev.time}`.replace(/\s+/g, "_"),
             layer,
             name: ev.event,
-            lat: loc.lat + (Math.random() - 0.5) * 0.3,
-            lon: loc.lon + (Math.random() - 0.5) * 0.3,
+            lat: loc.lat,
+            lon: loc.lon,
             desc: `${loc.label} — ${ev.event}${ev.estimate != null ? ` | Est: ${fmtValue(ev.estimate, ev.unit ?? "")}` : ""}${ev.prev != null ? ` | Prev: ${fmtValue(ev.prev, ev.unit ?? "")}` : ""}`,
             impact: impactFor(ev.country, layer),
             eventTime: ev.time,
