@@ -13,7 +13,7 @@
 
 import type { SignalRecord, SignalOutcome, SignalStatus } from "./types";
 import type { Timeframe } from "@/lib/agents/schemas";
-import { getOpenSignals, updateSignal } from "./storage";
+import { getOpenSignals, getSignals, updateSignal } from "./storage";
 import { fetchYahooCandles, type YahooCandleBar } from "@/lib/api/yahoo-finance";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -357,6 +357,62 @@ export async function trackOpenSignals(): Promise<TrackingResult> {
         status: resolution.status,
         pnlR: resolution.outcome.pnlR,
       });
+    }
+  }
+
+  return result;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reprocess — correct recently mis-classified loss_sl signals
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ReprocessResult {
+  checkedCount: number;
+  correctedCount: number;
+  corrections: Array<{ id: string; symbol: string; from: string; to: string; pnlR: number }>;
+  errors: string[];
+}
+
+/**
+ * Re-evaluates recent loss_sl signals using OHLC candle data.
+ * Corrects any that were actually TP hits — happens when price hit TP
+ * then bounced back past SL before the cron fired.
+ */
+export async function reprocessRecentLosses(withinHours = 24): Promise<ReprocessResult> {
+  const result: ReprocessResult = { checkedCount: 0, correctedCount: 0, corrections: [], errors: [] };
+
+  const cutoff = new Date(Date.now() - withinHours * 3_600_000).toISOString();
+  const losses = await getSignals({ status: "loss_sl", sinceTimestamp: cutoff });
+  result.checkedCount = losses.length;
+  if (losses.length === 0) return result;
+
+  const candleMap = await fetchCandleMap(losses);
+
+  for (const signal of losses) {
+    try {
+      const candles = candleMap.get(`${signal.symbol}_${signal.timeframe}`) ?? [];
+      const reeval  = resolveFromOHLC(signal, candles);
+      if (!reeval || reeval.status === "loss_sl") continue;
+
+      const updated = await updateSignal(signal.id, {
+        status:  reeval.status,
+        outcome: reeval.outcome,
+      });
+
+      if (updated) {
+        result.correctedCount += 1;
+        result.corrections.push({
+          id:     signal.id,
+          symbol: signal.symbol,
+          from:   "loss_sl",
+          to:     reeval.status,
+          pnlR:   reeval.outcome.pnlR,
+        });
+        console.log(`[reprocess] corrected ${signal.id}: loss_sl → ${reeval.status} (+${reeval.outcome.pnlR}R)`);
+      }
+    } catch (err) {
+      result.errors.push(`${signal.id}: ${String(err)}`);
     }
   }
 

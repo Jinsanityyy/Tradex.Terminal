@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { trackOpenSignals } from "@/lib/signals/tracker";
+import { trackOpenSignals, reprocessRecentLosses } from "@/lib/signals/tracker";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 55;
@@ -25,12 +25,19 @@ export async function GET(req: NextRequest) {
   }
 
   const start = Date.now();
+  const forceReprocess = req.nextUrl.searchParams.get("reprocess") === "true";
+
   try {
-    const result = await trackOpenSignals();
+    const [trackResult, reprocessResult] = await Promise.all([
+      trackOpenSignals(),
+      reprocessRecentLosses(forceReprocess ? 72 : 2), // manual: 72h window; cron: last 2h only
+    ]);
+
     return NextResponse.json({
       ok: true,
       elapsedMs: Date.now() - start,
-      ...result,
+      track: trackResult,
+      reprocess: reprocessResult,
     });
   } catch (err) {
     console.error("[cron/track-signals] failed:", err);
