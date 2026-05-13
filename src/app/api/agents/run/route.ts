@@ -40,7 +40,11 @@ export async function GET(req: NextRequest) {
 
   try {
     const result = await runAgentOrchestrator(validated.symbol, validated.timeframe);
-    // Note: logSignal only on POST (manual refresh) to avoid logging cached reads
+    // Log directional signals on GET too — dedup in logger (1-min bucket + ignoreDuplicates)
+    // prevents spamming from auto-refreshes; only new signals per minute are persisted.
+    if (result.agents.master.finalBias !== "no-trade" && result.agents.master.tradePlan) {
+      logSignal(result).catch(() => {});
+    }
     return NextResponse.json(result);
   } catch (error) {
     console.error("Agent run error:", error);

@@ -86,6 +86,8 @@ async function fetchCandleMap(
 // OHLC-based resolution — scans candles chronologically, first touch wins
 // ─────────────────────────────────────────────────────────────────────────────
 
+const TF_SECONDS: Record<string, number> = { M5: 300, M15: 900, H1: 3600, H4: 14400 };
+
 function resolveFromOHLC(
   signal: SignalRecord,
   allCandles: YahooCandleBar[],
@@ -94,8 +96,10 @@ function resolveFromOHLC(
   if (!plan) return null;
 
   const signalSec = new Date(signal.timestamp).getTime() / 1000;
-  // Only candles that opened at or after signal creation (t is unix seconds)
-  const candles = allCandles.filter(c => c.t >= signalSec);
+  const tfSec     = TF_SECONDS[signal.timeframe] ?? 3600;
+  // Include the candle that was ACTIVE at signal creation (may have opened before
+  // the signal but captured the price move). A candle opened at t covers [t, t+tfSec).
+  const candles = allCandles.filter(c => c.t + tfSec > signalSec);
   if (candles.length === 0) return null;
 
   const { direction, entry, stopLoss, tp1, tp2 } = plan;
