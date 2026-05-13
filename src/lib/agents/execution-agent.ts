@@ -36,7 +36,8 @@ const PCT_SL_MAX: Record<string, number> = {
 const GOLD_SYMS = new Set(["XAUUSD", "XAGUSD", "XPTUSD"]);
 
 // Killzone windows (UTC hours, inclusive start, exclusive end)
-const LONDON_KZ = { start: 8,  end: 11 };
+const ASIAN_KZ  = { start: 0, end: 3 };  // 00:00–03:00 UTC = 8AM–11AM PHT
+const LONDON_KZ = { start: 8, end: 11 }; // 08:00–11:00 UTC = 4PM–7PM PHT
 // JadeCap NY Kill Zone = 9:30–11:30 AM EST = 13:30–15:30 UTC exactly
 const NY_KZ = { startHour: 13, startMin: 30, endHour: 15, endMin: 30 };
 
@@ -228,12 +229,14 @@ export async function runExecutionAgent(
     const snapDate   = new Date(snapshot.timestamp);
     const nowHourUTC = snapDate.getUTCHours();
     const nowMinUTC  = snapDate.getUTCMinutes();
+    const inAsianKZ  = session === "Asia" &&
+      nowHourUTC >= ASIAN_KZ.start && nowHourUTC < ASIAN_KZ.end;
     const inLondonKZ = session === "London" &&
       nowHourUTC >= LONDON_KZ.start && nowHourUTC < LONDON_KZ.end;
     const inNYKZ     = session === "New York" &&
       (nowHourUTC > NY_KZ.startHour || (nowHourUTC === NY_KZ.startHour && nowMinUTC >= NY_KZ.startMin)) &&
       (nowHourUTC < NY_KZ.endHour   || (nowHourUTC === NY_KZ.endHour   && nowMinUTC <  NY_KZ.endMin));
-    const inKillzone = inLondonKZ || inNYKZ;
+    const inKillzone = inAsianKZ || inLondonKZ || inNYKZ;
 
     // ── Major news check ─────────────────────────────────────────────────────
     const riskBlocksExec = GOLD_SYMS.has(symbol)
@@ -245,7 +248,7 @@ export async function runExecutionAgent(
 
     // ── HTF bias check ──────────────────────────────────────────────────────────
     const sweepActive = smc.liquiditySweepDetected && smc.setupPresent && smc.bias !== "neutral";
-    if (!sweepActive && (htfBias === "neutral" || htfConfidence < 45)) {
+    if (!sweepActive && (htfBias === "neutral" || htfConfidence < 35)) {
       return noTradeResult(start, "No directional bias confirmed — stand aside");
     }
 
@@ -349,7 +352,7 @@ export async function runExecutionAgent(
     } else {
       // No specific structure found. If HTF bias is directional and confident, downgrade to WAIT
       // rather than NO_TRADE — direction is confirmed, entry structure is just not formed yet.
-      const hasBias = htfBias !== "neutral" && htfConfidence >= 45;
+      const hasBias = htfBias !== "neutral" && htfConfidence >= 35;
       if (hasBias) {
         return waitResult(start, "B",
           `HTF ${htfBias} bias at ${htfConfidence}% confidence but no sweep, FVG, or OB in current session — awaiting structure formation`
