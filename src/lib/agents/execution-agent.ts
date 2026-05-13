@@ -134,6 +134,17 @@ function scoreConfluence(
       label: "Clean liquidity pool as TP target",
       pass: smc.keyLevels.liquidityTarget !== null,
     },
+    {
+      id: "htf_bias_match",
+      label: "HTF bias aligned with trade direction",
+      pass: structure.htfConfidence >= 55 &&
+        (isBullish ? structure.htfBias === "bullish" : structure.htfBias === "bearish"),
+    },
+    {
+      id: "htf_conviction",
+      label: "HTF conviction above 45%",
+      pass: structure.htfConfidence >= 45 && structure.htfBias !== "neutral",
+    },
   ];
 }
 
