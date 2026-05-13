@@ -96,7 +96,7 @@ export function computeConsensus(
   // Floor the confidence at 30% to preserve the directional signal even under stress.
   const isSafeHaven = symbol === "XAUUSD" || symbol === "XAGUSD" || symbol === "XPTUSD";
   const adjustedNewsConf = isSafeHaven && news.riskScore > 40
-    ? Math.min(95, news.confidence * (1 + news.riskScore / 300))
+    ? Math.min(80, news.confidence * (1 + news.riskScore / 300))
     : Math.max(30, news.confidence * (1 - news.riskScore / 250));
   items.push(agentScore("news", news.impact, Math.round(adjustedNewsConf), weights.news));
 
@@ -151,14 +151,14 @@ export function computeConsensus(
   // Block bearish signals in a bullish structure
   const structureBlocksShort = trendBullish && !smc.bosDetected && normalizedScore < 0;
 
-  // Sweep gate: allow signal when consensus is strong (≥20) even without a sweep.
+  // Sweep gate: allow signal when consensus is strong (≥15) even without a sweep.
   // A confirmed sweep is still the best setup, but strong multi-agent agreement
   // (trend + SMC + news all aligned) can produce a valid directional signal.
-  const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None" && Math.abs(normalizedScore) < 20;
+  const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None" && Math.abs(normalizedScore) < 15;
 
   // ── Final Bias Decision ───────────────────────────────────────────────────
-  const BULL_THRESHOLD = 20;
-  const BEAR_THRESHOLD = -20;
+  const BULL_THRESHOLD = 15;
+  const BEAR_THRESHOLD = -15;
 
   let finalBias: FinalBias;
   let noTradeReason: string | undefined;
@@ -181,7 +181,7 @@ export function computeConsensus(
     finalBias = "bearish";
   } else {
     finalBias     = "no-trade";
-    noTradeReason = `Consensus ${normalizedScore.toFixed(1)} within neutral band (±${BULL_THRESHOLD}). Insufficient directional agreement.`;
+    noTradeReason = `Consensus ${normalizedScore.toFixed(1)} within neutral band (±${BULL_THRESHOLD}). Insufficient directional agreement across agents.`;
   }
 
   // ── Confidence from consensus strength ────────────────────────────────────
