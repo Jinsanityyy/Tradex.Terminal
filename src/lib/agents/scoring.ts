@@ -156,7 +156,7 @@ export function computeConsensus(
   // Sweep gate: no confirmed session sweep AND consensus is weak = no trade.
   // When consensus is strong (≥35), allow the execution agent to grade the setup quality —
   // a strong multi-agent agreement without a sweep can still produce a valid directional signal.
-  const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None" && Math.abs(normalizedScore) < 35;
+  const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None" && Math.abs(normalizedScore) < 20;
   // Check if currently inside any kill zone for message context
   const _nowUTC   = new Date();
   const _utcH     = _nowUTC.getUTCHours();
@@ -168,8 +168,8 @@ export function computeConsensus(
   const inKillZone  = _inAsianKZ || _inLondonKZ || _inNYKZ;
 
   // ── Final Bias Decision ───────────────────────────────────────────────────
-  const BULL_THRESHOLD = 25;
-  const BEAR_THRESHOLD = -25;
+  const BULL_THRESHOLD = 20;
+  const BEAR_THRESHOLD = -20;
 
   let finalBias: FinalBias;
   let noTradeReason: string | undefined;
