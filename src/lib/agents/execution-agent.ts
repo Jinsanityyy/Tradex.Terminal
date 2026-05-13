@@ -19,11 +19,13 @@ import type {
 } from "./schemas";
 
 // ── SL Limits — Gold absolute (pts), others %-based ──────────────────────────────────
+// Minimums are set to the minimum viable sweep distance per timeframe.
+// JadeCap SL = sweep_wick + $1 buffer. A $2 minimum sweep on M5 → ~$3 riskDist is valid.
 const GOLD_SL_LIMITS: Record<string, { min: number; max: number }> = {
-  M5:  { min: 3,  max: 8   },
-  M15: { min: 5,  max: 12  },
-  H1:  { min: 8,  max: 20  },
-  H4:  { min: 20, max: 45  },
+  M5:  { min: 2,  max: 8   },
+  M15: { min: 3,  max: 12  },
+  H1:  { min: 5,  max: 20  },
+  H4:  { min: 12, max: 45  },
 };
 
 const PCT_SL_MAX: Record<string, number> = {
@@ -131,6 +133,17 @@ function scoreConfluence(
       id: "liq_pool",
       label: "Clean liquidity pool as TP target",
       pass: smc.keyLevels.liquidityTarget !== null,
+    },
+    {
+      id: "htf_bias_match",
+      label: "HTF bias aligned with trade direction",
+      pass: structure.htfConfidence >= 55 &&
+        (isBullish ? structure.htfBias === "bullish" : structure.htfBias === "bearish"),
+    },
+    {
+      id: "htf_conviction",
+      label: "HTF conviction above 45%",
+      pass: structure.htfConfidence >= 45 && structure.htfBias !== "neutral",
     },
   ];
 }
@@ -243,7 +256,9 @@ export async function runExecutionAgent(
 
     // ── HTF bias check ──────────────────────────────────────────────────────────────────
     const sweepActive = smc.liquiditySweepDetected && smc.setupPresent && smc.bias !== "neutral";
+    console.log(`[exec] ${symbol} ${timeframe} sweep=${smc.liquiditySweepDetected} setupPresent=${smc.setupPresent} bias=${smc.bias} htfBias=${htfBias}@${htfConfidence}% kz=${inKillzone}`);
     if (!sweepActive && (htfBias === "neutral" || htfConfidence < 35)) {
+      console.log(`[exec] blocked: no directional bias (sweep=${smc.liquiditySweepDetected} htfBias=${htfBias} htfConf=${htfConfidence})`);
       return noTradeResult(start, "No directional bias confirmed — stand aside");
     }
 
@@ -338,15 +353,30 @@ export async function runExecutionAgent(
       entryInStructure = structuralEntry !== null;
 
     } else {
-      // No specific structure found. If HTF bias is directional and confident,
-      // downgrade to WAIT rather than NO_TRADE — direction confirmed, entry not yet formed.
       const hasBias = htfBias !== "neutral" && htfConfidence >= 35;
-      if (hasBias) {
+
+      // Kill zone + strong HTF conviction: build a trend-continuation entry at market.
+      // Applies when there is no session sweep/FVG/OB but multiple agents agree on direction.
+      // Uses daily-range-scaled SL so quality thresholds are met.
+      const strongKZBias = hasBias && inKillzone && htfConfidence >= 55;
+      if (strongKZBias) {
+        const slDist = GOLD_SYMS.has(symbol)
+          ? Math.max(dayRange * 0.25, (GOLD_SL_LIMITS[timeframe]?.min ?? 5))
+          : Math.max(current * (PCT_SL_MAX[timeframe] ?? 0.008) * 0.5, minBuf * 8);
+        entry    = current;
+        stopLoss = isBullish ? current - slDist : current + slDist;
+        trigger  = "HTF continuation";
+        entryZone = `${session} kill zone — HTF ${htfBias} at ${htfConfidence}% conviction, market entry`;
+        slZone    = `${isBullish ? "Below" : "Above"} ATR-based stop ${stopLoss.toFixed(2)} — bias invalidated on close through`;
+        entryInStructure = true;
+        console.log(`[exec] HTF continuation path: ${symbol} ${timeframe} ${htfBias}@${htfConfidence}% entry=${entry.toFixed(2)} sl=${stopLoss.toFixed(2)} slDist=${slDist.toFixed(2)}`);
+      } else if (hasBias) {
         return waitResult(start, "B",
           `HTF ${htfBias} bias at ${htfConfidence}% confidence but no sweep, FVG, or OB in current session — awaiting structure formation`
         );
+      } else {
+        return noTradeResult(start, "No valid structural setup — no OB, FVG, or confirmed sweep present");
       }
-      return noTradeResult(start, "No valid structural setup — no OB, FVG, or confirmed sweep present");
     }
 
     // ── SL directional guard ──────────────────────────────────────────────────────────────────
@@ -363,10 +393,12 @@ export async function runExecutionAgent(
 
     const slInRange = isSLInRange(riskDist, timeframe, symbol, current);
     if (!slInRange) {
+      const lim = GOLD_SL_LIMITS[timeframe] ?? GOLD_SL_LIMITS.H1;
       const limitMsg = GOLD_SYMS.has(symbol)
-        ? `Gold ${timeframe} SL limit is ${GOLD_SL_LIMITS[timeframe]?.max ?? 20} pts max — got ${riskDist.toFixed(1)} pts`
+        ? `Gold ${timeframe} SL = ${riskDist.toFixed(1)} pts (allowed: ${lim.min}–${lim.max} pts)`
         : `SL ${riskDist.toFixed(4)} exceeds ${((PCT_SL_MAX[timeframe] ?? 0.008) * 100).toFixed(1)}% max for ${timeframe}`;
-      return waitResult(start, "B", `${limitMsg} — wait for tighter structure`);
+      console.log(`[exec] SL out-of-range blocked: ${symbol} ${timeframe} entry=${entry.toFixed(2)} sl=${stopLoss.toFixed(2)} riskDist=${riskDist.toFixed(2)} — ${limitMsg}`);
+      return waitResult(start, "B", `${limitMsg} — wait for better structure`);
     }
 
     entry    = roundToPrecision(entry,    current);
@@ -441,6 +473,7 @@ export async function runExecutionAgent(
     const confluenceFactors = passedFactors.map(f => f.label);
 
     const grade = gradeSetup(rrRatio, confluenceCount, slInRange, inKillzone, entryInStructure);
+    console.log(`[exec] ${symbol} ${timeframe} grade=${grade} rr=${rrRatio} conf=${confluenceCount} slInRange=${slInRange} kz=${inKillzone} entryInStruct=${entryInStructure} entry=${entry.toFixed(2)} sl=${stopLoss.toFixed(2)} riskDist=${riskDist.toFixed(2)}`);
 
     if (grade === "B+" || grade === "B") {
       const detail = grade === "B+"
