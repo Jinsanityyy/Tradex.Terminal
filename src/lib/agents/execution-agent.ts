@@ -6,7 +6,7 @@
  * B+/B → WAIT state. C → NO_TRADE.
  *
  * Grade requirements:
- *   A+ = R:R ≥ 1:3  + confluence ≥ 4 + SL in range + killzone active
+ *   A+ = R:R ≥ 1:2.5 + confluence ≥ 4 + SL in range + killzone active
  *   A  = R:R ≥ 1:2.5 + confluence ≥ 3 + SL in range
  *   B+ = R:R ≥ 1:2  + confluence ≥ 3                 → WAIT
  *   B  = R:R ≥ 1:2  + confluence ≥ 2                 → WAIT
@@ -20,10 +20,10 @@ import type {
 
 // ── SL Limits — Gold absolute (pts), others %-based ──────────────────────────────
 const GOLD_SL_LIMITS: Record<string, { min: number; max: number }> = {
-  M5:  { min: 3,  max: 8   },
-  M15: { min: 5,  max: 12  },
-  H1:  { min: 8,  max: 20  },
-  H4:  { min: 20, max: 45  },
+  M5:  { min: 2,  max: 8   },
+  M15: { min: 3,  max: 12  },
+  H1:  { min: 5,  max: 25  },
+  H4:  { min: 15, max: 50  },
 };
 
 const PCT_SL_MAX: Record<string, number> = {
@@ -90,9 +90,9 @@ function scoreConfluence(
 
   return [
     {
-      id: "htf_ob",
-      label: "HTF Order Block respected",
-      pass: smc.keyLevels.orderBlockHigh !== null && smc.keyLevels.orderBlockLow !== null,
+      id: "htf_conviction",
+      label: "HTF directional conviction ≥ 50%",
+      pass: structure.htfConfidence >= 50 && structure.htfBias !== "neutral",
     },
     {
       id: "fvg",
@@ -154,7 +154,7 @@ function gradeSetup(
     if (rrRatio >= 2.0 && confluenceCount >= 2) return "B";
     return "C";
   }
-  if (rrRatio >= 3.0 && confluenceCount >= 4 && slInRange && inKillzone) return "A+";
+  if (rrRatio >= 2.5 && confluenceCount >= 4 && slInRange && inKillzone) return "A+";
   if (rrRatio >= 2.5 && confluenceCount >= 3 && slInRange) return "A";
   if (rrRatio >= 2.0 && confluenceCount >= 3) return "B+";
   if (rrRatio >= 2.0 && confluenceCount >= 2) return "B";
