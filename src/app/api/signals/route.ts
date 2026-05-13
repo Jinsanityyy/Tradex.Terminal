@@ -95,6 +95,63 @@ export async function GET(req: NextRequest) {
 
 
 /**
+ * PATCH /api/signals
+ * Body: { entryPrice, symbol, fromStatus, toStatus, pnlR }
+ * Directly corrects a mis-classified signal by entry price + symbol lookup.
+ * Used to fix false SL hits where OHLC reprocess failed.
+ */
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { entryPrice, symbol, fromStatus, toStatus, pnlR } = body;
+    if (!entryPrice || !symbol || !fromStatus || !toStatus) {
+      return NextResponse.json({ error: "Missing required fields: entryPrice, symbol, fromStatus, toStatus" }, { status: 400 });
+    }
+
+    const { getServiceClient } = await import("@/lib/supabase/service");
+    const db = getServiceClient();
+    if (!db) return NextResponse.json({ error: "No DB client" }, { status: 500 });
+
+    // Find the signal by entry price + symbol + current wrong status
+    const { data: found, error: findErr } = await db
+      .from("signals")
+      .select("id, entry_price, stop_loss, take_profit")
+      .eq("symbol", symbol)
+      .eq("status", fromStatus)
+      .eq("entry_price", entryPrice)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (findErr || !found) {
+      return NextResponse.json({ error: "Signal not found", detail: findErr?.message }, { status: 404 });
+    }
+
+    // Calculate correct pnlR if not provided
+    const riskDist = Math.abs(found.entry_price - found.stop_loss);
+    const tpDist   = Math.abs(found.take_profit - found.entry_price);
+    const resolvedPnlR = pnlR ?? (riskDist > 0 ? parseFloat((tpDist / riskDist).toFixed(2)) : 1.5);
+
+    const { error: updateErr } = await db
+      .from("signals")
+      .update({
+        status:               toStatus,
+        resolved_at:          new Date().toISOString(),
+        price_at_resolution:  found.take_profit,
+        pnl_r:                resolvedPnlR,
+        pnl_percent:          parseFloat((tpDist / found.entry_price * 100).toFixed(4)),
+      })
+      .eq("id", found.id);
+
+    if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+
+    return NextResponse.json({ ok: true, id: found.id, from: fromStatus, to: toStatus, pnlR: resolvedPnlR });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+/**
  * DELETE /api/signals/cleanup
  * Marks all open directional signals without a trade plan as "informational".
  * These are junk rows logged before the execution agent was fixed.
