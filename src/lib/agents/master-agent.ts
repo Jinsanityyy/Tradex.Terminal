@@ -292,16 +292,18 @@ export async function runMasterAgent(
     const bosToUpside   = smc.bosDetected && smc.setupPresent && smc.bias === "bullish";
     const bosToDownside = smc.bosDetected && smc.setupPresent && smc.bias === "bearish";
 
-    const activeSetup = smc.setupPresent || smc.liquiditySweepDetected;
-    const noSetup     = smc.setupType === "None" && !smc.liquiditySweepDetected;
+    // execution.hasSetup = true means the execution agent built a valid entry plan
+    // (sweep-based, BOS-based, or HTF-continuation). Treat this as an active setup.
+    const activeSetup = smc.setupPresent || smc.liquiditySweepDetected || execution.hasSetup;
+    const noSetup     = smc.setupType === "None" && !smc.liquiditySweepDetected && !execution.hasSetup;
 
     let resolvedBias = llmRaw;
 
-    if (llmRaw === "bullish" && bearishStruct && !bosToUpside) {
-      // Bearish structure + no confirmed bullish reversal = block long calls
+    if (llmRaw === "bullish" && bearishStruct && !bosToUpside && !execution.hasSetup) {
+      // Bearish structure + no confirmed bullish reversal + no exec setup = block long calls
       resolvedBias = "no-trade";
-    } else if (llmRaw === "bearish" && bullishStruct && !bosToDownside) {
-      // Bullish structure + no confirmed bearish reversal = block short calls
+    } else if (llmRaw === "bearish" && bullishStruct && !bosToDownside && !execution.hasSetup) {
+      // Bullish structure + no confirmed bearish reversal + no exec setup = block short calls
       resolvedBias = "no-trade";
     } else if (resolvedBias !== "no-trade" && !activeSetup && noSetup) {
       // No confirmed setup at all = stand aside

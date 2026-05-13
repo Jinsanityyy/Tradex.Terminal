@@ -342,15 +342,30 @@ export async function runExecutionAgent(
       entryInStructure = structuralEntry !== null;
 
     } else {
-      // No specific structure found. If HTF bias is directional and confident,
-      // downgrade to WAIT rather than NO_TRADE — direction confirmed, entry not yet formed.
       const hasBias = htfBias !== "neutral" && htfConfidence >= 35;
-      if (hasBias) {
+
+      // Kill zone + strong HTF conviction: build a trend-continuation entry at market.
+      // Applies when there is no session sweep/FVG/OB but multiple agents agree on direction.
+      // Uses daily-range-scaled SL so quality thresholds are met.
+      const strongKZBias = hasBias && inKillzone && htfConfidence >= 55;
+      if (strongKZBias) {
+        const slDist = GOLD_SYMS.has(symbol)
+          ? Math.max(dayRange * 0.25, (GOLD_SL_LIMITS[timeframe]?.min ?? 5))
+          : Math.max(current * (PCT_SL_MAX[timeframe] ?? 0.008) * 0.5, minBuf * 8);
+        entry    = current;
+        stopLoss = isBullish ? current - slDist : current + slDist;
+        trigger  = "HTF continuation";
+        entryZone = `${session} kill zone — HTF ${htfBias} at ${htfConfidence}% conviction, market entry`;
+        slZone    = `${isBullish ? "Below" : "Above"} ATR-based stop ${stopLoss.toFixed(2)} — bias invalidated on close through`;
+        entryInStructure = true;
+        console.log(`[exec] HTF continuation path: ${symbol} ${timeframe} ${htfBias}@${htfConfidence}% entry=${entry.toFixed(2)} sl=${stopLoss.toFixed(2)} slDist=${slDist.toFixed(2)}`);
+      } else if (hasBias) {
         return waitResult(start, "B",
           `HTF ${htfBias} bias at ${htfConfidence}% confidence but no sweep, FVG, or OB in current session — awaiting structure formation`
         );
+      } else {
+        return noTradeResult(start, "No valid structural setup — no OB, FVG, or confirmed sweep present");
       }
-      return noTradeResult(start, "No valid structural setup — no OB, FVG, or confirmed sweep present");
     }
 
     // ── SL directional guard ──────────────────────────────────────────────────────────────────
