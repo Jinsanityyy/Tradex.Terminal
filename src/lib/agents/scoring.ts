@@ -151,12 +151,14 @@ export function computeConsensus(
   // Block bearish signals in a bullish structure
   const structureBlocksShort = trendBullish && !smc.bosDetected && normalizedScore < 0;
 
-  // Sweep gate: no confirmed NY session sweep = no trade regardless of consensus
-  const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None";
+  // Sweep gate: allow signal when consensus is strong (≥20) even without a sweep.
+  // A confirmed sweep is still the best setup, but strong multi-agent agreement
+  // (trend + SMC + news all aligned) can produce a valid directional signal.
+  const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None" && Math.abs(normalizedScore) < 20;
 
   // ── Final Bias Decision ───────────────────────────────────────────────────
-  const BULL_THRESHOLD = 25;
-  const BEAR_THRESHOLD = -25;
+  const BULL_THRESHOLD = 20;
+  const BEAR_THRESHOLD = -20;
 
   let finalBias: FinalBias;
   let noTradeReason: string | undefined;
@@ -172,7 +174,7 @@ export function computeConsensus(
     noTradeReason = `Structure gate: Trend is BULLISH — bearish signals blocked. Require confirmed BOS to downside before going short.`;
   } else if (noFibZone) {
     finalBias     = "no-trade";
-    noTradeReason = `Sweep gate: No confirmed NY session sweep. Waiting for liquidity sweep before entry.`;
+    noTradeReason = `Sweep gate: No confirmed session sweep. Best setups form during Asian (8AM–11AM PHT), London (4PM–7PM PHT), or NY (9:30PM–11:30PM PHT) kill zones.`;
   } else if (normalizedScore >= BULL_THRESHOLD) {
     finalBias = "bullish";
   } else if (normalizedScore <= BEAR_THRESHOLD) {
