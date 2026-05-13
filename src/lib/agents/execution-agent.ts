@@ -18,7 +18,7 @@ import type {
   SMCAgentOutput, NewsAgentOutput, SetupGrade, SignalState,
 } from "./schemas";
 
-// ── SL Limits — Gold absolute (pts), others %-based ──────────────────────────────
+// ── SL Limits — Gold absolute (pts), others %-based ──────────────────────────────────
 const GOLD_SL_LIMITS: Record<string, { min: number; max: number }> = {
   M5:  { min: 3,  max: 8   },
   M15: { min: 5,  max: 12  },
@@ -36,11 +36,12 @@ const PCT_SL_MAX: Record<string, number> = {
 const GOLD_SYMS = new Set(["XAUUSD", "XAGUSD", "XPTUSD"]);
 
 // Killzone windows (UTC hours, inclusive start, exclusive end)
-const LONDON_KZ = { start: 8,  end: 11 };
+const ASIAN_KZ  = { start: 0, end: 3 };  // 00:00–03:00 UTC = 8AM–11AM PHT
+const LONDON_KZ = { start: 8, end: 11 }; // 08:00–11:00 UTC = 4PM–7PM PHT
 // JadeCap NY Kill Zone = 9:30–11:30 AM EST = 13:30–15:30 UTC exactly
 const NY_KZ = { startHour: 13, startMin: 30, endHour: 15, endMin: 30 };
 
-// ── Helpers ─────────────────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────────────────────
 
 function roundToPrecision(value: number, price: number): number {
   if (price > 10000) return Math.round(value);
@@ -66,7 +67,7 @@ function isSLInRange(riskDist: number, timeframe: string, symbol: string, price:
   return riskDist <= price * maxPct;
 }
 
-// ── Confluence Scoring — 10 factors ──────────────────────────────────────────────
+// ── Confluence Scoring — 10 factors ────────────────────────────────────────────────
 
 interface ConfluenceFactor { id: string; label: string; pass: boolean }
 
@@ -80,8 +81,6 @@ function scoreConfluence(
   const { structure, symbol } = snapshot;
 
   const macroAligned = GOLD_SYMS.has(symbol)
-    // Gold long: any elevated risk environment supports safe-haven bid
-    // Gold short: requires explicit bearish macro (ceasefire, strong USD rally, etc.)
     ? (isBullish ? news.riskScore > 25 : news.impact === "bearish")
     : ["EURUSD", "GBPUSD", "AUDUSD", "NZDUSD"].includes(symbol)
       ? (isBullish ? news.impact !== "bearish" : news.impact !== "bullish")
@@ -108,9 +107,6 @@ function scoreConfluence(
       label: "BOS confirmed",
       pass: smc.bosDetected,
     },
-    // CHoCH is intentionally omitted here — in this codebase chochDetected === fvgDetected,
-    // so counting it alongside the FVG factor would double-count the same signal.
-    // The structural shift is already captured via bosDetected + fvgMid.
     {
       id: "fib_zone",
       label: isBullish ? "Price in discount retracement zone" : "Price in premium retracement zone",
@@ -139,7 +135,7 @@ function scoreConfluence(
   ];
 }
 
-// ── Grade Calculation ──────────────────────────────────────────────────────────────────
+// ── Grade Calculation ────────────────────────────────────────────────────────────────────────────
 
 function gradeSetup(
   rrRatio: number,
@@ -160,7 +156,7 @@ function gradeSetup(
   return "C";
 }
 
-// ── Result constructors ─────────────────────────────────────────────────────────────────
+// ── Result constructors ─────────────────────────────────────────────────────────────────────
 
 function noTradeResult(start: number, reason: string): ExecutionAgentOutput {
   return {
@@ -208,7 +204,7 @@ function waitResult(start: number, grade: "B+" | "B", reason: string): Execution
   };
 }
 
-// ── Main Export ─────────────────────────────────────────────────────────────────────────────
+// ── Main Export ─────────────────────────────────────────────────────────────────────────────────────────
 
 export async function runExecutionAgent(
   snapshot: MarketSnapshot,
@@ -224,18 +220,20 @@ export async function runExecutionAgent(
     const { htfBias, htfConfidence } = structure;
     const { session, sessionHour } = indicators;
 
-    // ── Killzone ──────────────────────────────────────────────────────────────
+    // ── Killzone ──────────────────────────────────────────────────────────────────
     const snapDate   = new Date(snapshot.timestamp);
     const nowHourUTC = snapDate.getUTCHours();
     const nowMinUTC  = snapDate.getUTCMinutes();
+    const inAsianKZ  = session === "Asia" &&
+      nowHourUTC >= ASIAN_KZ.start && nowHourUTC < ASIAN_KZ.end;
     const inLondonKZ = session === "London" &&
       nowHourUTC >= LONDON_KZ.start && nowHourUTC < LONDON_KZ.end;
     const inNYKZ     = session === "New York" &&
       (nowHourUTC > NY_KZ.startHour || (nowHourUTC === NY_KZ.startHour && nowMinUTC >= NY_KZ.startMin)) &&
       (nowHourUTC < NY_KZ.endHour   || (nowHourUTC === NY_KZ.endHour   && nowMinUTC <  NY_KZ.endMin));
-    const inKillzone = inLondonKZ || inNYKZ;
+    const inKillzone = inAsianKZ || inLondonKZ || inNYKZ;
 
-    // ── Major news check ─────────────────────────────────────────────────────
+    // ── Major news check ────────────────────────────────────────────────────────────
     const riskBlocksExec = GOLD_SYMS.has(symbol)
       ? news.riskScore > 95 && news.impact !== "bullish"
       : news.riskScore > 80;
@@ -243,23 +241,22 @@ export async function runExecutionAgent(
       return noTradeResult(start, `Elevated macro risk (${news.riskScore}/100) — stand aside until risk clears`);
     }
 
-    // ── HTF bias check ──────────────────────────────────────────────────────────
+    // ── HTF bias check ──────────────────────────────────────────────────────────────────
     const sweepActive = smc.liquiditySweepDetected && smc.setupPresent && smc.bias !== "neutral";
-    if (!sweepActive && (htfBias === "neutral" || htfConfidence < 45)) {
+    if (!sweepActive && (htfBias === "neutral" || htfConfidence < 35)) {
       return noTradeResult(start, "No directional bias confirmed — stand aside");
     }
 
-    // ── Direction ─────────────────────────────────────────────────────────────────
+    // ── Direction ──────────────────────────────────────────────────────────────────────────────
     const { keyLevels, setupType, bosDetected, liquiditySweepDetected } = smc;
     const isBullish = (liquiditySweepDetected && smc.bias !== "neutral")
       ? smc.bias === "bullish"
       : htfBias === "bullish";
     const direction: TradeDirection = isBullish ? "long" : "short";
     const buf    = slBuffer(symbol);
-    // For non-gold assets slBuffer returns 0, causing SL = entry on fallback paths — use 0.1% floor
     const minBuf = buf > 0 ? buf : Math.max(current * 0.001, 0.0001);
 
-    // ── Entry / SL construction ───────────────────────────────────────────────────
+    // ── Entry / SL construction ────────────────────────────────────────────────────────
     let entry: number;
     let stopLoss: number;
     let trigger: string;
@@ -284,13 +281,11 @@ export async function runExecutionAgent(
             : (keyLevels.orderBlockHigh - current) / obRange)
         : 0;
       if (depthPct > 0.3) {
-        // OB depth disqualifies this entry but the structure is still valid — B+ not B
         return waitResult(start, "B+", "Price >30% into OB — wait for a fresh OB test");
       }
 
     } else if (setupType === "FVG" && keyLevels.fvgMid !== null) {
       entry    = keyLevels.fvgMid;
-      // Only use invalidationLevel if it's on the correct side
       const fvgInvLevel = smc.invalidationLevel;
       const fvgInvValid = fvgInvLevel !== null &&
         (isBullish ? fvgInvLevel < entry : fvgInvLevel > entry);
@@ -327,8 +322,6 @@ export async function runExecutionAgent(
       entryInStructure = false;
 
     } else if (bosDetected) {
-      // Prefer a real structural level (FVG midpoint or sweep level) as the pullback entry.
-      // Fall back to a 38.2% Fibonacci approximation of the day range only when no level is available.
       const structuralEntry =
         keyLevels.fvgMid ??
         (keyLevels.sweepLevel !== null
@@ -345,25 +338,30 @@ export async function runExecutionAgent(
       entryInStructure = structuralEntry !== null;
 
     } else {
+      // No specific structure found. If HTF bias is directional and confident,
+      // downgrade to WAIT rather than NO_TRADE — direction confirmed, entry not yet formed.
+      const hasBias = htfBias !== "neutral" && htfConfidence >= 35;
+      if (hasBias) {
+        return waitResult(start, "B",
+          `HTF ${htfBias} bias at ${htfConfidence}% confidence but no sweep, FVG, or OB in current session — awaiting structure formation`
+        );
+      }
       return noTradeResult(start, "No valid structural setup — no OB, FVG, or confirmed sweep present");
     }
 
-    // ── SL directional guard — return no-trade on any remaining inversions ──
+    // ── SL directional guard ──────────────────────────────────────────────────────────────────
     if ((isBullish && stopLoss >= entry) || (!isBullish && stopLoss <= entry)) {
       return noTradeResult(start,
         `Invalid stop loss: ${direction} entry ${entry.toFixed(1)} but SL ${stopLoss.toFixed(1)} is on wrong side — structural levels inconsistent`
       );
     }
 
-
     const riskDist = Math.abs(entry - stopLoss);
-
     if (riskDist === 0) {
       return noTradeResult(start, "Invalid setup: entry equals stop loss");
     }
 
     const slInRange = isSLInRange(riskDist, timeframe, symbol, current);
-
     if (!slInRange) {
       const limitMsg = GOLD_SYMS.has(symbol)
         ? `Gold ${timeframe} SL limit is ${GOLD_SL_LIMITS[timeframe]?.max ?? 20} pts max — got ${riskDist.toFixed(1)} pts`
@@ -371,12 +369,11 @@ export async function runExecutionAgent(
       return waitResult(start, "B", `${limitMsg} — wait for tighter structure`);
     }
 
-    // ── Round entry/SL before TP so all levels are on the same precision grid ──
     entry    = roundToPrecision(entry,    current);
     stopLoss = roundToPrecision(stopLoss, current);
     const riskDistRounded = Math.abs(entry - stopLoss);
 
-    // ── TP Levels ─────────────────────────────────────────────────────────────────
+    // ── TP Levels ──────────────────────────────────────────────────────────────────────────────
     const tp2Distance = riskDistRounded * 3.0;
     const tp3Distance = riskDistRounded * 5.0;
     const tp1MaxDist  = riskDistRounded * 2.0;
@@ -417,7 +414,6 @@ export async function runExecutionAgent(
       }
     }
 
-    // Hard caps: TP1 ≤ 1.5R, TP2 ≤ 2.5R from entry; direction guard included
     if (isBullish) {
       tp1 = Math.min(tp1, entry + riskDistRounded * 1.5);
       tp2 = Math.min(tp2, entry + riskDistRounded * 2.5);
@@ -435,21 +431,17 @@ export async function runExecutionAgent(
 
     const reward  = Math.abs(tp2 - entry);
     const rrRatio = riskDistRounded > 0 ? parseFloat((reward / riskDistRounded).toFixed(2)) : null;
-
     if (rrRatio === null) {
       return noTradeResult(start, "R:R calculation failed — zero risk distance");
     }
 
-    // ── Confluence scoring ──────────────────────────────────────────────────────────────
     const factors         = scoreConfluence(snapshot, smc, news, isBullish, inKillzone);
     const passedFactors   = factors.filter(f => f.pass);
     const confluenceCount = passedFactors.length;
     const confluenceFactors = passedFactors.map(f => f.label);
 
-    // ── Grade ────────────────────────────────────────────────────────────────────────
     const grade = gradeSetup(rrRatio, confluenceCount, slInRange, inKillzone, entryInStructure);
 
-    // ── Grade filter ──────────────────────────────────────────────────────────────────
     if (grade === "B+" || grade === "B") {
       const detail = grade === "B+"
         ? `R:R 1:${rrRatio} with ${confluenceCount}/10 confluence — needs stronger entry alignment`
@@ -460,7 +452,6 @@ export async function runExecutionAgent(
       return noTradeResult(start, `R:R 1:${rrRatio} / ${confluenceCount}/10 confluence — setup rejected`);
     }
 
-    // ── Trigger condition ──────────────────────────────────────────────────────────────
     const p = entry > 100 ? 1 : 4;
     const triggerCondition =
       trigger === "OB retest"
@@ -475,7 +466,6 @@ export async function runExecutionAgent(
                 ? `Enter on first pullback after structure break. Confirm with ${isBullish ? "bullish" : "bearish"} momentum resumption on M15`
                 : `Market order entry at ${current.toFixed(p)} with structural stop ${stopLoss.toFixed(p)}`;
 
-    // ── Management notes ──────────────────────────────────────────────────────────────
     const managementNotes: string[] = [
       `Scale out 50% at TP1 (${tp1.toFixed(p)}) — move SL to breakeven immediately after`,
       timeframe === "H4" && tp3 !== null
