@@ -299,13 +299,25 @@ interface SweepFVGResult {
   fvgMid:        number;
 }
 
-// Returns true if a candle's timestamp falls within the NY Kill Zone (13:30–15:30 UTC).
-function inNYKillZone(ts: number): boolean {
+// Returns true if a candle's period OVERLAPS any of the three kill zones:
+//   Asian Kill Zone:  00:00–03:00 UTC = minutes 0–180   (8AM–11AM PHT)
+//   London Kill Zone: 08:00–11:00 UTC = minutes 480–660 (4PM–7PM PHT)
+//   NY Kill Zone:     13:30–15:30 UTC = minutes 810–930 (9:30PM–11:30PM PHT)
+// Uses candle duration for overlap — critical for H1/H4 candles.
+function inKillZone(ts: number, timeframe = "M5"): boolean {
   const d = new Date(ts * 1000);
-  const h = d.getUTCHours();
-  const m = d.getUTCMinutes();
-  const totalMin = h * 60 + m;
-  return totalMin >= 13 * 60 + 30 && totalMin < 15 * 60 + 30;
+  const candleStartMin = d.getUTCHours() * 60 + d.getUTCMinutes();
+
+  const candleDuration =
+    timeframe === "H4"  ? 240 :
+    timeframe === "H1"  ? 60  :
+    timeframe === "M15" ? 15  : 5;
+
+  const candleEndMin = candleStartMin + candleDuration;
+  const inAsianKZ  = candleStartMin < 180 && candleEndMin > 0;   // 00:00–03:00 UTC
+  const inLondonKZ = candleStartMin < 660 && candleEndMin > 480; // 08:00–11:00 UTC
+  const inNYKZ     = candleStartMin < 930 && candleEndMin > 810; // 13:30–15:30 UTC
+  return inAsianKZ || inLondonKZ || inNYKZ;
 }
 
 // Scan NY session candles for: sweep of session level within the kill zone → 3-candle FVG.
@@ -315,13 +327,18 @@ function detectNYSweepAndFVG(
   candles: CandleSlim[],
   levels: ReturnType<typeof computeActualSessionLevels>,
   minSweep: number,
-  minFvgGap: number
+  minFvgGap: number,
+  timeframe = "M5"
 ): SweepFVGResult | null {
   const toHour = (ts: number) => new Date(ts * 1000).getUTCHours();
-  // Widen scan window to 13:00–18:00 UTC so we have context candles before the kill zone.
+  // Scan 00:00–18:00 UTC to capture all three kill zones:
+  //   Asian Kill Zone:  00:00–03:00 UTC
+  //   London Kill Zone: 08:00–11:00 UTC (H4 at 08:00, H1 at 07:00 overlaps)
+  //   NY Kill Zone:     13:30–15:30 UTC (H4 at 12:00, H1 at 13:00)
+  // The inKillZone overlap check gates which candles are valid sweep candidates.
   const nyC = candles
-    .filter(c => { const h = toHour(c.t); return h >= 13 && h < 18; })
-    .slice(-24);
+    .filter(c => { const h = toHour(c.t); return h < 18; })
+    .slice(-60);
 
   if (nyC.length < 3) return null;
 
@@ -338,11 +355,12 @@ function detectNYSweepAndFVG(
   for (let i = 0; i < nyC.length - 2; i++) {
     const sc = nyC[i];
 
-    // Sweep candle must be within the official NY Kill Zone (13:30–15:30 UTC)
-    if (!inNYKillZone(sc.t)) continue;
+    // Sweep candle must overlap NY Kill Zone (13:30–15:30 UTC) or London Kill Zone (08:00–11:00 UTC)
+    if (!inKillZone(sc.t, timeframe)) continue;
 
     for (const tgt of targets) {
-      if (tgt.label === "London High") continue; // 43% WR — skip
+      // London High: skip ONLY when no FVG confirmation will come — the full loop still
+      // runs so that the FVG scan executes. Bias-alignment guard is in runJadeCapRuleBased.
       let swept = false;
       let extreme = 0;
 
@@ -399,6 +417,7 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   const { current, open, high, low, prevClose, dayRange } = price;
   const { sessionHour, session } = indicators;
   const { htfBias, htfConfidence, equilibrium, zone } = structure;
+  const timeframe = snapshot.timeframe ?? "M5";
 
   // ── STEP 1: Daily bias ─────────────────────────────────────────────────────
   const dailyBias: DirectionalBias = htfBias !== "neutral" ? htfBias
@@ -412,8 +431,13 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   const sessionMinuteLogic = nowForKZLogic.getUTCMinutes();
   const sessionHourKZLogic = nowForKZLogic.getUTCHours();
   // NY Kill Zone: 9:30–11:30 AM EST = 13:30–15:30 UTC
-  const inNYSession = (sessionHourKZLogic > 13 || (sessionHourKZLogic === 13 && sessionMinuteLogic >= 30))
-                   && (sessionHourKZLogic < 15  || (sessionHourKZLogic === 15 && sessionMinuteLogic <  30));
+  const inNYKZ = (sessionHourKZLogic > 13 || (sessionHourKZLogic === 13 && sessionMinuteLogic >= 30))
+              && (sessionHourKZLogic < 15  || (sessionHourKZLogic === 15 && sessionMinuteLogic <  30));
+  // London Kill Zone: 08:00–11:00 UTC
+  const inLondonKZ = sessionHourKZLogic >= 8 && sessionHourKZLogic < 11;
+  // Asian Kill Zone: 00:00–03:00 UTC (Tokyo open — 8AM–11AM PHT)
+  const inAsianKZ = sessionHourKZLogic >= 0 && sessionHourKZLogic < 3;
+  const inNYSession = inNYKZ || inLondonKZ || inAsianKZ;
   const upperWick   = high - Math.max(current, open);
   const lowerWick   = Math.min(current, open) - low;
 
@@ -449,7 +473,7 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
 
   if (candles && candles.length >= 10) {
     const real = computeActualSessionLevels(candles);
-    const found = detectNYSweepAndFVG(candles, real, minSweep, minFvgGapVal);
+    const found = detectNYSweepAndFVG(candles, real, minSweep, minFvgGapVal, timeframe);
     if (found) {
       liquiditySweepDetected = true;
       sweepLevel    = found.sweepLevel;
@@ -460,6 +484,10 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
       fvgHigh       = found.fvgHigh;
       fvgLow        = found.fvgLow;
       fvgMid        = found.fvgMid;
+      // London High with FVG + aligned bias is a valid setup — upgrade confidence
+      if (found.sweepLabel === "London High" && found.fvgHigh !== null && found.sweepBias === dailyBias) {
+        sweepModifier = 8;
+      }
     }
   }
 
@@ -483,7 +511,10 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   }
 
   const fvgDetected = fvgHigh !== null && fvgLow !== null;
-  const isLowConfidenceSweep = sweepLabel === "London High";
+  // London High is only low-confidence when there's no FVG OR the sweep is counter-trend.
+  // A London High sweep with a confirmed FVG aligned with daily bias is a valid setup.
+  const isLowConfidenceSweep = sweepLabel === "London High" &&
+    !(fvgDetected && sweepBias === dailyBias);
   const setupType: SetupType = fvgDetected ? "FVG" : liquiditySweepDetected ? "Sweep" : "None";
   const setupPresent = liquiditySweepDetected && fvgDetected && !isLowConfidenceSweep;
   const bias: DirectionalBias = liquiditySweepDetected ? sweepBias : dailyBias;
@@ -531,8 +562,12 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
     );
   } else {
     reasons.push(
-      `No reversal pattern detected — ${inNYSession
-        ? "active session window, monitoring for setup"
+      `No reversal pattern detected — ${inNYKZ
+        ? "NY Kill Zone active (13:30–15:30 UTC / 9:30–11:30 PM PHT), monitoring for sweep"
+        : inLondonKZ
+        ? "London Kill Zone active (08:00–11:00 UTC / 4:00–7:00 PM PHT), monitoring for sweep"
+        : inAsianKZ
+        ? "Asian Kill Zone active (00:00–03:00 UTC / 8:00–11:00 AM PHT), monitoring for PDH/PDL sweep"
         : `current session: ${session}`}`
     );
   }
@@ -593,6 +628,21 @@ export async function runPriceActionAgent(
 ): Promise<SMCAgentOutput> {
   const start = Date.now();
 
+  // Phase 1: Rule-based sweep detection using actual candle history.
+  // The LLM only sees the current single candle and cannot detect sweeps
+  // that occurred on previous candles — rule-based scan is authoritative here.
+  let ruleResult: SMCAgentOutput | null = null;
+  try {
+    ruleResult = runJadeCapRuleBased(snapshot);
+    // Confirmed sweep + FVG setup found — return immediately, no LLM needed
+    if (ruleResult.liquiditySweepDetected && ruleResult.setupPresent) {
+      return ruleResult;
+    }
+  } catch (err) {
+    console.warn("Price action agent rule-based scan failed:", err);
+  }
+
+  // Phase 2: LLM for broader structural analysis when no candle sweep is confirmed
   if (anthropicApiKey) {
     try {
       const client = new Anthropic({ apiKey: anthropicApiKey });
@@ -602,6 +652,8 @@ export async function runPriceActionAgent(
     }
   }
 
+  // Phase 3: Return rule-based result or fresh fallback
+  if (ruleResult) return ruleResult;
   try {
     return runJadeCapRuleBased(snapshot);
   } catch (err) {
