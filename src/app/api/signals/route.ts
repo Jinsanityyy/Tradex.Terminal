@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { computeStats, getRecentSignals } from "@/lib/signals/stats";
-import { trackOpenSignals } from "@/lib/signals/tracker";
+import { trackOpenSignals, reprocessRecentLosses } from "@/lib/signals/tracker";
 import type { Symbol } from "@/lib/agents/schemas";
 import type { SignalStats } from "@/lib/signals/types";
 
@@ -59,9 +59,10 @@ export async function GET(req: NextRequest) {
     if (now - lastTrackerRunAt > TRACKER_COOLDOWN_MS) {
       lastTrackerRunAt = now;
       // Fire-and-forget — don't block the response.
-      void trackOpenSignals().catch(err =>
-        console.warn("[api/signals] tracker run failed:", err)
-      );
+      void Promise.all([
+        trackOpenSignals(),
+        reprocessRecentLosses(4), // correct false SL hits from last 4h on every load
+      ]).catch(err => console.warn("[api/signals] tracker run failed:", err));
     }
 
     const [stats, recent] = await Promise.all([
