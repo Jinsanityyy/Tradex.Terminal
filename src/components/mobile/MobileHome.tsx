@@ -88,8 +88,16 @@ export function MobileHome() {
     try { await generateFresh(); } finally { setGenerating(false); }
   }
 
-  const signalColor = signalState === "ARMED" ? "text-emerald-400" : signalState === "PENDING" ? "text-amber-400" : "text-zinc-500";
-  const signalBg = signalState === "ARMED" ? "bg-emerald-500/10 border-emerald-500/30" : signalState === "PENDING" ? "bg-amber-500/10 border-amber-500/30" : "bg-white/5 border-white/5";
+  const SIG_STYLE: Record<string, { color: string; bg: string; label: string; stripBg: string; stripLabel: string; stripLabelColor: string }> = {
+    ARMED:    { color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30", label: "ENTER NOW",  stripBg: "bg-emerald-500/8 border-emerald-500/25", stripLabel: "⚡ Armed — Confirm trigger",      stripLabelColor: "text-emerald-500/70" },
+    PENDING:  { color: "text-amber-400",   bg: "bg-amber-500/10 border-amber-500/30",     label: "PENDING",   stripBg: "bg-amber-500/8 border-amber-500/25",   stripLabel: "⏳ Pending — Waiting for entry",  stripLabelColor: "text-amber-500/70"   },
+    WAIT:     { color: "text-orange-400",  bg: "bg-orange-500/10 border-orange-500/30",   label: "WAIT",      stripBg: "bg-orange-500/8 border-orange-500/25", stripLabel: "🟠 Wait — Monitor setup",         stripLabelColor: "text-orange-500/70"  },
+    EXPIRED:  { color: "text-zinc-400",    bg: "bg-zinc-800/50 border-zinc-600/25",       label: "EXPIRED",   stripBg: "bg-white/5 border-white/10",           stripLabel: "⚪ Expired setup",                stripLabelColor: "text-zinc-600"       },
+    NO_TRADE: { color: "text-zinc-500",    bg: "bg-zinc-900/60 border-zinc-700/20",       label: "NO TRADE",  stripBg: "bg-white/5 border-white/10",           stripLabel: "Last Setup",                      stripLabelColor: "text-zinc-600"       },
+  };
+  const sigStyle = SIG_STYLE[signalState] ?? SIG_STYLE.NO_TRADE;
+  const signalColor = sigStyle.color;
+  const signalBg = sigStyle.bg;
 
   return (
     <div ref={divRef} className="overflow-y-auto h-full pb-6">
@@ -107,7 +115,7 @@ export function MobileHome() {
           {/* Signal State */}
           <div className={cn("rounded-xl p-3.5 border", signalBg)}>
             <p className="text-[9px] text-zinc-600 uppercase tracking-widest mb-1">Signal</p>
-            <p className={cn("text-[13px] font-bold uppercase", signalColor)}>{signalState.replace("_", " ")}</p>
+            <p className={cn("text-[13px] font-bold uppercase", signalColor)}>{sigStyle.label}</p>
             {direction && (
               <p className="text-[9px] text-zinc-600 mt-1 truncate">
                 {direction.toUpperCase()} · {trigger ?? "—"}
@@ -138,17 +146,9 @@ export function MobileHome() {
 
         {/* Entry strip — show whenever we have entry data */}
         {entry && (
-          <div className={cn("border rounded-xl px-4 py-3",
-            signalState === "ARMED"   ? "bg-emerald-500/8 border-emerald-500/25" :
-            signalState === "PENDING" ? "bg-amber-500/8 border-amber-500/25" :
-            "bg-white/5 border-white/10")}>
-            <p className={cn("text-[9px] uppercase tracking-wider mb-2",
-              signalState === "ARMED"   ? "text-emerald-500/70" :
-              signalState === "PENDING" ? "text-amber-500/70" :
-              "text-zinc-600")}>
-              {signalState === "ARMED" ? "⚡ Armed — Confirm trigger" :
-               signalState === "PENDING" ? "⏳ Pending — Waiting for entry" :
-               "Last Setup"}
+          <div className={cn("border rounded-xl px-4 py-3", sigStyle.stripBg)}>
+            <p className={cn("text-[9px] uppercase tracking-wider mb-2", sigStyle.stripLabelColor)}>
+              {sigStyle.stripLabel}
             </p>
             <div className="grid grid-cols-4 gap-2">
               {[
