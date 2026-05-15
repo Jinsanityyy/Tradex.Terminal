@@ -36,6 +36,7 @@ import { SessionSummaryCard } from "@/components/shared/SessionSummaryCard";
 import { LotCalculatorWidget } from "@/components/shared/LotCalculatorWidget";
 import { TrumpImpactPreview } from "@/components/shared/TrumpFeedPanel";
 import { MTFBiasPanel } from "@/components/shared/MTFBiasPanel";
+import { AgentOverviewWidget } from "@/components/brain/AgentOverviewWidget";
 import { useSettings } from "@/contexts/SettingsContext";
 import {
   useEconomicCalendar,
@@ -1399,25 +1400,7 @@ export default function DashboardPage() {
           Brain
         </Link>
       ),
-      content: (
-        <div className="h-full min-h-0 overflow-y-auto p-2.5">
-          <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
-            {agentOverviewCards.map((agent) => (
-              <AgentMiniCard
-                key={agent.id}
-                label={agent.label}
-                bias={agent.bias}
-                confidence={agent.confidence}
-                detail={agent.detail}
-                detail2={agent.detail2}
-                isLoading={!data}
-                accent={agent.accent}
-                onClick={() => setActiveAgent(agent.id)}
-              />
-            ))}
-          </div>
-        </div>
-      ),
+      content: <AgentOverviewWidget />,
     },
     {
       id: "catalysts",
