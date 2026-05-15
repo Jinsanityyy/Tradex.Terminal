@@ -4,19 +4,63 @@ import { useEffect, useState } from "react";
 import type { TrumpPost } from "@/types";
 import { mapTruthSocialStatus } from "@/lib/trump/classify";
 
-const CACHE_KEY      = "tradex_ts_posts_v2";
+const CACHE_KEY      = "tradex_ts_posts_v3";
 const RATE_LIMIT_KEY = "tradex_ts_last_fetch";
 const CACHE_TTL      = 5 * 60 * 1000;  // 5 min
 const MIN_POLL_MS    = 60 * 1000;       // never hit the API more than once per minute
 
+const TS_ACCOUNT_ID  = "107780257626128497"; // realDonaldTrump
+const TS_DIRECT_URL  = `https://truthsocial.com/api/v1/accounts/${TS_ACCOUNT_ID}/statuses?limit=20&exclude_replies=true&exclude_reblogs=true`;
+
 type TSStatus = "idle" | "loading" | "ok" | "error" | "unconfigured";
-type CachedTS = { posts: TrumpPost[]; ts: number };
+type CachedTS = { posts: TrumpPost[]; ts: number; source: string };
+
+// ── Try 1: direct browser fetch ──────────────────────────────────────────────
+// Browser has real Chrome fingerprint + can solve Cloudflare JS challenges.
+// Truth Social (Mastodon-based) has Access-Control-Allow-Origin: * on its API.
+async function fetchDirect(): Promise<TrumpPost[]> {
+  const res = await fetch(TS_DIRECT_URL, {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const statuses: Parameters<typeof mapTruthSocialStatus>[0][] = await res.json();
+  const posts = statuses
+    .map(mapTruthSocialStatus)
+    .filter((p): p is TrumpPost => p !== null)
+    .slice(0, 10);
+  return posts;
+}
+
+// ── Try 2: server route (has stale-cache fallback) ───────────────────────────
+async function fetchViaServer(): Promise<{ posts: TrumpPost[]; error?: string; configured?: boolean }> {
+  const res = await fetch("/api/market/trump/ts", { cache: "no-store" });
+  const body = await res.json().catch(() => null);
+
+  if (res.status === 503 && body?.configured === false) {
+    return { posts: [], error: body?.error, configured: false };
+  }
+  if (!res.ok) {
+    return { posts: [], error: body?.error ?? `HTTP ${res.status}` };
+  }
+  if (!Array.isArray(body)) {
+    return { posts: [], error: "Unexpected server response." };
+  }
+
+  const posts: TrumpPost[] = body
+    .map(mapTruthSocialStatus)
+    .filter((p): p is TrumpPost => p !== null)
+    .slice(0, 10);
+
+  return { posts };
+}
 
 export function useTruthSocialPosts() {
-  const [posts,  setPosts]  = useState<TrumpPost[]>([]);
-  const [status, setStatus] = useState<TSStatus>("idle");
+  const [posts,    setPosts]    = useState<TrumpPost[]>([]);
+  const [status,   setStatus]   = useState<TSStatus>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [tick, setTick] = useState(0);
+  const [source,   setSource]   = useState<"direct" | "server" | null>(null);
+  const [tick,     setTick]     = useState(0);
 
   function refresh() {
     try { sessionStorage.removeItem(RATE_LIMIT_KEY); } catch {}
@@ -27,7 +71,7 @@ export function useTruthSocialPosts() {
   }
 
   useEffect(() => {
-    // Return cached data immediately if still fresh
+    // Serve from sessionStorage cache if still fresh
     try {
       const raw = sessionStorage.getItem(CACHE_KEY);
       if (raw) {
@@ -35,72 +79,75 @@ export function useTruthSocialPosts() {
         if (Date.now() - cached.ts < CACHE_TTL && cached.posts.length > 0) {
           setPosts(cached.posts);
           setStatus("ok");
+          setSource(cached.source as "direct" | "server");
           return;
         }
       }
     } catch {}
 
-    // Rate-limit guard — don't spam the API on every React mount
+    // Rate-limit: don't re-fetch within MIN_POLL_MS
     try {
       const last = parseInt(sessionStorage.getItem(RATE_LIMIT_KEY) ?? "0", 10);
-      if (Date.now() - last < MIN_POLL_MS) {
-        return;
-      }
+      if (Date.now() - last < MIN_POLL_MS) return;
     } catch {}
 
     setStatus("loading");
 
-    fetch("/api/market/trump/ts", { cache: "no-store" })
-      .then(async (res) => {
-        const body = await res.json().catch(() => null);
+    (async () => {
+      // ── Try 1: direct browser fetch (free, no API key needed) ──────────────
+      try {
+        console.log("[useTruthSocialPosts] trying direct browser fetch…");
+        const directPosts = await fetchDirect();
+        if (directPosts.length > 0) {
+          console.log(`[useTruthSocialPosts] direct OK — ${directPosts.length} posts`);
+          setPosts(directPosts);
+          setStatus("ok");
+          setSource("direct");
+          setErrorMsg(null);
+          try {
+            sessionStorage.setItem(RATE_LIMIT_KEY, String(Date.now()));
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify({ posts: directPosts, ts: Date.now(), source: "direct" }));
+          } catch {}
+          return;
+        }
+        console.warn("[useTruthSocialPosts] direct fetch returned 0 posts");
+      } catch (err) {
+        // CORS or network error — fall through to server route
+        console.warn("[useTruthSocialPosts] direct fetch failed (CORS/network):", err);
+      }
 
-        // Provider not configured
-        if (res.status === 503 && body?.configured === false) {
-          console.warn("[useTruthSocialPosts] provider not configured:", body?.error);
+      // ── Try 2: server route (has stale-cache fallback) ───────────────────
+      console.log("[useTruthSocialPosts] falling back to server route…");
+      try {
+        const { posts: serverPosts, error, configured } = await fetchViaServer();
+
+        if (configured === false) {
           setStatus("unconfigured");
-          setErrorMsg(body?.error ?? "Truth Social provider not configured.");
+          setErrorMsg(error ?? "Truth Social provider not configured.");
+          return;
+        }
+        if (serverPosts.length > 0) {
+          console.log(`[useTruthSocialPosts] server OK — ${serverPosts.length} posts`);
+          setPosts(serverPosts);
+          setStatus("ok");
+          setSource("server");
+          setErrorMsg(null);
+          try {
+            sessionStorage.setItem(RATE_LIMIT_KEY, String(Date.now()));
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify({ posts: serverPosts, ts: Date.now(), source: "server" }));
+          } catch {}
           return;
         }
 
-        // Other HTTP error
-        if (!res.ok) {
-          console.error(`[useTruthSocialPosts] HTTP ${res.status}:`, body?.error ?? body);
-          setStatus("error");
-          setErrorMsg(body?.error ?? `HTTP ${res.status}`);
-          return;
-        }
-
-        // Success — body should be an array of Mastodon-like status objects
-        if (!Array.isArray(body)) {
-          console.error("[useTruthSocialPosts] unexpected response shape:", body);
-          setStatus("error");
-          setErrorMsg("Unexpected response from provider.");
-          return;
-        }
-
-        const mapped: TrumpPost[] = body
-          .map(mapTruthSocialStatus)
-          .filter((p): p is TrumpPost => p !== null)
-          .slice(0, 10);
-
-        console.log(`[useTruthSocialPosts] got ${mapped.length} posts`);
-        setPosts(mapped);
-        setStatus(mapped.length > 0 ? "ok" : "error");
-        setErrorMsg(mapped.length === 0 ? "Provider returned 0 original posts (all replies/reblogs?)." : null);
-
-        try {
-          sessionStorage.setItem(RATE_LIMIT_KEY, String(Date.now()));
-          if (mapped.length > 0) {
-            sessionStorage.setItem(CACHE_KEY, JSON.stringify({ posts: mapped, ts: Date.now() }));
-          }
-        } catch {}
-      })
-      .catch((err) => {
-        console.error("[useTruthSocialPosts] fetch failed:", err);
+        setStatus("error");
+        setErrorMsg(error ?? "No posts returned from any source.");
+      } catch (err) {
+        console.error("[useTruthSocialPosts] server route failed:", err);
         setStatus("error");
         setErrorMsg(String(err));
-      });
+      }
+    })();
   }, [tick]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { posts, status, errorMsg, refresh };
+  return { posts, status, errorMsg, source, refresh };
 }
