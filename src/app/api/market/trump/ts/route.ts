@@ -4,14 +4,14 @@
  * Provider selection via TRUTH_SOCIAL_PROVIDER env var:
  *   "apify"        — Apify actor (recommended, set APIFY_TOKEN + APIFY_ACTOR_ID)
  *   "scrapcreators"— ScrapeCreators API (set SCRAPCREATORS_API_KEY)
- *   unset/empty    — returns 503 "not configured"
+ *   "direct"       — direct Truth Social Mastodon API (free, may be CF-blocked)
+ *   unset/empty    — falls back to direct
  *
  * Always returns a Mastodon-compatible status array OR { configured: false, error: "..." }
  */
-// Switch to Node.js runtime so we can set maxDuration for Apify sync runs
-// (Edge runtime cannot have maxDuration > 30s on Vercel)
-export const runtime = "nodejs";
-export const maxDuration = 60; // seconds — requires Vercel Pro or higher
+// Edge Runtime: runs on Vercel's global edge network (not AWS Lambda IPs).
+// Edge IPs are less likely to be blocked by Cloudflare than Lambda datacenter IPs.
+export const runtime = "edge";
 
 const PROVIDER   = (process.env.TRUTH_SOCIAL_PROVIDER ?? "").toLowerCase().trim();
 const USERNAME   = process.env.TRUTH_SOCIAL_USERNAME ?? "realDonaldTrump";
@@ -103,10 +103,8 @@ function normalizeItem(item: Record<string, unknown>): MastodonLike | null {
   };
 }
 
-// Fetch Trump's avatar URL from Truth Social account API (cached per process)
-let _cachedAvatar: string | null = null;
+// Fetch Trump's avatar URL from Truth Social account API
 async function fetchTrumpAvatar(): Promise<string | null> {
-  if (_cachedAvatar) return _cachedAvatar;
   try {
     const res = await fetch(
       `https://truthsocial.com/api/v1/accounts/${process.env.TRUTH_SOCIAL_ACCOUNT_ID ?? "107780257626128497"}`,
@@ -114,7 +112,7 @@ async function fetchTrumpAvatar(): Promise<string | null> {
     );
     if (res.ok) {
       const data = await res.json() as { avatar?: string };
-      if (data.avatar) { _cachedAvatar = data.avatar; return data.avatar; }
+      if (data.avatar) return data.avatar;
     }
   } catch {}
   return null;
@@ -242,14 +240,7 @@ async function fetchViaScrapeCreators(): Promise<Response> {
 }
 
 // ── Direct Truth Social provider (no API key needed) ─────────────────────────
-// Truth Social sits behind Cloudflare. When CF returns 403/503 we serve the
-// last successfully fetched posts from the module-level stale cache so the
-// UI never shows an error just because CF is grumpy.
-
 const TRUTH_ACCOUNT_ID = process.env.TRUTH_SOCIAL_ACCOUNT_ID ?? "107780257626128497";
-
-// Stale-while-revalidate: keeps the last good payload across requests in the same process
-let _directCache: { posts: MastodonLike[]; ts: number } | null = null;
 
 async function fetchDirect(): Promise<Response> {
   const url = `https://truthsocial.com/api/v1/accounts/${TRUTH_ACCOUNT_ID}/statuses?limit=20&exclude_replies=true&exclude_reblogs=true`;
@@ -261,36 +252,24 @@ async function fetchDirect(): Promise<Response> {
       headers: {
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Sec-Fetch-Dest": "empty",
         "Sec-Fetch-Mode": "cors",
         "Sec-Fetch-Site": "same-origin",
         "Referer": `https://truthsocial.com/@${USERNAME}`,
         "Origin": "https://truthsocial.com",
-        "Cache-Control": "no-cache",
-        "Pragma": "no-cache",
       },
       signal: AbortSignal.timeout(12_000),
     });
   } catch (err) {
     console.error("[ts/direct] fetch error:", err);
-    if (_directCache) {
-      console.warn(`[ts/direct] using stale cache (${_directCache.posts.length} posts)`);
-      return jsonPosts(_directCache.posts);
-    }
     return jsonError(500, `Truth Social fetch failed: ${String(err)}`);
   }
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     console.error(`[ts/direct] HTTP ${res.status}: ${body.slice(0, 200)}`);
-    // CF is blocking — serve stale cache if available
-    if (_directCache) {
-      console.warn(`[ts/direct] CF blocked (${res.status}), serving stale cache`);
-      return jsonPosts(_directCache.posts);
-    }
-    return jsonError(res.status, `Truth Social blocked (HTTP ${res.status}). Set TRUTH_SOCIAL_PROVIDER=apify or scrapcreators for reliable access.`, false);
+    return jsonError(res.status, `Truth Social HTTP ${res.status} — try TRUTH_SOCIAL_PROVIDER=scrapcreators`, false);
   }
 
   const raw: Record<string, unknown>[] = await res.json().catch(() => []);
@@ -300,10 +279,6 @@ async function fetchDirect(): Promise<Response> {
     .map(normalizeItem)
     .filter((x): x is MastodonLike => x !== null)
     .slice(0, 20);
-
-  if (normalized.length > 0) {
-    _directCache = { posts: normalized, ts: Date.now() };
-  }
 
   console.log(`[ts/direct] normalized: ${normalized.length}`);
   return jsonPosts(normalized);
