@@ -94,7 +94,7 @@ export function NotificationToast() {
   const addNotif = useCallback((n: Notif) => {
     setNotifs(prev => [n, ...prev].slice(0, 5));
     if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-      new Notification(n.title, { body: n.body, icon: "/icon-192.png" });
+      new Notification(n.title, { body: n.body, icon: "/logo.png" });
     }
   }, []);
 
