@@ -303,49 +303,92 @@ async function fetchTruthSocial(): Promise<Omit<TrumpPost, "goldImpact" | "goldR
   return fetchTruthSocialViaProxy();
 }
 
-// ── Source 2b: Google News RSS (no API key, always available) ────────────────
-async function fetchGoogleNewsTrump(): Promise<Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">[]> {
-  try {
-    const r = await fetch("https://news.google.com/rss/search?q=Trump+policy&hl=en-US&gl=US&ceid=US:en", {
-      cache: "no-store",
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1)" },
+// ── RSS helper ────────────────────────────────────────────────────────────────
+// Shared parser for any RSS 2.0 feed. Filters items that mention Trump/policy.
+type RawPost = Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">;
+
+const TRUMP_FILTER = /trump|white house|potus|tariff|truth social|mar-a-lago/i;
+
+function parseRssFeed(xml: string, sourceName: string, prefix: string, limit = 8): RawPost[] {
+  const items: RawPost[] = [];
+  const blocks = xml.matchAll(/<item>([\s\S]*?)<\/item>/g);
+  for (const m of blocks) {
+    const b = m[1];
+    const rawTitle = (b.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? "").replace(/<!\[CDATA\[([\s\S]*?)\]\]>/, "$1").trim();
+    const rawDesc  = (b.match(/<description>([\s\S]*?)<\/description>/)?.[1] ?? "").replace(/<!\[CDATA\[([\s\S]*?)\]\]>/, "$1").trim();
+    const pubDate  = (b.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] ?? "").trim();
+    const guid     = (b.match(/<guid[^>]*>([\s\S]*?)<\/guid>/)?.[1] ?? "").trim();
+    const title = stripHtml(rawTitle);
+    const desc  = stripHtml(rawDesc).slice(0, 200);
+    if (!title) continue;
+    if (!TRUMP_FILTER.test(title + " " + desc)) continue;
+    const text = title;
+    const { category, assets, tags } = classifyPost(text + " " + desc);
+    const template = IMPACT_TEMPLATES[category] ?? IMPACT_TEMPLATES.Government;
+    items.push({
+      id: `${prefix}-${guid || items.length}`,
+      timestamp: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
+      content: text,
+      source: sourceName,
+      sentimentClassification: deriveSentiment(text + " " + desc),
+      impactScore: deriveImpactScore(text + " " + desc),
+      affectedAssets: [...new Set(assets)],
+      policyCategory: category,
+      whyItMatters: template.whyItMatters,
+      potentialReaction: template.reaction,
+      tags,
     });
-    if (!r.ok) throw new Error(`Google News HTTP ${r.status}`);
+    if (items.length >= limit) break;
+  }
+  return items;
+}
+
+async function fetchRSS(url: string, sourceName: string, prefix: string, limit = 8): Promise<RawPost[]> {
+  try {
+    const r = await fetch(url, {
+      cache: "no-store",
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; Feedfetcher-Google/1.0)" },
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const xml = await r.text();
-    const items: Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">[] = [];
-    const blocks = xml.matchAll(/<item>([\s\S]*?)<\/item>/g);
-    for (const m of blocks) {
-      const b = m[1];
-      const title   = (b.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? "").replace(/<!\[CDATA\[([\s\S]*?)\]\]>/, "$1").trim();
-      const pubDate = (b.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] ?? "").trim();
-      const guid    = (b.match(/<guid[^>]*>([\s\S]*?)<\/guid>/)?.[1] ?? "").trim();
-      if (!title) continue;
-      const text = stripHtml(title);
-      const { category, assets, tags } = classifyPost(text);
-      const sentiment = deriveSentiment(text);
-      const impactScore = deriveImpactScore(text);
-      const template = IMPACT_TEMPLATES[category] ?? IMPACT_TEMPLATES.Government;
-      items.push({
-        id: `gn-${guid || items.length}`,
-        timestamp: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
-        content: text,
-        source: "Google News",
-        sentimentClassification: sentiment,
-        impactScore,
-        affectedAssets: [...new Set(assets)],
-        policyCategory: category,
-        whyItMatters: template.whyItMatters,
-        potentialReaction: template.reaction,
-        tags,
-      });
-      if (items.length >= 10) break;
-    }
-    console.log(`[trump/google-news] got ${items.length} items`);
+    const items = parseRssFeed(xml, sourceName, prefix, limit);
+    console.log(`[trump/${prefix}] ${items.length} Trump-related items`);
     return items;
   } catch (err) {
-    console.error("[trump/google-news] ERROR:", err);
+    console.error(`[trump/${prefix}] ERROR:`, err);
     return [];
   }
+}
+
+// ── Source: Reuters ───────────────────────────────────────────────────────────
+function fetchReutersTrump(): Promise<RawPost[]> {
+  return fetchRSS(
+    "https://feeds.reuters.com/reuters/businessNews",
+    "Reuters",
+    "rt",
+    8,
+  );
+}
+
+// ── Source: CNBC ──────────────────────────────────────────────────────────────
+function fetchCNBCTrump(): Promise<RawPost[]> {
+  return fetchRSS(
+    "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+    "CNBC",
+    "cnbc",
+    8,
+  );
+}
+
+// ── Source: Google News RSS (broad fallback) ──────────────────────────────────
+function fetchGoogleNewsTrump(): Promise<RawPost[]> {
+  return fetchRSS(
+    "https://news.google.com/rss/search?q=Trump+tariff+policy&hl=en-US&gl=US&ceid=US:en",
+    "Google News",
+    "gn",
+    8,
+  );
 }
 
 // ── Source 2: Finnhub news filtered for Trump ────────────────────────────────
@@ -414,17 +457,34 @@ export async function GET(req: Request) {
     return NextResponse.json({ data: cache.data, timestamp: cache.ts, cached: true, sources });
   }
 
-  // Truth Social is blocked on Vercel (AWS Lambda IPs) — skip server-side attempts.
-  // Browser-side hook handles Truth Social via edge proxy or CORS proxy.
-  // Server fallback chain: Finnhub → Google News RSS
-  let rawPosts = await fetchFinnhubTrump();
-  let feedSource = "Finnhub/News";
+  // Run all free news sources in parallel: Reuters + CNBC + Google News + Finnhub (if key set)
+  const [reutersPosts, cnbcPosts, googlePosts, finnhubPosts] = await Promise.all([
+    fetchReutersTrump(),
+    fetchCNBCTrump(),
+    fetchGoogleNewsTrump(),
+    fetchFinnhubTrump(),
+  ]);
 
-  if (rawPosts.length === 0) {
-    console.log("[trump] Finnhub empty/no key, trying Google News RSS");
-    rawPosts = await fetchGoogleNewsTrump();
-    feedSource = "Google News";
+  // Merge: Finnhub first (has descriptions), then Reuters, CNBC, Google News
+  // Deduplicate by normalised title (first 60 chars)
+  const seen = new Set<string>();
+  const rawPosts: RawPost[] = [];
+  for (const post of [...finnhubPosts, ...reutersPosts, ...cnbcPosts, ...googlePosts]) {
+    const key = post.content.slice(0, 60).toLowerCase().replace(/\W+/g, "");
+    if (!seen.has(key)) {
+      seen.add(key);
+      rawPosts.push(post);
+    }
   }
+
+  const feedSource = [
+    reutersPosts.length  > 0 && "Reuters",
+    cnbcPosts.length     > 0 && "CNBC",
+    finnhubPosts.length  > 0 && "Finnhub",
+    googlePosts.length   > 0 && "Google News",
+  ].filter(Boolean).join(", ") || "none";
+
+  console.log(`[trump] merged ${rawPosts.length} posts from: ${feedSource}`);
 
   if (rawPosts.length === 0) {
     return NextResponse.json({ data: [], timestamp: Date.now(), empty: true, feedSource: "none" });
