@@ -29,7 +29,6 @@ type LayoutPresetId = BuiltInPresetId | string;
 const DEFAULT_PRESET: BuiltInPresetId = "pro";
 const OPTIONAL_WIDGET_DEFAULTS: Record<string, boolean> = {
   "live-tv": true,
-  agents: true,
   "economic-calendar": true,
   "pnl-calendar": true,
   "lot-calculator": true,
