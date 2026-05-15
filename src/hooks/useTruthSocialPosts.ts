@@ -12,6 +12,31 @@ const MIN_POLL_MS    = 60 * 1000;       // never hit the API more than once per 
 
 const TS_ACCOUNT_ID  = "107780257626128497";
 const TS_DIRECT_URL  = `https://truthsocial.com/api/v1/accounts/${TS_ACCOUNT_ID}/statuses?limit=20&exclude_replies=true&exclude_reblogs=true`;
+const TS_ACCOUNT_URL = `https://truthsocial.com/api/v1/accounts/${TS_ACCOUNT_ID}`;
+const AVATAR_CACHE_KEY = "tradex_ts_avatar_v1";
+
+// Fetch Trump's real avatar from Truth Social — browser fetch works (TS has CORS: *)
+async function fetchTrumpAvatarBrowser(): Promise<string | null> {
+  try {
+    const cached = sessionStorage.getItem(AVATAR_CACHE_KEY);
+    if (cached) return cached;
+  } catch {}
+  try {
+    const res = await fetch(TS_ACCOUNT_URL, { headers: { Accept: "application/json" }, cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json() as { avatar?: string };
+      if (data.avatar) {
+        try { sessionStorage.setItem(AVATAR_CACHE_KEY, data.avatar); } catch {}
+        return data.avatar;
+      }
+    }
+  } catch {}
+  return null;
+}
+
+function injectAvatar(posts: TrumpPost[], avatar: string): TrumpPost[] {
+  return posts.map(p => p.avatarUrl ? p : { ...p, avatarUrl: avatar });
+}
 
 type TSStatus = "idle" | "loading" | "ok" | "error" | "unconfigured";
 type CachedTS = { posts: TrumpPost[]; ts: number; source: string };
@@ -158,20 +183,25 @@ export function useTruthSocialPosts() {
     setStatus("loading");
 
     (async () => {
+      // Fetch avatar in parallel — browser fetch to TS API works (CORS: *)
+      const avatarPromise = fetchTrumpAvatarBrowser();
+
       // ── Try 1: direct browser fetch (works when Truth Social isn't CF-blocking) ──
       try {
         console.log("[useTruthSocialPosts] trying direct browser fetch…");
         const directPosts = await fetchDirect();
         if (directPosts.length > 0) {
           console.log(`[useTruthSocialPosts] direct OK — ${directPosts.length} posts`);
-          directPosts.forEach(p => seenIds.current.add(p.id));
-          setPosts(directPosts);
+          const avatar = await avatarPromise;
+          const withAvatar = avatar ? injectAvatar(directPosts, avatar) : directPosts;
+          withAvatar.forEach(p => seenIds.current.add(p.id));
+          setPosts(withAvatar);
           setStatus("ok");
           setSource("direct");
           setErrorMsg(null);
           try {
             sessionStorage.setItem(RATE_LIMIT_KEY, String(Date.now()));
-            sessionStorage.setItem(CACHE_KEY, JSON.stringify({ posts: directPosts, ts: Date.now(), source: "direct" }));
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify({ posts: withAvatar, ts: Date.now(), source: "direct" }));
           } catch {}
           return;
         }
@@ -192,14 +222,16 @@ export function useTruthSocialPosts() {
         }
         if (serverPosts.length > 0) {
           console.log(`[useTruthSocialPosts] server OK — ${serverPosts.length} posts`);
-          serverPosts.forEach(p => seenIds.current.add(p.id));
-          setPosts(serverPosts);
+          const avatar = await avatarPromise;
+          const withAvatar = avatar ? injectAvatar(serverPosts, avatar) : serverPosts;
+          withAvatar.forEach(p => seenIds.current.add(p.id));
+          setPosts(withAvatar);
           setStatus("ok");
           setSource("server");
           setErrorMsg(null);
           try {
             sessionStorage.setItem(RATE_LIMIT_KEY, String(Date.now()));
-            sessionStorage.setItem(CACHE_KEY, JSON.stringify({ posts: serverPosts, ts: Date.now(), source: "server" }));
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify({ posts: withAvatar, ts: Date.now(), source: "server" }));
           } catch {}
           return;
         }
