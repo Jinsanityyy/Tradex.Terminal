@@ -936,9 +936,14 @@ function KeyLevelsPanel({
         className="flex shrink-0 items-center justify-between px-3 py-2"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
       >
-        <span className="text-[9px] font-semibold uppercase tracking-[0.16em]" style={{ color: "rgba(255,255,255,0.3)" }}>
-          Key Levels
-        </span>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[9px] font-semibold uppercase tracking-[0.16em]" style={{ color: "rgba(255,255,255,0.35)" }}>
+            Key Levels
+          </span>
+          <span className="text-[8px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.18)" }}>
+            Daily · D1
+          </span>
+        </div>
         <button onClick={onClose} className="opacity-30 transition-opacity hover:opacity-70">
           <X className="h-3 w-3 text-white" />
         </button>
@@ -960,13 +965,13 @@ function KeyLevelsPanel({
             style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
           >
             <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: BIAS_COLOR[level.bias] ?? "#6b7280" }}>
-              {level.bias === "bullish" ? "▲ LONG" : level.bias === "bearish" ? "▼ SHORT" : "— FLAT"}
+              {level.bias === "bullish" ? "▲ LONG" : level.bias === "bearish" ? "▼ SHORT" : "◦ NEUTRAL"}
             </span>
             <span
               className="text-[8px] font-semibold uppercase tracking-wider"
               style={{ color: STATUS_COLOR[level.tradeStatus] ?? "#6b7280" }}
             >
-              {level.tradeStatus === "TRADE READY" ? "READY" : level.tradeStatus === "WATCHLIST" ? "WATCH" : "SKIP"}
+              {level.tradeStatus === "TRADE READY" ? "READY" : level.tradeStatus === "WATCHLIST" ? "WATCH" : "NO TRADE"}
             </span>
           </div>
 
@@ -1004,8 +1009,8 @@ function KeyLevelsPanel({
             <div className="flex flex-col items-center gap-1 px-3 py-3">
               <span className="text-center text-[8px] uppercase tracking-wider leading-relaxed" style={{ color: "rgba(255,255,255,0.2)" }}>
                 {level.aiDerived
-                  ? "Agents: no valid\nsetup detected"
-                  : "Awaiting AI\nagent analysis…"}
+                  ? "No valid setup\ndetected by agents"
+                  : "Awaiting Tradex\nagent analysis…"}
               </span>
             </div>
           )}
