@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, Search, Timer, X } from "lucide-react";
+import { ChevronDown, Layers, Search, Timer, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { KeyLevel } from "@/app/api/market/keylevels/route";
 
 interface TradingViewChartProps {
   symbol?: string;
@@ -416,6 +417,9 @@ export function TradingViewChart({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [layoutRevision, setLayoutRevision] = useState(0);
+  const [keyLvlOpen, setKeyLvlOpen] = useState(false);
+  const [keyLevel, setKeyLevel] = useState<KeyLevel | null>(null);
+  const [keyLvlLoading, setKeyLvlLoading] = useState(false);
 
   const filtered = query.trim()
     ? ALL_SYMBOLS.filter(
@@ -706,6 +710,27 @@ export function TradingViewChart({
   }, [activeInterval.value, activeSymbol, layoutRevision, syncWidgetSize]);
 
 
+  // Supported assets for the key levels overlay
+  const KEYLVL_ASSETS = new Set(["XAUUSD", "EURUSD", "USDJPY", "BTCUSD", "GBPUSD", "USDCAD"]);
+  const activeAsset = activeSymbol.split(":")[1] ?? activeSymbol;
+  const keyLvlSupported = KEYLVL_ASSETS.has(activeAsset);
+
+  useEffect(() => {
+    if (!keyLvlOpen || !keyLvlSupported) return;
+    let cancelled = false;
+    setKeyLvlLoading(true);
+    fetch("/api/market/keylevels")
+      .then(r => r.json())
+      .then((json: { data?: KeyLevel[] }) => {
+        if (cancelled) return;
+        const match = json.data?.find(d => d.asset === activeAsset) ?? null;
+        setKeyLevel(match);
+      })
+      .catch(() => { if (!cancelled) setKeyLevel(null); })
+      .finally(() => { if (!cancelled) setKeyLvlLoading(false); });
+    return () => { cancelled = true; };
+  }, [keyLvlOpen, activeSymbol, keyLvlSupported, activeAsset]);
+
   const urgent = secondsLeft <= 60;
 
   return (
@@ -802,18 +827,176 @@ export function TradingViewChart({
           </div>
         </div>
 
-        {/* Candle close countdown */}
-        <div className={cn("flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5",
-          urgent ? "border-red-500/35 bg-red-500/10" : "border-white/10 bg-white/5")}>
-          <Timer className={cn("h-3 w-3", urgent ? "text-red-400" : "text-gray-500")} />
-          <span className={cn("font-mono text-xs font-bold tabular-nums", urgent ? "text-red-400" : "text-gray-300")}>
-            {formatCountdown(secondsLeft)}
-          </span>
-          <span className="text-[9px] uppercase tracking-widest text-gray-600">{activeInterval.label} close</span>
+        <div className="flex shrink-0 items-center gap-2">
+          {/* KEY LVL toggle */}
+          {keyLvlSupported && (
+            <button
+              onClick={() => setKeyLvlOpen(v => !v)}
+              className={cn(
+                "flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider transition-all",
+                keyLvlOpen
+                  ? "border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/15 text-[hsl(var(--primary))]"
+                  : "border-white/10 bg-white/5 text-gray-500 hover:border-white/20 hover:text-gray-300"
+              )}
+            >
+              <Layers className="h-3 w-3" />
+              KEY LVL
+            </button>
+          )}
+
+          {/* Candle close countdown */}
+          <div className={cn("flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5",
+            urgent ? "border-red-500/35 bg-red-500/10" : "border-white/10 bg-white/5")}>
+            <Timer className={cn("h-3 w-3", urgent ? "text-red-400" : "text-gray-500")} />
+            <span className={cn("font-mono text-xs font-bold tabular-nums", urgent ? "text-red-400" : "text-gray-300")}>
+              {formatCountdown(secondsLeft)}
+            </span>
+            <span className="text-[9px] uppercase tracking-widest text-gray-600">{activeInterval.label} close</span>
+          </div>
         </div>
       </div>
 
-      <div ref={containerRef} className="flex-1 min-h-0 w-full" style={{ background: "#000000" }} />
+      <div className="relative flex-1 min-h-0 w-full">
+        <div ref={containerRef} className="h-full w-full" style={{ background: "#000000" }} />
+
+        {/* Key Levels Overlay Panel */}
+        {keyLvlOpen && keyLvlSupported && (
+          <KeyLevelsPanel level={keyLevel} loading={keyLvlLoading} onClose={() => setKeyLvlOpen(false)} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Key Levels Panel ─────────────────────────────────────────────────────────
+
+function fmt(v: number | null | undefined, asset: string): string {
+  if (v == null) return "—";
+  if (asset === "XAUUSD" || asset === "BTCUSD") return v.toFixed(2);
+  return v.toFixed(5);
+}
+
+const STATUS_COLOR: Record<string, string> = {
+  "TRADE READY": "#22c55e",
+  "WATCHLIST":   "#f97316",
+  "NO TRADE":    "#6b7280",
+};
+
+const BIAS_COLOR: Record<string, string> = {
+  bullish: "#22c55e",
+  bearish: "#ef4444",
+  neutral: "#6b7280",
+};
+
+function KeyLevelsPanel({
+  level,
+  loading,
+  onClose,
+}: {
+  level: KeyLevel | null;
+  loading: boolean;
+  onClose: () => void;
+}) {
+  const rows = level ? [
+    { label: "RES",    value: fmt(level.resistance,   level.asset), color: "#ef4444"  },
+    { label: "PD HIGH",value: fmt(level.pdHigh,       level.asset), color: "#f97316"  },
+    { label: "PIVOT",  value: fmt(level.pivot,        level.asset), color: "#6b7280"  },
+    { label: "ENTRY",  value: fmt(level.entry,        level.asset), color: level.bias === "bullish" ? "#22c55e" : level.bias === "bearish" ? "#ef4444" : "#e5e7eb" },
+    { label: "PD LOW", value: fmt(level.pdLow,        level.asset), color: "#f97316"  },
+    { label: "SUPP",   value: fmt(level.support,      level.asset), color: "#22c55e"  },
+    { label: "SL",     value: fmt(level.stopLoss,     level.asset), color: "#ef444470" },
+    { label: "TP1",    value: fmt(level.takeProfit1,  level.asset), color: "#22c55e80" },
+    { label: "TP2",    value: fmt(level.takeProfit2,  level.asset), color: "#22c55e60" },
+    { label: "TP3",    value: fmt(level.takeProfit3,  level.asset), color: "#22c55e40" },
+  ] : [];
+
+  return (
+    <div
+      className="absolute right-0 top-0 z-40 flex flex-col overflow-hidden"
+      style={{
+        width: 148,
+        background: "rgba(0,0,0,0.92)",
+        backdropFilter: "blur(8px)",
+        borderLeft: "1px solid rgba(255,255,255,0.08)",
+        borderBottom: "1px solid rgba(255,255,255,0.08)",
+        borderBottomLeftRadius: 4,
+      }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-2.5 py-1.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <span className="text-[9px] font-semibold uppercase tracking-[0.15em]" style={{ color: "rgba(255,255,255,0.35)" }}>
+          Key Levels
+        </span>
+        <button onClick={onClose} className="opacity-40 hover:opacity-80 transition-opacity">
+          <X className="h-3 w-3 text-white" />
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="px-3 py-4 text-center text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.2)" }}>
+          LOADING...
+        </div>
+      ) : !level ? (
+        <div className="px-3 py-4 text-center text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.2)" }}>
+          NO DATA
+        </div>
+      ) : (
+        <>
+          {/* Bias + Status */}
+          <div className="flex items-center justify-between px-2.5 py-1.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+            <span
+              className="text-[9px] font-bold uppercase tracking-wider"
+              style={{ color: BIAS_COLOR[level.bias] ?? "#6b7280" }}
+            >
+              {level.bias === "bullish" ? "▲ LONG" : level.bias === "bearish" ? "▼ SHORT" : "— NEUTRAL"}
+            </span>
+            <span
+              className="text-[8px] font-semibold uppercase tracking-wider"
+              style={{ color: STATUS_COLOR[level.tradeStatus] ?? "#6b7280" }}
+            >
+              {level.tradeStatus === "TRADE READY" ? "READY" : level.tradeStatus === "WATCHLIST" ? "WATCH" : "NO TRADE"}
+            </span>
+          </div>
+
+          {/* Price rows */}
+          <div className="flex flex-col">
+            {rows.map((row) => (
+              <div key={row.label} className="flex items-center justify-between px-2.5 py-[3px]">
+                <span className="text-[9px] uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.28)", minWidth: 44 }}>
+                  {row.label}
+                </span>
+                <span className="font-mono text-[10px] font-medium tabular-nums" style={{ color: row.color }}>
+                  {row.value}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* R:R */}
+          {level.rrRatio > 0 && (
+            <div
+              className="flex items-center justify-between px-2.5 py-1.5"
+              style={{ borderTop: "1px solid rgba(255,255,255,0.04)", marginTop: 2 }}
+            >
+              <span className="text-[9px] uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.28)" }}>R:R</span>
+              <span className="font-mono text-[10px] font-semibold tabular-nums" style={{ color: level.rrRatio >= 2 ? "#22c55e" : "#f97316" }}>
+                1:{level.rrRatio}
+              </span>
+            </div>
+          )}
+
+          {/* Setup quality */}
+          <div
+            className="px-2.5 py-1.5 text-center text-[8px] uppercase tracking-widest font-semibold"
+            style={{
+              borderTop: "1px solid rgba(255,255,255,0.04)",
+              color: level.setupQuality === "A+" ? "#22c55e" : level.setupQuality === "A" ? "#86efac" : level.setupQuality === "B" ? "#f97316" : "#6b7280",
+            }}
+          >
+            {level.setupQuality} · {level.sessionContext}
+          </div>
+        </>
+      )}
     </div>
   );
 }
