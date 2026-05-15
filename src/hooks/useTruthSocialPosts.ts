@@ -5,32 +5,17 @@ import type { TrumpPost } from "@/types";
 import { mapTruthSocialStatus } from "@/lib/trump/classify";
 import { createClient } from "@/lib/supabase/client";
 
-const CACHE_KEY        = "tradex_ts_posts_v5"; // bumped — forces fresh fetch with avatar
-const RATE_LIMIT_KEY   = "tradex_ts_last_fetch";
-const CACHE_TTL        = 5 * 60 * 1000;
-const MIN_POLL_MS      = 60 * 1000;
-const AVATAR_CACHE_KEY = "tradex_ts_avatar_v3";
+const CACHE_KEY      = "tradex_ts_posts_v6";
+const RATE_LIMIT_KEY = "tradex_ts_last_fetch";
+const CACHE_TTL      = 5 * 60 * 1000;
+const MIN_POLL_MS    = 60 * 1000;
 
 const TS_ACCOUNT_ID = "107780257626128497";
 const TS_DIRECT_URL = `https://truthsocial.com/api/v1/accounts/${TS_ACCOUNT_ID}/statuses?limit=20&exclude_replies=true&exclude_reblogs=true`;
 
-// Fetch avatar via our own server route (server-side bypasses CF blocking)
-async function fetchTrumpAvatarBrowser(): Promise<string> {
-  try {
-    const cached = sessionStorage.getItem(AVATAR_CACHE_KEY);
-    if (cached) return cached;
-  } catch {}
-  try {
-    const res = await fetch("/api/market/trump/avatar", { cache: "no-store" });
-    if (res.ok) {
-      const data = await res.json() as { url?: string };
-      if (data.url) {
-        try { sessionStorage.setItem(AVATAR_CACHE_KEY, data.url); } catch {}
-        return data.url;
-      }
-    }
-  } catch {}
-  return "";
+// Our proxy route serves the image bytes directly — use it as the img src URL
+function fetchTrumpAvatarBrowser(): Promise<string> {
+  return Promise.resolve("/api/market/trump/avatar");
 }
 
 function injectAvatar(posts: TrumpPost[], avatar: string): TrumpPost[] {
