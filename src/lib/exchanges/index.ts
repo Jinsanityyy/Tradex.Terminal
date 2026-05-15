@@ -29,6 +29,7 @@ export async function syncExchange(
         );
         break;
       case "mt5":
+      case "ctrader":
         trades = await fetchMT5Trades(
           creds.metaapiToken ?? "",
           creds.metaapiAccountId ?? "",

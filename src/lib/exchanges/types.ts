@@ -9,13 +9,13 @@ export interface NormalizedTrade {
 
 export interface ExchangeCredentials {
   id: string;
-  exchange: "binance" | "bybit" | "okx" | "mt5";
+  exchange: "binance" | "bybit" | "okx" | "mt5" | "ctrader";
   label: string;
   apiKey: string;
   apiSecret: string;
-  apiPassphrase?: string;   // OKX
-  metaapiToken?: string;    // MT5
-  metaapiAccountId?: string; // MT5
+  apiPassphrase?: string;    // OKX
+  metaapiToken?: string;     // MT5 / cTrader (via MetaApi)
+  metaapiAccountId?: string; // MT5 / cTrader (via MetaApi)
 }
 
 export type SyncResult = {

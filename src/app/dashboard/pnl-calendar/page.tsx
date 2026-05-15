@@ -29,7 +29,7 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 
 interface Connection {
   id: string;
-  exchange: "binance" | "bybit" | "okx" | "mt5";
+  exchange: "binance" | "bybit" | "okx" | "mt5" | "ctrader";
   label: string;
   is_active?: boolean;
   last_synced_at?: string;
@@ -51,13 +51,14 @@ interface ManualTrade {
   notes?: string;
 }
 
-type ExchangeKey = "binance" | "bybit" | "okx" | "mt5";
+type ExchangeKey = "binance" | "bybit" | "okx" | "mt5" | "ctrader";
 
 const EXCHANGE_META: Record<ExchangeKey, { name: string; color: string; bg: string; logo: string }> = {
-  binance: { name: "Binance",  color: "text-amber-400",  bg: "bg-amber-400/10 border-amber-400/30",  logo: "B" },
-  bybit:   { name: "Bybit",    color: "text-orange-400", bg: "bg-orange-400/10 border-orange-400/30", logo: "By" },
-  okx:     { name: "OKX",      color: "text-blue-400",   bg: "bg-blue-400/10 border-blue-400/30",    logo: "OK" },
-  mt5:     { name: "MT5",      color: "text-purple-400", bg: "bg-purple-400/10 border-purple-400/30", logo: "MT" },
+  binance:  { name: "Binance",  color: "text-amber-400",  bg: "bg-amber-400/10 border-amber-400/30",   logo: "B"  },
+  bybit:    { name: "Bybit",    color: "text-orange-400", bg: "bg-orange-400/10 border-orange-400/30",  logo: "By" },
+  okx:      { name: "OKX",      color: "text-blue-400",   bg: "bg-blue-400/10 border-blue-400/30",     logo: "OK" },
+  mt5:      { name: "MT5",      color: "text-purple-400", bg: "bg-purple-400/10 border-purple-400/30",  logo: "MT" },
+  ctrader:  { name: "cTrader",  color: "text-sky-400",    bg: "bg-sky-400/10 border-sky-400/30",        logo: "CT" },
 };
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -548,10 +549,10 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
   async function handleConnect() {
     setError("");
     if (!label.trim()) { setError("Enter a label for this connection"); return; }
-    if (exchange !== "mt5" && (!apiKey.trim() || !apiSecret.trim())) {
+    if (exchange !== "mt5" && exchange !== "ctrader" && (!apiKey.trim() || !apiSecret.trim())) {
       setError("API key and secret are required"); return;
     }
-    if (exchange === "mt5" && (!metaapiToken.trim() || !metaapiAccountId.trim())) {
+    if ((exchange === "mt5" || exchange === "ctrader") && (!metaapiToken.trim() || !metaapiAccountId.trim())) {
       setError("MetaApi token and account ID are required"); return;
     }
 
@@ -616,7 +617,7 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
               className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-2 text-sm text-[hsl(var(--foreground))] placeholder-[hsl(var(--muted-foreground))] outline-none focus:border-[hsl(var(--primary))]/50" />
           </div>
 
-          {exchange !== "mt5" ? (
+          {exchange !== "mt5" && exchange !== "ctrader" ? (
             <>
               <div>
                 <label className="block text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1.5">API Key (Read-Only)</label>
@@ -640,6 +641,27 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
                     className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-2 text-xs font-mono text-[hsl(var(--foreground))] placeholder-[hsl(var(--muted-foreground))] outline-none focus:border-[hsl(var(--primary))]/50" />
                 </div>
               )}
+            </>
+          ) : exchange === "ctrader" ? (
+            <>
+              <div className="rounded-lg border border-sky-500/20 bg-sky-500/5 p-3">
+                <p className="text-[10px] text-sky-400 font-semibold mb-1">cTrader requires MetaApi</p>
+                <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-relaxed">
+                  1. Create a free account at <span className="text-sky-400">app.metaapi.cloud</span><br />
+                  2. Connect your cTrader broker account there<br />
+                  3. Copy your API Token + Account ID below
+                </p>
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1.5">MetaApi Token</label>
+                <input value={metaapiToken} onChange={e => setMetaapiToken(e.target.value)} placeholder="Your MetaApi API token"
+                  className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-2 text-xs font-mono text-[hsl(var(--foreground))] placeholder-[hsl(var(--muted-foreground))] outline-none focus:border-[hsl(var(--primary))]/50" />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1.5">MetaApi Account ID</label>
+                <input value={metaapiAccountId} onChange={e => setMetaapiAccountId(e.target.value)} placeholder="cTrader account ID from MetaApi"
+                  className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-2 text-xs font-mono text-[hsl(var(--foreground))] placeholder-[hsl(var(--muted-foreground))] outline-none focus:border-[hsl(var(--primary))]/50" />
+              </div>
             </>
           ) : (
             <>

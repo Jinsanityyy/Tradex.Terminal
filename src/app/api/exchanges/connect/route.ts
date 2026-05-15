@@ -16,9 +16,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "exchange and label are required" }, { status: 400 });
     }
 
-    if (exchange === "mt5") {
+    if (exchange === "mt5" || exchange === "ctrader") {
       if (!metaapiToken || !metaapiAccountId) {
-        return NextResponse.json({ error: "MetaApi token and account ID required for MT5" }, { status: 400 });
+        return NextResponse.json({ error: "MetaApi token and account ID required for MT5/cTrader" }, { status: 400 });
       }
     } else {
       if (!apiKey || !apiSecret) {
