@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useCallback, useState } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import {
   X, TrendingUp, TrendingDown, Minus, Target, Shield,
@@ -822,7 +823,7 @@ export function BrainOverviewDrawer({ open, onClose, data, highlightAgentId }: B
   };
   const tabs = Object.entries(AGENT_CONFIG).map(([id, c]) => ({ id, label: TAB_LABEL[id] ?? id.toUpperCase(), icon: c.icon }));
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -898,6 +899,7 @@ export function BrainOverviewDrawer({ open, onClose, data, highlightAgentId }: B
 
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }
