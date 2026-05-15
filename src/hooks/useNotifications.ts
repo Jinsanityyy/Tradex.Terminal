@@ -14,6 +14,8 @@ export interface Notif {
   title: string;
   body: string;
   timestamp: number;
+  severity?: "high" | "medium" | "low";
+  chartLink?: string;
 }
 
 type NotifCallback = (n: Notif) => void;
@@ -63,6 +65,8 @@ export function useNotifications(onNotif: NotifCallback) {
           title: "High Impact Event",
           body: c.title,
           timestamp: Date.now(),
+          severity: "high",
+          chartLink: "/dashboard/economic-calendar",
         });
       });
     }
@@ -84,6 +88,8 @@ export function useNotifications(onNotif: NotifCallback) {
           title: "Trump Post",
           body: p.content.slice(0, 100) + (p.content.length > 100 ? "…" : ""),
           timestamp: Date.now(),
+          severity: "high",
+          chartLink: "/dashboard/trump-monitor",
         });
       });
     }
