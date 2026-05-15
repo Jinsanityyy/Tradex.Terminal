@@ -36,7 +36,8 @@ import { SessionSummaryCard } from "@/components/shared/SessionSummaryCard";
 import { LotCalculatorWidget } from "@/components/shared/LotCalculatorWidget";
 import { TrumpImpactPreview } from "@/components/shared/TrumpFeedPanel";
 import { MTFBiasPanel } from "@/components/shared/MTFBiasPanel";
-import { AgentOverviewWidget } from "@/components/brain/AgentOverviewWidget";
+import { AgentCardsWidget, AgentCardsFilterButton, ALL_AGENT_IDS } from "@/components/brain/AgentCardsWidget";
+import type { AgentId } from "@/components/brain/AgentCardsWidget";
 import { useSettings } from "@/contexts/SettingsContext";
 import {
   useEconomicCalendar,
@@ -751,6 +752,13 @@ export default function DashboardPage() {
   const [activeOverview, setActiveOverview] = useState<OverviewKey | null>(null);
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
   const [manualTrades, setManualTrades] = useState<ManualTrade[]>([]);
+  const [visibleAgents, setVisibleAgents] = useState<Set<AgentId>>(() => {
+    try {
+      const raw = localStorage.getItem("tradex-agent-cards-filter-v1");
+      if (raw) return new Set(JSON.parse(raw) as AgentId[]);
+    } catch {}
+    return new Set(ALL_AGENT_IDS);
+  });
   const intervalDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const armedAlertKeyRef = useRef<string | null>(null);
 
@@ -1396,11 +1404,20 @@ export default function DashboardPage() {
       id: "agents",
       title: "7-Agent Overview",
       headerRight: (
-        <Link href="/dashboard/brain" className={widgetActionClass}>
-          Brain
-        </Link>
+        <div className="flex items-center gap-2">
+          <AgentCardsFilterButton visible={visibleAgents} onChange={setVisibleAgents} />
+          <Link href="/dashboard/brain" className={widgetActionClass}>
+            Brain
+          </Link>
+        </div>
       ),
-      content: <AgentOverviewWidget />,
+      content: (
+        <AgentCardsWidget
+          data={data}
+          isLoading={isValidating}
+          visibleAgents={visibleAgents}
+        />
+      ),
     },
     {
       id: "catalysts",
