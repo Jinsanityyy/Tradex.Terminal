@@ -241,18 +241,56 @@ async function fetchViaScrapeCreators(): Promise<Response> {
   return jsonPosts(normalized);
 }
 
+// ── Direct Truth Social provider (no API key needed) ─────────────────────────
+
+const TRUTH_ACCOUNT_ID = process.env.TRUTH_SOCIAL_ACCOUNT_ID ?? "107780257626128497";
+
+async function fetchDirect(): Promise<Response> {
+  const url = `https://truthsocial.com/api/v1/accounts/${TRUTH_ACCOUNT_ID}/statuses?limit=20&exclude_replies=true&exclude_reblogs=true`;
+  console.log(`[ts/direct] GET ${url}`);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "Mozilla/5.0 (compatible; TradexTerminal/1.0)",
+      },
+      signal: AbortSignal.timeout(12_000),
+    });
+  } catch (err) {
+    console.error("[ts/direct] fetch error:", err);
+    return jsonError(500, `Truth Social direct fetch failed: ${String(err)}`);
+  }
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error(`[ts/direct] HTTP ${res.status}: ${body.slice(0, 200)}`);
+    return jsonError(res.status, `Truth Social direct HTTP ${res.status}: ${body.slice(0, 200)}`);
+  }
+
+  const raw: Record<string, unknown>[] = await res.json().catch(() => []);
+  console.log(`[ts/direct] raw items: ${raw.length}`);
+
+  const normalized = raw
+    .map(normalizeItem)
+    .filter((x): x is MastodonLike => x !== null)
+    .slice(0, 20);
+
+  console.log(`[ts/direct] normalized: ${normalized.length}`);
+  return jsonPosts(normalized);
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 export async function GET() {
   console.log(`[ts] provider="${PROVIDER}" username="${USERNAME}"`);
 
-  if (PROVIDER === "apify") return fetchViaApify();
+  if (PROVIDER === "apify")         return fetchViaApify();
   if (PROVIDER === "scrapcreators") return fetchViaScrapeCreators();
+  if (PROVIDER === "direct")        return fetchDirect();
 
-  console.warn("[ts] TRUTH_SOCIAL_PROVIDER not set or unrecognized:", PROVIDER || "(empty)");
-  return jsonError(
-    503,
-    `Truth Social provider not configured. Set TRUTH_SOCIAL_PROVIDER=apify (and APIFY_TOKEN + APIFY_ACTOR_ID) or TRUTH_SOCIAL_PROVIDER=scrapcreators (and SCRAPCREATORS_API_KEY) in your environment variables.`,
-    false
-  );
+  // Auto-fallback: if no provider set, try direct Truth Social API
+  console.warn("[ts] TRUTH_SOCIAL_PROVIDER not set — falling back to direct");
+  return fetchDirect();
 }
