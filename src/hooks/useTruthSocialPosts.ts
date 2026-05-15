@@ -5,33 +5,42 @@ import type { TrumpPost } from "@/types";
 import { mapTruthSocialStatus } from "@/lib/trump/classify";
 import { createClient } from "@/lib/supabase/client";
 
-const CACHE_KEY      = "tradex_ts_posts_v4";
-const RATE_LIMIT_KEY = "tradex_ts_last_fetch";
-const CACHE_TTL      = 5 * 60 * 1000;  // 5 min
-const MIN_POLL_MS    = 60 * 1000;       // never hit the API more than once per minute
+const CACHE_KEY        = "tradex_ts_posts_v5"; // bumped — forces fresh fetch with avatar
+const RATE_LIMIT_KEY   = "tradex_ts_last_fetch";
+const CACHE_TTL        = 5 * 60 * 1000;
+const MIN_POLL_MS      = 60 * 1000;
+const AVATAR_CACHE_KEY = "tradex_ts_avatar_v2"; // bumped — clears any stale null
 
 const TS_ACCOUNT_ID  = "107780257626128497";
 const TS_DIRECT_URL  = `https://truthsocial.com/api/v1/accounts/${TS_ACCOUNT_ID}/statuses?limit=20&exclude_replies=true&exclude_reblogs=true`;
 const TS_ACCOUNT_URL = `https://truthsocial.com/api/v1/accounts/${TS_ACCOUNT_ID}`;
-const AVATAR_CACHE_KEY = "tradex_ts_avatar_v1";
 
-// Fetch Trump's real avatar from Truth Social  -  browser fetch works (TS has CORS: *)
-async function fetchTrumpAvatarBrowser(): Promise<string | null> {
+// Fetch Trump's real profile photo from Truth Social (browser CORS: *)
+// Falls back to his official White House portrait if TS API is blocked.
+const AVATAR_FALLBACK = "https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/White_House_portrait_of_Donald_Trump.jpg/440px-White_House_portrait_of_Donald_Trump.jpg";
+
+async function fetchTrumpAvatarBrowser(): Promise<string> {
   try {
     const cached = sessionStorage.getItem(AVATAR_CACHE_KEY);
     if (cached) return cached;
   } catch {}
   try {
-    const res = await fetch(TS_ACCOUNT_URL, { headers: { Accept: "application/json" }, cache: "no-store" });
+    const res = await fetch(TS_ACCOUNT_URL, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(5000),
+    });
     if (res.ok) {
       const data = await res.json() as { avatar?: string };
-      if (data.avatar) {
+      if (data.avatar && !data.avatar.includes("missing")) {
         try { sessionStorage.setItem(AVATAR_CACHE_KEY, data.avatar); } catch {}
         return data.avatar;
       }
     }
   } catch {}
-  return null;
+  // Cache the fallback too so we don't keep retrying on every post load
+  try { sessionStorage.setItem(AVATAR_CACHE_KEY, AVATAR_FALLBACK); } catch {}
+  return AVATAR_FALLBACK;
 }
 
 function injectAvatar(posts: TrumpPost[], avatar: string): TrumpPost[] {
@@ -193,7 +202,7 @@ export function useTruthSocialPosts() {
         if (directPosts.length > 0) {
           console.log(`[useTruthSocialPosts] direct OK  -  ${directPosts.length} posts`);
           const avatar = await avatarPromise;
-          const withAvatar = avatar ? injectAvatar(directPosts, avatar) : directPosts;
+          const withAvatar = injectAvatar(directPosts, avatar);
           withAvatar.forEach(p => seenIds.current.add(p.id));
           setPosts(withAvatar);
           setStatus("ok");
@@ -223,7 +232,7 @@ export function useTruthSocialPosts() {
         if (serverPosts.length > 0) {
           console.log(`[useTruthSocialPosts] server OK  -  ${serverPosts.length} posts`);
           const avatar = await avatarPromise;
-          const withAvatar = avatar ? injectAvatar(serverPosts, avatar) : serverPosts;
+          const withAvatar = injectAvatar(serverPosts, avatar);
           withAvatar.forEach(p => seenIds.current.add(p.id));
           setPosts(withAvatar);
           setStatus("ok");
