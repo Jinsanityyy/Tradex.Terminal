@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { deriveConvictionBias } from "@/lib/api/conviction";
 import { getAIAnalysisCache, getLastAIUpdateTs } from "@/lib/api/ai-analysis-cache";
 import type { AssetAIAnalysis } from "@/types";
@@ -61,7 +61,7 @@ export interface KeyLevel {
   takeProfit1: number | null;
   takeProfit2: number | null;
   takeProfit3: number | null;
-  // Zone labels — WHY each level is where it is (from AI when warm)
+  // Zone labels  -  WHY each level is where it is (from AI when warm)
   entryZoneLabel: string;
   slZoneLabel: string;
   tp1ZoneLabel: string;
@@ -80,7 +80,7 @@ export interface KeyLevel {
   sessionNote: string;
   note: string;
   // true only when Claude's 7-agent system placed these exact levels (Path A)
-  // false = formula fallback (cold cache) — Entry/SL/TP should not be shown as signals
+  // false = formula fallback (cold cache)  -  Entry/SL/TP should not be shown as signals
   aiDerived: boolean;
 }
 
@@ -118,7 +118,7 @@ function getSessionNote(session: string, bias: string): string {
     Asia: {
       bullish: "Asia session: accumulation phase. Watch for London to confirm bullish BOS above Asia high.",
       bearish: "Asia session: distribution phase. London often hunts Asia highs before continuing bearish.",
-      neutral: "Asia session: consolidation likely. Mark Asia high/low — London will raid one side first.",
+      neutral: "Asia session: consolidation likely. Mark Asia high/low  -  London will raid one side first.",
     },
     London: {
       bullish: "London open: highest probability session for bullish continuation. Momentum entry preferred.",
@@ -128,7 +128,7 @@ function getSessionNote(session: string, bias: string): string {
     "New York": {
       bullish: "NY session: confirm London bullish structure holds. Continuation setups above London high.",
       bearish: "NY open: watch for London high raid before reversing. NY often reverses London direction.",
-      neutral: "NY session: low conviction — wait for clear BOS before committing capital.",
+      neutral: "NY session: low conviction  -  wait for clear BOS before committing capital.",
     },
     Closed: {
       bullish: "Market transitioning between sessions. Wait for Asia open to confirm directional bias.",
@@ -142,7 +142,7 @@ function getSessionNote(session: string, bias: string): string {
 // ── HTF Bias ──────────────────────────────────────────────────────────────────
 // Derived from the shared conviction engine (same as /api/market/bias route).
 // Rule: confidence >= 55 → directional; < 55 → neutral.
-// Structure (BOS/OB/FVG) determines LTF setup readiness — NOT this bias.
+// Structure (BOS/OB/FVG) determines LTF setup readiness  -  NOT this bias.
 
 // ── Alignment Context ─────────────────────────────────────────────────────────
 
@@ -157,13 +157,13 @@ function computeAlignment(
     return {
       type: "ranging",
       phase: "ranging",
-      explanation: "No clear higher timeframe bias. Price is in consolidation — both longs and shorts carry equal risk. Wait for a structural break before committing.",
+      explanation: "No clear higher timeframe bias. Price is in consolidation  -  both longs and shorts carry equal risk. Wait for a structural break before committing.",
       riskMultiplier: 1.0,
       confidenceAdjustment: -5,
     };
   }
 
-  // Matching direction — trend continuation
+  // Matching direction  -  trend continuation
   if (htfBias === ltfBias) {
     // Check if CHoCH confirms a possible reversal in the same direction
     const isFreshReversal = ms.choch && !ms.bos;
@@ -171,14 +171,14 @@ function computeAlignment(
       type: "continuation",
       phase: "continuation",
       explanation: isFreshReversal
-        ? `LTF setup aligns with HTF ${htfBias} bias. CHoCH detected — early-stage continuation. BOS confirmation preferred before full size entry.`
-        : `LTF setup aligns with HTF ${htfBias} trend. Trend continuation setup — highest probability configuration. Full size appropriate at OB/FVG entry.`,
+        ? `LTF setup aligns with HTF ${htfBias} bias. CHoCH detected  -  early-stage continuation. BOS confirmation preferred before full size entry.`
+        : `LTF setup aligns with HTF ${htfBias} trend. Trend continuation setup  -  highest probability configuration. Full size appropriate at OB/FVG entry.`,
       riskMultiplier: 1.0,
       confidenceAdjustment: 5,
     };
   }
 
-  // Opposing direction — counter-trend
+  // Opposing direction  -  counter-trend
   const htfDir = htfBias === "bullish" ? "bullish (uptrend)" : "bearish (downtrend)";
   const ltfDir = ltfBias === "bullish" ? "bullish bounce" : "bearish pullback";
 
@@ -189,7 +189,7 @@ function computeAlignment(
     return {
       type: "reversal",
       phase: "reversal",
-      explanation: `LTF ${ltfDir} is challenging the HTF ${htfDir}. Both BOS and CHoCH detected — this may be a genuine trend reversal, not just a pullback. Treat with elevated caution until HTF structure confirms the shift.`,
+      explanation: `LTF ${ltfDir} is challenging the HTF ${htfDir}. Both BOS and CHoCH detected  -  this may be a genuine trend reversal, not just a pullback. Treat with elevated caution until HTF structure confirms the shift.`,
       riskMultiplier: 1.2,
       confidenceAdjustment: -10,
     };
@@ -198,7 +198,7 @@ function computeAlignment(
   return {
     type: "counter-trend",
     phase: ltfBias === "bearish" ? "pullback" : "accumulation",
-    explanation: `LTF ${ltfDir} is a short-term retracement against the HTF ${htfDir}. This is a counter-trend trade — reduce position size (0.5× normal), use a tighter stop, and do not move SL to break-even prematurely. The HTF trend is your adversary.`,
+    explanation: `LTF ${ltfDir} is a short-term retracement against the HTF ${htfDir}. This is a counter-trend trade  -  reduce position size (0.5× normal), use a tighter stop, and do not move SL to break-even prematurely. The HTF trend is your adversary.`,
     riskMultiplier: 1.3,
     confidenceAdjustment: -15,
   };
@@ -223,7 +223,7 @@ function analyzeMarketStructure(
   // BOS: price significantly broke previous close level
   const bos = Math.abs(pctChange) > 0.4;
 
-  // CHoCH: signs of reversal — price moved opposite to 52w trend
+  // CHoCH: signs of reversal  -  price moved opposite to 52w trend
   const was52wBullish = pos52 > 0.6;
   const was52wBearish = pos52 < 0.4;
   const choch = (was52wBullish && pctChange < -0.6) || (was52wBearish && pctChange > 0.6);
@@ -255,7 +255,7 @@ function detectOrderBlock(
 ): OrderBlock {
   if (bias === "bullish") {
     // Bullish OB: last bearish candle before rally = approx open area (if today gapped up or open < price)
-    // OB zone = [open, open + spread] — where institutional buying occurred
+    // OB zone = [open, open + spread]  -  where institutional buying occurred
     const obLow = roundTo(Math.min(open, prevClose), step);
     const obHigh = roundTo(Math.min(open, prevClose) + (price - Math.min(open, prevClose)) * 0.3, step);
     return {
@@ -297,7 +297,7 @@ function detectFVG(
   prevClose: number,
   step: number
 ): FVG | null {
-  // Bullish FVG: today gapped up — gap between prevClose and today's low
+  // Bullish FVG: today gapped up  -  gap between prevClose and today's low
   const bullGap = low - prevClose;
   if (bullGap > prevClose * 0.001) { // at least 0.1% gap
     const fvgLow = roundTo(prevClose, step);
@@ -311,7 +311,7 @@ function detectFVG(
     };
   }
 
-  // Bearish FVG: today gapped down — gap between today's high and prevClose
+  // Bearish FVG: today gapped down  -  gap between today's high and prevClose
   const bearGap = prevClose - high;
   if (bearGap > prevClose * 0.001) {
     const fvgLow = roundTo(high, step);
@@ -365,17 +365,17 @@ function buildConfluences(
   const c: string[] = [];
 
   // 1. Market structure alignment
-  if (ms.trend === bias) c.push(`Market structure ${ms.trend} — trend alignment confirmed`);
-  if (ms.bos) c.push(`BOS (Break of Structure) detected — institutional momentum present`);
-  if (ms.choch) c.push(`CHoCH (Change of Character) — potential trend reversal in play`);
+  if (ms.trend === bias) c.push(`Market structure ${ms.trend}  -  trend alignment confirmed`);
+  if (ms.bos) c.push(`BOS (Break of Structure) detected  -  institutional momentum present`);
+  if (ms.choch) c.push(`CHoCH (Change of Character)  -  potential trend reversal in play`);
 
   // 2. Premium/Discount alignment
   if (bias === "bullish" && ms.premiumDiscount === "discount")
-    c.push(`Price in discount zone (below EQ ${ms.equilibrium.toFixed(2)}) — smart money buy area`);
+    c.push(`Price in discount zone (below EQ ${ms.equilibrium.toFixed(2)})  -  smart money buy area`);
   if (bias === "bearish" && ms.premiumDiscount === "premium")
-    c.push(`Price in premium zone (above EQ ${ms.equilibrium.toFixed(2)}) — smart money sell area`);
+    c.push(`Price in premium zone (above EQ ${ms.equilibrium.toFixed(2)})  -  smart money sell area`);
   if (bias === "bullish" && ms.premiumDiscount === "equilibrium")
-    c.push(`Price at equilibrium — wait for discount before entry`);
+    c.push(`Price at equilibrium  -  wait for discount before entry`);
 
   // 3. Order Block
   if (ob.valid) c.push(`Valid ${ob.type} Order Block at ${ob.zone[0].toFixed(2)}–${ob.zone[1].toFixed(2)}`);
@@ -383,26 +383,26 @@ function buildConfluences(
   // 4. FVG
   if (fvg && !fvg.filled) {
     if (fvg.direction === bias || bias === "neutral")
-      c.push(`Unfilled ${fvg.direction} FVG at ${fvg.low.toFixed(4)}–${fvg.high.toFixed(4)} — potential magnet`);
+      c.push(`Unfilled ${fvg.direction} FVG at ${fvg.low.toFixed(4)}–${fvg.high.toFixed(4)}  -  potential magnet`);
   }
 
   // 5. Session confluence
   if (session === "London" || session === "New York")
-    c.push(`${session} session active — highest probability for institutional order flow`);
+    c.push(`${session} session active  -  highest probability for institutional order flow`);
   if (session === "Asia")
-    c.push(`Asia session — accumulation phase, mark range for London raid`);
+    c.push(`Asia session  -  accumulation phase, mark range for London raid`);
 
   // 6. Pivot confluence
   if (bias === "bullish" && price > pivot)
-    c.push(`Price above pivot (${pivot.toFixed(2)}) — bullish intraday bias confirmed`);
+    c.push(`Price above pivot (${pivot.toFixed(2)})  -  bullish intraday bias confirmed`);
   if (bias === "bearish" && price < pivot)
-    c.push(`Price below pivot (${pivot.toFixed(2)}) — bearish intraday bias confirmed`);
+    c.push(`Price below pivot (${pivot.toFixed(2)})  -  bearish intraday bias confirmed`);
 
   // 7. RSI secondary (not primary)
   if (bias === "bullish" && rsi < 40)
-    c.push(`RSI ${rsi.toFixed(0)} — oversold on secondary indicator, adds weight to reversal`);
+    c.push(`RSI ${rsi.toFixed(0)}  -  oversold on secondary indicator, adds weight to reversal`);
   if (bias === "bearish" && rsi > 60)
-    c.push(`RSI ${rsi.toFixed(0)} — overbought on secondary indicator, adds weight to reversal`);
+    c.push(`RSI ${rsi.toFixed(0)}  -  overbought on secondary indicator, adds weight to reversal`);
 
   return c;
 }
@@ -426,20 +426,20 @@ function computeTradeStatus(
   if (htfBias === "neutral" || ltfBias === "neutral") {
     return {
       status: "NO TRADE",
-      reason: "No directional bias on either timeframe — market is ranging. Stand aside and wait for a structural break.",
+      reason: "No directional bias on either timeframe  -  market is ranging. Stand aside and wait for a structural break.",
     };
   }
   if (alignment.type === "ranging") {
     return {
       status: "NO TRADE",
-      reason: "HTF and LTF signals are inconclusive — consolidation phase. Mark the range highs/lows and wait for BOS.",
+      reason: "HTF and LTF signals are inconclusive  -  consolidation phase. Mark the range highs/lows and wait for BOS.",
     };
   }
   if (setupQuality === "NO TRADE") {
     const why = confluenceCount < 3
       ? `Only ${confluenceCount} confluence${confluenceCount === 1 ? "" : "s"} found (minimum 3 required)`
       : rrRatio < 2.0
-      ? `R:R is 1:${rrRatio} — below the 1:2 minimum threshold`
+      ? `R:R is 1:${rrRatio}  -  below the 1:2 minimum threshold`
       : "Setup does not meet quality criteria";
     return {
       status: "NO TRADE",
@@ -455,7 +455,7 @@ function computeTradeStatus(
   const sessionBoost = session === "London" || session === "New York";
 
   if (isAligned && qualityGate && rrGate) {
-    const sessionNote = sessionBoost ? ` ${session} session active — optimal timing.` : " Wait for London/NY session for best execution.";
+    const sessionNote = sessionBoost ? ` ${session} session active  -  optimal timing.` : " Wait for London/NY session for best execution.";
     return {
       status: "TRADE READY",
       reason: `HTF ${htfBias} bias confirmed. LTF ${ltfBias} setup aligns. ${confluenceCount} confluences, 1:${rrRatio} R:R (grade ${setupQuality}).${sessionNote}`,
@@ -470,13 +470,13 @@ function computeTradeStatus(
     watchReasons.push(`LTF ${ltfBias} setup is ${alignment.type} against HTF ${htfBias} trend`);
   }
   if (!qualityGate) {
-    watchReasons.push(`setup quality is ${setupQuality} — wait for a cleaner OB or FVG entry`);
+    watchReasons.push(`setup quality is ${setupQuality}  -  wait for a cleaner OB or FVG entry`);
   }
   if (!rrGate) {
-    watchReasons.push(`R:R is 1:${rrRatio} — needs to reach at least 1:2 at entry`);
+    watchReasons.push(`R:R is 1:${rrRatio}  -  needs to reach at least 1:2 at entry`);
   }
   if (confluenceCount < 3) {
-    watchReasons.push(`only ${confluenceCount} confluence${confluenceCount === 1 ? "" : "s"} — need 3+ for confirmation`);
+    watchReasons.push(`only ${confluenceCount} confluence${confluenceCount === 1 ? "" : "s"}  -  need 3+ for confirmation`);
   }
 
   return {
@@ -583,7 +583,7 @@ function calculateSMCLevels(
   if (aiHasLevels) {
     // ── PATH A: full AI ───────────────────────────────────────────────────────
     // Claude placed entry/SL/TP from real market structure.
-    // TP1/TP2/TP3 are liquidity-based — null means no valid target was found.
+    // TP1/TP2/TP3 are liquidity-based  -  null means no valid target was found.
     // We pass them through as-is. No caps, no substitution, no R-multiple fallback.
     entry    = aiOverride!.entry!;
     stopLoss = aiOverride!.stopLoss ?? roundTo(
@@ -600,7 +600,7 @@ function calculateSMCLevels(
     tp1 = tp2 = tp3 = null;
 
   } else {
-    // ── PATH C: cold cache — formula fallback (used before AI has run) ────────
+    // ── PATH C: cold cache  -  formula fallback (used before AI has run) ────────
     if (bias === "bullish") {
       const entryBase = ob.valid
         ? ob.zone[1]
@@ -633,7 +633,7 @@ function calculateSMCLevels(
     }
   }
 
-  // R:R — computed against TP1 when available; null TP1 means R:R is not yet defined
+  // R:R  -  computed against TP1 when available; null TP1 means R:R is not yet defined
   const riskAmt  = Math.abs(entry - stopLoss);
   const rewardAmt = tp1 != null ? Math.abs(tp1 - entry) : 0;
   const rrRatio  = riskAmt > 0 && rewardAmt > 0 ? parseFloat((rewardAmt / riskAmt).toFixed(1)) : 0;
@@ -667,10 +667,10 @@ function calculateSMCLevels(
 
   // ── Liquidity Target ──
   const liquidityTarget = bias === "bullish"
-    ? `Equal highs at ${pdHigh.toFixed(2)} and resistance ${resistance.toFixed(2)} — price targeting sell-side above structure`
+    ? `Equal highs at ${pdHigh.toFixed(2)} and resistance ${resistance.toFixed(2)}  -  price targeting sell-side above structure`
     : bias === "bearish"
-    ? `Equal lows at ${pdLow.toFixed(2)} and support ${support.toFixed(2)} — price targeting buy-side below structure`
-    : `Range liquidity between ${support.toFixed(2)}–${resistance.toFixed(2)} — no directional target`;
+    ? `Equal lows at ${pdLow.toFixed(2)} and support ${support.toFixed(2)}  -  price targeting buy-side below structure`
+    : `Range liquidity between ${support.toFixed(2)}–${resistance.toFixed(2)}  -  no directional target`;
 
   // ── Session Note ──
   const sessionNote = getSessionNote(session, bias);
@@ -679,12 +679,12 @@ function calculateSMCLevels(
   const dec = step < 0.001 ? 5 : step < 0.01 ? 4 : step < 1 ? 2 : 0;
   const tp1Str = tp1 != null ? tp1.toFixed(dec) : "pending";
   const note = setupQuality === "NO TRADE"
-    ? `NO TRADE — ${confluenceCount < 3 ? "insufficient confluences" : bias === "neutral" ? "no directional bias" : "R:R below 1:2"}. Wait for structure to develop.`
+    ? `NO TRADE  -  ${confluenceCount < 3 ? "insufficient confluences" : bias === "neutral" ? "no directional bias" : "R:R below 1:2"}. Wait for structure to develop.`
     : bias === "bullish"
-    ? `${setupQuality} LONG — Entry ${entry.toFixed(dec)}, SL ${stopLoss.toFixed(dec)}, TP1 ${tp1Str}${rrRatio > 0 ? ` (1:${rrRatio} R:R)` : ""}. ${confluenceCount} confluences. ${session} session.`
-    : `${setupQuality} SHORT — Entry ${entry.toFixed(dec)}, SL ${stopLoss.toFixed(dec)}, TP1 ${tp1Str}${rrRatio > 0 ? ` (1:${rrRatio} R:R)` : ""}. ${confluenceCount} confluences. ${session} session.`;
+    ? `${setupQuality} LONG  -  Entry ${entry.toFixed(dec)}, SL ${stopLoss.toFixed(dec)}, TP1 ${tp1Str}${rrRatio > 0 ? ` (1:${rrRatio} R:R)` : ""}. ${confluenceCount} confluences. ${session} session.`
+    : `${setupQuality} SHORT  -  Entry ${entry.toFixed(dec)}, SL ${stopLoss.toFixed(dec)}, TP1 ${tp1Str}${rrRatio > 0 ? ` (1:${rrRatio} R:R)` : ""}. ${confluenceCount} confluences. ${session} session.`;
 
-  // ── AI Override — replace qualitative outputs with Claude's analysis ────────
+  // ── AI Override  -  replace qualitative outputs with Claude's analysis ────────
   const finalTradeStatus       = aiOverride ? aiOverride.tradeStatus           : tradeStatus;
   const finalTradeStatusReason = aiOverride ? aiOverride.setupNarrative         : tradeStatusReason;
   const finalConfluences       = aiOverride ? aiOverride.supportingFactors      : confluences;
@@ -696,11 +696,11 @@ function calculateSMCLevels(
   const finalAlignment: AlignmentContext = aiOverride
     ? { ...alignment, phase: mapAIPhase(aiOverride.marketPhase), explanation: aiOverride.narrative }
     : alignment;
-  // Level zone descriptions — from AI when warm, structural fallback when cold
-  const entryZoneLabel = aiOverride?.entryZone ?? (bias === "neutral" ? "Range equilibrium — no directional setup" : ob.valid ? `${bias} OB zone ${ob.zone[0].toFixed(2)}–${ob.zone[1].toFixed(2)}` : fvg && !fvg.filled ? `${fvg.direction} FVG midpoint ${fvg.midpoint.toFixed(4)}` : "Equilibrium zone");
-  const slZoneLabel    = aiOverride?.slZone    ?? (bias === "bullish" ? `Below swing low — structural invalidation` : bias === "bearish" ? `Above swing high — structural invalidation` : "Range bound — no directional SL");
+  // Level zone descriptions  -  from AI when warm, structural fallback when cold
+  const entryZoneLabel = aiOverride?.entryZone ?? (bias === "neutral" ? "Range equilibrium  -  no directional setup" : ob.valid ? `${bias} OB zone ${ob.zone[0].toFixed(2)}–${ob.zone[1].toFixed(2)}` : fvg && !fvg.filled ? `${fvg.direction} FVG midpoint ${fvg.midpoint.toFixed(4)}` : "Equilibrium zone");
+  const slZoneLabel    = aiOverride?.slZone    ?? (bias === "bullish" ? `Below swing low  -  structural invalidation` : bias === "bearish" ? `Above swing high  -  structural invalidation` : "Range bound  -  no directional SL");
   const tp1ZoneLabel   = aiOverride?.tp1Zone   ?? (bias === "bullish" ? `Session high / resistance ${resistance.toFixed(2)}` : bias === "bearish" ? `Session low / support ${support.toFixed(2)}` : "Range reference only");
-  const tp2ZoneLabel   = aiOverride?.tp2Zone   ?? (bias !== "neutral" ? `52-week ${bias === "bullish" ? "high " + high52w.toFixed(2) : "low " + low52w.toFixed(2)} — external liquidity` : "Range reference only");
+  const tp2ZoneLabel   = aiOverride?.tp2Zone   ?? (bias !== "neutral" ? `52-week ${bias === "bullish" ? "high " + high52w.toFixed(2) : "low " + low52w.toFixed(2)}  -  external liquidity` : "Range reference only");
 
   return {
     asset: config.display,

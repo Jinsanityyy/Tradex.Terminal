@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
@@ -59,28 +59,28 @@ const LAYER_CONFIG: Record<LayerKey, { label: string; color: string; hexColor: n
 const MARKERS: MarkerData[] = [
   // Conflict
   { layer: 'conflict', name: 'Middle East',    lat: 32,   lon: 35,    desc: 'Active conflicts across Gaza, Lebanon and regional theaters',    impact: { xauusd: '+2.4%', eurusd: '-0.3%', gbpusd: '-0.2%' } },
-  { layer: 'conflict', name: 'Eastern Europe', lat: 49,   lon: 32,    desc: 'Russia-Ukraine war — energy and grain supply disruption',        impact: { xauusd: '+1.8%', eurusd: '-1.2%', gbpusd: '-0.8%' } },
+  { layer: 'conflict', name: 'Eastern Europe', lat: 49,   lon: 32,    desc: 'Russia-Ukraine war  -  energy and grain supply disruption',        impact: { xauusd: '+1.8%', eurusd: '-1.2%', gbpusd: '-0.8%' } },
   { layer: 'conflict', name: 'Sudan',          lat: 15,   lon: 30,    desc: 'Civil war disrupting African supply chains and gold mining',      impact: { xauusd: '+0.6%', eurusd: '-0.1%', gbpusd: '-0.1%' } },
   { layer: 'conflict', name: 'Yemen',          lat: 15,   lon: 48,    desc: 'Houthi attacks on Red Sea shipping lanes',                       impact: { xauusd: '+1.2%', eurusd: '-0.2%', gbpusd: '-0.3%' } },
-  { layer: 'conflict', name: 'West Africa',    lat: 12,   lon: -2,    desc: 'Sahel coup belt — political instability region',                 impact: { xauusd: '+0.4%', eurusd:  '0.0%', gbpusd:  '0.0%' } },
+  { layer: 'conflict', name: 'West Africa',    lat: 12,   lon: -2,    desc: 'Sahel coup belt  -  political instability region',                 impact: { xauusd: '+0.4%', eurusd:  '0.0%', gbpusd:  '0.0%' } },
   // Central Banks
-  { layer: 'centralBanks', name: 'Federal Reserve', lat: 38.9, lon: -77.0,  desc: 'FOMC rate decisions — primary USD monetary policy anchor',   impact: { xauusd: '±2.0%', eurusd: '±1.5%', gbpusd: '±1.2%' } },
-  { layer: 'centralBanks', name: 'Bank of England',  lat: 51.5, lon: -0.1,  desc: 'MPC rate decisions — GBP monetary policy',                  impact: { xauusd: '±0.8%', eurusd: '±0.5%', gbpusd: '±1.8%' } },
-  { layer: 'centralBanks', name: 'ECB Frankfurt',    lat: 50.1, lon:  8.7,  desc: 'Governing council decisions — EUR monetary policy',         impact: { xauusd: '±1.0%', eurusd: '±2.0%', gbpusd: '±0.6%' } },
+  { layer: 'centralBanks', name: 'Federal Reserve', lat: 38.9, lon: -77.0,  desc: 'FOMC rate decisions  -  primary USD monetary policy anchor',   impact: { xauusd: '±2.0%', eurusd: '±1.5%', gbpusd: '±1.2%' } },
+  { layer: 'centralBanks', name: 'Bank of England',  lat: 51.5, lon: -0.1,  desc: 'MPC rate decisions  -  GBP monetary policy',                  impact: { xauusd: '±0.8%', eurusd: '±0.5%', gbpusd: '±1.8%' } },
+  { layer: 'centralBanks', name: 'ECB Frankfurt',    lat: 50.1, lon:  8.7,  desc: 'Governing council decisions  -  EUR monetary policy',         impact: { xauusd: '±1.0%', eurusd: '±2.0%', gbpusd: '±0.6%' } },
   { layer: 'centralBanks', name: 'PBOC Beijing',     lat: 39.9, lon: 116.4, desc: 'CNY policy and major driver of global gold demand',          impact: { xauusd: '±1.5%', eurusd: '±0.3%', gbpusd: '±0.2%' } },
-  { layer: 'centralBanks', name: 'Bank of Japan',    lat: 35.7, lon: 139.7, desc: 'YCC policy — global carry trade and risk dynamics',          impact: { xauusd: '±0.9%', eurusd: '±0.4%', gbpusd: '±0.3%' } },
+  { layer: 'centralBanks', name: 'Bank of Japan',    lat: 35.7, lon: 139.7, desc: 'YCC policy  -  global carry trade and risk dynamics',          impact: { xauusd: '±0.9%', eurusd: '±0.4%', gbpusd: '±0.3%' } },
   // Economic Events
-  { layer: 'economicEvents', name: 'US NFP',           lat: 40.7, lon: -74.0, desc: 'Non-Farm Payrolls — largest USD and gold catalyst',              impact: { xauusd: '±1.8%', eurusd: '±1.2%', gbpusd: '±1.0%' } },
+  { layer: 'economicEvents', name: 'US NFP',           lat: 40.7, lon: -74.0, desc: 'Non-Farm Payrolls  -  largest USD and gold catalyst',              impact: { xauusd: '±1.8%', eurusd: '±1.2%', gbpusd: '±1.0%' } },
   { layer: 'economicEvents', name: 'ECB Rate Decision', lat: 50.1, lon:  8.9, desc: 'European Central Bank policy statement and press conference',    impact: { xauusd: '±0.9%', eurusd: '±2.2%', gbpusd: '±0.5%' } },
-  { layer: 'economicEvents', name: 'UK CPI',            lat: 51.4, lon: -0.2, desc: 'UK inflation data — drives BOE rate expectations',              impact: { xauusd: '±0.5%', eurusd: '±0.3%', gbpusd: '±1.6%' } },
-  { layer: 'economicEvents', name: 'US Core PCE',       lat: 38.8, lon: -77.3, desc: "Fed's preferred inflation gauge — key for rate path",           impact: { xauusd: '±1.5%', eurusd: '±1.0%', gbpusd: '±0.8%' } },
+  { layer: 'economicEvents', name: 'UK CPI',            lat: 51.4, lon: -0.2, desc: 'UK inflation data  -  drives BOE rate expectations',              impact: { xauusd: '±0.5%', eurusd: '±0.3%', gbpusd: '±1.6%' } },
+  { layer: 'economicEvents', name: 'US Core PCE',       lat: 38.8, lon: -77.3, desc: "Fed's preferred inflation gauge  -  key for rate path",           impact: { xauusd: '±1.5%', eurusd: '±1.0%', gbpusd: '±0.8%' } },
   // Gold Regions
-  { layer: 'goldRegions', name: 'South Africa',      lat: -29.0, lon:  25.0, desc: "World's historically largest gold producer — Witwatersrand belt", impact: { xauusd: '+0.5%', eurusd: '0.0%', gbpusd: '0.0%' } },
-  { layer: 'goldRegions', name: 'Australia',         lat: -25.0, lon: 133.0, desc: '2nd largest gold reserves — Kalgoorlie and Pilbara regions',      impact: { xauusd: '+0.8%', eurusd: '0.0%', gbpusd: '0.0%' } },
+  { layer: 'goldRegions', name: 'South Africa',      lat: -29.0, lon:  25.0, desc: "World's historically largest gold producer  -  Witwatersrand belt", impact: { xauusd: '+0.5%', eurusd: '0.0%', gbpusd: '0.0%' } },
+  { layer: 'goldRegions', name: 'Australia',         lat: -25.0, lon: 133.0, desc: '2nd largest gold reserves  -  Kalgoorlie and Pilbara regions',      impact: { xauusd: '+0.8%', eurusd: '0.0%', gbpusd: '0.0%' } },
   { layer: 'goldRegions', name: 'Ghana',             lat:   7.9, lon:  -1.0, desc: "Africa's top current gold producer",                             impact: { xauusd: '+0.3%', eurusd: '0.0%', gbpusd: '0.0%' } },
-  { layer: 'goldRegions', name: 'Russia',            lat:  62.0, lon:  94.0, desc: 'Major gold producer — sanctions impacting supply routes',         impact: { xauusd: '+1.2%', eurusd: '-0.2%', gbpusd: '-0.1%' } },
+  { layer: 'goldRegions', name: 'Russia',            lat:  62.0, lon:  94.0, desc: 'Major gold producer  -  sanctions impacting supply routes',         impact: { xauusd: '+1.2%', eurusd: '-0.2%', gbpusd: '-0.1%' } },
   { layer: 'goldRegions', name: 'Brazil',            lat: -10.0, lon: -55.0, desc: 'Growing Amazon basin gold production region',                     impact: { xauusd: '+0.4%', eurusd:  '0.0%', gbpusd:  '0.0%' } },
-  { layer: 'goldRegions', name: 'Papua New Guinea',  lat:  -6.0, lon: 147.0, desc: 'Pacific gold and copper mining hub — Ok Tedi, Lihir',             impact: { xauusd: '+0.3%', eurusd:  '0.0%', gbpusd:  '0.0%' } },
+  { layer: 'goldRegions', name: 'Papua New Guinea',  lat:  -6.0, lon: 147.0, desc: 'Pacific gold and copper mining hub  -  Ok Tedi, Lihir',             impact: { xauusd: '+0.3%', eurusd:  '0.0%', gbpusd:  '0.0%' } },
 ];
 
 // ─── Ticker ───────────────────────────────────────────────────────────────────
@@ -678,7 +678,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
 
-  // Live globe markers — fetch on mount, refresh every 5 minutes
+  // Live globe markers  -  fetch on mount, refresh every 5 minutes
   useEffect(() => {
     const load = async () => {
       try {
@@ -687,7 +687,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
           const data: { markers: LiveMarker[] } = await res.json();
           setLiveMarkers(data.markers);
         }
-      } catch { /* network failure — keep previous state */ }
+      } catch { /* network failure  -  keep previous state */ }
     };
     load();
     const timer = setInterval(load, 5 * 60 * 1000);
@@ -703,7 +703,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
     }
   }, []);
 
-  // Three.js init — only once
+  // Three.js init  -  only once
   useEffect(() => {
     const el = mountRef.current;
     if (!el) return;
@@ -781,10 +781,10 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
       EARTH_NIGHT_URL,
       (tex) => { globeMat.map = tex; globeMat.color.set(0xffffff); globeMat.needsUpdate = true; },
       undefined,
-      () => { /* texture failed — keep dark fallback */ },
+      () => { /* texture failed  -  keep dark fallback */ },
     );
 
-    // ── Atmosphere — Fresnel rim-only glow (ShaderMaterial, FrontSide) ──────
+    // ── Atmosphere  -  Fresnel rim-only glow (ShaderMaterial, FrontSide) ──────
     // Renders transparent at the globe face, bright only at the silhouette edge.
     const atmosGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.20, 64, 64);
     const atmosMat = new THREE.ShaderMaterial({
@@ -829,7 +829,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
       const cfg = LAYER_CONFIG[marker.layer];
       const pos = latLonToVec3(marker.lat, marker.lon, GLOBE_RADIUS + 0.04);
 
-      // Outward normal from globe centre — used to orient the ring tangent to surface
+      // Outward normal from globe centre  -  used to orient the ring tangent to surface
       const outward = pos.clone().normalize();
 
       const dotMat = new THREE.MeshPhongMaterial({
@@ -839,7 +839,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
       dot.position.copy(pos);
       g.add(dot);
 
-      // Pulse ring — align ring plane tangent to sphere (normal = outward radial)
+      // Pulse ring  -  align ring plane tangent to sphere (normal = outward radial)
       const ringMat = new THREE.MeshBasicMaterial({
         color: cfg.hexColor, transparent: true, opacity: 0.55, side: THREE.DoubleSide,
       });
@@ -1112,7 +1112,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
             </button>
           )}
 
-          {/* Three.js mount — hidden in 2D mode but kept alive */}
+          {/* Three.js mount  -  hidden in 2D mode but kept alive */}
           <div
             ref={mountRef}
             style={{ position: 'absolute', inset: 0, display: is3D ? 'block' : 'none' }}

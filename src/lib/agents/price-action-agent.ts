@@ -1,5 +1,5 @@
-/**
- * Agent 2 — Price Action Agent (Intraday Liquidity & Volatility Model)
+﻿/**
+ * Agent 2  -  Price Action Agent (Intraday Liquidity & Volatility Model)
  *
  * Rules: Daily Bias → Session Levels → Liquidity Sweep (NY 13:00–18:00 UTC)
  * → FVG Detection → Entry/SL/TP.
@@ -23,16 +23,16 @@ const JADE_CAP_SYSTEM = `You are an elite intraday analyst implementing a sessio
 
 ANALYSIS RULES:
 
-STEP 1 — DAILY BIAS
+STEP 1  -  DAILY BIAS
 - HTF structure bullish (prev day close > open) → bias = "bullish"
 - HTF structure bearish (prev day close < open) → bias = "bearish"
 
-STEP 2 — SESSION LEVELS
+STEP 2  -  SESSION LEVELS
 - Asian High/Low: 00:00–08:00 UTC range
 - London High/Low: 08:00–13:00 UTC range
 - PDH/PDL: previous day high/low
 
-STEP 3 — LIQUIDITY SWEEP (NY Kill Zone: 13:30–15:30 UTC ONLY)
+STEP 3  -  LIQUIDITY SWEEP (NY Kill Zone: 13:30–15:30 UTC ONLY)
 - Corresponds to 9:30–11:30 AM EST
 - Price wicks past a session level by $2+ (XAUUSD) but closes BACK INSIDE = sweep
 - liquiditySweepDetected = true; swept level → keyLevels.sweepLevel
@@ -43,12 +43,12 @@ STEP 3 — LIQUIDITY SWEEP (NY Kill Zone: 13:30–15:30 UTC ONLY)
   Asian Low   → +5
   London High → +0   (flag only, do NOT recommend trading)
 
-STEP 4 — FVG DETECTION (scan 8 candles after sweep)
+STEP 4  -  FVG DETECTION (scan 8 candles after sweep)
 - Bullish FVG: candle[i-1].high < candle[i+1].low
 - Bearish FVG: candle[i-1].low > candle[i+1].high
 - Record fvgHigh, fvgLow, fvgMid; setupType = "FVG"; setupPresent = true
 
-STEP 5 — LEVELS
+STEP 5  -  LEVELS
 - Entry: FVG midpoint
 - Stop Loss: sweep extreme + $1 buffer → invalidationLevel
 - Take Profit: 2.0R → keyLevels.liquidityTarget
@@ -140,7 +140,7 @@ async function runLLMAnalysis(
     (high > pdh        && current < pdh)         || (low < pdl       && current > pdl);
 
   const userMessage = `
-Analyze ${snapshot.symbolDisplay} (${snapshot.symbol}) — session-based price action model.
+Analyze ${snapshot.symbolDisplay} (${snapshot.symbol})  -  session-based price action model.
 
 CURRENT CANDLE (${snapshot.timeframe}):
 - Close: ${current} | Open: ${open} | High: ${high} | Low: ${low} | Prev Close: ${prevClose}
@@ -161,7 +161,7 @@ ESTIMATED SESSION LEVELS (Step 2):
 - London High/Low: ${londonHigh} / ${londonLow}
 - PDH/PDL (est.): ${pdh} / ${pdl}
 
-WICK ANALYSIS (Step 3 — Sweep Detection):
+WICK ANALYSIS (Step 3  -  Sweep Detection):
 - Upper wick extends: ${wickHighTarget}
 - Lower wick extends: ${wickLowTarget}
 - Price closed back inside swept level: ${closedBackInside ? "YES" : "NO"}
@@ -255,9 +255,9 @@ function sweepMinDollar(symbol: string, price: number): number {
 function fvgMinGap(symbol: string, price: number): number {
   if (symbol === "XAUUSD") return 0.5;
   if (symbol === "XAGUSD" || symbol === "XPTUSD") return 0.05;
-  if (price > 5_000) return price * 0.0005;  // BTCUSD, indices — 0.05% of price
-  if (price > 100)   return price * 0.001;   // Indices (US500 etc.) — 0.1%
-  return 0.0003;                             // forex — ~3 pips
+  if (price > 5_000) return price * 0.0005;  // BTCUSD, indices  -  0.05% of price
+  if (price > 100)   return price * 0.001;   // Indices (US500 etc.)  -  0.1%
+  return 0.0003;                             // forex  -  ~3 pips
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -303,7 +303,7 @@ interface SweepFVGResult {
 //   Asian Kill Zone:  00:00–03:00 UTC = minutes 0–180   (8AM–11AM PHT)
 //   London Kill Zone: 08:00–11:00 UTC = minutes 480–660 (4PM–7PM PHT)
 //   NY Kill Zone:     13:30–15:30 UTC = minutes 810–930 (9:30PM–11:30PM PHT)
-// Uses candle duration for overlap — critical for H1/H4 candles.
+// Uses candle duration for overlap  -  critical for H1/H4 candles.
 function inKillZone(ts: number, timeframe = "M5"): boolean {
   const d = new Date(ts * 1000);
   const candleStartMin = d.getUTCHours() * 60 + d.getUTCMinutes();
@@ -359,7 +359,7 @@ function detectNYSweepAndFVG(
     if (!inKillZone(sc.t, timeframe)) continue;
 
     for (const tgt of targets) {
-      // London High: skip ONLY when no FVG confirmation will come — the full loop still
+      // London High: skip ONLY when no FVG confirmation will come  -  the full loop still
       // runs so that the FVG scan executes. Bias-alignment guard is in runJadeCapRuleBased.
       let swept = false;
       let extreme = 0;
@@ -425,7 +425,7 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
     : current < prevClose ? "bearish"
     : "neutral";
 
-  // ── STEP 2: Session levels — real from candles, estimated fallback ────────
+  // ── STEP 2: Session levels  -  real from candles, estimated fallback ────────
   const minSweep    = sweepMinDollar(snapshot.symbol, current);
   const nowForKZLogic = new Date();
   const sessionMinuteLogic = nowForKZLogic.getUTCMinutes();
@@ -435,7 +435,7 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
               && (sessionHourKZLogic < 15  || (sessionHourKZLogic === 15 && sessionMinuteLogic <  30));
   // London Kill Zone: 08:00–11:00 UTC
   const inLondonKZ = sessionHourKZLogic >= 8 && sessionHourKZLogic < 11;
-  // Asian Kill Zone: 00:00–03:00 UTC (Tokyo open — 8AM–11AM PHT)
+  // Asian Kill Zone: 00:00–03:00 UTC (Tokyo open  -  8AM–11AM PHT)
   const inAsianKZ = sessionHourKZLogic >= 0 && sessionHourKZLogic < 3;
   const inNYSession = inNYKZ || inLondonKZ || inAsianKZ;
   const upperWick   = high - Math.max(current, open);
@@ -484,7 +484,7 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
       fvgHigh       = found.fvgHigh;
       fvgLow        = found.fvgLow;
       fvgMid        = found.fvgMid;
-      // London High with FVG + aligned bias is a valid setup — upgrade confidence
+      // London High with FVG + aligned bias is a valid setup  -  upgrade confidence
       if (found.sweepLabel === "London High" && found.fvgHigh !== null && found.sweepBias === dailyBias) {
         sweepModifier = 8;
       }
@@ -558,11 +558,11 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
 
   if (liquiditySweepDetected && sweepLevel !== null) {
     reasons.push(
-      `${sweepLabel} liquidity sweep confirmed in NY session — wick past ${sweepLevel.toFixed(4)}, closed back inside`
+      `${sweepLabel} liquidity sweep confirmed in NY session  -  wick past ${sweepLevel.toFixed(4)}, closed back inside`
     );
   } else {
     reasons.push(
-      `No reversal pattern detected — ${inNYKZ
+      `No reversal pattern detected  -  ${inNYKZ
         ? "NY Kill Zone active (13:30–15:30 UTC / 9:30–11:30 PM PHT), monitoring for sweep"
         : inLondonKZ
         ? "London Kill Zone active (08:00–11:00 UTC / 4:00–7:00 PM PHT), monitoring for sweep"
@@ -577,14 +577,14 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   }
 
   reasons.push(
-    `Daily bias: ${dailyBias.toUpperCase()} (HTF ${htfConfidence}% conviction) — price action direction ${liquiditySweepDetected && bias === dailyBias ? "ALIGNS ✓" : "does not align"} with daily bias`
+    `Daily bias: ${dailyBias.toUpperCase()} (HTF ${htfConfidence}% conviction)  -  price action direction ${liquiditySweepDetected && bias === dailyBias ? "ALIGNS ✓" : "does not align"} with daily bias`
   );
   reasons.push(
     `Session: ${session} | Active trading window: ${inNYSession ? "OPEN" : "CLOSED"}`
   );
 
   if (isLowConfidenceSweep) {
-    reasons.push("London High sweep — below minimum confidence threshold, no trade recommended");
+    reasons.push("London High sweep  -  below minimum confidence threshold, no trade recommended");
   } else if (invalidationLevel !== null && fvgMid !== null) {
     reasons.push(
       `Plan: Entry ${fvgMid.toFixed(4)}, SL ${invalidationLevel.toFixed(4)}, TP ${liquidityTarget.toFixed(4)}`
@@ -630,11 +630,11 @@ export async function runPriceActionAgent(
 
   // Phase 1: Rule-based sweep detection using actual candle history.
   // The LLM only sees the current single candle and cannot detect sweeps
-  // that occurred on previous candles — rule-based scan is authoritative here.
+  // that occurred on previous candles  -  rule-based scan is authoritative here.
   let ruleResult: SMCAgentOutput | null = null;
   try {
     ruleResult = runJadeCapRuleBased(snapshot);
-    // Confirmed sweep + FVG setup found — return immediately, no LLM needed
+    // Confirmed sweep + FVG setup found  -  return immediately, no LLM needed
     if (ruleResult.liquiditySweepDetected && ruleResult.setupPresent) {
       return ruleResult;
     }
@@ -673,7 +673,7 @@ export async function runPriceActionAgent(
       liquiditySweepDetected: false,
       bosDetected: false,
       chochDetected: false,
-      reasons: ["Price action analysis failed — defaulting to neutral"],
+      reasons: ["Price action analysis failed  -  defaulting to neutral"],
       invalidationLevel: null,
       processingTime: Date.now() - start,
       error: String(err),

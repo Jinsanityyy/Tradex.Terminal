@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/supabase/auth-helper";
 import { encrypt } from "@/lib/exchanges/encrypt";
 
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     const { user, supabase } = await getAuthUser(req);
-    if (!user) return NextResponse.json({ error: "Unauthorized — please log out and log back in" }, { status: 401 });
+    if (!user) return NextResponse.json({ error: "Unauthorized  -  please log out and log back in" }, { status: 401 });
 
     const body = await req.json();
     const { exchange, label, apiKey, apiSecret, apiPassphrase } = body;

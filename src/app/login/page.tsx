@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -110,7 +110,7 @@ export default function LoginPage() {
   };
   const subtitles: Record<Mode, string> = {
     login: "Sign in to your trading terminal",
-    signup: "Start your free trial — no card required",
+    signup: "Start your free trial  -  no card required",
     forgot: "Enter your email and we'll send a reset link",
     mfa: "Enter the 6-digit code from your authenticator app",
   };
@@ -193,7 +193,7 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* Live badge — mb: 12px */}
+            {/* Live badge  -  mb: 12px */}
             <div
               className="inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5"
               style={{
@@ -211,7 +211,7 @@ export default function LoginPage() {
               </span>
             </div>
 
-            {/* Headline — mb: 16px */}
+            {/* Headline  -  mb: 16px */}
             <h1
               className="font-extrabold text-white leading-[1.1] tracking-tight"
               style={{ fontSize: "2.75rem", marginBottom: 16 }}
@@ -230,13 +230,13 @@ export default function LoginPage() {
               </span>
             </h1>
 
-            {/* Paragraph — mb: 20px */}
+            {/* Paragraph  -  mb: 20px */}
             <p
               className="text-gray-400 leading-[1.7]"
               style={{ fontSize: "0.9rem", marginBottom: 20, maxWidth: 400 }}
             >
               Real-time AI analysis, live news catalysts, and institutional-grade
-              data — built for Forex, Gold, and Crypto traders who want to
+              data  -  built for Forex, Gold, and Crypto traders who want to
               understand the market, not just react to it.
             </p>
 
@@ -277,7 +277,7 @@ export default function LoginPage() {
                 }}
               >
                 <p className="text-gray-300 italic leading-relaxed mb-3" style={{ fontSize: "0.85rem" }}>
-                  "TradeX is the first tool that actually gives me context before I enter — not just more indicators."
+                  "TradeX is the first tool that actually gives me context before I enter  -  not just more indicators."
                 </p>
                 <div className="flex items-center gap-2.5">
                   <div
@@ -336,7 +336,7 @@ export default function LoginPage() {
           />
         </div>
 
-        {/* ── Right panel — form ── */}
+        {/* ── Right panel  -  form ── */}
         <div className="flex-1 flex flex-col items-center justify-center relative z-10 px-6 py-10 sm:px-10 lg:px-12" style={{ paddingRight: undefined }}>
           {/* Mobile logo */}
           <div className="lg:hidden mb-10">

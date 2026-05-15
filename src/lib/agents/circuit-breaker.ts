@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Anthropic API Circuit Breaker
  *
  * Opens after MAX_FAILURES within FAILURE_WINDOW.
@@ -24,7 +24,7 @@ export function isCircuitOpen(): boolean {
   if (failures.length >= MAX_FAILURES) {
     openUntil = now + OPEN_DURATION;
     console.warn(
-      `[circuit-breaker] Anthropic API OPEN — ${failures.length} failures in ${FAILURE_WINDOW / 1000}s. ` +
+      `[circuit-breaker] Anthropic API OPEN  -  ${failures.length} failures in ${FAILURE_WINDOW / 1000}s. ` +
       `Rule-based fallback active for ${OPEN_DURATION / 1000}s.`
     );
     return true;
@@ -39,7 +39,7 @@ export async function anthropicCreate(
   params: CreateParams
 ): Promise<Anthropic.Message> {
   if (isCircuitOpen()) {
-    throw new Error("Anthropic circuit open — rule-based fallback");
+    throw new Error("Anthropic circuit open  -  rule-based fallback");
   }
   try {
     const result = await client.messages.create(params, { timeout: API_TIMEOUT });

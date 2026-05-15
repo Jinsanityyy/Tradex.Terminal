@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { ChevronDown, ChevronUp, AlertTriangle, Zap, Settings2, Filter, CheckCircle2, Clock, XCircle, Calculator } from "lucide-react";
@@ -6,7 +6,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import type { KeyLevel } from "@/app/api/market/keylevels/route";
 import type { AssetAIAnalysis } from "@/types";
 
-// ── Calculation config — SINGLE SOURCE OF TRUTH ──────────────────────────────
+// ── Calculation config  -  SINGLE SOURCE OF TRUTH ──────────────────────────────
 //
 // DIRECT_DOLLAR_ASSETS: dollar = |entry - price|, exactly, no scaling.
 //   XAUUSD: Entry 4713, SL 4882 → distance 169 → display -$169
@@ -30,7 +30,7 @@ const MAX_SL_DISTANCE: Record<string, number> = {
   BTCUSD: 5000,  // >$5000 SL per BTC is unrealistic for intraday
 };
 
-// ── Single dollar calculation — use everywhere, no exceptions ─────────────────
+// ── Single dollar calculation  -  use everywhere, no exceptions ─────────────────
 // Returns the dollar value for the move from entry to price.
 // XAUUSD: dollar = Math.round(|entry - price|)  (1:1, ignores lotSize)
 // Forex:  dollar = pips × (lotSize/0.01) × pipVal01
@@ -43,7 +43,7 @@ function levelDollar(entry: number, price: number, lotSize: number, asset: strin
   return parseFloat((pips * (lotSize / 0.01) * cfg.pipVal01).toFixed(2));
 }
 
-// Pip count — only used for forex display labels
+// Pip count  -  only used for forex display labels
 function calcPips(a: number, b: number, asset: string): number {
   const cfg = PIP_CONFIG[asset] ?? { multiplier: 100, pipVal01: 0.10, maxPips: 500 };
   return Math.round(Math.abs(a - b) * cfg.multiplier);
@@ -58,7 +58,7 @@ function isUnrealistic(entry: number, sl: number, asset: string): boolean {
   return Math.round(distance * cfg.multiplier) > cfg.maxPips;
 }
 
-// Format dollar value — XAUUSD uses whole numbers, forex uses 2 decimals
+// Format dollar value  -  XAUUSD uses whole numbers, forex uses 2 decimals
 function fmtDollar(n: number, sign: "+" | "-", asset: string): string {
   const s = DIRECT_DOLLAR_ASSETS.has(asset) ? Math.round(n).toString() : n.toFixed(2);
   return sign === "+" ? `+$${s}` : `-$${s}`;
@@ -102,7 +102,7 @@ function alignmentConfig(type: AlignType): {
       return { label: "Potential Reversal", shortLabel: "Reversal?", color: "#FF6B35", bg: "#FF6B3510", border: "#FF6B3530", icon: "⟳" };
     case "ranging":
     default:
-      return { label: "Ranging / No Bias", shortLabel: "Ranging", color: "#8B949E", bg: "transparent", border: "var(--t-border-sub)", icon: "—" };
+      return { label: "Ranging / No Bias", shortLabel: "Ranging", color: "#8B949E", bg: "transparent", border: "var(--t-border-sub)", icon: " - " };
   }
 }
 
@@ -137,7 +137,7 @@ function tradeStatusConfig(status: TradeStatus): {
 function RRLine({ entry, sl, tp1, tp2, asset, lotSize }: {
   entry: number; sl: number; tp1: number | null; tp2: number | null; asset: string; lotSize: number;
 }) {
-  if (tp1 == null) return null; // no liquidity target identified — skip R:R line
+  if (tp1 == null) return null; // no liquidity target identified  -  skip R:R line
   const isDirect  = DIRECT_DOLLAR_ASSETS.has(asset);
   const slDollar  = levelDollar(entry, sl,  lotSize, asset);
   const tp1Dollar = levelDollar(entry, tp1, lotSize, asset);
@@ -182,7 +182,7 @@ function RRLine({ entry, sl, tp1, tp2, asset, lotSize }: {
         style={{ left: `${Math.min(tp1Pct, 97).toFixed(1)}%`, background: "#00C896" }}
       />
 
-      {/* Labels — dollar only for XAUUSD, pips + dollar for forex */}
+      {/* Labels  -  dollar only for XAUUSD, pips + dollar for forex */}
       <div className="flex justify-between mt-2">
         <div className="text-left">
           <p className="text-[9px] font-mono" style={{ color: "#FF4D4F" }}>SL</p>
@@ -212,7 +212,7 @@ function RRLine({ entry, sl, tp1, tp2, asset, lotSize }: {
             <p className="text-[9px] font-mono font-semibold" style={{ color: "#00C89680" }}>+{tp2Pips}p</p>
           )}
           <p className="text-[9px] font-mono font-semibold" style={{ color: "#00C89650" }}>
-            {tp2 != null ? fmtDollar(tp2Dollar, "+", asset) : "—"}
+            {tp2 != null ? fmtDollar(tp2Dollar, "+", asset) : " - "}
           </p>
         </div>
       </div>
@@ -268,11 +268,11 @@ function LevelLine({ label, price, entry, asset, lotSize, direction }: {
   const sign      = isRisk ? "-" as const : "+" as const;
   const isDirect  = DIRECT_DOLLAR_ASSETS.has(asset);
 
-  // Single dollar value — the only number shown on the right
+  // Single dollar value  -  the only number shown on the right
   const dollar    = levelDollar(entry, price, lotSize, asset);
   const dollarStr = fmtDollar(dollar, sign, asset);
 
-  // Pip count — only for forex, shown as secondary label
+  // Pip count  -  only for forex, shown as secondary label
   const pipsLabel = !isDirect ? `${sign}${calcPips(entry, price, asset)} pips` : null;
 
   return (
@@ -325,7 +325,7 @@ function AssetRow({ level, defaultOpen, lotSize, aiAnalysis }: {
   const dimmed        = level.tradeStatus === "NO TRADE" && !unrealistic;
 
   const slDist        = Math.round(Math.abs(level.entry - level.stopLoss));
-  const slBannerLabel = `SL distance $${slDist} — too large for current structure. Wait for tighter setup.`;
+  const slBannerLabel = `SL distance $${slDist}  -  too large for current structure. Wait for tighter setup.`;
 
   // TP3 dollar via same levelDollar function
   const tp3Dollar = level.takeProfit3
@@ -349,7 +349,7 @@ function AssetRow({ level, defaultOpen, lotSize, aiAnalysis }: {
         className="w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 text-left hover:bg-white/[0.015] transition-colors"
       >
         <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap min-w-0">
-          {/* Trade Status — leading badge */}
+          {/* Trade Status  -  leading badge */}
           <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg shrink-0"
             style={{ background: tsc.bg, border: `1px solid ${tsc.border}` }}>
             <StatusIcon className="h-3 w-3 shrink-0" style={{ color: tsc.color }} />
@@ -376,7 +376,7 @@ function AssetRow({ level, defaultOpen, lotSize, aiAnalysis }: {
             </span>
           </div>
 
-          {/* Alignment badge — hidden on mobile */}
+          {/* Alignment badge  -  hidden on mobile */}
           <span className="hidden md:inline text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
             style={{ color: align.color, background: align.bg, border: `1px solid ${align.border}` }}>
             {align.icon} {align.shortLabel}
@@ -524,7 +524,7 @@ function AssetRow({ level, defaultOpen, lotSize, aiAnalysis }: {
                       {fmt(level.entry, level.asset)}
                     </span>
                     <span className="text-[10px] font-mono text-right" style={{ color: "var(--t-muted)" }}>
-                      at {level.marketStructure?.premiumDiscount ?? "—"}
+                      at {level.marketStructure?.premiumDiscount ?? " - "}
                     </span>
                   </div>
                   {level.entryZoneLabel && (
@@ -544,7 +544,7 @@ function AssetRow({ level, defaultOpen, lotSize, aiAnalysis }: {
                   )}
                 </div>
 
-                {/* TP1 with zone label — null = no liquidity target identified */}
+                {/* TP1 with zone label  -  null = no liquidity target identified */}
                 <div>
                   {level.takeProfit1 != null
                     ? <LevelLine label="TP1" price={level.takeProfit1} entry={level.entry} asset={level.asset} lotSize={lotSize} direction="reward" />
@@ -572,7 +572,7 @@ function AssetRow({ level, defaultOpen, lotSize, aiAnalysis }: {
                       <div className="flex items-center justify-between py-1.5" style={{ borderBottom: "1px solid var(--t-border-sub)" }}>
                         <span className="text-[10px] font-semibold uppercase tracking-wider w-8" style={{ color: "#00C89640" }}>TP2</span>
                         <span className="text-[11px] flex-1 text-center italic" style={{ color: "var(--t-muted)", opacity: 0.5 }}>
-                          —
+                           - 
                         </span>
                       </div>
                     )
@@ -802,7 +802,7 @@ export function KeyLevelsCard({ levels, compact = false, aiAnalysisMap = {} }: K
             </div>
           )}
 
-          {/* Strict mode — show TRADE READY only */}
+          {/* Strict mode  -  show TRADE READY only */}
           <button
             onClick={() => setStrictMode(v => !v)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors"
@@ -837,7 +837,7 @@ export function KeyLevelsCard({ levels, compact = false, aiAnalysisMap = {} }: K
           <CheckCircle2 className="h-3 w-3 shrink-0" style={{ color: "#00C896" }} />
           <p className="text-[10px]" style={{ color: "#00C896" }}>
             Showing {readyCount} TRADE READY asset{readyCount !== 1 ? "s" : ""} only.
-            {watchCount > 0 && ` ${watchCount} on WATCHLIST — toggle off to view.`}
+            {watchCount > 0 && ` ${watchCount} on WATCHLIST  -  toggle off to view.`}
           </p>
         </div>
       )}

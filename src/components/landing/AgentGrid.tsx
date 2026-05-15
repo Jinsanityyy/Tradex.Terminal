@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -204,10 +204,10 @@ function SectionHeader() {
       {/* Legend */}
       <div className="flex flex-wrap gap-4 mt-5 font-mono text-[9px] tracking-wide">
         {[
-          { color: "bg-violet-500", label: "LLM — Claude model" },
-          { color: "bg-slate-600", label: "Rule-based — deterministic" },
+          { color: "bg-violet-500", label: "LLM  -  Claude model" },
+          { color: "bg-slate-600", label: "Rule-based  -  deterministic" },
           { color: "bg-amber-500", label: "Hybrid" },
-          { color: "bg-red-500", label: "Hard gate — overrides all signals" },
+          { color: "bg-red-500", label: "Hard gate  -  overrides all signals" },
         ].map((item) => (
           <span key={item.label} className="flex items-center gap-1.5 text-slate-500">
             <span className={`h-2 w-2 rounded-full ${item.color}`} />
@@ -240,7 +240,7 @@ function RiskGateCallout() {
       <div className="flex items-center gap-2 mb-4">
         <div className="h-2 w-2 rounded-full bg-red-500" />
         <span className="font-mono text-[10px] tracking-widest text-red-400 font-bold">
-          AGENT 4 — RISK GATE — SYSTEM OVERRIDE
+          AGENT 4  -  RISK GATE  -  SYSTEM OVERRIDE
         </span>
       </div>
       <p className="font-sans text-xs text-slate-400 mb-4 leading-relaxed">
@@ -251,7 +251,7 @@ function RiskGateCallout() {
         <code className="font-mono text-red-400 text-[10px] bg-red-950/50 px-1 rounded">
           valid = false
         </code>{" "}
-        and the Master Agent issues NO TRADE — regardless of what Trend, Price Action,
+        and the Master Agent issues NO TRADE  -  regardless of what Trend, Price Action,
         or News returned.
       </p>
       <div className="font-mono text-[9px] text-slate-600 tracking-widest mb-2">
@@ -289,7 +289,7 @@ export function AgentGrid() {
           ))}
         </div>
 
-        {/* Master agent — full width */}
+        {/* Master agent  -  full width */}
         <div className="mt-4">
           <AgentCard agent={masterAgent} index={regularAgents.length} />
         </div>

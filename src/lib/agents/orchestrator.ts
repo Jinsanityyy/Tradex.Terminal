@@ -1,5 +1,5 @@
-/**
- * TradeX Multi-Agent Terminal — Master Orchestrator
+﻿/**
+ * TradeX Multi-Agent Terminal  -  Master Orchestrator
  *
  * Entry point for the multi-agent system.
  * Coordinates all 7 agents, handles caching, and returns the full AgentRunResult.
@@ -72,7 +72,7 @@ async function fetchMarketData(symbol: Symbol): Promise<{
     const quotes = getQuotesForSymbols([apiSymbol]);
     const quote = (quotes[apiSymbol] ?? null) as unknown as Record<string, string | { high: string; low: string }> | null;
 
-    // Fetch news — Finnhub + internal fallback run in parallel (3s each), eliminating serial 10s latency
+    // Fetch news  -  Finnhub + internal fallback run in parallel (3s each), eliminating serial 10s latency
     type RawNewsItem = { headline: string; summary: string; datetime: number };
     const finnhubKey = process.env.FINNHUB_API_KEY;
     const baseUrl    = process.env.NEXT_PUBLIC_APP_URL
@@ -140,7 +140,7 @@ async function fetchMarketData(symbol: Symbol): Promise<{
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Debate Phase — agents challenge each other before Master adjudicates
+// Debate Phase  -  agents challenge each other before Master adjudicates
 // ─────────────────────────────────────────────────────────────────────────────
 
 const DEBATE_SYSTEM = `You are the Debate Moderator in a professional multi-agent trading system. Six specialist agents have completed their independent analysis. Generate the structured debate that would occur between agents that disagree with each other.
@@ -152,7 +152,7 @@ Rules:
 - The Contrarian Agent always challenges unless riskFactor < 25
 - The Risk Gate challenges if invalid or grade is D/F
 - Keep each position to 2-3 concise sentences maximum
-- Be institutional, direct, and specific — not generic
+- Be institutional, direct, and specific  -  not generic
 
 Return ONLY a JSON array with no markdown or extra text.`;
 
@@ -167,7 +167,7 @@ async function runDebatePhase(
   apiKey: string
 ): Promise<DebateEntry[]> {
   // Compute majority bias from all 6 agents (exclude master).
-  // Execution direction and contrarian challenge are included — execution counts
+  // Execution direction and contrarian challenge are included  -  execution counts
   // as a directional vote; contrarian always counts as opposing the current leader.
   const execVote = execution.direction === "long" ? "bullish"
     : execution.direction === "short" ? "bearish"
@@ -195,27 +195,27 @@ Price: ${snapshot.price.current} | Change: ${snapshot.price.changePercent > 0 ? 
 MAJORITY BIAS: ${majorityBias.toUpperCase()}
 
 AGENT POSITIONS:
-1. TREND AGENT — Bias: ${trend.bias.toUpperCase()} @ ${trend.confidence}%
+1. TREND AGENT  -  Bias: ${trend.bias.toUpperCase()} @ ${trend.confidence}%
    Key signal: "${trend.reasons[0] ?? "No primary signal"}"
    Phase: ${trend.marketPhase} | TF aligned: ${trend.timeframeBias.aligned}
 
-2. PRICE ACTION AGENT — Bias: ${smc.bias.toUpperCase()} @ ${smc.confidence}%
+2. PRICE ACTION AGENT  -  Bias: ${smc.bias.toUpperCase()} @ ${smc.confidence}%
    Key signal: "${smc.reasons[0] ?? "No primary signal"}"
    Setup: ${smc.setupType} | BOS: ${smc.bosDetected} | Sweep: ${smc.liquiditySweepDetected} | Zone: ${smc.premiumDiscount}
 
-3. NEWS/MACRO AGENT — Impact: ${news.impact.toUpperCase()} @ ${news.confidence}%
+3. NEWS/MACRO AGENT  -  Impact: ${news.impact.toUpperCase()} @ ${news.confidence}%
    Key signal: "${news.reasons[0] ?? "No primary signal"}"
    Regime: ${news.regime} | Risk score: ${news.riskScore}/100
 
-4. RISK GATE — Status: ${risk.valid ? "VALID" : "INVALID"} | Grade: ${risk.grade}
+4. RISK GATE  -  Status: ${risk.valid ? "VALID" : "INVALID"} | Grade: ${risk.grade}
    Key signal: "${risk.reasons[0] ?? "No primary signal"}"
    Session score: ${risk.sessionScore}/100 | Vol score: ${risk.volatilityScore}/100
 
-5. EXECUTION AGENT — Direction: ${execution.direction.toUpperCase()} | Setup: ${execution.trigger}
+5. EXECUTION AGENT  -  Direction: ${execution.direction.toUpperCase()} | Setup: ${execution.trigger}
    Key signal: "Entry ${execution.entry != null ? execution.entry.toFixed(execution.entry > 100 ? 1 : 4) : "N/A"}, SL ${execution.stopLoss != null ? execution.stopLoss.toFixed(execution.stopLoss > 100 ? 1 : 4) : "N/A"}, RR ${execution.rrRatio?.toFixed(1) ?? "N/A"}:1"
    Signal state: ${execution.signalState}
 
-6. CONTRARIAN AGENT — Challenges bias: ${contrarian.challengesBias} | Risk factor: ${contrarian.riskFactor}%
+6. CONTRARIAN AGENT  -  Challenges bias: ${contrarian.challengesBias} | Risk factor: ${contrarian.riskFactor}%
    Key signal: "${contrarian.failureReasons[0] ?? "No significant counter-signals"}"
    Trap type: ${contrarian.trapType ?? "none detected"}
 
@@ -329,14 +329,14 @@ export async function runAgentOrchestrator(
       dailyStructure ?? undefined
     );
   } else {
-    // Live quote unavailable — all agent outputs are based on synthetic data
+    // Live quote unavailable  -  all agent outputs are based on synthetic data
     snapshot = buildMockSnapshot(symbol, timeframe);
     isMockData = true;
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
 
-  // ── Phase 1: Independent agents — all run with Claude when available ─────
+  // ── Phase 1: Independent agents  -  all run with Claude when available ─────
   // Trend, News, and Price Action all run in parallel
   const [trend, newsAgent, smc] = await Promise.all([
     runTrendAgent(snapshot, apiKey),
@@ -344,17 +344,17 @@ export async function runAgentOrchestrator(
     runPriceActionAgent(snapshot, apiKey),
   ]);
 
-  // ── Phase 2a: Execution + Contrarian — depend on trend + smc ────────────
+  // ── Phase 2a: Execution + Contrarian  -  depend on trend + smc ────────────
   const [execution, contrarian] = await Promise.all([
     runExecutionAgent(snapshot, smc, newsAgent),
     runContrarianAgent(snapshot, trend, smc, apiKey),
   ]);
 
-  // ── Phase 2b: Risk — uses actual RR + setup presence from execution ──────
+  // ── Phase 2b: Risk  -  uses actual RR + setup presence from execution ──────
   const risk = await runRiskAgent(snapshot, execution.rrRatio, execution.hasSetup);
 
-  // ── Phase 3: Debate — agents challenge each other ────────────────────────
-  // Skip when risk gate is invalid — outcome is predetermined (no-trade), no debate needed
+  // ── Phase 3: Debate  -  agents challenge each other ────────────────────────
+  // Skip when risk gate is invalid  -  outcome is predetermined (no-trade), no debate needed
   let debate: DebateEntry[] | undefined;
   if (apiKey && risk.valid) {
     try {
@@ -398,7 +398,7 @@ export async function runAgentOrchestrator(
   evictStaleCache();
   cache.set(key, { result, ts: Date.now() });
 
-  // ── Log signal to history (fire-and-forget — never blocks the response) ──
+  // ── Log signal to history (fire-and-forget  -  never blocks the response) ──
   // The logger is idempotent (dedupes by minute+symbol+TF) so cache-hits or
   // rapid re-runs within the same minute will not create duplicate records.
   void logSignal(result).catch(err =>

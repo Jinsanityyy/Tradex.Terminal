@@ -1,14 +1,14 @@
-/**
+﻿/**
  * /api/market/trump/cnn-sync
  *
- * Vercel Cron job — runs every 5 minutes (configured in vercel.json).
+ * Vercel Cron job  -  runs every 5 minutes (configured in vercel.json).
  * Fetches CNN's live Truth Social archive, diffs against Supabase,
  * and inserts any new posts. Supabase Realtime then broadcasts inserts
  * to all connected dashboard clients automatically.
  *
  * Requires:
- *   SUPABASE_SERVICE_ROLE_KEY  — bypass RLS for inserts
- *   CRON_SECRET                — shared secret set in Vercel env + vercel.json header
+ *   SUPABASE_SERVICE_ROLE_KEY   -  bypass RLS for inserts
+ *   CRON_SECRET                 -  shared secret set in Vercel env + vercel.json header
  *
  * Can also be called manually: GET /api/market/trump/cnn-sync
  * (pass Authorization: Bearer <CRON_SECRET> header)
@@ -51,7 +51,7 @@ export async function GET() {
     const res = await fetch(CNN_ARCHIVE_URL, {
       headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(10_000),
-      // No cache — always want the freshest list
+      // No cache  -  always want the freshest list
       cache: "no-store",
     });
     if (!res.ok) throw new Error(`CNN HTTP ${res.status}`);
@@ -97,7 +97,7 @@ export async function GET() {
     return jsonRes({ inserted: 0, message: "No new posts since last sync" });
   }
 
-  // 4. Insert — Supabase Realtime broadcasts each INSERT automatically
+  // 4. Insert  -  Supabase Realtime broadcasts each INSERT automatically
   const { error: insertErr } = await sb
     .from("trump_posts")
     .insert(newPosts);

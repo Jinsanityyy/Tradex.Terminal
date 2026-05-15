@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -229,7 +229,7 @@ function ReasonsDrawer({ reasons, label }: { reasons: string[]; label: string })
         className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-zinc-500 hover:text-zinc-300 transition-colors w-full"
       >
         <Info className="h-3 w-3" />
-        {open ? "Hide" : "Why?"} — {label}
+        {open ? "Hide" : "Why?"}  -  {label}
         {open ? <ChevronUp className="h-3 w-3 ml-auto" /> : <ChevronDown className="h-3 w-3 ml-auto" />}
       </button>
       {open && (
@@ -371,7 +371,7 @@ export default function MarketBiasPage() {
             </div>
           ) : (
             <p className="text-sm text-zinc-500">
-              {error ? "Analysis failed — click Refresh to retry" : "Awaiting data…"}
+              {error ? "Analysis failed  -  click Refresh to retry" : "Awaiting data…"}
             </p>
           )}
         </Card>
@@ -776,7 +776,7 @@ export default function MarketBiasPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm text-amber-400">
                   <AlertTriangle className="h-4 w-4" />
-                  Contrarian Warning — {contrarian.trapType ?? "Counter Signal Detected"}
+                  Contrarian Warning  -  {contrarian.trapType ?? "Counter Signal Detected"}
                   <span className="ml-auto text-[10px] font-normal text-amber-500/60">Risk factor {contrarian.riskFactor}/100</span>
                 </CardTitle>
               </CardHeader>

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import type { BiasData } from "@/types";
 import { TRACKED_ASSETS } from "@/lib/api/market-data";
 import { deriveConvictionBias } from "@/lib/api/conviction";
@@ -45,7 +45,7 @@ const BIAS_ASSETS = [
 ];
 
 // ── Conviction engine ─────────────────────────────────────────────────────────
-// Imported from shared lib — same function used by /api/market/keylevels
+// Imported from shared lib  -  same function used by /api/market/keylevels
 // to guarantee consistent HTF Bias output across the entire app.
 
 function generateSupportingFactors(
@@ -75,46 +75,46 @@ function generateSupportingFactors(
 
   if (bias === "bullish") {
     if (bosUp)
-      factors.push(`BOS to upside — ${assetName} displaced ${Math.abs(pctChange).toFixed(2)}% above ${prevClose.toFixed(2)}, institutional order flow confirmed`);
+      factors.push(`BOS to upside  -  ${assetName} displaced ${Math.abs(pctChange).toFixed(2)}% above ${prevClose.toFixed(2)}, institutional order flow confirmed`);
     if (choch && pctChange > 0)
-      factors.push(`CHoCH detected — trend reversal from bearish structure, smart money repositioning to long`);
+      factors.push(`CHoCH detected  -  trend reversal from bearish structure, smart money repositioning to long`);
     if (inDiscount)
-      factors.push(`Price trading in discount (below EQ ${equilibrium.toFixed(2)}) — optimal institutional buy zone, OB/FVG entries valid`);
+      factors.push(`Price trading in discount (below EQ ${equilibrium.toFixed(2)})  -  optimal institutional buy zone, OB/FVG entries valid`);
     if (rsi > 50 && rsi < 65)
-      factors.push(`RSI ${rsi.toFixed(0)} — momentum above midline with room to expand, not yet overbought`);
+      factors.push(`RSI ${rsi.toFixed(0)}  -  momentum above midline with room to expand, not yet overbought`);
     if (rsi < 35)
-      factors.push(`RSI ${rsi.toFixed(0)} — extreme oversold, stop hunts likely complete, reversal accumulation forming`);
+      factors.push(`RSI ${rsi.toFixed(0)}  -  extreme oversold, stop hunts likely complete, reversal accumulation forming`);
     if (nearLow52)
-      factors.push(`Price near 52-week low liquidity pool — equal lows below offering high-probability reversal zone`);
+      factors.push(`Price near 52-week low liquidity pool  -  equal lows below offering high-probability reversal zone`);
     if (pos52 > 0.6 && !nearHigh52)
-      factors.push(`Upper ${Math.round(pos52 * 100)}% of annual range — HTF structural uptrend intact, buy pullbacks`);
+      factors.push(`Upper ${Math.round(pos52 * 100)}% of annual range  -  HTF structural uptrend intact, buy pullbacks`);
     if (macdHist > 0)
-      factors.push(`Momentum expansion confirmed — displacement candle structure supports continuation`);
+      factors.push(`Momentum expansion confirmed  -  displacement candle structure supports continuation`);
   } else if (bias === "bearish") {
     if (bosDown)
-      factors.push(`BOS to downside — ${assetName} displaced ${Math.abs(pctChange).toFixed(2)}% below ${prevClose.toFixed(2)}, distribution confirmed`);
+      factors.push(`BOS to downside  -  ${assetName} displaced ${Math.abs(pctChange).toFixed(2)}% below ${prevClose.toFixed(2)}, distribution confirmed`);
     if (choch && pctChange < 0)
-      factors.push(`CHoCH detected — failed attempt at new highs, smart money distributing into retail longs`);
+      factors.push(`CHoCH detected  -  failed attempt at new highs, smart money distributing into retail longs`);
     if (inPremium)
-      factors.push(`Price in premium zone (above EQ ${equilibrium.toFixed(2)}) — institutional sell area, OB/FVG shorts valid`);
+      factors.push(`Price in premium zone (above EQ ${equilibrium.toFixed(2)})  -  institutional sell area, OB/FVG shorts valid`);
     if (rsi > 70)
-      factors.push(`RSI ${rsi.toFixed(0)} — overbought extreme, distribution phase active, stop hunts above highs probable`);
+      factors.push(`RSI ${rsi.toFixed(0)}  -  overbought extreme, distribution phase active, stop hunts above highs probable`);
     if (rsi > 55 && rsi <= 70)
-      factors.push(`RSI ${rsi.toFixed(0)} — elevated but not extreme, bearish momentum confirmed below midline`);
+      factors.push(`RSI ${rsi.toFixed(0)}  -  elevated but not extreme, bearish momentum confirmed below midline`);
     if (nearHigh52)
-      factors.push(`Price near 52-week high sell-side liquidity — equal highs and stop clusters above, sweep-and-reverse risk high`);
+      factors.push(`Price near 52-week high sell-side liquidity  -  equal highs and stop clusters above, sweep-and-reverse risk high`);
     if (pos52 < 0.4 && !nearLow52)
-      factors.push(`Lower ${Math.round(pos52 * 100)}% of annual range — HTF structural downtrend, sell rallies into OBs`);
+      factors.push(`Lower ${Math.round(pos52 * 100)}% of annual range  -  HTF structural downtrend, sell rallies into OBs`);
     if (macdHist < 0)
-      factors.push(`Negative momentum expansion — bearish order flow dominant, no reversal candle structure visible`);
+      factors.push(`Negative momentum expansion  -  bearish order flow dominant, no reversal candle structure visible`);
   } else {
-    factors.push(`Price at equilibrium ${equilibrium.toFixed(2)} — institutional buy/sell pressure balanced, no edge`);
-    factors.push(`No BOS confirmed — wait for decisive break above ${high.toFixed(2)} or below ${low.toFixed(2)}`);
-    factors.push(`Ranging between session high/low — liquidity building on both sides for expansion move`);
+    factors.push(`Price at equilibrium ${equilibrium.toFixed(2)}  -  institutional buy/sell pressure balanced, no edge`);
+    factors.push(`No BOS confirmed  -  wait for decisive break above ${high.toFixed(2)} or below ${low.toFixed(2)}`);
+    factors.push(`Ranging between session high/low  -  liquidity building on both sides for expansion move`);
   }
 
   if (factors.length < 3) {
-    factors.push(`Annual range ${low52w.toFixed(2)}–${high52w.toFixed(2)}, price at ${(pos52 * 100).toFixed(0)}% — ${pos52 > 0.5 ? "premium" : "discount"} territory`);
+    factors.push(`Annual range ${low52w.toFixed(2)}–${high52w.toFixed(2)}, price at ${(pos52 * 100).toFixed(0)}%  -  ${pos52 > 0.5 ? "premium" : "discount"} territory`);
   }
 
   return factors.slice(0, 5);
@@ -132,19 +132,19 @@ function generateInvalidationFactors(
   const factors: string[] = [];
 
   if (bias === "bullish") {
-    factors.push(`CHoCH to downside — break and close below ${support.toFixed(2)} structure low negates bullish thesis`);
+    factors.push(`CHoCH to downside  -  break and close below ${support.toFixed(2)} structure low negates bullish thesis`);
     factors.push(`Failure auction above ${resistance.toFixed(2)} with immediate reversal signals distribution, not accumulation`);
-    if (rsi > 68) factors.push(`RSI ${rsi.toFixed(0)} approaching overbought — momentum divergence could precede pullback`);
+    if (rsi > 68) factors.push(`RSI ${rsi.toFixed(0)} approaching overbought  -  momentum divergence could precede pullback`);
     factors.push(`USD strength spike or risk-off macro catalyst would invalidate near-term bullish flow`);
   } else if (bias === "bearish") {
-    factors.push(`Reclaim above ${resistance.toFixed(2)} with displacement candle — bullish CHoCH, shorts must exit`);
+    factors.push(`Reclaim above ${resistance.toFixed(2)} with displacement candle  -  bullish CHoCH, shorts must exit`);
     factors.push(`Stop run above session high without continuation = manipulation trap, not BOS`);
-    if (rsi < 32) factors.push(`RSI ${rsi.toFixed(0)} deeply oversold — liquidity sweep complete, reversal risk elevated`);
+    if (rsi < 32) factors.push(`RSI ${rsi.toFixed(0)} deeply oversold  -  liquidity sweep complete, reversal risk elevated`);
     factors.push(`Dovish Fed pivot or geopolitical safe-haven demand could flip order flow bullish`);
   } else {
-    factors.push(`Expansion BOS above ${resistance.toFixed(2)} — confirms bullish order flow, bias shifts`);
-    factors.push(`Expansion BOS below ${support.toFixed(2)} — confirms bearish distribution, bias shifts`);
-    factors.push(`Avoid entries during range — both sides of liquidity are valid targets for manipulation`);
+    factors.push(`Expansion BOS above ${resistance.toFixed(2)}  -  confirms bullish order flow, bias shifts`);
+    factors.push(`Expansion BOS below ${support.toFixed(2)}  -  confirms bearish distribution, bias shifts`);
+    factors.push(`Avoid entries during range  -  both sides of liquidity are valid targets for manipulation`);
   }
 
   return factors.slice(0, 4);
@@ -179,7 +179,7 @@ export async function GET() {
     await ensureCacheWarm();
     const finalQuoteData = getQuotesForSymbols(BIAS_ASSETS.map(a => a.symbol));
 
-    // Fetch RSI — only 4 credits, cached for 5 min so won't repeat often
+    // Fetch RSI  -  only 4 credits, cached for 5 min so won't repeat often
     const rsiPromises = BIAS_ASSETS.map(async (asset) => {
       try {
         const controller = new AbortController();
@@ -207,7 +207,7 @@ export async function GET() {
           asset: asset.display,
           bias: "neutral" as const,
           confidence: 50,
-          supportingFactors: ["Data temporarily unavailable — awaiting market data refresh"],
+          supportingFactors: ["Data temporarily unavailable  -  awaiting market data refresh"],
           invalidationFactors: ["Monitor for data availability"],
           keyLevels: { support: 0, resistance: 0 },
           macroDrivers: asset.macroBase,

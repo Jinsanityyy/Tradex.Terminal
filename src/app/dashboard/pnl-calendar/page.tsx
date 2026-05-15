@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
@@ -148,7 +148,7 @@ function DayJournalModal({
       onClose();
     } catch (err) {
       console.error("Journal save exception:", err);
-      toast.error("Failed to save journal — check console");
+      toast.error("Failed to save journal  -  check console");
     } finally {
       setSaving(false);
     }
@@ -159,7 +159,7 @@ function DayJournalModal({
     if (file.size > 15 * 1024 * 1024) { toast.error("Max 15MB per image"); return; }
     setUploading(true);
     try {
-      // Compress + convert to base64 entirely client-side — no storage bucket needed
+      // Compress + convert to base64 entirely client-side  -  no storage bucket needed
       const base64 = await compressImageToBase64(file);
       setScreenshots(prev => [...prev, base64]);
     } catch {
@@ -215,7 +215,7 @@ function DayJournalModal({
               </div>
             ) : (
               <div className="rounded-lg bg-[hsl(var(--secondary))]/50 border border-[hsl(var(--border))]/50 p-3 text-center">
-                <p className="text-xs text-[hsl(var(--muted-foreground))]">No trade data for this day — you can still add journal notes.</p>
+                <p className="text-xs text-[hsl(var(--muted-foreground))]">No trade data for this day  -  you can still add journal notes.</p>
               </div>
             )}
 
@@ -451,7 +451,7 @@ function ManualTradeModal({
           {/* P&L */}
           <div>
             <label className="block text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1.5">
-              P&L ($) <span className="normal-case text-[hsl(var(--muted-foreground))]/50">— use negative for a loss</span>
+              P&L ($) <span className="normal-case text-[hsl(var(--muted-foreground))]/50"> -  use negative for a loss</span>
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-[hsl(var(--muted-foreground))]">$</span>
@@ -569,7 +569,7 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to connect — check your API keys and try again");
+      if (!res.ok) throw new Error(data.error ?? "Failed to connect  -  check your API keys and try again");
       onConnected({ id: data.data.id, exchange, label: label.trim(), is_active: true });
       onClose();
     } catch (e: any) {
@@ -678,7 +678,7 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
             <div className="flex items-start gap-2 rounded-lg bg-[hsl(var(--secondary))]/50 p-2.5">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
               <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-relaxed">
-                Keys are AES-256 encrypted at rest. Use <strong>read-only</strong> API keys — TradeX never needs trade permissions.
+                Keys are AES-256 encrypted at rest. Use <strong>read-only</strong> API keys  -  TradeX never needs trade permissions.
               </p>
             </div>
           )}
@@ -727,12 +727,12 @@ export default function PnLCalendarPage() {
   const [journalDate, setJournalDate] = useState<string | null>(null);
   const [journalEntries, setJournalEntries] = useState<Map<string, JournalEntry>>(new Map());
 
-  // Manual trades — synced with Supabase (cross-device via user account)
+  // Manual trades  -  synced with Supabase (cross-device via user account)
   const [manualTrades, setManualTrades] = useState<ManualTrade[]>([]);
 
   function addManualTrade(trade: ManualTrade) {
     setManualTrades(prev => [trade, ...prev]);
-    // /api/pnl already aggregates manual trades — reload calendar
+    // /api/pnl already aggregates manual trades  -  reload calendar
     loadData();
   }
 
@@ -905,7 +905,7 @@ export default function PnLCalendarPage() {
           loadData();
         }
       });
-    } catch { /* malformed localStorage data — just clear it */
+    } catch { /* malformed localStorage data  -  just clear it */
       localStorage.removeItem("tradex_manual_trades");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -960,7 +960,7 @@ export default function PnLCalendarPage() {
             className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-1.5 text-xs text-[hsl(var(--foreground))] outline-none">
             <option value="all">All Exchanges</option>
             {connections.map(c => (
-              <option key={c.id} value={c.id}>{EXCHANGE_META[c.exchange]?.name} — {c.label}</option>
+              <option key={c.id} value={c.id}>{EXCHANGE_META[c.exchange]?.name}  -  {c.label}</option>
             ))}
           </select>
           <button onClick={syncAll} disabled={syncing}
@@ -1170,7 +1170,7 @@ export default function PnLCalendarPage() {
                         <span className="text-[9px] text-[hsl(var(--muted-foreground))]">week</span>
                       </>
                     ) : (
-                      <span className="text-[10px] text-[hsl(var(--muted-foreground))]/30">—</span>
+                      <span className="text-[10px] text-[hsl(var(--muted-foreground))]/30"> - </span>
                     )}
                   </div>
                 </div>
@@ -1438,7 +1438,7 @@ export default function PnLCalendarPage() {
                           <p className="text-[8px] text-[hsl(var(--muted-foreground))]">{m.trades}t</p>
                         </>
                       ) : (
-                        <p className="text-[10px] text-[hsl(var(--muted-foreground))]/30">—</p>
+                        <p className="text-[10px] text-[hsl(var(--muted-foreground))]/30"> - </p>
                       )}
                     </button>
                   ))}
@@ -1456,7 +1456,7 @@ export default function PnLCalendarPage() {
                         <p className="text-[8px] text-[hsl(var(--muted-foreground))]">{ytdTrades}t</p>
                       </>
                     ) : (
-                      <p className="text-[10px] text-[hsl(var(--muted-foreground))]/30">—</p>
+                      <p className="text-[10px] text-[hsl(var(--muted-foreground))]/30"> - </p>
                     )}
                   </div>
                 </div>

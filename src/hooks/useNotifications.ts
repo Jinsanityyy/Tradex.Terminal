@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useCallback } from "react";
 import { useCatalysts, useTrumpPosts } from "./useMarketData";
@@ -166,7 +166,7 @@ export function useNotifications(onNotif: NotifCallback) {
               id: crypto.randomUUID(),
               type: "signal",
               title: `Entry Zone Reached`,
-              body: `${sym} — ${dir.toUpperCase()} entry at ${row.entry_price}. Setup valid.`,
+              body: `${sym}  -  ${dir.toUpperCase()} entry at ${row.entry_price}. Setup valid.`,
               timestamp: Date.now(),
             });
           }
@@ -180,11 +180,11 @@ export function useNotifications(onNotif: NotifCallback) {
             markSeen(SEEN_SIGNAL_KEY, [notifId]);
             const rStr = pnlR != null ? `${pnlR >= 0 ? "+" : ""}${pnlR}R` : "";
             const msgs: Record<string, { title: string; body: string }> = {
-              win_tp1:     { title: `TP1 Hit`, body: `${sym} ${dir.toUpperCase()} — ${rStr}` },
-              win_tp2:     { title: `TP2 Hit`, body: `${sym} ${dir.toUpperCase()} — ${rStr}` },
-              loss_sl:     { title: `Stop Loss Hit`, body: `${sym} ${dir.toUpperCase()} — -1R` },
-              invalidated: { title: `Setup Invalidated`, body: `${sym} ${dir.toUpperCase()} — price moved beyond setup range` },
-              expired:     { title: `Signal Expired`, body: `${sym} ${dir.toUpperCase()} — no resolution after 24h` },
+              win_tp1:     { title: `TP1 Hit`, body: `${sym} ${dir.toUpperCase()}  -  ${rStr}` },
+              win_tp2:     { title: `TP2 Hit`, body: `${sym} ${dir.toUpperCase()}  -  ${rStr}` },
+              loss_sl:     { title: `Stop Loss Hit`, body: `${sym} ${dir.toUpperCase()}  -  -1R` },
+              invalidated: { title: `Setup Invalidated`, body: `${sym} ${dir.toUpperCase()}  -  price moved beyond setup range` },
+              expired:     { title: `Signal Expired`, body: `${sym} ${dir.toUpperCase()}  -  no resolution after 24h` },
             };
             const msg = msgs[status];
             if (msg) {

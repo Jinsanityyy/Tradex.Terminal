@@ -1,5 +1,5 @@
-/**
- * TradeX Terminal — Agent Registry
+﻿/**
+ * TradeX Terminal  -  Agent Registry
  * Single source of truth for all 7 agent definitions.
  */
 
@@ -87,7 +87,7 @@ export const AGENTS: AgentDefinition[] = [
     model: null,
     status: "gating",
     statusLabel: "Gating",
-    role: "Hard-block validator — overrides all signals",
+    role: "Hard-block validator  -  overrides all signals",
     description:
       "Rule-based gate with no AI path. Evaluates volatility score, session quality, actual RR ratio from Execution Agent, RSI extremes, and 52-week position. Five hard-block conditions: session closed, ATR >2.5%, RR <1:1, 5+ warnings. Grade A–F issued to Master Agent.",
     outputs: ["valid", "grade", "volatilityScore", "sessionScore", "warnings", "maxRiskPercent"],
@@ -122,7 +122,7 @@ export const AGENTS: AgentDefinition[] = [
     model: "claude-haiku-4-5",
     status: "scanning",
     statusLabel: "Scanning",
-    role: "Devil's advocate — trap & failure detection",
+    role: "Devil's advocate  -  trap & failure detection",
     description:
       "Challenges the primary thesis. Scans for bull/bear traps, false BOS, stop-hunt magnets at 52-week extremes, HTF-LTF divergence, and CHoCH uncertainty. Returns riskFactor (0–100) that acts as a headwind in consensus scoring.",
     outputs: ["challengesBias", "trapType", "riskFactor", "oppositeLiquidity", "alternativeScenario"],
@@ -139,7 +139,7 @@ export const AGENTS: AgentDefinition[] = [
     model: "claude-sonnet-4-6",
     status: "adjudicating",
     statusLabel: "Adjudicating",
-    role: "Final verdict — sees all agents + debate",
+    role: "Final verdict  -  sees all agents + debate",
     description:
       "Final adjudicator. Receives all 6 agent outputs plus the structured inter-agent debate. Applies weighted consensus scoring, structural gates (BOS/sweep override), and sweep-first enforcement before issuing a final directional verdict with supporting rationale.",
     outputs: ["finalBias", "confidence", "verdict", "rationale", "keyLevels", "supports"],
@@ -149,7 +149,7 @@ export const AGENTS: AgentDefinition[] = [
   },
 ];
 
-// Pipeline phases — used by the flow diagram
+// Pipeline phases  -  used by the flow diagram
 export const PIPELINE_PHASES = [
   {
     phase: "Phase 1",
@@ -170,7 +170,7 @@ export const PIPELINE_PHASES = [
     label: "Risk Gate",
     agentIds: ["risk"],
     parallel: false,
-    description: "Sequential — requires actual RR ratio from Execution Agent.",
+    description: "Sequential  -  requires actual RR ratio from Execution Agent.",
   },
   {
     phase: "Phase 3",

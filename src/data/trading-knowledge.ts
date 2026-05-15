@@ -1,4 +1,4 @@
-export interface KnowledgeItem {
+﻿export interface KnowledgeItem {
   id: string;
   title: string;
   summary: string;
@@ -23,31 +23,31 @@ export const TRADING_KNOWLEDGE: KnowledgeCategory[] = [
         id: "what-is-trading",
         title: "What is Trading?",
         summary: "Buying and selling financial assets to profit from price movements.",
-        content: `Trading is the act of buying and selling financial instruments — such as currencies, stocks, commodities, or indices — with the goal of making a profit from price changes.
+        content: `Trading is the act of buying and selling financial instruments  -  such as currencies, stocks, commodities, or indices  -  with the goal of making a profit from price changes.
 
 **Types of Traders:**
-- **Scalper** — holds trades for seconds to minutes, targets small moves
-- **Day Trader** — opens and closes all trades within the same day
-- **Swing Trader** — holds trades from a few days to weeks
-- **Position Trader** — holds trades for weeks to months based on macro trends
+- **Scalper**  -  holds trades for seconds to minutes, targets small moves
+- **Day Trader**  -  opens and closes all trades within the same day
+- **Swing Trader**  -  holds trades from a few days to weeks
+- **Position Trader**  -  holds trades for weeks to months based on macro trends
 
 **Key Markets:**
-- **Forex** — currency pairs (EUR/USD, GBP/JPY, etc.)
-- **Crypto** — digital assets (BTC, ETH, etc.)
-- **Indices** — baskets of stocks (S&P 500, NASDAQ, etc.)
-- **Commodities** — physical goods (Gold, Oil, Silver)
-- **Stocks** — shares in individual companies`,
+- **Forex**  -  currency pairs (EUR/USD, GBP/JPY, etc.)
+- **Crypto**  -  digital assets (BTC, ETH, etc.)
+- **Indices**  -  baskets of stocks (S&P 500, NASDAQ, etc.)
+- **Commodities**  -  physical goods (Gold, Oil, Silver)
+- **Stocks**  -  shares in individual companies`,
         tags: ["intro", "beginner"],
       },
       {
         id: "bid-ask-spread",
         title: "Bid, Ask & Spread",
-        summary: "The two prices every market has — and the cost between them.",
+        summary: "The two prices every market has  -  and the cost between them.",
         content: `Every tradable market has two prices at any given time:
 
-- **Bid** — the price buyers are willing to pay (you sell here)
-- **Ask** — the price sellers are willing to accept (you buy here)
-- **Spread** — the difference between bid and ask; this is the broker's cut
+- **Bid**  -  the price buyers are willing to pay (you sell here)
+- **Ask**  -  the price sellers are willing to accept (you buy here)
+- **Spread**  -  the difference between bid and ask; this is the broker's cut
 
 **Example:**
 EUR/USD Bid: 1.08500 | Ask: 1.08503 → Spread = 0.3 pips
@@ -60,7 +60,7 @@ A tighter spread means lower trading cost. Liquid pairs like EUR/USD and major i
       {
         id: "order-types",
         title: "Order Types",
-        summary: "Market, limit, stop — and how each fills your trade.",
+        summary: "Market, limit, stop  -  and how each fills your trade.",
         content: `Understanding order types is essential for precise trade execution.
 
 **Market Order**
@@ -70,7 +70,7 @@ Executes immediately at the current best available price. Fast but you accept wh
 Executes only at your specified price or better. Buy limit = below market; Sell limit = above market. Used to enter at key levels without chasing.
 
 **Stop Order (Stop Market)**
-Triggers a market order once price reaches your stop level. Used to enter breakouts or cut losses. Becomes a market order on trigger — can slip in fast markets.
+Triggers a market order once price reaches your stop level. Used to enter breakouts or cut losses. Becomes a market order on trigger  -  can slip in fast markets.
 
 **Stop-Limit Order**
 Like a stop order but converts to a limit order instead of market. More precise but risks not filling in fast moves.
@@ -82,7 +82,7 @@ A stop that moves with price in your favour by a set distance. Locks in profit a
       {
         id: "leverage-margin",
         title: "Leverage & Margin",
-        summary: "Trading bigger than your account — and why it's a double-edged sword.",
+        summary: "Trading bigger than your account  -  and why it's a double-edged sword.",
         content: `**Leverage** allows you to control a larger position than your actual capital. A 1:100 leverage means $1,000 can control a $100,000 position.
 
 **Margin** is the collateral required to open and hold a leveraged position.
@@ -105,7 +105,7 @@ A stop that moves with price in your favour by a set distance. Locks in profit a
         content: `**Pip (Price Interest Point)**
 The smallest standard price movement for most pairs. For EUR/USD, 1 pip = 0.0001. For JPY pairs, 1 pip = 0.01.
 
-**Pipette** — a fractional pip (5th decimal place for most pairs).
+**Pipette**  -  a fractional pip (5th decimal place for most pairs).
 
 **Lot Sizes:**
 | Lot Type    | Units     | ~Pip Value (EUR/USD) |
@@ -136,8 +136,8 @@ If you risk $100, stop is 20 pips, pip value is $1 → 100 ÷ (20 × 1) = 5 mini
 | New York  | 13:00   | 22:00   | USD, CAD          |
 
 **Overlaps (highest volume):**
-- London/NY overlap (13:00–17:00 UTC) — most volatile window for major pairs
-- Tokyo/London overlap (08:00–09:00 UTC) — brief but active for EUR/JPY
+- London/NY overlap (13:00–17:00 UTC)  -  most volatile window for major pairs
+- Tokyo/London overlap (08:00–09:00 UTC)  -  brief but active for EUR/JPY
 
 **Tips:**
 - Avoid trading in dead zones (Sydney/Tokyo crossover for EUR/USD)
@@ -166,7 +166,7 @@ If you risk $100, stop is 20 pips, pip value is $1 → 100 ÷ (20 × 1) = 5 mini
 - High-volume price nodes
 - Prior breakout levels
 
-**Role Reversal:** Once a resistance level is broken convincingly, it often becomes support — and vice versa. This is one of the most reliable concepts in trading.
+**Role Reversal:** Once a resistance level is broken convincingly, it often becomes support  -  and vice versa. This is one of the most reliable concepts in trading.
 
 **Strength Factors:**
 - More touches = stronger level
@@ -260,10 +260,10 @@ Running total of up-volume minus down-volume. Divergence between OBV and price c
         summary: "How to read what a single candle tells you about price action.",
         content: `A candlestick shows four prices for a given period:
 
-- **Open** — where price started
-- **Close** — where price ended
-- **High** — the highest price reached
-- **Low** — the lowest price reached
+- **Open**  -  where price started
+- **Close**  -  where price ended
+- **High**  -  the highest price reached
+- **Low**  -  the lowest price reached
 
 **Body:** The rectangle between open and close.
 - Green/White body = close > open (bullish)
@@ -283,16 +283,16 @@ Running total of up-volume minus down-volume. Divergence between OBV and price c
       {
         id: "doji",
         title: "Doji",
-        summary: "Indecision candle — open and close are nearly equal.",
+        summary: "Indecision candle  -  open and close are nearly equal.",
         content: `A Doji forms when the open and close are at the same price (or very close). The body is tiny, with wicks extending both ways.
 
 **What it means:** The market is undecided. Neither buyers nor sellers won the period.
 
 **Types:**
-- **Standard Doji** — cross shape, wicks on both sides
-- **Long-legged Doji** — very long wicks, extreme indecision
-- **Gravestone Doji** — long upper wick, no lower wick → bearish signal (rejection from highs)
-- **Dragonfly Doji** — long lower wick, no upper wick → bullish signal (strong demand below)
+- **Standard Doji**  -  cross shape, wicks on both sides
+- **Long-legged Doji**  -  very long wicks, extreme indecision
+- **Gravestone Doji**  -  long upper wick, no lower wick → bearish signal (rejection from highs)
+- **Dragonfly Doji**  -  long lower wick, no upper wick → bullish signal (strong demand below)
 
 **Trading the Doji:**
 A Doji is NOT a signal by itself. Context matters:
@@ -336,12 +336,12 @@ Confirm with the next candle's direction.`,
       {
         id: "engulfing",
         title: "Engulfing Patterns",
-        summary: "One candle completely swallows the previous — strong momentum shift.",
+        summary: "One candle completely swallows the previous  -  strong momentum shift.",
         content: `Engulfing patterns are two-candle reversal signals. The second candle's body fully engulfs the first.
 
 **Bullish Engulfing:**
 1. First candle is bearish (red)
-2. Second candle is bullish (green) and its body is larger — opening below the previous close and closing above the previous open
+2. Second candle is bullish (green) and its body is larger  -  opening below the previous close and closing above the previous open
 3. Appears after a downtrend
 → Signals strong buyer momentum taking over
 
@@ -366,7 +366,7 @@ Confirm with the next candle's direction.`,
       {
         id: "pin-bar",
         title: "Pin Bar",
-        summary: "A rejection candle with a long wick — price action's most reliable signal.",
+        summary: "A rejection candle with a long wick  -  price action's most reliable signal.",
         content: `A Pin Bar (Pinocchio Bar) has a long nose (wick) that protrudes out of the surrounding price action, with a small body.
 
 **Bullish Pin Bar:**
@@ -398,14 +398,14 @@ Confirm with the next candle's direction.`,
 
 **Morning Star (Bullish Reversal):**
 1. Large bearish candle (strong downtrend)
-2. Small candle (Doji or small body) — indecision, gap down from #1 if possible
+2. Small candle (Doji or small body)  -  indecision, gap down from #1 if possible
 3. Large bullish candle closing into the body of candle #1
 
 → Signals the downtrend is ending; buyers are taking control
 
 **Evening Star (Bearish Reversal):**
 1. Large bullish candle (strong uptrend)
-2. Small candle — indecision, ideally gaps above #1
+2. Small candle  -  indecision, ideally gaps above #1
 3. Large bearish candle closing into the body of candle #1
 
 → Signals the uptrend is ending; sellers taking control
@@ -430,10 +430,10 @@ Confirm with the next candle's direction.`,
         content: `The Head and Shoulders pattern signals a reversal from uptrend to downtrend.
 
 **Structure:**
-- **Left Shoulder** — price rises and falls
-- **Head** — price rises higher and falls back to neckline
-- **Right Shoulder** — price rises but not as high as the head, then falls
-- **Neckline** — the support line connecting the two troughs between the shoulders
+- **Left Shoulder**  -  price rises and falls
+- **Head**  -  price rises higher and falls back to neckline
+- **Right Shoulder**  -  price rises but not as high as the head, then falls
+- **Neckline**  -  the support line connecting the two troughs between the shoulders
 
 **Entry:** Short when price breaks and closes below the neckline.
 **Target:** Measure the height from the head to the neckline, then project that distance downward from the breakout.
@@ -451,7 +451,7 @@ Same structure flipped upside down. Signals reversal from downtrend to uptrend. 
       {
         id: "double-top-bottom",
         title: "Double Top & Double Bottom",
-        summary: "Price tests the same level twice and fails — a clean reversal signal.",
+        summary: "Price tests the same level twice and fails  -  a clean reversal signal.",
         content: `**Double Top (Bearish Reversal):**
 Price makes two consecutive peaks at roughly the same level, with a valley (the "neckline") between them. The second peak fails to break higher.
 
@@ -472,7 +472,7 @@ Stop: Below the second trough
 - Volume often declines on the second top/bottom (less conviction)
 - More reliable on higher timeframes (4H, Daily)
 
-**Failure Mode:** If price breaks convincingly beyond the second peak/trough, the pattern fails — this is a continuation signal instead.`,
+**Failure Mode:** If price breaks convincingly beyond the second peak/trough, the pattern fails  -  this is a continuation signal instead.`,
         tags: ["chart-pattern", "reversal"],
       },
       {
@@ -507,7 +507,7 @@ Stop: Below the second trough
       {
         id: "flags-pennants",
         title: "Flags & Pennants",
-        summary: "Brief consolidations within a strong trend — continuation setups.",
+        summary: "Brief consolidations within a strong trend  -  continuation setups.",
         content: `Flags and pennants are short-term continuation patterns that form after a strong, sharp move (the "flagpole").
 
 **Bull Flag:**
@@ -537,7 +537,7 @@ Take the length of the flagpole and add it to the breakout point.
       {
         id: "wedges",
         title: "Wedges",
-        summary: "Converging trendlines both sloping the same way — often reversal signals.",
+        summary: "Converging trendlines both sloping the same way  -  often reversal signals.",
         content: `**Rising Wedge (Bearish):**
 - Price makes higher highs AND higher lows, but the highs and lows are converging
 - Both trendlines slope upward, but resistance rises slower than support
@@ -578,9 +578,9 @@ Average of closing prices over N periods. Each period is weighted equally.
 Gives more weight to recent prices. Reacts faster to price changes than SMA.
 
 **Common periods:**
-- 20 EMA — short-term trend (popular for dynamic S/R)
-- 50 EMA — medium-term trend
-- 100 / 200 EMA (or SMA) — long-term trend; watched by institutions
+- 20 EMA  -  short-term trend (popular for dynamic S/R)
+- 50 EMA  -  medium-term trend
+- 100 / 200 EMA (or SMA)  -  long-term trend; watched by institutions
 
 **How to use:**
 - **Trend direction:** Price above MA = uptrend; below MA = downtrend
@@ -659,7 +659,7 @@ Gives more weight to recent prices. Reacts faster to price changes than SMA.
 **Key Concepts:**
 
 **Bollinger Squeeze:**
-When the bands narrow significantly, it signals very low volatility. This coiling typically precedes a large move (breakout). The direction isn't given by the squeeze itself — wait for the breakout.
+When the bands narrow significantly, it signals very low volatility. This coiling typically precedes a large move (breakout). The direction isn't given by the squeeze itself  -  wait for the breakout.
 
 **Riding the Bands:**
 In a strong trend, price can "walk" along the upper or lower band. Price consistently touching the upper band = strong uptrend.
@@ -684,7 +684,7 @@ Measures the distance between bands. Low bandwidth = squeeze; high bandwidth = e
 - 23.6%
 - 38.2%
 - 50.0% (not a true Fibonacci ratio but widely watched)
-- 61.8% (the "Golden Ratio" — most important)
+- 61.8% (the "Golden Ratio"  -  most important)
 - 78.6%
 
 **How to Draw:**
@@ -696,7 +696,7 @@ Measures the distance between bands. Low bandwidth = squeeze; high bandwidth = e
 **Trading the Fibonacci:**
 - In an uptrend, look for price to pull back to 38.2%, 50%, or 61.8% and bounce
 - In a downtrend, look for price to retrace up to 38.2%, 50%, or 61.8% and continue lower
-- The 61.8% level is often referred to as the "golden pocket" — deep retracements that hold here are very strong setups
+- The 61.8% level is often referred to as the "golden pocket"  -  deep retracements that hold here are very strong setups
 
 **Confluence:**
 Fibonacci levels become much more powerful when they align with other factors:
@@ -715,7 +715,7 @@ Fibonacci levels become much more powerful when they align with other factors:
       {
         id: "risk-reward",
         title: "Risk-Reward Ratio",
-        summary: "How much you risk vs. how much you can make — the core of profitable trading.",
+        summary: "How much you risk vs. how much you can make  -  the core of profitable trading.",
         content: `The Risk-Reward Ratio (R:R) compares the potential profit of a trade to its potential loss.
 
 **Formula:** R:R = (Target − Entry) / (Entry − Stop Loss)
@@ -770,14 +770,14 @@ With 1% risk per trade, you need to lose 100 consecutive trades to blow your acc
 As your account grows, the dollar amount risked grows but the percentage stays constant. This creates compounding without increasing ruin risk.
 
 **Multiple Positions:**
-If you have multiple open trades, account for correlated markets. EUR/USD and GBP/USD are highly correlated — opening both effectively doubles your exposure.`,
+If you have multiple open trades, account for correlated markets. EUR/USD and GBP/USD are highly correlated  -  opening both effectively doubles your exposure.`,
         tags: ["risk", "sizing"],
       },
       {
         id: "stop-loss-placement",
         title: "Stop Loss Placement",
         summary: "Where to put your stop so it's protective but not easily hit.",
-        content: `A stop loss limits your downside. The art is placing it where the market being wrong about your trade direction is proven — not just where noise takes it.
+        content: `A stop loss limits your downside. The art is placing it where the market being wrong about your trade direction is proven  -  not just where noise takes it.
 
 **Key Principles:**
 
@@ -787,13 +787,13 @@ Place your stop beyond a swing high or low. If price is beyond that point, your 
 - Short trade: stop above the most recent swing high
 
 **Beyond the Wick:**
-If entering on a rejection candle, put your stop just beyond the tip of the wick. Price already went there and rejected — if it trades back through, the move is over.
+If entering on a rejection candle, put your stop just beyond the tip of the wick. Price already went there and rejected  -  if it trades back through, the move is over.
 
 **ATR-Based Stops:**
 Use Average True Range to set stops relative to current volatility. A common method: Stop = Entry ± 1.5× ATR(14).
 
 **What NOT to do:**
-- Don't place stops at obvious round numbers (1.1000, 1500.00) — they attract hunts
+- Don't place stops at obvious round numbers (1.1000, 1500.00)  -  they attract hunts
 - Don't use fixed pip stops regardless of structure
 - Don't move your stop further away after a trade goes against you
 
@@ -819,10 +819,10 @@ Once the trade has moved ~1R in your favour, move the stop to breakeven. This re
 | 1%         | -9%                | -18%               |
 
 **Rules to survive drawdown:**
-1. **Reduce size** — when down 10%, cut position size by 25–50% until you recover
-2. **Review, don't revenge trade** — after 3 losses in a row, stop and review your trades
-3. **Max daily loss rule** — set a maximum daily loss (e.g. 3%) and stop trading when hit
-4. **Keep a journal** — most drawdowns come from specific recurring mistakes
+1. **Reduce size**  -  when down 10%, cut position size by 25–50% until you recover
+2. **Review, don't revenge trade**  -  after 3 losses in a row, stop and review your trades
+3. **Max daily loss rule**  -  set a maximum daily loss (e.g. 3%) and stop trading when hit
+4. **Keep a journal**  -  most drawdowns come from specific recurring mistakes
 
 **Recovery Math:**
 A 50% loss requires a 100% gain to recover. This is why limiting drawdown is more important than maximising wins.`,
@@ -838,7 +838,7 @@ A 50% loss requires a 100% gain to recover. This is why limiting drawdown is mor
       {
         id: "trend-following",
         title: "Trend Following",
-        summary: "Trade in the direction of the dominant trend — the most reliable edge.",
+        summary: "Trade in the direction of the dominant trend  -  the most reliable edge.",
         content: `Trend following is the strategy of identifying a market's dominant direction and entering trades aligned with it.
 
 **Core Principle:** "The trend is your friend until the end."
@@ -852,7 +852,7 @@ A 50% loss requires a 100% gain to recover. This is why limiting drawdown is mor
 - **Pullback Entry:** Wait for price to retrace to a key level (EMA, support, Fibonacci) before entering in the trend direction. Best R:R.
 - **Breakout Entry:** Enter when price breaks a key level confirming trend continuation. More risk but high momentum.
 
-**Common Setup — EMA Pullback:**
+**Common Setup  -  EMA Pullback:**
 1. Identify uptrend on 4H (price above 50 EMA)
 2. Drop to 1H and wait for pullback to the 50 EMA
 3. Look for bullish candlestick confirmation at the EMA
@@ -897,7 +897,7 @@ Measure the height of the range or pattern and project from the breakout point.`
       {
         id: "range-trading",
         title: "Range Trading",
-        summary: "Sell the top of a range, buy the bottom — works in choppy, sideways markets.",
+        summary: "Sell the top of a range, buy the bottom  -  works in choppy, sideways markets.",
         content: `Range trading profits from price oscillating between defined support and resistance levels without making a directional move.
 
 **Identifying a Range:**
@@ -935,8 +935,8 @@ Ranges most commonly form during low-volume periods:
         content: `Economic news releases cause sharp, rapid price moves. Trading them requires understanding both the fundamental context and technical positioning.
 
 **High-Impact Events:**
-- Non-Farm Payrolls (NFP) — first Friday of the month, USD
-- CPI / Inflation data — monthly
+- Non-Farm Payrolls (NFP)  -  first Friday of the month, USD
+- CPI / Inflation data  -  monthly
 - Central Bank decisions (Fed, ECB, BOE, BOJ)
 - GDP releases
 - PMI data (Manufacturing, Services)
@@ -955,7 +955,7 @@ After the initial volatility settles (5–15 minutes), identify the new directio
 **Key Rules:**
 - Widen stops during news (slippage is common)
 - Reduce position size
-- Know the expected vs. actual difference — a strong number can still sell off if it was "priced in"
+- Know the expected vs. actual difference  -  a strong number can still sell off if it was "priced in"
 - Don't hold swing trades through major releases unless you understand the fundamental context`,
         tags: ["strategy", "news", "fundamental"],
       },
@@ -969,18 +969,18 @@ After the initial volatility settles (5–15 minutes), identify the new directio
       {
         id: "smc-overview",
         title: "What is SMC?",
-        summary: "Understanding how institutional money moves markets — and how to follow it.",
+        summary: "Understanding how institutional money moves markets  -  and how to follow it.",
         content: `Smart Money Concepts (SMC) is a trading framework based on understanding how institutional traders (banks, hedge funds, liquidity providers) operate and how retail traders can align with their activity.
 
 **Core Premise:**
 Markets are not random. They are engineered by institutions to achieve specific objectives: accumulate positions at low prices, distribute at high prices.
 
 **Key Ideas:**
-1. **Liquidity is the objective** — institutions need large amounts of liquidity to fill their orders. They push price to areas where retail stop losses cluster (above swing highs, below swing lows) to get filled.
+1. **Liquidity is the objective**  -  institutions need large amounts of liquidity to fill their orders. They push price to areas where retail stop losses cluster (above swing highs, below swing lows) to get filled.
 
-2. **Retail traps** — the market often fakes out obvious retail levels before moving in the "true" direction.
+2. **Retail traps**  -  the market often fakes out obvious retail levels before moving in the "true" direction.
 
-3. **Following the flow** — instead of trading patterns in isolation, SMC traders read the underlying intent of price movement.
+3. **Following the flow**  -  instead of trading patterns in isolation, SMC traders read the underlying intent of price movement.
 
 **SMC vs. Traditional TA:**
 Traditional TA: "Price is at resistance, sell."
@@ -997,8 +997,8 @@ SMC: "Why is price at resistance? Is this a liquidity grab before a real move hi
       {
         id: "market-structure",
         title: "Market Structure",
-        summary: "Break of Structure (BOS) and Change of Character (CHOCH) — the foundation of SMC.",
-        content: `Market structure is the foundation of SMC — it tells you the current directional bias.
+        summary: "Break of Structure (BOS) and Change of Character (CHOCH)  -  the foundation of SMC.",
+        content: `Market structure is the foundation of SMC  -  it tells you the current directional bias.
 
 **Bullish Structure:**
 Series of Higher Highs (HH) and Higher Lows (HL)
@@ -1027,7 +1027,7 @@ A CHOCH signals a potential trend reversal:
       {
         id: "order-blocks",
         title: "Order Blocks",
-        summary: "The last opposing candle before a strong move — where institutions left orders.",
+        summary: "The last opposing candle before a strong move  -  where institutions left orders.",
         content: `An Order Block (OB) is the last bullish or bearish candle before a strong impulsive move. It represents an area where institutional orders are believed to be placed.
 
 **Bullish Order Block:**
@@ -1056,19 +1056,19 @@ The last bullish (green) candle before a strong bearish impulse move downward. W
         id: "fvg",
         title: "Fair Value Gap (FVG)",
         summary: "Price imbalances that the market tends to return to fill.",
-        content: `A Fair Value Gap (FVG) — also called an imbalance or inefficiency — is a three-candle pattern where price moves so fast that there is a gap in the market structure.
+        content: `A Fair Value Gap (FVG)  -  also called an imbalance or inefficiency  -  is a three-candle pattern where price moves so fast that there is a gap in the market structure.
 
 **How to Identify:**
 Look at three consecutive candles. If candle 1's high does not overlap with candle 3's low (bullish FVG), there is an imbalance. The gap between candle 1's high and candle 3's low is the FVG.
 
 **Bullish FVG:**
 - Candle 1 high < Candle 3 low
-- Represents an area where price moved up too fast — potential support zone
+- Represents an area where price moved up too fast  -  potential support zone
 - Price tends to return and fill this gap
 
 **Bearish FVG:**
 - Candle 1 low > Candle 3 high
-- Represents an area where price moved down too fast — potential resistance zone
+- Represents an area where price moved down too fast  -  potential resistance zone
 
 **Usage in Trading:**
 1. Identify a bullish move with an FVG created
@@ -1079,13 +1079,13 @@ Look at three consecutive candles. If candle 1's high does not overlap with cand
 **Combining FVG + Order Block:**
 When an FVG overlaps with an Order Block zone, the confluence makes it a significantly stronger entry area.
 
-**Note:** Not all FVGs get filled — some gaps in fast-moving trending markets remain open for extended periods.`,
+**Note:** Not all FVGs get filled  -  some gaps in fast-moving trending markets remain open for extended periods.`,
         tags: ["smc", "fvg", "imbalance"],
       },
       {
         id: "liquidity",
         title: "Liquidity",
-        summary: "Where stop losses cluster — and how institutions hunt them before the real move.",
+        summary: "Where stop losses cluster  -  and how institutions hunt them before the real move.",
         content: `In SMC, liquidity refers to clusters of buy or sell orders (stop losses and pending orders) resting at specific price levels. Institutions need this liquidity to fill their large positions.
 
 **Types of Liquidity:**
@@ -1123,8 +1123,8 @@ Two or more highs/lows at the same price level signal double or triple tops/bott
 4. Everything below 50% = Discount zone
 
 **The Logic:**
-- In an uptrend, you want to BUY in the Discount zone (below 50%) — you're getting a better price than the midpoint
-- In a downtrend, you want to SELL in the Premium zone (above 50%) — you're selling at a higher price than the midpoint
+- In an uptrend, you want to BUY in the Discount zone (below 50%)  -  you're getting a better price than the midpoint
+- In a downtrend, you want to SELL in the Premium zone (above 50%)  -  you're selling at a higher price than the midpoint
 
 **Key Levels Within the Range:**
 - 50% = Equilibrium (no edge, avoid entries here)
@@ -1146,7 +1146,7 @@ The best trades come when an Order Block or FVG sits within the discount zone (f
       {
         id: "trading-psychology-basics",
         title: "Trading Psychology Basics",
-        summary: "Your mindset is your biggest edge — or your biggest liability.",
+        summary: "Your mindset is your biggest edge  -  or your biggest liability.",
         content: `Trading is one of the few activities where emotional control directly determines financial outcomes. Technical skill alone is not enough.
 
 **The Emotional Cycle of a Trade:**
@@ -1160,7 +1160,7 @@ The best trades come when an Order Block or FVG sits within the discount zone (f
 7. Panic at the stop
 8. Capitulation (move stop or let it blow)
 
-The goal is to stay flat — operating from logic, not emotion.
+The goal is to stay flat  -  operating from logic, not emotion.
 
 **Common Psychological Traps:**
 
@@ -1198,7 +1198,7 @@ A trading plan with predefined rules. When in doubt, don't trade. Protect the ac
 - Review notes: what did you do well? what would you change?
 
 **Weekly Review Process:**
-1. Sort by setup type — which setups are profitable?
+1. Sort by setup type  -  which setups are profitable?
 2. Look for recurring mistakes (moved stop, entered FOMO, oversized)
 3. Calculate win rate and average R:R per setup
 4. Remove setups with negative expectancy
@@ -1215,12 +1215,12 @@ Spreadsheet (Google Sheets), Notion, dedicated apps like TraderVue, Edgewonk, or
         id: "trading-plan",
         title: "Building a Trading Plan",
         summary: "Your rules for when to trade, how to trade, and how to manage it.",
-        content: `A trading plan is your rulebook. It defines your strategy, criteria, and limits before you open a chart — removing emotion from real-time decisions.
+        content: `A trading plan is your rulebook. It defines your strategy, criteria, and limits before you open a chart  -  removing emotion from real-time decisions.
 
 **What a Trading Plan Includes:**
 
 **1. Market and Timeframe:**
-Which instruments you trade and on which timeframes. Specialise — don't trade 20 pairs.
+Which instruments you trade and on which timeframes. Specialise  -  don't trade 20 pairs.
 
 **2. Entry Criteria:**
 Specific, observable conditions that must be met. Example: "I only take trades at higher-timeframe OBs in the direction of the 4H trend, with an FVG or pin bar as entry confirmation."

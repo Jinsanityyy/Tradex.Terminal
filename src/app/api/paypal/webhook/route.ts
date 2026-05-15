@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
-// Use service role key — bypasses RLS so webhook can write subscriptions
+// Use service role key  -  bypasses RLS so webhook can write subscriptions
 function getServiceClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

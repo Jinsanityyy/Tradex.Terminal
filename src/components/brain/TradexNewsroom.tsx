@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useRef } from "react";
 import type { AgentRunResult } from "@/lib/agents/schemas";
@@ -24,13 +24,13 @@ interface Agent {
 }
 
 const DEFAULTS: Agent[] = [
-  { id:"trend",      label:"TREND",      role:"—",       state:"idle",     confidence:0, hair:"#fbbf24",skin:"#f0a070",suit:"#0e3060",accent:"#10b981" },
-  { id:"master",     label:"MASTER",     role:"—",       state:"idle",     confidence:0, hair:"#e2e8f0",skin:"#e8c898",suit:"#080e20",accent:"#22d3ee" },
-  { id:"risk",       label:"RISK GATE",  role:"—",       state:"idle",     confidence:0, hair:"#34d399",skin:"#c07858",suit:"#040e0a",accent:"#10b981" },
-  { id:"smc",        label:"PR.ACTION",  role:"—",       state:"idle",     confidence:0, hair:"#a78bfa",skin:"#d09060",suit:"#1e0e48",accent:"#f59e0b" },
-  { id:"news",       label:"NEWS",       role:"—",       state:"idle",     confidence:0, hair:"#60a5fa",skin:"#9b7050",suit:"#061428",accent:"#3b82f6" },
-  { id:"contrarian", label:"CONTRARIAN", role:"—",       state:"idle",     confidence:0, hair:"#f87171",skin:"#e0a870",suit:"#180806",accent:"#f97316" },
-  { id:"execution",  label:"EXECUTION",  role:"—",       state:"idle",     confidence:0, hair:"#22d3ee",skin:"#c89060",suit:"#07101c",accent:"#22d3ee" },
+  { id:"trend",      label:"TREND",      role:" - ",       state:"idle",     confidence:0, hair:"#fbbf24",skin:"#f0a070",suit:"#0e3060",accent:"#10b981" },
+  { id:"master",     label:"MASTER",     role:" - ",       state:"idle",     confidence:0, hair:"#e2e8f0",skin:"#e8c898",suit:"#080e20",accent:"#22d3ee" },
+  { id:"risk",       label:"RISK GATE",  role:" - ",       state:"idle",     confidence:0, hair:"#34d399",skin:"#c07858",suit:"#040e0a",accent:"#10b981" },
+  { id:"smc",        label:"PR.ACTION",  role:" - ",       state:"idle",     confidence:0, hair:"#a78bfa",skin:"#d09060",suit:"#1e0e48",accent:"#f59e0b" },
+  { id:"news",       label:"NEWS",       role:" - ",       state:"idle",     confidence:0, hair:"#60a5fa",skin:"#9b7050",suit:"#061428",accent:"#3b82f6" },
+  { id:"contrarian", label:"CONTRARIAN", role:" - ",       state:"idle",     confidence:0, hair:"#f87171",skin:"#e0a870",suit:"#180806",accent:"#f97316" },
+  { id:"execution",  label:"EXECUTION",  role:" - ",       state:"idle",     confidence:0, hair:"#22d3ee",skin:"#c89060",suit:"#07101c",accent:"#22d3ee" },
 ];
 
 function biasToState(bias: string): AgentState {
@@ -224,14 +224,14 @@ function DeskMonitor({ agent, cx, deskTopY, blink, hasData }: {
       <rect x={mx+4} y={my+21} width={hasData ? confW : 0} height={3} fill={g} opacity={0.8}/>
       {/* Confidence % */}
       <text x={mx+mw-5} y={my+29} textAnchor="end" fill={g} fontSize={3.5} fontFamily="monospace" opacity={hasData?0.8:0.3}>
-        {hasData ? `${agent.confidence}%` : "—"}
+        {hasData ? `${agent.confidence}%` : " - "}
       </text>
       {/* Scrolling data line */}
       <rect x={mx+4} y={my+30} width={mw-8} height={1.5} fill={g} opacity={0.12}/>
       {blink && hasData && <rect x={mx+4} y={my+33} width={4} height={1.5} fill={g} opacity={0.8}/>}
       {/* Screen ambient glow */}
       <rect x={mx} y={my} width={mw} height={mh} fill={g} opacity={hasData?0.05:0.01}/>
-      {/* Status LED — blinks green when live */}
+      {/* Status LED  -  blinks green when live */}
       <rect x={mx+mw-6} y={my-5} width={4} height={4} rx={1} fill={hasData && blink ? g : "#111"}/>
       {/* Monitor stand */}
       <rect x={cx-2} y={my+mh+4} width={4} height={8} fill="#181818"/>
@@ -369,7 +369,7 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
       background:"#05080a", borderRadius:8, border:"1px solid #1f2a1f" }}>
       <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice" style={{ display:"block" }}>
         <defs>
-          {/* Light cone gradient — warm fluorescent */}
+          {/* Light cone gradient  -  warm fluorescent */}
           <linearGradient id="nr_cone" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor="#fde68a" stopOpacity="0.18"/>
             <stop offset="100%" stopColor="#fde68a" stopOpacity="0"/>
@@ -395,15 +395,15 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
         </defs>
 
         {/* ═══════════════════════════════════════════════════════════════════
-            FLOOR — warm concrete w/ perspective
+            FLOOR  -  warm concrete w/ perspective
         ═══════════════════════════════════════════════════════════════════ */}
         <rect x={0} y={WALL_H-10} width={W} height={H-WALL_H+10} fill={FLOOR_BASE}/>
-        {/* Floor grid — horizontal (subtle) */}
+        {/* Floor grid  -  horizontal (subtle) */}
         {Array.from({length:22},(_,i)=>(
           <line key={`fh${i}`} x1={0} y1={WALL_H+i*14} x2={W} y2={WALL_H+i*14}
             stroke="#13201a" strokeWidth={0.6} opacity={0.6}/>
         ))}
-        {/* Floor grid — perspective diagonals (converge toward center) */}
+        {/* Floor grid  -  perspective diagonals (converge toward center) */}
         {Array.from({length:14},(_,i)=>{
           const startX = i * (W/14);
           const endX = W/2 + (startX - W/2) * 0.55;
@@ -412,14 +412,14 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
               stroke="#13201a" strokeWidth={0.5} opacity={0.45}/>
           );
         })}
-        {/* Floor glow strip at wall junction — amber */}
+        {/* Floor glow strip at wall junction  -  amber */}
         <rect x={0} y={WALL_H-3} width={W} height={6} fill={AMBER} opacity={0.05}/>
 
         {/* ═══════════════════════════════════════════════════════════════════
-            BACK WALL — warm fluorescent-lit concrete
+            BACK WALL  -  warm fluorescent-lit concrete
         ═══════════════════════════════════════════════════════════════════ */}
         <rect x={0} y={0} width={W} height={WALL_H} fill={WALL_BASE}/>
-        {/* Wall panel texture — vertical grooves (subtle) */}
+        {/* Wall panel texture  -  vertical grooves (subtle) */}
         {Array.from({length:18},(_,i)=>(
           <line key={`wp${i}`} x1={i*52} y1={0} x2={i*52} y2={WALL_H}
             stroke="#0b120d" strokeWidth={1}/>
@@ -542,7 +542,7 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
               <rect x={mx+5} y={my+22} width={confW} height={3} fill={gl} opacity={0.85}/>
               {/* Confidence % */}
               <text x={mx+109} y={my+30} textAnchor="end" fill={gl} fontSize={3.5} fontFamily="monospace" opacity={hasData?0.75:0.2}>
-                {hasData ? `${ag.confidence}%` : "—"}
+                {hasData ? `${ag.confidence}%` : " - "}
               </text>
               {/* State label */}
               <text x={mx+5} y={my+34} fill={gl} fontSize={3.5} fontFamily="monospace" opacity={hasData?0.55:0.2}>
@@ -570,7 +570,7 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
         </text>
         <text x={172} y={225} fill={hasData ? masterColor : "#a78bfa"} fontSize={4} fontFamily="monospace" opacity={0.6}>
           {hasData
-            ? `RISK: ${data!.agents.risk.valid ? `GRADE ${data!.agents.risk.grade} ✓` : "BLOCKED ✗"} │ EXEC: ${data!.agents.execution.hasSetup ? `SETUP FOUND — ${data!.agents.execution.direction?.toUpperCase()}` : "NO SETUP"}`
+            ? `RISK: ${data!.agents.risk.valid ? `GRADE ${data!.agents.risk.grade} ✓` : "BLOCKED ✗"} │ EXEC: ${data!.agents.execution.hasSetup ? `SETUP FOUND  -  ${data!.agents.execution.direction?.toUpperCase()}` : "NO SETUP"}`
             : `${blink ? "▶" : "▷"} AWAITING ANALYSIS │ HIT REFRESH IN BRAIN TERMINAL`}
         </text>
         {/* Ticker tape line */}
@@ -586,13 +586,13 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
         {/* Panel frame */}
         <rect x={680} y={22} width={198} height={220} rx={2} fill="#070d09" stroke="#131c15" strokeWidth={1}/>
 
-        {/* Triple world clocks (NY / LON / TOK — Bloomberg style) */}
+        {/* Triple world clocks (NY / LON / TOK  -  Bloomberg style) */}
         <rect x={684} y={26} width={190} height={52} rx={2} fill="#050805" stroke="#1a2418" strokeWidth={0.8}/>
         <text x={779} y={34} textAnchor="middle" fill={AMBER} fontSize={4.5}
           fontFamily="monospace" opacity={0.65} letterSpacing={2}>WORLD CLOCKS</text>
         {(() => {
           const ms = now.getTime();
-          // Tokyo UTC+9, London UTC+0/+1 (approx), NY UTC-5/-4 (approx) — using UTC offsets
+          // Tokyo UTC+9, London UTC+0/+1 (approx), NY UTC-5/-4 (approx)  -  using UTC offsets
           const nyDate = new Date(ms - 5 * 3600 * 1000);
           const lnDate = new Date(ms + 0 * 3600 * 1000);
           const tkDate = new Date(ms + 9 * 3600 * 1000);
@@ -633,14 +633,14 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
         <rect x={754} y={108} width={114} height={1} fill={PL_GREEN} opacity={0.3}/>
         <text x={754} y={120} fill="#7a8a7a" fontSize={3.5} fontFamily="monospace" opacity={0.7}>VOLATILITY</text>
         <text x={868} y={120} textAnchor="end" fill={AMBER} fontSize={4} fontFamily="monospace">
-          {hasData ? `${data!.agents.risk.volatilityScore}/100` : "—"}
+          {hasData ? `${data!.agents.risk.volatilityScore}/100` : " - "}
         </text>
         <text x={754} y={130} fill="#7a8a7a" fontSize={3.5} fontFamily="monospace" opacity={0.7}>REGIME</text>
         <text x={868} y={130} textAnchor="end" fill={AMBER} fontSize={4} fontFamily="monospace">
-          {hasData ? data!.agents.news.regime.toUpperCase().slice(0,10) : "—"}
+          {hasData ? data!.agents.news.regime.toUpperCase().slice(0,10) : " - "}
         </text>
 
-        {/* Status panels — wired to live data */}
+        {/* Status panels  -  wired to live data */}
         {(["PIPELINE","CONSENSUS","RISK GATE","EXEC MODE"] as const).map((lbl,i)=>{
           const col = i % 2;
           const row = Math.floor(i / 2);
@@ -657,10 +657,10 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
             `${data!.agents.master.confidence}%`,
             data!.agents.risk.valid ? `OK ${data!.agents.risk.grade}` : "BLOCKED",
             data!.agents.execution.hasSetup ? data!.agents.execution.direction?.toUpperCase() ?? "ARMED" : "STANDBY",
-          ] : ["—","—","—","—"];
+          ] : [" - "," - "," - "," - "];
           const vals = hasData ? liveVals : [0,0,0,0];
           const cols=[PL_GREEN, AMBER, PL_GREEN, AMBER];
-          const strs = hasData ? liveStrs : ["—","—","—","—"];
+          const strs = hasData ? liveStrs : [" - "," - "," - "," - "];
           return (
             <g key={lbl}>
               <rect x={px} y={py} width={90} height={42} rx={1}
@@ -678,7 +678,7 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
         })}
 
         {/* ═══════════════════════════════════════════════════════════════════
-            CEILING LIGHT FIXTURES — warm fluorescent
+            CEILING LIGHT FIXTURES  -  warm fluorescent
         ═══════════════════════════════════════════════════════════════════ */}
         <rect x={0} y={0} width={W} height={14} fill="#050805"/>
         {/* Ceiling conduit */}
@@ -826,7 +826,7 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
         <text x={W/2} y={H-7} textAnchor="middle"
           fill={loading ? "#f59e0b" : hasData ? "#10b981" : "#4a5568"}
           fontSize={6} fontFamily="monospace" opacity={0.9}>
-          {loading ? (blink ? "● RUNNING AGENTS..." : "○ RUNNING AGENTS...") : hasData ? `● LIVE — ${masterAgent.role} (${masterAgent.confidence}%)` : "○ AWAITING — HIT REFRESH"}
+          {loading ? (blink ? "● RUNNING AGENTS..." : "○ RUNNING AGENTS...") : hasData ? `● LIVE  -  ${masterAgent.role} (${masterAgent.confidence}%)` : "○ AWAITING  -  HIT REFRESH"}
         </text>
         <text x={W-10} y={H-7} textAnchor="end" fill="#4a5568" fontSize={6}
           fontFamily="monospace" opacity={0.6}>{`${hrs}:${min}:${sec}`}</text>
@@ -906,7 +906,7 @@ export function TradexNewsroom({ data, loading }: { data:AgentRunResult|null; lo
           textShadow:"0 0 14px #10b981",
           animation:"nr_fadein 0.3s ease",
         }}>
-          ✓ ANALYSIS COMPLETE — DATA UPDATED
+          ✓ ANALYSIS COMPLETE  -  DATA UPDATED
         </div>
       )}
 

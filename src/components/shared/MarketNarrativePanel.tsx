@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,7 +48,7 @@ export function MarketNarrativePanel({ narrative }: MarketNarrativePanelProps) {
             <span className="text-xs font-mono font-semibold text-[hsl(var(--primary))]">{narrative.conviction}%</span>
           </div>
           <p className="text-[9px] text-[hsl(var(--muted-foreground))]/60 mt-0.5 italic">
-            Geopolitical impact on this regime — not the same as asset bias conviction
+            Geopolitical impact on this regime  -  not the same as asset bias conviction
           </p>
         </div>
       </CardContent>

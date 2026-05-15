@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -65,7 +65,7 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "pnl-calendar", x: 12, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "lot-calculator", x: 0, y: 40, w: 8, h: 8, minW: 6, minH: 7 },
   ],
-  // "Custom" starts as a copy of "pro" — users save over it via "Save Layout"
+  // "Custom" starts as a copy of "pro"  -  users save over it via "Save Layout"
   custom: [
     { i: "chart", x: 0, y: 0, w: 13, h: 14, minW: 8, minH: 14 },
     { i: "globe", x: 13, y: 0, w: 6, h: 7, minW: 4, minH: 5 },

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -113,7 +113,7 @@ export function DebateLog({ debate, loading }: DebateLogProps) {
               <span className="ml-2 text-[10px] text-zinc-500">
                 {challengerCount > 0
                   ? `${challengerCount} agent${challengerCount > 1 ? "s" : ""} challenged the majority`
-                  : "Full consensus — no challenges raised"}
+                  : "Full consensus  -  no challenges raised"}
               </span>
             )}
           </div>
@@ -152,7 +152,7 @@ export function DebateLog({ debate, loading }: DebateLogProps) {
             <div className="flex items-center gap-2 rounded-lg border border-white/6 bg-white/2 px-4 py-3">
               <MessageSquare className="h-4 w-4 text-zinc-600" />
               <p className="text-[11px] text-zinc-500">
-                Debate data unavailable — requires ANTHROPIC_API_KEY. Agents are running in rule-based mode.
+                Debate data unavailable  -  requires ANTHROPIC_API_KEY. Agents are running in rule-based mode.
               </p>
             </div>
           )}

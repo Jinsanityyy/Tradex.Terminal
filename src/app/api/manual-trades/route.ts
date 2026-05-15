@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/supabase/auth-helper";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +14,7 @@ export interface ManualTradeRow {
   created_at: string;
 }
 
-// GET /api/manual-trades — fetch all manual trades for the user
+// GET /api/manual-trades  -  fetch all manual trades for the user
 export async function GET(req: NextRequest) {
   try {
     const { user, supabase } = await getAuthUser(req);
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/manual-trades — log a new manual trade
+// POST /api/manual-trades  -  log a new manual trade
 export async function POST(req: NextRequest) {
   try {
     const { user, supabase } = await getAuthUser(req);
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// DELETE /api/manual-trades?id=<uuid> — delete a manual trade
+// DELETE /api/manual-trades?id=<uuid>  -  delete a manual trade
 export async function DELETE(req: NextRequest) {
   try {
     const { user, supabase } = await getAuthUser(req);

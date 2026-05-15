@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import {
@@ -221,9 +221,9 @@ function LotSizeCalculator({
 const PRICE_ROW_EXPLANATIONS: Record<string, string> = {
   Entry: "Primary execution zone. Wait for price to trade into this level instead of chasing momentum.",
   "Stop Loss": "Invalidation level for the thesis. If price breaks this area, the setup is considered wrong.",
-  "Take Profit 1": "First partial target — scale out 50% here and move SL to breakeven.",
+  "Take Profit 1": "First partial target  -  scale out 50% here and move SL to breakeven.",
   "Take Profit 2": "Full position target at the next major structural level.",
-  "Take Profit 3": "Extended target for trailing 25% of position — H4 setups only. Run with a trailing stop.",
+  "Take Profit 3": "Extended target for trailing 25% of position  -  H4 setups only. Run with a trailing stop.",
 };
 
 function GradeBadge({ grade }: { grade: string }) {
@@ -434,7 +434,7 @@ export function TradePlan({
             <div className="rounded-lg border border-white/6 bg-black/20 px-3 py-2">
               <div className="text-[9px] uppercase tracking-[0.14em] text-zinc-500">Grade</div>
               <div className="mt-1">
-                <GradeBadge grade={tradePlan.grade ?? "—"} />
+                <GradeBadge grade={tradePlan.grade ?? " - "} />
               </div>
             </div>
             <div className="rounded-lg border border-white/6 bg-black/20 px-3 py-2">

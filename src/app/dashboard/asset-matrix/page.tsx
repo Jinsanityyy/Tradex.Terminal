@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,14 +9,14 @@ import { cn, formatNumber, formatPercent } from "@/lib/utils";
 import { Grid3X3, TrendingUp, TrendingDown, Minus, Activity, Link2 } from "lucide-react";
 
 const correlationMatrix = [
-  { pair: "Gold ↔ DXY", correlation: -0.82, note: "Strong inverse — USD weakness drives gold higher" },
-  { pair: "Gold ↔ US10Y", correlation: -0.65, note: "Inverse via real yields — rising yields pressure gold" },
-  { pair: "SPX ↔ NDX", correlation: 0.95, note: "Highly correlated — tech leadership drives both" },
-  { pair: "SPX ↔ VIX", correlation: -0.88, note: "Strong inverse — fear gauge rises as equities fall" },
-  { pair: "DXY ↔ EURUSD", correlation: -0.97, note: "Near-perfect inverse — EUR is largest DXY component" },
-  { pair: "BTC ↔ NDX", correlation: 0.62, note: "Moderate positive — risk appetite correlation" },
-  { pair: "Oil ↔ USDCAD", correlation: -0.58, note: "Moderate inverse — CAD is petrocurrency" },
-  { pair: "Gold ↔ BTC", correlation: 0.25, note: "Weak positive — both hedge narratives but different drivers" },
+  { pair: "Gold ↔ DXY", correlation: -0.82, note: "Strong inverse  -  USD weakness drives gold higher" },
+  { pair: "Gold ↔ US10Y", correlation: -0.65, note: "Inverse via real yields  -  rising yields pressure gold" },
+  { pair: "SPX ↔ NDX", correlation: 0.95, note: "Highly correlated  -  tech leadership drives both" },
+  { pair: "SPX ↔ VIX", correlation: -0.88, note: "Strong inverse  -  fear gauge rises as equities fall" },
+  { pair: "DXY ↔ EURUSD", correlation: -0.97, note: "Near-perfect inverse  -  EUR is largest DXY component" },
+  { pair: "BTC ↔ NDX", correlation: 0.62, note: "Moderate positive  -  risk appetite correlation" },
+  { pair: "Oil ↔ USDCAD", correlation: -0.58, note: "Moderate inverse  -  CAD is petrocurrency" },
+  { pair: "Gold ↔ BTC", correlation: 0.25, note: "Weak positive  -  both hedge narratives but different drivers" },
 ];
 
 const macroRegimeNotes = [

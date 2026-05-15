@@ -1,10 +1,10 @@
-/**
+﻿/**
  * Supabase service-role client for server-only signal operations.
  *
  * Used by:
- *  - Signal logger (orchestrator hook) — inserts new signals
- *  - Cron tracker — updates signal outcomes
- *  - Public API route — reads signals (public, RLS-protected select)
+ *  - Signal logger (orchestrator hook)  -  inserts new signals
+ *  - Cron tracker  -  updates signal outcomes
+ *  - Public API route  -  reads signals (public, RLS-protected select)
  *
  * Never import this in client components. Uses SUPABASE_SERVICE_ROLE_KEY
  * which bypasses Row Level Security.
@@ -21,7 +21,7 @@ let cached: SupabaseClient | null = null;
 
 /**
  * Returns a Supabase service-role client, or null if env vars missing.
- * Callers MUST handle the null case — do not throw.
+ * Callers MUST handle the null case  -  do not throw.
  */
 export function getServiceClient(): SupabaseClient | null {
   if (!isServiceRoleConfigured) return null;

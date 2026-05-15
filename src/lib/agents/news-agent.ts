@@ -1,5 +1,5 @@
-/**
- * Agent 3 — News Agent (Claude-Powered + Rule-Based Fallback)
+﻿/**
+ * Agent 3  -  News Agent (Claude-Powered + Rule-Based Fallback)
  *
  * Analyzes macroeconomic context:
  * - Fed / central bank tone
@@ -24,14 +24,14 @@ const NEWS_SYSTEM = `You are the Macro & News Analysis Agent in a professional m
 
 Your job: analyze real news headlines and determine how they affect the specified asset. Think like a macro-focused fund manager.
 
-STEP 1 — FILTER: Before analyzing, identify and EXCLUDE headlines with zero financial market relevance:
+STEP 1  -  FILTER: Before analyzing, identify and EXCLUDE headlines with zero financial market relevance:
 - Entertainment: movies, box office, TV shows, music, awards
 - Sports: games, tournaments, player transfers
 - Non-systemic corporate: airline CEO quotes, celebrity lawsuits, product launches
 - Lifestyle: fashion, food, travel, health tips
 Only analyze headlines that could plausibly move institutional capital or risk appetite.
 
-STEP 2 — WEIGHT: Not all headlines are equal.
+STEP 2  -  WEIGHT: Not all headlines are equal.
 - HIGH-impact catalyst (military attack, central bank surprise, systemic risk): counts 3× in overall direction
 - MEDIUM: counts 1×; LOW: counts 0.5×
 - If any HIGH-impact catalyst has a clear direction, it DOMINATES unless directly contradicted by another HIGH-impact event
@@ -44,7 +44,7 @@ MACRO REGIMES:
 - macro-data: GDP, NFP, employment → forward guidance, risk appetite
 - calm: no major catalysts → technical price action dominates
 
-ASSET IMPACT RULES — STRICT:
+ASSET IMPACT RULES  -  STRICT:
 - XAUUSD (Gold):
   * BULLISH: military conflict, Iran escalation, oil chokepoint closure (Hormuz), nuclear threat, Fed rate cuts, dollar weakness, banking crisis, inflation surge, sanctions
   * BEARISH: ceasefire/peace deal, Fed rate hike surprise, strong USD rally, risk-on equity surge, inflation easing sharply
@@ -67,7 +67,7 @@ Return ONLY valid JSON:
   "reasons": ["reason1", "reason2", "reason3"]
 }`;
 
-// Headlines with no financial market relevance — filter before LLM call
+// Headlines with no financial market relevance  -  filter before LLM call
 const IRRELEVANT_PATTERNS = [
   /box office|movie season|film opens|blockbuster|\boscars?\b|\bemmys?\b|\bgrammys?\b/i,
   /\bspirit airlines\b.*ceo|airline ceo.*collapse|airline.*runway/i,
@@ -88,14 +88,14 @@ async function runLLMNews(client: Anthropic, snapshot: MarketSnapshot): Promise<
   // Pre-filter irrelevant headlines so LLM focuses only on market-moving news
   const relevantNews = recentNews.filter(n => isMarketRelevant(`${n.headline} ${n.summary}`));
   const headlineList = relevantNews.slice(0, 10).map((n, i) =>
-    `${i + 1}. "${n.headline}" — ${n.summary.slice(0, 100)}`
+    `${i + 1}. "${n.headline}"  -  ${n.summary.slice(0, 100)}`
   ).join("\n");
 
   const msg = `
 Analyze macro/news impact for ${snapshot.symbolDisplay} (${snapshot.symbol}).
 
 MARKET-RELEVANT NEWS (irrelevant headlines already filtered out):
-${headlineList || "No relevant market news available — assume calm macro environment"}
+${headlineList || "No relevant market news available  -  assume calm macro environment"}
 
 MARKET CONTEXT:
 - Asset: ${snapshot.symbolDisplay}
@@ -266,12 +266,12 @@ function getAssetNewsImpact(
     return resolve(BULLISH_USDJPY, BEARISH_USDJPY);
   }
 
-  // USD-base forex: USDCAD, USDCHF — bullish = USD strength
+  // USD-base forex: USDCAD, USDCHF  -  bullish = USD strength
   if (upper === "USDCAD" || upper === "USDCHF") {
     return resolve(BULLISH_USDJPY, BEARISH_USDJPY); // same drivers as USDJPY (USD strength)
   }
 
-  // AUD / NZD pairs — risk-sensitive; bullish on risk-on, bearish on risk-off
+  // AUD / NZD pairs  -  risk-sensitive; bullish on risk-on, bearish on risk-off
   if (upper === "AUDUSD" || upper === "NZDUSD" || upper === "AUDCAD" || upper === "AUDNZD") {
     return resolve(BULLISH_INDICES, BEARISH_INDICES);
   }
@@ -287,7 +287,7 @@ function getAssetNewsImpact(
   // BTC
   if (upper === "BTCUSD") return resolve(BULLISH_BTC, BEARISH_BTC);
 
-  // Crypto alts — driven by same macro as BTC with alt-specific keywords
+  // Crypto alts  -  driven by same macro as BTC with alt-specific keywords
   if (["ETHUSD", "SOLUSD", "XRPUSD", "BNBUSD", "ADAUSD", "DOTUSD", "LNKUSD"].includes(upper)) {
     return resolve(BULLISH_CRYPTO_ALT, BEARISH_CRYPTO_ALT);
   }
@@ -362,12 +362,12 @@ export async function runNewsAgent(snapshot: MarketSnapshot, anthropicApiKey?: s
         impact: "neutral",
         riskScore: 20,
         confidence: 30,
-        dominantCatalyst: "No news data available — monitoring for catalysts",
+        dominantCatalyst: "No news data available  -  monitoring for catalysts",
         regime: "calm",
         catalysts: [],
         biasChangers: ["Any high-impact news event could shift bias"],
         tailRiskEvents: [],
-        reasons: ["No news data — defaulting to neutral macro stance"],
+        reasons: ["No news data  -  defaulting to neutral macro stance"],
         processingTime: Date.now() - start,
       };
     }
@@ -444,7 +444,7 @@ export async function runNewsAgent(snapshot: MarketSnapshot, anthropicApiKey?: s
       ? topBullish.headline
       : impact === "bearish" && topBearish
       ? topBearish.headline
-      : "Mixed signals — no single dominant catalyst";
+      : "Mixed signals  -  no single dominant catalyst";
 
     // Bias changers: headlines that could flip the current bias
     const biasChangers: string[] = [];
@@ -471,36 +471,36 @@ export async function runNewsAgent(snapshot: MarketSnapshot, anthropicApiKey?: s
     // Tail risk events
     const tailRiskEvents: string[] = [];
     if (textContainsAny(combinedText, ["nuclear", "escalation", "sanctions expanded", "missile strike", "military offensive"])) {
-      tailRiskEvents.push("Nuclear/military escalation risk — tail event with extreme volatility potential");
+      tailRiskEvents.push("Nuclear/military escalation risk  -  tail event with extreme volatility potential");
     }
     if (textContainsAny(combinedText, ["bank failure", "financial crisis", "contagion", "bank run", "credit crunch", "systemic risk"])) {
-      tailRiskEvents.push("Systemic financial risk signals — potential liquidity crisis");
+      tailRiskEvents.push("Systemic financial risk signals  -  potential liquidity crisis");
     }
     if (textContainsAny(combinedText, ["black swan", "flash crash", "circuit breaker", "market halt", "trading suspended"])) {
       tailRiskEvents.push("Market structure stress indicators detected");
     }
     if (textContainsAny(combinedText, ["pandemic", "outbreak", "lockdown", "quarantine", "who emergency"])) {
-      tailRiskEvents.push("Pandemic/health emergency risk — potential demand shock and supply chain disruption");
+      tailRiskEvents.push("Pandemic/health emergency risk  -  potential demand shock and supply chain disruption");
     }
     if (textContainsAny(combinedText, ["sovereign default", "debt ceiling", "government shutdown", "credit downgrade", "imf bailout"])) {
-      tailRiskEvents.push("Sovereign credit risk — potential currency and bond market dislocation");
+      tailRiskEvents.push("Sovereign credit risk  -  potential currency and bond market dislocation");
     }
     if (textContainsAny(combinedText, ["oil embargo", "energy crisis", "pipeline attack", "refinery explosion", "opec surprise"])) {
-      tailRiskEvents.push("Energy supply shock — commodity volatility spike expected");
+      tailRiskEvents.push("Energy supply shock  -  commodity volatility spike expected");
     }
 
     // Reasoning
     const reasons: string[] = [
-      `Macro regime: ${regime.replace("-", " ").toUpperCase()} — ${
+      `Macro regime: ${regime.replace("-", " ").toUpperCase()}  -  ${
         regime === "geopolitical" ? "risk premium elevated, safe-haven assets bid" :
         regime === "fed-policy"   ? "rate expectation headlines driving USD and fixed income" :
-        regime === "inflation"    ? "CPI/PCE data sensitive — watch real yield moves" :
+        regime === "inflation"    ? "CPI/PCE data sensitive  -  watch real yield moves" :
         regime === "tariff"       ? "trade uncertainty creating two-way volatility" :
         regime === "macro-data"   ? "economic data releases dominating short-term direction" :
         "quiet macro backdrop, technical setups driving price action"
       }`,
       `News flow: ${bullCount} bullish, ${bearCount} bearish, ${neutralCount} neutral signals for ${symbol}`,
-      `Risk score ${computeRiskScore(regime, recentNews.length, hasHighImpact)}/100 — ${
+      `Risk score ${computeRiskScore(regime, recentNews.length, hasHighImpact)}/100  -  ${
         hasHighImpact ? "high-impact events present, wider stops required" :
         "moderate risk environment"
       }`,
@@ -536,7 +536,7 @@ export async function runNewsAgent(snapshot: MarketSnapshot, anthropicApiKey?: s
       catalysts: [],
       biasChangers: [],
       tailRiskEvents: [],
-      reasons: ["News analysis failed — defaulting to neutral"],
+      reasons: ["News analysis failed  -  defaulting to neutral"],
       processingTime: Date.now() - start,
       error: String(err),
     };

@@ -1,5 +1,5 @@
-/**
- * TradeX Signal History — Stats Aggregator
+﻿/**
+ * TradeX Signal History  -  Stats Aggregator
  *
  * Computes win rate, avg RR, total R, and per-symbol breakdowns.
  */
@@ -70,7 +70,7 @@ export async function computeStats(
     ? Math.round((wins.length / resolvedCount) * 1000) / 10
     : 0;
 
-  // Avg RR — target RR of armed signals (what was planned)
+  // Avg RR  -  target RR of armed signals (what was planned)
   const armedWithRR = armed.filter(r => r.tradePlan !== null);
   const avgRR = armedWithRR.length > 0
     ? parseFloat(
@@ -79,7 +79,7 @@ export async function computeStats(
       )
     : 0;
 
-  // Total R — wins contribute +R (their pnlR), losses contribute -1R each
+  // Total R  -  wins contribute +R (their pnlR), losses contribute -1R each
   const totalPnlR = parseFloat(
     (
       wins.reduce((acc, r) => acc + (r.outcome?.pnlR ?? 0), 0)

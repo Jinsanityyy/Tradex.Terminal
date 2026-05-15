@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { Calculator } from "lucide-react";
@@ -29,7 +29,7 @@ export function LotCalculatorWidget() {
       : rawLots >= 0.1
       ? parseFloat(rawLots.toFixed(2))
       : parseFloat(rawLots.toFixed(3));
-  const displayLots = rawLots <= 0 ? "—" : lots < 0.01 ? "< 0.01" : lots.toFixed(lots >= 1 ? 2 : lots >= 0.1 ? 2 : 3);
+  const displayLots = rawLots <= 0 ? " - " : lots < 0.01 ? "< 0.01" : lots.toFixed(lots >= 1 ? 2 : lots >= 0.1 ? 2 : 3);
 
   return (
     <div className="p-3 space-y-3 h-full overflow-y-auto">
@@ -139,7 +139,7 @@ export function LotCalculatorWidget() {
             <div className="text-sm font-mono font-semibold text-zinc-300">${riskAmount.toFixed(0)}</div>
             <div className="text-[10px] text-zinc-600">SL distance</div>
             <div className="text-xs font-mono text-zinc-400">
-              {slPoints > 0 ? `${slPoints.toFixed(entryNum > 100 ? 1 : 4)} pts` : "—"}
+              {slPoints > 0 ? `${slPoints.toFixed(entryNum > 100 ? 1 : 4)} pts` : " - "}
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Adapter interface for Truth Social (and future providers like Apify or TweetStream).
  *
  * To swap providers:
@@ -6,9 +6,9 @@
  *  2. Pass your implementation to fetchTruthSocialPosts()
  *
  * Currently supported:
- *  - MastodonAPIProvider  — direct Mastodon-compatible REST API (default)
- *  - ApifyProvider        — stub; wire up Apify actor URL + token
- *  - TweetStreamProvider  — stub; wire up TweetStream credentials
+ *  - MastodonAPIProvider   -  direct Mastodon-compatible REST API (default)
+ *  - ApifyProvider         -  stub; wire up Apify actor URL + token
+ *  - TweetStreamProvider   -  stub; wire up TweetStream credentials
  */
 
 export interface RawPost {

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import { cn } from "@/lib/utils";
@@ -443,7 +443,7 @@ export function AgentTopologyMap({ data, loading = false }: AgentTopologyMapProp
                   fill={isActive ? c.stroke : "#2d2d3a"}
                   className={isActive ? "pulse-live" : ""}
                 />
-                {/* Agent label — LEFT side, right-aligned */}
+                {/* Agent label  -  LEFT side, right-aligned */}
                 <text
                   x={n.cx - inputR - 8}
                   y={n.cy - 4}

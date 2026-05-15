@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { useCatalysts, useEconomicCalendar, useTrumpPosts, useNews } from "@/hooks/useMarketData";
@@ -184,7 +184,7 @@ export function MobileFeed() {
               {[
                 { label: "Forecast", value: selectedEvent.forecast, color: "text-blue-400" },
                 { label: "Previous", value: selectedEvent.previous, color: "text-zinc-400" },
-                { label: "Actual",   value: selectedEvent.actual || "—", color: selectedEvent.actual ? "text-[hsl(var(--primary))]" : "text-zinc-600" },
+                { label: "Actual",   value: selectedEvent.actual || " - ", color: selectedEvent.actual ? "text-[hsl(var(--primary))]" : "text-zinc-600" },
               ].map(({ label, value, color }) => (
                 <div key={label} className="rounded-lg bg-[hsl(var(--secondary))] p-3 text-center">
                   <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1">{label}</p>

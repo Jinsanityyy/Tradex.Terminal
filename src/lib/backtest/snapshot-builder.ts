@@ -1,6 +1,6 @@
-/**
+﻿/**
  * Builds a MarketSnapshot from historical candle data for the backtest engine.
- * No live API calls — all indicators computed locally from OHLCV arrays.
+ * No live API calls  -  all indicators computed locally from OHLCV arrays.
  */
 
 import type { MarketSnapshot, Symbol, Timeframe, PriceZone, SnapshotCandle } from "@/lib/agents/schemas";
@@ -65,7 +65,7 @@ function deriveConvictionBias(
   const smcContext = [
     bosUp   ? "BOS to upside detected"   :
     bosDown ? "BOS to downside detected" : "No clear BOS",
-    choch   ? "CHoCH in play — potential trend reversal" : "",
+    choch   ? "CHoCH in play  -  potential trend reversal" : "",
     inDiscount ? "Price in discount zone (buy area)" :
     inPremium  ? "Price in premium zone" : "Price at equilibrium",
     `52w position: ${(pos52 * 100).toFixed(0)}% of annual range`,
@@ -75,7 +75,7 @@ function deriveConvictionBias(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Pre-computed series cache — avoids re-computing for each bar
+// Pre-computed series cache  -  avoids re-computing for each bar
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface PrecomputedSeries {

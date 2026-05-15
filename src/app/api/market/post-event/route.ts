@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +35,7 @@ Event: "${title}"
 News Context: "${summary?.slice(0, 500) || "No additional context"}"
 Affected Markets: ${markets || "XAUUSD, DXY, US10Y"}
 
-Write SPECIFIC post-event analysis — not a generic explanation of what this event type means. Analyze what actually occurred, what was said, and how markets should react.
+Write SPECIFIC post-event analysis  -  not a generic explanation of what this event type means. Analyze what actually occurred, what was said, and how markets should react.
 
 Return ONLY valid JSON (no markdown):
 {

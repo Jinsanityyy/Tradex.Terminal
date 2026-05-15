@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import useSWR from "swr";
@@ -213,12 +213,12 @@ export default function SignalsPage() {
     const raw = data?.recent ?? [];
     const seen = new Set<string>();
     return raw.filter(s => {
-      // Hide ANY directional signal without a trade plan — these are junk rows
+      // Hide ANY directional signal without a trade plan  -  these are junk rows
       // (logged before the execution agent fix; may be open or cleaned to informational).
       if (!s.tradePlan && s.finalBias !== "no-trade") return false;
       // Show genuine no-trade informational signals
       if (!s.tradePlan) return true;
-      // Hide signals with inverted SL — stop loss on wrong side of entry.
+      // Hide signals with inverted SL  -  stop loss on wrong side of entry.
       // Long: SL must be below entry. Short: SL must be above entry.
       const invertedSL =
         (s.finalBias === "bullish" && s.tradePlan.stopLoss > s.tradePlan.entry) ||
@@ -233,12 +233,12 @@ export default function SignalsPage() {
 
   const resolvedTotal = (stats?.wins ?? 0) + (stats?.losses ?? 0);
   const hitRateLabel = stats
-    ? (resolvedTotal > 0 ? `${stats.hitRate}%` : "—")
-    : "—";
+    ? (resolvedTotal > 0 ? `${stats.hitRate}%` : " - ")
+    : " - ";
 
   const totalRLabel = stats
     ? `${stats.totalPnlR >= 0 ? "+" : ""}${stats.totalPnlR}R`
-    : "—";
+    : " - ";
 
   // Compute avg time to resolution from resolved signals
   const avgTimeToResolution = (() => {
@@ -325,12 +325,12 @@ export default function SignalsPage() {
         />
         <StatCard
           label="Avg RR"
-          value={stats ? `${stats.avgRR}:1` : "—"}
+          value={stats ? `${stats.avgRR}:1` : " - "}
           sub="Target RR per armed signal"
         />
         <StatCard
           label="Avg Time to TP/SL"
-          value={avgTimeToResolution ?? "—"}
+          value={avgTimeToResolution ?? " - "}
           sub="From signal to outcome"
           accent="text-blue-400"
         />

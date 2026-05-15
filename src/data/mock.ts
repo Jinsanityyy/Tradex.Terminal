@@ -1,4 +1,4 @@
-import {
+﻿import {
   AssetSnapshot, BiasData, Catalyst, EconomicEvent, TrumpPost,
   SessionSummary, NewsItem, AIBriefing, MarketNarrative, TradeContext,
 } from "@/types";
@@ -32,7 +32,7 @@ export const biasData: BiasData[] = [
       "Geopolitical risk premium from Middle East tensions",
       "Central bank buying remains elevated (China, India, Turkey)",
       "DXY weakness supporting gold's upside",
-      "ETF inflows accelerating — 3 consecutive weeks of positive flows",
+      "ETF inflows accelerating  -  3 consecutive weeks of positive flows",
     ],
     invalidationFactors: [
       "Hawkish Fed surprise pushing real yields sharply higher",
@@ -50,7 +50,7 @@ export const biasData: BiasData[] = [
     bias: "bearish",
     confidence: 68,
     supportingFactors: [
-      "Fed rate cut expectations increasing — June pricing at 72%",
+      "Fed rate cut expectations increasing  -  June pricing at 72%",
       "Soft labor market data weakening USD fundamentals",
       "Trump tariff uncertainty creating capital outflow concerns",
       "EUR strength from hawkish ECB relative stance",
@@ -73,7 +73,7 @@ export const biasData: BiasData[] = [
     supportingFactors: [
       "Tariff uncertainty weighing on forward earnings estimates",
       "Rising yields compressing equity valuations",
-      "Breadth deteriorating — mega-cap concentration risk",
+      "Breadth deteriorating  -  mega-cap concentration risk",
       "VIX elevated above 20, signaling hedging activity",
     ],
     invalidationFactors: [
@@ -92,7 +92,7 @@ export const biasData: BiasData[] = [
     bias: "bullish",
     confidence: 72,
     supportingFactors: [
-      "ETF inflows strong — BlackRock IBIT seeing consistent demand",
+      "ETF inflows strong  -  BlackRock IBIT seeing consistent demand",
       "Halving cycle momentum historically bullish at this stage",
       "Macro liquidity expectations improving with rate cut pricing",
       "On-chain metrics showing accumulation by long-term holders",
@@ -215,7 +215,7 @@ export const economicEvents: EconomicEvent[] = [
   },
   {
     id: "ev-5", time: "08:30", currency: "USD", country: "US",
-    event: "GDP (QoQ) — Final", impact: "high",
+    event: "GDP (QoQ)  -  Final", impact: "high",
     forecast: "3.2%", previous: "3.2%",
     affectedAssets: ["DXY", "SPX", "US10Y"], status: "upcoming",
   },
@@ -334,13 +334,13 @@ export const sessionSummaries: SessionSummary[] = [
       "Gold rallied $8 to $3015 on PBoC RRR cut and safe-haven demand",
       "USDJPY dipped to 149.80 before recovering to 150.20",
       "Nikkei closed -0.3% on tariff uncertainty",
-      "AUD bid on China stimulus hopes — AUDUSD +0.35%",
+      "AUD bid on China stimulus hopes  -  AUDUSD +0.35%",
       "Bitcoin pushed above $87K on Asia-hour accumulation",
     ],
     volatilityTone: "moderate",
     liquidityNotes: "Thin liquidity in early Asia; improved after PBoC announcement. JPY crosses saw stop hunting around 149.80 level.",
     keyLevels: ["Gold $3000 support held", "USDJPY 149.80 key support", "Nikkei 39,500 support"],
-    whatChanged: "PBoC RRR cut shifted sentiment — commodity FX and gold caught a bid. Risk appetite marginally improved.",
+    whatChanged: "PBoC RRR cut shifted sentiment  -  commodity FX and gold caught a bid. Risk appetite marginally improved.",
     carriesForward: "Gold momentum into London; JPY weakness on yield differential; China stimulus expectations supporting AUD.",
   },
   {
@@ -348,10 +348,10 @@ export const sessionSummaries: SessionSummary[] = [
     status: "active",
     keyMoves: [
       "EURUSD rallied to 1.0850 on hawkish Lagarde comments",
-      "Gold extended to $3018 — London buyers stepping in",
+      "Gold extended to $3018  -  London buyers stepping in",
       "DXY broke below 104.00 handle on EUR strength and soft data",
-      "UK CPI came in hot — GBPUSD spiked to 1.2650 before fading",
-      "European equities mixed — DAX -0.4% on tariff fears, FTSE +0.2%",
+      "UK CPI came in hot  -  GBPUSD spiked to 1.2650 before fading",
+      "European equities mixed  -  DAX -0.4% on tariff fears, FTSE +0.2%",
     ],
     volatilityTone: "high",
     liquidityNotes: "Strong liquidity in London session. Volatility elevated on ECB commentary and tariff headlines. Spread widening in EURUSD during Lagarde speech.",
@@ -363,8 +363,8 @@ export const sessionSummaries: SessionSummary[] = [
     session: "new-york",
     status: "upcoming",
     keyMoves: [
-      "Consumer Confidence at 10:00 ET — key for sentiment",
-      "5-Year Note Auction at 13:00 ET — demand gauge",
+      "Consumer Confidence at 10:00 ET  -  key for sentiment",
+      "5-Year Note Auction at 13:00 ET  -  demand gauge",
       "Trump tariff headlines may escalate during US hours",
       "Fed Waller speech impact may continue to be digested",
     ],
@@ -381,14 +381,14 @@ export const sessionSummaries: SessionSummary[] = [
 // ==========================================
 export const newsItems: NewsItem[] = [
   { id: "n-1", timestamp: "2025-03-25T15:10:00Z", headline: "Consumer Confidence Plunges to 14-Month Low Amid Tariff Fears", category: "economy", sentiment: "bearish", impactScore: 8, affectedAssets: ["SPX", "DXY", "US10Y"], summary: "Conference Board index fell to 92.3 vs 96.0 expected, with both present conditions and expectations declining sharply.", source: "Reuters" },
-  { id: "n-2", timestamp: "2025-03-25T14:35:00Z", headline: "White House Confirms 25% EU Auto Tariffs — Effective April 2", category: "tariffs", sentiment: "bearish", impactScore: 9, affectedAssets: ["EURUSD", "DAX", "SPX", "DXY"], summary: "Administration confirms tariff order signed. EU trade commissioner warns of 'swift and proportionate' response.", source: "Bloomberg" },
+  { id: "n-2", timestamp: "2025-03-25T14:35:00Z", headline: "White House Confirms 25% EU Auto Tariffs  -  Effective April 2", category: "tariffs", sentiment: "bearish", impactScore: 9, affectedAssets: ["EURUSD", "DAX", "SPX", "DXY"], summary: "Administration confirms tariff order signed. EU trade commissioner warns of 'swift and proportionate' response.", source: "Bloomberg" },
   { id: "n-3", timestamp: "2025-03-25T12:20:00Z", headline: "Fed's Waller: June Cut 'Appropriate' If Disinflation Continues", category: "central-banks", sentiment: "bullish", impactScore: 8, affectedAssets: ["DXY", "US10Y", "Gold", "SPX"], summary: "Most explicit signal yet from a Fed governor supporting near-term rate cut. CME FedWatch June probability jumped to 72%.", source: "CNBC" },
   { id: "n-4", timestamp: "2025-03-25T09:35:00Z", headline: "ECB Lagarde Pushes Back on Rate Cut Expectations", category: "central-banks", sentiment: "bullish", impactScore: 7, affectedAssets: ["EURUSD", "Bund", "DAX"], summary: "ECB President signals more work needed on inflation. June cut pricing drops to 30%.", source: "Financial Times" },
   { id: "n-5", timestamp: "2025-03-25T02:15:00Z", headline: "PBoC Cuts Reserve Requirement Ratio by 50bps", category: "central-banks", sentiment: "bullish", impactScore: 7, affectedAssets: ["USDCNH", "Copper", "AUDUSD", "HSI"], summary: "China's central bank eases monetary policy, releasing ~$140B in liquidity to support slowing economy.", source: "Xinhua" },
   { id: "n-6", timestamp: "2025-03-25T10:50:00Z", headline: "Israel-Hezbollah Ceasefire Negotiations Break Down", category: "geopolitics", sentiment: "bearish", impactScore: 6, affectedAssets: ["Gold", "Oil", "VIX"], summary: "Diplomatic sources confirm talks collapsed. Military escalation risk rising along northern border.", source: "Al Jazeera" },
   { id: "n-7", timestamp: "2025-03-25T08:00:00Z", headline: "UK CPI Surprises to the Upside at 3.4% YoY", category: "inflation", sentiment: "bearish", impactScore: 5, affectedAssets: ["GBPUSD", "Gilt"], summary: "UK inflation remains sticky above BoE target. Rate cut expectations pushed back.", source: "ONS" },
   { id: "n-8", timestamp: "2025-03-25T13:00:00Z", headline: "BlackRock IBIT Bitcoin ETF Sees $340M Daily Inflow", category: "crypto", sentiment: "bullish", impactScore: 5, affectedAssets: ["BTC", "ETH"], summary: "Institutional demand for Bitcoin ETFs continues with largest single-day inflow this week.", source: "CoinDesk" },
-  { id: "n-9", timestamp: "2025-03-25T11:30:00Z", headline: "US Durable Goods Orders Rebound 0.9% — Slightly Below Forecast", category: "economy", sentiment: "neutral", impactScore: 4, affectedAssets: ["DXY", "SPX"], summary: "Strong recovery from -6.2% prior but missed 1.0% forecast. Manufacturing stabilization continues.", source: "BLS" },
+  { id: "n-9", timestamp: "2025-03-25T11:30:00Z", headline: "US Durable Goods Orders Rebound 0.9%  -  Slightly Below Forecast", category: "economy", sentiment: "neutral", impactScore: 4, affectedAssets: ["DXY", "SPX"], summary: "Strong recovery from -6.2% prior but missed 1.0% forecast. Manufacturing stabilization continues.", source: "BLS" },
   { id: "n-10", timestamp: "2025-03-25T07:00:00Z", headline: "Goldman Sachs Raises Gold Target to $3,200 on Central Bank Buying", category: "commodities", sentiment: "bullish", impactScore: 5, affectedAssets: ["Gold", "Silver"], summary: "GS upgrades gold forecast citing structural demand from central banks and geopolitical hedging.", source: "Goldman Sachs Research" },
 ];
 
@@ -405,11 +405,11 @@ export const aiBriefings: AIBriefing[] = [
     whyItMatters: "The PBoC move signals growing concern about China's deflationary trajectory. This has second-order effects: commodity demand expectations, global liquidity conditions, and risk appetite. Combined with overnight Trump tariff rhetoric against China, the macro landscape is increasingly fragmented.",
     whatChanged: "China stimulus shifted the liquidity narrative; Fed's Waller pre-speech leaks suggested dovish tilt; Trump tariff escalation against EU is a new development adding to trade uncertainty.",
     whatToWatch: [
-      "Consumer Confidence at 10:00 ET — growth sentiment gauge",
+      "Consumer Confidence at 10:00 ET  -  growth sentiment gauge",
       "EU response to auto tariff announcement",
-      "5-Year auction demand — tests treasury market appetite",
+      "5-Year auction demand  -  tests treasury market appetite",
       "Gold $3025-3050 resistance zone reaction",
-      "DXY 103.50 support — break opens 103.00",
+      "DXY 103.50 support  -  break opens 103.00",
     ],
     biasSupport: [
       "Fed Waller dovish signal supports rate-sensitive assets",
@@ -425,11 +425,11 @@ export const aiBriefings: AIBriefing[] = [
   {
     id: "brief-2",
     type: "mid-session",
-    title: "Mid-Session Update — London/NY Overlap",
+    title: "Mid-Session Update  -  London/NY Overlap",
     timestamp: "2025-03-25T16:00:00Z",
-    whatHappened: "Consumer Confidence cratered to 92.3, well below 96.0 forecast. This is the weakest reading in 14 months. DXY dropped below 103.80 on the data. Gold spiked to $3018. Trump officially signed EU auto tariff order — 25% effective April 2. EURUSD volatile — initially sold on tariff headlines then recovered on DXY weakness.",
-    whyItMatters: "The consumer confidence miss reinforces the growth slowdown narrative and strengthens the case for Fed cuts. However, tariff escalation creates a stagflationary risk — growth slowing while tariffs add inflationary pressure. This tension will define the next few weeks of trading.",
-    whatChanged: "Consumer confidence miss shifted growth expectations lower. Tariff order formalized — no longer just rhetoric. EU retaliation threats make this a bilateral escalation. Rate cut pricing at 72% for June — highest since February.",
+    whatHappened: "Consumer Confidence cratered to 92.3, well below 96.0 forecast. This is the weakest reading in 14 months. DXY dropped below 103.80 on the data. Gold spiked to $3018. Trump officially signed EU auto tariff order  -  25% effective April 2. EURUSD volatile  -  initially sold on tariff headlines then recovered on DXY weakness.",
+    whyItMatters: "The consumer confidence miss reinforces the growth slowdown narrative and strengthens the case for Fed cuts. However, tariff escalation creates a stagflationary risk  -  growth slowing while tariffs add inflationary pressure. This tension will define the next few weeks of trading.",
+    whatChanged: "Consumer confidence miss shifted growth expectations lower. Tariff order formalized  -  no longer just rhetoric. EU retaliation threats make this a bilateral escalation. Rate cut pricing at 72% for June  -  highest since February.",
     whatToWatch: [
       "EU's formal response to tariff announcement",
       "Treasury auction results at 13:00 ET",
@@ -454,7 +454,7 @@ export const aiBriefings: AIBriefing[] = [
 // MARKET NARRATIVE
 // ==========================================
 export const marketNarrative: MarketNarrative = {
-  summary: "Markets are navigating a fragmented macro landscape: dovish Fed signals and weak US data support rate-sensitive assets, while Trump tariff escalation creates trade uncertainty. Gold benefits from both narratives — lower yields and geopolitical risk. DXY caught between safe-haven demand and rate cut pricing. Equities face headwinds from trade policy uncertainty despite improved liquidity expectations.",
+  summary: "Markets are navigating a fragmented macro landscape: dovish Fed signals and weak US data support rate-sensitive assets, while Trump tariff escalation creates trade uncertainty. Gold benefits from both narratives  -  lower yields and geopolitical risk. DXY caught between safe-haven demand and rate cut pricing. Equities face headwinds from trade policy uncertainty despite improved liquidity expectations.",
   regime: "policy-headline",
   dominantTheme: "Fed Dovish Pivot vs Tariff Escalation",
   conviction: 72,
@@ -472,5 +472,5 @@ export const tradeContext: TradeContext = {
     "Consumer confidence miss may be priced in quickly",
     "Geopolitical escalation risk remains elevated",
   ],
-  idealMindset: "Patient, selective execution. Focus on high-conviction setups with clear invalidation. Don't chase headline reactions — wait for the secondary move. This is a market for prepared traders, not reactive ones.",
+  idealMindset: "Patient, selective execution. Focus on high-conviction setups with clear invalidation. Don't chase headline reactions  -  wait for the secondary move. This is a market for prepared traders, not reactive ones.",
 };

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -171,13 +171,13 @@ export default function TrumpMonitorPage() {
             className="text-[10px] text-zinc-500 cursor-help"
             title={tsError ?? "Set TRUTH_SOCIAL_PROVIDER in env"}
           >
-            ✦ Truth Social — not configured
+            ✦ Truth Social  -  not configured
           </span>
         )}
         {tsStatus === "error" && (
           <span className="flex items-center gap-1.5">
             <span className="text-[10px] text-red-500/80">
-              ✦ Truth Social — {tsError ? tsError.slice(0, 80) : "provider error"}
+              ✦ Truth Social  -  {tsError ? tsError.slice(0, 80) : "provider error"}
             </span>
             <button
               onClick={tsRefresh}

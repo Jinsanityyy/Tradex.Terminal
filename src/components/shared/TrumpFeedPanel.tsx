@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import Link from "next/link";
@@ -198,7 +198,7 @@ function TruthSocialCard({ post, onClick }: { post: TrumpPost; onClick: () => vo
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-[13px] font-bold text-[hsl(var(--foreground))]">Donald J. Trump</span>
-              {/* Verified checkmark — Truth Social red */}
+              {/* Verified checkmark  -  Truth Social red */}
               <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none">
                 <circle cx="12" cy="12" r="12" fill="#E8222E" />
                 <path d="M7 12.5l3.5 3.5 6.5-7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -379,7 +379,7 @@ export function TrumpFeedPanel({ posts, limit, compact = false }: TrumpFeedPanel
       <DetailModal
         open={!!selected}
         onClose={() => setSelected(null)}
-        title={selected ? `${selected.source} — ${selected.policyCategory}` : undefined}
+        title={selected ? `${selected.source}  -  ${selected.policyCategory}` : undefined}
       >
         {selected && <TrumpPostDetail post={selected} />}
       </DetailModal>
@@ -390,33 +390,33 @@ export function TrumpFeedPanel({ posts, limit, compact = false }: TrumpFeedPanel
 // ── Theme-specific narrative + bullets for Trump Impact Overview ──────────────
 const TRUMP_ANALYSIS: Record<string, { summary: string; bullets: string[] }> = {
   Iran: {
-    summary: "Trump's Iran-related communications are driving heightened geopolitical risk premium across markets. Tensions around nuclear talks, Hormuz Strait access, and sanctions create dual safe-haven demand — investors rotate to both Gold and the Dollar as risk assets sell off. Oil repricing adds secondary inflation implications that amplify the safe-haven bid.",
+    summary: "Trump's Iran-related communications are driving heightened geopolitical risk premium across markets. Tensions around nuclear talks, Hormuz Strait access, and sanctions create dual safe-haven demand  -  investors rotate to both Gold and the Dollar as risk assets sell off. Oil repricing adds secondary inflation implications that amplify the safe-haven bid.",
     bullets: [
-      "Watch oil prices (USOIL/BRENT) — Hormuz risk premium signals Gold support; oil reversal = immediate Gold fade",
-      "Gold and USD rising together = peak risk-off signal — both can hold simultaneously during geopolitical fear",
-      "EM currencies (MXN, TRY) under pressure — capital rotating out of risk assets into safe havens",
-      "US equities (SPX) likely pressured lower — risk-off rotation into Gold and Treasuries",
+      "Watch oil prices (USOIL/BRENT)  -  Hormuz risk premium signals Gold support; oil reversal = immediate Gold fade",
+      "Gold and USD rising together = peak risk-off signal  -  both can hold simultaneously during geopolitical fear",
+      "EM currencies (MXN, TRY) under pressure  -  capital rotating out of risk assets into safe havens",
+      "US equities (SPX) likely pressured lower  -  risk-off rotation into Gold and Treasuries",
       "Monitor diplomatic headlines: de-escalation = Gold selloff. Deal breakdown = Gold spike",
     ],
   },
   Tariffs: {
-    summary: "Trump's tariff commentary is reshaping global trade flow expectations and creating significant market uncertainty. Escalation increases U.S. import costs (inflationary), dampens global growth (deflationary medium-term), and triggers retaliatory responses — all of which historically flow into Gold as a safe haven. The Dollar faces cross-currents: safe-haven inflows compete with growth damage from trade disruption.",
+    summary: "Trump's tariff commentary is reshaping global trade flow expectations and creating significant market uncertainty. Escalation increases U.S. import costs (inflationary), dampens global growth (deflationary medium-term), and triggers retaliatory responses  -  all of which historically flow into Gold as a safe haven. The Dollar faces cross-currents: safe-haven inflows compete with growth damage from trade disruption.",
     bullets: [
-      "Watch for retaliation from affected countries — escalation = Gold spikes, USD directionally mixed",
+      "Watch for retaliation from affected countries  -  escalation = Gold spikes, USD directionally mixed",
       "Supply chain disruption = inflationary pressure = Gold bid via inflation hedge demand",
       "Risk-off equities = Gold bid as capital rotates to safe haven assets",
-      "Watch USDCNH — Yuan weakness signals trade war escalation, typically lifts Gold",
+      "Watch USDCNH  -  Yuan weakness signals trade war escalation, typically lifts Gold",
       "CAD, AUD weakening on trade fears = broad USD strength but Gold holds the safe-haven bid",
     ],
   },
   China: {
-    summary: "US-China tensions — across trade, technology sanctions, or Taiwan — create broad risk-off sentiment in global markets. Gold benefits from safe-haven demand and the potential for dollar weakness if China retaliates via Treasury selling. The interconnected US-China relationship means escalation ripples simultaneously across equities, commodities, and currencies.",
+    summary: "US-China tensions  -  across trade, technology sanctions, or Taiwan  -  create broad risk-off sentiment in global markets. Gold benefits from safe-haven demand and the potential for dollar weakness if China retaliates via Treasury selling. The interconnected US-China relationship means escalation ripples simultaneously across equities, commodities, and currencies.",
     bullets: [
       "Watch USDCNH: Chinese Yuan weakening = escalation confirmed = Gold typically rallies",
-      "Tech sector (semiconductors) hit hardest by export controls — Nasdaq weakness = risk-off = Gold bid",
+      "Tech sector (semiconductors) hit hardest by export controls  -  Nasdaq weakness = risk-off = Gold bid",
       "China Treasury sales = USD weakness = Gold bullish from currency debasement angle",
-      "Taiwan-related tensions = highest-impact geopolitical risk for Gold — monitor closely",
-      "Gold + JPY rising together = peak safe-haven flow — both are classic fear hedges",
+      "Taiwan-related tensions = highest-impact geopolitical risk for Gold  -  monitor closely",
+      "Gold + JPY rising together = peak safe-haven flow  -  both are classic fear hedges",
     ],
   },
   Fed: {
@@ -430,23 +430,23 @@ const TRUMP_ANALYSIS: Record<string, { summary: string; bullets: string[] }> = {
     ],
   },
   Russia: {
-    summary: "Russia-related developments — war escalation, sanctions, or peace talks — drive significant Gold volatility. European risk assets bear the brunt of Russia-Ukraine tension as energy security and conflict fears weigh on EUR and EU equities. Gold benefits from European safe-haven flows while the Dollar strengthens against EUR as capital seeks non-European refuge.",
+    summary: "Russia-related developments  -  war escalation, sanctions, or peace talks  -  drive significant Gold volatility. European risk assets bear the brunt of Russia-Ukraine tension as energy security and conflict fears weigh on EUR and EU equities. Gold benefits from European safe-haven flows while the Dollar strengthens against EUR as capital seeks non-European refuge.",
     bullets: [
       "Watch EURUSD: EUR weakness on Russia escalation = USD strength = Gold bid in EUR terms",
       "Energy disruption (gas, oil exports) = European inflation = ECB dilemma = EUR weaker",
       "Peace talks breakthrough = risk-on = Gold selloff; don't hold longs through negotiation headlines",
-      "Gold + EUR inverse relationship in Russia scenarios — Gold holds while EUR drops",
+      "Gold + EUR inverse relationship in Russia scenarios  -  Gold holds while EUR drops",
       "Sanctions affecting global commodities = broader safe-haven flows into Gold",
     ],
   },
   Geopolitics: {
-    summary: "Broader geopolitical signals from Trump — on NATO, Middle East alliances, or global security commitments — create risk-off flows that benefit Gold. When markets perceive increased global instability from U.S. foreign policy shifts, they hedge via Gold as the primary cross-border safe haven. USD also benefits as a reserve currency, creating simultaneous Gold and USD strength.",
+    summary: "Broader geopolitical signals from Trump  -  on NATO, Middle East alliances, or global security commitments  -  create risk-off flows that benefit Gold. When markets perceive increased global instability from U.S. foreign policy shifts, they hedge via Gold as the primary cross-border safe haven. USD also benefits as a reserve currency, creating simultaneous Gold and USD strength.",
     bullets: [
       "NATO commitment uncertainty = EUR/GBP weakness = USD and Gold both bid",
       "Middle East policy shifts = energy risk premium = oil and Gold rally together",
-      "Gold and USD rising simultaneously = extreme fear signal — both can co-exist in peak risk-off",
+      "Gold and USD rising simultaneously = extreme fear signal  -  both can co-exist in peak risk-off",
       "Watch VIX: spike above 25 = Gold typically rallies $20+ within the session",
-      "USDJPY falling (yen strengthening) = peak risk-off — buy Gold on yen strength signals",
+      "USDJPY falling (yen strengthening) = peak risk-off  -  buy Gold on yen strength signals",
     ],
   },
   Economy: {
@@ -460,20 +460,20 @@ const TRUMP_ANALYSIS: Record<string, { summary: string; bullets: string[] }> = {
     ],
   },
   Oil: {
-    summary: "Oil-related Trump commentary — strategic petroleum reserve actions, OPEC pressure, or energy policy shifts — affects Gold indirectly through inflation expectations. Higher oil feeds into CPI, complicating the Fed's rate-cutting timeline and creating a hawkish undertone that weighs on Gold. Lower oil prices reduce inflation pressure and are Gold-positive via rate-cut expectations.",
+    summary: "Oil-related Trump commentary  -  strategic petroleum reserve actions, OPEC pressure, or energy policy shifts  -  affects Gold indirectly through inflation expectations. Higher oil feeds into CPI, complicating the Fed's rate-cutting timeline and creating a hawkish undertone that weighs on Gold. Lower oil prices reduce inflation pressure and are Gold-positive via rate-cut expectations.",
     bullets: [
       "Oil spike = higher CPI expectations = hawkish Fed bias = Gold headwind via real yields",
       "Oil drop = easing inflation pressure = rate-cut bets build = Gold bullish signal",
-      "Petro-currencies (CAD, NOK) move first — CAD vs USD direction confirms the oil market read",
+      "Petro-currencies (CAD, NOK) move first  -  CAD vs USD direction confirms the oil market read",
       "SPR release = bearish oil = deflationary = watch Gold reaction in following sessions",
       "OPEC+ context: Trump pushing for production increase = bearish oil = inflation relief = Fed dovish lean",
     ],
   },
   Government: {
-    summary: "Federal budget battles, debt ceiling negotiations, and government shutdown risks create fiscal uncertainty that temporarily supports Gold against USD instability. Debt ceiling standoffs historically compress USD confidence and lift Gold as markets price default risk. However, these situations typically resolve — Gold rallies on government dysfunction are often fade opportunities.",
+    summary: "Federal budget battles, debt ceiling negotiations, and government shutdown risks create fiscal uncertainty that temporarily supports Gold against USD instability. Debt ceiling standoffs historically compress USD confidence and lift Gold as markets price default risk. However, these situations typically resolve  -  Gold rallies on government dysfunction are often fade opportunities.",
     bullets: [
       "Debt ceiling deadline approaching: Gold rallies as default risk premium is priced in",
-      "Deal/resolution announced: Gold selloff — remove the fear premium, risk-on returns",
+      "Deal/resolution announced: Gold selloff  -  remove the fear premium, risk-on returns",
       "Watch US credit default swap (CDS) spreads: rising = market pricing default risk = Gold bid",
       "Rating agency warnings (Moody's/Fitch threats) = immediate USD selloff = Gold spike",
       "Shutdown affecting data releases = FOMC may delay decisions = uncertainty = neutral to Gold bullish",
@@ -481,13 +481,13 @@ const TRUMP_ANALYSIS: Record<string, { summary: string; bullets: string[] }> = {
   },
 };
 const TRUMP_DEFAULT_ANALYSIS = {
-  summary: "Trump's latest communication is creating directional market uncertainty. Monitor the prevailing risk sentiment — if equities are selling off and safe havens (Gold, JPY, Treasuries) are bid simultaneously, the market interpretation is risk-off and Gold should be held. If equities hold and only Gold moves, the signal may be commodity-specific and less sustained.",
+  summary: "Trump's latest communication is creating directional market uncertainty. Monitor the prevailing risk sentiment  -  if equities are selling off and safe havens (Gold, JPY, Treasuries) are bid simultaneously, the market interpretation is risk-off and Gold should be held. If equities hold and only Gold moves, the signal may be commodity-specific and less sustained.",
   bullets: [
     "Watch risk sentiment: equities + Gold direction tells you whether it's broad risk-off or a specific move",
     "Watch DXY for USD confirmation of Gold's direction",
-    "Gold spike >$15 in 30 minutes: a significant catalyst is being priced — trade in that direction",
+    "Gold spike >$15 in 30 minutes: a significant catalyst is being priced  -  trade in that direction",
     "Tariff/trade/Iran keywords = buy Gold. Growth/deregulation keywords = fade Gold spike",
-    "Wait for the 15-min retest after the initial move — that's the cleaner, more sustained entry",
+    "Wait for the 15-min retest after the initial move  -  that's the cleaner, more sustained entry",
   ],
 };
 
@@ -517,21 +517,21 @@ function TrumpImpactModal({ posts, avgImpact, topTheme, recentPosts }: {
     China: "neutral", Tariffs: "neutral", Oil: "neutral", Fed: "bearish", Crypto: "neutral", Economy: "neutral", Government: "neutral",
   };
   const THEME_GOLD_REASON: Record<string, string> = {
-    Iran: "Iran geopolitical tensions drive safe-haven gold demand — Hormuz Strait disruption risk adds oil supply premium that indirectly supports gold prices.",
+    Iran: "Iran geopolitical tensions drive safe-haven gold demand  -  Hormuz Strait disruption risk adds oil supply premium that indirectly supports gold prices.",
     Geopolitics: "Geopolitical escalation triggers risk-off flows into gold as the primary safe-haven asset across global markets.",
     Russia: "Russia-Ukraine conflict risk drives European safe-haven flows, with gold benefiting from both geopolitical premium and EUR weakness.",
     China: "US-China tensions create broad risk-off sentiment, supporting gold as a hedge against global trade disruption and equity volatility.",
     Tariffs: "Trade war escalation drives safe-haven flows into gold as global growth fears and equity sell-offs intensify.",
-    Fed: "Fed policy commentary creates rate outlook uncertainty — gold moves inversely with rate-cut expectations and real yield direction.",
-    Oil: "Energy catalyst indirectly affects gold via inflation transmission — watch for CPI repricing in coming sessions.",
-    Economy: "Economic uncertainty supports gold's safe-haven role — weak growth data is typically bullish for gold via rate-cut expectations.",
+    Fed: "Fed policy commentary creates rate outlook uncertainty  -  gold moves inversely with rate-cut expectations and real yield direction.",
+    Oil: "Energy catalyst indirectly affects gold via inflation transmission  -  watch for CPI repricing in coming sessions.",
+    Economy: "Economic uncertainty supports gold's safe-haven role  -  weak growth data is typically bullish for gold via rate-cut expectations.",
   };
   const THEME_USD_REASON: Record<string, string> = {
     Iran: "Iran geopolitical risk drives parallel USD safe-haven demand alongside gold as investors exit regional and EM risk assets.",
     Geopolitics: "Global risk events support USD safe-haven demand as the world's primary reserve currency attracts capital flight.",
     Russia: "Russia-related escalation pressures EUR and supports USD as European energy security risks weigh on euro-area outlook.",
-    China: "US-China tensions create mixed USD signals — safe-haven demand competes with growth damage from trade disruptions on the US economy.",
-    Tariffs: "Tariff escalation leaves USD directionless — safe-haven inflows offset by US growth damage and retaliatory risk to exports.",
+    China: "US-China tensions create mixed USD signals  -  safe-haven demand competes with growth damage from trade disruptions on the US economy.",
+    Tariffs: "Tariff escalation leaves USD directionless  -  safe-haven inflows offset by US growth damage and retaliatory risk to exports.",
     Fed: "Presidential pressure on Fed independence signals potential rate cuts ahead, eroding USD's yield advantage vs. major peers.",
     Oil: "Energy policy impacts petro-currencies (CAD, NOK) more directly; USD effect depends on net inflation and growth implications.",
     Economy: "Weak economic data accelerates Fed cut pricing, reducing USD yield advantage and triggering broad dollar selling pressure.",
@@ -543,7 +543,7 @@ function TrumpImpactModal({ posts, avgImpact, topTheme, recentPosts }: {
   const rawUSD: "bullish" | "bearish" | "neutral" = hasPerPostData
     ? (Object.entries(usdCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "neutral") as "bullish" | "bearish" | "neutral"
     : (THEME_USD[topTheme] ?? "neutral");
-  // Gold and USD can't both be bullish — they move inversely. If conflict, USD defaults to neutral.
+  // Gold and USD can't both be bullish  -  they move inversely. If conflict, USD defaults to neutral.
   const dominantUSD: "bullish" | "bearish" | "neutral" =
     dominantGold === "bullish" && rawUSD === "bullish" ? "neutral" : rawUSD;
 

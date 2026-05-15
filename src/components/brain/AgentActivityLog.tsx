@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -92,7 +92,7 @@ function deriveLog(data: AgentRunResult): LogEntry[] {
     agentId: "trend",
     agentLabel: "Trend Agent",
     message: agents.trend.reasons[0] ??
-      `${agents.trend.marketPhase} phase — ${agents.trend.momentumDirection} momentum`,
+      `${agents.trend.marketPhase} phase  -  ${agents.trend.momentumDirection} momentum`,
     type: agents.trend.bias === "bullish" ? "bullish"
         : agents.trend.bias === "bearish" ? "bearish"
         : "info",
@@ -149,7 +149,7 @@ function deriveLog(data: AgentRunResult): LogEntry[] {
       id: "smc-bos",
       agentId: "smc",
       agentLabel: "Price Action",
-      message: `Break of structure — ${agents.smc.setupType} setup forming`,
+      message: `Break of structure  -  ${agents.smc.setupType} setup forming`,
       type: agents.smc.bias === "bullish" ? "bullish" : "bearish",
     });
   } else if (agents.smc.chochDetected) {
@@ -157,7 +157,7 @@ function deriveLog(data: AgentRunResult): LogEntry[] {
       id: "smc-choch",
       agentId: "smc",
       agentLabel: "Price Action",
-      message: "Change of character detected — potential directional shift",
+      message: "Change of character detected  -  potential directional shift",
       type: "warning",
     });
   } else {
@@ -198,7 +198,7 @@ function deriveLog(data: AgentRunResult): LogEntry[] {
     agentId: "risk",
     agentLabel: "Risk Gate",
     message: agents.risk.valid
-      ? `Parameters valid — Grade ${agents.risk.grade} · Session ${agents.risk.sessionScore}/100 · Max risk ${agents.risk.maxRiskPercent}%`
+      ? `Parameters valid  -  Grade ${agents.risk.grade} · Session ${agents.risk.sessionScore}/100 · Max risk ${agents.risk.maxRiskPercent}%`
       : agents.risk.warnings[0] ?? "Trade conditions blocked by risk parameters",
     type: agents.risk.valid ? "approved" : "blocked",
   });
@@ -220,8 +220,8 @@ function deriveLog(data: AgentRunResult): LogEntry[] {
       agentId: "contrarian",
       agentLabel: "Contrarian",
       message: agents.contrarian.trapType
-        ? `${agents.contrarian.trapType} detected — ${agents.contrarian.riskFactor}% reversal risk`
-        : agents.contrarian.failureReasons[0] ?? "Counter-thesis active — review primary setup",
+        ? `${agents.contrarian.trapType} detected  -  ${agents.contrarian.riskFactor}% reversal risk`
+        : agents.contrarian.failureReasons[0] ?? "Counter-thesis active  -  review primary setup",
       type: agents.contrarian.trapConfidence >= 60 ? "blocked" : "warning",
     });
   } else {
@@ -229,7 +229,7 @@ function deriveLog(data: AgentRunResult): LogEntry[] {
       id: "contra-clear",
       agentId: "contrarian",
       agentLabel: "Contrarian",
-      message: "No contrarian edge detected — primary thesis uncontested",
+      message: "No contrarian edge detected  -  primary thesis uncontested",
       type: "info",
     });
   }
@@ -247,7 +247,7 @@ function deriveLog(data: AgentRunResult): LogEntry[] {
     agentId: "master",
     agentLabel: "Master Consensus",
     message: agents.master.finalBias === "no-trade"
-      ? agents.master.noTradeReason ?? "Insufficient agent alignment — standing aside"
+      ? agents.master.noTradeReason ?? "Insufficient agent alignment  -  standing aside"
       : `${alignedCount}/${total} agents aligned · ${agents.master.confidence}% conviction${agents.master.strategyMatch ? ` · ${agents.master.strategyMatch}` : ""}`,
     type: agents.master.finalBias === "no-trade" ? "blocked"
         : agents.master.finalBias === "bullish"  ? "consensus"
@@ -260,8 +260,8 @@ function deriveLog(data: AgentRunResult): LogEntry[] {
     agentId: "execution",
     agentLabel: "Execution Agent",
     message: agents.execution.hasSetup
-      ? agents.execution.triggerCondition ?? "Setup armed — awaiting trigger confirmation"
-      : "No executable setup — awaiting structural confirmation",
+      ? agents.execution.triggerCondition ?? "Setup armed  -  awaiting trigger confirmation"
+      : "No executable setup  -  awaiting structural confirmation",
     type: agents.execution.hasSetup ? "approved" : "info",
   });
 

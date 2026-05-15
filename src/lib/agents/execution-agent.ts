@@ -1,5 +1,5 @@
-/**
- * Agent 5 — Execution Agent
+﻿/**
+ * Agent 5  -  Execution Agent
  *
  * Grades every setup against JADE CAP A+ criteria before producing a trade plan.
  * Only A+ and A grade setups generate executable plans.
@@ -18,7 +18,7 @@ import type {
   SMCAgentOutput, NewsAgentOutput, SetupGrade, SignalState,
 } from "./schemas";
 
-// ── SL Limits — Gold absolute (pts), others %-based ──────────────────────────────────
+// ── SL Limits  -  Gold absolute (pts), others %-based ──────────────────────────────────
 // Minimums are set to the minimum viable sweep distance per timeframe.
 // JadeCap SL = sweep_wick + $1 buffer. A $2 minimum sweep on M5 → ~$3 riskDist is valid.
 const GOLD_SL_LIMITS: Record<string, { min: number; max: number }> = {
@@ -69,7 +69,7 @@ function isSLInRange(riskDist: number, timeframe: string, symbol: string, price:
   return riskDist <= price * maxPct;
 }
 
-// ── Confluence Scoring — 10 factors ────────────────────────────────────────────────
+// ── Confluence Scoring  -  10 factors ────────────────────────────────────────────────
 
 interface ConfluenceFactor { id: string; label: string; pass: boolean }
 
@@ -181,14 +181,14 @@ function noTradeResult(start: number, reason: string): ExecutionAgentOutput {
     confluenceCount: 0,
     confluenceFactors: [],
     trigger: "None",
-    triggerCondition: `NO TRADE — ${reason}`,
-    managementNotes: ["Stand aside — setup does not meet minimum quality criteria"],
+    triggerCondition: `NO TRADE  -  ${reason}`,
+    managementNotes: ["Stand aside  -  setup does not meet minimum quality criteria"],
     entryZone: "No valid entry zone",
     slZone: "No SL required",
     tp1Zone: "No target",
     tp3Zone: "N/A",
     signalState: "NO_TRADE",
-    signalStateReason: `NO TRADE — ${reason}`,
+    signalStateReason: `NO TRADE  -  ${reason}`,
     distanceToEntry: null,
     processingTime: Date.now() - start,
   };
@@ -204,14 +204,14 @@ function waitResult(start: number, grade: "B+" | "B", reason: string): Execution
     confluenceCount: 0,
     confluenceFactors: [],
     trigger: "None",
-    triggerCondition: `WAIT — ${reason}`,
-    managementNotes: ["Suboptimal setup detected — monitoring for better entry conditions"],
+    triggerCondition: `WAIT  -  ${reason}`,
+    managementNotes: ["Suboptimal setup detected  -  monitoring for better entry conditions"],
     entryZone: "Monitoring",
-    slZone: "No SL — waiting",
+    slZone: "No SL  -  waiting",
     tp1Zone: "No target yet",
     tp3Zone: "N/A",
     signalState: "WAIT",
-    signalStateReason: `WAIT — Suboptimal setup. ${reason}`,
+    signalStateReason: `WAIT  -  Suboptimal setup. ${reason}`,
     distanceToEntry: null,
     processingTime: Date.now() - start,
   };
@@ -251,7 +251,7 @@ export async function runExecutionAgent(
       ? news.riskScore > 95 && news.impact !== "bullish"
       : news.riskScore > 80;
     if (riskBlocksExec) {
-      return noTradeResult(start, `Elevated macro risk (${news.riskScore}/100) — stand aside until risk clears`);
+      return noTradeResult(start, `Elevated macro risk (${news.riskScore}/100)  -  stand aside until risk clears`);
     }
 
     // ── HTF bias check ──────────────────────────────────────────────────────────────────
@@ -259,7 +259,7 @@ export async function runExecutionAgent(
     console.log(`[exec] ${symbol} ${timeframe} sweep=${smc.liquiditySweepDetected} setupPresent=${smc.setupPresent} bias=${smc.bias} htfBias=${htfBias}@${htfConfidence}% kz=${inKillzone}`);
     if (!sweepActive && (htfBias === "neutral" || htfConfidence < 35)) {
       console.log(`[exec] blocked: no directional bias (sweep=${smc.liquiditySweepDetected} htfBias=${htfBias} htfConf=${htfConfidence})`);
-      return noTradeResult(start, "No directional bias confirmed — stand aside");
+      return noTradeResult(start, "No directional bias confirmed  -  stand aside");
     }
 
     // ── Direction ──────────────────────────────────────────────────────────────────────────────
@@ -286,7 +286,7 @@ export async function runExecutionAgent(
         : keyLevels.orderBlockHigh + buf;
       trigger  = "OB retest";
       entryZone = `${isBullish ? "Bullish" : "Bearish"} OB ${keyLevels.orderBlockLow.toFixed(4)}–${keyLevels.orderBlockHigh.toFixed(4)}`;
-      slZone   = `${isBullish ? "Below" : "Above"} OB ${isBullish ? "low" : "high"} — thesis invalid on close through`;
+      slZone   = `${isBullish ? "Below" : "Above"} OB ${isBullish ? "low" : "high"}  -  thesis invalid on close through`;
       entryInStructure = true;
 
       const obRange  = keyLevels.orderBlockHigh - keyLevels.orderBlockLow;
@@ -296,7 +296,7 @@ export async function runExecutionAgent(
             : (keyLevels.orderBlockHigh - current) / obRange)
         : 0;
       if (depthPct > 0.3) {
-        return waitResult(start, "B+", "Price >30% into OB — wait for a fresh OB test");
+        return waitResult(start, "B+", "Price >30% into OB  -  wait for a fresh OB test");
       }
 
     } else if (setupType === "FVG" && keyLevels.fvgMid !== null) {
@@ -306,18 +306,18 @@ export async function runExecutionAgent(
         (isBullish ? fvgInvLevel < entry : fvgInvLevel > entry);
       if (fvgInvValid && fvgInvLevel !== null) {
         stopLoss = fvgInvLevel;
-        slZone   = `Structural invalidation at ${fvgInvLevel.toFixed(4)} — close through negates setup`;
+        slZone   = `Structural invalidation at ${fvgInvLevel.toFixed(4)}  -  close through negates setup`;
       } else if (isBullish) {
         const fvgFloor = keyLevels.fvgLow !== null && keyLevels.fvgLow < entry ? keyLevels.fvgLow : entry - minBuf * 2;
         stopLoss = fvgFloor - minBuf;
-        slZone   = `Below FVG low ${fvgFloor.toFixed(4)} — structure must hold`;
+        slZone   = `Below FVG low ${fvgFloor.toFixed(4)}  -  structure must hold`;
       } else {
         const fvgCeil = keyLevels.fvgHigh !== null && keyLevels.fvgHigh > entry ? keyLevels.fvgHigh : entry + minBuf * 2;
         stopLoss = fvgCeil + minBuf;
-        slZone   = `Above FVG high ${fvgCeil.toFixed(4)} — structure must hold`;
+        slZone   = `Above FVG high ${fvgCeil.toFixed(4)}  -  structure must hold`;
       }
       trigger  = liquiditySweepDetected ? "Structure Reversal" : "Imbalance Fill";
-      entryZone = `${isBullish ? "Buy" : "Sell"} zone ${keyLevels.fvgMid.toFixed(4)} — price action imbalance area`;
+      entryZone = `${isBullish ? "Buy" : "Sell"} zone ${keyLevels.fvgMid.toFixed(4)}  -  price action imbalance area`;
       entryInStructure = true;
 
     } else if (setupType === "Sweep" && liquiditySweepDetected) {
@@ -332,8 +332,8 @@ export async function runExecutionAgent(
       trigger  = "Momentum Shift";
       entryZone = `${isBullish ? "Buy" : "Sell"} entry at key structural level ${entry.toFixed(4)}`;
       slZone   = sweepInvValid && sweepInvLvl !== null
-        ? `Structural invalidation at ${sweepInvLvl.toFixed(4)} — thesis invalid on break`
-        : `${isBullish ? "Below" : "Above"} key sweep level — structure must hold`;
+        ? `Structural invalidation at ${sweepInvLvl.toFixed(4)}  -  thesis invalid on break`
+        : `${isBullish ? "Below" : "Above"} key sweep level  -  structure must hold`;
       entryInStructure = false;
 
     } else if (bosDetected) {
@@ -349,7 +349,7 @@ export async function runExecutionAgent(
       entryZone = structuralEntry
         ? `BOS pullback to structural level ${entry.toFixed(4)}`
         : `BOS pullback zone ~${entry.toFixed(4)} (38.2% fib estimate)`;
-      slZone   = `${isBullish ? "Below" : "Above"} BOS origin — displacement candle ${isBullish ? "low" : "high"}`;
+      slZone   = `${isBullish ? "Below" : "Above"} BOS origin  -  displacement candle ${isBullish ? "low" : "high"}`;
       entryInStructure = structuralEntry !== null;
 
     } else {
@@ -366,23 +366,23 @@ export async function runExecutionAgent(
         entry    = current;
         stopLoss = isBullish ? current - slDist : current + slDist;
         trigger  = "HTF continuation";
-        entryZone = `${session} kill zone — HTF ${htfBias} at ${htfConfidence}% conviction, market entry`;
-        slZone    = `${isBullish ? "Below" : "Above"} ATR-based stop ${stopLoss.toFixed(2)} — bias invalidated on close through`;
+        entryZone = `${session} kill zone  -  HTF ${htfBias} at ${htfConfidence}% conviction, market entry`;
+        slZone    = `${isBullish ? "Below" : "Above"} ATR-based stop ${stopLoss.toFixed(2)}  -  bias invalidated on close through`;
         entryInStructure = true;
         console.log(`[exec] HTF continuation path: ${symbol} ${timeframe} ${htfBias}@${htfConfidence}% entry=${entry.toFixed(2)} sl=${stopLoss.toFixed(2)} slDist=${slDist.toFixed(2)}`);
       } else if (hasBias) {
         return waitResult(start, "B",
-          `HTF ${htfBias} bias at ${htfConfidence}% confidence but no sweep, FVG, or OB in current session — awaiting structure formation`
+          `HTF ${htfBias} bias at ${htfConfidence}% confidence but no sweep, FVG, or OB in current session  -  awaiting structure formation`
         );
       } else {
-        return noTradeResult(start, "No valid structural setup — no OB, FVG, or confirmed sweep present");
+        return noTradeResult(start, "No valid structural setup  -  no OB, FVG, or confirmed sweep present");
       }
     }
 
     // ── SL directional guard ──────────────────────────────────────────────────────────────────
     if ((isBullish && stopLoss >= entry) || (!isBullish && stopLoss <= entry)) {
       return noTradeResult(start,
-        `Invalid stop loss: ${direction} entry ${entry.toFixed(1)} but SL ${stopLoss.toFixed(1)} is on wrong side — structural levels inconsistent`
+        `Invalid stop loss: ${direction} entry ${entry.toFixed(1)} but SL ${stopLoss.toFixed(1)} is on wrong side  -  structural levels inconsistent`
       );
     }
 
@@ -397,8 +397,8 @@ export async function runExecutionAgent(
       const limitMsg = GOLD_SYMS.has(symbol)
         ? `Gold ${timeframe} SL = ${riskDist.toFixed(1)} pts (allowed: ${lim.min}–${lim.max} pts)`
         : `SL ${riskDist.toFixed(4)} exceeds ${((PCT_SL_MAX[timeframe] ?? 0.008) * 100).toFixed(1)}% max for ${timeframe}`;
-      console.log(`[exec] SL out-of-range blocked: ${symbol} ${timeframe} entry=${entry.toFixed(2)} sl=${stopLoss.toFixed(2)} riskDist=${riskDist.toFixed(2)} — ${limitMsg}`);
-      return waitResult(start, "B", `${limitMsg} — wait for better structure`);
+      console.log(`[exec] SL out-of-range blocked: ${symbol} ${timeframe} entry=${entry.toFixed(2)} sl=${stopLoss.toFixed(2)} riskDist=${riskDist.toFixed(2)}  -  ${limitMsg}`);
+      return waitResult(start, "B", `${limitMsg}  -  wait for better structure`);
     }
 
     entry    = roundToPrecision(entry,    current);
@@ -424,11 +424,11 @@ export async function runExecutionAgent(
       const rawTp2 = entry + tp2Distance;
       tp2     = rawTp2 > tp1 ? rawTp2 : tp1 + riskDistRounded * 1.5;
       tp1Zone = useTarget
-        ? `First target ${tp1.toFixed(4)} — nearest resistance above`
-        : `1.5R target ${tp1.toFixed(4)} — nearest structural resistance`;
+        ? `First target ${tp1.toFixed(4)}  -  nearest resistance above`
+        : `1.5R target ${tp1.toFixed(4)}  -  nearest structural resistance`;
       if (timeframe === "H4") {
         tp3 = entry + tp3Distance;
-        tp3Zone = `5R extended target ${tp3.toFixed(1)} — macro liquidity above`;
+        tp3Zone = `5R extended target ${tp3.toFixed(1)}  -  macro liquidity above`;
       }
     } else {
       const target    = keyLevels.liquidityTarget;
@@ -438,11 +438,11 @@ export async function runExecutionAgent(
       const rawTp2 = entry - tp2Distance;
       tp2     = rawTp2 < tp1 ? rawTp2 : tp1 - riskDistRounded * 1.5;
       tp1Zone = useTarget
-        ? `First target ${tp1.toFixed(4)} — nearest support below`
-        : `1.5R target ${tp1.toFixed(4)} — nearest structural support`;
+        ? `First target ${tp1.toFixed(4)}  -  nearest support below`
+        : `1.5R target ${tp1.toFixed(4)}  -  nearest structural support`;
       if (timeframe === "H4") {
         tp3 = entry - tp3Distance;
-        tp3Zone = `5R extended target ${tp3.toFixed(1)} — macro liquidity below`;
+        tp3Zone = `5R extended target ${tp3.toFixed(1)}  -  macro liquidity below`;
       }
     }
 
@@ -464,7 +464,7 @@ export async function runExecutionAgent(
     const reward  = Math.abs(tp2 - entry);
     const rrRatio = riskDistRounded > 0 ? parseFloat((reward / riskDistRounded).toFixed(2)) : null;
     if (rrRatio === null) {
-      return noTradeResult(start, "R:R calculation failed — zero risk distance");
+      return noTradeResult(start, "R:R calculation failed  -  zero risk distance");
     }
 
     const factors         = scoreConfluence(snapshot, smc, news, isBullish, inKillzone);
@@ -477,12 +477,12 @@ export async function runExecutionAgent(
 
     if (grade === "B+" || grade === "B") {
       const detail = grade === "B+"
-        ? `R:R 1:${rrRatio} with ${confluenceCount}/10 confluence — needs stronger entry alignment`
+        ? `R:R 1:${rrRatio} with ${confluenceCount}/10 confluence  -  needs stronger entry alignment`
         : `R:R 1:${rrRatio} with only ${confluenceCount}/10 confluence`;
       return waitResult(start, grade, detail);
     }
     if (grade === "C") {
-      return noTradeResult(start, `R:R 1:${rrRatio} / ${confluenceCount}/10 confluence — setup rejected`);
+      return noTradeResult(start, `R:R 1:${rrRatio} / ${confluenceCount}/10 confluence  -  setup rejected`);
     }
 
     const p = entry > 100 ? 1 : 4;
@@ -500,20 +500,20 @@ export async function runExecutionAgent(
                 : `Market order entry at ${current.toFixed(p)} with structural stop ${stopLoss.toFixed(p)}`;
 
     const managementNotes: string[] = [
-      `Scale out 50% at TP1 (${tp1.toFixed(p)}) — move SL to breakeven immediately after`,
+      `Scale out 50% at TP1 (${tp1.toFixed(p)})  -  move SL to breakeven immediately after`,
       timeframe === "H4" && tp3 !== null
-        ? `Trail 25% to TP3 (${tp3.toFixed(1)}) with trailing stop — let extended position run`
+        ? `Trail 25% to TP3 (${tp3.toFixed(1)}) with trailing stop  -  let extended position run`
         : `Let remaining 50% run to TP2 (${tp2.toFixed(p)}) with trailing stop`,
-      "Exit ALL if candle closes beyond SL level — no averaging into losing trades",
-      "Do not re-enter same setup after SL hit — wait for next confirmed signal",
+      "Exit ALL if candle closes beyond SL level  -  no averaging into losing trades",
+      "Do not re-enter same setup after SL hit  -  wait for next confirmed signal",
     ];
 
-    if (session === "Asia")     managementNotes.push("Asia session entry — tighter targets, expect ranging until next major session opens");
-    if (session === "London")   managementNotes.push("London session — highest-probability window, full position size valid");
-    if (session === "New York") managementNotes.push("New York session — monitor prior session highs/lows as potential reversal areas before TP2");
-    if (liquiditySweepDetected) managementNotes.push("Enter only on confirmed M15 candle close in the direction of the setup — do not enter mid-candle");
-    if (smc.chochDetected && !liquiditySweepDetected) managementNotes.push("CHoCH detected — consider partial entry (50%) until full confirmation");
-    if (news.riskScore > 60) managementNotes.push(`Elevated macro risk (${news.riskScore}/100) — reduce position size by 50%`);
+    if (session === "Asia")     managementNotes.push("Asia session entry  -  tighter targets, expect ranging until next major session opens");
+    if (session === "London")   managementNotes.push("London session  -  highest-probability window, full position size valid");
+    if (session === "New York") managementNotes.push("New York session  -  monitor prior session highs/lows as potential reversal areas before TP2");
+    if (liquiditySweepDetected) managementNotes.push("Enter only on confirmed M15 candle close in the direction of the setup  -  do not enter mid-candle");
+    if (smc.chochDetected && !liquiditySweepDetected) managementNotes.push("CHoCH detected  -  consider partial entry (50%) until full confirmation");
+    if (news.riskScore > 60) managementNotes.push(`Elevated macro risk (${news.riskScore}/100)  -  reduce position size by 50%`);
 
     const distanceToEntry = Math.abs(current - entry) / entry * 100;
     const pricePastEntry  = isBullish ? current > entry : current < entry;
@@ -523,16 +523,16 @@ export async function runExecutionAgent(
 
     if (pricePastEntry && distanceToEntry > 0.3) {
       signalState       = "EXPIRED";
-      signalStateReason = `Price already moved ${distanceToEntry.toFixed(2)}% past entry zone. Do NOT chase — wait for the next setup.`;
+      signalStateReason = `Price already moved ${distanceToEntry.toFixed(2)}% past entry zone. Do NOT chase  -  wait for the next setup.`;
     } else if (distanceToEntry <= 0.15) {
       signalState       = "ARMED";
-      signalStateReason = `${grade} setup — price is ${distanceToEntry.toFixed(2)}% from entry. Confirm trigger and execute.`;
+      signalStateReason = `${grade} setup  -  price is ${distanceToEntry.toFixed(2)}% from entry. Confirm trigger and execute.`;
     } else if (distanceToEntry <= 1.0) {
       signalState       = "PENDING";
       signalStateReason = `Price is ${distanceToEntry.toFixed(2)}% from entry zone at ${entry.toFixed(p)}. Wait for price to return before entering.`;
     } else {
       signalState       = "PENDING";
-      signalStateReason = `Price is ${distanceToEntry.toFixed(2)}% away from entry at ${entry.toFixed(p)}. Monitor — no action yet.`;
+      signalStateReason = `Price is ${distanceToEntry.toFixed(2)}% away from entry at ${entry.toFixed(p)}. Monitor  -  no action yet.`;
     }
 
     return {

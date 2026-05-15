@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -104,7 +104,7 @@ export default function MarketIntelligencePage() {
         <div>
           <h1 className="text-lg font-bold text-[hsl(var(--foreground))]">Market Intelligence</h1>
           <p className="text-xs text-[hsl(var(--muted-foreground))]">
-            Unified feed — events, catalysts, Trump posts &amp; news
+            Unified feed  -  events, catalysts, Trump posts &amp; news
           </p>
         </div>
         <div className="flex items-center gap-1.5">

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,7 @@ type Tone = "green" | "red" | "yellow" | "gray";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtPrice(v: number | null | undefined): string {
-  if (v == null || isNaN(v)) return "—";
+  if (v == null || isNaN(v)) return " - ";
   if (v > 10000) return v.toFixed(0);
   if (v > 100)   return v.toFixed(1);
   if (v > 1)     return v.toFixed(4);
@@ -232,7 +232,7 @@ export function AgentOverviewWidget() {
             return match.length > 0 ? `${match.join("+")} ONLY` : "MIXED";
           })()
       )
-    : "—";
+    : " - ";
 
   const execConf = execution?.rrRatio != null
     ? Math.min(90, Math.round(execution.rrRatio * 20))
@@ -285,13 +285,13 @@ export function AgentOverviewWidget() {
     { k: "SL",     v: fmtPrice(execution.stopLoss) },
     { k: "TP1",    v: fmtPrice(execution.tp1) },
     { k: "TP2",    v: fmtPrice(execution.tp2) },
-    { k: "RR",     v: execution.rrRatio != null ? `${execution.rrRatio.toFixed(2)}:1` : "—" },
+    { k: "RR",     v: execution.rrRatio != null ? `${execution.rrRatio.toFixed(2)}:1` : " - " },
   ] : [];
 
   const masterTags: DiagTag[] = master ? [
     { k: "SCORE",  v: master.consensusScore > 0 ? `+${master.consensusScore.toFixed(0)}` : `${master.consensusScore.toFixed(0)}` },
     { k: "CONF",   v: `${master.confidence}%` },
-    { k: "STRAT",  v: master.strategyMatch ?? (master.noTradeReason ? master.noTradeReason.slice(0, 20) + "…" : "—") },
+    { k: "STRAT",  v: master.strategyMatch ?? (master.noTradeReason ? master.noTradeReason.slice(0, 20) + "…" : " - ") },
   ] : [];
 
   const masterTone = biasTone(finalBias);
@@ -381,12 +381,12 @@ export function AgentOverviewWidget() {
               <div className="h-[72px] rounded-xl bg-white/4" />
               <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
                 {[...Array(4)].map((_, i) => (
-                  <AgentCard key={i} name="—" state="—" confidence={0} insight="—" tone="gray" loading />
+                  <AgentCard key={i} name=" - " state=" - " confidence={0} insight=" - " tone="gray" loading />
                 ))}
               </div>
               <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {[...Array(3)].map((_, i) => (
-                  <AgentCard key={i} name="—" state="—" confidence={0} insight="—" tone="gray" loading />
+                  <AgentCard key={i} name=" - " state=" - " confidence={0} insight=" - " tone="gray" loading />
                 ))}
               </div>
             </div>
@@ -439,7 +439,7 @@ export function AgentOverviewWidget() {
                       master && master.consensusScore > 0 ? "text-emerald-400" :
                       master && master.consensusScore < 0 ? "text-red-400" : "text-zinc-500"
                     )}>
-                      {master ? `${master.consensusScore > 0 ? "+" : ""}${master.consensusScore.toFixed(1)}` : "—"}
+                      {master ? `${master.consensusScore > 0 ? "+" : ""}${master.consensusScore.toFixed(1)}` : " - "}
                     </div>
                   </div>
                   <div className="text-right hidden sm:block">
@@ -506,7 +506,7 @@ export function AgentOverviewWidget() {
                   state={risk ? (risk.valid ? "VALID" : "BLOCKED") : "NEUTRAL"}
                   confidence={risk?.sessionScore ?? 0}
                   insight={risk?.reasons?.[0] ?? risk?.warnings?.[0] ?? "Recalculating..."}
-                  sub={risk ? `Grade ${risk.grade} — Max ${risk.maxRiskPercent}% risk` : undefined}
+                  sub={risk ? `Grade ${risk.grade}  -  Max ${risk.maxRiskPercent}% risk` : undefined}
                   tone={risk ? (risk.valid ? "green" : "red") : "gray"}
                   tags={riskTags}
                   onClick={() => openDrawer("risk")}
@@ -532,7 +532,7 @@ export function AgentOverviewWidget() {
                   insight={execution?.signalStateReason ?? execution?.triggerCondition ?? "Recalculating..."}
                   sub={
                     execution?.hasSetup && execution.direction !== "none"
-                      ? `${execution.direction.toUpperCase()} — RR ${execution.rrRatio?.toFixed(2) ?? "—"}:1`
+                      ? `${execution.direction.toUpperCase()}  -  RR ${execution.rrRatio?.toFixed(2) ?? " - "}:1`
                       : undefined
                   }
                   tone={
@@ -553,7 +553,7 @@ export function AgentOverviewWidget() {
                   const rawScore      = master?.consensusScore;
                   const consensusLabel = rawScore != null
                     ? (rawScore > 0 ? `+${rawScore.toFixed(0)}` : rawScore.toFixed(0))
-                    : "—";
+                    : " - ";
                   const cls = TONE_CLS[masterTone];
 
                   return (
@@ -591,7 +591,7 @@ export function AgentOverviewWidget() {
                             { label: "ENT", value: fmtPrice(execution.entry)    },
                             { label: "SL",  value: fmtPrice(execution.stopLoss) },
                             { label: "TP1", value: fmtPrice(execution.tp1)      },
-                            { label: "RR",  value: execution.rrRatio != null ? `${execution.rrRatio.toFixed(1)}:1` : "—" },
+                            { label: "RR",  value: execution.rrRatio != null ? `${execution.rrRatio.toFixed(1)}:1` : " - " },
                           ].map(({ label, value }) => (
                             <div key={label} className="flex flex-col gap-0.5">
                               <span className="text-[8px] font-mono text-zinc-700">{label}</span>
@@ -605,7 +605,7 @@ export function AgentOverviewWidget() {
                 })()}
               </div>
 
-              {/* Pixel View — compact matrix */}
+              {/* Pixel View  -  compact matrix */}
               <div className="rounded-xl border border-white/6 bg-[hsl(var(--card))] overflow-hidden">
                 <div className="flex items-center justify-between px-3 py-1.5 border-b border-white/5">
                   <span className="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-700">Pixel View</span>
@@ -618,8 +618,8 @@ export function AgentOverviewWidget() {
                       { id: "trend",      label: "TREND",  bias: tr?.bias ?? "neutral",                                                                  state: fmt(tr?.bias),                            conf: tr?.confidence ?? 0,            tags: trendTags      },
                       { id: "smc",        label: "PA",     bias: smc?.bias ?? "neutral",                                                                 state: fmt(smc?.bias),                           conf: smc?.confidence ?? 0,           tags: smcTags        },
                       { id: "news",       label: "NEWS",   bias: news?.impact ?? "neutral",                                                              state: fmt(news?.impact),                        conf: news?.confidence ?? 0,          tags: newsTags       },
-                      { id: "risk",       label: "RISK",   bias: risk?.valid ? "valid" : risk ? "blocked" : "neutral",                                   state: risk ? (risk.valid ? "VALID" : "BLOCKED") : "—", conf: risk?.sessionScore ?? 0, tags: riskTags       },
-                      { id: "execution",  label: "EXEC",   bias: execution?.direction === "long" ? "bullish" : execution?.direction === "short" ? "bearish" : execution?.signalState === "ARMED" ? "opposing" : "neutral", state: execution?.signalState ?? "—", conf: execConf, tags: execTags },
+                      { id: "risk",       label: "RISK",   bias: risk?.valid ? "valid" : risk ? "blocked" : "neutral",                                   state: risk ? (risk.valid ? "VALID" : "BLOCKED") : " - ", conf: risk?.sessionScore ?? 0, tags: riskTags       },
+                      { id: "execution",  label: "EXEC",   bias: execution?.direction === "long" ? "bullish" : execution?.direction === "short" ? "bearish" : execution?.signalState === "ARMED" ? "opposing" : "neutral", state: execution?.signalState ?? " - ", conf: execConf, tags: execTags },
                       { id: "contrarian", label: "CONTRA", bias: contrarian?.challengesBias ? "bearish" : "neutral",                                     state: contrarian?.challengesBias ? "ALERT" : "CLEAR", conf: contrarian?.trapConfidence ?? 0, tags: contrarianTags },
                     ] as { id: string; label: string; bias: string; state: string; conf: number; tags: DiagTag[] }[]
                   ).map(({ id, label, bias, state, conf, tags }) => {
@@ -668,7 +668,7 @@ export function AgentOverviewWidget() {
         </div>
       </div>
 
-      {/* Drawer — only mount when data is available */}
+      {/* Drawer  -  only mount when data is available */}
       {data ? (
         <BrainOverviewDrawer
           open={drawerOpen}

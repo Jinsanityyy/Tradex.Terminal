@@ -1,5 +1,5 @@
-/**
- * TradeX Multi-Agent Terminal — Market Snapshot Builder
+﻿/**
+ * TradeX Multi-Agent Terminal  -  Market Snapshot Builder
  *
  * Normalizes raw market data from the quotes cache + conviction engine
  * into a unified MarketSnapshot object consumed by all agents.
@@ -187,7 +187,7 @@ export async function buildMarketSnapshot(
   const effRsi       = cfg.invertBias ? 100 - rsiVal : rsiVal;
 
   // For conviction, blend 5-day and 20-day drift weighted by timeframe:
-  // H1/H4 are intraday/swing TFs — weight recent 5-day momentum more heavily
+  // H1/H4 are intraday/swing TFs  -  weight recent 5-day momentum more heavily
   // so a recovery like Gold's April→May bounce reads bullish rather than stuck
   // in the older 20-day crash window.
   const d1Drift20 = dailyStructure?.drift20d ?? null;
@@ -198,8 +198,8 @@ export async function buildMarketSnapshot(
     if (d1Drift5 == null && d1Drift20 == null) return null;
     if (d1Drift5 == null) return d1Drift20;
     if (d1Drift20 == null) return d1Drift5;
-    // H1/H4: 70% recent (5d), 30% structural (20d) — responsive to current momentum
-    // M5/M15: 60% recent, 40% structural — still need some structural context
+    // H1/H4: 70% recent (5d), 30% structural (20d)  -  responsive to current momentum
+    // M5/M15: 60% recent, 40% structural  -  still need some structural context
     const w5 = (timeframe === "H4" || timeframe === "H1") ? 0.70 : 0.60;
     return d1Drift5 * w5 + d1Drift20 * (1 - w5);
   })();

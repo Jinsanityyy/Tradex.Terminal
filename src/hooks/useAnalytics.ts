@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useCallback } from "react";
 import { usePathname } from "next/navigation";
@@ -64,7 +64,7 @@ async function track(type: string, payload: Record<string, unknown>) {
       body: JSON.stringify({ type, payload }),
     });
   } catch {
-    // Silent — never break the app
+    // Silent  -  never break the app
   }
 }
 

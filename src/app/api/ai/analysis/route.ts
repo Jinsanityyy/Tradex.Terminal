@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
 export const dynamic = "force-dynamic";
@@ -53,7 +53,7 @@ IMPORTANT RULES:
 
 You will receive real-time market data. Use it as your primary grounding context.
 
-CRITICAL: Respond with ONLY valid JSON — no markdown, no code blocks, no preamble. Return exactly this structure:
+CRITICAL: Respond with ONLY valid JSON  -  no markdown, no code blocks, no preamble. Return exactly this structure:
 
 {
   "bias": {
@@ -132,7 +132,7 @@ CALCULATED KEY LEVELS:
 - TP2: ${tp2 ?? "N/A"}
 - R:R: ${rrRatio ? `1:${rrRatio}` : "N/A"}
 - Liquidity Target: ${liquidityTarget ?? "N/A"}
-- Session: ${sessionContext ?? "N/A"} — ${sessionNote ?? ""}
+- Session: ${sessionContext ?? "N/A"}  -  ${sessionNote ?? ""}
 
 CONFLUENCES DETECTED (${confluences?.length ?? 0}):
 ${(confluences || []).map((c: string) => `• ${c}`).join("\n") || "• None detected"}

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -306,7 +306,7 @@ export function MobileAgentDebate() {
           </AgentSection>
 
           {/* Bull */}
-          <AgentSection icon={TrendingUp} label={`Bull — ${result.bull?.conviction}% conviction`} color="#00C896">
+          <AgentSection icon={TrendingUp} label={`Bull  -  ${result.bull?.conviction}% conviction`} color="#00C896">
             <p className="text-[12px] leading-relaxed" style={{ color: "#C9D1D9" }}>
               {result.bull?.case}
             </p>
@@ -326,7 +326,7 @@ export function MobileAgentDebate() {
           </AgentSection>
 
           {/* Bear */}
-          <AgentSection icon={TrendingDown} label={`Bear — ${result.bear?.conviction}% conviction`} color="#FF4D4F">
+          <AgentSection icon={TrendingDown} label={`Bear  -  ${result.bear?.conviction}% conviction`} color="#FF4D4F">
             <p className="text-[12px] leading-relaxed" style={{ color: "#C9D1D9" }}>
               {result.bear?.case}
             </p>
@@ -338,7 +338,7 @@ export function MobileAgentDebate() {
           </AgentSection>
 
           {/* Verdict */}
-          <AgentSection icon={Gavel} label="Risk Manager — Verdict" color="#A78BFA">
+          <AgentSection icon={Gavel} label="Risk Manager  -  Verdict" color="#A78BFA">
             <div className="flex items-center gap-2 flex-wrap">
               <Badge status={result.arbitrator?.verdict} />
               <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg"
@@ -365,7 +365,7 @@ export function MobileAgentDebate() {
                   { label: "Entry", value: String(result.arbitrator.finalEntry), color: "#A78BFA" },
                   { label: "Stop",  value: String(result.arbitrator.finalStop),  color: "#FF4D4F" },
                   { label: "TP",    value: String(result.arbitrator.finalTP),    color: "#00C896" },
-                  { label: "R:R",   value: result.arbitrator.rr != null ? `1:${result.arbitrator.rr}` : "—",
+                  { label: "R:R",   value: result.arbitrator.rr != null ? `1:${result.arbitrator.rr}` : " - ",
                     color: result.arbitrator.rr != null && result.arbitrator.rr >= 2 ? "#00C896" : "#F59E0B" },
                 ].map(({ label, value, color }) => (
                   <div key={label} className="rounded-lg p-2 text-center"

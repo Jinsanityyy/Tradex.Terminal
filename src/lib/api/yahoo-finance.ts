@@ -1,5 +1,5 @@
-/**
- * Yahoo Finance free fallback — used when Finnhub/TwelveData API keys are absent.
+﻿/**
+ * Yahoo Finance free fallback  -  used when Finnhub/TwelveData API keys are absent.
  * No API key required. Fetches live quotes and OHLCV candles via the public v8 chart API.
  */
 

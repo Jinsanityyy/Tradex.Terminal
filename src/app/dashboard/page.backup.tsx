@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -144,7 +144,7 @@ export default function DashboardPage() {
         </p>
       )}
 
-      {/* Gold Chart — full width */}
+      {/* Gold Chart  -  full width */}
       <Card className="overflow-hidden border-[hsl(var(--border))]">
         <CardHeader className="pb-0 px-4 pt-3 flex flex-row items-center justify-between border-b border-[hsl(var(--border))]/50">
           <div className="flex items-center gap-2">
@@ -169,7 +169,7 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Bias Panel — below chart, 3 cols */}
+      {/* Bias Panel  -  below chart, 3 cols */}
       {goldBias && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <BiasCard
@@ -188,7 +188,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Bias mini cards — all assets */}
+      {/* Bias mini cards  -  all assets */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {biasData.map((b) => (
           <BiasCard
@@ -218,7 +218,7 @@ export default function DashboardPage() {
             {narrative.dominantTheme}
           </p>
           <p className="text-[9px] text-center text-[hsl(var(--muted-foreground))]/60 leading-relaxed max-w-[140px]">
-            Geopolitical impact score — one sub-factor of overall bias conviction
+            Geopolitical impact score  -  one sub-factor of overall bias conviction
           </p>
         </Card>
       </div>
@@ -278,12 +278,12 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Row 6: Key Levels — Entry / SL / TP */}
+      {/* Row 6: Key Levels  -  Entry / SL / TP */}
       {levels.length > 0 && (
         <KeyLevelsCard levels={levels} compact aiAnalysisMap={aiData} />
       )}
 
-      {/* Row 7: Sessions + Trump + AI Trade Context — ALL LIVE */}
+      {/* Row 7: Sessions + Trump + AI Trade Context  -  ALL LIVE */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <div className="lg:col-span-1 space-y-3">
           <TrumpImpactPreview posts={trumpPosts} />

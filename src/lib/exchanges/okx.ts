@@ -1,5 +1,5 @@
-/**
- * OKX adapter — Perpetual SWAP fills history
+﻿/**
+ * OKX adapter  -  Perpetual SWAP fills history
  * Endpoint: /api/v5/trade/fills-history (returns realized pnl per fill)
  * Docs: https://www.okx.com/docs-v5/en/#trading-account-rest-api-get-bills-details-last-3-months
  */

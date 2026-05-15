@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   const { title, explanation, affectedMarkets, importance, forecast, previous, actual, status, source } = await req.json();
@@ -7,12 +7,12 @@ export async function POST(req: NextRequest) {
   const t = (title || "").toLowerCase();
   const isSpeech = t.includes("speak") || t.includes("testimony") || t.includes("conference") || t.includes("remarks");
   const isEconData = forecast !== undefined || previous !== undefined;
-  const hasActual = actual && actual !== "—" && actual !== "";
+  const hasActual = actual && actual !== " - " && actual !== "";
   const analysisType = hasActual ? "POST-EVENT ANALYSIS" : isEconData ? "PRE-EVENT WATCH" : "MARKET IMPACT ANALYSIS";
 
   // Build context string for AI
   const dataContext = isEconData
-    ? `\nEconomic Data: Forecast=${forecast || "—"} | Previous=${previous || "—"} | Actual=${hasActual ? actual : "not yet released"}`
+    ? `\nEconomic Data: Forecast=${forecast || " - "} | Previous=${previous || " - "} | Actual=${hasActual ? actual : "not yet released"}`
     : "";
   const statusContext = status ? `\nEvent status: ${status}` : "";
   const sourceContext = source ? `\nSource: ${source}` : "";
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 1200,
-      system: `You are a senior macro market analyst at a trading desk. You write fundamental market analysis — not trading signals, not technical analysis, not SMC.
+      system: `You are a senior macro market analyst at a trading desk. You write fundamental market analysis  -  not trading signals, not technical analysis, not SMC.
 
 RULES:
 - Analyze the SPECIFIC event. Never use generic copy-paste explanations.
@@ -39,7 +39,7 @@ RULES:
 - NFP/jobs → growth signal, Fed expectations, USD
 - Only include assets that are ACTUALLY affected by this specific event
 - Be specific about countries, currencies, economic mechanisms
-- Use clear plain language — no jargon, no SMC, no setup talk
+- Use clear plain language  -  no jargon, no SMC, no setup talk
 - Respond only with valid JSON`,
       messages: [{
         role: "user",
@@ -65,7 +65,7 @@ Return ONLY this JSON (no markdown):
   ],
   "assets": [
     {
-      "name": "e.g. Gold, USD, EUR, GBP, Oil, S&P 500 — only include genuinely affected assets",
+      "name": "e.g. Gold, USD, EUR, GBP, Oil, S&P 500  -  only include genuinely affected assets",
       "ticker": "e.g. XAUUSD, DXY, EURUSD, GBPUSD, USOIL, SPX",
       "bias": "Bullish | Bearish | Neutral | Mixed",
       "context": "3-4 sentences explaining specifically WHY this asset is affected by THIS event. Include the mechanism: rate expectations, safe-haven demand, growth signal, currency flows, energy supply, etc."

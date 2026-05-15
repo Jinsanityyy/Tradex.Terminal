@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import type { TrumpPost } from "@/types";
@@ -15,7 +15,7 @@ const TS_DIRECT_URL  = `https://truthsocial.com/api/v1/accounts/${TS_ACCOUNT_ID}
 const TS_ACCOUNT_URL = `https://truthsocial.com/api/v1/accounts/${TS_ACCOUNT_ID}`;
 const AVATAR_CACHE_KEY = "tradex_ts_avatar_v1";
 
-// Fetch Trump's real avatar from Truth Social — browser fetch works (TS has CORS: *)
+// Fetch Trump's real avatar from Truth Social  -  browser fetch works (TS has CORS: *)
 async function fetchTrumpAvatarBrowser(): Promise<string | null> {
   try {
     const cached = sessionStorage.getItem(AVATAR_CACHE_KEY);
@@ -79,7 +79,7 @@ async function fetchDirect(): Promise<TrumpPost[]> {
     .slice(0, 10);
 }
 
-// ── Try 2: server route (/api/market/trump/ts — CNN archive + fallbacks) ─────
+// ── Try 2: server route (/api/market/trump/ts  -  CNN archive + fallbacks) ─────
 async function fetchViaServer(): Promise<{ posts: TrumpPost[]; error?: string; configured?: boolean }> {
   const res = await fetch("/api/market/trump/ts", { cache: "no-store" });
   const body = await res.json().catch(() => null);
@@ -119,7 +119,7 @@ export function useTruthSocialPosts() {
     setTick(t => t + 1);
   }
 
-  // ── Supabase Realtime — live inserts from cnn-sync cron ───────────────────
+  // ── Supabase Realtime  -  live inserts from cnn-sync cron ───────────────────
   useEffect(() => {
     const sb = createClient();
     if (!sb) return;
@@ -183,7 +183,7 @@ export function useTruthSocialPosts() {
     setStatus("loading");
 
     (async () => {
-      // Fetch avatar in parallel — browser fetch to TS API works (CORS: *)
+      // Fetch avatar in parallel  -  browser fetch to TS API works (CORS: *)
       const avatarPromise = fetchTrumpAvatarBrowser();
 
       // ── Try 1: direct browser fetch (works when Truth Social isn't CF-blocking) ──
@@ -191,7 +191,7 @@ export function useTruthSocialPosts() {
         console.log("[useTruthSocialPosts] trying direct browser fetch…");
         const directPosts = await fetchDirect();
         if (directPosts.length > 0) {
-          console.log(`[useTruthSocialPosts] direct OK — ${directPosts.length} posts`);
+          console.log(`[useTruthSocialPosts] direct OK  -  ${directPosts.length} posts`);
           const avatar = await avatarPromise;
           const withAvatar = avatar ? injectAvatar(directPosts, avatar) : directPosts;
           withAvatar.forEach(p => seenIds.current.add(p.id));
@@ -221,7 +221,7 @@ export function useTruthSocialPosts() {
           return;
         }
         if (serverPosts.length > 0) {
-          console.log(`[useTruthSocialPosts] server OK — ${serverPosts.length} posts`);
+          console.log(`[useTruthSocialPosts] server OK  -  ${serverPosts.length} posts`);
           const avatar = await avatarPromise;
           const withAvatar = avatar ? injectAvatar(serverPosts, avatar) : serverPosts;
           withAvatar.forEach(p => seenIds.current.add(p.id));

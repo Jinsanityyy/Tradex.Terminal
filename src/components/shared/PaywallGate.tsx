@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -46,14 +46,14 @@ const PAGE_NAMES: Record<string, string> = {
   "/dashboard/asset-matrix":         "Asset Matrix",
 };
 
-// ── BETA MODE — set to false to re-enable paywall on launch ──────────────────
+// ── BETA MODE  -  set to false to re-enable paywall on launch ──────────────────
 const PAYWALL_DISABLED = true;
 
 export function PaywallGate({ children, requiredPlan }: PaywallGateProps) {
   const pathname = usePathname();
   const { subscription, loading } = useSubscription();
 
-  // Beta bypass — remove before launch
+  // Beta bypass  -  remove before launch
   if (PAYWALL_DISABLED) return <>{children}</>;
 
   // Show loading skeleton

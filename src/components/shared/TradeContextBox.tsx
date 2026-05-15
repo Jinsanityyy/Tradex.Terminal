@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import { Brain } from "lucide-react";
@@ -16,7 +16,7 @@ export function TradeContextBox({ context }: TradeContextBoxProps) {
         <span className="text-[9px] uppercase tracking-widest text-zinc-600 font-semibold">AI Context</span>
       </div>
 
-      {/* Directional lean — most important */}
+      {/* Directional lean  -  most important */}
       <p className="text-[11px] text-[hsl(var(--primary))] leading-snug font-medium">
         {context.directionalLean}
       </p>

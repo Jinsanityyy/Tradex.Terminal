@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
@@ -71,11 +71,11 @@ function BiasRow({
           />
         </div>
         <span className="w-8 shrink-0 text-right text-[10px] font-mono text-zinc-600">
-          {isLoading ? "—" : `${confidence}%`}
+          {isLoading ? " - " : `${confidence}%`}
         </span>
       </div>
 
-      {/* RSI pill — compact, right-aligned */}
+      {/* RSI pill  -  compact, right-aligned */}
       {!isLoading && tf && (
         <span className={cn(
           "shrink-0 text-[9px] font-mono px-1 py-0.5 rounded border",

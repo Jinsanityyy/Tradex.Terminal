@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
 export const dynamic = "force-dynamic";
@@ -7,7 +7,7 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ── Agent prompts ──────────────────────────────────────────────────────────────
 
-const RESEARCHER_PROMPT = `You are a neutral Market Researcher at a trading firm. Your job is to objectively analyze market data and present the facts — no bias, no opinion. You identify key levels, market structure, macro context, and current momentum. You DO NOT make trade recommendations. You just state what the market is showing.
+const RESEARCHER_PROMPT = `You are a neutral Market Researcher at a trading firm. Your job is to objectively analyze market data and present the facts  -  no bias, no opinion. You identify key levels, market structure, macro context, and current momentum. You DO NOT make trade recommendations. You just state what the market is showing.
 
 Respond in JSON:
 {
@@ -18,7 +18,7 @@ Respond in JSON:
   "riskLevel": "Low|Medium|High"
 }`;
 
-const BULL_PROMPT = `You are the Bull Advocate at a trading firm. You've seen the researcher's findings. Your job is to make the strongest possible LONG case for this trade. Be specific — point to exact levels, confluences, and why price is going higher. Challenge the bear case before it's made. Be confident but logical.
+const BULL_PROMPT = `You are the Bull Advocate at a trading firm. You've seen the researcher's findings. Your job is to make the strongest possible LONG case for this trade. Be specific  -  point to exact levels, confluences, and why price is going higher. Challenge the bear case before it's made. Be confident but logical.
 
 Respond in JSON:
 {
@@ -30,7 +30,7 @@ Respond in JSON:
   "conviction": number (0-100)
 }`;
 
-const BEAR_PROMPT = `You are the Bear Advocate at a trading firm. You've seen the researcher's findings AND the bull's case. Your job is to challenge the bull argument and make the strongest SHORT or FLAT case. Be specific — point to risks, overextension, and why price could reverse or stay out. Be direct and contrarian.
+const BEAR_PROMPT = `You are the Bear Advocate at a trading firm. You've seen the researcher's findings AND the bull's case. Your job is to challenge the bull argument and make the strongest SHORT or FLAT case. Be specific  -  point to risks, overextension, and why price could reverse or stay out. Be direct and contrarian.
 
 Respond in JSON:
 {
@@ -115,7 +115,7 @@ RSI: ${rsi ?? "N/A"} | 52w Range: ${low52w} – ${high52w} (${pos52w}% position)
 HTF Bias: ${htfBias} (${htfConfidence}% confidence) | LTF: ${ltfBias}
 Market Structure: ${alignment} | Phase: ${tradeStatus}
 SMC Context: ${smcContext || "N/A"}
-Session: ${sessionContext ?? "N/A"} — ${sessionNote ?? ""}
+Session: ${sessionContext ?? "N/A"}  -  ${sessionNote ?? ""}
 Key Levels → Entry: ${entry ?? "N/A"} | SL: ${stopLoss ?? "N/A"} | TP1: ${tp1 ?? "N/A"} | TP2: ${tp2 ?? "N/A"} | R:R: ${rrRatio ? `1:${rrRatio}` : "N/A"}
 Liquidity Target: ${liquidityTarget ?? "N/A"}
 Confluences: ${(confluences || []).join(", ") || "None"}

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
@@ -57,7 +57,7 @@ function calendarWindowMs(tf: Timeframe): number {
   return { M5: 7_200_000, M15: 10_800_000, H1: 21_600_000, H4: 43_200_000 }[tf];
 }
 
-// Always-available macro context derived from candle date/time — no external API needed
+// Always-available macro context derived from candle date/time  -  no external API needed
 function buildSessionContext(candleT: number): MacroEvent[] {
   const dt  = new Date(candleT * 1000);
   const utcH   = dt.getUTCHours();
@@ -73,7 +73,7 @@ function buildSessionContext(candleT: number): MacroEvent[] {
       event: "NY Kill Zone (9:30–11:30 AM EST)",
       impact: "high",
       goldImpact: "neutral",
-      goldReasoning: "Highest-probability gold move window. NY liquidity sweep setups fire here — institutional stops hunted above/below Asian and London highs/lows. This is the primary trade window.",
+      goldReasoning: "Highest-probability gold move window. NY liquidity sweep setups fire here  -  institutional stops hunted above/below Asian and London highs/lows. This is the primary trade window.",
       tradeImplication: "Watch for sweeps of Asian High or London Low then FVG entries. This window has 68%+ WR on A+ setups when daily bias aligns.",
       status: "completed",
     });
@@ -97,7 +97,7 @@ function buildSessionContext(candleT: number): MacroEvent[] {
     const isTuesdayCPI = dow === 2 && dom >= 8 && dom <= 20;
     if (isFridayNFP) {
       events.push({
-        event: "Non-Farm Payrolls — First Friday of Month",
+        event: "Non-Farm Payrolls  -  First Friday of Month",
         impact: "high",
         goldImpact: "neutral",
         goldReasoning: "NFP is the single most anticipated monthly release for gold. Jobs above estimate → Fed hawkish → gold drops. Jobs below → rate cut bets rise → gold rallies. Unemployment rate and wage growth equally important.",
@@ -106,7 +106,7 @@ function buildSessionContext(candleT: number): MacroEvent[] {
       });
     } else if (isTuesdayCPI) {
       events.push({
-        event: "CPI Release Window — Mid-Month Tuesday",
+        event: "CPI Release Window  -  Mid-Month Tuesday",
         impact: "high",
         goldImpact: "neutral",
         goldReasoning: "US CPI releases typically fall on the 2nd–3rd Tuesday of each month at 12:30 UTC. CPI is the most influential inflation gauge for Fed policy. Hot CPI (above estimate) = hawkish Fed = bearish gold. Soft CPI = dovish = bullish gold.",
@@ -115,7 +115,7 @@ function buildSessionContext(candleT: number): MacroEvent[] {
       });
     } else if (dow === 4) {
       events.push({
-        event: "Jobless Claims — Thursday 12:30 UTC",
+        event: "Jobless Claims  -  Thursday 12:30 UTC",
         impact: "medium",
         goldImpact: "neutral",
         goldReasoning: "Weekly Initial Jobless Claims released every Thursday at 12:30 UTC. Rising claims (above 250K) → labor market weakening → rate cut bets → gold bullish. Falling claims → tight labor market → hawkish Fed → gold bearish.",
@@ -152,7 +152,7 @@ function buildSessionContext(candleT: number): MacroEvent[] {
       event: "FOMC Rate Decision Window (Wed 18:00 UTC)",
       impact: "high",
       goldImpact: "neutral",
-      goldReasoning: "Federal Reserve rate decisions drive the largest single-session gold moves of any month. Hawkish surprise = gold drops $30–80. Dovish pivot or cut = gold spikes $30–100. Statement language ('patient', 'confident', 'appropriate') determines direction — not just the rate change.",
+      goldReasoning: "Federal Reserve rate decisions drive the largest single-session gold moves of any month. Hawkish surprise = gold drops $30–80. Dovish pivot or cut = gold spikes $30–100. Statement language ('patient', 'confident', 'appropriate') determines direction  -  not just the rate change.",
       tradeImplication: "EXTREME VOLATILITY. Spreads widen at 18:00 UTC. Trade the re-test 15–30 min after initial reaction, not the spike itself. Direction often reverses during the Powell press conference.",
       status: "completed",
     });
@@ -161,11 +161,11 @@ function buildSessionContext(candleT: number): MacroEvent[] {
   // ── Asian session 00:00–08:00 UTC ───────────────────────────────────────
   if (min >= 0 && min < 480 && dow >= 1 && dow <= 5) {
     events.push({
-      event: "Asian Session — Range Building (00:00–08:00 UTC)",
+      event: "Asian Session  -  Range Building (00:00–08:00 UTC)",
       impact: "medium",
       goldImpact: "neutral",
       goldReasoning: "Asian session establishes the day's reference range. Low volatility for gold as major liquidity is in Tokyo/Singapore. Price often consolidates. This range becomes the key level for London/NY sweeps later in the day.",
-      tradeImplication: "Asian High and Asian Low are critical sweep targets. Record these levels — London and NY sessions frequently sweep them before reversing to the true direction.",
+      tradeImplication: "Asian High and Asian Low are critical sweep targets. Record these levels  -  London and NY sessions frequently sweep them before reversing to the true direction.",
       status: "completed",
     });
   }
@@ -250,11 +250,11 @@ function analyseCandle(
 
   const techParts: string[] = [];
   if (relSize > 1.5) techParts.push(`Above-average range candle (${relSize.toFixed(1)}× ATR).`);
-  if (relSize < 0.5) techParts.push("Below-average range — low momentum candle.");
+  if (relSize < 0.5) techParts.push("Below-average range  -  low momentum candle.");
   if (prevTrend === "bullish" && !bull)
-    techParts.push("Breaks a short-term bullish sequence — possible momentum shift.");
+    techParts.push("Breaks a short-term bullish sequence  -  possible momentum shift.");
   else if (prevTrend === "bearish" && bull)
-    techParts.push("Reversal into a bearish sequence — counter-trend move.");
+    techParts.push("Reversal into a bearish sequence  -  counter-trend move.");
   else if (prevTrend !== "neutral")
     techParts.push(`Continuation within a ${prevTrend} short-term structure.`);
   if (topWick / range > 0.4)
@@ -283,11 +283,11 @@ function analyseCandle(
       goldReasoning:    e.goldReasoning ?? "",
       tradeImplication: e.tradeImplication ?? "",
       actual:           e.actual,
-      forecast:         e.forecast !== "—" ? e.forecast : undefined,
+      forecast:         e.forecast !== " - " ? e.forecast : undefined,
       status:           e.status,
     }));
 
-  // Session context — always available, derived from candle date/time
+  // Session context  -  always available, derived from candle date/time
   const sessionCtx = buildSessionContext(candle.t);
 
   // Merge: calendar hits first (most specific), then session context (no duplicates by event name)
@@ -299,31 +299,31 @@ function analyseCandle(
 
   const drivers: string[] = [];
   if (pattern.includes("Engulfing"))
-    drivers.push(`${pattern} — strong institutional order absorbed opposing side`);
+    drivers.push(`${pattern}  -  strong institutional order absorbed opposing side`);
   else if (pattern.includes("Doji"))
-    drivers.push("Indecision between buyers and sellers — no clear winner");
+    drivers.push("Indecision between buyers and sellers  -  no clear winner");
   else if (pattern.includes("Hammer"))
-    drivers.push("Buyers rejected lower prices — accumulation at lows");
+    drivers.push("Buyers rejected lower prices  -  accumulation at lows");
   else if (pattern.includes("Shooting Star"))
-    drivers.push("Sellers rejected higher prices — distribution at highs");
+    drivers.push("Sellers rejected higher prices  -  distribution at highs");
   else if (pattern.includes("Inside Bar"))
-    drivers.push("Price consolidating within prior candle — market undecided");
+    drivers.push("Price consolidating within prior candle  -  market undecided");
   else if (pattern.includes("Strong"))
-    drivers.push(`${sentiment === "bullish" ? "Buyers" : "Sellers"} dominated the entire session — clean ${sentiment} momentum`);
+    drivers.push(`${sentiment === "bullish" ? "Buyers" : "Sellers"} dominated the entire session  -  clean ${sentiment} momentum`);
   else
-    drivers.push(`${pattern} — ${sentiment} pressure with ${magnitude} impact`);
+    drivers.push(`${pattern}  -  ${sentiment} pressure with ${magnitude} impact`);
 
-  if (relSize > 1.5) drivers.push("Significantly larger range than recent candles — unusual activity");
+  if (relSize > 1.5) drivers.push("Significantly larger range than recent candles  -  unusual activity");
   if (prevTrend !== "neutral" && sentiment !== prevTrend)
     drivers.push(`Counter-trend move against recent ${prevTrend} pressure`);
-  if (macroEvents.length > 0) drivers.push(`${macroEvents.length} economic event(s) near this candle — see Macro Context`);
-  else if (relatedNews.length > 0) drivers.push("Macro news active during this window — see below");
+  if (macroEvents.length > 0) drivers.push(`${macroEvents.length} economic event(s) near this candle  -  see Macro Context`);
+  else if (relatedNews.length > 0) drivers.push("Macro news active during this window  -  see below");
 
   const dir   = bull ? "bullish" : "bearish";
   const chStr = `${changePct > 0 ? "+" : ""}${changePct.toFixed(2)}%`;
-  let summary = `${pattern} on ${tf} — ${chStr} move (${magnitude} impact). `;
+  let summary = `${pattern} on ${tf}  -  ${chStr} move (${magnitude} impact). `;
   if (macroEvents.length > 0)
-    summary += `${macroEvents.length} macro event(s) detected near this candle — likely a fundamental driver.`;
+    summary += `${macroEvents.length} macro event(s) detected near this candle  -  likely a fundamental driver.`;
   else if (relatedNews.length > 0)
     summary += `Macro news was active during this window, likely contributing to ${dir} pressure.`;
   else if (sentiment === "neutral")
@@ -495,7 +495,7 @@ function AnalysisPanel({
   );
 }
 
-// ── Custom SVG Candle Chart — supports pinch-to-zoom and pan ─────────────────
+// ── Custom SVG Candle Chart  -  supports pinch-to-zoom and pan ─────────────────
 
 function SvgCandleChart({ bars, selected, onSelect, height }: {
   bars:     RawCandle[];
@@ -508,7 +508,7 @@ function SvgCandleChart({ bars, selected, onSelect, height }: {
   const [visibleCount, setVisibleCount] = useState<number | null>(null);
   const [panOffset,    setPanOffset]    = useState(0);
 
-  // Refs for gesture tracking — avoids stale closures in native listeners
+  // Refs for gesture tracking  -  avoids stale closures in native listeners
   const touchRef = useRef({
     mode: "none" as "none" | "pan" | "pinch",
     startX: 0, startOff: 0, startDist: 0, startCount: 0, hasMoved: false,
@@ -859,7 +859,7 @@ export function CandleChart({
         </div>
       )}
 
-      {/* Chart + analysis panel — bottom on mobile, side on desktop */}
+      {/* Chart + analysis panel  -  bottom on mobile, side on desktop */}
       <div className="flex flex-col sm:flex-row flex-1 min-h-0">
         <div ref={chartAreaRef} className="flex-1 min-h-0 relative overflow-hidden">
           {loading && (

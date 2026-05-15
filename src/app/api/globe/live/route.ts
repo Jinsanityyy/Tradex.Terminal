@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +65,7 @@ const GEO_ZONES: Array<{
     marker: {
       layer: "conflict", name: "Middle East",
       lat: 32, lon: 35,
-      desc: "Active geopolitical risk — conflict & shipping lane disruption",
+      desc: "Active geopolitical risk  -  conflict & shipping lane disruption",
       impact: { xauusd: "+2.1%", eurusd: "-0.3%", gbpusd: "-0.2%" },
     },
   },
@@ -74,7 +74,7 @@ const GEO_ZONES: Array<{
     marker: {
       layer: "conflict", name: "Eastern Europe",
       lat: 49, lon: 32,
-      desc: "Russia-Ukraine conflict — energy & grain supply disruption",
+      desc: "Russia-Ukraine conflict  -  energy & grain supply disruption",
       impact: { xauusd: "+1.6%", eurusd: "-1.1%", gbpusd: "-0.7%" },
     },
   },
@@ -83,7 +83,7 @@ const GEO_ZONES: Array<{
     marker: {
       layer: "conflict", name: "China / Taiwan Strait",
       lat: 25, lon: 121,
-      desc: "Cross-strait tension — semiconductor & shipping risk",
+      desc: "Cross-strait tension  -  semiconductor & shipping risk",
       impact: { xauusd: "+1.4%", eurusd: "-0.4%", gbpusd: "-0.3%" },
     },
   },
@@ -92,7 +92,7 @@ const GEO_ZONES: Array<{
     marker: {
       layer: "conflict", name: "Korean Peninsula",
       lat: 39, lon: 126,
-      desc: "DPRK missile activity — regional risk elevation",
+      desc: "DPRK missile activity  -  regional risk elevation",
       impact: { xauusd: "+0.8%", eurusd: "-0.1%", gbpusd: "-0.1%" },
     },
   },
@@ -101,7 +101,7 @@ const GEO_ZONES: Array<{
     marker: {
       layer: "conflict", name: "Africa Instability Belt",
       lat: 13, lon: 20,
-      desc: "Sahel/Horn instability — gold supply chain risk",
+      desc: "Sahel/Horn instability  -  gold supply chain risk",
       impact: { xauusd: "+0.5%", eurusd: "0.0%", gbpusd: "0.0%" },
     },
   },
@@ -130,7 +130,7 @@ function impactFor(country: string, layer: "centralBanks" | "economicEvents"): L
 }
 
 function fmtValue(v: number | null | undefined, unit?: string): string {
-  if (v == null) return "—";
+  if (v == null) return " - ";
   const s = v % 1 === 0 ? v.toFixed(0) : v.toFixed(2);
   return unit ? `${s}${unit}` : s;
 }
@@ -177,7 +177,7 @@ export async function GET() {
           const isCB = CB_KEYWORDS.some((k) => ev.event.toLowerCase().includes(k));
           const layer: LiveMarker["layer"] = isCB ? "centralBanks" : "economicEvents";
 
-          // One marker per country per layer — keep the soonest event
+          // One marker per country per layer  -  keep the soonest event
           const key_ = `${ev.country}-${layer}`;
           if (seen.has(key_)) continue;
           seen.add(key_);
@@ -187,7 +187,7 @@ export async function GET() {
             name: ev.event,
             lat: loc.lat,
             lon: loc.lon,
-            desc: `${loc.label} — ${ev.event}${ev.estimate != null ? ` | Est: ${fmtValue(ev.estimate, ev.unit ?? "")}` : ""}${ev.prev != null ? ` | Prev: ${fmtValue(ev.prev, ev.unit ?? "")}` : ""}`,
+            desc: `${loc.label}  -  ${ev.event}${ev.estimate != null ? ` | Est: ${fmtValue(ev.estimate, ev.unit ?? "")}` : ""}${ev.prev != null ? ` | Prev: ${fmtValue(ev.prev, ev.unit ?? "")}` : ""}`,
             impact: impactFor(ev.country, layer),
             eventTime: ev.time,
             actual:   ev.actual   != null ? fmtValue(ev.actual,   ev.unit) : undefined,
@@ -198,7 +198,7 @@ export async function GET() {
           });
         }
       }
-    } catch { /* timeout or network — fall through */ }
+    } catch { /* timeout or network  -  fall through */ }
 
     // ── Geopolitical news scan ─────────────────────────────────────────────
     try {
@@ -232,17 +232,17 @@ export async function GET() {
           }
         }
       }
-    } catch { /* timeout — fall through */ }
+    } catch { /* timeout  -  fall through */ }
   }
 
   // ── Static gold regions (these don't need live data) ─────────────────────
   const GOLD_REGIONS: LiveMarker[] = [
-    { id: "gld-za",  layer: "goldRegions", name: "South Africa",     lat: -29.0, lon:  25.0, desc: "Witwatersrand belt — world's historically largest producer",   impact: { xauusd: "+0.5%", eurusd: "0.0%", gbpusd: "0.0%" }, isLive: false },
-    { id: "gld-au",  layer: "goldRegions", name: "Australia",        lat: -25.0, lon: 133.0, desc: "Kalgoorlie & Pilbara — 2nd largest gold reserves",             impact: { xauusd: "+0.8%", eurusd: "0.0%", gbpusd: "0.0%" }, isLive: false },
+    { id: "gld-za",  layer: "goldRegions", name: "South Africa",     lat: -29.0, lon:  25.0, desc: "Witwatersrand belt  -  world's historically largest producer",   impact: { xauusd: "+0.5%", eurusd: "0.0%", gbpusd: "0.0%" }, isLive: false },
+    { id: "gld-au",  layer: "goldRegions", name: "Australia",        lat: -25.0, lon: 133.0, desc: "Kalgoorlie & Pilbara  -  2nd largest gold reserves",             impact: { xauusd: "+0.8%", eurusd: "0.0%", gbpusd: "0.0%" }, isLive: false },
     { id: "gld-gh",  layer: "goldRegions", name: "Ghana",            lat:   7.9, lon:  -1.0, desc: "Africa's top current gold producer",                           impact: { xauusd: "+0.3%", eurusd: "0.0%", gbpusd: "0.0%" }, isLive: false },
     { id: "gld-ru",  layer: "goldRegions", name: "Russia",           lat:  62.0, lon:  94.0, desc: "Sanctions impacting supply routes from major producer",         impact: { xauusd: "+1.2%", eurusd: "-0.2%", gbpusd: "-0.1%" }, isLive: false },
     { id: "gld-br",  layer: "goldRegions", name: "Brazil",           lat: -10.0, lon: -55.0, desc: "Growing Amazon basin gold production region",                   impact: { xauusd: "+0.4%", eurusd: "0.0%", gbpusd: "0.0%" }, isLive: false },
-    { id: "gld-png", layer: "goldRegions", name: "Papua New Guinea", lat:  -6.0, lon: 147.0, desc: "Pacific gold & copper hub — Ok Tedi, Lihir Island mines",       impact: { xauusd: "+0.3%", eurusd: "0.0%", gbpusd: "0.0%" }, isLive: false },
+    { id: "gld-png", layer: "goldRegions", name: "Papua New Guinea", lat:  -6.0, lon: 147.0, desc: "Pacific gold & copper hub  -  Ok Tedi, Lihir Island mines",       impact: { xauusd: "+0.3%", eurusd: "0.0%", gbpusd: "0.0%" }, isLive: false },
   ];
   markers.push(...GOLD_REGIONS);
 
@@ -253,19 +253,19 @@ export async function GET() {
 
   if (!hasCB) {
     const STATIC_CB: LiveMarker[] = [
-      { id: "cb-fed", layer: "centralBanks", name: "Federal Reserve", lat: 38.9, lon: -77.0, desc: "FOMC rate decisions — primary USD monetary policy anchor",  impact: { xauusd: "±2.0%", eurusd: "±1.5%", gbpusd: "±1.2%" }, isLive: false },
-      { id: "cb-boe", layer: "centralBanks", name: "Bank of England",  lat: 51.5, lon: -0.1,  desc: "MPC rate decisions — GBP monetary policy",                 impact: { xauusd: "±0.8%", eurusd: "±0.5%", gbpusd: "±1.8%" }, isLive: false },
-      { id: "cb-ecb", layer: "centralBanks", name: "ECB Frankfurt",    lat: 50.1, lon:  8.7,  desc: "Governing council decisions — EUR monetary policy",        impact: { xauusd: "±1.0%", eurusd: "±2.0%", gbpusd: "±0.6%" }, isLive: false },
-      { id: "cb-pbo", layer: "centralBanks", name: "PBOC Beijing",     lat: 39.9, lon: 116.4, desc: "CNY policy — major driver of global gold demand",           impact: { xauusd: "±1.5%", eurusd: "±0.3%", gbpusd: "±0.2%" }, isLive: false },
-      { id: "cb-boj", layer: "centralBanks", name: "Bank of Japan",    lat: 35.7, lon: 139.7, desc: "YCC policy — global carry trade & risk dynamics",           impact: { xauusd: "±0.9%", eurusd: "±0.4%", gbpusd: "±0.3%" }, isLive: false },
+      { id: "cb-fed", layer: "centralBanks", name: "Federal Reserve", lat: 38.9, lon: -77.0, desc: "FOMC rate decisions  -  primary USD monetary policy anchor",  impact: { xauusd: "±2.0%", eurusd: "±1.5%", gbpusd: "±1.2%" }, isLive: false },
+      { id: "cb-boe", layer: "centralBanks", name: "Bank of England",  lat: 51.5, lon: -0.1,  desc: "MPC rate decisions  -  GBP monetary policy",                 impact: { xauusd: "±0.8%", eurusd: "±0.5%", gbpusd: "±1.8%" }, isLive: false },
+      { id: "cb-ecb", layer: "centralBanks", name: "ECB Frankfurt",    lat: 50.1, lon:  8.7,  desc: "Governing council decisions  -  EUR monetary policy",        impact: { xauusd: "±1.0%", eurusd: "±2.0%", gbpusd: "±0.6%" }, isLive: false },
+      { id: "cb-pbo", layer: "centralBanks", name: "PBOC Beijing",     lat: 39.9, lon: 116.4, desc: "CNY policy  -  major driver of global gold demand",           impact: { xauusd: "±1.5%", eurusd: "±0.3%", gbpusd: "±0.2%" }, isLive: false },
+      { id: "cb-boj", layer: "centralBanks", name: "Bank of Japan",    lat: 35.7, lon: 139.7, desc: "YCC policy  -  global carry trade & risk dynamics",           impact: { xauusd: "±0.9%", eurusd: "±0.4%", gbpusd: "±0.3%" }, isLive: false },
     ];
     markers.push(...STATIC_CB);
   }
 
   if (!hasConflict) {
     const STATIC_CONFLICT: LiveMarker[] = [
-      { id: "cfz-me", layer: "conflict", name: "Middle East",    lat: 32, lon: 35, desc: "Active conflicts — Gaza, Lebanon, regional theaters",         impact: { xauusd: "+2.4%", eurusd: "-0.3%", gbpusd: "-0.2%" }, isLive: false },
-      { id: "cfz-eu", layer: "conflict", name: "Eastern Europe", lat: 49, lon: 32, desc: "Russia-Ukraine war — energy & grain supply disruption",       impact: { xauusd: "+1.8%", eurusd: "-1.2%", gbpusd: "-0.8%" }, isLive: false },
+      { id: "cfz-me", layer: "conflict", name: "Middle East",    lat: 32, lon: 35, desc: "Active conflicts  -  Gaza, Lebanon, regional theaters",         impact: { xauusd: "+2.4%", eurusd: "-0.3%", gbpusd: "-0.2%" }, isLive: false },
+      { id: "cfz-eu", layer: "conflict", name: "Eastern Europe", lat: 49, lon: 32, desc: "Russia-Ukraine war  -  energy & grain supply disruption",       impact: { xauusd: "+1.8%", eurusd: "-1.2%", gbpusd: "-0.8%" }, isLive: false },
       { id: "cfz-ye", layer: "conflict", name: "Yemen",          lat: 15, lon: 48, desc: "Houthi attacks on Red Sea shipping lanes",                   impact: { xauusd: "+1.2%", eurusd: "-0.2%", gbpusd: "-0.3%" }, isLive: false },
     ];
     markers.push(...STATIC_CONFLICT);
@@ -273,10 +273,10 @@ export async function GET() {
 
   if (!hasEco) {
     const STATIC_ECO: LiveMarker[] = [
-      { id: "eco-nfp",  layer: "economicEvents", name: "US NFP",            lat: 40.7, lon: -74.0, desc: "Non-Farm Payrolls — largest USD and gold catalyst",              impact: { xauusd: "±1.8%", eurusd: "±1.2%", gbpusd: "±1.0%" }, isLive: false },
+      { id: "eco-nfp",  layer: "economicEvents", name: "US NFP",            lat: 40.7, lon: -74.0, desc: "Non-Farm Payrolls  -  largest USD and gold catalyst",              impact: { xauusd: "±1.8%", eurusd: "±1.2%", gbpusd: "±1.0%" }, isLive: false },
       { id: "eco-ecb",  layer: "economicEvents", name: "ECB Rate Decision", lat: 50.1, lon:  8.9,  desc: "European Central Bank policy statement & press conference",      impact: { xauusd: "±0.9%", eurusd: "±2.2%", gbpusd: "±0.5%" }, isLive: false },
-      { id: "eco-pce",  layer: "economicEvents", name: "US Core PCE",       lat: 38.8, lon: -77.3, desc: "Fed's preferred inflation gauge — key for rate path",            impact: { xauusd: "±1.5%", eurusd: "±1.0%", gbpusd: "±0.8%" }, isLive: false },
-      { id: "eco-cpi",  layer: "economicEvents", name: "UK CPI",            lat: 51.4, lon: -0.2,  desc: "UK inflation — drives BOE rate expectations",                   impact: { xauusd: "±0.5%", eurusd: "±0.3%", gbpusd: "±1.6%" }, isLive: false },
+      { id: "eco-pce",  layer: "economicEvents", name: "US Core PCE",       lat: 38.8, lon: -77.3, desc: "Fed's preferred inflation gauge  -  key for rate path",            impact: { xauusd: "±1.5%", eurusd: "±1.0%", gbpusd: "±0.8%" }, isLive: false },
+      { id: "eco-cpi",  layer: "economicEvents", name: "UK CPI",            lat: 51.4, lon: -0.2,  desc: "UK inflation  -  drives BOE rate expectations",                   impact: { xauusd: "±0.5%", eurusd: "±0.3%", gbpusd: "±1.6%" }, isLive: false },
     ];
     markers.push(...STATIC_ECO);
   }

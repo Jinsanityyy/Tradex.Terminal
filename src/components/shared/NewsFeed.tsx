@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -37,21 +37,21 @@ function NewsDetail({ item }: { item: NewsItem }) {
 
   const bullets: string[] = [
     item.sentiment === "bullish"
-      ? "Risk-on macro backdrop — broad risk appetite rising; this typically lifts equities and USD while reducing safe-haven demand for Gold"
+      ? "Risk-on macro backdrop  -  broad risk appetite rising; this typically lifts equities and USD while reducing safe-haven demand for Gold"
       : item.sentiment === "bearish"
-      ? "Risk-off macro backdrop — defensive positioning; expect flows into safe-havens (Gold, JPY, CHF) and out of risk assets"
-      : "Neutral macro backdrop — no strong directional signal; focus on Gold/USD specific analysis below",
+      ? "Risk-off macro backdrop  -  defensive positioning; expect flows into safe-havens (Gold, JPY, CHF) and out of risk assets"
+      : "Neutral macro backdrop  -  no strong directional signal; focus on Gold/USD specific analysis below",
     item.goldImpact === "bullish"
-      ? "Gold expected to bid higher — watch for breakout above session resistance"
+      ? "Gold expected to bid higher  -  watch for breakout above session resistance"
       : item.goldImpact === "bearish"
-      ? "Gold faces selling pressure — identify key support levels before considering bounce entries"
+      ? "Gold faces selling pressure  -  identify key support levels before considering bounce entries"
       : null,
     item.usdImpact === "bullish"
-      ? "USD strength likely — DXY breakout above resistance confirms the signal"
+      ? "USD strength likely  -  DXY breakout above resistance confirms the signal"
       : item.usdImpact === "bearish"
-      ? "USD weakness likely — EURUSD and GBPUSD benefit from dollar selling pressure"
+      ? "USD weakness likely  -  EURUSD and GBPUSD benefit from dollar selling pressure"
       : null,
-    item.impactScore >= 8 ? `High impact score (${item.impactScore}/10) — this news warrants immediate attention and position review` : null,
+    item.impactScore >= 8 ? `High impact score (${item.impactScore}/10)  -  this news warrants immediate attention and position review` : null,
   ].filter((b): b is string => Boolean(b));
 
   return (
@@ -104,7 +104,7 @@ function NewsDetail({ item }: { item: NewsItem }) {
         )}
       </div>
 
-      {/* Gold + USD badges — prevent both showing bullish (inverse assets) */}
+      {/* Gold + USD badges  -  prevent both showing bullish (inverse assets) */}
       {(item.goldImpact || item.usdImpact) && (
         <div className="flex gap-2 flex-wrap">
           <ImpactBadge impact={item.goldImpact} label="GOLD" />

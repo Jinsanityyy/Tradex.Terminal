@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import type { MarketNarrative, TradeContext, Sentiment } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -153,9 +153,9 @@ function analyzeMarket(quotes: Record<string, QuoteData>, news: NewsData[]): Ana
 
   const summary = `Markets trading in a ${sentiment.replace("-", " ")} environment with ${regime.replace(/-/g, " ")} dynamics dominating. ${movesSummary}. Key drivers: ${topHeadlines}. ${
     sentiment === "risk-off"
-      ? "Safe-haven demand elevated — gold and treasuries bid. Defensive positioning recommended."
+      ? "Safe-haven demand elevated  -  gold and treasuries bid. Defensive positioning recommended."
       : sentiment === "risk-on"
-      ? "Risk appetite improving — equities and crypto supported. Momentum-favoring environment."
+      ? "Risk appetite improving  -  equities and crypto supported. Momentum-favoring environment."
       : "Mixed signals across asset classes. Headline-driven volatility creating two-way risk. Selective execution advised."
   }`;
 
@@ -170,20 +170,20 @@ function analyzeMarket(quotes: Record<string, QuoteData>, news: NewsData[]): Ana
     ? `Bullish gold, bearish risk assets. ${hasGeo ? "Geopolitical risk premium supporting safe-havens." : "Defensive positioning favored."} ${hasFed ? "Fed expectations adding to USD uncertainty." : ""}`
     : sentiment === "risk-on"
     ? `Bullish equities and crypto, cautious on safe-havens. ${hasFed ? "Dovish Fed expectations supporting risk appetite." : ""} Watch for momentum continuation.`
-    : `Mixed bias — bullish gold on ${hasGeo ? "geopolitical uncertainty" : "macro hedging"}, cautious on equities. ${hasTariff ? "Tariff headlines the wildcard." : "Data-dependent positioning."} Selective execution required.`;
+    : `Mixed bias  -  bullish gold on ${hasGeo ? "geopolitical uncertainty" : "macro hedging"}, cautious on equities. ${hasTariff ? "Tariff headlines the wildcard." : "Data-dependent positioning."} Selective execution required.`;
 
   const cautionFactors: string[] = [];
   if (hasTariff) cautionFactors.push("Tariff headlines can flip sentiment in seconds");
   if (hasGeo) cautionFactors.push("Geopolitical escalation risk remains elevated");
   if (hasFed) cautionFactors.push("Fed commentary may shift rate expectations abruptly");
-  if (avgVol > 0.8) cautionFactors.push("High volatility — wider stops and smaller position sizes recommended");
-  if (Math.abs(goldPct) > 1) cautionFactors.push("Gold extended — mean reversion risk building");
-  if (Math.abs(btcPct) > 2) cautionFactors.push("Crypto volatility elevated — momentum may exhaust quickly");
+  if (avgVol > 0.8) cautionFactors.push("High volatility  -  wider stops and smaller position sizes recommended");
+  if (Math.abs(goldPct) > 1) cautionFactors.push("Gold extended  -  mean reversion risk building");
+  if (Math.abs(btcPct) > 2) cautionFactors.push("Crypto volatility elevated  -  momentum may exhaust quickly");
   cautionFactors.push("Month-end rebalancing flows may distort price action");
   if (cautionFactors.length < 3) cautionFactors.push("Liquidity may thin during session transitions");
 
   const idealMindset = avgVol > 1
-    ? "Patient, selective execution. Focus on high-conviction setups with clear invalidation. Don't chase headline reactions — wait for the secondary move. This is a market for prepared traders, not reactive ones."
+    ? "Patient, selective execution. Focus on high-conviction setups with clear invalidation. Don't chase headline reactions  -  wait for the secondary move. This is a market for prepared traders, not reactive ones."
     : avgVol > 0.4
     ? "Balanced approach. Take setups that align with the dominant narrative but keep position sizes moderate. Wait for pullbacks rather than chasing breakouts. Risk management is paramount."
     : "Patient accumulation mode. Markets are coiling for a directional move. Use this consolidation to build positions at key levels with tight risk. Wait for the catalyst before committing size.";
@@ -247,7 +247,7 @@ export async function GET() {
   }
 }
 
-// POST endpoint for manual "Generate Analysis" — forces fresh data
+// POST endpoint for manual "Generate Analysis"  -  forces fresh data
 export async function POST() {
   try {
     // Clear cache to force fresh analysis

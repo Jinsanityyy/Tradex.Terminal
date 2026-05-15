@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
@@ -269,7 +269,7 @@ function AgentMiniCard({
       {/* Label */}
       <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-600 truncate">{label}</span>
 
-      {/* Bias — prominent */}
+      {/* Bias  -  prominent */}
       {isLoading ? (
         <div className="h-4 w-20 bg-white/5 rounded animate-pulse" />
       ) : (
@@ -282,13 +282,13 @@ function AgentMiniCard({
           <div className={cn("h-full rounded-full transition-all", accentColor)}
             style={{ width: isLoading ? "0%" : `${confidence}%` }} />
         </div>
-        <span className="text-[10px] font-mono text-zinc-500 shrink-0 w-7 text-right">{isLoading ? "—" : `${confidence}%`}</span>
+        <span className="text-[10px] font-mono text-zinc-500 shrink-0 w-7 text-right">{isLoading ? " - " : `${confidence}%`}</span>
       </div>
 
       {/* Detail line 1 */}
-      <span className="text-[10px] text-zinc-500 truncate leading-tight">{isLoading ? "—" : detail}</span>
+      <span className="text-[10px] text-zinc-500 truncate leading-tight">{isLoading ? " - " : detail}</span>
 
-      {/* Detail line 2 — optional */}
+      {/* Detail line 2  -  optional */}
       {detail2 && !isLoading && (
         <span className="text-[10px] text-zinc-600 truncate leading-tight">{detail2}</span>
       )}
@@ -615,9 +615,9 @@ function SidebarEventPreview({ event }: { event: EconomicEvent }) {
           {/* Forecast / Previous */}
           <div className="grid grid-cols-3 gap-2">
             {[
-              { label: "Forecast", value: event.forecast || "—", color: "text-blue-400" },
-              { label: "Previous", value: event.previous || "—", color: "text-zinc-400" },
-              { label: "Actual", value: event.actual || "—", color: event.actual ? "text-emerald-400" : "text-zinc-700" },
+              { label: "Forecast", value: event.forecast || " - ", color: "text-blue-400" },
+              { label: "Previous", value: event.previous || " - ", color: "text-zinc-400" },
+              { label: "Actual", value: event.actual || " - ", color: event.actual ? "text-emerald-400" : "text-zinc-700" },
             ].map(({ label, value, color }) => (
               <div key={label} className="rounded-lg bg-[hsl(var(--secondary))] p-3 text-center">
                 <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1">{label}</p>
@@ -626,7 +626,7 @@ function SidebarEventPreview({ event }: { event: EconomicEvent }) {
             ))}
           </div>
 
-          {/* PRE-EVENT ANALYSIS — upcoming/live only */}
+          {/* PRE-EVENT ANALYSIS  -  upcoming/live only */}
           {event.status !== "completed" && event.preEventSummary && (
             <div className="rounded-xl border border-blue-500/25 bg-blue-500/[0.04] overflow-hidden">
               <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-blue-500/15">
@@ -655,7 +655,7 @@ function SidebarEventPreview({ event }: { event: EconomicEvent }) {
             </div>
           )}
 
-          {/* POST-EVENT ANALYSIS — completed only */}
+          {/* POST-EVENT ANALYSIS  -  completed only */}
           {event.status === "completed" && event.postEventSummary && (
             <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.05] overflow-hidden">
               <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-amber-500/15">
@@ -712,7 +712,7 @@ function SidebarEventPreview({ event }: { event: EconomicEvent }) {
             </div>
           )}
 
-          {/* Trade Implication — hide for completed if post-event covers it */}
+          {/* Trade Implication  -  hide for completed if post-event covers it */}
           {event.tradeImplication && event.status !== "completed" && (
             <div className="rounded-lg border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary))]/5 p-3.5">
               <p className="text-[9px] font-bold uppercase tracking-widest text-[hsl(var(--primary))]/60 mb-1.5">Trade Implication</p>
@@ -1882,12 +1882,12 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-3 gap-3">
                     <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Signal State</p><p className={cn("font-semibold uppercase text-[11px]", exec.signalState === "ARMED" ? "text-emerald-400" : exec.signalState === "PENDING" ? "text-amber-400" : "text-zinc-500")}>{exec.signalState}</p></div>
                     <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Direction</p><p className={cn("font-semibold uppercase", exec.direction === "long" ? "text-emerald-400" : exec.direction === "short" ? "text-red-400" : "text-zinc-500")}>{exec.direction}</p></div>
-                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Distance</p><p className="font-mono text-zinc-300">{exec.distanceToEntry != null ? `${exec.distanceToEntry}%` : "—"}</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Distance</p><p className="font-mono text-zinc-300">{exec.distanceToEntry != null ? `${exec.distanceToEntry}%` : " - "}</p></div>
                   </div>
                   {exec.entry && <div className="grid grid-cols-3 gap-3">
                     <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Entry</p><p className="font-mono text-zinc-100">{exec.entry.toFixed(exec.entry > 100 ? 2 : 4)}</p></div>
-                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Stop Loss</p><p className="font-mono text-red-400">{exec.stopLoss?.toFixed(exec.stopLoss > 100 ? 2 : 4) ?? "—"}</p></div>
-                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">TP1</p><p className="font-mono text-emerald-400">{exec.tp1?.toFixed(exec.tp1 > 100 ? 2 : 4) ?? "—"}</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Stop Loss</p><p className="font-mono text-red-400">{exec.stopLoss?.toFixed(exec.stopLoss > 100 ? 2 : 4) ?? " - "}</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">TP1</p><p className="font-mono text-emerald-400">{exec.tp1?.toFixed(exec.tp1 > 100 ? 2 : 4) ?? " - "}</p></div>
                   </div>}
                   {exec.signalStateReason && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">State Reason</p><p className="text-zinc-400">{exec.signalStateReason}</p></div>}
                   {exec.triggerCondition && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Trigger</p><p className="text-zinc-400">{exec.triggerCondition}</p></div>}

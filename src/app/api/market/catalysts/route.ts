@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import type { Catalyst } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -70,21 +70,21 @@ function generateMarketImplication(headline: string, sentiment: "bullish" | "bea
   }
   if (h.includes("fed") || h.includes("rate cut") || h.includes("rate hike")) {
     return sentiment === "bullish"
-      ? `Dovish signal: USD weakens, gold/equities supported. Yields dip — watch ${marketStr} for rate-sensitive moves.`
+      ? `Dovish signal: USD weakens, gold/equities supported. Yields dip  -  watch ${marketStr} for rate-sensitive moves.`
       : `Hawkish repricing: USD bid, gold pressured, yields rise. ${marketStr} vulnerable to tightening expectations.`;
   }
   if (h.includes("oil") || h.includes("opec") || h.includes("energy")) {
     return `Energy sector catalyst affecting inflation expectations and petro-currencies. Direct impact on ${marketStr}.`;
   }
   if (h.includes("bitcoin") || h.includes("crypto")) {
-    return `Crypto market catalyst — ${sentiment === "bullish" ? "institutional demand narrative strengthens" : "regulatory/sentiment headwind"}. Watch ${marketStr}.`;
+    return `Crypto market catalyst  -  ${sentiment === "bullish" ? "institutional demand narrative strengthens" : "regulatory/sentiment headwind"}. Watch ${marketStr}.`;
   }
   if (h.includes("war") || h.includes("military") || h.includes("geopolit")) {
     return `Geopolitical risk premium: safe-havens bid (gold, USD, treasuries), equities under pressure. ${marketStr} on alert.`;
   }
 
   return sentiment === "bullish"
-    ? `Positive catalyst for ${marketStr}. Risk appetite improving — monitor for follow-through.`
+    ? `Positive catalyst for ${marketStr}. Risk appetite improving  -  monitor for follow-through.`
     : sentiment === "bearish"
     ? `Negative catalyst weighing on ${marketStr}. Risk-off positioning likely near-term.`
     : `Mixed signal for ${marketStr}. Markets awaiting confirmation or follow-up developments.`;
@@ -107,7 +107,7 @@ function deriveGoldUSDFallback(headline: string, sentiment: "bullish" | "bearish
   }
   if (h.includes("tariff") || h.includes("trade war") || h.includes("trade deal")) {
     return sentiment === "bearish"
-      ? { goldImpact: "bullish", goldReasoning: "Trade war escalation triggers risk-off safe-haven flows into gold as global growth fears intensify.", usdImpact: "neutral", usdReasoning: "Tariff escalation creates competing forces — safe-haven inflows vs. growth damage — leaving USD directionless short-term." }
+      ? { goldImpact: "bullish", goldReasoning: "Trade war escalation triggers risk-off safe-haven flows into gold as global growth fears intensify.", usdImpact: "neutral", usdReasoning: "Tariff escalation creates competing forces  -  safe-haven inflows vs. growth damage  -  leaving USD directionless short-term." }
       : { goldImpact: "bearish", goldReasoning: "Trade deal progress improves global risk sentiment, reducing gold's safe-haven premium and weighing on prices.", usdImpact: "bullish", usdReasoning: "Trade optimism supports USD via improved US growth outlook and reduced recession risk from trade disruptions." };
   }
   if (h.includes("cpi") || h.includes("inflation") || h.includes("pce") || h.includes("price")) {
@@ -116,7 +116,7 @@ function deriveGoldUSDFallback(headline: string, sentiment: "bullish" | "bearish
       : { goldImpact: "bullish", goldReasoning: "Cooling inflation accelerates rate-cut expectations, reducing real yields and boosting gold's relative appeal.", usdImpact: "bearish", usdReasoning: "Soft inflation prints increase probability of Fed cuts, eroding USD's yield premium against other major currencies." };
   }
   if (h.includes("war") || h.includes("military") || h.includes("geopolit") || h.includes("iran") || h.includes("nuclear") || h.includes("sanction") || h.includes("attack")) {
-    return { goldImpact: "bullish", goldReasoning: "Geopolitical escalation drives flight-to-safety flows into gold — historically the primary beneficiary of global conflict risk.", usdImpact: "neutral", usdReasoning: "USD safe-haven demand competes with gold; both can receive flows during peak risk-off but gold is the primary destination." };
+    return { goldImpact: "bullish", goldReasoning: "Geopolitical escalation drives flight-to-safety flows into gold  -  historically the primary beneficiary of global conflict risk.", usdImpact: "neutral", usdReasoning: "USD safe-haven demand competes with gold; both can receive flows during peak risk-off but gold is the primary destination." };
   }
   if (h.includes("nfp") || h.includes("payroll") || h.includes("employment") || h.includes("jobs")) {
     return sentiment === "bullish"
@@ -124,7 +124,7 @@ function deriveGoldUSDFallback(headline: string, sentiment: "bullish" | "bearish
       : { goldImpact: "bullish", goldReasoning: "Weak jobs report raises recession fears and brings forward rate-cut expectations, boosting gold's safe-haven and rate-sensitive appeal.", usdImpact: "bearish", usdReasoning: "Disappointing employment data accelerates Fed dovish pricing, reducing USD yield advantage and triggering broad dollar selling." };
   }
   if (h.includes("oil") || h.includes("opec") || h.includes("energy")) {
-    return { goldImpact: "neutral", goldReasoning: "Oil/energy catalyst has indirect gold impact via inflation transmission — watch for CPI implications in 4-6 weeks.", usdImpact: "neutral", usdReasoning: "Energy price moves affect petro-currencies (CAD, NOK) more directly; USD impact depends on net inflation/growth effect." };
+    return { goldImpact: "neutral", goldReasoning: "Oil/energy catalyst has indirect gold impact via inflation transmission  -  watch for CPI implications in 4-6 weeks.", usdImpact: "neutral", usdReasoning: "Energy price moves affect petro-currencies (CAD, NOK) more directly; USD impact depends on net inflation/growth effect." };
   }
 
   // Default by sentiment
@@ -132,7 +132,7 @@ function deriveGoldUSDFallback(headline: string, sentiment: "bullish" | "bearish
     ? { goldImpact: "bullish", goldReasoning: "Risk-off catalyst drives safe-haven demand into gold as investors reduce exposure to risk assets.", usdImpact: "neutral", usdReasoning: "USD may see some safe-haven demand but gold absorbs the primary risk-off flow; watch DXY for directional confirmation." }
     : sentiment === "bullish"
     ? { goldImpact: "bearish", goldReasoning: "Positive risk catalyst reduces safe-haven demand, marginally weighing on gold as risk appetite improves.", usdImpact: "bullish", usdReasoning: "Risk-on backdrop supports USD via improved US growth narrative and reduced demand for alternative safe-havens." }
-    : { goldImpact: "neutral", goldReasoning: "Mixed catalyst with no clear directional bias for gold — await price action confirmation at key levels.", usdImpact: "neutral", usdReasoning: "Neutral backdrop provides no strong USD directional signal — monitor DXY reaction at structural support/resistance." };
+    : { goldImpact: "neutral", goldReasoning: "Mixed catalyst with no clear directional bias for gold  -  await price action confirmation at key levels.", usdImpact: "neutral", usdReasoning: "Neutral backdrop provides no strong USD directional signal  -  monitor DXY reaction at structural support/resistance." };
 }
 
 async function generateAnalysis(title: string, summary: string, markets: string[], importance: string) {
@@ -147,7 +147,7 @@ async function generateAnalysis(title: string, summary: string, markets: string[
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 800,
-        system: `You are a senior macro market analyst. Write fundamental market analysis — not trading signals, not technical analysis.
+        system: `You are a senior macro market analyst. Write fundamental market analysis  -  not trading signals, not technical analysis.
 RULES:
 - Analyze THIS specific headline. Never use generic templates.
 - German/EU news → EUR, DAX, ECB focus. UK news → GBP, BoE. Fed news → USD, rates, gold.
@@ -183,7 +183,7 @@ function deriveStatus(datetime: number): "live" | "completed" {
 const FALLBACK_CATALYSTS: Catalyst[] = [
   {
     id: "fallback-1",
-    title: "Fed Interest Rate Decision — Next FOMC Meeting",
+    title: "Fed Interest Rate Decision  -  Next FOMC Meeting",
     timestamp: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
     affectedMarkets: ["DXY", "XAUUSD", "US10Y", "SPX"],
     importance: "high",
@@ -192,7 +192,7 @@ const FALLBACK_CATALYSTS: Catalyst[] = [
     marketImplication: "Hawkish hold = USD bid, Gold pressured. Rate cut signal = USD sell, Gold rally.",
     sentimentTag: "neutral",
     goldImpact: "neutral",
-    goldReasoning: "Outcome-dependent — hawkish hold pressures gold via higher real yields; dovish pivot or rate cut signal triggers a gold rally as USD weakens.",
+    goldReasoning: "Outcome-dependent  -  hawkish hold pressures gold via higher real yields; dovish pivot or rate cut signal triggers a gold rally as USD weakens.",
     usdImpact: "bullish",
     usdReasoning: "Any hold or hawkish tone reinforces USD yield advantage; only a surprise cut or explicitly dovish forward guidance would weaken the dollar.",
   },
@@ -203,7 +203,7 @@ const FALLBACK_CATALYSTS: Catalyst[] = [
     affectedMarkets: ["DXY", "XAUUSD", "US10Y"],
     importance: "high",
     status: "upcoming",
-    explanation: "Consumer Price Index — the most important gold driver. Hot CPI = bearish gold (hawkish Fed). Cold CPI = bullish gold (rate cuts).",
+    explanation: "Consumer Price Index  -  the most important gold driver. Hot CPI = bearish gold (hawkish Fed). Cold CPI = bullish gold (rate cuts).",
     marketImplication: "CPI beat = sell Gold rallies. CPI miss = buy Gold dips aggressively.",
     sentimentTag: "neutral",
     goldImpact: "neutral",
@@ -218,7 +218,7 @@ const FALLBACK_CATALYSTS: Catalyst[] = [
     affectedMarkets: ["DXY", "XAUUSD", "SPX", "EURUSD"],
     importance: "high",
     status: "upcoming",
-    explanation: "Monthly employment report — strong jobs = delayed rate cuts = bearish Gold. Weak jobs = recession fears + rate cuts = bullish Gold.",
+    explanation: "Monthly employment report  -  strong jobs = delayed rate cuts = bearish Gold. Weak jobs = recession fears + rate cuts = bullish Gold.",
     marketImplication: "Strong NFP = sell Gold. Weak NFP = buy Gold. Trade the 30-min retest for cleaner entry.",
     sentimentTag: "neutral",
     goldImpact: "neutral",
@@ -228,7 +228,7 @@ const FALLBACK_CATALYSTS: Catalyst[] = [
   },
   {
     id: "fallback-4",
-    title: "US-China Trade Tensions — Tariff Developments",
+    title: "US-China Trade Tensions  -  Tariff Developments",
     timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
     affectedMarkets: ["SPX", "DXY", "XAUUSD", "USDCNH"],
     importance: "high",
@@ -237,7 +237,7 @@ const FALLBACK_CATALYSTS: Catalyst[] = [
     marketImplication: "Trade escalation = buy Gold dips. Trade deal progress = risk-on, sell Gold rallies.",
     sentimentTag: "bearish",
     goldImpact: "bullish",
-    goldReasoning: "Active trade war escalation drives risk-off safe-haven flows directly into gold — every tariff headline adds a geopolitical risk premium to spot prices.",
+    goldReasoning: "Active trade war escalation drives risk-off safe-haven flows directly into gold  -  every tariff headline adds a geopolitical risk premium to spot prices.",
     usdImpact: "neutral",
     usdReasoning: "USD faces two opposing forces: safe-haven demand pushes it higher, but growth damage from tariffs on the US economy creates a meaningful offsetting headwind.",
   },
@@ -251,7 +251,7 @@ export async function GET() {
   try {
     const key = process.env.FINNHUB_API_KEY;
     if (!key) {
-      // Return static fallback — better than empty when API key not configured
+      // Return static fallback  -  better than empty when API key not configured
       return NextResponse.json({ data: FALLBACK_CATALYSTS, timestamp: Date.now(), fallback: true });
     }
 

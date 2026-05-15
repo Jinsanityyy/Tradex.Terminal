@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { motion } from "framer-motion";
 import { Shield, Zap, Clock } from "lucide-react";
@@ -99,7 +99,7 @@ function NoSweepAlert() {
         <span className="text-[11px] text-red-300">
           <span className="text-red-400 font-bold">NO SWEEP = NO TRADE</span>
           <span className="text-slate-400 ml-2">
-            — All 7 agents are idle until a confirmed NY session liquidity sweep is detected.
+             -  All 7 agents are idle until a confirmed NY session liquidity sweep is detected.
             Risk Gate, consensus scoring, and execution planning are bypassed entirely.
           </span>
         </span>
@@ -111,7 +111,7 @@ function NoSweepAlert() {
 // ─── Stat pills ───────────────────────────────────────────────────────────────
 function StatPills() {
   const stats = [
-    { icon: <Shield className="h-3.5 w-3.5" />, label: "Risk Gate", value: "Hard override — no bypass", color: "border-red-500/30 text-red-400" },
+    { icon: <Shield className="h-3.5 w-3.5" />, label: "Risk Gate", value: "Hard override  -  no bypass", color: "border-red-500/30 text-red-400" },
     { icon: <Zap className="h-3.5 w-3.5" />, label: "Signal States", value: "ARMED / PENDING / EXPIRED", color: "border-violet-500/30 text-violet-400" },
     { icon: <Clock className="h-3.5 w-3.5" />, label: "NY Window", value: "13:00 – 18:00 UTC only", color: "border-sky-500/30 text-sky-400" },
   ];
@@ -212,8 +212,8 @@ export function HeroSection() {
           transition={{ delay: 0.5, duration: 0.4 }}
           className="font-mono text-slate-400 text-sm md:text-base max-w-2xl mt-5 leading-relaxed"
         >
-          Seven specialized agents — Trend, Price Action, News, Risk Gate, Execution,
-          Contrarian, and Master — run sequentially and in parallel to produce a single,
+          Seven specialized agents  -  Trend, Price Action, News, Risk Gate, Execution,
+          Contrarian, and Master  -  run sequentially and in parallel to produce a single,
           structured trade decision.{" "}
           <span className="text-slate-300">
             No sweep detected in the NY session window = the entire pipeline short-circuits.

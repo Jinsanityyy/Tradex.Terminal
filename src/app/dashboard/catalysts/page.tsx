@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,7 +47,7 @@ export default function CatalystsPage() {
         </div>
       </div>
 
-      {/* Live scrolling news ticker — always visible */}
+      {/* Live scrolling news ticker  -  always visible */}
       <LiveNewsTicker items={news} isLive={isNewsLive} />
 
       <Tabs defaultValue="news">
@@ -194,13 +194,13 @@ export default function CatalystsPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Completed Events with Full Results — only show when events exist */}
+      {/* Completed Events with Full Results  -  only show when events exist */}
       {completedEvents.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2">
               <Zap className="h-4 w-4 text-[hsl(var(--primary))]" />
-              <span>Completed Events — Full Results & Impact</span>
+              <span>Completed Events  -  Full Results & Impact</span>
               <Badge variant="default" className="ml-auto">{completedEvents.length}</Badge>
             </CardTitle>
           </CardHeader>

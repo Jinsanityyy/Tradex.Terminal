@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -70,7 +70,7 @@ function ImpactBadge({ impact, label }: { impact?: "bullish" | "bearish" | "neut
     neutral: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
   };
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold", colors[impact])}>
+    <span className={cn("inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-bold tracking-wide", colors[impact])}>
       <Icon className="h-2.5 w-2.5" />
       {label} {impact.toUpperCase()}
     </span>
@@ -101,7 +101,7 @@ function EventDetail({ ev }: { ev: EconomicEvent }) {
         {[
           { label: "Forecast", value: ev.forecast,        color: "text-blue-400" },
           { label: "Previous", value: ev.previous,        color: "text-gray-400" },
-          { label: "Actual",   value: ev.actual || "—",   color: ev.actual ? "text-[hsl(var(--primary))]" : "text-gray-600" },
+          { label: "Actual",   value: ev.actual || " - ",   color: ev.actual ? "text-[hsl(var(--primary))]" : "text-gray-600" },
         ].map(({ label, value, color }) => (
           <div key={label} className="rounded-lg bg-[hsl(var(--secondary))] p-3 text-center">
             <p className="text-[9px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1">{label}</p>
@@ -110,7 +110,7 @@ function EventDetail({ ev }: { ev: EconomicEvent }) {
         ))}
       </div>
 
-      {/* ══ COMPLETED — static post-event analysis ══ */}
+      {/* ══ COMPLETED  -  static post-event analysis ══ */}
       {isCompleted && ev.postEventSummary && (
         <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.04] overflow-hidden">
           <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-emerald-500/15">
@@ -137,7 +137,7 @@ function EventDetail({ ev }: { ev: EconomicEvent }) {
         </div>
       )}
 
-      {/* ══ UPCOMING / LIVE — pre-event analysis ══ */}
+      {/* ══ UPCOMING / LIVE  -  pre-event analysis ══ */}
       {!isCompleted && ev.preEventSummary && (
         <div className="rounded-xl border border-blue-500/25 bg-blue-500/[0.04] overflow-hidden">
           <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-blue-500/15">

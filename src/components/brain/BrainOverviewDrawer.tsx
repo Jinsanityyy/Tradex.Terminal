@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useCallback, useState } from "react";
 import { createPortal } from "react-dom";
@@ -22,7 +22,7 @@ interface BrainOverviewDrawerProps {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtPrice(v: number | null | undefined): string {
-  if (v == null || isNaN(v)) return "—";
+  if (v == null || isNaN(v)) return " - ";
   if (v > 10000) return v.toFixed(0);
   if (v > 100)   return v.toFixed(1);
   if (v > 1)     return v.toFixed(4);
@@ -189,7 +189,7 @@ function TrendAgentDetail({ data }: { data: AgentRunResult }) {
           {syncLabel === "ALL 4"
             ? "All timeframes aligned"
             : syncLabel === "ALL NEUTRAL"
-              ? "All timeframes neutral — no directional bias"
+              ? "All timeframes neutral  -  no directional bias"
               : `${syncLabel} aligned with ${a.bias.toUpperCase()} bias`}
         </p>
       </div>
@@ -230,7 +230,7 @@ function JadeCapSessionBanner({ utcHour }: { utcHour: number }) {
       <div className="mt-0.5 h-2 w-2 rounded-full bg-amber-500/50 shrink-0 animate-pulse" />
       <div className="space-y-0.5">
         <p className="text-[11px] font-semibold text-amber-400">
-          NY Sweep Window — Closed
+          NY Sweep Window  -  Closed
         </p>
         <p className="text-[10px] text-zinc-500 leading-relaxed">
           Active <span className="text-zinc-400 font-mono">13:00–18:00 UTC</span>.
@@ -273,7 +273,7 @@ function PriceActionAgentDetail({ data }: { data: AgentRunResult }) {
         { k: "INVL",    v: fmtPrice(a.invalidationLevel) },
       ]} />
 
-      {/* Session banner — only shown outside NY window */}
+      {/* Session banner  -  only shown outside NY window */}
       <JadeCapSessionBanner utcHour={utcHour} />
 
       <StatRow>
@@ -328,7 +328,7 @@ function PriceActionAgentDetail({ data }: { data: AgentRunResult }) {
         ) : (
           <p className="text-[11px] text-zinc-600 px-1">
             {inNYWindow
-              ? "No key levels detected yet — watching for sweep."
+              ? "No key levels detected yet  -  watching for sweep."
               : "Levels populate when NY sweep window opens (13:00 UTC)."}
           </p>
         )}
@@ -338,7 +338,7 @@ function PriceActionAgentDetail({ data }: { data: AgentRunResult }) {
         <div className="p-3 rounded-lg bg-red-500/6 border border-red-500/15">
           <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Stop Loss Level</p>
           <p className="text-sm font-mono font-bold text-red-400">{fmtPrice(a.invalidationLevel)}</p>
-          <p className="text-[10px] text-zinc-500 mt-1">Sweep extreme + $1 buffer — thesis invalid below.</p>
+          <p className="text-[10px] text-zinc-500 mt-1">Sweep extreme + $1 buffer  -  thesis invalid below.</p>
         </div>
       )}
 
@@ -434,7 +434,7 @@ function RiskAgentDetail({ data }: { data: AgentRunResult }) {
         { k: "MAX RISK", v: `${a.maxRiskPercent}%` },
         { k: "SESSION",  v: `${a.sessionScore}/100` },
         { k: "VOL",      v: `${a.volatilityScore}/100` },
-        { k: "EST RR",   v: a.estimatedRR != null ? `${a.estimatedRR.toFixed(2)}:1` : "—" },
+        { k: "EST RR",   v: a.estimatedRR != null ? `${a.estimatedRR.toFixed(2)}:1` : " - " },
         { k: "WARNS",    v: `${a.warnings.length}` },
       ]} />
 
@@ -520,8 +520,8 @@ function ExecutionAgentDetail({ data }: { data: AgentRunResult }) {
         { k: "SL",     v: fmtPrice(a.stopLoss) },
         { k: "TP1",    v: fmtPrice(a.tp1) },
         { k: "TP2",    v: fmtPrice(a.tp2) },
-        { k: "R:R",    v: a.rrRatio != null ? `1:${a.rrRatio.toFixed(2)}` : "—" },
-        { k: "DIST",   v: a.distanceToEntry != null ? `${a.distanceToEntry.toFixed(2)}%` : "—" },
+        { k: "R:R",    v: a.rrRatio != null ? `1:${a.rrRatio.toFixed(2)}` : " - " },
+        { k: "DIST",   v: a.distanceToEntry != null ? `${a.distanceToEntry.toFixed(2)}%` : " - " },
       ]} />
 
       {!a.hasSetup ? (
@@ -538,7 +538,7 @@ function ExecutionAgentDetail({ data }: { data: AgentRunResult }) {
             <p className={cn("text-base font-black tracking-widest uppercase", a.direction === "long" ? "text-emerald-400" : "text-red-400")}>
               {a.direction === "long" ? "LONG SETUP" : "SHORT SETUP"}
             </p>
-            <p className="text-[10px] text-zinc-500 mt-0.5">{a.signalState} — {a.signalStateReason}</p>
+            <p className="text-[10px] text-zinc-500 mt-0.5">{a.signalState}  -  {a.signalStateReason}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -604,7 +604,7 @@ function ContrarianAgentDetail({ data }: { data: AgentRunResult }) {
         </p>
         <p className="text-[10px] text-zinc-500 mt-1">
           {a.challengesBias
-            ? "Contrarian signals contradict the majority bias — reduce position size."
+            ? "Contrarian signals contradict the majority bias  -  reduce position size."
             : "No significant contrarian signals. Majority bias is unchallenged."}
         </p>
       </div>
@@ -652,7 +652,7 @@ function MasterAgentDetail({ data }: { data: AgentRunResult }) {
         { k: "FINAL",    v: a.finalBias.toUpperCase() },
         { k: "SCORE",    v: `${a.consensusScore > 0 ? "+" : ""}${a.consensusScore.toFixed(1)}` },
         { k: "CONF",     v: `${a.confidence}%` },
-        { k: "STRATEGY", v: a.strategyMatch ?? "—" },
+        { k: "STRATEGY", v: a.strategyMatch ?? " - " },
         { k: "SUPPORTS", v: `${a.supports.length}` },
         { k: "RISKS",    v: `${a.invalidations.length}` },
       ]} />

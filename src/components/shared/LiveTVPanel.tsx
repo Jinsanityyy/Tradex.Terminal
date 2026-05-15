@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -137,7 +137,7 @@ export function LiveTVPanel({
 
       {showFooterNote ? (
         <p className="text-[10px] text-zinc-600">
-          Streams are embedded from YouTube. If a channel shows an error, the live stream may have ended — try another channel.
+          Streams are embedded from YouTube. If a channel shows an error, the live stream may have ended  -  try another channel.
         </p>
       ) : null}
     </div>

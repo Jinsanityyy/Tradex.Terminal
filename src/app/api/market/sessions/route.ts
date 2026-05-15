@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import type { SessionSummary } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -96,7 +96,7 @@ function extractAssets(h: string): string[] {
   return found;
 }
 
-// Fetch live quotes for session-relevant moves — uses shared cache
+// Fetch live quotes for session-relevant moves  -  uses shared cache
 async function fetchQuoteMoves(): Promise<Record<string, { change: string; pct: string; price: string }>> {
   try {
     const { ensureCacheWarm, getQuotesForSymbols } = await import("@/lib/api/quotes-cache");
@@ -168,35 +168,35 @@ function generateKeyMoves(
     // For upcoming sessions, list what to watch
     if (session.name === "new-york") {
       moves.push("Watch for US economic data releases and Fed commentary");
-      if (gold) moves.push(`Gold at $${parseFloat(gold.price).toFixed(0)} — key level heading into NY`);
+      if (gold) moves.push(`Gold at $${parseFloat(gold.price).toFixed(0)}  -  key level heading into NY`);
       moves.push("Tariff and geopolitical headlines may drive volatility");
       moves.push("London-NY overlap (13-16 UTC) typically highest volume period");
     } else if (session.name === "london") {
       moves.push("European data releases and ECB commentary expected");
-      if (eurusd) moves.push(`EUR/USD at ${eurusd.price} — watch for directional break`);
+      if (eurusd) moves.push(`EUR/USD at ${eurusd.price}  -  watch for directional break`);
       moves.push("London open typically drives gold direction for the day");
     } else {
       moves.push("PBoC and BOJ policy signals to monitor");
-      if (usdjpy) moves.push(`USD/JPY at ${usdjpy.price} — Tokyo session sets JPY tone`);
-      moves.push("Thin liquidity typical — watch for stop hunting around key levels");
+      if (usdjpy) moves.push(`USD/JPY at ${usdjpy.price}  -  Tokyo session sets JPY tone`);
+      moves.push("Thin liquidity typical  -  watch for stop hunting around key levels");
     }
   } else {
     // For active/closed sessions, show what happened
     if (gold) {
       const dir = parseFloat(gold.pct) >= 0 ? "up" : "down";
-      moves.push(`Gold ${dir} ${Math.abs(parseFloat(gold.pct))}% to $${parseFloat(gold.price).toFixed(0)} — ${parseFloat(gold.pct) > 0.5 ? "strong safe-haven bid" : parseFloat(gold.pct) < -0.5 ? "risk-on selling" : "rangebound"}`);
+      moves.push(`Gold ${dir} ${Math.abs(parseFloat(gold.pct))}% to $${parseFloat(gold.price).toFixed(0)}  -  ${parseFloat(gold.pct) > 0.5 ? "strong safe-haven bid" : parseFloat(gold.pct) < -0.5 ? "risk-on selling" : "rangebound"}`);
     }
     if (eurusd) {
       const dir = parseFloat(eurusd.pct) >= 0 ? "rallied" : "dropped";
-      moves.push(`EUR/USD ${dir} ${Math.abs(parseFloat(eurusd.pct))}% to ${eurusd.price} — ${parseFloat(eurusd.pct) > 0 ? "EUR strength / USD weakness" : "USD bid"}`);
+      moves.push(`EUR/USD ${dir} ${Math.abs(parseFloat(eurusd.pct))}% to ${eurusd.price}  -  ${parseFloat(eurusd.pct) > 0 ? "EUR strength / USD weakness" : "USD bid"}`);
     }
     if (usdjpy) {
       const dir = parseFloat(usdjpy.pct) >= 0 ? "up" : "down";
-      moves.push(`USD/JPY ${dir} ${Math.abs(parseFloat(usdjpy.pct))}% to ${usdjpy.price} — ${parseFloat(usdjpy.pct) > 0.3 ? "yield differential widening" : parseFloat(usdjpy.pct) < -0.3 ? "safe-haven JPY bid" : "consolidating"}`);
+      moves.push(`USD/JPY ${dir} ${Math.abs(parseFloat(usdjpy.pct))}% to ${usdjpy.price}  -  ${parseFloat(usdjpy.pct) > 0.3 ? "yield differential widening" : parseFloat(usdjpy.pct) < -0.3 ? "safe-haven JPY bid" : "consolidating"}`);
     }
     if (btc) {
       const dir = parseFloat(btc.pct) >= 0 ? "up" : "down";
-      moves.push(`Bitcoin ${dir} ${Math.abs(parseFloat(btc.pct))}% to $${parseFloat(btc.price).toFixed(0)} — ${parseFloat(btc.pct) > 1 ? "risk-on momentum" : parseFloat(btc.pct) < -1 ? "selling pressure" : "range-trading"}`);
+      moves.push(`Bitcoin ${dir} ${Math.abs(parseFloat(btc.pct))}% to $${parseFloat(btc.price).toFixed(0)}  -  ${parseFloat(btc.pct) > 1 ? "risk-on momentum" : parseFloat(btc.pct) < -1 ? "selling pressure" : "range-trading"}`);
     }
 
     // Add a relevant news headline
@@ -218,7 +218,7 @@ function generateLiquidityNotes(session: SessionWindow, status: "active" | "clos
   if (session.name === "london") {
     const isOverlap = nowHour >= 13 && nowHour < 16;
     return status === "active"
-      ? `Strong liquidity in London session.${isOverlap ? " Currently in London-NY overlap — highest volume period." : " European institutional flow driving direction."}`
+      ? `Strong liquidity in London session.${isOverlap ? " Currently in London-NY overlap  -  highest volume period." : " European institutional flow driving direction."}`
       : "London session saw strong institutional participation. Key directional moves set during first 2 hours.";
   }
   return status === "active"

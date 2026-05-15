@@ -1,9 +1,9 @@
-/**
+﻿/**
  * GET /api/backtest
  *
  * Query params:
- *   symbol    — e.g. XAUUSD (default: XAUUSD)
- *   timeframe — M5 | M15 | H1 | H4 (default: M15)
+ *   symbol     -  e.g. XAUUSD (default: XAUUSD)
+ *   timeframe  -  M5 | M15 | H1 | H4 (default: M15)
  *
  * Fetches up to 60 days of historical OHLCV data from Yahoo Finance (free, no API key),
  * runs the walk-forward backtest through all 7 agents (rule-based mode, no LLM),

@@ -1,4 +1,4 @@
-// Shared in-memory quotes cache
+﻿// Shared in-memory quotes cache
 // The /api/market/quotes route populates this. Other routes read from it.
 
 export interface CachedQuote {
@@ -17,7 +17,7 @@ export interface CachedQuote {
 
 const quotesMap: Map<string, CachedQuote> = new Map();
 let lastWarmTs = 0;
-const WARM_TTL = 120_000; // re-fetch every 2 minutes — keeps agent snapshot fresh
+const WARM_TTL = 120_000; // re-fetch every 2 minutes  -  keeps agent snapshot fresh
 
 export function getCachedQuotes(): Map<string, CachedQuote> {
   return quotesMap;
@@ -94,7 +94,7 @@ export async function ensureCacheWarm(): Promise<void> {
       }
     }
 
-    // Yahoo Finance fallback — fills any symbol still missing after Finnhub + CoinGecko
+    // Yahoo Finance fallback  -  fills any symbol still missing after Finnhub + CoinGecko
     const { fetchYahooQuote } = await import("@/lib/api/yahoo-finance");
     const yahooSymbols = ["XAU/USD", "EUR/USD", "GBP/USD", "BTC/USD"];
     await Promise.all(
@@ -107,7 +107,7 @@ export async function ensureCacheWarm(): Promise<void> {
             console.log(`[quotes-cache] Yahoo Finance fallback: ${sym} = ${q.close}`);
           }
         } catch {
-          // symbol not available via Yahoo — skip
+          // symbol not available via Yahoo  -  skip
         }
       })
     );

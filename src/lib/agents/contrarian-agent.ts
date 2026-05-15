@@ -1,5 +1,5 @@
-/**
- * Agent 6 — Contrarian Agent (Claude-Powered + Rule-Based Fallback)
+﻿/**
+ * Agent 6  -  Contrarian Agent (Claude-Powered + Rule-Based Fallback)
  *
  * Challenges the dominant thesis:
  * - Identifies potential trap setups
@@ -22,12 +22,12 @@ const CONTRARIAN_SYSTEM = `You are the Contrarian Agent in a professional multi-
 You are a devil's advocate. The other agents are biased toward their setups. Your job is to poke holes.
 
 WHAT TO LOOK FOR:
-- Bull traps: price extended to premium zone with RSI overbought — smart money may distribute
-- Bear traps: price oversold at discount zone — lows swept, reversal imminent
-- False breakouts: large range candle with small body (wick rejection) — not genuine BOS
-- Stop hunts: price near 52-week extremes — equal highs/lows are liquidity magnets
+- Bull traps: price extended to premium zone with RSI overbought  -  smart money may distribute
+- Bear traps: price oversold at discount zone  -  lows swept, reversal imminent
+- False breakouts: large range candle with small body (wick rejection)  -  not genuine BOS
+- Stop hunts: price near 52-week extremes  -  equal highs/lows are liquidity magnets
 - HTF-LTF divergence: daily bias says one thing but intraday moving opposite
-- Weak conviction: both trend and structure agents below 60% — no real edge
+- Weak conviction: both trend and structure agents below 60%  -  no real edge
 - Asia session unreliability: Asia moves often reverse at London open
 - CHoCH uncertainty: structural shift in progress, counter-trap possible
 
@@ -38,7 +38,7 @@ Return ONLY valid JSON:
   "trapConfidence": 0-100,
   "oppositeLiquidity": number | null,
   "failureReasons": ["reason1", "reason2", "reason3"],
-  "alternativeScenario": "What happens if the primary thesis is WRONG — specific price action scenario",
+  "alternativeScenario": "What happens if the primary thesis is WRONG  -  specific price action scenario",
   "riskFactor": 0-100
 }`;
 
@@ -130,7 +130,7 @@ export async function runContrarianAgent(
       trapType = "bull trap";
       riskFactor += 30;
       failureReasons.push(
-        `Bull trap risk: price extended to PREMIUM zone (${current.toFixed(4)}) with RSI ${rsi.toFixed(0)} — smart money may distribute into retail longs`
+        `Bull trap risk: price extended to PREMIUM zone (${current.toFixed(4)}) with RSI ${rsi.toFixed(0)}  -  smart money may distribute into retail longs`
       );
     }
 
@@ -139,7 +139,7 @@ export async function runContrarianAgent(
       trapType = "bear trap";
       riskFactor += 30;
       failureReasons.push(
-        `Bear trap risk: price extended to DISCOUNT zone with RSI ${rsi.toFixed(0)} — liquidity below may have been swept, reversal potential`
+        `Bear trap risk: price extended to DISCOUNT zone with RSI ${rsi.toFixed(0)}  -  liquidity below may have been swept, reversal potential`
       );
     }
 
@@ -150,7 +150,7 @@ export async function runContrarianAgent(
         trapType = trapType ?? "false breakout";
         riskFactor += 20;
         failureReasons.push(
-          `False breakout risk: large range (${dayRange.toFixed(4)}) with small body — long wick suggests rejection, not genuine BOS`
+          `False breakout risk: large range (${dayRange.toFixed(4)}) with small body  -  long wick suggests rejection, not genuine BOS`
         );
       }
     }
@@ -160,7 +160,7 @@ export async function runContrarianAgent(
       trapType = trapType ?? "stop hunt";
       riskFactor += 15;
       failureReasons.push(
-        `Stop hunt risk: price at ${pos52w}% of 52-week range — equal highs above ${structure.high52w.toFixed(4)} are a magnet for stop runs before reversal`
+        `Stop hunt risk: price at ${pos52w}% of 52-week range  -  equal highs above ${structure.high52w.toFixed(4)} are a magnet for stop runs before reversal`
       );
       oppositeLiquidity = parseFloat((structure.high52w * 1.002).toFixed(4));
     }
@@ -169,7 +169,7 @@ export async function runContrarianAgent(
       trapType = trapType ?? "stop hunt";
       riskFactor += 15;
       failureReasons.push(
-        `Stop hunt risk: price at ${pos52w}% of 52-week range — equal lows below ${structure.low52w.toFixed(4)} are a magnet for stop runs before reversal`
+        `Stop hunt risk: price at ${pos52w}% of 52-week range  -  equal lows below ${structure.low52w.toFixed(4)} are a magnet for stop runs before reversal`
       );
       oppositeLiquidity = parseFloat((structure.low52w * 0.998).toFixed(4));
     }
@@ -178,7 +178,7 @@ export async function runContrarianAgent(
     if (htfConfidence < 55 && trend.confidence < 55) {
       riskFactor += 20;
       failureReasons.push(
-        `Weak conviction: HTF bias only ${htfConfidence}% and Trend only ${trend.confidence}% — insufficient edge for high-probability trade`
+        `Weak conviction: HTF bias only ${htfConfidence}% and Trend only ${trend.confidence}%  -  insufficient edge for high-probability trade`
       );
     }
 
@@ -186,13 +186,13 @@ export async function runContrarianAgent(
     if (htfBias === "bullish" && changePercent < -0.4) {
       riskFactor += 15;
       failureReasons.push(
-        `HTF-LTF divergence: daily bias bullish but intraday ${changePercent.toFixed(2)}% — possible distribution/manipulation before real move`
+        `HTF-LTF divergence: daily bias bullish but intraday ${changePercent.toFixed(2)}%  -  possible distribution/manipulation before real move`
       );
     }
     if (htfBias === "bearish" && changePercent > 0.4) {
       riskFactor += 15;
       failureReasons.push(
-        `HTF-LTF divergence: daily bias bearish but intraday +${changePercent.toFixed(2)}% — possible accumulation/manipulation before real breakdown`
+        `HTF-LTF divergence: daily bias bearish but intraday +${changePercent.toFixed(2)}%  -  possible accumulation/manipulation before real breakdown`
       );
     }
 
@@ -200,7 +200,7 @@ export async function runContrarianAgent(
     if (session === "Asia") {
       riskFactor += 10;
       failureReasons.push(
-        `Asia session trap: moves during Asia often reverse during London open — wait for London confirmation before committing`
+        `Asia session trap: moves during Asia often reverse during London open  -  wait for London confirmation before committing`
       );
     }
 
@@ -208,7 +208,7 @@ export async function runContrarianAgent(
     if (smc.chochDetected) {
       riskFactor += 15;
       failureReasons.push(
-        `CHoCH active: structural shift in progress — counter-trend trap possible if CHoCH fails to develop into new BOS`
+        `CHoCH active: structural shift in progress  -  counter-trend trap possible if CHoCH fails to develop into new BOS`
       );
     }
 
@@ -247,10 +247,10 @@ export async function runContrarianAgent(
           pos52w < 30 ? "then initiates real bullish BOS from discount zone" :
           "before larger reversal develops"
         }. Watch for bullish engulfing / displacement above ${(high * 1.002).toFixed(4)}.`
-      : `ALTERNATIVE: No clear bias — both sides of range are valid manipulation targets. Wait for definitive BOS before taking any directional trade.`;
+      : `ALTERNATIVE: No clear bias  -  both sides of range are valid manipulation targets. Wait for definitive BOS before taking any directional trade.`;
 
     if (failureReasons.length === 0) {
-      failureReasons.push(`No significant contrarian signals detected — primary thesis intact`);
+      failureReasons.push(`No significant contrarian signals detected  -  primary thesis intact`);
       riskFactor = 15;
     }
 

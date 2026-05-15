@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 /**
- * AgentCardsWidget — compact 7-agent card grid for the dashboard widget.
+ * AgentCardsWidget  -  compact 7-agent card grid for the dashboard widget.
  * Receives data from the parent page (no independent data fetch).
  * User can choose which agents to show via a filter dropdown in the header.
  */
@@ -35,7 +35,7 @@ export const ALL_AGENT_IDS = AGENTS.map((a) => a.id) as AgentId[];
 type Tone = "green" | "red" | "yellow" | "gray";
 
 function fmtPrice(v: number | null | undefined): string {
-  if (v == null || isNaN(v)) return "—";
+  if (v == null || isNaN(v)) return " - ";
   if (v > 10000) return v.toFixed(0);
   if (v > 100)   return v.toFixed(1);
   if (v > 1)     return v.toFixed(4);
@@ -322,7 +322,7 @@ function MasterCard({
             { label: "ENT", value: fmtPrice(execution.entry)    },
             { label: "SL",  value: fmtPrice(execution.stopLoss) },
             { label: "TP1", value: fmtPrice(execution.tp1)      },
-            { label: "RR",  value: execution.rrRatio != null ? `${execution.rrRatio.toFixed(1)}:1` : "—" },
+            { label: "RR",  value: execution.rrRatio != null ? `${execution.rrRatio.toFixed(1)}:1` : " - " },
           ].map(({ label, value }) => (
             <div key={label} className="flex flex-col gap-0.5">
               <span className="text-[8px] font-mono text-zinc-700">{label}</span>
@@ -374,7 +374,7 @@ export function AgentCardsWidget({
             const match = (["M5","M15","H1","H4"] as const).filter(k => tr.timeframeBias[k] === tr.bias);
             return match.length > 0 ? `${match.join("+")} ONLY` : "MIXED";
           })())
-    : "—";
+    : " - ";
 
   const trendTags: DiagTag[] = tr ? [
     { k: "PHASE",    v: tr.marketPhase },
@@ -421,7 +421,7 @@ export function AgentCardsWidget({
     { k: "SL",     v: fmtPrice(execution.stopLoss) },
     { k: "TP1",    v: fmtPrice(execution.tp1) },
     { k: "TP2",    v: fmtPrice(execution.tp2) },
-    { k: "RR",     v: execution.rrRatio != null ? `${execution.rrRatio.toFixed(2)}:1` : "—" },
+    { k: "RR",     v: execution.rrRatio != null ? `${execution.rrRatio.toFixed(2)}:1` : " - " },
   ] : [];
 
   const show = (id: AgentId) => visibleAgents.has(id);
@@ -492,7 +492,7 @@ export function AgentCardsWidget({
                   state={risk ? (risk.valid ? "VALID" : "BLOCKED") : "NEUTRAL"}
                   confidence={risk?.sessionScore ?? 0}
                   insight={risk?.reasons?.[0] ?? risk?.warnings?.[0] ?? "Recalculating…"}
-                  sub={risk ? `Grade ${risk.grade} — Max ${risk.maxRiskPercent}% risk` : undefined}
+                  sub={risk ? `Grade ${risk.grade}  -  Max ${risk.maxRiskPercent}% risk` : undefined}
                   tone={risk ? (risk.valid ? "green" : "red") : "gray"}
                   tags={riskTags}
                   loading={isLoading && !data}
@@ -526,7 +526,7 @@ export function AgentCardsWidget({
                   insight={execution?.signalStateReason ?? execution?.triggerCondition ?? "Recalculating…"}
                   sub={
                     execution?.hasSetup && execution.direction !== "none"
-                      ? `${execution.direction.toUpperCase()} — RR ${execution.rrRatio?.toFixed(2) ?? "—"}:1`
+                      ? `${execution.direction.toUpperCase()}  -  RR ${execution.rrRatio?.toFixed(2) ?? " - "}:1`
                       : undefined
                   }
                   tone={
@@ -550,7 +550,7 @@ export function AgentCardsWidget({
               {row2.includes("master") && !data && (
                 <AgentCard
                   name="Master Agent"
-                  state="—"
+                  state=" - "
                   confidence={0}
                   insight="Recalculating…"
                   tone="gray"

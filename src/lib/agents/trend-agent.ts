@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Agent 1 - Trend Agent
  *
  * Determines trend bias using pure price action + technical indicators:
@@ -74,7 +74,7 @@ MARKET STRUCTURE:
 - Position: ${structure.pos52w}% of range (${structure.zone})
 - HTF Bias (D1-anchored): ${structure.htfBias.toUpperCase()} at ${structure.htfConfidence}% conviction
 - Structure context: ${structure.smcContext}
-- NOTE: HTF bias is derived from 20-day daily drift — weight this heavily over intraday % change
+- NOTE: HTF bias is derived from 20-day daily drift  -  weight this heavily over intraday % change
 
 INDICATORS:
 - RSI(14): ${indicators.rsi.toFixed(1)} (${indicators.rsi > 70 ? "overbought" : indicators.rsi < 30 ? "oversold" : indicators.rsi > 50 ? "bullish" : "bearish"})
@@ -326,12 +326,12 @@ export async function runTrendAgent(
         pdh = Math.max(...prevDayCandles.map(c => c.h));
         pdl = Math.min(...prevDayCandles.map(c => c.l));
       } else {
-        // No prior-day candles in history — use proxy
+        // No prior-day candles in history  -  use proxy
         pdh = prevClose + dayRange * 0.40;
         pdl = prevClose - dayRange * 0.40;
       }
     } else {
-      // No candle history at all — use proxy
+      // No candle history at all  -  use proxy
       pdh = prevClose + dayRange * 0.40;
       pdl = prevClose - dayRange * 0.40;
     }
@@ -340,7 +340,7 @@ export async function runTrendAgent(
     const jadeBiasScore = dayOpen > pdMidpoint ? 25 : dayOpen < pdMidpoint ? -25 : 0;
     biasScore += jadeBiasScore;
 
-    // ── Secondary: HTF structure (weight halved — JadeCap PDH/PDL dominates) ─
+    // ── Secondary: HTF structure (weight halved  -  JadeCap PDH/PDL dominates) ─
     biasScore += htfBias === "bullish" ? htfConfidence * 0.5 : htfBias === "bearish" ? -htfConfidence * 0.5 : 0;
     if (timeframeBias.aligned) biasScore += timeframeBias.H4 === "bullish" ? 15 : -15;
     if (rsi > 55) biasScore += 8;
@@ -356,12 +356,12 @@ export async function runTrendAgent(
     const confidence = Math.min(95, Math.max(20, Math.abs(biasScore)));
     const reasons = buildReasons(snapshot, timeframeBias, phase, maData.maStack, maData);
 
-    // Daily bias reason — prepend so it appears first
+    // Daily bias reason  -  prepend so it appears first
     const jadeReason = jadeBiasScore > 0
-      ? `Daily bias: BULLISH — open ${dayOpen.toFixed(2)} above PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`
+      ? `Daily bias: BULLISH  -  open ${dayOpen.toFixed(2)} above PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`
       : jadeBiasScore < 0
-      ? `Daily bias: BEARISH — open ${dayOpen.toFixed(2)} below PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`
-      : `Daily bias: NEUTRAL — open at PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`;
+      ? `Daily bias: BEARISH  -  open ${dayOpen.toFixed(2)} below PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`
+      : `Daily bias: NEUTRAL  -  open at PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`;
     reasons.unshift(jadeReason);
 
     // Invalidation level: prefer the most recent swing low/high from candle data.

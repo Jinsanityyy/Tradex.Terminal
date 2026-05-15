@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -292,7 +292,7 @@ export function AIAnalysisPanel() {
 
       setMarketData({ kl: klMap, bias: biasMap });
     } catch {
-      // silent — panel can still analyze with partial data
+      // silent  -  panel can still analyze with partial data
     } finally {
       setDataLoading(false);
     }
@@ -708,7 +708,7 @@ export function AIAnalysisPanel() {
                         <div className="rounded-lg p-1.5 text-center" style={{ background: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.2)" }}>
                           <p className="text-[8px] mb-0.5" style={{ color: "#8B949E" }}>R:R</p>
                           <p className="text-[10px] font-mono font-bold" style={{ color: debateResult.arbitrator.rr != null && debateResult.arbitrator.rr >= 2 ? "#00C896" : "#F59E0B" }}>
-                            {debateResult.arbitrator.rr != null ? `1:${debateResult.arbitrator.rr}` : "—"}
+                            {debateResult.arbitrator.rr != null ? `1:${debateResult.arbitrator.rr}` : " - "}
                           </p>
                         </div>
                       </div>

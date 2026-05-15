@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -40,7 +40,7 @@ export function LiveNewsTicker({ items, isLive = false }: LiveNewsTickerProps) {
 
   return (
     <div className="relative flex items-center border-y border-white/8 bg-[#09090c] overflow-hidden h-9">
-      {/* LIVE badge — static on the left */}
+      {/* LIVE badge  -  static on the left */}
       <div className="shrink-0 flex items-center gap-1.5 px-3 border-r border-white/8 h-full bg-[#0d0e12] z-10">
         <span className="relative flex h-1.5 w-1.5">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />

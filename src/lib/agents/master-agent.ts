@@ -1,5 +1,5 @@
-/**
- * Agent 7 — Master Decision Agent (LLM-Powered + Rule-Based)
+﻿/**
+ * Agent 7  -  Master Decision Agent (LLM-Powered + Rule-Based)
  *
  * Reads all agent outputs, computes weighted consensus,
  * and produces the final trade decision + plan.
@@ -30,14 +30,14 @@ import { computeConsensus, matchStrategy } from "./scoring";
 const MASTER_SYSTEM = `You are the Master Decision Agent in a professional multi-agent trading system. You are the final adjudicator. Six specialist agents have completed their independent analysis AND conducted a structured debate where they challenged each other.
 
 Your role:
-1. Read the full agent debate — understand who agreed, who challenged, and WHY
+1. Read the full agent debate  -  understand who agreed, who challenged, and WHY
 2. Weigh the weighted consensus score against the debate arguments
 3. Make the FINAL call: "bullish", "bearish", or "no-trade"
 4. Write 3-5 SUPPORTS (strongest arguments for your final bias)
 5. Write 3-4 INVALIDATIONS (what would prove you wrong)
 6. Confirm or adjust the execution plan
 
-You think like a senior portfolio manager who has just chaired a committee debate. The debate happened — now you decide.
+You think like a senior portfolio manager who has just chaired a committee debate. The debate happened  -  now you decide.
 
 ADJUDICATION RULES:
 - If risk agent is invalid → always "no-trade" (non-negotiable)
@@ -46,7 +46,7 @@ ADJUDICATION RULES:
 - Strong challenges from multiple agents (>2) against majority = reduce confidence or flip to no-trade
 - Weight the QUALITY of the debate arguments, not just the count
 - Be terse and tactical. This is a live trade decision.
-- NY SWEEP: When PA Agent shows "Stop run: true" + FVG or Sweep setup, this is a confirmed NY session liquidity sweep — the highest-probability pattern in the system. Weight this heavily when daily bias aligns (bosDetected: true). London Low = highest quality, PDH/Asian High = medium, Asian Low = lower. London High sweep = flag only, do not trade.
+- NY SWEEP: When PA Agent shows "Stop run: true" + FVG or Sweep setup, this is a confirmed NY session liquidity sweep  -  the highest-probability pattern in the system. Weight this heavily when daily bias aligns (bosDetected: true). London Low = highest quality, PDH/Asian High = medium, Asian Low = lower. London High sweep = flag only, do not trade.
 
 Return ONLY valid JSON:
 {
@@ -103,10 +103,10 @@ async function runLLMMaster(
     ? `\nAGENT DEBATE (read carefully before deciding):\n${debate.map(d =>
         `[${d.displayName.toUpperCase()}] ${d.stance.toUpperCase()} @ ${d.confidence}%\n  Position: ${d.position}${d.challenge ? `\n  CHALLENGE: ${d.challenge}` : ""}`
       ).join("\n\n")}`
-    : "\n(No debate data — decide based on agent signals only)";
+    : "\n(No debate data  -  decide based on agent signals only)";
 
   const msg = `
-MASTER DECISION — ${snapshot.symbolDisplay} (${snapshot.timeframe})
+MASTER DECISION  -  ${snapshot.symbolDisplay} (${snapshot.timeframe})
 Current price: ${snapshot.price.current} | Session: ${snapshot.indicators.session}
 
 CONSENSUS SCORE: ${consensusScore.toFixed(1)} → preliminary bias: ${preliminaryBias.toUpperCase()}
@@ -157,13 +157,13 @@ function buildSupports(
     if (trend.reasons.length > 0) {
       supports.push(`Trend (${trend.bias.toUpperCase()} ${trend.confidence}%): ${trend.reasons[0]}`);
     } else {
-      supports.push(`Trend Agent sees ${trend.bias.toUpperCase()} at ${trend.confidence}% — phase: ${trend.marketPhase}`);
+      supports.push(`Trend Agent sees ${trend.bias.toUpperCase()} at ${trend.confidence}%  -  phase: ${trend.marketPhase}`);
     }
 
     if (smc.reasons.length > 0) {
       supports.push(`Price Action (${smc.bias.toUpperCase()} ${smc.confidence}%): ${smc.reasons[0]}`);
     } else {
-      supports.push(`Price Action: ${describePriceActionPattern(smc.setupType)} — ${describeRangeContext(smc.premiumDiscount)}`);
+      supports.push(`Price Action: ${describePriceActionPattern(smc.setupType)}  -  ${describeRangeContext(smc.premiumDiscount)}`);
     }
 
     if (news.reasons.length > 0) {
@@ -172,7 +172,7 @@ function buildSupports(
       supports.push(`Macro: ${news.dominantCatalyst.slice(0, 90)}`);
     }
 
-    supports.push(`Market phase: ${trend.marketPhase} — ${trend.momentumDirection} momentum, price sitting in the ${describeRangeContext(smc.premiumDiscount)}`);
+    supports.push(`Market phase: ${trend.marketPhase}  -  ${trend.momentumDirection} momentum, price sitting in the ${describeRangeContext(smc.premiumDiscount)}`);
     return supports.slice(0, 4);
   }
 
@@ -184,8 +184,8 @@ function buildSupports(
   if (smc.bias === finalBias && smc.setupPresent) {
     const isSweepSetup = smc.liquiditySweepDetected && (smc.setupType === "FVG" || smc.setupType === "Sweep");
     supports.push(isSweepSetup
-      ? `Price Action ${smc.confidence}%: NY session ${isBull ? "lows" : "highs"} swept${smc.keyLevels.sweepLevel ? ` at ${smc.keyLevels.sweepLevel.toFixed(2)}` : ""}, ${smc.setupType === "FVG" && smc.keyLevels.fvgMid ? `FVG entry at ${smc.keyLevels.fvgMid.toFixed(2)}` : "sweep reversal entry"} — ${smc.bosDetected ? "aligns with daily bias ✓" : "note: conflicts with daily bias"}`
-      : `Price Action Agent ${smc.confidence}%: ${describePriceActionPattern(smc.setupType, smc.liquiditySweepDetected)} ${smc.bosDetected ? "— structure break confirmed" : smc.liquiditySweepDetected ? "— stop run already printed" : "— structure present"}`
+      ? `Price Action ${smc.confidence}%: NY session ${isBull ? "lows" : "highs"} swept${smc.keyLevels.sweepLevel ? ` at ${smc.keyLevels.sweepLevel.toFixed(2)}` : ""}, ${smc.setupType === "FVG" && smc.keyLevels.fvgMid ? `FVG entry at ${smc.keyLevels.fvgMid.toFixed(2)}` : "sweep reversal entry"}  -  ${smc.bosDetected ? "aligns with daily bias ✓" : "note: conflicts with daily bias"}`
+      : `Price Action Agent ${smc.confidence}%: ${describePriceActionPattern(smc.setupType, smc.liquiditySweepDetected)} ${smc.bosDetected ? " -  structure break confirmed" : smc.liquiditySweepDetected ? " -  stop run already printed" : " -  structure present"}`
     );
   }
 
@@ -194,14 +194,14 @@ function buildSupports(
   }
 
   if (execution.hasSetup && ((execution.direction === "long" && isBull) || (execution.direction === "short" && !isBull))) {
-    supports.push(`Execution Agent: clean structure-based setup — entry ${execution.entry?.toFixed(4)}, RR ${execution.rrRatio?.toFixed(1) ?? "N/A"}:1, trigger: ${execution.trigger}`);
+    supports.push(`Execution Agent: clean structure-based setup  -  entry ${execution.entry?.toFixed(4)}, RR ${execution.rrRatio?.toFixed(1) ?? "N/A"}:1, trigger: ${execution.trigger}`);
   }
 
   if (smc.premiumDiscount === "DISCOUNT" && isBull) {
-    supports.push("Price is holding in the lower half of the range — buyers have room to defend support and extend the move");
+    supports.push("Price is holding in the lower half of the range  -  buyers have room to defend support and extend the move");
   }
   if (smc.premiumDiscount === "PREMIUM" && !isBull) {
-    supports.push("Price is trading in the upper half of the range — sellers have room to fade strength from resistance");
+    supports.push("Price is trading in the upper half of the range  -  sellers have room to fade strength from resistance");
   }
 
   // Fallback: always include at least the dominant trend reason
@@ -234,11 +234,11 @@ function buildInvalidations(
   }
 
   if (execution.stopLoss !== null) {
-    invalidations.push(`Execution SL at ${execution.stopLoss.toFixed(4)} — ${execution.slZone}`);
+    invalidations.push(`Execution SL at ${execution.stopLoss.toFixed(4)}  -  ${execution.slZone}`);
   }
 
   if (trend.invalidationLevel !== null) {
-    invalidations.push(`Trend invalidation: ${trend.invalidationLevel.toFixed(4)} — HTF bias shifts on close through this level`);
+    invalidations.push(`Trend invalidation: ${trend.invalidationLevel.toFixed(4)}  -  HTF bias shifts on close through this level`);
   }
 
   return invalidations.slice(0, 4);
@@ -282,7 +282,7 @@ export async function runMasterAgent(
       }
     }
 
-    // ── Structural override (HIGHEST PRIORITY — cannot be overridden by LLM) ─
+    // ── Structural override (HIGHEST PRIORITY  -  cannot be overridden by LLM) ─
     // Price action structure determines direction. LLM cannot override a bearish
     // structure with bullish calls unless a confirmed sweep + setup exist to the upside.
     const llmRaw        = (llmResult?.finalBias ?? finalBias) as "bullish" | "bearish" | "no-trade";
@@ -378,7 +378,7 @@ export async function runMasterAgent(
       supports: [],
       invalidations: ["Master agent failed to process"],
       agentConsensus: [],
-      noTradeReason: "Master agent error — standing aside",
+      noTradeReason: "Master agent error  -  standing aside",
       processingTime: Date.now() - start,
       error: String(err),
     };

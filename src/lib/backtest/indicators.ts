@@ -1,6 +1,6 @@
-/**
+﻿/**
  * Pure indicator functions for the backtest engine.
- * No external dependencies — all computed from OHLCV arrays.
+ * No external dependencies  -  all computed from OHLCV arrays.
  */
 
 export interface Candle {

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,7 @@ export interface CandleAnalysisResult {
 
 const SYSTEM_PROMPT = `You are an elite market analyst with deep knowledge of macroeconomics, geopolitics, and price action. Explain WHY a specific candle moved the way it did.
 
-Respond with ONLY valid JSON — no markdown, no code fences:
+Respond with ONLY valid JSON  -  no markdown, no code fences:
 {
   "summary": "1–2 sentence TL;DR of what drove this candle",
   "technicals": "2–3 sentence price-action breakdown: structure, imbalance, momentum, reversal or continuation",
@@ -38,7 +38,7 @@ Rules:
 - sentiment: exactly one of bullish, bearish, neutral
 - magnitude: exactly one of major, moderate, minor (major = body > 0.5%, moderate = 0.2–0.5%, minor = < 0.2%)
 - catalysts: max 4 bullets, each under 12 words
-- newsContext REQUIRED — use training knowledge if no headlines provided
+- newsContext REQUIRED  -  use training knowledge if no headlines provided
 - For XAUUSD: consider Fed policy, USD strength, geopolitical risk, inflation, central bank buying`;
 
 async function callGemini(prompt: string): Promise<string> {
@@ -74,7 +74,7 @@ async function callGemini(prompt: string): Promise<string> {
       }
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (text) return text;
-      errors.push(`[${model}] empty response — finishReason: ${data?.candidates?.[0]?.finishReason ?? "unknown"}`);
+      errors.push(`[${model}] empty response  -  finishReason: ${data?.candidates?.[0]?.finishReason ?? "unknown"}`);
     } catch (e: any) {
       errors.push(`[${model}] ${e?.message ?? String(e)}`);
     }
@@ -122,7 +122,7 @@ Surrounding candles:
 ${ctxStr || "No context provided"}
 
 Current macro headlines:
-${newsHeadlines.length > 0 ? newsHeadlines.map(h => `• ${h}`).join("\n") : "• No headlines available — use training knowledge of macro events near this date"}
+${newsHeadlines.length > 0 ? newsHeadlines.map(h => `• ${h}`).join("\n") : "• No headlines available  -  use training knowledge of macro events near this date"}
 
 Explain why this candle moved. Return JSON only.`;
 

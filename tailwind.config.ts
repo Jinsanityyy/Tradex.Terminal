@@ -9,6 +9,7 @@ const config: Config = {
       fontFamily: {
         sans: ["var(--font-geist-sans)", "system-ui", "-apple-system", "sans-serif"],
         mono: ["var(--font-geist-mono)", "'Courier New'", "monospace"],
+        data: ["var(--font-jetbrains-mono)", "var(--font-geist-mono)", "'Courier New'", "monospace"],
       },
     },
   },

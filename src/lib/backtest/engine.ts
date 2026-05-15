@@ -1,5 +1,5 @@
-/**
- * TradeX Backtest Engine — walk-forward simulation
+﻿/**
+ * TradeX Backtest Engine  -  walk-forward simulation
  *
  * For each M15 bar (after 200-bar warmup):
  *   1. Build a MarketSnapshot from the candle window
@@ -83,7 +83,7 @@ export interface BacktestReport {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Trade resolution — walk forward to find TP/SL
+// Trade resolution  -  walk forward to find TP/SL
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MAX_BARS_FORWARD = 96; // max 24h forward on M15
@@ -171,7 +171,7 @@ export async function runBacktest(
     }
 
     // Run all rule-based agents (no API key → pure fallback mode)
-    // Phase 1: trend + smc run first — contrarian depends on both
+    // Phase 1: trend + smc run first  -  contrarian depends on both
     // Phase 2: news, risk, exec, contrarian run in parallel
     // Phase 3: master aggregates all
     let trend: TrendAgentOutput;

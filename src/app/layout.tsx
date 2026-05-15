@@ -1,6 +1,13 @@
-import type { Metadata, Viewport } from "next";
+﻿import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import { JetBrains_Mono } from "next/font/google";
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains-mono",
+  display: "swap",
+});
 import { SWRProvider } from "@/components/providers/SWRProvider";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { Toaster } from "sonner";
@@ -15,7 +22,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "TradeX Terminal",
-  description: "Real-time trading terminal. Gold, forex, crypto — live prices, bias analysis, economic calendar and trade context.",
+  description: "Real-time trading terminal. Gold, forex, crypto  -  live prices, bias analysis, economic calendar and trade context.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -38,7 +45,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`dark ${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang="en" className={`dark ${GeistSans.variable} ${GeistMono.variable} ${jetbrainsMono.variable}`}>
       <head>
         <link rel="icon" type="image/png" href="/logo.png" />
         <link rel="apple-touch-icon" href="/logo.png" />

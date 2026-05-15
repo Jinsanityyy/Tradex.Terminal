@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useState } from "react";
 import { cn, formatNumber, formatPercent, getCurrentSession } from "@/lib/utils";
@@ -154,7 +154,7 @@ export function UserMenu() {
     if (saved) setTraderName(saved);
     const savedAvatar = localStorage.getItem("tradex_avatar");
     if (savedAvatar) setAvatar(savedAvatar);
-    // Fetch fresh data from DB — overrides localStorage
+    // Fetch fresh data from DB  -  overrides localStorage
     fetch("/api/profile")
       .then(r => r.ok ? r.json() : null)
       .then(data => {
@@ -331,7 +331,7 @@ export function UserMenu() {
 export function TopStatusBar() {
   const session = getCurrentSession();
   const { quotes, isLive } = useQuotes(60_000);
-  // Show fewer assets on mobile — 4, full 8 on desktop
+  // Show fewer assets on mobile  -  4, full 8 on desktop
   const mobileAssets = quotes.slice(0, 4);
   const desktopAssets = quotes.slice(0, 8);
 
@@ -355,14 +355,14 @@ export function TopStatusBar() {
 
       {/* Right: Session + Clocks */}
       <div className="flex items-center gap-2 md:gap-4 shrink-0">
-        {/* Clocks — desktop only */}
+        {/* Clocks  -  desktop only */}
         <div className="hidden lg:flex items-center gap-4">
           <SessionClock label="TYO" timezone="Asia/Tokyo" />
           <SessionClock label="LDN" timezone="Europe/London" />
           <SessionClock label="NYC" timezone="America/New_York" />
         </div>
 
-        {/* Session badge — hidden on smallest screens */}
+        {/* Session badge  -  hidden on smallest screens */}
         <div className="hidden sm:flex items-center gap-1.5 rounded-md bg-[hsl(var(--secondary))] px-2 py-1">
           <Clock className="h-3 w-3 text-[hsl(var(--primary))]" />
           <span className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--foreground))]">
@@ -385,7 +385,7 @@ export function TopStatusBar() {
           )}
         </div>
 
-        {/* Session countdown timers — right of live indicator, left of user menu */}
+        {/* Session countdown timers  -  right of live indicator, left of user menu */}
         <SessionTimerBar />
 
         <UserMenu />

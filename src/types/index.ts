@@ -1,5 +1,5 @@
-// ==========================================
-// TradeX Terminal — Core Type Definitions
+﻿// ==========================================
+// TradeX Terminal  -  Core Type Definitions
 // ==========================================
 
 export type Bias = "bullish" | "bearish" | "neutral";
@@ -64,7 +64,7 @@ export interface AssetAIAnalysis {
   setupBias: "bullish" | "bearish" | "neutral";
 
   // ── AI-derived price levels ──────────────────────────────────────────────────
-  // Claude places these based on market structure, OB/FVG/liquidity — NOT formulas.
+  // Claude places these based on market structure, OB/FVG/liquidity  -  NOT formulas.
   // null = no clean setup exists (NO TRADE) or too uncertain to specify (WATCHLIST).
   entry: number | null;
   stopLoss: number | null;
@@ -72,11 +72,11 @@ export interface AssetAIAnalysis {
   tp2: number | null;
   tp3: number | null;
 
-  // Reasoning for each level — shown in the expanded Key Levels card view
-  entryZone: string;   // e.g. "Bullish OB 2678–2682 — last bearish candle before rally"
-  slZone: string;      // e.g. "Below swing low 2661 — thesis invalid on close below"
-  tp1Zone: string;     // e.g. "Equal highs 2710 — prior session liquidity pool"
-  tp2Zone: string;     // e.g. "Weekly resistance 2735 — external liquidity"
+  // Reasoning for each level  -  shown in the expanded Key Levels card view
+  entryZone: string;   // e.g. "Bullish OB 2678–2682  -  last bearish candle before rally"
+  slZone: string;      // e.g. "Below swing low 2661  -  thesis invalid on close below"
+  tp1Zone: string;     // e.g. "Equal highs 2710  -  prior session liquidity pool"
+  tp2Zone: string;     // e.g. "Weekly resistance 2735  -  external liquidity"
 }
 
 export interface BiasData {
@@ -138,7 +138,7 @@ export interface EconomicEvent {
   postEventBullets?: string[]; // "Now watch" checklist for completed events
   preEventSummary?: string;    // Narrative for upcoming/live events
   preEventBullets?: string[];  // "What to watch" checklist for upcoming/live events
-  utcTimestamp?: number;       // Unix ms — used for countdown timer
+  utcTimestamp?: number;       // Unix ms  -  used for countdown timer
 }
 
 // Extended news item with optional URL/image from live feeds

@@ -1,5 +1,5 @@
-/**
- * cTrader Open API — high-level service.
+﻿/**
+ * cTrader Open API  -  high-level service.
  * Handles app auth, account auth, and data fetching.
  * All monetary values are scaled by moneyDigits (÷ 10^moneyDigits).
  */

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { CUSTOM_NOTIFICATION_EVENT, type Notif } from "@/hooks/useNotifications";
 
@@ -7,7 +7,7 @@ const SAMPLES: Omit<Notif, "id" | "timestamp">[] = [
     type: "news",
     severity: "high",
     title: "High Impact Event",
-    body: "US CPI data came in hotter than expected at 3.6% YoY vs 3.2% forecast — bond yields spike +18bps.",
+    body: "US CPI data came in hotter than expected at 3.6% YoY vs 3.2% forecast  -  bond yields spike +18bps.",
     chartLink: "/dashboard/economic-calendar",
   },
   {
@@ -27,20 +27,20 @@ const SAMPLES: Omit<Notif, "id" | "timestamp">[] = [
     type: "signal",
     severity: "high",
     title: "Entry Zone Reached",
-    body: "XAUUSD — LONG entry at 3285.00. Setup valid.",
+    body: "XAUUSD  -  LONG entry at 3285.00. Setup valid.",
     chartLink: "/dashboard/signals",
   },
   {
     type: "signal",
     severity: "high",
     title: "TP1 Hit",
-    body: "XAUUSD LONG — +2.4R",
+    body: "XAUUSD LONG  -  +2.4R",
   },
   {
     type: "signal",
     severity: "low",
     title: "Setup Invalidated",
-    body: "GBPUSD LONG — price moved beyond setup range",
+    body: "GBPUSD LONG  -  price moved beyond setup range",
   },
 ];
 

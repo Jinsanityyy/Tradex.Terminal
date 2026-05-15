@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -129,7 +129,7 @@ export function NotificationToast() {
       {/* Inject keyframes once */}
       <style>{PULSE_STYLE}</style>
 
-      {/* Backdrop — glassmorphism */}
+      {/* Backdrop  -  glassmorphism */}
       <div
         className="fixed inset-0 z-[9990]"
         style={{
@@ -249,7 +249,7 @@ function AlertCard({
         animation: "notif-in 0.22s cubic-bezier(0.16,1,0.3,1) forwards",
       }}
     >
-      {/* Left accent bar — pulses on high severity */}
+      {/* Left accent bar  -  pulses on high severity */}
       <div
         style={{
           position: "absolute",
@@ -264,7 +264,7 @@ function AlertCard({
 
       <div className="pl-5 pr-4 pt-3.5 pb-3.5">
 
-        {/* Row 1 — source badge + severity + time + close */}
+        {/* Row 1  -  source badge + severity + time + close */}
         <div className="flex items-center justify-between mb-2.5">
           <div className="flex items-center gap-2">
             {/* Source badge */}
@@ -338,7 +338,7 @@ function AlertCard({
           {notif.title}
         </p>
 
-        {/* Body — always visible */}
+        {/* Body  -  always visible */}
         <p className="text-[12px] leading-relaxed" style={{ color: "rgba(255,255,255,0.38)" }}>
           <HighlightedText text={notif.body} />
         </p>

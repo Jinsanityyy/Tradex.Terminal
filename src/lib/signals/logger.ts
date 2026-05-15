@@ -1,5 +1,5 @@
-/**
- * TradeX Signal History — Logger
+﻿/**
+ * TradeX Signal History  -  Logger
  *
  * Converts AgentRunResult into a SignalRecord and saves it.
  * Called by the orchestrator after each full agent run.
@@ -11,7 +11,7 @@ import { saveSignal, getOpenSignals, updateSignal } from "./storage";
 
 /**
  * Build a stable, unique ID from agent run metadata.
- * Within the same minute, same symbol+timeframe produces the same ID — so
+ * Within the same minute, same symbol+timeframe produces the same ID  -  so
  * cache-hit re-renders don't create duplicate records.
  */
 function buildId(result: AgentRunResult): string {
@@ -22,7 +22,7 @@ function buildId(result: AgentRunResult): string {
   return `${slot}_${result.symbol}_${result.timeframe}`;
 }
 
-// 60-minute cooldown per symbol+direction — prevents cron from logging a new
+// 60-minute cooldown per symbol+direction  -  prevents cron from logging a new
 // signal every 5 min when entry price drifts slightly but the setup is the same.
 const ARMED_COOLDOWN_MS = 60 * 60 * 1000;
 
@@ -33,7 +33,7 @@ const ARMED_COOLDOWN_MS = 60 * 60 * 1000;
  */
 async function isDuplicateArmedSignal(result: AgentRunResult): Promise<boolean> {
   const plan = result.agents.master.tradePlan;
-  if (!plan) return false; // no-trade signals — don't dedup here
+  if (!plan) return false; // no-trade signals  -  don't dedup here
 
   try {
     const openSignals = await getOpenSignals();
@@ -92,13 +92,13 @@ async function invalidateOpposingSignals(result: AgentRunResult): Promise<void> 
       })
     ));
   } catch {
-    // non-critical — never block the main log flow
+    // non-critical  -  never block the main log flow
   }
 }
 
 /**
  * Log a signal from an AgentRunResult.
- * Idempotent — same run logged twice within the same minute is deduplicated.
+ * Idempotent  -  same run logged twice within the same minute is deduplicated.
  * Returns the saved record, or null if logging failed (never throws).
  */
 export async function logSignal(result: AgentRunResult): Promise<SignalRecord | null> {
@@ -106,7 +106,7 @@ export async function logSignal(result: AgentRunResult): Promise<SignalRecord | 
     const master = result.agents.master;
     const snapshot = result.snapshot;
 
-    // Don't log directional signals without a trade plan — no entry/SL/TP = nothing actionable.
+    // Don't log directional signals without a trade plan  -  no entry/SL/TP = nothing actionable.
     // These occur when execution agent has no valid setup (e.g. wrong session, no structure).
     // Only informational no-trade signals are allowed without a trade plan.
     if (master.finalBias !== "no-trade" && !master.tradePlan) {
@@ -174,7 +174,7 @@ export async function logSignal(result: AgentRunResult): Promise<SignalRecord | 
     const saved = await saveSignal(record);
 
     // If this is a new directional armed signal, close out any open signals
-    // in the opposite direction — the bias has flipped, those setups are gone.
+    // in the opposite direction  -  the bias has flipped, those setups are gone.
     if (saved && record.tradePlan) {
       await invalidateOpposingSignals(result);
     }

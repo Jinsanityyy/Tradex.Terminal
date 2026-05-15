@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import type { AssetAIAnalysis } from "@/types";
 import { setAIAnalysisCache } from "@/lib/api/ai-analysis-cache";
 
 export const dynamic = "force-dynamic";
 
-// ── Cache — 10 minutes ────────────────────────────────────────────────────────
+// ── Cache  -  10 minutes ────────────────────────────────────────────────────────
 let cache: { data: Record<string, AssetAIAnalysis>; ts: number } | null = null;
 const CACHE_TTL = 600_000;
 
@@ -28,14 +28,14 @@ Your mental model:
 - You think in sessions: Asia (accumulation/range), London (manipulation/expansion), New York (continuation/reversal)
 - You apply macro context: DXY strength, yield curve, risk sentiment, central bank posture
 
-PRICE LEVEL RULES — read carefully:
+PRICE LEVEL RULES  -  read carefully:
 You are not a formula. You place levels exactly where you would draw them manually on a chart.
 
 ENTRY:
 - Order Block retest: top of the last bullish OB (last bearish candle before displacement up) for buys; bottom of last bearish OB for sells
 - FVG fill: midpoint of the imbalance gap (prevClose to today's low = bullish FVG; today's high to prevClose = bearish FVG)
 - Liquidity sweep + reversal: the swept level where price grabbed retail stops then reversed
-- Use the actual price you see in the data — not a relative offset
+- Use the actual price you see in the data  -  not a relative offset
 - WATCHLIST: provide a projected zone price (your best estimate) or null if genuinely uncertain
 - NO TRADE: always null
 
@@ -43,16 +43,16 @@ STOP LOSS:
 - For buys: below the origin of the bullish displacement (swing low before the rally, OB origin, or the FVG low)
 - For sells: above the origin of the bearish displacement (swing high before the drop, OB origin, or the FVG high)
 - Add 1-3 ticks buffer beyond the structural level to avoid stop hunts
-- The SL must represent true structural invalidation — not a formula
+- The SL must represent true structural invalidation  -  not a formula
 - Never use ATR multiples or fixed % distances
 
-TAKE PROFIT — ONE RULE ONLY:
+TAKE PROFIT  -  ONE RULE ONLY:
 
 TP1 = the closest valid liquidity level in the direction of the trade.
 That is the only rule. No exceptions.
 
 What counts as liquidity:
-  • Equal highs (for buys) or equal lows (for sells) — 2+ touches at the same level
+  • Equal highs (for buys) or equal lows (for sells)  -  2+ touches at the same level
   • Most recent swing high (buys) / swing low (sells)
   • Session high/low (Asia, London, NY)
   • Nearest opposing pool (prior day high/low, consolidation extreme)
@@ -62,7 +62,7 @@ Do NOT:
   • Skip a closer level because a farther one gives better RR
   • Apply caps or distance limits
   • Adjust for volatility
-  • Use R-multiples (1.5R, 2R, etc.) — ever
+  • Use R-multiples (1.5R, 2R, etc.)  -  ever
 
 If no clear liquidity is visible → return null. Do not invent a target.
 
@@ -71,7 +71,7 @@ TP2 = the next liquidity level after TP1, in the same direction. Do not skip lev
 TP3 = optional macro runner (52-week high/low, monthly structure). Default null.
 
 STRUCTURAL BIAS:
-- structuralBias: your HTF read — is the 52-week position, recent displacement, and momentum pointing bullish, bearish, or neutral?
+- structuralBias: your HTF read  -  is the 52-week position, recent displacement, and momentum pointing bullish, bearish, or neutral?
 - setupBias: the direction of the current LTF setup (buy/sell/neutral)
 
 TRADE STATUS:
@@ -79,7 +79,7 @@ TRADE STATUS:
 - "WATCHLIST": setup forming but not confirmed, or approaching a key level → provide projected prices or null
 - "NO TRADE": no setup, mixed/choppy structure, or risk outweighs opportunity → all price fields MUST be null
 
-CRITICAL: Respond with ONLY valid JSON — no markdown, no preamble, no code blocks. Return exactly this structure:
+CRITICAL: Respond with ONLY valid JSON  -  no markdown, no preamble, no code blocks. Return exactly this structure:
 {
   "action": "Look for BUY Setups" | "Look for SELL Setups" | "Wait for Confirmation" | "Avoid Trading",
   "actionSub": "one concise SMC-based description",
@@ -101,19 +101,19 @@ CRITICAL: Respond with ONLY valid JSON — no markdown, no preamble, no code blo
   "tp1": <exact price number, or null>,
   "tp2": <exact price number, or null>,
   "tp3": <exact price number, or null>,
-  "entryZone": "description: which structure zone, e.g. 'Bullish OB 2678–2682 — last bearish candle before displacement'",
-  "slZone": "invalidation logic, e.g. 'Below swing low 2661 — structure invalid on close below'",
-  "tp1Zone": "liquidity target, e.g. 'Equal highs 2710 — prior session pool'",
-  "tp2Zone": "secondary target, e.g. 'Weekly resistance 2735 — external liquidity'"
+  "entryZone": "description: which structure zone, e.g. 'Bullish OB 2678–2682  -  last bearish candle before displacement'",
+  "slZone": "invalidation logic, e.g. 'Below swing low 2661  -  structure invalid on close below'",
+  "tp1Zone": "liquidity target, e.g. 'Equal highs 2710  -  prior session pool'",
+  "tp2Zone": "secondary target, e.g. 'Weekly resistance 2735  -  external liquidity'"
 }`;
 
 // ── Session helper ────────────────────────────────────────────────────────────
 function getCurrentSession(): string {
   const h = new Date().getUTCHours();
-  if (h >= 0  && h < 8)  return "Asia (accumulation/range — mark highs/lows for London raid)";
-  if (h >= 8  && h < 13) return "London (manipulation/expansion — highest probability for directional moves)";
+  if (h >= 0  && h < 8)  return "Asia (accumulation/range  -  mark highs/lows for London raid)";
+  if (h >= 8  && h < 13) return "London (manipulation/expansion  -  highest probability for directional moves)";
   if (h >= 13 && h < 21) return "New York (continuation or reversal of London move)";
-  return "Closed (between sessions — prepare levels for Asia open)";
+  return "Closed (between sessions  -  prepare levels for Asia open)";
 }
 
 // ── Analyze one asset via Claude ──────────────────────────────────────────────
@@ -143,7 +143,7 @@ async function analyzeAsset(
   const session = getCurrentSession();
 
   const userMessage = `
-Analyze ${display} (${symbol}) — act as a professional SMC trader placing real levels on a chart.
+Analyze ${display} (${symbol})  -  act as a professional SMC trader placing real levels on a chart.
 
 TODAY'S PRICE ACTION:
 - Current Price: ${price}
@@ -166,14 +166,14 @@ STRUCTURE CONTEXT (conviction engine):
 YOUR TASK:
 1. Read the price action: is there an OB, FVG, or liquidity sweep setup present?
 2. Determine trade status: TRADE READY / WATCHLIST / NO TRADE
-3. Place exact INTRADAY price levels from structure — not formulas:
+3. Place exact INTRADAY price levels from structure  -  not formulas:
    - Entry: where would you actually place a limit order on this chart?
    - SL: the structural level that invalidates your thesis
    - TP1: the nearest realistic intraday liquidity (within this session's expected range)
-   - TP2: the next intraday target — further than TP1 but still reachable today
+   - TP2: the next intraday target  -  further than TP1 but still reachable today
    - TP3: only if there is a clear macro structural target beyond TP2
 
-IMPORTANT — day range context for TP sizing:
+IMPORTANT  -  day range context for TP sizing:
 The current day range is ${dayRange.toFixed(symbol === "USDJPY" ? 2 : symbol === "XAUUSD" || symbol === "BTCUSD" ? 2 : 4)}.
 Use this to calibrate realistic targets. TP1 should target price action within the current session, not a multi-day move.
 
@@ -193,7 +193,7 @@ Return valid JSON only.
   return JSON.parse(cleaned) as AssetAIAnalysis;
 }
 
-// ── Fallback analysis (when Claude unavailable — cold cache) ──────────────────
+// ── Fallback analysis (when Claude unavailable  -  cold cache) ──────────────────
 // Price levels are null: keylevels route uses its own structural formula as backup.
 function fallbackAnalysis(htfBias: string, confidence: number, smcContext: string, tradeStatus: string): AssetAIAnalysis {
   const isBull = htfBias === "bullish";
@@ -203,26 +203,26 @@ function fallbackAnalysis(htfBias: string, confidence: number, smcContext: strin
 
   return {
     action: !isActive ? "Avoid Trading" : isBull ? "Look for BUY Setups" : isBear ? "Look for SELL Setups" : "Wait for Confirmation",
-    actionSub: !isActive ? "No directional edge — stand aside" : isBull ? "HTF bullish — wait for discount OB/FVG entry" : "HTF bearish — wait for premium OB/FVG entry",
+    actionSub: !isActive ? "No directional edge  -  stand aside" : isBull ? "HTF bullish  -  wait for discount OB/FVG entry" : "HTF bearish  -  wait for premium OB/FVG entry",
     actionIntent: !isActive ? "avoid" : isBull ? "buy" : isBear ? "sell" : "wait",
     marketPhase: confidence >= 70 ? "Expansion" : isActive ? "Pullback" : "Range",
-    phaseDescription: `Market in ${isBull ? "bullish" : isBear ? "bearish" : "neutral"} phase — ${smcContext || "awaiting directional confirmation"}`,
-    narrative: `${smcContext || "No clear SMC structure detected."} Conviction at ${confidence}%. ${isActive ? "Directional bias present — align entries with trend." : "Below threshold — wait for clarity."}`,
+    phaseDescription: `Market in ${isBull ? "bullish" : isBear ? "bearish" : "neutral"} phase  -  ${smcContext || "awaiting directional confirmation"}`,
+    narrative: `${smcContext || "No clear SMC structure detected."} Conviction at ${confidence}%. ${isActive ? "Directional bias present  -  align entries with trend." : "Below threshold  -  wait for clarity."}`,
     supportingFactors: [smcContext || "Monitoring for BOS confirmation", `HTF ${htfBias} bias at ${confidence}% conviction`, "Awaiting AI analysis refresh"],
     invalidationFactors: ["Break of current structure invalidates setup", "Drop below 55% conviction threshold", "Opposing macro catalyst"],
     waitFor: isBull ? "Pullback to discount zone OB/FVG" : isBear ? "Bounce to premium zone OB/FVG" : "Clear BOS on H1 or H4",
     confirms: isBull ? "Bullish engulfing at OB / FVG fill + BOS" : isBear ? "Bearish rejection at OB / FVG + BOS" : "Decisive candle close beyond range",
     invalidates: isBull ? "Break and close below last significant swing low" : isBear ? "Break and close above last significant swing high" : "Strong directional displacement without retest",
     tradeStatus: tradeStatus as "TRADE READY" | "WATCHLIST" | "NO TRADE",
-    setupNarrative: `${isActive ? `${htfBias} bias confirmed at ${confidence}%.` : "Insufficient conviction for directional trade."} ${tradeStatus === "TRADE READY" ? "Setup is active — monitor for entry." : tradeStatus === "WATCHLIST" ? "Setup forming — not yet confirmed." : "No valid setup currently."}`,
+    setupNarrative: `${isActive ? `${htfBias} bias confirmed at ${confidence}%.` : "Insufficient conviction for directional trade."} ${tradeStatus === "TRADE READY" ? "Setup is active  -  monitor for entry." : tradeStatus === "WATCHLIST" ? "Setup forming  -  not yet confirmed." : "No valid setup currently."}`,
     structuralBias: bias,
     setupBias: bias,
-    // Price levels null — keylevels route will use structural formula as fallback
+    // Price levels null  -  keylevels route will use structural formula as fallback
     entry: null, stopLoss: null, tp1: null, tp2: null, tp3: null,
-    entryZone: "AI analysis unavailable — levels computed from structure",
-    slZone: "AI analysis unavailable — SL placed beyond swing structure",
-    tp1Zone: "AI analysis unavailable — targeting nearest session liquidity",
-    tp2Zone: "AI analysis unavailable — targeting secondary structure level",
+    entryZone: "AI analysis unavailable  -  levels computed from structure",
+    slZone: "AI analysis unavailable  -  SL placed beyond swing structure",
+    tp1Zone: "AI analysis unavailable  -  targeting nearest session liquidity",
+    tp2Zone: "AI analysis unavailable  -  targeting secondary structure level",
   };
 }
 
@@ -263,7 +263,7 @@ export async function GET() {
       const macdHist      = effectivePct * 0.01;
       const effectiveHigh = asset.invertBias ? price * 2 - low : high;
       const effectiveLow  = asset.invertBias ? price * 2 - high : low;
-      const effectiveRsi  = 50; // default — RSI fetch avoided to save API credits
+      const effectiveRsi  = 50; // default  -  RSI fetch avoided to save API credits
 
       const { bias: htfBias, confidence: htfConf, smcContext } = deriveConvictionBias(
         effectiveRsi, effectivePct, price, high52w, low52w, macdHist,
@@ -319,7 +319,7 @@ export async function GET() {
         })
       );
     } else {
-      // No API key — use fallback for all
+      // No API key  -  use fallback for all
       contexts.forEach(ctx => {
         results[ctx.symbol] = ctx.valid
           ? fallbackAnalysis(ctx.htfBias, ctx.htfConf, ctx.smcContext, "WATCHLIST")

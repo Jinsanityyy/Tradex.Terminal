@@ -1,4 +1,4 @@
-// Unified market data service — asset config + Twelve Data symbol mapping
+﻿// Unified market data service  -  asset config + Twelve Data symbol mapping
 import type { AssetSnapshot, Bias, AssetClass } from "@/types";
 
 export interface AssetConfig {
@@ -13,7 +13,7 @@ export interface AssetConfig {
 // Priority 1: fetched every cycle (8 max per minute on free tier)
 // Priority 2: fetched on alternate cycles
 export const TRACKED_ASSETS: AssetConfig[] = [
-  // Priority 1 — core assets (always fetched)
+  // Priority 1  -  core assets (always fetched)
   { symbol: "XAUUSD", name: "Gold",            twelveSymbol: "XAU/USD",   class: "commodity", decimalPlaces: 2, priority: 1 },
   { symbol: "BTCUSD", name: "Bitcoin",          twelveSymbol: "BTC/USD",   class: "crypto",    decimalPlaces: 2, priority: 1 },
   { symbol: "EURUSD", name: "EUR/USD",          twelveSymbol: "EUR/USD",   class: "forex",     decimalPlaces: 4, priority: 1 },
@@ -23,7 +23,7 @@ export const TRACKED_ASSETS: AssetConfig[] = [
   { symbol: "ETHUSD", name: "Ethereum",         twelveSymbol: "ETH/USD",   class: "crypto",    decimalPlaces: 2, priority: 1 },
   { symbol: "USDCAD", name: "USD/CAD",          twelveSymbol: "USD/CAD",   class: "forex",     decimalPlaces: 4, priority: 1 },
 
-  // Priority 2 — secondary assets (fetched on alternate cycles)
+  // Priority 2  -  secondary assets (fetched on alternate cycles)
   // Note: Only symbols available on Twelve Data free tier
   { symbol: "GBPJPY", name: "GBP/JPY",          twelveSymbol: "GBP/JPY",   class: "forex",     decimalPlaces: 2, priority: 2 },
   { symbol: "AUDUSD", name: "AUD/USD",          twelveSymbol: "AUD/USD",   class: "forex",     decimalPlaces: 4, priority: 2 },

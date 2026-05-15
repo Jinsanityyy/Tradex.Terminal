@@ -1,5 +1,5 @@
-/**
- * cTrader Open API — TLS TCP client.
+﻿/**
+ * cTrader Open API  -  TLS TCP client.
  *
  * The cTrader API uses a persistent TLS connection with length-prefixed
  * protobuf messages. Each message is framed as:
@@ -82,7 +82,7 @@ export class CtraderClient {
         const envelope = unwrapMessage(msgBuf);
         this.dispatch(envelope);
       } catch (e) {
-        // Malformed message — skip
+        // Malformed message  -  skip
       }
     }
   }

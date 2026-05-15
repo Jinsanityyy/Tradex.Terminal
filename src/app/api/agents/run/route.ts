@@ -1,5 +1,5 @@
-/**
- * TradeX Multi-Agent Terminal — Run API
+﻿/**
+ * TradeX Multi-Agent Terminal  -  Run API
  *
  * POST /api/agents/run
  * Body: { symbol: "XAUUSD" | "EURUSD" | "GBPUSD" | "BTCUSD", timeframe: "M5" | "M15" | "H1" | "H4", forceRefresh?: boolean }
@@ -13,7 +13,7 @@ import { runAgentOrchestrator } from "@/lib/agents/orchestrator";
 import { logSignal } from "@/lib/signals/logger";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 55; // Vercel Pro: 60s max — keep 5s buffer for cleanup
+export const maxDuration = 55; // Vercel Pro: 60s max  -  keep 5s buffer for cleanup
 
 const VALID_SYMBOLS: Symbol[] = ["XAUUSD", "EURUSD", "GBPUSD", "BTCUSD"];
 const VALID_TIMEFRAMES: Timeframe[] = ["M5", "M15", "H1", "H4"];
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const result = await runAgentOrchestrator(validated.symbol, validated.timeframe);
-    // Log directional signals on GET too — dedup in logger (1-min bucket + ignoreDuplicates)
+    // Log directional signals on GET too  -  dedup in logger (1-min bucket + ignoreDuplicates)
     // prevents spamming from auto-refreshes; only new signals per minute are persisted.
     if (result.agents.master.finalBias !== "no-trade" && result.agents.master.tradePlan) {
       logSignal(result).catch(() => {});

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useState, useRef } from "react";
 import { LayoutDashboard, TrendingUp, Zap, BarChart3, Users, Grid, Camera, LogOut, X } from "lucide-react";
@@ -51,7 +51,7 @@ export function MobileLayout() {
     if (saved) setTraderName(saved);
     const savedAvatar = localStorage.getItem("tradex_avatar");
     if (savedAvatar) setAvatar(savedAvatar);
-    // Fetch fresh data from DB — overrides localStorage
+    // Fetch fresh data from DB  -  overrides localStorage
     fetch("/api/profile")
       .then(r => r.ok ? r.json() : null)
       .then(data => {
@@ -67,7 +67,7 @@ export function MobileLayout() {
       })
       .catch(() => {});
 
-    // Listen for new chat messages — increment badge
+    // Listen for new chat messages  -  increment badge
     let myUserId: string | null = null;
     supabase.auth.getUser().then(({ data }) => { myUserId = data.user?.id ?? null; });
 
@@ -85,7 +85,7 @@ export function MobileLayout() {
         })
         .subscribe();
 
-      // Polling fallback — check for new messages every 10s
+      // Polling fallback  -  check for new messages every 10s
       const poll = setInterval(async () => {
         try {
           const { data } = await supabase
@@ -112,7 +112,7 @@ export function MobileLayout() {
     };
   }, []);
 
-  // Feed badge — poll for new HIGH catalysts
+  // Feed badge  -  poll for new HIGH catalysts
   useEffect(() => {
     const SEEN_KEY = "tradex_seen_feed_catalysts";
     let prevIds: Set<string> = new Set();

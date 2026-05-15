@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import { Badge } from "@/components/ui/badge";
@@ -94,13 +94,13 @@ function AnalysisModal({ cat, onClose }: { cat: Catalyst; onClose: () => void })
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
 
           {/* ══════════════════════════════════════════════════════
-              COMPLETED EVENT — static market context
+              COMPLETED EVENT  -  static market context
           ══════════════════════════════════════════════════════ */}
           {isCompleted && (
             <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.04] overflow-hidden">
               <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-emerald-500/15">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Completed — Market Context</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Completed  -  Market Context</span>
               </div>
               <div className="px-3.5 py-3">
                 <p className="text-[12px] text-zinc-200 leading-relaxed">{cat.explanation}</p>
@@ -145,7 +145,7 @@ function AnalysisModal({ cat, onClose }: { cat: Catalyst; onClose: () => void })
           )}
 
           {/* ══════════════════════════════════════════════════════
-              UPCOMING / LIVE — pre-event analysis (existing logic)
+              UPCOMING / LIVE  -  pre-event analysis (existing logic)
           ══════════════════════════════════════════════════════ */}
           {!isCompleted && (() => {
             const borderCls = isUpcoming ? "border-blue-500/25" : "border-amber-500/25";
@@ -161,14 +161,14 @@ function AnalysisModal({ cat, onClose }: { cat: Catalyst; onClose: () => void })
 
             const bullets: string[] = a
               ? [a.conditions, a.marketLogic, ...(a.assets ?? []).slice(0, 3).map(
-                  as => `${as.name}${as.ticker ? ` (${as.ticker})` : ""}: ${as.bias.toUpperCase()} — ${as.context}`
+                  as => `${as.name}${as.ticker ? ` (${as.ticker})` : ""}: ${as.bias.toUpperCase()}  -  ${as.context}`
                 )].filter((b): b is string => Boolean(b))
               : [
-                  cat.goldImpact === "bullish" ? "Safe-haven flows into Gold expected — watch for breakout above prior session high"
-                  : cat.goldImpact === "bearish" ? "Gold faces headwinds — sell rallies toward prior resistance"
-                  : "Gold direction uncertain — wait for price action confirmation",
-                  cat.usdImpact === "bullish"  ? "USD strength expected — watch DXY for breakout above key resistance"
-                  : cat.usdImpact === "bearish" ? "USD weakness likely — EURUSD and GBPUSD may benefit"
+                  cat.goldImpact === "bullish" ? "Safe-haven flows into Gold expected  -  watch for breakout above prior session high"
+                  : cat.goldImpact === "bearish" ? "Gold faces headwinds  -  sell rallies toward prior resistance"
+                  : "Gold direction uncertain  -  wait for price action confirmation",
+                  cat.usdImpact === "bullish"  ? "USD strength expected  -  watch DXY for breakout above key resistance"
+                  : cat.usdImpact === "bearish" ? "USD weakness likely  -  EURUSD and GBPUSD may benefit"
                   : null,
                   cat.marketImplication ?? null,
                 ].filter((b): b is string => Boolean(b));

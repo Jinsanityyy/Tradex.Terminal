@@ -1,4 +1,4 @@
-import { createServerClient } from "@supabase/ssr";
+﻿import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
 const MOBILE_UA = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/i;
@@ -33,7 +33,7 @@ export async function middleware(req: NextRequest) {
         },
       },
     });
-    // Refreshes the session token — do not remove
+    // Refreshes the session token  -  do not remove
     await supabase.auth.getUser();
   }
 

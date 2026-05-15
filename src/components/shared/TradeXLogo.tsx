@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import Image from "next/image";
@@ -19,7 +19,7 @@ const SIZE_PX = {
   xl: 96,
 } as const;
 
-// Banner sizes are larger — used on login/pricing/reset pages
+// Banner sizes are larger  -  used on login/pricing/reset pages
 const BANNER_SIZE_PX = {
   xs: 80,
   sm: 120,
@@ -52,7 +52,7 @@ export function TradeXLogo({
     );
   }
 
-  // wordmark — icon + "tradeX" text (sidebar expanded, mobile header)
+  // wordmark  -  icon + "tradeX" text (sidebar expanded, mobile header)
   if (variant === "wordmark") {
     return (
       <span
@@ -71,7 +71,7 @@ export function TradeXLogo({
     );
   }
 
-  // banner — large centered logo (login, pricing, reset password)
+  // banner  -  large centered logo (login, pricing, reset password)
   const bannerPx = BANNER_SIZE_PX[size];
   return (
     <div

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -154,7 +154,7 @@ function MFASection() {
       setStep("idle"); setQrCode(null); setSecret(null); setCode("");
       await checkMFA();
     } catch (err: any) {
-      setError("Invalid code — try again");
+      setError("Invalid code  -  try again");
     } finally { setLoading(false); }
   }
 
@@ -298,7 +298,7 @@ function MFASection() {
 export default function SettingsPage() {
   const { settings, saveSettings, applyVisual } = useSettings();
 
-  // Local draft — changes here are previewed live but not persisted until Save
+  // Local draft  -  changes here are previewed live but not persisted until Save
   const [draft, setDraft] = useState<Settings>(settings);
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
@@ -409,7 +409,7 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <SettingRow label="Theme" description="Terminal color scheme — previewed live, saved on click Save">
+          <SettingRow label="Theme" description="Terminal color scheme  -  previewed live, saved on click Save">
             <Pills<Theme>
               options={["dark", "midnight", "oled", "pink", "light"]}
               value={draft.theme}
@@ -468,7 +468,7 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <SettingRow label="Account Balance" description="Your trading account size — used by the lot size calculator">
+          <SettingRow label="Account Balance" description="Your trading account size  -  used by the lot size calculator">
             <div className="flex items-center gap-2">
               <span className="text-[10px] text-[hsl(var(--muted-foreground))]">$</span>
               <input
@@ -604,7 +604,7 @@ export default function SettingsPage() {
       {/* Security / MFA */}
       <MFASection />
 
-      {/* Sticky Save Bar — appears when there are unsaved changes */}
+      {/* Sticky Save Bar  -  appears when there are unsaved changes */}
       {isDirty && (
         <div className="sticky bottom-4 flex items-center justify-between rounded-xl border border-[hsl(var(--primary))]/30 bg-[hsl(var(--background))]/90 backdrop-blur px-4 py-3 shadow-lg">
           <span className="text-xs text-[hsl(var(--muted-foreground))]">You have unsaved changes</span>
@@ -627,7 +627,7 @@ export default function SettingsPage() {
 
       <div className="text-center py-2">
         <p className="text-[10px] text-[hsl(var(--muted-foreground))]">
-          TradeX Terminal v0.1.0 — Settings saved to your browser
+          TradeX Terminal v0.1.0  -  Settings saved to your browser
         </p>
       </div>
     </div>

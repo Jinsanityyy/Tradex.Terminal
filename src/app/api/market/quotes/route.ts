@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { TRACKED_ASSETS, twelveQuoteToSnapshot } from "@/lib/api/market-data";
 import { fetchFinnhubQuoteMap } from "@/lib/api/finnhub-market";
 import type { AssetSnapshot } from "@/types";
@@ -10,7 +10,7 @@ let snapshotCache: AssetSnapshot[] = [];
 let rawCache: Record<string, any> = {};
 let lastFetchTs = 0;
 let cycle = 0;
-const MIN_INTERVAL = 30_000; // 30s — free sources have generous limits
+const MIN_INTERVAL = 30_000; // 30s  -  free sources have generous limits
 
 // ── CoinGecko: real-time crypto (no API key, generous limits) ──
 const COINGECKO_MAP: Record<string, string> = {
@@ -262,7 +262,7 @@ export async function GET() {
       delete metalsData["XAU/USD"];
     }
     for (const [sym, quote] of Object.entries(metalsData)) {
-      // Always apply Yahoo Finance metals — real-time data overwrites stale cache
+      // Always apply Yahoo Finance metals  -  real-time data overwrites stale cache
       rawCache[sym] = quote;
       newQuotes++;
     }

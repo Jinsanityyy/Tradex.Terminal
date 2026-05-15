@@ -1,4 +1,4 @@
-// Twelve Data API — primary source for prices, volume, RSI, MACD
+﻿// Twelve Data API  -  primary source for prices, volume, RSI, MACD
 // Docs: https://twelvedata.com/docs
 // Rate limit: 8 requests/min on free tier, 800/day
 

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,7 +84,7 @@ export default function AIBriefingPage() {
             AI Briefing
           </h1>
           <p className="text-xs text-[hsl(var(--muted-foreground))]">
-            Live intelligence briefings — session-based analysis and trade context
+            Live intelligence briefings  -  session-based analysis and trade context
             {generatedAt && (
               <span className="ml-2 text-[hsl(var(--muted-foreground))]/70">
                 Updated: {new Date(generatedAt).toLocaleTimeString()}

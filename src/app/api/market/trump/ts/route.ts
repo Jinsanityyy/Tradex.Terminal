@@ -1,17 +1,17 @@
-/**
- * Truth Social provider proxy — /api/market/trump/ts
+﻿/**
+ * Truth Social provider proxy  -  /api/market/trump/ts
  *
  * Provider selection via TRUTH_SOCIAL_PROVIDER env var:
- *   "cnn"          — CNN live archive (free, no key, recommended — bypasses CF blocking)
- *   "apify"        — Apify actor (set APIFY_TOKEN + APIFY_ACTOR_ID)
- *   "scrapcreators"— ScrapeCreators API (set SCRAPCREATORS_API_KEY)
- *   "direct"       — direct Truth Social Mastodon API (free, may be CF-blocked)
- *   unset/empty    — tries CNN archive first, then direct
+ *   "cnn"           -  CNN live archive (free, no key, recommended  -  bypasses CF blocking)
+ *   "apify"         -  Apify actor (set APIFY_TOKEN + APIFY_ACTOR_ID)
+ *   "scrapcreators" -  ScrapeCreators API (set SCRAPCREATORS_API_KEY)
+ *   "direct"        -  direct Truth Social Mastodon API (free, may be CF-blocked)
+ *   unset/empty     -  tries CNN archive first, then direct
  *
  * Always returns a Mastodon-compatible status array OR { configured: false, error: "..." }
  */
 // Node runtime required for Supabase SSR cookie helpers used in service client.
-// CNN archive is fetched server-side (no CF issue — CNN CDN has public CORS).
+// CNN archive is fetched server-side (no CF issue  -  CNN CDN has public CORS).
 export const runtime = "nodejs";
 
 const PROVIDER   = (process.env.TRUTH_SOCIAL_PROVIDER ?? "").toLowerCase().trim();
@@ -68,7 +68,7 @@ function normalizeItem(item: Record<string, unknown>): MastodonLike | null {
   ).trim();
   if (!id || !text) return null;
 
-  // Filter out reposts and replies here — return null so they never reach mapTruthSocialStatus
+  // Filter out reposts and replies here  -  return null so they never reach mapTruthSocialStatus
   const isRepost = Boolean(
     item.repost ?? item.reblog ?? item.isRepost ?? item.isReblog ?? item.is_repost
   );
@@ -153,7 +153,7 @@ async function fetchViaApify(): Promise<Response> {
     };
     console.log(`[ts/apify] sync run: ${APIFY_ACTOR_ID} username=${USERNAME}`);
   } else {
-    // Fetch last successful run's dataset (instant — requires scheduled actor in Apify)
+    // Fetch last successful run's dataset (instant  -  requires scheduled actor in Apify)
     fetchUrl = `https://api.apify.com/v2/acts/${encodeURIComponent(APIFY_ACTOR_ID)}/runs/last/dataset/items?token=${APIFY_TOKEN}&limit=30&status=SUCCEEDED`;
     fetchOpts = { signal: AbortSignal.timeout(10_000) };
     console.log(`[ts/apify] last-run dataset: ${APIFY_ACTOR_ID}`);
@@ -270,7 +270,7 @@ async function fetchDirect(): Promise<Response> {
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     console.error(`[ts/direct] HTTP ${res.status}: ${body.slice(0, 200)}`);
-    return jsonError(res.status, `Truth Social HTTP ${res.status} — try TRUTH_SOCIAL_PROVIDER=scrapcreators`, false);
+    return jsonError(res.status, `Truth Social HTTP ${res.status}  -  try TRUTH_SOCIAL_PROVIDER=scrapcreators`, false);
   }
 
   const raw: Record<string, unknown>[] = await res.json().catch(() => []);
@@ -395,13 +395,13 @@ export async function GET() {
   if (PROVIDER === "direct")         return fetchDirect();
 
   // Default: CNN archive (free, reliable) → direct TS as last resort
-  console.log("[ts] no provider set — trying CNN archive first");
+  console.log("[ts] no provider set  -  trying CNN archive first");
   const cnnRes = await fetchViaCnn();
   if (cnnRes.ok) {
     const body = await cnnRes.clone().json().catch(() => []);
     if (Array.isArray(body) && body.length > 0) return cnnRes;
   }
 
-  console.warn("[ts] CNN archive empty — falling back to direct");
+  console.warn("[ts] CNN archive empty  -  falling back to direct");
   return fetchDirect();
 }

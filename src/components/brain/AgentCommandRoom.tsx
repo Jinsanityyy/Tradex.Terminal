@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from "react";
 import type { AgentRunResult } from "@/lib/agents/schemas";
@@ -159,7 +159,7 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
   const conf = data?.agents.master.confidence ?? 0;
   const finalBias = data?.agents.master.finalBias ?? "no-trade";
   const biasColor = finalBias==="bullish"?"#00ff9c":finalBias==="bearish"?"#ff4466":"#ffaa00";
-  const biasLabel = finalBias==="bullish"?"▲ BULLISH":finalBias==="bearish"?"▼ BEARISH":"— NO TRADE";
+  const biasLabel = finalBias==="bullish"?"▲ BULLISH":finalBias==="bearish"?"▼ BEARISH":" -  NO TRADE";
 
   const confVal        = activePinData ? getConfidenceValue(activePinData.stateKey, data) : 0;
   const tradePlan      = data?.agents.master.tradePlan ?? null;
@@ -213,7 +213,7 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
             backgroundImage:"repeating-linear-gradient(0deg,rgba(0,0,0,0.18) 0px,rgba(0,0,0,0.18) 1px,transparent 1px,transparent 4px)",
           }} />
 
-          {/* Bottom gradient — removes black gap, seals canvas to result card */}
+          {/* Bottom gradient  -  removes black gap, seals canvas to result card */}
           <div style={{
             position:"absolute", left:0, right:0, bottom:0, height:"32%",
             background:"linear-gradient(to bottom, transparent 0%, #07090f 100%)",
@@ -314,7 +314,7 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
                   pointerEvents:"none",
                 }} />
 
-              {/* Second pulse ring — layered glow depth */}
+              {/* Second pulse ring  -  layered glow depth */}
               {!isActive && (
                 <div style={{
                   position:"absolute",
@@ -406,7 +406,7 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
         </div>
       </div>
 
-      {/* ── DETAIL PANEL — fades in when an agent is clicked ── */}
+      {/* ── DETAIL PANEL  -  fades in when an agent is clicked ── */}
       {activePinData && activeSC && (
         <div className="hq-card-enter" style={{
           borderTop:`1px solid ${activeSC.accent}44`,

@@ -1,5 +1,5 @@
-/**
- * TradeX Multi-Agent Terminal — Schema Definitions
+﻿/**
+ * TradeX Multi-Agent Terminal  -  Schema Definitions
  *
  * All agent inputs and outputs are strictly typed.
  * Every agent receives the same MarketSnapshot and returns a typed AgentOutput.
@@ -48,7 +48,7 @@ export type MarketPhase =
   | "Breakout";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Market Snapshot — normalized input for all agents
+// Market Snapshot  -  normalized input for all agents
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface PriceData {
@@ -90,7 +90,7 @@ export interface NewsSnapshot {
   timestamp: number;
 }
 
-// Inline candle type (mirrors CandleBar from candles.ts — kept here to avoid circular imports)
+// Inline candle type (mirrors CandleBar from candles.ts  -  kept here to avoid circular imports)
 export interface SnapshotCandle {
   t: number;  // Unix timestamp in seconds
   o: number;
@@ -109,7 +109,7 @@ export interface MarketSnapshot {
   structure: StructureData;
   indicators: IndicatorData;
   recentNews: NewsSnapshot[];
-  // Last ~60 candles — used by PA agent for real FVG detection & actual session levels
+  // Last ~60 candles  -  used by PA agent for real FVG detection & actual session levels
   recentCandles?: SnapshotCandle[];
   // Derived convenience flags
   volatilityHigh: boolean;   // atrProxy > 1.0
@@ -118,7 +118,7 @@ export interface MarketSnapshot {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Agent 1 — Trend Agent
+// Agent 1  -  Trend Agent
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface TimeframeBias {
@@ -144,7 +144,7 @@ export interface TrendAgentOutput {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Agent 2 — Price Action Agent
+// Agent 2  -  Price Action Agent
 // Legacy field names are preserved for compatibility with the existing pipeline.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -178,7 +178,7 @@ export interface SMCAgentOutput {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Agent 3 — News Agent
+// Agent 3  -  News Agent
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface CatalystEvent {
@@ -204,7 +204,7 @@ export interface NewsAgentOutput {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Agent 4 — Risk Agent
+// Agent 4  -  Risk Agent
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type RiskGrade = "A" | "B" | "C" | "D" | "F";
@@ -225,7 +225,7 @@ export interface RiskAgentOutput {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Agent 5 — Execution Agent
+// Agent 5  -  Execution Agent
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type SignalState = "ARMED" | "PENDING" | "EXPIRED" | "NO_TRADE" | "WAIT";
@@ -259,7 +259,7 @@ export interface ExecutionAgentOutput {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Agent 6 — Contrarian Agent
+// Agent 6  -  Contrarian Agent
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ContrarianAgentOutput {
@@ -276,7 +276,7 @@ export interface ContrarianAgentOutput {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Agent 7 — Master Decision Agent
+// Agent 7  -  Master Decision Agent
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface TradePlan {
@@ -324,7 +324,7 @@ export interface MasterDecisionOutput {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Debate System — agent-vs-agent debate log
+// Debate System  -  agent-vs-agent debate log
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface DebateEntry {
@@ -337,7 +337,7 @@ export interface DebateEntry {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Orchestrator Output — full session result
+// Orchestrator Output  -  full session result
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface AgentRunResult {
@@ -362,7 +362,7 @@ export interface AgentRunResult {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scoring Config — configurable weights
+// Scoring Config  -  configurable weights
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ScoringWeights {
@@ -384,7 +384,7 @@ export const DEFAULT_WEIGHTS: ScoringWeights = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Strategy Catalog — named setups the system recognizes
+// Strategy Catalog  -  named setups the system recognizes
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const STRATEGY_CATALOG = [

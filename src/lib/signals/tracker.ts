@@ -1,5 +1,5 @@
-/**
- * TradeX Signal History — Outcome Tracker
+﻿/**
+ * TradeX Signal History  -  Outcome Tracker
  *
  * Checks open signals against current market price and resolves them.
  * - If price hits TP1 → "win_tp1"
@@ -55,7 +55,7 @@ async function fetchCurrentPrices(symbols: string[]): Promise<Map<string, number
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// OHLC candle fetching — keyed by "SYMBOL_TIMEFRAME" to avoid duplicate calls
+// OHLC candle fetching  -  keyed by "SYMBOL_TIMEFRAME" to avoid duplicate calls
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function fetchCandleMap(
@@ -83,7 +83,7 @@ async function fetchCandleMap(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// OHLC-based resolution — scans candles chronologically, first touch wins
+// OHLC-based resolution  -  scans candles chronologically, first touch wins
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TF_SECONDS: Record<string, number> = { M5: 300, M15: 900, H1: 3600, H4: 14400 };
@@ -177,7 +177,7 @@ interface Resolution {
  * Given a signal and current price, determine if it has resolved.
  * Returns null if still open (no hit yet, not expired).
  *
- * NOTE: This is a "level-touch" heuristic — it checks if current price crossed
+ * NOTE: This is a "level-touch" heuristic  -  it checks if current price crossed
  * a key level. A more accurate implementation would pull OHLC data between
  * signal time and now to detect intra-period touches, but for MVP this is enough.
  */
@@ -278,8 +278,8 @@ function resolveSignal(signal: SignalRecord, currentPrice: number): Resolution |
   if (isPullbackSetup) {
     const missed =
       direction === "long"
-        ? currentPrice > signal.priceAtSignal + riskDist   // price ran up — dip never coming
-        : currentPrice < signal.priceAtSignal - riskDist;  // price dropped — rally never coming
+        ? currentPrice > signal.priceAtSignal + riskDist   // price ran up  -  dip never coming
+        : currentPrice < signal.priceAtSignal - riskDist;  // price dropped  -  rally never coming
     if (missed) return mkInvalidated(currentPrice);
   }
 
@@ -292,8 +292,8 @@ function resolveSignal(signal: SignalRecord, currentPrice: number): Resolution |
   if (isBreakoutSetup) {
     const abandoned =
       direction === "long"
-        ? currentPrice < signal.priceAtSignal - riskDist   // price fell away — breakout won't happen
-        : currentPrice > signal.priceAtSignal + riskDist;  // price rallied away — breakdown won't happen
+        ? currentPrice < signal.priceAtSignal - riskDist   // price fell away  -  breakout won't happen
+        : currentPrice > signal.priceAtSignal + riskDist;  // price rallied away  -  breakdown won't happen
     if (abandoned) return mkInvalidated(currentPrice);
   }
 
@@ -412,7 +412,7 @@ export async function trackOpenSignals(): Promise<TrackingResult> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Reprocess — correct recently mis-classified loss_sl signals
+// Reprocess  -  correct recently mis-classified loss_sl signals
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ReprocessResult {
@@ -424,7 +424,7 @@ export interface ReprocessResult {
 
 /**
  * Re-evaluates recent loss_sl signals using OHLC candle data.
- * Corrects any that were actually TP hits — happens when price hit TP
+ * Corrects any that were actually TP hits  -  happens when price hit TP
  * then bounced back past SL before the cron fired.
  */
 export async function reprocessRecentLosses(withinHours = 24): Promise<ReprocessResult> {

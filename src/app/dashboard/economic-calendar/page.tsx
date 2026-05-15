@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,7 +53,7 @@ export default function EconomicCalendarPage() {
         <div>
           <h1 className="text-lg font-bold text-[hsl(var(--foreground))]">Economic Calendar</h1>
           <p className="text-xs text-[hsl(var(--muted-foreground))]">
-            High-impact USD events only — auto-analyzed for Gold & USD impact
+            High-impact USD events only  -  auto-analyzed for Gold & USD impact
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -139,7 +139,7 @@ export default function EconomicCalendarPage() {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4 text-amber-400 pulse-live" />
-              <span className="text-amber-400">LIVE — Event In Progress</span>
+              <span className="text-amber-400">LIVE  -  Event In Progress</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -164,7 +164,7 @@ export default function EconomicCalendarPage() {
             <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
               <Clock className="h-5 w-5 text-zinc-700" />
               <p className="text-xs text-zinc-500">No upcoming events scheduled</p>
-              <p className="text-[10px] text-zinc-600">Next week&apos;s calendar is usually published Sunday night — check back then.</p>
+              <p className="text-[10px] text-zinc-600">Next week&apos;s calendar is usually published Sunday night  -  check back then.</p>
             </div>
           )}
         </CardContent>

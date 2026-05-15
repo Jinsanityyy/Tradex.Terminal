@@ -1,7 +1,7 @@
-/**
+﻿/**
  * Minimal hand-rolled protobuf encoder/decoder for the cTrader Open API.
  * Covers only the message types required for this integration.
- * No external packages needed — uses Node.js Buffer primitives.
+ * No external packages needed  -  uses Node.js Buffer primitives.
  *
  * cTrader payload type constants:
  *   https://github.com/spotware/open-api-proto-messages
@@ -43,13 +43,13 @@ function encodeVarint(value: bigint): Buffer {
   return Buffer.from(bytes);
 }
 
-/** Wire type 0 — varint (int32, int64, uint32, uint64, bool, enum) */
+/** Wire type 0  -  varint (int32, int64, uint32, uint64, bool, enum) */
 export function fVarint(fieldNum: number, value: number | bigint): Buffer {
   const key = encodeVarint(BigInt((fieldNum << 3) | 0));
   return Buffer.concat([key, encodeVarint(BigInt(value))]);
 }
 
-/** Wire type 1 — 64-bit little-endian (double) */
+/** Wire type 1  -  64-bit little-endian (double) */
 export function fDouble(fieldNum: number, value: number): Buffer {
   const key = encodeVarint(BigInt((fieldNum << 3) | 1));
   const val = Buffer.allocUnsafe(8);
@@ -57,7 +57,7 @@ export function fDouble(fieldNum: number, value: number): Buffer {
   return Buffer.concat([key, val]);
 }
 
-/** Wire type 2 — length-delimited (string) */
+/** Wire type 2  -  length-delimited (string) */
 export function fString(fieldNum: number, value: string): Buffer {
   const key = encodeVarint(BigInt((fieldNum << 3) | 2));
   const bytes = Buffer.from(value, "utf8");
@@ -65,14 +65,14 @@ export function fString(fieldNum: number, value: string): Buffer {
   return Buffer.concat([key, len, bytes]);
 }
 
-/** Wire type 2 — length-delimited (bytes or embedded message) */
+/** Wire type 2  -  length-delimited (bytes or embedded message) */
 export function fBytes(fieldNum: number, value: Buffer): Buffer {
   const key = encodeVarint(BigInt((fieldNum << 3) | 2));
   const len = encodeVarint(BigInt(value.length));
   return Buffer.concat([key, len, value]);
 }
 
-/** Wire type 0 — bool */
+/** Wire type 0  -  bool */
 export function fBool(fieldNum: number, value: boolean): Buffer {
   return fVarint(fieldNum, value ? 1n : 0n);
 }

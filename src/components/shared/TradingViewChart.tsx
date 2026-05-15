@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, Layers, Search, Timer, X } from "lucide-react";
@@ -119,7 +119,7 @@ const QUICK_SYMBOLS = [
     ],
   },
   {
-    group: "Crypto — Layer 1",
+    group: "Crypto  -  Layer 1",
     items: [
       { label: "BTC/USD",   value: "BITSTAMP:BTCUSD"   },
       { label: "ETH/USD",   value: "BITSTAMP:ETHUSD"   },
@@ -167,7 +167,7 @@ const QUICK_SYMBOLS = [
     ],
   },
   {
-    group: "Crypto — Layer 2 / Scaling",
+    group: "Crypto  -  Layer 2 / Scaling",
     items: [
       { label: "MATIC/USD", value: "COINBASE:MATICUSD" },
       { label: "ARB/USD",   value: "COINBASE:ARBUSD"   },
@@ -179,7 +179,7 @@ const QUICK_SYMBOLS = [
     ],
   },
   {
-    group: "Crypto — DeFi",
+    group: "Crypto  -  DeFi",
     items: [
       { label: "UNI/USD",   value: "COINBASE:UNIUSD"   },
       { label: "LINK/USD",  value: "COINBASE:LINKUSD"  },
@@ -208,7 +208,7 @@ const QUICK_SYMBOLS = [
     ],
   },
   {
-    group: "Crypto — AI & Data",
+    group: "Crypto  -  AI & Data",
     items: [
       { label: "FET/USD",   value: "BINANCE:FETUSDT"   },
       { label: "AGIX/USD",  value: "BINANCE:AGIXUSDT"  },
@@ -222,7 +222,7 @@ const QUICK_SYMBOLS = [
     ],
   },
   {
-    group: "Crypto — Gaming & NFT",
+    group: "Crypto  -  Gaming & NFT",
     items: [
       { label: "AXS/USD",  value: "BINANCE:AXSUSDT"  },
       { label: "SAND/USD", value: "COINBASE:SANDUSD"  },
@@ -237,7 +237,7 @@ const QUICK_SYMBOLS = [
     ],
   },
   {
-    group: "Crypto — Meme",
+    group: "Crypto  -  Meme",
     items: [
       { label: "DOGE/USD",  value: "BINANCE:DOGEUSDT"  },
       { label: "SHIB/USD",  value: "BINANCE:SHIBUSDT"  },
@@ -251,7 +251,7 @@ const QUICK_SYMBOLS = [
     ],
   },
   {
-    group: "Crypto — Stables & Other",
+    group: "Crypto  -  Stables & Other",
     items: [
       { label: "USDT",       value: "BINANCE:USDTUSD"  },
       { label: "SEI/USD",    value: "BINANCE:SEIUSDT"  },
@@ -740,7 +740,7 @@ export function TradingViewChart({
       onContextMenu={(event) => event.preventDefault()}
     >
 
-      {/* TradeX custom header — symbol picker + timeframes + candle countdown */}
+      {/* TradeX custom header  -  symbol picker + timeframes + candle countdown */}
       <div className="flex h-[38px] shrink-0 items-center justify-between gap-2 border-b border-white/5 px-2.5" style={{ background: "#000000" }}>
         <div className="flex min-w-0 items-center gap-1.5">
 
@@ -856,7 +856,7 @@ export function TradingViewChart({
         </div>
       </div>
 
-      {/* Chart + Key Levels side-by-side — panel is a sibling, never overlaps chart */}
+      {/* Chart + Key Levels side-by-side  -  panel is a sibling, never overlaps chart */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <div ref={containerRef} className="flex-1 min-w-0 h-full" style={{ background: "#000000" }} />
 
@@ -871,7 +871,7 @@ export function TradingViewChart({
 // ── Key Levels Panel ─────────────────────────────────────────────────────────
 
 function fmt(v: number | null | undefined, asset: string): string {
-  if (v == null) return "—";
+  if (v == null) return " - ";
   if (asset === "XAUUSD" || asset === "BTCUSD") return v.toFixed(2);
   return v.toFixed(5);
 }
@@ -975,7 +975,7 @@ function KeyLevelsPanel({
             </span>
           </div>
 
-          {/* Structure levels — always visible */}
+          {/* Structure levels  -  always visible */}
           <div className="flex flex-col py-1">
             {structureRows.map((row) => (
               <div key={row.label} className="flex items-center justify-between px-3 py-[3.5px]">
@@ -989,7 +989,7 @@ function KeyLevelsPanel({
             ))}
           </div>
 
-          {/* AI Trade levels — only when agents confirmed a valid setup */}
+          {/* AI Trade levels  -  only when agents confirmed a valid setup */}
           <div className="mx-3 my-1" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }} />
 
           {showTradeLevels ? (

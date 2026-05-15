@@ -1,4 +1,4 @@
-import type { DirectionalBias, Symbol, Timeframe, TimeframeBias } from "./schemas";
+﻿import type { DirectionalBias, Symbol, Timeframe, TimeframeBias } from "./schemas";
 import { fetchYahooCandles } from "@/lib/api/yahoo-finance";
 
 export interface CandleBar {
@@ -392,7 +392,7 @@ function deriveBiasFromMetrics(
 
   switch (timeframe) {
     case "H4":
-      // H4: lower threshold to 0.08% — gold/forex can be directional on small H4 moves
+      // H4: lower threshold to 0.08%  -  gold/forex can be directional on small H4 moves
       if (metrics.changePercent > 0.08 && metrics.rsi > 51) return "bullish";
       if (metrics.changePercent < -0.08 && metrics.rsi < 49) return "bearish";
       if (metrics.driftPercent > 0.15 && maBoostBull) return "bullish";
@@ -546,7 +546,7 @@ async function fetchTwelvedataCandles(symbol: Symbol, timeframe: Timeframe): Pro
       return null;
     }
 
-    // Twelve Data returns newest-first — reverse to get chronological order
+    // Twelve Data returns newest-first  -  reverse to get chronological order
     const values: { datetime: string; open: string; high: string; low: string; close: string; volume: string }[] =
       [...payload.values].reverse();
 

@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { AgentGrid }   from "@/components/landing/AgentGrid";
 
 export const metadata: Metadata = {
-  title: "TradeX Terminal — Multi-Agent Intelligence System",
+  title: "TradeX Terminal  -  Multi-Agent Intelligence System",
   description:
-    "7 AI agents — Trend, Price Action, News, Risk Gate, Execution, Contrarian, Master — running in a structured pipeline to produce a single, auditable trade decision.",
+    "7 AI agents  -  Trend, Price Action, News, Risk Gate, Execution, Contrarian, Master  -  running in a structured pipeline to produce a single, auditable trade decision.",
 };
 
 export default function AboutPage() {

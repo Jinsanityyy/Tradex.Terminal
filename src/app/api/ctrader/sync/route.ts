@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/supabase/auth-helper";
 import { decrypt, encrypt } from "@/lib/exchanges/encrypt";
 import {
@@ -14,7 +14,7 @@ const CLIENT_SECRET = process.env.CTRADER_CLIENT_SECRET ?? "";
 
 /**
  * POST /api/ctrader/sync
- * Body: { connectionId?: string }   — omit to sync all cTrader connections.
+ * Body: { connectionId?: string }    -  omit to sync all cTrader connections.
  *
  * 1. Load connection(s) from Supabase
  * 2. Refresh access token if needed

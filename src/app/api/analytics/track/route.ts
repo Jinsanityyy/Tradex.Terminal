@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/supabase/auth-helper";
 
 export const dynamic = "force-dynamic";
@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Unknown type" }, { status: 400 });
     }
   } catch (err: any) {
-    // Never crash — analytics should be silent
+    // Never crash  -  analytics should be silent
     console.error("Analytics track error:", err?.message);
     return NextResponse.json({ ok: true });
   }

@@ -1,12 +1,12 @@
-/**
- * TradeX Signal History — Storage Layer (Supabase)
+﻿/**
+ * TradeX Signal History  -  Storage Layer (Supabase)
  *
  * Reads and writes signal records to the Supabase `signals` table.
  * The table schema (see migrations) extends the user's existing `signals` table
  * by adding columns for the richer AgentRunResult context.
  *
  * This layer is swappable: if we ever want to migrate off Supabase, only this
- * file needs to change — logger.ts, tracker.ts, stats.ts, and the API routes
+ * file needs to change  -  logger.ts, tracker.ts, stats.ts, and the API routes
  * all depend on this abstraction.
  */
 
@@ -19,7 +19,7 @@ import type { Symbol, Timeframe, FinalBias } from "@/lib/agents/schemas";
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface SignalRow {
-  id: string;                    // PRIMARY KEY — stable deterministic id
+  id: string;                    // PRIMARY KEY  -  stable deterministic id
   timestamp: string;              // ISO
   symbol: string;
   symbol_display: string | null;
@@ -61,7 +61,7 @@ interface SignalRow {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mappers — DB row ⇄ domain record
+// Mappers  -  DB row ⇄ domain record
 // ─────────────────────────────────────────────────────────────────────────────
 
 function recordToRow(r: SignalRecord): Omit<SignalRow, "created_at"> {
@@ -171,12 +171,12 @@ function rowToRecord(row: SignalRow): SignalRecord {
 
 /**
  * Append a new signal record.
- * Idempotent via upsert on id — running the same signal twice is a no-op.
+ * Idempotent via upsert on id  -  running the same signal twice is a no-op.
  */
 export async function saveSignal(record: SignalRecord): Promise<SignalRecord | null> {
   const db = getServiceClient();
   if (!db) {
-    console.warn("[signals/storage] Supabase service client unavailable — signal not saved");
+    console.warn("[signals/storage] Supabase service client unavailable  -  signal not saved");
     return null;
   }
 

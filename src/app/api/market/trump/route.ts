@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import * as https from "node:https";
 import type { TrumpPost } from "@/types";
 
-// HTTP/1.1 GET via node:https — handles gzip/deflate decompression + redirects
+// HTTP/1.1 GET via node:https  -  handles gzip/deflate decompression + redirects
 import * as zlib from "node:zlib";
 
 function httpsGet(url: string, redirects = 5): Promise<string> {
@@ -189,7 +189,7 @@ async function analyzeGoldUSD(content: string, category: string): Promise<{
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 300,
-        system: `You are a macro analyst. Given a Trump statement, state the specific directional impact on Gold (XAUUSD) and USD (DXY). Be specific to this exact content — no generic templates. Valid JSON only.`,
+        system: `You are a macro analyst. Given a Trump statement, state the specific directional impact on Gold (XAUUSD) and USD (DXY). Be specific to this exact content  -  no generic templates. Valid JSON only.`,
         messages: [{
           role: "user",
           content: `Trump post: "${content.slice(0, 400)}"\nCategory: ${category}\n\nReturn ONLY this JSON:\n{"goldImpact":"bullish|bearish|neutral","goldReasoning":"1 sentence why gold moves this way","usdImpact":"bullish|bearish|neutral","usdReasoning":"1 sentence why USD moves this way"}`,
@@ -204,7 +204,7 @@ async function analyzeGoldUSD(content: string, category: string): Promise<{
   }
 }
 
-// Match curl exactly — minimal headers only to avoid bot detection
+// Match curl exactly  -  minimal headers only to avoid bot detection
 const TS_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
   "Accept": "application/json",
@@ -267,8 +267,8 @@ async function fetchTruthSocialAPI(accountId: string): Promise<Omit<TrumpPost, "
 }
 
 // ── Source 1a-proxy: Truth Social via allorigins.win ─────────────────────────
-// Vercel IPs are blocked by Truth Social — route through a CORS proxy
-const TS_ACCOUNT_ID = "107780257626128497"; // realDonaldTrump — hardcoded as backup
+// Vercel IPs are blocked by Truth Social  -  route through a CORS proxy
+const TS_ACCOUNT_ID = "107780257626128497"; // realDonaldTrump  -  hardcoded as backup
 
 async function fetchTruthSocialViaProxy(): Promise<Omit<TrumpPost, "goldImpact" | "goldReasoning" | "usdImpact" | "usdReasoning">[]> {
   try {
@@ -298,7 +298,7 @@ async function fetchTruthSocial(): Promise<Omit<TrumpPost, "goldImpact" | "goldR
     const direct = await fetchTruthSocialAPI(accountId);
     if (direct.length > 0) return direct;
   }
-  // Vercel IPs blocked — try via proxy
+  // Vercel IPs blocked  -  try via proxy
   console.log("[trump] direct failed, trying proxy");
   return fetchTruthSocialViaProxy();
 }

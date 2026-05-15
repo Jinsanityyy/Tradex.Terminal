@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useRef, useState } from "react";
 import { Send, Loader2, Hash } from "lucide-react";
@@ -230,7 +230,7 @@ export function CommunityPanel() {
         {supabase && messages.length === 0 && (
           <div className="text-center py-8">
             <Hash className="h-5 w-5 text-[hsl(var(--muted-foreground))] mx-auto mb-2 opacity-40" />
-            <p className="text-[10px] text-[hsl(var(--muted-foreground))]">No messages yet — share a setup!</p>
+            <p className="text-[10px] text-[hsl(var(--muted-foreground))]">No messages yet  -  share a setup!</p>
           </div>
         )}
 

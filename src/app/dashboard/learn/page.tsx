@@ -1,6 +1,6 @@
-import { TradingKnowledgePanel } from "@/components/shared/TradingKnowledgePanel";
+﻿import { TradingKnowledgePanel } from "@/components/shared/TradingKnowledgePanel";
 
-export const metadata = { title: "Trading Knowledge — TradeX" };
+export const metadata = { title: "Trading Knowledge  -  TradeX" };
 
 export default function LearnPage() {
   return (

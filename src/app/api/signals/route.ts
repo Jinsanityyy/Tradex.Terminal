@@ -1,4 +1,4 @@
-/**
+﻿/**
  * GET /api/signals
  *
  * Query params:
@@ -53,12 +53,12 @@ export async function GET(req: NextRequest) {
       ? Math.min(limitParam, 200)
       : 50;
 
-    // Opportunistic outcome tracking — kicks in max once per minute per instance.
+    // Opportunistic outcome tracking  -  kicks in max once per minute per instance.
     // This replaces the Vercel cron (which hit the Hobby plan limit).
     const now = Date.now();
     if (now - lastTrackerRunAt > TRACKER_COOLDOWN_MS) {
       lastTrackerRunAt = now;
-      // Fire-and-forget — don't block the response.
+      // Fire-and-forget  -  don't block the response.
       void Promise.all([
         trackOpenSignals(),
         reprocessRecentLosses(4), // correct false SL hits from last 4h on every load

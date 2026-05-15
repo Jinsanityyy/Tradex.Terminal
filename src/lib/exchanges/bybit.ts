@@ -1,5 +1,5 @@
-/**
- * Bybit Unified v5 adapter — Linear perpetuals (USDT)
+﻿/**
+ * Bybit Unified v5 adapter  -  Linear perpetuals (USDT)
  * Endpoint: /v5/position/closed-pnl
  * Docs: https://bybit-exchange.github.io/docs/v5/position/close-pnl
  */

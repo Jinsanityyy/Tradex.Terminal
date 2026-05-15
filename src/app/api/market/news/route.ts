@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import type { NewsItem } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ const FALLBACK_NEWS: NewsItem[] = [
   },
   {
     id: "fb-2", timestamp: new Date(Date.now() - 55 * 60 * 1000).toISOString(),
-    headline: "US tariff escalation raises fears of global trade slowdown — IMF warns",
+    headline: "US tariff escalation raises fears of global trade slowdown  -  IMF warns",
     category: "tariffs", sentiment: "bearish", impactScore: 9,
     affectedAssets: ["SPX", "DXY", "EURUSD", "XAUUSD"],
     source: "Bloomberg",
@@ -41,13 +41,13 @@ const FALLBACK_NEWS: NewsItem[] = [
     source: "FXStreet",
     summary: "Spot gold broke above $3,300/oz as investors fled to safe-haven assets amid escalating Middle East tensions and uncertainty over US trade policy. Central bank buying continued to provide a structural floor.",
     goldImpact: "bullish",
-    goldReasoning: "Gold broke above key $3,300 resistance — central bank buying and geopolitical tensions provide dual structural support.",
+    goldReasoning: "Gold broke above key $3,300 resistance  -  central bank buying and geopolitical tensions provide dual structural support.",
     usdImpact: "bearish",
     usdReasoning: "Gold's surge at the expense of dollar-denominated assets reflects softening USD demand as safe-haven capital rotates.",
   },
   {
     id: "fb-4", timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    headline: "US CPI hotter than expected — core inflation at 3.8% YoY, dollar surges",
+    headline: "US CPI hotter than expected  -  core inflation at 3.8% YoY, dollar surges",
     category: "inflation", sentiment: "bearish", impactScore: 9,
     affectedAssets: ["DXY", "XAUUSD", "EURUSD", "SPX"],
     source: "AP",
@@ -65,25 +65,25 @@ const FALLBACK_NEWS: NewsItem[] = [
     source: "CoinDesk",
     summary: "Spot Bitcoin ETFs recorded $600 million in net inflows in a single trading session, the third largest day on record. BlackRock's iShares Bitcoin Trust led with $380M as institutional adoption continues.",
     goldImpact: "neutral",
-    goldReasoning: "Crypto inflow surge has minimal direct gold impact — both compete as alternative assets but serve different investor profiles.",
+    goldReasoning: "Crypto inflow surge has minimal direct gold impact  -  both compete as alternative assets but serve different investor profiles.",
     usdImpact: "neutral",
     usdReasoning: "Bitcoin ETF flows reflect risk appetite but have no direct USD macro transmission mechanism.",
   },
   {
     id: "fb-6", timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-    headline: "Middle East tensions flare as ceasefire talks collapse — oil spikes 3%",
+    headline: "Middle East tensions flare as ceasefire talks collapse  -  oil spikes 3%",
     category: "geopolitics", sentiment: "bearish", impactScore: 8,
     affectedAssets: ["USOIL", "XAUUSD", "DXY", "SPX"],
     source: "Al Jazeera",
     summary: "Oil prices surged 3% after ceasefire negotiations broke down, raising concerns about supply disruptions through the Strait of Hormuz. Gold and the dollar benefited from safe-haven flows.",
     goldImpact: "bullish",
-    goldReasoning: "Ceasefire collapse and Hormuz disruption risk triggers geopolitical risk premium in gold — historically gold's strongest catalyst.",
+    goldReasoning: "Ceasefire collapse and Hormuz disruption risk triggers geopolitical risk premium in gold  -  historically gold's strongest catalyst.",
     usdImpact: "bullish",
     usdReasoning: "Middle East escalation drives parallel USD safe-haven demand alongside gold as investors exit regional and EM risk exposure.",
   },
   {
     id: "fb-7", timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-    headline: "US jobs report beats expectations — 256K nonfarm payrolls added in March",
+    headline: "US jobs report beats expectations  -  256K nonfarm payrolls added in March",
     category: "economy", sentiment: "bullish", impactScore: 8,
     affectedAssets: ["DXY", "SPX", "EURUSD", "XAUUSD"],
     source: "WSJ",
@@ -238,7 +238,7 @@ function deriveGoldUSD(headline: string, category: string, sentiment: Bias): {
       goldReasoning: "Trade war escalation drives safe-haven demand into gold as risk assets sell off globally.",
       usdImpact: sentiment === "bearish" ? "neutral" : "bullish",
       usdReasoning: sentiment === "bearish"
-        ? "USD faces competing forces — safe-haven flows in vs. growth damage from tariffs — resulting in mixed direction."
+        ? "USD faces competing forces  -  safe-haven flows in vs. growth damage from tariffs  -  resulting in mixed direction."
         : "Trade deal progress reduces safe-haven premium, but USD supported by relative US economic strength.",
     };
   }
@@ -295,8 +295,8 @@ function deriveGoldUSD(headline: string, category: string, sentiment: Bias): {
       return {
         goldImpact: sentiment,
         goldReasoning: sentiment === "bullish"
-          ? "Direct gold catalyst — supply/demand dynamics or safe-haven flows supporting spot gold prices."
-          : "Gold-specific headwind weighing on spot prices — monitor for follow-through or reversal at key levels.",
+          ? "Direct gold catalyst  -  supply/demand dynamics or safe-haven flows supporting spot gold prices."
+          : "Gold-specific headwind weighing on spot prices  -  monitor for follow-through or reversal at key levels.",
         usdImpact: sentiment === "bullish" ? "bearish" : "bullish",
         usdReasoning: sentiment === "bullish"
           ? "Gold strength typically reflects USD softness as both compete for safe-haven capital flows."
@@ -305,7 +305,7 @@ function deriveGoldUSD(headline: string, category: string, sentiment: Bias): {
     }
     return {
       goldImpact: "neutral",
-      goldReasoning: "Commodity-specific catalyst with indirect gold impact — watch energy/inflation transmission into gold pricing.",
+      goldReasoning: "Commodity-specific catalyst with indirect gold impact  -  watch energy/inflation transmission into gold pricing.",
       usdImpact: "neutral",
       usdReasoning: "Commodity news has limited direct USD impact unless it significantly shifts inflation or growth expectations.",
     };
@@ -318,13 +318,13 @@ function deriveGoldUSD(headline: string, category: string, sentiment: Bias): {
       ? "Risk-on sentiment reduces safe-haven demand, marginally weighing on gold."
       : sentiment === "bearish"
       ? "Risk-off tone supports gold as investors seek safe-haven assets amid market uncertainty."
-      : "Neutral macro backdrop — gold lacks a clear directional catalyst from this headline.",
+      : "Neutral macro backdrop  -  gold lacks a clear directional catalyst from this headline.",
     usdImpact: sentiment,
     usdReasoning: sentiment === "bullish"
       ? "Positive risk sentiment broadly supports USD as the world's primary reserve and safe-haven currency."
       : sentiment === "bearish"
       ? "Risk-off flows typically benefit USD short-term, though persistent weakness can trigger flight to gold instead."
-      : "Mixed signals provide no clear USD directional bias — monitor price action at key levels.",
+      : "Mixed signals provide no clear USD directional bias  -  monitor price action at key levels.",
   };
 }
 

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useCallback, useEffect } from "react";
 import useSWR from "swr";
@@ -175,7 +175,7 @@ function TradePlanCard({ tradePlan }: { tradePlan: NonNullable<AgentRunResult["a
           <div className="bg-black/20 rounded-xl border border-white/6 px-3 py-2 text-center">
             <p className="text-[9px] uppercase tracking-wider text-zinc-500">Conf</p>
             <p className="text-[14px] font-black font-mono mt-0.5 text-zinc-200">
-              {tradePlan.confluenceCount ?? "—"}<span className="text-[10px] text-zinc-500">/10</span>
+              {tradePlan.confluenceCount ?? " - "}<span className="text-[10px] text-zinc-500">/10</span>
             </p>
           </div>
           <div className="bg-black/20 rounded-xl border border-white/6 px-3 py-2 text-center">
@@ -293,7 +293,7 @@ function StandAsideCard({ exec, isWait }: {
         </div>
         <div>
           <p className={cn("text-[12px] font-bold", isWait ? "text-orange-300" : "text-zinc-400")}>
-            {isWait ? "Monitoring — Suboptimal Setup" : "No Valid Setup"}
+            {isWait ? "Monitoring  -  Suboptimal Setup" : "No Valid Setup"}
           </p>
           <p className="text-[11px] text-zinc-600 mt-1 leading-snug">
             {isWait
@@ -456,7 +456,7 @@ export function MobileBrain() {
             />
           )}
 
-          {/* Trade Plan / Stand aside — skeleton during refresh so stale state isn't shown */}
+          {/* Trade Plan / Stand aside  -  skeleton during refresh so stale state isn't shown */}
           {(isLoading || refreshing) && data ? (
             <div className="h-48 rounded-2xl bg-white/5 animate-pulse" />
           ) : tradePlan ? (
@@ -536,7 +536,7 @@ export function MobileBrain() {
               {news && (
                 <>
                   <StatRow label="News Impact"   value={news.impact.toUpperCase()}          color={biasColor(news.impact)} />
-                  <StatRow label="Regime"         value={news.regime ?? "—"} />
+                  <StatRow label="Regime"         value={news.regime ?? " - "} />
                   <StatRow label="Macro Risk"     value={`${news.riskScore ?? 0}/100`}
                     color={(news.riskScore ?? 0) > 70 ? "text-red-400" : (news.riskScore ?? 0) > 40 ? "text-amber-400" : "text-zinc-200"} />
                 </>

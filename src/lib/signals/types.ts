@@ -1,5 +1,5 @@
-/**
- * TradeX Signal History — Type Definitions
+﻿/**
+ * TradeX Signal History  -  Type Definitions
  *
  * Tracks every MASTER decision and its outcome for transparency and track-record.
  */

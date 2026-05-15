@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -29,9 +29,9 @@ const CATEGORIES: Category[] = [
     icon: BookOpen,
     topics: [
       { title: "What is Trading?",       description: "Buying and selling financial assets to profit from price movements." },
-      { title: "Bid, Ask & Spread",       description: "The two prices every market has — and the cost between them." },
-      { title: "Order Types",             description: "Market, limit, stop — and how each fills your trade." },
-      { title: "Leverage & Margin",       description: "Trading bigger than your account — and why it's a double-edged sword." },
+      { title: "Bid, Ask & Spread",       description: "The two prices every market has  -  and the cost between them." },
+      { title: "Order Types",             description: "Market, limit, stop  -  and how each fills your trade." },
+      { title: "Leverage & Margin",       description: "Trading bigger than your account  -  and why it's a double-edged sword." },
       { title: "Pips & Lot Sizes",        description: "How price movement is measured and how position size is defined." },
       { title: "Market Sessions",         description: "When different markets open and where volume concentrates." },
     ],
@@ -43,7 +43,7 @@ const CATEGORIES: Category[] = [
     topics: [
       { title: "Support & Resistance",    description: "Price levels where buying or selling pressure historically appears." },
       { title: "Trend Lines",             description: "Connecting swing highs or lows to define the dominant direction." },
-      { title: "Market Structure",        description: "Higher highs/lows vs lower highs/lows — the backbone of TA." },
+      { title: "Market Structure",        description: "Higher highs/lows vs lower highs/lows  -  the backbone of TA." },
       { title: "Multi-Timeframe Analysis",description: "Aligning bias across H4, H1, and M15 for higher probability trades." },
     ],
   },
@@ -52,11 +52,11 @@ const CATEGORIES: Category[] = [
     label: "Candlestick Patterns",
     icon: CandlestickChart,
     topics: [
-      { title: "Anatomy of a Candle",     description: "Open, high, low, close — what each part tells you." },
+      { title: "Anatomy of a Candle",     description: "Open, high, low, close  -  what each part tells you." },
       { title: "Engulfing Candles",        description: "A strong reversal signal when one candle swallows the previous." },
       { title: "Pin Bar / Hammer",         description: "Long wick signals showing rejection from a key level." },
-      { title: "Doji",                     description: "Indecision candles — often a pause before a move." },
-      { title: "Inside Bar",              description: "A candle contained within the previous — compression before expansion." },
+      { title: "Doji",                     description: "Indecision candles  -  often a pause before a move." },
+      { title: "Inside Bar",              description: "A candle contained within the previous  -  compression before expansion." },
       { title: "Displacement Candles",    description: "Large momentum candles that shift market structure decisively." },
     ],
   },
@@ -77,10 +77,10 @@ const CATEGORIES: Category[] = [
     label: "Indicators",
     icon: Activity,
     topics: [
-      { title: "Moving Averages",         description: "Smoothed price over time — used to identify trend direction." },
-      { title: "RSI",                     description: "Measures momentum — overbought above 70, oversold below 30." },
+      { title: "Moving Averages",         description: "Smoothed price over time  -  used to identify trend direction." },
+      { title: "RSI",                     description: "Measures momentum  -  overbought above 70, oversold below 30." },
       { title: "MACD",                    description: "Trend-following momentum oscillator using moving average crossovers." },
-      { title: "Bollinger Bands",         description: "Volatility bands — price near edges signals potential reversals." },
+      { title: "Bollinger Bands",         description: "Volatility bands  -  price near edges signals potential reversals." },
       { title: "Volume Profile",          description: "Shows where the most trading activity occurred at each price level." },
     ],
   },
@@ -103,7 +103,7 @@ const CATEGORIES: Category[] = [
       { title: "Breakout Trading",        description: "Entering when price exits a consolidation zone with momentum." },
       { title: "Pullback Trading",        description: "Entering on a retracement within an established trend." },
       { title: "Range Trading",           description: "Fading extremes when price oscillates between clear S/R levels." },
-      { title: "News Trading",            description: "Trading high-impact events — entries before or after the spike." },
+      { title: "News Trading",            description: "Trading high-impact events  -  entries before or after the spike." },
     ],
   },
   {
@@ -111,9 +111,9 @@ const CATEGORIES: Category[] = [
     label: "Smart Money Concepts",
     icon: Building2,
     topics: [
-      { title: "Order Blocks",            description: "The last up/down candle before a strong move — institutional footprint." },
+      { title: "Order Blocks",            description: "The last up/down candle before a strong move  -  institutional footprint." },
       { title: "Fair Value Gaps",         description: "Imbalances in price that smart money tends to revisit and fill." },
-      { title: "Liquidity Sweeps",        description: "Price hunting stop-losses before reversing — the trap move." },
+      { title: "Liquidity Sweeps",        description: "Price hunting stop-losses before reversing  -  the trap move." },
       { title: "Break of Structure",      description: "A decisive close beyond a swing point that shifts the bias." },
       { title: "Change of Character",     description: "The first structural shift against the prevailing trend." },
       { title: "Premium & Discount",      description: "Buying below 50% of a range (discount) and selling above (premium)." },
@@ -124,7 +124,7 @@ const CATEGORIES: Category[] = [
     label: "Psychology",
     icon: Brain,
     topics: [
-      { title: "Trading Discipline",      description: "Following your plan every time — regardless of emotion." },
+      { title: "Trading Discipline",      description: "Following your plan every time  -  regardless of emotion." },
       { title: "Fear & Greed",            description: "The two forces that cause most retail traders to lose." },
       { title: "Journaling",              description: "Reviewing every trade to find patterns in your wins and losses." },
     ],

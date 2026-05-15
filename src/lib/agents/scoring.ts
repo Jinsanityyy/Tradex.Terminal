@@ -1,5 +1,5 @@
-/**
- * TradeX Multi-Agent Terminal — Scoring Engine
+﻿/**
+ * TradeX Multi-Agent Terminal  -  Scoring Engine
  *
  * Computes weighted consensus from all agent outputs.
  * The scoring is directional: bullish = positive, bearish = negative.
@@ -83,7 +83,7 @@ export function computeConsensus(
   items.push(agentScore("trend", trend.bias, trend.confidence, weights.trend));
 
   // ── SMC Agent (highest directional weight) ────────────────────────────────
-  // Boost weight when a concrete setup is confirmed. No penalty when absent —
+  // Boost weight when a concrete setup is confirmed. No penalty when absent  - 
   // the agent's confidence is already low (40) when no setup is present, which
   // naturally reduces its contribution without a separate weight cut.
   const smcWeight = weights.smc + (smc.setupPresent ? 0.08 : 0);
@@ -92,7 +92,7 @@ export function computeConsensus(
   // ── News Agent (supports / opposes) ───────────────────────────────────────
   // Safe-haven assets (gold/silver): geopolitical risk BOOSTS news confidence.
   // All other assets: high uncertainty reduces directional conviction (but doesn't
-  // eliminate the signal — a high-risk environment with bearish news is still bearish).
+  // eliminate the signal  -  a high-risk environment with bearish news is still bearish).
   // Floor the confidence at 30% to preserve the directional signal even under stress.
   const isSafeHaven = symbol === "XAUUSD" || symbol === "XAGUSD" || symbol === "XPTUSD";
   const adjustedNewsConf = isSafeHaven && news.riskScore > 40
@@ -111,12 +111,12 @@ export function computeConsensus(
     ? execution.grade === "A+" ? 90
     : execution.grade === "A"  ? 78
     : execution.grade === "B+" ? 62
-    : 45  // "B" — partial setup quality
+    : 45  // "B"  -  partial setup quality
     : 25; // no setup
   items.push(agentScore("execution", execBias, execConf, weights.execution));
 
   // ── Contrarian Agent (penalty factor) ────────────────────────────────────
-  // The contrarian agent always opposes — it acts as a headwind.
+  // The contrarian agent always opposes  -  it acts as a headwind.
   // If contrarian has strong challenge, it reduces the net score.
   const contrBias = contrarian.challengesBias ? "opposing" : "neutral";
   const contrSign = contrarian.challengesBias ? -1 : 0;
@@ -168,10 +168,10 @@ export function computeConsensus(
     noTradeReason = `Risk gate: ${risk.warnings[0] ?? "Risk conditions not met"}`;
   } else if (structureBlocksLong) {
     finalBias     = "no-trade";
-    noTradeReason = `Structure gate: Trend is BEARISH — bullish signals blocked. Require confirmed BOS to upside before going long.`;
+    noTradeReason = `Structure gate: Trend is BEARISH  -  bullish signals blocked. Require confirmed BOS to upside before going long.`;
   } else if (structureBlocksShort) {
     finalBias     = "no-trade";
-    noTradeReason = `Structure gate: Trend is BULLISH — bearish signals blocked. Require confirmed BOS to downside before going short.`;
+    noTradeReason = `Structure gate: Trend is BULLISH  -  bearish signals blocked. Require confirmed BOS to downside before going short.`;
   } else if (noFibZone) {
     finalBias     = "no-trade";
     noTradeReason = `Sweep gate: No confirmed session sweep. Best setups form during Asian (8AM–11AM PHT), London (4PM–7PM PHT), or NY (9:30PM–11:30PM PHT) kill zones.`;
@@ -214,51 +214,51 @@ export function matchStrategy(
   // ── NY liquidity sweep setups (price-action-agent) ────────────────────────
   if (sweepConfirmed && (setupType === "FVG" || setupType === "Sweep")) {
     return bias === "bullish"
-      ? "NY Sweep Long — session lows swept, FVG entry at midpoint"
-      : "NY Sweep Short — session highs swept, FVG entry at midpoint";
+      ? "NY Sweep Long  -  session lows swept, FVG entry at midpoint"
+      : "NY Sweep Short  -  session highs swept, FVG entry at midpoint";
   }
 
   if (sweepConfirmed) {
     return bias === "bullish"
-      ? "Sweep Long — liquidity swept, awaiting bullish candle confirmation"
-      : "Sweep Short — liquidity swept, awaiting bearish candle confirmation";
+      ? "Sweep Long  -  liquidity swept, awaiting bullish candle confirmation"
+      : "Sweep Short  -  liquidity swept, awaiting bearish candle confirmation";
   }
 
   // ── Structure-based setups ─────────────────────────────────────────────────
   if (setupType === "Sweep" && bosDetected) {
     return bias === "bullish"
-      ? "Momentum Shift — Long (Bullish structure break confirmed)"
-      : "Momentum Shift — Short (Bearish structure break confirmed)";
+      ? "Momentum Shift  -  Long (Bullish structure break confirmed)"
+      : "Momentum Shift  -  Short (Bearish structure break confirmed)";
   }
 
   if (setupType === "OB" && bosDetected) {
     return bias === "bullish"
-      ? "Support Retest + Break — Long (Support retest after upside structure break)"
-      : "Resistance Retest + Break — Short (Resistance retest after downside structure break)";
+      ? "Support Retest + Break  -  Long (Support retest after upside structure break)"
+      : "Resistance Retest + Break  -  Short (Resistance retest after downside structure break)";
   }
 
   if (setupType === "FVG") {
     return bias === "bullish"
-      ? "Gap Fill Continuation — Long (Price returning to fill gap below, bullish continuation)"
-      : "Gap Fill Continuation — Short (Price returning to fill gap above, bearish continuation)";
+      ? "Gap Fill Continuation  -  Long (Price returning to fill gap below, bullish continuation)"
+      : "Gap Fill Continuation  -  Short (Price returning to fill gap above, bearish continuation)";
   }
 
   if (chochDetected) {
     return bias === "bullish"
-      ? "Trend Shift Re-entry — Long (Bearish-to-bullish flip, pullback entry on retest)"
-      : "Trend Shift Re-entry — Short (Bullish-to-bearish flip, rally-sell on retest)";
+      ? "Trend Shift Re-entry  -  Long (Bearish-to-bullish flip, pullback entry on retest)"
+      : "Trend Shift Re-entry  -  Short (Bullish-to-bearish flip, rally-sell on retest)";
   }
 
   if (premiumDiscount === "DISCOUNT" && bias === "bullish") {
-    return "Lower-Range Long — Price at support, mean-reversion + continuation potential";
+    return "Lower-Range Long  -  Price at support, mean-reversion + continuation potential";
   }
 
   if (premiumDiscount === "PREMIUM" && bias === "bearish") {
-    return "Upper-Range Short — Price at resistance, mean-reversion + continuation potential";
+    return "Upper-Range Short  -  Price at resistance, mean-reversion + continuation potential";
   }
 
   if (news.riskScore > 60 && news.impact !== "neutral") {
-    return `News Continuation — ${bias === "bullish" ? "Bullish" : "Bearish"} macro catalyst aligning with technical setup`;
+    return `News Continuation  -  ${bias === "bullish" ? "Bullish" : "Bearish"} macro catalyst aligning with technical setup`;
   }
 
   return undefined;

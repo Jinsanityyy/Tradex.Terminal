@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import Link from "next/link";
@@ -307,7 +307,7 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
                 );
               })}
 
-              {/* Trading Knowledge — inside the grid so it's always visible */}
+              {/* Trading Knowledge  -  inside the grid so it's always visible */}
               <button
                 onClick={() => { setMobileMenuOpen(false); onOpenKnowledge?.(); }}
                 className="flex flex-col items-center gap-2.5 rounded-xl border border-violet-500/30 bg-violet-500/5 px-2 py-4 text-violet-400 transition-all hover:bg-violet-500/10"
