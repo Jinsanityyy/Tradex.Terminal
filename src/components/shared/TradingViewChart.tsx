@@ -897,21 +897,29 @@ function KeyLevelsPanel({
   loading: boolean;
   onClose: () => void;
 }) {
+  // Only show Entry/SL/TP when Claude's 7-agent system placed them AND the setup is actionable
+  const showTradeLevels = Boolean(level?.aiDerived && level.tradeStatus !== "NO TRADE");
+
   const entryColor = level
     ? level.bias === "bullish" ? "#22c55e" : level.bias === "bearish" ? "#ef4444" : "#e5e7eb"
     : "#e5e7eb";
 
-  const rows = level ? [
-    { label: "RES",     value: fmt(level.resistance,  level.asset), color: "#ef4444",  dim: false },
-    { label: "PD HIGH", value: fmt(level.pdHigh,      level.asset), color: "#f97316",  dim: false },
-    { label: "PIVOT",   value: fmt(level.pivot,       level.asset), color: "#9ca3af",  dim: false },
-    { label: "ENTRY",   value: fmt(level.entry,       level.asset), color: entryColor, dim: false },
-    { label: "PD LOW",  value: fmt(level.pdLow,       level.asset), color: "#f97316",  dim: false },
-    { label: "SUPP",    value: fmt(level.support,     level.asset), color: "#22c55e",  dim: false },
-    { label: "SL",      value: fmt(level.stopLoss,    level.asset), color: "#ef4444",  dim: true  },
-    { label: "TP1",     value: fmt(level.takeProfit1, level.asset), color: "#22c55e",  dim: true  },
-    { label: "TP2",     value: fmt(level.takeProfit2, level.asset), color: "#22c55e",  dim: true  },
-    { label: "TP3",     value: fmt(level.takeProfit3, level.asset), color: "#22c55e",  dim: true  },
+  // Always-visible structure levels (real market data regardless of AI status)
+  const structureRows = level ? [
+    { label: "RES",     value: fmt(level.resistance, level.asset), color: "#ef4444" },
+    { label: "PD HIGH", value: fmt(level.pdHigh,     level.asset), color: "#f97316" },
+    { label: "PIVOT",   value: fmt(level.pivot,      level.asset), color: "#9ca3af" },
+    { label: "PD LOW",  value: fmt(level.pdLow,      level.asset), color: "#f97316" },
+    { label: "SUPP",    value: fmt(level.support,    level.asset), color: "#22c55e" },
+  ] : [];
+
+  // Only shown when AI agents confirmed a valid setup
+  const tradeRows = level ? [
+    { label: "ENTRY", value: fmt(level.entry,       level.asset), color: entryColor },
+    { label: "SL",    value: fmt(level.stopLoss,    level.asset), color: "#ef4444" },
+    { label: "TP1",   value: fmt(level.takeProfit1, level.asset), color: "#22c55e" },
+    { label: "TP2",   value: fmt(level.takeProfit2, level.asset), color: "#22c55e" },
+    { label: "TP3",   value: fmt(level.takeProfit3, level.asset), color: "#22c55e" },
   ] : [];
 
   return (
@@ -962,44 +970,55 @@ function KeyLevelsPanel({
             </span>
           </div>
 
-          {/* Price rows */}
+          {/* Structure levels — always visible */}
           <div className="flex flex-col py-1">
-            {rows.map((row, i) => (
-              <React.Fragment key={row.label}>
-                {/* Divider before SL group */}
-                {i === 6 && (
-                  <div className="mx-3 my-1" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }} />
-                )}
-                <div className="flex items-center justify-between px-3 py-[3.5px]">
-                  <span
-                    className="text-[9px] uppercase tracking-wider"
-                    style={{ color: "rgba(255,255,255,0.25)", minWidth: 46 }}
-                  >
+            {structureRows.map((row) => (
+              <div key={row.label} className="flex items-center justify-between px-3 py-[3.5px]">
+                <span className="text-[9px] uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.25)", minWidth: 46 }}>
+                  {row.label}
+                </span>
+                <span className="font-mono text-[10px] font-medium tabular-nums" style={{ color: row.color }}>
+                  {row.value}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* AI Trade levels — only when agents confirmed a valid setup */}
+          <div className="mx-3 my-1" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }} />
+
+          {showTradeLevels ? (
+            <div className="flex flex-col pb-1">
+              {tradeRows.map((row) => (
+                <div key={row.label} className="flex items-center justify-between px-3 py-[3.5px]">
+                  <span className="text-[9px] uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.25)", minWidth: 46 }}>
                     {row.label}
                   </span>
-                  <span
-                    className="font-mono text-[10px] font-medium tabular-nums"
-                    style={{ color: row.dim ? row.color + "80" : row.color }}
-                  >
+                  <span className="font-mono text-[10px] font-medium tabular-nums" style={{ color: row.color + "cc" }}>
                     {row.value}
                   </span>
                 </div>
-              </React.Fragment>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-1 px-3 py-3">
+              <span className="text-center text-[8px] uppercase tracking-wider leading-relaxed" style={{ color: "rgba(255,255,255,0.2)" }}>
+                {level.aiDerived
+                  ? "Agents: no valid\nsetup detected"
+                  : "Awaiting AI\nagent analysis…"}
+              </span>
+            </div>
+          )}
 
           {/* Footer: R:R + grade + session */}
           <div
             className="mt-auto shrink-0 px-3 pb-2 pt-2"
             style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
           >
-            {level.rrRatio > 0 && (
+            {showTradeLevels && level.rrRatio > 0 && (
               <div className="flex items-center justify-between pb-1">
                 <span className="text-[9px] uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.25)" }}>R:R</span>
-                <span
-                  className="font-mono text-[10px] font-semibold tabular-nums"
-                  style={{ color: level.rrRatio >= 2 ? "#22c55e" : "#f97316" }}
-                >
+                <span className="font-mono text-[10px] font-semibold tabular-nums" style={{ color: level.rrRatio >= 2 ? "#22c55e" : "#f97316" }}>
                   1:{level.rrRatio}
                 </span>
               </div>

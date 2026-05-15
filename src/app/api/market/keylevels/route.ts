@@ -79,6 +79,9 @@ export interface KeyLevel {
   sessionContext: "Asia" | "London" | "New York" | "Closed";
   sessionNote: string;
   note: string;
+  // true only when Claude's 7-agent system placed these exact levels (Path A)
+  // false = formula fallback (cold cache) — Entry/SL/TP should not be shown as signals
+  aiDerived: boolean;
 }
 
 let cache: { data: KeyLevel[]; ts: number } = { data: [], ts: 0 };
@@ -738,6 +741,7 @@ function calculateSMCLevels(
     sessionContext: session,
     sessionNote: finalSessionNote,
     note: finalNote,
+    aiDerived: aiHasLevels,
   };
 }
 
