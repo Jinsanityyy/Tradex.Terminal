@@ -50,7 +50,7 @@ export default function RootLayout({
         <SettingsProvider>
           <SWRProvider>{children}</SWRProvider>
         </SettingsProvider>
-        <Toaster theme="dark" position="top-right" richColors />
+        <Toaster theme="dark" position="top-center" richColors />
       </body>
     </html>
   );
