@@ -1,7 +1,6 @@
 import { fetchBinanceTrades } from "./binance";
 import { fetchBybitTrades } from "./bybit";
 import { fetchOKXTrades } from "./okx";
-import { fetchMT5Trades } from "./metaapi";
 import type { ExchangeCredentials, NormalizedTrade, SyncResult } from "./types";
 
 export type { ExchangeCredentials, NormalizedTrade, SyncResult };
@@ -25,14 +24,6 @@ export async function syncExchange(
           creds.apiKey,
           creds.apiSecret,
           creds.apiPassphrase ?? "",
-          startTime
-        );
-        break;
-      case "mt5":
-      case "ctrader":
-        trades = await fetchMT5Trades(
-          creds.metaapiToken ?? "",
-          creds.metaapiAccountId ?? "",
           startTime
         );
         break;

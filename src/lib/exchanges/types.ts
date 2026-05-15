@@ -2,20 +2,18 @@ export interface NormalizedTrade {
   tradeId: string;
   symbol: string;
   side: "buy" | "sell" | "long" | "short";
-  pnl: number;   // realized P&L in USD
+  pnl: number;   // realized P&L in account currency
   fee: number;
   closedAt: Date;
 }
 
 export interface ExchangeCredentials {
   id: string;
-  exchange: "binance" | "bybit" | "okx" | "mt5" | "ctrader";
+  exchange: "binance" | "bybit" | "okx";
   label: string;
   apiKey: string;
   apiSecret: string;
-  apiPassphrase?: string;    // OKX
-  metaapiToken?: string;     // MT5 / cTrader (via MetaApi)
-  metaapiAccountId?: string; // MT5 / cTrader (via MetaApi)
+  apiPassphrase?: string; // OKX only
 }
 
 export type SyncResult = {

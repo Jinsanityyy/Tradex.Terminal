@@ -10,20 +10,21 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "Unauthorized — please log out and log back in" }, { status: 401 });
 
     const body = await req.json();
-    const { exchange, label, apiKey, apiSecret, apiPassphrase, metaapiToken, metaapiAccountId } = body;
+    const { exchange, label, apiKey, apiSecret, apiPassphrase } = body;
 
     if (!exchange || !label) {
       return NextResponse.json({ error: "exchange and label are required" }, { status: 400 });
     }
 
-    if (exchange === "mt5" || exchange === "ctrader") {
-      if (!metaapiToken || !metaapiAccountId) {
-        return NextResponse.json({ error: "MetaApi token and account ID required for MT5/cTrader" }, { status: 400 });
-      }
-    } else {
-      if (!apiKey || !apiSecret) {
-        return NextResponse.json({ error: "API key and secret required" }, { status: 400 });
-      }
+    if (!["binance", "bybit", "okx"].includes(exchange)) {
+      return NextResponse.json(
+        { error: "Use /api/ctrader/connect for cTrader accounts" },
+        { status: 400 }
+      );
+    }
+
+    if (!apiKey || !apiSecret) {
+      return NextResponse.json({ error: "API key and secret required" }, { status: 400 });
     }
 
     const { data, error } = await supabase
@@ -32,11 +33,9 @@ export async function POST(req: NextRequest) {
         user_id: user.id,
         exchange,
         label,
-        api_key: apiKey ? encrypt(apiKey) : "",
-        api_secret: apiSecret ? encrypt(apiSecret) : "",
+        api_key: encrypt(apiKey),
+        api_secret: encrypt(apiSecret),
         api_passphrase: apiPassphrase ? encrypt(apiPassphrase) : null,
-        metaapi_token: metaapiToken ? encrypt(metaapiToken) : null,
-        metaapi_account_id: metaapiAccountId ?? null,
       })
       .select("id, exchange, label, created_at")
       .single();

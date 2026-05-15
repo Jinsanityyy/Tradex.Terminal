@@ -31,6 +31,12 @@ export async function POST(req: NextRequest) {
     const results = [];
 
     for (const conn of connections) {
+      // cTrader uses its own sync route (/api/ctrader/sync)
+      if (conn.exchange === "ctrader" || conn.exchange === "mt5") {
+        results.push({ connectionId: conn.id, exchange: conn.exchange, count: 0, skipped: true });
+        continue;
+      }
+
       const lastSynced = conn.last_synced_at
         ? new Date(conn.last_synced_at).getTime()
         : Date.now() - 90 * 24 * 60 * 60 * 1000;
@@ -42,8 +48,6 @@ export async function POST(req: NextRequest) {
         apiKey: conn.api_key ? decrypt(conn.api_key) : "",
         apiSecret: conn.api_secret ? decrypt(conn.api_secret) : "",
         apiPassphrase: conn.api_passphrase ? decrypt(conn.api_passphrase) : undefined,
-        metaapiToken: conn.metaapi_token ? decrypt(conn.metaapi_token) : undefined,
-        metaapiAccountId: conn.metaapi_account_id ?? undefined,
       };
 
       const result = await syncExchange(creds, lastSynced);
