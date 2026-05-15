@@ -856,10 +856,10 @@ export function TradingViewChart({
         </div>
       </div>
 
-      <div className="relative flex-1 min-h-0 w-full">
-        <div ref={containerRef} className="h-full w-full" style={{ background: "#000000" }} />
+      {/* Chart + Key Levels side-by-side — panel is a sibling, never overlaps chart */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        <div ref={containerRef} className="flex-1 min-w-0 h-full" style={{ background: "#000000" }} />
 
-        {/* Key Levels Overlay Panel */}
         {keyLvlOpen && keyLvlSupported && (
           <KeyLevelsPanel level={keyLevel} loading={keyLvlLoading} onClose={() => setKeyLvlOpen(false)} />
         )}
@@ -897,103 +897,124 @@ function KeyLevelsPanel({
   loading: boolean;
   onClose: () => void;
 }) {
+  const entryColor = level
+    ? level.bias === "bullish" ? "#22c55e" : level.bias === "bearish" ? "#ef4444" : "#e5e7eb"
+    : "#e5e7eb";
+
   const rows = level ? [
-    { label: "RES",    value: fmt(level.resistance,   level.asset), color: "#ef4444"  },
-    { label: "PD HIGH",value: fmt(level.pdHigh,       level.asset), color: "#f97316"  },
-    { label: "PIVOT",  value: fmt(level.pivot,        level.asset), color: "#6b7280"  },
-    { label: "ENTRY",  value: fmt(level.entry,        level.asset), color: level.bias === "bullish" ? "#22c55e" : level.bias === "bearish" ? "#ef4444" : "#e5e7eb" },
-    { label: "PD LOW", value: fmt(level.pdLow,        level.asset), color: "#f97316"  },
-    { label: "SUPP",   value: fmt(level.support,      level.asset), color: "#22c55e"  },
-    { label: "SL",     value: fmt(level.stopLoss,     level.asset), color: "#ef444470" },
-    { label: "TP1",    value: fmt(level.takeProfit1,  level.asset), color: "#22c55e80" },
-    { label: "TP2",    value: fmt(level.takeProfit2,  level.asset), color: "#22c55e60" },
-    { label: "TP3",    value: fmt(level.takeProfit3,  level.asset), color: "#22c55e40" },
+    { label: "RES",     value: fmt(level.resistance,  level.asset), color: "#ef4444",  dim: false },
+    { label: "PD HIGH", value: fmt(level.pdHigh,      level.asset), color: "#f97316",  dim: false },
+    { label: "PIVOT",   value: fmt(level.pivot,       level.asset), color: "#9ca3af",  dim: false },
+    { label: "ENTRY",   value: fmt(level.entry,       level.asset), color: entryColor, dim: false },
+    { label: "PD LOW",  value: fmt(level.pdLow,       level.asset), color: "#f97316",  dim: false },
+    { label: "SUPP",    value: fmt(level.support,     level.asset), color: "#22c55e",  dim: false },
+    { label: "SL",      value: fmt(level.stopLoss,    level.asset), color: "#ef4444",  dim: true  },
+    { label: "TP1",     value: fmt(level.takeProfit1, level.asset), color: "#22c55e",  dim: true  },
+    { label: "TP2",     value: fmt(level.takeProfit2, level.asset), color: "#22c55e",  dim: true  },
+    { label: "TP3",     value: fmt(level.takeProfit3, level.asset), color: "#22c55e",  dim: true  },
   ] : [];
 
   return (
     <div
-      className="absolute right-0 top-0 z-40 flex flex-col overflow-hidden"
+      className="flex h-full w-[148px] shrink-0 flex-col overflow-y-auto"
       style={{
-        width: 148,
-        background: "rgba(0,0,0,0.92)",
-        backdropFilter: "blur(8px)",
-        borderLeft: "1px solid rgba(255,255,255,0.08)",
-        borderBottom: "1px solid rgba(255,255,255,0.08)",
-        borderBottomLeftRadius: 4,
+        background: "#050505",
+        borderLeft: "1px solid rgba(255,255,255,0.07)",
+        scrollbarWidth: "none",
       }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-2.5 py-1.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-        <span className="text-[9px] font-semibold uppercase tracking-[0.15em]" style={{ color: "rgba(255,255,255,0.35)" }}>
+      <div
+        className="flex shrink-0 items-center justify-between px-3 py-2"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+      >
+        <span className="text-[9px] font-semibold uppercase tracking-[0.16em]" style={{ color: "rgba(255,255,255,0.3)" }}>
           Key Levels
         </span>
-        <button onClick={onClose} className="opacity-40 hover:opacity-80 transition-opacity">
+        <button onClick={onClose} className="opacity-30 transition-opacity hover:opacity-70">
           <X className="h-3 w-3 text-white" />
         </button>
       </div>
 
       {loading ? (
-        <div className="px-3 py-4 text-center text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.2)" }}>
-          LOADING...
+        <div className="flex flex-1 items-center justify-center text-[9px] font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.18)" }}>
+          Loading…
         </div>
       ) : !level ? (
-        <div className="px-3 py-4 text-center text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.2)" }}>
-          NO DATA
+        <div className="flex flex-1 items-center justify-center text-[9px] font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.18)" }}>
+          No data
         </div>
       ) : (
         <>
           {/* Bias + Status */}
-          <div className="flex items-center justify-between px-2.5 py-1.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-            <span
-              className="text-[9px] font-bold uppercase tracking-wider"
-              style={{ color: BIAS_COLOR[level.bias] ?? "#6b7280" }}
-            >
-              {level.bias === "bullish" ? "▲ LONG" : level.bias === "bearish" ? "▼ SHORT" : "— NEUTRAL"}
+          <div
+            className="flex shrink-0 items-center justify-between px-3 py-2"
+            style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+          >
+            <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: BIAS_COLOR[level.bias] ?? "#6b7280" }}>
+              {level.bias === "bullish" ? "▲ LONG" : level.bias === "bearish" ? "▼ SHORT" : "— FLAT"}
             </span>
             <span
               className="text-[8px] font-semibold uppercase tracking-wider"
               style={{ color: STATUS_COLOR[level.tradeStatus] ?? "#6b7280" }}
             >
-              {level.tradeStatus === "TRADE READY" ? "READY" : level.tradeStatus === "WATCHLIST" ? "WATCH" : "NO TRADE"}
+              {level.tradeStatus === "TRADE READY" ? "READY" : level.tradeStatus === "WATCHLIST" ? "WATCH" : "SKIP"}
             </span>
           </div>
 
           {/* Price rows */}
-          <div className="flex flex-col">
-            {rows.map((row) => (
-              <div key={row.label} className="flex items-center justify-between px-2.5 py-[3px]">
-                <span className="text-[9px] uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.28)", minWidth: 44 }}>
-                  {row.label}
-                </span>
-                <span className="font-mono text-[10px] font-medium tabular-nums" style={{ color: row.color }}>
-                  {row.value}
-                </span>
-              </div>
+          <div className="flex flex-col py-1">
+            {rows.map((row, i) => (
+              <React.Fragment key={row.label}>
+                {/* Divider before SL group */}
+                {i === 6 && (
+                  <div className="mx-3 my-1" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }} />
+                )}
+                <div className="flex items-center justify-between px-3 py-[3.5px]">
+                  <span
+                    className="text-[9px] uppercase tracking-wider"
+                    style={{ color: "rgba(255,255,255,0.25)", minWidth: 46 }}
+                  >
+                    {row.label}
+                  </span>
+                  <span
+                    className="font-mono text-[10px] font-medium tabular-nums"
+                    style={{ color: row.dim ? row.color + "80" : row.color }}
+                  >
+                    {row.value}
+                  </span>
+                </div>
+              </React.Fragment>
             ))}
           </div>
 
-          {/* R:R */}
-          {level.rrRatio > 0 && (
-            <div
-              className="flex items-center justify-between px-2.5 py-1.5"
-              style={{ borderTop: "1px solid rgba(255,255,255,0.04)", marginTop: 2 }}
-            >
-              <span className="text-[9px] uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.28)" }}>R:R</span>
-              <span className="font-mono text-[10px] font-semibold tabular-nums" style={{ color: level.rrRatio >= 2 ? "#22c55e" : "#f97316" }}>
-                1:{level.rrRatio}
+          {/* Footer: R:R + grade + session */}
+          <div
+            className="mt-auto shrink-0 px-3 pb-2 pt-2"
+            style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
+          >
+            {level.rrRatio > 0 && (
+              <div className="flex items-center justify-between pb-1">
+                <span className="text-[9px] uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.25)" }}>R:R</span>
+                <span
+                  className="font-mono text-[10px] font-semibold tabular-nums"
+                  style={{ color: level.rrRatio >= 2 ? "#22c55e" : "#f97316" }}
+                >
+                  1:{level.rrRatio}
+                </span>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <span
+                className="text-[9px] font-bold uppercase tracking-wider"
+                style={{ color: level.setupQuality === "A+" ? "#22c55e" : level.setupQuality === "A" ? "#86efac" : level.setupQuality === "B" ? "#f97316" : "#6b7280" }}
+              >
+                {level.setupQuality}
+              </span>
+              <span className="text-[8px] uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.22)" }}>
+                {level.sessionContext}
               </span>
             </div>
-          )}
-
-          {/* Setup quality */}
-          <div
-            className="px-2.5 py-1.5 text-center text-[8px] uppercase tracking-widest font-semibold"
-            style={{
-              borderTop: "1px solid rgba(255,255,255,0.04)",
-              color: level.setupQuality === "A+" ? "#22c55e" : level.setupQuality === "A" ? "#86efac" : level.setupQuality === "B" ? "#f97316" : "#6b7280",
-            }}
-          >
-            {level.setupQuality} · {level.sessionContext}
           </div>
         </>
       )}
