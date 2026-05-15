@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/market/trump/cnn-sync",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

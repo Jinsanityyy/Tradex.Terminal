@@ -2,16 +2,17 @@
  * Truth Social provider proxy — /api/market/trump/ts
  *
  * Provider selection via TRUTH_SOCIAL_PROVIDER env var:
- *   "apify"        — Apify actor (recommended, set APIFY_TOKEN + APIFY_ACTOR_ID)
+ *   "cnn"          — CNN live archive (free, no key, recommended — bypasses CF blocking)
+ *   "apify"        — Apify actor (set APIFY_TOKEN + APIFY_ACTOR_ID)
  *   "scrapcreators"— ScrapeCreators API (set SCRAPCREATORS_API_KEY)
  *   "direct"       — direct Truth Social Mastodon API (free, may be CF-blocked)
- *   unset/empty    — falls back to direct
+ *   unset/empty    — tries CNN archive first, then direct
  *
  * Always returns a Mastodon-compatible status array OR { configured: false, error: "..." }
  */
-// Edge Runtime: runs on Vercel's global edge network (not AWS Lambda IPs).
-// Edge IPs are less likely to be blocked by Cloudflare than Lambda datacenter IPs.
-export const runtime = "edge";
+// Node runtime required for Supabase SSR cookie helpers used in service client.
+// CNN archive is fetched server-side (no CF issue — CNN CDN has public CORS).
+export const runtime = "nodejs";
 
 const PROVIDER   = (process.env.TRUTH_SOCIAL_PROVIDER ?? "").toLowerCase().trim();
 const USERNAME   = process.env.TRUTH_SOCIAL_USERNAME ?? "realDonaldTrump";
@@ -284,16 +285,123 @@ async function fetchDirect(): Promise<Response> {
   return jsonPosts(normalized);
 }
 
+// ── CNN Archive provider (free, no API key, bypasses CF blocking) ─────────────
+
+const CNN_ARCHIVE_URL = "https://ix.cnn.io/data/truth-social/truth_archive.json";
+
+type CnnPost = {
+  id: string;
+  created_at: string;
+  content: string;
+  url: string;
+  media: unknown[];
+  replies_count: number;
+  reblogs_count: number;
+  favourites_count: number;
+};
+
+async function fetchViaCnn(): Promise<Response> {
+  console.log("[ts/cnn] fetching CNN Truth Social archive");
+
+  // Try 1: Supabase cache (populated by /api/market/trump/cnn-sync cron)
+  try {
+    const { getServiceClient } = await import("@/lib/supabase/service");
+    const sb = getServiceClient();
+    if (sb) {
+      const { data: rows, error } = await sb
+        .from("trump_posts")
+        .select("id, content, created_at, url, replies_count, reblogs_count, favourites_count")
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (!error && rows && rows.length > 0) {
+        console.log(`[ts/cnn] Supabase cache hit: ${rows.length} posts`);
+        const normalized: MastodonLike[] = rows.map((r: {
+          id: string; content: string; created_at: string; url: string | null;
+          replies_count: number | null; reblogs_count: number | null; favourites_count: number | null;
+        }) => ({
+          id: r.id,
+          created_at: r.created_at,
+          content: r.content,
+          reblog: null,
+          in_reply_to_id: null,
+          url: r.url ?? `https://truthsocial.com/@${USERNAME}/${r.id}`,
+          replies_count: r.replies_count ?? undefined,
+          reblogs_count: r.reblogs_count ?? undefined,
+          favourites_count: r.favourites_count ?? undefined,
+        }));
+        // Inject Trump's avatar so the card shows his real profile photo
+        const avatar = await fetchTrumpAvatar();
+        if (avatar) normalized.forEach(p => { p.account = { avatar }; });
+        console.log(`[ts/cnn] avatar: ${avatar ? "fetched" : "unavailable (flag fallback)"}`);
+        return jsonPosts(normalized);
+      }
+    }
+  } catch (err) {
+    console.warn("[ts/cnn] Supabase cache miss:", err);
+  }
+
+  // Try 2: CNN archive direct fetch (if Supabase is empty or not configured)
+  let res: Response;
+  try {
+    res = await fetch(CNN_ARCHIVE_URL, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch (err) {
+    console.error("[ts/cnn] CNN fetch error:", err);
+    return jsonError(500, `CNN archive fetch failed: ${String(err)}`);
+  }
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error(`[ts/cnn] CNN HTTP ${res.status}: ${body.slice(0, 200)}`);
+    return jsonError(res.status, `CNN archive HTTP ${res.status}`);
+  }
+
+  const raw: CnnPost[] = await res.json().catch(() => []);
+  console.log(`[ts/cnn] CNN archive raw items: ${raw.length}`);
+
+  const normalized: MastodonLike[] = raw
+    .slice(0, 20)
+    .map(p => ({
+      id: p.id,
+      created_at: p.created_at,
+      content: p.content,
+      reblog: null,
+      in_reply_to_id: null,
+      url: p.url ?? `https://truthsocial.com/@${USERNAME}/${p.id}`,
+      replies_count:    p.replies_count    ?? undefined,
+      reblogs_count:    p.reblogs_count    ?? undefined,
+      favourites_count: p.favourites_count ?? undefined,
+    }));
+
+  // Inject Trump's avatar so the card shows his real profile photo
+  const avatar = await fetchTrumpAvatar();
+  if (avatar) normalized.forEach(p => { p.account = { avatar }; });
+  console.log(`[ts/cnn] avatar: ${avatar ? "fetched" : "unavailable (flag fallback)"}`);
+
+  return jsonPosts(normalized);
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 export async function GET() {
   console.log(`[ts] provider="${PROVIDER}" username="${USERNAME}"`);
 
-  if (PROVIDER === "apify")         return fetchViaApify();
-  if (PROVIDER === "scrapcreators") return fetchViaScrapeCreators();
-  if (PROVIDER === "direct")        return fetchDirect();
+  if (PROVIDER === "cnn")            return fetchViaCnn();
+  if (PROVIDER === "apify")          return fetchViaApify();
+  if (PROVIDER === "scrapcreators")  return fetchViaScrapeCreators();
+  if (PROVIDER === "direct")         return fetchDirect();
 
-  // Auto-fallback chain: direct → stale cache (already handled inside fetchDirect)
-  console.warn("[ts] TRUTH_SOCIAL_PROVIDER not set — falling back to direct");
+  // Default: CNN archive (free, reliable) → direct TS as last resort
+  console.log("[ts] no provider set — trying CNN archive first");
+  const cnnRes = await fetchViaCnn();
+  if (cnnRes.ok) {
+    const body = await cnnRes.clone().json().catch(() => []);
+    if (Array.isArray(body) && body.length > 0) return cnnRes;
+  }
+
+  console.warn("[ts] CNN archive empty — falling back to direct");
   return fetchDirect();
 }
