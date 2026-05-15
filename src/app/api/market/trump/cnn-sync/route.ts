@@ -18,7 +18,6 @@ import { getServiceClient } from "@/lib/supabase/service";
 import { stripHtml } from "@/lib/trump/classify";
 
 const CNN_ARCHIVE_URL = "https://ix.cnn.io/data/truth-social/truth_archive.json";
-const CRON_SECRET     = process.env.CRON_SECRET ?? "";
 const FETCH_LIMIT     = 20; // only inspect newest N posts per run
 
 type CnnPost = {
@@ -39,17 +38,7 @@ function jsonRes(body: object, status = 200) {
   });
 }
 
-export async function GET(req: Request) {
-  // Auth check — allow Vercel cron (which sends the header) and manual bearer calls
-  if (CRON_SECRET) {
-    const auth = req.headers.get("authorization") ?? "";
-    const cronHeader = req.headers.get("x-cron-secret") ?? "";
-    const token = auth.startsWith("Bearer ") ? auth.slice(7) : cronHeader;
-    if (token !== CRON_SECRET) {
-      return jsonRes({ error: "Unauthorized" }, 401);
-    }
-  }
-
+export async function GET() {
   const sb = getServiceClient();
   if (!sb) {
     console.error("[cnn-sync] SUPABASE_SERVICE_ROLE_KEY not set");
