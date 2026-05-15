@@ -1406,6 +1406,15 @@ export default function DashboardPage() {
       headerRight: (
         <div className="flex items-center gap-2">
           <AgentCardsFilterButton visible={visibleAgents} onChange={setVisibleAgents} />
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isValidating}
+            className={widgetActionClass}
+          >
+            <RefreshCw className={cn("h-3 w-3", isValidating && "animate-spin")} />
+            {isValidating ? "Running…" : "Refresh"}
+          </button>
           <Link href="/dashboard/brain" className={widgetActionClass}>
             Brain
           </Link>
