@@ -77,14 +77,45 @@ function ImpactBadge({ impact, label }: { impact?: "bullish" | "bearish" | "neut
   );
 }
 
+// Wraps ±N.N% / $N / NK patterns in a monospace span for Bloomberg-style data rendering
+function DataInline({ text }: { text: string }) {
+  const parts = text.split(/([\$±]?[\d,]+\.?\d*[KkMmBb%]?(?:\s*[KkMmBb%])?)/g);
+  return (
+    <>
+      {parts.map((part, i) =>
+        /[\d]/.test(part) ? (
+          <span key={i} className="font-data tabular-nums text-zinc-200">{part}</span>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+}
+
 function EventDetail({ ev }: { ev: EconomicEvent }) {
   const isCompleted = ev.status === "completed";
+
+  // Determine glow for Trade Implication box
+  const tradeGlow =
+    ev.goldImpact === "bullish" || ev.usdImpact === "bullish"
+      ? "border-emerald-500/30 bg-emerald-500/[0.06] shadow-[0_0_18px_rgba(52,211,153,0.12)]"
+      : ev.goldImpact === "bearish" || ev.usdImpact === "bearish"
+      ? "border-red-500/30 bg-red-500/[0.06] shadow-[0_0_18px_rgba(239,68,68,0.12)]"
+      : "border-[hsl(var(--primary))]/20 bg-[hsl(var(--primary))]/5";
+
+  const tradeTextColor =
+    ev.goldImpact === "bullish" || ev.usdImpact === "bullish"
+      ? "text-emerald-400"
+      : ev.goldImpact === "bearish" || ev.usdImpact === "bearish"
+      ? "text-red-400"
+      : "text-[hsl(var(--primary))]";
 
   return (
     <div className="space-y-4">
       {/* Time + status */}
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-[11px] font-mono text-[hsl(var(--muted-foreground))]">{ev.time} PHT</span>
+        <span className="font-data text-[11px] tabular-nums text-[hsl(var(--muted-foreground))]">{ev.time} PHT</span>
         <Badge variant={ev.impact === "high" ? "high" : "medium"} className="text-[9px]">
           {ev.impact === "high" ? "HIGH IMPACT" : "MEDIUM IMPACT"}
         </Badge>
@@ -99,13 +130,13 @@ function EventDetail({ ev }: { ev: EconomicEvent }) {
       {/* Forecast / Previous / Actual */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { label: "Forecast", value: ev.forecast,        color: "text-blue-400" },
-          { label: "Previous", value: ev.previous,        color: "text-gray-400" },
-          { label: "Actual",   value: ev.actual || " - ",   color: ev.actual ? "text-[hsl(var(--primary))]" : "text-gray-600" },
+          { label: "Forecast", value: ev.forecast,       color: "text-blue-400" },
+          { label: "Previous", value: ev.previous,       color: "text-zinc-400" },
+          { label: "Actual",   value: ev.actual || " - ", color: ev.actual ? "text-[hsl(var(--primary))]" : "text-zinc-600" },
         ].map(({ label, value, color }) => (
           <div key={label} className="rounded-lg bg-[hsl(var(--secondary))] p-3 text-center">
-            <p className="text-[9px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1">{label}</p>
-            <p className={cn("text-sm font-bold font-mono", color)}>{value}</p>
+            <p className="text-[9px] uppercase tracking-widest text-[hsl(var(--muted-foreground))] mb-1.5">{label}</p>
+            <p className={cn("font-data text-sm font-bold tabular-nums tracking-tight", color)}>{value}</p>
           </div>
         ))}
       </div>
@@ -157,7 +188,9 @@ function EventDetail({ ev }: { ev: EconomicEvent }) {
                 {ev.preEventBullets.map((b, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <ChevronRight className="h-3 w-3 text-blue-400/60 mt-0.5 shrink-0" />
-                    <span className="text-[11px] text-[hsl(var(--muted-foreground))] leading-snug">{b}</span>
+                    <span className="text-[11px] text-[hsl(var(--muted-foreground))] leading-snug">
+                      <DataInline text={b} />
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -192,9 +225,11 @@ function EventDetail({ ev }: { ev: EconomicEvent }) {
             </div>
           )}
           {ev.tradeImplication && (
-            <div className="rounded-lg border border-[hsl(var(--primary))]/20 bg-[hsl(var(--primary))]/5 p-3.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--primary))] mb-1.5">Trade Implication</p>
-              <p className="text-xs text-[hsl(var(--foreground))] leading-relaxed">{ev.tradeImplication}</p>
+            <div className={cn("rounded-lg border p-3.5 transition-all", tradeGlow)}>
+              <p className={cn("text-[10px] font-bold uppercase tracking-widest mb-1.5", tradeTextColor)}>Trade Implication</p>
+              <p className="text-xs text-[hsl(var(--foreground))] leading-relaxed">
+                <DataInline text={ev.tradeImplication} />
+              </p>
             </div>
           )}
         </>
@@ -206,7 +241,7 @@ function EventDetail({ ev }: { ev: EconomicEvent }) {
           <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Affected Assets</p>
           <div className="flex flex-wrap gap-1.5">
             {ev.affectedAssets.map((a) => (
-              <span key={a} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))]">
+              <span key={a} className="font-data text-[10px] font-semibold tracking-wide px-2 py-0.5 rounded border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] text-zinc-300">
                 {a}
               </span>
             ))}
