@@ -59,6 +59,9 @@ export interface SignalRecord {
   supports: string[];
   invalidations: string[];
 
+  // Notification flags
+  entryZoneNotified?: boolean;
+
   // Per-agent snapshot (compact)
   agents: {
     trend:       { bias: string; confidence: number };

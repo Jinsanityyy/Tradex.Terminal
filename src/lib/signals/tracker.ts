@@ -141,6 +141,18 @@ function resolveFromOHLC(
   return null;
 }
 
+function mkInvalidated(currentPrice: number): Resolution {
+  return {
+    status: "invalidated",
+    outcome: {
+      resolvedAt: new Date().toISOString(),
+      priceAtResolution: currentPrice,
+      pnlPercent: 0,
+      pnlR: 0,
+    },
+  };
+}
+
 function mkOutcome(entry: number, level: number, pnlR: number, priceAtResolution: number): SignalOutcome {
   return {
     resolvedAt: new Date().toISOString(),
@@ -255,38 +267,60 @@ function resolveSignal(signal: SignalRecord, currentPrice: number): Resolution |
     };
   }
 
-  // Pullback missed: price moved 1R away from signal price in the wrong direction,
-  // meaning the entry zone can no longer be naturally reached — setup is gone.
+  // ── Setup invalidation ────────────────────────────────────────────────────────
+
+  // Pullback setup: entry is BELOW signal price (long) or ABOVE signal price (short).
+  // Invalidated if price ran away in the wrong direction by 1R from signal price.
   const isPullbackSetup =
     (direction === "long"  && entry < signal.priceAtSignal) ||
     (direction === "short" && entry > signal.priceAtSignal);
+
   if (isPullbackSetup) {
-    const pullbackMissed =
+    const missed =
       direction === "long"
-        ? currentPrice > signal.priceAtSignal + riskDist   // price ran up, no dip to entry coming
-        : currentPrice < signal.priceAtSignal - riskDist;  // price dropped, no rally to entry coming
-    if (pullbackMissed) {
-      return {
-        status: "invalidated",
-        outcome: {
-          resolvedAt: new Date().toISOString(),
-          priceAtResolution: currentPrice,
-          pnlPercent: 0,
-          pnlR: 0,
-        },
-      };
-    }
+        ? currentPrice > signal.priceAtSignal + riskDist   // price ran up — dip never coming
+        : currentPrice < signal.priceAtSignal - riskDist;  // price dropped — rally never coming
+    if (missed) return mkInvalidated(currentPrice);
   }
 
-  // Expiry: 24h without any hit
+  // Breakout setup: entry is ABOVE signal price (long) or BELOW signal price (short).
+  // Invalidated if price moved 1R against the breakout direction.
+  const isBreakoutSetup =
+    (direction === "long"  && entry >= signal.priceAtSignal) ||
+    (direction === "short" && entry <= signal.priceAtSignal);
+
+  if (isBreakoutSetup) {
+    const abandoned =
+      direction === "long"
+        ? currentPrice < signal.priceAtSignal - riskDist   // price fell away — breakout won't happen
+        : currentPrice > signal.priceAtSignal + riskDist;  // price rallied away — breakdown won't happen
+    if (abandoned) return mkInvalidated(currentPrice);
+  }
+
+  // Generic distance check: if current price is far from entry in the wrong direction,
+  // the setup is dead regardless of setup type. Uses 2× riskDist as the threshold.
+  // Requires signal to be at least 1 hour old to avoid noise.
+  const ageHours = ageMs / 3_600_000;
+  const entryDeviation =
+    direction === "long"
+      ? signal.priceAtSignal - currentPrice   // positive = price fell from signal (bad for long pullback)
+      : currentPrice - signal.priceAtSignal;  // positive = price rose from signal (bad for short pullback)
+
+  if (ageHours >= 1 && entryDeviation > riskDist * 2) {
+    return mkInvalidated(currentPrice);
+  }
+
+  // Last resort: 24h without any resolution and price still near entry → expired
   if (ageMs >= SIGNAL_EXPIRY_MS) {
+    const distFromEntry = Math.abs(currentPrice - entry);
+    // If price drifted far even after 24h, still mark as invalidated not expired
+    if (distFromEntry > riskDist) return mkInvalidated(currentPrice);
+
     const pnlPct = direction === "long"
       ? ((currentPrice - entry) / entry) * 100
       : ((entry - currentPrice) / entry) * 100;
     const pnlR = parseFloat(
-      (((direction === "long"
-         ? currentPrice - entry
-         : entry - currentPrice) / riskDist)).toFixed(2)
+      ((direction === "long" ? currentPrice - entry : entry - currentPrice) / riskDist).toFixed(2)
     );
     return {
       status: "expired",
@@ -346,6 +380,16 @@ export async function trackOpenSignals(): Promise<TrackingResult> {
     const candles = candleMap.get(`${signal.symbol}_${signal.timeframe}`) ?? [];
     // OHLC-based resolution is authoritative; fall back to snapshot-based
     const resolution = resolveFromOHLC(signal, candles) ?? resolveSignal(signal, price);
+
+    // Entry zone alert: notify once when price comes within 0.3% of entry
+    if (!resolution && signal.tradePlan && !signal.entryZoneNotified) {
+      const { entry } = signal.tradePlan;
+      const threshold = entry * 0.003;
+      if (Math.abs(price - entry) <= threshold) {
+        await updateSignal(signal.id, { entryZoneNotified: true });
+      }
+    }
+
     if (!resolution) continue;
 
     const updated = await updateSignal(signal.id, {

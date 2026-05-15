@@ -55,6 +55,8 @@ interface SignalRow {
   invalidations: string[] | null;
   agents_snapshot: SignalRecord["agents"] | null;
 
+  entry_zone_notified: boolean | null;
+
   created_at: string;
 }
 
@@ -100,6 +102,7 @@ function recordToRow(r: SignalRecord): Omit<SignalRow, "created_at"> {
     supports: r.supports ?? [],
     invalidations: r.invalidations ?? [],
     agents_snapshot: r.agents,
+    entry_zone_notified: r.entryZoneNotified ?? false,
   };
 }
 
@@ -148,6 +151,8 @@ function rowToRecord(row: SignalRow): SignalRecord {
 
     supports: row.supports ?? [],
     invalidations: row.invalidations ?? [],
+
+    entryZoneNotified: row.entry_zone_notified ?? false,
 
     agents: row.agents_snapshot ?? {
       trend:      { bias: "neutral", confidence: 0 },
@@ -233,6 +238,7 @@ export async function updateSignal(id: string, patch: Partial<SignalRecord>): Pr
     patchRow.pnl_percent = patch.outcome?.pnlPercent ?? null;
     patchRow.pnl_r = patch.outcome?.pnlR ?? null;
   }
+  if (patch.entryZoneNotified !== undefined) patchRow.entry_zone_notified = patch.entryZoneNotified;
 
   const { data, error } = await db.from("signals").update(patchRow).eq("id", id).select().maybeSingle();
   if (error || !data) return null;

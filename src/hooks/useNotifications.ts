@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 
 export const CUSTOM_NOTIFICATION_EVENT = "tradex-custom-notification";
 
-export type NotifType = "news" | "trump" | "chat" | "agent";
+export type NotifType = "news" | "trump" | "chat" | "agent" | "signal";
 
 export interface Notif {
   id: string;
@@ -18,8 +18,9 @@ export interface Notif {
 
 type NotifCallback = (n: Notif) => void;
 
-const SEEN_CATALYSTS_KEY = "tradex_seen_catalysts";
-const SEEN_TRUMP_KEY = "tradex_seen_trump";
+const SEEN_CATALYSTS_KEY  = "tradex_seen_catalysts";
+const SEEN_TRUMP_KEY      = "tradex_seen_trump";
+const SEEN_SIGNAL_KEY     = "tradex_seen_signal_notifs";
 
 function getSeenIds(key: string): Set<string> {
   try {
@@ -59,7 +60,7 @@ export function useNotifications(onNotif: NotifCallback) {
         onNotifRef.current({
           id: crypto.randomUUID(),
           type: "news",
-          title: "🔴 High Impact News",
+          title: "High Impact Event",
           body: c.title,
           timestamp: Date.now(),
         });
@@ -80,7 +81,7 @@ export function useNotifications(onNotif: NotifCallback) {
         onNotifRef.current({
           id: crypto.randomUUID(),
           type: "trump",
-          title: "🚨 Trump Post",
+          title: "Trump Post",
           body: p.content.slice(0, 100) + (p.content.length > 100 ? "…" : ""),
           timestamp: Date.now(),
         });
@@ -119,10 +120,77 @@ export function useNotifications(onNotif: NotifCallback) {
         onNotifRef.current({
           id: crypto.randomUUID(),
           type: "chat",
-          title: `💬 ${msg.display_name || "Trader"}`,
+          title: msg.display_name || "Trader",
           body: msg.content.slice(0, 100),
           timestamp: Date.now(),
         });
+      })
+      .subscribe();
+
+    return () => {
+      clearTimeout(timer);
+      sb.removeChannel(channel);
+    };
+  }, []);
+
+  // Signal notifications via Supabase Realtime (status changes + entry zone)
+  const signalInitRef = useRef(false);
+  useEffect(() => {
+    const sb = createClient();
+    if (!sb) return;
+
+    const timer = setTimeout(() => { signalInitRef.current = true; }, 3000);
+
+    const channel = sb
+      .channel("notif-signals")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "signals" }, (payload) => {
+        if (!signalInitRef.current) return;
+        const row = payload.new as Record<string, unknown>;
+        const seen = getSeenIds(SEEN_SIGNAL_KEY);
+        const sym = (row.symbol_display ?? row.symbol) as string;
+        const dir = (row.direction as string) ?? "";
+        const pnlR = row.pnl_r as number | null;
+
+        // Entry zone alert
+        if (row.entry_zone_notified === true) {
+          const notifId = `entry_${row.id}`;
+          if (!seen.has(notifId)) {
+            markSeen(SEEN_SIGNAL_KEY, [notifId]);
+            onNotifRef.current({
+              id: crypto.randomUUID(),
+              type: "signal",
+              title: `Entry Zone Reached`,
+              body: `${sym} — ${dir.toUpperCase()} entry at ${row.entry_price}. Setup valid.`,
+              timestamp: Date.now(),
+            });
+          }
+        }
+
+        // Status resolution alerts
+        const status = row.status as string;
+        if (status && status !== "open") {
+          const notifId = `status_${row.id}_${status}`;
+          if (!seen.has(notifId)) {
+            markSeen(SEEN_SIGNAL_KEY, [notifId]);
+            const rStr = pnlR != null ? `${pnlR >= 0 ? "+" : ""}${pnlR}R` : "";
+            const msgs: Record<string, { title: string; body: string }> = {
+              win_tp1:     { title: `TP1 Hit`, body: `${sym} ${dir.toUpperCase()} — ${rStr}` },
+              win_tp2:     { title: `TP2 Hit`, body: `${sym} ${dir.toUpperCase()} — ${rStr}` },
+              loss_sl:     { title: `Stop Loss Hit`, body: `${sym} ${dir.toUpperCase()} — -1R` },
+              invalidated: { title: `Setup Invalidated`, body: `${sym} ${dir.toUpperCase()} — price moved beyond setup range` },
+              expired:     { title: `Signal Expired`, body: `${sym} ${dir.toUpperCase()} — no resolution after 24h` },
+            };
+            const msg = msgs[status];
+            if (msg) {
+              onNotifRef.current({
+                id: crypto.randomUUID(),
+                type: "signal",
+                ...msg,
+                timestamp: Date.now(),
+              });
+            }
+          }
+        }
       })
       .subscribe();
 

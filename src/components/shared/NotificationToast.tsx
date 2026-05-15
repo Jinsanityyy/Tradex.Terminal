@@ -3,59 +3,62 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
-import { X, Newspaper, AlertTriangle, Zap, MessageSquare, Bell } from "lucide-react";
+import {
+  X, Newspaper, AlertTriangle, Zap, MessageSquare, TrendingUp,
+  Radio, Bell,
+} from "lucide-react";
 import { useNotifications, type Notif } from "@/hooks/useNotifications";
 
-// ─── Per-type config ──────────────────────────────────────────────────────────
+// ─── Type config ──────────────────────────────────────────────────────────────
 
 const TYPE_CFG = {
   news: {
-    icon: <Newspaper className="h-5 w-5" />,
-    iconBg: "bg-red-500/15",
-    iconColor: "text-red-400",
-    border: "border-red-500/50",
-    bar: "bg-red-500",
-    glow: "0 0 40px rgba(239,68,68,0.18)",
-    label: "NEWS ALERT",
-    labelColor: "text-red-400",
+    icon: <Newspaper className="h-3.5 w-3.5" />,
+    accent: "#ef4444",
+    accentDim: "rgba(239,68,68,0.15)",
+    label: "NEWS",
+    severity: "HIGH",
+    severityColor: "#ef4444",
   },
   trump: {
-    icon: <AlertTriangle className="h-5 w-5" />,
-    iconBg: "bg-amber-500/15",
-    iconColor: "text-amber-400",
-    border: "border-amber-500/50",
-    bar: "bg-amber-500",
-    glow: "0 0 40px rgba(245,158,11,0.18)",
-    label: "TRUMP ALERT",
-    labelColor: "text-amber-400",
+    icon: <Radio className="h-3.5 w-3.5" />,
+    accent: "#f59e0b",
+    accentDim: "rgba(245,158,11,0.15)",
+    label: "POLITICAL",
+    severity: "MONITOR",
+    severityColor: "#f59e0b",
   },
   agent: {
-    icon: <Zap className="h-5 w-5" />,
-    iconBg: "bg-emerald-500/15",
-    iconColor: "text-emerald-400",
-    border: "border-emerald-500/50",
-    bar: "bg-emerald-500",
-    glow: "0 0 40px rgba(16,185,129,0.18)",
-    label: "SIGNAL ALERT",
-    labelColor: "text-emerald-400",
+    icon: <Zap className="h-3.5 w-3.5" />,
+    accent: "#22c55e",
+    accentDim: "rgba(34,197,94,0.15)",
+    label: "SIGNAL",
+    severity: "LIVE",
+    severityColor: "#22c55e",
   },
   chat: {
-    icon: <MessageSquare className="h-5 w-5" />,
-    iconBg: "bg-violet-500/15",
-    iconColor: "text-violet-400",
-    border: "border-violet-500/50",
-    bar: "bg-violet-500",
-    glow: "0 0 40px rgba(139,92,246,0.18)",
-    label: "CHAT",
-    labelColor: "text-violet-400",
+    icon: <MessageSquare className="h-3.5 w-3.5" />,
+    accent: "#a78bfa",
+    accentDim: "rgba(167,139,250,0.15)",
+    label: "MESSAGE",
+    severity: "INFO",
+    severityColor: "#a78bfa",
+  },
+  signal: {
+    icon: <TrendingUp className="h-3.5 w-3.5" />,
+    accent: "#38bdf8",
+    accentDim: "rgba(56,189,248,0.15)",
+    label: "SIGNAL",
+    severity: "UPDATE",
+    severityColor: "#38bdf8",
   },
 } as const;
 
-function getTypeCfg(type: string) {
+function getCfg(type: string) {
   return TYPE_CFG[type as keyof typeof TYPE_CFG] ?? TYPE_CFG.agent;
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function NotificationToast() {
   const [notifs, setNotifs] = useState<Notif[]>([]);
@@ -64,7 +67,7 @@ export function NotificationToast() {
   useEffect(() => { setMounted(true); }, []);
 
   const addNotif = useCallback((n: Notif) => {
-    setNotifs(prev => [n, ...prev].slice(0, 6));
+    setNotifs(prev => [n, ...prev].slice(0, 5));
     if (typeof Notification !== "undefined" && Notification.permission === "granted") {
       new Notification(n.title, { body: n.body, icon: "/icon-192.png" });
     }
@@ -78,59 +81,67 @@ export function NotificationToast() {
     }
   }, []);
 
-  function dismiss(id: string) {
-    setNotifs(prev => prev.filter(n => n.id !== id));
-  }
-
-  function dismissAll() {
-    setNotifs([]);
-  }
+  const dismiss = (id: string) => setNotifs(prev => prev.filter(n => n.id !== id));
+  const dismissAll = () => setNotifs([]);
 
   if (!mounted || notifs.length === 0) return null;
 
   return createPortal(
     <>
-      {/* Backdrop — click to clear all */}
+      {/* Backdrop */}
       <div
-        className="fixed inset-0 z-[9990] bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 z-[9990]"
+        style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
         onClick={dismissAll}
       />
 
-      {/* Centered stack */}
-      <div className="fixed inset-0 z-[9995] flex items-center justify-center p-4 pointer-events-none">
-        <div className="pointer-events-auto w-full max-w-[420px] flex flex-col gap-2.5">
+      {/* Panel */}
+      <div className="fixed inset-0 z-[9995] flex items-center justify-center pointer-events-none">
+        <div className="pointer-events-auto w-full max-w-[480px] px-4 flex flex-col gap-1.5">
 
-          {/* Stack header */}
-          <div className="flex items-center justify-between px-1 mb-1">
+          {/* Header bar */}
+          <div
+            className="flex items-center justify-between px-3 py-1.5 mb-0.5"
+            style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
+          >
             <div className="flex items-center gap-2">
-              <Bell className="h-3.5 w-3.5 text-zinc-400" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">
-                {notifs.length} Alert{notifs.length > 1 ? "s" : ""}
+              <Bell className="h-3 w-3" style={{ color: "rgba(255,255,255,0.3)" }} />
+              <span
+                className="text-[10px] font-mono tracking-[0.25em] uppercase"
+                style={{ color: "rgba(255,255,255,0.3)" }}
+              >
+                {notifs.length} ALERT{notifs.length > 1 ? "S" : ""}
               </span>
             </div>
             {notifs.length > 1 && (
               <button
                 onClick={dismissAll}
-                className="text-[10px] font-medium text-zinc-600 hover:text-zinc-200 transition-colors"
+                className="text-[10px] font-mono tracking-wider uppercase transition-colors"
+                style={{ color: "rgba(255,255,255,0.2)" }}
+                onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.5)")}
+                onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.2)")}
               >
-                Clear all
+                CLEAR ALL
               </button>
             )}
           </div>
 
-          {/* Notification cards */}
+          {/* Cards */}
           {notifs.map((n, i) => (
-            <NotifCard
+            <AlertCard
               key={n.id}
               notif={n}
               primary={i === 0}
+              index={i}
               onDismiss={() => dismiss(n.id)}
             />
           ))}
 
-          {/* Tap-backdrop hint */}
-          <p className="text-center text-[9px] text-zinc-700 mt-1 select-none">
-            Tap outside to clear all
+          <p
+            className="text-center text-[9px] font-mono tracking-[0.3em] uppercase mt-1 select-none"
+            style={{ color: "rgba(255,255,255,0.1)" }}
+          >
+            ESC · TAP OUTSIDE TO DISMISS
           </p>
         </div>
       </div>
@@ -139,73 +150,151 @@ export function NotificationToast() {
   );
 }
 
-// ─── Card ─────────────────────────────────────────────────────────────────────
+// ─── Alert card ───────────────────────────────────────────────────────────────
 
-function NotifCard({
-  notif,
-  primary,
-  onDismiss,
+function AlertCard({
+  notif, primary, index, onDismiss,
 }: {
   notif: Notif;
   primary: boolean;
+  index: number;
   onDismiss: () => void;
 }) {
-  const cfg = getTypeCfg(notif.type);
+  const cfg = getCfg(notif.type);
+
+  const ts = new Date(notif.timestamp);
+  const time = ts.toLocaleTimeString("en-US", {
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+  });
+  const date = ts.toLocaleDateString("en-US", { month: "short", day: "2-digit" }).toUpperCase();
+
+  const scaleVal = 1 - index * 0.018;
+  const opacityVal = primary ? 1 : Math.max(0.3, 1 - index * 0.3);
 
   return (
     <div
-      className={cn(
-        "relative overflow-hidden rounded-2xl border bg-[#0f0f11]",
-        "animate-in slide-in-from-bottom-3 fade-in duration-250",
-        cfg.border,
-        primary ? "shadow-2xl" : "opacity-80"
-      )}
-      style={primary ? { boxShadow: cfg.glow } : undefined}
+      className="relative overflow-hidden animate-in slide-in-from-top-2 fade-in duration-200"
+      style={{
+        background: "#0a0a0a",
+        border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: "4px",
+        transform: `scale(${scaleVal})`,
+        opacity: opacityVal,
+        transformOrigin: "top center",
+        boxShadow: primary
+          ? `0 2px 24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.03)`
+          : "none",
+      }}
     >
-      {/* Top accent bar */}
-      <div className={cn("absolute top-0 inset-x-0 h-[3px]", cfg.bar)} />
+      {/* Left accent bar */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-[3px]"
+        style={{ background: cfg.accent }}
+      />
 
-      <div className="px-5 pt-5 pb-4">
-        {/* Label row */}
-        <div className="flex items-center justify-between mb-3">
+      {/* Content */}
+      <div className="pl-4 pr-3 pt-3 pb-3">
+
+        {/* Row 1 — meta */}
+        <div className="flex items-center justify-between mb-2.5">
           <div className="flex items-center gap-2">
-            <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center", cfg.iconBg, cfg.iconColor)}>
-              {cfg.icon}
+            {/* Source icon + label */}
+            <div
+              className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-sm"
+              style={{ background: cfg.accentDim }}
+            >
+              <span style={{ color: cfg.accent }}>{cfg.icon}</span>
+              <span
+                className="text-[9px] font-mono font-bold tracking-[0.2em]"
+                style={{ color: cfg.accent }}
+              >
+                {cfg.label}
+              </span>
             </div>
-            <span className={cn("text-[9px] font-black uppercase tracking-[0.2em]", cfg.labelColor)}>
-              {cfg.label}
-            </span>
+
+            {/* Severity badge */}
+            <div className="flex items-center gap-1">
+              {/* Blinking dot — primary only */}
+              {primary && (
+                <span className="relative flex h-1.5 w-1.5">
+                  <span
+                    className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60"
+                    style={{ background: cfg.severityColor }}
+                  />
+                  <span
+                    className="relative inline-flex rounded-full h-1.5 w-1.5"
+                    style={{ background: cfg.severityColor }}
+                  />
+                </span>
+              )}
+              <span
+                className="text-[9px] font-mono tracking-[0.2em]"
+                style={{ color: "rgba(255,255,255,0.25)" }}
+              >
+                {cfg.severity}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[9px] font-mono text-zinc-700">
-              {new Date(notif.timestamp).toLocaleTimeString([], {
-                hour: "2-digit", minute: "2-digit", second: "2-digit",
-              })}
-            </span>
+
+          <div className="flex items-center gap-2">
+            {/* Timestamp */}
+            <div className="text-right">
+              <span
+                className="text-[10px] font-mono block"
+                style={{ color: "rgba(255,255,255,0.35)" }}
+              >
+                {time}
+              </span>
+              <span
+                className="text-[8px] font-mono block"
+                style={{ color: "rgba(255,255,255,0.15)" }}
+              >
+                {date}
+              </span>
+            </div>
+
+            {/* Close */}
             <button
               onClick={onDismiss}
-              className="w-6 h-6 rounded-md flex items-center justify-center text-zinc-600 hover:text-zinc-200 hover:bg-white/[0.07] transition-colors"
+              className="flex items-center justify-center transition-colors"
+              style={{
+                width: 18, height: 18,
+                color: "rgba(255,255,255,0.15)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                borderRadius: 2,
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.5)")}
+              onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.15)")}
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-2.5 w-2.5" />
             </button>
           </div>
         </div>
 
-        {/* Title */}
-        <p className={cn(
-          "font-bold leading-snug mb-1.5",
-          primary ? "text-[15px] text-white" : "text-[13px] text-zinc-200"
-        )}>
+        {/* Divider */}
+        <div style={{ height: 1, background: "rgba(255,255,255,0.04)", marginBottom: 10 }} />
+
+        {/* Row 2 — title */}
+        <p
+          className="font-semibold leading-snug mb-1"
+          style={{
+            fontSize: primary ? 15 : 13,
+            color: primary ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.55)",
+            letterSpacing: "-0.01em",
+          }}
+        >
           {notif.title}
         </p>
 
-        {/* Body */}
-        <p className={cn(
-          "leading-relaxed",
-          primary ? "text-[12px] text-zinc-300" : "text-[11px] text-zinc-500"
-        )}>
-          {notif.body}
-        </p>
+        {/* Row 3 — body */}
+        {primary && (
+          <p
+            className="text-[12px] leading-relaxed"
+            style={{ color: "rgba(255,255,255,0.38)", fontFamily: "inherit" }}
+          >
+            {notif.body}
+          </p>
+        )}
       </div>
     </div>
   );
