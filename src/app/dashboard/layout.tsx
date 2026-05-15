@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { NotificationToast } from "@/components/shared/NotificationToast";
+import { TestAlertButton } from "@/components/shared/TestAlertButton";
 import { LoginTransitionOverlay } from "@/components/shared/LoginTransitionOverlay";
 import { TradingKnowledgeSidebar } from "@/components/shared/TradingKnowledgeSidebar";
 
@@ -31,6 +32,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <>
       <LoginTransitionOverlay />
       <NotificationToast />
+      <TestAlertButton />
       <div
         ref={shellRef}
         className="flex h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.035),_transparent_30%),hsl(var(--background))]"
