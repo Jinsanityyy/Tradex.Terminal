@@ -141,9 +141,9 @@ export function MobileHome() {
           <div className={cn("rounded-xl p-3.5 border", signalBg)}>
             <p className="text-[9px] text-zinc-600 uppercase tracking-widest mb-1">Signal</p>
             <p className={cn("text-[13px] font-bold uppercase", signalColor)}>{signalState.replace("_", " ")}</p>
-            {direction && (
+            {direction && direction.toLowerCase() !== "none" && signalState !== "NO_TRADE" && (
               <p className="text-[9px] text-zinc-600 mt-1 truncate">
-                {direction.toUpperCase()} · {trigger ?? " - "}
+                {direction.toUpperCase()} · {trigger && trigger.toLowerCase() !== "none" ? trigger : " - "}
               </p>
             )}
           </div>
