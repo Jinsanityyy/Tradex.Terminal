@@ -11,14 +11,7 @@ import type { AgentRunResult, Symbol, Timeframe, SignalState } from "@/lib/agent
 import { DebateLog } from "@/components/brain/DebateLog";
 import { AgentCommandRoom } from "@/components/brain/AgentCommandRoom";
 import { useSettings } from "@/contexts/SettingsContext";
-import { isAgentSupported } from "@/lib/assetImpact";
-
-const SYMBOLS: { id: Symbol; label: string }[] = [
-  { id: "XAUUSD", label: "Gold"    },
-  { id: "EURUSD", label: "EUR/USD" },
-  { id: "GBPUSD", label: "GBP/USD" },
-  { id: "BTCUSD", label: "BTC"     },
-];
+import { isAgentSupported, getSymbolShort, getSymbolLabel } from "@/lib/assetImpact";
 
 const TIMEFRAMES: Timeframe[] = ["M5", "M15", "H1", "H4"];
 
@@ -319,27 +312,16 @@ function StandAsideCard({ exec, isWait }: {
 const BRAIN_VALID = new Set<string>(["XAUUSD", "EURUSD", "GBPUSD", "BTCUSD"]);
 
 export function MobileBrain() {
-  const { settings, saveSettings } = useSettings();
+  const { settings } = useSettings();
 
-  const [symbol, setSymbol] = useState<Symbol>(() => {
+  const symbol: Symbol = (() => {
     const s = settings.selectedSymbol ?? "XAUUSD";
     return BRAIN_VALID.has(s) ? (s as Symbol) : "XAUUSD";
-  });
+  })();
+
   const [timeframe, setTimeframe] = useState<Timeframe>("H1");
   const [refreshing, setRefreshing] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
-
-  // Sync when global asset changes (e.g. user picks from chip/sheet elsewhere)
-  useEffect(() => {
-    const s = settings.selectedSymbol ?? "XAUUSD";
-    if (BRAIN_VALID.has(s) && s !== symbol) setSymbol(s as Symbol);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.selectedSymbol]);
-
-  function handleSymbolChange(s: Symbol) {
-    setSymbol(s);
-    saveSettings({ ...settings, selectedSymbol: s });
-  }
 
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 5_000);
@@ -393,21 +375,24 @@ export function MobileBrain() {
   return (
     <div className="flex flex-col h-full">
       {/* Tab bar */}
-      <div className="flex shrink-0 border-b border-white/5 px-4 pt-2">
-        {[
-          { id: "brain"    as const, label: "Brain",    icon: Shield   },
-          { id: "newsroom" as const, label: "Agent HQ", icon: Newspaper },
-        ].map(({ id, label, icon: Icon }) => (
-          <button key={id} onClick={() => setView(id)}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider border-b-2 transition-all -mb-px",
-              view === id
-                ? "border-[hsl(var(--primary))] text-[hsl(var(--primary))]"
-                : "border-transparent text-zinc-500"
-            )}>
-            <Icon className="w-3 h-3" />{label}
-          </button>
-        ))}
+      <div className="flex shrink-0 items-center border-b border-white/5 px-4 pt-2">
+        <div className="flex flex-1">
+          {[
+            { id: "brain"    as const, label: "Brain",    icon: Shield   },
+            { id: "newsroom" as const, label: "Agent HQ", icon: Newspaper },
+          ].map(({ id, label, icon: Icon }) => (
+            <button key={id} onClick={() => setView(id)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider border-b-2 transition-all -mb-px",
+                view === id
+                  ? "border-[hsl(var(--primary))] text-[hsl(var(--primary))]"
+                  : "border-transparent text-zinc-500"
+              )}>
+              <Icon className="w-3 h-3" />{label}
+            </button>
+          ))}
+        </div>
+        <span className="text-[10px] font-bold text-zinc-500 pb-1">{getSymbolLabel(symbol)}</span>
       </div>
 
       {/* Agent HQ */}
@@ -421,22 +406,11 @@ export function MobileBrain() {
       {view === "brain" && (
         <div className="overflow-y-auto overflow-x-hidden flex-1 px-4 py-4 space-y-4 pb-24 min-w-0">
 
-          {/* Symbol + TF row */}
-          <div className="flex gap-2 flex-wrap">
-            {SYMBOLS.map(s => (
-              <button key={s.id} onClick={() => handleSymbolChange(s.id)}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase border transition-all",
-                  symbol === s.id
-                    ? "bg-[hsl(var(--primary))]/20 border-[hsl(var(--primary))]/40 text-[hsl(var(--primary))]"
-                    : "border-white/10 text-zinc-500"
-                )}>
-                {s.label}
-              </button>
-            ))}
-          </div>
-
+          {/* Asset label + TF row */}
           <div className="flex items-center gap-1">
+            <span className="text-[10px] font-bold text-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/25 px-2.5 py-1 rounded-lg mr-1">
+              {getSymbolShort(symbol)}
+            </span>
             {TIMEFRAMES.map(tf => (
               <button key={tf} onClick={() => setTimeframe(tf)}
                 className={cn(
