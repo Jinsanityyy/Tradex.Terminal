@@ -1,15 +1,15 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useRef, useCallback } from "react";
 import { useQuotes, useMarketBias, useKeyLevels, useCatalysts, useMarketAnalysis, useAgentResult, useSessions } from "@/hooks/useMarketData";
-import { TrendingUp, TrendingDown, Minus, Target, Zap, RefreshCw, Sparkles, Clock } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Target, Zap, RefreshCw, Sparkles, ChevronDown, ChevronUp, Brain, BarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DetailModal } from "@/components/shared/DetailModal";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { mutate } from "swr";
 import type { Catalyst } from "@/types";
 import { useSettings } from "@/contexts/SettingsContext";
-import { isAgentSupported, getSymbolLabel, getSymbolShort, SYMBOL_META } from "@/lib/assetImpact";
+import { isAgentSupported, getSymbolLabel, getSymbolShort, SYMBOL_META, getCatalystImpactForSymbol } from "@/lib/assetImpact";
 import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelectorSheet";
 
 function LiveBadge() {
@@ -21,12 +21,17 @@ function LiveBadge() {
   );
 }
 
-function PriceCard({ symbol, price, change }: { symbol: string; price: number | string; change?: number }) {
+function PriceCard({ symbol, price, change, isActive }: { symbol: string; price: number | string; change?: number; isActive?: boolean }) {
   const up = (change ?? 0) > 0;
   const down = (change ?? 0) < 0;
   return (
-    <div className="bg-[hsl(var(--card))] rounded-xl p-3.5 border border-white/5">
-      <p className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-widest mb-1">{symbol}</p>
+    <div className={cn(
+      "rounded-xl p-3.5 border transition-all",
+      isActive
+        ? "bg-[hsl(var(--primary))]/8 border-[hsl(var(--primary))]/35"
+        : "bg-[hsl(var(--card))] border-white/5"
+    )}>
+      <p className={cn("text-[10px] uppercase tracking-widest mb-1", isActive ? "text-[hsl(var(--primary))]/70" : "text-[hsl(var(--muted-foreground))]")}>{symbol}</p>
       <p className="text-lg font-bold font-mono text-[hsl(var(--foreground))] leading-tight">
         {typeof price === "number" ? price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : price}
       </p>
@@ -55,6 +60,7 @@ export function MobileHome() {
   const [generating, setGenerating] = useState(false);
   const [selectedCatalyst, setSelectedCatalyst] = useState<Catalyst | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [aiExpanded, setAiExpanded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLElement>;
 
   const symbolBiasLabel = getSymbolLabel(activeSymbol);
@@ -119,6 +125,17 @@ export function MobileHome() {
   const isCrypto = SYMBOL_META[activeSymbol]?.group === "Crypto";
   const isWeekend = (() => { const d = new Date().getUTCDay(); return d === 0 || d === 6; })();
 
+  const catalystImpact = catalysts[0]
+    ? getCatalystImpactForSymbol(catalysts[0], activeSymbol)
+    : null;
+
+  const lastUpdated = agentData?.timestamp
+    ? (() => {
+        const diff = Math.floor((Date.now() - new Date(agentData.timestamp).getTime()) / 60000);
+        return diff < 1 ? "just now" : `${diff}m ago`;
+      })()
+    : null;
+
   return (
     <>
     <AssetSelectorSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
@@ -133,7 +150,12 @@ export function MobileHome() {
 
       {/* Header row */}
       <div className="flex items-center justify-between px-4 pt-3 pb-1">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">TradeX Terminal</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] font-bold text-zinc-200">{symbolBiasLabel}</span>
+          {lastUpdated && (
+            <span className="text-[9px] text-zinc-600">· updated {lastUpdated}</span>
+          )}
+        </div>
         <AssetChip onPress={() => setSheetOpen(true)} />
       </div>
 
@@ -148,6 +170,9 @@ export function MobileHome() {
               <p className="text-[9px] text-zinc-600 mt-1 truncate">
                 {direction.toUpperCase()} · {trigger && trigger.toLowerCase() !== "none" ? trigger : " - "}
               </p>
+            )}
+            {signalState === "NO_TRADE" && master?.noTradeReason && (
+              <p className="text-[9px] text-zinc-600 mt-1 leading-tight line-clamp-2">{master.noTradeReason}</p>
             )}
           </div>
 
@@ -216,10 +241,10 @@ export function MobileHome() {
         )}
 
         {/* Top Catalyst highlight */}
-        {catalysts[0] && (
+        {catalysts[0] && catalystImpact && (
           <div onClick={() => setSelectedCatalyst(catalysts[0])}
             className="bg-[hsl(var(--card))] rounded-xl px-4 py-3 border border-white/5 active:bg-[hsl(var(--secondary))] cursor-pointer">
-            <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start justify-between gap-2 mb-2">
               <div className="flex-1">
                 <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Top Catalyst</p>
                 <p className="text-xs text-zinc-200 leading-snug">{catalysts[0].title}</p>
@@ -231,6 +256,12 @@ export function MobileHome() {
                 {catalysts[0].importance?.toUpperCase()}
               </span>
             </div>
+            <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded",
+              catalystImpact.impact === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
+              catalystImpact.impact === "bearish" ? "bg-red-500/15 text-red-400" :
+              "bg-zinc-500/15 text-zinc-400")}>
+              {symbolBiasShort} {catalystImpact.impact.toUpperCase()}
+            </span>
           </div>
         )}
 
@@ -242,7 +273,7 @@ export function MobileHome() {
           </div>
           <div className="grid grid-cols-2 gap-2">
             {displayQuotes.length > 0
-              ? displayQuotes.map((q) => <PriceCard key={q.symbol} symbol={q.symbol} price={q.price} change={q.changePercent} />)
+              ? displayQuotes.map((q) => <PriceCard key={q.symbol} symbol={q.symbol} price={q.price} change={q.changePercent} isActive={q.symbol === activeSymbol} />)
               : Array.from({ length: 6 }).map((_, i) => <div key={i} className="bg-[hsl(var(--card))] rounded-xl p-3.5 border border-white/5 h-[70px] animate-pulse" />)
             }
           </div>
@@ -276,20 +307,34 @@ export function MobileHome() {
         <section>
           <div className="flex items-center justify-between mb-3">
             <p className="text-[11px] font-semibold uppercase tracking-wider">AI Analysis</p>
-            <button onClick={handleGenerate} disabled={generating}
-              className="flex items-center gap-1 text-[9px] text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30 px-2 py-1 rounded-lg">
-              {generating ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
-              {generating ? "..." : "Refresh"}
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={handleGenerate} disabled={generating}
+                className="flex items-center gap-1 text-[9px] text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30 px-2 py-1 rounded-lg">
+                {generating ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
+                {generating ? "..." : "Refresh"}
+              </button>
+            </div>
           </div>
-          <div className="bg-[hsl(var(--card))] rounded-xl p-4 border border-white/5 space-y-2">
+          <div
+            className="bg-[hsl(var(--card))] rounded-xl p-4 border border-white/5 space-y-2 cursor-pointer active:opacity-80"
+            onClick={() => setAiExpanded((v: boolean) => !v)}
+          >
             {narrative.regime && (
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] text-zinc-600 uppercase tracking-wider">Regime</span>
-                <span className="text-[10px] font-semibold text-amber-400">{narrative.regime}</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] text-zinc-600 uppercase tracking-wider">Regime</span>
+                  <span className="text-[10px] font-semibold text-amber-400">{narrative.regime}</span>
+                </div>
+                {aiExpanded
+                  ? <ChevronUp className="h-3 w-3 text-zinc-600" />
+                  : <ChevronDown className="h-3 w-3 text-zinc-600" />}
               </div>
             )}
-            {narrative.summary && <p className="text-xs text-zinc-400 leading-relaxed">{narrative.summary}</p>}
+            {narrative.summary && (
+              <p className={cn("text-xs text-zinc-400 leading-relaxed", !aiExpanded && "line-clamp-2")}>
+                {narrative.summary}
+              </p>
+            )}
           </div>
         </section>
 
