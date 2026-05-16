@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.tradex.terminal",
+    "sha256_cert_fingerprints": [
+      "F8:EA:33:37:80:6D:49:92:E9:27:E7:A1:BB:94:2E:33:D9:A6:09:2E:91:B4:98:73:DB:63:56:69:13:F6:C1:A8"
+    ]
+  }
+}]
