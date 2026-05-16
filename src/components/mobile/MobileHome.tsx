@@ -154,12 +154,7 @@ export function MobileHome() {
           {/* Active Session */}
           <div className="bg-[hsl(var(--card))] rounded-xl p-3.5 border border-white/5">
             <p className="text-[9px] text-zinc-600 uppercase tracking-widest mb-1">Session</p>
-            {isCrypto ? (
-              <>
-                <p className="text-[13px] font-bold text-emerald-400">24/7 Open</p>
-                <span className="text-[9px] font-bold uppercase text-emerald-600">Always active</span>
-              </>
-            ) : isWeekend && !activeSession ? (
+            {isWeekend && !isCrypto ? (
               <>
                 <p className="text-[13px] font-bold text-zinc-500">Market Closed</p>
                 <p className="text-[9px] text-zinc-700 mt-1">Reopens Monday</p>
@@ -172,6 +167,11 @@ export function MobileHome() {
                   activeSession.volatilityTone === "moderate" ? "text-amber-400" : "text-emerald-400")}>
                   {activeSession.volatilityTone} vol
                 </span>
+              </>
+            ) : isCrypto ? (
+              <>
+                <p className="text-[13px] font-bold text-emerald-400">24/7 Open</p>
+                <span className="text-[9px] font-bold uppercase text-emerald-600">Always active</span>
               </>
             ) : (
               <>
