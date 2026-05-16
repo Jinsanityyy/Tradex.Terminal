@@ -9,7 +9,7 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { mutate } from "swr";
 import type { Catalyst } from "@/types";
 import { useSettings } from "@/contexts/SettingsContext";
-import { isAgentSupported, getSymbolLabel, getSymbolShort } from "@/lib/assetImpact";
+import { isAgentSupported, getSymbolLabel, getSymbolShort, SYMBOL_META } from "@/lib/assetImpact";
 import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelectorSheet";
 
 function LiveBadge() {
@@ -116,6 +116,9 @@ export function MobileHome() {
   const signalColor = signalState === "ARMED" ? "text-emerald-400" : signalState === "PENDING" ? "text-amber-400" : "text-zinc-500";
   const signalBg = signalState === "ARMED" ? "bg-emerald-500/10 border-emerald-500/30" : signalState === "PENDING" ? "bg-amber-500/10 border-amber-500/30" : "bg-white/5 border-white/5";
 
+  const isCrypto = SYMBOL_META[activeSymbol]?.group === "Crypto";
+  const isWeekend = (() => { const d = new Date().getUTCDay(); return d === 0 || d === 6; })();
+
   return (
     <>
     <AssetSelectorSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
@@ -151,7 +154,17 @@ export function MobileHome() {
           {/* Active Session */}
           <div className="bg-[hsl(var(--card))] rounded-xl p-3.5 border border-white/5">
             <p className="text-[9px] text-zinc-600 uppercase tracking-widest mb-1">Session</p>
-            {activeSession ? (
+            {isCrypto ? (
+              <>
+                <p className="text-[13px] font-bold text-emerald-400">24/7 Open</p>
+                <span className="text-[9px] font-bold uppercase text-emerald-600">Always active</span>
+              </>
+            ) : isWeekend && !activeSession ? (
+              <>
+                <p className="text-[13px] font-bold text-zinc-500">Market Closed</p>
+                <p className="text-[9px] text-zinc-700 mt-1">Reopens Monday</p>
+              </>
+            ) : activeSession ? (
               <>
                 <p className="text-[13px] font-bold text-zinc-200">{activeSession.session}</p>
                 <span className={cn("text-[9px] font-bold uppercase",
@@ -162,8 +175,8 @@ export function MobileHome() {
               </>
             ) : (
               <>
-                <p className="text-[13px] font-bold text-zinc-500">Closed</p>
-                <p className="text-[9px] text-zinc-700 mt-1">Between sessions</p>
+                <p className="text-[13px] font-bold text-zinc-500">Between</p>
+                <p className="text-[9px] text-zinc-700 mt-1">Sessions</p>
               </>
             )}
           </div>
