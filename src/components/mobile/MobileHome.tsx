@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useRef, useCallback } from "react";
-import { useQuotes, useMarketBias, useKeyLevels, useCatalysts, useMarketAnalysis, useAgentResult, useSessions } from "@/hooks/useMarketData";
-import { TrendingUp, TrendingDown, Minus, Target, Zap, RefreshCw, Sparkles, ChevronDown, ChevronUp, Brain, BarChart2 } from "lucide-react";
+import { useQuotes, useMarketBias, useKeyLevels, useCatalysts, useMarketAnalysis, useAgentResult, useSessions, useMTFBias } from "@/hooks/useMarketData";
+import { TrendingUp, TrendingDown, Minus, Target, Zap, RefreshCw, Sparkles, ChevronDown, ChevronUp, Brain, BarChart2, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DetailModal } from "@/components/shared/DetailModal";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -11,6 +11,11 @@ import type { Catalyst } from "@/types";
 import { useSettings } from "@/contexts/SettingsContext";
 import { isAgentSupported, getSymbolLabel, getSymbolShort, SYMBOL_META, getCatalystImpactForSymbol } from "@/lib/assetImpact";
 import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelectorSheet";
+import { MobileWidgetSheet, loadWidgetConfig, saveWidgetConfig } from "@/components/mobile/MobileWidgetSheet";
+import type { WidgetConfig } from "@/components/mobile/MobileWidgetSheet";
+import { MTFBiasPanel } from "@/components/shared/MTFBiasPanel";
+import { KeyLevelsCard } from "@/components/shared/KeyLevelsCard";
+import { LotCalculatorWidget } from "@/components/shared/LotCalculatorWidget";
 
 function LiveBadge() {
   return (
@@ -57,11 +62,14 @@ export function MobileHome() {
   const { narrative, sentiment, generateFresh } = useMarketAnalysis();
   const { result: agentData } = useAgentResult(activeSymbol, "H1");
   const { sessions } = useSessions();
+  const { mtfData, mtfLoading } = useMTFBias(activeSymbol);
   const [generating, setGenerating] = useState(false);
   const [selectedCatalyst, setSelectedCatalyst] = useState<Catalyst | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [aiExpanded, setAiExpanded] = useState(false);
   const [biasModalOpen, setBiasModalOpen] = useState(false);
+  const [widgetSheetOpen, setWidgetSheetOpen] = useState(false);
+  const [widgetConfig, setWidgetConfig] = useState<WidgetConfig[]>(() => loadWidgetConfig());
   const containerRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLElement>;
 
   const symbolBiasLabel = getSymbolLabel(activeSymbol);
@@ -120,6 +128,11 @@ export function MobileHome() {
     try { await generateFresh(); } finally { setGenerating(false); }
   }
 
+  function handleWidgetChange(config: WidgetConfig[]) {
+    setWidgetConfig(config);
+    saveWidgetConfig(config);
+  }
+
   const signalColor = signalState === "ARMED" ? "text-emerald-400" : signalState === "PENDING" ? "text-amber-400" : "text-zinc-500";
   const signalBg = signalState === "ARMED" ? "bg-emerald-500/10 border-emerald-500/30" : signalState === "PENDING" ? "bg-amber-500/10 border-amber-500/30" : "bg-white/5 border-white/5";
 
@@ -140,6 +153,12 @@ export function MobileHome() {
   return (
     <>
     <AssetSelectorSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
+    <MobileWidgetSheet
+      open={widgetSheetOpen}
+      onClose={() => setWidgetSheetOpen(false)}
+      config={widgetConfig}
+      onChange={handleWidgetChange}
+    />
     <div ref={divRef} className="overflow-y-auto h-full pb-6">
       {/* Pull to refresh indicator */}
       {(pullDistance > 0 || refreshing) && (
@@ -157,215 +176,260 @@ export function MobileHome() {
             <span className="text-[9px] text-zinc-600">· updated {lastUpdated}</span>
           )}
         </div>
-        <AssetChip onPress={() => setSheetOpen(true)} />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setWidgetSheetOpen(true)}
+            className="p-1.5 rounded-lg text-zinc-600 active:text-zinc-300 active:bg-white/5"
+          >
+            <Settings2 className="h-4 w-4" />
+          </button>
+          <AssetChip onPress={() => setSheetOpen(true)} />
+        </div>
       </div>
 
       <div className="px-4 py-4 space-y-4">
-        {/* Signal + Session row */}
-        <div className="grid grid-cols-2 gap-2">
-          {/* Signal State */}
-          <div className={cn("rounded-xl p-3.5 border", signalBg)}>
-            <p className="text-[9px] text-zinc-600 uppercase tracking-widest mb-1">Signal</p>
-            <p className={cn("text-[13px] font-bold uppercase", signalColor)}>{signalState.replace("_", " ")}</p>
-            {direction && direction.toLowerCase() !== "none" && signalState !== "NO_TRADE" && (
-              <p className="text-[9px] text-zinc-600 mt-1 truncate">
-                {direction.toUpperCase()} · {trigger && trigger.toLowerCase() !== "none" ? trigger : " - "}
-              </p>
-            )}
-            {signalState === "NO_TRADE" && master?.noTradeReason && (
-              <p className="text-[9px] text-zinc-600 mt-1 leading-tight line-clamp-2">{master.noTradeReason}</p>
-            )}
-          </div>
+        {widgetConfig.filter(w => w.visible).map(w => {
+          switch (w.id) {
+            case "signal_session":
+              return (
+                <div key="signal_session" className="grid grid-cols-2 gap-2">
+                  {/* Signal State */}
+                  <div className={cn("rounded-xl p-3.5 border", signalBg)}>
+                    <p className="text-[9px] text-zinc-600 uppercase tracking-widest mb-1">Signal</p>
+                    <p className={cn("text-[13px] font-bold uppercase", signalColor)}>{signalState.replace("_", " ")}</p>
+                    {direction && direction.toLowerCase() !== "none" && signalState !== "NO_TRADE" && (
+                      <p className="text-[9px] text-zinc-600 mt-1 truncate">
+                        {direction.toUpperCase()} · {trigger && trigger.toLowerCase() !== "none" ? trigger : " - "}
+                      </p>
+                    )}
+                    {signalState === "NO_TRADE" && master?.noTradeReason && (
+                      <p className="text-[9px] text-zinc-600 mt-1 leading-tight line-clamp-2">{master.noTradeReason}</p>
+                    )}
+                  </div>
 
-          {/* Active Session */}
-          <div className="bg-[hsl(var(--card))] rounded-xl p-3.5 border border-white/5">
-            <p className="text-[9px] text-zinc-600 uppercase tracking-widest mb-1">Session</p>
-            {isWeekend && !isCrypto ? (
-              <>
-                <p className="text-[13px] font-bold text-zinc-500">Market Closed</p>
-                <p className="text-[9px] text-zinc-700 mt-1">Reopens Monday</p>
-              </>
-            ) : activeSession ? (
-              <>
-                <p className="text-[13px] font-bold text-zinc-200">{activeSession.session}</p>
-                <span className={cn("text-[9px] font-bold uppercase",
-                  activeSession.volatilityTone === "high" ? "text-red-400" :
-                  activeSession.volatilityTone === "moderate" ? "text-amber-400" : "text-emerald-400")}>
-                  {activeSession.volatilityTone} vol
-                </span>
-              </>
-            ) : isCrypto ? (
-              <>
-                <p className="text-[13px] font-bold text-emerald-400">24/7 Open</p>
-                <span className="text-[9px] font-bold uppercase text-emerald-600">Always active</span>
-              </>
-            ) : (
-              <>
-                <p className="text-[13px] font-bold text-zinc-500">Between</p>
-                <p className="text-[9px] text-zinc-700 mt-1">Sessions</p>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Entry strip  -  show whenever we have entry data */}
-        {entry && (
-          <div className={cn("border rounded-xl px-4 py-3",
-            signalState === "ARMED"   ? "bg-emerald-500/8 border-emerald-500/25" :
-            signalState === "PENDING" ? "bg-amber-500/8 border-amber-500/25" :
-            "bg-white/5 border-white/10")}>
-            <p className={cn("text-[9px] uppercase tracking-wider mb-2",
-              signalState === "ARMED"   ? "text-emerald-500/70" :
-              signalState === "PENDING" ? "text-amber-500/70" :
-              "text-zinc-600")}>
-              {signalState === "ARMED" ? "⚡ Armed  -  Confirm trigger" :
-               signalState === "PENDING" ? "⏳ Pending  -  Waiting for entry" :
-               "Last Setup"}
-            </p>
-            <div className="grid grid-cols-4 gap-2">
-              {[
-                { label: "Entry", value: entry > 100 ? entry.toFixed(2) : entry.toFixed(4), color: "text-zinc-100" },
-                { label: "SL",    value: stopLoss ? (stopLoss > 100 ? stopLoss.toFixed(2) : stopLoss.toFixed(4)) : " - ", color: "text-red-400" },
-                { label: "TP1",   value: tp1 ? (tp1 > 100 ? tp1.toFixed(2) : tp1.toFixed(4)) : " - ", color: "text-emerald-400" },
-                { label: "RR",    value: rrRatio ? `${rrRatio}:1` : " - ", color: "text-zinc-300" },
-              ].map(({ label, value, color }) => (
-                <div key={label} className="text-center">
-                  <p className="text-[8px] text-zinc-600 mb-0.5">{label}</p>
-                  <p className={cn("text-[11px] font-mono font-bold", color)}>{value}</p>
-                </div>
-              ))}
-            </div>
-            {exec?.signalStateReason && (
-              <p className="text-[10px] text-zinc-600 mt-2 leading-tight">{exec.signalStateReason}</p>
-            )}
-          </div>
-        )}
-
-        {/* Top Catalyst highlight */}
-        {catalysts[0] && catalystImpact && (
-          <div onClick={() => setSelectedCatalyst(catalysts[0])}
-            className="bg-[hsl(var(--card))] rounded-xl px-4 py-3 border border-white/5 active:bg-[hsl(var(--secondary))] cursor-pointer">
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <div className="flex-1">
-                <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Top Catalyst</p>
-                <p className="text-xs text-zinc-200 leading-snug">{catalysts[0].title}</p>
-              </div>
-              <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-4",
-                catalysts[0].importance === "high" ? "bg-red-500/15 text-red-400" :
-                catalysts[0].importance === "medium" ? "bg-amber-500/15 text-amber-400" :
-                "bg-zinc-500/15 text-zinc-400")}>
-                {catalysts[0].importance?.toUpperCase()}
-              </span>
-            </div>
-            <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded",
-              catalystImpact.impact === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
-              catalystImpact.impact === "bearish" ? "bg-red-500/15 text-red-400" :
-              "bg-zinc-500/15 text-zinc-400")}>
-              {symbolBiasShort} {catalystImpact.impact.toUpperCase()}
-            </span>
-          </div>
-        )}
-
-        {/* Prices grid */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-semibold uppercase tracking-wider">Live Prices</span>
-            <LiveBadge />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {displayQuotes.length > 0
-              ? displayQuotes.map((q) => <PriceCard key={q.symbol} symbol={q.symbol} price={q.price} change={q.changePercent} isActive={q.symbol === activeSymbol} />)
-              : Array.from({ length: 6 }).map((_, i) => <div key={i} className="bg-[hsl(var(--card))] rounded-xl p-3.5 border border-white/5 h-[70px] animate-pulse" />)
-            }
-          </div>
-        </section>
-
-        {/* Asset Bias */}
-        {activeBias && (
-          <section>
-            <p className="text-[11px] font-semibold uppercase tracking-wider mb-3">{symbolBiasLabel} Bias</p>
-            <div
-              className="bg-[hsl(var(--card))] rounded-xl p-4 border border-white/5 cursor-pointer active:opacity-75"
-              onClick={() => setBiasModalOpen(true)}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-bold">{symbolBiasShort}</span>
-                <div className="flex items-center gap-2">
-                  <span className={cn("text-[10px] font-bold px-3 py-1 rounded-full",
-                    activeBias.bias === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
-                    activeBias.bias === "bearish" ? "bg-red-500/15 text-red-400" : "bg-zinc-500/15 text-zinc-400")}>
-                    {activeBias.bias?.toUpperCase()}
-                  </span>
-                  <ChevronDown className="h-3.5 w-3.5 text-zinc-600" />
-                </div>
-              </div>
-              <div className="flex justify-between text-[9px] text-zinc-600 mb-1.5">
-                <span>Conviction</span><span>{activeBias.confidence}%</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-white/5">
-                <div className={cn("h-full rounded-full", activeBias.bias === "bullish" ? "bg-emerald-400" : activeBias.bias === "bearish" ? "bg-red-400" : "bg-zinc-400")}
-                  style={{ width: `${activeBias.confidence}%` }} />
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* AI Analysis */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wider">AI Analysis</p>
-            <div className="flex items-center gap-2">
-              <button onClick={handleGenerate} disabled={generating}
-                className="flex items-center gap-1 text-[9px] text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30 px-2 py-1 rounded-lg">
-                {generating ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
-                {generating ? "..." : "Refresh"}
-              </button>
-            </div>
-          </div>
-          <div
-            className="bg-[hsl(var(--card))] rounded-xl p-4 border border-white/5 space-y-2 cursor-pointer active:opacity-80"
-            onClick={() => setAiExpanded((v: boolean) => !v)}
-          >
-            {narrative.regime && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-[9px] text-zinc-600 uppercase tracking-wider">Regime</span>
-                  <span className="text-[10px] font-semibold text-amber-400">{narrative.regime}</span>
-                </div>
-                {aiExpanded
-                  ? <ChevronUp className="h-3 w-3 text-zinc-600" />
-                  : <ChevronDown className="h-3 w-3 text-zinc-600" />}
-              </div>
-            )}
-            {narrative.summary && (
-              <p className={cn("text-xs text-zinc-400 leading-relaxed", !aiExpanded && "line-clamp-2")}>
-                {narrative.summary}
-              </p>
-            )}
-          </div>
-        </section>
-
-        {/* More catalysts */}
-        {catalysts.length > 1 && (
-          <section>
-            <p className="text-[11px] font-semibold uppercase tracking-wider mb-3">More Catalysts</p>
-            <div className="space-y-2">
-              {catalysts.slice(1, 4).map((c, i) => (
-                <div key={i} onClick={() => setSelectedCatalyst(c)}
-                  className="bg-[hsl(var(--card))] rounded-xl px-4 py-3 border border-white/5 active:bg-[hsl(var(--secondary))] cursor-pointer">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-xs text-zinc-200 leading-snug flex-1">{c.title}</p>
-                    <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0",
-                      c.importance === "high" ? "bg-red-500/15 text-red-400" :
-                      c.importance === "medium" ? "bg-amber-500/15 text-amber-400" : "bg-zinc-500/15 text-zinc-400")}>
-                      {c.importance?.toUpperCase()}
-                    </span>
+                  {/* Active Session */}
+                  <div className="bg-[hsl(var(--card))] rounded-xl p-3.5 border border-white/5">
+                    <p className="text-[9px] text-zinc-600 uppercase tracking-widest mb-1">Session</p>
+                    {isWeekend && !isCrypto ? (
+                      <>
+                        <p className="text-[13px] font-bold text-zinc-500">Market Closed</p>
+                        <p className="text-[9px] text-zinc-700 mt-1">Reopens Monday</p>
+                      </>
+                    ) : activeSession ? (
+                      <>
+                        <p className="text-[13px] font-bold text-zinc-200">{activeSession.session}</p>
+                        <span className={cn("text-[9px] font-bold uppercase",
+                          activeSession.volatilityTone === "high" ? "text-red-400" :
+                          activeSession.volatilityTone === "moderate" ? "text-amber-400" : "text-emerald-400")}>
+                          {activeSession.volatilityTone} vol
+                        </span>
+                      </>
+                    ) : isCrypto ? (
+                      <>
+                        <p className="text-[13px] font-bold text-emerald-400">24/7 Open</p>
+                        <span className="text-[9px] font-bold uppercase text-emerald-600">Always active</span>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-[13px] font-bold text-zinc-500">Between</p>
+                        <p className="text-[9px] text-zinc-700 mt-1">Sessions</p>
+                      </>
+                    )}
                   </div>
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
+              );
+
+            case "entry_strip":
+              return entry ? (
+                <div key="entry_strip" className={cn("border rounded-xl px-4 py-3",
+                  signalState === "ARMED"   ? "bg-emerald-500/8 border-emerald-500/25" :
+                  signalState === "PENDING" ? "bg-amber-500/8 border-amber-500/25" :
+                  "bg-white/5 border-white/10")}>
+                  <p className={cn("text-[9px] uppercase tracking-wider mb-2",
+                    signalState === "ARMED"   ? "text-emerald-500/70" :
+                    signalState === "PENDING" ? "text-amber-500/70" :
+                    "text-zinc-600")}>
+                    {signalState === "ARMED" ? "⚡ Armed  -  Confirm trigger" :
+                     signalState === "PENDING" ? "⏳ Pending  -  Waiting for entry" :
+                     "Last Setup"}
+                  </p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { label: "Entry", value: entry > 100 ? entry.toFixed(2) : entry.toFixed(4), color: "text-zinc-100" },
+                      { label: "SL",    value: stopLoss ? (stopLoss > 100 ? stopLoss.toFixed(2) : stopLoss.toFixed(4)) : " - ", color: "text-red-400" },
+                      { label: "TP1",   value: tp1 ? (tp1 > 100 ? tp1.toFixed(2) : tp1.toFixed(4)) : " - ", color: "text-emerald-400" },
+                      { label: "RR",    value: rrRatio ? `${rrRatio}:1` : " - ", color: "text-zinc-300" },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="text-center">
+                        <p className="text-[8px] text-zinc-600 mb-0.5">{label}</p>
+                        <p className={cn("text-[11px] font-mono font-bold", color)}>{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {exec?.signalStateReason && (
+                    <p className="text-[10px] text-zinc-600 mt-2 leading-tight">{exec.signalStateReason}</p>
+                  )}
+                </div>
+              ) : null;
+
+            case "top_catalyst":
+              return (catalysts[0] && catalystImpact) ? (
+                <div key="top_catalyst" onClick={() => setSelectedCatalyst(catalysts[0])}
+                  className="bg-[hsl(var(--card))] rounded-xl px-4 py-3 border border-white/5 active:bg-[hsl(var(--secondary))] cursor-pointer">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex-1">
+                      <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Top Catalyst</p>
+                      <p className="text-xs text-zinc-200 leading-snug">{catalysts[0].title}</p>
+                    </div>
+                    <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-4",
+                      catalysts[0].importance === "high" ? "bg-red-500/15 text-red-400" :
+                      catalysts[0].importance === "medium" ? "bg-amber-500/15 text-amber-400" :
+                      "bg-zinc-500/15 text-zinc-400")}>
+                      {catalysts[0].importance?.toUpperCase()}
+                    </span>
+                  </div>
+                  <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded",
+                    catalystImpact.impact === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
+                    catalystImpact.impact === "bearish" ? "bg-red-500/15 text-red-400" :
+                    "bg-zinc-500/15 text-zinc-400")}>
+                    {symbolBiasShort} {catalystImpact.impact.toUpperCase()}
+                  </span>
+                </div>
+              ) : null;
+
+            case "live_prices":
+              return (
+                <section key="live_prices">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider">Live Prices</span>
+                    <LiveBadge />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {displayQuotes.length > 0
+                      ? displayQuotes.map((q) => <PriceCard key={q.symbol} symbol={q.symbol} price={q.price} change={q.changePercent} isActive={q.symbol === activeSymbol} />)
+                      : Array.from({ length: 6 }).map((_, i) => <div key={i} className="bg-[hsl(var(--card))] rounded-xl p-3.5 border border-white/5 h-[70px] animate-pulse" />)
+                    }
+                  </div>
+                </section>
+              );
+
+            case "asset_bias":
+              return activeBias ? (
+                <section key="asset_bias">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider mb-3">{symbolBiasLabel} Bias</p>
+                  <div
+                    className="bg-[hsl(var(--card))] rounded-xl p-4 border border-white/5 cursor-pointer active:opacity-75"
+                    onClick={() => setBiasModalOpen(true)}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-bold">{symbolBiasShort}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={cn("text-[10px] font-bold px-3 py-1 rounded-full",
+                          activeBias.bias === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
+                          activeBias.bias === "bearish" ? "bg-red-500/15 text-red-400" : "bg-zinc-500/15 text-zinc-400")}>
+                          {activeBias.bias?.toUpperCase()}
+                        </span>
+                        <ChevronDown className="h-3.5 w-3.5 text-zinc-600" />
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-[9px] text-zinc-600 mb-1.5">
+                      <span>Conviction</span><span>{activeBias.confidence}%</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-white/5">
+                      <div className={cn("h-full rounded-full", activeBias.bias === "bullish" ? "bg-emerald-400" : activeBias.bias === "bearish" ? "bg-red-400" : "bg-zinc-400")}
+                        style={{ width: `${activeBias.confidence}%` }} />
+                    </div>
+                  </div>
+                </section>
+              ) : null;
+
+            case "mtf_bias":
+              return (
+                <section key="mtf_bias">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider mb-3">MTF Bias</p>
+                  <MTFBiasPanel data={mtfData ?? undefined} isLoading={mtfLoading} />
+                </section>
+              );
+
+            case "key_levels":
+              return levels.length > 0 ? (
+                <section key="key_levels">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider mb-3">Key Levels</p>
+                  <KeyLevelsCard levels={levels} compact />
+                </section>
+              ) : null;
+
+            case "ai_analysis":
+              return (
+                <section key="ai_analysis">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider">AI Analysis</p>
+                    <div className="flex items-center gap-2">
+                      <button onClick={handleGenerate} disabled={generating}
+                        className="flex items-center gap-1 text-[9px] text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30 px-2 py-1 rounded-lg">
+                        {generating ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
+                        {generating ? "..." : "Refresh"}
+                      </button>
+                    </div>
+                  </div>
+                  <div
+                    className="bg-[hsl(var(--card))] rounded-xl p-4 border border-white/5 space-y-2 cursor-pointer active:opacity-80"
+                    onClick={() => setAiExpanded((v: boolean) => !v)}
+                  >
+                    {narrative.regime && (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] text-zinc-600 uppercase tracking-wider">Regime</span>
+                          <span className="text-[10px] font-semibold text-amber-400">{narrative.regime}</span>
+                        </div>
+                        {aiExpanded
+                          ? <ChevronUp className="h-3 w-3 text-zinc-600" />
+                          : <ChevronDown className="h-3 w-3 text-zinc-600" />}
+                      </div>
+                    )}
+                    {narrative.summary && (
+                      <p className={cn("text-xs text-zinc-400 leading-relaxed", !aiExpanded && "line-clamp-2")}>
+                        {narrative.summary}
+                      </p>
+                    )}
+                  </div>
+                </section>
+              );
+
+            case "more_catalysts":
+              return catalysts.length > 1 ? (
+                <section key="more_catalysts">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider mb-3">More Catalysts</p>
+                  <div className="space-y-2">
+                    {catalysts.slice(1, 4).map((c, i) => (
+                      <div key={i} onClick={() => setSelectedCatalyst(c)}
+                        className="bg-[hsl(var(--card))] rounded-xl px-4 py-3 border border-white/5 active:bg-[hsl(var(--secondary))] cursor-pointer">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-xs text-zinc-200 leading-snug flex-1">{c.title}</p>
+                          <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0",
+                            c.importance === "high" ? "bg-red-500/15 text-red-400" :
+                            c.importance === "medium" ? "bg-amber-500/15 text-amber-400" : "bg-zinc-500/15 text-zinc-400")}>
+                            {c.importance?.toUpperCase()}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ) : null;
+
+            case "lot_calculator":
+              return (
+                <section key="lot_calculator">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider mb-3">Lot Calculator</p>
+                  <LotCalculatorWidget />
+                </section>
+              );
+
+            default:
+              return null;
+          }
+        })}
       </div>
 
       {/* Bias Detail Modal */}
