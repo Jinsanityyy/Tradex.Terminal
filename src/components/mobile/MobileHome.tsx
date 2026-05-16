@@ -61,6 +61,7 @@ export function MobileHome() {
   const [selectedCatalyst, setSelectedCatalyst] = useState<Catalyst | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [aiExpanded, setAiExpanded] = useState(false);
+  const [biasModalOpen, setBiasModalOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLElement>;
 
   const symbolBiasLabel = getSymbolLabel(activeSymbol);
@@ -283,14 +284,20 @@ export function MobileHome() {
         {activeBias && (
           <section>
             <p className="text-[11px] font-semibold uppercase tracking-wider mb-3">{symbolBiasLabel} Bias</p>
-            <div className="bg-[hsl(var(--card))] rounded-xl p-4 border border-white/5">
+            <div
+              className="bg-[hsl(var(--card))] rounded-xl p-4 border border-white/5 cursor-pointer active:opacity-75"
+              onClick={() => setBiasModalOpen(true)}
+            >
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-bold">{symbolBiasShort}</span>
-                <span className={cn("text-[10px] font-bold px-3 py-1 rounded-full",
-                  activeBias.bias === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
-                  activeBias.bias === "bearish" ? "bg-red-500/15 text-red-400" : "bg-zinc-500/15 text-zinc-400")}>
-                  {activeBias.bias?.toUpperCase()}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={cn("text-[10px] font-bold px-3 py-1 rounded-full",
+                    activeBias.bias === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
+                    activeBias.bias === "bearish" ? "bg-red-500/15 text-red-400" : "bg-zinc-500/15 text-zinc-400")}>
+                    {activeBias.bias?.toUpperCase()}
+                  </span>
+                  <ChevronDown className="h-3.5 w-3.5 text-zinc-600" />
+                </div>
               </div>
               <div className="flex justify-between text-[9px] text-zinc-600 mb-1.5">
                 <span>Conviction</span><span>{activeBias.confidence}%</span>
@@ -360,6 +367,93 @@ export function MobileHome() {
           </section>
         )}
       </div>
+
+      {/* Bias Detail Modal */}
+      <DetailModal open={biasModalOpen} onClose={() => setBiasModalOpen(false)} title={`${symbolBiasLabel} Bias Analysis`}>
+        {activeBias && (
+          <div className="space-y-4">
+            {/* Conviction header */}
+            <div className={cn("rounded-xl p-4 border",
+              activeBias.bias === "bullish" ? "bg-emerald-500/8 border-emerald-500/20" :
+              activeBias.bias === "bearish" ? "bg-red-500/8 border-red-500/20" :
+              "bg-zinc-800/50 border-zinc-700/30")}>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-bold text-zinc-100">{symbolBiasShort}</span>
+                <span className={cn("text-[11px] font-bold px-3 py-1 rounded-full",
+                  activeBias.bias === "bullish" ? "bg-emerald-500/20 text-emerald-300" :
+                  activeBias.bias === "bearish" ? "bg-red-500/20 text-red-300" :
+                  "bg-zinc-700 text-zinc-400")}>
+                  {activeBias.bias?.toUpperCase()}
+                </span>
+              </div>
+              <div className="flex justify-between text-[10px] text-zinc-500 mb-2">
+                <span>Conviction</span><span className="font-mono font-bold text-zinc-300">{activeBias.confidence}%</span>
+              </div>
+              <div className="h-2 rounded-full bg-black/30">
+                <div className={cn("h-full rounded-full transition-all", activeBias.bias === "bullish" ? "bg-emerald-400" : activeBias.bias === "bearish" ? "bg-red-400" : "bg-zinc-500")}
+                  style={{ width: `${activeBias.confidence}%` }} />
+              </div>
+              <p className="text-[10px] text-zinc-600 mt-2">
+                {activeBias.confidence >= 70 ? "High conviction — strong directional alignment across factors." :
+                 activeBias.confidence >= 50 ? "Moderate conviction — majority of factors align but some uncertainty remains." :
+                 "Low conviction — mixed signals, trade with reduced size or wait for confirmation."}
+              </p>
+            </div>
+
+            {/* Supporting factors */}
+            {(techBias?.supportingFactors?.length || master?.supports?.length) && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500/70 mb-2">Supporting Factors</p>
+                <div className="space-y-1.5">
+                  {(techBias?.supportingFactors ?? master?.supports ?? []).map((f: string, i: number) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <span className="text-emerald-500 shrink-0 mt-0.5 text-[11px]">✓</span>
+                      <p className="text-[11px] text-zinc-300 leading-snug">{f}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Invalidation factors */}
+            {(techBias?.invalidationFactors?.length || master?.invalidations?.length) && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-red-500/70 mb-2">Invalidation — Watch For</p>
+                <div className="space-y-1.5">
+                  {(techBias?.invalidationFactors ?? master?.invalidations ?? []).map((f: string, i: number) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <span className="text-red-500 shrink-0 mt-0.5 text-[11px]">✕</span>
+                      <p className="text-[11px] text-zinc-300 leading-snug">{f}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Key levels from technical data */}
+            {techBias?.keyLevels && (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 text-center">
+                  <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1">Support</p>
+                  <p className="text-sm font-bold font-mono text-emerald-400">{techBias.keyLevels.support}</p>
+                </div>
+                <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 text-center">
+                  <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1">Resistance</p>
+                  <p className="text-sm font-bold font-mono text-red-400">{techBias.keyLevels.resistance}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Session behavior */}
+            {techBias?.sessionBehavior && (
+              <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">Session Behavior</p>
+                <p className="text-[11px] text-zinc-300 leading-relaxed">{techBias.sessionBehavior}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </DetailModal>
 
       <DetailModal open={!!selectedCatalyst} onClose={() => setSelectedCatalyst(null)} title={selectedCatalyst?.title}>
         {selectedCatalyst && (
