@@ -3,12 +3,15 @@
 import React, { useState } from "react";
 import { useCatalysts, useEconomicCalendar, useTrumpPosts, useNews } from "@/hooks/useMarketData";
 import { cn } from "@/lib/utils";
-import { Zap, CalendarDays, AtSign, TrendingUp, TrendingDown, Minus, Target, Shield, Radio } from "lucide-react";
+import { Zap, CalendarDays, AtSign, TrendingUp, TrendingDown, Target, Shield, Radio } from "lucide-react";
 import { DetailModal } from "@/components/shared/DetailModal";
 import { CatalystFeed } from "@/components/shared/CatalystFeed";
 import { NewsFeed } from "@/components/shared/NewsFeed";
 import { LiveNewsTicker } from "@/components/shared/LiveNewsTicker";
 import type { EconomicEvent, TrumpPost } from "@/types";
+import { useSettings } from "@/contexts/SettingsContext";
+import { isAgentSupported, getSymbolLabel, getSymbolShort, getEventImpactForSymbol } from "@/lib/assetImpact";
+import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelectorSheet";
 
 type Tab = "live" | "catalysts" | "calendar" | "trump";
 
@@ -20,7 +23,15 @@ const LIVE_CHANNELS = [
 ];
 
 export function MobileFeed() {
+  const { settings } = useSettings();
+  const selectedSymbol = isAgentSupported(settings.selectedSymbol ?? "XAUUSD")
+    ? settings.selectedSymbol!
+    : "XAUUSD";
+  const symbolLabel = getSymbolLabel(selectedSymbol);
+  const symbolShort = getSymbolShort(selectedSymbol);
+
   const [tab, setTab] = useState<Tab>("live");
+  const [sheetOpen, setSheetOpen] = useState(false);
   const { catalysts } = useCatalysts();
   const { events } = useEconomicCalendar();
   const { posts } = useTrumpPosts();
@@ -37,16 +48,23 @@ export function MobileFeed() {
   ];
 
   return (
+    <>
+    <AssetSelectorSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
     <div className="flex flex-col h-full">
-      {/* Tabs */}
-      <div className="flex shrink-0 border-b border-white/5 overflow-x-auto px-2 pt-1">
-        {tabs.map(({ id, label, Icon }) => (
-          <button key={id} onClick={() => setTab(id)}
-            className={cn("flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider border-b-2 transition-all -mb-px shrink-0",
-              tab === id ? "border-[hsl(var(--primary))] text-[hsl(var(--primary))]" : "border-transparent text-zinc-500")}>
-            <Icon className="w-3 h-3" />{label}
-          </button>
-        ))}
+      {/* Tabs + asset chip */}
+      <div className="flex shrink-0 items-center border-b border-white/5 px-2 pt-1">
+        <div className="flex overflow-x-auto flex-1">
+          {tabs.map(({ id, label, Icon }) => (
+            <button key={id} onClick={() => setTab(id)}
+              className={cn("flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider border-b-2 transition-all -mb-px shrink-0",
+                tab === id ? "border-[hsl(var(--primary))] text-[hsl(var(--primary))]" : "border-transparent text-zinc-500")}>
+              <Icon className="w-3 h-3" />{label}
+            </button>
+          ))}
+        </div>
+        <div className="pl-2 pb-1 shrink-0">
+          <AssetChip size="sm" onPress={() => setSheetOpen(true)} />
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0">
@@ -112,24 +130,22 @@ export function MobileFeed() {
                     {e.forecast != null && <span>F: {e.forecast}</span>}
                   </div>
                   <div className="flex gap-1.5 flex-wrap">
-                    {e.goldImpact && (
-                      <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-semibold",
-                        e.goldImpact === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
-                        e.goldImpact === "bearish" ? "bg-red-500/15 text-red-400" : "bg-zinc-500/15 text-zinc-400")}>
-                        GOLD {e.goldImpact?.toUpperCase()}
-                      </span>
-                    )}
-                    {e.usdImpact && (
-                      <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-semibold",
-                        e.usdImpact === "bullish" ? "bg-blue-500/15 text-blue-400" :
-                        e.usdImpact === "bearish" ? "bg-red-500/15 text-red-400" : "bg-zinc-500/15 text-zinc-400")}>
-                        USD {e.usdImpact?.toUpperCase()}
-                      </span>
-                    )}
+                    {(() => {
+                      const { impact, reasoning } = getEventImpactForSymbol(e, selectedSymbol);
+                      return (
+                        <>
+                          <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-semibold",
+                            impact === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
+                            impact === "bearish" ? "bg-red-500/15 text-red-400" : "bg-zinc-500/15 text-zinc-400")}>
+                            {symbolShort} {impact.toUpperCase()}
+                          </span>
+                          {reasoning && (
+                            <p className="w-full text-[10px] text-zinc-600 mt-1.5 leading-relaxed border-t border-white/5 pt-1.5">{reasoning}</p>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
-                  {e.goldReasoning && (
-                    <p className="text-[10px] text-zinc-600 mt-2 leading-relaxed border-t border-white/5 pt-2">{e.goldReasoning}</p>
-                  )}
                 </div>
               ))}
           </div>
@@ -146,7 +162,7 @@ export function MobileFeed() {
                   <p className="text-xs leading-relaxed mb-2">{p.content}</p>
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex gap-1.5">
-                      {p.affectedAssets?.slice(0, 3).map((a) => (
+                      {p.affectedAssets?.slice(0, 3).map((a: string) => (
                         <span key={a} className="text-[9px] text-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 px-1.5 py-0.5 rounded">{a}</span>
                       ))}
                     </div>
@@ -192,50 +208,37 @@ export function MobileFeed() {
                 </div>
               ))}
             </div>
-            <div className="flex gap-2 flex-wrap">
-              {selectedEvent.goldImpact && (
-                <span className={cn("inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold",
-                  selectedEvent.goldImpact === "bullish" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" :
-                  selectedEvent.goldImpact === "bearish" ? "bg-red-500/15 text-red-400 border-red-500/30" :
-                  "bg-zinc-500/15 text-zinc-400 border-zinc-500/30")}>
-                  {selectedEvent.goldImpact === "bullish" ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
-                  GOLD {selectedEvent.goldImpact.toUpperCase()}
-                </span>
-              )}
-              {selectedEvent.usdImpact && (
-                <span className={cn("inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold",
-                  selectedEvent.usdImpact === "bullish" ? "bg-blue-500/15 text-blue-400 border-blue-500/30" :
-                  selectedEvent.usdImpact === "bearish" ? "bg-red-500/15 text-red-400 border-red-500/30" :
-                  "bg-zinc-500/15 text-zinc-400 border-zinc-500/30")}>
-                  {selectedEvent.usdImpact === "bullish" ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
-                  USD {selectedEvent.usdImpact.toUpperCase()}
-                </span>
-              )}
-            </div>
-            {selectedEvent.goldReasoning && (
-              <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <Target className="h-3.5 w-3.5 text-amber-400" />
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Gold Analysis</span>
-                </div>
-                <p className="text-xs leading-relaxed">{selectedEvent.goldReasoning}</p>
-              </div>
-            )}
-            {selectedEvent.usdReasoning && (
-              <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <Shield className="h-3.5 w-3.5 text-blue-400" />
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">USD Analysis</span>
-                </div>
-                <p className="text-xs leading-relaxed">{selectedEvent.usdReasoning}</p>
-              </div>
-            )}
-            {selectedEvent.goldReasoning && (
-              <div className="rounded-lg border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary))]/5 p-3.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--primary))]/70 mb-1">Trading Recommendation</p>
-                <p className="text-xs text-zinc-200 leading-relaxed">{selectedEvent.goldReasoning}</p>
-              </div>
-            )}
+            {(() => {
+              const { impact, reasoning } = getEventImpactForSymbol(selectedEvent, selectedSymbol);
+              return (
+                <>
+                  <div className="flex gap-2 flex-wrap">
+                    <span className={cn("inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold",
+                      impact === "bullish" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" :
+                      impact === "bearish" ? "bg-red-500/15 text-red-400 border-red-500/30" :
+                      "bg-zinc-500/15 text-zinc-400 border-zinc-500/30")}>
+                      {impact === "bullish" ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
+                      {symbolShort} {impact.toUpperCase()}
+                    </span>
+                  </div>
+                  {reasoning && (
+                    <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5">
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <Target className="h-3.5 w-3.5 text-amber-400" />
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">{symbolLabel} Analysis</span>
+                      </div>
+                      <p className="text-xs leading-relaxed">{reasoning}</p>
+                    </div>
+                  )}
+                  {reasoning && (
+                    <div className="rounded-lg border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary))]/5 p-3.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--primary))]/70 mb-1">Trading Recommendation</p>
+                      <p className="text-xs text-zinc-200 leading-relaxed">{reasoning}</p>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
       </DetailModal>
@@ -278,7 +281,7 @@ export function MobileFeed() {
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-2">Affected Assets</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {selectedPost.affectedAssets.map((a) => (
+                  {selectedPost.affectedAssets.map((a: string) => (
                     <span key={a} className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-[hsl(var(--secondary))] text-zinc-400">{a}</span>
                   ))}
                 </div>
@@ -288,5 +291,6 @@ export function MobileFeed() {
         )}
       </DetailModal>
     </div>
+    </>
   );
 }
