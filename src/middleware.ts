@@ -38,7 +38,9 @@ export async function middleware(req: NextRequest) {
   }
 
   // ── Mobile redirect ─────────────────────────────────────────────────────────
-  const isStatic = pathname.startsWith("/_next") || pathname.startsWith("/api") || pathname.startsWith("/favicon");
+  const isStatic = pathname.startsWith("/_next") || pathname.startsWith("/api") || pathname.startsWith("/favicon")
+    || pathname === "/manifest.json" || pathname === "/sw.js" || pathname.startsWith("/workbox-")
+    || pathname === "/robots.txt" || pathname === "/sitemap.xml";
   const isLoginPage = pathname === "/login";
   if (!isStatic && !isLoginPage) {
     const mobile = isMobile(req);
@@ -56,5 +58,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon|.*\\.png|.*\\.svg|.*\\.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon|.*\\.png|.*\\.svg|.*\\.ico|.*\\.json|.*\\.js\\.map|sw\\.js|workbox-.*).*)"],
 };
