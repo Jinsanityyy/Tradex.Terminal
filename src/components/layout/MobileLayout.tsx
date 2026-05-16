@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { LayoutDashboard, TrendingUp, Zap, BarChart3, Users, Grid, Camera, LogOut, X } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,10 @@ type TabId = (typeof TABS)[number]["id"];
 
 export function MobileLayout() {
   const [active, setActive] = useState<TabId>("home");
+  const [mounted, setMounted] = useState<Set<TabId>>(new Set(["home"]));
+  const [transitioning, setTransitioning] = useState(false);
+  const [enterKey, setEnterKey] = useState(0);
+  const transitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [ready, setReady] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [traderName, setTraderName] = useState("");
@@ -181,6 +185,16 @@ export function MobileLayout() {
     reader.readAsDataURL(file);
   }
 
+  const switchTab = useCallback((id: TabId) => {
+    if (id === active) return;
+    setMounted((prev: Set<TabId>) => new Set([...prev, id]));
+    setActive(id);
+    setEnterKey((k: number) => k + 1);
+    setTransitioning(true);
+    if (transitionTimer.current) clearTimeout(transitionTimer.current);
+    transitionTimer.current = setTimeout(() => setTransitioning(false), 180);
+  }, [active]);
+
   async function handleLogout() {
     const supabase = createClient();
     if (supabase) await supabase.auth.signOut();
@@ -195,7 +209,7 @@ export function MobileLayout() {
     );
   }
 
-  const noScroll = active === "chart" || active === "community" || active === "more" || active === "feed" || active === "brain";
+  const NO_SCROLL_TABS = new Set(["chart", "community", "more", "feed", "brain"]);
 
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-[hsl(var(--background))]">
@@ -297,17 +311,37 @@ export function MobileLayout() {
         </div>
       )}
 
-      {/* Page content */}
-      <div className={cn(
-        "flex-1 min-h-0",
-        noScroll ? "overflow-hidden flex flex-col" : "overflow-y-auto overscroll-none"
-      )}>
-        {active === "home"      && <MobileHome />}
-        {active === "chart"     && <MobileChart />}
-        {active === "feed"      && <MobileFeed />}
-        {active === "brain"     && <MobileBrain />}
-        {active === "community" && <CommunityPanel />}
-        {active === "more"      && <MobileMore />}
+      {/* Page content — all mounted tabs stay alive, stacked absolutely */}
+      <div className="relative flex-1 min-h-0 overflow-hidden">
+        {TABS.map(({ id }) => {
+          if (!mounted.has(id)) return null;
+          const isActive = active === id;
+          return (
+            <div
+              key={id}
+              className={cn(
+                "absolute inset-0 flex flex-col",
+                NO_SCROLL_TABS.has(id) ? "overflow-hidden" : "overflow-y-auto overscroll-none",
+                isActive ? "z-10" : "z-0 opacity-0 pointer-events-none"
+              )}
+            >
+              {id === "home"      && <MobileHome />}
+              {id === "chart"     && <MobileChart />}
+              {id === "feed"      && <MobileFeed />}
+              {id === "brain"     && <MobileBrain />}
+              {id === "community" && <CommunityPanel />}
+              {id === "more"      && <MobileMore />}
+            </div>
+          );
+        })}
+
+        {/* Fade-through overlay — plays on every tab switch */}
+        {transitioning && (
+          <div
+            key={enterKey}
+            className="mobile-tab-overlay absolute inset-0 z-50 pointer-events-none bg-[hsl(var(--background))]"
+          />
+        )}
       </div>
 
       {/* Bottom tab bar */}
@@ -320,7 +354,7 @@ export function MobileLayout() {
             const badgeCount = id === "community" ? unreadChat : unreadFeed;
             return (
               <button key={id} onClick={() => {
-                setActive(id);
+                switchTab(id);
                 if (id === "community") setUnreadChat(0);
                 if (id === "feed") setUnreadFeed(0);
               }}
