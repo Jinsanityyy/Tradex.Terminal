@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import type { AgentRunResult, Symbol, Timeframe, SignalState } from "@/lib/agents/schemas";
 import { DebateLog } from "@/components/brain/DebateLog";
 import { AgentCommandRoom } from "@/components/brain/AgentCommandRoom";
+import { useSettings } from "@/contexts/SettingsContext";
+import { isAgentSupported } from "@/lib/assetImpact";
 
 const SYMBOLS: { id: Symbol; label: string }[] = [
   { id: "XAUUSD", label: "Gold"    },
@@ -239,7 +241,7 @@ function TradePlanCard({ tradePlan }: { tradePlan: NonNullable<AgentRunResult["a
 
       {/* Expandable details */}
       <button
-        onClick={() => setShowDetails(v => !v)}
+        onClick={() => setShowDetails((v: boolean) => !v)}
         className="w-full flex items-center justify-between px-4 py-2.5 border-t border-white/5 text-[10px] text-zinc-500 active:bg-white/3"
       >
         <span className="uppercase tracking-wider font-semibold">Trigger & Management</span>
@@ -314,11 +316,30 @@ function StandAsideCard({ exec, isWait }: {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+const BRAIN_VALID = new Set<string>(["XAUUSD", "EURUSD", "GBPUSD", "BTCUSD"]);
+
 export function MobileBrain() {
-  const [symbol, setSymbol] = useState<Symbol>("XAUUSD");
+  const { settings, saveSettings } = useSettings();
+
+  const [symbol, setSymbol] = useState<Symbol>(() => {
+    const s = settings.selectedSymbol ?? "XAUUSD";
+    return BRAIN_VALID.has(s) ? (s as Symbol) : "XAUUSD";
+  });
   const [timeframe, setTimeframe] = useState<Timeframe>("H1");
   const [refreshing, setRefreshing] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
+
+  // Sync when global asset changes (e.g. user picks from chip/sheet elsewhere)
+  useEffect(() => {
+    const s = settings.selectedSymbol ?? "XAUUSD";
+    if (BRAIN_VALID.has(s) && s !== symbol) setSymbol(s as Symbol);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.selectedSymbol]);
+
+  function handleSymbolChange(s: Symbol) {
+    setSymbol(s);
+    saveSettings({ ...settings, selectedSymbol: s });
+  }
 
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 5_000);
@@ -403,7 +424,7 @@ export function MobileBrain() {
           {/* Symbol + TF row */}
           <div className="flex gap-2 flex-wrap">
             {SYMBOLS.map(s => (
-              <button key={s.id} onClick={() => setSymbol(s.id)}
+              <button key={s.id} onClick={() => handleSymbolChange(s.id)}
                 className={cn(
                   "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase border transition-all",
                   symbol === s.id
