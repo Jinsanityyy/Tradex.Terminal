@@ -3,10 +3,11 @@
 import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn, timeAgo } from "@/lib/utils";
-import { Newspaper, TrendingUp, TrendingDown, Minus, Target, Shield, BookOpen, ChevronRight } from "lucide-react";
+import { Newspaper, TrendingUp, TrendingDown, Minus, Target, BookOpen, ChevronRight } from "lucide-react";
 import type { NewsItem } from "@/types";
 import { DetailModal } from "./DetailModal";
-
+import { useSettings } from "@/contexts/SettingsContext";
+import { getSymbolLabel, getSymbolShort, getImpactForSymbol } from "@/lib/assetImpact";
 interface NewsFeedProps {
   items: NewsItem[];
   limit?: number;
@@ -30,6 +31,19 @@ function ImpactBadge({ impact, label }: { impact?: "bullish" | "bearish" | "neut
 }
 
 function NewsDetail({ item }: { item: NewsItem }) {
+  const { settings } = useSettings();
+  const selectedSymbol = settings.selectedSymbol ?? "XAUUSD";
+  const symbolLabel = getSymbolLabel(selectedSymbol);
+  const symbolShort = getSymbolShort(selectedSymbol);
+
+  const assetImpact = getImpactForSymbol({
+    goldImpact: item.goldImpact,
+    goldReasoning: item.goldReasoning,
+    usdImpact: item.usdImpact,
+    usdReasoning: item.usdReasoning,
+    sentimentTag: item.sentiment,
+  }, selectedSymbol);
+
   const borderCls = item.sentiment === "bullish" ? "border-emerald-500/25" : item.sentiment === "bearish" ? "border-red-500/25" : "border-zinc-600/30";
   const bgCls     = item.sentiment === "bullish" ? "bg-emerald-500/[0.04]" : item.sentiment === "bearish" ? "bg-red-500/[0.04]"    : "bg-zinc-800/20";
   const divCls    = item.sentiment === "bullish" ? "border-emerald-500/15" : item.sentiment === "bearish" ? "border-red-500/15"    : "border-zinc-700/30";
@@ -37,21 +51,12 @@ function NewsDetail({ item }: { item: NewsItem }) {
 
   const bullets: string[] = [
     item.sentiment === "bullish"
-      ? "Risk-on macro backdrop  -  broad risk appetite rising; this typically lifts equities and USD while reducing safe-haven demand for Gold"
+      ? "Risk-on macro backdrop  —  broad risk appetite rising"
       : item.sentiment === "bearish"
-      ? "Risk-off macro backdrop  -  defensive positioning; expect flows into safe-havens (Gold, JPY, CHF) and out of risk assets"
-      : "Neutral macro backdrop  -  no strong directional signal; focus on Gold/USD specific analysis below",
-    item.goldImpact === "bullish"
-      ? "Gold expected to bid higher  -  watch for breakout above session resistance"
-      : item.goldImpact === "bearish"
-      ? "Gold faces selling pressure  -  identify key support levels before considering bounce entries"
-      : null,
-    item.usdImpact === "bullish"
-      ? "USD strength likely  -  DXY breakout above resistance confirms the signal"
-      : item.usdImpact === "bearish"
-      ? "USD weakness likely  -  EURUSD and GBPUSD benefit from dollar selling pressure"
-      : null,
-    item.impactScore >= 8 ? `High impact score (${item.impactScore}/10)  -  this news warrants immediate attention and position review` : null,
+      ? "Risk-off macro backdrop  —  defensive positioning expected"
+      : "Neutral macro backdrop  —  no strong directional signal",
+    assetImpact.reasoning || null,
+    item.impactScore >= 8 ? `High impact score (${item.impactScore}/10)  —  warrants immediate attention and position review` : null,
   ].filter((b): b is string => Boolean(b));
 
   return (
@@ -104,36 +109,19 @@ function NewsDetail({ item }: { item: NewsItem }) {
         )}
       </div>
 
-      {/* Gold + USD badges  -  prevent both showing bullish (inverse assets) */}
-      {(item.goldImpact || item.usdImpact) && (
-        <div className="flex gap-2 flex-wrap">
-          <ImpactBadge impact={item.goldImpact} label="GOLD" />
-          <ImpactBadge
-            impact={item.goldImpact === "bullish" && item.usdImpact === "bullish" ? "neutral" : item.usdImpact}
-            label="USD"
-          />
-        </div>
-      )}
+      {/* Symbol-specific impact badge */}
+      <div className="flex gap-2 flex-wrap">
+        <ImpactBadge impact={assetImpact.impact} label={symbolShort} />
+      </div>
 
-      {/* Gold context */}
-      {item.goldReasoning && (
+      {/* Symbol-specific context */}
+      {assetImpact.reasoning && (
         <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
           <div className="flex items-center gap-1.5">
             <Target className="h-3.5 w-3.5 text-amber-400" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Gold Context</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">{symbolLabel} Context</span>
           </div>
-          <p className="text-[11.5px] text-[hsl(var(--foreground))] leading-relaxed">{item.goldReasoning}</p>
-        </div>
-      )}
-
-      {/* USD context */}
-      {item.usdReasoning && (
-        <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
-          <div className="flex items-center gap-1.5">
-            <Shield className="h-3.5 w-3.5 text-blue-400" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">USD Context</span>
-          </div>
-          <p className="text-[11.5px] text-[hsl(var(--foreground))] leading-relaxed">{item.usdReasoning}</p>
+          <p className="text-[11.5px] text-[hsl(var(--foreground))] leading-relaxed">{assetImpact.reasoning}</p>
         </div>
       )}
 
@@ -155,6 +143,10 @@ function NewsDetail({ item }: { item: NewsItem }) {
 }
 
 export function NewsFeed({ items, limit, compact = false }: NewsFeedProps) {
+  const { settings } = useSettings();
+  const selectedSymbol = settings.selectedSymbol ?? "XAUUSD";
+  const symbolShort = getSymbolShort(selectedSymbol);
+
   const displayed = limit ? items.slice(0, limit) : items;
   const [selected, setSelected] = useState<NewsItem | null>(null);
 
@@ -195,10 +187,9 @@ export function NewsFeed({ items, limit, compact = false }: NewsFeedProps) {
                   <Badge variant={item.sentiment}>
                     {item.sentiment === "bullish" ? "RISK-ON" : item.sentiment === "bearish" ? "RISK-OFF" : "NEUTRAL"}
                   </Badge>
-                  <ImpactBadge impact={item.goldImpact} label="GOLD" />
                   <ImpactBadge
-                    impact={item.goldImpact === "bullish" && item.usdImpact === "bullish" ? "neutral" : item.usdImpact}
-                    label="USD"
+                    impact={getImpactForSymbol({ goldImpact: item.goldImpact, usdImpact: item.usdImpact, goldReasoning: item.goldReasoning, usdReasoning: item.usdReasoning, sentimentTag: item.sentiment }, selectedSymbol).impact}
+                    label={symbolShort}
                   />
                   <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))]">
                     {item.category}

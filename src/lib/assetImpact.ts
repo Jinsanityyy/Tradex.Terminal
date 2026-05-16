@@ -97,13 +97,34 @@ export function getImpactForSymbol(data: ImpactSource, symbol: string): ImpactRe
     return { impact: data.usdImpact ?? "neutral", reasoning: data.usdReasoning ?? "" };
   }
 
-  // 5. Crypto – follows risk sentiment
+  // 5. Crypto – follows risk sentiment; falls back to gold direction or inverse USD
   if (["BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD", "BNBUSD"].includes(symbol)) {
-    const s = data.sentimentTag ?? "neutral";
+    const s = data.sentimentTag;
     if (s === "bearish")
       return { impact: "bearish", reasoning: "Risk-off environment typically pressures crypto as capital flows to safety." };
     if (s === "bullish")
       return { impact: "bullish", reasoning: "Risk-on sentiment supports crypto markets as appetite for speculative assets improves." };
+    // No sentimentTag (e.g. economic events) — derive from gold direction first
+    if (data.goldImpact && data.goldImpact !== "neutral") {
+      const label = getSymbolLabel(symbol);
+      return {
+        impact: data.goldImpact,
+        reasoning: data.goldReasoning
+          ? `${label} tracks macro risk sentiment alongside gold: ${data.goldReasoning}`
+          : `${label} expected to follow broad macro risk flows.`,
+      };
+    }
+    // Last fallback: invert USD (strong dollar pressures crypto)
+    if (data.usdImpact && data.usdImpact !== "neutral") {
+      const impact = invert(data.usdImpact);
+      const label = getSymbolLabel(symbol);
+      return {
+        impact,
+        reasoning: data.usdReasoning
+          ? `${label} inversely tracks USD strength: ${data.usdReasoning}`
+          : `${label} tends to weaken when USD strengthens and vice versa.`,
+      };
+    }
     return { impact: "neutral", reasoning: "Mixed macro signal — crypto awaiting clearer directional catalyst." };
   }
 

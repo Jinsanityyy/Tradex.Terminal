@@ -10,7 +10,7 @@ import { NewsFeed } from "@/components/shared/NewsFeed";
 import { LiveNewsTicker } from "@/components/shared/LiveNewsTicker";
 import type { EconomicEvent, TrumpPost } from "@/types";
 import { useSettings } from "@/contexts/SettingsContext";
-import { isAgentSupported, getSymbolLabel, getSymbolShort, getEventImpactForSymbol } from "@/lib/assetImpact";
+import { isAgentSupported, getSymbolLabel, getSymbolShort, getEventImpactForSymbol, getImpactForSymbol } from "@/lib/assetImpact";
 import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelectorSheet";
 
 type Tab = "live" | "catalysts" | "calendar" | "trump";
@@ -167,11 +167,16 @@ export function MobileFeed() {
                       ))}
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded uppercase",
-                        p.sentimentClassification === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
-                        p.sentimentClassification === "bearish" ? "bg-red-500/15 text-red-400" : "bg-amber-500/15 text-amber-400")}>
-                        {p.sentimentClassification}
-                      </span>
+                      {(() => {
+                        const { impact } = getImpactForSymbol({ goldImpact: p.goldImpact, usdImpact: p.usdImpact, sentimentTag: p.sentimentClassification }, selectedSymbol);
+                        return (
+                          <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded uppercase",
+                            impact === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
+                            impact === "bearish" ? "bg-red-500/15 text-red-400" : "bg-zinc-500/15 text-zinc-400")}>
+                            {symbolShort} {impact.toUpperCase()}
+                          </span>
+                        );
+                      })()}
                       <span className="text-[9px] font-mono text-zinc-600">{p.impactScore}/10</span>
                     </div>
                   </div>
