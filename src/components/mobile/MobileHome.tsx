@@ -9,7 +9,7 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { mutate } from "swr";
 import type { Catalyst } from "@/types";
 import { useSettings } from "@/contexts/SettingsContext";
-import { isAgentSupported } from "@/lib/assetImpact";
+import { isAgentSupported, getSymbolLabel, getSymbolShort } from "@/lib/assetImpact";
 import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelectorSheet";
 
 function LiveBadge() {
@@ -57,7 +57,9 @@ export function MobileHome() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLElement>;
 
-  const goldBias = biasData.find((b) => b.asset?.toLowerCase().includes("gold")) ?? biasData[0];
+  const symbolBiasLabel = getSymbolLabel(activeSymbol);
+  const symbolBiasShort = getSymbolShort(activeSymbol);
+
   const keyAssets = ["XAUUSD", "BTCUSD", "EURUSD", "USDJPY", "USOIL", "GBPUSD"];
   const displayQuotes = keyAssets.map((sym) => quotes.find((q) => q.symbol === sym)).filter(Boolean).slice(0, 6) as typeof quotes;
 
@@ -78,6 +80,20 @@ export function MobileHome() {
 
   // Active session
   const activeSession = sessions.find(s => s.status === "active");
+
+  // Bias for selected symbol — technical data for gold, agent consensus for others
+  const BIAS_SEARCH: Record<string, string> = {
+    XAUUSD: "gold", BTCUSD: "bitcoin", EURUSD: "euro", GBPUSD: "pound",
+  };
+  const techBias = biasData.find((b) => {
+    const term = BIAS_SEARCH[activeSymbol];
+    return term && b.asset?.toLowerCase().includes(term);
+  });
+  const activeBias = techBias
+    ? { bias: techBias.bias, confidence: techBias.confidence }
+    : master
+      ? { bias: master.finalBias as string, confidence: master.confidence }
+      : null;
 
   const divRef = useRef<HTMLDivElement>(null);
 
@@ -219,25 +235,25 @@ export function MobileHome() {
           </div>
         </section>
 
-        {/* Gold Bias */}
-        {goldBias && (
+        {/* Asset Bias */}
+        {activeBias && (
           <section>
-            <p className="text-[11px] font-semibold uppercase tracking-wider mb-3">Gold Bias</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider mb-3">{symbolBiasLabel} Bias</p>
             <div className="bg-[hsl(var(--card))] rounded-xl p-4 border border-white/5">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-bold">XAU/USD</span>
+                <span className="text-sm font-bold">{symbolBiasShort}</span>
                 <span className={cn("text-[10px] font-bold px-3 py-1 rounded-full",
-                  goldBias.bias === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
-                  goldBias.bias === "bearish" ? "bg-red-500/15 text-red-400" : "bg-zinc-500/15 text-zinc-400")}>
-                  {goldBias.bias?.toUpperCase()}
+                  activeBias.bias === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
+                  activeBias.bias === "bearish" ? "bg-red-500/15 text-red-400" : "bg-zinc-500/15 text-zinc-400")}>
+                  {activeBias.bias?.toUpperCase()}
                 </span>
               </div>
               <div className="flex justify-between text-[9px] text-zinc-600 mb-1.5">
-                <span>Conviction</span><span>{goldBias.confidence}%</span>
+                <span>Conviction</span><span>{activeBias.confidence}%</span>
               </div>
               <div className="h-1.5 rounded-full bg-white/5">
-                <div className={cn("h-full rounded-full", goldBias.bias === "bullish" ? "bg-emerald-400" : goldBias.bias === "bearish" ? "bg-red-400" : "bg-zinc-400")}
-                  style={{ width: `${goldBias.confidence}%` }} />
+                <div className={cn("h-full rounded-full", activeBias.bias === "bullish" ? "bg-emerald-400" : activeBias.bias === "bearish" ? "bg-red-400" : "bg-zinc-400")}
+                  style={{ width: `${activeBias.confidence}%` }} />
               </div>
             </div>
           </section>
@@ -303,7 +319,7 @@ export function MobileHome() {
             </div>
             {selectedCatalyst.affectedMarkets?.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
-                {selectedCatalyst.affectedMarkets.map((m) => (
+                {selectedCatalyst.affectedMarkets.map((m: string) => (
                   <span key={m} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[hsl(var(--secondary))] text-zinc-400">{m}</span>
                 ))}
               </div>
