@@ -650,7 +650,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
   const [liveMarkers, setLiveMarkers] = useState<LiveMarker[]>([]);
   const [is3D, setIs3D]               = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isLayerPanelOpen, setIsLayerPanelOpen] = useState(true);
+  const [isLayerPanelOpen, setIsLayerPanelOpen] = useState(false);
   const { quotes } = useQuotes(15_000);
 
   const syncRendererSize = useCallback(() => {
@@ -735,8 +735,10 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
     controls.zoomSpeed      = 0.8;
     controls.minDistance    = 2.8;
     controls.maxDistance    = 10;
-    controls.autoRotate     = true;
+    controls.autoRotate      = true;
     controls.autoRotateSpeed = 0.4;
+    controls.enablePan       = false;
+    controls.target.set(0, 0, 0);
     controlsRef.current = controls;
 
     // Lights
@@ -1011,29 +1013,6 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
         color: '#e8e8e8',
       }}
     >
-      {/* ── Top Bar ─────────────────────────────────────────────────────────── */}
-      <div style={{ height: 44, background: '#0a0a0a', borderBottom: '1px solid #1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '0 16px', gap: 12, flexShrink: 0, zIndex: 20 }}>
-        {/* 2D / 3D toggle */}
-        <div style={{ display: 'flex', background: '#141414', border: '1px solid #222', borderRadius: 5, overflow: 'hidden' }}>
-          {(['2D', '3D'] as const).map(mode => (
-            <button
-              key={mode}
-              onClick={() => setIs3D(mode === '3D')}
-              style={{ padding: '4px 10px', fontSize: 11, fontWeight: 700, letterSpacing: 1, border: 'none', cursor: 'pointer', background: (mode === '3D') === is3D ? GOLD : 'transparent', color: (mode === '3D') === is3D ? BLACK : '#555', transition: 'all 0.15s' }}
-            >{mode}</button>
-          ))}
-        </div>
-
-        {/* Fullscreen */}
-        <button
-          onClick={toggleFullscreen}
-          title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-          style={{ width: 30, height: 30, background: '#141414', border: '1px solid #222', borderRadius: 5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: 13, transition: 'all 0.15s' }}
-        >
-          {isFullscreen ? '⊠' : '⛶'}
-        </button>
-      </div>
-
       {/* ── Main area ───────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
 
@@ -1087,28 +1066,50 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
         )}
         {/* Globe / Map area */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', minWidth: 0, minHeight: 0 }}>
+          {/* Floating top-right controls: 2D/3D + fullscreen */}
+          <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 30, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ display: 'flex', background: 'rgba(10,12,16,0.88)', border: '1px solid #252525', borderRadius: 6, overflow: 'hidden', backdropFilter: 'blur(8px)' }}>
+              {(['2D', '3D'] as const).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => setIs3D(mode === '3D')}
+                  style={{ padding: '5px 11px', fontSize: 11, fontWeight: 700, letterSpacing: 1, border: 'none', cursor: 'pointer', background: (mode === '3D') === is3D ? GOLD : 'transparent', color: (mode === '3D') === is3D ? BLACK : '#555', transition: 'all 0.15s' }}
+                >{mode}</button>
+              ))}
+            </div>
+            <button
+              onClick={toggleFullscreen}
+              title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+              style={{ width: 30, height: 30, background: 'rgba(10,12,16,0.88)', border: '1px solid #252525', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: 13, backdropFilter: 'blur(8px)' }}
+            >
+              {isFullscreen ? '⊠' : '⛶'}
+            </button>
+          </div>
+
+          {/* Floating top-left: show layers button (only when sidebar is hidden) */}
           {is3D && !isLayerPanelOpen && (
             <button
               type="button"
               onClick={toggleLayerPanel}
               style={{
                 position: 'absolute',
-                left: 16,
-                top: 16,
+                left: 12,
+                top: 12,
                 zIndex: 30,
                 width: 34,
                 height: 34,
-                borderRadius: 9,
-                border: '1px solid #232323',
-                background: 'rgba(10, 12, 16, 0.92)',
+                borderRadius: 8,
+                border: '1px solid #252525',
+                background: 'rgba(10, 12, 16, 0.88)',
                 color: '#8f949c',
                 cursor: 'pointer',
                 fontSize: 16,
                 lineHeight: 1,
+                backdropFilter: 'blur(8px)',
               }}
               title="Show data layers"
             >
-              →
+              ☰
             </button>
           )}
 
