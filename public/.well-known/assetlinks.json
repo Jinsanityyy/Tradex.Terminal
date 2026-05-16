@@ -4,7 +4,8 @@
     "namespace": "android_app",
     "package_name": "com.tradex.terminal",
     "sha256_cert_fingerprints": [
-      "F8:EA:33:37:80:6D:49:92:E9:27:E7:A1:BB:94:2E:33:D9:A6:09:2E:91:B4:98:73:DB:63:56:69:13:F6:C1:A8"
+      "F8:EA:33:37:80:6D:49:92:E9:27:E7:A1:BB:94:2E:33:D9:A6:09:2E:91:B4:98:73:DB:63:56:69:13:F6:C1:A8",
+      "B1:2E:EC:C7:F3:63:1B:EF:19:A8:0C:24:F5:E5:8D:DC:DA:13:F6:C5:14:9D:B5:97:6C:38:97:E3:2E:4D:70:04"
     ]
   }
 }]
