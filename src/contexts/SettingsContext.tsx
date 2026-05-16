@@ -15,6 +15,7 @@ export interface Settings {
   animations: boolean;
   trackedAssets: string[];
   defaultBiasAsset: string;
+  selectedSymbol: string;
   impactThreshold: ImpactThreshold;
   timeZone: TimeZone;
   dateFormat: DateFormat;
@@ -36,6 +37,7 @@ export const DEFAULTS: Settings = {
   animations: true,
   trackedAssets: ["Gold", "DXY", "SPX", "NDX", "BTC", "EURUSD", "Oil"],
   defaultBiasAsset: "Gold",
+  selectedSymbol: "XAUUSD",
   impactThreshold: "all",
   timeZone: "ET",
   dateFormat: "MM/DD",

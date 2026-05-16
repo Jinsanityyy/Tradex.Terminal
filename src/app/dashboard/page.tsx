@@ -570,8 +570,14 @@ function EventToneBadge({
   );
 }
 
-function SidebarEventPreview({ event }: { event: EconomicEvent }) {
+function SidebarEventPreview({ event, symbol = "XAUUSD" }: { event: EconomicEvent; symbol?: string }) {
   const [open, setOpen] = React.useState(false);
+  const evAssetLabel = symbol === "EURUSD" ? "Euro" : symbol === "GBPUSD" ? "Pound" : symbol === "BTCUSD" ? "Bitcoin" : "Gold";
+  const evAssetImpact = symbol === "EURUSD" || symbol === "GBPUSD" || symbol === "AUDUSD" || symbol === "NZDUSD"
+    ? (event.usdImpact === "bullish" ? "bearish" : event.usdImpact === "bearish" ? "bullish" : "neutral") as "bullish" | "bearish" | "neutral"
+    : symbol === "USDJPY" || symbol === "USDCHF" || symbol === "USDCAD"
+    ? event.usdImpact
+    : event.goldImpact;
 
   return (
     <>
@@ -588,7 +594,7 @@ function SidebarEventPreview({ event }: { event: EconomicEvent }) {
         </div>
         <p className="mt-2 text-[12px] font-semibold leading-5 text-[hsl(var(--foreground))]">{event.event}</p>
         <div className="mt-2 flex gap-2">
-          <EventToneBadge label="Gold" tone={event.goldImpact} />
+          <EventToneBadge label={evAssetLabel} tone={evAssetImpact} />
           <EventToneBadge label="USD" tone={event.usdImpact} />
         </div>
         {event.tradeImplication && (
@@ -682,18 +688,18 @@ function SidebarEventPreview({ event }: { event: EconomicEvent }) {
             </div>
           )}
 
-          {/* Gold / USD badges + context */}
+          {/* Asset / USD badges + context */}
           <div className="flex gap-2 flex-wrap">
-            <EventToneBadge label="GOLD" tone={event.goldImpact} />
+            <EventToneBadge label={evAssetLabel.toUpperCase()} tone={evAssetImpact} />
             <EventToneBadge label="USD" tone={event.usdImpact} />
           </div>
 
-          {event.goldReasoning && (
+          {(evAssetImpact || event.goldReasoning) && (
             <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
               <div className="flex items-center gap-1.5">
                 <Target className="h-3.5 w-3.5 text-amber-400" />
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">
-                  {event.status === "completed" ? "Gold Context" : "Gold Analysis"}
+                  {event.status === "completed" ? `${evAssetLabel} Context` : `${evAssetLabel} Analysis`}
                 </span>
               </div>
               <p className="text-[12px] text-zinc-300 leading-relaxed">{event.goldReasoning}</p>
@@ -743,9 +749,14 @@ function SidebarEventPreview({ event }: { event: EconomicEvent }) {
   );
 }
 
+const AGENT_VALID = new Set(["XAUUSD", "EURUSD", "GBPUSD", "BTCUSD"]);
+
 export default function DashboardPage() {
-  const { settings } = useSettings();
-  const [symbol, setSymbol] = useState<Symbol>("XAUUSD");
+  const { settings, saveSettings } = useSettings();
+  const [symbol, setSymbol] = useState<Symbol>(() => {
+    const s = settings.selectedSymbol;
+    return (AGENT_VALID.has(s) ? s : "XAUUSD") as Symbol;
+  });
   const [timeframe, setTimeframe] = useState<Timeframe>("H1");
   const [chartInterval, setChartInterval] = useState("60");
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -783,6 +794,15 @@ export default function DashboardPage() {
       setTimeframe(mapped);
     }, 2000);
   }, []);
+
+  // Sync local symbol when global selected asset changes (e.g., sidebar selector)
+  useEffect(() => {
+    const s = settings.selectedSymbol;
+    if (AGENT_VALID.has(s) && s !== symbol) {
+      setSymbol(s as Symbol);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.selectedSymbol]);
 
   useEffect(() => {
     function handleFullscreenChange() {
@@ -845,8 +865,16 @@ export default function DashboardPage() {
   const currentYear = now.getUTCFullYear();
   const currentMonthKey = `${currentYear}-${String(currentMonth).padStart(2, "0")}`;
   const liveCalendarCount = events.filter((event) => event.status === "live").length;
-  const calendarBullishCount = events.filter((event) => event.goldImpact === "bullish").length;
-  const calendarBearishCount = events.filter((event) => event.goldImpact === "bearish").length;
+  const calendarBullishCount = events.filter((ev) => {
+    if (["EURUSD", "GBPUSD", "AUDUSD", "NZDUSD"].includes(symbol)) return ev.usdImpact === "bearish";
+    if (["USDJPY", "USDCHF", "USDCAD"].includes(symbol)) return ev.usdImpact === "bullish";
+    return ev.goldImpact === "bullish";
+  }).length;
+  const calendarBearishCount = events.filter((ev) => {
+    if (["EURUSD", "GBPUSD", "AUDUSD", "NZDUSD"].includes(symbol)) return ev.usdImpact === "bullish";
+    if (["USDJPY", "USDCHF", "USDCAD"].includes(symbol)) return ev.usdImpact === "bearish";
+    return ev.goldImpact === "bearish";
+  }).length;
   const calendarBias =
     calendarBullishCount > calendarBearishCount
       ? "Bullish"
@@ -1462,7 +1490,7 @@ export default function DashboardPage() {
           {calendarPreview.length > 0 ? (
             <div className="space-y-3">
               {calendarPreview.slice(0, 2).map((event) => (
-                <SidebarEventPreview key={event.id} event={event} />
+                <SidebarEventPreview key={event.id} event={event} symbol={symbol} />
               ))}
             </div>
           ) : (
@@ -1509,7 +1537,7 @@ export default function DashboardPage() {
             {calendarPreview.length > 0 ? (
               <div className="space-y-3">
                 {calendarPreview.slice(0, 3).map((event) => (
-                  <SidebarEventPreview key={event.id} event={event} />
+                  <SidebarEventPreview key={event.id} event={event} symbol={symbol} />
                 ))}
               </div>
             ) : (

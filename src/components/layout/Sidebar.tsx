@@ -7,9 +7,11 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Target, Zap, CalendarDays, UserCircle,
   Grid3X3, Clock, Newspaper, Settings,
-  ChevronLeft, ChevronRight, BarChart2, Menu, X, History, GraduationCap, Lightbulb,
+  ChevronLeft, ChevronRight, ChevronDown, BarChart2, Menu, X, History, GraduationCap, Lightbulb,
 } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
+import { useSettings } from "@/contexts/SettingsContext";
+import { AGENT_SYMBOLS, getSymbolLabel, getSymbolShort } from "@/lib/assetImpact";
 
 const SIDEBAR_HIDDEN_STORAGE_KEY = "tradex-sidebar-hidden-v1";
 
@@ -37,11 +39,26 @@ interface SidebarProps {
 
 export function Sidebar({ onOpenKnowledge }: SidebarProps) {
   const pathname = usePathname();
+  const { settings, saveSettings } = useSettings();
   const [viewportWidth, setViewportWidth] = useState(1440);
   const [desktopHidden, setDesktopHidden] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [assetOpen, setAssetOpen] = useState(false);
   const isMobile = viewportWidth < 768;
   const isCompact = !isMobile && viewportWidth < 1280;
+
+  const selectedSymbol = settings.selectedSymbol ?? "XAUUSD";
+
+  function selectAsset(sym: string) {
+    saveSettings({ ...settings, selectedSymbol: sym });
+    setAssetOpen(false);
+  }
+
+  function cycleAsset() {
+    const idx = AGENT_SYMBOLS.indexOf(selectedSymbol as typeof AGENT_SYMBOLS[number]);
+    const next = AGENT_SYMBOLS[(idx + 1) % AGENT_SYMBOLS.length];
+    selectAsset(next);
+  }
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -176,6 +193,57 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
             </button>
           </div>
         </nav>
+
+        {/* Asset Selector */}
+        <div className="border-t border-[hsl(var(--border))] px-2 py-2">
+          {!isCompact ? (
+            <div className="relative">
+              <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1 px-0.5">Active Asset</p>
+              <button
+                onClick={() => setAssetOpen((o) => !o)}
+                className="w-full flex items-center justify-between rounded-md px-2.5 py-1.5 text-[12px] font-medium bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--secondary))]/80 border border-[hsl(var(--border))] transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="font-mono text-[hsl(var(--primary))] text-[11px]">{getSymbolShort(selectedSymbol)}</span>
+                  <span className="text-zinc-500 text-[10px]">{getSymbolLabel(selectedSymbol)}</span>
+                </span>
+                <ChevronDown className={cn("h-3.5 w-3.5 text-zinc-500 transition-transform", assetOpen && "rotate-180")} />
+              </button>
+              {assetOpen && (
+                <div className="absolute bottom-full left-0 right-0 mb-1 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-xl overflow-hidden z-50">
+                  {AGENT_SYMBOLS.map((sym) => (
+                    <button
+                      key={sym}
+                      onClick={() => selectAsset(sym)}
+                      className={cn(
+                        "w-full flex items-center gap-2.5 px-3 py-2 text-[12px] transition-colors",
+                        selectedSymbol === sym
+                          ? "bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
+                          : "hover:bg-[hsl(var(--secondary))] text-zinc-300"
+                      )}
+                    >
+                      <span className="font-mono text-[11px]">{getSymbolShort(sym)}</span>
+                      <span className="text-zinc-500 text-[10px]">{getSymbolLabel(sym)}</span>
+                      {selectedSymbol === sym && (
+                        <span className="ml-auto text-[8px] font-bold uppercase tracking-widest text-[hsl(var(--primary))]/70">Active</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex justify-center">
+              <button
+                onClick={cycleAsset}
+                className="rounded-md px-1.5 py-1 text-[10px] font-mono font-bold text-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 hover:bg-[hsl(var(--primary))]/15 transition-colors"
+                title={`Active: ${selectedSymbol} — click to switch`}
+              >
+                {selectedSymbol.slice(0, 3)}
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Bottom */}
         <div className="border-t border-[hsl(var(--border))] p-3">
