@@ -35,7 +35,16 @@ const PCT_SL_MAX: Record<string, number> = {
   H4:  0.020,
 };
 
-const GOLD_SYMS = new Set(["XAUUSD", "XAGUSD", "XPTUSD"]);
+// Crypto moves 1-3%/day — needs much wider SL room than forex
+const CRYPTO_SL_MAX: Record<string, number> = {
+  M5:  0.010,
+  M15: 0.015,
+  H1:  0.025,
+  H4:  0.050,
+};
+
+const GOLD_SYMS   = new Set(["XAUUSD", "XAGUSD", "XPTUSD"]);
+const CRYPTO_SYMS = new Set(["BTCUSD", "ETHUSD"]);
 
 // Killzone windows (UTC hours, inclusive start, exclusive end)
 const ASIAN_KZ  = { start: 0, end: 3 };  // 00:00–03:00 UTC = 8AM–11AM PHT
@@ -64,6 +73,10 @@ function isSLInRange(riskDist: number, timeframe: string, symbol: string, price:
   if (GOLD_SYMS.has(symbol)) {
     const lim = GOLD_SL_LIMITS[timeframe] ?? GOLD_SL_LIMITS.H1;
     return riskDist >= lim.min && riskDist <= lim.max;
+  }
+  if (CRYPTO_SYMS.has(symbol)) {
+    const maxPct = CRYPTO_SL_MAX[timeframe] ?? CRYPTO_SL_MAX.H1;
+    return riskDist <= price * maxPct;
   }
   const maxPct = PCT_SL_MAX[timeframe] ?? PCT_SL_MAX.H1;
   return riskDist <= price * maxPct;
@@ -249,7 +262,9 @@ export async function runExecutionAgent(
     // ── Major news check ────────────────────────────────────────────────────────────
     const riskBlocksExec = GOLD_SYMS.has(symbol)
       ? news.riskScore > 95 && news.impact !== "bullish"
-      : news.riskScore > 80;
+      : CRYPTO_SYMS.has(symbol)
+        ? news.riskScore > 90
+        : news.riskScore > 80;
     if (riskBlocksExec) {
       return noTradeResult(start, `Elevated macro risk (${news.riskScore}/100)  -  stand aside until risk clears`);
     }
@@ -396,7 +411,7 @@ export async function runExecutionAgent(
       const lim = GOLD_SL_LIMITS[timeframe] ?? GOLD_SL_LIMITS.H1;
       const limitMsg = GOLD_SYMS.has(symbol)
         ? `Gold ${timeframe} SL = ${riskDist.toFixed(1)} pts (allowed: ${lim.min}–${lim.max} pts)`
-        : `SL ${riskDist.toFixed(4)} exceeds ${((PCT_SL_MAX[timeframe] ?? 0.008) * 100).toFixed(1)}% max for ${timeframe}`;
+        : `SL ${riskDist.toFixed(4)} exceeds ${((CRYPTO_SYMS.has(symbol) ? CRYPTO_SL_MAX[timeframe] ?? 0.025 : PCT_SL_MAX[timeframe] ?? 0.008) * 100).toFixed(1)}% max for ${timeframe}`;
       console.log(`[exec] SL out-of-range blocked: ${symbol} ${timeframe} entry=${entry.toFixed(2)} sl=${stopLoss.toFixed(2)} riskDist=${riskDist.toFixed(2)}  -  ${limitMsg}`);
       return waitResult(start, "B", `${limitMsg}  -  wait for better structure`);
     }
