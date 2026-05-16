@@ -6,6 +6,7 @@ import { Brain, Clock, Crosshair, RefreshCw } from "lucide-react";
 import useSWR from "swr";
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import { useQuotes } from "@/hooks/useMarketData";
+import { useSettings } from "@/contexts/SettingsContext";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
 import { AgentCommandRoom } from "./AgentCommandRoom";
 
@@ -197,8 +198,14 @@ function TimeframeSelector({ value, onChange }: { value: Timeframe; onChange: (v
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
+const BRAIN_VALID_SYMBOLS = new Set(["XAUUSD", "EURUSD", "GBPUSD", "BTCUSD"]);
+
 export function BrainTerminal() {
-  const [symbol, setSymbol]             = useState<Symbol>("XAUUSD");
+  const { settings, saveSettings } = useSettings();
+  const [symbol, setSymbol] = useState<Symbol>(() => {
+    const s = settings.selectedSymbol;
+    return (BRAIN_VALID_SYMBOLS.has(s) ? s : "XAUUSD") as Symbol;
+  });
   const [timeframe, setTimeframe]       = useState<Timeframe>("H1");
   const [refreshKey, setRefreshKey]     = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -210,6 +217,21 @@ export function BrainTerminal() {
   const { quotes } = useQuotes(60_000);
   const quoteSymbol = SYMBOL_TO_QUOTE[symbol];
   const liveQuote   = quoteSymbol ? quotes.find((q) => q.symbol === quoteSymbol) : undefined;
+
+  // Sync from global selected asset when sidebar selector changes
+  useEffect(() => {
+    const s = settings.selectedSymbol;
+    if (BRAIN_VALID_SYMBOLS.has(s) && s !== symbol) {
+      setSymbol(s as Symbol);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.selectedSymbol]);
+
+  // When user changes symbol in Brain Terminal, sync to global settings
+  const handleSymbolChange = useCallback((sym: Symbol) => {
+    setSymbol(sym);
+    saveSettings({ ...settings, selectedSymbol: sym });
+  }, [settings, saveSettings]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 1000);
@@ -367,7 +389,7 @@ export function BrainTerminal() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 min-w-0">
-          <SymbolSelector value={symbol} onChange={(v) => { setSymbol(v); setRefreshKey((k) => k + 1); }} />
+          <SymbolSelector value={symbol} onChange={(v) => { handleSymbolChange(v); setRefreshKey((k) => k + 1); }} />
           <TimeframeSelector value={timeframe} onChange={(v) => { setTimeframe(v); setRefreshKey((k) => k + 1); }} />
           {!sniperMode ? (
             <button

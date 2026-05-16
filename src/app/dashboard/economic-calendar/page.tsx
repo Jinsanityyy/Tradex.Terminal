@@ -5,11 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EconomicEventTable } from "@/components/shared/EconomicEventTable";
 import { useEconomicCalendar } from "@/hooks/useMarketData";
+import { useSettings } from "@/contexts/SettingsContext";
+import { getSymbolLabel, getEventImpactForSymbol } from "@/lib/assetImpact";
 import { CalendarDays, AlertCircle, Clock, Target, Wifi, WifiOff, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function EconomicCalendarPage() {
   const { events, isLive, isLoading } = useEconomicCalendar();
+  const { settings } = useSettings();
+  const selectedSymbol = settings.selectedSymbol ?? "XAUUSD";
+  const assetLabel = getSymbolLabel(selectedSymbol);
   const [selectedDate, setSelectedDate] = useState<string>("all");
 
   // Get unique dates from events
@@ -28,10 +33,18 @@ export default function EconomicCalendarPage() {
   const upcoming = filteredEvents.filter(e => e.status === "upcoming" || e.status === "live");
   const live = filteredEvents.filter(e => e.status === "live");
 
-  // Count bias signals
-  const goldBullish = filteredEvents.filter(e => e.goldImpact === "bullish").length;
-  const goldBearish = filteredEvents.filter(e => e.goldImpact === "bearish").length;
-  const overallGoldBias = goldBullish > goldBearish ? "bullish" : goldBearish > goldBullish ? "bearish" : "neutral";
+  // Count bias signals for selected asset
+  const assetBiasMap = useMemo(() => {
+    let bullish = 0;
+    let bearish = 0;
+    for (const e of filteredEvents) {
+      const impact = getEventImpactForSymbol(e, selectedSymbol).impact;
+      if (impact === "bullish") bullish++;
+      else if (impact === "bearish") bearish++;
+    }
+    return { bullish, bearish };
+  }, [filteredEvents, selectedSymbol]);
+  const overallGoldBias = assetBiasMap.bullish > assetBiasMap.bearish ? "bullish" : assetBiasMap.bearish > assetBiasMap.bullish ? "bearish" : "neutral";
 
   function formatDateLabel(dateStr: string) {
     const d = new Date(dateStr + "T12:00:00");
@@ -53,7 +66,7 @@ export default function EconomicCalendarPage() {
         <div>
           <h1 className="text-lg font-bold text-[hsl(var(--foreground))]">Economic Calendar</h1>
           <p className="text-xs text-[hsl(var(--muted-foreground))]">
-            High-impact USD events only  -  auto-analyzed for Gold & USD impact
+            High-impact events — auto-analyzed for {assetLabel} & USD impact
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -100,13 +113,13 @@ export default function EconomicCalendarPage() {
         })}
       </div>
 
-      {/* Gold Bias Summary from Events */}
+      {/* Asset Bias Summary from Events */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <Card className="gradient-card">
           <CardContent className="p-3 flex items-center gap-3">
             <Target className="h-5 w-5 text-amber-400" />
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Calendar Gold Bias</p>
+              <p className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Calendar {assetLabel} Bias</p>
               <p className={`text-sm font-bold ${overallGoldBias === "bullish" ? "text-emerald-400" : overallGoldBias === "bearish" ? "text-red-400" : "text-zinc-400"}`}>
                 {overallGoldBias.toUpperCase()}
               </p>
@@ -117,8 +130,8 @@ export default function EconomicCalendarPage() {
           <CardContent className="p-3 flex items-center gap-3">
             <TrendingUp className="h-5 w-5 text-emerald-400" />
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Bullish Signals</p>
-              <p className="text-sm font-bold text-emerald-400">{goldBullish} events</p>
+              <p className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Bullish for {assetLabel}</p>
+              <p className="text-sm font-bold text-emerald-400">{assetBiasMap.bullish} events</p>
             </div>
           </CardContent>
         </Card>
@@ -126,8 +139,8 @@ export default function EconomicCalendarPage() {
           <CardContent className="p-3 flex items-center gap-3">
             <TrendingDown className="h-5 w-5 text-red-400" />
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Bearish Signals</p>
-              <p className="text-sm font-bold text-red-400">{goldBearish} events</p>
+              <p className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Bearish for {assetLabel}</p>
+              <p className="text-sm font-bold text-red-400">{assetBiasMap.bearish} events</p>
             </div>
           </CardContent>
         </Card>
@@ -143,7 +156,7 @@ export default function EconomicCalendarPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <EconomicEventTable events={live} />
+            <EconomicEventTable events={live} symbol={selectedSymbol} />
           </CardContent>
         </Card>
       )}
@@ -159,7 +172,7 @@ export default function EconomicCalendarPage() {
         </CardHeader>
         <CardContent>
           {upcoming.length > 0 ? (
-            <EconomicEventTable events={upcoming} />
+            <EconomicEventTable events={upcoming} symbol={selectedSymbol} />
           ) : (
             <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
               <Clock className="h-5 w-5 text-zinc-700" />
@@ -181,7 +194,7 @@ export default function EconomicCalendarPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <EconomicEventTable events={completed} />
+            <EconomicEventTable events={completed} symbol={selectedSymbol} />
           </CardContent>
         </Card>
       )}

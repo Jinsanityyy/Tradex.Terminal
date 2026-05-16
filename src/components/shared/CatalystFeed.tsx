@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn, timeAgo } from "@/lib/utils";
 import { Zap, Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus, X, Target, Shield, BookOpen, ChevronRight } from "lucide-react";
 import type { Catalyst } from "@/types";
+import { useSettings } from "@/contexts/SettingsContext";
+import { getSymbolLabel, getSymbolShort, getCatalystImpactForSymbol } from "@/lib/assetImpact";
 
 interface CatalystFeedProps {
   catalysts: Catalyst[];
@@ -58,6 +60,11 @@ function AnalysisModal({ cat, onClose }: { cat: Catalyst; onClose: () => void })
   const isCompleted = cat.status === "completed";
   const isUpcoming  = cat.status === "upcoming";
   const a = cat.analysis;
+  const { settings } = useSettings();
+  const selectedSymbol = settings.selectedSymbol ?? "XAUUSD";
+  const assetLabel = getSymbolLabel(selectedSymbol);
+  const assetShort = getSymbolShort(selectedSymbol);
+  const assetImpact = getCatalystImpactForSymbol(cat, selectedSymbol);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
@@ -117,19 +124,16 @@ function AnalysisModal({ cat, onClose }: { cat: Catalyst; onClose: () => void })
           {isCompleted && (cat.goldImpact || cat.usdImpact) && (
             <>
               <div className="flex gap-2 flex-wrap">
-                <ImpactBadge impact={cat.goldImpact} label="GOLD" />
-                <ImpactBadge
-                  impact={cat.goldImpact === "bullish" && cat.usdImpact === "bullish" ? "neutral" : cat.usdImpact}
-                  label="USD"
-                />
+                <ImpactBadge impact={assetImpact.impact} label={assetShort} />
+                <ImpactBadge impact={cat.usdImpact} label="USD" />
               </div>
-              {cat.goldReasoning && (
+              {assetImpact.reasoning && (
                 <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
                   <div className="flex items-center gap-1.5">
                     <Target className="h-3.5 w-3.5 text-amber-400" />
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Gold Context</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">{assetLabel} Context</span>
                   </div>
-                  <p className="text-[11.5px] text-zinc-300 leading-relaxed">{cat.goldReasoning}</p>
+                  <p className="text-[11.5px] text-zinc-300 leading-relaxed">{assetImpact.reasoning}</p>
                 </div>
               )}
               {cat.usdReasoning && (
@@ -164,9 +168,11 @@ function AnalysisModal({ cat, onClose }: { cat: Catalyst; onClose: () => void })
                   as => `${as.name}${as.ticker ? ` (${as.ticker})` : ""}: ${as.bias.toUpperCase()}  -  ${as.context}`
                 )].filter((b): b is string => Boolean(b))
               : [
-                  cat.goldImpact === "bullish" ? "Safe-haven flows into Gold expected  -  watch for breakout above prior session high"
-                  : cat.goldImpact === "bearish" ? "Gold faces headwinds  -  sell rallies toward prior resistance"
-                  : "Gold direction uncertain  -  wait for price action confirmation",
+                  assetImpact.impact === "bullish"
+                    ? `${assetLabel} expected to benefit — watch for breakout above prior session high`
+                    : assetImpact.impact === "bearish"
+                    ? `${assetLabel} faces headwinds — sell rallies toward prior resistance`
+                    : `${assetLabel} direction uncertain — wait for price action confirmation`,
                   cat.usdImpact === "bullish"  ? "USD strength expected  -  watch DXY for breakout above key resistance"
                   : cat.usdImpact === "bearish" ? "USD weakness likely  -  EURUSD and GBPUSD may benefit"
                   : null,
@@ -207,21 +213,18 @@ function AnalysisModal({ cat, onClose }: { cat: Catalyst; onClose: () => void })
 
                 {(cat.goldImpact || cat.usdImpact) && (
                   <div className="flex gap-2 flex-wrap">
-                    <ImpactBadge impact={cat.goldImpact} label="GOLD" />
-                    <ImpactBadge
-                      impact={cat.goldImpact === "bullish" && cat.usdImpact === "bullish" ? "neutral" : cat.usdImpact}
-                      label="USD"
-                    />
+                    <ImpactBadge impact={assetImpact.impact} label={assetShort} />
+                    <ImpactBadge impact={cat.usdImpact} label="USD" />
                   </div>
                 )}
 
-                {cat.goldReasoning && (
+                {assetImpact.reasoning && (
                   <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
                     <div className="flex items-center gap-1.5">
                       <Target className="h-3.5 w-3.5 text-amber-400" />
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Gold Context</span>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">{assetLabel} Context</span>
                     </div>
-                    <p className="text-[11.5px] text-zinc-300 leading-relaxed">{cat.goldReasoning}</p>
+                    <p className="text-[11.5px] text-zinc-300 leading-relaxed">{assetImpact.reasoning}</p>
                   </div>
                 )}
 
@@ -272,6 +275,10 @@ function AnalysisModal({ cat, onClose }: { cat: Catalyst; onClose: () => void })
 
 function CatalystCard({ cat }: { cat: Catalyst }) {
   const [open, setOpen] = React.useState(false);
+  const { settings } = useSettings();
+  const selectedSymbol = settings.selectedSymbol ?? "XAUUSD";
+  const cardAssetShort = getSymbolShort(selectedSymbol);
+  const cardAssetImpact = getCatalystImpactForSymbol(cat, selectedSymbol);
 
   return (
     <>
@@ -293,11 +300,8 @@ function CatalystCard({ cat }: { cat: Catalyst }) {
         </div>
         {(cat.goldImpact || cat.usdImpact) && (
           <div className="flex items-center gap-1.5 pl-4 mb-1.5 flex-wrap">
-            <ImpactBadge impact={cat.goldImpact} label="GOLD" />
-            <ImpactBadge
-              impact={cat.goldImpact === "bullish" && cat.usdImpact === "bullish" ? "neutral" : cat.usdImpact}
-              label="USD"
-            />
+            <ImpactBadge impact={cardAssetImpact.impact} label={cardAssetShort} />
+            <ImpactBadge impact={cat.usdImpact} label="USD" />
           </div>
         )}
         <div className="flex items-center justify-between pl-4">

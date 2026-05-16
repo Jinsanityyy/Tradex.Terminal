@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus, Target, Shield, BookOpen, ChevronRight, Timer, Eye } from "lucide-react";
 import type { EconomicEvent } from "@/types";
 import { DetailModal } from "./DetailModal";
+import { getSymbolLabel, getSymbolShort, getEventImpactForSymbol } from "@/lib/assetImpact";
 
 // ── Countdown Timer ──────────────────────────────────────────────────────────
 function useCountdown(utcTimestamp?: number) {
@@ -59,6 +60,7 @@ interface EconomicEventTableProps {
   events: EconomicEvent[];
   showInterpretation?: boolean;
   compact?: boolean;
+  symbol?: string;
 }
 
 function ImpactBadge({ impact, label }: { impact?: "bullish" | "bearish" | "neutral"; label: string }) {
@@ -93,21 +95,23 @@ function DataInline({ text }: { text: string }) {
   );
 }
 
-function EventDetail({ ev }: { ev: EconomicEvent }) {
+function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: string }) {
   const isCompleted = ev.status === "completed";
+  const assetImpact = getEventImpactForSymbol(ev, symbol);
+  const assetLabel = getSymbolLabel(symbol);
 
   // Determine glow for Trade Implication box
   const tradeGlow =
-    ev.goldImpact === "bullish" || ev.usdImpact === "bullish"
+    assetImpact.impact === "bullish" || ev.usdImpact === "bullish"
       ? "border-emerald-500/30 bg-emerald-500/[0.06] shadow-[0_0_18px_rgba(52,211,153,0.12)]"
-      : ev.goldImpact === "bearish" || ev.usdImpact === "bearish"
+      : assetImpact.impact === "bearish" || ev.usdImpact === "bearish"
       ? "border-red-500/30 bg-red-500/[0.06] shadow-[0_0_18px_rgba(239,68,68,0.12)]"
       : "border-[hsl(var(--primary))]/20 bg-[hsl(var(--primary))]/5";
 
   const tradeTextColor =
-    ev.goldImpact === "bullish" || ev.usdImpact === "bullish"
+    assetImpact.impact === "bullish" || ev.usdImpact === "bullish"
       ? "text-emerald-400"
-      : ev.goldImpact === "bearish" || ev.usdImpact === "bearish"
+      : assetImpact.impact === "bearish" || ev.usdImpact === "bearish"
       ? "text-red-400"
       : "text-[hsl(var(--primary))]";
 
@@ -199,20 +203,20 @@ function EventDetail({ ev }: { ev: EconomicEvent }) {
         </div>
       )}
 
-      {/* Pre-event Gold / USD context */}
+      {/* Pre-event Asset / USD context */}
       {!isCompleted && (
         <>
           <div className="flex gap-2 flex-wrap">
-            <ImpactBadge impact={ev.goldImpact} label="GOLD" />
+            <ImpactBadge impact={assetImpact.impact} label={getSymbolShort(symbol)} />
             <ImpactBadge impact={ev.usdImpact} label="USD" />
           </div>
-          {ev.goldReasoning && (
+          {assetImpact.reasoning && (
             <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
               <div className="flex items-center gap-1.5">
                 <Target className="h-3.5 w-3.5 text-amber-400" />
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Gold Analysis</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">{assetLabel} Analysis</span>
               </div>
-              <p className="text-xs text-[hsl(var(--foreground))] leading-relaxed">{ev.goldReasoning}</p>
+              <p className="text-xs text-[hsl(var(--foreground))] leading-relaxed">{assetImpact.reasoning}</p>
             </div>
           )}
           {ev.usdReasoning && (
@@ -252,7 +256,7 @@ function EventDetail({ ev }: { ev: EconomicEvent }) {
   );
 }
 
-export function EconomicEventTable({ events, showInterpretation = false, compact = false }: EconomicEventTableProps) {
+export function EconomicEventTable({ events, showInterpretation = false, compact = false, symbol = "XAUUSD" }: EconomicEventTableProps) {
   const [selected, setSelected] = useState<EconomicEvent | null>(null);
 
   if (events.length === 0) {
@@ -302,27 +306,34 @@ export function EconomicEventTable({ events, showInterpretation = false, compact
 
               {/* Analysis Row */}
               <div className={cn("px-3 py-2", compact ? "space-y-1" : "space-y-2")}>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <ImpactBadge impact={ev.goldImpact} label="GOLD" />
-                  <ImpactBadge impact={ev.usdImpact} label="USD" />
-                  <div className="flex items-center gap-1 ml-auto">
-                    {ev.affectedAssets.slice(0, 4).map((a) => (
-                      <span key={a} className="text-[9px] font-mono px-1 py-0.5 rounded bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))]">
-                        {a}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+                {(() => {
+                  const rowImpact = getEventImpactForSymbol(ev, symbol);
+                  return (
+                    <>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <ImpactBadge impact={rowImpact.impact} label={getSymbolShort(symbol)} />
+                        <ImpactBadge impact={ev.usdImpact} label="USD" />
+                        <div className="flex items-center gap-1 ml-auto">
+                          {ev.affectedAssets.slice(0, 4).map((a) => (
+                            <span key={a} className="text-[9px] font-mono px-1 py-0.5 rounded bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))]">
+                              {a}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
 
-                {ev.goldReasoning && !compact && (
-                  <div className="rounded-md bg-[hsl(var(--secondary))]/60 px-2.5 py-2 space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <Target className="h-3 w-3 text-amber-400" />
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Gold Analysis</span>
-                    </div>
-                    <p className="text-[11px] text-[hsl(var(--foreground))] leading-relaxed">{ev.goldReasoning}</p>
-                  </div>
-                )}
+                      {rowImpact.reasoning && !compact && (
+                        <div className="rounded-md bg-[hsl(var(--secondary))]/60 px-2.5 py-2 space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <Target className="h-3 w-3 text-amber-400" />
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">{getSymbolLabel(symbol)} Analysis</span>
+                          </div>
+                          <p className="text-[11px] text-[hsl(var(--foreground))] leading-relaxed">{rowImpact.reasoning}</p>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
 
                 {ev.usdReasoning && !compact && (
                   <div className="rounded-md bg-[hsl(var(--secondary))]/60 px-2.5 py-2 space-y-1">
@@ -358,7 +369,7 @@ export function EconomicEventTable({ events, showInterpretation = false, compact
         onClose={() => setSelected(null)}
         title={selected?.event}
       >
-        {selected && <EventDetail ev={selected} />}
+        {selected && <EventDetail ev={selected} symbol={symbol} />}
       </DetailModal>
     </>
   );
