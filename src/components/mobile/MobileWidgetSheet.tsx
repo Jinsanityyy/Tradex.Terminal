@@ -16,6 +16,10 @@ export const WIDGET_DEFS = [
   { id: "key_levels",      label: "Key Levels",        desc: "Support & resistance price levels" },
   { id: "ai_analysis",     label: "AI Analysis",       desc: "Market regime and narrative summary" },
   { id: "more_catalysts",  label: "More Catalysts",    desc: "Additional market-moving events" },
+  { id: "trump_feed",      label: "Trump Impact",      desc: "Trump posts with market impact analysis" },
+  { id: "agents",          label: "7-Agent Overview",  desc: "All 7 AI agents — trend, SMC, news, risk & more" },
+  { id: "live_tv",         label: "Live TV",           desc: "Bloomberg, CNBC & Fox Business live streams" },
+  { id: "community",       label: "Community",         desc: "Live trader chat room" },
   { id: "lot_calculator",  label: "Lot Calculator",    desc: "Position size & risk calculator" },
 ] as const;
 
@@ -36,6 +40,10 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig[] = [
   { id: "key_levels",     visible: false },
   { id: "ai_analysis",    visible: true  },
   { id: "more_catalysts", visible: true  },
+  { id: "trump_feed",     visible: false },
+  { id: "agents",         visible: false },
+  { id: "live_tv",        visible: false },
+  { id: "community",      visible: false },
   { id: "lot_calculator", visible: false },
 ];
 

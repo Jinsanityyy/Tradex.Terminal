@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback } from "react";
-import { useQuotes, useMarketBias, useKeyLevels, useCatalysts, useMarketAnalysis, useAgentResult, useSessions, useMTFBias } from "@/hooks/useMarketData";
+import { useQuotes, useMarketBias, useKeyLevels, useCatalysts, useMarketAnalysis, useAgentResult, useSessions, useMTFBias, useTrumpPosts } from "@/hooks/useMarketData";
 import { TrendingUp, TrendingDown, Minus, Target, Zap, RefreshCw, Sparkles, ChevronDown, ChevronUp, Brain, BarChart2, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DetailModal } from "@/components/shared/DetailModal";
@@ -16,6 +16,10 @@ import type { WidgetConfig } from "@/components/mobile/MobileWidgetSheet";
 import { MTFBiasPanel } from "@/components/shared/MTFBiasPanel";
 import { KeyLevelsCard } from "@/components/shared/KeyLevelsCard";
 import { LotCalculatorWidget } from "@/components/shared/LotCalculatorWidget";
+import { TrumpFeedPanel } from "@/components/shared/TrumpFeedPanel";
+import { AgentCardsWidget } from "@/components/brain/AgentCardsWidget";
+import { LiveTVPanel } from "@/components/shared/LiveTVPanel";
+import { CommunityPanel } from "@/components/shared/CommunityPanel";
 
 function LiveBadge() {
   return (
@@ -63,6 +67,7 @@ export function MobileHome() {
   const { result: agentData } = useAgentResult(activeSymbol, "H1");
   const { sessions } = useSessions();
   const { mtfData, mtfLoading } = useMTFBias(activeSymbol);
+  const { posts: trumpPosts } = useTrumpPosts();
   const [generating, setGenerating] = useState(false);
   const [selectedCatalyst, setSelectedCatalyst] = useState<Catalyst | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -188,7 +193,7 @@ export function MobileHome() {
       </div>
 
       <div className="px-4 py-4 space-y-4">
-        {widgetConfig.filter(w => w.visible).map(w => {
+        {widgetConfig.filter((w: WidgetConfig) => w.visible).map((w: WidgetConfig) => {
           switch (w.id) {
             case "signal_session":
               return (
@@ -417,6 +422,42 @@ export function MobileHome() {
                   </div>
                 </section>
               ) : null;
+
+            case "trump_feed":
+              return (
+                <section key="trump_feed">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider mb-3">Trump Impact</p>
+                  <TrumpFeedPanel posts={trumpPosts} compact />
+                </section>
+              );
+
+            case "agents":
+              return (
+                <section key="agents">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider mb-3">7-Agent Overview</p>
+                  <AgentCardsWidget
+                    data={agentData ?? undefined}
+                    isLoading={!agentData}
+                    visibleAgents={new Set(["trend", "smc", "news", "risk", "contrarian", "execution", "master"])}
+                  />
+                </section>
+              );
+
+            case "live_tv":
+              return (
+                <section key="live_tv">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider mb-3">Live TV</p>
+                  <LiveTVPanel showHeader={false} showFooterNote={false} />
+                </section>
+              );
+
+            case "community":
+              return (
+                <section key="community">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider mb-3">Community</p>
+                  <CommunityPanel />
+                </section>
+              );
 
             case "lot_calculator":
               return (
