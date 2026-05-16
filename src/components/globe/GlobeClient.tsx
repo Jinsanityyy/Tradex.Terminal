@@ -660,6 +660,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
   const [selectedMarker2D, setSelectedMarker2D] = useState<LiveMarker | null>(null);
   const [liveMarkers, setLiveMarkers] = useState<LiveMarker[]>([]);
   const [is3D, setIs3D]               = useState(true);
+  // Mobile embedded mode: always 3D, no 2D toggle
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLayerPanelOpen, setIsLayerPanelOpen] = useState(false);
   const { quotes } = useQuotes(15_000);
@@ -1080,10 +1081,12 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
           {/* Floating controls — only in 3D mode */}
           {is3D && (
             <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 30, display: 'flex', gap: 8, alignItems: 'center' }}>
-              <div style={{ display: 'flex', background: 'rgba(10,12,16,0.88)', border: '1px solid #252525', borderRadius: 6, overflow: 'hidden', backdropFilter: 'blur(8px)' }}>
-                <button onClick={() => setIs3D(false)} style={{ padding: '5px 11px', fontSize: 11, fontWeight: 700, letterSpacing: 1, border: 'none', cursor: 'pointer', background: 'transparent', color: '#555' }}>2D</button>
-                <button onClick={() => setIs3D(true)} style={{ padding: '5px 11px', fontSize: 11, fontWeight: 700, letterSpacing: 1, border: 'none', cursor: 'pointer', background: GOLD, color: BLACK }}>3D</button>
-              </div>
+              {!embedded && (
+                <div style={{ display: 'flex', background: 'rgba(10,12,16,0.88)', border: '1px solid #252525', borderRadius: 6, overflow: 'hidden', backdropFilter: 'blur(8px)' }}>
+                  <button onClick={() => setIs3D(false)} style={{ padding: '5px 11px', fontSize: 11, fontWeight: 700, letterSpacing: 1, border: 'none', cursor: 'pointer', background: 'transparent', color: '#555' }}>2D</button>
+                  <button onClick={() => setIs3D(true)} style={{ padding: '5px 11px', fontSize: 11, fontWeight: 700, letterSpacing: 1, border: 'none', cursor: 'pointer', background: GOLD, color: BLACK }}>3D</button>
+                </div>
+              )}
               <button
                 onClick={toggleFullscreen}
                 title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
@@ -1128,7 +1131,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
           />
 
           {/* 2D flat map */}
-          {!is3D && (
+          {!is3D && !embedded && (
             <FlatMapView
               markers={liveMarkers}
               activeLayers={activeLayers}
