@@ -8,6 +8,7 @@ import {
   ChevronLeft, ChevronRight, GraduationCap, Zap
 } from "lucide-react";
 import { MobileBrain } from "@/components/mobile/MobileBrain";
+import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelectorSheet";
 import { TradingKnowledgeContent } from "@/components/shared/TradingKnowledgeSidebar";
 import { CandleAnalysis } from "@/components/shared/CandleAnalysis";
 
@@ -75,6 +76,7 @@ const FOLDERS = [
 export function MobileMore() {
   const [openFolderId, setOpenFolderId] = useState<string | null>(null);
   const [activeAppId, setActiveAppId] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const activeApp = ALL_APPS.find(a => a.id === activeAppId);
   const openFolder = FOLDERS.find(f => f.id === openFolderId);
@@ -84,34 +86,45 @@ export function MobileMore() {
   if (activeApp) {
     const PageComponent = activeApp.component;
     return (
-      <div className="flex flex-col h-full bg-[hsl(var(--background))]">
-        <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-white/5 shrink-0">
-          <button onClick={() => setActiveAppId(null)}
-            className="flex items-center gap-1 text-zinc-400 active:text-white py-1">
-            <ChevronLeft className="h-5 w-5" />
-            <span className="text-[12px]">Back</span>
-          </button>
-          <span className="text-[13px] font-semibold text-white ml-1">{activeApp.label}</span>
+      <>
+        <AssetSelectorSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
+        <div className="flex flex-col h-full bg-[hsl(var(--background))]">
+          <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-white/5 shrink-0">
+            <button onClick={() => setActiveAppId(null)}
+              className="flex items-center gap-1 text-zinc-400 active:text-white py-1">
+              <ChevronLeft className="h-5 w-5" />
+              <span className="text-[12px]">Back</span>
+            </button>
+            <span className="text-[13px] font-semibold text-white ml-1">{activeApp.label}</span>
+            <div className="ml-auto">
+              <AssetChip size="sm" onPress={() => setSheetOpen(true)} />
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 pb-6">
+            <PageComponent />
+          </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-3 pb-6">
-          <PageComponent />
-        </div>
-      </div>
+      </>
     );
   }
 
   // Show folder contents
   if (openFolder) {
     return (
-      <div className="flex flex-col h-full bg-[hsl(var(--background))]">
-        <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-white/5 shrink-0">
-          <button onClick={() => setOpenFolderId(null)}
-            className="flex items-center gap-1 text-zinc-400 active:text-white py-1">
-            <ChevronLeft className="h-5 w-5" />
-            <span className="text-[12px]">More</span>
-          </button>
-          <span className="text-[13px] font-semibold text-white ml-1">{openFolder.label}</span>
-        </div>
+      <>
+        <AssetSelectorSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
+        <div className="flex flex-col h-full bg-[hsl(var(--background))]">
+          <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-white/5 shrink-0">
+            <button onClick={() => setOpenFolderId(null)}
+              className="flex items-center gap-1 text-zinc-400 active:text-white py-1">
+              <ChevronLeft className="h-5 w-5" />
+              <span className="text-[12px]">More</span>
+            </button>
+            <span className="text-[13px] font-semibold text-white ml-1">{openFolder.label}</span>
+            <div className="ml-auto">
+              <AssetChip size="sm" onPress={() => setSheetOpen(true)} />
+            </div>
+          </div>
         <div className="flex-1 overflow-y-auto">
           <div className="grid grid-cols-3 gap-5 px-6 py-8">
             {folderApps.map(app => {
@@ -131,6 +144,7 @@ export function MobileMore() {
           </div>
         </div>
       </div>
+      </>
     );
   }
 
@@ -139,9 +153,14 @@ export function MobileMore() {
   const SettingsIcon = settingsApp.icon;
 
   return (
-    <div className="flex flex-col h-full bg-[hsl(var(--background))]">
+    <>
+      <AssetSelectorSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
+      <div className="flex flex-col h-full bg-[hsl(var(--background))]">
       <div className="flex-1 overflow-y-auto px-6 py-6 pb-4">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 mb-6">All Features</p>
+        <div className="flex items-center justify-between mb-6">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">All Features</p>
+          <AssetChip size="sm" onPress={() => setSheetOpen(true)} />
+        </div>
         <div className="grid grid-cols-3 gap-6">
           {FOLDERS.map(folder => {
             const apps = ALL_APPS.filter(a => folder.appIds.includes(a.id));
@@ -193,5 +212,6 @@ export function MobileMore() {
         </div>
       </div>
     </div>
+    </>
   );
 }

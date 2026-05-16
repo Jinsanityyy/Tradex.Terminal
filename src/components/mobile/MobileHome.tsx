@@ -8,6 +8,9 @@ import { DetailModal } from "@/components/shared/DetailModal";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { mutate } from "swr";
 import type { Catalyst } from "@/types";
+import { useSettings } from "@/contexts/SettingsContext";
+import { isAgentSupported } from "@/lib/assetImpact";
+import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelectorSheet";
 
 function LiveBadge() {
   return (
@@ -37,15 +40,21 @@ function PriceCard({ symbol, price, change }: { symbol: string; price: number | 
 }
 
 export function MobileHome() {
+  const { settings } = useSettings();
+  const activeSymbol = isAgentSupported(settings.selectedSymbol ?? "XAUUSD")
+    ? (settings.selectedSymbol as "XAUUSD" | "EURUSD" | "GBPUSD" | "BTCUSD")
+    : "XAUUSD";
+
   const { quotes } = useQuotes();
   const { biasData } = useMarketBias();
   const { levels } = useKeyLevels();
   const { catalysts } = useCatalysts();
   const { narrative, sentiment, generateFresh } = useMarketAnalysis();
-  const { result: agentData } = useAgentResult("XAUUSD", "H1");
+  const { result: agentData } = useAgentResult(activeSymbol, "H1");
   const { sessions } = useSessions();
   const [generating, setGenerating] = useState(false);
   const [selectedCatalyst, setSelectedCatalyst] = useState<Catalyst | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLElement>;
 
   const goldBias = biasData.find((b) => b.asset?.toLowerCase().includes("gold")) ?? biasData[0];
@@ -92,6 +101,8 @@ export function MobileHome() {
   const signalBg = signalState === "ARMED" ? "bg-emerald-500/10 border-emerald-500/30" : signalState === "PENDING" ? "bg-amber-500/10 border-amber-500/30" : "bg-white/5 border-white/5";
 
   return (
+    <>
+    <AssetSelectorSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
     <div ref={divRef} className="overflow-y-auto h-full pb-6">
       {/* Pull to refresh indicator */}
       {(pullDistance > 0 || refreshing) && (
@@ -100,6 +111,12 @@ export function MobileHome() {
           <RefreshCw className={cn("h-4 w-4 text-[hsl(var(--primary))]", refreshing ? "animate-spin" : pullDistance >= THRESHOLD ? "text-emerald-400" : "")} />
         </div>
       )}
+
+      {/* Header row */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-1">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">TradeX Terminal</span>
+        <AssetChip onPress={() => setSheetOpen(true)} />
+      </div>
 
       <div className="px-4 py-4 space-y-4">
         {/* Signal + Session row */}
@@ -295,5 +312,6 @@ export function MobileHome() {
         )}
       </DetailModal>
     </div>
+    </>
   );
 }
