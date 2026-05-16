@@ -40,7 +40,8 @@ export async function middleware(req: NextRequest) {
   // ── Mobile redirect ─────────────────────────────────────────────────────────
   const isStatic = pathname.startsWith("/_next") || pathname.startsWith("/api") || pathname.startsWith("/favicon")
     || pathname === "/manifest.json" || pathname === "/sw.js" || pathname.startsWith("/workbox-")
-    || pathname === "/robots.txt" || pathname === "/sitemap.xml";
+    || pathname === "/robots.txt" || pathname === "/sitemap.xml"
+    || pathname.startsWith("/.well-known");
   const isLoginPage = pathname === "/login";
   if (!isStatic && !isLoginPage) {
     const mobile = isMobile(req);
