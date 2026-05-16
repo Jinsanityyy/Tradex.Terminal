@@ -19,6 +19,8 @@ import { LotCalculatorWidget } from "@/components/shared/LotCalculatorWidget";
 import { TrumpFeedPanel } from "@/components/shared/TrumpFeedPanel";
 import { AgentCardsWidget } from "@/components/brain/AgentCardsWidget";
 import { LiveTVPanel } from "@/components/shared/LiveTVPanel";
+import dynamic from "next/dynamic";
+const GlobeClient = dynamic(() => import("@/components/globe/GlobeClient"), { ssr: false });
 import { CommunityPanel } from "@/components/shared/CommunityPanel";
 
 function LiveBadge() {
@@ -440,6 +442,16 @@ export function MobileHome() {
                     isLoading={!agentData}
                     visibleAgents={new Set(["trend", "smc", "news", "risk", "contrarian", "execution", "master"])}
                   />
+                </section>
+              );
+
+            case "globe":
+              return (
+                <section key="globe">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider mb-3">TradeX Globe</p>
+                  <div className="rounded-xl overflow-hidden border border-white/5" style={{ height: 340 }}>
+                    <GlobeClient embedded />
+                  </div>
                 </section>
               );
 
