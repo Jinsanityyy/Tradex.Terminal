@@ -132,6 +132,7 @@ export function AnalyticsView({
   const [pnlMode, setPnlMode] = useState<PnlMode>("currency");
 
   const stats: Stats = useMemo((): Stats => {
+    try {
     const sorted = [...trades].sort((a, b) => a.date.localeCompare(b.date));
     if (sorted.length === 0) return null;
 
@@ -142,7 +143,8 @@ export function AnalyticsView({
     const grossProfit = sorted.filter(t => t.pnl > 0).reduce((s, t) => s + t.pnl, 0);
     const grossLoss   = Math.abs(sorted.filter(t => t.pnl < 0).reduce((s, t) => s + t.pnl, 0));
     const netPnl      = sorted.reduce((s, t) => s + t.pnl, 0);
-    const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
+    // Use 999 sentinel (not Infinity) to avoid serialization edge-cases in some runtimes
+    const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? 999 : 0;
     const avgWin  = wins   > 0 ? grossProfit / wins   : 0;
     const avgLoss = losses > 0 ? grossLoss   / losses : 0;
     const totalVolume = grossProfit + grossLoss;
@@ -150,7 +152,7 @@ export function AnalyticsView({
     // Advanced metrics
     const lossRate   = totalTrades > 0 ? losses / totalTrades : 0;
     const expectancy = (winRate / 100) * avgWin - lossRate * avgLoss;
-    const rrRatio    = avgLoss > 0 ? avgWin / avgLoss : avgWin > 0 ? Infinity : 0;
+    const rrRatio    = avgLoss > 0 ? avgWin / avgLoss : avgWin > 0 ? 999 : 0;
 
     // Best/worst day
     const byDate = new Map<string, number>();
@@ -242,6 +244,7 @@ export function AnalyticsView({
       expectancy, rrRatio, sharpeRatio, totalVolume,
       monthlyGrid, monthlyYTD, gridYears,
     };
+    } catch { return null; }
   }, [trades]);
 
   if (!stats) {
@@ -369,9 +372,9 @@ export function AnalyticsView({
           </div>
           <p className={cn(
             "text-base font-bold font-mono",
-            !isFinite(rrRatio) || rrRatio >= 1.5 ? "text-emerald-400" : rrRatio >= 1 ? "text-amber-400" : "text-red-400"
+            rrRatio >= 99 || rrRatio >= 1.5 ? "text-emerald-400" : rrRatio >= 1 ? "text-amber-400" : "text-red-400"
           )}>
-            {!isFinite(rrRatio) ? "∞ R" : `${rrRatio.toFixed(2)} R`}
+            {rrRatio >= 99 ? "∞ R" : `${rrRatio.toFixed(2)} R`}
           </p>
           <p className="text-[9px] text-zinc-600 mt-0.5">avg win / avg loss</p>
         </div>
