@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import type { AgentRunResult, Symbol, Timeframe, SignalState } from "@/lib/agents/schemas";
 import { DebateLog } from "@/components/brain/DebateLog";
 import { AgentCommandRoom } from "@/components/brain/AgentCommandRoom";
+import { AgentFloorTest } from "@/components/brain/AgentFloorTest";
 import { useSettings } from "@/contexts/SettingsContext";
 import { isAgentSupported, getSymbolShort, getSymbolLabel } from "@/lib/assetImpact";
 
@@ -396,7 +397,7 @@ export function MobileBrain() {
 
   const isWaitState = sigState === "WAIT";
 
-  const [view, setView] = useState<"brain" | "newsroom">("brain");
+  const [view, setView] = useState<"brain" | "newsroom" | "floor">("brain");
 
   return (
     <div className="flex flex-col h-full">
@@ -406,6 +407,7 @@ export function MobileBrain() {
           {[
             { id: "brain"    as const, label: "Brain",    icon: Shield   },
             { id: "newsroom" as const, label: "Agent HQ", icon: Newspaper },
+            { id: "floor"    as const, label: "Floor",    icon: Target   },
           ].map(({ id, label, icon: Icon }) => (
             <button key={id} onClick={() => setView(id)}
               className={cn(
@@ -425,6 +427,13 @@ export function MobileBrain() {
       {view === "newsroom" && (
         <div className="flex-1 flex flex-col overflow-hidden">
           <AgentCommandRoom data={data ?? null} loading={isLoading && !data} />
+        </div>
+      )}
+
+      {/* Floor PoC */}
+      {view === "floor" && (
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          <AgentFloorTest />
         </div>
       )}
 
