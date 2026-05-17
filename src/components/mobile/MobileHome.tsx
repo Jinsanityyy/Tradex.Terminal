@@ -636,7 +636,7 @@ export function MobileHome() {
         <TakeTradeModal
           symbol={activeSymbol}
           symbolDisplay={getSymbolLabel(activeSymbol)}
-          direction={direction === "SELL" ? "SELL" : "BUY"}
+          direction={finalBias === "bearish" ? "SELL" : "BUY"}
           entry={entry}
           stopLoss={stopLoss}
           tp1={tp1}
