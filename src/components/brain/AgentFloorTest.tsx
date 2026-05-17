@@ -3,55 +3,44 @@
 import React, { useState, useEffect } from "react";
 import type { AgentRunResult } from "@/lib/agents/schemas";
 
-// ─── Isometric math ────────────────────────────────────────────────────────────
-const HW = 44, HH = 22;
-const OX = 348, OY = 88;
-const COLS = 5, ROWS = 4;
-const SVG_W = 700, SVG_H = 420;
+// ─── Palette ───────────────────────────────────────────────────────────────────
+const P = {
+  bg:      "#090b0e",
+  surface: "#0c0f14",
+  border:  "#1c2a3a",
+  text:    "#c5ced9",
+  muted:   "#617485",
+  dim:     "#3a4e61",
+  green:   "#16c784",
+  red:     "#ea3943",
+  amber:   "#f59e0b",
+  blue:    "#38bdf8",
+  indigo:  "#6366f1",
+};
 
-const iso = (c: number, r: number) => ({
-  x: OX + (c - r) * HW,
-  y: OY + (c + r) * HH,
-});
-
-function boxFaces(c: number, r: number, w: number, d: number, base: number, top: number) {
-  const tn = iso(c, r), te = iso(c + w, r), ts = iso(c + w, r + d), tw = iso(c, r + d);
-  const q = (p: { x: number; y: number }, h: number) =>
-    `${p.x.toFixed(1)},${(p.y - h).toFixed(1)}`;
-  return {
-    top:   `${q(tn, top)} ${q(te, top)} ${q(ts, top)} ${q(tw, top)}`,
-    right: `${q(te, top)} ${q(ts, top)} ${q(ts, base)} ${q(te, base)}`,
-    front: `${q(tw, top)} ${q(ts, top)} ${q(ts, base)} ${q(tw, base)}`,
-  };
-}
-
-const tileCenter = (c: number, r: number) => ({
-  x: OX + (c - r) * HW,
-  y: OY + (c + r + 1) * HH,
-});
-
-// ─── Static agent layout (positions, colors, labels) ──────────────────────────
-interface AgentLayout {
-  id: string; label: string; full: string;
-  col: number; row: number;
-  accent: string; dark: string; torso: string;
-  spd: string; phase: number;
+// ─── Agent registry ────────────────────────────────────────────────────────────
+interface AgentDef {
+  id: string;
+  label: string;
   role: string;
+  isMaster?: boolean;
 }
 
-const AGENT_LAYOUT: AgentLayout[] = [
-  { id: "trend",      label: "TREND", full: "Trend Agent",        col: 1, row: 0, accent: "#a78bfa", dark: "#3b1677", torso: "#5b21b6", spd: "0.38s", phase: 0,    role: "Macro Bias"    },
-  { id: "praction",   label: "P.ACT", full: "Price Action Agent", col: 3, row: 0, accent: "#38bdf8", dark: "#024e7a", torso: "#0369a1", spd: "0.30s", phase: 0.13, role: "Structure"     },
-  { id: "execution",  label: "EXEC",  full: "Execution Agent",    col: 2, row: 1, accent: "#00ff9c", dark: "#065f46", torso: "#4338ca", spd: "0.20s", phase: 0.25, role: "Entry Timing"  },
-  { id: "news",       label: "NEWS",  full: "News Agent",         col: 0, row: 2, accent: "#fbbf24", dark: "#6b2f0a", torso: "#92400e", spd: "0.28s", phase: 0.38, role: "Macro Risk"    },
-  { id: "risk",       label: "RISK",  full: "Risk Gate Agent",    col: 4, row: 2, accent: "#f87171", dark: "#7a1414", torso: "#991b1b", spd: "0.25s", phase: 0.50, role: "Risk Filter"   },
-  { id: "contrarian", label: "CNTR",  full: "Contrarian Agent",   col: 1, row: 3, accent: "#fb923c", dark: "#7a2a0e", torso: "#9a3412", spd: "0.34s", phase: 0.63, role: "Counter-Check" },
-  { id: "master",     label: "MSTR",  full: "Master Consensus",   col: 3, row: 3, accent: "#22d3ee", dark: "#0e4557", torso: "#155e75", spd: "0.18s", phase: 0.75, role: "Final Verdict" },
+const AGENTS: AgentDef[] = [
+  { id: "trend",      label: "TREND",      role: "Macro Bias Analyst"    },
+  { id: "praction",   label: "PR. ACTION", role: "Price Action Analyst"  },
+  { id: "execution",  label: "EXECUTION",  role: "Entry Timing Agent"    },
+  { id: "news",       label: "NEWS INTEL", role: "Fundamentals Analyst"  },
+  { id: "risk",       label: "RISK GATE",  role: "Risk Management Agent" },
+  { id: "contrarian", label: "CONTRARIAN", role: "Counter-Signal Analyst"},
+  { id: "master",     label: "MASTER CMO", role: "Chief Market Officer",  isMaster: true },
 ];
 
-const DRAW_ORDER = [...AGENT_LAYOUT].sort(
-  (a, b) => (a.col + a.row) - (b.col + b.row) || a.col - b.col
-);
+// floor id → AgentRunResult schema key
+const ID_TO_STATE: Record<string, string> = {
+  trend: "trend", praction: "smc", execution: "execution",
+  news: "news", risk: "risk", contrarian: "contrarian", master: "master",
+};
 
 // ─── Live data extracted from AgentRunResult ───────────────────────────────────
 interface AgentLive {
@@ -63,7 +52,6 @@ interface AgentLive {
 
 function extractLive(id: string, data: AgentRunResult): AgentLive {
   const { trend, smc, news, risk, execution: exec, contrarian, master } = data.agents;
-
   switch (id) {
     case "trend":
       return {
@@ -76,7 +64,9 @@ function extractLive(id: string, data: AgentRunResult): AgentLive {
       return {
         bias: smc.bias,
         conf: smc.confidence,
-        status: smc.setupPresent ? `${smc.setupType} · ${smc.premiumDiscount}` : `No setup · ${smc.premiumDiscount}`,
+        status: smc.setupPresent
+          ? `${smc.setupType} · ${smc.premiumDiscount}`
+          : `No setup · ${smc.premiumDiscount}`,
         sub: smc.bosDetected ? "BOS ✓" : smc.chochDetected ? "CHoCH ✓" : smc.liquiditySweepDetected ? "Sweep ✓" : "",
       };
     case "execution": {
@@ -87,7 +77,9 @@ function extractLive(id: string, data: AgentRunResult): AgentLive {
         bias: execBias,
         conf: exec.hasSetup ? Math.min(100, exec.confluenceCount * 10) : 15,
         status: `${exec.signalState}${exec.grade ? ` · ${exec.grade}` : ""}`,
-        sub: exec.distanceToEntry != null ? `${exec.distanceToEntry.toFixed(2)}% from entry` : exec.trigger,
+        sub: exec.distanceToEntry != null
+          ? `${exec.distanceToEntry.toFixed(2)}% from entry`
+          : exec.trigger,
       };
     }
     case "news":
@@ -108,8 +100,10 @@ function extractLive(id: string, data: AgentRunResult): AgentLive {
       return {
         bias: contrarian.challengesBias ? "bearish" : "neutral",
         conf: contrarian.riskFactor,
-        status: contrarian.trapType && contrarian.trapType !== "None" ? contrarian.trapType : "No trap detected",
-        sub: contrarian.challengesBias ? "⚠ Challenges bias" : "Aligned with setup",
+        status: contrarian.trapType && contrarian.trapType !== "None"
+          ? contrarian.trapType
+          : "No trap detected",
+        sub: contrarian.challengesBias ? "Challenges bias" : "Aligned with setup",
       };
     case "master": {
       const masterBias: AgentLive["bias"] =
@@ -126,7 +120,6 @@ function extractLive(id: string, data: AgentRunResult): AgentLive {
   }
 }
 
-// Fallback data shown while loading / no data
 const FALLBACK: Record<string, AgentLive> = {
   trend:      { bias: "neutral", conf: 0, status: "Awaiting analysis…", sub: "" },
   praction:   { bias: "neutral", conf: 0, status: "Awaiting analysis…", sub: "" },
@@ -137,41 +130,19 @@ const FALLBACK: Record<string, AgentLive> = {
   master:     { bias: "neutral", conf: 0, status: "Waiting for agents…", sub: "" },
 };
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
-const biasCol = (b: "bullish" | "bearish" | "neutral") =>
-  b === "bullish" ? "#00ff9c" : b === "bearish" ? "#f87171" : "#fbbf24";
-const biasArrow = (b: "bullish" | "bearish" | "neutral") =>
-  b === "bullish" ? "▲" : b === "bearish" ? "▼" : "–";
-
-// ─── Agent HQ state system (mirrors AgentCommandRoom exactly) ─────────────────
+// ─── Agent state system ────────────────────────────────────────────────────────
 type AgentState = "idle"|"bull"|"bear"|"alert"|"approved"|"blocked"|"armed"|"analyzing";
 interface SC { accent: string; badge: string }
+
 const STATE: Record<AgentState, SC> = {
-  idle:      { accent: "#1e3a5f", badge: "IDLE"      },
-  bull:      { accent: "#00ff9c", badge: "BULLISH"   },
-  bear:      { accent: "#ff4466", badge: "BEARISH"   },
-  alert:     { accent: "#ffaa00", badge: "ALERT"     },
-  approved:  { accent: "#00ff9c", badge: "VALID"     },
-  blocked:   { accent: "#ff4466", badge: "BLOCKED"   },
-  armed:     { accent: "#00ffee", badge: "ARMED"     },
-  analyzing: { accent: "#22d3ee", badge: "ANALYZING" },
-};
-
-// floor id → state key used by AgentCommandRoom
-const ID_TO_STATE: Record<string, string> = {
-  trend: "trend", praction: "smc", execution: "execution",
-  news: "news", risk: "risk", contrarian: "contrarian", master: "master",
-};
-
-// Display metadata matching Agent HQ labels/roles
-const HQ_META: Record<string, { label: string; role: string; isMaster?: boolean }> = {
-  trend:      { label: "TREND",       role: "Macro Bias Analyst"       },
-  praction:   { label: "PR. ACTION",  role: "Price Action Analyst"     },
-  execution:  { label: "EXECUTION",   role: "Entry Timing Agent"       },
-  news:       { label: "NEWS INTEL",  role: "Fundamentals Analyst"     },
-  risk:       { label: "RISK RATE",   role: "Risk Management Agent"    },
-  contrarian: { label: "CONTRARIAN",  role: "Counter-Signal Analyst"   },
-  master:     { label: "MASTER CMO",  role: "Chief Market Officer", isMaster: true },
+  idle:      { accent: P.dim,    badge: "IDLE"      },
+  bull:      { accent: P.green,  badge: "BULLISH"   },
+  bear:      { accent: P.red,    badge: "BEARISH"   },
+  alert:     { accent: P.amber,  badge: "ALERT"     },
+  approved:  { accent: P.green,  badge: "VALID"     },
+  blocked:   { accent: P.red,    badge: "BLOCKED"   },
+  armed:     { accent: P.blue,   badge: "ARMED"     },
+  analyzing: { accent: P.indigo, badge: "ANALYZING" },
 };
 
 function deriveStates(d: AgentRunResult): Record<string, AgentState> {
@@ -229,15 +200,15 @@ function getAgentReasons(stateKey: string, data: AgentRunResult | null): string[
 
 function getConsolePrefixAndColor(reason: string): { prefix: string; color: string } {
   const r = reason.toLowerCase();
-  if (/pdh|pwh|pdl|pwl|sweep|liquidity grab|hunt/.test(r))              return { prefix: "[CRITICAL]", color: "#ff6655" };
-  if (/imbalance|fvg|fair value|order block|\bob\b|zone|gap/.test(r))   return { prefix: "[ZONE]",     color: "#ffaa44" };
-  if (/bias|trend|structure|bos|choch|break of/.test(r))                return { prefix: "[BIAS]",     color: "#22d3ee" };
-  if (/confluence|aligned|confirmed|valid.*setup|setup.*valid/.test(r)) return { prefix: "[CONFIRM]",  color: "#00ff9c" };
-  if (/risk|invalid|reject|block|fail|not.*valid/.test(r))              return { prefix: "[RISK]",     color: "#ff4466" };
-  if (/news|event|cpi|nfp|fomc|rate|gdp|pmi|fed/.test(r))              return { prefix: "[NEWS]",     color: "#9b6dff" };
-  if (/entry|trigger|arm|execut|fire|scalp/.test(r))                    return { prefix: "[ENTRY]",    color: "#00ffee" };
-  if (/wait|pending|monitor|watch|approach|return/.test(r))             return { prefix: "[WATCH]",    color: "#668899" };
-  return { prefix: "[INFO]", color: "#667788" };
+  if (/pdh|pwh|pdl|pwl|sweep|liquidity grab|hunt/.test(r))              return { prefix: "[CRITICAL]", color: "#ef4444" };
+  if (/imbalance|fvg|fair value|order block|\bob\b|zone|gap/.test(r))   return { prefix: "[ZONE]",     color: "#f59e0b" };
+  if (/bias|trend|structure|bos|choch|break of/.test(r))                return { prefix: "[BIAS]",     color: "#60a5fa" };
+  if (/confluence|aligned|confirmed|valid.*setup|setup.*valid/.test(r)) return { prefix: "[CONFIRM]",  color: "#22c55e" };
+  if (/risk|invalid|reject|block|fail|not.*valid/.test(r))              return { prefix: "[RISK]",     color: "#ef4444" };
+  if (/news|event|cpi|nfp|fomc|rate|gdp|pmi|fed/.test(r))              return { prefix: "[NEWS]",     color: "#a78bfa" };
+  if (/entry|trigger|arm|execut|fire|scalp/.test(r))                    return { prefix: "[ENTRY]",    color: "#38bdf8" };
+  if (/wait|pending|monitor|watch|approach|return/.test(r))             return { prefix: "[WATCH]",    color: "#64748b" };
+  return { prefix: "[INFO]", color: "#475569" };
 }
 
 function getConfidenceValue(stateKey: string, data: AgentRunResult): number {
@@ -254,279 +225,16 @@ function getConfidenceValue(stateKey: string, data: AgentRunResult): number {
   }
 }
 
-function ConfidenceArc({ value, color }: { value: number; color: string }) {
-  const r = 26, size = 68, cx = size / 2;
-  const circ = 2 * Math.PI * r;
-  const offset = circ - (Math.min(value, 100) / 100) * circ;
-  return (
-    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
-      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={cx} cy={cx} r={r} fill="none" stroke="#0a1a2a" strokeWidth="5" />
-        <circle cx={cx} cy={cx} r={r} fill="none" stroke={color} strokeWidth="5"
-          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
-          style={{ transition: "stroke-dashoffset 0.7s ease", filter: `drop-shadow(0 0 4px ${color}88)` }}
-        />
-      </svg>
-      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ color, fontSize: 15, fontWeight: 700, fontFamily: "ui-monospace,monospace", lineHeight: 1 }}>{value}</span>
-        <span style={{ color: "#3a4a5a", fontSize: 7, fontFamily: "ui-monospace,monospace" }}>%</span>
-      </div>
-    </div>
-  );
-}
-
-// Chart line points for monitor screen
-function monitorChartPts(agent: AgentLayout, live: AgentLive): string {
-  const sfTL = iso(agent.col + .08, agent.row + .22);
-  const sfTR = iso(agent.col + .32, agent.row + .22);
-  return Array.from({ length: 8 }, (_, i) => {
-    const x = sfTL.x + (i / 7) * (sfTR.x - sfTL.x);
-    const wave = Math.sin(i * 1.4 + agent.phase * 9) * 4;
-    const trend = live.bias === "bullish" ? i * 0.45 : live.bias === "bearish" ? -i * 0.45 : 0;
-    const y = sfTL.y - 19 - wave - trend;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(" ");
-}
+const biasCol = (b: "bullish" | "bearish" | "neutral") =>
+  b === "bullish" ? P.green : b === "bearish" ? P.red : P.muted;
 
 // ─── CSS keyframes ─────────────────────────────────────────────────────────────
-const KF = `
-  @keyframes iso-scroll  { from{transform:translateY(0)} to{transform:translateY(-24px)} }
-  @keyframes iso-ring    { 0%,100%{opacity:.85} 50%{opacity:.18} }
-  @keyframes iso-sweep   { 0%{transform:translateY(-4px);opacity:0} 4%{opacity:1} 96%{opacity:1} 100%{transform:translateY(${SVG_H}px);opacity:0} }
-  @keyframes iso-blink   { 0%,46%,54%,100%{opacity:1} 50%{opacity:0} }
-  @keyframes iso-brkt    { 0%,100%{opacity:.7} 50%{opacity:.22} }
-  @keyframes iso-armed   { 0%,100%{opacity:1} 50%{opacity:.4} }
-  @keyframes iso-type    { 0%,100%{transform:translate(0,0)} 25%{transform:translate(.5px,-.5px)} 75%{transform:translate(-.5px,.4px)} }
-  @keyframes iso-idle    { 0%,100%{transform:translateY(0);opacity:.38} 50%{transform:translateY(.8px);opacity:.68} }
-  @keyframes iso-desk    { 0%,100%{fill:rgba(239,68,68,0.12)} 50%{fill:rgba(239,68,68,0.28)} }
-  @keyframes pulse-live  { 0%,100%{box-shadow:0 0 0 0 rgba(0,255,156,0.7)} 70%{box-shadow:0 0 0 7px rgba(0,255,156,0)} }
-  @keyframes fade-up     { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes ticker-in   { from{opacity:0;transform:translateX(8px)} to{opacity:1;transform:translateX(0)} }
-  @keyframes con-pulse   { 0%,100%{opacity:.9} 50%{opacity:1} }
-  @keyframes sel-ring    { 0%,100%{opacity:.8} 50%{opacity:.25} }
+const CSS = `
+  @keyframes fl-live   { 0%,100%{opacity:1} 50%{opacity:.35} }
+  @keyframes fl-armed  { 0%,100%{opacity:1} 50%{opacity:.3}  }
+  @keyframes fl-fadein { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fl-tick   { from{opacity:0;transform:translateX(6px)} to{opacity:1;transform:translateX(0)} }
 `;
-
-// ─── Workstation SVG group ─────────────────────────────────────────────────────
-function Workstation({ agent, live, selected, isActive, isArmed }: {
-  agent: AgentLayout;
-  live: AgentLive;
-  selected: boolean;
-  isActive: boolean;
-  isArmed: boolean;
-}) {
-  const c = agent.col, r = agent.row;
-  const cx = tileCenter(c, r);
-  const delay = `${(agent.phase * 1200).toFixed(0)}ms`;
-
-  const desk  = boxFaces(c + .06, r + .06, .88, .88, 0,  8);
-  const mon   = boxFaces(c + .08, r + .08, .24, .14, 8, 30);
-  const neck  = boxFaces(c + .15, r + .155, .10, .05, 8, 11);
-  const kb    = boxFaces(c + .40, r + .62, .30, .14, 8, 11);
-  const chair = boxFaces(c + .48, r + .28, .34, .11, 8, 24);
-  const torso = boxFaces(c + .50, r + .40, .28, .22, 8, 22);
-  const head  = boxFaces(c + .52, r + .42, .22, .18, 22, 33);
-  const hair  = boxFaces(c + .52, r + .42, .22, .18, 31, 33);
-
-  const clipId = `sc-${agent.id}`;
-  const sfTL = iso(c + .08, r + .22);
-  const sfTR = iso(c + .32, r + .22);
-  const screenClip = `${sfTL.x.toFixed(1)},${(sfTL.y - 30).toFixed(1)} ${sfTR.x.toFixed(1)},${(sfTR.y - 30).toFixed(1)} ${sfTR.x.toFixed(1)},${(sfTR.y - 8).toFixed(1)} ${sfTL.x.toFixed(1)},${(sfTL.y - 8).toFixed(1)}`;
-
-  const bodyAnim = isActive
-    ? `iso-type ${agent.spd} ease-in-out infinite ${delay}`
-    : `iso-idle 4s ease-in-out infinite ${delay}`;
-
-  const ringCx = cx.x, ringCy = cx.y - 12;
-  const ringColor = isArmed ? "#ef4444" : agent.accent;
-
-  return (
-    <g>
-      <defs>
-        <clipPath id={clipId}>
-          <polygon points={screenClip} />
-        </clipPath>
-      </defs>
-
-      {/* ── desk ── */}
-      <polygon points={desk.right} fill="#0d1826" />
-      <polygon points={desk.front} fill="#111e2e" />
-      <polygon points={desk.top}
-        fill={isArmed ? undefined : "#1e2d42"}
-        stroke={isActive ? (isArmed ? "#ef4444" : agent.accent) : "rgba(20,184,166,0.12)"}
-        strokeWidth={isArmed ? "0.9" : "0.4"}
-        style={isArmed ? { animation: `iso-desk 1.7s ease-in-out infinite ${delay}` } : undefined}
-      />
-
-      {/* ── keyboard ── */}
-      <polygon points={kb.right} fill="#0d1826" />
-      <polygon points={kb.front} fill="#111e2e" />
-      <polygon points={kb.top} fill="#202e40"
-        stroke={isActive ? `${agent.accent}55` : "none"} strokeWidth="0.3"
-      />
-      {isActive && [0, 1, 2].map(i => {
-        const p0 = iso(c + .41 + i * .09, r + .63);
-        const p1 = iso(c + .49 + i * .09, r + .63);
-        return <line key={i}
-          x1={p0.x} y1={p0.y - 11.5} x2={p1.x} y2={p1.y - 11.5}
-          stroke={agent.accent} strokeWidth="0.6" opacity="0.4"
-        />;
-      })}
-
-      {/* ── monitor neck ── */}
-      <polygon points={neck.right} fill="#091320" />
-      <polygon points={neck.front} fill="#0c1824" />
-      <polygon points={neck.top}   fill="#0f1e2e" />
-
-      {/* ── monitor body ── */}
-      <polygon points={mon.right} fill={agent.dark} opacity="0.85" />
-      <polygon points={mon.front} fill="#020b06"
-        stroke={isActive ? agent.accent : "#1a2840"} strokeWidth="0.6"
-      />
-      {isActive && (
-        <polygon points={mon.front} fill={agent.accent} opacity="0.06"
-          filter={`drop-shadow(0 0 5px ${agent.accent})`}
-        />
-      )}
-
-      {/* ── monitor screen: real chart + data rows ── */}
-      {isActive && (
-        <g clipPath={`url(#${clipId})`}>
-          <polygon points={screenClip} fill={`${agent.dark}50`} />
-          <polyline
-            points={monitorChartPts(agent, live)}
-            fill="none"
-            stroke={biasCol(live.bias)}
-            strokeWidth="1.4"
-            opacity="0.85"
-            filter={`drop-shadow(0 0 2px ${biasCol(live.bias)})`}
-          />
-          <g style={{ animation: `iso-scroll ${agent.spd} linear infinite ${delay}` }}>
-            {Array.from({ length: 10 }, (_, i) => {
-              const y0 = sfTL.y - 30 + i * 2.5 + 4;
-              return <line key={i}
-                x1={sfTL.x} y1={y0} x2={sfTR.x} y2={y0}
-                stroke={agent.accent} strokeWidth="0.6"
-                opacity={0.07 + (i % 4) * 0.05}
-              />;
-            })}
-          </g>
-        </g>
-      )}
-
-      <polygon points={mon.top} fill={agent.dark}
-        stroke={isActive ? `${agent.accent}80` : "none"} strokeWidth="0.5"
-      />
-
-      {/* monitor LED */}
-      {isActive && (() => {
-        const lp = iso(c + .32, r + .08);
-        return <circle cx={lp.x} cy={lp.y - 30} r="1.8"
-          fill={isArmed ? "#ef4444" : agent.accent}
-          style={{ animation: `iso-blink 2s ease-in-out infinite ${delay}` }}
-          filter={`drop-shadow(0 0 3px ${isArmed ? "#ef4444" : agent.accent})`}
-        />;
-      })()}
-
-      {/* ── chair ── */}
-      <polygon points={chair.right} fill="#182438" />
-      <polygon points={chair.front} fill="#1b283e" />
-      <polygon points={chair.top} fill="#243044"
-        stroke="rgba(255,255,255,0.06)" strokeWidth="0.3"
-      />
-
-      {/* ── torso ── */}
-      <g style={{ animation: bodyAnim, transformOrigin: `${cx.x}px ${cx.y}px` }}>
-        <polygon points={torso.right} fill={isActive ? agent.torso : "#182534"} opacity="0.75" />
-        <polygon points={torso.front} fill={isActive ? agent.torso : "#1a2838"} opacity="0.85" />
-        <polygon points={torso.top}
-          fill={isActive ? agent.torso : "#1e2d40"}
-          filter={isActive ? `drop-shadow(0 0 4px ${agent.accent}55)` : undefined}
-        />
-      </g>
-
-      {/* ── head + hair ── */}
-      <g style={{ animation: bodyAnim, transformOrigin: `${cx.x}px ${cx.y}px` }}>
-        <polygon points={head.right} fill="#b08d5a" opacity="0.85" />
-        <polygon points={head.front} fill="#9a7a4e" opacity="0.9" />
-        <polygon points={head.top}
-          fill={isActive ? "#d4a96e" : "#263545"}
-          stroke={isActive ? "#c8a96e" : "rgba(38,53,69,0.4)"} strokeWidth="0.4"
-        />
-        {isActive && <polygon points={hair.top} fill="rgba(70,40,10,0.6)" />}
-      </g>
-
-      {/* ── label ── */}
-      {(() => {
-        const lp = iso(c + .86, r + .12);
-        return (
-          <text x={lp.x - 2} y={lp.y - 9}
-            fontSize="6.5" fontFamily="ui-monospace,monospace" fontWeight="700"
-            letterSpacing="0.08em" textAnchor="end"
-            fill={isArmed ? "#ef4444" : isActive ? agent.accent : "rgba(51,65,85,0.4)"}
-            style={isArmed ? { animation: "iso-armed 1.5s ease-in-out infinite" } : undefined}
-            filter={isActive ? `drop-shadow(0 0 3px ${isArmed ? "#ef444490" : agent.accent + "90"})` : undefined}
-          >{isArmed ? "⦿ " : ""}{agent.label}</text>
-        );
-      })()}
-
-      {/* desk LED */}
-      {isActive && (() => {
-        const dp = iso(c + .12, r + .82);
-        return <circle cx={dp.x} cy={dp.y - 8} r="2"
-          fill={isArmed ? "#ef4444" : agent.accent}
-          style={{ animation: `iso-blink 1.8s ease-in-out infinite ${delay}` }}
-          filter={`drop-shadow(0 0 4px ${isArmed ? "#ef4444" : agent.accent})`}
-        />;
-      })()}
-
-      {/* ── selection circle  (replaces crosshair) ── */}
-      {(isArmed || selected) && (
-        <g>
-          {/* outer sonar pulse */}
-          <circle cx={ringCx} cy={ringCy} r="18" fill="none"
-            stroke={ringColor} strokeWidth="1.2" opacity="0.8">
-            <animate attributeName="r" values="14;38;14" dur="2s" repeatCount="indefinite" />
-            <animate attributeName="opacity" values="0.8;0;0.8" dur="2s" repeatCount="indefinite" />
-          </circle>
-          {/* static dashed ring */}
-          <circle cx={ringCx} cy={ringCy} r="15" fill="none"
-            stroke={ringColor} strokeWidth="1.2"
-            strokeDasharray="5 3"
-            style={{ animation: "sel-ring 1.6s ease-in-out infinite" }}
-            filter={isArmed ? "url(#red-glow)" : undefined}
-          />
-          {/* inner glow fill */}
-          <circle cx={ringCx} cy={ringCy} r="11"
-            fill={isArmed ? "rgba(239,68,68,0.07)" : `${agent.accent}09`}
-          />
-          {/* center dot */}
-          <circle cx={ringCx} cy={ringCy} r="2.5"
-            fill={ringColor}
-            filter={`drop-shadow(0 0 5px ${ringColor})`}
-          />
-        </g>
-      )}
-    </g>
-  );
-}
-
-// ─── HUD corner bracket ────────────────────────────────────────────────────────
-function HudCorner({ top, bottom, left, right, delay }: {
-  top?: number; bottom?: number; left?: number; right?: number; delay: string;
-}) {
-  const h = top !== undefined ? "top" : "bottom";
-  const v = left !== undefined ? "left" : "right";
-  return (
-    <div style={{
-      position: "absolute", top, bottom, left, right,
-      width: 16, height: 16, zIndex: 10, pointerEvents: "none",
-      animation: `iso-brkt 2.5s ease-in-out infinite ${delay}`,
-    }}>
-      <div style={{ position: "absolute", [h]: 0, [v]: 0, width: 11, height: 2, background: "rgba(20,184,166,0.65)" }} />
-      <div style={{ position: "absolute", [h]: 0, [v]: 0, width: 2, height: 11, background: "rgba(20,184,166,0.65)" }} />
-    </div>
-  );
-}
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
 interface AgentFloorProps {
@@ -537,30 +245,25 @@ interface AgentFloorProps {
 // ─── Main component ────────────────────────────────────────────────────────────
 export function AgentFloorTest({ data, loading = false }: AgentFloorProps) {
   const [selected, setSelected] = useState<string | null>(null);
-  const [mode,     setMode]     = useState<"active" | "idle">("active");
   const [clock,    setClock]    = useState("");
   const [tickIdx,  setTickIdx]  = useState(0);
 
-  const hasData  = !!data && !loading;
-  const isActive = mode === "active" && hasData;
+  const hasData      = !!data && !loading;
+  const isExecArmed  = data?.agents.execution.signalState === "ARMED" || false;
+  const states       = hasData ? deriveStates(data!) : null;
 
-  // Real armed state from execution agent
-  const isExecArmed = data?.agents.execution.signalState === "ARMED" || false;
-
-  // Build live data for each agent
-  const liveMap = AGENT_LAYOUT.reduce<Record<string, AgentLive>>((acc, a) => {
+  const liveMap = AGENTS.reduce<Record<string, AgentLive>>((acc, a) => {
     acc[a.id] = hasData ? extractLive(a.id, data!) : FALLBACK[a.id];
     return acc;
   }, {});
 
-  // Consensus
-  const masterLive  = liveMap["master"];
-  const bullCount   = AGENT_LAYOUT.filter(a => liveMap[a.id].bias === "bullish").length;
-  const bearCount   = AGENT_LAYOUT.filter(a => liveMap[a.id].bias === "bearish").length;
-  const consensus   = (bullCount > bearCount ? "BULLISH" : bearCount > bullCount ? "BEARISH" : "NEUTRAL") as "BULLISH" | "BEARISH" | "NEUTRAL";
-  const consensusC  = biasCol(consensus.toLowerCase() as "bullish" | "bearish" | "neutral");
+  const bullCount  = AGENTS.filter(a => liveMap[a.id].bias === "bullish").length;
+  const bearCount  = AGENTS.filter(a => liveMap[a.id].bias === "bearish").length;
+  const neutCount  = AGENTS.length - bullCount - bearCount;
+  const consensus  = bullCount > bearCount ? "BULLISH" : bearCount > bullCount ? "BEARISH" : "NEUTRAL";
+  const consensusC = biasCol(consensus.toLowerCase() as "bullish" | "bearish" | "neutral");
+  const masterLive = liveMap["master"];
 
-  // Activity ticker from real data
   const tickerLines: string[] = hasData ? [
     data!.agents.execution.signalState !== "NO_TRADE"
       ? `EXEC · ${data!.agents.execution.signalState}${data!.agents.execution.grade ? " · " + data!.agents.execution.grade : ""} — ${data!.agents.execution.trigger}`
@@ -572,9 +275,6 @@ export function AgentFloorTest({ data, loading = false }: AgentFloorProps) {
     `CNTR · ${data!.agents.contrarian.trapType && data!.agents.contrarian.trapType !== "None" ? data!.agents.contrarian.trapType : "No trap"} · risk ${data!.agents.contrarian.riskFactor}/100`,
     `MSTR · ${data!.agents.master.finalBias.toUpperCase()} · score ${data!.agents.master.consensusScore > 0 ? "+" : ""}${data!.agents.master.consensusScore.toFixed(1)} · conf ${data!.agents.master.confidence}%`,
   ] : ["Waiting for agent analysis — tap Refresh in the Brain tab to run agents"];
-
-  const selAgent = AGENT_LAYOUT.find(a => a.id === selected) ?? null;
-  const selLive  = selAgent ? liveMap[selAgent.id] : null;
 
   useEffect(() => {
     const tick = () => setClock(new Date().toUTCString().slice(17, 25));
@@ -588,356 +288,332 @@ export function AgentFloorTest({ data, loading = false }: AgentFloorProps) {
     return () => clearInterval(id);
   }, [tickerLines.length]);
 
-  return (
-    <div
-      className="rounded-xl border border-slate-800/60 overflow-hidden select-none"
-      style={{ backgroundColor: "#060810", fontFamily: "ui-monospace,monospace" }}
-    >
-      <style>{KF}</style>
+  const selDef = AGENTS.find(a => a.id === selected) ?? null;
 
-      {/* ═══ TOP HUD BAR ═══════════════════════════════════════════════════════ */}
+  // Compute detail panel data when an agent is selected
+  const detail = selDef ? (() => {
+    const stateKey = ID_TO_STATE[selDef.id] ?? selDef.id;
+    const agState: AgentState = (states?.[stateKey] ?? "idle") as AgentState;
+    const sc = STATE[agState];
+    const reasons = getAgentReasons(stateKey, hasData ? data : null);
+    const confVal = hasData ? getConfidenceValue(stateKey, data!) : 0;
+    const tradePlan    = hasData ? data!.agents.master.tradePlan : null;
+    const showPrices   = (stateKey === "execution" || stateKey === "master") && !!tradePlan;
+    const showProgress = stateKey === "execution" || stateKey === "master";
+    const sigState     = hasData ? data!.agents.execution.signalState : "NO_TRADE";
+    const finalBias    = hasData ? data!.agents.master.finalBias : "no-trade";
+    const progressStep = !hasData || finalBias === "no-trade" ? -1 : sigState === "ARMED" ? 1 : 0;
+    const progressSteps = ["ARMED", "TRIGGERED", "COMPLETE"] as const;
+    return { stateKey, sc, reasons, confVal, tradePlan, showPrices, showProgress, progressStep, progressSteps };
+  })() : null;
+
+  return (
+    <div style={{
+      backgroundColor: P.bg,
+      fontFamily: "ui-monospace,monospace",
+      border: `1px solid ${P.border}`,
+      borderRadius: 6,
+      overflow: "hidden",
+    }}>
+      <style>{CSS}</style>
+
+      {/* ══ HEADER ════════════════════════════════════════════════════════════════ */}
       <div style={{
-        display: "flex", alignItems: "center", height: 34, padding: "0 12px",
-        gap: 0, borderBottom: "1px solid rgba(20,184,166,0.15)",
-        background: "linear-gradient(135deg,rgba(6,8,16,.99) 0%,rgba(10,18,30,.99) 100%)",
+        display: "flex", alignItems: "center",
+        height: 38, padding: "0 14px", gap: 0,
+        borderBottom: `1px solid ${P.border}`,
+        background: P.surface,
       }}>
-        <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.14em", color: "rgba(20,184,166,0.9)" }}>TRADEX</span>
-        <span style={{ margin: "0 5px", color: "rgba(20,184,166,0.3)", fontSize: 8 }}>·</span>
-        <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.14em", color: "rgba(20,184,166,0.55)" }}>CMD FLOOR</span>
-        <div style={{ width: 1, height: 14, background: "rgba(20,184,166,0.2)", margin: "0 10px" }} />
-        {/* live dot */}
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.18em", color: P.text }}>TRADEX</span>
+        <span style={{ margin: "0 6px", color: P.dim }}>·</span>
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.18em", color: P.muted }}>FLOOR</span>
+
+        <div style={{ width: 1, height: 16, background: P.border, margin: "0 14px" }} />
+
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <div style={{
-            width: 6, height: 6, borderRadius: "50%",
-            backgroundColor: isActive ? "#00ff9c" : "#1e3040",
-            animation: isActive ? "pulse-live 2s ease-in-out infinite" : "none",
-            transition: "background-color 0.4s",
+            width: 5, height: 5, borderRadius: "50%",
+            backgroundColor: loading ? P.amber : hasData ? P.green : P.dim,
+            animation: hasData ? "fl-live 2s ease-in-out infinite" : "none",
           }} />
-          <span style={{ fontSize: 7.5, fontWeight: 700, letterSpacing: "0.1em", color: isActive ? "rgba(0,255,156,0.8)" : "rgba(51,65,85,0.7)", transition: "color 0.4s" }}>
-            {loading ? "LOADING" : isActive ? "LIVE" : "STANDBY"}
+          <span style={{
+            fontSize: 8, fontWeight: 600, letterSpacing: "0.12em",
+            color: loading ? P.amber : hasData ? P.green : P.dim,
+          }}>
+            {loading ? "LOADING" : hasData ? "LIVE" : "STANDBY"}
           </span>
         </div>
+
         {isExecArmed && (
           <>
-            <div style={{ width: 1, height: 14, background: "rgba(20,184,166,0.15)", margin: "0 10px" }} />
-            <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: "0.1em", color: "rgba(239,68,68,0.9)", animation: "iso-armed 1.5s ease-in-out infinite" }}>
-              ⦿ EXEC ARMED
+            <div style={{ width: 1, height: 16, background: P.border, margin: "0 14px" }} />
+            <span style={{
+              fontSize: 8, fontWeight: 700, letterSpacing: "0.12em",
+              color: P.red, animation: "fl-armed 1.4s ease-in-out infinite",
+            }}>
+              EXEC ARMED
             </span>
           </>
         )}
+
         <div style={{ flex: 1 }} />
-        <span style={{ fontSize: 7, color: "rgba(71,85,105,0.8)", letterSpacing: "0.08em", marginRight: 10 }}>{clock} UTC</span>
-        <span style={{ fontSize: 7, fontWeight: 600, letterSpacing: "0.1em", color: "rgba(20,184,166,0.45)", padding: "2px 6px", border: "1px solid rgba(20,184,166,0.2)", borderRadius: 3 }}>
-          ISO · {AGENT_LAYOUT.length}
-        </span>
+        <span style={{ fontSize: 8, color: P.dim, letterSpacing: "0.08em" }}>{clock} UTC</span>
       </div>
 
-      {/* ═══ ISOMETRIC FLOOR ═══════════════════════════════════════════════════ */}
-      <div style={{ position: "relative", overflow: "hidden" }}>
-        {/* CRT scanlines */}
-        <div style={{
-          position: "absolute", inset: 0, pointerEvents: "none", zIndex: 9,
-          backgroundImage: "repeating-linear-gradient(to bottom,transparent 0,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px)",
-        }} />
-        <HudCorner top={8}    left={8}   delay="0s"   />
-        <HudCorner top={8}    right={8}  delay="0.6s" />
-        <HudCorner bottom={8} left={8}   delay="1.2s" />
-        <HudCorner bottom={8} right={8}  delay="1.8s" />
+      {/* ══ AGENT ROSTER ══════════════════════════════════════════════════════════ */}
+      <div>
+        {AGENTS.map((agent, idx) => {
+          const stateKey = ID_TO_STATE[agent.id] ?? agent.id;
+          const agState: AgentState = (states?.[stateKey] ?? "idle") as AgentState;
+          const sc      = STATE[agState];
+          const live    = liveMap[agent.id];
+          const isSel   = selected === agent.id;
+          const isArmed = agent.id === "execution" && isExecArmed;
+          const confPct = Math.min(100, Math.max(0, live.conf));
+          const notLast = idx < AGENTS.length - 1;
 
-        {/* Left legend */}
-        <div style={{ position: "absolute", top: 14, left: 10, zIndex: 8, pointerEvents: "none", fontSize: 7, letterSpacing: "0.08em", lineHeight: 2.0 }}>
-          {AGENT_LAYOUT.map(a => {
-            const live = liveMap[a.id];
-            const isArm = a.id === "execution" && isExecArmed;
-            return (
-              <div key={a.id} style={{
-                color: isArm ? "rgba(239,68,68,0.85)" : selected === a.id ? a.accent : isActive ? "rgba(51,65,85,0.65)" : "rgba(35,48,62,0.5)",
-                textShadow: isArm ? "0 0 6px rgba(239,68,68,0.45)" : "none",
-                transition: "color 0.3s",
-              }}>
-                {isArm ? "⦿ " : selected === a.id ? "◉ " : "· "}{a.full}
-                {hasData && <span style={{ color: biasCol(live.bias), marginLeft: 4 }}>{biasArrow(live.bias)}</span>}
+          return (
+            <div
+              key={agent.id}
+              onClick={() => setSelected((s: string | null) => s === agent.id ? null : agent.id)}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "10px 14px",
+                borderBottom: notLast ? `1px solid ${P.border}` : "none",
+                borderLeft: isSel ? `2px solid ${sc.accent}` : "2px solid transparent",
+                background: isSel ? `${sc.accent}09` : "transparent",
+                cursor: "pointer",
+                transition: "background 0.1s, border-color 0.1s",
+              }}
+            >
+              {/* Label + role */}
+              <div style={{ width: 82, flexShrink: 0 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: isSel ? P.text : P.muted }}>
+                  {agent.isMaster ? "★ " : ""}{agent.label}
+                </div>
+                <div style={{ fontSize: 7, color: P.dim, letterSpacing: "0.06em", marginTop: 2 }}>
+                  {agent.role}
+                </div>
               </div>
-            );
-          })}
-        </div>
 
-        {/* Title block */}
-        <div style={{ position: "absolute", top: 14, right: 12, zIndex: 8, pointerEvents: "none", fontSize: 7, letterSpacing: "0.10em", textAlign: "right", lineHeight: 2.0 }}>
-          <div style={{ color: "rgba(20,184,166,0.75)", fontSize: 7.5, fontWeight: 700 }}>TRADEX · COMMAND</div>
-          <div style={{ color: "rgba(20,184,166,0.35)" }}>ISO FLOOR · {AGENT_LAYOUT.length} AGENTS</div>
-          {isExecArmed && (
-            <div style={{ color: "rgba(239,68,68,0.8)", animation: "iso-armed 1.5s ease-in-out infinite" }}>⦿ EXEC ARMED</div>
+              {/* State badge */}
+              <div style={{ width: 68, flexShrink: 0 }}>
+                <span style={{
+                  fontSize: 8, fontWeight: 700, letterSpacing: "0.1em",
+                  color: sc.accent,
+                  animation: isArmed ? "fl-armed 1.4s ease-in-out infinite" : "none",
+                }}>
+                  {sc.badge}
+                </span>
+              </div>
+
+              {/* Confidence bar + value */}
+              <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ flex: 1, height: 2, background: P.border, overflow: "hidden" }}>
+                  <div style={{
+                    width: `${confPct}%`, height: "100%",
+                    backgroundColor: confPct > 0 ? sc.accent : "transparent",
+                    transition: "width 0.5s ease",
+                  }} />
+                </div>
+                <span style={{
+                  fontSize: 8, fontWeight: 600, width: 26, textAlign: "right", flexShrink: 0,
+                  color: confPct > 0 ? P.text : P.dim,
+                }}>
+                  {confPct > 0 ? `${confPct}%` : "—"}
+                </span>
+              </div>
+
+              {/* Expand caret */}
+              <span style={{ fontSize: 9, color: isSel ? sc.accent : P.dim, flexShrink: 0 }}>
+                {isSel ? "▾" : "›"}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ══ SELECTED AGENT DETAIL ═════════════════════════════════════════════════ */}
+      {selDef && detail && (
+        <div style={{
+          borderTop: `1px solid ${detail.sc.accent}30`,
+          padding: "14px 14px 16px",
+          background: "#07090f",
+          animation: "fl-fadein 0.15s ease-out",
+        }}>
+          {/* Header row */}
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.16em", color: detail.sc.accent }}>
+                  {selDef.isMaster ? "★ " : ""}{selDef.label}
+                </span>
+                <span style={{
+                  fontSize: 7.5, fontWeight: 700, letterSpacing: "0.1em",
+                  padding: "2px 7px",
+                  color: detail.sc.accent,
+                  border: `1px solid ${detail.sc.accent}40`,
+                  background: `${detail.sc.accent}0f`,
+                }}>
+                  {detail.sc.badge}
+                </span>
+              </div>
+              <div style={{ fontSize: 8, color: P.dim, letterSpacing: "0.1em", marginTop: 5 }}>
+                {selDef.role}
+              </div>
+            </div>
+
+            {/* Confidence number (replaces arc) */}
+            <div style={{ textAlign: "right", flexShrink: 0 }}>
+              <div style={{ fontSize: 30, fontWeight: 700, letterSpacing: "-0.02em", color: detail.sc.accent, lineHeight: 1 }}>
+                {detail.confVal}
+              </div>
+              <div style={{ fontSize: 7, color: P.dim, letterSpacing: "0.14em", marginTop: 4 }}>CONFIDENCE</div>
+            </div>
+          </div>
+
+          {/* Reason lines */}
+          <div style={{ marginBottom: detail.showPrices || detail.showProgress ? 12 : 0 }}>
+            {detail.reasons.map((reason, i) => {
+              const pc = getConsolePrefixAndColor(reason);
+              return (
+                <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: i > 0 ? 7 : 0 }}>
+                  <span style={{
+                    fontSize: 8, fontWeight: 700, letterSpacing: "0.05em",
+                    color: pc.color, whiteSpace: "nowrap", flexShrink: 0,
+                  }}>
+                    {pc.prefix}
+                  </span>
+                  <span style={{ fontSize: 8.5, color: "#8b9ab0", lineHeight: 1.55 }}>{reason}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Price tags */}
+          {detail.showPrices && detail.tradePlan && (
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: detail.showProgress ? 12 : 0 }}>
+              {[
+                { label: "ENTRY", val: detail.tradePlan.entry,    color: P.text,  border: P.border },
+                { label: "SL",    val: detail.tradePlan.stopLoss,  color: P.red,   border: `${P.red}40`   },
+                { label: "TP1",   val: detail.tradePlan.tp1,       color: P.green, border: `${P.green}40` },
+                ...(detail.tradePlan.tp2
+                  ? [{ label: "TP2", val: detail.tradePlan.tp2, color: P.green, border: `${P.green}28` }]
+                  : []),
+              ].map(t => (
+                <span key={t.label} style={{
+                  fontSize: 8.5, padding: "3px 9px",
+                  border: `1px solid ${t.border}`,
+                  color: t.color, letterSpacing: "0.08em",
+                }}>
+                  <span style={{ color: P.dim, marginRight: 5 }}>{t.label}</span>
+                  {t.val.toFixed(t.val > 100 ? 2 : 4)}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* ARMED → TRIGGERED → COMPLETE pipeline */}
+          {detail.showProgress && (
+            <div style={{ display: "flex", alignItems: "center" }}>
+              {detail.progressSteps.map((step, i) => {
+                const done   = i < detail.progressStep;
+                const active = i === detail.progressStep;
+                const col    = done || active ? detail.sc.accent : P.border;
+                return (
+                  <React.Fragment key={step}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                      <div style={{
+                        width: 7, height: 7, borderRadius: "50%",
+                        backgroundColor: done || active ? detail.sc.accent : "#0a1525",
+                        border: `1px solid ${col}`,
+                      }} />
+                      <span style={{
+                        fontSize: 7, letterSpacing: "0.1em", whiteSpace: "nowrap",
+                        color: active ? detail.sc.accent : done ? `${detail.sc.accent}88` : P.dim,
+                      }}>
+                        {step}
+                      </span>
+                    </div>
+                    {i < detail.progressSteps.length - 1 && (
+                      <div style={{
+                        flex: 1, height: 1,
+                        background: done ? `${detail.sc.accent}55` : P.border,
+                        minWidth: 16, maxWidth: 48,
+                        margin: "0 5px", marginBottom: 16,
+                      }} />
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══ CONSENSUS BAR ═════════════════════════════════════════════════════════ */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 14,
+        padding: "10px 14px",
+        borderTop: `1px solid ${P.border}`,
+        background: P.surface,
+      }}>
+        <div style={{ flexShrink: 0 }}>
+          <div style={{ fontSize: 7, color: P.dim, letterSpacing: "0.14em", marginBottom: 4 }}>MASTER CONSENSUS</div>
+          <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.1em", color: consensusC }}>
+            {consensus}
+          </div>
+          {hasData && (
+            <div style={{ fontSize: 7, color: P.muted, marginTop: 3, letterSpacing: "0.04em" }}>
+              {masterLive.status}
+            </div>
           )}
         </div>
 
-        {/* SVG scene */}
-        <svg
-          viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-          preserveAspectRatio="xMidYMid meet"
-          style={{ width: "100%", height: "auto", display: "block" }}
-        >
-          <defs>
-            <filter id="teal-glow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="1.8" result="blur" />
-              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-            </filter>
-            <filter id="red-glow" x="-80%" y="-80%" width="260%" height="260%">
-              <feGaussianBlur stdDeviation="2.5" result="blur" />
-              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-            </filter>
-            <radialGradient id="floor-amb" cx="50%" cy="40%">
-              <stop offset="0%" stopColor="rgba(20,184,166,0.05)" />
-              <stop offset="100%" stopColor="rgba(6,8,16,0)" />
-            </radialGradient>
-          </defs>
+        <div style={{ width: 1, height: 38, background: P.border, flexShrink: 0 }} />
 
-          <rect x="0" y="0" width={SVG_W} height={SVG_H} fill="url(#floor-amb)" />
-
-          <line x1="0" y1="0" x2={SVG_W} y2="0"
-            stroke="rgba(20,184,166,0.38)" strokeWidth="2"
-            style={{ animation: "iso-sweep 5s linear infinite" }}
-            filter="url(#teal-glow)"
-          />
-
-          {/* floor tiles */}
-          {Array.from({ length: ROWS }, (_, row) =>
-            Array.from({ length: COLS }, (_, col) => ({ col, row }))
-          ).flat()
-            .sort((a, b) => (a.col + a.row) - (b.col + b.row) || a.col - b.col)
-            .map(({ col, row }) => {
-              const n = iso(col, row), e = iso(col + 1, row);
-              const s = iso(col + 1, row + 1), w = iso(col, row + 1);
-              const pts = `${n.x},${n.y} ${e.x},${e.y} ${s.x},${s.y} ${w.x},${w.y}`;
-              const occupied = AGENT_LAYOUT.some(a => a.col === col && a.row === row);
-              const even = (col + row) % 2 === 0;
-              return (
-                <polygon key={`${col}-${row}`} points={pts}
-                  fill={occupied ? (even ? "#0e1428" : "#0b1020") : (even ? "#080c18" : "#060910")}
-                  stroke="rgba(20,184,166,0.18)"
-                  strokeWidth={occupied ? "0.8" : "0.4"}
-                  filter={occupied ? "url(#teal-glow)" : undefined}
-                />
-              );
-            })}
-
-          {/* workstations */}
-          {DRAW_ORDER.map(agent => (
-            <g key={agent.id}
-              onClick={() => setSelected((s: string | null) => s === agent.id ? null : agent.id)}
-              style={{ cursor: "pointer" }}
-            >
-              <Workstation
-                agent={agent}
-                live={liveMap[agent.id]}
-                selected={selected === agent.id}
-                isActive={isActive}
-                isArmed={agent.id === "execution" && isExecArmed}
-              />
-            </g>
-          ))}
-        </svg>
-      </div>
-
-      {/* ═══ AGENT CHIP STRIP ══════════════════════════════════════════════════ */}
-      <div style={{
-        display: "flex", gap: 5, padding: "7px 10px", overflowX: "auto",
-        borderTop: "1px solid rgba(20,184,166,0.10)",
-        borderBottom: "1px solid rgba(20,184,166,0.08)",
-        background: "rgba(5,7,14,0.98)", scrollbarWidth: "none",
-      }}>
-        {AGENT_LAYOUT.map(a => {
-          const live   = liveMap[a.id];
-          const isArm  = a.id === "execution" && isExecArmed;
-          const isSel  = selected === a.id;
-          const bc     = biasCol(live.bias);
-          return (
-            <button key={a.id}
-              onClick={() => setSelected((s: string | null) => s === a.id ? null : a.id)}
-              style={{
-                flexShrink: 0, padding: "5px 8px", borderRadius: 4, minWidth: 52,
-                border: `1px solid ${isSel ? a.accent : isArm ? "rgba(239,68,68,0.45)" : "rgba(28,42,58,0.9)"}`,
-                backgroundColor: isSel ? `${a.accent}12` : isArm ? "rgba(239,68,68,0.06)" : "rgba(8,14,22,0.9)",
-                cursor: "pointer",
-                display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
-                transition: "all 0.15s",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                <div style={{ width: 4, height: 4, borderRadius: "50%", backgroundColor: isArm ? "#ef4444" : bc, boxShadow: `0 0 5px ${isArm ? "#ef4444" : bc}` }} />
-                <span style={{ fontSize: 6.5, fontWeight: 700, letterSpacing: "0.1em", color: isArm ? "#ef4444" : isSel ? a.accent : "rgba(100,116,139,0.85)" }}>
-                  {a.label}
-                </span>
-              </div>
-              <span style={{ fontSize: 6, color: bc, letterSpacing: "0.05em" }}>
-                {biasArrow(live.bias)} {live.conf}%
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ═══ SELECTED AGENT DETAIL  (matches Agent HQ exactly) ════════════════ */}
-      {selAgent && (() => {
-        const stateKey  = ID_TO_STATE[selAgent.id] ?? selAgent.id;
-        const hqMeta    = HQ_META[selAgent.id];
-        const states    = hasData ? deriveStates(data!) : null;
-        const agState: AgentState = (states?.[stateKey] ?? "idle") as AgentState;
-        const sc        = STATE[agState];
-        const reasons   = getAgentReasons(stateKey, hasData ? data : null);
-        const confVal   = hasData ? getConfidenceValue(stateKey, data!) : 0;
-        const tradePlan = hasData ? data!.agents.master.tradePlan : null;
-        const showPrices   = (stateKey === "execution" || stateKey === "master") && !!tradePlan;
-        const showProgress = stateKey === "execution" || stateKey === "master";
-        const sigState     = hasData ? data!.agents.execution.signalState : "NO_TRADE";
-        const finalBias    = hasData ? data!.agents.master.finalBias : "no-trade";
-        const progressStep = !hasData || finalBias === "no-trade" ? -1 : sigState === "ARMED" ? 1 : 0;
-        const progressSteps = ["ARMED", "TRIGGERED", "COMPLETE"] as const;
-
-        return (
-          <div style={{ borderTop: `1px solid ${sc.accent}44`, padding: "12px 14px 14px", background: "#07090f", animation: "fade-up 0.18s ease-out" }}>
-            {/* ── Header ── */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-              <span style={{ color: sc.accent, fontSize: 13, fontWeight: 700, letterSpacing: "0.18em", fontFamily: "ui-monospace,monospace" }}>
-                {hqMeta.isMaster ? "★ " : ""}{hqMeta.label}
-              </span>
-              <span style={{ fontSize: 8, letterSpacing: "0.12em", padding: "2px 7px", borderRadius: 2, border: `1px solid ${sc.accent}`, color: sc.accent, background: `${sc.accent}18`, fontFamily: "ui-monospace,monospace" }}>
-                {sc.badge}
-              </span>
-              <span style={{ color: "#445566", fontSize: 8, fontFamily: "ui-monospace,monospace", letterSpacing: "0.1em", marginLeft: "auto" }}>
-                {hqMeta.role}
-              </span>
-            </div>
-
-            {/* ── Body: reasons + arc ── */}
-            <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-              {/* Left: reasons + optional price tags + pipeline */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ marginBottom: showPrices || showProgress ? 10 : 0 }}>
-                  {reasons.map((reason, i) => {
-                    const pc = getConsolePrefixAndColor(reason);
-                    return (
-                      <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-start", fontFamily: "ui-monospace,monospace", fontSize: 9, marginTop: i > 0 ? 5 : 0 }}>
-                        <span style={{ color: pc.color, whiteSpace: "nowrap", fontWeight: 700, flexShrink: 0 }}>{pc.prefix}</span>
-                        <span style={{ color: "#7a8fa0", lineHeight: 1.55 }}>{reason}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Price tags */}
-                {showPrices && tradePlan && (
-                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: showProgress ? 10 : 0 }}>
-                    {[
-                      { label: "ENTRY", val: tradePlan.entry, border: "#ffffff22", color: "#aab4c0", bg: "transparent" },
-                      { label: "SL",    val: tradePlan.stopLoss, border: "#ff446644", color: "#ff7788", bg: "#ff00001a" },
-                      { label: "TP1",   val: tradePlan.tp1, border: "#00ff9c44", color: "#00dd88", bg: "#00ff9c0f" },
-                      ...(tradePlan.tp2 ? [{ label: "TP2", val: tradePlan.tp2, border: "#00ff9c33", color: "#00bb77", bg: "#00ff9c08" }] : []),
-                    ].map(t => (
-                      <span key={t.label} style={{ fontSize: 9, padding: "3px 8px", borderRadius: 2, border: `1px solid ${t.border}`, color: t.color, background: t.bg, fontFamily: "ui-monospace,monospace", letterSpacing: "0.1em" }}>
-                        {t.label} {t.val.toFixed(t.val > 100 ? 2 : 4)}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Pipeline: ARMED → TRIGGERED → COMPLETE */}
-                {showProgress && (
-                  <div style={{ display: "flex", alignItems: "center" }}>
-                    {progressSteps.map((step, i) => {
-                      const done   = i < progressStep;
-                      const active = i === progressStep;
-                      const col    = done || active ? sc.accent : "#1e2d3d";
-                      return (
-                        <React.Fragment key={step}>
-                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                            <div style={{ width: 8, height: 8, borderRadius: "50%", background: done || active ? sc.accent : "#0a1525", border: `1px solid ${col}`, boxShadow: active ? `0 0 8px ${sc.accent}` : "none", transition: "all 0.3s" }} />
-                            <span style={{ fontSize: 7, color: active ? sc.accent : done ? `${sc.accent}aa` : "#1e2d3d", fontFamily: "ui-monospace,monospace", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>{step}</span>
-                          </div>
-                          {i < progressSteps.length - 1 && (
-                            <div style={{ flex: 1, height: 1, background: done ? `${sc.accent}66` : "#0a1525", minWidth: 16, maxWidth: 40, margin: "0 4px", marginBottom: 14 }} />
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Right: confidence arc */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                <ConfidenceArc value={confVal} color={sc.accent} />
-                <span style={{ fontSize: 7, color: "#2a3a4a", letterSpacing: "0.15em", fontFamily: "ui-monospace,monospace" }}>CONFIDENCE</span>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* ═══ MASTER CONSENSUS ══════════════════════════════════════════════════ */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderBottom: "1px solid rgba(20,184,166,0.08)", background: "rgba(5,7,14,0.99)" }}>
-        <div>
-          <div style={{ fontSize: 6, color: "rgba(71,85,105,0.7)", letterSpacing: "0.12em", marginBottom: 3 }}>MASTER CONSENSUS</div>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.14em", color: consensusC, animation: "con-pulse 2.5s ease-in-out infinite" }}>
-            {consensus}
-          </div>
-          {hasData && <div style={{ fontSize: 6, color: "rgba(71,85,105,0.6)", marginTop: 2 }}>{masterLive.status}</div>}
-        </div>
-        <div style={{ width: 1, height: 36, background: "rgba(20,184,166,0.15)" }} />
-        {/* vote bars */}
-        <div style={{ flex: 1, display: "flex", gap: 2, alignItems: "flex-end", height: 22 }}>
-          {AGENT_LAYOUT.map(a => {
+        {/* Mini confidence bars per agent */}
+        <div style={{ flex: 1, display: "flex", gap: 3, alignItems: "flex-end", height: 22 }}>
+          {AGENTS.map(a => {
             const live = liveMap[a.id];
-            const h = Math.max(3, (live.conf / 100) * 22);
-            const c = biasCol(live.bias);
+            const h    = Math.max(2, (live.conf / 100) * 22);
+            const c    = biasCol(live.bias);
             return (
-              <div key={a.id} title={`${a.label} ${live.conf}%`}
-                style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                <div style={{ width: "100%", height: h, backgroundColor: c, opacity: 0.65, borderRadius: "1px 1px 0 0", boxShadow: `0 0 4px ${c}40` }} />
+              <div key={a.id} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <div style={{ width: "100%", height: h, backgroundColor: c, opacity: 0.5 }} />
               </div>
             );
           })}
         </div>
-        <div style={{ width: 1, height: 36, background: "rgba(20,184,166,0.15)" }} />
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 7.5, fontWeight: 700, color: "rgba(0,255,156,0.85)", letterSpacing: "0.06em" }}>{bullCount} BULL</div>
-          <div style={{ fontSize: 7.5, fontWeight: 700, color: "rgba(248,113,113,0.85)", letterSpacing: "0.06em", marginTop: 2 }}>{bearCount} BEAR</div>
+
+        <div style={{ width: 1, height: 38, background: P.border, flexShrink: 0 }} />
+
+        <div style={{ textAlign: "right", flexShrink: 0, lineHeight: 1.9 }}>
+          <div style={{ fontSize: 8, fontWeight: 700, color: P.green,  letterSpacing: "0.08em" }}>{bullCount} BULL</div>
+          <div style={{ fontSize: 8, fontWeight: 700, color: P.red,    letterSpacing: "0.08em" }}>{bearCount} BEAR</div>
+          <div style={{ fontSize: 8, fontWeight: 700, color: P.muted,  letterSpacing: "0.08em" }}>{neutCount} NEUT</div>
         </div>
       </div>
 
-      {/* ═══ BOTTOM CONTROLS ═══════════════════════════════════════════════════ */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", background: "rgba(4,6,12,0.99)", borderBottom: "1px solid rgba(20,184,166,0.06)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
-          <div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: isActive ? "#00ff9c" : "#1e2d3d", boxShadow: isActive ? "0 0 8px rgba(0,255,156,0.9)" : "none", transition: "all 0.4s" }} />
-          <span style={{ fontSize: 9, letterSpacing: "0.06em", color: isActive ? "rgba(0,255,156,0.75)" : "rgba(38,51,68,0.9)", transition: "color 0.4s" }}>
-            {isActive ? "LIVE" : "STANDBY"} · {AGENT_LAYOUT.length} AGENTS
-          </span>
-        </div>
-        <div style={{ flex: 1 }} />
-        {(["active", "idle"] as const).map(m => {
-          const cur = mode === m;
-          return (
-            <button key={m} onClick={() => setMode(m)} style={{
-              padding: "3px 10px", borderRadius: 3, fontSize: 9, cursor: "pointer",
-              fontFamily: "ui-monospace,monospace", letterSpacing: "0.06em", textTransform: "uppercase",
-              border: cur ? `1px solid ${m === "active" ? "rgba(0,255,156,.5)" : "rgba(100,116,139,.5)"}` : "1px solid rgba(28,42,58,0.5)",
-              backgroundColor: cur ? m === "active" ? "rgba(0,255,156,.08)" : "rgba(100,116,139,.08)" : "transparent",
-              color: cur ? m === "active" ? "#00ff9c" : "#94a3b8" : "rgba(38,51,68,.85)",
-              transition: "all 0.15s",
-            }}>
-              {m === "active" ? "FORCE ACTIVE" : "FORCE IDLE"}
-            </button>
-          );
-        })}
-        {selAgent && <span style={{ color: "#ef4444", flexShrink: 0, fontSize: 8, letterSpacing: "0.06em" }}>◉ {selAgent.label}</span>}
-      </div>
-
-      {/* ═══ ACTIVITY FEED TICKER ══════════════════════════════════════════════ */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 12px", background: "rgba(4,5,10,0.99)", minHeight: 26, overflow: "hidden" }}>
-        <span style={{ fontSize: 6, fontWeight: 700, letterSpacing: "0.12em", color: "rgba(20,184,166,0.55)", flexShrink: 0, padding: "1px 5px", border: "1px solid rgba(20,184,166,0.2)", borderRadius: 2 }}>
+      {/* ══ ACTIVITY FEED ═════════════════════════════════════════════════════════ */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "6px 14px",
+        borderTop: `1px solid ${P.border}`,
+        minHeight: 30, overflow: "hidden",
+      }}>
+        <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: "0.14em", color: P.dim, flexShrink: 0 }}>
           FEED
         </span>
-        <span key={tickIdx} style={{ fontSize: 6.5, color: "rgba(100,116,139,0.65)", letterSpacing: "0.04em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", animation: "ticker-in 0.35s ease-out" }}>
+        <div style={{ width: 1, height: 12, background: P.border, flexShrink: 0 }} />
+        <span
+          key={tickIdx}
+          style={{
+            fontSize: 8, color: P.muted, letterSpacing: "0.04em",
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            animation: "fl-tick 0.3s ease-out",
+          }}
+        >
           {tickerLines[tickIdx]}
         </span>
       </div>
