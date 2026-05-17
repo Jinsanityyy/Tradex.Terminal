@@ -56,12 +56,13 @@ function StatRow({ label, value, color, sub }: { label: string; value: string; c
   );
 }
 
-function AgentBar({ label, bias, conf, color }: { label: string; bias: string; conf: number; color: string }) {
+function AgentBar({ label, bias, conf }: { label: string; bias: string; conf: number }) {
+  const barColor = bias === "bullish" ? "#10b981" : bias === "bearish" ? "#f87171" : "#3f3f46";
   return (
     <div className="flex items-center gap-2 py-1.5">
       <span className="text-[10px] text-zinc-500 w-20 shrink-0">{label}</span>
       <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-        <div className="h-full rounded-full transition-all" style={{ width: `${conf}%`, backgroundColor: color }} />
+        <div className="h-full rounded-full transition-all" style={{ width: `${conf}%`, backgroundColor: barColor }} />
       </div>
       <div className="w-16 text-right shrink-0 flex items-center justify-end gap-1">
         <span className={cn("text-[10px] font-bold", biasColor(bias))}>
@@ -109,14 +110,18 @@ function SignalBanner({
           <span className="ml-auto text-[11px] font-mono text-zinc-500">{confidence}% conf</span>
         )}
       </div>
-      <div className="mt-2 flex flex-wrap gap-3 text-[10px]">
+      <div className="mt-2 flex flex-wrap items-center gap-3">
         {confluenceCount != null && (
-          <span className={cn("font-semibold", c.sub)}>
-            Confluence {confluenceCount}/10
+          <span className="flex items-baseline gap-0.5">
+            <span className={cn("text-[10px]", c.sub)}>Confluence</span>
+            <span className={cn("text-[15px] font-black font-mono tabular-nums leading-none mx-0.5", c.text)}>
+              {confluenceCount}
+            </span>
+            <span className={cn("text-[10px]", c.sub)}>/10</span>
           </span>
         )}
         {distanceToEntry != null && state !== "NO_TRADE" && state !== "WAIT" && (
-          <span className={cn("font-mono", c.sub)}>
+          <span className="font-mono text-[10px] text-zinc-600">
             {distanceToEntry.toFixed(2)}% from entry
           </span>
         )}
@@ -130,8 +135,11 @@ function SignalBanner({
 
 // ── Trade Plan Card ───────────────────────────────────────────────────────────
 
+const CONFLUENCE_LIMIT = 5;
+
 function TradePlanCard({ tradePlan }: { tradePlan: NonNullable<AgentRunResult["agents"]["master"]["tradePlan"]> }) {
   const [showDetails, setShowDetails] = useState(false);
+  const [showAllConfluence, setShowAllConfluence] = useState(false);
   const isLong = tradePlan.direction === "long";
   const dirColor = isLong ? "text-emerald-400" : "text-red-400";
   const dirBg    = isLong ? "bg-emerald-500/8 border-emerald-500/20" : "bg-red-500/8 border-red-500/20";
@@ -159,28 +167,28 @@ function TradePlanCard({ tradePlan }: { tradePlan: NonNullable<AgentRunResult["a
         </div>
 
         {/* Key metrics row */}
-        <div className="grid grid-cols-3 gap-2 mb-3">
-          <div className="bg-black/20 rounded-xl border border-white/6 px-3 py-2 text-center">
+        <div className="grid grid-cols-3 gap-3 mb-3">
+          <div className="bg-black/20 rounded-xl border border-white/6 px-3 py-2.5 text-center">
             <p className="text-[9px] uppercase tracking-wider text-zinc-500">R:R</p>
             <p className={cn("text-[14px] font-black font-mono mt-0.5",
               (tradePlan.rrRatio ?? 0) >= 3 ? "text-emerald-400" : "text-amber-400")}>
               1:{tradePlan.rrRatio?.toFixed(1)}
             </p>
           </div>
-          <div className="bg-black/20 rounded-xl border border-white/6 px-3 py-2 text-center">
+          <div className="bg-black/20 rounded-xl border border-white/6 px-3 py-2.5 text-center">
             <p className="text-[9px] uppercase tracking-wider text-zinc-500">Conf</p>
             <p className="text-[14px] font-black font-mono mt-0.5 text-zinc-200">
               {tradePlan.confluenceCount ?? " - "}<span className="text-[10px] text-zinc-500">/10</span>
             </p>
           </div>
-          <div className="bg-black/20 rounded-xl border border-white/6 px-3 py-2 text-center">
+          <div className="bg-black/20 rounded-xl border border-white/6 px-3 py-2.5 text-center">
             <p className="text-[9px] uppercase tracking-wider text-zinc-500">Risk</p>
             <p className="text-[14px] font-black font-mono mt-0.5 text-zinc-200">{tradePlan.maxRiskPercent}%</p>
           </div>
         </div>
 
         {/* Entry / SL */}
-        <div className="grid grid-cols-2 gap-2 mb-2">
+        <div className="grid grid-cols-2 gap-3 mb-3">
           <div className="bg-black/15 rounded-xl border border-white/5 px-3 py-2.5">
             <div className="flex items-center gap-1.5 mb-1">
               <Target className="h-3 w-3 text-zinc-500" />
@@ -203,7 +211,7 @@ function TradePlanCard({ tradePlan }: { tradePlan: NonNullable<AgentRunResult["a
         </div>
 
         {/* TP targets */}
-        <div className={cn("grid gap-2", tpRows.length === 3 ? "grid-cols-3" : "grid-cols-2")}>
+        <div className={cn("grid gap-3", tpRows.length === 3 ? "grid-cols-3" : "grid-cols-2")}>
           {tpRows.map(tp => (
             <div key={tp.label} className="bg-black/15 rounded-xl border border-emerald-500/10 px-3 py-2.5">
               <div className="flex items-center justify-between mb-1">
@@ -218,16 +226,29 @@ function TradePlanCard({ tradePlan }: { tradePlan: NonNullable<AgentRunResult["a
         </div>
       </div>
 
-      {/* Confluence chips */}
+      {/* Confluence chips — truncated by default, expandable */}
       {tradePlan.confluenceFactors && tradePlan.confluenceFactors.length > 0 && (
-        <div className="px-4 pb-3">
+        <div className="px-4 pb-3 border-t border-white/[0.04] pt-3">
           <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-2">Confluence factors</p>
           <div className="flex flex-wrap gap-1.5">
-            {tradePlan.confluenceFactors.map(f => (
+            {(showAllConfluence
+              ? tradePlan.confluenceFactors
+              : tradePlan.confluenceFactors.slice(0, CONFLUENCE_LIMIT)
+            ).map(f => (
               <span key={f} className="text-[9px] px-2 py-0.5 rounded-full border border-emerald-500/20 bg-emerald-500/8 text-emerald-400">
                 ✓ {f}
               </span>
             ))}
+            {tradePlan.confluenceFactors.length > CONFLUENCE_LIMIT && (
+              <button
+                onClick={() => setShowAllConfluence(v => !v)}
+                className="text-[9px] px-2 py-0.5 rounded-full border border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:text-zinc-200 transition-colors"
+              >
+                {showAllConfluence
+                  ? "show less"
+                  : `+${tradePlan.confluenceFactors.length - CONFLUENCE_LIMIT} more`}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -464,11 +485,11 @@ export function MobileBrain() {
           {data && (
             <div className="bg-[hsl(var(--card))] rounded-2xl border border-white/5 p-4">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-3">Agent Consensus</p>
-              <AgentBar label="Trend"        bias={trend?.bias ?? "neutral"}      conf={trend?.confidence ?? 0}    color="#10b981" />
-              <AgentBar label="Price Action" bias={smc?.bias ?? "neutral"}        conf={smc?.confidence ?? 0}      color="#10b981" />
-              <AgentBar label="News"         bias={news?.impact ?? "neutral"}     conf={news?.confidence ?? 0}     color="#94a3b8" />
-              <AgentBar label="Execution"    bias={exec?.direction === "long" ? "bullish" : exec?.direction === "short" ? "bearish" : "neutral"} conf={exec?.hasSetup ? (exec.confluenceCount ?? 0) * 10 : 20} color="#10b981" />
-              <AgentBar label="Contrarian"   bias={contrarian?.challengesBias ? "bearish" : "neutral"} conf={contrarian?.riskFactor ?? 0} color="#f59e0b" />
+              <AgentBar label="Trend"        bias={trend?.bias ?? "neutral"}      conf={trend?.confidence ?? 0} />
+              <AgentBar label="Price Action" bias={smc?.bias ?? "neutral"}        conf={smc?.confidence ?? 0} />
+              <AgentBar label="News"         bias={news?.impact ?? "neutral"}     conf={news?.confidence ?? 0} />
+              <AgentBar label="Execution"    bias={exec?.direction === "long" ? "bullish" : exec?.direction === "short" ? "bearish" : "neutral"} conf={exec?.hasSetup ? (exec.confluenceCount ?? 0) * 10 : 20} />
+              <AgentBar label="Contrarian"   bias={contrarian?.challengesBias ? "bearish" : "neutral"} conf={contrarian?.riskFactor ?? 0} />
 
               {master && (
                 <div className="mt-3 pt-3 border-t border-white/5">
