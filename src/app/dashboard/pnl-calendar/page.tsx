@@ -7,9 +7,11 @@ import {
   TrendingUp, TrendingDown, Trophy, Activity, Loader2,
   X, Eye, EyeOff, CheckCircle2, AlertCircle, BookOpen,
   ImagePlus, FileText, Save, Maximize2, Pencil, DollarSign,
+  BarChart2, Target, Zap,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DailyPnL, MonthlyPnL } from "@/app/api/pnl/route";
+import { AnalyticsView } from "./AnalyticsView";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 
@@ -711,6 +713,7 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 export default function PnLCalendarPage() {
+  const [activeTab, setActiveTab] = useState<"calendar" | "analytics">("calendar");
   const [connections, setConnections] = useState<Connection[]>([]);
   const [selectedConn, setSelectedConn] = useState<string>("all");
   const [daily, setDaily] = useState<DailyPnL[]>([]);
@@ -951,18 +954,43 @@ export default function PnLCalendarPage() {
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-lg font-bold text-[hsl(var(--foreground))]">PnL Calendar</h1>
-          <p className="text-xs text-[hsl(var(--muted-foreground))]">Track daily performance across all your exchanges</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-lg font-bold text-[hsl(var(--foreground))]">PnL Calendar</h1>
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">Track performance across all your exchanges</p>
+          </div>
+          {/* Tab switcher */}
+          <div className="flex items-center gap-0.5 p-1 rounded-xl bg-white/4 border border-white/8">
+            <button
+              onClick={() => setActiveTab("calendar")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                activeTab === "calendar" ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"
+              )}
+            >
+              <Activity className="h-3 w-3" /> Calendar
+            </button>
+            <button
+              onClick={() => setActiveTab("analytics")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                activeTab === "analytics" ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"
+              )}
+            >
+              <BarChart2 className="h-3 w-3" /> Analytics
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <select value={selectedConn} onChange={e => setSelectedConn(e.target.value)}
-            className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-1.5 text-xs text-[hsl(var(--foreground))] outline-none">
-            <option value="all">All Exchanges</option>
-            {connections.map(c => (
-              <option key={c.id} value={c.id}>{EXCHANGE_META[c.exchange]?.name}  -  {c.label}</option>
-            ))}
-          </select>
+          {activeTab === "calendar" && (
+            <select value={selectedConn} onChange={e => setSelectedConn(e.target.value)}
+              className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-1.5 text-xs text-[hsl(var(--foreground))] outline-none">
+              <option value="all">All Exchanges</option>
+              {connections.map(c => (
+                <option key={c.id} value={c.id}>{EXCHANGE_META[c.exchange]?.name}  -  {c.label}</option>
+              ))}
+            </select>
+          )}
           <button onClick={syncAll} disabled={syncing}
             className="flex items-center gap-1.5 rounded-lg border border-[hsl(var(--border))] px-3 py-1.5 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] transition-all disabled:opacity-60">
             <RefreshCw className={cn("h-3 w-3", syncing && "animate-spin")} />
@@ -974,12 +1002,21 @@ export default function PnLCalendarPage() {
           >
             <DollarSign className="h-3 w-3" /> Log Trade
           </button>
-          <button onClick={() => setShowConnect(true)}
-            className="flex items-center gap-1.5 rounded-lg border border-[hsl(var(--border))] px-3 py-1.5 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] transition-all">
-            <Plus className="h-3 w-3" /> Add Exchange
-          </button>
+          {activeTab === "calendar" && (
+            <button onClick={() => setShowConnect(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-[hsl(var(--border))] px-3 py-1.5 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] transition-all">
+              <Plus className="h-3 w-3" /> Add Exchange
+            </button>
+          )}
         </div>
       </div>
+
+      {/* ── Analytics Tab ── */}
+      {activeTab === "analytics" && (
+        <AnalyticsView trades={manualTrades} daily={daily} />
+      )}
+
+      {activeTab === "calendar" && <>
 
       {/* ── Connect exchange banner (no connections yet) ── */}
       {!loading && connections.length === 0 && manualTrades.length === 0 && (
@@ -1465,6 +1502,8 @@ export default function PnLCalendarPage() {
           </div>
         </CardContent>
       </Card>
+
+      </> /* end activeTab === "calendar" */}
     </div>
   );
 }
