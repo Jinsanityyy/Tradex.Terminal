@@ -195,7 +195,7 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
   const progressSteps  = ["ARMED","TRIGGERED","COMPLETE"] as const;
 
   return (
-    <div className="w-full rounded-xl border border-cyan-500/20 bg-[#07090f] overflow-hidden flex flex-col">
+    <div className="w-full rounded-xl border border-cyan-500/20 bg-[#07090f] flex flex-col h-full overflow-y-auto scrollbar-none">
       <style>{`
         @keyframes hqPulse {
           0%   { transform:translate(-50%,-50%) scale(1);    opacity:0.7; }
@@ -220,15 +220,15 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
       `}</style>
 
       {/* ── IMAGE + PINS ── */}
-      <div className="w-full overflow-hidden bg-[#07090f]">
+      <div className="w-full overflow-hidden bg-[#07090f] shrink-0">
         <div
-          className="relative mx-auto w-full bg-[#07090f] leading-none lg:h-[55vh]"
-          style={{ lineHeight:0 }}
+          className="relative mx-auto w-full bg-[#07090f] overflow-hidden"
+          style={{ lineHeight:0, aspectRatio:"1200 / 560", maxHeight:"42vh" }}
         >
           <img
             src={HQ_IMAGE}
             alt="TradeX Agent HQ"
-            className="block h-auto w-full pointer-events-none lg:h-full lg:w-full"
+            className="absolute inset-0 block w-full h-full pointer-events-none"
             style={{ objectFit:"fill" }}
           />
 
