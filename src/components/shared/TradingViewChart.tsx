@@ -9,6 +9,7 @@ interface TradingViewChartProps {
   symbol?: string;
   heightClass?: string;
   onIntervalChange?: (tvInterval: string) => void;
+  activeCategoryLabel?: string;
 }
 
 const INTERVALS = [
@@ -400,6 +401,7 @@ export function TradingViewChart({
   symbol: initialSymbol = "OANDA:XAUUSD",
   heightClass = "h-[400px]",
   onIntervalChange,
+  activeCategoryLabel,
 }: TradingViewChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -741,99 +743,110 @@ export function TradingViewChart({
       onContextMenu={(event) => event.preventDefault()}
     >
 
-      {/* TradeX custom header  -  symbol picker + timeframes + candle countdown */}
-      <div className="flex h-[38px] shrink-0 items-center justify-between gap-2 border-b border-white/5 px-2.5 overflow-hidden" style={{ background: "#000000" }}>
-        <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+      {/* TradeX sub-header: symbol picker pinned left + single scrollable control track */}
+      <div className="flex h-[34px] shrink-0 items-center border-b border-white/5 px-2.5" style={{ background: "#000000" }}>
 
-          {/* Symbol picker */}
-          <div className="shrink-0 relative" ref={dropdownRef}>
-            <button
-              onClick={() => setPickerOpen(v => !v)}
-              className="flex items-center gap-1.5 rounded border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-white transition-all hover:border-white/20 hover:bg-white/10"
-            >
-              <span>{getLabel(activeSymbol)}</span>
-              <ChevronDown className="h-3 w-3 text-gray-400" />
-            </button>
-
-            {pickerOpen && (
-              <div className="absolute left-0 top-full z-50 mt-1.5 w-[300px] overflow-hidden rounded-lg border border-white/10 bg-[#0d1117] shadow-2xl">
-                <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2">
-                  <Search className="h-3.5 w-3.5 shrink-0 text-gray-500" />
-                  <input autoFocus type="text" value={query} onChange={e => setQuery(e.target.value)}
-                    placeholder="Search symbol..."
-                    className="flex-1 bg-transparent text-[12px] text-white outline-none placeholder:text-gray-600" />
-                  {query && <button onClick={() => setQuery("")}><X className="h-3 w-3 text-gray-500 hover:text-white" /></button>}
-                </div>
-                <div className="max-h-[520px] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
-                  {filtered ? (
-                    filtered.length === 0 ? (
-                      <div className="px-4 py-6 text-center text-[11px] text-gray-600">No results</div>
-                    ) : (
-                      <div className="py-1">
-                        {filtered.map(entry => (
-                          <button key={entry.value} onClick={() => selectSymbol(entry.value)}
-                            className={cn("flex w-full items-center justify-between px-3 py-2 text-[12px] hover:bg-white/5", activeSymbol === entry.value ? "text-[hsl(var(--primary))]" : "text-gray-300")}>
-                            <span className="font-medium">{entry.label}</span>
-                            <span className="font-mono text-[10px] text-gray-600">{entry.group}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )
-                  ) : (
-                    QUICK_SYMBOLS.map(group => (
-                      <div key={group.group}>
-                        <div className="border-b border-white/5 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-widest text-gray-600">{group.group}</div>
-                        {group.items.map(entry => (
-                          <button key={entry.value} onClick={() => selectSymbol(entry.value)}
-                            className={cn("flex w-full items-center justify-between px-3 py-2 text-[12px] hover:bg-white/5", activeSymbol === entry.value ? "text-[hsl(var(--primary))]" : "text-gray-300")}>
-                            <span className="font-medium">{entry.label}</span>
-                            <span className="font-mono text-[10px] text-gray-500">{entry.value.split(":")[1]}</span>
-                          </button>
-                        ))}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
+        {/* Symbol picker — always visible, never scrolls */}
+        <div className="shrink-0 relative" ref={dropdownRef}>
+          <button
+            onClick={() => setPickerOpen(v => !v)}
+            className={cn(
+              "flex items-center gap-1.5 rounded border px-2.5 py-1 text-[11px] font-semibold text-white transition-all",
+              activeCategoryLabel
+                ? "border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/[0.06] hover:border-[hsl(var(--primary))]/50"
+                : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10"
             )}
-          </div>
+          >
+            {activeCategoryLabel && (
+              <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))]/70 shrink-0" />
+            )}
+            <span>{getLabel(activeSymbol)}</span>
+            <ChevronDown className="h-3 w-3 text-gray-400" />
+          </button>
 
-          <div className="mx-0.5 h-4 w-px shrink-0 bg-white/10" />
-
-          {/* Timeframe buttons — scrollable so they never overflow on narrow screens */}
-          <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-none">
-            {INTERVALS.map(interval => (
-              <button key={interval.value} onClick={() => {
-                latestIntervalRef.current = interval.value;
-                onIntervalChange?.(interval.value);
-                const w = widgetRef.current;
-                if (w && typeof w.save === "function") {
-                  w.save((state: any) => {
-                    savedDataRef.current = state;
-                    setActiveInterval(interval);
-                  });
-                } else {
-                  setActiveInterval(interval);
-                }
-              }}
-                className={cn("shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold transition-all border",
-                  activeInterval.value === interval.value
-                    ? "border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/15 text-[hsl(var(--primary))]"
-                    : "border-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
-                )}>
-                {interval.label}
-              </button>
-            ))}
-          </div>
+          {pickerOpen && (
+            <div className="absolute left-0 top-full z-50 mt-1.5 w-[300px] overflow-hidden rounded-lg border border-white/10 bg-[#0d1117] shadow-2xl">
+              <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2">
+                <Search className="h-3.5 w-3.5 shrink-0 text-gray-500" />
+                <input autoFocus type="text" value={query} onChange={e => setQuery(e.target.value)}
+                  placeholder="Search symbol..."
+                  className="flex-1 bg-transparent text-[12px] text-white outline-none placeholder:text-gray-600" />
+                {query && <button onClick={() => setQuery("")}><X className="h-3 w-3 text-gray-500 hover:text-white" /></button>}
+              </div>
+              <div className="max-h-[520px] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                {filtered ? (
+                  filtered.length === 0 ? (
+                    <div className="px-4 py-6 text-center text-[11px] text-gray-600">No results</div>
+                  ) : (
+                    <div className="py-1">
+                      {filtered.map(entry => (
+                        <button key={entry.value} onClick={() => selectSymbol(entry.value)}
+                          className={cn("flex w-full items-center justify-between px-3 py-2 text-[12px] hover:bg-white/5", activeSymbol === entry.value ? "text-[hsl(var(--primary))]" : "text-gray-300")}>
+                          <span className="font-medium">{entry.label}</span>
+                          <span className="font-mono text-[10px] text-gray-600">{entry.group}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )
+                ) : (
+                  QUICK_SYMBOLS.map(group => (
+                    <div key={group.group}>
+                      <div className="border-b border-white/5 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-widest text-gray-600">{group.group}</div>
+                      {group.items.map(entry => (
+                        <button key={entry.value} onClick={() => selectSymbol(entry.value)}
+                          className={cn("flex w-full items-center justify-between px-3 py-2 text-[12px] hover:bg-white/5", activeSymbol === entry.value ? "text-[hsl(var(--primary))]" : "text-gray-300")}>
+                          <span className="font-medium">{entry.label}</span>
+                          <span className="font-mono text-[10px] text-gray-500">{entry.value.split(":")[1]}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5">
+        {/* Separator */}
+        <div className="shrink-0 mx-2 h-4 w-px bg-white/10" />
+
+        {/* Scrollable control track — swipe horizontally to reveal all tools */}
+        <div
+          className="flex flex-1 items-center gap-1 overflow-x-auto scrollbar-none touch-pan-x"
+          style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+        >
+          {/* Timeframe buttons */}
+          {INTERVALS.map(interval => (
+            <button key={interval.value} onClick={() => {
+              latestIntervalRef.current = interval.value;
+              onIntervalChange?.(interval.value);
+              const w = widgetRef.current;
+              if (w && typeof w.save === "function") {
+                w.save((state: any) => {
+                  savedDataRef.current = state;
+                  setActiveInterval(interval);
+                });
+              } else {
+                setActiveInterval(interval);
+              }
+            }}
+              className={cn("shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold transition-all border",
+                activeInterval.value === interval.value
+                  ? "border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/15 text-[hsl(var(--primary))]"
+                  : "border-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+              )}>
+              {interval.label}
+            </button>
+          ))}
+
+          <div className="shrink-0 mx-0.5 h-4 w-px bg-white/[0.07]" />
+
           {/* Drawing tools toggle */}
           <button
             onClick={() => setShowSideToolbar(v => !v)}
             title="Drawing tools"
             className={cn(
-              "flex items-center justify-center rounded border p-1 transition-all",
+              "shrink-0 flex items-center justify-center rounded border p-1 transition-all",
               showSideToolbar
                 ? "border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
                 : "border-white/10 bg-white/5 text-gray-500 hover:border-white/20 hover:text-gray-300"
@@ -847,7 +860,7 @@ export function TradingViewChart({
             <button
               onClick={() => setKeyLvlOpen(v => !v)}
               className={cn(
-                "flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider transition-all",
+                "shrink-0 flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider transition-all",
                 keyLvlOpen
                   ? "border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/15 text-[hsl(var(--primary))]"
                   : "border-white/10 bg-white/5 text-gray-500 hover:border-white/20 hover:text-gray-300"
@@ -858,15 +871,20 @@ export function TradingViewChart({
             </button>
           )}
 
+          <div className="shrink-0 mx-0.5 h-4 w-px bg-white/[0.07]" />
+
           {/* Candle close countdown */}
-          <div className={cn("flex shrink-0 items-center gap-1 rounded-md border px-2 py-0.5",
+          <div className={cn("shrink-0 flex items-center gap-1 rounded-md border px-2 py-0.5",
             urgent ? "border-red-500/35 bg-red-500/10" : "border-white/10 bg-white/5")}>
-            <Timer className={cn("h-3 w-3", urgent ? "text-red-400" : "text-gray-500")} />
+            <Timer className={cn("h-3 w-3 shrink-0", urgent ? "text-red-400" : "text-gray-500")} />
             <span className={cn("font-mono text-xs font-bold tabular-nums", urgent ? "text-red-400" : "text-gray-300")}>
               {formatCountdown(secondsLeft)}
             </span>
-            <span className="hidden sm:inline text-[9px] uppercase tracking-widest text-gray-600">{activeInterval.label} close</span>
+            <span className="text-[9px] uppercase tracking-widest text-gray-600 whitespace-nowrap">{activeInterval.label} close</span>
           </div>
+
+          {/* Right breathing room so last item clears the edge */}
+          <div className="shrink-0 w-1.5" />
         </div>
       </div>
 
