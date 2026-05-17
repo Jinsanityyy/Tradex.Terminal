@@ -576,14 +576,12 @@ export function TradingViewChart({
           toolbar_bg: "#000000",
           enable_publishing: false,
           hide_top_toolbar: true,
-          hide_side_toolbar: !showSideToolbar,
           allow_symbol_change: false,
           save_image: false,
           withdateranges: false,
           studies: [],
           disabled_features: [
             "header_fullscreen_button",
-            // localstorage re-enabled so drawings/studies persist across timeframe switches
             "create_volume_indicator_by_default",
             "create_volume_indicator_by_default_once",
             "timeframes_toolbar",
@@ -591,6 +589,8 @@ export function TradingViewChart({
             "go_to_date",
             "clock_button",
             "border_around_the_chart",
+            // hide drawing toolbar by default; toggled via showSideToolbar state
+            ...(showSideToolbar ? [] : ["left_toolbar"]),
           ],
           enabled_features: [
             "study_templates",
