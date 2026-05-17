@@ -394,6 +394,18 @@ export async function runExecutionAgent(
       }
     }
 
+    // ── Entry distance guard — reject structural levels too far from current price ────────────
+    {
+      const MAX_ENTRY_DIST_PCT = CRYPTO_SYMS.has(symbol) ? 2.0 : GOLD_SYMS.has(symbol) ? 1.5 : 1.5;
+      const entryDistPct = Math.abs(current - entry) / current * 100;
+      if (entryDistPct > MAX_ENTRY_DIST_PCT) {
+        console.log(`[exec] Entry too far: ${symbol} structural entry=${entry.toFixed(2)} current=${current.toFixed(2)} dist=${entryDistPct.toFixed(2)}% > ${MAX_ENTRY_DIST_PCT}%`);
+        return waitResult(start, "B",
+          `Structural entry ${entry.toFixed(2)} is ${entryDistPct.toFixed(2)}% from current ${current.toFixed(2)}  -  too far to be actionable, await pullback`
+        );
+      }
+    }
+
     // ── SL directional guard ──────────────────────────────────────────────────────────────────
     if ((isBullish && stopLoss >= entry) || (!isBullish && stopLoss <= entry)) {
       return noTradeResult(start,
