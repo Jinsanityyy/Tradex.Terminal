@@ -17,82 +17,35 @@ export default function ResetPasswordPage() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const client = createClient();
-    if (!client) {
+    const supabase = createClient();
+    if (!supabase) {
       setError("Authentication is not configured.");
       return;
     }
-    const supabase = client;
 
     let mounted = true;
 
-    const finalizeReady = () => {
-      if (mounted) {
-        setReady(true);
-      }
-    };
-
-    const failLink = (message: string) => {
-      if (mounted) {
-        setError(message);
-        setReady(false);
-      }
-    };
-
-    const authSubscription = supabase.auth.onAuthStateChange((event) => {
+    // The /auth/callback route already exchanged the code server-side and set
+    // the session cookie — we just need to confirm the session exists.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (!mounted) return;
       if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
-        finalizeReady();
+        setReady(true);
       }
     });
 
-    async function prepareRecoverySession() {
-      try {
-        const url = new URL(window.location.href);
-        const queryCode = url.searchParams.get("code");
-        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-        const accessToken = hashParams.get("access_token");
-        const refreshToken = hashParams.get("refresh_token");
-        const recoveryType = hashParams.get("type");
-
-        if (queryCode) {
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(queryCode);
-          if (exchangeError) throw exchangeError;
-          finalizeReady();
-          return;
-        }
-
-        if (accessToken && refreshToken) {
-          const { error: sessionError } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-          if (sessionError) throw sessionError;
-
-          if (recoveryType === "recovery") {
-            finalizeReady();
-            return;
-          }
-        }
-
-        const { data, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
-
-        if (data.session) {
-          finalizeReady();
-          return;
-        }
-
-        failLink("This password reset link is invalid or expired. Please request a new one.");
-      } catch (err: any) {
-        failLink(err.message ?? "Failed to verify reset link.");
+    supabase.auth.getSession().then(({ data, error: sessionError }) => {
+      if (!mounted) return;
+      if (sessionError || !data.session) {
+        setError("This password reset link is invalid or expired. Please request a new one.");
+      } else {
+        setReady(true);
       }
-    }
-
-    prepareRecoverySession();
+    });
 
     return () => {
       mounted = false;
-      authSubscription.data.subscription.unsubscribe();
+      subscription.unsubscribe();
     };
   }, []);
 
