@@ -558,14 +558,21 @@ export function AnalyticsView({
               const barPct = dowMax > 0 ? (Math.abs(d.pnl) / dowMax) * 100 : 0;
               const isWeekend = idx === 0 || idx === 6;
               return (
-                <div key={d.day} className={cn("flex items-center gap-2", isWeekend && "opacity-60")}>
+                <div
+                  key={d.day}
+                  className={cn("grid items-center gap-2", isWeekend && "opacity-50")}
+                  style={{ gridTemplateColumns: "3rem 1fr 4.5rem 2.25rem" }}
+                >
+                  {/* Col 1 — day label */}
                   <span className={cn(
-                    "text-[10px] w-8 shrink-0",
+                    "text-[10px]",
                     d.trades > 0 ? "text-zinc-400" : "text-zinc-700"
                   )}>
                     {d.day}
                   </span>
-                  <div className="flex-1 h-5 bg-white/4 rounded overflow-hidden">
+
+                  {/* Col 2 — progress bar */}
+                  <div className="h-5 bg-white/4 rounded overflow-hidden">
                     {d.trades > 0 && (
                       <div
                         className={cn(
@@ -576,14 +583,18 @@ export function AnalyticsView({
                       />
                     )}
                   </div>
+
+                  {/* Col 3 — P&L value, fixed width, right-aligned */}
                   <span className={cn(
-                    "text-[10px] font-mono w-[4.5rem] text-right shrink-0",
+                    "text-[10px] font-mono text-right tabular-nums",
                     d.pnl > 0 ? "text-emerald-400" : d.pnl < 0 ? "text-red-400" : "text-zinc-600"
                   )}>
                     {d.trades > 0 ? fmtV(d.pnl, pnlMode, base) : "—"}
                   </span>
-                  <span className="text-[9px] text-zinc-600 w-10 text-right shrink-0">
-                    {d.trades > 0 ? `${wr.toFixed(0)}%` : ""}
+
+                  {/* Col 4 — WR%, fixed width, right-aligned — always lines up */}
+                  <span className="text-[9px] text-zinc-500 text-right tabular-nums">
+                    {d.trades > 0 ? `${wr.toFixed(0)}%` : "—"}
                   </span>
                 </div>
               );
@@ -609,13 +620,13 @@ export function AnalyticsView({
                 >
                   <thead>
                     <tr>
-                      <th className="text-[8px] text-zinc-400 text-left pr-1 py-0.5 w-7 font-semibold">Yr</th>
+                      <th className="text-[8px] text-zinc-300 text-left pr-1 py-0.5 w-7 font-semibold">Yr</th>
                       {MONTH_LABELS.map(m => (
-                        <th key={m} className="text-[7px] text-zinc-400 text-center px-px py-0.5 font-medium">
+                        <th key={m} className="text-[7px] text-zinc-300 text-center px-px py-0.5 font-medium">
                           {m}
                         </th>
                       ))}
-                      <th className="text-[7px] text-zinc-300 text-center px-px py-0.5 font-semibold">YTD</th>
+                      <th className="text-[7px] text-zinc-200 text-center px-px py-0.5 font-bold">YTD</th>
                     </tr>
                   </thead>
                   <tbody>
