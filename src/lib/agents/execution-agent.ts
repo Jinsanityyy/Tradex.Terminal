@@ -490,15 +490,12 @@ export async function runExecutionAgent(
     const grade = gradeSetup(rrRatio, confluenceCount, slInRange, inKillzone, entryInStructure);
     console.log(`[exec] ${symbol} ${timeframe} grade=${grade} rr=${rrRatio} conf=${confluenceCount} slInRange=${slInRange} kz=${inKillzone} entryInStruct=${entryInStructure} entry=${entry.toFixed(2)} sl=${stopLoss.toFixed(2)} riskDist=${riskDist.toFixed(2)}`);
 
-    if (grade === "B+" || grade === "B") {
-      const detail = grade === "B+"
-        ? `R:R 1:${rrRatio} with ${confluenceCount}/10 confluence  -  needs stronger entry alignment`
-        : `R:R 1:${rrRatio} with only ${confluenceCount}/10 confluence`;
-      return waitResult(start, grade, detail);
-    }
+    // Grade C → reject entirely, no signal
     if (grade === "C") {
       return noTradeResult(start, `R:R 1:${rrRatio} / ${confluenceCount}/10 confluence  -  setup rejected`);
     }
+    // Grade B / B+ → fall through to full result builder so entry/SL/TP are saved
+    // to signal history as PENDING. hasSetup=true so master can log a tradePlan.
 
     const p = entry > 100 ? 1 : 4;
     const triggerCondition =
