@@ -34,3 +34,8 @@ Thumbs.db
 /public/workbox-*.js
 /public/workbox-*.js.map
 /public/fallback-*.js
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
