@@ -34,6 +34,7 @@ export function MobileLayout() {
   const [enterKey, setEnterKey] = useState(0);
   const transitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [ready, setReady] = useState(false);
+  const [splashDone, setSplashDone] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [traderName, setTraderName] = useState("");
   const [editing, setEditing] = useState(false);
@@ -44,10 +45,14 @@ export function MobileLayout() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    setTimeout(() => setSplashDone(true), 1500);
+  }, []);
+
+  useEffect(() => {
     const supabase = createClient();
     if (!supabase) { setReady(true); return; }
     supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) { window.location.href = "/login"; } 
+      if (!data.session) { window.location.href = "/login"; }
       else { setReady(true); }
     });
     // Load localStorage immediately as cache
@@ -215,7 +220,7 @@ export function MobileLayout() {
     window.location.href = "/login";
   }
 
-  if (!ready) {
+  if (!ready || !splashDone) {
     return (
       <div className="flex flex-col h-screen w-full items-center justify-center bg-[hsl(var(--background))] gap-6">
         {/* Logo with glow pulse */}
