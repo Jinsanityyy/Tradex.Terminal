@@ -143,6 +143,138 @@ const biasCol = (b: "bullish" | "bearish" | "neutral") =>
 const biasArrow = (b: "bullish" | "bearish" | "neutral") =>
   b === "bullish" ? "▲" : b === "bearish" ? "▼" : "–";
 
+// ─── Agent HQ state system (mirrors AgentCommandRoom exactly) ─────────────────
+type AgentState = "idle"|"bull"|"bear"|"alert"|"approved"|"blocked"|"armed"|"analyzing";
+interface SC { accent: string; badge: string }
+const STATE: Record<AgentState, SC> = {
+  idle:      { accent: "#1e3a5f", badge: "IDLE"      },
+  bull:      { accent: "#00ff9c", badge: "BULLISH"   },
+  bear:      { accent: "#ff4466", badge: "BEARISH"   },
+  alert:     { accent: "#ffaa00", badge: "ALERT"     },
+  approved:  { accent: "#00ff9c", badge: "VALID"     },
+  blocked:   { accent: "#ff4466", badge: "BLOCKED"   },
+  armed:     { accent: "#00ffee", badge: "ARMED"     },
+  analyzing: { accent: "#22d3ee", badge: "ANALYZING" },
+};
+
+// floor id → state key used by AgentCommandRoom
+const ID_TO_STATE: Record<string, string> = {
+  trend: "trend", praction: "smc", execution: "execution",
+  news: "news", risk: "risk", contrarian: "contrarian", master: "master",
+};
+
+// Display metadata matching Agent HQ labels/roles
+const HQ_META: Record<string, { label: string; role: string; isMaster?: boolean }> = {
+  trend:      { label: "TREND",       role: "Macro Bias Analyst"       },
+  praction:   { label: "PR. ACTION",  role: "Price Action Analyst"     },
+  execution:  { label: "EXECUTION",   role: "Entry Timing Agent"       },
+  news:       { label: "NEWS INTEL",  role: "Fundamentals Analyst"     },
+  risk:       { label: "RISK RATE",   role: "Risk Management Agent"    },
+  contrarian: { label: "CONTRARIAN",  role: "Counter-Signal Analyst"   },
+  master:     { label: "MASTER CMO",  role: "Chief Market Officer", isMaster: true },
+};
+
+function deriveStates(d: AgentRunResult): Record<string, AgentState> {
+  const { agents } = d;
+  const bias = agents.master.finalBias;
+  return {
+    trend:
+      agents.trend.bias === "bullish" ? "bull" :
+      agents.trend.bias === "bearish" ? "bear" :
+      agents.trend.confidence < 35 ? "idle" : "alert",
+    smc:
+      agents.smc.bias === "bullish" ? "bull" :
+      agents.smc.bias === "bearish" ? "bear" :
+      agents.smc.liquiditySweepDetected ? "alert" :
+      agents.smc.confidence < 35 ? "idle" : "alert",
+    news:
+      agents.news.impact === "bullish" ? "bull" :
+      agents.news.impact === "bearish" ? "bear" :
+      agents.news.riskScore >= 65 ? "alert" : "idle",
+    risk: agents.risk.valid ? "approved" : "blocked",
+    contrarian:
+      agents.contrarian.challengesBias && agents.contrarian.trapConfidence >= 60 ? "blocked" :
+      agents.contrarian.challengesBias ? "alert" : "idle",
+    master:
+      bias === "bullish" ? "bull" :
+      bias === "bearish" ? "bear" :
+      bias === "no-trade" ? "analyzing" : "alert",
+    execution:
+      agents.execution.hasSetup && agents.risk.valid && bias !== "no-trade" ? "armed" :
+      agents.execution.hasSetup ? "alert" : "idle",
+  };
+}
+
+function getAgentReasons(stateKey: string, data: AgentRunResult | null): string[] {
+  if (!data) return ["Awaiting analysis data..."];
+  const { agents } = data;
+  switch (stateKey) {
+    case "trend":      return agents.trend.reasons.length ? agents.trend.reasons : ["No trend reasons available."];
+    case "smc":        return agents.smc.reasons.length ? agents.smc.reasons : ["No price action reasons available."];
+    case "news":       return agents.news.reasons.length ? agents.news.reasons : ["No news data."];
+    case "master": {
+      const lines = [...(agents.master.supports ?? []), ...(agents.master.noTradeReason ? [agents.master.noTradeReason] : [])];
+      return lines.length ? lines : ["No consensus data."];
+    }
+    case "risk":       return agents.risk.reasons.length ? agents.risk.reasons : ["No risk reasons available."];
+    case "contrarian": return agents.contrarian.failureReasons.length
+      ? agents.contrarian.failureReasons
+      : [agents.contrarian.alternativeScenario || "No counter-signals detected."];
+    case "execution":  return agents.execution.hasSetup
+      ? ([agents.execution.triggerCondition, ...agents.execution.managementNotes].filter(Boolean) as string[])
+      : ["No valid setup found. Waiting for entry conditions."];
+    default: return ["No data available."];
+  }
+}
+
+function getConsolePrefixAndColor(reason: string): { prefix: string; color: string } {
+  const r = reason.toLowerCase();
+  if (/pdh|pwh|pdl|pwl|sweep|liquidity grab|hunt/.test(r))              return { prefix: "[CRITICAL]", color: "#ff6655" };
+  if (/imbalance|fvg|fair value|order block|\bob\b|zone|gap/.test(r))   return { prefix: "[ZONE]",     color: "#ffaa44" };
+  if (/bias|trend|structure|bos|choch|break of/.test(r))                return { prefix: "[BIAS]",     color: "#22d3ee" };
+  if (/confluence|aligned|confirmed|valid.*setup|setup.*valid/.test(r)) return { prefix: "[CONFIRM]",  color: "#00ff9c" };
+  if (/risk|invalid|reject|block|fail|not.*valid/.test(r))              return { prefix: "[RISK]",     color: "#ff4466" };
+  if (/news|event|cpi|nfp|fomc|rate|gdp|pmi|fed/.test(r))              return { prefix: "[NEWS]",     color: "#9b6dff" };
+  if (/entry|trigger|arm|execut|fire|scalp/.test(r))                    return { prefix: "[ENTRY]",    color: "#00ffee" };
+  if (/wait|pending|monitor|watch|approach|return/.test(r))             return { prefix: "[WATCH]",    color: "#668899" };
+  return { prefix: "[INFO]", color: "#667788" };
+}
+
+function getConfidenceValue(stateKey: string, data: AgentRunResult): number {
+  const { agents } = data;
+  switch (stateKey) {
+    case "master":     return agents.master.confidence;
+    case "trend":      return agents.trend.confidence;
+    case "smc":        return agents.smc.confidence;
+    case "news":       return agents.news.confidence;
+    case "risk":       return agents.risk.sessionScore;
+    case "contrarian": return agents.contrarian.trapConfidence;
+    case "execution":  return agents.execution.hasSetup ? 75 : 30;
+    default:           return 0;
+  }
+}
+
+function ConfidenceArc({ value, color }: { value: number; color: string }) {
+  const r = 26, size = 68, cx = size / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (Math.min(value, 100) / 100) * circ;
+  return (
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+        <circle cx={cx} cy={cx} r={r} fill="none" stroke="#0a1a2a" strokeWidth="5" />
+        <circle cx={cx} cy={cx} r={r} fill="none" stroke={color} strokeWidth="5"
+          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+          style={{ transition: "stroke-dashoffset 0.7s ease", filter: `drop-shadow(0 0 4px ${color}88)` }}
+        />
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <span style={{ color, fontSize: 15, fontWeight: 700, fontFamily: "ui-monospace,monospace", lineHeight: 1 }}>{value}</span>
+        <span style={{ color: "#3a4a5a", fontSize: 7, fontFamily: "ui-monospace,monospace" }}>%</span>
+      </div>
+    </div>
+  );
+}
+
 // Chart line points for monitor screen
 function monitorChartPts(agent: AgentLayout, live: AgentLive): string {
   const sfTL = iso(agent.col + .08, agent.row + .22);
@@ -645,45 +777,102 @@ export function AgentFloorTest({ data, loading = false }: AgentFloorProps) {
         })}
       </div>
 
-      {/* ═══ SELECTED AGENT DETAIL ═════════════════════════════════════════════ */}
-      {selAgent && selLive && (
-        <div style={{ padding: "10px 12px", borderBottom: "1px solid rgba(20,184,166,0.08)", background: "rgba(6,9,18,0.99)", animation: "fade-up 0.18s ease-out" }}>
-          {/* header */}
-          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
-            <div style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: selAgent.accent, boxShadow: `0 0 10px ${selAgent.accent}` }} />
-            <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.12em", color: selAgent.accent }}>
-              {selAgent.full.toUpperCase()}
-            </span>
-            <span style={{ fontSize: 6.5, color: "rgba(100,116,139,0.6)", letterSpacing: "0.06em" }}>{selAgent.role}</span>
-            {selAgent.id === "execution" && isExecArmed && (
-              <span style={{ marginLeft: "auto", fontSize: 7, fontWeight: 700, letterSpacing: "0.1em", color: "#ef4444", animation: "iso-armed 1.5s ease-in-out infinite" }}>⦿ ARMED</span>
-            )}
-          </div>
-          {/* confidence bar */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-            <span style={{ fontSize: 6, color: "rgba(71,85,105,0.8)", letterSpacing: "0.08em", width: 66, flexShrink: 0 }}>CONFIDENCE</span>
-            <div style={{ flex: 1, height: 3, backgroundColor: "rgba(15,23,42,0.9)", borderRadius: 2, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${selLive.conf}%`, backgroundColor: selAgent.accent, borderRadius: 2, boxShadow: `0 0 6px ${selAgent.accent}` }} />
+      {/* ═══ SELECTED AGENT DETAIL  (matches Agent HQ exactly) ════════════════ */}
+      {selAgent && (() => {
+        const stateKey  = ID_TO_STATE[selAgent.id] ?? selAgent.id;
+        const hqMeta    = HQ_META[selAgent.id];
+        const states    = hasData ? deriveStates(data!) : null;
+        const agState: AgentState = (states?.[stateKey] ?? "idle") as AgentState;
+        const sc        = STATE[agState];
+        const reasons   = getAgentReasons(stateKey, hasData ? data : null);
+        const confVal   = hasData ? getConfidenceValue(stateKey, data!) : 0;
+        const tradePlan = hasData ? data!.agents.master.tradePlan : null;
+        const showPrices   = (stateKey === "execution" || stateKey === "master") && !!tradePlan;
+        const showProgress = stateKey === "execution" || stateKey === "master";
+        const sigState     = hasData ? data!.agents.execution.signalState : "NO_TRADE";
+        const finalBias    = hasData ? data!.agents.master.finalBias : "no-trade";
+        const progressStep = !hasData || finalBias === "no-trade" ? -1 : sigState === "ARMED" ? 1 : 0;
+        const progressSteps = ["ARMED", "TRIGGERED", "COMPLETE"] as const;
+
+        return (
+          <div style={{ borderTop: `1px solid ${sc.accent}44`, padding: "12px 14px 14px", background: "#07090f", animation: "fade-up 0.18s ease-out" }}>
+            {/* ── Header ── */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+              <span style={{ color: sc.accent, fontSize: 13, fontWeight: 700, letterSpacing: "0.18em", fontFamily: "ui-monospace,monospace" }}>
+                {hqMeta.isMaster ? "★ " : ""}{hqMeta.label}
+              </span>
+              <span style={{ fontSize: 8, letterSpacing: "0.12em", padding: "2px 7px", borderRadius: 2, border: `1px solid ${sc.accent}`, color: sc.accent, background: `${sc.accent}18`, fontFamily: "ui-monospace,monospace" }}>
+                {sc.badge}
+              </span>
+              <span style={{ color: "#445566", fontSize: 8, fontFamily: "ui-monospace,monospace", letterSpacing: "0.1em", marginLeft: "auto" }}>
+                {hqMeta.role}
+              </span>
             </div>
-            <span style={{ fontSize: 7.5, fontWeight: 700, color: selAgent.accent, width: 30, textAlign: "right", flexShrink: 0 }}>{selLive.conf}%</span>
-          </div>
-          {/* stat row */}
-          <div style={{ display: "flex", gap: 10 }}>
-            <div>
-              <div style={{ fontSize: 6, color: "rgba(71,85,105,0.7)", letterSpacing: "0.08em", marginBottom: 3 }}>BIAS</div>
-              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", color: biasCol(selLive.bias) }}>
-                {biasArrow(selLive.bias)} {selLive.bias.toUpperCase()}
+
+            {/* ── Body: reasons + arc ── */}
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+              {/* Left: reasons + optional price tags + pipeline */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ marginBottom: showPrices || showProgress ? 10 : 0 }}>
+                  {reasons.map((reason, i) => {
+                    const pc = getConsolePrefixAndColor(reason);
+                    return (
+                      <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-start", fontFamily: "ui-monospace,monospace", fontSize: 9, marginTop: i > 0 ? 5 : 0 }}>
+                        <span style={{ color: pc.color, whiteSpace: "nowrap", fontWeight: 700, flexShrink: 0 }}>{pc.prefix}</span>
+                        <span style={{ color: "#7a8fa0", lineHeight: 1.55 }}>{reason}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Price tags */}
+                {showPrices && tradePlan && (
+                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: showProgress ? 10 : 0 }}>
+                    {[
+                      { label: "ENTRY", val: tradePlan.entry, border: "#ffffff22", color: "#aab4c0", bg: "transparent" },
+                      { label: "SL",    val: tradePlan.stopLoss, border: "#ff446644", color: "#ff7788", bg: "#ff00001a" },
+                      { label: "TP1",   val: tradePlan.tp1, border: "#00ff9c44", color: "#00dd88", bg: "#00ff9c0f" },
+                      ...(tradePlan.tp2 ? [{ label: "TP2", val: tradePlan.tp2, border: "#00ff9c33", color: "#00bb77", bg: "#00ff9c08" }] : []),
+                    ].map(t => (
+                      <span key={t.label} style={{ fontSize: 9, padding: "3px 8px", borderRadius: 2, border: `1px solid ${t.border}`, color: t.color, background: t.bg, fontFamily: "ui-monospace,monospace", letterSpacing: "0.1em" }}>
+                        {t.label} {t.val.toFixed(t.val > 100 ? 2 : 4)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Pipeline: ARMED → TRIGGERED → COMPLETE */}
+                {showProgress && (
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    {progressSteps.map((step, i) => {
+                      const done   = i < progressStep;
+                      const active = i === progressStep;
+                      const col    = done || active ? sc.accent : "#1e2d3d";
+                      return (
+                        <React.Fragment key={step}>
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                            <div style={{ width: 8, height: 8, borderRadius: "50%", background: done || active ? sc.accent : "#0a1525", border: `1px solid ${col}`, boxShadow: active ? `0 0 8px ${sc.accent}` : "none", transition: "all 0.3s" }} />
+                            <span style={{ fontSize: 7, color: active ? sc.accent : done ? `${sc.accent}aa` : "#1e2d3d", fontFamily: "ui-monospace,monospace", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>{step}</span>
+                          </div>
+                          {i < progressSteps.length - 1 && (
+                            <div style={{ flex: 1, height: 1, background: done ? `${sc.accent}66` : "#0a1525", minWidth: 16, maxWidth: 40, margin: "0 4px", marginBottom: 14 }} />
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Right: confidence arc */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                <ConfidenceArc value={confVal} color={sc.accent} />
+                <span style={{ fontSize: 7, color: "#2a3a4a", letterSpacing: "0.15em", fontFamily: "ui-monospace,monospace" }}>CONFIDENCE</span>
               </div>
             </div>
-            <div style={{ width: 1, height: 28, background: "rgba(20,184,166,0.15)", alignSelf: "center" }} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 6, color: "rgba(71,85,105,0.7)", letterSpacing: "0.08em", marginBottom: 3 }}>SIGNAL</div>
-              <div style={{ fontSize: 7.5, fontWeight: 600, color: "rgba(148,163,184,0.85)", letterSpacing: "0.04em", lineHeight: 1.3 }}>{selLive.status}</div>
-              {selLive.sub && <div style={{ fontSize: 6.5, color: "rgba(71,85,105,0.6)", marginTop: 2 }}>{selLive.sub}</div>}
-            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ═══ MASTER CONSENSUS ══════════════════════════════════════════════════ */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderBottom: "1px solid rgba(20,184,166,0.08)", background: "rgba(5,7,14,0.99)" }}>
