@@ -73,19 +73,37 @@ const PINS: PinConfig[] = [
   { id:"execution",  stateKey:"execution",  label:"EXECUTION",  role:"Entry Timing Agent",         px:72.66, py:77.05 },
 ];
 
-function getAgentDesc(key: string, data: AgentRunResult | null): string {
-  if (!data) return "Awaiting analysis data...";
+function getAgentReasons(key: string, data: AgentRunResult | null): string[] {
+  if (!data) return ["Awaiting analysis data..."];
   const { agents } = data;
   switch (key) {
-    case "trend":      return agents.trend.reasons.join(" · ") || "No trend reasons available.";
-    case "smc":        return agents.smc.reasons.join(" · ") || "No price action reasons available.";
-    case "news":       return agents.news.reasons.join(" · ") || "No news data.";
-    case "master":     return [...(agents.master.supports ?? []), ...(agents.master.noTradeReason ? [agents.master.noTradeReason] : [])].join(" · ") || "No consensus data.";
-    case "risk":       return agents.risk.reasons.join(" · ") || "No risk reasons available.";
-    case "contrarian": return agents.contrarian.failureReasons.join(" · ") || agents.contrarian.alternativeScenario || "No counter-signals detected.";
-    case "execution":  return agents.execution.hasSetup ? [agents.execution.triggerCondition, ...agents.execution.managementNotes].filter(Boolean).join(" · ") : "No valid setup found. Waiting for entry conditions.";
-    default:           return "No data available.";
+    case "trend":      return agents.trend.reasons.length ? agents.trend.reasons : ["No trend reasons available."];
+    case "smc":        return agents.smc.reasons.length ? agents.smc.reasons : ["No price action reasons available."];
+    case "news":       return agents.news.reasons.length ? agents.news.reasons : ["No news data."];
+    case "master": {
+      const lines = [...(agents.master.supports ?? []), ...(agents.master.noTradeReason ? [agents.master.noTradeReason] : [])];
+      return lines.length ? lines : ["No consensus data."];
+    }
+    case "risk":       return agents.risk.reasons.length ? agents.risk.reasons : ["No risk reasons available."];
+    case "contrarian": return agents.contrarian.failureReasons.length ? agents.contrarian.failureReasons : [agents.contrarian.alternativeScenario || "No counter-signals detected."];
+    case "execution":  return agents.execution.hasSetup
+      ? ([agents.execution.triggerCondition, ...agents.execution.managementNotes].filter(Boolean) as string[])
+      : ["No valid setup found. Waiting for entry conditions."];
+    default:           return ["No data available."];
   }
+}
+
+function getConsolePrefixAndColor(reason: string): { prefix: string; color: string } {
+  const r = reason.toLowerCase();
+  if (/pdh|pwh|pdl|pwl|sweep|liquidity grab|hunt/.test(r))        return { prefix: "⬛ [CRITICAL]", color: "#ff6655" };
+  if (/imbalance|fvg|fair value|order block|\bob\b|zone|gap/.test(r)) return { prefix: "🟧 [ZONE]",     color: "#ffaa44" };
+  if (/bias|trend|structure|bos|choch|break of/.test(r))            return { prefix: "🟦 [BIAS]",     color: "#22d3ee" };
+  if (/confluence|aligned|confirmed|valid.*setup|setup.*valid/.test(r)) return { prefix: "🟩 [CONFIRM]", color: "#00ff9c" };
+  if (/risk|invalid|reject|block|fail|not.*valid/.test(r))          return { prefix: "🟥 [RISK]",     color: "#ff4466" };
+  if (/news|event|cpi|nfp|fomc|rate|gdp|pmi|fed/.test(r))          return { prefix: "🟪 [NEWS]",     color: "#9b6dff" };
+  if (/entry|trigger|arm|execut|fire|scalp/.test(r))               return { prefix: "⬜ [ENTRY]",    color: "#00ffee" };
+  if (/wait|pending|monitor|watch|approach|return/.test(r))         return { prefix: "⬛ [WATCH]",    color: "#668899" };
+  return { prefix: "⬛ [INFO]",     color: "#667788" };
 }
 
 function getSession(): { label: string; color: string } {
@@ -156,15 +174,22 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
   const visualFocusId = hoveredId ?? focusedAgentId ?? activeId;
 
   const masterSC = sc("master");
-  const conf = data?.agents.master.confidence ?? 0;
-  const finalBias = data?.agents.master.finalBias ?? "no-trade";
-  const biasColor = finalBias==="bullish"?"#00ff9c":finalBias==="bearish"?"#ff4466":"#ffaa00";
-  const biasLabel = finalBias==="bullish"?"▲ BULLISH":finalBias==="bearish"?"▼ BEARISH":" -  NO TRADE";
+  const conf       = data?.agents.master.confidence ?? 0;
+  const finalBias  = data?.agents.master.finalBias ?? "no-trade";
+  const sigState   = data?.agents.execution?.signalState;
+  const isExpired  = sigState === "EXPIRED";
+  const biasColor  = isExpired ? "#4a5568"
+    : finalBias==="bullish" ? "#00ff9c"
+    : finalBias==="bearish" ? "#ff4466"
+    : "#ffaa00";
+  const biasLabel  = isExpired ? "◌  EXPIRED"
+    : finalBias==="bullish" ? "▲ BULLISH"
+    : finalBias==="bearish" ? "▼ BEARISH"
+    : " -  NO TRADE";
 
   const confVal        = activePinData ? getConfidenceValue(activePinData.stateKey, data) : 0;
   const tradePlan      = data?.agents.master.tradePlan ?? null;
   const showPrices     = !!activePinData && (activePinData.stateKey==="master"||activePinData.stateKey==="execution") && !!tradePlan;
-  const sigState       = data?.agents.execution?.signalState;
   const showProgress   = !!activePinData && (activePinData.stateKey==="execution"||activePinData.stateKey==="master");
   const progressStep   = !data || finalBias === "no-trade" ? 0 : sigState==="ARMED" ? 1 : 0;
   const progressSteps  = ["ARMED","TRIGGERED","COMPLETE"] as const;
@@ -220,6 +245,16 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
             pointerEvents:"none", zIndex:2,
           }} />
 
+          {/* EXPIRED floor dim — covers image + pins at 60% dark veil */}
+          {isExpired && (
+            <div style={{
+              position:"absolute", inset:0, zIndex:3,
+              background:"rgba(7,9,15,0.60)",
+              pointerEvents:"none",
+              transition:"opacity 0.45s ease",
+            }} />
+          )}
+
           {/* Bias overlay bar on top of image */}
           <div style={{
             position:"absolute", top:0, left:0, right:0,
@@ -245,13 +280,21 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
               <span style={{ color:biasColor, fontSize:13, fontWeight:700, letterSpacing:"0.15em", fontFamily:"var(--font-geist-mono), monospace" }}>
                 {biasLabel}
               </span>
+              {isExpired && (
+                <span style={{
+                  fontSize:8, letterSpacing:"0.14em", padding:"2px 7px", borderRadius:99,
+                  border:"1px solid #4a556866", color:"#556677",
+                  background:"#4a556818", fontFamily:"var(--font-geist-mono), monospace",
+                }}>INACTIVE</span>
+              )}
               <div style={{
                 background:"#0a1e3a", borderRadius:2, overflow:"hidden",
-                width:80, height:4,
+                width:80, height:4, opacity: isExpired ? 0.25 : 1,
+                transition:"opacity 0.4s ease",
               }}>
                 <div style={{ width:`${conf}%`, height:"100%", background:biasColor }} />
               </div>
-              <span style={{ color:biasColor, fontSize:10, fontFamily:"var(--font-geist-mono), monospace" }}>{conf}%</span>
+              <span style={{ color:biasColor, fontSize:10, fontFamily:"var(--font-geist-mono), monospace", opacity: isExpired ? 0.4 : 1 }}>{conf}%</span>
             </div>
           </div>
 
@@ -286,7 +329,7 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
                   left:`${pin.px}%`,
                   top:`${pin.py}%`,
                   transform:"translate(-50%,-50%)",
-                  cursor:"pointer",
+                  cursor: isExpired ? "default" : "pointer",
                   zIndex:100,
                   width:72,
                   height:72,
@@ -296,6 +339,8 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
                   pointerEvents:"all",
                   touchAction:"manipulation",
                   WebkitTapHighlightColor:"transparent",
+                  opacity: isExpired ? 0.35 : 1,
+                  transition:"opacity 0.45s ease",
                 }}
               >
                 {/* Outer pulse ring */}
@@ -434,8 +479,19 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
           <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
             {/* Left: description + price tags + progress */}
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ color:"#667788", fontSize:10, lineHeight:1.8, fontFamily:"var(--font-geist-mono), monospace", marginBottom: showPrices||showProgress ? 10 : 0 }}>
-                {getAgentDesc(activePinData.stateKey, data)}
+              <div
+                className="scrollbar-none"
+                style={{ maxHeight:"35vh", overflowY:"auto", marginBottom: showPrices||showProgress ? 10 : 0 }}
+              >
+                {getAgentReasons(activePinData.stateKey, data).map((reason, i) => {
+                  const pc = getConsolePrefixAndColor(reason);
+                  return (
+                    <div key={i} style={{ display:"flex", gap:6, alignItems:"flex-start", fontFamily:"var(--font-geist-mono), monospace", fontSize:9, marginTop: i > 0 ? 4 : 0 }}>
+                      <span style={{ color:pc.color, whiteSpace:"nowrap", fontWeight:700, flexShrink:0 }}>{pc.prefix}</span>
+                      <span style={{ color:"#7a8fa0", lineHeight:1.55 }}>{reason}</span>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Color-coded price tags */}
