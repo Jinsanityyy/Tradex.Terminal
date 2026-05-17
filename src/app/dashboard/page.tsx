@@ -127,6 +127,8 @@ interface ManualTrade {
   pnl: number;
   fees: number;
   notes?: string;
+  open_time?: string | null;
+  close_time?: string | null;
 }
 
 const MANUAL_TRADES_KEY = "tradex_manual_trades";

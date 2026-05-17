@@ -17,6 +17,8 @@ interface ManualTrade {
   pnl: number;
   fees: number;
   notes?: string | null;
+  open_time?: string | null;   // HH:MM
+  close_time?: string | null;  // HH:MM
 }
 
 interface DailyPnL {
@@ -119,6 +121,7 @@ type Stats = {
   monthlyGrid: Record<number, Record<number, number>>;
   monthlyYTD: Record<number, number>;
   gridYears: number[];
+  avgHoldMins: number | null;
 } | null;
 
 // ── Main Component ───────────────────────────────────────────────────────────────
@@ -235,6 +238,20 @@ export function AnalyticsView({
     });
     const gridYears = Object.keys(monthlyGrid).map(Number).sort((a, b) => b - a);
 
+    // Avg hold time from open_time / close_time fields
+    const timedTrades = sorted.filter(t => t.open_time && t.close_time);
+    let avgHoldMins: number | null = null;
+    if (timedTrades.length > 0) {
+      const totalMins = timedTrades.reduce((sum, t) => {
+        const [oh, om] = t.open_time!.split(":").map(Number);
+        const [ch, cm] = t.close_time!.split(":").map(Number);
+        let diff = (ch * 60 + cm) - (oh * 60 + om);
+        if (diff < 0) diff += 24 * 60; // overnight trade
+        return sum + diff;
+      }, 0);
+      avgHoldMins = totalMins / timedTrades.length;
+    }
+
     return {
       totalTrades, wins, losses, winRate,
       grossProfit, grossLoss, netPnl, profitFactor,
@@ -243,6 +260,7 @@ export function AnalyticsView({
       bySymbol, dowArr, byMonth,
       expectancy, rrRatio, sharpeRatio, totalVolume,
       monthlyGrid, monthlyYTD, gridYears,
+      avgHoldMins,
     };
     } catch { return null; }
   }, [trades]);
@@ -265,7 +283,13 @@ export function AnalyticsView({
     bySymbol, dowArr,
     expectancy, rrRatio, sharpeRatio, totalVolume,
     monthlyGrid, monthlyYTD, gridYears,
+    avgHoldMins,
   } = stats;
+
+  function fmtHoldTime(mins: number): string {
+    if (mins >= 60) return `${Math.floor(mins / 60)}h ${Math.round(mins % 60)}m`;
+    return `${Math.round(mins)}m`;
+  }
 
   const dowMax = Math.max(...dowArr.map((d: DowEntry) => Math.abs(d.pnl)), 1);
   const base   = totalVolume; // denominator for % mode
@@ -400,8 +424,12 @@ export function AnalyticsView({
             <Clock className="h-3 w-3 text-zinc-500" />
             <p className="text-[9px] uppercase tracking-widest text-zinc-500">Avg Hold Time</p>
           </div>
-          <p className="text-base font-bold font-mono text-zinc-500">N/A</p>
-          <p className="text-[9px] text-zinc-600 mt-0.5">no timestamp data</p>
+          <p className={cn("text-base font-bold font-mono", avgHoldMins != null ? "text-amber-400" : "text-zinc-500")}>
+            {avgHoldMins != null ? fmtHoldTime(avgHoldMins) : "N/A"}
+          </p>
+          <p className="text-[9px] text-zinc-600 mt-0.5">
+            {avgHoldMins != null ? "from open/close times" : "log open & close times"}
+          </p>
         </div>
       </div>
 

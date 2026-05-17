@@ -11,6 +11,8 @@ export interface ManualTradeRow {
   pnl: number;
   fees: number;
   notes: string | null;
+  open_time: string | null;   // HH:MM
+  close_time: string | null;  // HH:MM
   created_at: string;
 }
 
@@ -22,7 +24,7 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await supabase
       .from("manual_trades")
-      .select("id, date, symbol, direction, pnl, fees, notes, created_at")
+      .select("id, date, symbol, direction, pnl, fees, notes, open_time, close_time, created_at")
       .eq("user_id", user.id)
       .order("date", { ascending: false });
 
@@ -40,7 +42,7 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { date, symbol, direction, pnl, fees, notes } = body;
+    const { date, symbol, direction, pnl, fees, notes, open_time, close_time } = body;
 
     if (!date || !symbol || !direction || pnl == null) {
       return NextResponse.json({ error: "date, symbol, direction, pnl are required" }, { status: 400 });
@@ -59,8 +61,10 @@ export async function POST(req: NextRequest) {
         pnl: parseFloat(parseFloat(pnl).toFixed(2)),
         fees: parseFloat(parseFloat(fees ?? 0).toFixed(2)),
         notes: notes?.trim() || null,
+        open_time:  open_time  || null,
+        close_time: close_time || null,
       })
-      .select("id, date, symbol, direction, pnl, fees, notes, created_at")
+      .select("id, date, symbol, direction, pnl, fees, notes, open_time, close_time, created_at")
       .single();
 
     if (error) throw error;

@@ -51,6 +51,8 @@ interface ManualTrade {
   pnl: number;
   fees: number;
   notes?: string;
+  open_time?: string | null;   // HH:MM
+  close_time?: string | null;  // HH:MM
 }
 
 type ExchangeKey = "binance" | "bybit" | "okx" | "ctrader";
@@ -359,6 +361,8 @@ function ManualTradeModal({
   const [pnlStr, setPnlStr] = useState("");
   const [feesStr, setFeesStr] = useState("");
   const [notes, setNotes] = useState("");
+  const [openTime, setOpenTime] = useState("");
+  const [closeTime, setCloseTime] = useState("");
 
   const [saving, setSaving] = useState(false);
   const pnlNum = parseFloat(pnlStr);
@@ -374,7 +378,7 @@ function ManualTradeModal({
       const res = await fetch("/api/manual-trades", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders },
-        body: JSON.stringify({ date, symbol, direction, pnl: parseFloat(pnlNum.toFixed(2)), fees: parseFloat(feesNum.toFixed(2)), notes: notes.trim() || null }),
+        body: JSON.stringify({ date, symbol, direction, pnl: parseFloat(pnlNum.toFixed(2)), fees: parseFloat(feesNum.toFixed(2)), notes: notes.trim() || null, open_time: openTime || null, close_time: closeTime || null }),
       });
       const json = await res.json();
       if (!res.ok) { toast.error(json.error ?? "Failed to save trade"); return; }
@@ -413,6 +417,32 @@ function ManualTradeModal({
               max={today}
               className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-2 text-sm text-[hsl(var(--foreground))] outline-none focus:border-[hsl(var(--primary))]/50 [color-scheme:dark]"
             />
+          </div>
+
+          {/* Open / Close Time */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1.5">
+                Open Time <span className="normal-case text-[hsl(var(--muted-foreground))]/50">optional</span>
+              </label>
+              <input
+                type="time"
+                value={openTime}
+                onChange={e => setOpenTime(e.target.value)}
+                className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-2 text-sm text-[hsl(var(--foreground))] outline-none focus:border-[hsl(var(--primary))]/50 [color-scheme:dark]"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1.5">
+                Close Time <span className="normal-case text-[hsl(var(--muted-foreground))]/50">optional</span>
+              </label>
+              <input
+                type="time"
+                value={closeTime}
+                onChange={e => setCloseTime(e.target.value)}
+                className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-2 text-sm text-[hsl(var(--foreground))] outline-none focus:border-[hsl(var(--primary))]/50 [color-scheme:dark]"
+              />
+            </div>
           </div>
 
           {/* Symbol + Direction */}
