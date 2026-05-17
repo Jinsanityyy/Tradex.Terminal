@@ -385,8 +385,11 @@ export function MobileLayout() {
         )}
       </div>
 
-      {/* Bottom tab bar */}
-      <div className="shrink-0 border-t border-white/5 bg-[hsl(var(--card))] pb-4">
+      {/* Bottom tab bar — safe-area-inset-bottom ensures home bar never overlaps on iOS/Android */}
+      <div
+        className="shrink-0 border-t border-white/5 bg-[hsl(var(--card))]"
+        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+      >
         <div className="grid grid-cols-6">
           {TABS.map(({ id, label, Icon }) => {
             const isActive = active === id;

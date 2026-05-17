@@ -216,6 +216,8 @@ function AgentCard({
 }) {
   const cls = TONE_CLS[tone];
 
+  const isExpired = state === "EXPIRED";
+
   if (loading) {
     return (
       <div className="flex min-h-[140px] flex-col gap-2.5 border-t-2 border-t-zinc-700/30 bg-[hsl(var(--card))] px-3 py-3 animate-pulse">
@@ -235,19 +237,24 @@ function AgentCard({
       className={cn(
         "flex min-h-[140px] w-full flex-col gap-2 border-t-2 bg-[hsl(var(--card))] px-3 py-3 text-left transition-all",
         cls.border,
-        onClick && "hover:bg-white/[0.04] cursor-pointer"
+        onClick && "hover:bg-white/[0.04] cursor-pointer",
+        isExpired && "opacity-50"
       )}
     >
-      <span className="truncate text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-600">{name}</span>
-      <span className={cn("text-[13px] font-black uppercase leading-none tracking-wide", cls.text)}>{state}</span>
+      {/* Agent name — line-clamp-1 prevents overflow without hard truncation artifacts */}
+      <span className="line-clamp-1 text-[8px] font-bold uppercase tracking-[0.12em] leading-tight text-zinc-600">{name}</span>
+      <span className={cn(
+        "text-[13px] font-black uppercase leading-none tracking-wide",
+        isExpired ? "text-zinc-600" : cls.text
+      )}>{state}</span>
       <div className="flex items-center gap-2">
         <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-zinc-800">
           <div className={cn("h-full rounded-full transition-all duration-500", cls.bar)} style={{ width: `${Math.min(100, confidence)}%` }} />
         </div>
         <span className="w-7 shrink-0 text-right font-mono text-[10px] text-zinc-600">{confidence}%</span>
       </div>
-      <span className="line-clamp-2 text-[10px] leading-snug text-zinc-500">{insight}</span>
-      {sub ? <span className="text-[9px] text-zinc-700">{sub}</span> : null}
+      <span className={cn("line-clamp-2 text-[10px] leading-snug", isExpired ? "text-zinc-700" : "text-zinc-500")}>{insight}</span>
+      {sub ? <span className={cn("text-[9px]", isExpired ? "text-zinc-800" : "text-zinc-700")}>{sub}</span> : null}
       {tags ? <DiagStrip tags={tags} /> : null}
     </button>
   );
@@ -444,119 +451,128 @@ export function AgentCardsWidget({
         </div>
       ) : (
         <div className="space-y-px">
-          {/* Row 1 */}
+          {/* Row 1 — max 2 cols; if 3 active the last card spans full width */}
           {row1.length > 0 && (
-            <div className={cn("grid gap-px", ({"1":"grid-cols-1","2":"grid-cols-2","3":"grid-cols-3","4":"grid-cols-4"} as Record<number,string>)[row1.length] ?? "grid-cols-4")}>
-              {row1.includes("trend") && (
-                <AgentCard
-                  name="Trend Agent"
-                  state={fmt(tr?.bias)}
-                  confidence={tr?.confidence ?? 0}
-                  insight={tr?.reasons?.[0] ?? tr?.marketPhase ?? "Recalculating…"}
-                  sub={tr?.momentumDirection ? `Momentum ${tr.momentumDirection}` : undefined}
-                  tone={biasTone(tr?.bias)}
-                  tags={trendTags}
-                  loading={isLoading && !data}
-                  onClick={data ? () => openDrawer("trend") : undefined}
-                />
-              )}
-              {row1.includes("smc") && (
-                <AgentCard
-                  name="Price Action Agent"
-                  state={fmt(smc?.bias)}
-                  confidence={smc?.confidence ?? 0}
-                  insight={smc?.reasons?.[0] ?? smc?.setupType ?? "Recalculating…"}
-                  sub={smc?.premiumDiscount ? `Zone ${smc.premiumDiscount}` : undefined}
-                  tone={biasTone(smc?.bias)}
-                  tags={smcTags}
-                  loading={isLoading && !data}
-                  onClick={data ? () => openDrawer("smc") : undefined}
-                />
-              )}
-              {row1.includes("news") && (
-                <AgentCard
-                  name="News Agent"
-                  state={fmt(news?.impact)}
-                  confidence={news?.confidence ?? 0}
-                  insight={news?.dominantCatalyst ?? news?.reasons?.[0] ?? "Recalculating…"}
-                  sub={news?.riskScore != null ? `Risk ${news.riskScore}/100` : undefined}
-                  tone={biasTone(news?.impact)}
-                  tags={newsTags}
-                  loading={isLoading && !data}
-                  onClick={data ? () => openDrawer("news") : undefined}
-                />
-              )}
-              {row1.includes("risk") && (
-                <AgentCard
-                  name="Risk Gate"
-                  state={risk ? (risk.valid ? "VALID" : "BLOCKED") : "NEUTRAL"}
-                  confidence={risk?.sessionScore ?? 0}
-                  insight={risk?.reasons?.[0] ?? risk?.warnings?.[0] ?? "Recalculating…"}
-                  sub={risk ? `Grade ${risk.grade}  -  Max ${risk.maxRiskPercent}% risk` : undefined}
-                  tone={risk ? (risk.valid ? "green" : "red") : "gray"}
-                  tags={riskTags}
-                  loading={isLoading && !data}
-                  onClick={data ? () => openDrawer("risk") : undefined}
-                />
-              )}
+            <div className={cn("grid gap-px", row1.length < 2 ? "grid-cols-1" : "grid-cols-2")}>
+              {row1.map((id, idx) => (
+                <div key={id} className={cn(row1.length === 3 && idx === 2 && "col-span-2")}>
+                  {id === "trend" && (
+                    <AgentCard
+                      name="Trend Agent"
+                      state={fmt(tr?.bias)}
+                      confidence={tr?.confidence ?? 0}
+                      insight={tr?.reasons?.[0] ?? tr?.marketPhase ?? "Recalculating…"}
+                      sub={tr?.momentumDirection ? `Momentum ${tr.momentumDirection}` : undefined}
+                      tone={biasTone(tr?.bias)}
+                      tags={trendTags}
+                      loading={isLoading && !data}
+                      onClick={data ? () => openDrawer("trend") : undefined}
+                    />
+                  )}
+                  {id === "smc" && (
+                    <AgentCard
+                      name="Price Action"
+                      state={fmt(smc?.bias)}
+                      confidence={smc?.confidence ?? 0}
+                      insight={smc?.reasons?.[0] ?? smc?.setupType ?? "Recalculating…"}
+                      sub={smc?.premiumDiscount ? `Zone ${smc.premiumDiscount}` : undefined}
+                      tone={biasTone(smc?.bias)}
+                      tags={smcTags}
+                      loading={isLoading && !data}
+                      onClick={data ? () => openDrawer("smc") : undefined}
+                    />
+                  )}
+                  {id === "news" && (
+                    <AgentCard
+                      name="News Agent"
+                      state={fmt(news?.impact)}
+                      confidence={news?.confidence ?? 0}
+                      insight={news?.dominantCatalyst ?? news?.reasons?.[0] ?? "Recalculating…"}
+                      sub={news?.riskScore != null ? `Risk ${news.riskScore}/100` : undefined}
+                      tone={biasTone(news?.impact)}
+                      tags={newsTags}
+                      loading={isLoading && !data}
+                      onClick={data ? () => openDrawer("news") : undefined}
+                    />
+                  )}
+                  {id === "risk" && (
+                    <AgentCard
+                      name="Risk Gate"
+                      state={risk ? (risk.valid ? "VALID" : "BLOCKED") : "NEUTRAL"}
+                      confidence={risk?.sessionScore ?? 0}
+                      insight={risk?.reasons?.[0] ?? risk?.warnings?.[0] ?? "Recalculating…"}
+                      sub={risk ? `Grade ${risk.grade}  -  Max ${risk.maxRiskPercent}% risk` : undefined}
+                      tone={risk ? (risk.valid ? "green" : "red") : "gray"}
+                      tags={riskTags}
+                      loading={isLoading && !data}
+                      onClick={data ? () => openDrawer("risk") : undefined}
+                    />
+                  )}
+                </div>
+              ))}
             </div>
           )}
 
-          {/* Row 2 */}
+          {/* Row 2 — max 2 cols; if all 3 active the master card spans full width */}
           {row2.length > 0 && (
-            <div className={cn("grid gap-px", ({"1":"grid-cols-1","2":"grid-cols-2","3":"grid-cols-3"} as Record<number,string>)[row2.length] ?? "grid-cols-3")}>
-              {row2.includes("contrarian") && (
-                <AgentCard
-                  name="Contrarian Agent"
-                  state={contrarian?.challengesBias ? "ALERT" : "CLEAR"}
-                  confidence={contrarian?.trapConfidence ?? 0}
-                  insight={contrarian?.alternativeScenario ?? contrarian?.failureReasons?.[0] ?? "Recalculating…"}
-                  sub={contrarian?.trapType ? `Trap: ${contrarian.trapType}` : undefined}
-                  tone={contrarian?.challengesBias ? "red" : "gray"}
-                  tags={contrarianTags}
-                  loading={isLoading && !data}
-                  onClick={data ? () => openDrawer("contrarian") : undefined}
-                />
-              )}
-              {row2.includes("execution") && (
-                <AgentCard
-                  name="Execution Agent"
-                  state={execution?.signalState ?? "NO TRADE"}
-                  confidence={execConf}
-                  insight={execution?.signalStateReason ?? execution?.triggerCondition ?? "Recalculating…"}
-                  sub={
-                    execution?.hasSetup && execution.direction !== "none"
-                      ? `${execution.direction.toUpperCase()}  -  RR ${execution.rrRatio?.toFixed(2) ?? " - "}:1`
-                      : undefined
-                  }
-                  tone={
-                    execution?.direction === "long"    ? "green" :
-                    execution?.direction === "short"   ? "red"   :
-                    execution?.signalState === "ARMED" ? "yellow" : "gray"
-                  }
-                  tags={execTags}
-                  loading={isLoading && !data}
-                  onClick={data ? () => openDrawer("execution") : undefined}
-                />
-              )}
-              {row2.includes("master") && data && (
-                <MasterCard
-                  data={data}
-                  execConf={execConf}
-                  onClick={() => openDrawer("master")}
-                  loading={isLoading && !data}
-                />
-              )}
-              {row2.includes("master") && !data && (
-                <AgentCard
-                  name="Master Agent"
-                  state=" - "
-                  confidence={0}
-                  insight="Recalculating…"
-                  tone="gray"
-                  loading={isLoading}
-                />
-              )}
+            <div className={cn("grid gap-px", row2.length < 2 ? "grid-cols-1" : "grid-cols-2")}>
+              {row2.map((id, idx) => (
+                <div key={id} className={cn(row2.length === 3 && idx === 2 && "col-span-2")}>
+                  {id === "contrarian" && (
+                    <AgentCard
+                      name="Contrarian"
+                      state={contrarian?.challengesBias ? "ALERT" : "CLEAR"}
+                      confidence={contrarian?.trapConfidence ?? 0}
+                      insight={contrarian?.alternativeScenario ?? contrarian?.failureReasons?.[0] ?? "Recalculating…"}
+                      sub={contrarian?.trapType ? `Trap: ${contrarian.trapType}` : undefined}
+                      tone={contrarian?.challengesBias ? "red" : "gray"}
+                      tags={contrarianTags}
+                      loading={isLoading && !data}
+                      onClick={data ? () => openDrawer("contrarian") : undefined}
+                    />
+                  )}
+                  {id === "execution" && (
+                    <AgentCard
+                      name="Execution"
+                      state={execution?.signalState ?? "NO TRADE"}
+                      confidence={execConf}
+                      insight={execution?.signalStateReason ?? execution?.triggerCondition ?? "Recalculating…"}
+                      sub={
+                        execution?.hasSetup && execution.direction !== "none"
+                          ? `${execution.direction.toUpperCase()}  ·  RR ${execution.rrRatio?.toFixed(2) ?? "—"}:1`
+                          : undefined
+                      }
+                      tone={
+                        execution?.signalState === "EXPIRED" ? "gray" :
+                        execution?.direction === "long"       ? "green" :
+                        execution?.direction === "short"      ? "red"   :
+                        execution?.signalState === "ARMED"    ? "yellow" : "gray"
+                      }
+                      tags={execTags}
+                      loading={isLoading && !data}
+                      onClick={data ? () => openDrawer("execution") : undefined}
+                    />
+                  )}
+                  {id === "master" && data && (
+                    <MasterCard
+                      data={data}
+                      execConf={execConf}
+                      onClick={() => openDrawer("master")}
+                      loading={isLoading && !data}
+                    />
+                  )}
+                  {id === "master" && !data && (
+                    <AgentCard
+                      name="Master Agent"
+                      state="—"
+                      confidence={0}
+                      insight="Recalculating…"
+                      tone="gray"
+                      loading={isLoading}
+                    />
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>
