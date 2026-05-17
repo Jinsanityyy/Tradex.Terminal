@@ -117,6 +117,7 @@ type Stats = {
   expectancy: number;
   rrRatio: number;
   sharpeRatio: number;
+  tradingDays: number;
   totalVolume: number;
   monthlyGrid: Record<number, Record<number, number>>;
   monthlyYTD: Record<number, number>;
@@ -166,6 +167,7 @@ export function AnalyticsView({
     const worstTrade = sorted.filter(t => t.pnl < 0).reduce((min, t) => Math.min(min, t.pnl), 0);
 
     // Simplified annualized Sharpe from daily P&L
+    const tradingDays = byDate.size;
     const dailyReturns = [...byDate.values()];
     const mean = dailyReturns.reduce((s, v) => s + v, 0) / dailyReturns.length;
     const variance = dailyReturns.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / dailyReturns.length;
@@ -258,7 +260,7 @@ export function AnalyticsView({
       avgWin, avgLoss, bestDay, worstDay, worstTrade, streak,
       equityCurve, maxDDPct,
       bySymbol, dowArr, byMonth,
-      expectancy, rrRatio, sharpeRatio, totalVolume,
+      expectancy, rrRatio, sharpeRatio, tradingDays, totalVolume,
       monthlyGrid, monthlyYTD, gridYears,
       avgHoldMins,
     };
@@ -281,7 +283,7 @@ export function AnalyticsView({
     avgWin, avgLoss, bestDay, worstDay, worstTrade, streak,
     equityCurve, maxDDPct,
     bySymbol, dowArr,
-    expectancy, rrRatio, sharpeRatio, totalVolume,
+    expectancy, rrRatio, sharpeRatio, tradingDays, totalVolume,
     monthlyGrid, monthlyYTD, gridYears,
     avgHoldMins,
   } = stats;
@@ -360,16 +362,24 @@ export function AnalyticsView({
           {
             label: "Max Drawdown",
             value: maxDDPct > 0 ? `-${maxDDPct.toFixed(2)}%` : "0.00%",
-            accent: maxDDPct > 0 ? "text-orange-400" : "text-zinc-500",
+            accent: maxDDPct >= 40 ? "text-red-400" : maxDDPct > 0 ? "text-orange-400" : "text-zinc-500",
             icon: Activity,
+            badge: maxDDPct >= 40 ? "HIGH RISK" : undefined,
           },
-        ].map(({ label, value, accent, icon: Icon }) => (
+        ].map(({ label, value, accent, icon: Icon, badge }) => (
           <div key={label} className="rounded-xl border border-white/8 bg-white/3 px-4 py-3">
             <div className="flex items-center gap-1.5 mb-1">
               <Icon className="h-3 w-3 text-zinc-500" />
               <p className="text-[9px] uppercase tracking-widest text-zinc-500">{label}</p>
             </div>
-            <p className={cn("text-lg font-bold font-mono", accent)}>{value}</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className={cn("text-lg font-bold font-mono", accent)}>{value}</p>
+              {badge && (
+                <span className="text-[8px] font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded px-1.5 py-0.5 leading-none">
+                  {badge}
+                </span>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -385,7 +395,7 @@ export function AnalyticsView({
           <p className={cn("text-base font-bold font-mono", expectancy >= 0 ? "text-emerald-400" : "text-red-400")}>
             {fmtV(expectancy, pnlMode, base)}
           </p>
-          <p className="text-[9px] text-zinc-600 mt-0.5">per trade avg</p>
+          <p className="text-[9px] text-zinc-600 mt-0.5 font-normal">per trade avg</p>
         </div>
 
         {/* Risk-to-Reward */}
@@ -400,7 +410,7 @@ export function AnalyticsView({
           )}>
             {rrRatio >= 99 ? "∞ R" : `${rrRatio.toFixed(2)} R`}
           </p>
-          <p className="text-[9px] text-zinc-600 mt-0.5">avg win / avg loss</p>
+          <p className="text-[9px] text-zinc-600 mt-0.5 font-normal">avg win / avg loss</p>
         </div>
 
         {/* Sharpe Ratio */}
@@ -411,11 +421,15 @@ export function AnalyticsView({
           </div>
           <p className={cn(
             "text-base font-bold font-mono",
-            sharpeRatio >= 1 ? "text-emerald-400" : sharpeRatio > 0 ? "text-amber-400" : "text-red-400"
+            tradingDays < 30
+              ? "text-zinc-500"
+              : sharpeRatio >= 1 ? "text-emerald-400" : sharpeRatio > 0 ? "text-amber-400" : "text-red-400"
           )}>
-            {sharpeRatio !== 0 ? sharpeRatio.toFixed(2) : "—"}
+            {tradingDays < 30 ? "Low Sample" : sharpeRatio !== 0 ? sharpeRatio.toFixed(2) : "—"}
           </p>
-          <p className="text-[9px] text-zinc-600 mt-0.5">annualized (approx)</p>
+          <p className="text-[9px] text-zinc-600 mt-0.5 font-normal">
+            {tradingDays < 30 ? `${tradingDays}/30 days needed` : "annualized (approx)"}
+          </p>
         </div>
 
         {/* Avg Hold Time */}
@@ -427,7 +441,7 @@ export function AnalyticsView({
           <p className={cn("text-base font-bold font-mono", avgHoldMins != null ? "text-amber-400" : "text-zinc-500")}>
             {avgHoldMins != null ? fmtHoldTime(avgHoldMins) : "N/A"}
           </p>
-          <p className="text-[9px] text-zinc-600 mt-0.5">
+          <p className="text-[9px] text-zinc-600 mt-0.5 font-normal">
             {avgHoldMins != null ? "from open/close times" : "log open & close times"}
           </p>
         </div>
@@ -516,11 +530,9 @@ export function AnalyticsView({
                     <span>{s.trades}T</span>
                     <span className={wr >= 50 ? "text-emerald-500" : "text-red-500"}>{wr.toFixed(0)}% WR</span>
                   </div>
-                  <div className="mt-1.5 h-1 rounded-full bg-white/8 overflow-hidden">
-                    <div
-                      className={cn("h-full rounded-full", wr >= 50 ? "bg-emerald-500/60" : "bg-red-500/60")}
-                      style={{ width: `${wr}%` }}
-                    />
+                  <div className="mt-1.5 h-1.5 rounded-full overflow-hidden flex">
+                    <div className="h-full bg-emerald-500/60" style={{ width: `${wr}%` }} />
+                    <div className="h-full bg-red-500/40"    style={{ width: `${100 - wr}%` }} />
                   </div>
                 </div>
               );
@@ -549,8 +561,8 @@ export function AnalyticsView({
                   )}>
                     {d.day}
                   </span>
-                  <div className="flex-1 h-5 bg-white/4 rounded overflow-hidden relative">
-                    {d.trades > 0 ? (
+                  <div className="flex-1 h-5 bg-white/4 rounded overflow-hidden">
+                    {d.trades > 0 && (
                       <div
                         className={cn(
                           "h-full rounded transition-all",
@@ -558,10 +570,6 @@ export function AnalyticsView({
                         )}
                         style={{ width: `${barPct}%` }}
                       />
-                    ) : (
-                      <span className="absolute inset-0 flex items-center px-2 text-[9px] text-zinc-700">
-                        no data
-                      </span>
                     )}
                   </div>
                   <span className={cn(
