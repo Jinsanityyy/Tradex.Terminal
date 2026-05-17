@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Calendar, TrendingUp, Activity,
   Radio, Brain, Clock, History, DollarSign,
@@ -77,6 +77,18 @@ export function MobileMore() {
   const [openFolderId, setOpenFolderId] = useState<string | null>(null);
   const [activeAppId, setActiveAppId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  // Listen for deep-link events from MobileLayout (e.g. widget "Open" taps)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const appId = (e as CustomEvent<{ appId?: string }>).detail?.appId;
+      if (!appId) return;
+      setOpenFolderId(null);
+      setActiveAppId(appId);
+    };
+    document.addEventListener("tradex:open-app", handler);
+    return () => document.removeEventListener("tradex:open-app", handler);
+  }, []);
 
   const activeApp = ALL_APPS.find(a => a.id === activeAppId);
   const openFolder = FOLDERS.find(f => f.id === openFolderId);
