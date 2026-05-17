@@ -20,7 +20,7 @@ const AGENTS: AgentDesk[] = [
 const CELL = 60;
 const GRID = 4;
 
-export default function AgentFloorTest() {
+export function AgentFloorTest() {
   const [selected, setSelected] = useState<string | null>(null);
 
   return (
