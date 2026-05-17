@@ -178,7 +178,14 @@ function TradePlanCard({ tradePlan }: { tradePlan: NonNullable<AgentRunResult["a
           <div className="bg-black/20 rounded-xl border border-white/6 px-3 py-2.5 text-center">
             <p className="text-[9px] uppercase tracking-wider text-zinc-500">Conf</p>
             <p className="text-[14px] font-black font-mono mt-0.5 text-zinc-200">
-              {tradePlan.confluenceCount ?? " - "}<span className="text-[10px] text-zinc-500">/10</span>
+              {tradePlan.confluenceCount != null
+                ? <>
+                    {typeof tradePlan.confluenceCount === "string"
+                      ? tradePlan.confluenceCount.replace(/\/10$/, "")
+                      : tradePlan.confluenceCount}
+                    <span className="text-[10px] text-zinc-500">/10</span>
+                  </>
+                : " - "}
             </p>
           </div>
           <div className="bg-black/20 rounded-xl border border-white/6 px-3 py-2.5 text-center">
