@@ -4,116 +4,154 @@ import React, { useState } from "react";
 
 // ── Grid constants ────────────────────────────────────────────────────────────
 
-const CELL  = 58;   // px per floor tile
-const COLS  = 5;
-const ROWS  = 4;
-const DS    = CELL - 14;  // desk footprint inside its cell
+const CELL = 56;   // px per floor tile in flat space
+const COLS = 5;
+const ROWS = 4;
+const DS   = CELL - 10;  // desk footprint inside cell (46px)
 
-// ── Per-agent colour palette ──────────────────────────────────────────────────
+// ── 7 Authentic agent station definitions ────────────────────────────────────
 
-interface DeskDef {
+interface AgentStation {
   id:          string;
-  label:       string;
+  label:       string;   // short label on desk badge
+  fullName:    string;   // full name for HUD + legend
   col:         number;
   row:         number;
   staggerMs:   number;
   screenSpeed: string;
-  // active colours
+  // Active-state palette
   lines:       string;   // scrolling code-line rgba
-  sBorder:     string;   // monitor border rgba (active)
-  sGlow:       string;   // monitor box-shadow rgba
-  labelCol:    string;   // label text rgba
+  sBorder:     string;   // monitor border rgba
+  sGlow:       string;   // monitor glow rgba
+  labelCol:    string;   // badge text rgba
   dBorder:     string;   // desk border rgba
   opBg:        string;   // operator dot hex
-  opGlow:      string;   // operator box-shadow rgba
-  opBorderCol: string;   // operator border rgba
+  opGlow:      string;   // operator glow rgba
+  opBorder:    string;   // operator border rgba
 }
 
-const DESKS: DeskDef[] = [
-  // ── TOP ROW ─────────────────────────────────────────────────────────────
+// War-room diamond layout:
+//   . TREND  .   PA   .    row 0
+//   .   .  EXEC  .    .    row 1
+//   NEWS  .   .    RISK    row 2
+//   . CNTR  .  MASTER .    row 3
+
+const AGENTS: AgentStation[] = [
+  // ── ROW 0 ──────────────────────────────────────────────────────────────
   {
-    id:"exec",     label:"EXEC",   col:2, row:0, staggerMs:0,   screenSpeed:"0.24s",
-    lines:"rgba(0,255,156,0.62)",  sBorder:"rgba(0,255,156,0.65)", sGlow:"rgba(0,255,156,0.22)",
-    labelCol:"rgba(0,255,156,0.72)", dBorder:"rgba(0,255,156,0.32)",
-    opBg:"#6366f1", opGlow:"rgba(99,102,241,0.85)",  opBorderCol:"rgba(99,102,241,0.70)",
-  },
-  // ── SECOND ROW ──────────────────────────────────────────────────────────
-  {
-    id:"praction", label:"PR.ACT", col:1, row:1, staggerMs:80,  screenSpeed:"0.32s",
-    lines:"rgba(56,189,248,0.62)", sBorder:"rgba(56,189,248,0.65)",  sGlow:"rgba(56,189,248,0.20)",
-    labelCol:"rgba(56,189,248,0.72)", dBorder:"rgba(56,189,248,0.30)",
-    opBg:"#0ea5e9", opGlow:"rgba(14,165,233,0.85)",  opBorderCol:"rgba(14,165,233,0.70)",
-  },
-  {
-    id:"trend",    label:"TREND",  col:3, row:1, staggerMs:150, screenSpeed:"0.38s",
-    lines:"rgba(167,139,250,0.58)", sBorder:"rgba(167,139,250,0.60)", sGlow:"rgba(167,139,250,0.18)",
-    labelCol:"rgba(167,139,250,0.72)", dBorder:"rgba(167,139,250,0.28)",
-    opBg:"#a78bfa", opGlow:"rgba(167,139,250,0.85)", opBorderCol:"rgba(167,139,250,0.70)",
-  },
-  // ── MIDDLE ROW ──────────────────────────────────────────────────────────
-  {
-    id:"volume",   label:"VOL",    col:0, row:2, staggerMs:220, screenSpeed:"0.20s",
-    lines:"rgba(251,146,60,0.58)",  sBorder:"rgba(251,146,60,0.60)",  sGlow:"rgba(251,146,60,0.18)",
-    labelCol:"rgba(251,146,60,0.72)", dBorder:"rgba(251,146,60,0.28)",
-    opBg:"#fb923c", opGlow:"rgba(251,146,60,0.85)",  opBorderCol:"rgba(251,146,60,0.70)",
+    id: "trend",
+    label: "TREND",
+    fullName: "Trend Agent",
+    col: 1, row: 0, staggerMs: 0, screenSpeed: "0.38s",
+    lines:    "rgba(167,139,250,0.64)", sBorder: "rgba(167,139,250,0.68)",
+    sGlow:    "rgba(167,139,250,0.24)", labelCol: "rgba(167,139,250,0.80)",
+    dBorder:  "rgba(167,139,250,0.32)",
+    opBg: "#a78bfa", opGlow: "rgba(167,139,250,0.92)", opBorder: "rgba(167,139,250,0.72)",
   },
   {
-    id:"momentum", label:"MOMO",   col:2, row:2, staggerMs:290, screenSpeed:"0.34s",
-    lines:"rgba(244,114,182,0.58)", sBorder:"rgba(244,114,182,0.60)", sGlow:"rgba(244,114,182,0.18)",
-    labelCol:"rgba(244,114,182,0.72)", dBorder:"rgba(244,114,182,0.28)",
-    opBg:"#f472b6", opGlow:"rgba(244,114,182,0.85)", opBorderCol:"rgba(244,114,182,0.70)",
+    id: "praction",
+    label: "P.ACT",
+    fullName: "Price Action Agent",
+    col: 3, row: 0, staggerMs: 90, screenSpeed: "0.30s",
+    lines:    "rgba(56,189,248,0.64)",  sBorder: "rgba(56,189,248,0.68)",
+    sGlow:    "rgba(56,189,248,0.24)",  labelCol: "rgba(56,189,248,0.80)",
+    dBorder:  "rgba(56,189,248,0.32)",
+    opBg: "#0ea5e9", opGlow: "rgba(14,165,233,0.92)", opBorder: "rgba(14,165,233,0.72)",
+  },
+  // ── ROW 1 ──────────────────────────────────────────────────────────────
+  {
+    id: "execution",
+    label: "EXEC",
+    fullName: "Execution Agent",
+    col: 2, row: 1, staggerMs: 175, screenSpeed: "0.22s",
+    lines:    "rgba(0,255,156,0.70)",   sBorder: "rgba(0,255,156,0.72)",
+    sGlow:    "rgba(0,255,156,0.28)",   labelCol: "rgba(0,255,156,0.85)",
+    dBorder:  "rgba(0,255,156,0.36)",
+    opBg: "#6366f1", opGlow: "rgba(99,102,241,0.92)", opBorder: "rgba(99,102,241,0.72)",
+  },
+  // ── ROW 2 ──────────────────────────────────────────────────────────────
+  {
+    id: "news",
+    label: "NEWS",
+    fullName: "News Agent",
+    col: 0, row: 2, staggerMs: 255, screenSpeed: "0.28s",
+    lines:    "rgba(251,191,36,0.64)",  sBorder: "rgba(251,191,36,0.68)",
+    sGlow:    "rgba(251,191,36,0.22)",  labelCol: "rgba(251,191,36,0.80)",
+    dBorder:  "rgba(251,191,36,0.32)",
+    opBg: "#fbbf24", opGlow: "rgba(251,191,36,0.92)", opBorder: "rgba(251,191,36,0.72)",
   },
   {
-    id:"risk",     label:"RISK",   col:4, row:2, staggerMs:360, screenSpeed:"0.28s",
-    lines:"rgba(248,113,113,0.62)", sBorder:"rgba(248,113,113,0.65)", sGlow:"rgba(248,113,113,0.20)",
-    labelCol:"rgba(248,113,113,0.72)", dBorder:"rgba(248,113,113,0.32)",
-    opBg:"#f87171", opGlow:"rgba(248,113,113,0.85)", opBorderCol:"rgba(248,113,113,0.70)",
+    id: "risk",
+    label: "RISK",
+    fullName: "Risk Gate Agent",
+    col: 4, row: 2, staggerMs: 340, screenSpeed: "0.25s",
+    lines:    "rgba(248,113,113,0.68)", sBorder: "rgba(248,113,113,0.70)",
+    sGlow:    "rgba(248,113,113,0.26)", labelCol: "rgba(248,113,113,0.82)",
+    dBorder:  "rgba(248,113,113,0.34)",
+    opBg: "#f87171", opGlow: "rgba(248,113,113,0.92)", opBorder: "rgba(248,113,113,0.72)",
   },
-  // ── BOTTOM ROW ──────────────────────────────────────────────────────────
+  // ── ROW 3 ──────────────────────────────────────────────────────────────
   {
-    id:"liquidity",label:"LIQD",   col:1, row:3, staggerMs:430, screenSpeed:"0.30s",
-    lines:"rgba(52,211,153,0.58)",  sBorder:"rgba(52,211,153,0.60)",  sGlow:"rgba(52,211,153,0.18)",
-    labelCol:"rgba(52,211,153,0.72)", dBorder:"rgba(52,211,153,0.28)",
-    opBg:"#34d399", opGlow:"rgba(52,211,153,0.85)",  opBorderCol:"rgba(52,211,153,0.70)",
+    id: "contrarian",
+    label: "CNTR",
+    fullName: "Contrarian Agent",
+    col: 1, row: 3, staggerMs: 420, screenSpeed: "0.34s",
+    lines:    "rgba(251,146,60,0.64)",  sBorder: "rgba(251,146,60,0.68)",
+    sGlow:    "rgba(251,146,60,0.22)",  labelCol: "rgba(251,146,60,0.80)",
+    dBorder:  "rgba(251,146,60,0.32)",
+    opBg: "#fb923c", opGlow: "rgba(251,146,60,0.92)", opBorder: "rgba(251,146,60,0.72)",
+  },
+  {
+    id: "master",
+    label: "MSTR",
+    fullName: "Master Consensus",
+    col: 3, row: 3, staggerMs: 505, screenSpeed: "0.20s",
+    lines:    "rgba(34,211,238,0.68)",  sBorder: "rgba(34,211,238,0.70)",
+    sGlow:    "rgba(34,211,238,0.26)",  labelCol: "rgba(34,211,238,0.82)",
+    dBorder:  "rgba(34,211,238,0.34)",
+    opBg: "#22d3ee", opGlow: "rgba(34,211,238,0.92)", opBorder: "rgba(34,211,238,0.72)",
   },
 ];
 
 // ── Keyframe stylesheet ───────────────────────────────────────────────────────
 
 const KF = `
-  /* Operator frantically typing — micro-vibration anchored at Z=10 */
+  /* Active operator — hyper-kinetic typing micro-vibration */
   @keyframes kineticType {
-    0%,100% { transform: translateZ(10px) translateY( 0px) translateX( 0px); }
-    25%     { transform: translateZ(10px) translateY(-1px) translateX( 1px); }
-    50%     { transform: translateZ(10px) translateY(-2px) translateX(-1px); }
-    75%     { transform: translateZ(10px) translateY(-1px) translateX( 1px); }
+    0%,100% { transform: translateZ(8px) translateY(-8px)  translateX(12px); }
+    50%     { transform: translateZ(8px) translateY(-9px)  translateX(13px); }
   }
-  /* Terminal — scrolling code lines */
+
+  /* Idle operator — slow 4-second ambient breathing */
+  @keyframes idleBreathe {
+    0%,100% { transform: translateZ(5px) translateY(-7px)  translateX(12px); opacity: 0.28; }
+    50%     { transform: translateZ(5px) translateY(-7px)  translateX(12px); opacity: 0.68; }
+  }
+
+  /* Active monitor — scrolling code lines */
   @keyframes screenScroll {
     from { background-position: 0    0; }
     to   { background-position: 0 -20px; }
   }
-  /* Idle operator — slow ambient breathing, stays at Z=7 */
-  @keyframes idleBreathe {
-    0%,100% { transform: translateZ(7px); opacity: 0.25; }
-    50%     { transform: translateZ(7px); opacity: 0.65; }
-  }
-  /* Idle screen — rare flicker so it doesn't look completely dead */
+
+  /* Idle monitor — rare cold flicker */
   @keyframes idleFlicker {
-    0%,86%,100% { opacity: 0.10; }
-    88%         { opacity: 0.24; }
+    0%,84%,100% { opacity: 0.10; }
+    87%         { opacity: 0.24; }
     92%         { opacity: 0.08; }
-    96%         { opacity: 0.20; }
+    96%         { opacity: 0.18; }
   }
+
   /* Crosshair — expanding sonar ring */
   @keyframes crossPing {
-    0%   { transform: translateZ(28px) scale(0.80); opacity: 1; }
-    100% { transform: translateZ(28px) scale(2.90); opacity: 0; }
+    0%   { transform: translateZ(22px) scale(0.80); opacity: 1.00; }
+    100% { transform: translateZ(22px) scale(3.20); opacity: 0.00; }
   }
+
   /* Crosshair — steady lock ring */
   @keyframes crossRing {
-    0%,100% { transform: translateZ(28px); opacity: 0.90; }
-    50%     { transform: translateZ(28px); opacity: 0.28; }
+    0%,100% { transform: translateZ(22px); opacity: 0.90; }
+    50%     { transform: translateZ(22px); opacity: 0.28; }
   }
 `;
 
@@ -123,35 +161,28 @@ export function AgentFloorTest() {
   const [selected, setSelected] = useState<string | null>(null);
   const [mode,     setMode]     = useState<"active" | "idle">("active");
 
-  const isActive = mode === "active";
+  const isActive      = mode === "active";
+  const selectedAgent = AGENTS.find(a => a.id === selected);
 
   return (
     <div
-      className="relative w-full overflow-hidden border border-slate-800/70 rounded-xl select-none bg-slate-950"
-      style={{ height: 440 }}
+      className="relative w-full overflow-hidden rounded-xl select-none border border-slate-800/50"
+      style={{ height: 480, backgroundColor: "#07090f" }}
     >
       <style>{KF}</style>
 
-      {/* ── Corner legend ── */}
+      {/* ── Atmospheric scanline vignette ── */}
       <div style={{
-        position: "absolute", top: 10, left: 12, zIndex: 40,
-        fontFamily: "ui-monospace, monospace", fontSize: 9,
-        letterSpacing: "0.08em", lineHeight: 1.9,
-        color: "rgba(51,65,85,0.90)",
+        position: "absolute", inset: 0, zIndex: 50,
+        backgroundImage: "repeating-linear-gradient(to bottom, transparent 0, transparent 2px, rgba(0,0,0,0.055) 2px, rgba(0,0,0,0.055) 4px)",
         pointerEvents: "none",
-      }}>
-        {DESKS.map(d => (
-          <div key={d.id} style={{ color: selected === d.id ? d.labelCol : undefined }}>
-            {selected === d.id ? "◉ " : "· "}{d.label}
-          </div>
-        ))}
-      </div>
+      }} />
 
       {/* ── Isometric scene ── */}
       <div
         style={{
           position: "absolute",
-          top: "42%", left: "50%",
+          top: "43%", left: "50%",
           transform: "translate(-50%,-50%) rotateX(60deg) rotateZ(-45deg)",
           transformStyle: "preserve-3d",
           width:  COLS * CELL,
@@ -167,10 +198,10 @@ export function AgentFloorTest() {
                 position: "absolute",
                 left: col * CELL, top: row * CELL,
                 width: CELL, height: CELL,
-                border: "1px solid rgba(20,184,166,0.11)",
+                border: "1px solid rgba(20,184,166,0.16)",
                 backgroundColor: (row + col) % 2 === 0
-                  ? "rgba(15,23,42,0.97)"
-                  : "rgba(2,6,23,0.99)",
+                  ? "rgba(10,15,28,0.97)"
+                  : "rgba(4,7,16,0.99)",
                 boxSizing: "border-box",
                 transformStyle: "preserve-3d",
               }}
@@ -178,181 +209,228 @@ export function AgentFloorTest() {
           ))
         )}
 
-        {/* ── Agent workstations ── */}
-        {DESKS.map((desk) => {
-          const isSel   = selected === desk.id;
-          const delay   = `${desk.staggerMs}ms`;
-          const dBorder = isActive ? desk.dBorder : "rgba(30,41,59,0.25)";
+        {/* ── Seven agent workstations ── */}
+        {AGENTS.map((agent) => {
+          const isSel  = selected === agent.id;
+          const delay  = `${agent.staggerMs}ms`;
+          const dBord  = isActive ? agent.dBorder : "rgba(30,41,59,0.22)";
 
           return (
             <div
-              key={desk.id}
+              key={agent.id}
               style={{
                 position: "absolute",
-                left: desk.col * CELL + 7,
-                top:  desk.row * CELL + 7,
-                width:  DS, height: DS,
+                left: agent.col * CELL + 5,
+                top:  agent.row * CELL + 5,
+                width:  DS,
+                height: DS,
                 transformStyle: "preserve-3d",
                 cursor: "pointer",
-                zIndex: 10,
+                zIndex: isSel ? 30 : 10,
               }}
-              onClick={() => setSelected(isSel ? null : desk.id)}
+              onClick={() => setSelected(isSel ? null : agent.id)}
             >
 
-              {/* ── Selection crosshair ── */}
-              {isSel && <>
-                <div style={{
-                  position: "absolute", inset: -13,
-                  borderRadius: "50%",
-                  border: "2px solid rgba(239,68,68,0.92)",
-                  animation: "crossPing 0.9s ease-out infinite",
-                  pointerEvents: "none",
-                  willChange: "transform, opacity",
-                }} />
-                <div style={{
-                  position: "absolute", inset: -5,
-                  borderRadius: "50%",
-                  border: "1px solid rgba(239,68,68,0.52)",
-                  animation: "crossRing 1.2s ease-in-out infinite",
-                  pointerEvents: "none",
-                  willChange: "transform, opacity",
-                }} />
-              </>}
+              {/* ── Isometric crosshair: two floor-axis arms + rings ── */}
+              {isSel && (
+                <>
+                  {/* X-axis arm — extends along the isometric X direction */}
+                  <div style={{
+                    position: "absolute",
+                    top: DS / 2 - 0.5,
+                    left: -(CELL * 2.2),
+                    width: DS + CELL * 4.4,
+                    height: 1,
+                    backgroundColor: "rgba(239,68,68,0.62)",
+                    boxShadow: "0 0 4px rgba(239,68,68,0.45)",
+                    transform: "translateZ(1px)",
+                    pointerEvents: "none",
+                  }} />
+                  {/* Y-axis arm — extends along the isometric Y direction */}
+                  <div style={{
+                    position: "absolute",
+                    left: DS / 2 - 0.5,
+                    top: -(CELL * 2.2),
+                    width: 1,
+                    height: DS + CELL * 4.4,
+                    backgroundColor: "rgba(239,68,68,0.62)",
+                    boxShadow: "0 0 4px rgba(239,68,68,0.45)",
+                    transform: "translateZ(1px)",
+                    pointerEvents: "none",
+                  }} />
+                  {/* Expanding sonar ping */}
+                  <div style={{
+                    position: "absolute",
+                    inset: -15,
+                    borderRadius: "50%",
+                    border: "2px solid rgba(239,68,68,0.94)",
+                    animation: "crossPing 0.85s ease-out infinite",
+                    pointerEvents: "none",
+                    willChange: "transform, opacity",
+                  }} />
+                  {/* Steady lock ring */}
+                  <div style={{
+                    position: "absolute",
+                    inset: -5,
+                    borderRadius: "50%",
+                    border: "1px solid rgba(239,68,68,0.50)",
+                    animation: "crossRing 1.3s ease-in-out infinite",
+                    pointerEvents: "none",
+                    willChange: "transform, opacity",
+                  }} />
+                </>
+              )}
 
-              {/* ── Desk top surface ── */}
+              {/* ── DESK: top surface ── */}
               <div style={{
-                position: "absolute", inset: 0,
-                backgroundColor: "#192235",
-                border: `1px solid ${dBorder}`,
+                position: "absolute",
+                inset: 0,
+                backgroundColor: "#1a2538",
+                border: `1px solid ${dBord}`,
                 borderRadius: 3,
                 transform: "translateZ(0px)",
                 transformStyle: "preserve-3d",
                 boxShadow: isActive
-                  ? `inset 0 0 6px ${desk.sGlow}`
+                  ? `inset 0 0 10px ${agent.sGlow}`
                   : "none",
-                transition: "box-shadow 0.4s ease",
+                transition: "box-shadow 0.5s ease",
               }} />
 
-              {/* ── Front face — desk depth ── */}
+              {/* ── DESK: front face (viewer-facing depth strip) ── */}
               <div style={{
                 position: "absolute",
                 left: 1, right: 1,
-                bottom: -6, height: 6,
-                backgroundColor: "#0a1320",
-                borderLeft:   `1px solid ${dBorder}`,
-                borderRight:  `1px solid ${dBorder}`,
-                borderBottom: "1px solid rgba(0,0,0,0.9)",
+                bottom: -7, height: 7,
+                backgroundColor: "#0b1320",
+                borderLeft:   `1px solid ${dBord}`,
+                borderRight:  `1px solid ${dBord}`,
+                borderBottom: "1px solid #000",
                 transform: "translateZ(0px)",
               }} />
 
-              {/* ── Right side face — desk depth ── */}
+              {/* ── DESK: right side face ── */}
               <div style={{
                 position: "absolute",
-                top: 1, bottom: -5,
-                right: -6, width: 6,
-                backgroundColor: "#0d1828",
-                borderTop:    `1px solid ${dBorder}`,
-                borderRight:  `1px solid ${dBorder}`,
-                borderBottom: "1px solid rgba(0,0,0,0.9)",
+                top: 1, bottom: -6,
+                right: -7, width: 7,
+                backgroundColor: "#0e1828",
+                borderTop:    `1px solid ${dBord}`,
+                borderRight:  `1px solid ${dBord}`,
+                borderBottom: "1px solid #000",
                 transform: "translateZ(0px)",
               }} />
 
-              {/* ── Keyboard slab ── */}
+              {/* ── KEYBOARD SLAB ── */}
               <div style={{
                 position: "absolute",
-                bottom: 4, left: "50%",
-                width: 18, height: 7,
-                marginLeft: -9,
+                bottom: 5, left: "47%",
+                width: 20, height: 7,
+                marginLeft: -10,
                 backgroundColor: "#22303f",
-                border: `1px solid ${isActive ? desk.dBorder : "rgba(51,65,85,0.18)"}`,
+                border: `1px solid ${isActive ? dBord : "rgba(30,41,59,0.16)"}`,
                 borderRadius: 1,
                 transform: "translateZ(2px)",
                 willChange: "transform",
-                transition: "border-color 0.4s ease",
+                transition: "border-color 0.5s ease",
               }} />
 
-              {/* ── Monitor ── */}
+              {/* ── MONITOR HOUSING — standing CRT terminal ── */}
               <div style={{
                 position: "absolute",
-                top: 4, left: "50%",
-                width: 22, height: 15,
-                marginLeft: -11,
-                backgroundColor: isActive ? "#030e08" : "#030608",
-                border: `1px solid ${isActive ? desk.sBorder : "rgba(30,41,59,0.40)"}`,
+                top: 2, left: "50%",
+                width: 20, height: 20,
+                marginLeft: -10,
+                backgroundColor: isActive ? "#030e09" : "#030609",
+                border: `1px solid ${isActive ? agent.sBorder : "rgba(20,30,45,0.50)"}`,
                 borderRadius: 2,
                 overflow: "hidden",
-                transform: "translateZ(14px)",
+                transform: "translateZ(17px)",
                 transformStyle: "preserve-3d",
                 willChange: "transform",
-                boxShadow: isActive ? `0 0 8px ${desk.sGlow}` : "none",
-                transition: "border-color 0.4s ease, box-shadow 0.4s ease",
+                boxShadow: isActive
+                  ? `0 0 12px ${agent.sGlow}, inset 0 0 4px ${agent.sGlow}`
+                  : "none",
+                transition: "border-color 0.5s ease, box-shadow 0.5s ease",
               }}>
-                {/* Active: scrolling code lines */}
+                {/* Active screen: scrolling code-line gradient stream */}
                 {isActive && (
                   <div style={{
-                    position: "absolute", inset: 2,
-                    backgroundImage: `repeating-linear-gradient(to bottom, ${desk.lines} 0px, ${desk.lines} 1px, transparent 1px, transparent 4px)`,
+                    position: "absolute",
+                    inset: 2,
+                    backgroundImage: `repeating-linear-gradient(
+                      to bottom,
+                      ${agent.lines} 0px,
+                      ${agent.lines} 1px,
+                      transparent   1px,
+                      transparent   4px
+                    )`,
                     backgroundSize: "100% 4px",
-                    animation: `screenScroll ${desk.screenSpeed} linear infinite`,
+                    animation: `screenScroll ${agent.screenSpeed} linear infinite`,
                     animationDelay: delay,
                     willChange: "background-position",
                   }} />
                 )}
-                {/* Idle: dim static scanlines */}
+                {/* Idle screen: cold dead static */}
                 {!isActive && (
                   <div style={{
-                    position: "absolute", inset: 2,
-                    backgroundImage: "repeating-linear-gradient(to bottom, rgba(51,65,85,0.28) 0px, rgba(51,65,85,0.28) 1px, transparent 1px, transparent 5px)",
-                    backgroundSize: "100% 5px",
-                    animation: `idleFlicker 7s ease-in-out infinite`,
+                    position: "absolute",
+                    inset: 2,
+                    backgroundImage: "repeating-linear-gradient(to bottom, rgba(22,30,44,0.30) 0px, rgba(22,30,44,0.30) 1px, transparent 1px, transparent 6px)",
+                    backgroundSize: "100% 6px",
+                    animation: `idleFlicker 9s ease-in-out infinite`,
                     animationDelay: delay,
                     willChange: "opacity",
                   }} />
                 )}
               </div>
 
-              {/* ── Monitor neck ── */}
+              {/* ── MONITOR STAND ── */}
               <div style={{
                 position: "absolute",
-                top: 19, left: "50%",
-                width: 4, height: 4,
+                top: 22, left: "50%",
+                width: 4, height: 5,
                 marginLeft: -2,
-                backgroundColor: "#0f172a",
-                transform: "translateZ(13px)",
+                backgroundColor: "#0c1824",
+                borderLeft:  "1px solid rgba(30,41,59,0.45)",
+                borderRight: "1px solid rgba(30,41,59,0.45)",
+                transform: "translateZ(16px)",
                 willChange: "transform",
               }} />
 
-              {/* ── Operator avatar dot ── */}
+              {/* ── OPERATOR AVATAR (typing vs. tambay) ── */}
               <div style={{
                 position: "absolute",
-                bottom: 9, left: "25%",
-                width: 10, height: 10,
+                bottom: 9,
+                left: "18%",
+                width: 10,
+                height: 10,
                 borderRadius: "50%",
-                backgroundColor: isActive ? desk.opBg : "#172032",
-                border: `1px solid ${isActive ? desk.opBorderCol : "rgba(30,48,74,0.40)"}`,
+                backgroundColor: isActive ? agent.opBg    : "#101c2a",
+                border:  `1px solid ${isActive ? agent.opBorder : "rgba(20,40,64,0.35)"}`,
                 willChange: "transform, opacity",
                 animation: isActive
-                  ? `kineticType 0.09s linear infinite`
+                  ? `kineticType 0.075s linear infinite`
                   : `idleBreathe 4s ease-in-out infinite`,
                 animationDelay: delay,
-                boxShadow: isActive ? `0 0 9px ${desk.opGlow}` : "none",
-                transition: "background-color 0.4s ease, box-shadow 0.4s ease",
+                boxShadow: isActive ? `0 0 9px ${agent.opGlow}` : "none",
+                transition: "background-color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease",
               }} />
 
-              {/* ── Agent label ── */}
+              {/* ── DESK BADGE LABEL ── */}
               <div style={{
                 position: "absolute",
-                top: 0, right: 2,
-                fontSize: 7,
+                top: 1, right: 2,
+                fontSize: 6,
                 fontFamily: "ui-monospace, monospace",
+                fontWeight: 700,
                 letterSpacing: "0.07em",
-                color: isActive ? desk.labelCol : "rgba(51,65,85,0.40)",
-                transform: "translateZ(16px)",
+                color: isActive ? agent.labelCol : "rgba(51,65,85,0.36)",
+                transform: "translateZ(19px)",
                 pointerEvents: "none",
                 willChange: "transform",
-                transition: "color 0.4s ease",
+                transition: "color 0.5s ease",
               }}>
-                {desk.label}
+                {agent.label}
               </div>
 
             </div>
@@ -360,38 +438,71 @@ export function AgentFloorTest() {
         })}
       </div>
 
-      {/* ── HUD bar ── */}
+      {/* ── Agent roster legend (top-left) ── */}
+      <div style={{
+        position: "absolute",
+        top: 10, left: 12,
+        zIndex: 60,
+        fontFamily: "ui-monospace, monospace",
+        fontSize: 8,
+        letterSpacing: "0.07em",
+        lineHeight: 2.1,
+        pointerEvents: "none",
+      }}>
+        {AGENTS.map(a => {
+          const isSel = selected === a.id;
+          return (
+            <div
+              key={a.id}
+              style={{
+                color: isSel
+                  ? a.labelCol
+                  : isActive
+                    ? "rgba(51,65,85,0.72)"
+                    : "rgba(40,52,68,0.55)",
+                transition: "color 0.3s ease",
+              }}
+            >
+              {isSel ? "◉ " : "· "}{a.fullName}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── HUD bottom bar ── */}
       <div style={{
         position: "absolute",
         bottom: 0, left: 0, right: 0,
-        padding: "8px 12px 10px",
-        background: "linear-gradient(transparent, rgba(2,6,23,0.98))",
+        padding: "7px 12px 10px",
+        background: "linear-gradient(transparent, rgba(4,6,12,0.98))",
         display: "flex",
         alignItems: "center",
         gap: 8,
         fontFamily: "ui-monospace, monospace",
         fontSize: 10,
         letterSpacing: "0.06em",
+        zIndex: 60,
       }}>
-        {/* Live indicator */}
+        {/* Status indicator */}
         <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
           <div style={{
-            width: 6, height: 6, borderRadius: "50%",
-            backgroundColor: isActive ? "#00ff9c" : "#334155",
-            boxShadow: isActive ? "0 0 6px rgba(0,255,156,0.90)" : "none",
-            transition: "all 0.35s ease",
+            width: 6, height: 6,
+            borderRadius: "50%",
+            backgroundColor: isActive ? "#00ff9c" : "#1e2d3d",
+            boxShadow: isActive ? "0 0 7px rgba(0,255,156,0.95)" : "none",
+            transition: "all 0.4s ease",
           }} />
           <span style={{
-            color: isActive ? "rgba(0,255,156,0.65)" : "#2d3f52",
-            transition: "color 0.35s ease",
+            color: isActive ? "rgba(0,255,156,0.72)" : "rgba(40,55,72,0.90)",
+            transition: "color 0.4s ease",
           }}>
-            {isActive ? "LIVE" : "IDLE"} · {DESKS.length} AGENTS
+            {isActive ? "LIVE" : "STANDBY"} · {AGENTS.length} AGENTS
           </span>
         </div>
 
-        {/* State toggle buttons */}
+        {/* FORCE ACTIVE / FORCE IDLE toggle */}
         <div style={{ display: "flex", gap: 5, marginLeft: "auto" }}>
-          {(["active", "idle"] as const).map((m) => {
+          {(["active", "idle"] as const).map(m => {
             const cur = mode === m;
             return (
               <button
@@ -401,14 +512,14 @@ export function AgentFloorTest() {
                   padding: "3px 9px",
                   borderRadius: 3,
                   border: cur
-                    ? `1px solid ${m === "active" ? "rgba(0,255,156,0.45)" : "rgba(100,116,139,0.45)"}`
-                    : "1px solid rgba(30,41,59,0.45)",
+                    ? `1px solid ${m === "active" ? "rgba(0,255,156,0.48)" : "rgba(100,116,139,0.48)"}`
+                    : "1px solid rgba(30,41,59,0.38)",
                   backgroundColor: cur
                     ? m === "active" ? "rgba(0,255,156,0.08)" : "rgba(100,116,139,0.08)"
                     : "transparent",
                   color: cur
                     ? m === "active" ? "#00ff9c" : "#94a3b8"
-                    : "#2d3f52",
+                    : "rgba(40,55,72,0.90)",
                   cursor: "pointer",
                   fontSize: 10,
                   fontFamily: "ui-monospace, monospace",
@@ -424,9 +535,9 @@ export function AgentFloorTest() {
         </div>
 
         {/* Selected agent readout */}
-        {selected && (
-          <span style={{ color: "#ef4444", flexShrink: 0 }}>
-            ◉ {DESKS.find(d => d.id === selected)?.label ?? selected}
+        {selectedAgent && (
+          <span style={{ color: "#ef4444", flexShrink: 0, fontSize: 9 }}>
+            ◉ {selectedAgent.fullName.toUpperCase()}
           </span>
         )}
       </div>
