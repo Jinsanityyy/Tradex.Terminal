@@ -42,8 +42,9 @@ export async function middleware(req: NextRequest) {
     || pathname === "/manifest.json" || pathname === "/sw.js" || pathname.startsWith("/workbox-")
     || pathname === "/robots.txt" || pathname === "/sitemap.xml"
     || pathname.startsWith("/.well-known");
-  const isLoginPage = pathname === "/login";
-  if (!isStatic && !isLoginPage) {
+  const isLoginPage  = pathname === "/login";
+  const isAuthPage   = pathname === "/reset-password" || pathname === "/auth/callback";
+  if (!isStatic && !isLoginPage && !isAuthPage) {
     const mobile = isMobile(req);
     const onMobileRoute = pathname.startsWith("/m");
 

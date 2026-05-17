@@ -116,7 +116,8 @@ export default function ResetPasswordPage() {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
       setDone(true);
-      setTimeout(() => router.push("/dashboard"), 2000);
+      const isMobile = /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
+      setTimeout(() => router.push(isMobile ? "/m" : "/dashboard"), 2000);
     } catch (err: any) {
       setError(err.message ?? "Failed to reset password.");
     } finally {
