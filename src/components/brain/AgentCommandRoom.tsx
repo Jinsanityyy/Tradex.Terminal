@@ -191,7 +191,7 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
   const tradePlan      = data?.agents.master.tradePlan ?? null;
   const showPrices     = !!activePinData && (activePinData.stateKey==="master"||activePinData.stateKey==="execution") && !!tradePlan;
   const showProgress   = !!activePinData && (activePinData.stateKey==="execution"||activePinData.stateKey==="master");
-  const progressStep   = !data || finalBias === "no-trade" ? 0 : sigState==="ARMED" ? 1 : 0;
+  const progressStep   = !data || finalBias === "no-trade" || isExpired ? -1 : sigState==="ARMED" ? 1 : 0;
   const progressSteps  = ["ARMED","TRIGGERED","COMPLETE"] as const;
 
   return (
@@ -454,21 +454,23 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
       {/* ── DETAIL PANEL  -  fades in when an agent is clicked ── */}
       {activePinData && activeSC && (
         <div className="hq-card-enter" style={{
-          borderTop:`1px solid ${activeSC.accent}44`,
+          borderTop:`1px solid ${isExpired ? "#2a3a4a" : activeSC.accent}44`,
           padding:"14px 16px",
           background:"#07090f",
         }}>
           {/* Header */}
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10, flexWrap:"wrap" }}>
-            <span style={{ color:activeSC.accent, fontSize:14, fontWeight:700, letterSpacing:"0.18em", fontFamily:"var(--font-geist-mono), monospace" }}>
+            <span style={{ color: isExpired ? "#3d4e5e" : activeSC.accent, fontSize:14, fontWeight:700, letterSpacing:"0.18em", fontFamily:"var(--font-geist-mono), monospace" }}>
               {activePinData.isMaster ? "★ " : ""}{activePinData.label}
             </span>
             <span style={{
               fontSize:8, letterSpacing:"0.12em", padding:"2px 7px", borderRadius:2,
-              border:`1px solid ${activeSC.accent}`, color:activeSC.accent,
-              background:activeSC.accent+"18", fontFamily:"var(--font-geist-mono), monospace",
+              border: isExpired ? "1px solid #2e3d4d" : `1px solid ${activeSC.accent}`,
+              color: isExpired ? "#3d4e5e" : activeSC.accent,
+              background: isExpired ? "#151e28" : activeSC.accent+"18",
+              fontFamily:"var(--font-geist-mono), monospace",
             }}>
-              {activeSC.badge}
+              {isExpired ? "STANDBY" : activeSC.badge}
             </span>
             <span style={{ color:"#445566", fontSize:8, fontFamily:"var(--font-geist-mono), monospace", letterSpacing:"0.1em", marginLeft:"auto" }}>
               {activePinData.role}
@@ -516,10 +518,18 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
 
               {/* Status progression bar */}
               {showProgress && (
-                <div style={{ display:"flex", alignItems:"center" }}>
+                <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                  {isExpired && (
+                    <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                      <div style={{ flex:1, height:1, background:"#1e2d3d" }} />
+                      <span style={{ fontSize:7, color:"#2e3d4d", fontFamily:"var(--font-geist-mono), monospace", letterSpacing:"0.18em", whiteSpace:"nowrap" }}>◌ TERMINATED</span>
+                      <div style={{ flex:1, height:1, background:"#1e2d3d" }} />
+                    </div>
+                  )}
+                  <div style={{ display:"flex", alignItems:"center" }}>
                   {progressSteps.map((step, i) => {
-                    const done   = i < progressStep;
-                    const active = i === progressStep;
+                    const done   = !isExpired && i < progressStep;
+                    const active = !isExpired && i === progressStep;
                     const stepColor = done || active ? activeSC.accent : "#1e2d3d";
                     return (
                       <React.Fragment key={step}>
@@ -541,14 +551,17 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
                       </React.Fragment>
                     );
                   })}
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Right: animated confidence arc */}
             <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4, flexShrink:0 }}>
-              <ConfidenceArc value={confVal} color={activeSC.accent} />
-              <span style={{ fontSize:7, color:"#2a3a4a", letterSpacing:"0.15em", fontFamily:"var(--font-geist-mono), monospace" }}>CONFIDENCE</span>
+              <ConfidenceArc value={isExpired ? 0 : confVal} color={isExpired ? "#2a3a4a" : activeSC.accent} />
+              <span style={{ fontSize:7, color:"#2a3a4a", letterSpacing:"0.15em", fontFamily:"var(--font-geist-mono), monospace" }}>
+                {isExpired ? "INACTIVE" : "CONFIDENCE"}
+              </span>
             </div>
           </div>
         </div>
