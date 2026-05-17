@@ -34,9 +34,21 @@ export function TakeTradeModal({
   symbol, symbolDisplay, direction, entry, stopLoss, tp1, tp2,
   rrRatio, grade, signalId, timeframe, onClose, onTaken,
 }: Props) {
-  const { settings } = useSettings();
-  const accountBalance = settings.accountBalance ?? 10000;
+  const { settings, saveSettings } = useSettings();
   const defaultRisk = settings.riskPerTrade ?? 1;
+
+  // Editable account balance — initialised from persisted settings
+  const [accountStr, setAccountStr] = useState(() =>
+    String(settings.accountBalance ?? 10000)
+  );
+  const accountBalance = Math.max(1, parseFloat(accountStr) || 10000);
+
+  function commitBalance() {
+    const v = parseFloat(accountStr);
+    if (!isNaN(v) && v > 0) {
+      saveSettings({ ...settings, accountBalance: v });
+    }
+  }
 
   const [riskPct, setRiskPct] = useState(defaultRisk);
   const [lotStr, setLotStr] = useState("");
@@ -71,6 +83,22 @@ export function TakeTradeModal({
         lotSize,
         riskAmount: parseFloat(riskAmount.toFixed(2)),
       });
+
+      // Auto-log to PNL calendar (Supabase) — fire-and-forget
+      fetch("/api/manual-trades", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: new Date().toISOString().split("T")[0],
+          symbol: symbolDisplay,
+          direction: direction.toLowerCase(),
+          pnl: 0,
+          fees: 0,
+          open_time: new Date().toISOString(),
+          notes: `[TradeX Signal] ${direction} ${symbolDisplay}${grade ? ` · Grade ${grade}` : ""}${timeframe ? ` · ${timeframe}` : ""} | Entry: ${fmt(entry)}  SL: ${fmt(stopLoss)}  TP: ${fmt(tp1)}  R:R: ${rrRatio}:1 | Lot: ${lotSize}  Risk: $${riskAmount.toFixed(2)}`,
+        }),
+      }).catch(() => {/* silently ignore — trade already saved locally */});
+
       onTaken(trade);
       onClose();
     } finally {
@@ -109,9 +137,9 @@ export function TakeTradeModal({
           {/* Setup grid */}
           <div className="grid grid-cols-4 gap-2">
             {[
-              { label: "Entry", value: fmt(entry),   color: "text-zinc-100" },
-              { label: "SL",    value: fmt(stopLoss), color: "text-red-400" },
-              { label: "TP1",   value: fmt(tp1),      color: "text-emerald-400" },
+              { label: "Entry", value: fmt(entry),    color: "text-zinc-100" },
+              { label: "SL",    value: fmt(stopLoss),  color: "text-red-400" },
+              { label: "TP1",   value: fmt(tp1),       color: "text-emerald-400" },
               { label: "R:R",   value: `${rrRatio}:1`, color: "text-amber-400" },
             ].map(({ label, value, color }) => (
               <div key={label} className="rounded-xl bg-white/4 border border-white/6 p-2.5 text-center">
@@ -125,8 +153,19 @@ export function TakeTradeModal({
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-[10px] uppercase tracking-wider text-zinc-500">Risk %</label>
-              <span className="text-[10px] text-zinc-500">
-                Account: ${accountBalance.toLocaleString()}
+              {/* Editable account balance — tap to change, persists to settings */}
+              <span className="flex items-center gap-0.5 text-[10px] text-zinc-500">
+                <span className="text-zinc-600">Account: $</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="100"
+                  value={accountStr}
+                  onChange={e => setAccountStr(e.target.value)}
+                  onBlur={commitBalance}
+                  onKeyDown={e => e.key === "Enter" && (e.currentTarget.blur())}
+                  className="w-[72px] bg-transparent border-b border-zinc-700 text-zinc-300 text-[10px] font-mono text-right outline-none focus:border-[hsl(var(--primary))]/60 transition-colors"
+                />
               </span>
             </div>
             <div className="flex gap-2">
