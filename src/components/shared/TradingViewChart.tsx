@@ -578,6 +578,7 @@ export function TradingViewChart({
           toolbar_bg: "#000000",
           enable_publishing: false,
           hide_top_toolbar: true,
+          hide_side_toolbar: !showSideToolbar,
           allow_symbol_change: false,
           save_image: false,
           withdateranges: false,
@@ -591,12 +592,12 @@ export function TradingViewChart({
             "go_to_date",
             "clock_button",
             "border_around_the_chart",
-            // hide drawing toolbar by default; toggled via showSideToolbar state
             ...(showSideToolbar ? [] : ["left_toolbar"]),
           ],
           enabled_features: [
             "study_templates",
             "side_toolbar_in_fullscreen_mode",
+            ...(showSideToolbar ? ["left_toolbar"] : []),
           ],
           backgroundColor: "rgba(0,0,0,1)",
           gridColor: "rgba(0,0,0,0)",
