@@ -128,13 +128,13 @@ export function AnalyticsView({
       else equityCurve.push({ date: t.date, balance: running });
     });
 
-    // Max drawdown computed per-trade (not per-day) so intraday losses are captured
-    let peak = 0, maxDD = 0, tradeRunning = 0;
+    // Max drawdown computed per-trade — stored as % of peak equity
+    let peak = 0, maxDDPctPct = 0, tradeRunning = 0;
     sorted.forEach(t => {
       tradeRunning += t.pnl;
       if (tradeRunning > peak) peak = tradeRunning;
-      const dd = peak - tradeRunning;
-      if (dd > maxDD) maxDD = dd;
+      const ddPct = peak > 0 ? ((peak - tradeRunning) / peak) * 100 : 0;
+      if (ddPct > maxDDPctPct) maxDDPctPct = ddPct;
     });
 
     // By symbol
@@ -167,7 +167,7 @@ export function AnalyticsView({
       totalTrades, wins, losses, winRate,
       grossProfit, grossLoss, netPnl, profitFactor,
       avgWin, avgLoss, bestDay, worstDay, streak,
-      equityCurve, maxDD,
+      equityCurve, maxDDPct,
       bySymbol, dowArr, byMonth,
     };
   }, [trades]);
@@ -186,7 +186,7 @@ export function AnalyticsView({
     totalTrades, wins, losses, winRate,
     grossProfit, grossLoss, netPnl, profitFactor,
     avgWin, avgLoss, bestDay, worstDay, streak,
-    equityCurve, maxDD,
+    equityCurve, maxDDPct,
     bySymbol, dowArr, byMonth,
   } = stats;
 
@@ -205,7 +205,7 @@ export function AnalyticsView({
           { label: "Profit Factor", value: profitFactor >= 99 ? "∞" : profitFactor.toFixed(2), accent: profitFactor >= 1.5 ? "text-emerald-400" : profitFactor >= 1 ? "text-amber-400" : "text-red-400", icon: TrendingUp },
           { label: "Avg Win",       value: `+$${avgWin.toFixed(2)}`,  accent: "text-emerald-400", icon: Zap },
           { label: "Avg Loss",      value: `-$${avgLoss.toFixed(2)}`, accent: "text-red-400",     icon: TrendingDown },
-          { label: "Max Drawdown",  value: maxDD > 0 ? `-$${maxDD.toFixed(2)}` : "$0.00", accent: maxDD > 0 ? "text-orange-400" : "text-zinc-500", icon: Activity },
+          { label: "Max Drawdown",  value: maxDDPct > 0 ? `-${maxDDPct.toFixed(2)}%` : "0.00%", accent: maxDDPct > 0 ? "text-orange-400" : "text-zinc-500", icon: Activity },
         ].map(({ label, value, accent, icon: Icon }) => (
           <div key={label} className="rounded-xl border border-white/8 bg-white/3 px-4 py-3">
             <div className="flex items-center gap-1.5 mb-1">
