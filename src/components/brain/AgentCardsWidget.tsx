@@ -215,10 +215,11 @@ function AgentCard({
   onClick?: () => void;
 }) {
   const cls = TONE_CLS[tone];
+  const isExpired = state === "EXPIRED";
 
   if (loading) {
     return (
-      <div className="flex min-h-[140px] flex-col gap-2.5 border-t-2 border-t-zinc-700/30 bg-[hsl(var(--card))] px-3 py-3 animate-pulse">
+      <div className="flex-1 min-h-[148px] flex flex-col gap-2.5 border-t-2 border-t-zinc-700/30 bg-[hsl(var(--card))] px-3 py-3 animate-pulse">
         <div className="h-2 w-20 rounded bg-white/6" />
         <div className="h-4 w-16 rounded bg-white/5" />
         <div className="h-[3px] w-full rounded-full bg-white/5" />
@@ -233,22 +234,39 @@ function AgentCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex min-h-[140px] w-full flex-col gap-2 border-t-2 bg-[hsl(var(--card))] px-3 py-3 text-left transition-all",
+        "flex-1 min-h-[148px] w-full flex flex-col border-t-2 bg-[hsl(var(--card))] px-3 pt-3 pb-3 text-left transition-all",
         cls.border,
         onClick && "hover:bg-white/[0.04] cursor-pointer"
       )}
     >
-      <span className="truncate text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-600">{name}</span>
-      <span className={cn("text-[13px] font-black uppercase leading-none tracking-wide", cls.text)}>{state}</span>
-      <div className="flex items-center gap-2">
-        <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-zinc-800">
-          <div className={cn("h-full rounded-full transition-all duration-500", cls.bar)} style={{ width: `${Math.min(100, confidence)}%` }} />
+      {/* Content wrapper — opacity dimmed for EXPIRED without touching card bg or border */}
+      <div className={cn("flex flex-col gap-2 h-full", isExpired && "opacity-60")}>
+        <span className="line-clamp-1 text-[8px] font-bold uppercase tracking-[0.12em] leading-tight text-zinc-600">
+          {name}
+        </span>
+        <span className={cn(
+          "text-[13px] font-black uppercase leading-none tracking-wide",
+          isExpired ? "text-zinc-500" : cls.text
+        )}>
+          {state}
+        </span>
+        <div className="flex items-center gap-2">
+          <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-zinc-800">
+            <div className={cn("h-full rounded-full transition-all duration-500", cls.bar)} style={{ width: `${Math.min(100, confidence)}%` }} />
+          </div>
+          <span className="w-7 shrink-0 text-right font-mono text-[10px] text-zinc-600">
+            {confidence}%
+          </span>
         </div>
-        <span className="w-7 shrink-0 text-right font-mono text-[10px] text-zinc-600">{confidence}%</span>
+        {/* flex-1 pushes sub/tags to bottom for consistent vertical alignment */}
+        <span className="flex-1 text-[10px] leading-snug text-zinc-500 line-clamp-3">
+          {insight}
+        </span>
+        {sub && (
+          <span className="text-[9px] text-zinc-700 shrink-0">{sub}</span>
+        )}
+        {tags && <DiagStrip tags={tags} />}
       </div>
-      <span className="line-clamp-2 text-[10px] leading-snug text-zinc-500">{insight}</span>
-      {sub ? <span className="text-[9px] text-zinc-700">{sub}</span> : null}
-      {tags ? <DiagStrip tags={tags} /> : null}
     </button>
   );
 }
@@ -281,7 +299,7 @@ function MasterCard({
 
   if (loading) {
     return (
-      <div className="flex min-h-[140px] flex-col gap-2.5 border-t-2 border-t-zinc-700/30 bg-[hsl(var(--card))] px-3 py-3 animate-pulse">
+      <div className="flex-1 min-h-[148px] flex flex-col gap-2.5 border-t-2 border-t-zinc-700/30 bg-[hsl(var(--card))] px-3 py-3 animate-pulse">
         <div className="h-2 w-20 rounded bg-white/6" />
         <div className="h-4 w-16 rounded bg-white/5" />
         <div className="h-[3px] w-full rounded-full bg-white/5" />
@@ -294,7 +312,7 @@ function MasterCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex min-h-[140px] w-full flex-col gap-2 border-t-2 bg-[hsl(var(--card))] px-3 py-3 text-left transition-all hover:bg-white/[0.04]",
+        "flex-1 min-h-[148px] w-full flex flex-col gap-2 border-t-2 bg-[hsl(var(--card))] px-3 py-3 text-left transition-all hover:bg-white/[0.04]",
         cls.border
       )}
     >
@@ -433,6 +451,10 @@ export function AgentCardsWidget({
 
   const noAgents = row1.length === 0 && row2.length === 0;
 
+  // Single ordered list — one flat grid ensures column separators are continuous
+  const allVisible = [...row1, ...row2];
+  const total = allVisible.length;
+
   return (
     <div className="h-full min-h-0 overflow-y-auto">
       {noAgents ? (
@@ -443,122 +465,124 @@ export function AgentCardsWidget({
           </div>
         </div>
       ) : (
-        <div className="space-y-px">
-          {/* Row 1 */}
-          {row1.length > 0 && (
-            <div className={cn("grid gap-px", ({"1":"grid-cols-1","2":"grid-cols-2","3":"grid-cols-3","4":"grid-cols-4"} as Record<number,string>)[row1.length] ?? "grid-cols-4")}>
-              {row1.includes("trend") && (
-                <AgentCard
-                  name="Trend Agent"
-                  state={fmt(tr?.bias)}
-                  confidence={tr?.confidence ?? 0}
-                  insight={tr?.reasons?.[0] ?? tr?.marketPhase ?? "Recalculating…"}
-                  sub={tr?.momentumDirection ? `Momentum ${tr.momentumDirection}` : undefined}
-                  tone={biasTone(tr?.bias)}
-                  tags={trendTags}
-                  loading={isLoading && !data}
-                  onClick={data ? () => openDrawer("trend") : undefined}
-                />
-              )}
-              {row1.includes("smc") && (
-                <AgentCard
-                  name="Price Action Agent"
-                  state={fmt(smc?.bias)}
-                  confidence={smc?.confidence ?? 0}
-                  insight={smc?.reasons?.[0] ?? smc?.setupType ?? "Recalculating…"}
-                  sub={smc?.premiumDiscount ? `Zone ${smc.premiumDiscount}` : undefined}
-                  tone={biasTone(smc?.bias)}
-                  tags={smcTags}
-                  loading={isLoading && !data}
-                  onClick={data ? () => openDrawer("smc") : undefined}
-                />
-              )}
-              {row1.includes("news") && (
-                <AgentCard
-                  name="News Agent"
-                  state={fmt(news?.impact)}
-                  confidence={news?.confidence ?? 0}
-                  insight={news?.dominantCatalyst ?? news?.reasons?.[0] ?? "Recalculating…"}
-                  sub={news?.riskScore != null ? `Risk ${news.riskScore}/100` : undefined}
-                  tone={biasTone(news?.impact)}
-                  tags={newsTags}
-                  loading={isLoading && !data}
-                  onClick={data ? () => openDrawer("news") : undefined}
-                />
-              )}
-              {row1.includes("risk") && (
-                <AgentCard
-                  name="Risk Gate"
-                  state={risk ? (risk.valid ? "VALID" : "BLOCKED") : "NEUTRAL"}
-                  confidence={risk?.sessionScore ?? 0}
-                  insight={risk?.reasons?.[0] ?? risk?.warnings?.[0] ?? "Recalculating…"}
-                  sub={risk ? `Grade ${risk.grade}  -  Max ${risk.maxRiskPercent}% risk` : undefined}
-                  tone={risk ? (risk.valid ? "green" : "red") : "gray"}
-                  tags={riskTags}
-                  loading={isLoading && !data}
-                  onClick={data ? () => openDrawer("risk") : undefined}
-                />
-              )}
-            </div>
-          )}
-
-          {/* Row 2 */}
-          {row2.length > 0 && (
-            <div className={cn("grid gap-px", ({"1":"grid-cols-1","2":"grid-cols-2","3":"grid-cols-3"} as Record<number,string>)[row2.length] ?? "grid-cols-3")}>
-              {row2.includes("contrarian") && (
-                <AgentCard
-                  name="Contrarian Agent"
-                  state={contrarian?.challengesBias ? "ALERT" : "CLEAR"}
-                  confidence={contrarian?.trapConfidence ?? 0}
-                  insight={contrarian?.alternativeScenario ?? contrarian?.failureReasons?.[0] ?? "Recalculating…"}
-                  sub={contrarian?.trapType ? `Trap: ${contrarian.trapType}` : undefined}
-                  tone={contrarian?.challengesBias ? "red" : "gray"}
-                  tags={contrarianTags}
-                  loading={isLoading && !data}
-                  onClick={data ? () => openDrawer("contrarian") : undefined}
-                />
-              )}
-              {row2.includes("execution") && (
-                <AgentCard
-                  name="Execution Agent"
-                  state={execution?.signalState ?? "NO TRADE"}
-                  confidence={execConf}
-                  insight={execution?.signalStateReason ?? execution?.triggerCondition ?? "Recalculating…"}
-                  sub={
-                    execution?.hasSetup && execution.direction !== "none"
-                      ? `${execution.direction.toUpperCase()}  -  RR ${execution.rrRatio?.toFixed(2) ?? " - "}:1`
-                      : undefined
-                  }
-                  tone={
-                    execution?.direction === "long"    ? "green" :
-                    execution?.direction === "short"   ? "red"   :
-                    execution?.signalState === "ARMED" ? "yellow" : "gray"
-                  }
-                  tags={execTags}
-                  loading={isLoading && !data}
-                  onClick={data ? () => openDrawer("execution") : undefined}
-                />
-              )}
-              {row2.includes("master") && data && (
-                <MasterCard
-                  data={data}
-                  execConf={execConf}
-                  onClick={() => openDrawer("master")}
-                  loading={isLoading && !data}
-                />
-              )}
-              {row2.includes("master") && !data && (
-                <AgentCard
-                  name="Master Agent"
-                  state=" - "
-                  confidence={0}
-                  insight="Recalculating…"
-                  tone="gray"
-                  loading={isLoading}
-                />
-              )}
-            </div>
-          )}
+        <div className={cn(
+          "grid gap-px",
+          total === 1 ? "grid-cols-1" : "grid-cols-2"
+        )}>
+          {allVisible.map((id, idx) => {
+            // Odd total: last card spans both columns for a clean finish
+            const spanFull = total % 2 === 1 && idx === total - 1;
+            return (
+              // flex flex-col wrapper makes flex-1 on the button card propagate correctly
+              <div key={id} className={cn("flex flex-col", spanFull && "col-span-2")}>
+                {id === "trend" && (
+                  <AgentCard
+                    name="Trend Agent"
+                    state={fmt(tr?.bias)}
+                    confidence={tr?.confidence ?? 0}
+                    insight={tr?.reasons?.[0] ?? tr?.marketPhase ?? "Recalculating…"}
+                    sub={tr?.momentumDirection ? `Momentum ${tr.momentumDirection}` : undefined}
+                    tone={biasTone(tr?.bias)}
+                    tags={trendTags}
+                    loading={isLoading && !data}
+                    onClick={data ? () => openDrawer("trend") : undefined}
+                  />
+                )}
+                {id === "smc" && (
+                  <AgentCard
+                    name="Price Action"
+                    state={fmt(smc?.bias)}
+                    confidence={smc?.confidence ?? 0}
+                    insight={smc?.reasons?.[0] ?? smc?.setupType ?? "Recalculating…"}
+                    sub={smc?.premiumDiscount ? `Zone ${smc.premiumDiscount}` : undefined}
+                    tone={biasTone(smc?.bias)}
+                    tags={smcTags}
+                    loading={isLoading && !data}
+                    onClick={data ? () => openDrawer("smc") : undefined}
+                  />
+                )}
+                {id === "news" && (
+                  <AgentCard
+                    name="News Agent"
+                    state={fmt(news?.impact)}
+                    confidence={news?.confidence ?? 0}
+                    insight={news?.dominantCatalyst ?? news?.reasons?.[0] ?? "Recalculating…"}
+                    sub={news?.riskScore != null ? `Risk ${news.riskScore}/100` : undefined}
+                    tone={biasTone(news?.impact)}
+                    tags={newsTags}
+                    loading={isLoading && !data}
+                    onClick={data ? () => openDrawer("news") : undefined}
+                  />
+                )}
+                {id === "risk" && (
+                  <AgentCard
+                    name="Risk Gate"
+                    state={risk ? (risk.valid ? "VALID" : "BLOCKED") : "NEUTRAL"}
+                    confidence={risk?.sessionScore ?? 0}
+                    insight={risk?.reasons?.[0] ?? risk?.warnings?.[0] ?? "Recalculating…"}
+                    sub={risk ? `Grade ${risk.grade} · Max ${risk.maxRiskPercent}% risk` : undefined}
+                    tone={risk ? (risk.valid ? "green" : "red") : "gray"}
+                    tags={riskTags}
+                    loading={isLoading && !data}
+                    onClick={data ? () => openDrawer("risk") : undefined}
+                  />
+                )}
+                {id === "contrarian" && (
+                  <AgentCard
+                    name="Contrarian"
+                    state={contrarian?.challengesBias ? "ALERT" : "CLEAR"}
+                    confidence={contrarian?.trapConfidence ?? 0}
+                    insight={contrarian?.alternativeScenario ?? contrarian?.failureReasons?.[0] ?? "Recalculating…"}
+                    sub={contrarian?.trapType ? `Trap: ${contrarian.trapType}` : undefined}
+                    tone={contrarian?.challengesBias ? "red" : "gray"}
+                    tags={contrarianTags}
+                    loading={isLoading && !data}
+                    onClick={data ? () => openDrawer("contrarian") : undefined}
+                  />
+                )}
+                {id === "execution" && (
+                  <AgentCard
+                    name="Execution"
+                    state={execution?.signalState ?? "NO TRADE"}
+                    confidence={execConf}
+                    insight={execution?.signalStateReason ?? execution?.triggerCondition ?? "Recalculating…"}
+                    sub={
+                      execution?.hasSetup && execution.direction !== "none"
+                        ? `${execution.direction.toUpperCase()} · RR ${execution.rrRatio?.toFixed(2) ?? "—"}:1`
+                        : undefined
+                    }
+                    tone={
+                      execution?.signalState === "EXPIRED" ? "gray" :
+                      execution?.direction === "long"       ? "green" :
+                      execution?.direction === "short"      ? "red"   :
+                      execution?.signalState === "ARMED"    ? "yellow" : "gray"
+                    }
+                    tags={execTags}
+                    loading={isLoading && !data}
+                    onClick={data ? () => openDrawer("execution") : undefined}
+                  />
+                )}
+                {id === "master" && data && (
+                  <MasterCard
+                    data={data}
+                    execConf={execConf}
+                    onClick={() => openDrawer("master")}
+                    loading={isLoading && !data}
+                  />
+                )}
+                {id === "master" && !data && (
+                  <AgentCard
+                    name="Master Agent"
+                    state="—"
+                    confidence={0}
+                    insight="Recalculating…"
+                    tone="gray"
+                    loading={isLoading}
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
