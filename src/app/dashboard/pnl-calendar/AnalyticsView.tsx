@@ -118,7 +118,7 @@ export function AnalyticsView({
       else break;
     }
 
-    // Equity curve from manual trades (grouped by date)
+    // Equity curve from manual trades (grouped by date for display)
     const equityCurve: Array<{ date: string; balance: number }> = [];
     let running = 0;
     sorted.forEach(t => {
@@ -128,11 +128,12 @@ export function AnalyticsView({
       else equityCurve.push({ date: t.date, balance: running });
     });
 
-    // Max drawdown from equity curve
-    let peak = 0, maxDD = 0;
-    equityCurve.forEach(({ balance }) => {
-      if (balance > peak) peak = balance;
-      const dd = peak - balance;
+    // Max drawdown computed per-trade (not per-day) so intraday losses are captured
+    let peak = 0, maxDD = 0, tradeRunning = 0;
+    sorted.forEach(t => {
+      tradeRunning += t.pnl;
+      if (tradeRunning > peak) peak = tradeRunning;
+      const dd = peak - tradeRunning;
       if (dd > maxDD) maxDD = dd;
     });
 
@@ -204,7 +205,7 @@ export function AnalyticsView({
           { label: "Profit Factor", value: profitFactor >= 99 ? "∞" : profitFactor.toFixed(2), accent: profitFactor >= 1.5 ? "text-emerald-400" : profitFactor >= 1 ? "text-amber-400" : "text-red-400", icon: TrendingUp },
           { label: "Avg Win",       value: `+$${avgWin.toFixed(2)}`,  accent: "text-emerald-400", icon: Zap },
           { label: "Avg Loss",      value: `-$${avgLoss.toFixed(2)}`, accent: "text-red-400",     icon: TrendingDown },
-          { label: "Max Drawdown",  value: `-$${maxDD.toFixed(2)}`,   accent: "text-orange-400",  icon: Activity },
+          { label: "Max Drawdown",  value: maxDD > 0 ? `-$${maxDD.toFixed(2)}` : "$0.00", accent: maxDD > 0 ? "text-orange-400" : "text-zinc-500", icon: Activity },
         ].map(({ label, value, accent, icon: Icon }) => (
           <div key={label} className="rounded-xl border border-white/8 bg-white/3 px-4 py-3">
             <div className="flex items-center gap-1.5 mb-1">
@@ -222,8 +223,8 @@ export function AnalyticsView({
           { label: "Trades",    value: totalTrades },
           { label: "Wins",      value: wins,   accent: "text-emerald-400" },
           { label: "Losses",    value: losses, accent: "text-red-400" },
-          { label: "Best Day",  value: `+$${bestDay.toFixed(2)}`,   accent: "text-emerald-400" },
-          { label: "Worst Day", value: `-$${Math.abs(worstDay).toFixed(2)}`, accent: "text-red-400" },
+          { label: "Best Day",  value: bestDay > 0 ? `+$${bestDay.toFixed(2)}` : "$0.00", accent: bestDay > 0 ? "text-emerald-400" : "text-zinc-500" },
+          { label: "Worst Day", value: worstDay < 0 ? `-$${Math.abs(worstDay).toFixed(2)}` : "$0.00", accent: worstDay < 0 ? "text-red-400" : "text-zinc-500" },
           { label: "Gross Win", value: `+$${grossProfit.toFixed(2)}`, accent: "text-emerald-400" },
           { label: "Gross Loss",value: `-$${grossLoss.toFixed(2)}`,   accent: "text-red-400" },
         ].map(({ label, value, accent }) => (
