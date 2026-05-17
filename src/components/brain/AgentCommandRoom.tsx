@@ -225,7 +225,7 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
       <div className="w-full overflow-hidden bg-[#07090f] shrink-0">
         <div
           className="relative mx-auto w-full bg-[#07090f] overflow-hidden"
-          style={{ lineHeight:0, aspectRatio:"1200 / 560", maxHeight:"42vh" }}
+          style={{ lineHeight:0, aspectRatio:"1536 / 1024", maxHeight:"45vh" }}
         >
           <img
             src={HQ_IMAGE}
@@ -257,46 +257,48 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
             }} />
           )}
 
-          {/* Bias overlay bar on top of image */}
+          {/* Header bar — LEFT: brand+session  RIGHT: bias+confidence */}
           <div style={{
-            position:"absolute", top:0, left:0, right:0,
-            background:"linear-gradient(180deg, rgba(6,13,26,0.85) 0%, transparent 100%)",
-            padding:"10px 16px",
+            position:"absolute", top:0, left:0, right:0, zIndex:10,
+            background:"linear-gradient(180deg, rgba(6,13,26,0.90) 0%, transparent 100%)",
+            padding:"8px 12px",
             display:"flex", justifyContent:"space-between", alignItems:"center",
-            pointerEvents:"none",
+            gap:8, pointerEvents:"none",
           }}>
-            <span style={{ color:"#22d3ee", fontSize:10, letterSpacing:"0.14em", fontFamily:"var(--font-geist-mono), monospace", whiteSpace:"nowrap" }}>
-              TRADEX · MULTI-AGENT FLOOR
-            </span>
-            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              {/* Live session pill */}
+            {/* LEFT: brand + session pill */}
+            <div style={{ display:"flex", alignItems:"center", gap:6, minWidth:0 }}>
+              <span style={{ color:"#22d3ee", fontSize:9, letterSpacing:"0.12em", fontFamily:"var(--font-geist-mono), monospace", whiteSpace:"nowrap" }}>
+                TRADEX · FLOOR
+              </span>
               <span style={{
-                fontSize:8, letterSpacing:"0.14em", padding:"2px 7px", borderRadius:99,
+                fontSize:7, letterSpacing:"0.12em", padding:"1px 5px", borderRadius:99,
                 border:`1px solid ${session.color}55`, color:session.color,
                 background:session.color+"18", fontFamily:"var(--font-geist-mono), monospace",
-                display:"flex", alignItems:"center", gap:4,
+                display:"flex", alignItems:"center", gap:3, flexShrink:0,
               }}>
-                <span style={{ width:5, height:5, borderRadius:"50%", background:session.color, display:"inline-block", boxShadow:`0 0 5px ${session.color}` }} />
+                <span style={{ width:4, height:4, borderRadius:"50%", background:session.color, display:"inline-block", boxShadow:`0 0 4px ${session.color}` }} />
                 {session.label}
               </span>
-              <span style={{ color:biasColor, fontSize:13, fontWeight:700, letterSpacing:"0.15em", fontFamily:"var(--font-geist-mono), monospace" }}>
+            </div>
+            {/* RIGHT: bias state + confidence OR inactive badge */}
+            <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
+              <span style={{ color:biasColor, fontSize:11, fontWeight:700, letterSpacing:"0.14em", fontFamily:"var(--font-geist-mono), monospace", whiteSpace:"nowrap" }}>
                 {biasLabel}
               </span>
-              {isExpired && (
+              {isExpired ? (
                 <span style={{
-                  fontSize:8, letterSpacing:"0.14em", padding:"2px 7px", borderRadius:99,
-                  border:"1px solid #4a556866", color:"#556677",
-                  background:"#4a556818", fontFamily:"var(--font-geist-mono), monospace",
+                  fontSize:7, letterSpacing:"0.12em", padding:"1px 6px", borderRadius:99,
+                  border:"1px solid #2e3d4d", color:"#3d4e5e",
+                  background:"#0d151e", fontFamily:"var(--font-geist-mono), monospace",
                 }}>INACTIVE</span>
+              ) : (
+                <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                  <div style={{ background:"#0a1e3a", borderRadius:2, overflow:"hidden", width:44, height:3 }}>
+                    <div style={{ width:`${conf}%`, height:"100%", background:biasColor }} />
+                  </div>
+                  <span style={{ color:biasColor, fontSize:8, fontFamily:"var(--font-geist-mono), monospace" }}>{conf}%</span>
+                </div>
               )}
-              <div style={{
-                background:"#0a1e3a", borderRadius:2, overflow:"hidden",
-                width:80, height:4, opacity: isExpired ? 0.25 : 1,
-                transition:"opacity 0.4s ease",
-              }}>
-                <div style={{ width:`${conf}%`, height:"100%", background:biasColor }} />
-              </div>
-              <span style={{ color:biasColor, fontSize:10, fontFamily:"var(--font-geist-mono), monospace", opacity: isExpired ? 0.4 : 1 }}>{conf}%</span>
             </div>
           </div>
 
@@ -457,7 +459,7 @@ export function AgentCommandRoom({ data, loading=false, focusedAgentId, onHoverA
       {activePinData && activeSC && (
         <div className="hq-card-enter" style={{
           borderTop:`1px solid ${agentExpiredOverride ? "#2a3a4a" : activeSC.accent}44`,
-          padding:"14px 16px",
+          padding:"12px 16px 16px",
           background:"#07090f",
         }}>
           {/* Header */}
