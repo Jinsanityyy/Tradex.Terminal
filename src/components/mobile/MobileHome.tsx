@@ -70,10 +70,7 @@ function MobilePnLWidget() {
           </div>
           <button
             onClick={() => {
-              document.dispatchEvent(new CustomEvent("tradex:open-more"));
-              setTimeout(() => {
-                document.dispatchEvent(new CustomEvent("tradex:open-app", { detail: { appId: "pnl-calendar" } }));
-              }, 50);
+              document.dispatchEvent(new CustomEvent("tradex:open-more", { detail: { appId: "pnl-calendar" } }));
             }}
             className="text-[10px] text-[hsl(var(--primary))] font-semibold border border-[hsl(var(--primary))]/30 px-2.5 py-1 rounded-lg active:opacity-70"
           >

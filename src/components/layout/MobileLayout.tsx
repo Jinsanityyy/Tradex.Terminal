@@ -196,7 +196,15 @@ export function MobileLayout() {
   }, [active]);
 
   useEffect(() => {
-    const handler = () => { switchTab("more"); };
+    const handler = (e: Event) => {
+      const appId = (e as CustomEvent<{ appId?: string }>).detail?.appId;
+      switchTab("more");
+      if (appId) {
+        setTimeout(() => {
+          document.dispatchEvent(new CustomEvent("tradex:open-app", { detail: { appId } }));
+        }, 200);
+      }
+    };
     document.addEventListener("tradex:open-more", handler);
     return () => document.removeEventListener("tradex:open-more", handler);
   }, [switchTab]);
