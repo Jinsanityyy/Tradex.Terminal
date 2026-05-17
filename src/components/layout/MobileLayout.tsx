@@ -195,6 +195,12 @@ export function MobileLayout() {
     transitionTimer.current = setTimeout(() => setTransitioning(false), 180);
   }, [active]);
 
+  useEffect(() => {
+    const handler = () => { switchTab("more"); };
+    document.addEventListener("tradex:open-more", handler);
+    return () => document.removeEventListener("tradex:open-more", handler);
+  }, [switchTab]);
+
   async function handleLogout() {
     const supabase = createClient();
     if (supabase) await supabase.auth.signOut();
