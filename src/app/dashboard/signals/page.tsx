@@ -1,10 +1,13 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import useSWR from "swr";
 import { cn } from "@/lib/utils";
 import type { SignalRecord, SignalStats, SignalStatus } from "@/lib/signals/types";
 import type { Symbol } from "@/lib/agents/schemas";
+import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
+import { CloseTradeModal } from "@/components/shared/CloseTradeModal";
+import { loadTradeLog, findOpenBySetup, type TakenSignal } from "@/lib/trades/trade-log";
 
 interface SignalsResponse {
   stats: SignalStats;
@@ -112,8 +115,20 @@ function timeToResolution(signal: SignalRecord): string | null {
   return remHrs > 0 ? `${days}d ${remHrs}h` : `${days}d`;
 }
 
-function SignalRow({ s }: { s: SignalRecord }) {
+function SignalRow({
+  s,
+  takenTrade,
+  onTake,
+  onClose,
+}: {
+  s: SignalRecord;
+  takenTrade?: TakenSignal;
+  onTake: (s: SignalRecord) => void;
+  onClose: (t: TakenSignal) => void;
+}) {
   const hasTradePlan = s.tradePlan !== null;
+  const canTake = hasTradePlan && s.status === "open" && !takenTrade;
+  const isOpenTrade = hasTradePlan && takenTrade?.status === "open";
 
   return (
     <div className="rounded-lg border border-white/8 bg-[#0c0d11] hover:border-white/15 transition-colors px-4 py-3">
@@ -152,6 +167,12 @@ function SignalRow({ s }: { s: SignalRecord }) {
               <span className="text-zinc-700">to {s.status === "loss_sl" ? "SL" : "TP"}</span>
             </span>
           )}
+          {/* Trade taken badge */}
+          {isOpenTrade && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border-emerald-500/30">
+              TRADE OPEN
+            </span>
+          )}
         </div>
       </div>
 
@@ -173,6 +194,28 @@ function SignalRow({ s }: { s: SignalRecord }) {
             <span className="text-zinc-500">RR</span>
             <div className="text-amber-400">{s.tradePlan!.rrRatio}:1</div>
           </div>
+        </div>
+      )}
+
+      {/* Take / Close buttons */}
+      {canTake && (
+        <div className="mt-3">
+          <button
+            onClick={() => onTake(s)}
+            className="px-3 py-1.5 rounded-lg text-[11px] font-bold border border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/20 transition-colors"
+          >
+            + Take Trade
+          </button>
+        </div>
+      )}
+      {isOpenTrade && (
+        <div className="mt-3">
+          <button
+            onClick={() => onClose(takenTrade!)}
+            className="px-3 py-1.5 rounded-lg text-[11px] font-bold border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors"
+          >
+            Close Trade
+          </button>
         </div>
       )}
 
@@ -198,6 +241,13 @@ function SignalRow({ s }: { s: SignalRecord }) {
 export default function SignalsPage() {
   const [symbol, setSymbol] = useState<Symbol | "ALL">("ALL");
   const [period, setPeriod] = useState<SignalStats["period"]>("30d");
+  const [tradeLog, setTradeLog] = useState<TakenSignal[]>([]);
+  const [takeSignal, setTakeSignal] = useState<SignalRecord | null>(null);
+  const [closeTrade, setCloseTrade] = useState<TakenSignal | null>(null);
+
+  useEffect(() => { setTradeLog(loadTradeLog()); }, []);
+
+  const refreshLog = useCallback(() => setTradeLog(loadTradeLog()), []);
 
   const { data, isLoading, error } = useSWR<SignalsResponse>(
     `/api/signals?symbol=${symbol}&period=${period}&limit=50`,
@@ -383,10 +433,53 @@ export default function SignalsPage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {recent.map(s => <SignalRow key={s.id} s={s} />)}
+            {recent.map(s => {
+              const tp = s.tradePlan;
+              const taken = tp
+                ? tradeLog.find(t =>
+                    t.symbol === s.symbol &&
+                    Math.abs(t.entry - tp.entry) < 0.01 &&
+                    Math.abs(t.stopLoss - tp.stopLoss) < 0.01
+                  )
+                : undefined;
+              return (
+                <SignalRow
+                  key={s.id}
+                  s={s}
+                  takenTrade={taken}
+                  onTake={setTakeSignal}
+                  onClose={setCloseTrade}
+                />
+              );
+            })}
           </div>
         )}
       </div>
+
+      {/* ── Modals ───────────────────────────────────────────────────────── */}
+      {takeSignal?.tradePlan && (
+        <TakeTradeModal
+          symbol={takeSignal.symbol}
+          symbolDisplay={takeSignal.symbolDisplay}
+          direction={takeSignal.finalBias === "bullish" ? "BUY" : "SELL"}
+          entry={takeSignal.tradePlan.entry}
+          stopLoss={takeSignal.tradePlan.stopLoss}
+          tp1={takeSignal.tradePlan.tp1}
+          tp2={takeSignal.tradePlan.tp2}
+          rrRatio={takeSignal.tradePlan.rrRatio}
+          signalId={takeSignal.id}
+          timeframe={takeSignal.timeframe}
+          onClose={() => setTakeSignal(null)}
+          onTaken={() => { refreshLog(); setTakeSignal(null); }}
+        />
+      )}
+      {closeTrade && (
+        <CloseTradeModal
+          trade={closeTrade}
+          onClose={() => setCloseTrade(null)}
+          onClosed={() => { refreshLog(); setCloseTrade(null); }}
+        />
+      )}
 
       {/* ── Footer disclaimer ────────────────────────────────────────────── */}
       <div className="text-[10px] text-zinc-600 pt-4 border-t border-white/5">

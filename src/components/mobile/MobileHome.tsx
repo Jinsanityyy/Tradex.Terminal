@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useQuotes, useMarketBias, useKeyLevels, useCatalysts, useMarketAnalysis, useAgentResult, useSessions, useMTFBias, useTrumpPosts } from "@/hooks/useMarketData";
 import { TrendingUp, TrendingDown, Minus, Target, Zap, RefreshCw, Sparkles, ChevronDown, ChevronUp, Brain, BarChart2, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,9 @@ import { LiveTVPanel } from "@/components/shared/LiveTVPanel";
 import dynamic from "next/dynamic";
 const GlobeClient = dynamic(() => import("@/components/globe/GlobeClient"), { ssr: false });
 import { CommunityPanel } from "@/components/shared/CommunityPanel";
+import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
+import { CloseTradeModal } from "@/components/shared/CloseTradeModal";
+import { loadTradeLog, findOpenBySetup, type TakenSignal } from "@/lib/trades/trade-log";
 
 function LiveBadge() {
   return (
@@ -77,7 +80,12 @@ export function MobileHome() {
   const [biasModalOpen, setBiasModalOpen] = useState(false);
   const [widgetSheetOpen, setWidgetSheetOpen] = useState(false);
   const [widgetConfig, setWidgetConfig] = useState<WidgetConfig[]>(() => loadWidgetConfig());
+  const [tradeLog, setTradeLog] = useState<TakenSignal[]>([]);
+  const [takingTrade, setTakingTrade] = useState(false);
+  const [closingTrade, setClosingTrade] = useState<TakenSignal | null>(null);
   const containerRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLElement>;
+
+  useEffect(() => { setTradeLog(loadTradeLog()); }, []);
 
   const symbolBiasLabel = getSymbolLabel(activeSymbol);
   const symbolBiasShort = getSymbolShort(activeSymbol);
@@ -276,6 +284,32 @@ export function MobileHome() {
                   {exec?.signalStateReason && (
                     <p className="text-[10px] text-zinc-600 mt-2 leading-tight">{exec.signalStateReason}</p>
                   )}
+                  {/* Take / Close trade buttons */}
+                  {(() => {
+                    if (!entry || !stopLoss || !tp1) return null;
+                    const openTrade = findOpenBySetup(activeSymbol, entry, stopLoss);
+                    if (openTrade) {
+                      return (
+                        <button
+                          onClick={() => setClosingTrade(openTrade)}
+                          className="mt-3 w-full py-2 rounded-lg text-[11px] font-bold border border-amber-500/40 bg-amber-500/10 text-amber-400 active:bg-amber-500/20"
+                        >
+                          Close Trade
+                        </button>
+                      );
+                    }
+                    if (signalState === "ARMED" || signalState === "PENDING") {
+                      return (
+                        <button
+                          onClick={() => setTakingTrade(true)}
+                          className="mt-3 w-full py-2 rounded-lg text-[11px] font-bold border border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] active:bg-[hsl(var(--primary))]/20"
+                        >
+                          + Take Trade
+                        </button>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
               ) : null;
 
@@ -596,6 +630,32 @@ export function MobileHome() {
           </div>
         )}
       </DetailModal>
+
+      {/* Take Trade Modal */}
+      {takingTrade && entry && stopLoss && tp1 && rrRatio && direction && (
+        <TakeTradeModal
+          symbol={activeSymbol}
+          symbolDisplay={getSymbolLabel(activeSymbol)}
+          direction={direction === "SELL" ? "SELL" : "BUY"}
+          entry={entry}
+          stopLoss={stopLoss}
+          tp1={tp1}
+          tp2={exec?.tp2 ?? tradePlan?.tp2 ?? null}
+          rrRatio={rrRatio}
+          timeframe="H1"
+          onClose={() => setTakingTrade(false)}
+          onTaken={() => { setTradeLog(loadTradeLog()); setTakingTrade(false); }}
+        />
+      )}
+
+      {/* Close Trade Modal */}
+      {closingTrade && (
+        <CloseTradeModal
+          trade={closingTrade}
+          onClose={() => setClosingTrade(null)}
+          onClosed={() => { setTradeLog(loadTradeLog()); setClosingTrade(null); }}
+        />
+      )}
     </div>
     </>
   );
