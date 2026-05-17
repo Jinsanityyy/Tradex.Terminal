@@ -406,7 +406,11 @@ export function AnalyticsView({
           </div>
           <p className={cn(
             "text-base font-bold font-mono",
-            rrRatio >= 99 || rrRatio >= 1.5 ? "text-emerald-400" : rrRatio >= 1 ? "text-amber-400" : "text-red-400"
+            rrRatio >= 99 || rrRatio >= 2.0
+              ? "text-emerald-400"
+              : rrRatio >= 1.0
+              ? "text-yellow-500"
+              : "text-red-500"
           )}>
             {rrRatio >= 99 ? "∞ R" : `${rrRatio.toFixed(2)} R`}
           </p>
@@ -573,12 +577,12 @@ export function AnalyticsView({
                     )}
                   </div>
                   <span className={cn(
-                    "text-[10px] font-mono w-16 text-right shrink-0",
+                    "text-[10px] font-mono w-[4.5rem] text-right shrink-0",
                     d.pnl > 0 ? "text-emerald-400" : d.pnl < 0 ? "text-red-400" : "text-zinc-600"
                   )}>
                     {d.trades > 0 ? fmtV(d.pnl, pnlMode, base) : "—"}
                   </span>
-                  <span className="text-[9px] text-zinc-600 w-8 text-right shrink-0">
+                  <span className="text-[9px] text-zinc-600 w-10 text-right shrink-0">
                     {d.trades > 0 ? `${wr.toFixed(0)}%` : ""}
                   </span>
                 </div>
@@ -605,13 +609,13 @@ export function AnalyticsView({
                 >
                   <thead>
                     <tr>
-                      <th className="text-[8px] text-zinc-600 text-left pr-1 py-0.5 w-7 font-normal">Yr</th>
+                      <th className="text-[8px] text-zinc-400 text-left pr-1 py-0.5 w-7 font-semibold">Yr</th>
                       {MONTH_LABELS.map(m => (
-                        <th key={m} className="text-[7px] text-zinc-600 text-center px-px py-0.5 font-normal">
+                        <th key={m} className="text-[7px] text-zinc-400 text-center px-px py-0.5 font-medium">
                           {m}
                         </th>
                       ))}
-                      <th className="text-[7px] text-zinc-500 text-center px-px py-0.5 font-semibold">YTD</th>
+                      <th className="text-[7px] text-zinc-300 text-center px-px py-0.5 font-semibold">YTD</th>
                     </tr>
                   </thead>
                   <tbody>
