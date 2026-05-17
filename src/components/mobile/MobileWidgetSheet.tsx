@@ -33,25 +33,25 @@ export interface WidgetConfig {
 }
 
 export const DEFAULT_WIDGET_CONFIG: WidgetConfig[] = [
+  { id: "globe",          visible: true  },
   { id: "signal_session", visible: true  },
   { id: "entry_strip",    visible: true  },
-  { id: "top_catalyst",   visible: true  },
-  { id: "live_prices",    visible: true  },
-  { id: "asset_bias",     visible: true  },
+  { id: "agents",         visible: true  },
+  { id: "live_prices",    visible: false },
+  { id: "asset_bias",     visible: false },
   { id: "mtf_bias",       visible: false },
   { id: "key_levels",     visible: false },
-  { id: "ai_analysis",    visible: true  },
-  { id: "more_catalysts", visible: true  },
+  { id: "ai_analysis",    visible: false },
+  { id: "top_catalyst",   visible: false },
+  { id: "more_catalysts", visible: false },
   { id: "trump_feed",     visible: false },
-  { id: "agents",         visible: false },
-  { id: "globe",          visible: false },
   { id: "live_tv",        visible: false },
   { id: "community",      visible: false },
   { id: "lot_calculator", visible: false },
   { id: "pnl_calendar",  visible: false },
 ];
 
-const STORAGE_KEY = "tradex-mobile-widgets-v1";
+const STORAGE_KEY = "tradex-mobile-widgets-v2";
 
 export function loadWidgetConfig(): WidgetConfig[] {
   if (typeof window === "undefined") return DEFAULT_WIDGET_CONFIG;
