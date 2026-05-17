@@ -180,9 +180,7 @@ function TradePlanCard({ tradePlan }: { tradePlan: NonNullable<AgentRunResult["a
             <p className="text-[14px] font-black font-mono mt-0.5 text-zinc-200">
               {tradePlan.confluenceCount != null
                 ? <>
-                    {typeof tradePlan.confluenceCount === "string"
-                      ? tradePlan.confluenceCount.replace(/\/10$/, "")
-                      : tradePlan.confluenceCount}
+                    {tradePlan.confluenceCount}
                     <span className="text-[10px] text-zinc-500">/10</span>
                   </>
                 : " - "}
