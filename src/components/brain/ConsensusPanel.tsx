@@ -52,24 +52,46 @@ const BIAS_CONFIG: Record<
 };
 
 function ScoreBar({ score }: { score: number }) {
-  const isBull = score > 0;
-  const width = `${Math.min(50, Math.abs(score) / 2)}%`;
+  const isBull  = score > 0;
+  const pct     = Math.min(50, Math.abs(score) / 2);
+  const markerL = isBull ? 50 + pct : 50 - pct;
 
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between text-[9px] font-medium uppercase tracking-[0.1em] text-zinc-500">
         <span>Bearish</span>
-        <span className="font-mono text-zinc-300">{score > 0 ? "+" : ""}{score.toFixed(1)}</span>
+        <span className={cn("font-mono font-bold", isBull ? "text-emerald-400" : score < 0 ? "text-red-400" : "text-zinc-300")}>
+          {score > 0 ? "+" : ""}{score.toFixed(1)}
+        </span>
         <span>Bullish</span>
       </div>
-      <div className="relative h-1.5 overflow-hidden rounded-full bg-white/5">
-        <div className="absolute inset-y-0 left-1/2 w-px bg-white/15" />
+      {/* Gradient track */}
+      <div
+        className="relative h-1.5 overflow-hidden rounded-full"
+        style={{ background: "linear-gradient(to right,rgba(239,68,68,0.2) 0%,rgba(39,39,42,0.9) 38%,rgba(39,39,42,0.9) 62%,rgba(16,185,129,0.2) 100%)" }}
+      >
+        <div className="absolute inset-y-0 left-1/2 w-px bg-white/20" />
+        {score !== 0 && (
+          <div
+            className={cn("absolute inset-y-0 rounded-full transition-all duration-700", isBull ? "bg-emerald-500" : "bg-red-500")}
+            style={
+              isBull
+                ? { left: "50%", width: `${pct}%`, boxShadow: "0 0 10px rgba(16,185,129,0.5)" }
+                : { right: "50%", width: `${pct}%`, boxShadow: "0 0 10px rgba(239,68,68,0.5)" }
+            }
+          />
+        )}
+      </div>
+      {/* Glowing marker */}
+      <div className="relative" style={{ height: "8px" }}>
         <div
           className={cn(
-            "absolute inset-y-0 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.18)]",
-            isBull ? "bg-emerald-500" : "bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.18)]"
+            "absolute top-0 h-2 w-2 -translate-x-1/2 rounded-full border border-[hsl(var(--card))] transition-all duration-700",
+            isBull    ? "bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.9)]" :
+            score < 0 ? "bg-red-400 shadow-[0_0_6px_rgba(239,68,68,0.9)]" :
+                        "bg-zinc-500"
           )}
-          style={isBull ? { left: "50%", width } : { right: "50%", width }}
+          style={{ left: `${markerL}%` }}
         />
       </div>
     </div>
