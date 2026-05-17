@@ -217,8 +217,30 @@ export function MobileLayout() {
 
   if (!ready) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-[hsl(var(--background))]">
-        <div className="h-6 w-6 rounded-full border-2 border-[hsl(var(--primary))] border-t-transparent animate-spin" />
+      <div className="flex flex-col h-screen w-full items-center justify-center bg-[hsl(var(--background))] gap-6">
+        {/* Logo with glow pulse */}
+        <div className="relative flex items-center justify-center">
+          <div className="absolute w-28 h-28 rounded-full bg-[hsl(var(--primary))]/15 animate-ping" style={{ animationDuration: "1.8s" }} />
+          <div className="absolute w-20 h-20 rounded-full bg-[hsl(var(--primary))]/10 animate-pulse" />
+          <TradeXLogo variant="icon" size="xl" className="relative z-10" />
+        </div>
+
+        {/* Brand name */}
+        <div className="text-center space-y-1">
+          <p className="text-[13px] font-bold tracking-[0.25em] uppercase text-zinc-300">TradeX Terminal</p>
+          <p className="text-[10px] text-zinc-600 tracking-widest uppercase">Loading your workspace…</p>
+        </div>
+
+        {/* Dot loader */}
+        <div className="flex gap-1.5">
+          {[0, 1, 2].map(i => (
+            <div
+              key={i}
+              className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--primary))]/60"
+              style={{ animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }}
+            />
+          ))}
+        </div>
       </div>
     );
   }
