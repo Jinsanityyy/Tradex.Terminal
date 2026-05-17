@@ -80,6 +80,19 @@ function EquityCurve({ points }: { points: Array<{ date: string; balance: number
 
 // ── Main Analytics Component ─────────────────────────────────────────────────────
 
+type SymStat  = { trades: number; wins: number; pnl: number };
+type DowEntry = { day: string; trades: number; wins: number; pnl: number };
+type Stats = {
+  totalTrades: number; wins: number; losses: number; winRate: number;
+  grossProfit: number; grossLoss: number; netPnl: number; profitFactor: number;
+  avgWin: number; avgLoss: number; bestDay: number; worstDay: number; streak: number;
+  equityCurve: Array<{ date: string; balance: number }>;
+  maxDDPct: number;
+  bySymbol: Array<[string, SymStat]>;
+  dowArr: DowEntry[];
+  byMonth: Array<[string, SymStat]>;
+} | null;
+
 export function AnalyticsView({
   trades,
   daily,
@@ -87,7 +100,7 @@ export function AnalyticsView({
   trades: ManualTrade[];
   daily: DailyPnL[];
 }) {
-  const stats = useMemo(() => {
+  const stats: Stats = useMemo((): Stats => {
     const sorted = [...trades].sort((a, b) => a.date.localeCompare(b.date));
     if (sorted.length === 0) return null;
 
@@ -190,8 +203,6 @@ export function AnalyticsView({
     bySymbol, dowArr, byMonth,
   } = stats;
 
-  type SymStat  = { trades: number; wins: number; pnl: number };
-  type DowEntry = { day: string; trades: number; wins: number; pnl: number };
   const dowMax = Math.max(...dowArr.map((d: DowEntry) => Math.abs(d.pnl)), 1);
 
   return (

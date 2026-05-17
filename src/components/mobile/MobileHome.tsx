@@ -25,6 +25,99 @@ import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
 import { CloseTradeModal } from "@/components/shared/CloseTradeModal";
 import { loadTradeLog, findOpenBySetup, type TakenSignal } from "@/lib/trades/trade-log";
+import useSWR from "swr";
+import type { DailyPnL, MonthlyPnL } from "@/app/api/pnl/route";
+
+const pnlFetcher = (url: string) => fetch(url).then(r => r.json());
+
+function MobilePnLWidget() {
+  const { data } = useSWR<{ daily: DailyPnL[]; monthly: MonthlyPnL[] }>(
+    "/api/pnl",
+    pnlFetcher,
+    { refreshInterval: 300_000 }
+  );
+
+  const now = new Date();
+  const thisMonth = data?.monthly?.find(
+    (m: MonthlyPnL) => m.year === now.getFullYear() && m.month === now.getMonth() + 1
+  );
+  const winRate = thisMonth && thisMonth.trades > 0
+    ? Math.round((thisMonth.wins / thisMonth.trades) * 100)
+    : 0;
+
+  // Last 14 days bars
+  const last14 = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - (13 - i));
+    return d.toISOString().split("T")[0];
+  });
+  const dailyMap = new Map<string, number>(
+    (data?.daily ?? []).map((d: DailyPnL): [string, number] => [d.date, d.pnl])
+  );
+  const vals: number[] = last14.map((d: string) => dailyMap.get(d) ?? 0);
+  const maxAbs = Math.max(...vals.map((v: number) => Math.abs(v)), 1);
+
+  return (
+    <section key="pnl_calendar">
+      <div className="bg-[hsl(var(--card))] rounded-xl border border-white/5 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
+          <div>
+            <p className="text-[9px] text-zinc-600 uppercase tracking-widest mb-0.5">PnL Calendar</p>
+            <p className="text-xs font-semibold text-zinc-300">
+              {now.toLocaleString("default", { month: "long" })} {now.getFullYear()}
+            </p>
+          </div>
+          <a
+            href="/dashboard/pnl-calendar"
+            className="text-[10px] text-[hsl(var(--primary))] font-semibold border border-[hsl(var(--primary))]/30 px-2.5 py-1 rounded-lg"
+          >
+            Open →
+          </a>
+        </div>
+
+        {/* Stats row */}
+        <div className="grid grid-cols-3 divide-x divide-white/5">
+          {[
+            { label: "Net P&L", value: thisMonth
+                ? `${thisMonth.pnl >= 0 ? "+" : ""}$${Math.abs(thisMonth.pnl) >= 1000 ? (thisMonth.pnl / 1000).toFixed(1) + "k" : thisMonth.pnl.toFixed(0)}`
+                : "$0",
+              color: !thisMonth || thisMonth.pnl === 0 ? "text-zinc-400" : thisMonth.pnl > 0 ? "text-emerald-400" : "text-red-400" },
+            { label: "Win Rate", value: thisMonth?.trades ? `${winRate}%` : " - ",
+              color: winRate >= 50 ? "text-emerald-400" : winRate > 0 ? "text-red-400" : "text-zinc-400" },
+            { label: "Trades", value: thisMonth?.trades ?? 0, color: "text-zinc-200" },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="px-4 py-3 text-center">
+              <p className="text-[8px] text-zinc-600 uppercase tracking-wider mb-1">{label}</p>
+              <p className={cn("text-sm font-bold font-mono", color)}>{value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* 14-day mini bar chart */}
+        <div className="px-4 pb-3 pt-2">
+          <p className="text-[8px] text-zinc-700 mb-1.5">Last 14 days</p>
+          <div className="flex items-end gap-0.5 h-8">
+            {vals.map((v, i) => {
+              const pct = Math.abs(v) / maxAbs;
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center justify-end h-full">
+                  {v !== 0
+                    ? <div
+                        className={cn("w-full rounded-sm min-h-[2px]", v > 0 ? "bg-emerald-500/70" : "bg-red-500/60")}
+                        style={{ height: `${Math.max(pct * 100, 8)}%` }}
+                      />
+                    : <div className="w-full h-px bg-white/10" />
+                  }
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function LiveBadge() {
   return (
@@ -512,6 +605,9 @@ export function MobileHome() {
                   <LotCalculatorWidget />
                 </section>
               );
+
+            case "pnl_calendar":
+              return <MobilePnLWidget key="pnl_calendar" />;
 
             default:
               return null;

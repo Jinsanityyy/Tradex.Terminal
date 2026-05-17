@@ -22,6 +22,7 @@ export const WIDGET_DEFS = [
   { id: "live_tv",         label: "Live TV",           desc: "Bloomberg, CNBC & Fox Business live streams" },
   { id: "community",       label: "Community",         desc: "Live trader chat room" },
   { id: "lot_calculator",  label: "Lot Calculator",    desc: "Position size & risk calculator" },
+  { id: "pnl_calendar",   label: "PnL Calendar",      desc: "Monthly performance stats & trade history" },
 ] as const;
 
 export type WidgetId = typeof WIDGET_DEFS[number]["id"];
@@ -47,6 +48,7 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig[] = [
   { id: "live_tv",        visible: false },
   { id: "community",      visible: false },
   { id: "lot_calculator", visible: false },
+  { id: "pnl_calendar",  visible: false },
 ];
 
 const STORAGE_KEY = "tradex-mobile-widgets-v1";
@@ -103,7 +105,7 @@ export function MobileWidgetSheet({ open, onClose, config, onChange }: MobileWid
       <div
         className="relative rounded-t-2xl border-t border-white/8 bg-[hsl(var(--card))] max-h-[85vh] flex flex-col"
         style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}
-        onClick={e => e.stopPropagation()}
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
         {/* Pull handle */}
         <div className="flex justify-center pt-3 pb-2 shrink-0">
