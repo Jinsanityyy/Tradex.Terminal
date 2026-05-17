@@ -430,10 +430,10 @@ export function MobileBrain() {
         </div>
       )}
 
-      {/* Floor PoC */}
+      {/* Floor */}
       {view === "floor" && (
         <div className="flex-1 overflow-y-auto px-4 py-4">
-          <AgentFloorTest />
+          <AgentFloorTest data={data ?? null} loading={isLoading && !data} />
         </div>
       )}
 
