@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, Layers, Search, Timer, X } from "lucide-react";
+import { ChevronDown, Layers, PenLine, Search, Timer, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { KeyLevel } from "@/app/api/market/keylevels/route";
 
@@ -420,6 +420,7 @@ export function TradingViewChart({
   const [keyLvlOpen, setKeyLvlOpen] = useState(false);
   const [keyLevel, setKeyLevel] = useState<KeyLevel | null>(null);
   const [keyLvlLoading, setKeyLvlLoading] = useState(false);
+  const [showSideToolbar, setShowSideToolbar] = useState(false);
 
   const filtered = query.trim()
     ? ALL_SYMBOLS.filter(
@@ -575,7 +576,7 @@ export function TradingViewChart({
           toolbar_bg: "#000000",
           enable_publishing: false,
           hide_top_toolbar: true,
-          hide_side_toolbar: false,
+          hide_side_toolbar: !showSideToolbar,
           allow_symbol_change: false,
           save_image: false,
           withdateranges: false,
@@ -707,7 +708,7 @@ export function TradingViewChart({
         element.innerHTML = "";
       }
     };
-  }, [activeInterval.value, activeSymbol, layoutRevision, syncWidgetSize]);
+  }, [activeInterval.value, activeSymbol, layoutRevision, showSideToolbar, syncWidgetSize]);
 
 
   // Supported assets for the key levels overlay
@@ -741,11 +742,11 @@ export function TradingViewChart({
     >
 
       {/* TradeX custom header  -  symbol picker + timeframes + candle countdown */}
-      <div className="flex h-[38px] shrink-0 items-center justify-between gap-2 border-b border-white/5 px-2.5" style={{ background: "#000000" }}>
-        <div className="flex min-w-0 items-center gap-1.5">
+      <div className="flex h-[38px] shrink-0 items-center justify-between gap-2 border-b border-white/5 px-2.5 overflow-hidden" style={{ background: "#000000" }}>
+        <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
 
           {/* Symbol picker */}
-          <div className="relative" ref={dropdownRef}>
+          <div className="shrink-0 relative" ref={dropdownRef}>
             <button
               onClick={() => setPickerOpen(v => !v)}
               className="flex items-center gap-1.5 rounded border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-white transition-all hover:border-white/20 hover:bg-white/10"
@@ -797,29 +798,28 @@ export function TradingViewChart({
             )}
           </div>
 
-          <div className="mx-0.5 h-4 w-px bg-white/10" />
+          <div className="mx-0.5 h-4 w-px shrink-0 bg-white/10" />
 
-          {/* Timeframe buttons */}
-          <div className="flex items-center gap-0.5">
+          {/* Timeframe buttons — scrollable so they never overflow on narrow screens */}
+          <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-none">
             {INTERVALS.map(interval => (
               <button key={interval.value} onClick={() => {
                 latestIntervalRef.current = interval.value;
                 onIntervalChange?.(interval.value);
-                // Save drawings first, then rebuild widget with new interval
                 const w = widgetRef.current;
                 if (w && typeof w.save === "function") {
                   w.save((state: any) => {
                     savedDataRef.current = state;
-                    setActiveInterval(interval); // triggers widget rebuild with saved_data
+                    setActiveInterval(interval);
                   });
                 } else {
                   setActiveInterval(interval);
                 }
               }}
-                className={cn("rounded px-2 py-1 text-[11px] font-semibold transition-all border",
+                className={cn("shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold transition-all border",
                   activeInterval.value === interval.value
                     ? "border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/15 text-[hsl(var(--primary))]"
-                    : "border-transparent text-gray-500 hover:bg-white/5 hover:text-gray-300"
+                    : "border-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
                 )}>
                 {interval.label}
               </button>
@@ -827,7 +827,21 @@ export function TradingViewChart({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5">
+          {/* Drawing tools toggle */}
+          <button
+            onClick={() => setShowSideToolbar(v => !v)}
+            title="Drawing tools"
+            className={cn(
+              "flex items-center justify-center rounded border p-1 transition-all",
+              showSideToolbar
+                ? "border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
+                : "border-white/10 bg-white/5 text-gray-500 hover:border-white/20 hover:text-gray-300"
+            )}
+          >
+            <PenLine className="h-3 w-3" />
+          </button>
+
           {/* KEY LVL toggle */}
           {keyLvlSupported && (
             <button
@@ -845,13 +859,13 @@ export function TradingViewChart({
           )}
 
           {/* Candle close countdown */}
-          <div className={cn("flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5",
+          <div className={cn("flex shrink-0 items-center gap-1 rounded-md border px-2 py-0.5",
             urgent ? "border-red-500/35 bg-red-500/10" : "border-white/10 bg-white/5")}>
             <Timer className={cn("h-3 w-3", urgent ? "text-red-400" : "text-gray-500")} />
             <span className={cn("font-mono text-xs font-bold tabular-nums", urgent ? "text-red-400" : "text-gray-300")}>
               {formatCountdown(secondsLeft)}
             </span>
-            <span className="text-[9px] uppercase tracking-widest text-gray-600">{activeInterval.label} close</span>
+            <span className="hidden sm:inline text-[9px] uppercase tracking-widest text-gray-600">{activeInterval.label} close</span>
           </div>
         </div>
       </div>
