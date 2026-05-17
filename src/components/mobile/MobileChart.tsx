@@ -52,16 +52,16 @@ export function MobileChart() {
   return (
     <div className="flex flex-col h-full">
       {/* Symbol selector */}
-      <div className="px-4 pt-3 pb-2 flex gap-2 overflow-x-auto scrollbar-none shrink-0">
+      <div className="px-3 pt-2 pb-1 flex gap-1.5 overflow-x-auto scrollbar-none shrink-0">
         {SYMBOLS.map((s) => (
           <button
             key={s.value}
             onClick={() => handleSymbol(s.value)}
             className={cn(
-              "shrink-0 text-[10px] font-semibold px-3 py-1.5 rounded-lg border transition-all",
+              "shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-lg border transition-all",
               symbol === s.value
                 ? "border-[hsl(var(--primary))]/50 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
-                : "border-white/10 text-[hsl(var(--muted-foreground))]"
+                : "border-white/10 text-zinc-400 hover:text-zinc-200"
             )}
           >
             {s.label}
