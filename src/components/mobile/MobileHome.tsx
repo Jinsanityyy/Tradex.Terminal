@@ -562,10 +562,44 @@ export function MobileHome() {
                 </section>
               );
 
-            case "agents":
+            case "agents": {
+              const ad = agentData?.agents;
+              const mTone = (b?: string) =>
+                b === "bullish" || b === "valid" ? "green" :
+                b === "bearish" || b === "blocked" ? "red" :
+                b === "opposing" || b === "no-trade" ? "yellow" : "gray";
+              const agentDots: { id: string; tone: string }[] = [
+                { id: "TR", tone: mTone(ad?.trend?.bias) },
+                { id: "PA", tone: mTone(ad?.smc?.bias) },
+                { id: "NW", tone: mTone(ad?.news?.impact) },
+                { id: "RG", tone: ad?.risk ? (ad.risk.valid ? "green" : "red") : "gray" },
+                { id: "CT", tone: ad?.contrarian?.challengesBias ? "red" : "gray" },
+                { id: "EX", tone: ad?.execution?.direction === "long" ? "green" : ad?.execution?.direction === "short" ? "red" : ad?.execution?.signalState === "ARMED" ? "yellow" : "gray" },
+                { id: "MA", tone: mTone(ad?.master?.finalBias) },
+              ];
               return (
                 <section key="agents">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider mb-3">7-Agent Overview</p>
+                  <div className="flex items-center gap-2 mb-3">
+                    <p className="shrink-0 text-[11px] font-semibold uppercase tracking-wider">7-Agent Overview</p>
+                    {agentData && (
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {agentDots.map(({ id, tone }) => {
+                          const dotCls =
+                            tone === "green"  ? "bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.7)]" :
+                            tone === "red"    ? "bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.7)]"      :
+                            tone === "yellow" ? "bg-amber-400 shadow-[0_0_4px_rgba(245,158,11,0.5)]"   :
+                                               "bg-zinc-700";
+                          return (
+                            <div key={id} className="flex flex-col items-center gap-0.5">
+                              <div className={cn("h-1.5 w-1.5 rounded-full", dotCls)} />
+                              <span className="font-mono text-[6px] text-zinc-800">{id}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <div className="flex-1 border-t border-white/[0.04]" />
+                  </div>
                   <AgentCardsWidget
                     data={agentData ?? undefined}
                     isLoading={!agentData}
@@ -573,6 +607,7 @@ export function MobileHome() {
                   />
                 </section>
               );
+            }
 
             case "globe":
               return (
