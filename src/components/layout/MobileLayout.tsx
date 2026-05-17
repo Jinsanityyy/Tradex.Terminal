@@ -195,6 +195,14 @@ export function MobileLayout() {
     transitionTimer.current = setTimeout(() => setTransitioning(false), 180);
   }, [active]);
 
+  // Listen for open-app events from widgets (e.g. PnL Calendar widget → open in More tab)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      switchTab("more");
+    };
+    document.addEventListener("tradex:open-more", handler);
+    return () => document.removeEventListener("tradex:open-more", handler);
+  }, [switchTab]);
   async function handleLogout() {
     const supabase = createClient();
     if (supabase) await supabase.auth.signOut();

@@ -142,12 +142,12 @@ export function AnalyticsView({
     });
 
     // Max drawdown computed per-trade — stored as % of peak equity
-    let peak = 0, maxDDPctPct = 0, tradeRunning = 0;
+    let peak = 0, maxDDPct = 0, tradeRunning = 0;
     sorted.forEach(t => {
       tradeRunning += t.pnl;
       if (tradeRunning > peak) peak = tradeRunning;
       const ddPct = peak > 0 ? ((peak - tradeRunning) / peak) * 100 : 0;
-      if (ddPct > maxDDPctPct) maxDDPctPct = ddPct;
+      if (ddPct > maxDDPct) maxDDPct = ddPct;
     });
 
     // By symbol

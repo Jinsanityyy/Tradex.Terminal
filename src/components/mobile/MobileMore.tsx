@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Calendar, TrendingUp, Activity,
   Radio, Brain, Clock, History, DollarSign,
@@ -81,6 +81,15 @@ export function MobileMore() {
   const activeApp = ALL_APPS.find(a => a.id === activeAppId);
   const openFolder = FOLDERS.find(f => f.id === openFolderId);
   const folderApps = openFolder ? ALL_APPS.filter(a => openFolder.appIds.includes(a.id)) : [];
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const appId = (e as CustomEvent<{ appId: string }>).detail?.appId;
+      if (appId) setActiveAppId(appId);
+    };
+    document.addEventListener("tradex:open-app", handler);
+    return () => document.removeEventListener("tradex:open-app", handler);
+  }, []);
 
   // Show active page
   if (activeApp) {

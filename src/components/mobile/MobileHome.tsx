@@ -68,12 +68,17 @@ function MobilePnLWidget() {
               {now.toLocaleString("default", { month: "long" })} {now.getFullYear()}
             </p>
           </div>
-          <a
-            href="/dashboard/pnl-calendar"
-            className="text-[10px] text-[hsl(var(--primary))] font-semibold border border-[hsl(var(--primary))]/30 px-2.5 py-1 rounded-lg"
+          <button
+            onClick={() => {
+              document.dispatchEvent(new CustomEvent("tradex:open-more"));
+              setTimeout(() => {
+                document.dispatchEvent(new CustomEvent("tradex:open-app", { detail: { appId: "pnl-calendar" } }));
+              }, 50);
+            }}
+            className="text-[10px] text-[hsl(var(--primary))] font-semibold border border-[hsl(var(--primary))]/30 px-2.5 py-1 rounded-lg active:opacity-70"
           >
             Open →
-          </a>
+          </button>
         </div>
 
         {/* Stats row */}
