@@ -85,7 +85,7 @@ type DowEntry = { day: string; trades: number; wins: number; pnl: number };
 type Stats = {
   totalTrades: number; wins: number; losses: number; winRate: number;
   grossProfit: number; grossLoss: number; netPnl: number; profitFactor: number;
-  avgWin: number; avgLoss: number; bestDay: number; worstDay: number; streak: number;
+  avgWin: number; avgLoss: number; bestDay: number; worstDay: number; worstTrade: number; streak: number;
   equityCurve: Array<{ date: string; balance: number }>;
   maxDDPct: number;
   bySymbol: Array<[string, SymStat]>;
@@ -121,6 +121,8 @@ export function AnalyticsView({
     const dayVals = [...byDate.values()];
     const bestDay  = dayVals.length ? Math.max(...dayVals) : 0;
     const worstDay = dayVals.length ? Math.min(...dayVals) : 0;
+    // Worst single losing trade — fallback when all days are net positive
+    const worstTrade = sorted.filter(t => t.pnl < 0).reduce((min, t) => Math.min(min, t.pnl), 0);
 
     // Streak (current win/loss streak)
     let streak = 0;
@@ -179,7 +181,7 @@ export function AnalyticsView({
     return {
       totalTrades, wins, losses, winRate,
       grossProfit, grossLoss, netPnl, profitFactor,
-      avgWin, avgLoss, bestDay, worstDay, streak,
+      avgWin, avgLoss, bestDay, worstDay, worstTrade, streak,
       equityCurve, maxDDPct,
       bySymbol, dowArr, byMonth,
     };
@@ -198,7 +200,7 @@ export function AnalyticsView({
   const {
     totalTrades, wins, losses, winRate,
     grossProfit, grossLoss, netPnl, profitFactor,
-    avgWin, avgLoss, bestDay, worstDay, streak,
+    avgWin, avgLoss, bestDay, worstDay, worstTrade, streak,
     equityCurve, maxDDPct,
     bySymbol, dowArr, byMonth,
   } = stats;
@@ -235,7 +237,7 @@ export function AnalyticsView({
           { label: "Wins",      value: wins,   accent: "text-emerald-400" },
           { label: "Losses",    value: losses, accent: "text-red-400" },
           { label: "Best Day",  value: bestDay > 0 ? `+$${bestDay.toFixed(2)}` : "$0.00", accent: bestDay > 0 ? "text-emerald-400" : "text-zinc-500" },
-          { label: "Worst Day", value: worstDay < 0 ? `-$${Math.abs(worstDay).toFixed(2)}` : "$0.00", accent: worstDay < 0 ? "text-red-400" : "text-zinc-500" },
+          { label: "Worst Day", value: (() => { const v = worstDay < 0 ? worstDay : worstTrade; return v < 0 ? `-$${Math.abs(v).toFixed(2)}` : "$0.00"; })(), accent: (worstDay < 0 || worstTrade < 0) ? "text-red-400" : "text-zinc-500" },
           { label: "Gross Win", value: `+$${grossProfit.toFixed(2)}`, accent: "text-emerald-400" },
           { label: "Gross Loss",value: `-$${grossLoss.toFixed(2)}`,   accent: "text-red-400" },
         ].map(({ label, value, accent }) => (
