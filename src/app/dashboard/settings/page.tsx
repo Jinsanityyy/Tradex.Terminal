@@ -13,7 +13,18 @@ import Image from "next/image";
 
 // ── Atoms ────────────────────────────────────────────────────────────────────
 
-function SettingRow({ label, description, children }: { label: string; description: string; children: React.ReactNode }) {
+function SettingRow({ label, description, children, wide }: { label: string; description: string; children: React.ReactNode; wide?: boolean }) {
+  if (wide) {
+    return (
+      <div className="py-3 border-b border-[hsl(var(--border))]/50 last:border-0 space-y-2">
+        <div>
+          <p className="text-xs font-medium text-[hsl(var(--foreground))]">{label}</p>
+          <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5">{description}</p>
+        </div>
+        {children}
+      </div>
+    );
+  }
   return (
     <div className="flex items-start justify-between gap-4 py-3.5 border-b border-[hsl(var(--border))]/50 last:border-0 overflow-hidden">
       <div className="min-w-0 flex-1">
@@ -21,6 +32,35 @@ function SettingRow({ label, description, children }: { label: string; descripti
         <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5">{description}</p>
       </div>
       <div className="shrink-0 max-w-[55%] flex flex-wrap justify-end gap-1">{children}</div>
+    </div>
+  );
+}
+
+function AttentionDot() {
+  return <span className="h-1.5 w-1.5 rounded-full bg-amber-400/90 shadow-[0_0_5px_1px] shadow-amber-400/40 shrink-0" />;
+}
+
+function SegmentedPills<T extends string>({
+  options, value, onChange, labels,
+}: {
+  options: T[]; value: T; onChange: (v: T) => void; labels?: Record<string, string>;
+}) {
+  return (
+    <div className="flex gap-px overflow-x-auto scrollbar-none rounded-lg border border-[hsl(var(--border))] p-0.5 shrink-0">
+      {options.map((o) => (
+        <button
+          key={o}
+          onClick={() => onChange(o)}
+          className={cn(
+            "rounded px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide transition-all whitespace-nowrap",
+            value === o
+              ? "bg-[hsl(var(--primary))]/15 text-[hsl(var(--primary))]"
+              : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
+          )}
+        >
+          {labels?.[o] ?? o}
+        </button>
+      ))}
     </div>
   );
 }
@@ -71,7 +111,7 @@ function Pills<T extends string>({
 
 function MultiSelect({ options, selected, onToggle }: { options: string[]; selected: string[]; onToggle: (v: string) => void }) {
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="grid grid-cols-3 gap-1.5">
       {options.map((o) => {
         const active = selected.includes(o);
         return (
@@ -79,14 +119,14 @@ function MultiSelect({ options, selected, onToggle }: { options: string[]; selec
             key={o}
             onClick={() => onToggle(o)}
             className={cn(
-              "flex items-center gap-1 rounded-md px-2.5 py-1 text-[10px] font-medium transition-all border",
+              "flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[10px] font-medium transition-all border",
               active
                 ? "border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
                 : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
             )}
           >
-            {active && <CheckCircle2 className="h-2.5 w-2.5" />}
-            {o}
+            {active && <CheckCircle2 className="h-2.5 w-2.5 shrink-0" />}
+            <span className="truncate">{o}</span>
           </button>
         );
       })}
@@ -410,7 +450,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <SettingRow label="Theme" description="Terminal color scheme  -  previewed live, saved on click Save">
-            <Pills<Theme>
+            <SegmentedPills<Theme>
               options={["dark", "midnight", "oled", "pink", "light"]}
               value={draft.theme}
               onChange={(v) => update("theme", v)}
@@ -418,7 +458,7 @@ export default function SettingsPage() {
             />
           </SettingRow>
           <SettingRow label="Layout Density" description="Compact shows more data, expanded improves readability">
-            <Pills<Density>
+            <SegmentedPills<Density>
               options={["compact", "default", "expanded"]}
               value={draft.density}
               onChange={(v) => update("density", v)}
@@ -439,7 +479,7 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <SettingRow label="Tracked Assets" description="Select which assets appear in your terminal">
+          <SettingRow wide label="Tracked Assets" description="Select which assets appear in your terminal">
             <MultiSelect options={ALL_ASSETS} selected={draft.trackedAssets} onToggle={toggleAsset} />
           </SettingRow>
           <SettingRow label="Default Bias Asset" description="Primary asset shown on dashboard">
@@ -465,6 +505,9 @@ export default function SettingsPage() {
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm">
             <DollarSign className="h-4 w-4 text-amber-400" /> Risk Management
+            {draft.accountBalance === DEFAULTS.accountBalance && draft.riskPerTrade === DEFAULTS.riskPerTrade && (
+              <AttentionDot />
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -541,7 +584,7 @@ export default function SettingsPage() {
             />
           </SettingRow>
           <SettingRow label="Date Format" description="How dates are displayed">
-            <Pills<DateFormat>
+            <SegmentedPills<DateFormat>
               options={["MM/DD", "DD/MM", "YYYY-MM-DD"]}
               value={draft.dateFormat}
               onChange={(v) => update("dateFormat", v)}
@@ -585,10 +628,11 @@ export default function SettingsPage() {
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Filter className="h-4 w-4 text-[hsl(var(--muted-foreground))]" /> Feed Filters
+            {draft.feedCategories.length === 0 && <AttentionDot />}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <SettingRow label="News Categories" description="Filter which news categories appear in feeds">
+          <SettingRow wide label="News Categories" description="Filter which news categories appear in feeds">
             <MultiSelect options={ALL_CATEGORIES} selected={draft.feedCategories} onToggle={toggleCategory} />
           </SettingRow>
           <SettingRow label="Auto-refresh Interval" description="How often data feeds update">
