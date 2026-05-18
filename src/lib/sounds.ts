@@ -2,56 +2,17 @@
  * TradeX sound effects.
  *
  * MP3 sounds (App Open, Order Filled):
- *   - On Android (Capacitor): @capacitor-community/native-audio → Android MediaPlayer
- *     Completely bypasses WebView autoplay restrictions.
- *   - On desktop/browser: oscillator beep fallback.
+ *   Base64-encoded audio data bundled directly in the JS — no fetch() needed.
+ *   Decoded via AudioContext.decodeAudioData() + played via BufferSourceNode.
+ *   Same Web Audio API path that oscillator beeps use, so no WebView autoplay block.
  *
- * Synthesised beeps (High Impact, Signal Armed, Chat Ping, etc.):
- *   - Always use AudioContext oscillators — works everywhere.
+ * Synthesised beeps (High Impact, Signal Armed, etc.):
+ *   AudioContext oscillators — generated in real-time, no files at all.
  */
 
-// ─── Native Audio (Capacitor Android) ────────────────────────────────────────
+import { SOUND_DATA } from "./sound-data";
 
-let _nativeReady = false;
-let _nativeInitPromise: Promise<void> | null = null;
-
-async function isCapacitorNative(): Promise<boolean> {
-  if (typeof window === "undefined") return false;
-  try {
-    const { Capacitor } = await import("@capacitor/core");
-    return Capacitor.isNativePlatform();
-  } catch { return false; }
-}
-
-async function initNativeAudio(): Promise<void> {
-  if (_nativeReady) return;
-  if (_nativeInitPromise) return _nativeInitPromise;
-
-  _nativeInitPromise = (async () => {
-    const native = await isCapacitorNative();
-    if (!native) return;
-    try {
-      const { NativeAudio } = await import("@capacitor-community/native-audio");
-      await Promise.all([
-        NativeAudio.preload({ assetId: "appTone",      assetPath: "sounds/app-open-tone.mp3",       audioChannelNum: 1, isUrl: false }),
-        NativeAudio.preload({ assetId: "appVoice",     assetPath: "sounds/app-open-voice.mp3",      audioChannelNum: 1, isUrl: false }),
-        NativeAudio.preload({ assetId: "orderFilled",  assetPath: "sounds/order-filled-voice.mp3",  audioChannelNum: 1, isUrl: false }),
-      ]);
-      _nativeReady = true;
-    } catch {}
-  })();
-
-  return _nativeInitPromise;
-}
-
-async function playNative(assetId: string): Promise<void> {
-  try {
-    const { NativeAudio } = await import("@capacitor-community/native-audio");
-    await NativeAudio.play({ assetId });
-  } catch {}
-}
-
-// ─── Singleton AudioContext (for beeps + desktop fallback) ───────────────────
+// ─── Singleton AudioContext ───────────────────────────────────────────────────
 
 let _ctx: AudioContext | null = null;
 
@@ -66,6 +27,56 @@ function getCtx(): AudioContext | null {
   }
   return _ctx;
 }
+
+// ─── AudioBuffer cache (decoded from base64) ─────────────────────────────────
+
+type SoundKey = keyof typeof SOUND_DATA;
+const _buffers: Partial<Record<SoundKey, AudioBuffer>> = {};
+let _decodePromise: Promise<void> | null = null;
+
+function base64ToArrayBuffer(b64: string): ArrayBuffer {
+  const bin = atob(b64);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return buf.buffer;
+}
+
+function decodeAll(): Promise<void> {
+  if (_decodePromise) return _decodePromise;
+  _decodePromise = (async () => {
+    const c = getCtx();
+    if (!c) return;
+    await Promise.all(
+      (Object.keys(SOUND_DATA) as SoundKey[]).map(async (k) => {
+        try {
+          const ab = base64ToArrayBuffer(SOUND_DATA[k]);
+          _buffers[k] = await c.decodeAudioData(ab);
+        } catch {}
+      })
+    );
+  })();
+  return _decodePromise;
+}
+
+function playBuffer(key: SoundKey): Promise<void> {
+  return new Promise((resolve) => {
+    const c   = getCtx();
+    const buf = _buffers[key];
+    if (!c || !buf) { resolve(); return; }
+    try {
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      const g = c.createGain();
+      g.gain.value = 0.9;
+      src.connect(g);
+      g.connect(c.destination);
+      src.onended = () => resolve();
+      src.start(0);
+    } catch { resolve(); }
+  });
+}
+
+// ─── Oscillator beeps ─────────────────────────────────────────────────────────
 
 function beep(
   freq: number,
@@ -98,47 +109,36 @@ function beep(
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Call on first user gesture. Kicks off native audio preload + resumes
- * AudioContext so beeps work immediately.
+ * Call on first user gesture.
+ * Resumes AudioContext + starts decoding the base64 audio data in background.
  */
 export function unlockAudio(): void {
-  initNativeAudio();
   const c = getCtx();
-  if (c?.state === "suspended") c.resume().catch(() => {});
+  if (c?.state === "suspended") {
+    c.resume().then(() => decodeAll()).catch(() => {});
+  } else {
+    decodeAll();
+  }
 }
 
 /** @deprecated no-op kept for backward compat */
 export async function preloadSounds(): Promise<void> {}
 
-// ── MP3 sounds (native on Android, beep fallback on desktop) ─────────────────
+// ── MP3 sounds ────────────────────────────────────────────────────────────────
 
 /** Two-tone chime → ElevenLabs voice greeting on app open / login. */
 export function playAppOpen(): void {
-  initNativeAudio().then(async () => {
-    if (_nativeReady) {
-      await playNative("appTone");
-      await playNative("appVoice");
-    } else {
-      // Desktop fallback — ascending chime
-      beep(523,  0.18, 0.13, "sine", 0.00);
-      beep(659,  0.18, 0.13, "sine", 0.16);
-      beep(784,  0.18, 0.13, "sine", 0.32);
-      beep(1047, 0.35, 0.16, "sine", 0.48);
-    }
-  }).catch(() => {});
+  decodeAll()
+    .then(() => playBuffer("appTone"))
+    .then(() => playBuffer("appVoice"))
+    .catch(() => {});
 }
 
 /** ElevenLabs voice confirmation when an order fills. */
 export function playOrderFilled(): void {
-  initNativeAudio().then(async () => {
-    if (_nativeReady) {
-      await playNative("orderFilled");
-    } else {
-      // Desktop fallback — rising two-tone
-      beep(659, 0.14, 0.18, "triangle", 0.00);
-      beep(988, 0.28, 0.20, "triangle", 0.12);
-    }
-  }).catch(() => {});
+  decodeAll()
+    .then(() => playBuffer("orderFilled"))
+    .catch(() => {});
 }
 
 // ── Synthesised beeps ─────────────────────────────────────────────────────────
