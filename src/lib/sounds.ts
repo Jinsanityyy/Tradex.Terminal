@@ -49,11 +49,17 @@ export function playAppOpen(): void {
 }
 
 
+/**
+ * Order filled — trading sound effect, then ElevenLabs voice confirmation.
+ */
 export function playOrderFilled(): void {
   try {
-    const audio = new Audio("/sounds/order-filled.mp3");
-    audio.volume = 0.8;
-    audio.play().catch(() => {});
+    const tone = new Audio("/sounds/order-filled.mp3");
+    const voice = new Audio("/sounds/order-filled-voice.mp3");
+    tone.volume = 0.8;
+    voice.volume = 0.9;
+    tone.onended = () => { voice.play().catch(() => {}); };
+    tone.play().catch(() => {});
   } catch {}
 }
 
