@@ -8,7 +8,7 @@ import {
   Settings, Theme, Density, TimeZone, DateFormat, RefreshInterval, ImpactThreshold,
 } from "@/contexts/SettingsContext";
 import { cn } from "@/lib/utils";
-import { playOrderFilled, playHighImpactAlert, playSignalArmed } from "@/lib/sounds";
+import { playOrderFilled, playHighImpactAlert, playSignalArmed, playAppOpen } from "@/lib/sounds";
 import { createClient } from "@/lib/supabase/client";
 import Image from "next/image";
 
@@ -625,11 +625,12 @@ export default function SettingsPage() {
           {/* Sound preview */}
           <div className="mt-4 pt-4 border-t border-white/6">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 mb-3">Sound Preview</p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {([
                 { label: "Order Filled", desc: "On Take Trade", fn: playOrderFilled, color: "text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10" },
                 { label: "High Impact", desc: "News / Trump", fn: playHighImpactAlert, color: "text-red-400 border-red-500/30 hover:bg-red-500/10" },
                 { label: "Signal Armed", desc: "EXEC Armed", fn: playSignalArmed, color: "text-amber-400 border-amber-500/30 hover:bg-amber-500/10" },
+                { label: "App Open", desc: "Login / Launch", fn: playAppOpen, color: "text-sky-400 border-sky-500/30 hover:bg-sky-500/10" },
               ] as const).map(({ label, desc, fn, color }) => (
                 <button
                   key={label}
