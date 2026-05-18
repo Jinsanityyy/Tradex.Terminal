@@ -140,16 +140,24 @@ export function computeConsensus(
   const riskBlocks = !risk.valid;
 
   // ── Structure Gate (PRIORITY RULE) ────────────────────────────────────────
-  // If trend is bearish AND smc has no BOS → block ALL bullish signals.
-  // Price action structure takes priority over any indicator consensus.
+  // Blocks counter-trend signals unless structure has already reversed.
+  // Bypassed when: trend confidence is weak (<40%), EXEC has an active armed setup,
+  // or a liquidity sweep has confirmed the reversal move.
   const trendBearish    = trend.bias === "bearish";
   const trendBullish    = trend.bias === "bullish";
   const smcBosConfirmed = smc.bosDetected && smc.chochDetected;
 
+  const trendIsWeak      = trend.confidence < 40;
+  const execHasSetup     = execution.hasSetup;
+  const sweepConfirmed   = smc.liquiditySweepDetected;
+
+  // Gate bypass: weak trend, armed execution setup, or sweep already confirmed
+  const structureGateBypassed = trendIsWeak || execHasSetup || sweepConfirmed;
+
   // Block bullish signals in a bearish structure (no BOS = no reversal confirmation)
-  const structureBlocksLong  = trendBearish && !smcBosConfirmed && normalizedScore > 0;
+  const structureBlocksLong  = trendBearish && !smcBosConfirmed && !structureGateBypassed && normalizedScore > 0;
   // Block bearish signals in a bullish structure
-  const structureBlocksShort = trendBullish && !smc.bosDetected && normalizedScore < 0;
+  const structureBlocksShort = trendBullish && !smc.bosDetected && !structureGateBypassed && normalizedScore < 0;
 
   // Sweep gate: allow signal when consensus is strong (≥15) even without a sweep.
   // A confirmed sweep is still the best setup, but strong multi-agent agreement
@@ -168,10 +176,10 @@ export function computeConsensus(
     noTradeReason = `Risk gate: ${risk.warnings[0] ?? "Risk conditions not met"}`;
   } else if (structureBlocksLong) {
     finalBias     = "no-trade";
-    noTradeReason = `Structure gate: Trend is BEARISH  -  bullish signals blocked. Require confirmed BOS to upside before going long.`;
+    noTradeReason = `Structure gate: Trend is BEARISH (strong) — require CHoCH + BOS confirmation to upside before going long.`;
   } else if (structureBlocksShort) {
     finalBias     = "no-trade";
-    noTradeReason = `Structure gate: Trend is BULLISH  -  bearish signals blocked. Require confirmed BOS to downside before going short.`;
+    noTradeReason = `Structure gate: Trend is BULLISH (strong) — require CHoCH + BOS confirmation to downside before going short.`;
   } else if (noFibZone) {
     finalBias     = "no-trade";
     noTradeReason = `Sweep gate: No confirmed session sweep. Best setups form during Asian (8AM–11AM PHT), London (4PM–7PM PHT), or NY (9:30PM–11:30PM PHT) kill zones.`;
