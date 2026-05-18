@@ -8,6 +8,7 @@ import {
   Settings, Theme, Density, TimeZone, DateFormat, RefreshInterval, ImpactThreshold,
 } from "@/contexts/SettingsContext";
 import { cn } from "@/lib/utils";
+import { playOrderFilled, playHighImpactAlert, playSignalArmed } from "@/lib/sounds";
 import { createClient } from "@/lib/supabase/client";
 import Image from "next/image";
 
@@ -620,6 +621,27 @@ export default function SettingsPage() {
               Browser notifications are blocked. Enable them in your browser site settings.
             </p>
           )}
+
+          {/* Sound preview */}
+          <div className="mt-4 pt-4 border-t border-white/6">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 mb-3">Sound Preview</p>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { label: "Order Filled", desc: "On Take Trade", fn: playOrderFilled, color: "text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10" },
+                { label: "High Impact", desc: "News / Trump", fn: playHighImpactAlert, color: "text-red-400 border-red-500/30 hover:bg-red-500/10" },
+                { label: "Signal Armed", desc: "EXEC Armed", fn: playSignalArmed, color: "text-amber-400 border-amber-500/30 hover:bg-amber-500/10" },
+              ] as const).map(({ label, desc, fn, color }) => (
+                <button
+                  key={label}
+                  onClick={() => fn()}
+                  className={cn("flex flex-col items-center gap-1 py-2.5 px-2 rounded-lg border bg-white/3 transition-colors text-center", color)}
+                >
+                  <span className="text-[11px] font-bold">{label}</span>
+                  <span className="text-[9px] text-zinc-600">{desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </CardContent>
       </Card>
 
