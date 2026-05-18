@@ -41,22 +41,25 @@ function getCtx(): AudioContext | null {
 // ─── AudioBuffer cache (decoded MP3s — primary path) ─────────────────────────
 
 const _buffers: Partial<Record<Mp3Key, AudioBuffer>> = {};
-let _preloadStarted = false;
+// Store the Promise so callers can await the same in-flight load.
+let _preloadPromise: Promise<void> | null = null;
 
-async function preloadBuffers(): Promise<void> {
-  if (_preloadStarted) return;
-  _preloadStarted = true;
-  const c = getCtx();
-  if (!c) return;
-  await Promise.all(
-    (Object.keys(MP3S) as Mp3Key[]).map(async (k) => {
-      try {
-        const res = await fetch(MP3S[k]);
-        const ab  = await res.arrayBuffer();
-        _buffers[k] = await c.decodeAudioData(ab);
-      } catch {}
-    })
-  );
+function preloadBuffers(): Promise<void> {
+  if (_preloadPromise) return _preloadPromise;
+  _preloadPromise = (async () => {
+    const c = getCtx();
+    if (!c) return;
+    await Promise.all(
+      (Object.keys(MP3S) as Mp3Key[]).map(async (k) => {
+        try {
+          const res = await fetch(MP3S[k]);
+          const ab  = await res.arrayBuffer();
+          _buffers[k] = await c.decodeAudioData(ab);
+        } catch {}
+      })
+    );
+  })();
+  return _preloadPromise;
 }
 
 function playBufferNode(key: Mp3Key): Promise<void> {
@@ -155,12 +158,13 @@ function beep(
  * for all MP3s so they can be played later without any gesture requirement.
  */
 export function unlockAudio(): void {
-  initPool(); // keep HTMLAudioElement pool as fallback
+  initPool();
   const c = getCtx();
   if (c?.state === "suspended") {
-    c.resume()
-      .then(() => preloadBuffers())
-      .catch(() => {});
+    // Resume first so decodeAudioData runs on a running context,
+    // then kick off the preload. The stored _preloadPromise means
+    // playAppOpen() can safely await it even if called immediately after.
+    c.resume().then(() => preloadBuffers()).catch(() => {});
   } else {
     preloadBuffers();
   }
@@ -173,8 +177,12 @@ export async function preloadSounds(): Promise<void> {}
 
 /** Tone chime → voice greeting on app open / login. */
 export function playAppOpen(): void {
-  playMp3("appTone")
-    .then(() => playMp3("appVoice"))
+  // Wait for buffers to finish decoding before playing.
+  // preloadBuffers() returns the same in-flight Promise so this is free
+  // if decoding is already done or still in progress.
+  preloadBuffers()
+    .then(() => playBufferNode("appTone"))
+    .then(() => playBufferNode("appVoice"))
     .catch(() => {});
 }
 

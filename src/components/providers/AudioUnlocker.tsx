@@ -13,10 +13,9 @@ export function AudioUnlocker() {
 
       if (!played) {
         played = true;
-        // 2. Wait 600 ms so the Audio elements have time to load their data,
-        //    then play the app-open chime.  600 ms is a safe lower bound even
-        //    on slow connections because the files are small MP3s (~50 KB).
-        setTimeout(() => playAppOpen(), 600);
+        // playAppOpen() now awaits the buffer preload internally — no fixed
+        // delay needed. It plays as soon as decodeAudioData finishes.
+        playAppOpen();
       }
     };
 
