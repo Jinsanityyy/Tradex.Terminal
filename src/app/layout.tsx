@@ -10,6 +10,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 import { SWRProvider } from "@/components/providers/SWRProvider";
 import { SettingsProvider } from "@/contexts/SettingsContext";
+import { AudioUnlocker } from "@/components/providers/AudioUnlocker";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -18,6 +19,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
@@ -56,6 +58,7 @@ export default function RootLayout({
       <body className="min-h-screen antialiased">
         <SettingsProvider>
           <SWRProvider>{children}</SWRProvider>
+          <AudioUnlocker />
         </SettingsProvider>
         <Toaster theme="dark" position="top-center" richColors />
       </body>

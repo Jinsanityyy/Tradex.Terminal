@@ -5,6 +5,7 @@ import { MessageCircle, X, Send, Loader2, Hash, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { playChatPing as playPing } from "@/lib/audio";
 
 const TRADER_NAME_KEY = "tradex_trader_name";
 
@@ -34,19 +35,6 @@ function avatarColor(userId: string) {
   let n = 0; for (let i = 0; i < userId.length; i++) n += userId.charCodeAt(i);
   return COLORS[n % COLORS.length];
 }
-function playPing() {
-  try {
-    const ctx = new AudioContext();
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.connect(g); g.connect(ctx.destination);
-    o.frequency.value = 880;
-    g.gain.setValueAtTime(0.15, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-    o.start(); o.stop(ctx.currentTime + 0.3);
-  } catch {}
-}
-
 function Avatar({ userId, name, email, size = "sm" }: { userId: string; name: string | null; email: string | null; size?: "sm" | "md" }) {
   return (
     <div className={cn("rounded-full shrink-0 flex items-center justify-center font-bold text-white", avatarColor(userId), size === "sm" ? "h-6 w-6 text-[10px]" : "h-8 w-8 text-xs")}>

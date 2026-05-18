@@ -915,6 +915,66 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
     };
     el.addEventListener('mousemove', onMouseMove);
 
+    // ── Click handler (desktop + mobile tap via pointer events) ──────────────
+    const onClick = (e: MouseEvent) => {
+      const rect = el.getBoundingClientRect();
+      mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+      mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(markerMeshes.current.map(m => m.mesh));
+      if (hits.length > 0) {
+        const entry = markerMeshes.current.find(m => m.mesh === hits[0].object);
+        if (entry) {
+          controls.autoRotate = false;
+          (entry.mesh.material as THREE.MeshPhongMaterial).emissiveIntensity = 2.5;
+          const sp = entry.mesh.position.clone().project(camera);
+          const sx = ((sp.x + 1) / 2) * el.clientWidth;
+          const sy = ((-sp.y + 1) / 2) * el.clientHeight;
+          setTooltip({ visible: true, x: sx, y: sy, data: entry.data });
+        }
+      } else {
+        setTooltip(t => ({ ...t, visible: false }));
+        controls.autoRotate = true;
+      }
+    };
+    el.addEventListener('click', onClick);
+
+    // ── Touch tap (mobile — convert touch to raycaster coords) ───────────────
+    let touchStartPos = { x: 0, y: 0 };
+    const onTouchStart = (e: TouchEvent) => {
+      const t = e.changedTouches[0];
+      touchStartPos = { x: t.clientX, y: t.clientY };
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      const t = e.changedTouches[0];
+      // Only treat as tap if finger didn't move much (not a drag/orbit)
+      const dx = t.clientX - touchStartPos.x;
+      const dy = t.clientY - touchStartPos.y;
+      if (Math.sqrt(dx * dx + dy * dy) > 12) return;
+      const rect = el.getBoundingClientRect();
+      mouse.x =  ((t.clientX - rect.left) / rect.width)  * 2 - 1;
+      mouse.y = -((t.clientY - rect.top)  / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(markerMeshes.current.map(m => m.mesh));
+      if (hits.length > 0) {
+        const entry = markerMeshes.current.find(m => m.mesh === hits[0].object);
+        if (entry) {
+          controls.autoRotate = false;
+          (entry.mesh.material as THREE.MeshPhongMaterial).emissiveIntensity = 2.5;
+          const sp = entry.mesh.position.clone().project(camera);
+          const sx = ((sp.x + 1) / 2) * el.clientWidth;
+          const sy = ((-sp.y + 1) / 2) * el.clientHeight;
+          setTooltip({ visible: true, x: sx, y: sy, data: entry.data });
+          e.preventDefault();
+        }
+      } else {
+        setTooltip(prev => ({ ...prev, visible: false }));
+        controls.autoRotate = true;
+      }
+    };
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchend', onTouchEnd, { passive: false });
+
     // ── Animation loop ────────────────────────────────────────────────────────
     let t = 0;
     const animate = () => {
@@ -937,6 +997,9 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
       window.removeEventListener('tradex-dashboard-layout-change', onResize);
       resizeObserver?.disconnect();
       el.removeEventListener('mousemove', onMouseMove);
+      el.removeEventListener('click', onClick);
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchend', onTouchEnd);
       controls.dispose();
       renderer.dispose();
       if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement);
