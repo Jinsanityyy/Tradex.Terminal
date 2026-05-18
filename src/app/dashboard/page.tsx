@@ -31,6 +31,9 @@ import { TradingViewChart } from "@/components/shared/TradingViewChart";
 import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { CatalystFeed } from "@/components/shared/CatalystFeed";
 import { DetailModal } from "@/components/shared/DetailModal";
+import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
+import { CloseTradeModal } from "@/components/shared/CloseTradeModal";
+import { loadTradeLog, findOpenBySetup, type TakenSignal } from "@/lib/trades/trade-log";
 import { LiveTVPanel } from "@/components/shared/LiveTVPanel";
 import { SessionSummaryCard } from "@/components/shared/SessionSummaryCard";
 import { LotCalculatorWidget } from "@/components/shared/LotCalculatorWidget";
@@ -772,6 +775,9 @@ export default function DashboardPage() {
     } catch {}
     return new Set(ALL_AGENT_IDS);
   });
+  const [takingTrade, setTakingTrade] = useState(false);
+  const [closingTrade, setClosingTrade] = useState<TakenSignal | null>(null);
+  const [tradeLog, setTradeLog] = useState<TakenSignal[]>([]);
   const intervalDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const armedAlertKeyRef = useRef<string | null>(null);
 
@@ -828,6 +834,10 @@ export default function DashboardPage() {
       setManualTrades([]);
     }
   }, []);
+
+  useEffect(() => { setTradeLog(loadTradeLog()); }, []);
+
+  const refreshTradeLog = useCallback(() => setTradeLog(loadTradeLog()), []);
 
   const toggleFullscreen = useCallback(async () => {
     try {
@@ -1922,12 +1932,69 @@ export default function DashboardPage() {
                   {exec.signalStateReason && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">State Reason</p><p className="text-zinc-400">{exec.signalStateReason}</p></div>}
                   {exec.triggerCondition && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Trigger</p><p className="text-zinc-400">{exec.triggerCondition}</p></div>}
                   {exec.managementNotes?.length > 0 && <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-2">Trade Management</p><div className="space-y-1">{exec.managementNotes.map((n, i) => <p key={i} className="text-zinc-400">• {n}</p>)}</div></div>}
+
+                  {/* Take / Close Trade buttons */}
+                  {(() => {
+                    const tp = tradePlan;
+                    const openTrade = tp ? findOpenBySetup(symbol, tp.entry, tp.stopLoss) : null;
+                    const canTake = exec.signalState === "ARMED" && tp && !openTrade;
+                    return (
+                      <div className="flex gap-2 pt-1">
+                        {canTake && (
+                          <button
+                            onClick={() => setTakingTrade(true)}
+                            className={cn(
+                              "flex-1 py-2 rounded-lg text-xs font-bold border transition-colors",
+                              exec.direction === "long"
+                                ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25"
+                                : "bg-red-500/15 border-red-500/30 text-red-400 hover:bg-red-500/25"
+                            )}
+                          >
+                            {exec.direction === "long" ? "▲ Take BUY" : "▼ Take SELL"}
+                          </button>
+                        )}
+                        {openTrade && (
+                          <button
+                            onClick={() => setClosingTrade(openTrade)}
+                            className="flex-1 py-2 rounded-lg text-xs font-bold border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors"
+                          >
+                            Close Trade
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </>
               )}
 
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Trade Modals ───────────────────────────────────────────────────── */}
+      {takingTrade && tradePlan && (
+        <TakeTradeModal
+          symbol={symbol}
+          symbolDisplay={symCfg.short}
+          direction={exec?.direction === "long" ? "BUY" : "SELL"}
+          entry={tradePlan.entry}
+          stopLoss={tradePlan.stopLoss}
+          tp1={tradePlan.tp1}
+          tp2={tradePlan.tp2}
+          rrRatio={tradePlan.rrRatio}
+          grade={exec?.grade ?? undefined}
+          timeframe={timeframe}
+          onClose={() => setTakingTrade(false)}
+          onTaken={() => { refreshTradeLog(); setTakingTrade(false); }}
+        />
+      )}
+      {closingTrade && (
+        <CloseTradeModal
+          trade={closingTrade}
+          onClose={() => setClosingTrade(null)}
+          onClosed={() => { refreshTradeLog(); setClosingTrade(null); }}
+        />
       )}
     </div>
   );
