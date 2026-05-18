@@ -45,8 +45,13 @@ function initPool(): void {
 
 function playMp3(key: Mp3Key): Promise<void> {
   return new Promise((resolve) => {
-    const a = _pool[key];
-    if (!a) { resolve(); return; }
+    // Lazily create the element if the pool wasn't initialized before this call.
+    // This covers the case where the user taps a preview button before AudioUnlocker
+    // has fired — the button click itself IS a user gesture so play() will be allowed.
+    if (!_pool[key]) {
+      try { _pool[key] = makeAudio(MP3S[key]); } catch { resolve(); return; }
+    }
+    const a = _pool[key]!;
     a.currentTime = 0;
     const done = () => { a.removeEventListener("ended", done); resolve(); };
     a.addEventListener("ended", done);
