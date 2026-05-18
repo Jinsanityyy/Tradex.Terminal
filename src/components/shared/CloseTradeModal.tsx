@@ -91,7 +91,7 @@ export function CloseTradeModal({ trade, onClose, onClosed }: Props) {
   })();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
       <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[hsl(220,18%,6%)] shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
