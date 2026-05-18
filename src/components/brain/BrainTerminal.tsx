@@ -2,13 +2,14 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Brain, Clock, Crosshair, RefreshCw } from "lucide-react";
+import { Brain, Clock, Crosshair, RefreshCw, Target } from "lucide-react";
 import useSWR from "swr";
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import { useQuotes } from "@/hooks/useMarketData";
 import { useSettings } from "@/contexts/SettingsContext";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
 import { AgentCommandRoom } from "./AgentCommandRoom";
+import { AgentFloorTest } from "./AgentFloorTest";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -212,6 +213,7 @@ export function BrainTerminal() {
   const [drawerOpen, setDrawerOpen]     = useState(false);
   const [highlightId, setHighlightId]  = useState<string | undefined>();
   const [sniperMode, setSniperMode]     = useState(false);
+  const [brainTab, setBrainTab]         = useState<"agents" | "floor">("agents");
   const [nowMs, setNowMs]               = useState(() => Date.now());
 
   const { quotes } = useQuotes(60_000);
@@ -508,12 +510,35 @@ export function BrainTerminal() {
             }}
           />
 
-          {/* Section label */}
-          <div className="flex items-center gap-3">
-            <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-700">7-Agent Overview</span>
-            <div className="flex-1 border-t border-white/4" />
+          {/* ── Section tabs: Agents | Floor ──────────────────────────────── */}
+          <div className="flex items-center gap-0 border-b border-white/6">
+            {(["agents", "floor"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setBrainTab(tab)}
+                className={cn(
+                  "flex items-center gap-1.5 px-4 py-2 text-[10px] font-bold uppercase tracking-widest border-b-2 -mb-px transition-all",
+                  brainTab === tab
+                    ? "border-[hsl(var(--primary))] text-[hsl(var(--primary))]"
+                    : "border-transparent text-zinc-600 hover:text-zinc-400"
+                )}
+              >
+                {tab === "floor" && <Target className="w-3 h-3" />}
+                {tab === "agents" ? "7-Agent Overview" : "Command Floor"}
+              </button>
+            ))}
           </div>
 
+          {/* ── FLOOR TAB ──────────────────────────────────────────────────── */}
+          {brainTab === "floor" && (
+            <div className="max-w-md">
+              <AgentFloorTest data={data} loading={loading} />
+            </div>
+          )}
+
+          {/* ── AGENTS TAB ─────────────────────────────────────────────────── */}
+          {brainTab === "agents" && (
+          <>
           {/* ── Row 1: Trend, Price Action, News, Risk ──────────────────────── */}
           <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
 
@@ -659,61 +684,7 @@ export function BrainTerminal() {
             })()}
           </div>
 
-          {/* ── Pixel View  -  compact agent matrix ───────────────────────────── */}
-          <div className="rounded-xl border border-white/6 bg-[hsl(var(--card))] overflow-hidden">
-            <div className="flex items-center justify-between px-3 py-1.5 border-b border-white/5">
-              <span className="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-700">Pixel View</span>
-              <span className="text-[8px] font-mono text-zinc-800">7 AGENTS</span>
-            </div>
-            <div className="divide-y divide-white/[0.04] overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-              {(
-                [
-                  { id: "master",     label: "MASTER", bias: finalBias,                                                state: fmt(finalBias),                                          conf: master?.confidence ?? 0,     tags: masterTags     },
-                  { id: "trend",      label: "TREND",  bias: tr?.bias ?? "neutral",                                    state: fmt(tr?.bias),                                           conf: tr?.confidence ?? 0,         tags: trendTags      },
-                  { id: "smc",        label: "PA",     bias: smc?.bias ?? "neutral",                                   state: fmt(smc?.bias),                                          conf: smc?.confidence ?? 0,        tags: smcTags        },
-                  { id: "news",       label: "NEWS",   bias: news?.impact ?? "neutral",                                state: fmt(news?.impact),                                       conf: news?.confidence ?? 0,       tags: newsTags       },
-                  { id: "risk",       label: "RISK",   bias: risk?.valid ? "valid" : risk ? "blocked" : "neutral",    state: risk ? (risk.valid ? "VALID" : "BLOCKED") : " - ",          conf: risk?.sessionScore ?? 0,     tags: riskTags       },
-                  { id: "execution",  label: "EXEC",   bias: execution?.direction === "long" ? "bullish" : execution?.direction === "short" ? "bearish" : execution?.signalState === "ARMED" ? "opposing" : "neutral",
-                                                                                                                        state: execution?.signalState ?? " - ",                           conf: execConf,                    tags: execTags       },
-                  { id: "contrarian", label: "CONTRA", bias: contrarian?.challengesBias ? "bearish" : "neutral",      state: contrarian?.challengesBias ? "ALERT" : "CLEAR",           conf: contrarian?.trapConfidence ?? 0, tags: contrarianTags },
-                ] as { id: string; label: string; bias: string; state: string; conf: number; tags: DiagTag[] }[]
-              ).map(({ id, label, bias, state, conf, tags }) => {
-                const tone = biasTone(bias);
-                const cls  = TONE_CLS[tone];
-                return (
-                  <button
-                    key={id}
-                    onClick={() => openDrawer(id)}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-white/[0.03] transition-all group"
-                  >
-                    {/* Agent label */}
-                    <span className="w-[42px] shrink-0 font-mono text-[8px] font-bold text-zinc-700 group-hover:text-zinc-500 transition-colors">{label}</span>
-
-                    {/* Bias state */}
-                    <span className={cn("w-[60px] shrink-0 font-mono text-[8px] font-black uppercase truncate", cls.text)}>{state}</span>
-
-                    {/* Confidence bar */}
-                    <div className="w-[52px] shrink-0 flex items-center gap-1">
-                      <div className="flex-1 h-[2px] rounded-full bg-white/5 overflow-hidden">
-                        <div className={cn("h-full rounded-full", cls.bar)} style={{ width: `${Math.min(100, conf)}%` }} />
-                      </div>
-                      <span className="font-mono text-[7px] text-zinc-800 w-[18px] text-right">{conf}%</span>
-                    </div>
-
-                    {/* Key metrics inline */}
-                    <div className="flex flex-1 flex-wrap gap-x-2 gap-y-0.5 min-w-0 overflow-hidden">
-                      {tags.slice(0, 5).map(t => (
-                        <span key={t.k} className="font-mono text-[7.5px] whitespace-nowrap">
-                          <span className="text-zinc-800">{t.k}:</span>
-                          <span className="text-zinc-600 ml-0.5">{t.v}</span>
-                        </span>
-                      ))}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          </> )}
 
           {/* Footer */}
           <div className="flex flex-wrap items-center gap-3 border-t border-white/4 pt-2 text-[10px] text-zinc-700">
