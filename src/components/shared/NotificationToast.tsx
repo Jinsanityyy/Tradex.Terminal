@@ -109,6 +109,17 @@ export function NotificationToast() {
   const dismiss    = useCallback((id: string) => setNotifs(p => p.filter(n => n.id !== id)), []);
   const dismissAll = useCallback(() => { setNotifs([]); setExpanded(new Set()); }, []);
 
+  // Move a secondary card to the top so it becomes the primary
+  const promote = useCallback((id: string) => {
+    setNotifs(prev => {
+      const idx = prev.findIndex(n => n.id === id);
+      if (idx <= 0) return prev;
+      const next = [...prev];
+      const [item] = next.splice(idx, 1);
+      return [item, ...next];
+    });
+  }, []);
+
   const toggleExpand = (id: string) => setExpanded(prev => {
     const next = new Set(prev);
     next.has(id) ? next.delete(id) : next.add(id);
@@ -174,6 +185,7 @@ export function NotificationToast() {
               isExpanded={expanded.has(n.id)}
               onDismiss={() => dismiss(n.id)}
               onToggleExpand={() => toggleExpand(n.id)}
+              onPromote={() => promote(n.id)}
             />
           ))}
 
@@ -192,7 +204,7 @@ export function NotificationToast() {
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
 function AlertCard({
-  notif, primary, index, isExpanded, onDismiss, onToggleExpand,
+  notif, primary, index, isExpanded, onDismiss, onToggleExpand, onPromote,
 }: {
   notif: Notif;
   primary: boolean;
@@ -200,6 +212,7 @@ function AlertCard({
   isExpanded: boolean;
   onDismiss: () => void;
   onToggleExpand: () => void;
+  onPromote: () => void;
 }) {
   const cfg    = getCfg(notif.type);
   const accent = resolveAccent(notif);
@@ -211,29 +224,41 @@ function AlertCard({
   const time = ts.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
   const date = ts.toLocaleDateString("en-US", { month: "short", day: "2-digit" }).toUpperCase();
 
-  // Collapsed secondary card
+  // Collapsed secondary card — click row to promote, X to dismiss
   if (!primary) {
     return (
       <div
-        className="overflow-hidden cursor-pointer transition-opacity"
+        className="overflow-hidden transition-all"
         style={{
           background: "#0a0a0a",
           border: "1px solid rgba(255,255,255,0.06)",
           borderRadius: 4,
-          transform: `scale(${1 - index * 0.018})`,
-          opacity: Math.max(0.3, 1 - index * 0.28),
+          transform: `scale(${1 - index * 0.012})`,
+          opacity: Math.max(0.58, 1 - index * 0.12),
           transformOrigin: "top center",
         }}
-        onClick={onDismiss}
       >
-        <div className="flex items-center gap-2.5 pl-3 pr-3 py-2">
+        <div className="flex items-center gap-2.5 pl-3 pr-2 py-2">
           <div className="w-[2px] h-5 rounded-full shrink-0" style={{ background: accent }} />
-          <span className="text-[9px] font-mono tracking-[0.2em] uppercase shrink-0" style={{ color: accent }}>
-            {cfg.label}
-          </span>
-          <span className="text-[11px] text-white/30 truncate flex-1">{notif.title}</span>
-          <span className="text-[9px] font-mono text-white/15 shrink-0">{ago}</span>
-          <X className="h-2.5 w-2.5 shrink-0" style={{ color: "rgba(255,255,255,0.15)" }} />
+          {/* Clickable area promotes to primary */}
+          <button
+            className="flex items-center gap-2.5 flex-1 min-w-0 text-left"
+            onClick={onPromote}
+          >
+            <span className="text-[9px] font-mono tracking-[0.2em] uppercase shrink-0" style={{ color: accent }}>
+              {cfg.label}
+            </span>
+            <span className="text-[11px] text-white/50 truncate flex-1">{notif.title}</span>
+            <span className="text-[9px] font-mono text-white/25 shrink-0">{ago}</span>
+          </button>
+          {/* X to dismiss without promoting */}
+          <button
+            onClick={(e: React.MouseEvent) => { e.stopPropagation(); onDismiss(); }}
+            className="flex items-center justify-center ml-1 transition-opacity hover:opacity-80"
+            style={{ width: 16, height: 16, borderRadius: 2, border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.25)", flexShrink: 0 }}
+          >
+            <X className="h-2 w-2" />
+          </button>
         </div>
       </div>
     );
