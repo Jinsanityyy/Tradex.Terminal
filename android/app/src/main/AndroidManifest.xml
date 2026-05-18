@@ -24,6 +24,20 @@
 
         </activity>
 
+        <!-- Home-screen widget -->
+        <receiver
+            android:name=".TradeXWidget"
+            android:exported="true"
+            android:label="TradeX Markets">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.tradex.terminal.WIDGET_REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/tradex_widget_info" />
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

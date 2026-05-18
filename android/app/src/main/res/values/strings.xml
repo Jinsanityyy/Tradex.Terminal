@@ -4,4 +4,5 @@
     <string name="title_activity_main">TradeX</string>
     <string name="package_name">com.tradex.terminal</string>
     <string name="custom_url_scheme">com.tradex.terminal</string>
+    <string name="widget_description">Live market prices — Gold, DXY, BTC, EUR</string>
 </resources>
