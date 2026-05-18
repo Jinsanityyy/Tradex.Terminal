@@ -25,6 +25,7 @@ import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
 import { CloseTradeModal } from "@/components/shared/CloseTradeModal";
 import { loadTradeLog, findOpenBySetup, discardTrade, type TakenSignal } from "@/lib/trades/trade-log";
+import { playSignalArmed } from "@/lib/sounds";
 import useSWR from "swr";
 import type { DailyPnL, MonthlyPnL } from "@/app/api/pnl/route";
 
@@ -221,6 +222,16 @@ export function MobileHome() {
       : null;
 
   const divRef = useRef<HTMLDivElement>(null);
+
+  // Play ARMED sound once per unique setup (keyed on entry+symbol)
+  const lastArmedKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (signalState !== "ARMED") return;
+    const key = `${activeSymbol}_${entry}`;
+    if (key === lastArmedKeyRef.current) return;
+    lastArmedKeyRef.current = key;
+    playSignalArmed();
+  }, [signalState, activeSymbol, entry]);
 
   const handleRefresh = useCallback(async () => {
     await Promise.all([

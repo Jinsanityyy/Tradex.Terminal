@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useCatalysts, useTrumpPosts } from "./useMarketData";
 import { createClient } from "@/lib/supabase/client";
+import { playHighImpactAlert } from "@/lib/sounds";
 
 export const CUSTOM_NOTIFICATION_EVENT = "tradex-custom-notification";
 
@@ -58,6 +59,7 @@ export function useNotifications(onNotif: NotifCallback) {
       !seen.has(c.id)
     );
     if (initializedRef.current && newHigh.length > 0) {
+      playHighImpactAlert();
       newHigh.forEach(c => {
         onNotifRef.current({
           id: crypto.randomUUID(),
@@ -81,6 +83,7 @@ export function useNotifications(onNotif: NotifCallback) {
     const seen = getSeenIds(SEEN_TRUMP_KEY);
     const newPosts = posts.filter(p => p.id && !seen.has(p.id));
     if (trumpInitRef.current && newPosts.length > 0) {
+      playHighImpactAlert();
       newPosts.slice(0, 2).forEach(p => {
         onNotifRef.current({
           id: crypto.randomUUID(),

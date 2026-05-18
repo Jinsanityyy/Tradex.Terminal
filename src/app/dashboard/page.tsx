@@ -52,6 +52,7 @@ import {
 } from "@/hooks/useMarketData";
 import { useTruthSocialPosts } from "@/hooks/useTruthSocialPosts";
 import { CUSTOM_NOTIFICATION_EVENT, type Notif } from "@/hooks/useNotifications";
+import { playSignalArmed } from "@/lib/sounds";
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import type { PnLData } from "@/app/api/pnl/route";
 import type { EconomicEvent } from "@/types";
@@ -1205,6 +1206,7 @@ export default function DashboardPage() {
         timestamp: Date.now(),
       };
 
+      playSignalArmed();
       window.dispatchEvent(
         new CustomEvent(CUSTOM_NOTIFICATION_EVENT, {
           detail: notif,

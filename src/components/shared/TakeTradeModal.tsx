@@ -5,6 +5,7 @@ import { X, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/contexts/SettingsContext";
 import { toast } from "sonner";
+import { playOrderFilled } from "@/lib/sounds";
 import {
   suggestLotSize,
   takeTrade,
@@ -119,6 +120,7 @@ export function TakeTradeModal({
         toast.warning("Trade saved locally — close the trade to record final PnL in Journal");
       }
 
+      playOrderFilled();
       onTaken(trade);
       onClose();
     } finally {
