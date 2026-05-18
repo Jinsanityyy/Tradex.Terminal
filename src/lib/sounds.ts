@@ -34,8 +34,21 @@ function note(
 }
 
 /**
- * Order filled — plays the real trading order fill sound effect.
+ * App open / login — two-tone ascending chime, then ElevenLabs voice greeting.
+ * Files play sequentially: tone ends → voice starts immediately.
  */
+export function playAppOpen(): void {
+  try {
+    const tone = new Audio("/sounds/app-open-tone.mp3");
+    const voice = new Audio("/sounds/app-open-voice.mp3");
+    tone.volume = 0.9;
+    voice.volume = 0.9;
+    tone.onended = () => { voice.play().catch(() => {}); };
+    tone.play().catch(() => {});
+  } catch {}
+}
+
+
 export function playOrderFilled(): void {
   try {
     const audio = new Audio("/sounds/order-filled.mp3");

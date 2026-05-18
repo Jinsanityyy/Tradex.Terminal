@@ -13,6 +13,7 @@ import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { createClient } from "@/lib/supabase/client";
 import { NotificationToast } from "@/components/shared/NotificationToast";
 import { LoginTransitionOverlay } from "@/components/shared/LoginTransitionOverlay";
+import { playAppOpen } from "@/lib/sounds";
 
 const TRADER_NAME_KEY = "tradex_trader_name";
 
@@ -46,6 +47,13 @@ export function MobileLayout() {
 
   useEffect(() => {
     setTimeout(() => setSplashDone(true), 1500);
+  }, []);
+
+  // Play app-open sound once per session
+  useEffect(() => {
+    if (sessionStorage.getItem("tradex-opened")) return;
+    sessionStorage.setItem("tradex-opened", "1");
+    playAppOpen();
   }, []);
 
   useEffect(() => {

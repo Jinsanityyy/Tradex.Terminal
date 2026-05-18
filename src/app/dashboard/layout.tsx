@@ -7,12 +7,20 @@ import { NotificationToast } from "@/components/shared/NotificationToast";
 import { TestAlertButton } from "@/components/shared/TestAlertButton";
 import { LoginTransitionOverlay } from "@/components/shared/LoginTransitionOverlay";
 import { TradingKnowledgeSidebar } from "@/components/shared/TradingKnowledgeSidebar";
+import { playAppOpen } from "@/lib/sounds";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isDashboardHome = pathname === "/dashboard";
   const shellRef = useRef<HTMLDivElement>(null);
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
+
+  // Play app-open sound once per session
+  useEffect(() => {
+    if (sessionStorage.getItem("tradex-opened")) return;
+    sessionStorage.setItem("tradex-opened", "1");
+    playAppOpen();
+  }, []);
 
   useEffect(() => {
     const shell = shellRef.current;
