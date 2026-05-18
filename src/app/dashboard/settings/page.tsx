@@ -8,22 +8,7 @@ import {
   Settings, Theme, Density, TimeZone, DateFormat, RefreshInterval, ImpactThreshold,
 } from "@/contexts/SettingsContext";
 import { cn } from "@/lib/utils";
-import { playHighImpactAlert, playSignalArmed, unlockAudio } from "@/lib/sounds";
-
-// Play an MP3 directly in the gesture tick — most reliable on Android WebView.
-// new Audio() + play() in the same synchronous call stack as a user gesture
-// is guaranteed to be allowed, with no dependency on pool initialization.
-function previewMp3(src: string) {
-  const a = new Audio(src);
-  a.volume = 0.9;
-  a.play().catch(() => {});
-}
-
-// For synth beeps, resume the AudioContext first.
-function previewSynth(fn: () => void) {
-  unlockAudio();
-  fn();
-}
+import { playOrderFilled, playHighImpactAlert, playSignalArmed, playAppOpen, unlockAudio } from "@/lib/sounds";
 import { createClient } from "@/lib/supabase/client";
 import Image from "next/image";
 
@@ -642,14 +627,14 @@ export default function SettingsPage() {
             <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 mb-3">Sound Preview</p>
             <div className="grid grid-cols-2 gap-2">
               {([
-                { label: "Order Filled", desc: "On Take Trade", color: "text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10", onTap: () => previewMp3("/sounds/order-filled-voice.mp3") },
-                { label: "High Impact",  desc: "News / Trump",  color: "text-red-400 border-red-500/30 hover:bg-red-500/10",             onTap: () => previewSynth(playHighImpactAlert) },
-                { label: "Signal Armed", desc: "EXEC Armed",    color: "text-amber-400 border-amber-500/30 hover:bg-amber-500/10",        onTap: () => previewSynth(playSignalArmed) },
-                { label: "App Open",     desc: "Login / Launch", color: "text-sky-400 border-sky-500/30 hover:bg-sky-500/10",             onTap: () => previewMp3("/sounds/app-open-tone.mp3") },
-              ] as const).map(({ label, desc, color, onTap }) => (
+                { label: "Order Filled", desc: "On Take Trade",  fn: playOrderFilled,    color: "text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10" },
+                { label: "High Impact",  desc: "News / Trump",   fn: playHighImpactAlert, color: "text-red-400 border-red-500/30 hover:bg-red-500/10" },
+                { label: "Signal Armed", desc: "EXEC Armed",     fn: playSignalArmed,     color: "text-amber-400 border-amber-500/30 hover:bg-amber-500/10" },
+                { label: "App Open",     desc: "Login / Launch", fn: playAppOpen,         color: "text-sky-400 border-sky-500/30 hover:bg-sky-500/10" },
+              ] as const).map(({ label, desc, color, fn }) => (
                 <button
                   key={label}
-                  onClick={onTap}
+                  onClick={() => { unlockAudio(); fn(); }}
                   className={cn("flex flex-col items-center gap-1 py-2.5 px-2 rounded-lg border bg-white/3 transition-colors text-center", color)}
                 >
                   <span className="text-[11px] font-bold">{label}</span>

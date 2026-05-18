@@ -223,10 +223,15 @@ export function MobileHome() {
 
   const divRef = useRef<HTMLDivElement>(null);
 
-  // Play ARMED sound once per unique setup (keyed on entry+symbol)
-  const lastArmedKeyRef = useRef<string | null>(null);
+  // Play ARMED sound only when signal *transitions* to ARMED (not on first mount
+  // with stale cached data — that would fire the chime every time the app opens).
+  const lastArmedKeyRef  = useRef<string | null>(null);
+  const prevSignalRef    = useRef<string | null>(null);
   useEffect(() => {
+    const prev = prevSignalRef.current;
+    prevSignalRef.current = signalState;
     if (signalState !== "ARMED") return;
+    if (prev === null) return; // skip initial render
     const key = `${activeSymbol}_${entry}`;
     if (key === lastArmedKeyRef.current) return;
     lastArmedKeyRef.current = key;

@@ -1,65 +1,28 @@
 /**
  * TradeX sound effects — mobile-first audio strategy.
  *
- * MP3 files  → HTMLAudioElement pool.  Elements are created + load()-ed on
- *               the first user gesture so Android WebView considers them
- *               "unlocked".  Subsequent play() calls work from any context.
+ * Primary path for MP3s: AudioContext + decodeAudioData → BufferSourceNode.
+ * Once the AudioContext is running (after first gesture), BufferSourceNode.start()
+ * needs no user gesture at all — bypasses Android WebView's HTMLAudioElement
+ * autoplay restrictions entirely.
  *
- * Synthesised → Singleton AudioContext.  resume() is called on first gesture
- *               so the context stays in "running" state for all later beeps.
+ * Fallback path: HTMLAudioElement pool (desktop / browsers where ctx unavailable).
  *
- * Never call new Audio() or new AudioContext() inside a play function — always
- * use the pre-created instances to avoid autoplay blocks on Android WebView.
+ * Synthesised beeps: oscillator nodes on the same AudioContext.
  */
 
-// ─── HTMLAudioElement pool ─────────────────────────────────────────────────────
+// ─── MP3 paths ────────────────────────────────────────────────────────────────
 
 const MP3S = {
-  appTone:      "/sounds/app-open-tone.mp3",
-  appVoice:     "/sounds/app-open-voice.mp3",
-  orderVoice:   "/sounds/order-filled-voice.mp3",
-  orderChime:   "/sounds/order-filled.mp3",
+  appTone:    "/sounds/app-open-tone.mp3",
+  appVoice:   "/sounds/app-open-voice.mp3",
+  orderVoice: "/sounds/order-filled-voice.mp3",
+  orderChime: "/sounds/order-filled.mp3",
 } as const;
 
 type Mp3Key = keyof typeof MP3S;
 
-const _pool: Partial<Record<Mp3Key, HTMLAudioElement>> = {};
-let _poolReady = false;
-
-function makeAudio(src: string): HTMLAudioElement {
-  const a = new Audio(src);
-  a.preload = "auto";
-  a.volume = 0.9;
-  a.load(); // unlocks the element on mobile
-  return a;
-}
-
-/** Pre-create Audio elements. Must be called from a user gesture. */
-function initPool(): void {
-  if (_poolReady || typeof window === "undefined") return;
-  _poolReady = true;
-  (Object.keys(MP3S) as Mp3Key[]).forEach((k) => {
-    try { _pool[k] = makeAudio(MP3S[k]); } catch {}
-  });
-}
-
-function playMp3(key: Mp3Key): Promise<void> {
-  return new Promise((resolve) => {
-    // Lazily create the element if the pool wasn't initialized before this call.
-    // This covers the case where the user taps a preview button before AudioUnlocker
-    // has fired — the button click itself IS a user gesture so play() will be allowed.
-    if (!_pool[key]) {
-      try { _pool[key] = makeAudio(MP3S[key]); } catch { resolve(); return; }
-    }
-    const a = _pool[key]!;
-    a.currentTime = 0;
-    const done = () => { a.removeEventListener("ended", done); resolve(); };
-    a.addEventListener("ended", done);
-    a.play().catch(() => resolve());
-  });
-}
-
-// ─── Singleton AudioContext (for synthesised beeps) ───────────────────────────
+// ─── Singleton AudioContext ───────────────────────────────────────────────────
 
 let _ctx: AudioContext | null = null;
 
@@ -75,10 +38,91 @@ function getCtx(): AudioContext | null {
   return _ctx;
 }
 
+// ─── AudioBuffer cache (decoded MP3s — primary path) ─────────────────────────
+
+const _buffers: Partial<Record<Mp3Key, AudioBuffer>> = {};
+let _preloadStarted = false;
+
+async function preloadBuffers(): Promise<void> {
+  if (_preloadStarted) return;
+  _preloadStarted = true;
+  const c = getCtx();
+  if (!c) return;
+  await Promise.all(
+    (Object.keys(MP3S) as Mp3Key[]).map(async (k) => {
+      try {
+        const res = await fetch(MP3S[k]);
+        const ab  = await res.arrayBuffer();
+        _buffers[k] = await c.decodeAudioData(ab);
+      } catch {}
+    })
+  );
+}
+
+function playBufferNode(key: Mp3Key): Promise<void> {
+  return new Promise((resolve) => {
+    const c   = getCtx();
+    const buf = _buffers[key];
+    if (!c || !buf) { resolve(); return; }
+    try {
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      const g = c.createGain();
+      g.gain.value = 0.9;
+      src.connect(g);
+      g.connect(c.destination);
+      src.onended = () => resolve();
+      src.start(0);
+    } catch { resolve(); }
+  });
+}
+
+// ─── HTMLAudioElement pool (fallback) ─────────────────────────────────────────
+
+const _pool: Partial<Record<Mp3Key, HTMLAudioElement>> = {};
+let _poolReady = false;
+
+function makeAudio(src: string): HTMLAudioElement {
+  const a = new Audio(src);
+  a.preload = "auto";
+  a.volume  = 0.9;
+  a.load();
+  return a;
+}
+
+function initPool(): void {
+  if (_poolReady || typeof window === "undefined") return;
+  _poolReady = true;
+  (Object.keys(MP3S) as Mp3Key[]).forEach((k) => {
+    try { _pool[k] = makeAudio(MP3S[k]); } catch {}
+  });
+}
+
+function playHtmlAudio(key: Mp3Key): Promise<void> {
+  return new Promise((resolve) => {
+    if (!_pool[key]) {
+      try { _pool[key] = makeAudio(MP3S[key]); } catch { resolve(); return; }
+    }
+    const a = _pool[key]!;
+    a.currentTime = 0;
+    const done = () => { a.removeEventListener("ended", done); resolve(); };
+    a.addEventListener("ended", done);
+    a.play().catch(() => resolve());
+  });
+}
+
+// Primary dispatcher: buffer → HTMLAudio fallback
+function playMp3(key: Mp3Key): Promise<void> {
+  if (_buffers[key]) return playBufferNode(key);
+  return playHtmlAudio(key);
+}
+
+// ─── Oscillator beeps ─────────────────────────────────────────────────────────
+
 function beep(
   freq: number,
   dur: number,
-  vol = 0.15,
+  vol   = 0.15,
   type: OscillatorType = "sine",
   delay = 0
 ): void {
@@ -90,7 +134,7 @@ function beep(
       const g = c.createGain();
       o.connect(g);
       g.connect(c.destination);
-      o.type = type;
+      o.type            = type;
       o.frequency.value = freq;
       const t = c.currentTime + delay;
       g.gain.setValueAtTime(0, t);
@@ -100,30 +144,29 @@ function beep(
       o.stop(t + dur + 0.05);
     } catch {}
   };
-  if (c.state === "suspended") {
-    c.resume().then(go).catch(() => {});
-  } else {
-    go();
-  }
+  c.state === "suspended" ? c.resume().then(go).catch(() => {}) : go();
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
  * Call once from the first user gesture (touchstart / click).
- * - Initialises the MP3 pool so elements are unlocked for future play()
- * - Resumes the AudioContext so beeps work
+ * Resumes the AudioContext and kicks off background buffer decoding
+ * for all MP3s so they can be played later without any gesture requirement.
  */
 export function unlockAudio(): void {
-  initPool();
+  initPool(); // keep HTMLAudioElement pool as fallback
   const c = getCtx();
-  if (c?.state === "suspended") c.resume().catch(() => {});
+  if (c?.state === "suspended") {
+    c.resume()
+      .then(() => preloadBuffers())
+      .catch(() => {});
+  } else {
+    preloadBuffers();
+  }
 }
 
-/**
- * No-op kept for backward compat (pool is now initialised in unlockAudio).
- * @deprecated
- */
+/** @deprecated no-op kept for backward compat */
 export async function preloadSounds(): Promise<void> {}
 
 // ── MP3 sounds ────────────────────────────────────────────────────────────────
