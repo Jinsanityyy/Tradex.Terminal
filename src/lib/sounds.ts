@@ -1,28 +1,57 @@
 /**
- * TradeX sound effects — mobile-first audio strategy.
+ * TradeX sound effects.
  *
- * Primary path for MP3s: AudioContext + decodeAudioData → BufferSourceNode.
- * Once the AudioContext is running (after first gesture), BufferSourceNode.start()
- * needs no user gesture at all — bypasses Android WebView's HTMLAudioElement
- * autoplay restrictions entirely.
+ * MP3 sounds (App Open, Order Filled):
+ *   - On Android (Capacitor): @capacitor-community/native-audio → Android MediaPlayer
+ *     Completely bypasses WebView autoplay restrictions.
+ *   - On desktop/browser: oscillator beep fallback.
  *
- * Fallback path: HTMLAudioElement pool (desktop / browsers where ctx unavailable).
- *
- * Synthesised beeps: oscillator nodes on the same AudioContext.
+ * Synthesised beeps (High Impact, Signal Armed, Chat Ping, etc.):
+ *   - Always use AudioContext oscillators — works everywhere.
  */
 
-// ─── MP3 paths ────────────────────────────────────────────────────────────────
+// ─── Native Audio (Capacitor Android) ────────────────────────────────────────
 
-const MP3S = {
-  appTone:    "/sounds/app-open-tone.mp3",
-  appVoice:   "/sounds/app-open-voice.mp3",
-  orderVoice: "/sounds/order-filled-voice.mp3",
-  orderChime: "/sounds/order-filled.mp3",
-} as const;
+let _nativeReady = false;
+let _nativeInitPromise: Promise<void> | null = null;
 
-type Mp3Key = keyof typeof MP3S;
+async function isCapacitorNative(): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  try {
+    const { Capacitor } = await import("@capacitor/core");
+    return Capacitor.isNativePlatform();
+  } catch { return false; }
+}
 
-// ─── Singleton AudioContext ───────────────────────────────────────────────────
+async function initNativeAudio(): Promise<void> {
+  if (_nativeReady) return;
+  if (_nativeInitPromise) return _nativeInitPromise;
+
+  _nativeInitPromise = (async () => {
+    const native = await isCapacitorNative();
+    if (!native) return;
+    try {
+      const { NativeAudio } = await import("@capacitor-community/native-audio");
+      await Promise.all([
+        NativeAudio.preload({ assetId: "appTone",      assetPath: "sounds/app-open-tone.mp3",       audioChannelNum: 1, isUrl: false }),
+        NativeAudio.preload({ assetId: "appVoice",     assetPath: "sounds/app-open-voice.mp3",      audioChannelNum: 1, isUrl: false }),
+        NativeAudio.preload({ assetId: "orderFilled",  assetPath: "sounds/order-filled-voice.mp3",  audioChannelNum: 1, isUrl: false }),
+      ]);
+      _nativeReady = true;
+    } catch {}
+  })();
+
+  return _nativeInitPromise;
+}
+
+async function playNative(assetId: string): Promise<void> {
+  try {
+    const { NativeAudio } = await import("@capacitor-community/native-audio");
+    await NativeAudio.play({ assetId });
+  } catch {}
+}
+
+// ─── Singleton AudioContext (for beeps + desktop fallback) ───────────────────
 
 let _ctx: AudioContext | null = null;
 
@@ -37,90 +66,6 @@ function getCtx(): AudioContext | null {
   }
   return _ctx;
 }
-
-// ─── AudioBuffer cache (decoded MP3s — primary path) ─────────────────────────
-
-const _buffers: Partial<Record<Mp3Key, AudioBuffer>> = {};
-// Store the Promise so callers can await the same in-flight load.
-let _preloadPromise: Promise<void> | null = null;
-
-function preloadBuffers(): Promise<void> {
-  if (_preloadPromise) return _preloadPromise;
-  _preloadPromise = (async () => {
-    const c = getCtx();
-    if (!c) return;
-    await Promise.all(
-      (Object.keys(MP3S) as Mp3Key[]).map(async (k) => {
-        try {
-          const res = await fetch(MP3S[k]);
-          const ab  = await res.arrayBuffer();
-          _buffers[k] = await c.decodeAudioData(ab);
-        } catch {}
-      })
-    );
-  })();
-  return _preloadPromise;
-}
-
-function playBufferNode(key: Mp3Key): Promise<void> {
-  return new Promise((resolve) => {
-    const c   = getCtx();
-    const buf = _buffers[key];
-    if (!c || !buf) { resolve(); return; }
-    try {
-      const src = c.createBufferSource();
-      src.buffer = buf;
-      const g = c.createGain();
-      g.gain.value = 0.9;
-      src.connect(g);
-      g.connect(c.destination);
-      src.onended = () => resolve();
-      src.start(0);
-    } catch { resolve(); }
-  });
-}
-
-// ─── HTMLAudioElement pool (fallback) ─────────────────────────────────────────
-
-const _pool: Partial<Record<Mp3Key, HTMLAudioElement>> = {};
-let _poolReady = false;
-
-function makeAudio(src: string): HTMLAudioElement {
-  const a = new Audio(src);
-  a.preload = "auto";
-  a.volume  = 0.9;
-  a.load();
-  return a;
-}
-
-function initPool(): void {
-  if (_poolReady || typeof window === "undefined") return;
-  _poolReady = true;
-  (Object.keys(MP3S) as Mp3Key[]).forEach((k) => {
-    try { _pool[k] = makeAudio(MP3S[k]); } catch {}
-  });
-}
-
-function playHtmlAudio(key: Mp3Key): Promise<void> {
-  return new Promise((resolve) => {
-    if (!_pool[key]) {
-      try { _pool[key] = makeAudio(MP3S[key]); } catch { resolve(); return; }
-    }
-    const a = _pool[key]!;
-    a.currentTime = 0;
-    const done = () => { a.removeEventListener("ended", done); resolve(); };
-    a.addEventListener("ended", done);
-    a.play().catch(() => resolve());
-  });
-}
-
-// Primary dispatcher: buffer → HTMLAudio fallback
-function playMp3(key: Mp3Key): Promise<void> {
-  if (_buffers[key]) return playBufferNode(key);
-  return playHtmlAudio(key);
-}
-
-// ─── Oscillator beeps ─────────────────────────────────────────────────────────
 
 function beep(
   freq: number,
@@ -153,40 +98,47 @@ function beep(
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Call once from the first user gesture (touchstart / click).
- * Resumes the AudioContext and kicks off background buffer decoding
- * for all MP3s so they can be played later without any gesture requirement.
+ * Call on first user gesture. Kicks off native audio preload + resumes
+ * AudioContext so beeps work immediately.
  */
 export function unlockAudio(): void {
-  initPool();
+  initNativeAudio();
   const c = getCtx();
-  if (c?.state === "suspended") {
-    // Resume first so decodeAudioData runs on a running context,
-    // then kick off the preload. The stored _preloadPromise means
-    // playAppOpen() can safely await it even if called immediately after.
-    c.resume().then(() => preloadBuffers()).catch(() => {});
-  } else {
-    preloadBuffers();
-  }
+  if (c?.state === "suspended") c.resume().catch(() => {});
 }
 
 /** @deprecated no-op kept for backward compat */
 export async function preloadSounds(): Promise<void> {}
 
-// ── MP3 sounds ────────────────────────────────────────────────────────────────
+// ── MP3 sounds (native on Android, beep fallback on desktop) ─────────────────
 
-/** Ascending 4-note welcome chime — app open / login. */
+/** Two-tone chime → ElevenLabs voice greeting on app open / login. */
 export function playAppOpen(): void {
-  beep(523,  0.18, 0.13, "sine", 0.00);
-  beep(659,  0.18, 0.13, "sine", 0.16);
-  beep(784,  0.18, 0.13, "sine", 0.32);
-  beep(1047, 0.35, 0.16, "sine", 0.48);
+  initNativeAudio().then(async () => {
+    if (_nativeReady) {
+      await playNative("appTone");
+      await playNative("appVoice");
+    } else {
+      // Desktop fallback — ascending chime
+      beep(523,  0.18, 0.13, "sine", 0.00);
+      beep(659,  0.18, 0.13, "sine", 0.16);
+      beep(784,  0.18, 0.13, "sine", 0.32);
+      beep(1047, 0.35, 0.16, "sine", 0.48);
+    }
+  }).catch(() => {});
 }
 
-/** Rising two-tone confirm — order filled. */
+/** ElevenLabs voice confirmation when an order fills. */
 export function playOrderFilled(): void {
-  beep(659, 0.14, 0.18, "triangle", 0.00);
-  beep(988, 0.28, 0.20, "triangle", 0.12);
+  initNativeAudio().then(async () => {
+    if (_nativeReady) {
+      await playNative("orderFilled");
+    } else {
+      // Desktop fallback — rising two-tone
+      beep(659, 0.14, 0.18, "triangle", 0.00);
+      beep(988, 0.28, 0.20, "triangle", 0.12);
+    }
+  }).catch(() => {});
 }
 
 // ── Synthesised beeps ─────────────────────────────────────────────────────────
@@ -207,12 +159,12 @@ export function playSignalArmed(): void {
 
 /** Short double-ping — incoming chat message. */
 export function playChatPing(): void {
-  beep(880, 0.22, 0.14, "sine", 0.00);
+  beep(880,  0.22, 0.14, "sine", 0.00);
   beep(1108, 0.18, 0.10, "sine", 0.14);
 }
 
 /** Single ping — generic notification. */
 export function playNotificationPing(): void {
-  beep(880, 0.22, 0.14, "sine", 0.00);
+  beep(880,  0.22, 0.14, "sine", 0.00);
   beep(1108, 0.18, 0.10, "sine", 0.14);
 }
