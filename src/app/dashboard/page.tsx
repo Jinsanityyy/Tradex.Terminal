@@ -33,7 +33,7 @@ import { CatalystFeed } from "@/components/shared/CatalystFeed";
 import { DetailModal } from "@/components/shared/DetailModal";
 import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
 import { CloseTradeModal } from "@/components/shared/CloseTradeModal";
-import { loadTradeLog, findOpenBySetup, type TakenSignal } from "@/lib/trades/trade-log";
+import { loadTradeLog, findOpenBySetup, discardTrade, type TakenSignal } from "@/lib/trades/trade-log";
 import { LiveTVPanel } from "@/components/shared/LiveTVPanel";
 import { SessionSummaryCard } from "@/components/shared/SessionSummaryCard";
 import { LotCalculatorWidget } from "@/components/shared/LotCalculatorWidget";
@@ -1938,29 +1938,51 @@ export default function DashboardPage() {
                     const tp = tradePlan;
                     const openTrade = tp ? findOpenBySetup(symbol, tp.entry, tp.stopLoss) : null;
                     const canTake = exec.signalState === "ARMED" && tp && !openTrade;
+                    const takenAgo = openTrade ? (() => {
+                      const diffMs = Date.now() - new Date(openTrade.takenAt).getTime();
+                      const h = Math.floor(diffMs / 3_600_000);
+                      const m = Math.floor((diffMs % 3_600_000) / 60_000);
+                      return h > 0 ? `${h}h ${m}m ago` : `${m}m ago`;
+                    })() : null;
                     return (
-                      <div className="flex gap-2 pt-1">
-                        {canTake && (
-                          <button
-                            onClick={() => setTakingTrade(true)}
-                            className={cn(
-                              "flex-1 py-2 rounded-lg text-xs font-bold border transition-colors",
-                              exec.direction === "long"
-                                ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25"
-                                : "bg-red-500/15 border-red-500/30 text-red-400 hover:bg-red-500/25"
-                            )}
-                          >
-                            {exec.direction === "long" ? "▲ Take BUY" : "▼ Take SELL"}
-                          </button>
-                        )}
+                      <div className="pt-1 space-y-1.5">
                         {openTrade && (
-                          <button
-                            onClick={() => setClosingTrade(openTrade)}
-                            className="flex-1 py-2 rounded-lg text-xs font-bold border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors"
-                          >
-                            Close Trade
-                          </button>
+                          <div className="flex items-center justify-between px-0.5">
+                            <span className="text-[9px] text-zinc-500">
+                              Open @ <span className="font-mono text-zinc-400">{openTrade.entry > 100 ? openTrade.entry.toFixed(2) : openTrade.entry.toFixed(4)}</span>
+                              {" · "}{openTrade.direction}{" · "}{takenAgo}
+                            </span>
+                            <button
+                              onClick={() => { discardTrade(openTrade.id); refreshTradeLog(); }}
+                              className="text-[9px] text-zinc-600 hover:text-red-400 transition-colors px-1 py-0.5"
+                            >
+                              Discard ×
+                            </button>
+                          </div>
                         )}
+                        <div className="flex gap-2">
+                          {canTake && (
+                            <button
+                              onClick={() => setTakingTrade(true)}
+                              className={cn(
+                                "flex-1 py-2 rounded-lg text-xs font-bold border transition-colors",
+                                exec.direction === "long"
+                                  ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25"
+                                  : "bg-red-500/15 border-red-500/30 text-red-400 hover:bg-red-500/25"
+                              )}
+                            >
+                              {exec.direction === "long" ? "▲ Take BUY" : "▼ Take SELL"}
+                            </button>
+                          )}
+                          {openTrade && (
+                            <button
+                              onClick={() => setClosingTrade(openTrade)}
+                              className="flex-1 py-2 rounded-lg text-xs font-bold border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors"
+                            >
+                              Close Trade
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   })()}

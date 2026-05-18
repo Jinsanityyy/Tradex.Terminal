@@ -24,7 +24,7 @@ const GlobeClient = dynamic(() => import("@/components/globe/GlobeClient"), { ss
 import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
 import { CloseTradeModal } from "@/components/shared/CloseTradeModal";
-import { loadTradeLog, findOpenBySetup, type TakenSignal } from "@/lib/trades/trade-log";
+import { loadTradeLog, findOpenBySetup, discardTrade, type TakenSignal } from "@/lib/trades/trade-log";
 import useSWR from "swr";
 import type { DailyPnL, MonthlyPnL } from "@/app/api/pnl/route";
 
@@ -384,13 +384,33 @@ export function MobileHome() {
                     if (!entry || !stopLoss || !tp1) return null;
                     const openTrade = findOpenBySetup(activeSymbol, entry, stopLoss);
                     if (openTrade) {
+                      const takenAgo = (() => {
+                        const diffMs = Date.now() - new Date(openTrade.takenAt).getTime();
+                        const h = Math.floor(diffMs / 3_600_000);
+                        const m = Math.floor((diffMs % 3_600_000) / 60_000);
+                        return h > 0 ? `${h}h ${m}m ago` : `${m}m ago`;
+                      })();
                       return (
-                        <button
-                          onClick={() => setClosingTrade(openTrade)}
-                          className="mt-3 w-full py-2 rounded-lg text-[11px] font-bold border border-amber-500/40 bg-amber-500/10 text-amber-400 active:bg-amber-500/20"
-                        >
-                          Close Trade
-                        </button>
+                        <div className="mt-3 space-y-1.5">
+                          <div className="flex items-center justify-between px-0.5">
+                            <span className="text-[9px] text-zinc-500">
+                              Open @ <span className="font-mono text-zinc-400">{openTrade.entry > 100 ? openTrade.entry.toFixed(2) : openTrade.entry.toFixed(4)}</span>
+                              {" · "}{openTrade.direction}{" · "}{takenAgo}
+                            </span>
+                            <button
+                              onClick={() => { discardTrade(openTrade.id); setTradeLog(loadTradeLog()); }}
+                              className="text-[9px] text-zinc-600 hover:text-red-400 transition-colors px-1 py-0.5"
+                            >
+                              Discard ×
+                            </button>
+                          </div>
+                          <button
+                            onClick={() => setClosingTrade(openTrade)}
+                            className="w-full py-2 rounded-lg text-[11px] font-bold border border-amber-500/40 bg-amber-500/10 text-amber-400 active:bg-amber-500/20"
+                          >
+                            Close Trade
+                          </button>
+                        </div>
                       );
                     }
                     if (signalState === "ARMED" || signalState === "PENDING") {

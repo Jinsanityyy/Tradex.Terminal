@@ -110,6 +110,11 @@ export function closeTrade(
   return closed;
 }
 
+export function discardTrade(id: string): void {
+  const trades = loadTradeLog();
+  save(trades.filter(t => t.id !== id));
+}
+
 export function findOpenBySetup(
   symbol: string,
   entry: number,
