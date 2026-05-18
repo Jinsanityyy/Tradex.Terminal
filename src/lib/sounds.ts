@@ -183,10 +183,11 @@ export function playAppOpen(): void {
   beep(1047, 0.35, 0.16, "sine", 0.48); // C6
 }
 
-/** Rising two-tone confirm — order filled. */
+/** Voice confirmation when an order fills — uses MP3 via AudioBuffer. */
 export function playOrderFilled(): void {
-  beep(659,  0.14, 0.18, "triangle", 0.00);
-  beep(988,  0.28, 0.20, "triangle", 0.12);
+  preloadBuffers()
+    .then(() => playBufferNode("orderVoice"))
+    .catch(() => {});
 }
 
 // ── Synthesised beeps ─────────────────────────────────────────────────────────
