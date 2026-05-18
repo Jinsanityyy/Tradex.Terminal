@@ -175,12 +175,12 @@ export async function preloadSounds(): Promise<void> {}
 
 // ── MP3 sounds ────────────────────────────────────────────────────────────────
 
-/** Ascending 4-note welcome chime — app open / login. */
+/** Two-tone chime → voice greeting on app open / login. */
 export function playAppOpen(): void {
-  beep(523, 0.18, 0.13, "sine", 0.00); // C5
-  beep(659, 0.18, 0.13, "sine", 0.16); // E5
-  beep(784, 0.18, 0.13, "sine", 0.32); // G5
-  beep(1047, 0.35, 0.16, "sine", 0.48); // C6
+  preloadBuffers()
+    .then(() => playBufferNode("appTone"))
+    .then(() => playBufferNode("appVoice"))
+    .catch(() => {});
 }
 
 /** Voice confirmation when an order fills — uses MP3 via AudioBuffer. */
