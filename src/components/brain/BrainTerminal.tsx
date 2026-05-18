@@ -244,7 +244,7 @@ export function BrainTerminal() {
   const { data, isLoading, error } = useSWR<AgentRunResult>(
     [apiUrl, refreshKey],
     ([url]) => fetcher(url as string),
-    { revalidateOnFocus: false, dedupingInterval: 60_000 }
+    { revalidateOnFocus: false, dedupingInterval: 300_000 }
   );
 
   const handleRefresh = useCallback(async () => {

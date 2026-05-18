@@ -22,9 +22,10 @@ function buildId(result: AgentRunResult): string {
   return `${slot}_${result.symbol}_${result.timeframe}`;
 }
 
-// 60-minute cooldown per symbol+direction  -  prevents cron from logging a new
-// signal every 5 min when entry price drifts slightly but the setup is the same.
-const ARMED_COOLDOWN_MS = 60 * 60 * 1000;
+// 15-minute cooldown per symbol+direction+entry  -  prevents the cron from
+// logging the exact same setup every 5 min. A different entry (> 0.03% away)
+// is treated as a new setup and logged immediately regardless of age.
+const ARMED_COOLDOWN_MS = 15 * 60 * 1000;
 
 /**
  * Returns true if a same-direction armed signal for this symbol was already
@@ -44,9 +45,10 @@ async function isDuplicateArmedSignal(result: AgentRunResult): Promise<boolean> 
       if (s.tradePlan.direction !== plan.direction) return false;
       const age = now - new Date(s.timestamp).getTime();
       if (age >= ARMED_COOLDOWN_MS) return false;
-      // Only suppress if entry price is within 0.15% — different entries are new setups
+      // Only suppress if entry price is within 0.03% (~1.5 pips on XAU)
+      // Anything further apart is a genuinely different setup and must be logged.
       const entryDiff = Math.abs(s.tradePlan.entry - plan.entry) / plan.entry;
-      return entryDiff < 0.0015;
+      return entryDiff < 0.0003;
     });
   } catch {
     return false;
