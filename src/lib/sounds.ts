@@ -1,87 +1,164 @@
 /**
- * TradeX sound effects  -  Web Audio API, no external files.
- * All tones are generated programmatically so there's nothing to load.
- * Silently no-ops if autoplay is blocked or the API is unavailable.
+ * TradeX sound effects — singleton AudioContext, works on Android WebView.
+ *
+ * Mobile autoplay policy: AudioContext starts in "suspended" state until the
+ * user interacts. Every play function calls resume() before scheduling audio.
+ * MP3 files are loaded via fetch + decodeAudioData (bypasses <audio> autoplay
+ * restrictions on Capacitor/WebView). Buffers are cached after first fetch.
  */
 
-function ctx(): AudioContext | null {
+// ─── Singleton context ────────────────────────────────────────────────────────
+
+let _ctx: AudioContext | null = null;
+const _buffers = new Map<string, AudioBuffer | null>();
+
+function getCtx(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  if (!_ctx) {
+    try {
+      _ctx = new (window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext)();
+    } catch {
+      return null;
+    }
+  }
+  return _ctx;
+}
+
+/** Call on first user gesture to lift the suspended-context restriction. */
+export function unlockAudio(): void {
+  const c = getCtx();
+  if (c?.state === "suspended") c.resume().catch(() => {});
+}
+
+// ─── MP3 playback via Web Audio API (works on mobile) ────────────────────────
+
+async function fetchBuffer(url: string): Promise<AudioBuffer | null> {
+  const c = getCtx();
+  if (!c) return null;
+  const cached = _buffers.get(url);
+  if (cached !== undefined) return cached;
+
   try {
-    return new AudioContext();
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const ab = await res.arrayBuffer();
+    const buf = await c.decodeAudioData(ab);
+    _buffers.set(url, buf);
+    return buf;
   } catch {
+    _buffers.set(url, null);
     return null;
   }
 }
 
-function note(
-  ac: AudioContext,
+async function playBuffer(url: string): Promise<void> {
+  const c = getCtx();
+  if (!c) return;
+  if (c.state === "suspended") await c.resume();
+  const buf = await fetchBuffer(url);
+  if (!buf) return;
+  return new Promise((resolve) => {
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const gain = c.createGain();
+    gain.gain.value = 0.9;
+    src.connect(gain);
+    gain.connect(c.destination);
+    src.onended = () => resolve();
+    src.start(0);
+  });
+}
+
+/**
+ * Pre-fetch and decode MP3 files so the first play is instant.
+ * Call this from AudioUnlocker after the user's first gesture.
+ */
+export async function preloadSounds(): Promise<void> {
+  await Promise.allSettled([
+    fetchBuffer("/sounds/app-open-tone.mp3"),
+    fetchBuffer("/sounds/app-open-voice.mp3"),
+    fetchBuffer("/sounds/order-filled-voice.mp3"),
+    fetchBuffer("/sounds/order-filled.mp3"),
+  ]);
+}
+
+// ─── Synthesised beep (no files needed) ──────────────────────────────────────
+
+function beep(
   freq: number,
-  startAt: number,
-  duration: number,
-  gain: number,
-  type: OscillatorType = "sine"
-) {
-  const osc = ac.createOscillator();
-  const g = ac.createGain();
-  osc.connect(g);
-  g.connect(ac.destination);
-  osc.type = type;
-  osc.frequency.value = freq;
-  g.gain.setValueAtTime(0, startAt);
-  g.gain.linearRampToValueAtTime(gain, startAt + 0.01);
-  g.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
-  osc.start(startAt);
-  osc.stop(startAt + duration + 0.05);
-}
-
-/**
- * App open / login — two-tone ascending chime, then ElevenLabs voice greeting.
- * Files play sequentially: tone ends → voice starts immediately.
- */
-export function playAppOpen(): void {
-  try {
-    const tone = new Audio("/sounds/app-open-tone.mp3");
-    const voice = new Audio("/sounds/app-open-voice.mp3");
-    tone.volume = 0.9;
-    voice.volume = 0.9;
-    tone.onended = () => { voice.play().catch(() => {}); };
-    tone.play().catch(() => {});
-  } catch {}
-}
-
-
-export function playOrderFilled(): void {
-  try {
-    const audio = new Audio("/sounds/order-filled-voice.mp3");
-    audio.volume = 0.9;
-    audio.play().catch(() => {});
-  } catch {}
-}
-
-/**
- * High-impact alert — three quick pulses at an urgent pitch.
- * Plays when a high-importance catalyst or Trump post fires.
- */
-export function playHighImpactAlert(): void {
-  const ac = ctx();
-  if (!ac) return;
-  const t = ac.currentTime;
-  const pulseFreq = 880; // A5
-  for (let i = 0; i < 3; i++) {
-    note(ac, pulseFreq, t + i * 0.18, 0.12, 0.20, "square");
+  dur: number,
+  vol = 0.15,
+  type: OscillatorType = "sine",
+  delay = 0
+): void {
+  const c = getCtx();
+  if (!c) return;
+  const go = () => {
+    try {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.connect(g);
+      g.connect(c.destination);
+      o.type = type;
+      o.frequency.value = freq;
+      const t = c.currentTime + delay;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(vol, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, t + Math.max(dur, 0.05));
+      o.start(t);
+      o.stop(t + dur + 0.05);
+    } catch {}
+  };
+  if (c.state === "suspended") {
+    c.resume().then(go).catch(() => {});
+  } else {
+    go();
   }
-  setTimeout(() => ac.close(), 1000);
 }
 
-/**
- * Signal armed — single ascending sweep.
- * Plays when an ARMED execution signal fires.
- */
+// ─── Public sound functions ───────────────────────────────────────────────────
+
+/** Tone + voice greeting on app launch / login. */
+export function playAppOpen(): void {
+  playBuffer("/sounds/app-open-tone.mp3")
+    .then(() => playBuffer("/sounds/app-open-voice.mp3"))
+    .catch(() => {});
+}
+
+/** Voice + chime when an order is filled. */
+export function playOrderFilled(): void {
+  playBuffer("/sounds/order-filled-voice.mp3").catch(() => {
+    // Fallback: synthesised chime if file missing
+    beep(523, 0.14, 0.20, "sine", 0.0);
+    beep(659, 0.14, 0.18, "sine", 0.12);
+    beep(784, 0.28, 0.15, "sine", 0.24);
+  });
+}
+
+/** Three urgent pulses — high-impact news / Trump post. */
+export function playHighImpactAlert(): void {
+  beep(880, 0.12, 0.20, "square", 0.00);
+  beep(880, 0.12, 0.20, "square", 0.18);
+  beep(880, 0.12, 0.20, "square", 0.36);
+}
+
+/** Ascending 3-note chime — ARMED execution signal. */
 export function playSignalArmed(): void {
-  const ac = ctx();
-  if (!ac) return;
-  const t = ac.currentTime;
-  note(ac, 523, t,        0.15, 0.18); // C5
-  note(ac, 659, t + 0.12, 0.15, 0.18); // E5
-  note(ac, 784, t + 0.24, 0.30, 0.22); // G5
-  setTimeout(() => ac.close(), 1000);
+  beep(523, 0.15, 0.18, "sine", 0.00);
+  beep(659, 0.15, 0.18, "sine", 0.12);
+  beep(784, 0.30, 0.22, "sine", 0.24);
+}
+
+/** Short double-ping — incoming chat message. */
+export function playChatPing(): void {
+  beep(880, 0.22, 0.14, "sine", 0.00);
+  beep(1108, 0.18, 0.10, "sine", 0.14);
+}
+
+/** Single ping — generic notification. */
+export function playNotificationPing(): void {
+  beep(880, 0.22, 0.14, "sine", 0.00);
+  beep(1108, 0.18, 0.10, "sine", 0.14);
 }

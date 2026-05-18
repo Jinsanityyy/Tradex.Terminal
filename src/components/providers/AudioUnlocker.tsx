@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { unlockAudio, playAppOpen } from "@/lib/audio";
+import { unlockAudio, preloadSounds, playAppOpen } from "@/lib/sounds";
 
 export function AudioUnlocker() {
   useEffect(() => {
@@ -9,10 +9,13 @@ export function AudioUnlocker() {
 
     const unlock = () => {
       unlockAudio();
+      // Preload MP3 buffers in background immediately after unlock
+      preloadSounds().catch(() => {});
+
       if (!played) {
         played = true;
-        // Play app-open chime on the first user interaction after launch
-        setTimeout(() => playAppOpen(), 200);
+        // Play app-open sound on first interaction after launch
+        setTimeout(() => playAppOpen(), 150);
       }
     };
 
