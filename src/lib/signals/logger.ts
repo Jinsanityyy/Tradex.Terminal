@@ -43,7 +43,10 @@ async function isDuplicateArmedSignal(result: AgentRunResult): Promise<boolean> 
       if (!s.tradePlan) return false;
       if (s.tradePlan.direction !== plan.direction) return false;
       const age = now - new Date(s.timestamp).getTime();
-      return age < ARMED_COOLDOWN_MS;
+      if (age >= ARMED_COOLDOWN_MS) return false;
+      // Only suppress if entry price is within 0.15% — different entries are new setups
+      const entryDiff = Math.abs(s.tradePlan.entry - plan.entry) / plan.entry;
+      return entryDiff < 0.0015;
     });
   } catch {
     return false;

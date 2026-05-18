@@ -1994,6 +1994,45 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* ── Persistent open trade banner (bottom-right, always visible) ────── */}
+      {(() => {
+        const openTrade = tradeLog.find(t => t.status === "open" && t.symbol === symbol);
+        if (!openTrade) return null;
+        const diffMs = Date.now() - new Date(openTrade.takenAt).getTime();
+        const h = Math.floor(diffMs / 3_600_000);
+        const m = Math.floor((diffMs % 3_600_000) / 60_000);
+        const takenAgo = h > 0 ? `${h}h ${m}m ago` : `${m}m ago`;
+        const isBuy = openTrade.direction === "BUY";
+        return (
+          <div className="fixed bottom-6 right-6 z-40 w-72 rounded-xl border border-amber-500/30 bg-[hsl(220,18%,5%)] shadow-2xl p-4 space-y-3">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-[9px] text-amber-500/70 uppercase tracking-wider font-bold">Open Trade · {takenAgo}</p>
+                <p className={cn("text-sm font-bold mt-0.5", isBuy ? "text-emerald-400" : "text-red-400")}>
+                  {openTrade.direction} {openTrade.symbolDisplay}
+                </p>
+                <p className="text-[10px] text-zinc-500 font-mono">
+                  Entry {openTrade.entry > 100 ? openTrade.entry.toFixed(2) : openTrade.entry.toFixed(4)}
+                  {" · "}SL {openTrade.stopLoss > 100 ? openTrade.stopLoss.toFixed(2) : openTrade.stopLoss.toFixed(4)}
+                </p>
+              </div>
+              <button
+                onClick={() => { discardTrade(openTrade.id); refreshTradeLog(); }}
+                className="text-[10px] text-zinc-600 hover:text-red-400 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <button
+              onClick={() => setClosingTrade(openTrade)}
+              className="w-full py-2 rounded-lg text-xs font-bold border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors"
+            >
+              Close Trade
+            </button>
+          </div>
+        );
+      })()}
+
       {/* ── Trade Modals ───────────────────────────────────────────────────── */}
       {takingTrade && tradePlan && (
         <TakeTradeModal

@@ -298,6 +298,49 @@ export function MobileHome() {
       </div>
 
       <div className="px-4 py-4 space-y-4">
+        {/* ── Persistent open trade banner (shows regardless of signal state) ── */}
+        {(() => {
+          const openTrade = tradeLog.find(t => t.status === "open" && t.symbol === activeSymbol);
+          if (!openTrade) return null;
+          const diffMs = Date.now() - new Date(openTrade.takenAt).getTime();
+          const h = Math.floor(diffMs / 3_600_000);
+          const m = Math.floor((diffMs % 3_600_000) / 60_000);
+          const takenAgo = h > 0 ? `${h}h ${m}m ago` : `${m}m ago`;
+          const isBuy = openTrade.direction === "BUY";
+          return (
+            <div className="border border-amber-500/30 bg-amber-500/5 rounded-xl px-4 py-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[9px] text-amber-500/70 uppercase tracking-wider font-bold">Open Trade · {takenAgo}</p>
+                  <p className={cn("text-[12px] font-bold mt-0.5", isBuy ? "text-emerald-400" : "text-red-400")}>
+                    {openTrade.direction} {openTrade.symbolDisplay}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] text-zinc-600">Entry</p>
+                  <p className="text-[11px] font-mono text-zinc-300">
+                    {openTrade.entry > 100 ? openTrade.entry.toFixed(2) : openTrade.entry.toFixed(4)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setClosingTrade(openTrade)}
+                  className="flex-1 py-2 rounded-lg text-[11px] font-bold border border-amber-500/40 bg-amber-500/10 text-amber-400 active:bg-amber-500/20"
+                >
+                  Close Trade
+                </button>
+                <button
+                  onClick={() => { discardTrade(openTrade.id); setTradeLog(loadTradeLog()); }}
+                  className="px-3 py-2 rounded-lg text-[11px] border border-white/8 text-zinc-600 active:text-red-400"
+                >
+                  Discard
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
         {widgetConfig.filter((w: WidgetConfig) => w.visible).map((w: WidgetConfig) => {
           switch (w.id) {
             case "signal_session":
