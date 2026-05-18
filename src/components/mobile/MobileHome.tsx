@@ -193,7 +193,12 @@ export function MobileHome() {
   const master = agentData?.agents?.master;
   const exec = agentData?.agents?.execution;
   const tradePlan = master?.tradePlan;
-  const signalState = exec?.signalState ?? "NO_TRADE";
+  // If master agent says no-trade, honour it regardless of what the execution
+  // agent computed — execution can find a B/B+ setup while master still vetoes.
+  const signalState: string =
+    master?.finalBias === "no-trade" || master?.noTradeReason
+      ? "NO_TRADE"
+      : exec?.signalState ?? "NO_TRADE";
   const finalBias = master?.finalBias ?? "neutral";
 
   // Entry/SL/TP  -  exec has live values, tradePlan has logged values
