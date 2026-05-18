@@ -34,17 +34,14 @@ function note(
 }
 
 /**
- * Order filled — rising two-note chime (E5 → B5).
- * Plays when a trade is confirmed via Take Trade.
+ * Order filled — plays the real trading order fill sound effect.
  */
 export function playOrderFilled(): void {
-  const ac = ctx();
-  if (!ac) return;
-  const t = ac.currentTime;
-  note(ac, 659,  t,        0.35, 0.25); // E5
-  note(ac, 987,  t + 0.18, 0.50, 0.22); // B5
-  note(ac, 1319, t + 0.34, 0.60, 0.18); // E6 (soft tail)
-  setTimeout(() => ac.close(), 1500);
+  try {
+    const audio = new Audio("/sounds/order-filled.mp3");
+    audio.volume = 0.8;
+    audio.play().catch(() => {});
+  } catch {}
 }
 
 /**
