@@ -21,10 +21,10 @@
   --bad: #ff7a4d;
   --amber: #ffbf47;
   --shadow: rgba(0, 0, 0, 0.34);
-  min-height: 100dvh;
+  min-height: unset;
   display: grid;
   place-items: center;
-  padding: 20px;
+  padding: 12px;
   background-color: var(--obsidian);
   background-image:
     repeating-linear-gradient(90deg, #10141b 0 16px, #0b0c10 16px 32px),
@@ -34,14 +34,14 @@
 }
 
 .sceneFrame {
-  width: min(1180px, 100%);
+  width: min(900px, 100%);
   border: 2px solid #060709;
   background: #11161c;
   box-shadow: 0 0 0 2px #2a3440;
 }
 
 .scene {
-  aspect-ratio: 636 / 424;
+  aspect-ratio: 636 / 320;
   background: var(--obsidian);
 }
 

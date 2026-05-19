@@ -5,16 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import styles from "./PixelTradingFloor.module.css";
 
 type StationStatus = "TRADE-OK" | "NO-TRADE";
-type SpriteFrameKey =
-  | "front0"
-  | "front1"
-  | "front2"
-  | "back0"
-  | "back1"
-  | "back2"
-  | "side0"
-  | "side1"
-  | "side2";
 
 type OperatorLook = {
   skin: string;
@@ -166,17 +156,6 @@ const CENTRAL_LOOK: OperatorLook = {
   seatFrame: 2,
 };
 
-const SPRITE_FRAMES: Record<SpriteFrameKey, { x: number; y: number }> = {
-  front0: { x: -5, y: -5 },
-  front1: { x: -39, y: -5 },
-  front2: { x: -73, y: -5 },
-  back0: { x: -5, y: -82 },
-  back1: { x: -39, y: -82 },
-  back2: { x: -73, y: -82 },
-  side0: { x: -5, y: -162 },
-  side1: { x: -39, y: -162 },
-  side2: { x: -73, y: -162 },
-};
 
 const FLOOR_WIRES: CSSProperties[] = [
   { left: "11%", top: "30%", width: "16%" },
@@ -207,13 +186,6 @@ function toggleStatus(status: StationStatus): StationStatus {
   return status === "TRADE-OK" ? "NO-TRADE" : "TRADE-OK";
 }
 
-function spriteStyle(frame: SpriteFrameKey): CSSProperties {
-  const coords = SPRITE_FRAMES[frame];
-  return {
-    "--sprite-x": `${coords.x}px`,
-    "--sprite-y": `${coords.y}px`,
-  } as CSSProperties;
-}
 
 function assetUrl(path: string) {
   return encodeURI(path);
@@ -479,19 +451,11 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
               <div className={`${styles.microDesk} ${styles.microDeskLeft}`}>
                 <div className={styles.microDeskMonitor} />
                 <div className={styles.microDeskChair} />
-                <div
-                  className={`${styles.spriteActor} ${styles.microDeskSprite}`}
-                  style={spriteStyle("front0")}
-                />
               </div>
 
               <div className={`${styles.microDesk} ${styles.microDeskRight}`}>
                 <div className={styles.microDeskMonitor} />
                 <div className={styles.microDeskChair} />
-                <div
-                  className={`${styles.spriteActor} ${styles.microDeskSprite}`}
-                  style={spriteStyle("front2")}
-                />
               </div>
             </div>
 
@@ -515,14 +479,6 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
                 <div className={styles.boothBack} />
                 <div className={styles.boothSeat} />
                 <div className={styles.boothTable} />
-                <div
-                  className={`${styles.spriteActor} ${styles.loungeSpriteLeft}`}
-                  style={spriteStyle("side1")}
-                />
-                <div
-                  className={`${styles.spriteActor} ${styles.loungeSpriteRight}`}
-                  style={spriteStyle("side2")}
-                />
               </div>
             </div>
           </div>
