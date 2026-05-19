@@ -6,21 +6,42 @@ export const revalidate = 0;
 interface ChannelDef {
   id: string;
   handle: string;
+  channelId: string;
 }
 
 const CHANNELS: ChannelDef[] = [
-  { id: "bloomberg",  handle: "@BloombergTelevision" },
-  { id: "cnbc",       handle: "@CNBC" },
-  { id: "reuters",    handle: "@reuters" },
-  { id: "al-jazeera", handle: "@AlJazeeraEnglish" },
-  { id: "wion",       handle: "@WIONews" },
+  { id: "bloomberg",  handle: "@BloombergTelevision", channelId: "UCIALMKvObZNtJ6AmdCLP7Lg" },
+  { id: "cnbc",       handle: "@CNBC",                channelId: "UCrp_UI8XtuYfpiqluWLD7Lw" },
+  { id: "reuters",    handle: "@reuters",              channelId: "UChqUTb7kYRX8-EiaN3XFrSQ" },
+  { id: "al-jazeera", handle: "@AlJazeeraEnglish",    channelId: "UCNye-wNBqNL5ZzHSJdse18g" },
+  { id: "wion",       handle: "@WIONews",              channelId: "UCmqvpsWGSBBOcvLMSCKEFGQ" },
 ];
 
 // In-memory cache — survives warm lambda restarts
 const cache = new Map<string, { videoId: string | null; ts: number }>();
 const CACHE_TTL = 8 * 60 * 1000; // 8 minutes
 
-async function fetchLiveVideoId(handle: string): Promise<string | null> {
+async function fetchLiveVideoId(handle: string, channelId: string): Promise<string | null> {
+  // 1. RSS feed — most stable, not rate-limited by bot detection
+  try {
+    const rss = await fetch(
+      `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`,
+      {
+        headers: { Accept: "application/xml, text/xml" },
+        signal: AbortSignal.timeout(5000),
+      }
+    );
+    if (rss.ok) {
+      const xml = await rss.text();
+      // First entry in RSS is the most recent video (often the live stream)
+      const m = xml.match(/<yt:videoId>([a-zA-Z0-9_-]{11})<\/yt:videoId>/);
+      if (m) return m[1];
+    }
+  } catch {
+    // fall through to HTML scrape
+  }
+
+  // 2. HTML scrape of /live redirect — fallback
   try {
     const res = await fetch(`https://www.youtube.com/${handle}/live`, {
       headers: {
@@ -33,12 +54,10 @@ async function fetchLiveVideoId(handle: string): Promise<string | null> {
       signal: AbortSignal.timeout(6000),
     });
 
-    // YouTube may redirect directly to /watch?v=VIDEO_ID if live
     const finalUrl = res.url;
     const urlMatch = finalUrl.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
     if (urlMatch) return urlMatch[1];
 
-    // Parse the HTML for the canonical video ID
     const html = await res.text();
     const patterns = [
       /"videoId":"([a-zA-Z0-9_-]{11})"/,
@@ -64,7 +83,7 @@ export async function GET() {
       if (cached && now - cached.ts < CACHE_TTL) {
         return { id: ch.id, videoId: cached.videoId };
       }
-      const videoId = await fetchLiveVideoId(ch.handle);
+      const videoId = await fetchLiveVideoId(ch.handle, ch.channelId);
       cache.set(ch.id, { videoId, ts: now });
       return { id: ch.id, videoId };
     })

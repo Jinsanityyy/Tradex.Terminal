@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Radio, RefreshCw, WifiOff } from "lucide-react";
+import { Radio, RefreshCw } from "lucide-react";
 
 interface Channel {
   id: string;
@@ -148,22 +148,6 @@ export function LiveTVPanel({
           {loading ? (
             <div className="absolute inset-0 flex items-center justify-center bg-black">
               <RefreshCw className="h-6 w-6 animate-spin text-zinc-600" />
-            </div>
-          ) : videoIds[active.id] === null && Object.keys(videoIds).length > 0 ? (
-            // API responded but no live stream found for this channel
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black">
-              <WifiOff className="h-8 w-8 text-zinc-700" />
-              <div className="text-center">
-                <p className="text-xs font-semibold text-zinc-500">{active.name}</p>
-                <p className="mt-0.5 text-[10px] text-zinc-700">No active live stream</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setRetryKey((k) => k + 1)}
-                className="mt-1 rounded-md border border-white/10 px-3 py-1.5 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
-              >
-                Try again
-              </button>
             </div>
           ) : (
             <iframe

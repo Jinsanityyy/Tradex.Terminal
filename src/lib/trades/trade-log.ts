@@ -1,3 +1,5 @@
+import { createClient } from "@/lib/supabase/client";
+
 export interface TakenSignal {
   id: string;
   signalId?: string;
@@ -24,11 +26,61 @@ export interface TakenSignal {
 }
 
 const KEY = "tradex-taken-signals-v1";
+const SYNCED_KEY = "tradex-synced-trade-ids";
 
 function pointValue(symbol: string): number {
   if (symbol === "BTCUSD" || symbol === "ETHUSD") return 1;
   if (symbol === "XAUUSD") return 100;
   return 100_000;
+}
+
+function getSyncedIds(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(SYNCED_KEY) ?? "[]")); }
+  catch { return new Set(); }
+}
+function markSynced(id: string): void {
+  const ids = getSyncedIds();
+  ids.add(id);
+  localStorage.setItem(SYNCED_KEY, JSON.stringify([...ids]));
+}
+
+export async function syncClosedTradeToServer(trade: TakenSignal): Promise<void> {
+  if (typeof window === "undefined" || trade.status !== "closed") return;
+  if (getSyncedIds().has(trade.id)) return;
+  try {
+    const supabase = createClient();
+    const authHeader: Record<string, string> = {};
+    if (supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) authHeader.Authorization = `Bearer ${session.access_token}`;
+    }
+    const closedAt = trade.closedAt ?? new Date().toISOString();
+    const res = await fetch("/api/manual-trades", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeader },
+      body: JSON.stringify({
+        date: closedAt.slice(0, 10),
+        symbol: trade.symbol,
+        direction: trade.direction === "BUY" ? "long" : "short",
+        pnl: trade.pnlDollar ?? 0,
+        fees: 0,
+        notes: trade.notes
+          ? trade.notes
+          : `${trade.direction} ${trade.lotSize} lots | Entry: ${trade.entry} → Exit: ${trade.exitPrice}`,
+        open_time: trade.takenAt.slice(11, 16),
+        close_time: closedAt.slice(11, 16),
+      }),
+    });
+    if (res.ok) markSynced(trade.id);
+  } catch {
+    // fire-and-forget
+  }
+}
+
+export async function syncAllClosedTrades(): Promise<void> {
+  if (typeof window === "undefined") return;
+  const closed = loadTradeLog().filter(t => t.status === "closed");
+  await Promise.all(closed.map(syncClosedTradeToServer));
 }
 
 export function loadTradeLog(): TakenSignal[] {
@@ -107,6 +159,7 @@ export function closeTrade(
   };
   trades[idx] = closed;
   save(trades);
+  syncClosedTradeToServer(closed).catch(() => {});
   return closed;
 }
 

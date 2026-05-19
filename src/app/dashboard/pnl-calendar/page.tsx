@@ -14,6 +14,7 @@ import type { DailyPnL, MonthlyPnL } from "@/app/api/pnl/route";
 import { AnalyticsView } from "./AnalyticsView";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { syncAllClosedTrades } from "@/lib/trades/trade-log";
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
   try {
@@ -941,6 +942,12 @@ export default function PnLCalendarPage() {
     } catch { /* malformed localStorage data  -  just clear it */
       localStorage.removeItem("tradex_manual_trades");
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Sync mobile trade-log (localStorage) to Supabase on page open
+  useEffect(() => {
+    syncAllClosedTrades().then(() => loadData()).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

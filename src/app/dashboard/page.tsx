@@ -49,7 +49,9 @@ import {
   useSessions,
   useMarketAnalysis,
   useMTFBias,
+  useQuotes,
 } from "@/hooks/useMarketData";
+import { AssetSnapshotGrid } from "@/components/shared/AssetSnapshotGrid";
 import { useTruthSocialPosts } from "@/hooks/useTruthSocialPosts";
 import { CUSTOM_NOTIFICATION_EVENT, type Notif } from "@/hooks/useNotifications";
 import { playSignalArmed } from "@/lib/sounds";
@@ -852,6 +854,7 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const { quotes } = useQuotes();
   const { events } = useEconomicCalendar();
   const { catalysts } = useCatalysts();
   const { sessions } = useSessions();
@@ -1711,6 +1714,24 @@ export default function DashboardPage() {
       id: "lot-calculator",
       title: "Lot Size Calculator",
       content: <LotCalculatorWidget />,
+    },
+    {
+      id: "live-prices",
+      title: "Live Prices",
+      content: (() => {
+        const tracked = settings.trackedAssets.length > 0 ? settings.trackedAssets : ["XAUUSD","BTCUSD","EURUSD","USDJPY","USOIL","GBPUSD"];
+        const filtered = tracked.map(sym => quotes.find(q => q.symbol === sym)).filter(Boolean) as typeof quotes;
+        const display = filtered.length > 0 ? filtered : quotes.slice(0, 6);
+        return (
+          <div className="h-full min-h-0 overflow-y-auto p-3">
+            {display.length > 0 ? (
+              <AssetSnapshotGrid assets={display} compact />
+            ) : (
+              <PanelPlaceholder title="Loading prices…" detail="Market data will appear here shortly." />
+            )}
+          </div>
+        );
+      })(),
     },
   ];
 
