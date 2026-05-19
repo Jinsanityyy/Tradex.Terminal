@@ -198,6 +198,10 @@ export function MobileLayout() {
     setTransitioning(true);
     if (transitionTimer.current) clearTimeout(transitionTimer.current);
     transitionTimer.current = setTimeout(() => setTransitioning(false), 180);
+    if (id === "home") {
+      // Give the DOM one frame to become visible before telling the globe to re-sync
+      setTimeout(() => window.dispatchEvent(new Event("tradex-home-active")), 50);
+    }
   }, [active]);
 
   useEffect(() => {

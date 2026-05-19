@@ -11,6 +11,8 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Symbol, Timeframe } from "@/lib/agents/schemas";
 import { runAgentOrchestrator } from "@/lib/agents/orchestrator";
 import { logSignal } from "@/lib/signals/logger";
+import { getAuthUser } from "@/lib/supabase/auth-helper";
+import { getAgentCache } from "@/lib/agents/agent-cache-store";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 55; // Vercel Pro: 60s max  -  keep 5s buffer for cleanup
@@ -55,6 +57,15 @@ export async function GET(req: NextRequest) {
   }
 }
 
+async function serveCachedOrDeny(symbol: Symbol, timeframe: Timeframe) {
+  const cached = await getAgentCache(symbol, timeframe);
+  if (cached) return NextResponse.json(cached);
+  return NextResponse.json(
+    { error: "free_tier_no_cache", message: "Upgrade to Pro to run fresh analysis." },
+    { status: 402 }
+  );
+}
+
 export async function POST(req: NextRequest) {
   let body: { symbol?: unknown; timeframe?: unknown; forceRefresh?: boolean };
 
@@ -69,17 +80,42 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: validated.error }, { status: 400 });
   }
 
+  const wantsForceRefresh = body.forceRefresh === true;
+
+  // ── Subscription gate: only pro/elite/trial users may force a fresh run ──
+  if (wantsForceRefresh) {
+    try {
+      const { user, supabase } = await getAuthUser(req);
+      if (!user) return serveCachedOrDeny(validated.symbol, validated.timeframe);
+
+      const { data: sub } = await supabase
+        .from("subscriptions")
+        .select("plan, status, trial_ends_at")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const isTrialing = sub?.trial_ends_at
+        ? new Date() < new Date(sub.trial_ends_at) && sub?.plan === "free"
+        : false;
+      const isPaid = sub?.status === "active" && (sub?.plan === "pro" || sub?.plan === "elite");
+
+      if (!isPaid && !isTrialing) {
+        return serveCachedOrDeny(validated.symbol, validated.timeframe);
+      }
+    } catch {
+      return serveCachedOrDeny(validated.symbol, validated.timeframe);
+    }
+  }
+
   try {
     const result = await runAgentOrchestrator(
       validated.symbol,
       validated.timeframe,
       undefined,
-      body.forceRefresh ?? false
+      wantsForceRefresh
     );
 
-    // Log to signal history (fire-and-forget, never blocks response)
     logSignal(result).catch(() => {});
-
     return NextResponse.json(result);
   } catch (error) {
     console.error("Agent run POST error:", error);

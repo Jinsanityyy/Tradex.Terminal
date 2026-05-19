@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Radio, RefreshCw, WifiOff } from "lucide-react";
+import { Radio, RefreshCw } from "lucide-react";
 
 interface Channel {
   id: string;
   name: string;
   label: string;
   channelId: string;
+  handle: string;
   color: string;
 }
 
@@ -21,6 +22,7 @@ const CHANNELS: Channel[] = [
     name: "Bloomberg TV",
     label: "Markets · Macro · Equities",
     channelId: "UCIALMKvObZNtJ6AmdCLP7Lg",
+    handle: "@BloombergTelevision",
     color: "text-blue-400 border-blue-500/40 bg-blue-500/10",
   },
   {
@@ -28,6 +30,7 @@ const CHANNELS: Channel[] = [
     name: "CNBC",
     label: "US Markets · Earnings · Fed",
     channelId: "UCrp_UI8XtuYfpiqluWLD7Lw",
+    handle: "@CNBC",
     color: "text-blue-300 border-blue-400/40 bg-blue-400/10",
   },
   {
@@ -35,6 +38,7 @@ const CHANNELS: Channel[] = [
     name: "Reuters TV",
     label: "Global News · Geopolitics",
     channelId: "UChqUTb7kYRX8-EiaN3XFrSQ",
+    handle: "@reuters",
     color: "text-orange-400 border-orange-500/40 bg-orange-500/10",
   },
   {
@@ -42,6 +46,7 @@ const CHANNELS: Channel[] = [
     name: "Al Jazeera",
     label: "Geopolitics · Middle East · Oil",
     channelId: "UCNye-wNBqNL5ZzHSJdse18g",
+    handle: "@AlJazeeraEnglish",
     color: "text-amber-400 border-amber-500/40 bg-amber-500/10",
   },
   {
@@ -49,6 +54,7 @@ const CHANNELS: Channel[] = [
     name: "WION",
     label: "Global · Geopolitics · Asia",
     channelId: "UCmqvpsWGSBBOcvLMSCKEFGQ",
+    handle: "@WIONews",
     color: "text-emerald-400 border-emerald-500/40 bg-emerald-500/10",
   },
 ];
@@ -149,22 +155,6 @@ export function LiveTVPanel({
             <div className="absolute inset-0 flex items-center justify-center bg-black">
               <RefreshCw className="h-6 w-6 animate-spin text-zinc-600" />
             </div>
-          ) : videoIds[active.id] === null && Object.keys(videoIds).length > 0 ? (
-            // API responded but no live stream found for this channel
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black">
-              <WifiOff className="h-8 w-8 text-zinc-700" />
-              <div className="text-center">
-                <p className="text-xs font-semibold text-zinc-500">{active.name}</p>
-                <p className="mt-0.5 text-[10px] text-zinc-700">No active live stream</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setRetryKey((k) => k + 1)}
-                className="mt-1 rounded-md border border-white/10 px-3 py-1.5 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
-              >
-                Try again
-              </button>
-            </div>
           ) : (
             <iframe
               key={`${active.id}-${retryKey}-${videoIds[active.id] ?? "fallback"}`}
@@ -183,12 +173,22 @@ export function LiveTVPanel({
             <span className="text-[11px] font-bold text-white">{active.name}</span>
           </div>
           <span className="text-[10px] text-zinc-500">{active.label}</span>
-          <div className="ml-auto flex items-center gap-1.5">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-500" />
-            </span>
-            <span className="text-[9px] font-bold uppercase tracking-wider text-red-400">Live</span>
+          <div className="ml-auto flex items-center gap-3">
+            <a
+              href={`https://www.youtube.com/${active.handle}/live`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[9px] font-medium text-zinc-500 underline-offset-2 hover:text-zinc-300 hover:underline"
+            >
+              Watch on YouTube ↗
+            </a>
+            <div className="flex items-center gap-1.5">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-500" />
+              </span>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-red-400">Live</span>
+            </div>
           </div>
         </div>
       </div>

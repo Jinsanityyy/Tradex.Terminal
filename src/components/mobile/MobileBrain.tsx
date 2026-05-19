@@ -13,6 +13,8 @@ import { AgentCommandRoom } from "@/components/brain/AgentCommandRoom";
 import { AgentFloorTest } from "@/components/brain/AgentFloorTest";
 import { useSettings } from "@/contexts/SettingsContext";
 import { isAgentSupported, getSymbolShort, getSymbolLabel } from "@/lib/assetImpact";
+import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
+import { useSubscription } from "@/hooks/useSubscription";
 
 const TIMEFRAMES: Timeframe[] = ["M5", "M15", "H1", "H4"];
 
@@ -349,6 +351,8 @@ export function MobileBrain() {
   const [timeframe, setTimeframe] = useState<Timeframe>("H1");
   const [refreshing, setRefreshing] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const { subscription } = useSubscription();
+  const { isOnCooldown, countdownLabel, markRefreshed } = useRefreshCooldown();
 
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 5_000);
@@ -362,6 +366,7 @@ export function MobileBrain() {
   );
 
   const handleRefresh = useCallback(async () => {
+    if (isOnCooldown || !subscription.hasFullAccess) return;
     setRefreshing(true);
     try {
       await mutate(
@@ -375,10 +380,11 @@ export function MobileBrain() {
         }),
         { revalidate: false }
       );
+      markRefreshed();
     } finally {
       setRefreshing(false);
     }
-  }, [mutate, symbol, timeframe]);
+  }, [mutate, symbol, timeframe, isOnCooldown, subscription.hasFullAccess, markRefreshed]);
 
   const master     = data?.agents.master;
   const exec       = data?.agents.execution;
@@ -458,10 +464,10 @@ export function MobileBrain() {
             {data && nowMs - new Date(data.timestamp).getTime() > 90_000 && !(isLoading || refreshing) && (
               <span className="ml-1 rounded bg-amber-500/10 px-1.5 py-0.5 font-mono text-[9px] border border-amber-500/20 text-amber-500">STALE</span>
             )}
-            <button onClick={handleRefresh} disabled={isLoading || refreshing}
+            <button onClick={handleRefresh} disabled={isLoading || refreshing || isOnCooldown || !subscription.hasFullAccess}
               className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-[10px] text-zinc-500 disabled:opacity-60">
               <RefreshCw className={cn("h-3 w-3", (isLoading || refreshing) && "animate-spin")} />
-              {(isLoading || refreshing) ? "Running…" : "Refresh"}
+              {(isLoading || refreshing) ? "Running…" : isOnCooldown ? countdownLabel : !subscription.hasFullAccess ? "Pro" : "Refresh"}
             </button>
           </div>
 

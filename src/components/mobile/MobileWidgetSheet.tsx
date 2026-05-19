@@ -10,7 +10,7 @@ export const WIDGET_DEFS = [
   { id: "signal_session",  label: "Signal & Session",  desc: "Trade signal state + current market session" },
   { id: "entry_strip",     label: "Trade Setup",       desc: "Entry, SL, TP, R:R when a setup is active" },
   { id: "top_catalyst",    label: "Top Catalyst",      desc: "Latest high-impact market-moving event" },
-  { id: "live_prices",     label: "Live Prices",       desc: "Real-time prices for 6 key assets" },
+  { id: "live_prices",     label: "Live Prices",       desc: "Real-time prices for your tracked assets (set in Settings)" },
   { id: "asset_bias",      label: "Asset Bias",        desc: "AI directional bias for selected asset" },
   { id: "mtf_bias",        label: "MTF Bias",          desc: "Multi-timeframe analysis — D1, H4, H1, M15" },
   { id: "key_levels",      label: "Key Levels",        desc: "Support & resistance price levels" },
@@ -37,7 +37,7 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig[] = [
   { id: "signal_session", visible: true  },
   { id: "entry_strip",    visible: true  },
   { id: "agents",         visible: true  },
-  { id: "live_prices",    visible: false },
+  { id: "live_prices",    visible: true  },
   { id: "asset_bias",     visible: false },
   { id: "mtf_bias",       visible: false },
   { id: "key_levels",     visible: false },
@@ -51,7 +51,7 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig[] = [
   { id: "pnl_calendar",  visible: false },
 ];
 
-const STORAGE_KEY = "tradex-mobile-widgets-v2";
+const STORAGE_KEY = "tradex-mobile-widgets-v3";
 
 export function loadWidgetConfig(): WidgetConfig[] {
   if (typeof window === "undefined") return DEFAULT_WIDGET_CONFIG;

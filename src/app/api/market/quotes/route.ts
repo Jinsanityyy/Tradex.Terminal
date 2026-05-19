@@ -258,11 +258,11 @@ export async function GET() {
       rawCache[sym] = quote;
       newQuotes++;
     }
-    if (finnhubData["XAU/USD"]) {
-      delete metalsData["XAU/USD"];
+    // Only use Yahoo Finance for metals/oil that Finnhub didn't cover
+    for (const sym of ["XAU/USD", "XAG/USD", "CL"] as const) {
+      if (finnhubData[sym]) delete metalsData[sym];
     }
     for (const [sym, quote] of Object.entries(metalsData)) {
-      // Always apply Yahoo Finance metals  -  real-time data overwrites stale cache
       rawCache[sym] = quote;
       newQuotes++;
     }

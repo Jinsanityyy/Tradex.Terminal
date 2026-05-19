@@ -35,7 +35,7 @@ export const DEFAULTS: Settings = {
   theme: "dark",
   density: "default",
   animations: true,
-  trackedAssets: ["Gold", "DXY", "SPX", "NDX", "BTC", "EURUSD", "Oil"],
+  trackedAssets: ["XAUUSD", "BTCUSD", "EURUSD", "USDJPY", "USOIL", "GBPUSD"],
   defaultBiasAsset: "Gold",
   selectedSymbol: "XAUUSD",
   impactThreshold: "all",
@@ -78,6 +78,27 @@ export function applyVisualSettings(theme: Theme, density: Density, animations: 
   }
 }
 
+// Migrate old name-based tracked assets (pre-v2) to symbol format
+const LEGACY_ASSET_MAP: Record<string, string> = {
+  "Gold": "XAUUSD", "Silver": "XAGUSD", "Oil": "USOIL",
+  "BTC": "BTCUSD", "ETH": "ETHUSD", "LTC": "LTCUSD",
+  "EURUSD": "EURUSD", "GBPUSD": "GBPUSD", "USDJPY": "USDJPY",
+  "USDCAD": "USDCAD", "USDCHF": "USDCHF", "AUDUSD": "AUDUSD",
+  "NZDUSD": "NZDUSD", "EURGBP": "EURGBP", "GBPJPY": "GBPJPY",
+};
+const VALID_SYMBOLS = new Set([
+  "XAUUSD","XAGUSD","USOIL","EURUSD","GBPUSD","USDJPY",
+  "USDCAD","USDCHF","AUDUSD","NZDUSD","EURGBP","GBPJPY",
+  "BTCUSD","ETHUSD","LTCUSD",
+]);
+function migrateTrackedAssets(assets: unknown): string[] {
+  if (!Array.isArray(assets)) return DEFAULTS.trackedAssets;
+  const migrated = (assets as string[])
+    .map(a => VALID_SYMBOLS.has(a) ? a : (LEGACY_ASSET_MAP[a] ?? null))
+    .filter((a): a is string => a !== null);
+  return migrated.length > 0 ? migrated : DEFAULTS.trackedAssets;
+}
+
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   // Always start with DEFAULTS on server, load from localStorage on client
   const [settings, setSettings] = useState<Settings>(DEFAULTS);
@@ -89,6 +110,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       if (raw) {
         const parsed = JSON.parse(raw);
         const merged = { ...DEFAULTS, ...parsed, notifications: { ...DEFAULTS.notifications, ...parsed.notifications } };
+        // Migrate old name-based tracked assets to symbol format
+        merged.trackedAssets = migrateTrackedAssets(parsed.trackedAssets);
         setSettings(merged);
         applyVisualSettings(merged.theme, merged.density, merged.animations);
       } else {

@@ -49,7 +49,9 @@ import {
   useSessions,
   useMarketAnalysis,
   useMTFBias,
+  useQuotes,
 } from "@/hooks/useMarketData";
+import { AssetSnapshotGrid } from "@/components/shared/AssetSnapshotGrid";
 import { useTruthSocialPosts } from "@/hooks/useTruthSocialPosts";
 import { CUSTOM_NOTIFICATION_EVENT, type Notif } from "@/hooks/useNotifications";
 import { playSignalArmed } from "@/lib/sounds";
@@ -148,6 +150,13 @@ const jsonFetcher = <T,>(url: string) =>
   });
 
 const fetcher = (url: string) => jsonFetcher<AgentRunResult>(url);
+
+function formatTimeAgo(ts: number): string {
+  const mins = Math.floor((Date.now() - ts) / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  return `${Math.floor(mins / 60)}h ago`;
+}
 
 function biasColor(bias?: string) {
   if (bias === "bullish") return "text-emerald-400";
@@ -782,6 +791,58 @@ export default function DashboardPage() {
   const intervalDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const armedAlertKeyRef = useRef<string | null>(null);
 
+  // Shared cooldown with mobile — same localStorage key, 30s window
+  const COOLDOWN_MS = 30_000;
+  const COOLDOWN_KEY = "tradex-cooldown-timestamp";
+  const LAST_REFRESH_KEY = "tradex-last-refresh";
+  const [cooldownLeft, setCooldownLeft] = useState(0);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null;
+    const saved = Number(localStorage.getItem("tradex-last-refresh") ?? 0);
+    return saved > 0 ? saved : null;
+  });
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cooldownActiveRef = useRef(false); // synchronous guard — state updates are async
+
+  const startCooldown = useCallback(() => {
+    cooldownActiveRef.current = true;
+    localStorage.setItem(COOLDOWN_KEY, String(Date.now()));
+    setCooldownLeft(COOLDOWN_MS / 1000);
+    if (cooldownRef.current) clearInterval(cooldownRef.current);
+    cooldownRef.current = setInterval(() => {
+      const elapsed = Date.now() - Number(localStorage.getItem(COOLDOWN_KEY) ?? 0);
+      const left = Math.max(0, Math.ceil((COOLDOWN_MS - elapsed) / 1000));
+      setCooldownLeft(left);
+      if (left === 0 && cooldownRef.current) {
+        clearInterval(cooldownRef.current);
+        cooldownRef.current = null;
+        cooldownActiveRef.current = false;
+      }
+    }, 500);
+  }, []);
+
+  // Restore cooldown on mount (e.g. page reload mid-cooldown)
+  useEffect(() => {
+    const saved = Number(localStorage.getItem(COOLDOWN_KEY) ?? 0);
+    const elapsed = Date.now() - saved;
+    if (elapsed < COOLDOWN_MS) {
+      cooldownActiveRef.current = true;
+      setCooldownLeft(Math.ceil((COOLDOWN_MS - elapsed) / 1000));
+      cooldownRef.current = setInterval(() => {
+        const e = Date.now() - Number(localStorage.getItem(COOLDOWN_KEY) ?? 0);
+        const left = Math.max(0, Math.ceil((COOLDOWN_MS - e) / 1000));
+        setCooldownLeft(left);
+        if (left === 0 && cooldownRef.current) {
+          clearInterval(cooldownRef.current);
+          cooldownRef.current = null;
+          cooldownActiveRef.current = false;
+        }
+      }, 500);
+    }
+    return () => { if (cooldownRef.current) clearInterval(cooldownRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const symCfg = SYMBOLS.find((entry) => entry.id === symbol) ?? SYMBOLS[0];
 
   const { data, isValidating, mutate } = useSWR<AgentRunResult>(
@@ -791,8 +852,13 @@ export default function DashboardPage() {
   );
 
   const handleRefresh = useCallback(async () => {
+    if (cooldownActiveRef.current || isValidating) return;
+    startCooldown();
     await mutate(undefined, { revalidate: true });
-  }, [mutate]);
+    const now = Date.now();
+    setLastRefreshedAt(now);
+    localStorage.setItem(LAST_REFRESH_KEY, String(now));
+  }, [mutate, isValidating, startCooldown, LAST_REFRESH_KEY]);
 
   const handleIntervalChange = useCallback((tvInterval: string) => {
     setChartInterval(tvInterval);
@@ -852,6 +918,7 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const { quotes } = useQuotes();
   const { events } = useEconomicCalendar();
   const { catalysts } = useCatalysts();
   const { sessions } = useSessions();
@@ -1356,12 +1423,17 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={handleRefresh}
-            disabled={isValidating}
+            disabled={isValidating || cooldownLeft > 0}
             className={widgetActionClass}
           >
             <RefreshCw className={cn("h-3 w-3", isValidating && "animate-spin")} />
-            {isValidating ? "Running" : "Refresh"}
+            {isValidating ? "Running" : cooldownLeft > 0 ? `Wait ${cooldownLeft}s` : "Refresh"}
           </button>
+          {lastRefreshedAt !== null && !isValidating && (
+            <span className="text-[9px] text-zinc-600">
+              {cooldownLeft > 0 ? "refreshed" : formatTimeAgo(lastRefreshedAt)}
+            </span>
+          )}
           <Link href="/dashboard/brain" className={widgetActionClass}>
             Brain Terminal
             <ArrowRight className="h-3 w-3" />
@@ -1451,12 +1523,17 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={handleRefresh}
-            disabled={isValidating}
+            disabled={isValidating || cooldownLeft > 0}
             className={widgetActionClass}
           >
             <RefreshCw className={cn("h-3 w-3", isValidating && "animate-spin")} />
-            {isValidating ? "Running…" : "Refresh"}
+            {isValidating ? "Running…" : cooldownLeft > 0 ? `Wait ${cooldownLeft}s` : "Refresh"}
           </button>
+          {lastRefreshedAt !== null && !isValidating && (
+            <span className="text-[9px] text-zinc-600">
+              {cooldownLeft > 0 ? "refreshed" : formatTimeAgo(lastRefreshedAt)}
+            </span>
+          )}
           <Link href="/dashboard/brain" className={widgetActionClass}>
             Brain
           </Link>
@@ -1711,6 +1788,24 @@ export default function DashboardPage() {
       id: "lot-calculator",
       title: "Lot Size Calculator",
       content: <LotCalculatorWidget />,
+    },
+    {
+      id: "live-prices",
+      title: "Live Prices",
+      content: (() => {
+        const tracked = settings.trackedAssets.length > 0 ? settings.trackedAssets : ["XAUUSD","BTCUSD","EURUSD","USDJPY","USOIL","GBPUSD"];
+        const filtered = tracked.map(sym => quotes.find(q => q.symbol === sym)).filter(Boolean) as typeof quotes;
+        const display = filtered.length > 0 ? filtered : quotes.slice(0, 6);
+        return (
+          <div className="h-full min-h-0 overflow-y-auto p-3">
+            {display.length > 0 ? (
+              <AssetSnapshotGrid assets={display} compact />
+            ) : (
+              <PanelPlaceholder title="Loading prices…" detail="Market data will appear here shortly." />
+            )}
+          </div>
+        );
+      })(),
     },
   ];
 
