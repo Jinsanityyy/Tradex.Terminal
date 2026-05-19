@@ -20,17 +20,29 @@ const P = {
   indigo: "#818cf8",
 };
 
+// Warm room / wood palette
+const W = {
+  tile:   "#190905",
+  wall:   "#0c0501",
+  top:    "#3d2210",
+  bodyS:  "#231407",
+  front:  "#130b03",
+  edge:   "#5a3218",
+  chair:  "#13111e",
+  chairB: "#1d1a2e",
+};
+
 // ─── Agent registry ───────────────────────────────────────────────────────────
 interface AgentDef { id: string; label: string; role: string; isMaster?: boolean }
 
 const AGENTS: AgentDef[] = [
-  { id: "trend",      label: "TREND",  role: "MACRO BIAS"        },
-  { id: "praction",   label: "PR.ACT", role: "PRICE ACTION"      },
-  { id: "execution",  label: "EXEC",   role: "ENTRY TIMING"      },
-  { id: "news",       label: "NEWS",   role: "FUNDAMENTALS"      },
-  { id: "risk",       label: "RISK",   role: "RISK GATE"         },
-  { id: "contrarian", label: "CNTR",   role: "COUNTER-SIGNAL"    },
-  { id: "master",     label: "MASTER", role: "CHIEF MKT OFFICER", isMaster: true },
+  { id: "trend",      label: "TREND",  role: "MACRO BIAS"         },
+  { id: "praction",   label: "PR.ACT", role: "PRICE ACTION"       },
+  { id: "execution",  label: "EXEC",   role: "ENTRY TIMING"       },
+  { id: "news",       label: "NEWS",   role: "FUNDAMENTALS"       },
+  { id: "risk",       label: "RISK",   role: "RISK GATE"          },
+  { id: "contrarian", label: "CNTR",   role: "COUNTER-SIGNAL"     },
+  { id: "master",     label: "MASTER", role: "CHIEF MKT OFFICER",  isMaster: true },
 ];
 
 const ID_TO_STATE: Record<string, string> = {
@@ -227,66 +239,37 @@ function getConfidenceValue(stateKey: string, data: AgentRunResult): number {
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const CSS = `
-  @keyframes fl-live   { 0%,100%{opacity:1} 50%{opacity:.3} }
-  @keyframes fl-armed  { 0%,100%{opacity:1} 50%{opacity:.15} }
-  @keyframes fl-dot    { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.6)} }
-  @keyframes fl-fadein { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes fl-tick   { from{opacity:0;transform:translateX(6px)} to{opacity:1;transform:translateX(0)} }
-  @keyframes px-alert  { 0%,49%{opacity:1} 50%,100%{opacity:0.08} }
-  @keyframes data-scroll { 0%{transform:translateY(0);opacity:.7} 100%{transform:translateY(-6px);opacity:.3} }
-  @keyframes conn-flow  { 0%{stroke-dashoffset:48} 100%{stroke-dashoffset:0} }
-  @keyframes rack-led   { 0%,80%,100%{opacity:.5} 87%{opacity:1} }
+  @keyframes fl-live    { 0%,100%{opacity:1} 50%{opacity:.3} }
+  @keyframes fl-armed   { 0%,100%{opacity:1} 50%{opacity:.15} }
+  @keyframes fl-dot     { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.6)} }
+  @keyframes fl-fadein  { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fl-tick    { from{opacity:0;transform:translateX(6px)} to{opacity:1;transform:translateX(0)} }
+  @keyframes px-alert   { 0%,49%{opacity:1} 50%,100%{opacity:0.08} }
+  @keyframes data-scroll{ 0%{transform:translateY(0);opacity:.7} 100%{transform:translateY(-6px);opacity:.3} }
+  @keyframes conn-flow  { 0%{stroke-dashoffset:32} 100%{stroke-dashoffset:0} }
+  @keyframes rack-led   { 0%,80%,100%{opacity:.4} 87%{opacity:1} }
   @keyframes mon-cursor { 0%,49%{opacity:1} 50%,100%{opacity:0} }
   @keyframes hud-pulse  { 0%,100%{box-shadow:0 0 8px currentColor} 50%{box-shadow:0 0 22px currentColor} }
+  @keyframes trace-flow { 0%{stroke-dashoffset:40} 100%{stroke-dashoffset:0} }
+  @keyframes node-pulse { 0%,100%{opacity:.6;r:2.5} 50%{opacity:1;r:3.5} }
 `;
 
-// ─── Pixel art characters (CSS box-shadow technique) ──────────────────────────
-// 8 cols × 13 rows sprite, each char = scale×scale px per "pixel"
-const CHAR_ROWS_DEF = [
-  ".HHHHHH.",  // 0  hair top
-  "HSSSSSSH",  // 1  head
-  "HSE..ESH",  // 2  eyes
-  "HSSSSSSH",  // 3  head
-  "HSSSSSSH",  // 4  chin
-  ".HHHHHH.",  // 5  hair-bottom / jaw
-  ".CCCCCC.",  // 6  collar
-  "ACCCCCCA",  // 7  shirt + arms
-  "ACCCCCCA",  // 8  shirt + arms
-  ".CCCCCC.",  // 9  waist
-  ".LL..LL.",  // 10 legs
-  ".LL..LL.",  // 11 legs
-  ".KK..KK.",  // 12 shoes
+// ─── Pixel art characters ─────────────────────────────────────────────────────
+const HEAD_ROWS_DEF = [
+  ".HHHHHH.",
+  "HSSSSSSH",
+  "HSE..ESH",
+  "HSSSSSSH",
+  "HSSSSSSH",
+  ".HHHHHH.",
 ];
 
-function buildShadow(shirt: string, scale: number, hair = "#1c1208"): string {
-  const C: Record<string, string> = {
-    H: hair, S: "#c8a476", E: "#1a0a05",
-    C: shirt, A: "#a87040", L: "#1e1c38", K: "#141008",
-  };
-  const parts: string[] = [];
-  CHAR_ROWS_DEF.forEach((row, y) => {
-    [...row].forEach((ch, x) => {
-      if (ch !== "." && C[ch]) {
-        parts.push(`${x * scale}px ${y * scale}px 0 ${scale - 1}px ${C[ch]}`);
-      }
-    });
-  });
-  return parts.join(",");
-}
-
-// only head rows (0-5) for the "peeking above desk" render
-const HEAD_ROWS_DEF = CHAR_ROWS_DEF.slice(0, 6);
-
 function buildHeadShadow(shirt: string, scale: number, hair = "#1c1208"): string {
-  const C: Record<string, string> = {
-    H: hair, S: "#c8a476", E: "#1a0a05", C: shirt,
-  };
+  const C: Record<string, string> = { H: hair, S: "#c8a476", E: "#1a0a05", C: shirt };
   const parts: string[] = [];
   HEAD_ROWS_DEF.forEach((row, y) => {
     [...row].forEach((ch, x) => {
-      if (ch !== "." && C[ch]) {
-        parts.push(`${x * scale}px ${y * scale}px 0 ${scale - 1}px ${C[ch]}`);
-      }
+      if (ch !== "." && C[ch]) parts.push(`${x * scale}px ${y * scale}px 0 ${scale - 1}px ${C[ch]}`);
     });
   });
   return parts.join(",");
@@ -295,115 +278,106 @@ function buildHeadShadow(shirt: string, scale: number, hair = "#1c1208"): string
 interface PixelHeadProps { sc: SC; agState: AgentState; scale?: number }
 
 function PixelHead({ sc, agState, scale = 3 }: PixelHeadProps) {
-  const hair = sc.accent === P.amber ? "#b07820" : "#1c1208";
+  const hair   = sc.accent === P.amber ? "#b07820" : "#1c1208";
   const shadow = useMemo(() => buildHeadShadow(sc.accent, scale, hair), [sc.accent, scale, hair]);
   const isArmed = agState === "armed";
   const isBlk   = agState === "blocked";
-  const W = 8 * scale;
-  const H = 6 * scale;
 
   return (
-    <div style={{ position: "relative", width: W, height: H, imageRendering: "pixelated", flexShrink: 0 }}>
+    <div style={{ position: "relative", width: 8 * scale, height: 6 * scale, imageRendering: "pixelated", flexShrink: 0 }}>
       <div style={{
-        position: "absolute", top: 0, left: 0,
-        width: scale, height: scale,
-        boxShadow: shadow,
-        imageRendering: "pixelated",
+        position: "absolute", top: 0, left: 0, width: scale, height: scale,
+        boxShadow: shadow, imageRendering: "pixelated",
         animation: isArmed ? "fl-armed 1.4s ease-in-out infinite" : undefined,
         opacity: agState === "idle" ? 0.45 : 1,
       }} />
-      {/* blocked "!" bubble */}
       {isBlk && (
         <div style={{
           position: "absolute", top: -4, right: -6,
           fontSize: 8, fontWeight: 900, color: P.amber, lineHeight: 1,
-          animation: "px-alert 1.1s steps(1,end) infinite",
-          fontFamily: "monospace",
+          animation: "px-alert 1.1s steps(1,end) infinite", fontFamily: "monospace",
         }}>!</div>
       )}
-      {/* armed glow ring */}
       {isArmed && (
         <div style={{
-          position: "absolute", inset: -3,
-          border: `1px solid ${sc.accent}`,
-          opacity: 0.5,
-          animation: "fl-dot 1.4s ease-in-out infinite",
-          pointerEvents: "none",
+          position: "absolute", inset: -3, border: `1px solid ${sc.accent}`,
+          opacity: 0.5, animation: "fl-dot 1.4s ease-in-out infinite", pointerEvents: "none",
         }} />
       )}
     </div>
   );
 }
 
-// ─── Monitor panel ────────────────────────────────────────────────────────────
-interface MonitorProps { sc: SC; agState: AgentState; w?: number; h?: number; wide?: boolean }
+// ─── Single monitor screen ────────────────────────────────────────────────────
+interface SingleMonProps { sc: SC; agState: AgentState; w: number; h: number; variant?: "main"|"side"|"master" }
 
-function MonitorPanel({ sc, agState, w = 42, h = 90, wide }: MonitorProps) {
+function SingleMon({ sc, agState, w, h, variant = "main" }: SingleMonProps) {
   const isActive = ["bull","bear","armed","analyzing","approved","alert"].includes(agState);
   const isBlk    = agState === "blocked";
-  const pw = wide ? 58 : w;
 
-  const scrBg = agState === "bull" || agState === "approved" ? "#001508"
-    : agState === "bear" || agState === "blocked" ? "#1a0002"
-    : agState === "armed"     ? "#00101e"
-    : agState === "analyzing" ? "#060414"
-    : agState === "alert"     ? "#120c00"
-    : "#030408";
+  const scrBg = agState === "bull" || agState === "approved" ? "#000c04"
+    : agState === "bear" || agState === "blocked" ? "#0c0001"
+    : agState === "armed"     ? "#00080d"
+    : agState === "analyzing" ? "#03000e"
+    : agState === "alert"     ? "#090600"
+    : "#020306";
+
+  const lineCount = variant === "master" ? 8 : variant === "main" ? 6 : 4;
 
   return (
     <div style={{
-      width: pw, height: h,
-      background: "#07090f",
-      border: `1px solid ${isActive ? sc.accent + "60" : "#111a28"}`,
-      borderBottom: "2px solid #04050a",
-      boxSizing: "border-box",
-      position: "relative",
-      overflow: "hidden",
-      flexShrink: 0,
-      boxShadow: isActive
-        ? `0 0 14px ${sc.accent}22, 0 0 4px ${sc.accent}18 inset`
-        : "none",
+      width: w, height: h, flexShrink: 0,
+      background: "#04080f",
+      border: `1px solid ${isActive ? sc.accent + "55" : "#0c1520"}`,
+      borderBottom: `2px solid ${isActive ? sc.accent + "35" : "#08101c"}`,
+      boxSizing: "border-box", position: "relative", overflow: "hidden",
+      boxShadow: isActive ? `0 0 12px ${sc.accent}22, inset 0 0 4px ${sc.accent}10` : "none",
     }}>
-      {/* top status LED */}
+      {/* top-right LED */}
       <div style={{
-        position: "absolute", top: 3, right: 4,
-        width: 3, height: 3, borderRadius: "50%",
-        background: isActive ? sc.accent : "#0e1828",
+        position: "absolute", top: 2, right: 3, width: 2, height: 2, borderRadius: "50%",
+        background: isActive ? sc.accent : "#0b1624",
         boxShadow: isActive ? `0 0 5px ${sc.accent}` : "none",
-        animation: isActive ? "fl-dot 2.2s ease-in-out infinite" : undefined,
+        animation: isActive ? "fl-dot 2.4s ease-in-out infinite" : undefined,
       }} />
 
       {/* screen */}
-      <div style={{
-        position: "absolute", top: 4, left: 3, right: 3, bottom: 3,
-        background: scrBg, overflow: "hidden",
-      }}>
+      <div style={{ position: "absolute", top: 3, left: 2, right: 2, bottom: 2, background: scrBg, overflow: "hidden" }}>
         {/* CRT scanlines */}
         <div style={{
           position: "absolute", inset: 0, pointerEvents: "none",
-          backgroundImage: "repeating-linear-gradient(to bottom,transparent,transparent 2px,rgba(0,0,0,0.2) 3px)",
+          backgroundImage: "repeating-linear-gradient(to bottom,transparent,transparent 2px,rgba(0,0,0,0.25) 3px)",
         }} />
 
-        {isActive && Array.from({ length: 6 }, (_, i) => (
+        {isActive && Array.from({ length: lineCount }, (_, i) => (
           <div key={i} style={{
             position: "absolute",
-            top: 5 + i * 13,
-            left: 3,
-            height: 1.5,
-            width: `${[75, 52, 88, 40, 68, 58][i]}%`,
+            top: 3 + i * Math.floor((h - 9) / lineCount),
+            left: 2, height: 1.5,
+            width: `${[78, 52, 90, 40, 68, 56, 84, 44][i % 8]}%`,
             background: sc.accent,
-            opacity: [0.72, 0.44, 0.82, 0.32, 0.62, 0.48][i],
-            animation: `data-scroll ${0.8 + i * 0.18}s ease-in-out ${i * 0.1}s infinite alternate`,
+            opacity: [0.75, 0.42, 0.88, 0.30, 0.65, 0.50, 0.78, 0.38][i % 8],
+            animation: `data-scroll ${0.75 + i * 0.18}s ease-in-out ${i * 0.09}s infinite alternate`,
           }} />
         ))}
 
-        {/* blinking cursor (active) */}
-        {isActive && (
+        {/* chart bars (master only) */}
+        {variant === "master" && isActive && (
+          <div style={{ position: "absolute", bottom: 3, left: 2, right: 2, height: 10, display: "flex", alignItems: "flex-end", gap: 1 }}>
+            {[6,9,5,10,7,8,4,9,6,10,8].map((v, i) => (
+              <div key={i} style={{
+                flex: 1, height: v, minWidth: 2,
+                background: sc.accent, opacity: 0.55,
+              }} />
+            ))}
+          </div>
+        )}
+
+        {/* blinking cursor */}
+        {isActive && variant !== "side" && (
           <div style={{
-            position: "absolute", bottom: 4, left: 4,
-            width: 3, height: 6,
-            background: sc.accent,
-            opacity: 0.9,
+            position: "absolute", bottom: 4, left: 3,
+            width: 3, height: 5, background: sc.accent, opacity: 0.9,
             animation: "mon-cursor 1.1s steps(1,end) infinite",
           }} />
         )}
@@ -412,7 +386,7 @@ function MonitorPanel({ sc, agState, w = 42, h = 90, wide }: MonitorProps) {
           <div style={{
             position: "absolute", inset: 0, display: "flex",
             alignItems: "center", justifyContent: "center",
-            fontSize: 16, fontWeight: 900, color: P.amber,
+            fontSize: 14, fontWeight: 900, color: P.amber,
             animation: "px-alert 1.1s steps(1,end) infinite",
           }}>!</div>
         )}
@@ -421,39 +395,161 @@ function MonitorPanel({ sc, agState, w = 42, h = 90, wide }: MonitorProps) {
   );
 }
 
-// ─── Desk console surface ─────────────────────────────────────────────────────
-function DeskConsole({ sc, agState, width }: { sc: SC; agState: AgentState; width: number }) {
+// ─── Multi-monitor array for sub-agents ──────────────────────────────────────
+function MonitorArray({ sc, agState, totalW, h }: { sc: SC; agState: AgentState; totalW: number; h: number }) {
+  const sideW = Math.floor(totalW * 0.265);
+  const mainW = totalW - sideW * 2 - 6; // 3px gap each side
+  const sideH = Math.floor(h * 0.82);
+
+  return (
+    <div style={{ width: totalW, height: h, display: "flex", alignItems: "flex-end", gap: 3 }}>
+      <SingleMon sc={sc} agState={agState} w={sideW} h={sideH} variant="side" />
+      <SingleMon sc={sc} agState={agState} w={mainW} h={h}     variant="main" />
+      <SingleMon sc={sc} agState={agState} w={sideW} h={sideH} variant="side" />
+    </div>
+  );
+}
+
+// ─── Keyboard / trading console strip ────────────────────────────────────────
+function KbStrip({ sc, agState, width }: { sc: SC; agState: AgentState; width: number }) {
   const isActive = ["bull","bear","armed","analyzing","approved","alert"].includes(agState);
   const isArmed  = agState === "armed";
+  const segW     = Math.max(2, Math.floor((width - 14) / 9) - 1);
+
   return (
     <div style={{
-      width, height: 24,
-      background: "linear-gradient(to bottom,#101828 0%,#080e18 100%)",
-      border: `1px solid ${isActive ? sc.accent + "55" : "#162030"}`,
-      borderTop: `2px solid ${isActive ? sc.accent + "90" : "#1e3048"}`,
-      boxSizing: "border-box",
-      position: "relative",
-      boxShadow: "0 10px 24px rgba(0,0,0,0.95), 0 3px 0 rgba(0,0,0,0.6)",
+      width, height: 9,
+      background: "#060a12",
+      border: `1px solid ${isActive ? sc.accent + "45" : "#0c1625"}`,
+      borderTop: `1px solid ${isActive ? sc.accent + "65" : "#0f1e30"}`,
+      boxSizing: "border-box", position: "relative",
+      display: "flex", alignItems: "center", gap: 2, padding: "0 6px",
+      boxShadow: isActive ? `0 0 6px ${sc.accent}12` : "none",
     }}>
-      {/* keyboard rows */}
-      {[5, 10, 15].map((t, i) => (
+      {Array.from({ length: 9 }, (_, i) => (
         <div key={i} style={{
-          position: "absolute", top: t,
-          left: 8 + i * 2, right: 8 + i * 2,
-          height: 1,
-          background: `#${["1a2840","142030","0e1828"][i]}`,
-          opacity: [0.8, 0.6, 0.4][i],
+          width: segW, height: 3, flexShrink: 0,
+          background: isActive ? sc.accent + "55" : "#0d1828",
+          boxShadow: isActive && i % 3 === 0 ? `0 0 3px ${sc.accent}50` : "none",
         }} />
       ))}
-      {/* status LEDs */}
-      <div style={{ position: "absolute", top: 6, right: 6, display: "flex", gap: 3 }}>
-        {[sc.accent, isArmed ? P.amber : "#0e1828", "#0e1828"].map((col, i) => (
+      {isArmed && (
+        <div style={{
+          position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
+          width: 3, height: 3, borderRadius: "50%",
+          background: P.amber, boxShadow: `0 0 5px ${P.amber}`,
+          animation: "fl-dot 1.4s ease-in-out infinite",
+        }} />
+      )}
+    </div>
+  );
+}
+
+// ─── North wall ───────────────────────────────────────────────────────────────
+function NorthWall({ hasData, states }: { hasData: boolean; states: Record<string, AgentState> | null }) {
+  const bullC = states ? Object.values(states).filter(s => ["bull","approved","armed"].includes(s)).length : 0;
+  const bearC = states ? Object.values(states).filter(s => ["bear","blocked"].includes(s)).length : 0;
+  const mood  = bullC > bearC ? P.green : bearC > bullC ? P.red : P.blue;
+
+  return (
+    <div style={{
+      marginBottom: 24, height: 54, background: W.wall,
+      borderBottom: `4px solid ${W.top}`, borderTop: `2px solid #0a0401`,
+      position: "relative", overflow: "hidden",
+      display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+    }}>
+      {/* vertical wall panels */}
+      {Array.from({ length: 14 }, (_, i) => (
+        <div key={i} style={{
+          position: "absolute", top: 0, bottom: 0,
+          left: `${(i / 14) * 100}%`, width: 1,
+          background: "rgba(255,255,255,0.018)",
+        }} />
+      ))}
+
+      {/* left side panel */}
+      <div style={{
+        width: 68, height: 40, background: "#07030100",
+        border: "1px solid #1c0e06",
+        display: "flex", flexDirection: "column", gap: 3,
+        padding: "5px 6px", boxSizing: "border-box", flexShrink: 0,
+      }}>
+        {[0,1,2].map(i => (
           <div key={i} style={{
-            width: 3, height: 3, borderRadius: "50%",
-            background: i === 0 && isActive ? col : i === 1 && isArmed ? col : "#0c1420",
-            boxShadow: (i === 0 && isActive) || (i === 1 && isArmed) ? `0 0 4px ${col}` : "none",
-            animation: i === 0 && isArmed ? "fl-dot 1.4s ease-in-out infinite" : undefined,
+            height: 7, background: "#0d0703",
+            border: "1px solid #180b05",
+            position: "relative", overflow: "hidden",
+          }}>
+            <div style={{
+              position: "absolute", top: "50%", left: 4, transform: "translateY(-50%)",
+              width: `${[70, 50, 85][i]}%`, height: 1.5,
+              background: hasData ? mood : "#1a0e06", opacity: 0.6,
+            }} />
+          </div>
+        ))}
+      </div>
+
+      {/* main wall display */}
+      <div style={{
+        width: 300, height: 44,
+        background: "#020406",
+        border: `1px solid ${hasData ? mood + "45" : "#0c1320"}`,
+        boxShadow: hasData ? `0 0 32px ${mood}18, inset 0 0 16px rgba(0,0,0,0.8)` : "none",
+        position: "relative", overflow: "hidden", flexShrink: 0,
+      }}>
+        {/* CRT */}
+        <div style={{
+          position: "absolute", inset: 0, pointerEvents: "none",
+          backgroundImage: "repeating-linear-gradient(to bottom,transparent,transparent 2px,rgba(0,0,0,0.24) 3px)",
+        }} />
+        {/* status bar */}
+        <div style={{
+          position: "absolute", top: 0, left: 0, right: 0, height: 13,
+          background: "#030509", borderBottom: `1px solid ${hasData ? mood + "30" : "#0a0f1a"}`,
+          display: "flex", alignItems: "center", padding: "0 7px", gap: 8,
+        }}>
+          <div style={{
+            width: 4, height: 4, borderRadius: "50%",
+            background: hasData ? mood : "#0d1828",
+            boxShadow: hasData ? `0 0 5px ${mood}` : "none",
+            animation: hasData ? "fl-live 2s ease-in-out infinite" : undefined,
           }} />
+          <span style={{ fontSize: 5.5, fontWeight: 700, letterSpacing: "0.22em", color: hasData ? mood : P.dim }}>
+            TRADEX COMMAND FLOOR · {hasData ? "LIVE MONITORING" : "STANDBY"}
+          </span>
+        </div>
+        {/* data lines on wall display */}
+        <div style={{ position: "absolute", top: 16, left: 6, right: 6, bottom: 4, overflow: "hidden" }}>
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} style={{
+              position: "absolute", top: i * 7,
+              left: 0, height: 1.5, borderRadius: 1,
+              width: `${[82, 60, 94, 70][i]}%`,
+              background: mood, opacity: [0.65, 0.38, 0.75, 0.42][i],
+              animation: `data-scroll ${0.9 + i * 0.22}s ease-in-out ${i * 0.12}s infinite alternate`,
+            }} />
+          ))}
+        </div>
+      </div>
+
+      {/* right side panel */}
+      <div style={{
+        width: 68, height: 40, background: "#07030100",
+        border: "1px solid #1c0e06",
+        display: "flex", flexDirection: "column", gap: 3,
+        padding: "5px 6px", boxSizing: "border-box", flexShrink: 0,
+      }}>
+        {[0,1,2].map(i => (
+          <div key={i} style={{
+            height: 7, background: "#0d0703", border: "1px solid #180b05",
+            position: "relative", overflow: "hidden",
+          }}>
+            <div style={{
+              position: "absolute", top: "50%", right: 4, transform: "translateY(-50%)",
+              width: `${[60, 80, 45][i]}%`, height: 1.5,
+              background: hasData ? mood : "#1a0e06", opacity: 0.55,
+            }} />
+          </div>
         ))}
       </div>
     </div>
@@ -461,328 +557,365 @@ function DeskConsole({ sc, agState, width }: { sc: SC; agState: AgentState; widt
 }
 
 // ─── Sub-agent workstation ────────────────────────────────────────────────────
-// Layout (120px wide):
-//   [badge 18px]
-//   [mon 42px][head 36px gap][mon 42px]  ← h=90px, character head in center gap
-//   [desk console 24px]                  ← covers character body via DOM order + z-index
-// Character head rendered in center gap, body hidden by desk
+const WS_W       = 152;
+const WS_MON_W   = 132;   // total monitor array width
+const WS_MON_H   = 74;    // monitor array height
+const WS_CHAIR_H = 42;
+const HEAD_SCALE = 4;
+
 interface WSProps {
   agent: AgentDef; sc: SC; agState: AgentState;
   isSel: boolean; isArmed: boolean; live: AgentLive;
   onClick: () => void;
 }
 
-const WS_W = 120;
-const MON_W = 42;
-const MON_H = 90;
-const HEAD_SCALE = 3; // 8×3=24px wide, 6×3=18px tall
-
 function WorkStation({ agent, sc, agState, isSel, isArmed, live, onClick }: WSProps) {
   const isActive = ["bull","bear","armed","analyzing","approved","alert"].includes(agState);
-  const gapW = WS_W - MON_W * 2; // 36px center gap
 
   return (
-    <div style={{ position: "relative", width: WS_W, flexShrink: 0, cursor: "pointer" }}
-      onClick={onClick}>
+    <div style={{ position: "relative", width: WS_W, flexShrink: 0, cursor: "pointer" }} onClick={onClick}>
 
-      {/* selection highlight */}
       {isSel && (
         <div style={{
           position: "absolute", inset: -6,
           border: `1px solid ${sc.accent}65`,
           background: `${sc.accent}07`,
           pointerEvents: "none",
-          boxShadow: `0 0 18px ${sc.accent}20`,
+          boxShadow: `0 0 20px ${sc.accent}22`,
         }} />
       )}
 
-      {/* ── BADGE ── */}
+      {/* BADGE */}
       <div style={{
-        height: 18, display: "flex", alignItems: "center", justifyContent: "center",
+        height: 20, display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: 7, fontWeight: 800, letterSpacing: "0.22em",
-        color: sc.accent,
-        background: `${sc.accent}0d`,
-        border: `1px solid ${sc.accent}38`,
-        borderBottom: "none",
-        boxSizing: "border-box",
+        color: sc.accent, background: `${sc.accent}0d`,
+        border: `1px solid ${sc.accent}38`, borderBottom: "none", boxSizing: "border-box",
         animation: isArmed ? "fl-armed 1.4s ease-in-out infinite" : undefined,
       }}>
         {agent.label}
       </div>
 
-      {/* ── MONITORS + CHARACTER HEAD ── */}
-      <div style={{ display: "flex", position: "relative" }}>
-        <MonitorPanel sc={sc} agState={agState} w={MON_W} h={MON_H} />
-
-        {/* center gap: character head sits here, vertically bottom-aligned to desk */}
+      {/* CHARACTER IN CHAIR */}
+      <div style={{ height: WS_CHAIR_H, display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: 5, position: "relative" }}>
         <div style={{
-          width: gapW, height: MON_H,
-          display: "flex", alignItems: "flex-end", justifyContent: "center",
-          paddingBottom: 4,
-          position: "relative", zIndex: 10, // head above desk
-        }}>
+          position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)",
+          width: 40, height: 28, background: W.chair, border: `1px solid ${W.chairB}`,
+          borderBottom: "none", borderRadius: "2px 2px 0 0",
+        }} />
+        <div style={{ position: "relative", zIndex: 2 }}>
           <PixelHead sc={sc} agState={agState} scale={HEAD_SCALE} />
         </div>
-
-        <MonitorPanel sc={sc} agState={agState} w={MON_W} h={MON_H} />
       </div>
 
-      {/* ── DESK (renders over character body below monitors) ── */}
-      <DeskConsole sc={sc} agState={agState} width={WS_W} />
-
-      {/* confidence strip — below desk, subtle */}
+      {/* DESK TOP EDGE */}
       <div style={{
-        height: 14, display: "flex", alignItems: "center", justifyContent: "center",
-        gap: 6, background: "#04060c",
-        borderLeft: `1px solid #0d1622`, borderRight: `1px solid #0d1622`,
+        height: 7,
+        background: `linear-gradient(to bottom, ${W.edge}, ${W.top})`,
+        borderLeft: `1px solid ${W.edge}`, borderRight: `1px solid ${W.edge}`,
+      }} />
+
+      {/* DESK SURFACE + MULTI-MONITOR ARRAY */}
+      <div style={{
+        height: WS_MON_H, background: W.bodyS,
+        borderLeft: `1px solid ${W.edge}30`, borderRight: `1px solid ${W.edge}30`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "0 10px", boxSizing: "border-box",
       }}>
-        <span style={{ fontSize: 6.5, fontWeight: 700, color: isActive ? sc.accent : P.dim,
-          letterSpacing: "0.1em" }}>
+        <MonitorArray sc={sc} agState={agState} totalW={WS_MON_W} h={WS_MON_H - 10} />
+      </div>
+
+      {/* KEYBOARD STRIP */}
+      <div style={{
+        background: W.bodyS,
+        borderLeft: `1px solid ${W.edge}30`, borderRight: `1px solid ${W.edge}30`,
+        padding: "2px 10px 4px", boxSizing: "border-box",
+      }}>
+        <KbStrip sc={sc} agState={agState} width={WS_MON_W} />
+      </div>
+
+      {/* DESK FRONT EDGE */}
+      <div style={{
+        height: 9, background: W.front,
+        borderLeft: `1px solid #0a0602`, borderRight: `1px solid #0a0602`,
+        boxShadow: "0 8px 24px rgba(0,0,0,0.98), 0 3px 8px rgba(0,0,0,0.7)",
+      }} />
+
+      {/* CONFIDENCE STRIP */}
+      <div style={{ height: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+        <span style={{ fontSize: 6.5, fontWeight: 700, color: isActive ? sc.accent : P.dim, letterSpacing: "0.1em" }}>
           {live.conf > 0 ? `${live.conf}%` : "—"}
         </span>
-        <span style={{ fontSize: 6, color: P.dim, letterSpacing: "0.08em" }}>
-          {sc.badge}
-        </span>
+        <span style={{ fontSize: 6, color: P.dim, letterSpacing: "0.08em" }}>{sc.badge}</span>
       </div>
     </div>
   );
 }
 
-// ─── Master station (wider, 3-monitor setup) ──────────────────────────────────
-// Layout (196px wide):
-//   [★ MASTER | live status header 24px]
-//   [mon 52px][head 40px gap][mon 52px][6px][mon 46px]  h=100px
-//   [desk console 28px]
-interface MasterWSProps {
-  sc: SC; agState: AgentState; live: AgentLive;
-  isSel: boolean; onClick: () => void;
-}
+// ─── Master station ───────────────────────────────────────────────────────────
+const MASTER_W       = 280;
+const MASTER_MON_H   = 96;
+const MASTER_CHAIR_H = 48;
 
-const MASTER_W = 196;
-const MASTER_MON_H = 100;
+interface MasterWSProps { sc: SC; agState: AgentState; live: AgentLive; isSel: boolean; onClick: () => void }
 
 function MasterStation({ sc, agState, live, isSel, onClick }: MasterWSProps) {
   const isActive = ["bull","bear","armed","analyzing","approved","alert"].includes(agState);
   const isArmed  = agState === "armed";
 
+  const monW = Math.floor((MASTER_W - 32 - 10) / 3); // 3 monitors, 32px padding, 10px gaps
+
   return (
-    <div style={{ position: "relative", width: MASTER_W, flexShrink: 0, cursor: "pointer" }}
-      onClick={onClick}>
+    <div style={{ position: "relative", width: MASTER_W, flexShrink: 0, cursor: "pointer" }} onClick={onClick}>
 
       {isSel && (
         <div style={{
-          position: "absolute", inset: -8,
-          border: `1px solid ${sc.accent}70`,
-          background: `${sc.accent}06`,
-          pointerEvents: "none",
-          boxShadow: `0 0 28px ${sc.accent}25`,
+          position: "absolute", inset: -8, border: `1px solid ${sc.accent}70`,
+          background: `${sc.accent}06`, pointerEvents: "none",
+          boxShadow: `0 0 32px ${sc.accent}28`,
         }} />
       )}
 
-      {/* ── MASTER HEADER ── */}
+      {/* MASTER HEADER */}
       <div style={{
-        height: 24, display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 8px",
-        background: `${sc.accent}0f`,
-        border: `1px solid ${sc.accent}40`,
+        height: 26, display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "0 10px",
+        background: `${sc.accent}10`, border: `1px solid ${sc.accent}42`,
         borderBottom: "none", boxSizing: "border-box",
         animation: isArmed ? "fl-armed 1.4s ease-in-out infinite" : undefined,
       }}>
-        <span style={{ fontSize: 7.5, fontWeight: 800, letterSpacing: "0.2em", color: sc.accent }}>
-          ★ MASTER
-        </span>
+        <span style={{ fontSize: 7.5, fontWeight: 800, letterSpacing: "0.2em", color: sc.accent }}>★ MASTER</span>
         <span style={{ fontSize: 6.5, color: isActive ? sc.accent : P.dim, letterSpacing: "0.08em",
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 100 }}>
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 160 }}>
           {live.status}
         </span>
       </div>
 
-      {/* ── 3 MONITORS + HEAD ── */}
-      <div style={{ display: "flex", gap: 0 }}>
-        {/* left monitor */}
-        <MonitorPanel sc={sc} agState={agState} w={52} h={MASTER_MON_H} />
-
-        {/* center gap — character head */}
+      {/* MASTER CHARACTER */}
+      <div style={{ height: MASTER_CHAIR_H, display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: 6, position: "relative" }}>
         <div style={{
-          width: 40, height: MASTER_MON_H,
-          display: "flex", alignItems: "flex-end", justifyContent: "center",
-          paddingBottom: 6,
-          position: "relative", zIndex: 10,
-        }}>
-          <PixelHead sc={sc} agState={agState} scale={4} />
-        </div>
-
-        {/* center+right monitors */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <MonitorPanel sc={sc} agState={agState} w={52} h={(MASTER_MON_H - 2) / 2} />
-          <MonitorPanel sc={sc} agState={agState} w={52} h={(MASTER_MON_H - 2) / 2} />
+          position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)",
+          width: 54, height: 36,
+          background: "#14102a", border: `1px solid ${sc.accent}25`,
+          borderBottom: "none", borderRadius: "2px 2px 0 0",
+        }} />
+        <div style={{ position: "relative", zIndex: 2 }}>
+          <PixelHead sc={sc} agState={agState} scale={5} />
         </div>
       </div>
 
-      {/* ── MASTER DESK ── */}
+      {/* MASTER DESK TOP EDGE */}
       <div style={{
-        height: 28,
-        background: "linear-gradient(to bottom,#0e1a2e 0%,#08101e 100%)",
-        border: `1px solid ${sc.accent}60`,
-        borderTop: `2px solid ${sc.accent}`,
-        boxSizing: "border-box",
-        position: "relative",
-        boxShadow: `0 12px 30px rgba(0,0,0,0.98), 0 0 20px ${sc.accent}18`,
+        height: 9,
+        background: `linear-gradient(to bottom, ${sc.accent}60, ${W.top})`,
+        borderLeft: `1px solid ${sc.accent}65`, borderRight: `1px solid ${sc.accent}65`,
+      }} />
+
+      {/* MASTER DESK SURFACE + 3 MONITORS */}
+      <div style={{
+        height: MASTER_MON_H, background: W.bodyS,
+        borderLeft: `1px solid ${sc.accent}22`, borderRight: `1px solid ${sc.accent}22`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        gap: 5, padding: "0 16px", boxSizing: "border-box",
+        boxShadow: `inset 0 0 28px ${sc.accent}08`,
       }}>
-        {[5,11,17].map((t,i)=>(
-          <div key={i} style={{
-            position:"absolute", top:t,
-            left:10+i*2, right:10+i*2, height:1,
-            background:`#${["1a2840","142030","0e1828"][i]}`,
-            opacity:[0.9,0.65,0.4][i],
-          }}/>
-        ))}
-        {/* master LEDs */}
-        <div style={{ position:"absolute", top:7, right:8, display:"flex", gap:4 }}>
-          {[sc.accent, P.amber, "#10b981"].map((col,i)=>(
+        <SingleMon sc={sc} agState={agState} w={monW} h={MASTER_MON_H - 12} variant="master" />
+        <SingleMon sc={sc} agState={agState} w={monW} h={MASTER_MON_H - 12} variant="master" />
+        <SingleMon sc={sc} agState={agState} w={monW} h={MASTER_MON_H - 12} variant="master" />
+      </div>
+
+      {/* MASTER KEYBOARD */}
+      <div style={{
+        background: W.bodyS,
+        borderLeft: `1px solid ${sc.accent}22`, borderRight: `1px solid ${sc.accent}22`,
+        padding: "3px 16px 5px", boxSizing: "border-box",
+      }}>
+        <KbStrip sc={sc} agState={agState} width={MASTER_W - 32} />
+      </div>
+
+      {/* MASTER DESK FRONT EDGE */}
+      <div style={{
+        height: 11, position: "relative", background: W.front,
+        borderTop: `2px solid ${sc.accent}55`,
+        borderLeft: `1px solid ${sc.accent}20`, borderRight: `1px solid ${sc.accent}20`,
+        boxShadow: `0 12px 32px rgba(0,0,0,0.98), 0 0 22px ${sc.accent}15`,
+      }}>
+        <div style={{ position: "absolute", top: "50%", right: 10, transform: "translateY(-50%)", display: "flex", gap: 5 }}>
+          {[sc.accent, P.amber, P.green].map((col, i) => (
             <div key={i} style={{
-              width:4, height:4, borderRadius:"50%",
+              width: 4, height: 4, borderRadius: "50%",
               background: isActive ? col : "#0c1420",
               boxShadow: isActive ? `0 0 5px ${col}` : "none",
-              animation: isActive ? `fl-dot ${1.5+i*0.3}s ease-in-out infinite` : undefined,
-            }}/>
+              animation: isActive ? `fl-dot ${1.5 + i * 0.3}s ease-in-out infinite` : undefined,
+            }} />
           ))}
         </div>
-        {/* sub confidence row */}
-        <div style={{
-          position:"absolute", bottom:4, left:8,
-          fontSize:6.5, color: isActive ? sc.accent : P.dim,
-          letterSpacing:"0.1em", fontWeight:700,
-        }}>
+      </div>
+
+      {/* MASTER STATUS */}
+      <div style={{ height: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+        <span style={{ fontSize: 6.5, fontWeight: 700, color: isActive ? sc.accent : P.dim, letterSpacing: "0.1em" }}>
           CONF {live.conf}% · {sc.badge}
-        </div>
+        </span>
       </div>
     </div>
   );
 }
 
-// ─── Server rack (decorative side panel) ──────────────────────────────────────
+// ─── Server rack (side panels) ────────────────────────────────────────────────
 function ServerRack({ side, hasData }: { side: "left"|"right"; hasData: boolean }) {
   return (
     <div style={{
-      position: "absolute", top: 24, [side]: 6,
-      width: 26, height: 300,
-      background: "#050a14",
-      border: "1px solid #0e1a28",
-      display: "flex", flexDirection: "column",
-      gap: 2, padding: "4px 3px",
-      boxSizing: "border-box",
-      boxShadow: "inset 0 0 8px rgba(0,0,0,0.8)",
+      position: "absolute", top: 78, [side]: 6,
+      width: 24, height: 320, background: "#040810",
+      border: "1px solid #0c1828",
+      display: "flex", flexDirection: "column", gap: 2, padding: "4px 3px",
+      boxSizing: "border-box", boxShadow: "inset 0 0 8px rgba(0,0,0,0.8)",
     }}>
-      {Array.from({ length: 14 }, (_, i) => (
+      {Array.from({ length: 16 }, (_, i) => (
         <div key={i} style={{
-          height: 14, background: "#07101e",
-          border: "1px solid #0d1828",
-          display: "flex", alignItems: "center",
-          paddingLeft: 3, gap: 2, flexShrink: 0,
+          height: 13, background: "#060e1c", border: "1px solid #0c1828",
+          display: "flex", alignItems: "center", paddingLeft: 3, gap: 2, flexShrink: 0,
         }}>
           <div style={{
             width: 3, height: 3, borderRadius: "50%",
-            background: hasData && i % 4 !== 2 ? (i % 5 === 0 ? P.green : i % 3 === 0 ? P.amber : P.dim) : "#0c1420",
-            boxShadow: hasData && i % 4 !== 2 ? `0 0 3px currentColor` : "none",
-            animation: hasData ? `rack-led ${2 + i * 0.3}s ease-in-out infinite` : undefined,
+            background: hasData && i % 4 !== 2
+              ? (i % 5 === 0 ? P.green : i % 3 === 0 ? P.amber : P.dim)
+              : "#0a1220",
+            boxShadow: hasData && i % 4 !== 2 ? "0 0 3px currentColor" : "none",
+            animation: hasData ? `rack-led ${2 + i * 0.28}s ease-in-out infinite` : undefined,
           }} />
-          <div style={{ flex: 1, height: 1, background: "#0d1828" }} />
+          <div style={{ flex: 1, height: 1, background: "#0c1828" }} />
         </div>
       ))}
     </div>
   );
 }
 
-// ─── Floor connection SVG ─────────────────────────────────────────────────────
-// Percentages based on approximate station centers within the floor area
+// ─── Mini floor nodes (ambient equipment between stations) ────────────────────
+function FloorNode({ left, top, hasData, color }: { left: number; top: number; hasData: boolean; color: string }) {
+  return (
+    <div style={{
+      position: "absolute", left, top,
+      width: 18, height: 22,
+      background: "#040810", border: "1px solid #0c1828",
+      display: "flex", flexDirection: "column", gap: 2, padding: "3px 2px",
+      boxSizing: "border-box",
+    }}>
+      {[0,1,2].map(i => (
+        <div key={i} style={{
+          height: 4, background: "#060e1c", border: "1px solid #0b1726",
+          display: "flex", alignItems: "center", paddingLeft: 2,
+        }}>
+          <div style={{
+            width: 3, height: 3, borderRadius: "50%",
+            background: hasData && i !== 1 ? color : "#0a1220",
+            boxShadow: hasData && i !== 1 ? `0 0 3px ${color}` : "none",
+            animation: hasData ? `rack-led ${1.8 + i * 0.4}s ease-in-out infinite` : undefined,
+          }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Floor connections (PCB-style circuit traces + bezier flow) ───────────────
 const CONN_SOURCES: Record<string, { x: number; y: number }> = {
-  trend:      { x: 11, y: 26 },
-  smc:        { x: 31, y: 26 },
-  news:       { x: 58, y: 26 },
-  risk:       { x: 78, y: 26 },
+  trend:      { x: 13, y: 36 },
+  smc:        { x: 34, y: 36 },
+  news:       { x: 57, y: 36 },
+  risk:       { x: 78, y: 36 },
   execution:  { x: 31, y: 62 },
-  contrarian: { x: 62, y: 62 },
+  contrarian: { x: 60, y: 62 },
 };
-const MASTER_POS = { x: 48, y: 90 };
+const MASTER_POS = { x: 50, y: 88 };
 
 function FloorConnections({ states, hasData }: { states: Record<string, AgentState> | null; hasData: boolean }) {
   return (
-    <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
-      aria-hidden>
+    <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }} aria-hidden>
       <defs>
         {Object.entries(CONN_SOURCES).map(([id, src]) => {
-          const agState = (states?.[id] ?? "idle") as AgentState;
-          const sc = STATE[agState];
+          const sc = STATE[(states?.[id] ?? "idle") as AgentState];
           return (
-            <React.Fragment key={id}>
-              <linearGradient id={`grad-${id}`} x1={`${src.x}%`} y1={`${src.y}%`}
-                x2={`${MASTER_POS.x}%`} y2={`${MASTER_POS.y}%`} gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor={sc.accent} stopOpacity="0.6" />
-                <stop offset="100%" stopColor={sc.accent} stopOpacity="0.15" />
-              </linearGradient>
-            </React.Fragment>
+            <linearGradient key={id} id={`grad-${id}`}
+              x1={`${src.x}%`} y1={`${src.y}%`}
+              x2={`${MASTER_POS.x}%`} y2={`${MASTER_POS.y}%`}
+              gradientUnits="userSpaceOnUse">
+              <stop offset="0%"   stopColor={sc.accent} stopOpacity="0.7" />
+              <stop offset="100%" stopColor={sc.accent} stopOpacity="0.1" />
+            </linearGradient>
           );
         })}
+        {/* ambient circuit grid gradient */}
+        <radialGradient id="grid-glow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"   stopColor="#0a2040" stopOpacity="0.3" />
+          <stop offset="100%" stopColor="#0a2040" stopOpacity="0"   />
+        </radialGradient>
       </defs>
+
+      {/* ambient floor circuit grid */}
+      <rect x="5%" y="5%" width="90%" height="90%" fill="url(#grid-glow)" />
 
       {Object.entries(CONN_SOURCES).map(([id, src]) => {
         const agState = (states?.[id] ?? "idle") as AgentState;
-        const sc = STATE[agState];
+        const sc      = STATE[agState];
         const isActive = ["bull","bear","armed","analyzing","approved","alert"].includes(agState);
-        const mx = MASTER_POS.x;
-        const my = MASTER_POS.y;
-        const cx1 = src.x;
-        const cy1 = src.y + (my - src.y) * 0.45;
-        const cx2 = mx;
-        const cy2 = my - (my - src.y) * 0.35;
+        const mx  = MASTER_POS.x;
+        const my  = MASTER_POS.y;
+        // PCB-style dogleg: horizontal → vertical → horizontal
+        const midY = src.y + (my - src.y) * 0.5;
+        const d = `M ${src.x}% ${src.y}% L ${src.x}% ${midY}% L ${mx}% ${midY}% L ${mx}% ${my}%`;
 
         return (
           <g key={id}>
-            {/* base path */}
-            <path
-              d={`M ${src.x}% ${src.y}% C ${cx1}% ${cy1}%, ${cx2}% ${cy2}%, ${mx}% ${my}%`}
+            {/* base trace */}
+            <path d={d}
               stroke={`url(#grad-${id})`}
               strokeWidth={isActive ? 1.2 : 0.6}
               fill="none"
-              opacity={hasData ? (isActive ? 0.7 : 0.2) : 0.08}
+              opacity={hasData ? (isActive ? 0.65 : 0.18) : 0.07}
             />
-            {/* animated flow dash */}
+            {/* animated flow */}
             {isActive && hasData && (
-              <path
-                d={`M ${src.x}% ${src.y}% C ${cx1}% ${cy1}%, ${cx2}% ${cy2}%, ${mx}% ${my}%`}
+              <path d={d}
                 stroke={sc.accent}
-                strokeWidth={1.5}
+                strokeWidth={1.8}
                 fill="none"
-                opacity={0.55}
-                strokeDasharray="6 10"
-                style={{ animation: `conn-flow 2.${id.length}s linear infinite` }}
+                opacity={0.5}
+                strokeDasharray="5 9"
+                style={{ animation: `trace-flow ${1.8 + id.length * 0.15}s linear infinite` }}
               />
             )}
-            {/* source node dot */}
-            <circle cx={`${src.x}%`} cy={`${src.y}%`} r="2.5"
-              fill={sc.accent}
-              opacity={isActive ? 0.8 : 0.15}
-              style={{ animation: isActive && hasData ? "fl-dot 2s ease-in-out infinite" : undefined }}
+            {/* junction node at source */}
+            <circle cx={`${src.x}%`} cy={`${src.y}%`} r="3"
+              fill={sc.accent} opacity={isActive ? 0.85 : 0.14}
+              style={{ animation: isActive && hasData ? `fl-dot ${2 + id.length * 0.1}s ease-in-out infinite` : undefined }}
+            />
+            {/* midpoint junction */}
+            <circle cx={`${src.x}%`} cy={`${midY}%`} r="1.5"
+              fill={sc.accent} opacity={isActive ? 0.5 : 0.08}
+            />
+            <circle cx={`${mx}%`} cy={`${midY}%`} r="1.5"
+              fill={sc.accent} opacity={isActive ? 0.5 : 0.08}
             />
           </g>
         );
       })}
 
       {/* master node */}
-      <circle cx={`${MASTER_POS.x}%`} cy={`${MASTER_POS.y}%`} r="4"
-        fill="none" stroke={P.amber} strokeWidth="1"
-        opacity={hasData ? 0.6 : 0.12}
+      <circle cx={`${MASTER_POS.x}%`} cy={`${MASTER_POS.y}%`} r="5"
+        fill="none" stroke={P.amber} strokeWidth="1.5"
+        opacity={hasData ? 0.65 : 0.1}
         style={{ animation: hasData ? "fl-dot 2.5s ease-in-out infinite" : undefined }}
       />
-      <circle cx={`${MASTER_POS.x}%`} cy={`${MASTER_POS.y}%`} r="1.8"
-        fill={P.amber} opacity={hasData ? 0.7 : 0.1}
+      <circle cx={`${MASTER_POS.x}%`} cy={`${MASTER_POS.y}%`} r="2"
+        fill={P.amber} opacity={hasData ? 0.8 : 0.1}
       />
     </svg>
   );
 }
 
-// ─── Props + main component ───────────────────────────────────────────────────
+// ─── Main component ───────────────────────────────────────────────────────────
 interface AgentFloorProps { data: AgentRunResult | null; loading?: boolean }
 
 export function AgentFloorTest({ data, loading = false }: AgentFloorProps) {
@@ -799,9 +932,9 @@ export function AgentFloorTest({ data, loading = false }: AgentFloorProps) {
     return acc;
   }, {});
 
-  const bullCount  = AGENTS.filter(a => liveMap[a.id].bias === "bullish").length;
-  const bearCount  = AGENTS.filter(a => liveMap[a.id].bias === "bearish").length;
-  const neutCount  = AGENTS.length - bullCount - bearCount;
+  const bullCount = AGENTS.filter(a => liveMap[a.id].bias === "bullish").length;
+  const bearCount = AGENTS.filter(a => liveMap[a.id].bias === "bearish").length;
+  const neutCount = AGENTS.length - bullCount - bearCount;
   const consensus  = bullCount > bearCount ? "BULLISH" : bearCount > bullCount ? "BEARISH" : "NEUTRAL";
   const consensusC = consensus === "BULLISH" ? P.green : consensus === "BEARISH" ? P.red : P.muted;
   const masterLive = liveMap["master"];
@@ -848,12 +981,11 @@ export function AgentFloorTest({ data, loading = false }: AgentFloorProps) {
     return { stateKey, sc, reasons, confVal, qStats, tradePlan, showPrices };
   })() : null;
 
-  // station helpers
   const mkWS = (id: string) => {
-    const agent    = AGENTS.find(a => a.id === id)!;
-    const agState  = agStateOf(id);
-    const sc       = scOf(id);
-    const isArmed  = id === "execution" && isExecArmed;
+    const agent   = AGENTS.find(a => a.id === id)!;
+    const agState = agStateOf(id);
+    const sc      = scOf(id);
+    const isArmed = id === "execution" && isExecArmed;
     return (
       <WorkStation key={id}
         agent={agent} sc={sc} agState={agState} live={liveMap[id]}
@@ -866,8 +998,7 @@ export function AgentFloorTest({ data, loading = false }: AgentFloorProps) {
   const MONO = "'JetBrains Mono','SF Mono',ui-monospace,monospace";
 
   return (
-    <div style={{ backgroundColor: P.bg, fontFamily: MONO, border: `1px solid ${P.border}`,
-      borderRadius: 4, overflow: "hidden" }}>
+    <div style={{ backgroundColor: P.bg, fontFamily: MONO, border: `1px solid ${P.border}`, borderRadius: 4, overflow: "hidden" }}>
       <style>{CSS}</style>
 
       {/* ══ HEADER ══ */}
@@ -899,29 +1030,31 @@ export function AgentFloorTest({ data, loading = false }: AgentFloorProps) {
 
       {/* ══ TRADING FLOOR ══ */}
       <div style={{
-        position: "relative", padding: "20px 40px 28px",
-        background: "#03060d",
-        /* grid floor */
-        backgroundImage:
-          "linear-gradient(rgba(10,24,48,0.7) 1px,transparent 1px)," +
-          "linear-gradient(90deg,rgba(10,24,48,0.7) 1px,transparent 1px)",
-        backgroundSize: "24px 24px",
-        backgroundPosition: "0 0",
+        position: "relative", padding: "0 44px 32px",
+        background: W.tile,
+        backgroundImage: [
+          "repeating-linear-gradient(180deg, transparent 0, transparent 47px, rgba(0,0,0,0.5) 48px)",
+          "repeating-linear-gradient(90deg,  transparent 0, transparent 47px, rgba(0,0,0,0.5) 48px)",
+          "radial-gradient(ellipse 80% 55% at 50% 38%, rgba(70,30,8,0.12) 0%, transparent 100%)",
+        ].join(", "),
         borderBottom: `1px solid ${P.border}`,
-        minHeight: 460,
-        overflow: "hidden",
+        minHeight: 540, overflow: "hidden",
       }}>
         {/* CRT scanline overlay */}
         <div style={{
           position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
-          backgroundImage: "repeating-linear-gradient(to bottom,transparent,transparent 2px,rgba(0,0,0,0.06) 3px)",
+          backgroundImage: "repeating-linear-gradient(to bottom,transparent,transparent 2px,rgba(0,0,0,0.05) 3px)",
         }} />
 
-        {/* decorative server racks */}
+        {/* server racks — sides */}
         <ServerRack side="left"  hasData={hasData} />
         <ServerRack side="right" hasData={hasData} />
 
-        {/* SVG connection paths (below stations) */}
+        {/* floor mini-nodes between stations */}
+        <FloorNode left={38} top={180} hasData={hasData} color={P.blue}   />
+        <FloorNode left={38} top={320} hasData={hasData} color={P.green}  />
+
+        {/* SVG connections below stations */}
         <FloorConnections states={states ? {
           trend:      states.trend,
           smc:        states.smc,
@@ -931,21 +1064,37 @@ export function AgentFloorTest({ data, loading = false }: AgentFloorProps) {
           contrarian: states.contrarian,
         } : null} hasData={hasData} />
 
+        {/* ── NORTH WALL ── */}
+        <NorthWall hasData={hasData} states={states} />
+
         {/* ── ROW 1: 4 sub-agents ── */}
         <div style={{ position: "relative", zIndex: 5,
-          display: "flex", justifyContent: "center", gap: 16, marginBottom: 28 }}>
+          display: "flex", justifyContent: "center", gap: 14, marginBottom: 26 }}>
           {["trend","praction","news","risk"].map(mkWS)}
         </div>
 
         {/* ── ROW 2: execution + contrarian ── */}
         <div style={{ position: "relative", zIndex: 5,
-          display: "flex", justifyContent: "center", gap: 80, marginBottom: 32 }}>
+          display: "flex", justifyContent: "center", gap: 80, marginBottom: 24 }}>
           {["execution","contrarian"].map(mkWS)}
         </div>
 
+        {/* ── COMMAND DIVISION LINE ── */}
+        <div style={{
+          width: "68%", margin: "0 auto 22px",
+          height: 1,
+          background: "linear-gradient(to right, transparent, #2e1a0a 25%, #2e1a0a 75%, transparent)",
+          position: "relative",
+        }}>
+          <div style={{
+            position: "absolute", top: -5, left: "50%", transform: "translateX(-50%)",
+            fontSize: 5.5, letterSpacing: "0.5em", color: "#2e1a0a",
+            fontWeight: 700, whiteSpace: "nowrap", fontFamily: MONO,
+          }}>━━━━ COMMAND DIVISION ━━━━</div>
+        </div>
+
         {/* ── MASTER STATION ── */}
-        <div style={{ position: "relative", zIndex: 5,
-          display: "flex", justifyContent: "center" }}>
+        <div style={{ position: "relative", zIndex: 5, display: "flex", justifyContent: "center" }}>
           <MasterStation
             sc={scOf("master")}
             agState={agStateOf("master")}
@@ -955,10 +1104,9 @@ export function AgentFloorTest({ data, loading = false }: AgentFloorProps) {
           />
         </div>
 
-        {/* floor label */}
-        <div style={{ position: "absolute", bottom: 8, right: 44,
-          fontSize: 7, fontWeight: 700, letterSpacing: "0.3em",
-          color: "#0d1a2e", pointerEvents: "none", userSelect: "none" }}>
+        <div style={{ position: "absolute", bottom: 8, right: 50,
+          fontSize: 7, fontWeight: 700, letterSpacing: "0.35em",
+          color: "#1e0e06", pointerEvents: "none", userSelect: "none" }}>
           TRADEX · COMMAND FLOOR
         </div>
       </div>
@@ -972,8 +1120,7 @@ export function AgentFloorTest({ data, loading = false }: AgentFloorProps) {
             justifyContent: "space-between", marginBottom: 11 }}>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
-                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.2em",
-                  color: detail.sc.accent }}>
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.2em", color: detail.sc.accent }}>
                   {selDef.isMaster ? "★ " : ""}{selDef.label}
                 </span>
                 <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: "0.1em",
@@ -1024,9 +1171,9 @@ export function AgentFloorTest({ data, loading = false }: AgentFloorProps) {
           {detail.showPrices && detail.tradePlan && (
             <div style={{ display: "flex", gap: 3, flexWrap: "wrap", marginTop: 10 }}>
               {[
-                { label: "ENTRY", val: detail.tradePlan.entry,   color: P.text,  border: P.border },
-                { label: "SL",    val: detail.tradePlan.stopLoss, color: P.red,   border: `${P.red}45`   },
-                { label: "TP1",   val: detail.tradePlan.tp1,      color: P.green, border: `${P.green}45` },
+                { label: "ENTRY", val: detail.tradePlan.entry,    color: P.text,  border: P.border },
+                { label: "SL",    val: detail.tradePlan.stopLoss,  color: P.red,   border: `${P.red}45`   },
+                { label: "TP1",   val: detail.tradePlan.tp1,       color: P.green, border: `${P.green}45` },
                 ...(detail.tradePlan.tp2
                   ? [{ label: "TP2", val: detail.tradePlan.tp2, color: P.green, border: `${P.green}28` }]
                   : []),
@@ -1050,13 +1197,13 @@ export function AgentFloorTest({ data, loading = false }: AgentFloorProps) {
           <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.14em", color: consensusC }}>{consensus}</span>
         </div>
         <div style={{ display: "flex", height: 4, overflow: "hidden", border: `1px solid ${P.border}` }}>
-          {bearCount > 0 && <div style={{ flex: bearCount, backgroundColor: P.red, opacity: 0.82 }} />}
-          {neutCount > 0 && <div style={{ flex: neutCount, backgroundColor: P.dim }} />}
+          {bearCount > 0 && <div style={{ flex: bearCount, backgroundColor: P.red,   opacity: 0.82 }} />}
+          {neutCount > 0 && <div style={{ flex: neutCount, backgroundColor: P.dim               }} />}
           {bullCount > 0 && <div style={{ flex: bullCount, backgroundColor: P.green, opacity: 0.82 }} />}
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
-          <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: "0.12em", color: P.red }}>{bearCount} BEAR</span>
-          <span style={{ fontSize: 7, letterSpacing: "0.12em", color: P.dim }}>{neutCount} NEUT</span>
+          <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: "0.12em", color: P.red   }}>{bearCount} BEAR</span>
+          <span style={{ fontSize: 7,                  letterSpacing: "0.12em", color: P.dim   }}>{neutCount} NEUT</span>
           <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: "0.12em", color: P.green }}>{bullCount} BULL</span>
         </div>
         {hasData && (
