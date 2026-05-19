@@ -297,7 +297,7 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
       <div className={styles.sceneFrame}>
         <section className={styles.scene} aria-label="Premium pixel trading terminal">
           <div className={styles.topHeader}>
-            <span className={styles.headerTitle}>TRDX://WAR-ROOM</span>
+            <span>TRDX://WAR-ROOM</span>
             <div className={styles.headerLights} aria-hidden="true">
               <span className={styles.headerRed} />
               <span className={styles.headerAmber} />
