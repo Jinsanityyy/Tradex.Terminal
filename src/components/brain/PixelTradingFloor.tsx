@@ -46,7 +46,7 @@ const STATION_BLUEPRINTS: StationBlueprint[] = [
       shirtColor: "Forest",
       pantsColor: "Blue Gray",
       shoesColor: "Black",
-      seatFrame: 0,
+      seatFrame: 2,
     },
   },
   {
@@ -65,7 +65,7 @@ const STATION_BLUEPRINTS: StationBlueprint[] = [
       shirtColor: "Gray",
       pantsColor: "Black",
       shoesColor: "Black",
-      seatFrame: 0,
+      seatFrame: 2,
     },
   },
   {
@@ -84,7 +84,7 @@ const STATION_BLUEPRINTS: StationBlueprint[] = [
       shirtColor: "Teal",
       pantsColor: "Gray",
       shoesColor: "Black",
-      seatFrame: 0,
+      seatFrame: 2,
     },
   },
   {
@@ -103,7 +103,7 @@ const STATION_BLUEPRINTS: StationBlueprint[] = [
       shirtColor: "Maroon",
       pantsColor: "Gray",
       shoesColor: "Black",
-      seatFrame: 0,
+      seatFrame: 2,
     },
   },
   {
@@ -122,7 +122,7 @@ const STATION_BLUEPRINTS: StationBlueprint[] = [
       shirtColor: "Navy",
       pantsColor: "Gray",
       shoesColor: "Black",
-      seatFrame: 0,
+      seatFrame: 2,
     },
   },
   {
@@ -141,7 +141,7 @@ const STATION_BLUEPRINTS: StationBlueprint[] = [
       shirtColor: "Purple",
       pantsColor: "Blue Gray",
       shoesColor: "Black",
-      seatFrame: 0,
+      seatFrame: 2,
     },
   },
 ];
@@ -153,7 +153,7 @@ const CENTRAL_LOOK: OperatorLook = {
   shirtColor: "Teal",
   pantsColor: "Gray",
   shoesColor: "Black",
-  seatFrame: 2,
+  seatFrame: 0,
 };
 
 
