@@ -151,6 +151,13 @@ const jsonFetcher = <T,>(url: string) =>
 
 const fetcher = (url: string) => jsonFetcher<AgentRunResult>(url);
 
+function formatTimeAgo(ts: number): string {
+  const mins = Math.floor((Date.now() - ts) / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  return `${Math.floor(mins / 60)}h ago`;
+}
+
 function biasColor(bias?: string) {
   if (bias === "bullish") return "text-emerald-400";
   if (bias === "bearish") return "text-red-400";
@@ -787,7 +794,13 @@ export default function DashboardPage() {
   // Shared cooldown with mobile — same localStorage key, 30s window
   const COOLDOWN_MS = 30_000;
   const COOLDOWN_KEY = "tradex-cooldown-timestamp";
+  const LAST_REFRESH_KEY = "tradex-last-refresh";
   const [cooldownLeft, setCooldownLeft] = useState(0);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null;
+    const saved = Number(localStorage.getItem("tradex-last-refresh") ?? 0);
+    return saved > 0 ? saved : null;
+  });
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cooldownActiveRef = useRef(false); // synchronous guard — state updates are async
 
@@ -842,7 +855,10 @@ export default function DashboardPage() {
     if (cooldownActiveRef.current || isValidating) return;
     startCooldown();
     await mutate(undefined, { revalidate: true });
-  }, [mutate, isValidating, startCooldown]);
+    const now = Date.now();
+    setLastRefreshedAt(now);
+    localStorage.setItem(LAST_REFRESH_KEY, String(now));
+  }, [mutate, isValidating, startCooldown, LAST_REFRESH_KEY]);
 
   const handleIntervalChange = useCallback((tvInterval: string) => {
     setChartInterval(tvInterval);
@@ -1411,8 +1427,13 @@ export default function DashboardPage() {
             className={widgetActionClass}
           >
             <RefreshCw className={cn("h-3 w-3", isValidating && "animate-spin")} />
-            {isValidating ? "Running" : cooldownLeft > 0 ? `${cooldownLeft}s` : "Refresh"}
+            {isValidating ? "Running" : cooldownLeft > 0 ? `Wait ${cooldownLeft}s` : "Refresh"}
           </button>
+          {lastRefreshedAt !== null && !isValidating && (
+            <span className="text-[9px] text-zinc-600">
+              {cooldownLeft > 0 ? "refreshed" : formatTimeAgo(lastRefreshedAt)}
+            </span>
+          )}
           <Link href="/dashboard/brain" className={widgetActionClass}>
             Brain Terminal
             <ArrowRight className="h-3 w-3" />
@@ -1506,8 +1527,13 @@ export default function DashboardPage() {
             className={widgetActionClass}
           >
             <RefreshCw className={cn("h-3 w-3", isValidating && "animate-spin")} />
-            {isValidating ? "Running…" : cooldownLeft > 0 ? `${cooldownLeft}s` : "Refresh"}
+            {isValidating ? "Running…" : cooldownLeft > 0 ? `Wait ${cooldownLeft}s` : "Refresh"}
           </button>
+          {lastRefreshedAt !== null && !isValidating && (
+            <span className="text-[9px] text-zinc-600">
+              {cooldownLeft > 0 ? "refreshed" : formatTimeAgo(lastRefreshedAt)}
+            </span>
+          )}
           <Link href="/dashboard/brain" className={widgetActionClass}>
             Brain
           </Link>
