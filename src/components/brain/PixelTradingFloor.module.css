@@ -93,7 +93,7 @@
 /* ─── Upper Floor ───────────────────────────────────────────────────────── */
 .upperFloor {
   position: relative;
-  height: 100%;
+  height: calc(100% - 24px);
   overflow: hidden;
   background-color: var(--floor-bg);
   background-image:
@@ -144,8 +144,8 @@
 /* ─── Station Body ──────────────────────────────────────────────────────── */
 .stationBody {
   position: relative;
-  width: 88px;
-  height: 96px;
+  width: 96px;
+  height: 110px;
 }
 
 /* drop shadow below desk */
@@ -324,9 +324,10 @@
 .stationSprite {
   position: absolute;
   left: 50%;
-  bottom: 18px;
-  transform: translateX(-50%);
-  z-index: 12; /* above desk (6), terminals (8) */
+  bottom: 22px;
+  transform: translateX(-50%) scale(1.4);
+  transform-origin: bottom center;
+  z-index: 12;
 }
 
 /* ─── Risk Desk Highlight ───────────────────────────────────────────────── */
@@ -366,10 +367,11 @@
 /* ─── Master Desk ───────────────────────────────────────────────────────── */
 .masterDesk {
   position: absolute;
-  left: 43%;
-  top: 46%;
-  width: 164px;
-  height: 100px;
+  left: 50%;
+  top: 55%;
+  transform: translate(-50%, -50%);
+  width: 180px;
+  height: 110px;
   z-index: 10;
   background: transparent;
   border: none;
@@ -379,7 +381,7 @@
 }
 
 .masterDesk:hover {
-  transform: translateY(-2px);
+  transform: translate(-50%, calc(-50% - 2px));
 }
 
 .masterDesk::after {
@@ -479,16 +481,17 @@
 .masterSeatedSprite {
   position: absolute;
   left: 50%;
-  bottom: 22px;
-  transform: translateX(-50%);
+  bottom: 26px;
+  transform: translateX(-50%) scale(1.6);
+  transform-origin: bottom center;
   z-index: 12;
 }
 
 /* ─── Status Board (CMD panel) ──────────────────────────────────────────── */
 .statusBoard {
   position: absolute;
-  right: 3%;
-  top: 38%;
+  right: 2%;
+  top: 42%;
   width: 172px;
   padding: 14px 16px 16px;
   border: 1px solid var(--border-hi);

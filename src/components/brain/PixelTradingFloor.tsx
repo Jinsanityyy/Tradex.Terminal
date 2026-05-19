@@ -111,8 +111,8 @@ const STATION_BLUEPRINTS: StationBlueprint[] = [
     label: "EXEC",
     analyst: "Entry Pilot",
     detail: "Wait until the trigger desk confirms the entry lane.",
-    left: 24,
-    top: 43,
+    left: 20,
+    top: 46,
     score: 36,
     status: "NO-TRADE",
     seatedLook: {
@@ -130,8 +130,8 @@ const STATION_BLUEPRINTS: StationBlueprint[] = [
     label: "CNTR",
     analyst: "Contrarian Desk",
     detail: "Crowding risk is low enough for a controlled fade if needed.",
-    left: 61,
-    top: 43,
+    left: 68,
+    top: 46,
     score: 57,
     status: "TRADE-OK",
     seatedLook: {
