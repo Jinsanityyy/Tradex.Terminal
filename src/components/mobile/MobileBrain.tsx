@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import type { AgentRunResult, Symbol, Timeframe, SignalState } from "@/lib/agents/schemas";
 import { DebateLog } from "@/components/brain/DebateLog";
 import { PixelTradingFloor } from "@/components/brain/PixelTradingFloor";
+import { BrainOverviewDrawer } from "@/components/brain/BrainOverviewDrawer";
 import { useSettings } from "@/contexts/SettingsContext";
 import { isAgentSupported, getSymbolShort, getSymbolLabel } from "@/lib/assetImpact";
 import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
@@ -403,6 +404,12 @@ export function MobileBrain() {
   const isWaitState = sigState === "WAIT";
 
   const [view, setView] = useState<"brain" | "floor">("brain");
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerAgentId, setDrawerAgentId] = useState("trend");
+  const openDrawer = useCallback((agentId: string) => {
+    setDrawerAgentId(agentId);
+    setDrawerOpen(true);
+  }, []);
 
   return (
     <div className="flex flex-col h-full">
@@ -430,7 +437,7 @@ export function MobileBrain() {
       {/* Floor */}
       {view === "floor" && (
         <div className="flex-1 overflow-hidden">
-          <PixelTradingFloor />
+          <PixelTradingFloor onAgentClick={openDrawer} />
         </div>
       )}
 
@@ -599,6 +606,16 @@ export function MobileBrain() {
           )}
 
         </div>
+      )}
+
+      {/* Agent Drawer */}
+      {data && (
+        <BrainOverviewDrawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          data={data}
+          highlightAgentId={drawerAgentId}
+        />
       )}
     </div>
   );

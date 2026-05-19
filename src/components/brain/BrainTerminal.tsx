@@ -502,7 +502,7 @@ export function BrainTerminal() {
           </button>
 
           {/* ── TradeX Command Floor ─────────────────────────────────────── */}
-          <PixelTradingFloor />
+          <PixelTradingFloor onAgentClick={openDrawer} />
 
           {/* ── Section tab: 7-Agent Overview ─────────────────────────────── */}
           <div className="flex items-center gap-0 border-b border-white/6">

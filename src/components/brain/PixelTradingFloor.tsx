@@ -282,7 +282,16 @@ function SeatedOperator({
   );
 }
 
-export function PixelTradingFloor() {
+const STATION_TO_DRAWER: Record<string, string> = {
+  trend: "trend",
+  pract: "smc",
+  news:  "news",
+  risk:  "risk",
+  exec:  "execution",
+  cntr:  "contrarian",
+};
+
+export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: string) => void }) {
   const [stations, setStations] = useState(STATION_BLUEPRINTS);
   const [selectedId, setSelectedId] = useState("risk");
   const [clock, setClock] = useState(() => new Date());
@@ -368,7 +377,10 @@ export function PixelTradingFloor() {
                   type="button"
                   className={`${styles.stationPod} ${isSelected ? styles.stationSelected : ""}`}
                   style={{ left: `${station.left}%`, top: `${station.top}%` }}
-                  onClick={() => setSelectedId(station.id)}
+                  onClick={() => {
+                    setSelectedId(station.id);
+                    onAgentClick?.(STATION_TO_DRAWER[station.id] ?? station.id);
+                  }}
                   aria-pressed={isSelected}
                 >
                   <div
