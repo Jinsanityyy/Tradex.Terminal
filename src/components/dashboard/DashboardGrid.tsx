@@ -32,6 +32,7 @@ const OPTIONAL_WIDGET_DEFAULTS: Record<string, boolean> = {
   "economic-calendar": true,
   "pnl-calendar": true,
   "lot-calculator": true,
+  "live-prices": true,
 };
 
 const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
