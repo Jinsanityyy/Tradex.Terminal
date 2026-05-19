@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import styles from "./PixelTradingFloor.module.css";
 
 type StationStatus = "TRADE-OK" | "NO-TRADE";
@@ -153,7 +153,7 @@ const CENTRAL_LOOK: OperatorLook = {
   shirtColor: "Teal",
   pantsColor: "Gray",
   shoesColor: "Black",
-  seatFrame: 0,
+  seatFrame: 2,
 };
 
 
@@ -171,10 +171,6 @@ const FLOOR_DROPS: CSSProperties[] = [
   { left: "65%", top: "30%", height: "22%" },
 ];
 
-
-function toggleStatus(status: StationStatus): StationStatus {
-  return status === "TRADE-OK" ? "NO-TRADE" : "TRADE-OK";
-}
 
 
 function assetUrl(path: string) {
@@ -254,32 +250,8 @@ const STATION_TO_DRAWER: Record<string, string> = {
 };
 
 export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: string) => void }) {
-  const [stations, setStations] = useState(STATION_BLUEPRINTS);
+  const stations = STATION_BLUEPRINTS;
   const [selectedId, setSelectedId] = useState("risk");
-  useEffect(() => {
-    const statusTimer = window.setInterval(() => {
-      setStations((current) => {
-        const nextIndex = Math.floor(Math.random() * current.length);
-        const companionIndex = (nextIndex + 2) % current.length;
-
-        return current.map((station, index) => {
-          const shouldFlip =
-            index === nextIndex || (index === companionIndex && Math.random() > 0.68);
-
-          if (!shouldFlip || station.id === "risk") {
-            return station;
-          }
-
-          return {
-            ...station,
-            status: toggleStatus(station.status),
-          };
-        });
-      });
-    }, 2_600);
-
-    return () => window.clearInterval(statusTimer);
-  }, []);
 
   return (
     <main className={styles.root}>
@@ -358,7 +330,7 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
               <span className={`${styles.statusLed} ${styles.ledOk} ${styles.masterLedA}`} />
               <span className={`${styles.statusLed} ${styles.ledOk} ${styles.masterLedB}`} />
               <span className={`${styles.statusLed} ${styles.ledNoTrade} ${styles.masterLedC}`} />
-              <span className={styles.masterLabel}>MASTER</span>
+              <div className={styles.masterMonitorPill}>MASTER</div>
             </button>
 
             <div className={styles.floorWordmark}>TRADING FLOOR</div>
