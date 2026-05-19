@@ -1,0 +1,899 @@
+.root,
+.root *,
+.root *::before,
+.root *::after {
+  box-sizing: border-box;
+  image-rendering: pixelated;
+}
+
+.root {
+  --obsidian: #0b0c10;
+  --charcoal: #1f2833;
+  --charcoal-2: #151c24;
+  --slate: #45a29e;
+  --slate-deep: #2b6462;
+  --line: #2b3844;
+  --line-bright: #3d4e5f;
+  --text: #e3f3f1;
+  --muted: #92a8ab;
+  --good: #5cff8f;
+  --good-dim: #2d8d55;
+  --bad: #ff7a4d;
+  --amber: #ffbf47;
+  --shadow: rgba(0, 0, 0, 0.34);
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background-color: var(--obsidian);
+  background-image:
+    repeating-linear-gradient(90deg, #10141b 0 16px, #0b0c10 16px 32px),
+    repeating-linear-gradient(0deg, #10141b 0 16px, #0b0c10 16px 32px);
+  color: var(--text);
+  font-family: Fixedsys, "Lucida Console", "Courier New", monospace;
+}
+
+.sceneFrame {
+  width: min(1180px, 100%);
+  border: 2px solid #060709;
+  background: #11161c;
+  box-shadow: 0 0 0 2px #2a3440;
+}
+
+.scene {
+  aspect-ratio: 636 / 424;
+  background: var(--obsidian);
+}
+
+.topHeader {
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  background: #0e1116;
+  border-bottom: 2px solid #27323c;
+  color: #9ab6ba;
+  font-size: 8px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.headerLights {
+  display: flex;
+  gap: 4px;
+}
+
+.headerLights span {
+  width: 6px;
+  height: 6px;
+  border: 1px solid #11161b;
+}
+
+.headerRed {
+  background: var(--bad);
+}
+
+.headerAmber {
+  background: var(--amber);
+}
+
+.headerGreen {
+  background: var(--good);
+}
+
+.upperFloor {
+  position: relative;
+  height: 63%;
+  overflow: hidden;
+  background-color: var(--charcoal);
+  background-image:
+    repeating-linear-gradient(
+      180deg,
+      #232d39 0 14px,
+      #1f2833 14px 28px,
+      #182028 28px 32px
+    );
+}
+
+.upperFloor::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 26px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.18));
+  pointer-events: none;
+}
+
+.floorWire,
+.floorDrop {
+  position: absolute;
+  display: block;
+  background: #24313d;
+  z-index: 1;
+}
+
+.floorWire {
+  height: 2px;
+  box-shadow: 0 1px 0 #151b21;
+}
+
+.floorDrop {
+  width: 2px;
+  box-shadow: 1px 0 0 #151b21;
+}
+
+.stationPod {
+  position: absolute;
+  z-index: 3;
+  transform: translate(-50%, -50%);
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+}
+
+.stationSelected {
+  transform: translate(-50%, calc(-50% - 1px));
+}
+
+.stationBody {
+  position: relative;
+  width: 86px;
+  height: 92px;
+}
+
+.stationBody::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 6px;
+  height: 6px;
+  background: var(--shadow);
+  z-index: 0;
+}
+
+.stationBodySelected {
+  filter: brightness(1.06);
+}
+
+.stationMonitor {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  width: 58px;
+  min-height: 20px;
+  padding: 4px 4px 3px;
+  border: 2px solid #0c1116;
+  box-shadow: 0 0 0 2px #24303b;
+  font-size: 7px;
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  z-index: 4;
+}
+
+.monitorOk {
+  background: #11361d;
+  color: var(--good);
+}
+
+.monitorNoTrade {
+  background: #351913;
+  color: var(--bad);
+}
+
+.statusLed {
+  position: absolute;
+  right: 10px;
+  top: 26px;
+  width: 4px;
+  height: 4px;
+  z-index: 4;
+  animation: pixelBlink 1.2s steps(2, end) infinite;
+}
+
+.ledOk {
+  background: var(--good);
+  box-shadow: 0 0 0 1px #112116;
+}
+
+.ledNoTrade {
+  background: var(--amber);
+  box-shadow: 0 0 0 1px #26180f;
+}
+
+.stationTerminalLeft,
+.stationTerminalRight,
+.masterTerminalLeft,
+.masterTerminalRight,
+.microDeskMonitor {
+  position: absolute;
+  border: 2px solid #0c1116;
+  box-shadow: 0 0 0 2px #24303b;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(92, 255, 143, 0.2) 0 2px,
+      rgba(92, 255, 143, 0.02) 2px 4px
+    ),
+    #17242b;
+}
+
+.stationTerminalLeft,
+.stationTerminalRight {
+  width: 14px;
+  height: 12px;
+  bottom: 24px;
+  z-index: 5;
+}
+
+.stationTerminalLeft {
+  left: 10px;
+}
+
+.stationTerminalRight {
+  right: 10px;
+}
+
+.stationWire {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  width: 2px;
+  height: 10px;
+  transform: translateX(-50%);
+  background: #24313d;
+  z-index: 1;
+}
+
+.stationWire::after {
+  content: "";
+  position: absolute;
+  left: -7px;
+  bottom: 0;
+  width: 16px;
+  height: 2px;
+  background: #24313d;
+}
+
+.stationDeskSurface {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 16px;
+  height: 14px;
+  border: 2px solid #0f141a;
+  box-shadow: 0 0 0 2px #24303b, 0 3px 0 var(--shadow);
+  background: #202b36;
+  z-index: 4;
+}
+
+.stationChair,
+.masterChair,
+.microDeskChair {
+  position: absolute;
+  z-index: 2;
+  background: #161d24;
+  box-shadow: 0 0 0 2px #26313c;
+}
+
+.stationChair {
+  left: 50%;
+  bottom: 12px;
+  width: 20px;
+  height: 8px;
+  transform: translateX(-50%);
+  background: #182029;
+  box-shadow: 0 0 0 2px #27323d;
+}
+
+.stationChair::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: -12px;
+  height: 10px;
+  background: #1b2530;
+  box-shadow: 0 0 0 2px #2a3641;
+}
+
+.stationChair::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  bottom: -6px;
+  width: 4px;
+  height: 6px;
+  background: #202a34;
+  box-shadow:
+    -8px 6px 0 #202a34,
+    8px 6px 0 #202a34;
+}
+
+.stationSprite {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 3;
+}
+
+.riskBody {
+  box-shadow: inset 0 0 0 2px rgba(255, 122, 77, 0.22);
+}
+
+.riskBadge {
+  position: absolute;
+  right: 4px;
+  top: 30px;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #341713;
+  box-shadow: 0 0 0 2px #6f2c1b;
+  background: var(--bad);
+  color: #fff1df;
+  font-size: 10px;
+  display: grid;
+  place-items: center;
+  z-index: 4;
+}
+
+.stationLabel {
+  display: block;
+  margin-top: 3px;
+  color: #adc7ca;
+  font-size: 8px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-align: center;
+  text-shadow: 1px 1px 0 #0b0c10;
+}
+
+.masterDesk {
+  position: absolute;
+  left: 43%;
+  top: 48%;
+  width: 158px;
+  height: 92px;
+  z-index: 2;
+}
+
+.masterDesk::after {
+  content: "";
+  position: absolute;
+  left: 26px;
+  right: 26px;
+  bottom: 4px;
+  height: 8px;
+  background: var(--shadow);
+}
+
+.masterLedA,
+.masterLedB,
+.masterLedC {
+  top: 30px;
+}
+
+.masterLedA {
+  right: 22px;
+}
+
+.masterLedB {
+  right: 14px;
+}
+
+.masterLedC {
+  right: 6px;
+}
+
+.masterTerminalLeft,
+.masterTerminalRight {
+  width: 24px;
+  height: 16px;
+  bottom: 28px;
+  z-index: 5;
+}
+
+.masterTerminalLeft {
+  right: 58px;
+}
+
+.masterTerminalRight {
+  right: 24px;
+}
+
+.masterDeskSurface {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 18px;
+  height: 20px;
+  border: 2px solid #0f141a;
+  box-shadow: 0 0 0 2px #24303b, 0 4px 0 var(--shadow);
+  background: #202b36;
+  z-index: 4;
+}
+
+.masterKeyboard {
+  position: absolute;
+  right: 38px;
+  bottom: 22px;
+  width: 34px;
+  height: 8px;
+  z-index: 5;
+}
+
+.masterChair {
+  left: 50%;
+  bottom: 14px;
+  width: 24px;
+  height: 10px;
+  transform: translateX(-50%);
+  background: #182029;
+  box-shadow: 0 0 0 2px #27323d;
+}
+
+.masterChair::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  top: -14px;
+  height: 12px;
+  background: #1b2530;
+  box-shadow: 0 0 0 2px #2a3641;
+}
+
+.masterChair::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  bottom: -8px;
+  width: 4px;
+  height: 8px;
+  background: #202a34;
+  box-shadow:
+    -10px 8px 0 #202a34,
+    10px 8px 0 #202a34;
+}
+
+.masterSeatedSprite {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 3;
+}
+
+.statusBoard {
+  position: absolute;
+  right: 4.2%;
+  top: 41%;
+  width: 168px;
+  padding: 14px 16px;
+  border: 2px solid #22313b;
+  box-shadow: 0 0 0 2px #2e4150, 0 4px 0 var(--shadow);
+  background: #11181f;
+  color: var(--text);
+  z-index: 2;
+}
+
+.boardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 8px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #89acb0;
+}
+
+.boardOrb {
+  width: 6px;
+  height: 6px;
+  background: var(--slate);
+  box-shadow: 0 0 0 2px #1d2a31;
+}
+
+.boardSignal {
+  margin-top: 12px;
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.boardGood {
+  color: var(--good);
+}
+
+.boardBad {
+  color: var(--bad);
+}
+
+.boardCopy {
+  margin-top: 12px;
+  font-size: 8px;
+  line-height: 1.75;
+  color: #a6c0c2;
+}
+
+.boardMeta {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 2px solid #22313b;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #80a1a5;
+}
+
+.floorWordmark {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  font-size: 12px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--slate);
+}
+
+.bottomStrip {
+  height: 37%;
+  display: grid;
+  grid-template-columns: 39% 16% 45%;
+  border-top: 2px solid #22313b;
+  background: #0d1116;
+}
+
+.bottomRoom {
+  position: relative;
+  overflow: hidden;
+  background: #10161d;
+}
+
+.chartWing,
+.hallWing {
+  border-right: 2px solid #22313b;
+}
+
+.roomHeader {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  color: #8eb3b6;
+  font-size: 8px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.chartPanel,
+.sentimentPanel,
+.syncLane,
+.loungeBanner,
+.loungeBooth,
+.microDesk {
+  box-shadow: 0 0 0 2px #22313b;
+}
+
+.chartPanel {
+  position: absolute;
+  left: 10px;
+  right: 120px;
+  top: 30px;
+  height: 74px;
+  border: 2px solid #0b0f14;
+  background: #141d25;
+  padding: 8px;
+}
+
+.chartBars,
+.sentimentBars {
+  display: flex;
+  align-items: end;
+  gap: 4px;
+  height: 100%;
+}
+
+.chartBars span,
+.sentimentBars span {
+  display: block;
+  width: 6px;
+}
+
+.chartBarGood {
+  background: var(--good);
+}
+
+.chartBarBad {
+  background: var(--bad);
+}
+
+.sentimentPanel {
+  position: absolute;
+  right: 10px;
+  top: 30px;
+  width: 102px;
+  height: 74px;
+  border: 2px solid #0b0f14;
+  background: #141d25;
+  padding: 8px;
+}
+
+.sentimentHeader,
+.loungeBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #8eb3b6;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.sentimentBars {
+  margin-top: 10px;
+  height: 38px;
+}
+
+.microDesk {
+  position: absolute;
+  bottom: 12px;
+  width: 92px;
+  height: 54px;
+  border: 2px solid #0b0f14;
+  background: #162029;
+}
+
+.microDesk::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 4px;
+  height: 6px;
+  background: var(--shadow);
+}
+
+.microDeskLeft {
+  left: 18px;
+}
+
+.microDeskRight {
+  right: 18px;
+}
+
+.microDeskMonitor {
+  left: 8px;
+  top: 8px;
+  width: 26px;
+  height: 14px;
+}
+
+.microDeskChair {
+  left: 50%;
+  bottom: 8px;
+  width: 18px;
+  height: 8px;
+  transform: translateX(-50%);
+}
+
+.microDeskChair::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: -8px;
+  height: 6px;
+  background: #161d24;
+  box-shadow: 0 0 0 2px #26313c;
+}
+
+.microDeskSprite {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+}
+
+.syncLane {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 32px;
+  bottom: 14px;
+  border: 2px solid #0b0f14;
+  background: #141d25;
+}
+
+.syncRailTop,
+.syncRailBottom {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  height: 2px;
+  background: #2a3843;
+}
+
+.syncRailTop {
+  top: 24px;
+}
+
+.syncRailBottom {
+  bottom: 24px;
+}
+
+.syncNode {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 8px 10px;
+  border: 2px solid #0b0f14;
+  box-shadow: 0 0 0 2px #2a3843;
+  background: #18222a;
+  color: var(--slate);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.loungeBanner {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 30px;
+  padding: 8px 10px;
+  border: 2px solid #0b0f14;
+  background: #141d25;
+}
+
+.loungeBooth {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 12px;
+  height: 86px;
+  border: 2px solid #0b0f14;
+  background: #141d25;
+}
+
+.boothBack {
+  position: absolute;
+  left: 30px;
+  right: 30px;
+  top: 14px;
+  height: 16px;
+  border: 2px solid #22313b;
+  background: #1d2730;
+}
+
+.boothSeat {
+  position: absolute;
+  left: 30px;
+  right: 30px;
+  top: 34px;
+  height: 18px;
+  border: 2px solid #22313b;
+  background: #1c242d;
+}
+
+.boothTable {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  width: 56px;
+  height: 12px;
+  transform: translateX(-50%);
+  border: 2px solid #0b0f14;
+  box-shadow: 0 0 0 2px #22313b, 0 3px 0 var(--shadow);
+  background: #202b36;
+}
+
+.loungeSpriteLeft,
+.loungeSpriteRight {
+  position: absolute;
+  bottom: 10px;
+}
+
+.loungeSpriteLeft {
+  left: 14px;
+}
+
+.loungeSpriteRight {
+  right: 14px;
+}
+
+.infoBar {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-top: 2px solid #22313b;
+  background: #0d1116;
+  color: #86a9ad;
+  font-size: 8px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  flex-wrap: wrap;
+}
+
+.spriteActor {
+  --sprite-x: 0px;
+  --sprite-y: 0px;
+  width: 31px;
+  height: 74px;
+  background-image: url("/pixel-trader-sheet.png");
+  background-repeat: no-repeat;
+  background-size: 198px 238px;
+  background-position: var(--sprite-x) var(--sprite-y);
+  image-rendering: pixelated;
+  filter: drop-shadow(2px 2px 0 var(--shadow));
+}
+
+.seatedActor {
+  position: absolute;
+  width: var(--seat-actor-width);
+  height: var(--seat-actor-height);
+  image-rendering: pixelated;
+  filter: drop-shadow(2px 2px 0 var(--shadow));
+}
+
+.seatedLayer {
+  position: absolute;
+  inset: 0;
+  width: var(--seat-width);
+  height: var(--seat-height);
+  background-image: var(--seat-image);
+  background-repeat: no-repeat;
+  background-size: var(--seat-sheet-width) var(--seat-sheet-height);
+  background-position: 0 var(--seat-frame-y);
+  image-rendering: pixelated;
+}
+
+@keyframes pixelBlink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (max-width: 900px) {
+  .root {
+    padding: 10px;
+  }
+
+  .sceneFrame {
+    width: 100%;
+  }
+
+  .statusBoard {
+    width: 152px;
+    padding: 12px 14px;
+  }
+
+  .chartPanel {
+    right: 112px;
+  }
+
+  .stationLabel,
+  .floorWordmark,
+  .infoBar,
+  .roomHeader {
+    font-size: 7px;
+  }
+}
