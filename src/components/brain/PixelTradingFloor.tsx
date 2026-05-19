@@ -171,16 +171,6 @@ const FLOOR_DROPS: CSSProperties[] = [
   { left: "65%", top: "30%", height: "22%" },
 ];
 
-const MICRO_BARS = [26, 44, 35, 58, 46, 72, 51, 67];
-const SENTIMENT_BARS = [74, 62, 59, 80, 72, 86];
-
-function formatClock(now: Date) {
-  return now.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
 
 function toggleStatus(status: StationStatus): StationStatus {
   return status === "TRADE-OK" ? "NO-TRADE" : "TRADE-OK";
@@ -266,13 +256,6 @@ const STATION_TO_DRAWER: Record<string, string> = {
 export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: string) => void }) {
   const [stations, setStations] = useState(STATION_BLUEPRINTS);
   const [selectedId, setSelectedId] = useState("risk");
-  const [clock, setClock] = useState(() => new Date());
-
-  useEffect(() => {
-    const clockTimer = window.setInterval(() => setClock(new Date()), 1_000);
-    return () => window.clearInterval(clockTimer);
-  }, []);
-
   useEffect(() => {
     const statusTimer = window.setInterval(() => {
       setStations((current) => {
@@ -303,11 +286,6 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
     [selectedId, stations]
   );
 
-  const tradeOkCount = stations.filter((station) => station.status === "TRADE-OK").length;
-  const sentimentLabel =
-    tradeOkCount >= 4 ? "BULLISH" : tradeOkCount <= 2 ? "BEARISH" : "NEUTRAL";
-  const floorBias =
-    tradeOkCount >= 4 ? "FLOW ALIGNED" : tradeOkCount <= 2 ? "WAIT/CLEAR" : "MIXED TAPE";
   const boardSignal = selectedStation.status;
   const boardScore =
     selectedStation.status === "TRADE-OK"
@@ -417,80 +395,7 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
             <div className={styles.floorWordmark}>TRADING FLOOR</div>
           </div>
 
-          <div className={styles.bottomStrip}>
-            <div className={`${styles.bottomRoom} ${styles.chartWing}`}>
-              <div className={styles.roomHeader}>CHART / SENTIMENT</div>
-              <div className={styles.chartPanel}>
-                <div className={styles.chartBars}>
-                  {MICRO_BARS.map((height, index) => (
-                    <span
-                      key={index}
-                      className={index % 2 === 0 ? styles.chartBarGood : styles.chartBarBad}
-                      style={{ height: `${height}px` }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className={styles.sentimentPanel}>
-                <div className={styles.sentimentHeader}>
-                  <span>LIVE FLOW</span>
-                  <span>{sentimentLabel}</span>
-                </div>
-                <div className={styles.sentimentBars}>
-                  {SENTIMENT_BARS.map((height, index) => (
-                    <span
-                      key={index}
-                      className={index < 4 ? styles.chartBarGood : styles.chartBarBad}
-                      style={{ height: `${height / 2}px` }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className={`${styles.microDesk} ${styles.microDeskLeft}`}>
-                <div className={styles.microDeskMonitor} />
-                <div className={styles.microDeskChair} />
-              </div>
-
-              <div className={`${styles.microDesk} ${styles.microDeskRight}`}>
-                <div className={styles.microDeskMonitor} />
-                <div className={styles.microDeskChair} />
-              </div>
-            </div>
-
-            <div className={`${styles.bottomRoom} ${styles.hallWing}`}>
-              <div className={styles.roomHeader}>HALLWAY</div>
-              <div className={styles.syncLane}>
-                <span className={styles.syncRailTop} />
-                <span className={styles.syncRailBottom} />
-                <div className={styles.syncNode}>SYNC</div>
-              </div>
-            </div>
-
-            <div className={`${styles.bottomRoom} ${styles.loungeWing}`}>
-              <div className={styles.roomHeader}>LOUNGE</div>
-              <div className={styles.loungeBanner}>
-                <span>TERMINAL BIAS</span>
-                <span>{floorBias}</span>
-              </div>
-
-              <div className={styles.loungeBooth}>
-                <div className={styles.boothBack} />
-                <div className={styles.boothSeat} />
-                <div className={styles.boothTable} />
-              </div>
-            </div>
-          </div>
         </section>
-
-        <div className={styles.infoBar}>
-          <span>{selectedStation.label}</span>
-          <span>{selectedStation.analyst}</span>
-          <span>{boardSignal}</span>
-          <span>OGA SEATED KIT</span>
-          <span>{formatClock(clock)}</span>
-        </div>
       </div>
     </main>
   );
