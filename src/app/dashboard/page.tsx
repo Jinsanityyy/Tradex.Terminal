@@ -789,8 +789,10 @@ export default function DashboardPage() {
   const COOLDOWN_KEY = "tradex-cooldown-timestamp";
   const [cooldownLeft, setCooldownLeft] = useState(0);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cooldownActiveRef = useRef(false); // synchronous guard — state updates are async
 
   const startCooldown = useCallback(() => {
+    cooldownActiveRef.current = true;
     localStorage.setItem(COOLDOWN_KEY, String(Date.now()));
     setCooldownLeft(COOLDOWN_MS / 1000);
     if (cooldownRef.current) clearInterval(cooldownRef.current);
@@ -801,6 +803,7 @@ export default function DashboardPage() {
       if (left === 0 && cooldownRef.current) {
         clearInterval(cooldownRef.current);
         cooldownRef.current = null;
+        cooldownActiveRef.current = false;
       }
     }, 500);
   }, []);
@@ -810,6 +813,7 @@ export default function DashboardPage() {
     const saved = Number(localStorage.getItem(COOLDOWN_KEY) ?? 0);
     const elapsed = Date.now() - saved;
     if (elapsed < COOLDOWN_MS) {
+      cooldownActiveRef.current = true;
       setCooldownLeft(Math.ceil((COOLDOWN_MS - elapsed) / 1000));
       cooldownRef.current = setInterval(() => {
         const e = Date.now() - Number(localStorage.getItem(COOLDOWN_KEY) ?? 0);
@@ -818,6 +822,7 @@ export default function DashboardPage() {
         if (left === 0 && cooldownRef.current) {
           clearInterval(cooldownRef.current);
           cooldownRef.current = null;
+          cooldownActiveRef.current = false;
         }
       }, 500);
     }
@@ -834,10 +839,10 @@ export default function DashboardPage() {
   );
 
   const handleRefresh = useCallback(async () => {
-    if (cooldownLeft > 0 || isValidating) return;
+    if (cooldownActiveRef.current || isValidating) return;
     startCooldown();
     await mutate(undefined, { revalidate: true });
-  }, [mutate, cooldownLeft, isValidating, startCooldown]);
+  }, [mutate, isValidating, startCooldown]);
 
   const handleIntervalChange = useCallback((tvInterval: string) => {
     setChartInterval(tvInterval);
