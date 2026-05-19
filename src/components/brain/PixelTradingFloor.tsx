@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import styles from "./PixelTradingFloor.module.css";
 
 type StationStatus = "TRADE-OK" | "NO-TRADE";
@@ -281,17 +281,6 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
     return () => window.clearInterval(statusTimer);
   }, []);
 
-  const selectedStation = useMemo(
-    () => stations.find((station) => station.id === selectedId) ?? stations[0],
-    [selectedId, stations]
-  );
-
-  const boardSignal = selectedStation.status;
-  const boardScore =
-    selectedStation.status === "TRADE-OK"
-      ? selectedStation.score
-      : -Math.abs(82 - selectedStation.score);
-
   return (
     <main className={styles.root}>
       <div className={styles.sceneFrame}>
@@ -315,7 +304,7 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
             ))}
 
             {stations.map((station) => {
-              const isSelected = selectedStation.id === station.id;
+              const isSelected = selectedId === station.id;
               const statusClass =
                 station.status === "TRADE-OK" ? styles.monitorOk : styles.monitorNoTrade;
               const ledClass =
@@ -351,7 +340,6 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
                       </div>
                     ) : null}
                   </div>
-                  <span className={styles.stationLabel}>{station.label}</span>
                 </button>
               );
             })}
@@ -372,29 +360,6 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
               <span className={`${styles.statusLed} ${styles.ledNoTrade} ${styles.masterLedC}`} />
               <span className={styles.masterLabel}>MASTER</span>
             </button>
-
-            <div className={styles.statusBoard}>
-              <div className={styles.boardHeader}>
-                <span>MASTER - CMD</span>
-                <span className={styles.boardOrb} />
-              </div>
-              <div
-                className={`${styles.boardSignal} ${
-                  boardSignal === "TRADE-OK" ? styles.boardGood : styles.boardBad
-                }`}
-              >
-                {boardSignal}
-              </div>
-              <div className={styles.boardCopy}>{selectedStation.detail}</div>
-              <div className={styles.boardMeta}>
-                <span>{selectedStation.label}</span>
-                <span>{selectedStation.analyst}</span>
-                <span>
-                  SCORE {boardScore > 0 ? "+" : ""}
-                  {boardScore}.0
-                </span>
-              </div>
-            </div>
 
             <div className={styles.floorWordmark}>TRADING FLOOR</div>
           </div>
