@@ -353,19 +353,36 @@ function PixelStation({ agent, sc, agState, isSel, isArmed, onClick }: PixelStat
           11   : stand base
       */}
       <svg
-        width="20" height="24"
-        viewBox="0 0 10 12"
+        width="56" height="84"
+        viewBox="0 0 14 21"
         style={{
           imageRendering: "pixelated",
           shapeRendering: "crispEdges",
           overflow: "visible",
         }}
       >
+        {/* ── CHAIR BACK ─────────────────────────── */}
+        <rect x="0" y="5"  width="14" height="1" fill="#0b1e30" opacity="0.7" />
+        <rect x="0" y="5"  width="1"  height="6" fill="#0b1e30" opacity="0.5" />
+        <rect x="13" y="5" width="1"  height="6" fill="#0b1e30" opacity="0.5" />
+
         {/* ── HAIR ──────────────────────────────── */}
-        <rect x="3" y="0" width="4" height="1" fill={PX.hair} />
+        <rect x="4" y="0" width="6" height="1" fill={PX.hair} />
+        <rect x="3" y="1" width="8" height="1" fill={PX.hair} />
 
         {/* ── HEAD (skin) ────────────────────────── */}
-        <rect x="3" y="1" width="4" height="2" fill={PX.skin} />
+        <rect x="3" y="1" width="8" height="4" fill={PX.skin} />
+        {/* Eyes */}
+        <rect x="5" y="3" width="1" height="1" fill="#1a0a05" />
+        <rect x="8" y="3" width="1" height="1" fill="#1a0a05" />
+        {/* Expression: smile on bull/approved, flat on idle, frown on bear/blocked */}
+        {(agState === "bull" || agState === "approved" || agState === "armed") && (
+          <><rect x="5" y="4" width="1" height="1" fill={sc.accent} opacity="0.5" />
+            <rect x="8" y="4" width="1" height="1" fill={sc.accent} opacity="0.5" /></>
+        )}
+
+        {/* ── NECK ───────────────────────────────── */}
+        <rect x="5" y="5" width="4" height="1" fill={PX.skin} />
 
         {/* ── BODY + ARMS (state-animated group) ─── */}
         <g style={{
@@ -375,66 +392,57 @@ function PixelStation({ agent, sc, agState, isSel, isArmed, onClick }: PixelStat
           transformBox: "fill-box",
           transformOrigin: "center bottom",
         }}>
-          {/* Shirt — accent-coloured */}
-          <rect x="2" y="3" width="6" height="2" fill={sc.accent} opacity="0.82" />
-          {/* Left arm */}
-          <rect x="1" y="4" width="1" height="1" fill={PX.skin} />
-          {/* Right arm */}
-          <rect x="8" y="4" width="1" height="1" fill={PX.skin} />
+          {/* Shoulders */}
+          <rect x="1" y="6" width="12" height="1" fill={sc.accent} opacity="0.9" />
+          {/* Upper body/shirt */}
+          <rect x="2" y="7" width="10" height="3" fill={sc.accent} opacity="0.82" />
+          {/* Left arm (skin) */}
+          <rect x="0" y="7" width="2" height="3" fill={PX.skin} />
+          {/* Right arm (skin) */}
+          <rect x="12" y="7" width="2" height="3" fill={PX.skin} />
+          {/* Hands on desk */}
+          <rect x="0" y="10" width="2" height="1" fill={PX.skin} />
+          <rect x="12" y="10" width="2" height="1" fill={PX.skin} />
         </g>
 
         {/* ── DESK ───────────────────────────────── */}
-        <rect x="0" y="5" width="10" height="1" fill={PX.deskL} />
-        <rect x="0" y="6" width="10" height="1" fill={PX.desk} />
+        <rect x="0" y="11" width="14" height="1" fill={PX.deskL} />
+        <rect x="0" y="12" width="14" height="1" fill={PX.desk} />
 
         {/* ── MONITOR FRAME ──────────────────────── */}
-        <rect x="2" y="7" width="6" height="4" fill={PX.mon} />
-        {/* Inner bezel highlight (1px inset) */}
-        <rect x="3" y="7" width="4" height="1" fill={PX.monL} opacity="0.4" />
+        <rect x="2" y="13" width="10" height="6" fill={PX.mon} />
+        <rect x="3" y="13" width="8" height="1" fill={PX.monL} opacity="0.4" />
 
         {/* ── SCREEN ─────────────────────────────── */}
-        <rect x="3" y="8" width="4" height="2" fill={isActive ? PX.scrOn : PX.scrOff} />
+        <rect x="3" y="14" width="8" height="4" fill={isActive ? PX.scrOn : PX.scrOff} />
 
-        {/* Screen data lines — only when active/typing */}
         {isActive && (
           <>
-            {/* Static tinted lines */}
-            <rect x="3" y="8" width="4" height="1" fill={sc.accent} opacity="0.14" />
-            <rect x="3" y="9" width="3" height="1" fill={sc.accent} opacity="0.07" />
-            {/* Scrolling data line */}
+            <rect x="3" y="14" width="8" height="1" fill={sc.accent} opacity="0.20" />
+            <rect x="3" y="15" width="6" height="1" fill={sc.accent} opacity="0.12" />
+            <rect x="3" y="16" width="7" height="1" fill={sc.accent} opacity="0.08" />
+            <rect x="3" y="17" width="5" height="1" fill={sc.accent} opacity="0.06" />
             <g style={{ animation: "px-scroll 1.6s steps(2,end) infinite", overflow: "hidden" }}>
-              <rect x="3" y="8" width="2" height="1" fill={sc.accent} opacity="0.18"
-                clipPath="inset(0 0 0 0)" />
+              <rect x="3" y="14" width="3" height="1" fill={sc.accent} opacity="0.22" />
             </g>
           </>
         )}
 
         {/* ── MONITOR STAND ──────────────────────── */}
-        <rect x="4" y="11" width="2" height="1" fill={PX.mon} />
+        <rect x="6" y="19" width="2" height="1" fill={PX.mon} />
+        <rect x="4" y="20" width="6" height="1" fill={PX.monL} opacity="0.5" />
 
         {/* ── ALERT LIGHT (blocked) ──────────────── */}
         {isBlocked && (
-          <rect
-            x="9" y="5" width="1" height="1"
-            fill={P.amber}
-            style={{ animation: "px-alert 1.1s steps(1,end) infinite" }}
-          />
-        )}
-
-        {/* ── IDLE PROP (tiny item on desk) ────────── */}
-        {isIdle && (
-          <rect x="8" y="6" width="1" height="1" fill="#1e3448" opacity="0.7" />
+          <rect x="13" y="11" width="1" height="1" fill={P.amber}
+            style={{ animation: "px-alert 1.1s steps(1,end) infinite" }} />
         )}
 
         {/* ── ARMED GLOW OUTLINE ─────────────────── */}
         {isArmed && (
-          <rect x="2" y="7" width="6" height="4"
-            fill="none"
-            stroke={sc.accent}
-            strokeWidth="0.3"
-            opacity="0.5"
-            style={{ animation: "fl-armed 1.4s ease-in-out infinite" }}
-          />
+          <rect x="2" y="13" width="10" height="6"
+            fill="none" stroke={sc.accent} strokeWidth="0.4" opacity="0.6"
+            style={{ animation: "fl-armed 1.4s ease-in-out infinite" }} />
         )}
       </svg>
 
