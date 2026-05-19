@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TRADEX · FLOOR SIM v1.0</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;image-rendering:pixelated;image-rendering:crisp-edges;}
+
+body{
+  background:#0d0806;
+  display:flex;flex-direction:column;align-items:center;
+  padding:16px;min-height:100vh;font-family:monospace;
+}
+
+/* ── HUD ──────────────────────────────────────────────────────────────────── */
+.hud{
+  width:480px;height:24px;background:#100a06;
+  border:2px solid #4a3020;border-bottom:none;
+  display:flex;align-items:center;gap:8px;padding:0 8px;
+}
+.hud-title{font-size:8px;font-weight:bold;letter-spacing:3px;color:#c8a870;}
+.hud-sep{width:1px;height:14px;background:#3a2010;flex-shrink:0;}
+.h-stat{font-size:7px;font-weight:bold;letter-spacing:1px;padding:1px 5px;}
+.h-ok{color:#00ff44;background:#001400;}
+.h-warn{color:#ff4444;background:#140000;}
+.h-clock{margin-left:auto;font-size:7px;color:#6a5040;letter-spacing:1px;}
+
+/* ── Game Canvas ──────────────────────────────────────────────────────────── */
+.game{
+  width:480px;height:480px;position:relative;overflow:hidden;
+  background-color:#3d2b1f;
+  /* Hard-edge 16×16 tile grid — no smooth gradients */
+  background-image:
+    repeating-linear-gradient(90deg,rgba(0,0,0,0) 0,rgba(0,0,0,0) 15px,rgba(0,0,0,.22) 15px,rgba(0,0,0,.22) 16px),
+    repeating-linear-gradient(0deg,  rgba(0,0,0,0) 0,rgba(0,0,0,0) 15px,rgba(0,0,0,.22) 15px,rgba(0,0,0,.22) 16px);
+  background-size:16px 16px;
+  border:3px solid #4a3020;border-top:none;
+}
+
+/* ── Structural walls ─────────────────────────────────────────────────────── */
+.wl{position:absolute;background:#5a3a22;}
+.wn{top:0;left:0;right:0;height:14px;border-bottom:3px solid #2c1a0c;box-shadow:inset 0 3px 0 #7a5032;}
+.ws{bottom:0;left:0;right:0;height:10px;border-top:3px solid #2c1a0c;}
+.ww{top:0;left:0;bottom:0;width:8px;border-right:2px solid #2c1a0c;box-shadow:inset 3px 0 0 #7a5032;}
+.we{top:0;right:0;bottom:0;width:8px;border-left:2px solid #2c1a0c;}
+.dh{position:absolute;left:0;right:0;height:8px;background:#5a3a22;border-top:2px solid #7a5032;border-bottom:2px solid #2c1a0c;}
+.dv{position:absolute;width:8px;background:#5a3a22;border-left:2px solid #7a5032;border-right:2px solid #2c1a0c;}
+
+/* ── Desks ────────────────────────────────────────────────────────────────── */
+.desk{
+  position:absolute;width:72px;height:40px;
+  background:#8B6914;
+  border-top:3px solid #c49820;border-left:3px solid #a07820;
+  border-right:3px solid #5c4008;border-bottom:3px solid #3e2a04;
+}
+.desk::before{
+  content:'';position:absolute;inset:4px;
+  background:#9a7518;
+  border-top:1px solid #c49820;border-left:1px solid #b08a18;
+}
+
+/* ── Monitors ─────────────────────────────────────────────────────────────── */
+.mon{
+  position:absolute;width:32px;height:26px;background:#1a1a22;
+  border-top:3px solid #555566;border-left:2px solid #444455;
+  border-right:2px solid #222233;border-bottom:2px solid #111122;
+}
+.scr{
+  position:absolute;top:2px;left:2px;right:2px;bottom:2px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-size:5px;font-family:monospace;font-weight:bold;
+  letter-spacing:.3px;line-height:1.4;text-align:center;
+}
+/* CRT scanline overlay — hard repeating step, not a gradient decoration */
+.scr::after{
+  content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(0deg,transparent 0,transparent 2px,rgba(0,0,0,.18) 2px,rgba(0,0,0,.18) 3px);
+  pointer-events:none;
+}
+.sok{background:#001800;color:#00ff44;}
+.sno{background:#180000;color:#ff4444;}
+
+/* ── LED status dot ───────────────────────────────────────────────────────── */
+.led{position:absolute;width:4px;height:4px;}
+.lok{background:#00ff44;}
+.lno{background:#ff4444;}
+
+/* ── Station label ────────────────────────────────────────────────────────── */
+.stnlbl{
+  position:absolute;top:80px;left:0;width:72px;
+  text-align:center;font-size:7px;font-family:monospace;
+  font-weight:bold;letter-spacing:2px;color:#c8a870;
+  text-shadow:1px 1px #0d0806,-1px 1px #0d0806;pointer-events:none;
+}
+
+/* ── Pixel sprites (box-shadow characters) ────────────────────────────────── */
+.spr{position:absolute;width:3px;height:3px;}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+.bob{animation:bob ease-in-out infinite;}
+
+/* ── Room labels ──────────────────────────────────────────────────────────── */
+.rlbl{
+  position:absolute;font-size:6px;font-family:monospace;
+  font-weight:bold;letter-spacing:3px;color:#4a3020;pointer-events:none;
+}
+
+/* ── Chart display ────────────────────────────────────────────────────────── */
+.chartdisp{
+  position:absolute;background:#00080e;overflow:hidden;
+  border-top:3px solid #2a6a9a;border-left:2px solid #1a4a6a;
+  border-right:2px solid #0a2030;border-bottom:2px solid #0a1a28;
+}
+
+/* ── Lounge table ─────────────────────────────────────────────────────────── */
+.lgtbl{
+  position:absolute;background:#5c3d12;
+  border-top:3px solid #9a6a20;border-left:2px solid #7a5018;
+  border-right:2px solid #3a2008;border-bottom:2px solid #2c1808;
+}
+.lgch{
+  position:absolute;width:12px;height:12px;background:#1a0e08;
+  border-top:2px solid #3a2010;border-left:2px solid #2c1808;
+  border-right:2px solid #100808;border-bottom:2px solid #100808;
+}
+
+/* ── Pillar ───────────────────────────────────────────────────────────────── */
+.pillar{
+  position:absolute;width:12px;background:#6a4a28;
+  border-left:2px solid #9a7040;border-right:2px solid #3a2010;
+  border-top:3px solid #b08050;
+}
+
+/* ── Info panel ───────────────────────────────────────────────────────────── */
+.info{
+  width:480px;background:#100a06;border:2px solid #4a3020;
+  border-top:none;padding:7px 12px;min-height:44px;
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+}
+.iid {font-size:9px;font-weight:bold;letter-spacing:3px;color:#c8a870;}
+.iok {font-size:8px;color:#00ff44;font-weight:bold;}
+.ino {font-size:8px;color:#ff4444;font-weight:bold;}
+.itxt{font-size:7px;color:#887060;letter-spacing:1px;}
+.ihnt{font-size:7px;color:#4a3020;letter-spacing:1px;}
+
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+.blink{animation:blink 1s step-end infinite;}
+@keyframes mpulse{0%,100%{opacity:1}50%{opacity:.68}}
+.mpulse{animation:mpulse 2.8s ease-in-out infinite;}
+</style>
+</head>
+<body>
+
+<div class="hud">
+  <span class="hud-title">TRADEX · FLOOR SIM</span>
+  <div class="hud-sep"></div>
+  <span class="h-stat h-ok" id="h-active">■ 4/6 OK</span>
+  <span class="h-stat h-warn blink" id="h-armed" style="display:none">⚑ EXEC ARMED</span>
+  <span class="h-clock" id="h-clock">00:00:00 UTC</span>
+</div>
+
+<div class="game" id="game"></div>
+
+<div class="info" id="info">
+  <span class="ihnt">— CLICK ANY AGENT STATION TO INSPECT —</span>
+</div>
+
+<script>
+'use strict';
+
+// ── Pixel art engine ──────────────────────────────────────────────────────────
+var PX = 3; // CSS px per game pixel
+
+function shadow(grid) {
+  var r = [];
+  for (var y = 0; y < grid.length; y++)
+    for (var x = 0; x < grid[y].length; x++)
+      if (grid[y][x]) r.push((x*PX)+'px '+(y*PX)+'px 0 0 '+grid[y][x]);
+  return r.join(',');
+}
+
+function spr(sh, dur, delay) {
+  var el = document.createElement('div');
+  el.className = 'spr bob';
+  el.style.boxShadow = sh;
+  el.style.animationDuration  = (dur||1.4)+'s';
+  el.style.animationDelay     = (delay||0)+'s';
+  return el;
+}
+
+// ── Palette ───────────────────────────────────────────────────────────────────
+var SK='#f5c98a', DK='#c89a60'; // skin tones
+var _=null;
+
+function mkChar(shirt, pants, hair) {
+  return shadow([
+    [_,   _,    hair, hair, hair, hair, _,    _   ],
+    [_,   hair, SK,   SK,   SK,   SK,   hair, _   ],
+    [_,   hair, SK,   DK,   DK,   SK,   hair, _   ],
+    [_,   _,    hair, hair, hair, hair, _,    _   ],
+    [shirt,shirt,shirt,shirt,shirt,shirt,shirt,shirt],
+    [shirt,shirt,shirt,shirt,shirt,shirt,shirt,shirt],
+    [shirt,pants,pants,shirt,shirt,pants,pants,shirt],
+    [_,   pants,pants, _,    _,   pants,pants, _  ],
+    [_,  '#100800','#100800',_,_,'#100800','#100800',_],
+  ]);
+}
+
+// Shirt / pants / hair palette
+var S={
+  navy:'#1e3a8a', crimson:'#7c1d3a', forest:'#14532d',
+  rust:'#7c2d12', steel:'#0c4a6e', violet:'#4c1d95', sage:'#2d4a2a',
+};
+var P={ slate:'#1e293b', night:'#0f172a', charcoal:'#1a1a2a' };
+var H={ black:'#1a0c00', brown:'#6b3a10', blonde:'#d4a830', ash:'#f0e0a0' };
+
+// ── Station data ──────────────────────────────────────────────────────────────
+var STATIONS = [
+  {id:'TREND',  x:18,  y:26,  shirt:S.navy,   pants:P.slate,    hair:H.black,
+   ok:true,  info:'MACRO BIAS · BULLISH · CONF 82% · TF ALIGNED'},
+  {id:'PR.ACT', x:130, y:26,  shirt:S.crimson, pants:P.night,   hair:H.brown,
+   ok:true,  info:'JADE CAP · BOS DETECTED · SWEEP ✓ · PREMIUM ZONE'},
+  {id:'NEWS',   x:252, y:26,  shirt:S.forest,  pants:P.charcoal,hair:H.blonde,
+   ok:false, info:'HIGH IMPACT EVENT · RISK SCORE 74/100 · HOLD'},
+  {id:'RISK',   x:366, y:26,  shirt:S.rust,    pants:P.slate,   hair:H.black,
+   ok:true,  info:'GRADE A · VOL 42 · SESS 78 · VALID SETUP'},
+  {id:'EXEC',   x:90,  y:178, shirt:S.steel,   pants:P.night,   hair:H.brown,
+   ok:false, info:'SIGNAL: NO_TRADE · AWAITING CONFIRMATION'},
+  {id:'CNTR',   x:290, y:178, shirt:S.violet,  pants:P.charcoal,hair:H.ash,
+   ok:false, info:'NO TRAP DETECTED · ALIGNED · RISK FACTOR 28'},
+];
+
+// ── Scene builder ──────────────────────────────────────────────────────────────
+var G = document.getElementById('game');
+var INFO = document.getElementById('info');
+
+function el(tag, cls, styles) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (styles) Object.assign(e.style, styles);
+  return e;
+}
+function div(cls, styles) { return el('div', cls, styles); }
+function app(parent, child) { parent.appendChild(child); return child; }
+function aG(e) { return app(G, e); }
+
+// Walls
+aG(div('wl wn')); aG(div('wl ws')); aG(div('wl ww')); aG(div('wl we'));
+
+// Section dividers
+function hDiv(top) { aG(div('dh', {top:top+'px'})); }
+function vDiv(left, top, h) {
+  aG(div('dv', {left:left+'px', top:top+'px', height:(h||480)+'px'}));
+}
+hDiv(155); // top row / middle separator
+hDiv(296); // middle / bottom section separator
+vDiv(152, 296, 174); // chart | hallway
+vDiv(320, 296, 174); // hallway | lounge
+
+// Room labels
+function roomLbl(x, y, t) { aG(div('rlbl', {left:x+'px',top:y+'px'})).textContent=t; }
+roomLbl(24,  304, 'CHART');
+roomLbl(183, 304, 'HALLWAY');
+roomLbl(338, 304, 'LOUNGE');
+
+// ── Plant pixel sprite ────────────────────────────────────────────────────────
+var PLANT_SH = shadow([
+  [_,_,'#0c4a0c',_,_,_],
+  [_,'#0c4a0c','#188a18','#0c4a0c',_,_],
+  ['#0c4a0c','#188a18','#22b022','#188a18','#0c4a0c',_],
+  [_,'#188a18','#22b022','#188a18',_,_],
+  [_,_,'#188a18',_,_,_],
+  [_,_,'#5c3d10','#5c3d10',_,_],
+  [_,'#5c3d10','#7a5218','#7a5218','#5c3d10',_],
+  [_,'#4a2e0a','#6e4c14','#6e4c14','#4a2e0a',_],
+]);
+function plant(x, y) {
+  var e = div('spr', {position:'absolute', left:x+'px', top:y+'px', boxShadow:PLANT_SH});
+  aG(e);
+}
+
+// ── Chart room ────────────────────────────────────────────────────────────────
+(function() {
+  var cd = app(G, div('chartdisp', {
+    left:'16px', top:'316px', width:'110px', height:'70px'
+  }));
+
+  // Pixel line chart via box-shadow (uptrend)
+  var xs = [0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68];
+  var ys = [50,48,48,46,46,44,44,42,46,44,42,40,40,38,38,36,32,32,30,28,26,28,26,24,24,22,20,18,18,16,14,14,12,10,8];
+  var vols= [6,8,6,10,8,6,12,8,6,10,14,8,6,10,8,12,16,10,8,12,14,10,8,14,10,12,16,12,10,14,16,12,10,14,12];
+  var pts = [];
+  for (var i = 0; i < xs.length; i++) {
+    pts.push(xs[i]+'px '+ys[i]+'px 0 0 #00cc55');
+    pts.push(xs[i]+'px '+(ys[i]+1)+'px 0 0 #008833');
+    // volume bar
+    var vt = 58 - (vols[i]||6);
+    for (var v = vt; v < 60; v++) pts.push(xs[i]+'px '+v+'px 0 0 #004422');
+  }
+  var chartSpr = div('spr', {position:'absolute', left:'6px', top:'4px', boxShadow:pts.join(',')});
+  cd.appendChild(chartSpr);
+
+  // Ticker label inside chart
+  var lbl = el('div', null, {
+    position:'absolute', bottom:'3px', left:'0', right:'0',
+    textAlign:'center', fontSize:'5px', fontFamily:'monospace',
+    color:'#1a6a3a', letterSpacing:'1px'
+  });
+  lbl.textContent = 'XAUUSD · M15';
+  cd.appendChild(lbl);
+
+  // Character looking at chart
+  var sh = mkChar(S.sage, P.night, H.brown);
+  aG(spr(sh, 2.4, .6)).style.cssText = 'position:absolute;left:130px;top:332px;width:3px;height:3px;';
+
+  plant(14, 444); plant(130, 444);
+})();
+
+// ── Hallway ───────────────────────────────────────────────────────────────────
+(function() {
+  [205, 268].forEach(function(px) {
+    aG(div('pillar', {left:px+'px', top:'418px', height:'54px'}));
+  });
+  var sh = mkChar(S.forest, P.slate, H.blonde);
+  aG(spr(sh, 1.0, .2)).style.cssText = 'position:absolute;left:234px;top:358px;width:3px;height:3px;';
+  plant(162, 444); plant(310, 444);
+})();
+
+// ── Lounge ────────────────────────────────────────────────────────────────────
+(function() {
+  app(G, div('lgtbl', {left:'338px', top:'346px', width:'90px', height:'54px'}));
+
+  [[336,336],[356,336],[376,336],[396,336],[416,336],
+   [336,402],[356,402],[376,402],[396,402],[416,402],
+   [328,352],[328,372],[432,352],[432,372]
+  ].forEach(function(p) {
+    aG(div('lgch', {left:p[0]+'px', top:p[1]+'px'}));
+  });
+
+  var sh1 = mkChar(S.sage,   P.charcoal, H.ash);
+  var sh2 = mkChar(S.rust,   P.slate,    H.black);
+  var sh3 = mkChar(S.crimson,P.night,    H.brown);
+
+  aG(spr(sh1, 3.2, .4)).style.cssText  = 'position:absolute;left:348px;top:422px;width:3px;height:3px;';
+  aG(spr(sh2, 2.8, 1.1)).style.cssText = 'position:absolute;left:396px;top:422px;width:3px;height:3px;';
+  aG(spr(sh3, 2.2, .7)).style.cssText  = 'position:absolute;left:370px;top:308px;width:3px;height:3px;';
+
+  plant(470, 438);
+
+  // Coffee mug pixel art on the lounge table
+  var MUG = shadow([
+    ['#8B7020','#8B7020','#8B7020'],
+    ['#c8a040','#ffffff','#c8a040'],
+    ['#c8a040','#ffffff','#c8a040'],
+    ['#8B7020','#8B7020','#8B7020'],
+  ]);
+  aG(div('spr', {position:'absolute', left:'368px', top:'362px', boxShadow:MUG}));
+})();
+
+// ── Render stations ───────────────────────────────────────────────────────────
+STATIONS.forEach(function(st, idx) {
+  var wrap = app(G, div(null, {position:'absolute', left:st.x+'px', top:st.y+'px', cursor:'pointer'}));
+
+  // Desk
+  var desk = app(wrap, div('desk', {left:'0', top:'34px'}));
+
+  // Monitor on desk
+  var mon = app(wrap, div('mon', {left:'8px', top:'38px'}));
+  var scr = app(mon, div('scr mpulse '+(st.ok?'sok':'sno')));
+  scr.id = 'scr-'+st.id;
+  scr.innerHTML = st.ok ? 'TRADE<br>OK' : 'NO<br>TRD';
+
+  // LED on desk corner
+  var led = app(wrap, div('led '+(st.ok?'lok':'lno'), {left:'54px', top:'62px'}));
+  led.id = 'led-'+st.id;
+
+  // Pixel character (above desk — top-down perspective)
+  var sh = mkChar(st.shirt, st.pants, st.hair);
+  var sp = app(wrap, spr(sh, 1.2+idx*.06, idx*.17));
+  sp.style.left = '18px'; sp.style.top = '4px';
+
+  // Station label
+  app(wrap, div('stnlbl')).textContent = st.id;
+
+  // Keyboard pixel art on desk
+  var KBD = shadow([
+    ['#333','#333','#333','#333','#333','#333','#333','#333','#333','#333'],
+    ['#222','#444','#222','#444','#222','#444','#222','#444','#222','#444'],
+    ['#111','#111','#111','#111','#111','#111','#111','#111','#111','#111'],
+  ]);
+  var kbd = app(wrap, div('spr', {left:'40px', top:'50px', boxShadow:KBD}));
+
+  wrap.addEventListener('click', function(){ inspect(st); });
+});
+
+// ── Inspect ───────────────────────────────────────────────────────────────────
+function inspect(st) {
+  INFO.innerHTML =
+    '<span class="iid">'+st.id+'</span>'+
+    '<span class="'+(st.ok?'iok':'ino')+'">'+(st.ok?'■ TRADE-OK':'■ NO-TRADE')+'</span>'+
+    '<span class="itxt">'+st.info+'</span>';
+}
+
+// ── Status simulation ─────────────────────────────────────────────────────────
+setInterval(function() {
+  if (Math.random() < 0.22) {
+    var st = STATIONS[Math.floor(Math.random()*STATIONS.length)];
+    st.ok = !st.ok;
+    var s = document.getElementById('scr-'+st.id);
+    var l = document.getElementById('led-'+st.id);
+    if (s) { s.className='scr mpulse '+(st.ok?'sok':'sno'); s.innerHTML=st.ok?'TRADE<br>OK':'NO<br>TRD'; }
+    if (l) { l.className='led '+(st.ok?'lok':'lno'); }
+    refreshHUD();
+  }
+}, 3400);
+
+function refreshHUD() {
+  var ok = STATIONS.filter(function(s){return s.ok;}).length;
+  document.getElementById('h-active').textContent='■ '+ok+'/6 OK';
+  var exec = STATIONS.filter(function(s){return s.id==='EXEC';})[0];
+  document.getElementById('h-armed').style.display = (exec&&exec.ok) ? '' : 'none';
+}
+
+// ── Clock ─────────────────────────────────────────────────────────────────────
+setInterval(function(){
+  document.getElementById('h-clock').textContent = new Date().toUTCString().slice(17,25)+' UTC';
+}, 1000);
+document.getElementById('h-clock').textContent = new Date().toUTCString().slice(17,25)+' UTC';
+refreshHUD();
+</script>
+</body>
+</html>
