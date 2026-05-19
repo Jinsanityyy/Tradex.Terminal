@@ -368,8 +368,8 @@ function ConferenceAgent({ cx, cy, sc, agState, isSel, onClick, label }: Confere
       {isSel && (
         <ellipse cx={cx} cy={cy} rx={18} ry={16} fill={sc.accent} opacity={0.1} />
       )}
-      {/* chair seat */}
-      <rect x={cx - 12} y={cy + (facingNorth ? -8 : -2)} width={24} height={10}
+      {/* chair seat (south of table, facing north) */}
+      <rect x={cx - 12} y={cy + 8} width={24} height={10}
         fill="#1a2a3a" rx={1} />
       {/* character */}
       <ellipse cx={cx} cy={cy} rx={11} ry={9}
@@ -701,11 +701,11 @@ export function AgentFloorTest({ data, loading = false }: AgentFloorProps) {
   }, []);
 
   useEffect(() => {
-    const id = setInterval(() => setTickIdx(i => (i + 1) % tickerLines.length), 4500);
+    const id = setInterval(() => setTickIdx((i: number) => (i + 1) % tickerLines.length), 4500);
     return () => clearInterval(id);
   }, [tickerLines.length]);
 
-  const toggle = (id: string) => setSelected(s => s === id ? null : id);
+  const toggle = (id: string) => setSelected((s: string | null) => s === id ? null : id);
   const selDef = AGENTS.find(a => a.id === selected) ?? null;
 
   const detail = selDef ? (() => {
