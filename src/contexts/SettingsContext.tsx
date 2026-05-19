@@ -35,7 +35,7 @@ export const DEFAULTS: Settings = {
   theme: "dark",
   density: "default",
   animations: true,
-  trackedAssets: ["Gold", "DXY", "SPX", "NDX", "BTC", "EURUSD", "Oil"],
+  trackedAssets: ["XAUUSD", "BTCUSD", "EURUSD", "USDJPY", "USOIL", "GBPUSD"],
   defaultBiasAsset: "Gold",
   selectedSymbol: "XAUUSD",
   impactThreshold: "all",

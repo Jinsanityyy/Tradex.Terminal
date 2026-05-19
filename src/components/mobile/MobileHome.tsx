@@ -186,8 +186,10 @@ export function MobileHome() {
   const symbolBiasLabel = getSymbolLabel(activeSymbol);
   const symbolBiasShort = getSymbolShort(activeSymbol);
 
-  const keyAssets = ["XAUUSD", "BTCUSD", "EURUSD", "USDJPY", "USOIL", "GBPUSD"];
-  const displayQuotes = keyAssets.map((sym) => quotes.find((q) => q.symbol === sym)).filter(Boolean).slice(0, 6) as typeof quotes;
+  const keyAssets = settings.trackedAssets.length > 0
+    ? settings.trackedAssets
+    : ["XAUUSD", "BTCUSD", "EURUSD", "USDJPY", "USOIL", "GBPUSD"];
+  const displayQuotes = keyAssets.map((sym) => quotes.find((q) => q.symbol === sym)).filter(Boolean) as typeof quotes;
 
   // Agent signal data  -  exec has signalState + entry/SL/TP
   const master = agentData?.agents?.master;

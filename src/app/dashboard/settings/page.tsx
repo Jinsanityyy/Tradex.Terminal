@@ -8,6 +8,7 @@ import {
   Settings, Theme, Density, TimeZone, DateFormat, RefreshInterval, ImpactThreshold,
 } from "@/contexts/SettingsContext";
 import { cn } from "@/lib/utils";
+import { getSymbolLabel } from "@/lib/assetImpact";
 import { playOrderFilled, playHighImpactAlert, playSignalArmed, playAppOpen, unlockAudio } from "@/lib/sounds";
 import { createClient } from "@/lib/supabase/client";
 import Image from "next/image";
@@ -110,11 +111,12 @@ function Pills<T extends string>({
   );
 }
 
-function MultiSelect({ options, selected, onToggle }: { options: string[]; selected: string[]; onToggle: (v: string) => void }) {
+function MultiSelect({ options, selected, onToggle, labelFn }: { options: string[]; selected: string[]; onToggle: (v: string) => void; labelFn?: (v: string) => string }) {
   return (
     <div className="grid grid-cols-3 gap-1.5">
       {options.map((o) => {
         const active = selected.includes(o);
+        const display = labelFn ? labelFn(o) : o;
         return (
           <button
             key={o}
@@ -127,7 +129,7 @@ function MultiSelect({ options, selected, onToggle }: { options: string[]; selec
             )}
           >
             {active && <CheckCircle2 className="h-2.5 w-2.5 shrink-0" />}
-            <span className="truncate">{o}</span>
+            <span className="truncate">{display}</span>
           </button>
         );
       })}
@@ -137,7 +139,12 @@ function MultiSelect({ options, selected, onToggle }: { options: string[]; selec
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
-const ALL_ASSETS = ["Gold", "DXY", "SPX", "NDX", "BTC", "EURUSD", "Oil", "ETH", "Silver"];
+const ALL_ASSETS = [
+  "XAUUSD", "XAGUSD", "USOIL",
+  "EURUSD", "GBPUSD", "USDJPY", "USDCAD", "USDCHF", "AUDUSD", "NZDUSD",
+  "EURGBP", "GBPJPY",
+  "BTCUSD", "ETHUSD", "LTCUSD",
+];
 const ALL_CATEGORIES = ["Central Banks", "Inflation", "Tariffs", "Geopolitics", "Crypto", "Energy", "Earnings"];
 
 // ── MFA Section ───────────────────────────────────────────────────────────────
@@ -481,7 +488,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <SettingRow wide label="Tracked Assets" description="Select which assets appear in your terminal">
-            <MultiSelect options={ALL_ASSETS} selected={draft.trackedAssets} onToggle={toggleAsset} />
+            <MultiSelect options={ALL_ASSETS} selected={draft.trackedAssets} onToggle={toggleAsset} labelFn={getSymbolLabel} />
           </SettingRow>
           <SettingRow label="Default Bias Asset" description="Primary asset shown on dashboard">
             <Pills
