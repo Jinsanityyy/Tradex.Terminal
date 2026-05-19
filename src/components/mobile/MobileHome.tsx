@@ -28,6 +28,8 @@ import { loadTradeLog, findOpenBySetup, discardTrade, type TakenSignal } from "@
 import { playSignalArmed } from "@/lib/sounds";
 import useSWR from "swr";
 import type { DailyPnL, MonthlyPnL } from "@/app/api/pnl/route";
+import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
+import { useSubscription } from "@/hooks/useSubscription";
 
 const pnlFetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -228,6 +230,9 @@ export function MobileHome() {
       ? { bias: master.finalBias as string, confidence: master.confidence }
       : null;
 
+  const { subscription } = useSubscription();
+  const { isOnCooldown, countdownLabel, markRefreshed } = useRefreshCooldown();
+
   const divRef = useRef<HTMLDivElement>(null);
 
   // Play ARMED sound only when signal *transitions* to ARMED (not on first mount
@@ -246,12 +251,14 @@ export function MobileHome() {
   }, [signalState, activeSymbol, entry]);
 
   const handleRefresh = useCallback(async () => {
+    if (isOnCooldown) return;
     await Promise.all([
       mutate("/api/market/quotes"),
       mutate("/api/market/catalysts"),
       mutate("/api/agents/run"),
     ]);
-  }, []);
+    markRefreshed();
+  }, [isOnCooldown, markRefreshed]);
 
   const { refreshing, pullDistance, THRESHOLD } = usePullToRefresh(handleRefresh, divRef as React.RefObject<HTMLElement>);
 
@@ -297,7 +304,10 @@ export function MobileHome() {
       {(pullDistance > 0 || refreshing) && (
         <div className="flex items-center justify-center py-3 transition-all"
           style={{ height: refreshing ? 48 : Math.min(pullDistance * 0.5, 48) }}>
-          <RefreshCw className={cn("h-4 w-4 text-[hsl(var(--primary))]", refreshing ? "animate-spin" : pullDistance >= THRESHOLD ? "text-emerald-400" : "")} />
+          {isOnCooldown
+            ? <span className="text-[10px] text-zinc-500">{countdownLabel}</span>
+            : <RefreshCw className={cn("h-4 w-4 text-[hsl(var(--primary))]", refreshing ? "animate-spin" : pullDistance >= THRESHOLD ? "text-emerald-400" : "")} />
+          }
         </div>
       )}
 
@@ -587,10 +597,18 @@ export function MobileHome() {
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-[11px] font-semibold uppercase tracking-wider">AI Analysis</p>
                     <div className="flex items-center gap-2">
-                      <button onClick={handleGenerate} disabled={generating}
-                        className="flex items-center gap-1 text-[9px] text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30 px-2 py-1 rounded-lg">
+                      <button
+                        onClick={async () => {
+                          if (isOnCooldown || !subscription.hasFullAccess) return;
+                          setGenerating(true);
+                          try { await generateFresh(); markRefreshed(); }
+                          finally { setGenerating(false); }
+                        }}
+                        disabled={generating || isOnCooldown || !subscription.hasFullAccess}
+                        className="flex items-center gap-1 text-[9px] text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30 px-2 py-1 rounded-lg disabled:opacity-40"
+                      >
                         {generating ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
-                        {generating ? "..." : "Refresh"}
+                        {generating ? "..." : isOnCooldown ? countdownLabel! : !subscription.hasFullAccess ? "Pro" : "Refresh"}
                       </button>
                     </div>
                   </div>

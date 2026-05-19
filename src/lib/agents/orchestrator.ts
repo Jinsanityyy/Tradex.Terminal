@@ -25,28 +25,9 @@ import { runMasterAgent }    from "./master-agent";
 import { logSignal }         from "@/lib/signals/logger";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Cache (server-side, per symbol+timeframe)
+// Cache (Supabase-backed, shared across all serverless instances)
 // ─────────────────────────────────────────────────────────────────────────────
-
-const CACHE_TTL = 300_000; // 5 minutes
-const cache = new Map<string, { result: AgentRunResult; ts: number }>();
-
-function cacheKey(symbol: Symbol, timeframe: Timeframe): string {
-  // Include 1-minute UTC bucket so a Fed/news event invalidates the cache within 60s
-  const minBucket = Math.floor(Date.now() / 60_000);
-  return `${symbol}_${timeframe}_${minBucket}`;
-}
-
-// Evict all cache entries older than CACHE_TTL to prevent unbounded Map growth.
-// Called before each cache write so stale keys don't accumulate across long uptimes.
-function evictStaleCache(): void {
-  const now = Date.now();
-  for (const [key, entry] of cache.entries()) {
-    if (now - entry.ts > CACHE_TTL) {
-      cache.delete(key);
-    }
-  }
-}
+import { getAgentCache, setAgentCache } from "./agent-cache-store";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Market Data Fetcher
@@ -294,14 +275,11 @@ export async function runAgentOrchestrator(
   forceRefresh = false
 ): Promise<AgentRunResult> {
   const start = Date.now();
-  const key   = cacheKey(symbol, timeframe);
 
-  // ── Cache check ─────────────────────────────────────────────────────────
+  // ── Cache check (Supabase-backed, survives serverless restarts) ──────────
   if (!forceRefresh) {
-    const cached = cache.get(key);
-    if (cached && Date.now() - cached.ts < CACHE_TTL) {
-      return { ...cached.result, cached: true };
-    }
+    const cached = await getAgentCache(symbol, timeframe);
+    if (cached) return cached;
   }
 
   // ── Fetch market data ────────────────────────────────────────────────────
@@ -394,9 +372,10 @@ export async function runAgentOrchestrator(
     isMockData,
   };
 
-  // ── Cache result ─────────────────────────────────────────────────────────
-  evictStaleCache();
-  cache.set(key, { result, ts: Date.now() });
+  // ── Persist result to Supabase cache ────────────────────────────────────
+  void setAgentCache(symbol, timeframe, result).catch(err =>
+    console.warn("[orchestrator] cache write failed:", err)
+  );
 
   // ── Log signal to history (fire-and-forget  -  never blocks the response) ──
   // The logger is idempotent (dedupes by minute+symbol+TF) so cache-hits or

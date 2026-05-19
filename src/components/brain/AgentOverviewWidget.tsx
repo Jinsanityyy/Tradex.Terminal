@@ -6,6 +6,8 @@ import { Clock, RefreshCw } from "lucide-react";
 import useSWR from "swr";
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import { useQuotes } from "@/hooks/useMarketData";
+import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
+import { useSubscription } from "@/hooks/useSubscription";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
 import { AgentCommandRoom } from "./AgentCommandRoom";
 
@@ -236,6 +238,8 @@ export function AgentOverviewWidget() {
   const [nowMs, setNowMs]               = useState(() => Date.now());
 
   const { quotes } = useQuotes(60_000);
+  const { subscription } = useSubscription();
+  const { isOnCooldown, countdownLabel, markRefreshed } = useRefreshCooldown();
   const quoteSymbol = SYMBOL_TO_QUOTE[symbol];
   const liveQuote   = quoteSymbol ? quotes.find((q) => q.symbol === quoteSymbol) : undefined;
 
@@ -252,6 +256,7 @@ export function AgentOverviewWidget() {
   );
 
   const handleRefresh = useCallback(async () => {
+    if (isOnCooldown || !subscription.hasFullAccess) return;
     setIsRefreshing(true);
     try {
       await fetch("/api/agents/run", {
@@ -260,10 +265,11 @@ export function AgentOverviewWidget() {
         body: JSON.stringify({ symbol, timeframe, forceRefresh: true }),
       });
       setRefreshKey((k) => k + 1);
+      markRefreshed();
     } finally {
       setIsRefreshing(false);
     }
-  }, [symbol, timeframe]);
+  }, [symbol, timeframe, isOnCooldown, subscription.hasFullAccess, markRefreshed]);
 
   const openDrawer = useCallback((agentId: string) => {
     setHighlightId(agentId);
@@ -472,14 +478,14 @@ export function AgentOverviewWidget() {
         <button
           type="button"
           onClick={handleRefresh}
-          disabled={loading}
+          disabled={loading || isOnCooldown || !subscription.hasFullAccess}
           className={cn(
             "flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[10px] font-semibold text-zinc-500 transition-all hover:text-zinc-300",
-            loading && "cursor-not-allowed opacity-40"
+            (loading || isOnCooldown || !subscription.hasFullAccess) && "cursor-not-allowed opacity-40"
           )}
         >
           <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
-          Refresh
+          {isOnCooldown ? countdownLabel : !subscription.hasFullAccess ? "Pro" : "Refresh"}
         </button>
       </div>
 
