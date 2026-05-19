@@ -9,7 +9,8 @@ import {
 import { cn } from "@/lib/utils";
 import type { AgentRunResult, Symbol, Timeframe, SignalState } from "@/lib/agents/schemas";
 import { DebateLog } from "@/components/brain/DebateLog";
-import { AgentFloorTest } from "@/components/brain/AgentFloorTest";
+import { AgentCommandRoom } from "@/components/brain/AgentCommandRoom";
+import { PixelTradingFloor } from "@/components/brain/PixelTradingFloor";
 import { useSettings } from "@/contexts/SettingsContext";
 import { isAgentSupported, getSymbolShort, getSymbolLabel } from "@/lib/assetImpact";
 import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
@@ -427,10 +428,17 @@ export function MobileBrain() {
         <span className="text-[10px] font-bold text-zinc-500 pb-1">{getSymbolLabel(symbol)}</span>
       </div>
 
+      {/* Agent HQ */}
+      {view === "newsroom" && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <AgentCommandRoom data={data ?? null} loading={isLoading && !data} />
+        </div>
+      )}
+
       {/* Floor */}
       {view === "floor" && (
         <div className="flex-1 overflow-hidden">
-          <AgentFloorTest data={data ?? null} loading={isLoading && !data} />
+          <PixelTradingFloor />
         </div>
       )}
 
