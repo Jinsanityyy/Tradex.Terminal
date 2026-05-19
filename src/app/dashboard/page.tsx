@@ -784,6 +784,47 @@ export default function DashboardPage() {
   const intervalDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const armedAlertKeyRef = useRef<string | null>(null);
 
+  // Shared cooldown with mobile — same localStorage key, 30s window
+  const COOLDOWN_MS = 30_000;
+  const COOLDOWN_KEY = "tradex-cooldown-timestamp";
+  const [cooldownLeft, setCooldownLeft] = useState(0);
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startCooldown = useCallback(() => {
+    localStorage.setItem(COOLDOWN_KEY, String(Date.now()));
+    setCooldownLeft(COOLDOWN_MS / 1000);
+    if (cooldownRef.current) clearInterval(cooldownRef.current);
+    cooldownRef.current = setInterval(() => {
+      const elapsed = Date.now() - Number(localStorage.getItem(COOLDOWN_KEY) ?? 0);
+      const left = Math.max(0, Math.ceil((COOLDOWN_MS - elapsed) / 1000));
+      setCooldownLeft(left);
+      if (left === 0 && cooldownRef.current) {
+        clearInterval(cooldownRef.current);
+        cooldownRef.current = null;
+      }
+    }, 500);
+  }, []);
+
+  // Restore cooldown on mount (e.g. page reload mid-cooldown)
+  useEffect(() => {
+    const saved = Number(localStorage.getItem(COOLDOWN_KEY) ?? 0);
+    const elapsed = Date.now() - saved;
+    if (elapsed < COOLDOWN_MS) {
+      setCooldownLeft(Math.ceil((COOLDOWN_MS - elapsed) / 1000));
+      cooldownRef.current = setInterval(() => {
+        const e = Date.now() - Number(localStorage.getItem(COOLDOWN_KEY) ?? 0);
+        const left = Math.max(0, Math.ceil((COOLDOWN_MS - e) / 1000));
+        setCooldownLeft(left);
+        if (left === 0 && cooldownRef.current) {
+          clearInterval(cooldownRef.current);
+          cooldownRef.current = null;
+        }
+      }, 500);
+    }
+    return () => { if (cooldownRef.current) clearInterval(cooldownRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const symCfg = SYMBOLS.find((entry) => entry.id === symbol) ?? SYMBOLS[0];
 
   const { data, isValidating, mutate } = useSWR<AgentRunResult>(
@@ -793,8 +834,10 @@ export default function DashboardPage() {
   );
 
   const handleRefresh = useCallback(async () => {
+    if (cooldownLeft > 0 || isValidating) return;
+    startCooldown();
     await mutate(undefined, { revalidate: true });
-  }, [mutate]);
+  }, [mutate, cooldownLeft, isValidating, startCooldown]);
 
   const handleIntervalChange = useCallback((tvInterval: string) => {
     setChartInterval(tvInterval);
@@ -1359,11 +1402,11 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={handleRefresh}
-            disabled={isValidating}
+            disabled={isValidating || cooldownLeft > 0}
             className={widgetActionClass}
           >
             <RefreshCw className={cn("h-3 w-3", isValidating && "animate-spin")} />
-            {isValidating ? "Running" : "Refresh"}
+            {isValidating ? "Running" : cooldownLeft > 0 ? `${cooldownLeft}s` : "Refresh"}
           </button>
           <Link href="/dashboard/brain" className={widgetActionClass}>
             Brain Terminal
@@ -1454,11 +1497,11 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={handleRefresh}
-            disabled={isValidating}
+            disabled={isValidating || cooldownLeft > 0}
             className={widgetActionClass}
           >
             <RefreshCw className={cn("h-3 w-3", isValidating && "animate-spin")} />
-            {isValidating ? "Running…" : "Refresh"}
+            {isValidating ? "Running…" : cooldownLeft > 0 ? `${cooldownLeft}s` : "Refresh"}
           </button>
           <Link href="/dashboard/brain" className={widgetActionClass}>
             Brain
