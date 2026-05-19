@@ -338,14 +338,13 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
                       station.id === "risk" ? styles.riskBody : ""
                     } ${isSelected ? styles.stationBodySelected : ""}`}
                   >
-                    <div className={`${styles.stationMonitor} ${statusClass}`}>{station.status}</div>
+                    <div className={`${styles.stationMonitor} ${statusClass}`}>{station.label}</div>
                     <span className={`${styles.statusLed} ${ledClass}`} aria-hidden="true" />
-                    <span className={styles.stationTerminalLeft} aria-hidden="true" />
-                    <span className={styles.stationTerminalRight} aria-hidden="true" />
-                    <span className={styles.stationWire} aria-hidden="true" />
-                    <div className={styles.stationChair} aria-hidden="true" />
                     <SeatedOperator look={station.seatedLook} className={styles.stationSprite} />
                     <div className={styles.stationDeskSurface} />
+                    <span className={styles.stationScreenLeft} aria-hidden="true" />
+                    <span className={styles.stationScreenRight} aria-hidden="true" />
+                    <span className={styles.stationWire} aria-hidden="true" />
                     {station.id === "risk" ? (
                       <div className={styles.riskBadge} aria-hidden="true">
                         !
@@ -362,16 +361,16 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
               className={styles.masterDesk}
               onClick={() => onAgentClick?.("master")}
             >
-              <span className={`${styles.statusLed} ${styles.ledOk} ${styles.masterLedA}`} />
-              <span className={`${styles.statusLed} ${styles.ledOk} ${styles.masterLedB}`} />
-              <span className={`${styles.statusLed} ${styles.ledNoTrade} ${styles.masterLedC}`} />
-              <span className={styles.masterTerminalLeft} />
-              <span className={styles.masterTerminalRight} />
               <div className={styles.masterChair} />
               <SeatedOperator look={CENTRAL_LOOK} className={styles.masterSeatedSprite} />
               <div className={styles.masterDeskSurface} />
+              <span className={styles.masterScreenLeft} />
+              <span className={styles.masterScreenRight} />
               <div className={styles.masterKeyboard} />
-              <span className={styles.stationLabel}>MASTER</span>
+              <span className={`${styles.statusLed} ${styles.ledOk} ${styles.masterLedA}`} />
+              <span className={`${styles.statusLed} ${styles.ledOk} ${styles.masterLedB}`} />
+              <span className={`${styles.statusLed} ${styles.ledNoTrade} ${styles.masterLedC}`} />
+              <span className={styles.masterLabel}>MASTER</span>
             </button>
 
             <div className={styles.statusBoard}>

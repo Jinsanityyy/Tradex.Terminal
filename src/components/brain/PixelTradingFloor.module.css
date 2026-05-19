@@ -171,37 +171,37 @@
   pointer-events: none;
 }
 
-/* ─── Station Monitor (status badge) — TOPMOST ──────────────────────────── */
+/* ─── Station Monitor pill (desk name + status color) ───────────────────── */
 .stationMonitor {
   position: absolute;
   left: 50%;
-  top: 0;
+  top: -2px;
   transform: translateX(-50%);
-  width: 62px;
-  padding: 3px 6px;
+  min-width: 56px;
+  padding: 3px 8px;
   border: 1px solid transparent;
   font-size: 7px;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: 0.1em;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   text-align: center;
   white-space: nowrap;
-  z-index: 20; /* always on top */
+  z-index: 20;
 }
 
 .monitorOk {
-  background: #0d2e1a;
+  background: #0a2416;
   color: var(--good);
   border-color: var(--good-dim);
-  box-shadow: var(--glow-good), inset 0 0 6px rgba(61, 255, 160, 0.08);
+  box-shadow: var(--glow-good);
 }
 
 .monitorNoTrade {
-  background: var(--bad-dim);
+  background: #2a0e08;
   color: var(--bad);
-  border-color: #7a2a1a;
-  box-shadow: var(--glow-bad), inset 0 0 6px rgba(255, 95, 61, 0.08);
+  border-color: #6a1e10;
+  box-shadow: var(--glow-bad);
 }
 
 /* ─── Status LED ────────────────────────────────────────────────────────── */
@@ -218,33 +218,49 @@
 .ledOk      { background: var(--good);  box-shadow: var(--glow-good); }
 .ledNoTrade { background: var(--amber); box-shadow: 0 0 6px rgba(255, 199, 58, 0.5); }
 
-/* ─── Side Terminals (on desk surface) ─────────────────────────────────── */
-.stationTerminalLeft,
-.stationTerminalRight,
-.masterTerminalLeft,
-.masterTerminalRight {
+/* ─── Vertical monitor screens on desk (high-tech look) ────────────────── */
+.stationScreenLeft,
+.stationScreenRight {
   position: absolute;
-  border: 1px solid var(--border);
-  box-shadow: 0 0 0 1px var(--border-hi);
+  bottom: 30px;
+  width: 18px;
+  height: 22px;
+  border: 1px solid var(--border-hi);
+  box-shadow: 0 0 0 1px var(--border), var(--glow-good);
   background:
     repeating-linear-gradient(
       180deg,
-      rgba(61, 255, 160, 0.15) 0 2px,
-      rgba(61, 255, 160, 0.02) 2px 4px
+      rgba(61, 255, 160, 0.18) 0 2px,
+      rgba(61, 255, 160, 0.03) 2px 4px
     ),
-    var(--panel);
-  z-index: 8; /* above desk, below character */
+    #0a1f14;
+  z-index: 9;
 }
 
-.stationTerminalLeft,
-.stationTerminalRight {
-  width: 16px;
-  height: 13px;
-  bottom: 26px;
+.stationScreenLeft  { left: 6px; }
+.stationScreenRight { right: 6px; }
+
+/* master screens — wider */
+.masterScreenLeft,
+.masterScreenRight {
+  position: absolute;
+  bottom: 32px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-hi);
+  box-shadow: 0 0 0 1px var(--border), var(--glow-good);
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(61, 255, 160, 0.18) 0 2px,
+      rgba(61, 255, 160, 0.03) 2px 4px
+    ),
+    #0a1f14;
+  z-index: 14; /* above master desk surface */
 }
 
-.stationTerminalLeft  { left: 8px; }
-.stationTerminalRight { right: 8px; }
+.masterScreenLeft  { left: 14px; }
+.masterScreenRight { right: 14px; }
 
 /* ─── Under-desk wire ───────────────────────────────────────────────────── */
 .stationWire {
@@ -371,7 +387,8 @@
   top: 55%;
   transform: translate(-50%, -50%);
   width: 180px;
-  height: 110px;
+  height: 120px;
+  overflow: visible;
   z-index: 10;
   background: transparent;
   border: none;
@@ -419,14 +436,29 @@
 
 .masterDeskSurface {
   position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: 20px;
-  height: 18px;
+  left: 4px;
+  right: 4px;
+  bottom: 16px;
+  height: 22px;
   border: 1px solid var(--border-hi);
-  box-shadow: 0 0 0 1px var(--border), 0 4px 0 var(--shadow);
+  box-shadow: 0 0 0 1px var(--border), 0 5px 0 var(--shadow);
   background: linear-gradient(180deg, #1e2d3a 0%, #18232d 100%);
-  z-index: 6;
+  z-index: 8; /* above sprite (5) — desk in front of master */
+}
+
+.masterLabel {
+  position: absolute;
+  bottom: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  z-index: 30;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
 }
 
 .masterKeyboard {
@@ -481,10 +513,10 @@
 .masterSeatedSprite {
   position: absolute;
   left: 50%;
-  bottom: 26px;
+  bottom: 30px;
   transform: translateX(-50%) scale(1.6);
   transform-origin: bottom center;
-  z-index: 12;
+  z-index: 5; /* behind desk surface (z-index 6) — sits at desk */
 }
 
 /* ─── Status Board (CMD panel) ──────────────────────────────────────────── */
