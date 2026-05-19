@@ -537,7 +537,7 @@ export function BrainTerminal() {
 
           {/* ── FLOOR TAB ──────────────────────────────────────────────────── */}
           {brainTab === "floor" && (
-            <div className="max-w-md">
+            <div className="w-full">
               <AgentFloorTest data={data} loading={loading} />
             </div>
           )}

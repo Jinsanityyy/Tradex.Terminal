@@ -438,7 +438,7 @@ export function MobileBrain() {
 
       {/* Floor */}
       {view === "floor" && (
-        <div className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="flex-1 overflow-hidden">
           <AgentFloorTest data={data ?? null} loading={isLoading && !data} />
         </div>
       )}
