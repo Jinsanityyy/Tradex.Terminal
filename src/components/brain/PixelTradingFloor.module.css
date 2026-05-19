@@ -364,6 +364,10 @@
   width: 158px;
   height: 92px;
   z-index: 2;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 
 .masterDesk::after {

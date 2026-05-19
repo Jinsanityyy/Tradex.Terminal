@@ -357,7 +357,11 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
               );
             })}
 
-            <div className={styles.masterDesk} aria-hidden="true">
+            <button
+              type="button"
+              className={styles.masterDesk}
+              onClick={() => onAgentClick?.("master")}
+            >
               <span className={`${styles.statusLed} ${styles.ledOk} ${styles.masterLedA}`} />
               <span className={`${styles.statusLed} ${styles.ledOk} ${styles.masterLedB}`} />
               <span className={`${styles.statusLed} ${styles.ledNoTrade} ${styles.masterLedC}`} />
@@ -367,7 +371,8 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
               <SeatedOperator look={CENTRAL_LOOK} className={styles.masterSeatedSprite} />
               <div className={styles.masterDeskSurface} />
               <div className={styles.masterKeyboard} />
-            </div>
+              <span className={styles.stationLabel}>MASTER</span>
+            </button>
 
             <div className={styles.statusBoard}>
               <div className={styles.boardHeader}>
