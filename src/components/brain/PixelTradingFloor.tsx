@@ -267,6 +267,8 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
           </div>
 
           <div className={styles.upperFloor}>
+            <div className={styles.wallDisplay} aria-hidden="true" />
+
             {FLOOR_WIRES.map((wire, index) => (
               <span key={`wire-${index}`} className={styles.floorWire} style={wire} />
             ))}
@@ -303,8 +305,10 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
                     <span className={`${styles.statusLed} ${ledClass}`} aria-hidden="true" />
                     <SeatedOperator look={station.seatedLook} className={styles.stationSprite} />
                     <div className={styles.stationDeskSurface} />
+                    <span className={styles.stationScreenCenter} aria-hidden="true" />
                     <span className={styles.stationScreenLeft} aria-hidden="true" />
                     <span className={styles.stationScreenRight} aria-hidden="true" />
+                    <div className={styles.stationKeyboard} aria-hidden="true" />
                     <span className={styles.stationWire} aria-hidden="true" />
                     {station.id === "risk" ? (
                       <div className={styles.riskBadge} aria-hidden="true">
@@ -324,6 +328,7 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
               <div className={styles.masterChair} />
               <SeatedOperator look={CENTRAL_LOOK} className={styles.masterSeatedSprite} />
               <div className={styles.masterDeskSurface} />
+              <span className={styles.masterScreenCenter} />
               <span className={styles.masterScreenLeft} />
               <span className={styles.masterScreenRight} />
               <div className={styles.masterKeyboard} />
