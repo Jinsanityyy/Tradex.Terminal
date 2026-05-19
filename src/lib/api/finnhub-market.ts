@@ -30,6 +30,18 @@ const FINNHUB_QUOTE_SYMBOLS: FinnhubSymbolConfig[] = [
   },
   {
     endpoint: "forex",
+    providerSymbols: ["OANDA:XAG_USD", "FOREXCOM:XAGUSD"],
+    displaySymbol: "XAG/USD",
+    name: "Silver",
+  },
+  {
+    endpoint: "forex",
+    providerSymbols: ["OANDA:USOIL", "FXCM:USOIL"],
+    displaySymbol: "CL",
+    name: "Crude Oil WTI",
+  },
+  {
+    endpoint: "forex",
     providerSymbols: ["OANDA:EUR_USD"],
     displaySymbol: "EUR/USD",
     name: "EUR/USD",
