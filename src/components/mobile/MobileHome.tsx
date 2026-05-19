@@ -320,6 +320,12 @@ export function MobileHome() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          {isOnCooldown && (
+            <span className="flex items-center gap-1 text-[9px] font-mono text-amber-400/80 bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-full">
+              <RefreshCw className="h-2.5 w-2.5" />
+              {countdownLabel}
+            </span>
+          )}
           <button
             onClick={() => setWidgetSheetOpen(true)}
             className="p-1.5 rounded-lg text-zinc-600 active:text-zinc-300 active:bg-white/5"
