@@ -3,94 +3,161 @@
 import React, { useState, useEffect } from "react";
 import type { AgentRunResult } from "@/lib/agents/schemas";
 
-// ─── Palette ─────────────────────────────────────────────────────────────────
+// ─── Design tokens ─────────────────────────────────────────────────────────────
 const P = {
-  bg:     "#000000",
-  room:   "#020810",
-  panel:  "#03060a",
-  border: "#1E293B",
-  text:   "#e2e8f0",
-  muted:  "#64748b",
-  dim:    "#334155",
-  faint:  "#0d1b27",
-  green:  "#10b981",
-  red:    "#dc2626",
-  amber:  "#f59e0b",
-  blue:   "#38bdf8",
-  indigo: "#818cf8",
+  bg:      "#000000",
+  surface: "#07090d",
+  node:    "#050810",
+  border:  "#1E293B",
+  wire:    "#182030",
+  text:    "#c8d0db",
+  muted:   "#556577",
+  dim:     "#2c3d50",
+  green:   "#10b981",
+  red:     "#ef4444",
+  amber:   "#f59e0b",
+  blue:    "#38bdf8",
+  indigo:  "#6366f1",
 };
 
-// ─── Agent registry ───────────────────────────────────────────────────────────
-interface AgentDef { id: string; label: string; role: string; isMaster?: boolean }
+// ─── Agent registry ────────────────────────────────────────────────────────────
+interface AgentDef {
+  id: string;
+  label: string;
+  role: string;
+  isMaster?: boolean;
+}
 
 const AGENTS: AgentDef[] = [
-  { id: "trend",      label: "TREND",  role: "MACRO BIAS"         },
-  { id: "praction",   label: "PR.ACT", role: "PRICE ACTION"       },
-  { id: "execution",  label: "EXEC",   role: "ENTRY TIMING"       },
-  { id: "news",       label: "NEWS",   role: "FUNDAMENTALS"       },
-  { id: "risk",       label: "RISK",   role: "RISK GATE"          },
-  { id: "contrarian", label: "CNTR",   role: "COUNTER-SIGNAL"     },
-  { id: "master",     label: "MASTER", role: "CHIEF MKT OFFICER",  isMaster: true },
+  { id: "trend",      label: "TREND",      role: "Macro Bias"    },
+  { id: "praction",   label: "PR.ACTION",  role: "Structure"     },
+  { id: "news",       label: "NEWS",       role: "Fundamentals"  },
+  { id: "execution",  label: "EXECUTION",  role: "Entry Timing"  },
+  { id: "risk",       label: "RISK GATE",  role: "Risk Filter"   },
+  { id: "contrarian", label: "CONTRARIAN", role: "Counter-Check" },
+  { id: "master",     label: "MASTER CMO", role: "Final Verdict", isMaster: true },
 ];
 
+// floor id → AgentRunResult schema key
 const ID_TO_STATE: Record<string, string> = {
   trend: "trend", praction: "smc", execution: "execution",
-  news:  "news",  risk:     "risk", contrarian: "contrarian", master: "master",
+  news: "news", risk: "risk", contrarian: "contrarian", master: "master",
 };
 
-// ─── Live data ────────────────────────────────────────────────────────────────
-interface AgentLive { bias: "bullish"|"bearish"|"neutral"; conf: number; status: string; sub: string }
+// ─── SVG tactical layout ───────────────────────────────────────────────────────
+// viewBox: 0 0 380 270
+// Node: [x, y, w, h]
+const VW = 380, VH = 270;
+const NW = 110, NH = 66;
+
+const NODE_GEO: Record<string, [number, number]> = {
+  trend:      [6,   8  ],
+  praction:   [135, 8  ],
+  news:       [264, 8  ],
+  execution:  [70,  102],
+  risk:       [200, 102],
+  contrarian: [6,   196],
+  master:     [200, 196],
+};
+
+// Hardcoded edge-to-edge wire endpoints (from, to)
+const WIRE_POINTS: [number, number, number, number][] = [
+  [61,  74,  125, 102], // TREND → EXEC
+  [190, 74,  125, 102], // P.ACT → EXEC
+  [190, 74,  255, 102], // P.ACT → RISK
+  [319, 74,  255, 102], // NEWS  → RISK
+  [125, 168, 255, 196], // EXEC  → MASTER
+  [255, 168, 255, 196], // RISK  → MASTER
+  [116, 229, 200, 229], // CNTR  → MASTER
+];
+
+// ─── Live data from AgentRunResult ─────────────────────────────────────────────
+interface AgentLive {
+  bias: "bullish" | "bearish" | "neutral";
+  conf: number;
+  status: string;
+  sub: string;
+}
 
 function extractLive(id: string, data: AgentRunResult): AgentLive {
   const { trend, smc, news, risk, execution: exec, contrarian, master } = data.agents;
   switch (id) {
     case "trend":
-      return { bias: trend.bias, conf: trend.confidence,
-        status: trend.reasons[0] ?? `PHASE: ${trend.marketPhase.toUpperCase()}`,
-        sub: trend.timeframeBias.aligned ? "TF ALIGNED" : "TF DIVERGE" };
+      return {
+        bias: trend.bias,
+        conf: trend.confidence,
+        status: trend.reasons[0] ?? `Phase: ${trend.marketPhase}`,
+        sub: trend.timeframeBias.aligned ? "TF Aligned" : "TF Diverging",
+      };
     case "praction":
-      return { bias: smc.bias, conf: smc.confidence,
-        status: smc.setupPresent ? `${smc.setupType} · ${smc.premiumDiscount}` : `NO SETUP · ${smc.premiumDiscount}`,
-        sub: smc.bosDetected ? "BOS ✓" : smc.chochDetected ? "CHoCH ✓" : smc.liquiditySweepDetected ? "SWEEP ✓" : "NO STRUCT" };
+      return {
+        bias: smc.bias,
+        conf: smc.confidence,
+        status: smc.setupPresent
+          ? `${smc.setupType} · ${smc.premiumDiscount}`
+          : `No setup · ${smc.premiumDiscount}`,
+        sub: smc.bosDetected ? "BOS ✓" : smc.chochDetected ? "CHoCH ✓" : smc.liquiditySweepDetected ? "Sweep ✓" : "",
+      };
     case "execution": {
-      const b: AgentLive["bias"] = exec.direction === "long" ? "bullish" : exec.direction === "short" ? "bearish" : "neutral";
-      return { bias: b, conf: exec.hasSetup ? Math.min(100, exec.confluenceCount * 10) : 15,
+      const execBias: AgentLive["bias"] =
+        exec.direction === "long" ? "bullish" :
+        exec.direction === "short" ? "bearish" : "neutral";
+      return {
+        bias: execBias,
+        conf: exec.hasSetup ? Math.min(100, exec.confluenceCount * 10) : 15,
         status: `${exec.signalState}${exec.grade ? ` · ${exec.grade}` : ""}`,
-        sub: exec.distanceToEntry != null ? `${exec.distanceToEntry.toFixed(2)}% FROM ENTRY` : exec.trigger.toUpperCase() };
+        sub: exec.distanceToEntry != null ? `${exec.distanceToEntry.toFixed(2)}% from entry` : exec.trigger,
+      };
     }
     case "news":
-      return { bias: news.impact, conf: news.confidence,
-        status: (news.dominantCatalyst || news.regime || "SCANNING").toUpperCase(),
-        sub: `RISK ${news.riskScore}/100` };
+      return {
+        bias: news.impact,
+        conf: news.confidence,
+        status: news.dominantCatalyst || news.regime || "Scanning...",
+        sub: `Risk ${news.riskScore}/100`,
+      };
     case "risk":
-      return { bias: risk.valid ? "neutral" : "bearish", conf: risk.sessionScore,
-        status: `${risk.valid ? "VALID" : "BLOCKED"} · GRD ${risk.grade}`,
-        sub: `VOL ${risk.volatilityScore} · SESS ${risk.sessionScore}` };
+      return {
+        bias: risk.valid ? "neutral" : "bearish",
+        conf: risk.sessionScore,
+        status: `${risk.valid ? "VALID" : "BLOCKED"} · Grade ${risk.grade}`,
+        sub: `Vol ${risk.volatilityScore}/100`,
+      };
     case "contrarian":
-      return { bias: contrarian.challengesBias ? "bearish" : "neutral", conf: contrarian.riskFactor,
-        status: contrarian.trapType && contrarian.trapType !== "None" ? contrarian.trapType.toUpperCase() : "NO TRAP",
-        sub: contrarian.challengesBias ? "CHALLENGES BIAS" : "BIAS ALIGNED" };
+      return {
+        bias: contrarian.challengesBias ? "bearish" : "neutral",
+        conf: contrarian.riskFactor,
+        status: contrarian.trapType && contrarian.trapType !== "None"
+          ? contrarian.trapType
+          : "No trap detected",
+        sub: contrarian.challengesBias ? "Challenges bias" : "Aligned with setup",
+      };
     case "master": {
-      const b: AgentLive["bias"] = master.finalBias === "no-trade" ? "neutral" : master.finalBias;
-      return { bias: b, conf: master.confidence,
-        status: `${master.finalBias.toUpperCase()} · SCORE ${master.consensusScore >= 0 ? "+" : ""}${master.consensusScore.toFixed(1)}`,
-        sub: master.strategyMatch ?? `${master.agentConsensus.length} AGENTS` };
+      const masterBias: AgentLive["bias"] =
+        master.finalBias === "no-trade" ? "neutral" : master.finalBias;
+      return {
+        bias: masterBias,
+        conf: master.confidence,
+        status: `${master.finalBias.toUpperCase()} · Score ${master.consensusScore > 0 ? "+" : ""}${master.consensusScore.toFixed(1)}`,
+        sub: master.strategyMatch ?? `${master.agentConsensus.length} agents`,
+      };
     }
-    default: return { bias: "neutral", conf: 0, status: "—", sub: "" };
+    default:
+      return { bias: "neutral", conf: 0, status: "—", sub: "" };
   }
 }
 
 const FALLBACK: Record<string, AgentLive> = {
-  trend:      { bias: "neutral", conf: 0, status: "AWAITING ANALYSIS", sub: "" },
-  praction:   { bias: "neutral", conf: 0, status: "AWAITING ANALYSIS", sub: "" },
-  execution:  { bias: "neutral", conf: 0, status: "NO_TRADE",          sub: "" },
-  news:       { bias: "neutral", conf: 0, status: "SCANNING",          sub: "" },
-  risk:       { bias: "neutral", conf: 0, status: "STANDBY",           sub: "" },
-  contrarian: { bias: "neutral", conf: 0, status: "MONITORING",        sub: "" },
-  master:     { bias: "neutral", conf: 0, status: "WAITING FOR AGENTS",sub: "" },
+  trend:      { bias: "neutral", conf: 0, status: "Awaiting analysis…", sub: "" },
+  praction:   { bias: "neutral", conf: 0, status: "Awaiting analysis…", sub: "" },
+  execution:  { bias: "neutral", conf: 0, status: "NO_TRADE", sub: "" },
+  news:       { bias: "neutral", conf: 0, status: "Scanning…", sub: "" },
+  risk:       { bias: "neutral", conf: 0, status: "STANDBY", sub: "" },
+  contrarian: { bias: "neutral", conf: 0, status: "Monitoring…", sub: "" },
+  master:     { bias: "neutral", conf: 0, status: "Waiting for agents…", sub: "" },
 };
 
-// ─── State system ─────────────────────────────────────────────────────────────
+// ─── Agent state system ────────────────────────────────────────────────────────
 type AgentState = "idle"|"bull"|"bear"|"alert"|"approved"|"blocked"|"armed"|"analyzing";
 interface SC { accent: string; badge: string }
 
@@ -106,561 +173,184 @@ const STATE: Record<AgentState, SC> = {
 };
 
 function deriveStates(d: AgentRunResult): Record<string, AgentState> {
-  const { agents: a } = d;
-  const bias = a.master.finalBias;
+  const { agents } = d;
+  const bias = agents.master.finalBias;
   return {
     trend:
-      a.trend.bias === "bullish" ? "bull" : a.trend.bias === "bearish" ? "bear" :
-      a.trend.confidence < 35 ? "idle" : "alert",
+      agents.trend.bias === "bullish" ? "bull" :
+      agents.trend.bias === "bearish" ? "bear" :
+      agents.trend.confidence < 35 ? "idle" : "alert",
     smc:
-      a.smc.bias === "bullish" ? "bull" : a.smc.bias === "bearish" ? "bear" :
-      a.smc.liquiditySweepDetected ? "alert" : a.smc.confidence < 35 ? "idle" : "alert",
+      agents.smc.bias === "bullish" ? "bull" :
+      agents.smc.bias === "bearish" ? "bear" :
+      agents.smc.liquiditySweepDetected ? "alert" :
+      agents.smc.confidence < 35 ? "idle" : "alert",
     news:
-      a.news.impact === "bullish" ? "bull" : a.news.impact === "bearish" ? "bear" :
-      a.news.riskScore >= 65 ? "alert" : "idle",
-    risk: a.risk.valid ? "approved" : "blocked",
+      agents.news.impact === "bullish" ? "bull" :
+      agents.news.impact === "bearish" ? "bear" :
+      agents.news.riskScore >= 65 ? "alert" : "idle",
+    risk: agents.risk.valid ? "approved" : "blocked",
     contrarian:
-      a.contrarian.challengesBias && a.contrarian.trapConfidence >= 60 ? "blocked" :
-      a.contrarian.challengesBias ? "alert" : "idle",
+      agents.contrarian.challengesBias && agents.contrarian.trapConfidence >= 60 ? "blocked" :
+      agents.contrarian.challengesBias ? "alert" : "idle",
     master:
-      bias === "bullish" ? "bull" : bias === "bearish" ? "bear" :
+      bias === "bullish" ? "bull" :
+      bias === "bearish" ? "bear" :
       bias === "no-trade" ? "analyzing" : "alert",
     execution:
-      a.execution.hasSetup && a.risk.valid && bias !== "no-trade" ? "armed" :
-      a.execution.hasSetup ? "alert" : "idle",
+      agents.execution.hasSetup && agents.risk.valid && bias !== "no-trade" ? "armed" :
+      agents.execution.hasSetup ? "alert" : "idle",
   };
 }
 
 function getAgentReasons(stateKey: string, data: AgentRunResult | null): string[] {
-  if (!data) return ["AWAITING ANALYSIS DATA"];
-  const { agents: a } = data;
+  if (!data) return ["Awaiting analysis data..."];
+  const { agents } = data;
   switch (stateKey) {
-    case "trend":      return a.trend.reasons.length ? a.trend.reasons : ["NO TREND DATA"];
-    case "smc":        return a.smc.reasons.length ? a.smc.reasons : ["NO PRICE ACTION DATA"];
-    case "news":       return a.news.reasons.length ? a.news.reasons : ["NO NEWS DATA"];
+    case "trend":      return agents.trend.reasons.length ? agents.trend.reasons : ["No trend reasons available."];
+    case "smc":        return agents.smc.reasons.length ? agents.smc.reasons : ["No price action reasons available."];
+    case "news":       return agents.news.reasons.length ? agents.news.reasons : ["No news data."];
     case "master": {
-      const lines = [...(a.master.supports ?? []), ...(a.master.noTradeReason ? [a.master.noTradeReason] : [])];
-      return lines.length ? lines : ["NO CONSENSUS DATA"];
+      const lines = [...(agents.master.supports ?? []), ...(agents.master.noTradeReason ? [agents.master.noTradeReason] : [])];
+      return lines.length ? lines : ["No consensus data."];
     }
-    case "risk":       return a.risk.reasons.length ? a.risk.reasons : ["NO RISK DATA"];
-    case "contrarian": return a.contrarian.failureReasons.length
-      ? a.contrarian.failureReasons
-      : [a.contrarian.alternativeScenario || "NO COUNTER-SIGNALS"];
-    case "execution":  return a.execution.hasSetup
-      ? ([a.execution.triggerCondition, ...a.execution.managementNotes].filter(Boolean) as string[])
-      : ["NO VALID SETUP — WAITING FOR ENTRY CONDITIONS"];
-    default: return ["NO DATA AVAILABLE"];
+    case "risk":       return agents.risk.reasons.length ? agents.risk.reasons : ["No risk reasons available."];
+    case "contrarian": return agents.contrarian.failureReasons.length
+      ? agents.contrarian.failureReasons
+      : [agents.contrarian.alternativeScenario || "No counter-signals detected."];
+    case "execution":  return agents.execution.hasSetup
+      ? ([agents.execution.triggerCondition, ...agents.execution.managementNotes].filter(Boolean) as string[])
+      : ["No valid setup found. Waiting for entry conditions."];
+    default: return ["No data available."];
   }
 }
 
-type QuickStat = { key: string; val: string; color?: string };
-
-function getQuickStats(stateKey: string, data: AgentRunResult): QuickStat[] {
-  const { agents: a } = data;
-  switch (stateKey) {
-    case "trend": return [
-      { key: "PHASE", val: a.trend.marketPhase.toUpperCase() },
-      { key: "ALIGN", val: a.trend.timeframeBias.aligned ? "YES" : "NO", color: a.trend.timeframeBias.aligned ? P.green : P.amber },
-    ];
-    case "smc": return [
-      { key: "CHoCH", val: a.smc.chochDetected ? "YES" : "NO",           color: a.smc.chochDetected ? P.green : P.dim },
-      { key: "BOS",   val: a.smc.bosDetected ? "YES" : "NO",             color: a.smc.bosDetected ? P.green : P.dim },
-      { key: "SWEEP", val: a.smc.liquiditySweepDetected ? "YES" : "NO",  color: a.smc.liquiditySweepDetected ? P.amber : P.dim },
-      { key: "ZONE",  val: a.smc.premiumDiscount.toUpperCase() },
-    ];
-    case "execution": return [
-      { key: "STATE", val: a.execution.signalState, color: a.execution.signalState === "ARMED" ? P.blue : P.muted },
-      { key: "GRADE", val: a.execution.grade || "—" },
-      { key: "SETUP", val: a.execution.hasSetup ? "YES" : "NO",          color: a.execution.hasSetup ? P.green : P.dim },
-    ];
-    case "news": return [
-      { key: "RISK",   val: `${a.news.riskScore}/100`,
-        color: a.news.riskScore > 65 ? P.red : a.news.riskScore > 35 ? P.amber : P.green },
-      { key: "REGIME", val: a.news.regime.toUpperCase() },
-    ];
-    case "risk": return [
-      { key: "VALID", val: a.risk.valid ? "YES" : "NO",                  color: a.risk.valid ? P.green : P.red },
-      { key: "GRADE", val: a.risk.grade },
-      { key: "VOL",   val: `${a.risk.volatilityScore}/100` },
-    ];
-    case "contrarian": return [
-      { key: "TRAP",  val: a.contrarian.trapType && a.contrarian.trapType !== "None"
-          ? a.contrarian.trapType.toUpperCase() : "NONE",
-        color: a.contrarian.trapType !== "None" ? P.amber : P.dim },
-      { key: "CHLNG", val: a.contrarian.challengesBias ? "YES" : "NO",   color: a.contrarian.challengesBias ? P.red : P.green },
-    ];
-    case "master": return [
-      { key: "BIAS",  val: a.master.finalBias.toUpperCase(),
-        color: a.master.finalBias === "bullish" ? P.green : a.master.finalBias === "bearish" ? P.red : P.muted },
-      { key: "SCORE", val: `${a.master.consensusScore >= 0 ? "+" : ""}${a.master.consensusScore.toFixed(1)}` },
-    ];
-    default: return [];
-  }
-}
-
-function getConsolePrefixAndColor(r: string): { prefix: string; color: string } {
-  const s = r.toLowerCase();
-  if (/pdh|pwh|pdl|pwl|sweep|liquidity grab|hunt/.test(s))              return { prefix: "[CRITICAL]", color: "#ef4444" };
-  if (/imbalance|fvg|fair value|order block|\bob\b|zone|gap/.test(s))   return { prefix: "[ZONE]",     color: "#f59e0b" };
-  if (/bias|trend|structure|bos|choch|break of/.test(s))                return { prefix: "[BIAS]",     color: "#60a5fa" };
-  if (/confluence|aligned|confirmed|valid.*setup|setup.*valid/.test(s)) return { prefix: "[CONFIRM]",  color: "#22c55e" };
-  if (/risk|invalid|reject|block|fail|not.*valid/.test(s))              return { prefix: "[RISK]",     color: "#ef4444" };
-  if (/news|event|cpi|nfp|fomc|rate|gdp|pmi|fed/.test(s))              return { prefix: "[NEWS]",     color: "#a78bfa" };
-  if (/entry|trigger|arm|execut|fire|scalp/.test(s))                    return { prefix: "[ENTRY]",    color: "#38bdf8" };
-  if (/wait|pending|monitor|watch|approach|return/.test(s))             return { prefix: "[WATCH]",    color: "#475569" };
+function getConsolePrefixAndColor(reason: string): { prefix: string; color: string } {
+  const r = reason.toLowerCase();
+  if (/pdh|pwh|pdl|pwl|sweep|liquidity grab|hunt/.test(r))              return { prefix: "[CRITICAL]", color: "#ef4444" };
+  if (/imbalance|fvg|fair value|order block|\bob\b|zone|gap/.test(r))   return { prefix: "[ZONE]",     color: "#f59e0b" };
+  if (/bias|trend|structure|bos|choch|break of/.test(r))                return { prefix: "[BIAS]",     color: "#60a5fa" };
+  if (/confluence|aligned|confirmed|valid.*setup|setup.*valid/.test(r)) return { prefix: "[CONFIRM]",  color: "#22c55e" };
+  if (/risk|invalid|reject|block|fail|not.*valid/.test(r))              return { prefix: "[RISK]",     color: "#ef4444" };
+  if (/news|event|cpi|nfp|fomc|rate|gdp|pmi|fed/.test(r))              return { prefix: "[NEWS]",     color: "#a78bfa" };
+  if (/entry|trigger|arm|execut|fire|scalp/.test(r))                    return { prefix: "[ENTRY]",    color: "#38bdf8" };
+  if (/wait|pending|monitor|watch|approach|return/.test(r))             return { prefix: "[WATCH]",    color: "#64748b" };
   return { prefix: "[INFO]", color: "#475569" };
 }
 
 function getConfidenceValue(stateKey: string, data: AgentRunResult): number {
-  const { agents: a } = data;
+  const { agents } = data;
   switch (stateKey) {
-    case "master":     return a.master.confidence;
-    case "trend":      return a.trend.confidence;
-    case "smc":        return a.smc.confidence;
-    case "news":       return a.news.confidence;
-    case "risk":       return a.risk.sessionScore;
-    case "contrarian": return a.contrarian.trapConfidence;
-    case "execution":  return a.execution.hasSetup ? 75 : 30;
+    case "master":     return agents.master.confidence;
+    case "trend":      return agents.trend.confidence;
+    case "smc":        return agents.smc.confidence;
+    case "news":       return agents.news.confidence;
+    case "risk":       return agents.risk.sessionScore;
+    case "contrarian": return agents.contrarian.trapConfidence;
+    case "execution":  return agents.execution.hasSetup ? 75 : 30;
     default:           return 0;
   }
 }
 
-// ─── CSS ──────────────────────────────────────────────────────────────────────
+// ─── CSS keyframes ─────────────────────────────────────────────────────────────
 const CSS = `
-  @keyframes fl-live   { 0%,100%{opacity:1} 50%{opacity:.3} }
-  @keyframes fl-armed  { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.25;transform:scale(.92)} }
-  @keyframes fl-dot    { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.65)} }
-  @keyframes fl-fadein { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes fl-tick   { from{opacity:0;transform:translateX(7px)} to{opacity:1;transform:translateX(0)} }
-  @keyframes px-alert  { 0%,49%{opacity:1} 50%,100%{opacity:0.08} }
-  @keyframes mon-blink { 0%,85%,100%{opacity:1} 92%{opacity:0.35} }
-  @keyframes mon-scan  { 0%{transform:translateY(0)} 100%{transform:translateY(12px)} }
-  @keyframes walk-bob  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
-  @keyframes npc-idle  { 0%,75%,100%{transform:translateY(0)} 82%{transform:translateY(-1.5px)} }
+  @keyframes nd-live   { 0%,100%{opacity:1} 50%{opacity:.3}  }
+  @keyframes nd-armed  { 0%,100%{opacity:1} 50%{opacity:.25} }
+  @keyframes nd-fadein { from{opacity:0;transform:translateY(3px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes nd-tick   { from{opacity:0;transform:translateX(5px)} to{opacity:1;transform:translateX(0)} }
 `;
 
-// ─── SVG: Workstation (top-down desk for main trading floor) ──────────────────
-// DW=80, DH=20. Character oval below. Total height consumed ≈ 64px from dy.
-interface WorkstationProps {
-  label: string;
-  dx: number; dy: number;
-  sc: SC; agState: AgentState;
-  isSel: boolean; isArmed: boolean;
-  onClick: () => void;
-}
-
-function Workstation({ label, dx, dy, sc, agState, isSel, isArmed, onClick }: WorkstationProps) {
-  const cx       = dx + 40;
-  const isActive = ["bull","bear","armed","analyzing","approved","alert"].includes(agState);
-  const isBlk    = agState === "blocked";
-  const isIdle   = agState === "idle";
-
-  const monBg =
-    agState === "bull" || agState === "approved" ? "#001a08" :
-    agState === "bear" || agState === "blocked"  ? "#1a0002" :
-    agState === "armed"                          ? "#00101e" :
-    agState === "analyzing"                      ? "#080616" :
-    agState === "alert"                          ? "#140e00" : "#06060a";
-
-  return (
-    <g onClick={onClick} style={{ cursor: "pointer" }} role="button" aria-label={label}>
-      {/* selection highlight */}
-      {isSel && (
-        <rect x={dx - 5} y={dy - 5} width={90} height={74}
-          fill={sc.accent} opacity={0.09} rx={3} />
-      )}
-      {/* armed outer ring */}
-      {isArmed && (
-        <rect x={dx - 8} y={dy - 8} width={96} height={80}
-          fill="none" stroke={sc.accent} strokeWidth={1} rx={4} opacity={0.3}
-          style={{ animation: "fl-armed 1.4s ease-in-out infinite" }} />
-      )}
-
-      {/* ── DESK SURFACE ── */}
-      <rect x={dx}   y={dy}    width={80} height={20} fill="#16100a" rx={1} />
-      <rect x={dx}   y={dy}    width={80} height={2}  fill="#221a10" />
-      <rect x={dx}   y={dy+18} width={80} height={2}  fill="#0d0906" />
-
-      {/* ── LEFT MONITOR ── */}
-      {/* glow backdrop when active */}
-      {isActive && (
-        <rect x={dx+1} y={dy+2} width={34} height={16}
-          fill={sc.accent} opacity={0.06} rx={1} />
-      )}
-      <rect x={dx+3}  y={dy+3} width={30} height={14} fill="#0c0c12" rx={1} />
-      <rect x={dx+4}  y={dy+4} width={28} height={12} fill={monBg} />
-      {isActive && (
-        <>
-          <rect x={dx+5}  y={dy+5}  width={18} height={1.5} fill={sc.accent} opacity={0.8} />
-          <rect x={dx+5}  y={dy+8}  width={14} height={1.5} fill={sc.accent} opacity={0.5} />
-          <rect x={dx+5}  y={dy+11} width={10} height={1.5} fill={sc.accent} opacity={0.28} />
-        </>
-      )}
-
-      {/* ── RIGHT MONITOR ── */}
-      {isActive && (
-        <rect x={dx+45} y={dy+2} width={34} height={16}
-          fill={sc.accent} opacity={0.06} rx={1} />
-      )}
-      <rect x={dx+47} y={dy+3} width={30} height={14} fill="#0c0c12" rx={1} />
-      <rect x={dx+48} y={dy+4} width={28} height={12} fill={monBg} />
-      {isActive && (
-        <>
-          <rect x={dx+49} y={dy+5}  width={12} height={1.5} fill={sc.accent} opacity={0.65} />
-          <rect x={dx+49} y={dy+8}  width={20} height={1.5} fill={sc.accent} opacity={0.4} />
-          <rect x={dx+49} y={dy+11} width={8}  height={1.5} fill={sc.accent} opacity={0.2} />
-        </>
-      )}
-
-      {/* ── CHAIR ── */}
-      <rect x={cx-12} y={dy+22} width={24} height={9} fill="#0e1c2c" rx={1} />
-      <rect x={cx-11} y={dy+22} width={22} height={2} fill="#182a3e" />
-
-      {/* ── CHARACTER HEAD (top-down oval) ── */}
-      <ellipse cx={cx} cy={dy+40} rx={10} ry={8}
-        fill={isIdle ? "#1a2535" : sc.accent}
-        opacity={isIdle ? 0.35 : 0.80}
-        style={{
-          animation: isArmed ? "fl-armed 1.4s ease-in-out infinite"
-                   : isIdle  ? "npc-idle 5s steps(1,end) infinite"
-                   : "none",
-        }}
-      />
-      {/* head sheen */}
-      <ellipse cx={cx - 3} cy={dy + 37} rx={4} ry={3} fill="white" opacity={isIdle ? 0.03 : 0.08} />
-
-      {/* blocked exclamation */}
-      {isBlk && (
-        <text x={cx} y={dy + 44} textAnchor="middle"
-          fill={P.amber} fontSize={10} fontWeight="900"
-          style={{ animation: "px-alert 1.1s steps(1,end) infinite",
-                   fontFamily: "monospace" }}>
-          !
-        </text>
-      )}
-
-      {/* ── LABEL ── */}
-      <text x={cx} y={dy + 57}
-        textAnchor="middle"
-        fill={isSel ? sc.accent : "#28394e"}
-        fontSize={7.5} fontWeight="700" letterSpacing="0.12em">
-        {label}
-      </text>
-    </g>
-  );
-}
-
-// ─── SVG: Conference seat (agent at conference table) ─────────────────────────
-interface ConferenceAgentProps {
-  cx: number; cy: number;
-  sc: SC; agState: AgentState;
+// ─── SVG Agent Node ────────────────────────────────────────────────────────────
+function AgentNode({
+  agent, sc, conf, isSel, isArmed, onSelect,
+}: {
+  agent: AgentDef;
+  sc: SC;
+  conf: number;
   isSel: boolean;
-  onClick: () => void;
-  label: string;
-}
-
-function ConferenceAgent({ cx, cy, sc, agState, isSel, onClick, label }: ConferenceAgentProps) {
-  const isActive = ["bull","bear","armed","analyzing","approved","alert"].includes(agState);
-  const isIdle   = agState === "idle";
+  isArmed: boolean;
+  onSelect: () => void;
+}) {
+  const [nx, ny] = NODE_GEO[agent.id];
+  const accent = isSel ? sc.accent : sc.accent;
+  const borderCol = isSel ? sc.accent : P.border;
+  const sw = isSel ? "1.2" : "0.8";
+  const bg = agent.isMaster ? "#060c12" : P.node;
+  const labelColor = isSel ? P.text : P.muted;
+  const confStr = conf > 0 ? String(conf) : "–";
 
   return (
-    <g onClick={onClick} style={{ cursor: "pointer" }}>
-      {isSel && (
-        <ellipse cx={cx} cy={cy} rx={18} ry={16} fill={sc.accent} opacity={0.1} />
-      )}
-      {/* chair seat (south of table, facing north) */}
-      <rect x={cx - 12} y={cy + 8} width={24} height={10}
-        fill="#1a2a3a" rx={1} />
-      {/* character */}
-      <ellipse cx={cx} cy={cy} rx={11} ry={9}
-        fill={isIdle ? "#1a2535" : sc.accent}
-        opacity={isIdle ? 0.35 : 0.82}
-        style={{ animation: isActive ? "fl-armed 2s ease-in-out infinite" : "none" }}
+    <g onClick={onSelect} style={{ cursor: "pointer" }}>
+      {/* Node background */}
+      <rect
+        x={nx} y={ny} width={NW} height={NH}
+        fill={isSel ? `${sc.accent}08` : bg}
+        stroke={borderCol} strokeWidth={sw} rx="1.5"
       />
-      <ellipse cx={cx - 3} cy={cy - 3} rx={4} ry={3} fill="white" opacity={0.07} />
-      {/* status dot */}
-      {isActive && (
-        <circle cx={cx + 8} cy={cy - 6} r={3}
-          fill={sc.accent}
-          style={{ animation: "fl-dot 1.8s ease-in-out infinite" }} />
-      )}
-      <text x={cx} y={cy + 22}
-        textAnchor="middle"
-        fill={isSel ? sc.accent : "#2a3d52"}
-        fontSize={7} fontWeight="700" letterSpacing="0.1em">
-        {label}
+
+      {/* Top-left status dot */}
+      <circle
+        cx={nx + 9} cy={ny + 12} r="3"
+        fill={isArmed ? P.red : accent}
+        style={isArmed ? { animation: "nd-armed 1.2s ease-in-out infinite" } : undefined}
+      />
+
+      {/* Agent label */}
+      <text
+        x={nx + 17} y={ny + 16}
+        fontSize="8" fontWeight="700" letterSpacing="0.13em"
+        fontFamily="ui-monospace,monospace"
+        fill={labelColor}
+      >
+        {agent.isMaster ? "★ " : ""}{agent.label}
       </text>
+
+      {/* State badge (second line) */}
+      <text
+        x={nx + 8} y={ny + 30}
+        fontSize="7" fontWeight="600" letterSpacing="0.1em"
+        fontFamily="ui-monospace,monospace"
+        fill={accent}
+        style={isArmed ? { animation: "nd-armed 1.2s ease-in-out infinite" } : undefined}
+      >
+        {sc.badge}
+      </text>
+
+      {/* Role subtitle */}
+      <text
+        x={nx + 8} y={ny + 42}
+        fontSize="6" fontWeight="400" letterSpacing="0.06em"
+        fontFamily="ui-monospace,monospace"
+        fill={P.dim}
+      >
+        {agent.role}
+      </text>
+
+      {/* Confidence — large raw number, bottom-right */}
+      <text
+        x={nx + NW - 7} y={ny + NH - 7}
+        fontSize="19" fontWeight="700" letterSpacing="-0.03em"
+        fontFamily="ui-monospace,monospace"
+        fill={conf > 0 ? accent : P.dim}
+        textAnchor="end"
+        opacity={conf > 0 ? 0.95 : 0.4}
+      >
+        {confStr}
+      </text>
+
+      {/* Invisible enlarged hit area */}
+      <rect x={nx} y={ny} width={NW} height={NH} fill="transparent" />
     </g>
   );
 }
 
-// ─── SVG: 2D Top-Down Floor Map ───────────────────────────────────────────────
-interface FloorMapProps {
-  states: Record<string, AgentState> | null;
-  liveMap: Record<string, AgentLive>;
-  selected: string | null;
-  onSelect: (id: string) => void;
-  isExecArmed: boolean;
-  hasData: boolean;
+// ─── Props ─────────────────────────────────────────────────────────────────────
+interface AgentFloorProps {
+  data: AgentRunResult | null;
+  loading?: boolean;
 }
 
-const MAIN_STATIONS = [
-  { id: "trend",      label: "TREND",  dx: 18,  dy: 16  },
-  { id: "praction",   label: "PR.ACT", dx: 163, dy: 16  },
-  { id: "news",       label: "NEWS",   dx: 308, dy: 16  },
-  { id: "risk",       label: "RISK",   dx: 453, dy: 16  },
-  { id: "execution",  label: "EXEC",   dx: 123, dy: 118 },
-  { id: "contrarian", label: "CNTR",   dx: 338, dy: 118 },
-];
-
-function FloorMap({ states, liveMap, selected, onSelect, isExecArmed, hasData }: FloorMapProps) {
-  const getAgState = (stateKey: string): AgentState => (states?.[stateKey] ?? "idle") as AgentState;
-  const scOf = (id: string): SC => STATE[getAgState(ID_TO_STATE[id] ?? id)];
-  const agOf = (id: string): AgentState => getAgState(ID_TO_STATE[id] ?? id);
-  const masterLive = liveMap["master"];
-  const masterSC   = scOf("master");
-  const masterStat = agOf("master");
-
-  return (
-    <svg
-      viewBox="0 0 600 374"
-      width="100%"
-      aria-label="Trading Floor Simulation"
-      style={{ display: "block" }}
-    >
-      <defs>
-        <style>{`
-          text { font-family: 'JetBrains Mono','SF Mono',ui-monospace,monospace; }
-        `}</style>
-
-        {/* Main floor: warm dark beige tile */}
-        <pattern id="tf-main" x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
-          <rect width="16" height="16" fill="#1c1710" />
-          <rect x="0" y="0" width="15" height="15" fill="#221c12" />
-          <line x1="15" y1="0"  x2="15" y2="16" stroke="#120f09" strokeWidth="0.6" />
-          <line x1="0"  y1="15" x2="16" y2="15" stroke="#120f09" strokeWidth="0.6" />
-        </pattern>
-
-        {/* Conference: dark wood plank */}
-        <pattern id="tf-wood" x="0" y="0" width="40" height="9" patternUnits="userSpaceOnUse">
-          <rect width="40" height="9" fill="#130804" />
-          <rect x="0" y="0" width="40" height="8" fill="#1a0d06" />
-          <line x1="0" y1="8"  x2="40" y2="8"  stroke="#0d0603" strokeWidth="0.7" />
-          <line x1="20" y1="0" x2="20" y2="8"  stroke="#0d0603" strokeWidth="0.3" opacity="0.4" />
-          <line x1="0" y1="3"  x2="40" y2="3"  stroke="#22100a" strokeWidth="0.3" opacity="0.3" />
-        </pattern>
-
-        {/* Lounge: dark blue carpet weave */}
-        <pattern id="tf-carpet" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
-          <rect width="8" height="8" fill="#060e1c" />
-          <rect x="0" y="0" width="4" height="4" fill="#07101f" />
-          <rect x="4" y="4" width="4" height="4" fill="#07101f" />
-          <line x1="0" y1="4" x2="8"  y2="4"  stroke="#0a1628" strokeWidth="0.4" />
-          <line x1="4" y1="0" x2="4"  y2="8"  stroke="#0a1628" strokeWidth="0.4" />
-        </pattern>
-
-        {/* Entrance: checkered tile */}
-        <pattern id="tf-check" x="0" y="0" width="12" height="12" patternUnits="userSpaceOnUse">
-          <rect width="12" height="12" fill="#0a0a0f" />
-          <rect x="0" y="0" width="6" height="6" fill="#141420" />
-          <rect x="6" y="6" width="6" height="6" fill="#141420" />
-        </pattern>
-      </defs>
-
-      {/* ════ MAIN TRADING FLOOR ══════════════════════════════════════════════ */}
-      <rect x={4} y={4} width={592} height={215} fill="url(#tf-main)" />
-      {/* outer wall border */}
-      <rect x={4} y={4} width={592} height={215} fill="none" stroke="#080d16" strokeWidth={6} />
-      {/* inner shadow at top */}
-      <rect x={4} y={4} width={592} height={4} fill="#000" opacity={0.4} />
-
-      {/* room label watermark */}
-      <text x={300} y={206} textAnchor="middle"
-        fill="#3a2e1a" fontSize={10} fontWeight="700" letterSpacing="0.35em">
-        TRADING FLOOR
-      </text>
-
-      {/* decorative dot matrix background */}
-      {Array.from({ length: 8 }, (_, row) =>
-        Array.from({ length: 20 }, (_, col) => (
-          <circle key={`d${row}-${col}`}
-            cx={26 + col * 28} cy={100 + row * 14} r={0.6}
-            fill="#2a2010" opacity={0.4} />
-        ))
-      )}
-
-      {/* ── 6 workstations ── */}
-      {MAIN_STATIONS.map(s => {
-        const agState = agOf(s.id);
-        const sc      = scOf(s.id);
-        return (
-          <Workstation
-            key={s.id}
-            label={s.label} dx={s.dx} dy={s.dy}
-            sc={sc} agState={agState}
-            isSel={selected === s.id}
-            isArmed={s.id === "execution" && isExecArmed}
-            onClick={() => onSelect(s.id)}
-          />
-        );
-      })}
-
-      {/* ── MASTER HUD (floating panel, right side of row 2) ── */}
-      <rect x={442} y={108} width={150} height={72}
-        fill="#00000094" stroke={masterSC.accent} strokeWidth={0.5}
-        strokeOpacity={0.3} rx={2} />
-      <rect x={442} y={108} width={150} height={10}
-        fill={masterSC.accent} opacity={0.06} />
-      <text x={450} y={117} fill={P.dim} fontSize={6} fontWeight="700" letterSpacing="0.22em">
-        MASTER · CMO
-      </text>
-      <text x={450} y={130}
-        fill={masterSC.accent} fontSize={10} fontWeight="700" letterSpacing="0.04em">
-        {masterLive.status.split(" · ")[0] ?? "STANDBY"}
-      </text>
-      <text x={450} y={143} fill={P.muted} fontSize={7} letterSpacing="0.05em">
-        {masterLive.sub || "AWAITING DATA"}
-      </text>
-      <line x1={450} y1={150} x2={584} y2={150} stroke={P.border} strokeWidth={0.5} />
-      <text x={450} y={162}
-        fill={masterStat === "bull" ? P.green : masterStat === "bear" ? P.red : P.dim}
-        fontSize={7.5} fontWeight="700" letterSpacing="0.08em">
-        {masterLive.status}
-      </text>
-      {/* state pip */}
-      <circle cx={579} cy={129} r={4}
-        fill={masterSC.accent}
-        opacity={hasData ? 0.85 : 0.2}
-        style={{ animation: hasData ? "fl-dot 2s ease-in-out infinite" : "none" }} />
-
-      {/* ════ WALL STRIP (divides rooms) ══════════════════════════════════════ */}
-      <rect x={4} y={219} width={592} height={8} fill="#07101a" />
-      {/* doorway left (→ conference) */}
-      <rect x={118} y={219} width={76} height={8} fill="url(#tf-main)" />
-      {/* doorway right (→ lounge) */}
-      <rect x={420} y={219} width={76} height={8} fill="url(#tf-main)" />
-      {/* door frames */}
-      <line x1={118} y1={219} x2={118} y2={227} stroke="#0e1a28" strokeWidth={1.5} />
-      <line x1={194} y1={219} x2={194} y2={227} stroke="#0e1a28" strokeWidth={1.5} />
-      <line x1={420} y1={219} x2={420} y2={227} stroke="#0e1a28" strokeWidth={1.5} />
-      <line x1={496} y1={219} x2={496} y2={227} stroke="#0e1a28" strokeWidth={1.5} />
-
-      {/* vertical dividing wall (conference | lounge) */}
-      <rect x={286} y={227} width={7} height={143} fill="#07101a" />
-
-      {/* ════ CONFERENCE / ANALYSIS ROOM ══════════════════════════════════════ */}
-      <rect x={4} y={227} width={282} height={143} fill="url(#tf-wood)" />
-      <rect x={4} y={227} width={282} height={143} fill="none" stroke="#080d16" strokeWidth={4} />
-
-      <text x={143} y={362} textAnchor="middle"
-        fill="#2a1608" fontSize={8} fontWeight="700" letterSpacing="0.28em">
-        ANALYSIS ROOM
-      </text>
-
-      {/* conference table */}
-      <rect x={18} y={250} width={250} height={58} fill="#2a1408" rx={2} />
-      {/* table top highlight edge */}
-      <rect x={18} y={250} width={250} height={3} fill="#3e2010" />
-      {/* table grain */}
-      <line x1={18} y1={267} x2={268} y2={267} stroke="#1e0e04" strokeWidth={0.5} opacity={0.5} />
-      <line x1={18} y1={283} x2={268} y2={283} stroke="#1e0e04" strokeWidth={0.5} opacity={0.5} />
-      {/* table leg marks */}
-      {[[20,252],[264,252],[20,300],[264,300]].map(([x,y],i) => (
-        <rect key={i} x={x} y={y} width={4} height={4} fill="#1a0c04" opacity={0.6} />
-      ))}
-
-      {/* side chairs (decorative, 3 on each side) */}
-      {[252, 268, 284].map((ty, i) => (
-        <React.Fragment key={i}>
-          <rect x={8}   y={ty} width={10} height={8} fill="#131e2c" rx={1} />
-          <rect x={268} y={ty} width={10} height={8} fill="#131e2c" rx={1} />
-        </React.Fragment>
-      ))}
-
-      {/* papers / laptop on table */}
-      <rect x={28} y={258} width={22} height={16} fill="#f0ede4" opacity={0.09} rx={1} />
-      <rect x={54} y={258} width={22} height={16} fill="#f0ede4" opacity={0.06} rx={1} />
-      <rect x={90} y={256} width={22} height={16} fill="#0c1824" rx={1} />
-      <rect x={91} y={257} width={20} height={14} fill="#001a10" />
-      {hasData && (
-        <polyline points="92,269 96,265 100,261 104,263 108,258 112,260"
-          fill="none" stroke={P.green} strokeWidth={0.8} opacity={0.7} />
-      )}
-      <rect x={184} y={258} width={22} height={16} fill="#f0ede4" opacity={0.07} rx={1} />
-      <rect x={210} y={258} width={22} height={16} fill="#f0ede4" opacity={0.05} rx={1} />
-
-      {/* ── MASTER AGENT at head of conference table ── */}
-      <ConferenceAgent
-        cx={143} cy={322}
-        sc={scOf("master")} agState={agOf("master")}
-        isSel={selected === "master"}
-        onClick={() => onSelect("master")}
-        label="★ MASTER"
-      />
-
-      {/* ════ LOUNGE / BREAK AREA ══════════════════════════════════════════════ */}
-      <rect x={293} y={227} width={303} height={143} fill="url(#tf-carpet)" />
-      <rect x={293} y={227} width={303} height={143} fill="none" stroke="#080d16" strokeWidth={4} />
-
-      {/* checkered entrance strip (bottom center of lounge) */}
-      <rect x={372} y={348} width={152} height={20} fill="url(#tf-check)" />
-      <line x1={372} y1={348} x2={372} y2={368} stroke="#12182a" strokeWidth={1} />
-      <line x1={524} y1={348} x2={524} y2={368} stroke="#12182a" strokeWidth={1} />
-
-      <text x={444} y={362} textAnchor="middle"
-        fill="#0a182e" fontSize={8} fontWeight="700" letterSpacing="0.28em">
-        BREAK AREA
-      </text>
-
-      {/* left couch */}
-      <rect x={302} y={238} width={48} height={68} fill="#172538" rx={2} />
-      <rect x={302} y={238} width={48} height={11} fill="#112030" />  {/* top armrest */}
-      <rect x={302} y={295} width={48} height={11} fill="#112030" />  {/* bottom armrest */}
-      <rect x={304} y={250} width={44} height={44} fill="#1e3050" rx={1} />  {/* cushion */}
-      <line x1={326} y1={250} x2={326} y2={294} stroke="#162842" strokeWidth={1} opacity={0.6} />
-
-      {/* right couch */}
-      <rect x={544} y={238} width={48} height={68} fill="#172538" rx={2} />
-      <rect x={544} y={238} width={48} height={11} fill="#112030" />
-      <rect x={544} y={295} width={48} height={11} fill="#112030" />
-      <rect x={546} y={250} width={44} height={44} fill="#1e3050" rx={1} />
-      <line x1={568} y1={250} x2={568} y2={294} stroke="#162842" strokeWidth={1} opacity={0.6} />
-
-      {/* coffee table */}
-      <rect x={370} y={258} width={148} height={48} fill="#12100a" rx={3} />
-      <rect x={372} y={260} width={144} height={44} fill="#1a1510" rx={2} />
-      {/* small tablet/screen on coffee table */}
-      <rect x={378} y={266} width={44} height={30} fill="#06080e" rx={1} />
-      <rect x={379} y={267} width={42} height={28} fill="#010810" />
-      {hasData && (
-        <polyline points="381,292 387,287 393,282 399,285 405,279 411,281 417,276 421,278"
-          fill="none" stroke={P.green} strokeWidth={0.9} opacity={0.65} />
-      )}
-      {/* magazines on table */}
-      <rect x={432} y={268} width={26} height={18} fill="#f0eee8" opacity={0.05} rx={1} />
-      <rect x={462} y={268} width={26} height={18} fill="#f0eee8" opacity={0.04} rx={1} />
-
-      {/* potted plant (corner) */}
-      <rect x={556} y={316} width={20} height={18} fill="#2a1808" rx={1} />
-      <circle cx={566} cy={307} r={14} fill="#071408" opacity={0.85} />
-      <circle cx={558} cy={312} r={9}  fill="#0a1e0c" opacity={0.8} />
-      <circle cx={574} cy={312} r={9}  fill="#0a1e0c" opacity={0.8} />
-      <circle cx={566} cy={300} r={7}  fill="#0d2410" opacity={0.7} />
-
-      {/* wall clock (lounge wall) */}
-      <circle cx={313} cy={244} r={10} fill="#0e1c2c" stroke="#1a2e44" strokeWidth={1} />
-      <circle cx={313} cy={244} r={8}  fill="#0a1420" />
-      <circle cx={313} cy={244} r={1}  fill={P.dim} />
-      <line x1={313} y1={244} x2={313} y2={238} stroke={P.muted} strokeWidth={0.8} />
-      <line x1={313} y1={244} x2={317} y2={244} stroke={P.dim}   strokeWidth={0.8} />
-    </svg>
-  );
-}
-
-// ─── Props ────────────────────────────────────────────────────────────────────
-interface AgentFloorProps { data: AgentRunResult | null; loading?: boolean }
-
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── Main component ────────────────────────────────────────────────────────────
 export function AgentFloorTest({ data, loading = false }: AgentFloorProps) {
   const [selected, setSelected] = useState<string | null>(null);
   const [clock,    setClock]    = useState("");
@@ -675,23 +365,54 @@ export function AgentFloorTest({ data, loading = false }: AgentFloorProps) {
     return acc;
   }, {});
 
-  const bullCount = AGENTS.filter(a => liveMap[a.id].bias === "bullish").length;
-  const bearCount = AGENTS.filter(a => liveMap[a.id].bias === "bearish").length;
-  const neutCount = AGENTS.length - bullCount - bearCount;
+  // Consensus + sentiment ribbon weights
+  const bullAgents = AGENTS.filter(a => liveMap[a.id].bias === "bullish");
+  const bearAgents = AGENTS.filter(a => liveMap[a.id].bias === "bearish");
+  const neutAgents = AGENTS.filter(a => liveMap[a.id].bias === "neutral");
+  const bullCount  = bullAgents.length;
+  const bearCount  = bearAgents.length;
+  const neutCount  = neutAgents.length;
+
+  const bullW = bullAgents.reduce((s, a) => s + liveMap[a.id].conf, 0);
+  const bearW = bearAgents.reduce((s, a) => s + liveMap[a.id].conf, 0);
+  const neutW = neutAgents.reduce((s, a) => s + liveMap[a.id].conf, 0);
+  const totalW = bullW + bearW + neutW || 1;
+  const bullRib = (bullW / totalW) * 100;
+  const bearRib = (bearW / totalW) * 100;
+  const neutRib = (neutW / totalW) * 100;
+
   const consensus = bullCount > bearCount ? "BULLISH" : bearCount > bullCount ? "BEARISH" : "NEUTRAL";
-  const consensusC = consensus === "BULLISH" ? P.green : consensus === "BEARISH" ? P.red : P.muted;
   const masterLive = liveMap["master"];
 
   const tickerLines: string[] = hasData ? [
     data!.agents.execution.signalState !== "NO_TRADE"
       ? `EXEC · ${data!.agents.execution.signalState}${data!.agents.execution.grade ? " · " + data!.agents.execution.grade : ""} — ${data!.agents.execution.trigger}`
-      : "EXEC · NO_TRADE — standing aside",
+      : "EXEC · NO_TRADE — standing aside, no valid setup",
     `TREND · ${data!.agents.trend.bias.toUpperCase()} ${data!.agents.trend.confidence}% — ${data!.agents.trend.reasons[0] ?? ""}`,
     `P.ACT · ${data!.agents.smc.setupPresent ? data!.agents.smc.setupType : "No setup"} · ${data!.agents.smc.premiumDiscount}`,
     `NEWS · ${data!.agents.news.dominantCatalyst || data!.agents.news.regime} — risk ${data!.agents.news.riskScore}/100`,
     `RISK · ${data!.agents.risk.valid ? "VALID" : "BLOCKED"} · Vol ${data!.agents.risk.volatilityScore}/100`,
-    `MSTR · ${data!.agents.master.finalBias.toUpperCase()} · score ${data!.agents.master.consensusScore >= 0 ? "+" : ""}${data!.agents.master.consensusScore.toFixed(1)}`,
-  ] : ["STANDBY — run agents to populate floor telemetry"];
+    `CNTR · ${data!.agents.contrarian.trapType && data!.agents.contrarian.trapType !== "None" ? data!.agents.contrarian.trapType : "No trap"} · risk ${data!.agents.contrarian.riskFactor}/100`,
+    `MSTR · ${data!.agents.master.finalBias.toUpperCase()} · score ${data!.agents.master.consensusScore > 0 ? "+" : ""}${data!.agents.master.consensusScore.toFixed(1)} · conf ${data!.agents.master.confidence}%`,
+  ] : ["Waiting for agent analysis — tap any node or run Brain analysis"];
+
+  const selDef = AGENTS.find(a => a.id === selected) ?? null;
+
+  const detail = selDef ? (() => {
+    const stateKey  = ID_TO_STATE[selDef.id] ?? selDef.id;
+    const agState: AgentState = (states?.[stateKey] ?? "idle") as AgentState;
+    const sc        = STATE[agState];
+    const reasons   = getAgentReasons(stateKey, hasData ? data : null);
+    const confVal   = hasData ? getConfidenceValue(stateKey, data!) : 0;
+    const tradePlan    = hasData ? data!.agents.master.tradePlan : null;
+    const showPrices   = (stateKey === "execution" || stateKey === "master") && !!tradePlan;
+    const showProgress = stateKey === "execution" || stateKey === "master";
+    const sigState     = hasData ? data!.agents.execution.signalState : "NO_TRADE";
+    const finalBias    = hasData ? data!.agents.master.finalBias : "no-trade";
+    const progressStep = !hasData || finalBias === "no-trade" ? -1 : sigState === "ARMED" ? 1 : 0;
+    const progressSteps = ["ARMED", "TRIGGERED", "COMPLETE"] as const;
+    return { stateKey, sc, reasons, confVal, tradePlan, showPrices, showProgress, progressStep, progressSteps };
+  })() : null;
 
   useEffect(() => {
     const tick = () => setClock(new Date().toUTCString().slice(17, 25));
@@ -705,223 +426,291 @@ export function AgentFloorTest({ data, loading = false }: AgentFloorProps) {
     return () => clearInterval(id);
   }, [tickerLines.length]);
 
-  const toggle = (id: string) => setSelected((s: string | null) => s === id ? null : id);
-  const selDef = AGENTS.find(a => a.id === selected) ?? null;
-
-  const detail = selDef ? (() => {
-    const stateKey = ID_TO_STATE[selDef.id] ?? selDef.id;
-    const agState  = (states?.[stateKey] ?? "idle") as AgentState;
-    const sc       = STATE[agState];
-    const reasons  = getAgentReasons(stateKey, hasData ? data : null);
-    const confVal  = hasData ? getConfidenceValue(stateKey, data!) : 0;
-    const qStats   = hasData ? getQuickStats(stateKey, data!) : [];
-    const tradePlan   = hasData ? data!.agents.master.tradePlan : null;
-    const showPrices  = (stateKey === "execution" || stateKey === "master") && !!tradePlan;
-    return { stateKey, sc, reasons, confVal, qStats, tradePlan, showPrices };
-  })() : null;
-
   return (
     <div style={{
       backgroundColor: P.bg,
-      fontFamily: "'JetBrains Mono','SF Mono',ui-monospace,monospace",
+      fontFamily: "ui-monospace,monospace",
       border: `1px solid ${P.border}`,
-      borderRadius: 4,
+      borderRadius: 6,
       overflow: "hidden",
     }}>
       <style>{CSS}</style>
 
-      {/* ══ HEADER ════════════════════════════════════════════════════════════ */}
+      {/* ══ HEADER ════════════════════════════════════════════════════════════════ */}
       <div style={{
-        display: "flex", alignItems: "center", height: 34, padding: "0 12px",
-        borderBottom: `1px solid ${P.border}`, background: P.bg, gap: 0,
+        display: "flex", alignItems: "center",
+        height: 36, padding: "0 12px",
+        borderBottom: `1px solid ${P.border}`,
+        background: P.surface,
       }}>
-        <span style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: "0.22em", color: P.text }}>TRADEX</span>
-        <span style={{ margin: "0 5px", color: P.dim, fontSize: 9 }}>·</span>
-        <span style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: "0.22em", color: P.muted }}>FLOOR</span>
-        <div style={{ width: 1, height: 13, background: P.border, margin: "0 10px" }} />
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.18em", color: P.text }}>TRADEX</span>
+        <span style={{ margin: "0 5px", color: P.dim, fontSize: 8 }}>·</span>
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.18em", color: P.muted }}>FLOOR</span>
+
+        <div style={{ width: 1, height: 14, background: P.border, margin: "0 10px" }} />
+
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <div style={{
-            width: 4, height: 4, borderRadius: "50%",
+            width: 5, height: 5, borderRadius: "50%",
             backgroundColor: loading ? P.amber : hasData ? P.green : P.dim,
-            animation: hasData ? "fl-live 2s ease-in-out infinite" : "none",
+            animation: hasData ? "nd-live 2s ease-in-out infinite" : "none",
           }} />
-          <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: "0.16em",
-            color: loading ? P.amber : hasData ? P.green : P.dim }}>
+          <span style={{
+            fontSize: 8, fontWeight: 600, letterSpacing: "0.12em",
+            color: loading ? P.amber : hasData ? P.green : P.dim,
+          }}>
             {loading ? "LOADING" : hasData ? "LIVE" : "STANDBY"}
           </span>
         </div>
+
         {isExecArmed && (
           <>
-            <div style={{ width: 1, height: 13, background: P.border, margin: "0 10px" }} />
-            <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: "0.14em",
-              color: P.red, animation: "fl-armed 1.4s ease-in-out infinite" }}>EXEC ARMED</span>
+            <div style={{ width: 1, height: 14, background: P.border, margin: "0 10px" }} />
+            <span style={{
+              fontSize: 8, fontWeight: 700, letterSpacing: "0.12em",
+              color: P.red, animation: "nd-armed 1.4s ease-in-out infinite",
+            }}>
+              EXEC ARMED
+            </span>
           </>
         )}
+
         <div style={{ flex: 1 }} />
-        <span style={{ fontSize: 6.5, color: P.dim, letterSpacing: "0.1em" }}>{clock} UTC</span>
+        <span style={{ fontSize: 7.5, color: P.dim, letterSpacing: "0.08em" }}>{clock} UTC</span>
       </div>
 
-      {/* ══ 2D FLOOR MAP ══════════════════════════════════════════════════════ */}
-      <div style={{ background: "#000", borderBottom: `1px solid ${P.border}`, position: "relative" }}>
-        {/* scanline overlay */}
-        <div style={{
-          position: "absolute", inset: 0, pointerEvents: "none", zIndex: 2,
-          backgroundImage: "repeating-linear-gradient(to bottom,transparent,transparent 1px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 2px)",
-          backgroundSize: "100% 3px",
-        }} />
-        <FloorMap
-          states={states}
-          liveMap={liveMap}
-          selected={selected}
-          onSelect={toggle}
-          isExecArmed={isExecArmed}
-          hasData={hasData}
-        />
+      {/* ══ TACTICAL FLOOR SVG ════════════════════════════════════════════════════ */}
+      <div style={{ background: P.bg }}>
+        <svg
+          viewBox={`0 0 ${VW} ${VH}`}
+          preserveAspectRatio="xMidYMid meet"
+          style={{ width: "100%", height: "auto", display: "block" }}
+        >
+          <defs>
+            {/* Dot-matrix background pattern */}
+            <pattern id="ndots" x="0" y="0" width="18" height="18" patternUnits="userSpaceOnUse">
+              <circle cx="9" cy="9" r="0.55" fill="#192433" />
+            </pattern>
+            {/* Arrowhead marker for connection wires */}
+            <marker id="arr" markerWidth="5" markerHeight="4" refX="4.5" refY="2" orient="auto">
+              <polygon points="0,0 5,2 0,4" fill="#1E2F40" />
+            </marker>
+          </defs>
+
+          {/* Dot-matrix canvas */}
+          <rect x="0" y="0" width={VW} height={VH} fill="url(#ndots)" />
+
+          {/* Connection wires */}
+          {WIRE_POINTS.map(([x1, y1, x2, y2], i) => (
+            <line
+              key={i}
+              x1={x1} y1={y1} x2={x2} y2={y2}
+              stroke="#1E2F40" strokeWidth="0.65"
+              markerEnd="url(#arr)"
+            />
+          ))}
+
+          {/* Agent nodes */}
+          {AGENTS.map(agent => {
+            const stateKey = ID_TO_STATE[agent.id] ?? agent.id;
+            const agState: AgentState = (states?.[stateKey] ?? "idle") as AgentState;
+            const sc   = STATE[agState];
+            const live = liveMap[agent.id];
+            const conf = Math.min(100, Math.max(0, live.conf));
+            return (
+              <AgentNode
+                key={agent.id}
+                agent={agent}
+                sc={sc}
+                conf={conf}
+                isSel={selected === agent.id}
+                isArmed={agent.id === "execution" && isExecArmed}
+                onSelect={() => setSelected((s: string | null) => s === agent.id ? null : agent.id)}
+              />
+            );
+          })}
+        </svg>
       </div>
 
-      {/* ══ COMPACT METRICS ROW ═══════════════════════════════════════════════ */}
-      <div style={{ display: "flex", borderBottom: `1px solid ${P.border}` }}>
-        {AGENTS.map((agent, idx) => {
-          const stateKey = ID_TO_STATE[agent.id] ?? agent.id;
-          const agState  = (states?.[stateKey] ?? "idle") as AgentState;
-          const sc   = STATE[agState];
-          const live = liveMap[agent.id];
-          const isSel = selected === agent.id;
-          const conf = Math.min(100, Math.max(0, live.conf));
-          return (
-            <div key={agent.id} onClick={() => toggle(agent.id)} style={{
-              flex: 1,
-              padding: "5px 2px 4px",
-              borderLeft: idx > 0 ? `1px solid ${P.border}` : "none",
-              background: isSel ? `${sc.accent}0a` : "transparent",
-              cursor: "pointer",
-              display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-            }}>
-              <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: "-0.01em",
-                color: conf > 0 ? P.text : P.dim, lineHeight: 1 }}>
-                {conf > 0 ? conf : "—"}{conf > 0 && <span style={{ fontSize: 6, color: P.dim }}>%</span>}
-              </span>
-              <span style={{ fontSize: 6, fontWeight: 700, letterSpacing: "0.06em",
-                color: sc.accent, lineHeight: 1 }}>
-                {sc.badge.slice(0, 4)}
-              </span>
-            </div>
-          );
-        })}
+      {/* ══ SENTIMENT RIBBON ══════════════════════════════════════════════════════ */}
+      <div style={{
+        padding: "8px 12px 9px",
+        borderTop: `1px solid ${P.border}`,
+        borderBottom: `1px solid ${P.border}`,
+        background: P.surface,
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, alignItems: "baseline" }}>
+          <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: "0.16em", color: P.dim }}>
+            SENTIMENT RIBBON
+          </span>
+          <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.1em", color: consensus === "BULLISH" ? P.green : consensus === "BEARISH" ? P.red : P.muted }}>
+            {consensus}
+          </span>
+        </div>
+
+        {/* 1D heatmap ribbon */}
+        <div style={{ position: "relative", height: 5, background: P.border, display: "flex", overflow: "hidden" }}>
+          <div style={{ width: `${bullRib}%`, height: "100%", background: P.green }} />
+          <div style={{ width: `${neutRib}%`, height: "100%", background: P.dim }} />
+          <div style={{ width: `${bearRib}%`, height: "100%", background: P.red }} />
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
+          <span style={{ fontSize: 7.5, fontWeight: 700, color: P.green, letterSpacing: "0.08em" }}>
+            {bullCount} BULL · {bullRib.toFixed(0)}%
+          </span>
+          <span style={{ fontSize: 7, color: P.dim, letterSpacing: "0.08em" }}>
+            {neutCount} NEUT
+          </span>
+          <span style={{ fontSize: 7.5, fontWeight: 700, color: P.red, letterSpacing: "0.08em" }}>
+            {bearRib.toFixed(0)}% · {bearCount} BEAR
+          </span>
+        </div>
+
+        {/* Master status line */}
+        {hasData && (
+          <div style={{ marginTop: 5, fontSize: 7, color: P.dim, letterSpacing: "0.06em", borderTop: `1px solid ${P.wire}`, paddingTop: 5 }}>
+            <span style={{ color: P.muted, marginRight: 6 }}>MASTER</span>
+            {masterLive.status}
+          </div>
+        )}
       </div>
 
-      {/* ══ INSPECTOR PANEL ═══════════════════════════════════════════════════ */}
+      {/* ══ AGENT INSPECTOR ═══════════════════════════════════════════════════════ */}
       {selDef && detail && (
         <div style={{
-          borderTop: `1px solid ${detail.sc.accent}35`,
-          background: P.panel,
-          padding: "12px 12px 13px",
-          animation: "fl-fadein 0.15s ease-out",
+          padding: "12px 12px 14px",
+          borderBottom: `1px solid ${P.border}`,
+          background: "#040609",
+          animation: "nd-fadein 0.15s ease-out",
         }}>
-          <div style={{ display: "flex", alignItems: "flex-start",
-            justifyContent: "space-between", marginBottom: 11 }}>
+          {/* Inspector header */}
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
-                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.2em", color: detail.sc.accent }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.16em", color: detail.sc.accent }}>
                   {selDef.isMaster ? "★ " : ""}{selDef.label}
                 </span>
-                <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: "0.1em",
-                  padding: "2px 6px", color: detail.sc.accent,
-                  border: `1px solid ${detail.sc.accent}45`, background: `${detail.sc.accent}10` }}>
+                <span style={{
+                  fontSize: 7.5, fontWeight: 700, letterSpacing: "0.1em",
+                  padding: "1.5px 6px",
+                  color: detail.sc.accent,
+                  border: `1px solid ${detail.sc.accent}35`,
+                  background: `${detail.sc.accent}0a`,
+                }}>
                   {detail.sc.badge}
                 </span>
               </div>
-              <div style={{ fontSize: 7, color: P.dim, letterSpacing: "0.16em" }}>{selDef.role}</div>
+              <div style={{ fontSize: 7.5, color: P.dim, letterSpacing: "0.1em", marginTop: 4 }}>
+                {selDef.role}
+              </div>
             </div>
+
+            {/* Raw confidence number */}
             <div style={{ textAlign: "right", flexShrink: 0 }}>
-              <div style={{ fontSize: 30, fontWeight: 700, letterSpacing: "-0.03em",
-                color: detail.sc.accent, lineHeight: 1 }}>{detail.confVal}</div>
-              <div style={{ fontSize: 6.5, color: P.dim, letterSpacing: "0.18em", marginTop: 3 }}>CONFIDENCE</div>
+              <div style={{ fontSize: 32, fontWeight: 700, letterSpacing: "-0.03em", color: detail.sc.accent, lineHeight: 1 }}>
+                {detail.confVal}
+              </div>
+              <div style={{ fontSize: 6.5, color: P.dim, letterSpacing: "0.16em", marginTop: 3 }}>CONFIDENCE</div>
             </div>
           </div>
 
-          {detail.qStats.length > 0 && (
-            <div style={{ display: "flex", gap: 1, marginBottom: 10, flexWrap: "wrap" }}>
-              {detail.qStats.map((qs, i) => (
-                <div key={i} style={{ border: `1px solid ${P.border}`, padding: "4px 7px",
-                  display: "flex", flexDirection: "column", gap: 2, minWidth: 44 }}>
-                  <span style={{ fontSize: 6.5, color: P.dim, letterSpacing: "0.14em", fontWeight: 600 }}>{qs.key}</span>
-                  <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.08em", color: qs.color ?? P.text }}>{qs.val}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div style={{ borderTop: `1px solid ${P.border}`, paddingTop: 9,
-            marginBottom: detail.showPrices ? 10 : 0 }}>
-            {detail.reasons.slice(0, 5).map((reason, i) => {
+          {/* Structural log lines */}
+          <div style={{ marginBottom: detail.showPrices || detail.showProgress ? 11 : 0 }}>
+            {detail.reasons.map((reason, i) => {
               const pc = getConsolePrefixAndColor(reason);
               return (
                 <div key={i} style={{ display: "flex", gap: 7, alignItems: "flex-start", marginTop: i > 0 ? 6 : 0 }}>
-                  <span style={{ fontSize: 7.5, fontWeight: 700, letterSpacing: "0.04em",
-                    color: pc.color, whiteSpace: "nowrap", flexShrink: 0 }}>{pc.prefix}</span>
-                  <span style={{ fontSize: 8, color: "#7b8fa4", lineHeight: 1.55, letterSpacing: "0.02em" }}>{reason}</span>
+                  <span style={{
+                    fontSize: 8, fontWeight: 700, letterSpacing: "0.05em",
+                    color: pc.color, whiteSpace: "nowrap", flexShrink: 0,
+                  }}>
+                    {pc.prefix}
+                  </span>
+                  <span style={{ fontSize: 8.5, color: "#8b9ab0", lineHeight: 1.55 }}>{reason}</span>
                 </div>
               );
             })}
           </div>
 
+          {/* Price tags */}
           {detail.showPrices && detail.tradePlan && (
-            <div style={{ display: "flex", gap: 3, flexWrap: "wrap", marginTop: 10 }}>
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: detail.showProgress ? 11 : 0 }}>
               {[
-                { label: "ENTRY", val: detail.tradePlan.entry,   color: P.text,  border: P.border },
-                { label: "SL",    val: detail.tradePlan.stopLoss, color: P.red,   border: `${P.red}45`   },
-                { label: "TP1",   val: detail.tradePlan.tp1,      color: P.green, border: `${P.green}45` },
+                { label: "ENTRY", val: detail.tradePlan.entry,    color: P.text,  border: P.border },
+                { label: "SL",    val: detail.tradePlan.stopLoss,  color: P.red,   border: `${P.red}38`   },
+                { label: "TP1",   val: detail.tradePlan.tp1,       color: P.green, border: `${P.green}38` },
                 ...(detail.tradePlan.tp2
-                  ? [{ label: "TP2", val: detail.tradePlan.tp2, color: P.green, border: `${P.green}28` }]
+                  ? [{ label: "TP2", val: detail.tradePlan.tp2, color: P.green, border: `${P.green}25` }]
                   : []),
               ].map(t => (
-                <span key={t.label} style={{ fontSize: 8, padding: "3px 8px",
-                  border: `1px solid ${t.border}`, color: t.color,
-                  letterSpacing: "0.08em", fontWeight: 600 }}>
+                <span key={t.label} style={{
+                  fontSize: 8.5, padding: "3px 8px",
+                  border: `1px solid ${t.border}`,
+                  color: t.color, letterSpacing: "0.08em",
+                }}>
                   <span style={{ color: P.dim, marginRight: 4 }}>{t.label}</span>
                   {t.val.toFixed(t.val > 100 ? 2 : 4)}
                 </span>
               ))}
             </div>
           )}
+
+          {/* ARMED → TRIGGERED → COMPLETE pipeline */}
+          {detail.showProgress && (
+            <div style={{ display: "flex", alignItems: "center" }}>
+              {detail.progressSteps.map((step, i) => {
+                const done   = i < detail.progressStep;
+                const active = i === detail.progressStep;
+                const col    = done || active ? detail.sc.accent : P.border;
+                return (
+                  <React.Fragment key={step}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                      <div style={{
+                        width: 6, height: 6, borderRadius: "50%",
+                        backgroundColor: done || active ? detail.sc.accent : "#0a1525",
+                        border: `1px solid ${col}`,
+                      }} />
+                      <span style={{
+                        fontSize: 7, letterSpacing: "0.1em", whiteSpace: "nowrap",
+                        color: active ? detail.sc.accent : done ? `${detail.sc.accent}80` : P.dim,
+                      }}>
+                        {step}
+                      </span>
+                    </div>
+                    {i < detail.progressSteps.length - 1 && (
+                      <div style={{
+                        flex: 1, height: 1,
+                        background: done ? `${detail.sc.accent}50` : P.border,
+                        minWidth: 14, maxWidth: 44,
+                        margin: "0 4px", marginBottom: 14,
+                      }} />
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
-      {/* ══ SENTIMENT RIBBON ══════════════════════════════════════════════════ */}
-      <div style={{ padding: "10px 12px", borderTop: `1px solid ${P.border}`, background: P.bg }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
-          <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: "0.2em", color: P.dim }}>SENTIMENT RIBBON</span>
-          <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.14em", color: consensusC }}>{consensus}</span>
-        </div>
-        <div style={{ display: "flex", height: 4, overflow: "hidden", border: `1px solid ${P.border}` }}>
-          {bearCount > 0 && <div style={{ flex: bearCount, backgroundColor: P.red, opacity: 0.82 }} />}
-          {neutCount > 0 && <div style={{ flex: neutCount, backgroundColor: P.dim }} />}
-          {bullCount > 0 && <div style={{ flex: bullCount, backgroundColor: P.green, opacity: 0.82 }} />}
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
-          <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: "0.12em", color: P.red }}>{bearCount} BEAR</span>
-          <span style={{ fontSize: 7, letterSpacing: "0.12em", color: P.dim }}>{neutCount} NEUT</span>
-          <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: "0.12em", color: P.green }}>{bullCount} BULL</span>
-        </div>
-        {hasData && (
-          <div style={{ marginTop: 7, paddingTop: 7, borderTop: `1px solid ${P.border}`,
-            fontSize: 7, color: P.muted, letterSpacing: "0.06em",
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            MASTER · {masterLive.status}
-          </div>
-        )}
-      </div>
-
-      {/* ══ FEED TICKER ═══════════════════════════════════════════════════════ */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8,
-        padding: "5px 12px 6px", borderTop: `1px solid ${P.border}`,
-        minHeight: 27, overflow: "hidden" }}>
-        <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: "0.18em", color: P.dim, flexShrink: 0 }}>FEED</span>
+      {/* ══ ACTIVITY FEED ═════════════════════════════════════════════════════════ */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "6px 12px", minHeight: 30,
+      }}>
+        <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: "0.14em", color: P.dim, flexShrink: 0 }}>
+          FEED
+        </span>
         <div style={{ width: 1, height: 10, background: P.border, flexShrink: 0 }} />
-        <span key={tickIdx} style={{ fontSize: 7.5, color: P.muted, letterSpacing: "0.04em",
-          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-          animation: "fl-tick 0.3s ease-out" }}>
+        <span
+          key={tickIdx}
+          style={{
+            fontSize: 7.5, color: P.muted, letterSpacing: "0.04em",
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            animation: "nd-tick 0.3s ease-out",
+          }}
+        >
           {tickerLines[tickIdx]}
         </span>
       </div>
