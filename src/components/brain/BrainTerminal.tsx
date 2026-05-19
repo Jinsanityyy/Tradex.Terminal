@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Brain, Clock, Crosshair, RefreshCw, Target } from "lucide-react";
+import { Brain, Clock, Crosshair, RefreshCw } from "lucide-react";
 import useSWR from "swr";
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import { useQuotes } from "@/hooks/useMarketData";
@@ -10,7 +10,6 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
 import { useSubscription } from "@/hooks/useSubscription";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
-import { AgentCommandRoom } from "./AgentCommandRoom";
 import { AgentFloorTest } from "./AgentFloorTest";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -215,7 +214,7 @@ export function BrainTerminal() {
   const [drawerOpen, setDrawerOpen]     = useState(false);
   const [highlightId, setHighlightId]  = useState<string | undefined>();
   const [sniperMode, setSniperMode]     = useState(false);
-  const [brainTab, setBrainTab]         = useState<"agents" | "floor">("agents");
+  const [showAgents, setShowAgents]     = useState(true);
   const [nowMs, setNowMs]               = useState(() => Date.now());
 
   const { quotes } = useQuotes(60_000);
@@ -502,48 +501,26 @@ export function BrainTerminal() {
             </div>
           </button>
 
-          {/* ── Pixel Command Room ────────────────────────────────────────── */}
-          <AgentCommandRoom
-            data={data}
-            loading={loading}
-            focusedAgentId={highlightId ?? null}
-            onSelectAgentChange={(agentId) => {
-              setHighlightId(agentId ?? undefined);
-              setDrawerOpen(false);
-            }}
-            onHoverAgentChange={(agentId) => {
-              setHighlightId(agentId ?? undefined);
-            }}
-          />
+          {/* ── TradeX Command Floor ─────────────────────────────────────── */}
+          <AgentFloorTest data={data} loading={loading} />
 
-          {/* ── Section tabs: Agents | Floor ──────────────────────────────── */}
+          {/* ── Section tab: 7-Agent Overview ─────────────────────────────── */}
           <div className="flex items-center gap-0 border-b border-white/6">
-            {(["agents", "floor"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setBrainTab(tab)}
-                className={cn(
-                  "flex items-center gap-1.5 px-4 py-2 text-[10px] font-bold uppercase tracking-widest border-b-2 -mb-px transition-all",
-                  brainTab === tab
-                    ? "border-[hsl(var(--primary))] text-[hsl(var(--primary))]"
-                    : "border-transparent text-zinc-600 hover:text-zinc-400"
-                )}
-              >
-                {tab === "floor" && <Target className="w-3 h-3" />}
-                {tab === "agents" ? "7-Agent Overview" : "Command Floor"}
-              </button>
-            ))}
+            <button
+              onClick={() => setShowAgents(v => !v)}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-2 text-[10px] font-bold uppercase tracking-widest border-b-2 -mb-px transition-all",
+                showAgents
+                  ? "border-[hsl(var(--primary))] text-[hsl(var(--primary))]"
+                  : "border-transparent text-zinc-600 hover:text-zinc-400"
+              )}
+            >
+              7-Agent Overview
+            </button>
           </div>
 
-          {/* ── FLOOR TAB ──────────────────────────────────────────────────── */}
-          {brainTab === "floor" && (
-            <div className="w-full">
-              <AgentFloorTest data={data} loading={loading} />
-            </div>
-          )}
-
-          {/* ── AGENTS TAB ─────────────────────────────────────────────────── */}
-          {brainTab === "agents" && (
+          {/* ── AGENTS ─────────────────────────────────────────────────────── */}
+          {showAgents && (
           <>
           {/* ── Row 1: Trend, Price Action, News, Risk ──────────────────────── */}
           <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
