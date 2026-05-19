@@ -730,8 +730,12 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
     cameraRef.current = camera;
 
     // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(el.clientWidth, el.clientHeight, true);
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      preserveDrawingBuffer: true,  // prevents blank canvas on mobile context loss
+      powerPreference: 'low-power', // reduces context loss risk on mobile
+    });
+    renderer.setSize(el.clientWidth || 1, el.clientHeight || 1, true);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
@@ -873,6 +877,13 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
     };
     window.addEventListener('resize', onResize);
     window.addEventListener('tradex-dashboard-layout-change', onResize);
+    // Re-sync when home tab becomes active (mobile tab switching)
+    const onHomeActive = () => {
+      syncRendererSize();
+      // Restart animation if it was killed by context loss
+      if (!frameRef.current) animate();
+    };
+    window.addEventListener('tradex-home-active', onHomeActive);
     const resizeObserver =
       typeof ResizeObserver !== 'undefined'
         ? new ResizeObserver(() => onResize())
@@ -880,6 +891,19 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
     resizeObserver?.observe(el);
     if (el.parentElement) resizeObserver?.observe(el.parentElement);
     if (rootRef.current) resizeObserver?.observe(rootRef.current);
+
+    // ── WebGL context loss (mobile WebView / Capacitor) ───────────────────────
+    const onContextLost = (event: Event) => {
+      event.preventDefault(); // required to allow restoration
+      cancelAnimationFrame(frameRef.current);
+      frameRef.current = 0;
+    };
+    const onContextRestored = () => {
+      syncRendererSize();
+      animate();
+    };
+    renderer.domElement.addEventListener('webglcontextlost', onContextLost);
+    renderer.domElement.addEventListener('webglcontextrestored', onContextRestored);
 
     // ── Raycaster ─────────────────────────────────────────────────────────────
     const raycaster = new THREE.Raycaster();
@@ -993,13 +1017,17 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
 
     return () => {
       cancelAnimationFrame(frameRef.current);
+      frameRef.current = 0;
       window.removeEventListener('resize', onResize);
       window.removeEventListener('tradex-dashboard-layout-change', onResize);
+      window.removeEventListener('tradex-home-active', onHomeActive);
       resizeObserver?.disconnect();
       el.removeEventListener('mousemove', onMouseMove);
       el.removeEventListener('click', onClick);
       el.removeEventListener('touchstart', onTouchStart);
       el.removeEventListener('touchend', onTouchEnd);
+      renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
+      renderer.domElement.removeEventListener('webglcontextrestored', onContextRestored);
       controls.dispose();
       renderer.dispose();
       if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement);
