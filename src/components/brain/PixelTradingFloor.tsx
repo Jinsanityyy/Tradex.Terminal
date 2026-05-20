@@ -44,11 +44,11 @@ const STATION_BLUEPRINTS: StationBlueprint[] = [
     seatedLook: { skin: "Copper", hairStyle: "Swoop", hairColor: "Black", shirtColor: "Maroon", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2, scale: 0.75 },
   },
   {
-    id: "exec", label: "EXEC", left: 19, top: 57, status: "NO-TRADE",
+    id: "exec", label: "EXEC", left: 19, top: 55, status: "NO-TRADE",
     seatedLook: { skin: "Coffee", hairStyle: "Buzzcut", hairColor: "Black", shirtColor: "Navy", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2, scale: 0.75 },
   },
   {
-    id: "cntr", label: "CNTR", left: 73, top: 57, status: "TRADE-OK",
+    id: "cntr", label: "CNTR", left: 73, top: 55, status: "TRADE-OK",
     seatedLook: { skin: "Sienna", hairStyle: "Curly Short", hairColor: "Chestnut", shirtColor: "Purple", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2, scale: 0.75 },
   },
 ];
@@ -59,18 +59,22 @@ const CENTRAL_LOOK: OperatorLook = {
   seatFrame: 2, scale: 0.9,
 };
 
+/* Wire topology:
+   Top-row monitor bottoms are at ~27% (5% anchor + 48px sprite + desk overlap).
+   Bottom-row desk level is at ~63% (55% anchor + 24px into sprite).
+   Drops connect 27% → 63%. Bottom wires sit at 63%. */
 const FLOOR_WIRES: CSSProperties[] = [
   { left: "10%", top: "27%", width: "19%" },
   { left: "31%", top: "27%", width: "25%" },
   { left: "58%", top: "27%", width: "24%" },
-  { left: "20%", top: "73%", width: "28%" },
-  { left: "51%", top: "73%", width: "21%" },
+  { left: "20%", top: "63%", width: "28%" },
+  { left: "51%", top: "63%", width: "21%" },
 ];
 
 const FLOOR_DROPS: CSSProperties[] = [
-  { left: "19%", top: "27%", height: "46%" },
-  { left: "50%", top: "27%", height: "46%" },
-  { left: "73%", top: "27%", height: "46%" },
+  { left: "19%", top: "27%", height: "36%" },
+  { left: "50%", top: "27%", height: "36%" },
+  { left: "73%", top: "27%", height: "36%" },
 ];
 
 function assetUrl(path: string) { return encodeURI(path); }
@@ -116,6 +120,13 @@ function SeatedOperator({ look, className }: { look: OperatorLook; className?: s
   );
 }
 
+/* Station layout (flex-direction: column):
+   1. spriteWrap — character at visual TOP, z-index:0
+   2. monitorGroup — desk+monitor pulled UP 24px (margin-top:-24px), z-index:1
+      → monitor bezel covers character's lower body
+      → character's head/shoulders remain visible above the bezel
+   3. Connection point for wires is at the bottom of monitorGroup */
+
 const STATION_TO_DRAWER: Record<string, string> = {
   trend: "trend", pract: "smc", news: "news",
   risk: "risk", exec: "execution", cntr: "contrarian",
@@ -158,16 +169,13 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
                 >
                   <div className={`${styles.stationBody} ${isSelected ? styles.stationBodySelected : ""}`}>
 
-                    {/* DOM order: keyboard → sprite → monitor
-                        flex-direction: column-reverse makes DOM-last appear at top.
-                        Paint order follows DOM: keyboard behind sprite behind monitor. */}
-
-                    <div className={styles.stationKeyboard} aria-hidden="true" />
-
+                    {/* 1. Character sprite — at the TOP, head visible above desk */}
                     <div className={styles.spriteWrap}>
                       <SeatedOperator look={station.seatedLook} className={styles.stationSprite} />
                     </div>
 
+                    {/* 2. Desk + monitor — pulled UP 24px to overlap character's lower body.
+                           z-index:1 ensures it paints over the sprite's filter stacking context. */}
                     <div className={styles.monitorGroup}>
                       <div className={`${styles.monitorBezel} ${ok ? styles.monitorOk : styles.monitorNoTrade}`}>
                         <div className={styles.monitorScreen} />
@@ -188,8 +196,7 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
 
             {/* ── Master desk ── */}
             <button type="button" className={styles.masterDesk} onClick={() => onAgentClick?.("master")}>
-              {/* Same column-reverse trick: keyboard → sprite → monitor in DOM */}
-              <div className={styles.stationKeyboard} aria-hidden="true" />
+              {/* Same pattern: sprite at top, monitor overlapping lower body */}
               <div className={styles.masterSpriteWrap}>
                 <SeatedOperator look={CENTRAL_LOOK} className={styles.masterSeatedSprite} />
               </div>

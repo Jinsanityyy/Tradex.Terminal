@@ -141,7 +141,7 @@
 /* ─── Station pod (button wrapper) ─────────────────────────────────────── */
 .stationPod {
   position: absolute;
-  transform: translate(-50%, 0);   /* top-anchored at the % position */
+  transform: translate(-50%, 0);
   border: 0;
   padding: 0;
   background: transparent;
@@ -166,12 +166,14 @@
 }
 
 /* ─── Station body ──────────────────────────────────────────────────────── */
-/* column-reverse: DOM-last child appears at visual top.
-   DOM order is [keyboard, sprite, monitor] so monitor renders at top
-   and is also painted last (DOM order) = always in front of the sprite. */
+/* flex-direction: column (normal).
+   DOM order: [spriteWrap, monitorGroup]
+   spriteWrap at visual TOP — character head visible.
+   monitorGroup pulled UP 24px (margin-top:-24px) — desk covers lower body.
+   z-index:1 on monitorGroup paints it over the sprite's filter stacking context. */
 .stationBody {
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column;
   align-items: center;
   width: 68px;
   position: relative;
@@ -187,20 +189,35 @@
   pointer-events: none;
 }
 
-/* ─── Monitor group (bezel + neck + base) ───────────────────────────────── */
+/* ─── Sprite wrapper — character sits at the top ────────────────────────── */
+.spriteWrap {
+  position: relative;
+  width: 68px;
+  height: 48px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.stationSprite {
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+}
+
+/* ─── Monitor group (bezel + neck + desk base) ──────────────────────────── */
+/* Pulled up 24px so the bezel covers the character's lower body.
+   z-index:1 beats the sprite's filter:drop-shadow stacking context (z-index:0 equiv).
+   Result: character's head/shoulders visible above bezel, lower body hidden behind desk. */
 .monitorGroup {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 4px;
+  margin-top: -24px;
   position: relative;
-  /* z-index:1 beats seatedActor's filter-based z-index:0 stacking context.
-     filter:drop-shadow on .seatedActor promotes it to paint AFTER normal-flow
-     elements, so we need an explicit stacking context here with z-index > 0. */
   z-index: 1;
 }
 
-/* Screen bezel — shape only, colour from modifier classes */
+/* Screen bezel */
 .monitorBezel {
   width: 50px;
   height: 32px;
@@ -261,19 +278,19 @@
 /* Slim neck */
 .monitorNeck {
   width: 3px;
-  height: 7px;
+  height: 6px;
   background: linear-gradient(180deg, #253545, #1a2530);
   border-left: 1px solid var(--border-hi);
   border-right: 1px solid var(--border-hi);
 }
 
-/* Wide base */
+/* Wide desk surface — wider than the bezel for a proper workstation look */
 .monitorBase {
-  width: 26px;
-  height: 4px;
-  background: linear-gradient(180deg, #2a3f50 0%, #1a2530 100%);
+  width: 62px;
+  height: 5px;
+  background: linear-gradient(180deg, #2a3f50 0%, #192e3d 100%);
   border: 1px solid var(--border-hi);
-  border-top: 1px solid #3a5060;
+  border-top: 2px solid #3a5060;
 }
 
 /* ─── Status LED (inside monitorBezel, top-right) ───────────────────────── */
@@ -288,34 +305,6 @@
 }
 .ledOk      { background: var(--good);  box-shadow: var(--glow-good); }
 .ledNoTrade { background: var(--amber); box-shadow: 0 0 6px rgba(255,199,58,0.5); }
-
-/* ─── Sprite wrapper ────────────────────────────────────────────────────── */
-.spriteWrap {
-  position: relative;
-  width: 68px;
-  height: 48px;
-  margin-top: 3px;
-  flex-shrink: 0;
-  overflow: hidden;
-}
-
-.stationSprite {
-  left: 50%;
-  top: 0;
-  transform: translateX(-50%);
-}
-
-/* ─── Keyboard strip ────────────────────────────────────────────────────── */
-.stationKeyboard {
-  width: 28px;
-  height: 5px;
-  margin-top: 2px;
-  flex-shrink: 0;
-  background:
-    repeating-linear-gradient(90deg, var(--border-hi) 0 3px, var(--border) 3px 4px),
-    var(--panel);
-  border: 1px solid var(--border);
-}
 
 /* ─── Risk badge ────────────────────────────────────────────────────────── */
 .riskBadge {
@@ -339,14 +328,14 @@
 .masterDesk {
   position: absolute;
   left: 50%;
-  top: 56%;
+  top: 54%;
   transform: translate(-50%, 0);
   background: transparent;
   border: none;
   padding: 0;
   cursor: pointer;
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column;
   align-items: center;
   transition: transform 80ms ease;
   z-index: 10;
@@ -376,12 +365,11 @@
 
 .masterLed { top: 3px; right: 3px; }
 
-/* Sprite wrap for master (scale 0.9 → 58px) */
+/* Master sprite wrap (scale 0.9 → 58px) */
 .masterSpriteWrap {
   position: relative;
   width: 80px;
   height: 58px;
-  margin-top: 3px;
   flex-shrink: 0;
   overflow: hidden;
 }
@@ -438,6 +426,6 @@
 @media (max-width: 640px) {
   .root { padding: 8px; }
   .sceneFrame { width: 100%; }
-  .scene { aspect-ratio: 636 / 500; }  /* taller on mobile — more vertical room */
+  .scene { aspect-ratio: 636 / 480; }
   .floorWordmark { font-size: 7px; }
 }
