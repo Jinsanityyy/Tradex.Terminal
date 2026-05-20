@@ -30,6 +30,8 @@ type LogTone = "ok" | "warn" | "alert" | "dim";
 type AgentDef = {
   id: string;
   label: string;
+  role?: string;
+  detail?: string;
   look: OperatorLook;
   baseStatus: AgentStatus;
   drawerId: string;
@@ -59,18 +61,26 @@ type LogLine = { time: string; text: string; tone: LogTone };
 const AGENTS_ROW_A: AgentDef[] = [
   {
     id: "risk", label: "RISK", drawerId: "risk", baseStatus: "ALERT", real: true,
+    role: "Guard Rail",
+    detail: "Protect position size until conflicting desks settle down.",
     look: { skin: "Copper", hairStyle: "Swoop", hairColor: "Black", shirtColor: "Maroon", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2 },
   },
   {
     id: "trend", label: "TREND", drawerId: "trend", baseStatus: "NO-TRADE", real: true,
+    role: "Macro Scout",
+    detail: "Higher-timeframe structure is aligned with the active swing.",
     look: { skin: "Ivory", hairStyle: "Parted Short", hairColor: "Brown", shirtColor: "Forest", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2 },
   },
   {
     id: "pract", label: "PR.ACT", drawerId: "smc", baseStatus: "TRADE-OK", real: true,
+    role: "Tape Reader",
+    detail: "Micro trigger is still dirty. Wait for a cleaner reaction.",
     look: { skin: "Gold", hairStyle: "Messy", hairColor: "Black", shirtColor: "Gray", pantsColor: "Black", shoesColor: "Black", seatFrame: 2 },
   },
   {
     id: "news", label: "NEWS", drawerId: "news", baseStatus: "TRADE-OK", real: true,
+    role: "Catalyst Watch",
+    detail: "Headline flow is stable and no fresh surprise is in play.",
     look: { skin: "Dove", hairStyle: "Plain", hairColor: "White", shirtColor: "Teal", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2 },
   },
   {
@@ -79,6 +89,8 @@ const AGENTS_ROW_A: AgentDef[] = [
   },
   {
     id: "exec", label: "EXEC", drawerId: "execution", baseStatus: "TRADE-OK", real: true,
+    role: "Entry Pilot",
+    detail: "Wait until the trigger desk confirms the entry lane.",
     look: { skin: "Coffee", hairStyle: "Buzzcut", hairColor: "Black", shirtColor: "Navy", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2 },
   },
 ];
@@ -90,6 +102,8 @@ const AGENTS_ROW_B: AgentDef[] = [
   },
   {
     id: "cntr", label: "CNTR", drawerId: "contrarian", baseStatus: "TRADE-OK", real: true,
+    role: "Contrarian Desk",
+    detail: "Crowding risk is low enough for a controlled fade if needed.",
     look: { skin: "Sienna", hairStyle: "Curly Short", hairColor: "Chestnut", shirtColor: "Purple", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2 },
   },
   {
@@ -318,6 +332,8 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
   }, [runData]);
 
   const tickerText = buildTicker(quotes);
+  const selectedAgent = REAL_AGENTS.find(a => a.id === selectedId) ?? REAL_AGENTS[0]!;
+  const selectedLive = agentStates[selectedAgent.id];
 
   const handleClick = (agent: AgentDef) => {
     if (!agent.real) return;
@@ -368,46 +384,34 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
         </button>
 
         <div className={styles.masterReadout}>
-          {masterState ? (
-            <>
-              <div className={`${styles.biasBadge} ${masterState.bias === "LONG" ? styles.biasLong : masterState.bias === "SHORT" ? styles.biasShort : styles.biasNeutral}`}>
-                {masterState.bias}
+          {/* Agent overview — cycles with auto-select, updates on click */}
+          <div className={styles.agentOverviewId}>{selectedAgent.label}</div>
+          <div className={styles.agentOverviewRole}>{selectedAgent.role ?? "—"}</div>
+          <div className={styles.agentOverviewDetail}>{selectedAgent.detail ?? ""}</div>
+
+          {selectedLive && (
+            <div className={styles.statsRow}>
+              <div className={styles.statCell}>
+                <span className={styles.statLabel}>STATUS</span>
+                <span className={`${styles.statValue} ${selectedLive.status === "TRADE-OK" ? styles.statOk : styles.statDanger}`}>
+                  {selectedLive.status}
+                </span>
               </div>
-              <div className={styles.statsRow}>
-                <div className={styles.statCell}>
-                  <span className={styles.statLabel}>CONF</span>
-                  <span className={styles.statValue}>{masterState.confidence}%</span>
-                </div>
-                <div className={styles.statCell}>
-                  <span className={styles.statLabel}>EDGE</span>
-                  <span className={styles.statValue}>{masterState.edgeScore}</span>
-                </div>
-                <div className={styles.statCell}>
-                  <span className={styles.statLabel}>DD</span>
-                  <span className={`${styles.statValue} ${masterState.drawdown > 1.5 ? styles.statDanger : ""}`}>
-                    {masterState.drawdown.toFixed(1)}%
-                  </span>
-                </div>
-                <div className={styles.statCell}>
-                  <span className={styles.statLabel}>AGR</span>
-                  <span className={styles.statValue}>{masterState.agreeing}/12</span>
-                </div>
+              <div className={styles.statCell}>
+                <span className={styles.statLabel}>CONF</span>
+                <span className={styles.statValue}>{selectedLive.confidence}%</span>
               </div>
-              <div className={styles.agrDots}>
-                {Array.from({ length: 12 }, (_, i) => (
-                  <span
-                    key={i}
-                    className={`${styles.agrDot} ${
-                      i < masterState.agreeing
-                        ? masterState.bias === "LONG" ? styles.dotLong : styles.dotShort
-                        : styles.dotOff
-                    }`}
-                  />
-                ))}
-              </div>
-            </>
-          ) : (
-            <span className={styles.statLabel}>INITIALIZING...</span>
+            </div>
+          )}
+
+          {/* Confidence bar */}
+          {selectedLive && (
+            <div className={styles.confBarWrap}>
+              <div
+                className={`${styles.confBar} ${selectedLive.status === "TRADE-OK" ? styles.confBarOk : styles.confBarBad}`}
+                style={{ width: `${selectedLive.confidence}%` }}
+              />
+            </div>
           )}
         </div>
       </div>
@@ -492,12 +496,6 @@ function AgentPod({
   const inner = (
     <>
       <div className={styles.stationBody}>
-        {live && (
-          <div className={`${styles.sigBadge} ${live.signal === "L" ? styles.sigL : live.signal === "S" ? styles.sigS : styles.sigN}`}>
-            {live.signal}
-          </div>
-        )}
-
         <div className={styles.spriteWrap}>
           <SeatedOperator look={agent.look} />
         </div>

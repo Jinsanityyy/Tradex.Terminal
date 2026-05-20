@@ -195,18 +195,60 @@
   text-transform: uppercase;
 }
 
-/* Master readout panel */
+/* Master readout panel — shows selected agent overview */
 .masterReadout {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: 6px;
+  padding: 8px 14px;
   background: rgba(0,0,0,0.25);
   border: 1px solid var(--border-hi);
   min-height: 80px;
   justify-content: center;
 }
+
+.agentOverviewId {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--wood-edge);
+  line-height: 1;
+}
+
+.agentOverviewRole {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.agentOverviewDetail {
+  font-size: 9px;
+  color: var(--text);
+  opacity: 0.7;
+  line-height: 1.5;
+  max-width: 420px;
+}
+
+.confBarWrap {
+  height: 3px;
+  width: 100%;
+  background: #1a1a14;
+  border-radius: 1px;
+  overflow: hidden;
+}
+.confBar {
+  height: 100%;
+  border-radius: 1px;
+  transition: width 0.6s ease;
+}
+.confBarOk  { background: var(--good); }
+.confBarBad { background: var(--bad); }
+
+.statOk { color: var(--good) !important; }
 
 .biasBadge {
   font-size: 22px;
