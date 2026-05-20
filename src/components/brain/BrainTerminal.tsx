@@ -533,6 +533,7 @@ export function BrainTerminal() {
               sub={tr?.momentumDirection ? `Momentum ${tr.momentumDirection}` : undefined}
               tone={biasTone(tr?.bias)}
               tags={trendTags}
+              onClick={() => openDrawer("trend")}
             />
 
             <AgentCard
@@ -543,6 +544,7 @@ export function BrainTerminal() {
               sub={smc?.premiumDiscount ? `Zone ${smc.premiumDiscount}` : undefined}
               tone={biasTone(smc?.bias)}
               tags={smcTags}
+              onClick={() => openDrawer("smc")}
             />
 
             <AgentCard
@@ -553,6 +555,7 @@ export function BrainTerminal() {
               sub={news?.riskScore != null ? `Risk ${news.riskScore}/100` : undefined}
               tone={biasTone(news?.impact)}
               tags={newsTags}
+              onClick={() => openDrawer("news")}
             />
 
             <AgentCard
@@ -563,6 +566,7 @@ export function BrainTerminal() {
               sub={risk ? `Grade ${risk.grade}  -  Max ${risk.maxRiskPercent}% risk` : undefined}
               tone={risk ? (risk.valid ? "green" : "red") : "gray"}
               tags={riskTags}
+              onClick={() => openDrawer("risk")}
             />
           </div>
 
@@ -577,6 +581,7 @@ export function BrainTerminal() {
               sub={contrarian?.trapType ? `Trap: ${contrarian.trapType}` : undefined}
               tone={contrarian?.challengesBias ? "red" : "gray"}
               tags={contrarianTags}
+              onClick={() => openDrawer("contrarian")}
             />
 
             <AgentCard
@@ -595,6 +600,7 @@ export function BrainTerminal() {
                 execution?.signalState === "ARMED" ? "yellow" : "gray"
               }
               tags={execTags}
+              onClick={() => openDrawer("execution")}
             />
 
             {/* Master Agent card  -  always opens master drawer */}
@@ -610,9 +616,11 @@ export function BrainTerminal() {
               const cls = TONE_CLS[masterTone];
 
               return (
-                <div
+                <button
+                  type="button"
+                  onClick={() => openDrawer("master")}
                   className={cn(
-                    "flex flex-col gap-2 border-t-2 bg-[hsl(var(--card))] px-3 py-3 text-left min-h-[140px]",
+                    "flex flex-col gap-2 border-t-2 bg-[hsl(var(--card))] px-3 py-3 text-left min-h-[140px] hover:bg-white/[0.04] transition-all cursor-pointer",
                     cls.border
                   )}
                 >
@@ -655,7 +663,7 @@ export function BrainTerminal() {
                       ))}
                     </div>
                   )}
-                </div>
+                </button>
               );
             })()}
           </div>
