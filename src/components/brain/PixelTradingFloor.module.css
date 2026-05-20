@@ -191,7 +191,7 @@
   align-items: center;
   margin-top: 4px;
   position: relative;
-  z-index: 10;
+  z-index: 25;   /* must be above spriteWrap so monitor always paints on top */
 }
 
 /* Screen bezel — shape only, colour from modifier classes */
@@ -290,14 +290,15 @@
   height: 48px;     /* matches scale 0.75 × 64px */
   margin-top: 3px;
   flex-shrink: 0;
-  z-index: 20;      /* above monitor, always visible */
+  overflow: hidden; /* prevent sprite from bleeding into the monitor above */
+  z-index: 5;       /* below monitorGroup (z:25) so monitor always wins */
 }
 
 .stationSprite {
   left: 50%;
   top: 0;
   transform: translateX(-50%);
-  z-index: 20;
+  z-index: 5;
 }
 
 /* ─── Keyboard strip ────────────────────────────────────────────────────── */
@@ -378,14 +379,15 @@
   height: 58px;
   margin-top: 3px;
   flex-shrink: 0;
-  z-index: 20;
+  overflow: hidden;
+  z-index: 5;
 }
 
 .masterSeatedSprite {
   left: 50%;
   top: 0;
   transform: translateX(-50%);
-  z-index: 20;
+  z-index: 5;
 }
 
 /* ─── Floor wordmark ────────────────────────────────────────────────────── */
