@@ -279,7 +279,7 @@
 /* ─── Monitor group (bezel + neck + desk base) ──────────────────────────── */
 .monitorGroup {
   position: absolute;
-  top: 18px;
+  top: 30px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
