@@ -798,6 +798,63 @@ const AGENT_CONFIG: Record<string, {
   },
 };
 
+// ─── Inline Agent Panel (mobile floor view) ───────────────────────────────────
+
+const TAB_LABEL: Record<string, string> = {
+  trend: "TREND", smc: "PA", news: "NEWS",
+  risk: "RISK", execution: "EXEC", contrarian: "CONTRA", master: "MASTER",
+};
+
+interface BrainAgentPanelProps {
+  data: AgentRunResult;
+  activeAgent: string;
+  onAgentChange: (id: string) => void;
+}
+
+export function BrainAgentPanel({ data, activeAgent, onAgentChange }: BrainAgentPanelProps) {
+  const cfg  = AGENT_CONFIG[activeAgent] ?? AGENT_CONFIG.master;
+  const bias = cfg.getBias(data);
+  const conf = cfg.getConf(data);
+  const tabs = Object.entries(AGENT_CONFIG).map(([id]) => ({ id, label: TAB_LABEL[id] ?? id.toUpperCase() }));
+
+  return (
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Agent info row */}
+      <div className="flex items-center gap-2 px-4 pt-3 pb-2 shrink-0">
+        <span className="text-[11px] font-bold text-white flex-1 truncate">{cfg.label}</span>
+        <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0", biasBadge(bias))}>
+          {bias.toUpperCase()}
+        </span>
+        <span className="text-[9px] font-mono text-zinc-600 shrink-0">{conf}%</span>
+        <span className="text-[9px] text-zinc-700 shrink-0 font-mono">
+          {new Date(data.timestamp).toLocaleTimeString()}
+        </span>
+      </div>
+
+      {/* Tab strip */}
+      <div className="flex gap-1 px-3 pb-2 shrink-0 overflow-x-auto scrollbar-none border-b border-white/6">
+        {tabs.map(t => (
+          <button
+            key={t.id}
+            onClick={() => onAgentChange(t.id)}
+            className={cn(
+              "px-2.5 py-1.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide transition-all whitespace-nowrap",
+              activeAgent === t.id ? "bg-white/10 text-white" : "text-zinc-600 hover:text-zinc-300"
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto px-4 py-3">
+        <cfg.View data={data} />
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Drawer ──────────────────────────────────────────────────────────────
 
 export function BrainOverviewDrawer({ open, onClose, data, highlightAgentId }: BrainOverviewDrawerProps) {
