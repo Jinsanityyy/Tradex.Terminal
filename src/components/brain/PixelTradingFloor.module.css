@@ -166,17 +166,12 @@
 }
 
 /* ─── Station body ──────────────────────────────────────────────────────── */
-/* flex-direction: column (normal).
-   DOM order: [spriteWrap, monitorGroup]
-   spriteWrap at visual TOP — character head visible.
-   monitorGroup pulled UP 24px (margin-top:-24px) — desk covers lower body.
-   z-index:1 on monitorGroup paints it over the sprite's filter stacking context. */
+/* Absolute-positioned children: sprite at z:1 (back), monitor at z:2 (front).
+   Head (~top 16px of sprite) peeks above the monitor; monitor covers the body. */
 .stationBody {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 68px;
   position: relative;
+  width: 68px;
+  height: 70px;
 }
 
 .stationBodySelected::after {
@@ -189,13 +184,16 @@
   pointer-events: none;
 }
 
-/* ─── Sprite wrapper — character sits at the top ────────────────────────── */
+/* ─── Sprite wrapper — character head visible above monitor ─────────────── */
 .spriteWrap {
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
   width: 68px;
   height: 48px;
-  flex-shrink: 0;
   overflow: hidden;
+  z-index: 1;
 }
 
 .stationSprite {
@@ -205,16 +203,15 @@
 }
 
 /* ─── Monitor group (bezel + neck + desk base) ──────────────────────────── */
-/* Pulled up 24px so the bezel covers the character's lower body.
-   z-index:1 beats the sprite's filter:drop-shadow stacking context (z-index:0 equiv).
-   Result: character's head/shoulders visible above bezel, lower body hidden behind desk. */
 .monitorGroup {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: -24px;
-  position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 
 /* Screen bezel */
@@ -284,7 +281,7 @@
   border-right: 1px solid var(--border-hi);
 }
 
-/* Wide desk surface — wider than the bezel for a proper workstation look */
+/* Wide desk surface */
 .monitorBase {
   width: 62px;
   height: 5px;
@@ -305,6 +302,21 @@
 }
 .ledOk      { background: var(--good);  box-shadow: var(--glow-good); }
 .ledNoTrade { background: var(--amber); box-shadow: 0 0 6px rgba(255,199,58,0.5); }
+
+/* ─── Keyboard strip ────────────────────────────────────────────────────── */
+.stationKeyboard {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 5px;
+  background:
+    repeating-linear-gradient(90deg, var(--border-hi) 0 3px, var(--border) 3px 4px),
+    var(--panel);
+  border: 1px solid var(--border);
+  z-index: 2;
+}
 
 /* ─── Risk badge ────────────────────────────────────────────────────────── */
 .riskBadge {
@@ -334,9 +346,8 @@
   border: none;
   padding: 0;
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  width: 80px;
+  height: 82px;
   transition: transform 80ms ease;
   z-index: 10;
 }
@@ -365,13 +376,16 @@
 
 .masterLed { top: 3px; right: 3px; }
 
-/* Master sprite wrap (scale 0.9 → 58px) */
+/* Master sprite wrap (scale 0.9 → 58px), behind the monitor */
 .masterSpriteWrap {
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
   width: 80px;
   height: 58px;
-  flex-shrink: 0;
   overflow: hidden;
+  z-index: 1;
 }
 
 .masterSeatedSprite {
@@ -426,6 +440,6 @@
 @media (max-width: 640px) {
   .root { padding: 8px; }
   .sceneFrame { width: 100%; }
-  .scene { aspect-ratio: 636 / 480; }
+  .scene { aspect-ratio: 636 / 500; }
   .floorWordmark { font-size: 7px; }
 }
