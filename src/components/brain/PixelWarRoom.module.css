@@ -430,18 +430,6 @@
   pointer-events: none;
 }
 
-.wallScreenChart {
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 26px;
-  position: relative;
-  z-index: 1;
-}
-.chartBar    { flex: 1; min-height: 3px; opacity: 0.7; }
-.chartBarUp  { background: var(--good); }
-.chartBarDn  { background: var(--bad);  }
-
 .wallScreenLabel {
   font-size: 5px;
   font-weight: 800;

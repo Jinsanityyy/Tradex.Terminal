@@ -341,14 +341,6 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
   const selectedAgent = REAL_AGENTS.find(a => a.id === selectedId) ?? REAL_AGENTS[0]!;
   const agentOverview = getAgentOverview(selectedAgent.id, runData);
   const isExecArmed = runData?.agents.execution.signalState === "ARMED" || false;
-  const chartBars = runData ? [
-    { h: runData.agents.trend.confidence,                              up: runData.agents.trend.bias === "bullish" },
-    { h: runData.agents.smc.confidence,                                up: runData.agents.smc.bias === "bullish"   },
-    { h: runData.agents.news.confidence,                               up: runData.agents.news.impact === "bullish" },
-    { h: runData.agents.risk.sessionScore,                             up: runData.agents.risk.valid               },
-    { h: Math.min(95, runData.agents.execution.confluenceCount * 10),  up: runData.agents.execution.direction === "long" },
-    { h: runData.agents.contrarian.trapConfidence,                     up: !runData.agents.contrarian.challengesBias },
-  ] : [45,62,38,70,28,52].map((h,i) => ({ h, up: i % 2 === 0 }));
 
   const handleClick = (agent: AgentDef) => {
     if (!agent.real) return;
@@ -483,13 +475,7 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
         {/* Back wall: sconces + big wall screen + clock */}
         <div className={styles.backWall}>
           <div className={styles.wallSconce} aria-hidden="true" />
-          <div className={styles.wallScreen} aria-hidden="true">
-            <div className={styles.wallScreenChart}>
-              {chartBars.map((b, i) => (
-                <div key={i} className={`${styles.chartBar} ${b.up ? styles.chartBarUp : styles.chartBarDn}`} style={{ height: `${Math.max(8, b.h)}%` }} />
-              ))}
-            </div>
-          </div>
+          <div className={styles.wallScreen} aria-hidden="true" />
           <div className={styles.wallClock} aria-hidden="true">{clock}</div>
           <div className={styles.wallSconce} aria-hidden="true" />
         </div>
