@@ -111,6 +111,7 @@ const AGENTS_ROW_B: AgentDef[] = [
 ];
 
 const ALL_AGENTS = [...AGENTS_ROW_A, ...AGENTS_ROW_B];
+const REAL_AGENTS = ALL_AGENTS.filter(a => a.real);
 
 const MASTER_LOOK: OperatorLook = {
   skin: "Ivory", hairStyle: "Loose", hairColor: "Chestnut",
@@ -264,7 +265,8 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
     { revalidateOnFocus: false, dedupingInterval: 300_000 },
   );
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [selectedId, setSelectedId] = useState<string>(REAL_AGENTS[0]?.id ?? "risk");
   const [agentStates, setAgentStates] = useState<Record<string, AgentLiveState>>({});
   const [masterState, setMasterState] = useState<MasterState | null>(null);
   const [heatmap, setHeatmap] = useState<HeatCell[][]>([]);
@@ -272,6 +274,7 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
   const [mounted, setMounted] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
 
+  // Initialize state once on mount — no random interval to avoid constant flickering
   useEffect(() => {
     const states: Record<string, AgentLiveState> = {};
     ALL_AGENTS.forEach(a => { states[a.id] = makeAgentState(); });
@@ -293,44 +296,18 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
       { time: "09:32", text: "MASTER: EDGE CALIBRATED — READY", tone: "dim" },
     ]);
     setMounted(true);
+  }, []);
 
-    const iv = setInterval(() => {
-      setAgentStates(prev => {
-        const next = { ...prev };
-        [...ALL_AGENTS].sort(() => Math.random() - 0.5).slice(0, 3).forEach(a => {
-          next[a.id] = makeAgentState();
-        });
-
-        const nls = Object.values(next).filter(s => s.signal === "L").length;
-        const nss = Object.values(next).filter(s => s.signal === "S").length;
-        setMasterState({
-          bias: nls > nss + 2 ? "LONG" : nss > nls + 2 ? "SHORT" : "NEUTRAL",
-          confidence: Math.round(Object.values(next).reduce((s, a) => s + a.confidence, 0) / ALL_AGENTS.length),
-          edgeScore: Math.round(rnd(55, 88)),
-          drawdown: parseFloat(rnd(0, 2.5).toFixed(2)),
-          agreeing: Math.max(nls, nss),
-        });
-
-        setLog(prevLog => {
-          const agent = pick(ALL_AGENTS);
-          const text = pick(LOG_FNS)(agent.label, next[agent.id]?.signal ?? "—");
-          const now = new Date();
-          const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-          const tone: LogTone = text.includes("CAUTION") ? "warn" : text.includes("FILL") ? "ok" : "dim";
-          return [{ time, text, tone }, ...prevLog.slice(0, 24)];
-        });
-
+  // Auto-cycle selection through the 7 real agents every 3s
+  useEffect(() => {
+    const t = window.setInterval(() => {
+      setSelectedIdx(i => {
+        const next = (i + 1) % REAL_AGENTS.length;
+        setSelectedId(REAL_AGENTS[next]?.id ?? REAL_AGENTS[0]!.id);
         return next;
       });
-
-      setHeatmap(prev => {
-        const next = [...prev];
-        next[Math.floor(Math.random() * next.length)] = makeHeatRow(24);
-        return next;
-      });
-    }, 380);
-
-    return () => clearInterval(iv);
+    }, 3_000);
+    return () => window.clearInterval(t);
   }, []);
 
   // Sync real agent data when SWR result arrives
@@ -343,7 +320,9 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
   const tickerText = buildTicker(quotes);
 
   const handleClick = (agent: AgentDef) => {
-    setSelectedId(agent.id);
+    if (!agent.real) return;
+    const idx = REAL_AGENTS.findIndex(a => a.id === agent.id);
+    if (idx >= 0) { setSelectedIdx(idx); setSelectedId(agent.id); }
     if (agent.drawerId) onAgentClick?.(agent.drawerId);
   };
 
@@ -510,14 +489,8 @@ function AgentPod({
   const ok = status === "TRADE-OK";
   const alert = status === "ALERT";
 
-  return (
-    <button
-      type="button"
-      className={`${styles.agentPod} ${selected ? styles.podSelected : ""} ${alert ? styles.podAlert : ""}`}
-      onClick={onClick}
-      aria-pressed={selected}
-      tabIndex={0}
-    >
+  const inner = (
+    <>
       <div className={styles.stationBody}>
         {live && (
           <div className={`${styles.sigBadge} ${live.signal === "L" ? styles.sigL : live.signal === "S" ? styles.sigS : styles.sigN}`}>
@@ -560,6 +533,26 @@ function AgentPod({
       <div className={styles.confLabel}>
         {live ? `${live.confidence}%` : ""}
       </div>
+    </>
+  );
+
+  // Non-real agents are decorative — not interactive
+  if (!agent.real) {
+    return (
+      <div className={`${styles.agentPod} ${alert ? styles.podAlert : ""}`} aria-hidden="true">
+        {inner}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className={`${styles.agentPod} ${selected ? styles.podSelected : ""} ${alert ? styles.podAlert : ""}`}
+      onClick={onClick}
+      aria-pressed={selected}
+    >
+      {inner}
     </button>
   );
 }
