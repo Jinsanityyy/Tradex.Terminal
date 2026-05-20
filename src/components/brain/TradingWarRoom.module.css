@@ -1,0 +1,76 @@
+/* ─── Ticker scroll ─────────────────────────────────────────────────────── */
+.tickerScroll  { animation: scrollLeft  48s linear infinite; }
+.tickerReverse { animation: scrollRight 42s linear infinite; }
+
+@keyframes scrollLeft  { from { transform: translateX(0);    } to { transform: translateX(-50%); } }
+@keyframes scrollRight { from { transform: translateX(-50%); } to { transform: translateX(0);    } }
+
+/* ─── Grid texture overlay ──────────────────────────────────────────────── */
+.gridOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(rgba(0,255,65,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,65,0.025) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ─── CRT scanline overlay ──────────────────────────────────────────────── */
+.scanline {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: repeating-linear-gradient(
+    180deg,
+    transparent 0,
+    transparent 3px,
+    rgba(0,0,0,0.10) 3px,
+    rgba(0,0,0,0.10) 4px
+  );
+}
+
+/* ─── LED animations ────────────────────────────────────────────────────── */
+.ledGreen {
+  background: #00ff41;
+  box-shadow: 0 0 4px #00ff41;
+}
+.ledAmber {
+  background: #ffaa00;
+  box-shadow: 0 0 4px #ffaa00;
+  animation: blinkMed 0.9s steps(2, end) infinite;
+}
+.ledRed {
+  background: #ff0040;
+  box-shadow: 0 0 4px #ff0040;
+  animation: blinkFast 0.28s steps(2, end) infinite;
+}
+.ledOff { background: #0a0a14; }
+
+/* ─── Status dot on workstation header ──────────────────────────────────── */
+.statusDotOk    { background: #00ff41; box-shadow: 0 0 5px #00ff41; }
+.statusDotWarn  { background: #ffaa00; box-shadow: 0 0 5px #ffaa00; animation: blinkMed 1.4s steps(2,end) infinite; }
+.statusDotAlert { background: #ff0040; box-shadow: 0 0 5px #ff0040; animation: blinkFast 0.35s steps(2,end) infinite; }
+
+/* ─── Alert bang [!] ────────────────────────────────────────────────────── */
+.alertBang { animation: alertFlash 0.38s steps(2, end) infinite; }
+
+/* ─── Workstation selected ring ─────────────────────────────────────────── */
+.wsSelected { border-color: #00ff41 !important; box-shadow: 0 0 10px rgba(0,255,65,0.22) !important; }
+.wsAlert    { border-color: #ff0040 !important; box-shadow: 0 0 10px rgba(255,0,64,0.22) !important; }
+.wsWarn     { border-color: #ffaa00 !important; box-shadow: 0 0 8px  rgba(255,170,0,0.18) !important; }
+
+/* ─── Keyframes ─────────────────────────────────────────────────────────── */
+@keyframes blinkMed  { 0%,100%{opacity:1} 50%{opacity:0.15} }
+@keyframes blinkFast { 0%,100%{opacity:1} 50%{opacity:0}    }
+@keyframes alertFlash {
+  0%,100% { color: #ff0040; text-shadow: 0 0 8px #ff0040; }
+  50%     { color: #44000f; text-shadow: none; }
+}
+
+/* ─── Mobile ────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .mobileHide { display: none !important; }
+}
