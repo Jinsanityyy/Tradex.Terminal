@@ -158,7 +158,14 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
                 >
                   <div className={`${styles.stationBody} ${isSelected ? styles.stationBodySelected : ""}`}>
 
-                    {/* ── Monitor ── */}
+                    {/* DOM-first → paints behind. CSS order:2 keeps it below the monitor visually. */}
+                    <div className={styles.spriteWrap}>
+                      <SeatedOperator look={station.seatedLook} className={styles.stationSprite} />
+                    </div>
+
+                    <div className={styles.stationKeyboard} aria-hidden="true" />
+
+                    {/* DOM-last → paints on top naturally. CSS order:1 lifts it to the top visually. */}
                     <div className={styles.monitorGroup}>
                       <div className={`${styles.monitorBezel} ${ok ? styles.monitorOk : styles.monitorNoTrade}`}>
                         <div className={styles.monitorScreen} />
@@ -168,13 +175,6 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
                       <div className={styles.monitorNeck} />
                       <div className={styles.monitorBase} />
                     </div>
-
-                    {/* ── Figure ── */}
-                    <div className={styles.spriteWrap}>
-                      <SeatedOperator look={station.seatedLook} className={styles.stationSprite} />
-                    </div>
-
-                    <div className={styles.stationKeyboard} aria-hidden="true" />
 
                     {station.id === "risk" && (
                       <div className={styles.riskBadge} aria-hidden="true">!</div>
@@ -186,6 +186,12 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
 
             {/* ── Master desk ── */}
             <button type="button" className={styles.masterDesk} onClick={() => onAgentClick?.("master")}>
+              {/* DOM-first → paints behind */}
+              <div className={styles.masterSpriteWrap}>
+                <SeatedOperator look={CENTRAL_LOOK} className={styles.masterSeatedSprite} />
+              </div>
+              <div className={styles.stationKeyboard} aria-hidden="true" />
+              {/* DOM-last → paints on top */}
               <div className={styles.monitorGroup}>
                 <div className={`${styles.monitorBezel} ${styles.masterBezel}`}>
                   <div className={styles.monitorScreen} />
@@ -195,10 +201,6 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
                 <div className={styles.monitorNeck} />
                 <div className={styles.monitorBase} />
               </div>
-              <div className={styles.masterSpriteWrap}>
-                <SeatedOperator look={CENTRAL_LOOK} className={styles.masterSeatedSprite} />
-              </div>
-              <div className={styles.stationKeyboard} aria-hidden="true" />
             </button>
 
             <div className={styles.floorWordmark}>TRADING FLOOR</div>
