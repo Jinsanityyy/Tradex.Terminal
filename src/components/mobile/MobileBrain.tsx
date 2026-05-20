@@ -432,8 +432,8 @@ export function MobileBrain() {
       {/* Floor */}
       {view === "floor" && (
         <div className="flex flex-col flex-1 overflow-hidden">
-          {/* War room — fixed height at top */}
-          <div className="shrink-0 h-[42vh]">
+          {/* War room — natural height (aspect-ratio driven, no fixed h) */}
+          <div className="shrink-0">
             <PixelTradingFloor onAgentClick={setDrawerAgentId} />
           </div>
 
