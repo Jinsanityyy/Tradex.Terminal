@@ -453,6 +453,9 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
             <div className={styles.stationKeyboard} />
           </div>
           <div className={styles.masterTag}>COMMAND</div>
+          <div className={styles.confLabel}>
+            {masterState ? `${masterState.confidence}%` : ""}
+          </div>
         </button>
 
         <div className={styles.masterReadout}>
@@ -622,7 +625,7 @@ function AgentPod({
       </div>
 
       <div className={styles.confLabel}>
-        {live ? `${live.confidence}%` : ""}
+        {live && agent.real ? `${live.confidence}%` : ""}
       </div>
     </>
   );
