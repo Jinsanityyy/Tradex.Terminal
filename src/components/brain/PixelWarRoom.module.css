@@ -299,15 +299,6 @@
 .agentPod:hover   { transform: translateY(-2px); }
 .podSelected      { transform: translateY(-2px); }
 
-/* Non-real background operators — visible but inert */
-.podFake {
-  cursor: default !important;
-  opacity: 0.55;
-  filter: saturate(0.5);
-  pointer-events: none;
-}
-.podFake:hover { transform: none !important; }
-
 /* glow under selected pod */
 .podSelected::after {
   content: "";
@@ -332,6 +323,15 @@
   0%, 100% { border-color: var(--bad-dim); }
   50%       { border-color: var(--bad); }
 }
+
+/* Background operators — visible but inert */
+.podFake {
+  cursor: default !important;
+  opacity: 0.5;
+  filter: saturate(0.4);
+  pointer-events: none;
+}
+.podFake:hover { transform: none !important; }
 
 /* Station body: relative container so children can be absolutely positioned */
 .stationBody {
