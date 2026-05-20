@@ -622,7 +622,7 @@ function AgentPod({
       </div>
 
       <div className={styles.confLabel}>
-        {live ? `${live.confidence}%` : ""}
+        {live && agent.real ? `${live.confidence}%` : ""}
       </div>
     </>
   );
