@@ -489,7 +489,6 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
                 <div key={i} className={`${styles.chartBar} ${b.up ? styles.chartBarUp : styles.chartBarDn}`} style={{ height: `${Math.max(8, b.h)}%` }} />
               ))}
             </div>
-            <span className={styles.wallScreenLabel}>TRADEX · WAR ROOM</span>
           </div>
           <div className={styles.wallClock} aria-hidden="true">{clock}</div>
           <div className={styles.wallSconce} aria-hidden="true" />
@@ -557,6 +556,10 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
           </div>
 
         </div>
+
+        {/* Floor baseboard */}
+        <div className={styles.floorBase} aria-hidden="true" />
+
       </div>
 
 

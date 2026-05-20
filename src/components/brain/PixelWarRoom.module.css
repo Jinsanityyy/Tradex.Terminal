@@ -486,6 +486,26 @@
   padding-top: 10px;
   flex-shrink: 0;
   width: 28px;
+  background: linear-gradient(180deg, #16100a 0%, #100c06 100%);
+}
+/* left wall — inner edge on the right */
+.floorArea > .sidePanel:first-child {
+  border-right: 2px solid #3a2010;
+  box-shadow: inset -5px 0 12px rgba(0,0,0,0.55), 2px 0 6px rgba(0,0,0,0.35);
+}
+/* right wall — inner edge on the left */
+.floorArea > .sidePanel:last-child {
+  border-left: 2px solid #3a2010;
+  box-shadow: inset 5px 0 12px rgba(0,0,0,0.55), -2px 0 6px rgba(0,0,0,0.35);
+}
+
+/* ─── Floor baseboard ────────────────────────────────────────────────────── */
+.floorBase {
+  height: 10px;
+  background: linear-gradient(180deg, #2e1c0a 0%, #1a1006 100%);
+  border-top: 2px solid #4e2e14;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,180,80,0.08);
+  flex-shrink: 0;
 }
 
 /* ─── Filing cabinet ─────────────────────────────────────────────────────── */
@@ -929,8 +949,32 @@
   .agrDot     { width: 6px; height: 6px; }
 
   /* Floor rows: wrap to 3 per row on mobile */
-  .floorTier  { padding: 6px 0 10px; }
+  .floorTier  { padding: 6px 0 0; position: relative; }
   .sidePanel  { display: none; }
+
+  /* Side walls on mobile via pseudo-elements */
+  .floorTier::before,
+  .floorTier::after {
+    content: "";
+    position: absolute;
+    top: 20px; /* below ceiling */
+    bottom: 0;
+    width: 9px;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .floorTier::before {
+    left: 0;
+    background: linear-gradient(90deg, #16100a 60%, transparent 100%);
+    border-right: 2px solid #3a2010;
+    box-shadow: inset -4px 0 8px rgba(0,0,0,0.5), 2px 0 5px rgba(0,0,0,0.3);
+  }
+  .floorTier::after {
+    right: 0;
+    background: linear-gradient(90deg, transparent 0%, #16100a 40%);
+    border-left: 2px solid #3a2010;
+    box-shadow: inset 4px 0 8px rgba(0,0,0,0.5), -2px 0 5px rgba(0,0,0,0.3);
+  }
   .backWall   { padding: 0 10px; gap: 6px; }
   .wallClock  { font-size: 10px; min-width: 32px; }
   .floorArea  { gap: 0; }
