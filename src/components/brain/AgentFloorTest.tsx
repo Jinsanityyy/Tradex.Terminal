@@ -557,10 +557,9 @@ function NorthWall({ hasData, states }: { hasData: boolean; states: Record<strin
 }
 
 // ─── Sub-agent workstation ────────────────────────────────────────────────────
-const WS_W       = 152;
-const WS_MON_W   = 132;   // total monitor array width
-const WS_MON_H   = 74;    // monitor array height
-const WS_CHAIR_H = 42;
+const WS_W      = 152;
+const WS_MON_W  = 132;  // total monitor array width
+const WS_MON_H  = 74;   // monitor array height
 const HEAD_SCALE = 4;
 
 interface WSProps {
@@ -571,6 +570,8 @@ interface WSProps {
 
 function WorkStation({ agent, sc, agState, isSel, isArmed, live, onClick }: WSProps) {
   const isActive = ["bull","bear","armed","analyzing","approved","alert"].includes(agState);
+  // Head sprite is 6 rows tall at HEAD_SCALE — this is the amount that peeks above the desk
+  const HEAD_PX = 6 * HEAD_SCALE; // 24px
 
   return (
     <div style={{ position: "relative", width: WS_W, flexShrink: 0, cursor: "pointer" }} onClick={onClick}>
@@ -596,50 +597,71 @@ function WorkStation({ agent, sc, agState, isSel, isArmed, live, onClick }: WSPr
         {agent.label}
       </div>
 
-      {/* CHARACTER IN CHAIR */}
-      <div style={{ height: WS_CHAIR_H, display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: 5, position: "relative" }}>
+      {/*
+       * MERGED UNIT — single relative container holds both character and desk.
+       * Character (z:1) sits at top:0; desk block (z:2) starts at top:HEAD_PX,
+       * immediately abutting the head so they read as one cohesive workstation.
+       * Height = HEAD_PX + desk block (top-edge + monitors + keyboard + front).
+       */}
+      <div style={{ position: "relative", height: HEAD_PX + 7 + WS_MON_H + 15 + 9 }}>
+
+        {/* z:1 — CHARACTER HEAD + CHAIR BACK */}
         <div style={{
-          position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)",
-          width: 40, height: 28, background: W.chair, border: `1px solid ${W.chairB}`,
-          borderBottom: "none", borderRadius: "2px 2px 0 0",
-        }} />
-        <div style={{ position: "relative", zIndex: 2 }}>
-          <PixelHead sc={sc} agState={agState} scale={HEAD_SCALE} />
+          position: "absolute", top: 0,
+          left: "50%", transform: "translateX(-50%)",
+          zIndex: 1,
+        }}>
+          {/* Chair back sits behind the head */}
+          <div style={{
+            position: "absolute", top: 4, left: "50%", transform: "translateX(-50%)",
+            width: 40, height: HEAD_PX,
+            background: W.chair, border: `1px solid ${W.chairB}`,
+            borderBottom: "none", borderRadius: "2px 2px 0 0",
+            zIndex: 0,
+          }} />
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <PixelHead sc={sc} agState={agState} scale={HEAD_SCALE} />
+          </div>
+        </div>
+
+        {/* z:2 — DESK BLOCK (covers character from HEAD_PX downward) */}
+        <div style={{ position: "absolute", top: HEAD_PX, left: 0, right: 0, zIndex: 2 }}>
+
+          {/* Desk top edge */}
+          <div style={{
+            height: 7,
+            background: `linear-gradient(to bottom, ${W.edge}, ${W.top})`,
+            borderLeft: `1px solid ${W.edge}`, borderRight: `1px solid ${W.edge}`,
+          }} />
+
+          {/* Desk surface + monitor array */}
+          <div style={{
+            height: WS_MON_H, background: W.bodyS,
+            borderLeft: `1px solid ${W.edge}30`, borderRight: `1px solid ${W.edge}30`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "0 10px", boxSizing: "border-box",
+          }}>
+            <MonitorArray sc={sc} agState={agState} totalW={WS_MON_W} h={WS_MON_H - 10} />
+          </div>
+
+          {/* Keyboard strip */}
+          <div style={{
+            background: W.bodyS,
+            borderLeft: `1px solid ${W.edge}30`, borderRight: `1px solid ${W.edge}30`,
+            padding: "2px 10px 4px", boxSizing: "border-box",
+          }}>
+            <KbStrip sc={sc} agState={agState} width={WS_MON_W} />
+          </div>
+
+          {/* Desk front edge */}
+          <div style={{
+            height: 9, background: W.front,
+            borderLeft: `1px solid #0a0602`, borderRight: `1px solid #0a0602`,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.98), 0 3px 8px rgba(0,0,0,0.7)",
+          }} />
+
         </div>
       </div>
-
-      {/* DESK TOP EDGE */}
-      <div style={{
-        height: 7,
-        background: `linear-gradient(to bottom, ${W.edge}, ${W.top})`,
-        borderLeft: `1px solid ${W.edge}`, borderRight: `1px solid ${W.edge}`,
-      }} />
-
-      {/* DESK SURFACE + MULTI-MONITOR ARRAY */}
-      <div style={{
-        height: WS_MON_H, background: W.bodyS,
-        borderLeft: `1px solid ${W.edge}30`, borderRight: `1px solid ${W.edge}30`,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: "0 10px", boxSizing: "border-box",
-      }}>
-        <MonitorArray sc={sc} agState={agState} totalW={WS_MON_W} h={WS_MON_H - 10} />
-      </div>
-
-      {/* KEYBOARD STRIP */}
-      <div style={{
-        background: W.bodyS,
-        borderLeft: `1px solid ${W.edge}30`, borderRight: `1px solid ${W.edge}30`,
-        padding: "2px 10px 4px", boxSizing: "border-box",
-      }}>
-        <KbStrip sc={sc} agState={agState} width={WS_MON_W} />
-      </div>
-
-      {/* DESK FRONT EDGE */}
-      <div style={{
-        height: 9, background: W.front,
-        borderLeft: `1px solid #0a0602`, borderRight: `1px solid #0a0602`,
-        boxShadow: "0 8px 24px rgba(0,0,0,0.98), 0 3px 8px rgba(0,0,0,0.7)",
-      }} />
 
       {/* CONFIDENCE STRIP */}
       <div style={{ height: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
@@ -653,9 +675,8 @@ function WorkStation({ agent, sc, agState, isSel, isArmed, live, onClick }: WSPr
 }
 
 // ─── Master station ───────────────────────────────────────────────────────────
-const MASTER_W       = 280;
-const MASTER_MON_H   = 96;
-const MASTER_CHAIR_H = 48;
+const MASTER_W    = 280;
+const MASTER_MON_H = 96;
 
 interface MasterWSProps { sc: SC; agState: AgentState; live: AgentLive; isSel: boolean; onClick: () => void }
 
@@ -691,66 +712,90 @@ function MasterStation({ sc, agState, live, isSel, onClick }: MasterWSProps) {
         </span>
       </div>
 
-      {/* MASTER CHARACTER */}
-      <div style={{ height: MASTER_CHAIR_H, display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: 6, position: "relative" }}>
-        <div style={{
-          position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)",
-          width: 54, height: 36,
-          background: "#14102a", border: `1px solid ${sc.accent}25`,
-          borderBottom: "none", borderRadius: "2px 2px 0 0",
-        }} />
-        <div style={{ position: "relative", zIndex: 2 }}>
-          <PixelHead sc={sc} agState={agState} scale={5} />
-        </div>
-      </div>
+      {/*
+       * MERGED UNIT — same pattern as sub-agent stations.
+       * Master head is scale=5 → HEAD_PX = 6×5 = 30px visible above desk.
+       * Desk block (z:2) starts at top:30px, covering everything below.
+       */}
+      {(() => {
+        const M_HEAD_PX = 6 * 5; // 30px
+        const M_DESK_H  = 9 + MASTER_MON_H + 17 + 11; // top-edge + monitors + kb + front
+        return (
+          <div style={{ position: "relative", height: M_HEAD_PX + M_DESK_H }}>
 
-      {/* MASTER DESK TOP EDGE */}
-      <div style={{
-        height: 9,
-        background: `linear-gradient(to bottom, ${sc.accent}60, ${W.top})`,
-        borderLeft: `1px solid ${sc.accent}65`, borderRight: `1px solid ${sc.accent}65`,
-      }} />
+            {/* z:1 — CHARACTER HEAD + CHAIR BACK */}
+            <div style={{
+              position: "absolute", top: 0,
+              left: "50%", transform: "translateX(-50%)",
+              zIndex: 1,
+            }}>
+              <div style={{
+                position: "absolute", top: 5, left: "50%", transform: "translateX(-50%)",
+                width: 54, height: M_HEAD_PX,
+                background: "#14102a", border: `1px solid ${sc.accent}25`,
+                borderBottom: "none", borderRadius: "2px 2px 0 0",
+                zIndex: 0,
+              }} />
+              <div style={{ position: "relative", zIndex: 1 }}>
+                <PixelHead sc={sc} agState={agState} scale={5} />
+              </div>
+            </div>
 
-      {/* MASTER DESK SURFACE + 3 MONITORS */}
-      <div style={{
-        height: MASTER_MON_H, background: W.bodyS,
-        borderLeft: `1px solid ${sc.accent}22`, borderRight: `1px solid ${sc.accent}22`,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        gap: 5, padding: "0 16px", boxSizing: "border-box",
-        boxShadow: `inset 0 0 28px ${sc.accent}08`,
-      }}>
-        <SingleMon sc={sc} agState={agState} w={monW} h={MASTER_MON_H - 12} variant="master" />
-        <SingleMon sc={sc} agState={agState} w={monW} h={MASTER_MON_H - 12} variant="master" />
-        <SingleMon sc={sc} agState={agState} w={monW} h={MASTER_MON_H - 12} variant="master" />
-      </div>
+            {/* z:2 — DESK BLOCK */}
+            <div style={{ position: "absolute", top: M_HEAD_PX, left: 0, right: 0, zIndex: 2 }}>
 
-      {/* MASTER KEYBOARD */}
-      <div style={{
-        background: W.bodyS,
-        borderLeft: `1px solid ${sc.accent}22`, borderRight: `1px solid ${sc.accent}22`,
-        padding: "3px 16px 5px", boxSizing: "border-box",
-      }}>
-        <KbStrip sc={sc} agState={agState} width={MASTER_W - 32} />
-      </div>
+              {/* Desk top edge — accent-tinted for master */}
+              <div style={{
+                height: 9,
+                background: `linear-gradient(to bottom, ${sc.accent}60, ${W.top})`,
+                borderLeft: `1px solid ${sc.accent}65`, borderRight: `1px solid ${sc.accent}65`,
+              }} />
 
-      {/* MASTER DESK FRONT EDGE */}
-      <div style={{
-        height: 11, position: "relative", background: W.front,
-        borderTop: `2px solid ${sc.accent}55`,
-        borderLeft: `1px solid ${sc.accent}20`, borderRight: `1px solid ${sc.accent}20`,
-        boxShadow: `0 12px 32px rgba(0,0,0,0.98), 0 0 22px ${sc.accent}15`,
-      }}>
-        <div style={{ position: "absolute", top: "50%", right: 10, transform: "translateY(-50%)", display: "flex", gap: 5 }}>
-          {[sc.accent, P.amber, P.green].map((col, i) => (
-            <div key={i} style={{
-              width: 4, height: 4, borderRadius: "50%",
-              background: isActive ? col : "#0c1420",
-              boxShadow: isActive ? `0 0 5px ${col}` : "none",
-              animation: isActive ? `fl-dot ${1.5 + i * 0.3}s ease-in-out infinite` : undefined,
-            }} />
-          ))}
-        </div>
-      </div>
+              {/* Desk surface + 3 monitors */}
+              <div style={{
+                height: MASTER_MON_H, background: W.bodyS,
+                borderLeft: `1px solid ${sc.accent}22`, borderRight: `1px solid ${sc.accent}22`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                gap: 5, padding: "0 16px", boxSizing: "border-box",
+                boxShadow: `inset 0 0 28px ${sc.accent}08`,
+              }}>
+                <SingleMon sc={sc} agState={agState} w={monW} h={MASTER_MON_H - 12} variant="master" />
+                <SingleMon sc={sc} agState={agState} w={monW} h={MASTER_MON_H - 12} variant="master" />
+                <SingleMon sc={sc} agState={agState} w={monW} h={MASTER_MON_H - 12} variant="master" />
+              </div>
+
+              {/* Keyboard */}
+              <div style={{
+                background: W.bodyS,
+                borderLeft: `1px solid ${sc.accent}22`, borderRight: `1px solid ${sc.accent}22`,
+                padding: "3px 16px 5px", boxSizing: "border-box",
+              }}>
+                <KbStrip sc={sc} agState={agState} width={MASTER_W - 32} />
+              </div>
+
+              {/* Desk front edge with LEDs */}
+              <div style={{
+                height: 11, position: "relative", background: W.front,
+                borderTop: `2px solid ${sc.accent}55`,
+                borderLeft: `1px solid ${sc.accent}20`, borderRight: `1px solid ${sc.accent}20`,
+                boxShadow: `0 12px 32px rgba(0,0,0,0.98), 0 0 22px ${sc.accent}15`,
+              }}>
+                <div style={{ position: "absolute", top: "50%", right: 10, transform: "translateY(-50%)", display: "flex", gap: 5 }}>
+                  {[sc.accent, P.amber, P.green].map((col, i) => (
+                    <div key={i} style={{
+                      width: 4, height: 4, borderRadius: "50%",
+                      background: isActive ? col : "#0c1420",
+                      boxShadow: isActive ? `0 0 5px ${col}` : "none",
+                      animation: isActive ? `fl-dot ${1.5 + i * 0.3}s ease-in-out infinite` : undefined,
+                    }} />
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
 
       {/* MASTER STATUS */}
       <div style={{ height: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
