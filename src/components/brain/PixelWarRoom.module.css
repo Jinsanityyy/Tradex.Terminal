@@ -791,8 +791,8 @@
    *   x-offset = 692 × 1.608 = 1113px
    */
   background-image: url('/pixel-room-layout.png');
-  background-size: 2213px auto;
-  background-position: -1113px -10px;
+  background-size: 2628px auto;
+  background-position: -1528px -15px;
   background-repeat: no-repeat;
 }
 
@@ -1221,8 +1221,8 @@
   .floorTier {
     min-height: 320px;
     /* At 390px wide: scale = 390/684 = 0.570 → full image = 785px */
-    background-size: 785px auto;
-    background-position: -395px -8px;
+    background-size: 931px auto;
+    background-position: -542px -10px;
   }
   .roomHud    { top: 6px; right: 8px; }
   .wallClock  { font-size: 10px; min-width: 32px; }
