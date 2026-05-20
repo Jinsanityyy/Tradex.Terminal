@@ -603,14 +603,52 @@
 
 /* ─── Mobile ─────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  .floorRow   { gap: 4px; padding: 2px 0; }
-  .stationBody { width: 58px; height: 72px; transform: scale(0.85); transform-origin: bottom center; }
-  .statsRow   { gap: 8px; }
-  .biasBadge  { font-size: 16px; }
-  .agrDots    { display: none; }
-  .engineTier { min-height: 70px; }
+  /* Command tier: stack master pod above readout */
+  .commandTier {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+  .masterPod {
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 12px;
+    align-self: flex-start;
+  }
+  .masterReadout {
+    min-height: unset;
+    padding: 6px 8px;
+  }
+  .biasBadge  { font-size: 18px; }
+  .statsRow   { gap: 10px; }
+  .agrDots    { gap: 2px; }
+  .agrDot     { width: 6px; height: 6px; }
+
+  /* Floor rows: wrap to 3 per row (3 × 70px + 2 × 10px = 230px < any phone) */
+  .floorTier  { padding: 6px 12px 10px; }
+  .floorRow {
+    flex-wrap: wrap;
+    max-width: 248px;  /* forces 3-per-row: 3×70 + 2×10 = 230 fits; 4×70 = 310 wraps */
+    margin: 0 auto;
+    gap: 8px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  /* Engine tier: stack panels vertically */
+  .engineTier {
+    flex-direction: column;
+    min-height: unset;
+    gap: 8px;
+  }
+  .heatmapPanel {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
   .heatmapGrid {
-    grid-template-columns: repeat(16, 6px);
+    grid-template-columns: repeat(24, 6px);
     grid-template-rows: repeat(8, 5px);
   }
+  .logPanel { max-height: 80px; }
 }
