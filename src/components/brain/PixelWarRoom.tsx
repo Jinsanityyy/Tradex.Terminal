@@ -272,6 +272,86 @@ function makeAgentState(): AgentLiveState {
 }
 
 
+// ─── Server rack + world map decorative components ────────────────────────────
+
+const RACK_COLORS = ["ledG","ledG","ledA","ledG","ledR","ledA","ledG","ledG","ledA","ledR","ledG","ledA"] as const;
+function ServerRack() {
+  return (
+    <div className={styles.serverRack}>
+      {Array.from({ length: 14 }, (_, i) => (
+        <div key={i} className={styles.rackUnit}>
+          {[0,1,2].map(j => (
+            <span
+              key={j}
+              className={`${styles.rackLed} ${styles[RACK_COLORS[(i*3+j) % RACK_COLORS.length]]}`}
+              style={{ animationDelay: `${((i * 0.41 + j * 0.23) % 2.8).toFixed(2)}s` }}
+            />
+          ))}
+          <div className={styles.rackSlot} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const HUBS = [
+  { cx: 100, cy: 100, label: "NYC" },
+  { cx: 272, cy: 64,  label: "LON" },
+  { cx: 362, cy: 108, label: "DXB" },
+  { cx: 468, cy: 158, label: "SGP" },
+  { cx: 496, cy: 88,  label: "TKY" },
+  { cx: 288, cy: 70,  label: "FRK" },
+] as const;
+
+function WorldMapBg() {
+  return (
+    <svg className={styles.worldMap} viewBox="0 0 600 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <radialGradient id="hubGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#3dffa0" stopOpacity="0.9" />
+          <stop offset="100%" stopColor="#3dffa0" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+
+      {/* Continent outlines */}
+      {/* North America */}
+      <polygon points="55,40 80,30 120,25 165,30 185,55 190,90 180,130 160,165 140,175 120,170 95,155 75,130 60,100 50,70"
+        fill="rgba(100,180,120,0.07)" stroke="rgba(61,255,160,0.18)" strokeWidth="0.8" />
+      {/* South America */}
+      <polygon points="105,175 145,165 165,195 160,250 140,270 115,265 95,240 88,210 95,185"
+        fill="rgba(100,180,120,0.07)" stroke="rgba(61,255,160,0.18)" strokeWidth="0.8" />
+      {/* Europe */}
+      <polygon points="255,28 275,22 300,20 318,35 310,60 295,80 275,85 258,72 250,52"
+        fill="rgba(100,180,120,0.07)" stroke="rgba(61,255,160,0.18)" strokeWidth="0.8" />
+      {/* Africa */}
+      <polygon points="255,82 318,78 335,110 340,155 322,215 290,230 265,220 248,185 244,140 250,105"
+        fill="rgba(100,180,120,0.07)" stroke="rgba(61,255,160,0.18)" strokeWidth="0.8" />
+      {/* Asia */}
+      <polygon points="318,20 440,15 520,20 555,65 548,120 515,155 458,175 390,168 340,150 318,120 315,70"
+        fill="rgba(100,180,120,0.07)" stroke="rgba(61,255,160,0.18)" strokeWidth="0.8" />
+      {/* Australia */}
+      <polygon points="455,195 510,185 535,205 528,240 498,255 462,250 445,228"
+        fill="rgba(100,180,120,0.07)" stroke="rgba(61,255,160,0.18)" strokeWidth="0.8" />
+
+      {/* Hub connection lines */}
+      {HUBS.map((a, i) => HUBS.slice(i+1, i+3).map(b => (
+        <line key={`${a.label}-${b.label}`}
+          x1={a.cx} y1={a.cy} x2={b.cx} y2={b.cy}
+          stroke="rgba(61,255,160,0.07)" strokeWidth="0.5" strokeDasharray="3 6" />
+      )))}
+
+      {/* Hub nodes */}
+      {HUBS.map(h => (
+        <g key={h.label}>
+          <circle cx={h.cx} cy={h.cy} r="7" fill="url(#hubGlow)" className={styles.hubGlow} />
+          <circle cx={h.cx} cy={h.cy} r="2.5" fill="#3dffa0" opacity="0.75" className={styles.hubDot} />
+          <text x={h.cx + 5} y={h.cy - 5} fontSize="7" fill="rgba(61,255,160,0.5)" fontFamily="monospace" fontWeight="700">{h.label}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string) => void }) {
@@ -464,12 +544,22 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
       {/* ── Floor tier ── */}
       <div className={styles.floorTier}>
 
+        {/* World map background layer (z-index: 0, purely decorative) */}
+        <WorldMapBg />
+
         {/* Ceiling with light strips + alert siren */}
         <div className={styles.ceiling}>
           <div className={styles.ceilingLight} />
           <div className={styles.ceilingLight} />
           <div className={styles.ceilingLight} />
           <div className={`${styles.alertSiren} ${isExecArmed ? styles.sirenActive : ""}`} aria-hidden="true" />
+        </div>
+
+        {/* Volumetric light cones from the 3 fixtures */}
+        <div className={styles.lightConesRow} aria-hidden="true">
+          <div className={styles.lightCone} />
+          <div className={styles.lightCone} />
+          <div className={styles.lightCone} />
         </div>
 
         {/* Back wall: sconces + big wall screen + clock */}
@@ -486,23 +576,15 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
           <span className={styles.floorSlash}>///</span>
         </div>
 
-        {/* Floor area: side furniture + agent rows */}
+        {/* Floor area: server racks + agent rows */}
         <div className={styles.floorArea}>
 
-          {/* Left side panel */}
+          {/* Left server rack panel */}
           <div className={styles.sidePanel} aria-hidden="true">
-            <div className={styles.filingCabinet}>
-              <div className={styles.cabinetDrawer} />
-              <div className={styles.cabinetDrawer} />
-              <div className={styles.cabinetDrawer} />
-            </div>
-            <div className={styles.cornerPlant}>
-              <div className={styles.plantTop} />
-              <div className={styles.plantPot} />
-            </div>
+            <ServerRack />
           </div>
 
-          {/* Agent rows */}
+          {/* Agent rows — DO NOT CHANGE THESE */}
           <div className={styles.floorRows}>
             <div className={styles.floorRow}>
               {AGENTS_ROW_A.map(agent => (
@@ -528,20 +610,15 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
             </div>
           </div>
 
-          {/* Right side panel */}
+          {/* Right server rack panel */}
           <div className={styles.sidePanel} aria-hidden="true">
-            <div className={styles.filingCabinet}>
-              <div className={styles.cabinetDrawer} />
-              <div className={styles.cabinetDrawer} />
-              <div className={styles.cabinetDrawer} />
-            </div>
-            <div className={styles.cornerPlant}>
-              <div className={styles.plantTop} />
-              <div className={styles.plantPot} />
-            </div>
+            <ServerRack />
           </div>
 
         </div>
+
+        {/* Foreground desk silhouette — gives "looking down from balcony" feel */}
+        <div className={styles.foregroundDesk} aria-hidden="true" />
 
         {/* Floor baseboard */}
         <div className={styles.floorBase} aria-hidden="true" />
