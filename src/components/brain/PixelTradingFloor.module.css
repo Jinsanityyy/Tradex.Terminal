@@ -1,32 +1,29 @@
 /* ─── Reset ─────────────────────────────────────────────────────────────── */
-.root,
-.root *,
-.root *::before,
-.root *::after {
+.root, .root *, .root *::before, .root *::after {
   box-sizing: border-box;
   image-rendering: pixelated;
 }
 
-/* ─── Root / Canvas ─────────────────────────────────────────────────────── */
+/* ─── Root ──────────────────────────────────────────────────────────────── */
 .root {
-  --obsidian:   #080a0e;
-  --floor-bg:   #111821;
-  --panel:      #131c25;
-  --panel-2:    #0e151d;
-  --border:     #1e2d3a;
-  --border-hi:  #2a3f50;
-  --slate:      #4db8b3;
-  --slate-dim:  #2a6e6a;
-  --text:       #d6eaec;
-  --muted:      #6a8f94;
-  --good:       #3dffa0;
-  --good-dim:   #1a6644;
-  --bad:        #ff5f3d;
-  --bad-dim:    #5c1e10;
-  --amber:      #ffc73a;
-  --shadow:     rgba(0, 0, 0, 0.5);
-  --glow-good:  0 0 8px rgba(61, 255, 160, 0.35);
-  --glow-bad:   0 0 8px rgba(255, 95, 61, 0.35);
+  --obsidian:  #080a0e;
+  --floor-bg:  #111821;
+  --panel:     #131c25;
+  --panel-2:   #0e151d;
+  --border:    #1e2d3a;
+  --border-hi: #2a3f50;
+  --slate:     #4db8b3;
+  --slate-dim: #2a6e6a;
+  --text:      #d6eaec;
+  --muted:     #6a8f94;
+  --good:      #3dffa0;
+  --good-dim:  #1a6644;
+  --bad:       #ff5f3d;
+  --bad-dim:   #5c1e10;
+  --amber:     #ffc73a;
+  --shadow:    rgba(0,0,0,0.5);
+  --glow-good: 0 0 8px rgba(61,255,160,0.35);
+  --glow-bad:  0 0 8px rgba(255,95,61,0.35);
 
   min-height: unset;
   display: grid;
@@ -34,8 +31,8 @@
   padding: 16px;
   background-color: var(--obsidian);
   background-image:
-    linear-gradient(rgba(77, 184, 179, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(77, 184, 179, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(77,184,179,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(77,184,179,0.03) 1px, transparent 1px);
   background-size: 32px 32px;
   color: var(--text);
   font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
@@ -48,9 +45,9 @@
   background: var(--floor-bg);
   box-shadow:
     0 0 0 1px var(--border),
-    0 24px 64px rgba(0, 0, 0, 0.6),
-    0 0 40px rgba(77, 184, 179, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    0 24px 64px rgba(0,0,0,0.6),
+    0 0 40px rgba(77,184,179,0.04),
+    inset 0 1px 0 rgba(255,255,255,0.03);
 }
 
 .scene {
@@ -59,7 +56,7 @@
   position: relative;
 }
 
-/* ─── Top Header Bar ────────────────────────────────────────────────────── */
+/* ─── Header ────────────────────────────────────────────────────────────── */
 .topHeader {
   height: 24px;
   display: flex;
@@ -75,20 +72,10 @@
   text-transform: uppercase;
 }
 
-.headerLights {
-  display: flex;
-  gap: 5px;
-  align-items: center;
-}
-
-.headerLights span {
-  width: 7px;
-  height: 7px;
-  border-radius: 0;
-}
-
+.headerLights { display: flex; gap: 5px; align-items: center; }
+.headerLights span { width: 7px; height: 7px; border-radius: 0; }
 .headerRed   { background: var(--bad);   box-shadow: var(--glow-bad); }
-.headerAmber { background: var(--amber); box-shadow: 0 0 6px rgba(255, 199, 58, 0.4); }
+.headerAmber { background: var(--amber); box-shadow: 0 0 6px rgba(255,199,58,0.4); }
 .headerGreen { background: var(--good);  box-shadow: var(--glow-good); }
 
 /* ─── Upper Floor ───────────────────────────────────────────────────────── */
@@ -98,48 +85,38 @@
   overflow: hidden;
   background-color: var(--floor-bg);
   background-image:
-    linear-gradient(rgba(77, 184, 179, 0.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(77, 184, 179, 0.018) 1px, transparent 1px);
+    linear-gradient(rgba(77,184,179,0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(77,184,179,0.018) 1px, transparent 1px);
   background-size: 28px 28px;
 }
 
-/* ─── Wall Display (back-wall big screen) ──────────────────────────────── */
+/* ─── Wall display ──────────────────────────────────────────────────────── */
 .wallDisplay {
   position: absolute;
-  left: 5%;
-  right: 5%;
-  top: 2%;
-  height: 20px;
+  left: 5%; right: 5%; top: 2%;
+  height: 18px;
   background: #040d16;
-  border: 1px solid rgba(77, 184, 179, 0.3);
+  border: 1px solid rgba(77,184,179,0.3);
   border-top: 2px solid var(--slate-dim);
-  box-shadow:
-    0 0 20px rgba(77, 184, 179, 0.1),
-    inset 0 0 10px rgba(77, 184, 179, 0.05);
+  box-shadow: 0 0 20px rgba(77,184,179,0.1), inset 0 0 10px rgba(77,184,179,0.05);
   overflow: hidden;
   z-index: 2;
 }
-
 .wallDisplay::before {
   content: "";
   position: absolute;
   inset: 0;
   background: repeating-linear-gradient(
     90deg,
-    rgba(61, 255, 160, 0.22) 0 2px,
-    rgba(61, 255, 160, 0.03) 2px 7px,
-    rgba(77, 184, 179, 0.18) 7px 9px,
-    rgba(77, 184, 179, 0.02) 9px 18px,
-    rgba(255, 199, 58, 0.12) 18px 20px,
-    transparent 20px 30px
+    rgba(61,255,160,0.22) 0 2px, rgba(61,255,160,0.03) 2px 7px,
+    rgba(77,184,179,0.18) 7px 9px, rgba(77,184,179,0.02) 9px 18px,
+    rgba(255,199,58,0.12) 18px 20px, transparent 20px 30px
   );
 }
-
 .wallDisplay::after {
   content: "TRDX://ENGINE · MKT-SCAN ACTIVE · DRAWDOWN 0.0% · EDGE SCORE 71 · SIGNAL ARMED · RISK MONITOR ONLINE";
   position: absolute;
-  left: 0;
-  top: 50%;
+  left: 0; top: 50%;
   transform: translateY(-50%);
   white-space: nowrap;
   font-size: 6px;
@@ -149,512 +126,275 @@
   pointer-events: none;
 }
 
-/* ─── Floor Wiring (lowest layer) ──────────────────────────────────────── */
-.floorWire,
-.floorDrop {
+/* ─── Floor wiring ──────────────────────────────────────────────────────── */
+.floorWire, .floorDrop {
   position: absolute;
   display: block;
   background: var(--slate-dim);
   z-index: 1;
   pointer-events: none;
-  box-shadow: 0 0 4px rgba(77, 184, 179, 0.3);
+  box-shadow: 0 0 4px rgba(77,184,179,0.3);
 }
+.floorWire { height: 1px; }
+.floorDrop { width: 1px; }
 
-.floorWire {
-  height: 1px;
-}
-
-.floorDrop {
-  width: 1px;
-}
-
-/* ─── Station pod ambient floor glow ────────────────────────────────────── */
-.stationPod::before {
-  content: "";
-  position: absolute;
-  left: -25%;
-  right: -25%;
-  bottom: -14px;
-  height: 28px;
-  background: radial-gradient(ellipse at center top, rgba(77, 184, 179, 0.14) 0%, transparent 70%);
-  z-index: 0;
-  pointer-events: none;
-}
-
-/* ─── Station Pod (clickable card) ─────────────────────────────────────── */
+/* ─── Station pod (button wrapper) ─────────────────────────────────────── */
 .stationPod {
   position: absolute;
-  z-index: 10;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, 0);   /* top-anchored at the % position */
   border: 0;
   padding: 0;
   background: transparent;
   cursor: pointer;
   color: inherit;
   transition: transform 80ms ease;
+  z-index: 10;
 }
+.stationPod:hover    { transform: translate(-50%, -2px); }
+.stationSelected     { transform: translate(-50%, -2px); }
 
-.stationPod:hover {
-  transform: translate(-50%, calc(-50% - 2px));
-}
-
-.stationSelected {
-  transform: translate(-50%, calc(-50% - 2px));
-}
-
-/* ─── Station Body ──────────────────────────────────────────────────────── */
-.stationBody {
-  position: relative;
-  width: 96px;
-  height: 110px;
-}
-
-/* drop shadow below desk */
-.stationBody::after {
+/* ambient floor glow */
+.stationPod::before {
   content: "";
   position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: 4px;
-  height: 6px;
-  background: var(--shadow);
-  z-index: 0;
-  filter: blur(2px);
-}
-
-.stationBodySelected::before {
-  content: "";
-  position: absolute;
-  inset: -3px;
-  border: 1px solid var(--slate-dim);
-  box-shadow: inset 0 0 12px rgba(77, 184, 179, 0.08);
+  left: -20%; right: -20%;
+  bottom: -10px;
+  height: 22px;
+  background: radial-gradient(ellipse at center top, rgba(77,184,179,0.12) 0%, transparent 70%);
   z-index: 0;
   pointer-events: none;
 }
 
-/* ─── Station Monitor pill (desk name + status color) ───────────────────── */
-.stationMonitor {
+/* ─── Station body (flex column: monitor → figure → keyboard) ──────────── */
+.stationBody {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 68px;
+  position: relative;
+}
+
+.stationBodySelected::after {
+  content: "";
   position: absolute;
-  left: 50%;
-  top: -2px;
-  transform: translateX(-50%);
-  min-width: 56px;
-  padding: 3px 8px;
-  border: 1px solid transparent;
-  font-size: 7px;
-  font-weight: 800;
-  line-height: 1.3;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  text-align: center;
-  white-space: nowrap;
-  z-index: 20;
+  inset: -3px;
+  border: 1px solid var(--slate-dim);
+  box-shadow: inset 0 0 12px rgba(77,184,179,0.08);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ─── Monitor group (bezel + neck + base) ───────────────────────────────── */
+.monitorGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 4px;
+  position: relative;
+  z-index: 10;
+}
+
+/* Screen bezel — shape only, colour from modifier classes */
+.monitorBezel {
+  width: 50px;
+  height: 32px;
+  border: 1.5px solid transparent;
+  border-radius: 1px;
+  position: relative;
+  overflow: hidden;
 }
 
 .monitorOk {
-  background: #0a2416;
-  color: var(--good);
+  background: #071810;
   border-color: var(--good-dim);
-  box-shadow: var(--glow-good);
+  box-shadow: 0 0 10px rgba(61,255,160,0.30), inset 0 0 6px rgba(61,255,160,0.08);
 }
 
 .monitorNoTrade {
-  background: #2a0e08;
-  color: var(--bad);
+  background: #1a0608;
   border-color: #6a1e10;
-  box-shadow: var(--glow-bad);
+  box-shadow: 0 0 8px rgba(255,95,61,0.25), inset 0 0 4px rgba(255,95,61,0.06);
 }
 
-/* ─── Status LED ────────────────────────────────────────────────────────── */
+/* Scanline screen fill */
+.monitorScreen {
+  position: absolute;
+  inset: 2px 2px 11px 2px;
+  background:
+    repeating-linear-gradient(180deg,
+      rgba(61,255,160,0.25) 0 2px,
+      rgba(61,255,160,0.04) 2px 4px
+    ),
+    #040e08;
+}
+
+/* Agent label at bottom of bezel */
+.monitorLabelOk {
+  position: absolute;
+  bottom: 2px; left: 0; right: 0;
+  text-align: center;
+  font-size: 5px;
+  font-weight: 800;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--good);
+  z-index: 2;
+}
+.monitorLabelBad {
+  position: absolute;
+  bottom: 2px; left: 0; right: 0;
+  text-align: center;
+  font-size: 5px;
+  font-weight: 800;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--bad);
+  z-index: 2;
+}
+
+/* Slim neck */
+.monitorNeck {
+  width: 3px;
+  height: 7px;
+  background: linear-gradient(180deg, #253545, #1a2530);
+  border-left: 1px solid var(--border-hi);
+  border-right: 1px solid var(--border-hi);
+}
+
+/* Wide base */
+.monitorBase {
+  width: 26px;
+  height: 4px;
+  background: linear-gradient(180deg, #2a3f50 0%, #1a2530 100%);
+  border: 1px solid var(--border-hi);
+  border-top: 1px solid #3a5060;
+}
+
+/* ─── Status LED (inside monitorBezel, top-right) ───────────────────────── */
 .statusLed {
   position: absolute;
-  right: 8px;
-  top: 28px;
+  right: 3px;
+  top: 3px;
   width: 4px;
   height: 4px;
   z-index: 18;
   animation: pixelBlink 1.4s steps(2, end) infinite;
 }
-
 .ledOk      { background: var(--good);  box-shadow: var(--glow-good); }
-.ledNoTrade { background: var(--amber); box-shadow: 0 0 6px rgba(255, 199, 58, 0.5); }
+.ledNoTrade { background: var(--amber); box-shadow: 0 0 6px rgba(255,199,58,0.5); }
 
-/* ─── Vertical monitor screens on desk ──────────────────────────────────── */
-.stationScreenLeft,
-.stationScreenRight {
-  position: absolute;
-  bottom: 46px;
-  width: 20px;
-  height: 30px;
-  border: 1px solid rgba(77, 184, 179, 0.45);
-  box-shadow:
-    0 0 0 1px var(--border),
-    0 0 8px rgba(77, 184, 179, 0.25),
-    inset 0 0 6px rgba(77, 184, 179, 0.1);
-  background:
-    repeating-linear-gradient(
-      180deg,
-      rgba(61, 255, 160, 0.22) 0 2px,
-      rgba(61, 255, 160, 0.04) 2px 4px
-    ),
-    #071a12;
-  z-index: 12;
+/* ─── Sprite wrapper — contains absolute-positioned SeatedOperator ──────── */
+.spriteWrap {
+  position: relative;
+  width: 68px;
+  height: 48px;     /* matches scale 0.75 × 64px */
+  margin-top: 3px;
+  flex-shrink: 0;
+  z-index: 20;      /* above monitor, always visible */
 }
 
-.stationScreenLeft  { left: 4px; }
-.stationScreenRight { right: 4px; }
-
-/* center (main) monitor — taller, brighter, between the two side screens */
-.stationScreenCenter {
-  position: absolute;
+.stationSprite {
   left: 50%;
-  bottom: 44px;
-  width: 28px;
-  height: 40px;
+  top: 0;
   transform: translateX(-50%);
-  border: 1px solid rgba(77, 184, 179, 0.65);
-  box-shadow:
-    0 0 0 1px var(--border),
-    0 0 14px rgba(77, 184, 179, 0.45),
-    inset 0 0 10px rgba(77, 184, 179, 0.18);
-  background:
-    repeating-linear-gradient(
-      180deg,
-      rgba(61, 255, 160, 0.32) 0 2px,
-      rgba(61, 255, 160, 0.04) 2px 4px
-    ),
-    #061610;
-  z-index: 12;
+  z-index: 20;
 }
 
-/* ─── Station keyboard ───────────────────────────────────────────────────── */
+/* ─── Keyboard strip ────────────────────────────────────────────────────── */
 .stationKeyboard {
-  position: absolute;
-  left: 50%;
-  bottom: 17px;
-  width: 32px;
-  height: 7px;
-  transform: translateX(-50%);
+  width: 28px;
+  height: 5px;
+  margin-top: 2px;
+  flex-shrink: 0;
   background:
     repeating-linear-gradient(90deg, var(--border-hi) 0 3px, var(--border) 3px 4px),
     var(--panel);
   border: 1px solid var(--border);
-  z-index: 13;
 }
 
-/* master screens — taller, wider, more dramatic */
-.masterScreenLeft,
-.masterScreenRight {
-  position: absolute;
-  bottom: 44px;
-  width: 34px;
-  height: 42px;
-  border: 1px solid rgba(77, 184, 179, 0.55);
-  box-shadow:
-    0 0 0 1px var(--border),
-    0 0 14px rgba(77, 184, 179, 0.35),
-    inset 0 0 10px rgba(77, 184, 179, 0.12);
-  background:
-    repeating-linear-gradient(
-      180deg,
-      rgba(61, 255, 160, 0.25) 0 2px,
-      rgba(61, 255, 160, 0.04) 2px 4px
-    ),
-    #061510;
-  z-index: 14;
-}
-
-.masterScreenLeft  { left: 12px; }
-.masterScreenRight { right: 12px; }
-
-/* master center (main) display — widest, tallest, most dramatic */
-.masterScreenCenter {
-  position: absolute;
-  left: 50%;
-  bottom: 50px;
-  width: 44px;
-  height: 50px;
-  transform: translateX(-50%);
-  border: 1px solid rgba(77, 184, 179, 0.7);
-  box-shadow:
-    0 0 0 1px var(--border),
-    0 0 20px rgba(77, 184, 179, 0.5),
-    inset 0 0 14px rgba(77, 184, 179, 0.2);
-  background:
-    repeating-linear-gradient(
-      180deg,
-      rgba(61, 255, 160, 0.3) 0 2px,
-      rgba(61, 255, 160, 0.04) 2px 4px
-    ),
-    #05110a;
-  z-index: 15;
-}
-
-/* ─── Under-desk wire ───────────────────────────────────────────────────── */
-.stationWire {
-  position: absolute;
-  left: 50%;
-  bottom: 10px;
-  width: 1px;
-  height: 8px;
-  transform: translateX(-50%);
-  background: var(--border-hi);
-  z-index: 2;
-}
-
-.stationWire::after {
-  content: "";
-  position: absolute;
-  left: -8px;
-  bottom: 0;
-  width: 17px;
-  height: 1px;
-  background: var(--border-hi);
-}
-
-/* ─── Desk Surface — clips lower body of seated sprite ─────────────────── */
-.stationDeskSurface {
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: 14px;
-  height: 28px;
-  border: 1px solid var(--border-hi);
-  box-shadow: 0 0 0 1px var(--border), 0 3px 0 var(--shadow);
-  background: linear-gradient(180deg, #1e2d3a 0%, #18232d 100%);
-  z-index: 11; /* above stationSprite (z:10) — covers lower body */
-}
-
-/* ─── Chair ─────────────────────────────────────────────────────────────── */
-.stationChair,
-.masterChair {
-  position: absolute;
-  background: #12191f;
-  box-shadow: 0 0 0 1px #1e2d3a;
-  z-index: 3;
-}
-
-.stationChair {
-  left: 50%;
-  bottom: 10px;
-  width: 22px;
-  height: 8px;
-  transform: translateX(-50%);
-}
-
-.stationChair::before {
-  content: "";
-  position: absolute;
-  left: 4px;
-  right: 4px;
-  top: -11px;
-  height: 10px;
-  background: #15202a;
-  box-shadow: 0 0 0 1px #1e2d3a;
-}
-
-.stationChair::after {
-  content: "";
-  position: absolute;
-  left: 9px;
-  bottom: -6px;
-  width: 4px;
-  height: 6px;
-  background: #111820;
-  box-shadow: -8px 0 0 #111820, 8px 0 0 #111820;
-}
-
-/* ─── Sprite Character — below desk surface so lower body is hidden ─────── */
-.stationSprite {
-  position: absolute;
-  left: 50%;
-  bottom: 8px;
-  transform: translateX(-50%) scale(1.4);
-  transform-origin: bottom center;
-  z-index: 10;
-}
-
-/* ─── Risk Desk Highlight ───────────────────────────────────────────────── */
-.riskBody {
-  box-shadow: inset 0 0 0 1px rgba(255, 95, 61, 0.2);
-}
-
+/* ─── Risk badge ────────────────────────────────────────────────────────── */
 .riskBadge {
   position: absolute;
-  right: 2px;
-  top: 28px;
-  width: 14px;
-  height: 14px;
+  right: 3px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
   border: 1px solid var(--bad-dim);
   background: var(--bad);
   color: #fff;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 800;
   display: grid;
   place-items: center;
-  z-index: 22;
+  z-index: 25;
   box-shadow: var(--glow-bad);
 }
 
-/* .stationLabel intentionally removed — desk name is shown in the monitor pill */
-
-/* ─── Master Desk ───────────────────────────────────────────────────────── */
+/* ─── Master desk ───────────────────────────────────────────────────────── */
 .masterDesk {
   position: absolute;
   left: 50%;
-  top: 55%;
-  transform: translate(-50%, -50%);
-  width: 180px;
-  height: 120px;
-  overflow: visible;
-  z-index: 10;
+  top: 56%;
+  transform: translate(-50%, 0);
   background: transparent;
   border: none;
   padding: 0;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   transition: transform 80ms ease;
+  z-index: 10;
 }
+.masterDesk:hover { transform: translate(-50%, -2px); }
 
-.masterDesk:hover {
-  transform: translate(-50%, calc(-50% - 2px));
-}
-
-.masterDesk::after {
-  content: "";
-  position: absolute;
-  left: 28px;
-  right: 28px;
-  bottom: 2px;
-  height: 8px;
-  background: var(--shadow);
-  filter: blur(3px);
-  z-index: 0;
-}
-
-.masterLedA,
-.masterLedB,
-.masterLedC {
-  top: 28px;
-}
-
-.masterLedA { right: 24px; }
-.masterLedB { right: 16px; }
-.masterLedC { right: 8px;  }
-
-.masterTerminalLeft,
-.masterTerminalRight {
-  width: 26px;
-  height: 18px;
-  bottom: 30px;
-  z-index: 8;
-}
-
-.masterTerminalLeft  { right: 60px; }
-.masterTerminalRight { right: 26px; }
-
-.masterDeskSurface {
-  position: absolute;
-  left: 4px;
-  right: 4px;
-  bottom: 14px;
-  height: 40px;
-  border: 1px solid var(--border-hi);
-  border-top: 1px solid rgba(77, 184, 179, 0.4);
-  box-shadow:
-    0 0 0 1px var(--border),
-    0 5px 0 var(--shadow),
-    0 0 12px rgba(77, 184, 179, 0.12) inset;
-  background: linear-gradient(180deg, #1a2d3e 0%, #111e2a 60%, #0d1720 100%);
-  z-index: 8; /* above master sprite (z-index 5) — covers lower body */
-}
-
-.masterMonitorPill {
-  position: absolute;
-  left: 50%;
-  top: -2px;
-  transform: translateX(-50%);
-  min-width: 80px;
-  padding: 3px 14px;
-  border: 1px solid var(--slate-dim);
+/* Wider bezel for master */
+.masterBezel {
+  width: 64px;
+  height: 38px;
   background: #061720;
-  color: var(--slate);
-  font-size: 7px;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  border-color: var(--slate-dim) !important;
+  box-shadow: 0 0 16px rgba(77,184,179,0.40), inset 0 0 10px rgba(77,184,179,0.12) !important;
+}
+
+.masterLabel {
+  position: absolute;
+  bottom: 2px; left: 0; right: 0;
   text-align: center;
-  white-space: nowrap;
+  font-size: 5.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--slate);
+  z-index: 2;
+}
+
+.masterLed { top: 3px; right: 3px; }
+
+/* Sprite wrap for master (scale 0.9 → 58px) */
+.masterSpriteWrap {
+  position: relative;
+  width: 80px;
+  height: 58px;
+  margin-top: 3px;
+  flex-shrink: 0;
   z-index: 20;
-  box-shadow: 0 0 10px rgba(77, 184, 179, 0.35);
-}
-
-.masterKeyboard {
-  position: absolute;
-  right: 40px;
-  bottom: 24px;
-  width: 36px;
-  height: 8px;
-  background:
-    repeating-linear-gradient(
-      90deg,
-      var(--border-hi) 0 4px,
-      var(--border) 4px 5px
-    ),
-    var(--panel);
-  border: 1px solid var(--border);
-  z-index: 9;
-}
-
-.masterChair {
-  left: 50%;
-  bottom: 12px;
-  width: 26px;
-  height: 10px;
-  transform: translateX(-50%);
-  background: #12191f;
-  box-shadow: 0 0 0 1px #1e2d3a;
-}
-
-.masterChair::before {
-  content: "";
-  position: absolute;
-  left: 5px;
-  right: 5px;
-  top: -13px;
-  height: 12px;
-  background: #15202a;
-  box-shadow: 0 0 0 1px #1e2d3a;
-}
-
-.masterChair::after {
-  content: "";
-  position: absolute;
-  left: 11px;
-  bottom: -8px;
-  width: 4px;
-  height: 8px;
-  background: #111820;
-  box-shadow: -10px 0 0 #111820, 10px 0 0 #111820;
 }
 
 .masterSeatedSprite {
-  position: absolute;
   left: 50%;
-  bottom: 18px;
-  transform: translateX(-50%) scale(1.6);
-  transform-origin: bottom center;
-  z-index: 5; /* behind desk surface (z-index 8) — lower body clipped by desk */
+  top: 0;
+  transform: translateX(-50%);
+  z-index: 20;
 }
 
-/* .statusBoard and related board styles intentionally removed — sidebar eliminated */
-
-/* ─── Floor Wordmark ────────────────────────────────────────────────────── */
+/* ─── Floor wordmark ────────────────────────────────────────────────────── */
 .floorWordmark {
   position: absolute;
   left: 50%;
-  bottom: 14px;
+  bottom: 6px;
   transform: translateX(-50%);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.32em;
   text-transform: uppercase;
@@ -663,13 +403,13 @@
   user-select: none;
 }
 
-/* ─── Seated Sprite Layers ──────────────────────────────────────────────── */
+/* ─── Seated sprite layers ──────────────────────────────────────────────── */
 .seatedActor {
   position: absolute;
   width: var(--seat-actor-width);
   height: var(--seat-actor-height);
   image-rendering: pixelated;
-  filter: drop-shadow(1px 2px 0 rgba(0, 0, 0, 0.7));
+  filter: drop-shadow(1px 2px 0 rgba(0,0,0,0.7));
 }
 
 .seatedLayer {
@@ -684,15 +424,16 @@
   image-rendering: pixelated;
 }
 
-/* ─── Animations ────────────────────────────────────────────────────────── */
+/* ─── Animation ─────────────────────────────────────────────────────────── */
 @keyframes pixelBlink {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.3; }
 }
 
-/* ─── Responsive ────────────────────────────────────────────────────────── */
+/* ─── Mobile ────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .root { padding: 8px; }
   .sceneFrame { width: 100%; }
+  .scene { aspect-ratio: 636 / 500; }  /* taller on mobile — more vertical room */
   .floorWordmark { font-size: 7px; }
 }
