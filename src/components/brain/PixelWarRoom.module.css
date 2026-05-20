@@ -468,8 +468,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* Nudge agents down to align with the desk rows in the image */
-  padding-top: 110px;
+  /* Align agent heads with chair-back level of the first desk row */
+  padding-top: 140px;
   padding-bottom: 16px;
 }
 
@@ -949,10 +949,11 @@
 .sigS { background: #331010; color: var(--bad);  border: 1px solid #661a1a; }
 .sigN { background: #1a1a1a; color: #555;        border: 1px solid #333; }
 
-/* Sprite wrapper — z:1 (behind monitor) */
+/* Sprite wrapper — z:1; anchored at bottom so feet sit at chair-seat level */
 .spriteWrap {
   position: absolute;
-  top: 0;
+  bottom: 6px;
+  top: auto;
   left: 50%;
   transform: translateX(-50%);
   width: 70px;
@@ -1226,7 +1227,7 @@
   }
   .roomHud    { top: 6px; right: 8px; }
   .wallClock  { font-size: 10px; min-width: 32px; }
-  .roomFloor  { padding-top: 70px; padding-bottom: 12px; }
+  .roomFloor  { padding-top: 80px; padding-bottom: 12px; }
   .floorRows  { width: 100%; }
   .floorRow {
     flex-wrap: wrap;
