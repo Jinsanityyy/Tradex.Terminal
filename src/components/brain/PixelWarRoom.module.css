@@ -1221,8 +1221,8 @@
   .floorTier {
     min-height: 320px;
     /* At 390px wide: scale = 390/684 = 0.570 → full image = 785px */
-    background-size: 931px auto;
-    background-position: -542px -10px;
+    background-size: 1500px auto;
+    background-position: -872px -10px;
   }
   .roomHud    { top: 6px; right: 8px; }
   .wallClock  { font-size: 10px; min-width: 32px; }
