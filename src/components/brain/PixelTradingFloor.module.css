@@ -194,7 +194,10 @@
   align-items: center;
   margin-top: 4px;
   position: relative;
-  /* No order, no z-index — column-reverse + DOM-last handles everything */
+  /* z-index:1 beats seatedActor's filter-based z-index:0 stacking context.
+     filter:drop-shadow on .seatedActor promotes it to paint AFTER normal-flow
+     elements, so we need an explicit stacking context here with z-index > 0. */
+  z-index: 1;
 }
 
 /* Screen bezel — shape only, colour from modifier classes */
