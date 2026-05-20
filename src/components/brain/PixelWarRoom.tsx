@@ -60,64 +60,64 @@ const AGENTS_ROW_A: AgentDef[] = [
     id: "risk", label: "RISK", drawerId: "risk", baseStatus: "ALERT", real: true,
     role: "Guard Rail",
     detail: "Protect position size until conflicting desks settle down.",
-    look: { skin: "Copper", hairStyle: "Swoop", hairColor: "Black", shirtColor: "Maroon", pantsColor: "Gray", shoesColor: "Black", seatFrame: 0 },
+    look: { skin: "Copper", hairStyle: "Swoop", hairColor: "Black", shirtColor: "Maroon", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2 },
   },
   {
     id: "trend", label: "TREND", drawerId: "trend", baseStatus: "NO-TRADE", real: true,
     role: "Macro Scout",
     detail: "Higher-timeframe structure is aligned with the active swing.",
-    look: { skin: "Ivory", hairStyle: "Parted Short", hairColor: "Brown", shirtColor: "Forest", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 0 },
+    look: { skin: "Ivory", hairStyle: "Parted Short", hairColor: "Brown", shirtColor: "Forest", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2 },
   },
   {
     id: "pract", label: "PR.ACT", drawerId: "smc", baseStatus: "TRADE-OK", real: true,
     role: "Tape Reader",
     detail: "Micro trigger is still dirty. Wait for a cleaner reaction.",
-    look: { skin: "Gold", hairStyle: "Messy", hairColor: "Black", shirtColor: "Gray", pantsColor: "Black", shoesColor: "Black", seatFrame: 0 },
+    look: { skin: "Gold", hairStyle: "Messy", hairColor: "Black", shirtColor: "Gray", pantsColor: "Black", shoesColor: "Black", seatFrame: 2 },
   },
   {
     id: "news", label: "NEWS", drawerId: "news", baseStatus: "TRADE-OK", real: true,
     role: "Catalyst Watch",
     detail: "Headline flow is stable and no fresh surprise is in play.",
-    look: { skin: "Dove", hairStyle: "Plain", hairColor: "White", shirtColor: "Teal", pantsColor: "Gray", shoesColor: "Black", seatFrame: 0 },
+    look: { skin: "Dove", hairStyle: "Plain", hairColor: "White", shirtColor: "Teal", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2 },
   },
   {
     id: "quant", label: "", drawerId: "trend", baseStatus: "NO-TRADE", real: false,
-    look: { skin: "Comet", hairStyle: "Loose", hairColor: "Blonde", shirtColor: "Lavender", pantsColor: "Gray", shoesColor: "Black", seatFrame: 0, bodyType: "Woman" },
+    look: { skin: "Comet", hairStyle: "Loose", hairColor: "Blonde", shirtColor: "Lavender", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2, bodyType: "Woman" },
   },
   {
     id: "exec", label: "EXEC", drawerId: "execution", baseStatus: "TRADE-OK", real: true,
     role: "Entry Pilot",
     detail: "Wait until the trigger desk confirms the entry lane.",
-    look: { skin: "Coffee", hairStyle: "Buzzcut", hairColor: "Black", shirtColor: "Navy", pantsColor: "Gray", shoesColor: "Black", seatFrame: 0 },
+    look: { skin: "Coffee", hairStyle: "Buzzcut", hairColor: "Black", shirtColor: "Navy", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2 },
   },
 ];
 
 const AGENTS_ROW_B: AgentDef[] = [
   {
     id: "flow", label: "", drawerId: "execution", baseStatus: "NO-TRADE", real: false,
-    look: { skin: "Green", hairStyle: "Mohawk", hairColor: "Orange", shirtColor: "Orange", pantsColor: "Black", shoesColor: "Black", seatFrame: 0, bodyType: "Man" },
+    look: { skin: "Green", hairStyle: "Mohawk", hairColor: "Orange", shirtColor: "Orange", pantsColor: "Black", shoesColor: "Black", seatFrame: 2, bodyType: "Man" },
   },
   {
     id: "cntr", label: "CNTR", drawerId: "contrarian", baseStatus: "TRADE-OK", real: true,
     role: "Contrarian Desk",
     detail: "Crowding risk is low enough for a controlled fade if needed.",
-    look: { skin: "Sienna", hairStyle: "Curly Short", hairColor: "Chestnut", shirtColor: "Purple", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 0 },
+    look: { skin: "Sienna", hairStyle: "Curly Short", hairColor: "Chestnut", shirtColor: "Purple", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2 },
   },
   {
     id: "arbi", label: "", drawerId: "smc", baseStatus: "NO-TRADE", real: false,
-    look: { skin: "Gray", hairStyle: "Curly Short", hairColor: "Platinum", shirtColor: "Sky", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 0, bodyType: "Woman" },
+    look: { skin: "Gray", hairStyle: "Curly Short", hairColor: "Platinum", shirtColor: "Sky", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2, bodyType: "Woman" },
   },
   {
     id: "algo", label: "", drawerId: "trend", baseStatus: "TRADE-OK", real: false,
-    look: { skin: "Comet", hairStyle: "Buzzcut", hairColor: "Red", shirtColor: "Leather", pantsColor: "Black", shoesColor: "Black", seatFrame: 0, bodyType: "Man" },
+    look: { skin: "Comet", hairStyle: "Buzzcut", hairColor: "Red", shirtColor: "Leather", pantsColor: "Black", shoesColor: "Black", seatFrame: 2, bodyType: "Man" },
   },
   {
     id: "delta", label: "", drawerId: "risk", baseStatus: "NO-TRADE", real: false,
-    look: { skin: "Green", hairStyle: "Loose", hairColor: "Brown", shirtColor: "Pink", pantsColor: "Gray", shoesColor: "Black", seatFrame: 0, bodyType: "Woman" },
+    look: { skin: "Green", hairStyle: "Loose", hairColor: "Brown", shirtColor: "Pink", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2, bodyType: "Woman" },
   },
   {
     id: "sent", label: "", drawerId: "news", baseStatus: "NO-TRADE", real: false,
-    look: { skin: "Gray", hairStyle: "Mohawk", hairColor: "White", shirtColor: "Walnut", pantsColor: "Black", shoesColor: "Black", seatFrame: 0, bodyType: "Man" },
+    look: { skin: "Gray", hairStyle: "Mohawk", hairColor: "White", shirtColor: "Walnut", pantsColor: "Black", shoesColor: "Black", seatFrame: 2, bodyType: "Man" },
   },
 ];
 

@@ -468,8 +468,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* Align agents with chair area — image shifted up to expose desk monitors */
-  padding-top: 160px;
+  padding-top: 120px;
   padding-bottom: 16px;
 }
 
@@ -790,9 +789,9 @@
    *   scale = 1100 / 684 = 1.608  →  full image = 2213px wide
    *   x-offset = 692 × 1.608 = 1113px
    */
-  background-image: url('/pixel-room-layout.png');
+  background-image: url('/pixel-room-v2.png');
   background-size: 2628px auto;
-  background-position: -1528px -80px;
+  background-position: -1528px -10px;
   background-repeat: no-repeat;
 }
 
@@ -949,11 +948,10 @@
 .sigS { background: #331010; color: var(--bad);  border: 1px solid #661a1a; }
 .sigN { background: #1a1a1a; color: #555;        border: 1px solid #333; }
 
-/* Sprite wrapper — z:1; anchored at bottom so feet sit at chair-seat level */
+/* Sprite wrapper — z:1 (behind name tag) */
 .spriteWrap {
   position: absolute;
-  bottom: 6px;
-  top: auto;
+  top: 0;
   left: 50%;
   transform: translateX(-50%);
   width: 70px;
@@ -1220,13 +1218,13 @@
 
   /* Floor tier on mobile: scale = 1700/1376 = 1.235×, top-room height = 474px */
   .floorTier {
-    min-height: 480px;
+    min-height: 420px;
     background-size: 1700px auto;
-    background-position: -988px -50px;
+    background-position: -988px -5px;
   }
   .roomHud    { top: 6px; right: 8px; }
   .wallClock  { font-size: 10px; min-width: 32px; }
-  .roomFloor  { padding-top: 150px; padding-bottom: 12px; }
+  .roomFloor  { padding-top: 100px; padding-bottom: 12px; }
   .floorRows  { width: 100%; }
   .floorRow {
     flex-wrap: wrap;
