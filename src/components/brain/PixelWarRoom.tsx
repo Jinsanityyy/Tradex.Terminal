@@ -539,7 +539,7 @@ function AgentPod({
   // Non-real agents are decorative — not interactive
   if (!agent.real) {
     return (
-      <div className={`${styles.agentPod} ${alert ? styles.podAlert : ""}`} aria-hidden="true">
+      <div className={styles.agentPod} aria-hidden="true">
         {inner}
       </div>
     );
@@ -548,7 +548,7 @@ function AgentPod({
   return (
     <button
       type="button"
-      className={`${styles.agentPod} ${selected ? styles.podSelected : ""} ${alert ? styles.podAlert : ""}`}
+      className={`${styles.agentPod} ${selected ? styles.podSelected : ""}`}
       onClick={onClick}
       aria-pressed={selected}
     >
