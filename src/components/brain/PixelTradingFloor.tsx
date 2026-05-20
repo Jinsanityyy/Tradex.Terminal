@@ -158,14 +158,16 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
                 >
                   <div className={`${styles.stationBody} ${isSelected ? styles.stationBodySelected : ""}`}>
 
-                    {/* DOM-first → paints behind. CSS order:2 keeps it below the monitor visually. */}
+                    {/* DOM order: keyboard → sprite → monitor
+                        flex-direction: column-reverse makes DOM-last appear at top.
+                        Paint order follows DOM: keyboard behind sprite behind monitor. */}
+
+                    <div className={styles.stationKeyboard} aria-hidden="true" />
+
                     <div className={styles.spriteWrap}>
                       <SeatedOperator look={station.seatedLook} className={styles.stationSprite} />
                     </div>
 
-                    <div className={styles.stationKeyboard} aria-hidden="true" />
-
-                    {/* DOM-last → paints on top naturally. CSS order:1 lifts it to the top visually. */}
                     <div className={styles.monitorGroup}>
                       <div className={`${styles.monitorBezel} ${ok ? styles.monitorOk : styles.monitorNoTrade}`}>
                         <div className={styles.monitorScreen} />
@@ -186,12 +188,11 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
 
             {/* ── Master desk ── */}
             <button type="button" className={styles.masterDesk} onClick={() => onAgentClick?.("master")}>
-              {/* DOM-first → paints behind */}
+              {/* Same column-reverse trick: keyboard → sprite → monitor in DOM */}
+              <div className={styles.stationKeyboard} aria-hidden="true" />
               <div className={styles.masterSpriteWrap}>
                 <SeatedOperator look={CENTRAL_LOOK} className={styles.masterSeatedSprite} />
               </div>
-              <div className={styles.stationKeyboard} aria-hidden="true" />
-              {/* DOM-last → paints on top */}
               <div className={styles.monitorGroup}>
                 <div className={`${styles.monitorBezel} ${styles.masterBezel}`}>
                   <div className={styles.monitorScreen} />

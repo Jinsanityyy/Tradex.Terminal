@@ -165,10 +165,13 @@
   pointer-events: none;
 }
 
-/* ─── Station body (flex column: monitor → figure → keyboard) ──────────── */
+/* ─── Station body ──────────────────────────────────────────────────────── */
+/* column-reverse: DOM-last child appears at visual top.
+   DOM order is [keyboard, sprite, monitor] so monitor renders at top
+   and is also painted last (DOM order) = always in front of the sprite. */
 .stationBody {
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   align-items: center;
   width: 68px;
   position: relative;
@@ -191,8 +194,7 @@
   align-items: center;
   margin-top: 4px;
   position: relative;
-  order: 1;   /* visual position: top of station */
-  /* No z-index — DOM order (last child) guarantees it paints on top */
+  /* No order, no z-index — column-reverse + DOM-last handles everything */
 }
 
 /* Screen bezel — shape only, colour from modifier classes */
@@ -284,23 +286,20 @@
 .ledOk      { background: var(--good);  box-shadow: var(--glow-good); }
 .ledNoTrade { background: var(--amber); box-shadow: 0 0 6px rgba(255,199,58,0.5); }
 
-/* ─── Sprite wrapper — contains absolute-positioned SeatedOperator ──────── */
+/* ─── Sprite wrapper ────────────────────────────────────────────────────── */
 .spriteWrap {
   position: relative;
   width: 68px;
-  height: 48px;     /* matches scale 0.75 × 64px */
+  height: 48px;
   margin-top: 3px;
   flex-shrink: 0;
   overflow: hidden;
-  order: 2;   /* visual position: below monitor */
-  /* No z-index — DOM order (first child) means it paints behind the monitor */
 }
 
 .stationSprite {
   left: 50%;
   top: 0;
   transform: translateX(-50%);
-  /* No z-index needed */
 }
 
 /* ─── Keyboard strip ────────────────────────────────────────────────────── */
@@ -309,7 +308,6 @@
   height: 5px;
   margin-top: 2px;
   flex-shrink: 0;
-  order: 3;   /* visual position: bottom */
   background:
     repeating-linear-gradient(90deg, var(--border-hi) 0 3px, var(--border) 3px 4px),
     var(--panel);
@@ -345,7 +343,7 @@
   padding: 0;
   cursor: pointer;
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   align-items: center;
   transition: transform 80ms ease;
   z-index: 10;
@@ -383,7 +381,6 @@
   margin-top: 3px;
   flex-shrink: 0;
   overflow: hidden;
-  order: 2;   /* visual position: below monitor */
 }
 
 .masterSeatedSprite {
