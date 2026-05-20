@@ -6,33 +6,39 @@
 
 /* ─── Root ──────────────────────────────────────────────────────────────── */
 .root {
-  --obsidian:  #080a0e;
-  --floor-bg:  #111821;
-  --panel:     #131c25;
-  --panel-2:   #0e151d;
-  --border:    #1e2d3a;
-  --border-hi: #2a3f50;
+  --obsidian:  #07050300;
+  --floor-bg:  #0d0804;
+  --panel:     #1a1208;
+  --panel-2:   #110d06;
+  --border:    #2a1e0e;
+  --border-hi: #4a3218;
   --slate:     #4db8b3;
   --slate-dim: #2a6e6a;
-  --text:      #d6eaec;
-  --muted:     #6a8f94;
+  --text:      #d8e8d4;
+  --muted:     #7a9070;
   --good:      #3dffa0;
   --good-dim:  #1a6644;
   --bad:       #ff5f3d;
   --bad-dim:   #5c1e10;
   --amber:     #ffc73a;
-  --shadow:    rgba(0,0,0,0.5);
+  --shadow:    rgba(0,0,0,0.6);
   --glow-good: 0 0 8px rgba(61,255,160,0.35);
   --glow-bad:  0 0 8px rgba(255,95,61,0.35);
+
+  /* warm wood palette */
+  --wood-top:   #8b6422;
+  --wood-front: #4a2e0a;
+  --wood-edge:  #c4882a;
+  --wood-dark:  #2a1a06;
 
   min-height: unset;
   display: grid;
   place-items: center;
   padding: 16px;
-  background-color: var(--obsidian);
+  background-color: #07050300;
   background-image:
-    linear-gradient(rgba(77,184,179,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(77,184,179,0.03) 1px, transparent 1px);
+    linear-gradient(rgba(180,120,50,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(180,120,50,0.04) 1px, transparent 1px);
   background-size: 32px 32px;
   color: var(--text);
   font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
@@ -45,9 +51,9 @@
   background: var(--floor-bg);
   box-shadow:
     0 0 0 1px var(--border),
-    0 24px 64px rgba(0,0,0,0.6),
-    0 0 40px rgba(77,184,179,0.04),
-    inset 0 1px 0 rgba(255,255,255,0.03);
+    0 24px 64px rgba(0,0,0,0.7),
+    0 0 40px rgba(180,120,50,0.06),
+    inset 0 1px 0 rgba(255,255,255,0.02);
 }
 
 .scene {
@@ -83,11 +89,25 @@
   position: relative;
   height: calc(100% - 24px);
   overflow: hidden;
-  background-color: var(--floor-bg);
+  /* warm wood floor with tile grid */
+  background-color: #110c06;
   background-image:
-    linear-gradient(rgba(77,184,179,0.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(77,184,179,0.018) 1px, transparent 1px);
-  background-size: 28px 28px;
+    linear-gradient(rgba(180,120,50,0.10) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(180,120,50,0.10) 1px, transparent 1px),
+    linear-gradient(rgba(180,120,50,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(180,120,50,0.04) 1px, transparent 1px);
+  background-size: 32px 32px, 32px 32px, 8px 8px, 8px 8px;
+}
+
+/* warm ambient light on ceiling/north wall */
+.upperFloor::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 35%;
+  background: linear-gradient(180deg, rgba(200,150,60,0.04) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* ─── Wall display ──────────────────────────────────────────────────────── */
@@ -126,6 +146,60 @@
   pointer-events: none;
 }
 
+/* ─── Corner plants ─────────────────────────────────────────────────────── */
+.cornerPlant {
+  position: absolute;
+  width: 18px;
+  height: 26px;
+  z-index: 5;
+  pointer-events: none;
+}
+.cornerPlant::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 2px;
+  width: 14px; height: 17px;
+  background: radial-gradient(ellipse 60% 50% at 50% 60%, #4a9a40 0%, #2a5e24 60%, #1a3e16 100%);
+  border-radius: 50% 50% 40% 40%;
+  box-shadow:
+    -5px 3px 0 rgba(30,80,25,0.7),
+    5px 4px 0 rgba(30,80,25,0.6),
+    0 0 10px rgba(50,130,45,0.25);
+}
+.cornerPlant::after {
+  content: "";
+  position: absolute;
+  top: 16px; left: 6px;
+  width: 6px; height: 10px;
+  background: linear-gradient(180deg, #7b5228 0%, #3d2010 100%);
+  border: 1px solid #1a0e06;
+}
+
+.cornerPlantSmall {
+  position: absolute;
+  width: 12px;
+  height: 18px;
+  z-index: 5;
+  pointer-events: none;
+}
+.cornerPlantSmall::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 1px;
+  width: 10px; height: 12px;
+  background: radial-gradient(ellipse 60% 50% at 50% 60%, #3d8a35 0%, #235520 60%, #162e14 100%);
+  border-radius: 50% 50% 40% 40%;
+  box-shadow: 0 0 6px rgba(40,110,36,0.2);
+}
+.cornerPlantSmall::after {
+  content: "";
+  position: absolute;
+  top: 11px; left: 4px;
+  width: 4px; height: 7px;
+  background: linear-gradient(180deg, #5a3818 0%, #2e1808 100%);
+  border: 1px solid #160a04;
+}
+
 /* ─── Floor wiring ──────────────────────────────────────────────────────── */
 .floorWire, .floorDrop {
   position: absolute;
@@ -133,7 +207,7 @@
   background: var(--slate-dim);
   z-index: 1;
   pointer-events: none;
-  box-shadow: 0 0 4px rgba(77,184,179,0.3);
+  box-shadow: 0 0 4px rgba(77,184,179,0.25);
 }
 .floorWire { height: 1px; }
 .floorDrop { width: 1px; }
@@ -153,45 +227,45 @@
 .stationPod:hover    { transform: translate(-50%, -2px); }
 .stationSelected     { transform: translate(-50%, -2px); }
 
-/* ambient floor glow */
+/* warm floor glow under station */
 .stationPod::before {
   content: "";
   position: absolute;
   left: -20%; right: -20%;
   bottom: -10px;
   height: 22px;
-  background: radial-gradient(ellipse at center top, rgba(77,184,179,0.12) 0%, transparent 70%);
+  background: radial-gradient(ellipse at center top, rgba(200,140,40,0.14) 0%, transparent 70%);
   z-index: 0;
   pointer-events: none;
 }
 
 /* ─── Station body ──────────────────────────────────────────────────────── */
 /* Absolute-positioned children: sprite at z:1 (back), monitor at z:2 (front).
-   Head (~top 16px of sprite) peeks above the monitor; monitor covers the body. */
+   Head (top ~20px of 64px sprite) peeks above the monitor; desk covers the body. */
 .stationBody {
   position: relative;
-  width: 68px;
-  height: 70px;
+  width: 70px;
+  height: 82px;
 }
 
 .stationBodySelected::after {
   content: "";
   position: absolute;
   inset: -3px;
-  border: 1px solid var(--slate-dim);
-  box-shadow: inset 0 0 12px rgba(77,184,179,0.08);
+  border: 1px solid var(--wood-edge);
+  box-shadow: inset 0 0 14px rgba(200,140,40,0.10);
   z-index: 0;
   pointer-events: none;
 }
 
-/* ─── Sprite wrapper — character head visible above monitor ─────────────── */
+/* ─── Sprite wrapper ────────────────────────────────────────────────────── */
 .spriteWrap {
   position: absolute;
   top: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 68px;
-  height: 48px;
+  width: 70px;
+  height: 64px;
   overflow: hidden;
   z-index: 1;
 }
@@ -205,7 +279,7 @@
 /* ─── Monitor group (bezel + neck + desk base) ──────────────────────────── */
 .monitorGroup {
   position: absolute;
-  top: 16px;
+  top: 18px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -216,7 +290,7 @@
 
 /* Screen bezel */
 .monitorBezel {
-  width: 50px;
+  width: 52px;
   height: 32px;
   border: 1.5px solid transparent;
   border-radius: 1px;
@@ -276,18 +350,19 @@
 .monitorNeck {
   width: 3px;
   height: 6px;
-  background: linear-gradient(180deg, #253545, #1a2530);
-  border-left: 1px solid var(--border-hi);
-  border-right: 1px solid var(--border-hi);
+  background: linear-gradient(180deg, #4a3a28, #2a2018);
+  border-left: 1px solid #3a2a18;
+  border-right: 1px solid #3a2a18;
 }
 
-/* Wide desk surface */
+/* Warm wood desk surface */
 .monitorBase {
-  width: 62px;
-  height: 5px;
-  background: linear-gradient(180deg, #2a3f50 0%, #192e3d 100%);
-  border: 1px solid var(--border-hi);
-  border-top: 2px solid #3a5060;
+  width: 66px;
+  height: 8px;
+  background: linear-gradient(180deg, var(--wood-top) 0%, var(--wood-front) 100%);
+  border: 1px solid var(--wood-dark);
+  border-top: 2px solid var(--wood-edge);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.85), 0 2px 4px rgba(0,0,0,0.5);
 }
 
 /* ─── Status LED (inside monitorBezel, top-right) ───────────────────────── */
@@ -309,7 +384,7 @@
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 28px;
+  width: 32px;
   height: 5px;
   background:
     repeating-linear-gradient(90deg, var(--border-hi) 0 3px, var(--border) 3px 4px),
@@ -321,7 +396,7 @@
 /* ─── Risk badge ────────────────────────────────────────────────────────── */
 .riskBadge {
   position: absolute;
-  right: 3px;
+  right: 2px;
   top: 4px;
   width: 12px;
   height: 12px;
@@ -346,8 +421,8 @@
   border: none;
   padding: 0;
   cursor: pointer;
-  width: 80px;
-  height: 82px;
+  width: 90px;
+  height: 92px;
   transition: transform 80ms ease;
   z-index: 10;
 }
@@ -355,11 +430,11 @@
 
 /* Wider bezel for master */
 .masterBezel {
-  width: 64px;
-  height: 38px;
+  width: 68px;
+  height: 40px;
   background: #061720;
   border-color: var(--slate-dim) !important;
-  box-shadow: 0 0 16px rgba(77,184,179,0.40), inset 0 0 10px rgba(77,184,179,0.12) !important;
+  box-shadow: 0 0 18px rgba(77,184,179,0.45), inset 0 0 12px rgba(77,184,179,0.14) !important;
 }
 
 .masterLabel {
@@ -376,14 +451,14 @@
 
 .masterLed { top: 3px; right: 3px; }
 
-/* Master sprite wrap (scale 0.9 → 58px), behind the monitor */
+/* Master sprite wrap — full scale 1.0 → 64px sprite */
 .masterSpriteWrap {
   position: absolute;
   top: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 80px;
-  height: 58px;
+  width: 90px;
+  height: 64px;
   overflow: hidden;
   z-index: 1;
 }
@@ -415,7 +490,7 @@
   width: var(--seat-actor-width);
   height: var(--seat-actor-height);
   image-rendering: pixelated;
-  filter: drop-shadow(1px 2px 0 rgba(0,0,0,0.7));
+  filter: drop-shadow(1px 2px 0 rgba(0,0,0,0.8));
 }
 
 .seatedLayer {
@@ -440,6 +515,6 @@
 @media (max-width: 640px) {
   .root { padding: 8px; }
   .sceneFrame { width: 100%; }
-  .scene { aspect-ratio: 636 / 500; }
+  .scene { aspect-ratio: 636 / 520; }
   .floorWordmark { font-size: 7px; }
 }
