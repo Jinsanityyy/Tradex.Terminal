@@ -299,6 +299,15 @@
 .agentPod:hover   { transform: translateY(-2px); }
 .podSelected      { transform: translateY(-2px); }
 
+/* Non-real background operators — visible but inert */
+.podFake {
+  cursor: default !important;
+  opacity: 0.55;
+  filter: saturate(0.5);
+  pointer-events: none;
+}
+.podFake:hover { transform: none !important; }
+
 /* glow under selected pod */
 .podSelected::after {
   content: "";
