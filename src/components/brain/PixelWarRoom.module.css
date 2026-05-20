@@ -324,6 +324,15 @@
   50%       { border-color: var(--bad); }
 }
 
+/* Background operators — visible but inert */
+.podFake {
+  cursor: default !important;
+  opacity: 0.5;
+  filter: saturate(0.4);
+  pointer-events: none;
+}
+.podFake:hover { transform: none !important; }
+
 /* Station body: relative container so children can be absolutely positioned */
 .stationBody {
   position: relative;

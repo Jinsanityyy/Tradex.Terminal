@@ -15,6 +15,7 @@ type OperatorLook = {
   shoesColor: string;
   seatFrame: 0 | 1 | 2 | 3;
   scale?: number;
+  bodyType?: "Androgynous" | "Man" | "Woman";
 };
 
 type AgentStatus = "TRADE-OK" | "NO-TRADE" | "ALERT";
@@ -27,6 +28,7 @@ type AgentDef = {
   look: OperatorLook;
   baseStatus: AgentStatus;
   drawerId: string;
+  real: boolean;
 };
 
 type AgentLiveState = {
@@ -51,55 +53,55 @@ type LogLine = { time: string; text: string; tone: LogTone };
 
 const AGENTS_ROW_A: AgentDef[] = [
   {
-    id: "risk", label: "RISK", drawerId: "risk", baseStatus: "ALERT",
+    id: "risk", label: "RISK", drawerId: "risk", baseStatus: "ALERT", real: true,
     look: { skin: "Copper", hairStyle: "Swoop", hairColor: "Black", shirtColor: "Maroon", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2 },
   },
   {
-    id: "trend", label: "TREND", drawerId: "trend", baseStatus: "NO-TRADE",
+    id: "trend", label: "TREND", drawerId: "trend", baseStatus: "NO-TRADE", real: true,
     look: { skin: "Ivory", hairStyle: "Parted Short", hairColor: "Brown", shirtColor: "Forest", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2 },
   },
   {
-    id: "pract", label: "PR.ACT", drawerId: "smc", baseStatus: "TRADE-OK",
+    id: "pract", label: "PR.ACT", drawerId: "smc", baseStatus: "TRADE-OK", real: true,
     look: { skin: "Gold", hairStyle: "Messy", hairColor: "Black", shirtColor: "Gray", pantsColor: "Black", shoesColor: "Black", seatFrame: 2 },
   },
   {
-    id: "news", label: "NEWS", drawerId: "news", baseStatus: "TRADE-OK",
+    id: "news", label: "NEWS", drawerId: "news", baseStatus: "TRADE-OK", real: true,
     look: { skin: "Dove", hairStyle: "Plain", hairColor: "White", shirtColor: "Teal", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2 },
   },
   {
-    id: "quant", label: "QUANT", drawerId: "quant", baseStatus: "NO-TRADE",
-    look: { skin: "Sienna", hairStyle: "Parted Short", hairColor: "Chestnut", shirtColor: "Navy", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2 },
+    id: "quant", label: "", drawerId: "", baseStatus: "NO-TRADE", real: false,
+    look: { skin: "Comet", hairStyle: "Loose", hairColor: "Blonde", shirtColor: "Lavender", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2, bodyType: "Woman" },
   },
   {
-    id: "exec", label: "EXEC", drawerId: "execution", baseStatus: "TRADE-OK",
+    id: "exec", label: "EXEC", drawerId: "execution", baseStatus: "TRADE-OK", real: true,
     look: { skin: "Coffee", hairStyle: "Buzzcut", hairColor: "Black", shirtColor: "Navy", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2 },
   },
 ];
 
 const AGENTS_ROW_B: AgentDef[] = [
   {
-    id: "flow", label: "FLOW", drawerId: "flow", baseStatus: "NO-TRADE",
-    look: { skin: "Copper", hairStyle: "Plain", hairColor: "Black", shirtColor: "Teal", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2 },
+    id: "flow", label: "", drawerId: "", baseStatus: "NO-TRADE", real: false,
+    look: { skin: "Green", hairStyle: "Mohawk", hairColor: "Orange", shirtColor: "Orange", pantsColor: "Black", shoesColor: "Black", seatFrame: 2, bodyType: "Man" },
   },
   {
-    id: "cntr", label: "CNTR", drawerId: "contrarian", baseStatus: "TRADE-OK",
+    id: "cntr", label: "CNTR", drawerId: "contrarian", baseStatus: "TRADE-OK", real: true,
     look: { skin: "Sienna", hairStyle: "Curly Short", hairColor: "Chestnut", shirtColor: "Purple", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2 },
   },
   {
-    id: "arbi", label: "ARBI", drawerId: "arbi", baseStatus: "NO-TRADE",
-    look: { skin: "Ivory", hairStyle: "Swoop", hairColor: "Brown", shirtColor: "Forest", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2 },
+    id: "arbi", label: "", drawerId: "", baseStatus: "NO-TRADE", real: false,
+    look: { skin: "Gray", hairStyle: "Curly Short", hairColor: "Platinum", shirtColor: "Sky", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2, bodyType: "Woman" },
   },
   {
-    id: "algo", label: "ALGO", drawerId: "algo", baseStatus: "TRADE-OK",
-    look: { skin: "Gold", hairStyle: "Buzzcut", hairColor: "Black", shirtColor: "Maroon", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2 },
+    id: "algo", label: "", drawerId: "", baseStatus: "TRADE-OK", real: false,
+    look: { skin: "Comet", hairStyle: "Buzzcut", hairColor: "Red", shirtColor: "Leather", pantsColor: "Black", shoesColor: "Black", seatFrame: 2, bodyType: "Man" },
   },
   {
-    id: "delta", label: "DELTA", drawerId: "delta", baseStatus: "NO-TRADE",
-    look: { skin: "Dove", hairStyle: "Messy", hairColor: "White", shirtColor: "Navy", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2 },
+    id: "delta", label: "", drawerId: "", baseStatus: "NO-TRADE", real: false,
+    look: { skin: "Green", hairStyle: "Loose", hairColor: "Brown", shirtColor: "Pink", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2, bodyType: "Woman" },
   },
   {
-    id: "sent", label: "SENT", drawerId: "sentiment", baseStatus: "NO-TRADE",
-    look: { skin: "Coffee", hairStyle: "Parted Short", hairColor: "Black", shirtColor: "Gray", pantsColor: "Black", shoesColor: "Black", seatFrame: 2 },
+    id: "sent", label: "", drawerId: "", baseStatus: "NO-TRADE", real: false,
+    look: { skin: "Gray", hairStyle: "Mohawk", hairColor: "White", shirtColor: "Walnut", pantsColor: "Black", shoesColor: "Black", seatFrame: 2, bodyType: "Man" },
   },
 ];
 
@@ -121,11 +123,11 @@ const TICKER =
 // ─── Sprite helpers ───────────────────────────────────────────────────────────
 
 function enc(p: string) { return encodeURI(p); }
-function baseUrl(skin: string) {
-  return enc(`/lpc-sitting-kit/Bases/Androgynous/Recolors/${skin}/Sitting - Chair.png`);
+function baseUrl(skin: string, bodyType = "Androgynous") {
+  return enc(`/lpc-sitting-kit/Bases/${bodyType}/Recolors/${skin}/Sitting - Chair.png`);
 }
-function clothesUrl(item: "Longsleeved Shirt" | "Pants" | "Shoes", color: string) {
-  return enc(`/lpc-sitting-kit/Clothes/Androgynous/Recolors/${color}/${item} - Sitting (Chair).png`);
+function clothesUrl(item: "Longsleeved Shirt" | "Pants" | "Shoes", color: string, bodyType = "Androgynous") {
+  return enc(`/lpc-sitting-kit/Clothes/${bodyType}/Recolors/${color}/${item} - Sitting (Chair).png`);
 }
 function hairUrl(style: string, color: string) {
   return enc(`/lpc-sitting-kit/Hair/${style}/Recolors/${color}/Sitting (Chair).png`);
@@ -143,11 +145,12 @@ function layerStyle(url: string, frame: number, scale = 1): CSSProperties {
 
 function SeatedOperator({ look, className }: { look: OperatorLook; className?: string }) {
   const scale = look.scale ?? 1;
+  const bt = look.bodyType ?? "Androgynous";
   const layers = [
-    baseUrl(look.skin),
-    clothesUrl("Shoes", look.shoesColor),
-    clothesUrl("Pants", look.pantsColor),
-    clothesUrl("Longsleeved Shirt", look.shirtColor),
+    baseUrl(look.skin, bt),
+    clothesUrl("Shoes", look.shoesColor, bt),
+    clothesUrl("Pants", look.pantsColor, bt),
+    clothesUrl("Longsleeved Shirt", look.shirtColor, bt),
     hairUrl(look.hairStyle, look.hairColor),
   ];
   return (
@@ -436,12 +439,13 @@ function AgentPod({
   return (
     <button
       type="button"
-      className={`${styles.agentPod} ${selected ? styles.podSelected : ""} ${alert ? styles.podAlert : ""}`}
-      onClick={onClick}
-      aria-pressed={selected}
+      className={`${styles.agentPod} ${selected ? styles.podSelected : ""} ${alert && agent.real ? styles.podAlert : ""} ${!agent.real ? styles.podFake : ""}`}
+      onClick={agent.real ? onClick : undefined}
+      aria-pressed={agent.real ? selected : undefined}
+      tabIndex={agent.real ? 0 : -1}
     >
       <div className={styles.stationBody}>
-        {live && (
+        {live && agent.real && (
           <div className={`${styles.sigBadge} ${live.signal === "L" ? styles.sigL : live.signal === "S" ? styles.sigS : styles.sigN}`}>
             {live.signal}
           </div>
@@ -454,7 +458,7 @@ function AgentPod({
         <div className={styles.monitorGroup}>
           <div className={`${styles.monitorBezel} ${ok ? styles.monOk : alert ? styles.monAlert : styles.monBad}`}>
             <div className={styles.monitorScreen} />
-            {live && (
+            {live && agent.real && (
               <div className={styles.miniBars}>
                 {live.bars.map((h, i) => (
                   <span
@@ -465,10 +469,14 @@ function AgentPod({
                 ))}
               </div>
             )}
-            <span className={ok ? styles.lblOk : alert ? styles.lblAlert : styles.lblBad}>
-              {agent.label}
-            </span>
-            <span className={`${styles.statusLed} ${ok ? styles.ledOk : alert ? styles.ledAlert : styles.ledAmber}`} />
+            {agent.real && (
+              <span className={ok ? styles.lblOk : alert ? styles.lblAlert : styles.lblBad}>
+                {agent.label}
+              </span>
+            )}
+            {agent.real && (
+              <span className={`${styles.statusLed} ${ok ? styles.ledOk : alert ? styles.ledAlert : styles.ledAmber}`} />
+            )}
           </div>
           <div className={styles.monitorNeck} />
           <div className={styles.monitorBase} />
@@ -478,7 +486,7 @@ function AgentPod({
       </div>
 
       <div className={styles.confLabel}>
-        {live ? `${live.confidence}%` : "—"}
+        {agent.real && live ? `${live.confidence}%` : ""}
       </div>
     </button>
   );
