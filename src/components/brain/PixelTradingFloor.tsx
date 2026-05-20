@@ -29,34 +29,34 @@ type StationBlueprint = {
 const STATION_BLUEPRINTS: StationBlueprint[] = [
   {
     id: "trend", label: "TREND", left: 9, top: 5, status: "NO-TRADE",
-    seatedLook: { skin: "Ivory", hairStyle: "Parted Short", hairColor: "Brown", shirtColor: "Forest", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2, scale: 0.75 },
+    seatedLook: { skin: "Ivory", hairStyle: "Parted Short", hairColor: "Brown", shirtColor: "Forest", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2, scale: 1.0 },
   },
   {
     id: "pract", label: "PR.ACT", left: 30, top: 5, status: "NO-TRADE",
-    seatedLook: { skin: "Gold", hairStyle: "Messy", hairColor: "Black", shirtColor: "Gray", pantsColor: "Black", shoesColor: "Black", seatFrame: 2, scale: 0.75 },
+    seatedLook: { skin: "Gold", hairStyle: "Messy", hairColor: "Black", shirtColor: "Gray", pantsColor: "Black", shoesColor: "Black", seatFrame: 2, scale: 1.0 },
   },
   {
     id: "news", label: "NEWS", left: 57, top: 5, status: "TRADE-OK",
-    seatedLook: { skin: "Dove", hairStyle: "Plain", hairColor: "White", shirtColor: "Teal", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2, scale: 0.75 },
+    seatedLook: { skin: "Dove", hairStyle: "Plain", hairColor: "White", shirtColor: "Teal", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2, scale: 1.0 },
   },
   {
     id: "risk", label: "RISK", left: 83, top: 5, status: "NO-TRADE",
-    seatedLook: { skin: "Copper", hairStyle: "Swoop", hairColor: "Black", shirtColor: "Maroon", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2, scale: 0.75 },
+    seatedLook: { skin: "Copper", hairStyle: "Swoop", hairColor: "Black", shirtColor: "Maroon", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2, scale: 1.0 },
   },
   {
     id: "exec", label: "EXEC", left: 19, top: 55, status: "NO-TRADE",
-    seatedLook: { skin: "Coffee", hairStyle: "Buzzcut", hairColor: "Black", shirtColor: "Navy", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2, scale: 0.75 },
+    seatedLook: { skin: "Coffee", hairStyle: "Buzzcut", hairColor: "Black", shirtColor: "Navy", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2, scale: 1.0 },
   },
   {
     id: "cntr", label: "CNTR", left: 73, top: 55, status: "TRADE-OK",
-    seatedLook: { skin: "Sienna", hairStyle: "Curly Short", hairColor: "Chestnut", shirtColor: "Purple", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2, scale: 0.75 },
+    seatedLook: { skin: "Sienna", hairStyle: "Curly Short", hairColor: "Chestnut", shirtColor: "Purple", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2, scale: 1.0 },
   },
 ];
 
 const CENTRAL_LOOK: OperatorLook = {
   skin: "Ivory", hairStyle: "Loose", hairColor: "Chestnut",
   shirtColor: "Teal", pantsColor: "Gray", shoesColor: "Black",
-  seatFrame: 2, scale: 0.9,
+  seatFrame: 2, scale: 1.0,
 };
 
 const FLOOR_WIRES: CSSProperties[] = [
@@ -140,6 +140,12 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
 
           <div className={styles.upperFloor}>
             <div className={styles.wallDisplay} aria-hidden="true" />
+
+            {/* Corner plants */}
+            <div className={styles.cornerPlant} style={{ left: "1.5%", top: "8%" }} aria-hidden="true" />
+            <div className={styles.cornerPlant} style={{ right: "1.5%", top: "8%" }} aria-hidden="true" />
+            <div className={styles.cornerPlantSmall} style={{ left: "1.5%", top: "52%" }} aria-hidden="true" />
+            <div className={styles.cornerPlantSmall} style={{ right: "1.5%", top: "52%" }} aria-hidden="true" />
 
             {FLOOR_WIRES.map((w, i) => <span key={`w${i}`} className={styles.floorWire} style={w} />)}
             {FLOOR_DROPS.map((d, i) => <span key={`d${i}`} className={styles.floorDrop} style={d} />)}
