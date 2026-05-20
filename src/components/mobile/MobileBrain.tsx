@@ -9,7 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { AgentRunResult, Symbol, Timeframe, SignalState } from "@/lib/agents/schemas";
 import { DebateLog } from "@/components/brain/DebateLog";
-import { PixelTradingFloor } from "@/components/brain/PixelTradingFloor";
+import { PixelWarRoom } from "@/components/brain/PixelWarRoom";
 import { BrainAgentPanel } from "@/components/brain/BrainOverviewDrawer";
 import { useSettings } from "@/contexts/SettingsContext";
 import { isAgentSupported, getSymbolShort, getSymbolLabel } from "@/lib/assetImpact";
@@ -434,7 +434,7 @@ export function MobileBrain() {
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* War room — natural height (aspect-ratio driven, no fixed h) */}
           <div className="shrink-0">
-            <PixelTradingFloor onAgentClick={setDrawerAgentId} />
+            <PixelWarRoom onAgentClick={setDrawerAgentId} />
           </div>
 
           {/* Inline agent overview — fills remaining space */}
