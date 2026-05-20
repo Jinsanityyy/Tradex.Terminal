@@ -225,12 +225,21 @@
   color: var(--muted);
 }
 
+.agentOverviewState {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  line-height: 1;
+}
+
 .agentOverviewDetail {
   font-size: 9px;
   color: var(--text);
   opacity: 0.7;
   line-height: 1.5;
-  max-width: 420px;
+  max-width: 540px;
 }
 
 .confBarWrap {
@@ -248,7 +257,8 @@
 .confBarOk  { background: var(--good); }
 .confBarBad { background: var(--bad); }
 
-.statOk { color: var(--good) !important; }
+.statOk   { color: var(--good)  !important; }
+.statWarn { color: var(--amber) !important; }
 
 .biasBadge {
   font-size: 22px;

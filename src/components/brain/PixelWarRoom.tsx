@@ -196,6 +196,77 @@ function SeatedOperator({ look, className }: { look: OperatorLook; className?: s
   );
 }
 
+// ─── Agent overview (real data) ───────────────────────────────────────────────
+
+type AgentOverview = {
+  state: string;
+  insight: string;
+  confidence: number;
+  tone: "ok" | "warn" | "bad" | "dim";
+};
+
+function fmtBias(s: string | undefined): string {
+  if (!s) return "NEUTRAL";
+  return s.replace(/[-_]/g, " ").toUpperCase();
+}
+function biasToneOv(bias: string | undefined): AgentOverview["tone"] {
+  if (bias === "bullish" || bias === "valid" || bias === "long")    return "ok";
+  if (bias === "bearish" || bias === "blocked" || bias === "short") return "bad";
+  if (bias === "opposing" || bias === "no-trade")                   return "warn";
+  return "dim";
+}
+
+function getAgentOverview(id: string, runData: AgentRunResult | undefined): AgentOverview | null {
+  if (!runData) return null;
+  const ag = runData.agents;
+  switch (id) {
+    case "trend":
+      return {
+        state: fmtBias(ag.trend.bias),
+        insight: ag.trend.reasons?.[0] ?? ag.trend.marketPhase ?? "Recalculating...",
+        confidence: ag.trend.confidence,
+        tone: biasToneOv(ag.trend.bias),
+      };
+    case "pract":
+      return {
+        state: fmtBias(ag.smc.bias),
+        insight: ag.smc.reasons?.[0] ?? ag.smc.setupType ?? "Recalculating...",
+        confidence: ag.smc.confidence,
+        tone: biasToneOv(ag.smc.bias),
+      };
+    case "news":
+      return {
+        state: fmtBias(ag.news.impact),
+        insight: ag.news.dominantCatalyst ?? ag.news.reasons?.[0] ?? "Recalculating...",
+        confidence: ag.news.confidence,
+        tone: biasToneOv(ag.news.impact),
+      };
+    case "risk":
+      return {
+        state: ag.risk.valid ? "VALID" : "BLOCKED",
+        insight: ag.risk.reasons?.[0] ?? ag.risk.warnings?.[0] ?? "Recalculating...",
+        confidence: ag.risk.sessionScore,
+        tone: ag.risk.valid ? "ok" : "bad",
+      };
+    case "exec":
+      return {
+        state: ag.execution.signalState,
+        insight: ag.execution.signalStateReason ?? ag.execution.triggerCondition ?? "Recalculating...",
+        confidence: Math.min(95, ag.execution.confluenceCount * 10),
+        tone: ag.execution.direction === "long" ? "ok" : ag.execution.direction === "short" ? "bad" : "warn",
+      };
+    case "cntr":
+      return {
+        state: ag.contrarian.challengesBias ? "ALERT" : "CLEAR",
+        insight: ag.contrarian.alternativeScenario ?? ag.contrarian.failureReasons?.[0] ?? "Recalculating...",
+        confidence: ag.contrarian.trapConfidence,
+        tone: ag.contrarian.challengesBias ? "bad" : "dim",
+      };
+    default:
+      return null;
+  }
+}
+
 // ─── Real-data mappers ────────────────────────────────────────────────────────
 
 const swrFetch = (url: string) => fetch(url).then(r => { if (!r.ok) throw new Error(r.status.toString()); return r.json(); });
@@ -334,6 +405,7 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
   const tickerText = buildTicker(quotes);
   const selectedAgent = REAL_AGENTS.find(a => a.id === selectedId) ?? REAL_AGENTS[0]!;
   const selectedLive = agentStates[selectedAgent.id];
+  const overview = getAgentOverview(selectedAgent.id, runData);
 
   const handleClick = (agent: AgentDef) => {
     if (!agent.real) return;
@@ -384,34 +456,55 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
         </button>
 
         <div className={styles.masterReadout}>
-          {/* Agent overview — cycles with auto-select, updates on click */}
           <div className={styles.agentOverviewId}>{selectedAgent.label}</div>
           <div className={styles.agentOverviewRole}>{selectedAgent.role ?? "—"}</div>
-          <div className={styles.agentOverviewDetail}>{selectedAgent.detail ?? ""}</div>
 
-          {selectedLive && (
-            <div className={styles.statsRow}>
-              <div className={styles.statCell}>
-                <span className={styles.statLabel}>STATUS</span>
-                <span className={`${styles.statValue} ${selectedLive.status === "TRADE-OK" ? styles.statOk : styles.statDanger}`}>
-                  {selectedLive.status}
-                </span>
+          {overview ? (
+            <>
+              <div className={`${styles.agentOverviewState} ${overview.tone === "ok" ? styles.statOk : overview.tone === "bad" ? styles.statDanger : overview.tone === "warn" ? styles.statWarn : ""}`}>
+                {overview.state}
               </div>
-              <div className={styles.statCell}>
-                <span className={styles.statLabel}>CONF</span>
-                <span className={styles.statValue}>{selectedLive.confidence}%</span>
+              <div className={styles.agentOverviewDetail}>{overview.insight}</div>
+              <div className={styles.statsRow}>
+                <div className={styles.statCell}>
+                  <span className={styles.statLabel}>CONF</span>
+                  <span className={styles.statValue}>{overview.confidence}%</span>
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* Confidence bar */}
-          {selectedLive && (
-            <div className={styles.confBarWrap}>
-              <div
-                className={`${styles.confBar} ${selectedLive.status === "TRADE-OK" ? styles.confBarOk : styles.confBarBad}`}
-                style={{ width: `${selectedLive.confidence}%` }}
-              />
-            </div>
+              <div className={styles.confBarWrap}>
+                <div
+                  className={`${styles.confBar} ${overview.tone === "ok" ? styles.confBarOk : styles.confBarBad}`}
+                  style={{ width: `${overview.confidence}%` }}
+                />
+              </div>
+            </>
+          ) : (
+            /* Fallback while API data hasn't loaded yet */
+            <>
+              <div className={styles.agentOverviewDetail}>{selectedAgent.detail ?? "Loading..."}</div>
+              {selectedLive && (
+                <>
+                  <div className={styles.statsRow}>
+                    <div className={styles.statCell}>
+                      <span className={styles.statLabel}>STATUS</span>
+                      <span className={`${styles.statValue} ${selectedLive.status === "TRADE-OK" ? styles.statOk : styles.statDanger}`}>
+                        {selectedLive.status}
+                      </span>
+                    </div>
+                    <div className={styles.statCell}>
+                      <span className={styles.statLabel}>CONF</span>
+                      <span className={styles.statValue}>{selectedLive.confidence}%</span>
+                    </div>
+                  </div>
+                  <div className={styles.confBarWrap}>
+                    <div
+                      className={`${styles.confBar} ${selectedLive.status === "TRADE-OK" ? styles.confBarOk : styles.confBarBad}`}
+                      style={{ width: `${selectedLive.confidence}%` }}
+                    />
+                  </div>
+                </>
+              )}
+            </>
           )}
         </div>
       </div>
