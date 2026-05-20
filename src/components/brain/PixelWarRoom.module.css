@@ -468,7 +468,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 150px;
+  padding-top: 220px;
   padding-bottom: 16px;
 }
 
@@ -1216,15 +1216,15 @@
   .agrDots    { gap: 2px; }
   .agrDot     { width: 6px; height: 6px; }
 
-  /* Floor tier on mobile: scale = 1700/1376 = 1.235×, top-room height = 474px */
+  /* Floor tier on mobile: scale = 1900/1376 = 1.381×, top-room height = 530px */
   .floorTier {
-    min-height: 420px;
-    background-size: 1700px auto;
-    background-position: -988px -5px;
+    min-height: 510px;
+    background-size: 1900px auto;
+    background-position: -1105px -5px;
   }
   .roomHud    { top: 6px; right: 8px; }
   .wallClock  { font-size: 10px; min-width: 32px; }
-  .roomFloor  { padding-top: 130px; padding-bottom: 12px; }
+  .roomFloor  { padding-top: 190px; padding-bottom: 12px; }
   .floorRows  { width: 100%; }
   .floorRow {
     flex-wrap: wrap;
