@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import useSWR from "swr";
 import styles from "./PixelWarRoom.module.css";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -25,7 +25,6 @@ type OperatorLook = {
 
 type AgentStatus = "TRADE-OK" | "NO-TRADE" | "ALERT";
 type SignalDir = "L" | "S" | "—";
-type LogTone = "ok" | "warn" | "alert" | "dim";
 
 type AgentDef = {
   id: string;
@@ -53,8 +52,6 @@ type MasterState = {
   agreeing: number;
 };
 
-type HeatCell = 0 | 1 | 2 | 3 | 4;
-type LogLine = { time: string; text: string; tone: LogTone };
 
 // ─── Agent definitions ────────────────────────────────────────────────────────
 
@@ -196,76 +193,6 @@ function SeatedOperator({ look, className }: { look: OperatorLook; className?: s
   );
 }
 
-// ─── Agent overview (real data) ───────────────────────────────────────────────
-
-type AgentOverview = {
-  state: string;
-  insight: string;
-  confidence: number;
-  tone: "ok" | "warn" | "bad" | "dim";
-};
-
-function fmtBias(s: string | undefined): string {
-  if (!s) return "NEUTRAL";
-  return s.replace(/[-_]/g, " ").toUpperCase();
-}
-function biasToneOv(bias: string | undefined): AgentOverview["tone"] {
-  if (bias === "bullish" || bias === "valid" || bias === "long")    return "ok";
-  if (bias === "bearish" || bias === "blocked" || bias === "short") return "bad";
-  if (bias === "opposing" || bias === "no-trade")                   return "warn";
-  return "dim";
-}
-
-function getAgentOverview(id: string, runData: AgentRunResult | undefined): AgentOverview | null {
-  if (!runData) return null;
-  const ag = runData.agents;
-  switch (id) {
-    case "trend":
-      return {
-        state: fmtBias(ag.trend.bias),
-        insight: ag.trend.reasons?.[0] ?? ag.trend.marketPhase ?? "Recalculating...",
-        confidence: ag.trend.confidence,
-        tone: biasToneOv(ag.trend.bias),
-      };
-    case "pract":
-      return {
-        state: fmtBias(ag.smc.bias),
-        insight: ag.smc.reasons?.[0] ?? ag.smc.setupType ?? "Recalculating...",
-        confidence: ag.smc.confidence,
-        tone: biasToneOv(ag.smc.bias),
-      };
-    case "news":
-      return {
-        state: fmtBias(ag.news.impact),
-        insight: ag.news.dominantCatalyst ?? ag.news.reasons?.[0] ?? "Recalculating...",
-        confidence: ag.news.confidence,
-        tone: biasToneOv(ag.news.impact),
-      };
-    case "risk":
-      return {
-        state: ag.risk.valid ? "VALID" : "BLOCKED",
-        insight: ag.risk.reasons?.[0] ?? ag.risk.warnings?.[0] ?? "Recalculating...",
-        confidence: ag.risk.sessionScore,
-        tone: ag.risk.valid ? "ok" : "bad",
-      };
-    case "exec":
-      return {
-        state: ag.execution.signalState,
-        insight: ag.execution.signalStateReason ?? ag.execution.triggerCondition ?? "Recalculating...",
-        confidence: Math.min(95, ag.execution.confluenceCount * 10),
-        tone: ag.execution.direction === "long" ? "ok" : ag.execution.direction === "short" ? "bad" : "warn",
-      };
-    case "cntr":
-      return {
-        state: ag.contrarian.challengesBias ? "ALERT" : "CLEAR",
-        insight: ag.contrarian.alternativeScenario ?? ag.contrarian.failureReasons?.[0] ?? "Recalculating...",
-        confidence: ag.contrarian.trapConfidence,
-        tone: ag.contrarian.challengesBias ? "bad" : "dim",
-      };
-    default:
-      return null;
-  }
-}
 
 // ─── Real-data mappers ────────────────────────────────────────────────────────
 
@@ -323,21 +250,6 @@ function makeAgentState(): AgentLiveState {
   };
 }
 
-function makeHeatRow(cols: number): HeatCell[] {
-  return Array.from({ length: cols }, () => Math.floor(rnd(0, 5)) as HeatCell);
-}
-
-const LOG_FNS: Array<(label: string, sig: SignalDir) => string> = [
-  (a, s) => `${a}: SIG ${s === "L" ? "LONG" : s === "S" ? "SHORT" : "FLAT"}`,
-  () => `RISK: POS SIZE ${rnd(0.05, 0.5).toFixed(2)}L APPROVED`,
-  () => `EXEC: FILL @ ${(1.0800 + rnd(0, 0.012)).toFixed(5)}`,
-  () => `MASTER: EDGE ${Math.round(rnd(55, 90))} — CLEAR`,
-  () => `CNTR: DIVERGENCE DETECTED — CAUTION`,
-  () => `NEWS: IMPACT ${pick(["LOW", "MED", "HIGH"] as const)} · PRICED`,
-  () => `FLOW: IMBALANCE ${pick(["+", "-"] as const)}${Math.round(rnd(10, 60))}%`,
-  () => `ALGO: PATTERN LOCK — CONFIRM ENTRY`,
-  () => `QUANT: STAT-ARB SPREAD ${rnd(0.1, 1.2).toFixed(2)}σ`,
-];
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -354,10 +266,7 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
   const [selectedId, setSelectedId] = useState<string>(REAL_AGENTS[0]?.id ?? "risk");
   const [agentStates, setAgentStates] = useState<Record<string, AgentLiveState>>({});
   const [masterState, setMasterState] = useState<MasterState | null>(null);
-  const [heatmap, setHeatmap] = useState<HeatCell[][]>([]);
-  const [log, setLog] = useState<LogLine[]>([]);
   const [mounted, setMounted] = useState(false);
-  const logRef = useRef<HTMLDivElement>(null);
 
   // Initialize state once on mount — no random interval to avoid constant flickering
   useEffect(() => {
@@ -374,12 +283,6 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
       drawdown: parseFloat(rnd(0, 2.5).toFixed(2)),
       agreeing: Math.max(ls, ss),
     });
-    setHeatmap(Array.from({ length: 8 }, () => makeHeatRow(24)));
-    setLog([
-      { time: "09:31", text: "WAR ROOM ONLINE — ALL STATIONS ARMED", tone: "ok" },
-      { time: "09:31", text: "RISK MONITOR ACTIVE — DRAWDOWN 0.0%", tone: "dim" },
-      { time: "09:32", text: "MASTER: EDGE CALIBRATED — READY", tone: "dim" },
-    ]);
     setMounted(true);
   }, []);
 
@@ -403,9 +306,6 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
   }, [runData]);
 
   const tickerText = buildTicker(quotes);
-  const selectedAgent = REAL_AGENTS.find(a => a.id === selectedId) ?? REAL_AGENTS[0]!;
-  const selectedLive = agentStates[selectedAgent.id];
-  const overview = getAgentOverview(selectedAgent.id, runData);
 
   const handleClick = (agent: AgentDef) => {
     if (!agent.real) return;
@@ -459,50 +359,61 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
         </button>
 
         <div className={styles.masterReadout}>
-          <div className={styles.agentOverviewId}>{selectedAgent.label}</div>
-          <div className={styles.agentOverviewRole}>{selectedAgent.role ?? "—"}</div>
+          <div className={styles.agentOverviewId}>MASTER</div>
+          <div className={styles.agentOverviewRole}>CHIEF MKT OFFICER</div>
 
-          {overview ? (
-            <>
-              <div className={`${styles.agentOverviewState} ${overview.tone === "ok" ? styles.statOk : overview.tone === "bad" ? styles.statDanger : overview.tone === "warn" ? styles.statWarn : ""}`}>
-                {overview.state}
-              </div>
-              <div className={styles.agentOverviewDetail}>{overview.insight}</div>
-              <div className={styles.statsRow}>
-                <div className={styles.statCell}>
-                  <span className={styles.statLabel}>CONF</span>
-                  <span className={styles.statValue}>{overview.confidence}%</span>
+          {runData ? (() => {
+            const m = runData.agents.master;
+            const bias = m.finalBias === "bullish" ? "LONG" : m.finalBias === "bearish" ? "SHORT" : "NO-TRADE";
+            const tone = m.finalBias === "bullish" ? styles.statOk : m.finalBias === "bearish" ? styles.statDanger : styles.statWarn;
+            const barTone = m.finalBias === "bullish" ? styles.confBarOk : styles.confBarBad;
+            const detail = m.supports?.[0] ?? m.noTradeReason ?? m.strategyMatch ?? "Awaiting consensus...";
+            const score = `${m.consensusScore >= 0 ? "+" : ""}${m.consensusScore.toFixed(1)}`;
+            const agreeing = m.agentConsensus?.filter(a => m.finalBias === "bullish" ? a.weightedScore > 0 : m.finalBias === "bearish" ? a.weightedScore < 0 : Math.abs(a.weightedScore) < 20).length ?? 0;
+            return (
+              <>
+                <div className={`${styles.agentOverviewState} ${tone}`}>{bias}</div>
+                <div className={styles.agentOverviewDetail}>{detail}</div>
+                <div className={styles.statsRow}>
+                  <div className={styles.statCell}>
+                    <span className={styles.statLabel}>CONF</span>
+                    <span className={styles.statValue}>{m.confidence}%</span>
+                  </div>
+                  <div className={styles.statCell}>
+                    <span className={styles.statLabel}>SCORE</span>
+                    <span className={styles.statValue}>{score}</span>
+                  </div>
+                  <div className={styles.statCell}>
+                    <span className={styles.statLabel}>AGREE</span>
+                    <span className={styles.statValue}>{agreeing}/6</span>
+                  </div>
                 </div>
-              </div>
-              <div className={styles.confBarWrap}>
-                <div
-                  className={`${styles.confBar} ${overview.tone === "ok" ? styles.confBarOk : styles.confBarBad}`}
-                  style={{ width: `${overview.confidence}%` }}
-                />
-              </div>
-            </>
-          ) : (
-            /* Fallback while API data hasn't loaded yet */
+                <div className={styles.confBarWrap}>
+                  <div className={`${styles.confBar} ${barTone}`} style={{ width: `${m.confidence}%` }} />
+                </div>
+              </>
+            );
+          })() : (
             <>
-              <div className={styles.agentOverviewDetail}>{selectedAgent.detail ?? "Loading..."}</div>
-              {selectedLive && (
+              <div className={styles.agentOverviewDetail}>Awaiting analysis...</div>
+              {masterState && (
                 <>
                   <div className={styles.statsRow}>
                     <div className={styles.statCell}>
-                      <span className={styles.statLabel}>STATUS</span>
-                      <span className={`${styles.statValue} ${selectedLive.status === "TRADE-OK" ? styles.statOk : styles.statDanger}`}>
-                        {selectedLive.status}
+                      <span className={styles.statLabel}>BIAS</span>
+                      <span className={`${styles.statValue} ${masterState.bias === "LONG" ? styles.statOk : masterState.bias === "SHORT" ? styles.statDanger : ""}`}>
+                        {masterState.bias}
                       </span>
                     </div>
                     <div className={styles.statCell}>
                       <span className={styles.statLabel}>CONF</span>
-                      <span className={styles.statValue}>{selectedLive.confidence}%</span>
+                      <span className={styles.statValue}>{masterState.confidence}%</span>
                     </div>
                   </div>
                   <div className={styles.confBarWrap}>
                     <div
-                      className={`${styles.confBar} ${selectedLive.status === "TRADE-OK" ? styles.confBarOk : styles.confBarBad}`}
-                      style={{ width: `${selectedLive.confidence}%` }}
+                      className={`${styles.confBar} ${masterState.bias === "LONG" ? styles.confBarOk : styles.confBarBad}`}
+                      style={{ width: `${masterState.confidence}%` }}
                     />
                   </div>
                 </>
@@ -545,31 +456,6 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
         </div>
       </div>
 
-      {/* ── Engine tier ── */}
-      <div className={styles.engineTier}>
-        <div className={styles.heatmapPanel}>
-          <div className={styles.panelHeader}>SIGNAL MATRIX</div>
-          <div className={styles.heatmapGrid}>
-            {heatmap.map((row, ri) =>
-              row.map((cell, ci) => (
-                <span key={`${ri}-${ci}`} className={`${styles.heatCell} ${styles[`heat${cell}`]}`} />
-              ))
-            )}
-          </div>
-        </div>
-
-        <div className={styles.logPanel}>
-          <div className={styles.panelHeader}>EXEC LOG</div>
-          <div className={styles.logScroll} ref={logRef}>
-            {log.map((line, i) => (
-              <div key={i} className={`${styles.logLine} ${styles[`tone${line.tone}`]}`}>
-                <span className={styles.logTime}>{line.time}</span>
-                <span>{line.text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
     </div>
   );
