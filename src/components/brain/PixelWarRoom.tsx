@@ -541,87 +541,57 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
         </div>
       </div>
 
-      {/* ── Floor tier: top-down room view ── */}
+      {/* ── Floor tier: pixel art room as background ── */}
       <div className={styles.floorTier}>
 
-        {/* Ghost world map texture — deeply behind everything */}
-        <WorldMapBg />
+        {/* The actual pixel art room image as the base */}
+        <img
+          src="/pixel-room-layout.png"
+          alt=""
+          aria-hidden="true"
+          className={styles.roomBg}
+        />
 
-        {/* Back wall — top of room in top-down perspective */}
-        <div className={styles.roomTopWall}>
-          <div className={styles.wallShelves} aria-hidden="true">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <span key={i} className={styles.shelfUnit} />
-            ))}
-          </div>
+        {/* Clock + alert siren pinned top-right */}
+        <div className={styles.roomHud}>
           <div className={styles.wallClock} aria-hidden="true">{clock}</div>
           <div className={`${styles.alertSiren} ${isExecArmed ? styles.sirenActive : ""}`} aria-hidden="true" />
         </div>
 
-        {/* Room body: left wall | open floor | right wall */}
-        <div className={styles.floorArea}>
-
-          {/* Left side wall with server rack */}
-          <div className={styles.sidePanel} aria-hidden="true">
-            <ServerRack />
+        {/* Agents overlaid on the room image */}
+        <div className={styles.roomFloor}>
+          <div className={styles.floorLabel}>
+            <span className={styles.floorSlash}>///</span>
+            TRADING FLOOR
+            <span className={styles.floorSlash}>///</span>
           </div>
 
-          {/* Open room floor: corner plants + label + agent rows */}
-          <div className={styles.roomFloor}>
-
-            {/* Corner plants — upper-left and upper-right of room floor */}
-            <div className={styles.plantCornerTL} aria-hidden="true">
-              <div className={styles.plantTop} />
-              <div className={styles.plantPot} />
+          {/* Agent rows — DO NOT CHANGE THESE */}
+          <div className={styles.floorRows}>
+            <div className={styles.floorRow}>
+              {AGENTS_ROW_A.map(agent => (
+                <AgentPod
+                  key={agent.id}
+                  agent={agent}
+                  live={mounted ? agentStates[agent.id] : undefined}
+                  selected={selectedId === agent.id}
+                  onClick={() => handleClick(agent)}
+                />
+              ))}
             </div>
-            <div className={styles.plantCornerTR} aria-hidden="true">
-              <div className={styles.plantTop} />
-              <div className={styles.plantPot} />
+            <div className={styles.floorRow}>
+              {AGENTS_ROW_B.map(agent => (
+                <AgentPod
+                  key={agent.id}
+                  agent={agent}
+                  live={mounted ? agentStates[agent.id] : undefined}
+                  selected={selectedId === agent.id}
+                  onClick={() => handleClick(agent)}
+                />
+              ))}
             </div>
-
-            <div className={styles.floorLabel}>
-              <span className={styles.floorSlash}>///</span>
-              TRADING FLOOR
-              <span className={styles.floorSlash}>///</span>
-            </div>
-
-            {/* Agent rows — DO NOT CHANGE THESE */}
-            <div className={styles.floorRows}>
-              <div className={styles.floorRow}>
-                {AGENTS_ROW_A.map(agent => (
-                  <AgentPod
-                    key={agent.id}
-                    agent={agent}
-                    live={mounted ? agentStates[agent.id] : undefined}
-                    selected={selectedId === agent.id}
-                    onClick={() => handleClick(agent)}
-                  />
-                ))}
-              </div>
-              <div className={styles.floorRow}>
-                {AGENTS_ROW_B.map(agent => (
-                  <AgentPod
-                    key={agent.id}
-                    agent={agent}
-                    live={mounted ? agentStates[agent.id] : undefined}
-                    selected={selectedId === agent.id}
-                    onClick={() => handleClick(agent)}
-                  />
-                ))}
-              </div>
-            </div>
-
           </div>
-
-          {/* Right side wall with server rack */}
-          <div className={styles.sidePanel} aria-hidden="true">
-            <ServerRack />
-          </div>
-
         </div>
-
-        {/* Front baseboard — bottom wall edge of the room */}
-        <div className={styles.floorBase} aria-hidden="true" />
 
       </div>
 
