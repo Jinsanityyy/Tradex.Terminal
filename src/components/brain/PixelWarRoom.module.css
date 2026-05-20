@@ -460,7 +460,7 @@
   gap: 0;
 }
 
-/* ─── Room floor: overlaid on the image ──────────────────────────────────── */
+/* ─── Room floor: agents overlaid on the image ───────────────────────────── */
 .roomFloor {
   position: relative;
   z-index: 2;
@@ -468,8 +468,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* Push agents down to sit on the desk row in the image */
-  padding: 36px 0 16px;
+  /* Nudge agents down to align with the desk rows in the image */
+  padding-top: 110px;
+  padding-bottom: 16px;
 }
 
 /* Corner plants — positioned absolute within roomFloor */
@@ -773,33 +774,29 @@
   clip-path: polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%);
 }
 
-/* ─── Floor tier: pixel art room container ───────────────────────────────── */
+/* ─── Floor tier: pixel art room image as background ─────────────────────── */
 .floorTier {
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  min-height: 320px;
-  background: #07050a;
+  min-height: 440px;
   border-bottom: 1px solid var(--border-hi);
   flex-shrink: 0;
-}
-
-/* Room background image — the actual pixel art layout */
-.roomBg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  /* Show the top-right office room (the trading floor quadrant) */
-  object-position: 100% 8%;
   image-rendering: pixelated;
-  pointer-events: none;
-  z-index: 0;
+  /*
+   * Crop to the top-right office room of pixel-room-layout.png (1376×768).
+   * Right room starts at x≈692. Scale so that 684px fills the 1100px container:
+   *   scale = 1100 / 684 = 1.608  →  full image = 2213px wide
+   *   x-offset = 692 × 1.608 = 1113px
+   */
+  background-image: url('/pixel-room-layout.png');
+  background-size: 2213px auto;
+  background-position: -1113px -10px;
+  background-repeat: no-repeat;
 }
 
-/* Clock + siren overlay pinned to top-right corner */
+/* Clock + siren overlay pinned top-right */
 .roomHud {
   position: absolute;
   top: 10px;
@@ -908,12 +905,31 @@
 }
 .podFake:hover { transform: none !important; }
 
-/* Station body: relative container so children can be absolutely positioned */
+/* Station body: sprite + name tag only — no monitor rendered */
 .stationBody {
   position: relative;
   width: 70px;
-  height: 82px;
+  height: 70px;
 }
+
+/* Name tag replacing the monitor label */
+.agentNameTag {
+  position: absolute;
+  bottom: 1px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 1px 5px;
+  z-index: 5;
+  border-radius: 1px;
+}
+.tagOk    { color: var(--good);  background: rgba(0,0,0,0.78); border: 1px solid var(--good-dim); }
+.tagBad   { color: var(--amber); background: rgba(0,0,0,0.78); border: 1px solid #4a3010; }
+.tagAlert { color: var(--bad);   background: rgba(0,0,0,0.78); border: 1px solid var(--bad-dim); box-shadow: 0 0 5px rgba(255,95,61,0.5); }
 
 /* Signal direction badge — top-left corner of body */
 .sigBadge {
@@ -1159,7 +1175,10 @@
   width: var(--seat-actor-width);
   height: var(--seat-actor-height);
   image-rendering: pixelated;
-  filter: drop-shadow(1px 2px 0 rgba(0,0,0,0.8));
+  filter:
+    drop-shadow(0 0 0 2px rgba(0,0,0,0.6))
+    drop-shadow(1px 3px 0 rgba(0,0,0,0.9))
+    drop-shadow(0 4px 6px rgba(0,0,0,0.6));
 }
 
 .seatedLayer {
@@ -1198,12 +1217,16 @@
   .agrDots    { gap: 2px; }
   .agrDot     { width: 6px; height: 6px; }
 
-  /* Floor tier on mobile */
-  .floorTier  { min-height: 260px; }
-  .roomBg     { object-position: 75% 10%; }
+  /* Floor tier on mobile: scale room image to fit narrower viewport */
+  .floorTier {
+    min-height: 320px;
+    /* At 390px wide: scale = 390/684 = 0.570 → full image = 785px */
+    background-size: 785px auto;
+    background-position: -395px -8px;
+  }
   .roomHud    { top: 6px; right: 8px; }
   .wallClock  { font-size: 10px; min-width: 32px; }
-  .roomFloor  { padding: 20px 0 12px; }
+  .roomFloor  { padding-top: 70px; padding-bottom: 12px; }
   .floorRows  { width: 100%; }
   .floorRow {
     flex-wrap: wrap;

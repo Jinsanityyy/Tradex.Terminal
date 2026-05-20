@@ -541,16 +541,8 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
         </div>
       </div>
 
-      {/* ── Floor tier: pixel art room as background ── */}
+      {/* ── Floor tier: pixel art room image as CSS background ── */}
       <div className={styles.floorTier}>
-
-        {/* The actual pixel art room image as the base */}
-        <img
-          src="/pixel-room-layout.png"
-          alt=""
-          aria-hidden="true"
-          className={styles.roomBg}
-        />
 
         {/* Clock + alert siren pinned top-right */}
         <div className={styles.roomHud}>
@@ -558,15 +550,8 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
           <div className={`${styles.alertSiren} ${isExecArmed ? styles.sirenActive : ""}`} aria-hidden="true" />
         </div>
 
-        {/* Agents overlaid on the room image */}
+        {/* Agent rows overlaid on the room image */}
         <div className={styles.roomFloor}>
-          <div className={styles.floorLabel}>
-            <span className={styles.floorSlash}>///</span>
-            TRADING FLOOR
-            <span className={styles.floorSlash}>///</span>
-          </div>
-
-          {/* Agent rows — DO NOT CHANGE THESE */}
           <div className={styles.floorRows}>
             <div className={styles.floorRow}>
               {AGENTS_ROW_A.map(agent => (
@@ -620,35 +605,14 @@ function AgentPod({
         <div className={styles.spriteWrap}>
           <SeatedOperator look={agent.look} />
         </div>
-
-        <div className={styles.monitorGroup}>
-          <div className={`${styles.monitorBezel} ${ok ? styles.monOk : alert ? styles.monAlert : styles.monBad}`}>
-            <div className={styles.monitorScreen} />
-            {live && (
-              <div className={styles.miniBars}>
-                {live.bars.map((h, i) => (
-                  <span
-                    key={i}
-                    className={`${styles.miniBar} ${ok ? styles.barOk : styles.barBad}`}
-                    style={{ height: `${h}px` }}
-                  />
-                ))}
-              </div>
-            )}
-            {agent.label && (
-              <span className={ok ? styles.lblOk : alert ? styles.lblAlert : styles.lblBad}>
-                {agent.label}
-              </span>
-            )}
-            <span className={`${styles.statusLed} ${ok ? styles.ledOk : alert ? styles.ledAlert : styles.ledAmber}`} />
+        {/* Name tag replaces the monitor — background image has the PCs */}
+        {agent.label && (
+          <div className={`${styles.agentNameTag} ${ok ? styles.tagOk : alert ? styles.tagAlert : styles.tagBad}`}>
+            {agent.label}
           </div>
-          <div className={styles.monitorNeck} />
-          <div className={styles.monitorBase} />
-        </div>
-
-        <div className={styles.stationKeyboard} />
+        )}
+        <span className={`${styles.statusLed} ${ok ? styles.ledOk : alert ? styles.ledAlert : styles.ledAmber}`} />
       </div>
-
       <div className={styles.confLabel}>
         {live && agent.real ? `${live.confidence}%` : ""}
       </div>
