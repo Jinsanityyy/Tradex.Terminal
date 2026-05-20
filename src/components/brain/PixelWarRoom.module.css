@@ -468,6 +468,14 @@
   flex-direction: column;
   align-items: center;
   padding: 6px 8px 10px;
+  /* Lighter warm floor — clearly lighter than the surrounding walls */
+  background-color: #1e1810;
+  background-image:
+    linear-gradient(rgba(210,160,70,0.28) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(210,160,70,0.28) 1px, transparent 1px),
+    linear-gradient(rgba(210,160,70,0.10) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(210,160,70,0.10) 1px, transparent 1px);
+  background-size: 40px 40px, 40px 40px, 10px 10px, 10px 10px;
 }
 
 /* Corner plants — positioned absolute within roomFloor */
@@ -498,25 +506,30 @@
   gap: 0;
   padding-top: 6px;
   flex-shrink: 0;
-  width: 32px;
-  /* Darker wall panels flanking the open floor */
-  background: linear-gradient(180deg, #0e0906 0%, #0b0704 100%);
+  width: 38px;
+  /* Much darker than the open floor so walls clearly pop */
+  background-color: #08060a;
+  background-image:
+    repeating-linear-gradient(180deg,
+      rgba(60,35,10,0.25) 0 1px,
+      transparent 1px 14px
+    );
 }
 .floorArea > .sidePanel:first-child {
-  border-right: 3px solid #2e1c0c;
-  box-shadow: inset -6px 0 14px rgba(0,0,0,0.65), 3px 0 8px rgba(0,0,0,0.4);
+  border-right: 4px solid #3e2814;
+  box-shadow: inset -8px 0 18px rgba(0,0,0,0.75), 4px 0 12px rgba(0,0,0,0.55);
 }
 .floorArea > .sidePanel:last-child {
-  border-left: 3px solid #2e1c0c;
-  box-shadow: inset 6px 0 14px rgba(0,0,0,0.65), -3px 0 8px rgba(0,0,0,0.4);
+  border-left: 4px solid #3e2814;
+  box-shadow: inset 8px 0 18px rgba(0,0,0,0.75), -4px 0 12px rgba(0,0,0,0.55);
 }
 
 /* ─── Floor baseboard ────────────────────────────────────────────────────── */
 .floorBase {
-  height: 10px;
-  background: linear-gradient(180deg, #2e1c0a 0%, #1a1006 100%);
-  border-top: 2px solid #4e2e14;
-  box-shadow: 0 -2px 8px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,180,80,0.08);
+  height: 14px;
+  background: linear-gradient(180deg, #1a1208 0%, #080604 100%);
+  border-top: 3px solid #4a2e12;
+  box-shadow: 0 -4px 14px rgba(0,0,0,0.75), inset 0 1px 0 rgba(200,140,50,0.10);
   flex-shrink: 0;
 }
 
@@ -774,36 +787,33 @@
   flex-direction: column;
   gap: 0;
   padding: 0;
-  /* Warm floor tiles — clearly visible in top-down view */
-  background-color: #13100a;
-  background-image:
-    linear-gradient(rgba(180,130,60,0.20) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(180,130,60,0.20) 1px, transparent 1px),
-    linear-gradient(rgba(180,130,60,0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(180,130,60,0.07) 1px, transparent 1px);
-  background-size: 40px 40px, 40px 40px, 10px 10px, 10px 10px;
+  /* Dark wall base — side panels + back wall sit on this */
+  background-color: #07050a;
   border-bottom: 1px solid var(--border-hi);
   flex-shrink: 0;
 }
 
 /* ─── Room back wall (top of room in top-down view) ──────────────────────── */
 .roomTopWall {
-  height: 54px;
-  background: #09070e;
+  height: 62px;
+  /* Very dark — clearly reads as a solid wall */
+  background: #060408;
   background-image:
     repeating-linear-gradient(90deg,
-      rgba(50,30,8,0.7) 0 1px,
-      transparent 1px 44px
+      rgba(60,35,10,0.55) 0 1px,
+      transparent 1px 48px
     );
-  border-bottom: 3px solid #2e2010;
-  border-top: 2px solid #1c1610;
+  border-top: 2px solid #0e0a12;
+  border-bottom: 4px solid #3a2814;
+  /* Shadow cast downward onto the floor — top-down depth cue */
+  box-shadow: 0 6px 20px rgba(0,0,0,0.80), 0 2px 6px rgba(0,0,0,0.55);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 18px;
   flex-shrink: 0;
   position: relative;
-  z-index: 1;
+  z-index: 3;
 }
 
 /* Shelf row along back wall */
