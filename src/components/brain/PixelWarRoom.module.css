@@ -327,8 +327,6 @@
 /* Background operators — visible but inert */
 .podFake {
   cursor: default !important;
-  opacity: 0.5;
-  filter: saturate(0.4);
   pointer-events: none;
 }
 .podFake:hover { transform: none !important; }
