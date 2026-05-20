@@ -541,86 +541,86 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
         </div>
       </div>
 
-      {/* ── Floor tier ── */}
+      {/* ── Floor tier: top-down room view ── */}
       <div className={styles.floorTier}>
 
-        {/* World map background layer (z-index: 0, purely decorative) */}
+        {/* Ghost world map texture — deeply behind everything */}
         <WorldMapBg />
 
-        {/* Ceiling with light strips + alert siren */}
-        <div className={styles.ceiling}>
-          <div className={styles.ceilingLight} />
-          <div className={styles.ceilingLight} />
-          <div className={styles.ceilingLight} />
+        {/* Back wall — top of room in top-down perspective */}
+        <div className={styles.roomTopWall}>
+          <div className={styles.wallShelves} aria-hidden="true">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <span key={i} className={styles.shelfUnit} />
+            ))}
+          </div>
+          <div className={styles.wallClock} aria-hidden="true">{clock}</div>
           <div className={`${styles.alertSiren} ${isExecArmed ? styles.sirenActive : ""}`} aria-hidden="true" />
         </div>
 
-        {/* Volumetric light cones from the 3 fixtures */}
-        <div className={styles.lightConesRow} aria-hidden="true">
-          <div className={styles.lightCone} />
-          <div className={styles.lightCone} />
-          <div className={styles.lightCone} />
-        </div>
-
-        {/* Back wall: sconces + big wall screen + clock */}
-        <div className={styles.backWall}>
-          <div className={styles.wallSconce} aria-hidden="true" />
-          <div className={styles.wallScreen} aria-hidden="true" />
-          <div className={styles.wallClock} aria-hidden="true">{clock}</div>
-          <div className={styles.wallSconce} aria-hidden="true" />
-        </div>
-
-        <div className={styles.floorLabel}>
-          <span className={styles.floorSlash}>///</span>
-          TRADING FLOOR
-          <span className={styles.floorSlash}>///</span>
-        </div>
-
-        {/* Floor area: server racks + agent rows */}
+        {/* Room body: left wall | open floor | right wall */}
         <div className={styles.floorArea}>
 
-          {/* Left server rack panel */}
+          {/* Left side wall with server rack */}
           <div className={styles.sidePanel} aria-hidden="true">
             <ServerRack />
           </div>
 
-          {/* Agent rows — DO NOT CHANGE THESE */}
-          <div className={styles.floorRows}>
-            <div className={styles.floorRow}>
-              {AGENTS_ROW_A.map(agent => (
-                <AgentPod
-                  key={agent.id}
-                  agent={agent}
-                  live={mounted ? agentStates[agent.id] : undefined}
-                  selected={selectedId === agent.id}
-                  onClick={() => handleClick(agent)}
-                />
-              ))}
+          {/* Open room floor: corner plants + label + agent rows */}
+          <div className={styles.roomFloor}>
+
+            {/* Corner plants — upper-left and upper-right of room floor */}
+            <div className={styles.plantCornerTL} aria-hidden="true">
+              <div className={styles.plantTop} />
+              <div className={styles.plantPot} />
             </div>
-            <div className={styles.floorRow}>
-              {AGENTS_ROW_B.map(agent => (
-                <AgentPod
-                  key={agent.id}
-                  agent={agent}
-                  live={mounted ? agentStates[agent.id] : undefined}
-                  selected={selectedId === agent.id}
-                  onClick={() => handleClick(agent)}
-                />
-              ))}
+            <div className={styles.plantCornerTR} aria-hidden="true">
+              <div className={styles.plantTop} />
+              <div className={styles.plantPot} />
             </div>
+
+            <div className={styles.floorLabel}>
+              <span className={styles.floorSlash}>///</span>
+              TRADING FLOOR
+              <span className={styles.floorSlash}>///</span>
+            </div>
+
+            {/* Agent rows — DO NOT CHANGE THESE */}
+            <div className={styles.floorRows}>
+              <div className={styles.floorRow}>
+                {AGENTS_ROW_A.map(agent => (
+                  <AgentPod
+                    key={agent.id}
+                    agent={agent}
+                    live={mounted ? agentStates[agent.id] : undefined}
+                    selected={selectedId === agent.id}
+                    onClick={() => handleClick(agent)}
+                  />
+                ))}
+              </div>
+              <div className={styles.floorRow}>
+                {AGENTS_ROW_B.map(agent => (
+                  <AgentPod
+                    key={agent.id}
+                    agent={agent}
+                    live={mounted ? agentStates[agent.id] : undefined}
+                    selected={selectedId === agent.id}
+                    onClick={() => handleClick(agent)}
+                  />
+                ))}
+              </div>
+            </div>
+
           </div>
 
-          {/* Right server rack panel */}
+          {/* Right side wall with server rack */}
           <div className={styles.sidePanel} aria-hidden="true">
             <ServerRack />
           </div>
 
         </div>
 
-        {/* Foreground desk silhouette — gives "looking down from balcony" feel */}
-        <div className={styles.foregroundDesk} aria-hidden="true" />
-
-        {/* Floor baseboard */}
+        {/* Front baseboard — bottom wall edge of the room */}
         <div className={styles.floorBase} aria-hidden="true" />
 
       </div>
