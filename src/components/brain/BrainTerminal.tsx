@@ -10,7 +10,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
 import { useSubscription } from "@/hooks/useSubscription";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
-import { TradingWarRoom } from "./TradingWarRoom";
+import { PixelWarRoom } from "./PixelWarRoom";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -502,7 +502,7 @@ export function BrainTerminal() {
           </button>
 
           {/* ── TradeX Command Floor ─────────────────────────────────────── */}
-          <TradingWarRoom onAgentClick={openDrawer} />
+          <PixelWarRoom onAgentClick={openDrawer} />
 
           {/* ── Section tab: 7-Agent Overview ─────────────────────────────── */}
           <div className="flex items-center gap-0 border-b border-white/6">
