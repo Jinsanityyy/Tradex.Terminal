@@ -326,9 +326,29 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
     setMasterState(mapRunToMaster(runData));
   }, [runData]);
 
+  const [clock, setClock] = useState("");
+  useEffect(() => {
+    const tick = () => {
+      const d = new Date();
+      setClock(`${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
   const tickerText = buildTicker(quotes);
   const selectedAgent = REAL_AGENTS.find(a => a.id === selectedId) ?? REAL_AGENTS[0]!;
   const agentOverview = getAgentOverview(selectedAgent.id, runData);
+  const isExecArmed = runData?.agents.execution.signalState === "ARMED" || false;
+  const chartBars = runData ? [
+    { h: runData.agents.trend.confidence,                              up: runData.agents.trend.bias === "bullish" },
+    { h: runData.agents.smc.confidence,                                up: runData.agents.smc.bias === "bullish"   },
+    { h: runData.agents.news.confidence,                               up: runData.agents.news.impact === "bullish" },
+    { h: runData.agents.risk.sessionScore,                             up: runData.agents.risk.valid               },
+    { h: Math.min(95, runData.agents.execution.confluenceCount * 10),  up: runData.agents.execution.direction === "long" },
+    { h: runData.agents.contrarian.trapConfidence,                     up: !runData.agents.contrarian.challengesBias },
+  ] : [45,62,38,70,28,52].map((h,i) => ({ h, up: i % 2 === 0 }));
 
   const handleClick = (agent: AgentDef) => {
     if (!agent.real) return;
@@ -451,34 +471,91 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
 
       {/* ── Floor tier ── */}
       <div className={styles.floorTier}>
+
+        {/* Ceiling with light strips + alert siren */}
+        <div className={styles.ceiling}>
+          <div className={styles.ceilingLight} />
+          <div className={styles.ceilingLight} />
+          <div className={styles.ceilingLight} />
+          <div className={`${styles.alertSiren} ${isExecArmed ? styles.sirenActive : ""}`} aria-hidden="true" />
+        </div>
+
+        {/* Back wall: sconces + big wall screen + clock */}
+        <div className={styles.backWall}>
+          <div className={styles.wallSconce} aria-hidden="true" />
+          <div className={styles.wallScreen} aria-hidden="true">
+            <div className={styles.wallScreenChart}>
+              {chartBars.map((b, i) => (
+                <div key={i} className={`${styles.chartBar} ${b.up ? styles.chartBarUp : styles.chartBarDn}`} style={{ height: `${Math.max(8, b.h)}%` }} />
+              ))}
+            </div>
+            <span className={styles.wallScreenLabel}>TRADEX · WAR ROOM</span>
+          </div>
+          <div className={styles.wallClock} aria-hidden="true">{clock}</div>
+          <div className={styles.wallSconce} aria-hidden="true" />
+        </div>
+
         <div className={styles.floorLabel}>
           <span className={styles.floorSlash}>///</span>
           TRADING FLOOR
           <span className={styles.floorSlash}>///</span>
         </div>
 
-        <div className={styles.floorRow}>
-          {AGENTS_ROW_A.map(agent => (
-            <AgentPod
-              key={agent.id}
-              agent={agent}
-              live={mounted ? agentStates[agent.id] : undefined}
-              selected={selectedId === agent.id}
-              onClick={() => handleClick(agent)}
-            />
-          ))}
-        </div>
+        {/* Floor area: side furniture + agent rows */}
+        <div className={styles.floorArea}>
 
-        <div className={styles.floorRow}>
-          {AGENTS_ROW_B.map(agent => (
-            <AgentPod
-              key={agent.id}
-              agent={agent}
-              live={mounted ? agentStates[agent.id] : undefined}
-              selected={selectedId === agent.id}
-              onClick={() => handleClick(agent)}
-            />
-          ))}
+          {/* Left side panel */}
+          <div className={styles.sidePanel} aria-hidden="true">
+            <div className={styles.filingCabinet}>
+              <div className={styles.cabinetDrawer} />
+              <div className={styles.cabinetDrawer} />
+              <div className={styles.cabinetDrawer} />
+            </div>
+            <div className={styles.cornerPlant}>
+              <div className={styles.plantTop} />
+              <div className={styles.plantPot} />
+            </div>
+          </div>
+
+          {/* Agent rows */}
+          <div className={styles.floorRows}>
+            <div className={styles.floorRow}>
+              {AGENTS_ROW_A.map(agent => (
+                <AgentPod
+                  key={agent.id}
+                  agent={agent}
+                  live={mounted ? agentStates[agent.id] : undefined}
+                  selected={selectedId === agent.id}
+                  onClick={() => handleClick(agent)}
+                />
+              ))}
+            </div>
+            <div className={styles.floorRow}>
+              {AGENTS_ROW_B.map(agent => (
+                <AgentPod
+                  key={agent.id}
+                  agent={agent}
+                  live={mounted ? agentStates[agent.id] : undefined}
+                  selected={selectedId === agent.id}
+                  onClick={() => handleClick(agent)}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Right side panel */}
+          <div className={styles.sidePanel} aria-hidden="true">
+            <div className={styles.filingCabinet}>
+              <div className={styles.cabinetDrawer} />
+              <div className={styles.cabinetDrawer} />
+              <div className={styles.cabinetDrawer} />
+            </div>
+            <div className={styles.cornerPlant}>
+              <div className={styles.plantTop} />
+              <div className={styles.plantPot} />
+            </div>
+          </div>
+
         </div>
       </div>
 
