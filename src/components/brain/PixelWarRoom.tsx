@@ -2,7 +2,12 @@
 
 import type { CSSProperties } from "react";
 import { useState, useEffect, useRef } from "react";
+import useSWR from "swr";
 import styles from "./PixelWarRoom.module.css";
+import { useSettings } from "@/contexts/SettingsContext";
+import { useQuotes } from "@/hooks/useMarketData";
+import type { AgentRunResult, DirectionalBias, RiskGrade, SignalState } from "@/lib/agents/schemas";
+import type { AssetSnapshot } from "@/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -69,7 +74,7 @@ const AGENTS_ROW_A: AgentDef[] = [
     look: { skin: "Dove", hairStyle: "Plain", hairColor: "White", shirtColor: "Teal", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2 },
   },
   {
-    id: "quant", label: "", drawerId: "", baseStatus: "NO-TRADE", real: false,
+    id: "quant", label: "", drawerId: "trend", baseStatus: "NO-TRADE", real: false,
     look: { skin: "Comet", hairStyle: "Loose", hairColor: "Blonde", shirtColor: "Lavender", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2, bodyType: "Woman" },
   },
   {
@@ -80,7 +85,7 @@ const AGENTS_ROW_A: AgentDef[] = [
 
 const AGENTS_ROW_B: AgentDef[] = [
   {
-    id: "flow", label: "", drawerId: "", baseStatus: "NO-TRADE", real: false,
+    id: "flow", label: "", drawerId: "execution", baseStatus: "NO-TRADE", real: false,
     look: { skin: "Green", hairStyle: "Mohawk", hairColor: "Orange", shirtColor: "Orange", pantsColor: "Black", shoesColor: "Black", seatFrame: 2, bodyType: "Man" },
   },
   {
@@ -88,19 +93,19 @@ const AGENTS_ROW_B: AgentDef[] = [
     look: { skin: "Sienna", hairStyle: "Curly Short", hairColor: "Chestnut", shirtColor: "Purple", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2 },
   },
   {
-    id: "arbi", label: "", drawerId: "", baseStatus: "NO-TRADE", real: false,
+    id: "arbi", label: "", drawerId: "smc", baseStatus: "NO-TRADE", real: false,
     look: { skin: "Gray", hairStyle: "Curly Short", hairColor: "Platinum", shirtColor: "Sky", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2, bodyType: "Woman" },
   },
   {
-    id: "algo", label: "", drawerId: "", baseStatus: "TRADE-OK", real: false,
+    id: "algo", label: "", drawerId: "trend", baseStatus: "TRADE-OK", real: false,
     look: { skin: "Comet", hairStyle: "Buzzcut", hairColor: "Red", shirtColor: "Leather", pantsColor: "Black", shoesColor: "Black", seatFrame: 2, bodyType: "Man" },
   },
   {
-    id: "delta", label: "", drawerId: "", baseStatus: "NO-TRADE", real: false,
+    id: "delta", label: "", drawerId: "risk", baseStatus: "NO-TRADE", real: false,
     look: { skin: "Green", hairStyle: "Loose", hairColor: "Brown", shirtColor: "Pink", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2, bodyType: "Woman" },
   },
   {
-    id: "sent", label: "", drawerId: "", baseStatus: "NO-TRADE", real: false,
+    id: "sent", label: "", drawerId: "news", baseStatus: "NO-TRADE", real: false,
     look: { skin: "Gray", hairStyle: "Mohawk", hairColor: "White", shirtColor: "Walnut", pantsColor: "Black", shoesColor: "Black", seatFrame: 2, bodyType: "Man" },
   },
 ];
@@ -115,10 +120,20 @@ const MASTER_LOOK: OperatorLook = {
 
 // ─── Ticker ───────────────────────────────────────────────────────────────────
 
-const TICKER =
-  "EURUSD 1.08423 ▲ · GBPUSD 1.27341 ▼ · USDJPY 154.821 ▲ · XAUUSD 2318.40 ▲ · " +
-  "SPX500 5234.18 ▼ · BTCUSD 67430 ▲ · CRUDE 81.24 ▼ · EDGE SCORE 71 · RISK CLEAR · " +
-  "TREND: NEUTRAL · SIGNAL ARMED · MKT-SCAN ACTIVE · DRAWDOWN 0.0% · ";
+const FALLBACK_TICKER =
+  "EURUSD — · GBPUSD — · USDJPY — · XAUUSD — · BTCUSD — · ETHUSD — · USOIL — · ";
+
+function buildTicker(quotes: AssetSnapshot[]): string {
+  if (!quotes.length) return FALLBACK_TICKER;
+  return (
+    quotes.map(q => {
+      const dir = q.changePercent > 0 ? "▲" : q.changePercent < 0 ? "▼" : "·";
+      const p = q.price;
+      const fmt = p < 10 ? p.toFixed(5) : p < 1000 ? p.toFixed(3) : Math.round(p).toString();
+      return `${q.symbol} ${fmt} ${dir}`;
+    }).join(" · ") + " · "
+  );
+}
 
 // ─── Sprite helpers ───────────────────────────────────────────────────────────
 
@@ -166,6 +181,48 @@ function SeatedOperator({ look, className }: { look: OperatorLook; className?: s
   );
 }
 
+// ─── Real-data mappers ────────────────────────────────────────────────────────
+
+const swrFetch = (url: string) => fetch(url).then(r => { if (!r.ok) throw new Error(r.status.toString()); return r.json(); });
+
+function biasToSignal(b: DirectionalBias | undefined): SignalDir {
+  return b === "bullish" ? "L" : b === "bearish" ? "S" : "—";
+}
+function biasToStatus(b: DirectionalBias | undefined, conf: number): AgentStatus {
+  if (!b || b === "neutral") return "NO-TRADE";
+  return conf < 40 ? "ALERT" : "TRADE-OK";
+}
+function gradeToConf(g: RiskGrade | undefined): number {
+  return g ? ({ A: 88, B: 72, C: 55, D: 38, F: 20 } as Record<RiskGrade, number>)[g] : 50;
+}
+function execSignalToStatus(s: SignalState): AgentStatus {
+  if (s === "ARMED") return "TRADE-OK";
+  if (s === "NO_TRADE" || s === "EXPIRED") return "NO-TRADE";
+  return "ALERT";
+}
+
+function mapRunToStates(data: AgentRunResult, rndFn: (lo: number, hi: number) => number): Record<string, AgentLiveState> {
+  const { agents: ag } = data;
+  const mkBars = (c: number) => Array.from({ length: 5 }, () => Math.max(1, Math.min(8, Math.round((c / 100) * 8 + rndFn(-1, 1)))));
+  const riskConf = gradeToConf(ag.risk.grade);
+  const execConf = Math.min(95, ag.execution.confluenceCount * 10);
+  return {
+    risk:  { status: ag.risk.valid ? "TRADE-OK" : "ALERT", confidence: riskConf, signal: ag.risk.valid ? "—" : "S", bars: mkBars(riskConf) },
+    trend: { status: biasToStatus(ag.trend.bias, ag.trend.confidence), confidence: ag.trend.confidence, signal: biasToSignal(ag.trend.bias), bars: mkBars(ag.trend.confidence) },
+    pract: { status: ag.smc.setupPresent ? biasToStatus(ag.smc.bias, ag.smc.confidence) : "NO-TRADE", confidence: ag.smc.confidence, signal: biasToSignal(ag.smc.bias), bars: mkBars(ag.smc.confidence) },
+    news:  { status: ag.news.riskScore > 70 ? "ALERT" : biasToStatus(ag.news.impact, ag.news.confidence), confidence: ag.news.confidence, signal: biasToSignal(ag.news.impact), bars: mkBars(ag.news.confidence) },
+    exec:  { status: execSignalToStatus(ag.execution.signalState), confidence: execConf, signal: ag.execution.direction === "long" ? "L" : ag.execution.direction === "short" ? "S" : "—", bars: mkBars(execConf) },
+    cntr:  { status: ag.contrarian.challengesBias ? "ALERT" : "NO-TRADE", confidence: ag.contrarian.trapConfidence, signal: ag.contrarian.challengesBias ? (ag.trend.bias === "bullish" ? "S" : "L") : "—", bars: mkBars(ag.contrarian.trapConfidence) },
+  };
+}
+
+function mapRunToMaster(data: AgentRunResult): MasterState {
+  const m = data.agents.master;
+  const bias: MasterState["bias"] = m.finalBias === "bullish" ? "LONG" : m.finalBias === "bearish" ? "SHORT" : "NEUTRAL";
+  const agreeing = m.agentConsensus.filter(a => bias === "LONG" ? a.weightedScore > 0 : bias === "SHORT" ? a.weightedScore < 0 : Math.abs(a.weightedScore) < 20).length;
+  return { bias, confidence: m.confidence, edgeScore: Math.round(Math.abs(m.consensusScore)), drawdown: 0, agreeing };
+}
+
 // ─── Chaos engine ─────────────────────────────────────────────────────────────
 
 function rnd(lo: number, hi: number) { return lo + Math.random() * (hi - lo); }
@@ -199,6 +256,14 @@ const LOG_FNS: Array<(label: string, sig: SignalDir) => string> = [
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string) => void }) {
+  const { settings } = useSettings();
+  const { quotes } = useQuotes(30_000);
+  const { data: runData } = useSWR<AgentRunResult>(
+    `/api/agents/run?symbol=${settings.selectedSymbol}&timeframe=H1`,
+    swrFetch,
+    { revalidateOnFocus: false, dedupingInterval: 300_000 },
+  );
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [agentStates, setAgentStates] = useState<Record<string, AgentLiveState>>({});
   const [masterState, setMasterState] = useState<MasterState | null>(null);
@@ -268,9 +333,18 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
     return () => clearInterval(iv);
   }, []);
 
+  // Sync real agent data when SWR result arrives
+  useEffect(() => {
+    if (!runData) return;
+    setAgentStates(prev => ({ ...prev, ...mapRunToStates(runData, rnd) }));
+    setMasterState(mapRunToMaster(runData));
+  }, [runData]);
+
+  const tickerText = buildTicker(quotes);
+
   const handleClick = (agent: AgentDef) => {
     setSelectedId(agent.id);
-    onAgentClick?.(agent.drawerId);
+    if (agent.drawerId) onAgentClick?.(agent.drawerId);
   };
 
   return (
@@ -289,7 +363,7 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
       {/* ── Ticker tape ── */}
       <div className={styles.tickerRail}>
         <div className={styles.tickerTrack}>
-          <span className={styles.tickerScroll}>{TICKER}{TICKER}</span>
+          <span className={styles.tickerScroll}>{tickerText}{tickerText}</span>
         </div>
       </div>
 
@@ -439,13 +513,13 @@ function AgentPod({
   return (
     <button
       type="button"
-      className={`${styles.agentPod} ${selected ? styles.podSelected : ""} ${alert && agent.real ? styles.podAlert : ""} ${!agent.real ? styles.podFake : ""}`}
-      onClick={agent.real ? onClick : undefined}
-      aria-pressed={agent.real ? selected : undefined}
-      tabIndex={agent.real ? 0 : -1}
+      className={`${styles.agentPod} ${selected ? styles.podSelected : ""} ${alert ? styles.podAlert : ""}`}
+      onClick={onClick}
+      aria-pressed={selected}
+      tabIndex={0}
     >
       <div className={styles.stationBody}>
-        {live && agent.real && (
+        {live && (
           <div className={`${styles.sigBadge} ${live.signal === "L" ? styles.sigL : live.signal === "S" ? styles.sigS : styles.sigN}`}>
             {live.signal}
           </div>
@@ -458,7 +532,7 @@ function AgentPod({
         <div className={styles.monitorGroup}>
           <div className={`${styles.monitorBezel} ${ok ? styles.monOk : alert ? styles.monAlert : styles.monBad}`}>
             <div className={styles.monitorScreen} />
-            {live && agent.real && (
+            {live && (
               <div className={styles.miniBars}>
                 {live.bars.map((h, i) => (
                   <span
@@ -469,14 +543,12 @@ function AgentPod({
                 ))}
               </div>
             )}
-            {agent.real && (
+            {agent.label && (
               <span className={ok ? styles.lblOk : alert ? styles.lblAlert : styles.lblBad}>
                 {agent.label}
               </span>
             )}
-            {agent.real && (
-              <span className={`${styles.statusLed} ${ok ? styles.ledOk : alert ? styles.ledAlert : styles.ledAmber}`} />
-            )}
+            <span className={`${styles.statusLed} ${ok ? styles.ledOk : alert ? styles.ledAlert : styles.ledAmber}`} />
           </div>
           <div className={styles.monitorNeck} />
           <div className={styles.monitorBase} />
@@ -486,7 +558,7 @@ function AgentPod({
       </div>
 
       <div className={styles.confLabel}>
-        {agent.real && live ? `${live.confidence}%` : ""}
+        {live ? `${live.confidence}%` : ""}
       </div>
     </button>
   );
