@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Lock, Zap, ExternalLink, RefreshCw, CheckCircle2, Loader2 } from "lucide-react";
+import { Lock, Zap, ExternalLink, RefreshCw, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +24,42 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
   const [refreshing, setRefreshing] = useState(false);
   const [refreshed, setRefreshed] = useState(false);
   const [billing, setBilling] = useState<"monthly" | "annual">("annual");
+  const [subLoading, setSubLoading] = useState(false);
+  const [subError, setSubError] = useState<string | null>(null);
   const isNative = isNativeAndroid();
+
+  async function handleSubscribe() {
+    setSubLoading(true);
+    setSubError(null);
+    try {
+      const planId = billing === "annual"
+        ? process.env.NEXT_PUBLIC_PAYPAL_PRO_ANNUAL_PLAN_ID
+        : process.env.NEXT_PUBLIC_PAYPAL_PRO_PLAN_ID;
+
+      const res = await fetch("/api/paypal/create-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId }),
+      });
+
+      if (res.status === 401) {
+        window.location.href = "/login?next=/m";
+        return;
+      }
+
+      const data = await res.json();
+      if (!res.ok || !data.approveUrl) {
+        setSubError(data.error ?? "Failed to start checkout. Try again.");
+        setSubLoading(false);
+        return;
+      }
+
+      window.location.href = data.approveUrl;
+    } catch {
+      setSubError("Something went wrong. Please try again.");
+      setSubLoading(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -123,13 +158,23 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
             </button>
           </>
         ) : (
-          <a
-            href={`/pricing?billing=${billing}`}
-            className="flex items-center justify-center gap-1.5 w-full rounded-xl border border-[hsl(142,71%,45%)]/40 bg-[hsl(142,71%,45%)]/10 py-2.5 text-xs font-semibold text-[hsl(142,71%,45%)] hover:bg-[hsl(142,71%,45%)]/15 transition-all"
-          >
-            <Zap className="h-3.5 w-3.5" />
-            Get Pro — {billing === "monthly" ? "$39/mo" : "$399/yr"}
-          </a>
+          <>
+            <button
+              onClick={handleSubscribe}
+              disabled={subLoading}
+              className="flex items-center justify-center gap-1.5 w-full rounded-xl border border-[hsl(142,71%,45%)]/40 bg-[hsl(142,71%,45%)]/10 py-2.5 text-xs font-semibold text-[hsl(142,71%,45%)] active:opacity-70 disabled:opacity-50 transition-all"
+            >
+              {subLoading
+                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Starting checkout…</>
+                : <><Zap className="h-3.5 w-3.5" /> Get Pro — {billing === "monthly" ? "$39/mo" : "$399/yr"}</>
+              }
+            </button>
+            {subError && (
+              <p className="flex items-center gap-1 text-[10px] text-red-400 mt-2 justify-center">
+                <AlertCircle className="h-3 w-3" />{subError}
+              </p>
+            )}
+          </>
         )}
       </div>
     </div>

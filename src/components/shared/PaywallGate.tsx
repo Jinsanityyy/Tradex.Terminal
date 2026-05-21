@@ -2,10 +2,9 @@
 
 import React, { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Lock, Zap, ArrowRight, Loader2, ExternalLink, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Lock, Zap, ArrowRight, Loader2, ExternalLink, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { useSubscription, canAccess } from "@/hooks/useSubscription";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
 
 const WEB_URL =
   process.env.NEXT_PUBLIC_APP_URL ??
@@ -41,7 +40,42 @@ export function PaywallGate({ children }: PaywallGateProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshed, setRefreshed] = useState(false);
   const [billing, setBilling] = useState<"monthly" | "annual">("annual");
+  const [subLoading, setSubLoading] = useState(false);
+  const [subError, setSubError] = useState<string | null>(null);
   const isNative = isNativeAndroid();
+
+  async function handleSubscribe() {
+    setSubLoading(true);
+    setSubError(null);
+    try {
+      const planId = billing === "annual"
+        ? process.env.NEXT_PUBLIC_PAYPAL_PRO_ANNUAL_PLAN_ID
+        : process.env.NEXT_PUBLIC_PAYPAL_PRO_PLAN_ID;
+
+      const res = await fetch("/api/paypal/create-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId }),
+      });
+
+      if (res.status === 401) {
+        window.location.href = "/login?next=/m";
+        return;
+      }
+
+      const data = await res.json();
+      if (!res.ok || !data.approveUrl) {
+        setSubError(data.error ?? "Failed to start checkout. Try again.");
+        setSubLoading(false);
+        return;
+      }
+
+      window.location.href = data.approveUrl;
+    } catch {
+      setSubError("Something went wrong. Please try again.");
+      setSubLoading(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -172,15 +206,23 @@ export function PaywallGate({ children }: PaywallGateProps) {
             </p>
           </>
         ) : (
-          // ── Web: PayPal checkout via pricing page ──────────────────────────────
+          // ── Web: PayPal checkout directly ──────────────────────────────────────
           <>
-            <Link
-              href={`/pricing?billing=${billing}`}
-              className="flex items-center justify-center gap-2 w-full rounded-xl border border-[hsl(142,71%,45%)]/40 bg-[hsl(142,71%,45%)]/10 py-3 text-sm font-semibold text-[hsl(142,71%,45%)] hover:bg-[hsl(142,71%,45%)]/15 transition-all"
+            <button
+              onClick={handleSubscribe}
+              disabled={subLoading}
+              className="flex items-center justify-center gap-2 w-full rounded-xl border border-[hsl(142,71%,45%)]/40 bg-[hsl(142,71%,45%)]/10 py-3 text-sm font-semibold text-[hsl(142,71%,45%)] hover:bg-[hsl(142,71%,45%)]/15 active:opacity-70 disabled:opacity-50 transition-all"
             >
-              <Zap className="h-4 w-4" />
-              Get Pro <ArrowRight className="h-4 w-4" />
-            </Link>
+              {subLoading
+                ? <><Loader2 className="h-4 w-4 animate-spin" /> Starting checkout…</>
+                : <><Zap className="h-4 w-4" /> Get Pro <ArrowRight className="h-4 w-4" /></>
+              }
+            </button>
+            {subError && (
+              <p className="flex items-center gap-1.5 text-xs text-red-400 mt-3 justify-center">
+                <AlertCircle className="h-3.5 w-3.5" />{subError}
+              </p>
+            )}
             <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-4">
               Cancel anytime · Secure checkout via PayPal
             </p>
