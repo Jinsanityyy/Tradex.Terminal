@@ -23,7 +23,7 @@ export async function initRevenueCat(userId: string): Promise<void> {
   try {
     const { Purchases, LOG_LEVEL } = await import("@revenuecat/purchases-capacitor");
     await Purchases.setLogLevel({ level: LOG_LEVEL.ERROR });
-    await Purchases.configureWith({
+    await Purchases.configure({
       apiKey: process.env.NEXT_PUBLIC_REVENUECAT_GOOGLE_KEY ?? "",
       appUserID: userId,
     });
@@ -42,8 +42,8 @@ export async function getOfferings(): Promise<RCOffering> {
   if (!isNative()) return { monthly: null, annual: null };
   try {
     const { Purchases } = await import("@revenuecat/purchases-capacitor");
-    const { offerings } = await Purchases.getOfferings();
-    const pkgs = offerings.current?.availablePackages ?? [];
+    const result = await Purchases.getOfferings();
+    const pkgs = (result as any).offerings?.current?.availablePackages ?? [];
     return {
       monthly: pkgs.find((p: any) => p.product?.identifier === RC_PRODUCTS.pro_monthly) ?? null,
       annual:  pkgs.find((p: any) => p.product?.identifier === RC_PRODUCTS.pro_annual)  ?? null,

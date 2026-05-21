@@ -7,7 +7,9 @@ import { useSubscription, canAccess } from "@/hooks/useSubscription";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
-const WEB_URL = "https://tradex-ten.vercel.app";
+const WEB_URL =
+  process.env.NEXT_PUBLIC_APP_URL ??
+  "https://tradex-ten.vercel.app";
 
 interface PaywallGateProps {
   children: React.ReactNode;
@@ -142,7 +144,7 @@ export function PaywallGate({ children }: PaywallGateProps) {
               className="flex items-center justify-center gap-2 w-full rounded-xl border border-[hsl(142,71%,45%)]/40 bg-[hsl(142,71%,45%)]/10 py-3 text-sm font-semibold text-[hsl(142,71%,45%)] active:opacity-70 transition-all"
             >
               <ExternalLink className="h-4 w-4" />
-              Subscribe at tradex-ten.vercel.app
+              Subscribe at tradexterminal.app
             </button>
 
             <div className="flex items-center gap-3 my-4">
@@ -169,17 +171,17 @@ export function PaywallGate({ children }: PaywallGateProps) {
             </p>
           </>
         ) : (
-          // ── Web: direct Stripe checkout ────────────────────────────────────────
+          // ── Web: PayPal checkout via pricing page ──────────────────────────────
           <>
             <Link
-              href={`/api/stripe/checkout?plan=pro&billing=${billing}`}
+              href={`/pricing?billing=${billing}`}
               className="flex items-center justify-center gap-2 w-full rounded-xl border border-[hsl(142,71%,45%)]/40 bg-[hsl(142,71%,45%)]/10 py-3 text-sm font-semibold text-[hsl(142,71%,45%)] hover:bg-[hsl(142,71%,45%)]/15 transition-all"
             >
               <Zap className="h-4 w-4" />
               Get Pro <ArrowRight className="h-4 w-4" />
             </Link>
             <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-4">
-              7-day free trial · Cancel anytime · Secure checkout
+              Cancel anytime · Secure checkout via PayPal
             </p>
           </>
         )}
