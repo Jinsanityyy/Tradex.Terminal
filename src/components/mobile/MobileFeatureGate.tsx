@@ -34,7 +34,8 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
     );
   }
 
-  if (subscription.hasFullAccess) return <>{children}</>;
+  const paywallEnabled = process.env.NEXT_PUBLIC_MOBILE_PAYWALL_ENABLED === "true";
+  if (!paywallEnabled || subscription.hasFullAccess) return <>{children}</>;
 
   async function handleRefresh() {
     setRefreshing(true);
