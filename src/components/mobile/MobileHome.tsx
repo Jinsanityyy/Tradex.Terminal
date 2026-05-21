@@ -239,7 +239,7 @@ export function MobileHome() {
       : null;
 
   const { subscription } = useSubscription();
-  const { isOnCooldown, countdownLabel, markRefreshed } = useRefreshCooldown();
+  const { isOnCooldown, countdownLabel, markRefreshed, dailyLeft, hasHitDailyLimit } = useRefreshCooldown(subscription.isPro);
 
   const divRef = useRef<HTMLDivElement>(null);
 
@@ -613,16 +613,16 @@ export function MobileHome() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={async () => {
-                          if (isOnCooldown || !subscription.hasFullAccess) return;
+                          if (isOnCooldown || hasHitDailyLimit) return;
                           setGenerating(true);
                           try { await generateFresh(); markRefreshed(); }
                           finally { setGenerating(false); }
                         }}
-                        disabled={generating || isOnCooldown || !subscription.hasFullAccess}
+                        disabled={generating || isOnCooldown || hasHitDailyLimit}
                         className="flex items-center gap-1 text-[9px] text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30 px-2 py-1 rounded-lg disabled:opacity-40"
                       >
                         {generating ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
-                        {generating ? "..." : isOnCooldown ? countdownLabel! : !subscription.hasFullAccess ? "Pro" : "Refresh"}
+                        {generating ? "…" : isOnCooldown ? countdownLabel! : hasHitDailyLimit ? "0 left" : !subscription.isPro ? `${dailyLeft} left` : "Refresh"}
                       </button>
                     </div>
                   </div>

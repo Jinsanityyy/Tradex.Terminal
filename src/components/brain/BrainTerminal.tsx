@@ -219,7 +219,7 @@ export function BrainTerminal() {
 
   const { quotes } = useQuotes(60_000);
   const { subscription } = useSubscription();
-  const { isOnCooldown, countdownLabel, markRefreshed } = useRefreshCooldown();
+  const { isOnCooldown, countdownLabel, markRefreshed, dailyLeft, hasHitDailyLimit } = useRefreshCooldown(subscription.isPro);
   const quoteSymbol = SYMBOL_TO_QUOTE[symbol];
   const liveQuote   = quoteSymbol ? quotes.find((q) => q.symbol === quoteSymbol) : undefined;
 
@@ -251,7 +251,7 @@ export function BrainTerminal() {
   );
 
   const handleRefresh = useCallback(async () => {
-    if (isOnCooldown || !subscription.hasFullAccess) return;
+    if (isOnCooldown || hasHitDailyLimit) return;
     setIsRefreshing(true);
     try {
       await fetch("/api/agents/run", {
@@ -264,7 +264,7 @@ export function BrainTerminal() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [symbol, timeframe, isOnCooldown, subscription.hasFullAccess, markRefreshed]);
+  }, [symbol, timeframe, isOnCooldown, hasHitDailyLimit, markRefreshed]);
 
   const openDrawer = useCallback((agentId: string) => {
     setHighlightId(agentId);
@@ -417,14 +417,18 @@ export function BrainTerminal() {
           )}
           <button
             onClick={handleRefresh}
-            disabled={loading || isOnCooldown || !subscription.hasFullAccess}
+            disabled={loading || isOnCooldown || hasHitDailyLimit}
             className={cn(
               "flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-semibold text-zinc-500 transition-all hover:text-zinc-300",
-              (loading || isOnCooldown || !subscription.hasFullAccess) && "cursor-not-allowed opacity-40"
+              (loading || isOnCooldown || hasHitDailyLimit) && "cursor-not-allowed opacity-40"
             )}
           >
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-            {isOnCooldown ? countdownLabel : !subscription.hasFullAccess ? "Pro" : "Refresh"}
+            {loading ? "Running…"
+              : isOnCooldown ? countdownLabel
+              : hasHitDailyLimit ? "0 left today"
+              : !subscription.isPro ? `${dailyLeft} left today`
+              : "Refresh"}
           </button>
         </div>
       </div>
