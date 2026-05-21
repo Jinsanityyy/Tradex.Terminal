@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useCallback, useEffect } from "react";
 import useSWR from "swr";
@@ -404,7 +404,7 @@ export function MobileBrain() {
   const isWaitState = sigState === "WAIT";
 
   const [view, setView] = useState<"brain" | "floor">("brain");
-  const [drawerAgentId, setDrawerAgentId] = useState("master");
+  const [drawerAgentId, setDrawerAgentId] = useState("risk");
 
   return (
     <div className="flex flex-col h-full">
