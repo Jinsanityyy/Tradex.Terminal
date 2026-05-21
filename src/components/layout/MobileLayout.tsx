@@ -261,7 +261,7 @@ export function MobileLayout() {
       <LoginTransitionOverlay />
       <NotificationToast />
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 pt-10 pb-2 bg-[hsl(var(--background))] border-b border-white/5 shrink-0">
+      <div className="flex items-center justify-between px-4 pb-2 bg-[hsl(var(--background))] border-b border-white/5 shrink-0" style={{ paddingTop: "max(2.5rem, env(safe-area-inset-top))" }}>
         <TradeXLogo variant="wordmark" size="xs" />
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
