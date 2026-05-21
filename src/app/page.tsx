@@ -241,66 +241,113 @@ export default function LandingPage() {
             <p className="text-zinc-400 text-sm mt-3">Start free. Upgrade when you need the edge.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+
             {/* Free */}
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-7">
-              <h3 className="text-lg font-bold mb-1">Free</h3>
-              <p className="text-zinc-500 text-sm mb-5">Essential tools for every trader</p>
-              <p className="text-4xl font-black font-mono mb-7">
-                $0
-                <span className="text-sm font-normal text-zinc-500 ml-1">/forever</span>
-              </p>
-              <ul className="space-y-2.5 mb-7">
-                {FREE_FEATURES.map(f => (
-                  <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-400">
-                    <CheckCircle2 className="h-4 w-4 text-zinc-600 mt-0.5 shrink-0" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href="/login"
-                className="flex items-center justify-center w-full rounded-xl border border-white/10 py-3 text-sm font-semibold text-zinc-300 hover:bg-white/[0.05] transition-colors"
-              >
-                Get started free
-              </Link>
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-7 flex flex-col">
+              <div>
+                <h3 className="text-lg font-bold mb-1">Free</h3>
+                <p className="text-zinc-500 text-sm mb-5">Essential tools for every trader</p>
+                <p className="text-4xl font-black font-mono mb-7">
+                  $0
+                  <span className="text-sm font-normal text-zinc-500 ml-1">/forever</span>
+                </p>
+                <ul className="space-y-2.5 mb-7">
+                  {FREE_FEATURES.map(f => (
+                    <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-400">
+                      <CheckCircle2 className="h-4 w-4 text-zinc-600 mt-0.5 shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="mt-auto">
+                <Link
+                  href="/login"
+                  className="flex items-center justify-center w-full rounded-xl border border-white/10 py-3 text-sm font-semibold text-zinc-300 hover:bg-white/[0.05] transition-colors"
+                >
+                  Get started free
+                </Link>
+              </div>
             </div>
 
-            {/* Pro */}
-            <div className="rounded-2xl border border-[#5fc77a]/30 bg-[#5fc77a]/[0.04] p-7 relative shadow-[0_0_60px_rgba(95,199,122,0.07)]">
+            {/* Pro Monthly */}
+            <div className="rounded-2xl border border-[#5fc77a]/30 bg-[#5fc77a]/[0.04] p-7 relative shadow-[0_0_60px_rgba(95,199,122,0.07)] flex flex-col">
               <div className="absolute -top-3.5 left-6">
                 <span className="rounded-full border border-[#5fc77a]/40 bg-[#070b14] px-3 py-1 text-[10px] font-bold tracking-wider text-[#5fc77a] uppercase">
                   Most Popular
                 </span>
               </div>
-              <h3 className="text-lg font-bold mb-1">Pro</h3>
-              <p className="text-zinc-400 text-sm mb-5">Full AI-powered trading terminal</p>
-              <div className="mb-7">
-                <p className="text-4xl font-black font-mono text-[#5fc77a]">
+              <div>
+                <h3 className="text-lg font-bold mb-1">Pro Monthly</h3>
+                <p className="text-zinc-400 text-sm mb-5">Full AI-powered trading terminal</p>
+                <p className="text-4xl font-black font-mono text-[#5fc77a] mb-1">
                   $39
                   <span className="text-sm font-normal text-zinc-400 ml-1">/month</span>
                 </p>
-                <p className="text-xs text-zinc-500 mt-1">or $399/year · save $69</p>
+                <p className="text-xs text-zinc-600 mb-7">Billed monthly · Cancel anytime</p>
+                <ul className="space-y-2.5 mb-7">
+                  {PRO_FEATURES.map(f => (
+                    <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-300">
+                      <CheckCircle2 className="h-4 w-4 text-[#5fc77a] mt-0.5 shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <ul className="space-y-2.5 mb-7">
-                {PRO_FEATURES.map(f => (
-                  <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-300">
-                    <CheckCircle2 className="h-4 w-4 text-[#5fc77a] mt-0.5 shrink-0" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href="/pricing"
-                className="flex items-center justify-center gap-2 w-full rounded-xl bg-[#5fc77a] py-3 text-sm font-bold text-[#070b14] hover:bg-[#4db366] transition-colors"
-              >
-                <Zap className="h-4 w-4" />
-                Subscribe with PayPal
-              </Link>
-              <p className="text-center text-[10px] text-zinc-600 mt-3">
-                Secure checkout · Cancel anytime
-              </p>
+              <div className="mt-auto">
+                <Link
+                  href="/pricing?billing=monthly"
+                  className="flex items-center justify-center gap-2 w-full rounded-xl bg-[#5fc77a] py-3 text-sm font-bold text-[#070b14] hover:bg-[#4db366] transition-colors"
+                >
+                  <Zap className="h-4 w-4" />
+                  Subscribe with PayPal
+                </Link>
+                <p className="text-center text-[10px] text-zinc-600 mt-3">Secure checkout · Cancel anytime</p>
+              </div>
             </div>
+
+            {/* Pro Annual */}
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.03] p-7 relative shadow-[0_0_60px_rgba(245,158,11,0.06)] flex flex-col">
+              <div className="absolute -top-3.5 left-6">
+                <span className="rounded-full border border-amber-500/40 bg-[#070b14] px-3 py-1 text-[10px] font-bold tracking-wider text-amber-400 uppercase">
+                  Best Value
+                </span>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold mb-1">Pro Annual</h3>
+                <p className="text-zinc-400 text-sm mb-5">Full AI-powered trading terminal</p>
+                <div className="mb-1">
+                  <p className="text-4xl font-black font-mono text-amber-400">
+                    $399
+                    <span className="text-sm font-normal text-zinc-400 ml-1">/year</span>
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 mb-7">
+                  <span className="text-xs text-zinc-500">$33.25/mo</span>
+                  <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold text-amber-400">SAVE $69</span>
+                </div>
+                <ul className="space-y-2.5 mb-7">
+                  {PRO_FEATURES.map(f => (
+                    <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-300">
+                      <CheckCircle2 className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="mt-auto">
+                <Link
+                  href="/pricing?billing=annual"
+                  className="flex items-center justify-center gap-2 w-full rounded-xl bg-amber-400 py-3 text-sm font-bold text-[#070b14] hover:bg-amber-300 transition-colors"
+                >
+                  <Zap className="h-4 w-4" />
+                  Subscribe with PayPal
+                </Link>
+                <p className="text-center text-[10px] text-zinc-600 mt-3">Secure checkout · Cancel anytime</p>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>
