@@ -1220,7 +1220,7 @@
   .floorTier {
     min-height: 510px;
     background-size: 1900px auto;
-    background-position: -1105px -5px;
+    background-position: -1250px -5px;
   }
   .roomHud    { top: 6px; right: 8px; }
   .wallClock  { font-size: 10px; min-width: 32px; }
@@ -1228,10 +1228,10 @@
   .floorRows  { width: 100%; }
   .floorRow {
     flex-wrap: wrap;
-    max-width: 248px;
+    max-width: 310px;
     margin: 0 auto;
     gap: 8px;
-    justify-content: center;
+    justify-content: space-between;
     padding: 0;
   }
   .floorTier::before,
