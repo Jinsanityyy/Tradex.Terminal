@@ -4,7 +4,7 @@ import {
   Zap, Brain, TrendingUp, BarChart2, Shield, Clock,
   Newspaper, Calendar, MessageSquare, BookOpen, CheckCircle2,
   ArrowRight, Smartphone, DollarSign, LayoutGrid, Tv,
-  BrainCircuit, AtSign, Sparkles, Star, Lock, Ban,
+  BrainCircuit, AtSign, Sparkles, Star, Ban,
 } from "lucide-react";
 import { TerminalPreview } from "@/components/landing/TerminalPreview";
 
@@ -487,11 +487,6 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Money-back */}
-          <p className="text-center text-sm text-zinc-500 mt-8 flex items-center justify-center gap-2">
-            <Lock className="h-3.5 w-3.5" />
-            7-day money-back guarantee. No questions asked. Cancel anytime.
-          </p>
         </div>
       </section>
 
@@ -536,7 +531,6 @@ export default function LandingPage() {
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-zinc-600">
             <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" /> No credit card required</span>
             <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" /> Free plan forever</span>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" /> 7-day money-back guarantee</span>
             <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" /> Cancel anytime</span>
           </div>
         </div>
