@@ -30,6 +30,8 @@ type LogTone = "ok" | "warn" | "alert" | "dim";
 type AgentDef = {
   id: string;
   label: string;
+  role?: string;
+  detail?: string;
   look: OperatorLook;
   baseStatus: AgentStatus;
   drawerId: string;
@@ -59,18 +61,26 @@ type LogLine = { time: string; text: string; tone: LogTone };
 const AGENTS_ROW_A: AgentDef[] = [
   {
     id: "risk", label: "RISK", drawerId: "risk", baseStatus: "ALERT", real: true,
+    role: "Guard Rail",
+    detail: "Protect position size until conflicting desks settle down.",
     look: { skin: "Copper", hairStyle: "Swoop", hairColor: "Black", shirtColor: "Maroon", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2 },
   },
   {
     id: "trend", label: "TREND", drawerId: "trend", baseStatus: "NO-TRADE", real: true,
+    role: "Macro Scout",
+    detail: "Higher-timeframe structure is aligned with the active swing.",
     look: { skin: "Ivory", hairStyle: "Parted Short", hairColor: "Brown", shirtColor: "Forest", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2 },
   },
   {
     id: "pract", label: "PR.ACT", drawerId: "smc", baseStatus: "TRADE-OK", real: true,
+    role: "Tape Reader",
+    detail: "Micro trigger is still dirty. Wait for a cleaner reaction.",
     look: { skin: "Gold", hairStyle: "Messy", hairColor: "Black", shirtColor: "Gray", pantsColor: "Black", shoesColor: "Black", seatFrame: 2 },
   },
   {
     id: "news", label: "NEWS", drawerId: "news", baseStatus: "TRADE-OK", real: true,
+    role: "Catalyst Watch",
+    detail: "Headline flow is stable and no fresh surprise is in play.",
     look: { skin: "Dove", hairStyle: "Plain", hairColor: "White", shirtColor: "Teal", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2 },
   },
   {
@@ -79,6 +89,8 @@ const AGENTS_ROW_A: AgentDef[] = [
   },
   {
     id: "exec", label: "EXEC", drawerId: "execution", baseStatus: "TRADE-OK", real: true,
+    role: "Entry Pilot",
+    detail: "Wait until the trigger desk confirms the entry lane.",
     look: { skin: "Coffee", hairStyle: "Buzzcut", hairColor: "Black", shirtColor: "Navy", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2 },
   },
 ];
@@ -90,6 +102,8 @@ const AGENTS_ROW_B: AgentDef[] = [
   },
   {
     id: "cntr", label: "CNTR", drawerId: "contrarian", baseStatus: "TRADE-OK", real: true,
+    role: "Contrarian Desk",
+    detail: "Crowding risk is low enough for a controlled fade if needed.",
     look: { skin: "Sienna", hairStyle: "Curly Short", hairColor: "Chestnut", shirtColor: "Purple", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2 },
   },
   {
@@ -111,6 +125,7 @@ const AGENTS_ROW_B: AgentDef[] = [
 ];
 
 const ALL_AGENTS = [...AGENTS_ROW_A, ...AGENTS_ROW_B];
+const REAL_AGENTS = ALL_AGENTS.filter(a => a.real);
 
 const MASTER_LOOK: OperatorLook = {
   skin: "Ivory", hairStyle: "Loose", hairColor: "Chestnut",
@@ -179,6 +194,77 @@ function SeatedOperator({ look, className }: { look: OperatorLook; className?: s
       ))}
     </div>
   );
+}
+
+// ─── Agent overview (real data) ───────────────────────────────────────────────
+
+type AgentOverview = {
+  state: string;
+  insight: string;
+  confidence: number;
+  tone: "ok" | "warn" | "bad" | "dim";
+};
+
+function fmtBias(s: string | undefined): string {
+  if (!s) return "NEUTRAL";
+  return s.replace(/[-_]/g, " ").toUpperCase();
+}
+function biasToneOv(bias: string | undefined): AgentOverview["tone"] {
+  if (bias === "bullish" || bias === "valid" || bias === "long")    return "ok";
+  if (bias === "bearish" || bias === "blocked" || bias === "short") return "bad";
+  if (bias === "opposing" || bias === "no-trade")                   return "warn";
+  return "dim";
+}
+
+function getAgentOverview(id: string, runData: AgentRunResult | undefined): AgentOverview | null {
+  if (!runData) return null;
+  const ag = runData.agents;
+  switch (id) {
+    case "trend":
+      return {
+        state: fmtBias(ag.trend.bias),
+        insight: ag.trend.reasons?.[0] ?? ag.trend.marketPhase ?? "Recalculating...",
+        confidence: ag.trend.confidence,
+        tone: biasToneOv(ag.trend.bias),
+      };
+    case "pract":
+      return {
+        state: fmtBias(ag.smc.bias),
+        insight: ag.smc.reasons?.[0] ?? ag.smc.setupType ?? "Recalculating...",
+        confidence: ag.smc.confidence,
+        tone: biasToneOv(ag.smc.bias),
+      };
+    case "news":
+      return {
+        state: fmtBias(ag.news.impact),
+        insight: ag.news.dominantCatalyst ?? ag.news.reasons?.[0] ?? "Recalculating...",
+        confidence: ag.news.confidence,
+        tone: biasToneOv(ag.news.impact),
+      };
+    case "risk":
+      return {
+        state: ag.risk.valid ? "VALID" : "BLOCKED",
+        insight: ag.risk.reasons?.[0] ?? ag.risk.warnings?.[0] ?? "Recalculating...",
+        confidence: ag.risk.sessionScore,
+        tone: ag.risk.valid ? "ok" : "bad",
+      };
+    case "exec":
+      return {
+        state: ag.execution.signalState,
+        insight: ag.execution.signalStateReason ?? ag.execution.triggerCondition ?? "Recalculating...",
+        confidence: Math.min(95, ag.execution.confluenceCount * 10),
+        tone: ag.execution.direction === "long" ? "ok" : ag.execution.direction === "short" ? "bad" : "warn",
+      };
+    case "cntr":
+      return {
+        state: ag.contrarian.challengesBias ? "ALERT" : "CLEAR",
+        insight: ag.contrarian.alternativeScenario ?? ag.contrarian.failureReasons?.[0] ?? "Recalculating...",
+        confidence: ag.contrarian.trapConfidence,
+        tone: ag.contrarian.challengesBias ? "bad" : "dim",
+      };
+    default:
+      return null;
+  }
 }
 
 // ─── Real-data mappers ────────────────────────────────────────────────────────
@@ -264,7 +350,8 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
     { revalidateOnFocus: false, dedupingInterval: 300_000 },
   );
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [selectedId, setSelectedId] = useState<string>(REAL_AGENTS[0]?.id ?? "risk");
   const [agentStates, setAgentStates] = useState<Record<string, AgentLiveState>>({});
   const [masterState, setMasterState] = useState<MasterState | null>(null);
   const [heatmap, setHeatmap] = useState<HeatCell[][]>([]);
@@ -272,6 +359,7 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
   const [mounted, setMounted] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
 
+  // Initialize state once on mount — no random interval to avoid constant flickering
   useEffect(() => {
     const states: Record<string, AgentLiveState> = {};
     ALL_AGENTS.forEach(a => { states[a.id] = makeAgentState(); });
@@ -293,44 +381,18 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
       { time: "09:32", text: "MASTER: EDGE CALIBRATED — READY", tone: "dim" },
     ]);
     setMounted(true);
+  }, []);
 
-    const iv = setInterval(() => {
-      setAgentStates(prev => {
-        const next = { ...prev };
-        [...ALL_AGENTS].sort(() => Math.random() - 0.5).slice(0, 3).forEach(a => {
-          next[a.id] = makeAgentState();
-        });
-
-        const nls = Object.values(next).filter(s => s.signal === "L").length;
-        const nss = Object.values(next).filter(s => s.signal === "S").length;
-        setMasterState({
-          bias: nls > nss + 2 ? "LONG" : nss > nls + 2 ? "SHORT" : "NEUTRAL",
-          confidence: Math.round(Object.values(next).reduce((s, a) => s + a.confidence, 0) / ALL_AGENTS.length),
-          edgeScore: Math.round(rnd(55, 88)),
-          drawdown: parseFloat(rnd(0, 2.5).toFixed(2)),
-          agreeing: Math.max(nls, nss),
-        });
-
-        setLog(prevLog => {
-          const agent = pick(ALL_AGENTS);
-          const text = pick(LOG_FNS)(agent.label, next[agent.id]?.signal ?? "—");
-          const now = new Date();
-          const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-          const tone: LogTone = text.includes("CAUTION") ? "warn" : text.includes("FILL") ? "ok" : "dim";
-          return [{ time, text, tone }, ...prevLog.slice(0, 24)];
-        });
-
+  // Auto-cycle selection through the 7 real agents every 3s
+  useEffect(() => {
+    const t = window.setInterval(() => {
+      setSelectedIdx(i => {
+        const next = (i + 1) % REAL_AGENTS.length;
+        setSelectedId(REAL_AGENTS[next]?.id ?? REAL_AGENTS[0]!.id);
         return next;
       });
-
-      setHeatmap(prev => {
-        const next = [...prev];
-        next[Math.floor(Math.random() * next.length)] = makeHeatRow(24);
-        return next;
-      });
-    }, 380);
-
-    return () => clearInterval(iv);
+    }, 3_000);
+    return () => window.clearInterval(t);
   }, []);
 
   // Sync real agent data when SWR result arrives
@@ -341,9 +403,14 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
   }, [runData]);
 
   const tickerText = buildTicker(quotes);
+  const selectedAgent = REAL_AGENTS.find(a => a.id === selectedId) ?? REAL_AGENTS[0]!;
+  const selectedLive = agentStates[selectedAgent.id];
+  const overview = getAgentOverview(selectedAgent.id, runData);
 
   const handleClick = (agent: AgentDef) => {
-    setSelectedId(agent.id);
+    if (!agent.real) return;
+    const idx = REAL_AGENTS.findIndex(a => a.id === agent.id);
+    if (idx >= 0) { setSelectedIdx(idx); setSelectedId(agent.id); }
     if (agent.drawerId) onAgentClick?.(agent.drawerId);
   };
 
@@ -389,46 +456,55 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
         </button>
 
         <div className={styles.masterReadout}>
-          {masterState ? (
+          <div className={styles.agentOverviewId}>{selectedAgent.label}</div>
+          <div className={styles.agentOverviewRole}>{selectedAgent.role ?? "—"}</div>
+
+          {overview ? (
             <>
-              <div className={`${styles.biasBadge} ${masterState.bias === "LONG" ? styles.biasLong : masterState.bias === "SHORT" ? styles.biasShort : styles.biasNeutral}`}>
-                {masterState.bias}
+              <div className={`${styles.agentOverviewState} ${overview.tone === "ok" ? styles.statOk : overview.tone === "bad" ? styles.statDanger : overview.tone === "warn" ? styles.statWarn : ""}`}>
+                {overview.state}
               </div>
+              <div className={styles.agentOverviewDetail}>{overview.insight}</div>
               <div className={styles.statsRow}>
                 <div className={styles.statCell}>
                   <span className={styles.statLabel}>CONF</span>
-                  <span className={styles.statValue}>{masterState.confidence}%</span>
-                </div>
-                <div className={styles.statCell}>
-                  <span className={styles.statLabel}>EDGE</span>
-                  <span className={styles.statValue}>{masterState.edgeScore}</span>
-                </div>
-                <div className={styles.statCell}>
-                  <span className={styles.statLabel}>DD</span>
-                  <span className={`${styles.statValue} ${masterState.drawdown > 1.5 ? styles.statDanger : ""}`}>
-                    {masterState.drawdown.toFixed(1)}%
-                  </span>
-                </div>
-                <div className={styles.statCell}>
-                  <span className={styles.statLabel}>AGR</span>
-                  <span className={styles.statValue}>{masterState.agreeing}/12</span>
+                  <span className={styles.statValue}>{overview.confidence}%</span>
                 </div>
               </div>
-              <div className={styles.agrDots}>
-                {Array.from({ length: 12 }, (_, i) => (
-                  <span
-                    key={i}
-                    className={`${styles.agrDot} ${
-                      i < masterState.agreeing
-                        ? masterState.bias === "LONG" ? styles.dotLong : styles.dotShort
-                        : styles.dotOff
-                    }`}
-                  />
-                ))}
+              <div className={styles.confBarWrap}>
+                <div
+                  className={`${styles.confBar} ${overview.tone === "ok" ? styles.confBarOk : styles.confBarBad}`}
+                  style={{ width: `${overview.confidence}%` }}
+                />
               </div>
             </>
           ) : (
-            <span className={styles.statLabel}>INITIALIZING...</span>
+            /* Fallback while API data hasn't loaded yet */
+            <>
+              <div className={styles.agentOverviewDetail}>{selectedAgent.detail ?? "Loading..."}</div>
+              {selectedLive && (
+                <>
+                  <div className={styles.statsRow}>
+                    <div className={styles.statCell}>
+                      <span className={styles.statLabel}>STATUS</span>
+                      <span className={`${styles.statValue} ${selectedLive.status === "TRADE-OK" ? styles.statOk : styles.statDanger}`}>
+                        {selectedLive.status}
+                      </span>
+                    </div>
+                    <div className={styles.statCell}>
+                      <span className={styles.statLabel}>CONF</span>
+                      <span className={styles.statValue}>{selectedLive.confidence}%</span>
+                    </div>
+                  </div>
+                  <div className={styles.confBarWrap}>
+                    <div
+                      className={`${styles.confBar} ${selectedLive.status === "TRADE-OK" ? styles.confBarOk : styles.confBarBad}`}
+                      style={{ width: `${selectedLive.confidence}%` }}
+                    />
+                  </div>
+                </>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -509,24 +585,10 @@ function AgentPod({
   const status = live?.status ?? agent.baseStatus;
   const ok = status === "TRADE-OK";
   const alert = status === "ALERT";
-  const isReal = agent.real;
 
-  return (
-    <button
-      type="button"
-      className={`${styles.agentPod} ${selected ? styles.podSelected : ""} ${isReal && alert ? styles.podAlert : ""}`}
-      onClick={isReal ? onClick : undefined}
-      aria-pressed={isReal ? selected : undefined}
-      tabIndex={isReal ? 0 : -1}
-      style={isReal ? undefined : { pointerEvents: "none" } as React.CSSProperties}
-    >
+  const inner = (
+    <>
       <div className={styles.stationBody}>
-        {live && (
-          <div className={`${styles.sigBadge} ${live.signal === "L" ? styles.sigL : live.signal === "S" ? styles.sigS : styles.sigN}`}>
-            {live.signal}
-          </div>
-        )}
-
         <div className={styles.spriteWrap}>
           <SeatedOperator look={agent.look} />
         </div>
@@ -560,8 +622,28 @@ function AgentPod({
       </div>
 
       <div className={styles.confLabel}>
-        {live ? `${live.confidence}%` : ""}
+        {live && agent.real ? `${live.confidence}%` : ""}
       </div>
+    </>
+  );
+
+  // Non-real agents are decorative — not interactive
+  if (!agent.real) {
+    return (
+      <div className={styles.agentPod} aria-hidden="true">
+        {inner}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className={`${styles.agentPod} ${selected ? styles.podSelected : ""}`}
+      onClick={onClick}
+      aria-pressed={selected}
+    >
+      {inner}
     </button>
   );
 }
