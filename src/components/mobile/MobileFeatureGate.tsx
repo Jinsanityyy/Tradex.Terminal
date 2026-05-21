@@ -1,13 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { Lock, Zap, ExternalLink, RefreshCw, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
+import { Lock, Zap, RefreshCw, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 import { cn } from "@/lib/utils";
-
-const WEB_URL =
-  process.env.NEXT_PUBLIC_APP_URL ??
-  "https://tradexterminal.online";
 
 interface MobileFeatureGateProps {
   children: React.ReactNode;
@@ -16,7 +12,11 @@ interface MobileFeatureGateProps {
 
 function isNativeAndroid(): boolean {
   if (typeof window === "undefined") return false;
-  return !!(window as any).Capacitor?.isNativePlatform?.();
+  // Capacitor native app
+  if ((window as any).Capacitor?.isNativePlatform?.()) return true;
+  // TWA or installed PWA running in standalone mode (not a regular browser tab)
+  if (window.matchMedia?.("(display-mode: standalone)").matches) return true;
+  return false;
 }
 
 export function MobileFeatureGate({ children, featureName }: MobileFeatureGateProps) {
@@ -54,7 +54,15 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
         return;
       }
 
-      window.location.href = data.approveUrl;
+      if (isNative) {
+        // TWA/Capacitor: open PayPal in system Chrome browser so payment
+        // stays outside the WebView (avoids PayPal WebView restrictions)
+        window.open(data.approveUrl, "_system");
+        setSubLoading(false);
+      } else {
+        // Desktop web: navigate in same tab
+        window.location.href = data.approveUrl;
+      }
     } catch {
       setSubError("Something went wrong. Please try again.");
       setSubLoading(false);
@@ -77,10 +85,6 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
     await new Promise(r => setTimeout(r, 1200));
     setRefreshed(true);
     setTimeout(() => window.location.reload(), 600);
-  }
-
-  function openBrowser(url: string) {
-    window.open(url, "_system");
   }
 
   return (
@@ -135,15 +139,28 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
           </p>
         </div>
 
-        {isNative ? (
+        <button
+          onClick={handleSubscribe}
+          disabled={subLoading}
+          className="flex items-center justify-center gap-1.5 w-full rounded-xl border border-[hsl(142,71%,45%)]/40 bg-[hsl(142,71%,45%)]/10 py-2.5 text-xs font-semibold text-[hsl(142,71%,45%)] active:opacity-70 disabled:opacity-50 mb-2 transition-all"
+        >
+          {subLoading
+            ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Starting checkout…</>
+            : <><Zap className="h-3.5 w-3.5" /> Get Pro — {billing === "monthly" ? "$39/mo" : "$399/yr"}</>
+          }
+        </button>
+
+        {subError && (
+          <p className="flex items-center gap-1 text-[10px] text-red-400 mb-2 justify-center">
+            <AlertCircle className="h-3 w-3" />{subError}
+          </p>
+        )}
+
+        {isNative && (
           <>
-            <button
-              onClick={() => openBrowser(`${WEB_URL}/pricing?billing=${billing}`)}
-              className="flex items-center justify-center gap-1.5 w-full rounded-xl border border-[hsl(142,71%,45%)]/40 bg-[hsl(142,71%,45%)]/10 py-2.5 text-xs font-semibold text-[hsl(142,71%,45%)] active:opacity-70 mb-2 transition-all"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              Subscribe at tradexterminal.online
-            </button>
+            <p className="text-[9px] text-zinc-600 mb-2 leading-relaxed">
+              PayPal opens in your browser. Return here after payment.
+            </p>
             <button
               onClick={handleRefresh}
               disabled={refreshing || refreshed}
@@ -156,24 +173,6 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
                 : <><RefreshCw className="h-3 w-3" /> Already subscribed? Refresh</>
               }
             </button>
-          </>
-        ) : (
-          <>
-            <button
-              onClick={handleSubscribe}
-              disabled={subLoading}
-              className="flex items-center justify-center gap-1.5 w-full rounded-xl border border-[hsl(142,71%,45%)]/40 bg-[hsl(142,71%,45%)]/10 py-2.5 text-xs font-semibold text-[hsl(142,71%,45%)] active:opacity-70 disabled:opacity-50 transition-all"
-            >
-              {subLoading
-                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Starting checkout…</>
-                : <><Zap className="h-3.5 w-3.5" /> Get Pro — {billing === "monthly" ? "$39/mo" : "$399/yr"}</>
-              }
-            </button>
-            {subError && (
-              <p className="flex items-center gap-1 text-[10px] text-red-400 mt-2 justify-center">
-                <AlertCircle className="h-3 w-3" />{subError}
-              </p>
-            )}
           </>
         )}
       </div>
