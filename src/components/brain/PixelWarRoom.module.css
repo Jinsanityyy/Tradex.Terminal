@@ -298,21 +298,557 @@
 .dotShort { background: var(--bad);   box-shadow: 0 0 4px rgba(255,95,61,0.5); }
 .dotOff   { background: #1a1a14; border: 1px solid #2a2a1e; }
 
-/* ─── Floor tier ─────────────────────────────────────────────────────────── */
-.floorTier {
+/* ─── Ceiling ────────────────────────────────────────────────────────────── */
+.ceiling {
+  height: 20px;
+  background: #08060e;
+  border-bottom: 2px solid #14101c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 48px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.ceilingLight {
+  width: 72px;
+  height: 5px;
+  background: linear-gradient(90deg, transparent 0%, #b8cce0 20%, #ddeeff 50%, #b8cce0 80%, transparent 100%);
+  box-shadow: 0 0 10px 4px rgba(180,210,255,0.35), 0 3px 18px rgba(160,200,240,0.2);
+  border-radius: 1px;
+}
+.ceilingLight::before {
+  content: "";
+  position: absolute;
+  width: 72px;
+  height: 1px;
+  background: rgba(220,240,255,0.4);
+  top: -1px;
+}
+
+.alertSiren {
+  position: absolute;
+  right: 18px;
+  top: 4px;
+  width: 12px;
+  height: 9px;
+  background: #2a1010;
+  border: 1px solid #4a1a1a;
+  border-radius: 50% 50% 10% 10%;
+}
+.alertSiren::after {
+  content: "";
+  position: absolute;
+  bottom: -3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 3px;
+  background: #1a0808;
+  border: 1px solid #3a1010;
+}
+.sirenActive {
+  background: var(--bad);
+  border-color: #ff2020;
+  box-shadow: 0 0 14px 5px rgba(255,60,30,0.65);
+  animation: sirenPulse 0.55s ease-in-out infinite;
+}
+@keyframes sirenPulse {
+  0%,100% { opacity: 1;   box-shadow: 0 0 14px 5px rgba(255,60,30,0.65); }
+  50%      { opacity: 0.3; box-shadow: 0 0 4px  1px rgba(255,60,30,0.2);  }
+}
+
+/* ─── Back wall ──────────────────────────────────────────────────────────── */
+.backWall {
+  height: 60px;
+  background: #0b0806;
+  background-image:
+    repeating-linear-gradient(0deg,  rgba(180,120,50,0.05) 0 1px, transparent 1px 14px),
+    repeating-linear-gradient(90deg, rgba(180,120,50,0.05) 0 1px, transparent 1px 28px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  border-bottom: 3px solid #1e1206;
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.wallSconce {
+  width: 8px;
+  height: 30px;
+  background: linear-gradient(180deg, #5a3a1a, #3a2010);
+  border: 1px solid #6a4a22;
+  flex-shrink: 0;
+  position: relative;
+  border-radius: 1px;
+}
+.wallSconce::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 4px;
+  background: #7a5228;
+  border: 1px solid #9a6a38;
+  border-radius: 1px;
+}
+.wallSconce::after {
+  content: "";
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 18px;
+  height: 6px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255,200,80,0.7) 0%, rgba(255,160,40,0.3) 50%, transparent 100%);
+  box-shadow: 0 4px 12px rgba(255,180,50,0.35);
+}
+
+.wallScreen {
+  flex: 1;
+  max-width: 340px;
+  height: 46px;
+  background: #020c06;
+  border: 1.5px solid #1a4428;
+  box-shadow: 0 0 18px rgba(61,255,160,0.12), inset 0 0 8px rgba(61,255,160,0.04);
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
+  justify-content: flex-end;
+  padding: 4px 8px;
+}
+.wallScreen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(180deg, rgba(61,255,160,0.05) 0 2px, transparent 2px 4px);
+  pointer-events: none;
+}
+
+.wallScreenLabel {
+  font-size: 5px;
+  font-weight: 800;
+  letter-spacing: 0.32em;
+  color: rgba(61,255,160,0.4);
+  text-transform: uppercase;
+  position: relative;
+  z-index: 1;
+  margin-top: 2px;
+}
+
+.wallClock {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--amber);
+  text-shadow: 0 0 10px rgba(255,199,58,0.55);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  min-width: 40px;
+  text-align: center;
+}
+
+/* ─── Floor area (side walls + room floor) ───────────────────────────────── */
+.floorArea {
+  display: flex;
+  align-items: stretch;
   gap: 0;
-  padding: 8px 12px 12px;
-  background-color: #0e0a05;
+}
+
+/* ─── Room floor: agents overlaid on the image ───────────────────────────── */
+.roomFloor {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 220px;
+  padding-bottom: 16px;
+}
+
+/* Corner plants — positioned absolute within roomFloor */
+.plantCornerTL,
+.plantCornerTR {
+  position: absolute;
+  top: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  z-index: 2;
+}
+.plantCornerTL { left: 10px; }
+.plantCornerTR { right: 10px; }
+
+.floorRows {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.sidePanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding-top: 6px;
+  flex-shrink: 0;
+  width: 38px;
+  /* Much darker than the open floor so walls clearly pop */
+  background-color: #08060a;
   background-image:
-    linear-gradient(rgba(180,120,50,0.09) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(180,120,50,0.09) 1px, transparent 1px),
-    linear-gradient(rgba(180,120,50,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(180,120,50,0.03) 1px, transparent 1px);
-  background-size: 32px 32px, 32px 32px, 8px 8px, 8px 8px;
+    repeating-linear-gradient(180deg,
+      rgba(60,35,10,0.25) 0 1px,
+      transparent 1px 14px
+    );
+}
+.floorArea > .sidePanel:first-child {
+  border-right: 4px solid #3e2814;
+  box-shadow: inset -8px 0 18px rgba(0,0,0,0.75), 4px 0 12px rgba(0,0,0,0.55);
+}
+.floorArea > .sidePanel:last-child {
+  border-left: 4px solid #3e2814;
+  box-shadow: inset 8px 0 18px rgba(0,0,0,0.75), -4px 0 12px rgba(0,0,0,0.55);
+}
+
+/* ─── Floor baseboard ────────────────────────────────────────────────────── */
+.floorBase {
+  height: 14px;
+  background: linear-gradient(180deg, #1a1208 0%, #080604 100%);
+  border-top: 3px solid #4a2e12;
+  box-shadow: 0 -4px 14px rgba(0,0,0,0.75), inset 0 1px 0 rgba(200,140,50,0.10);
+  flex-shrink: 0;
+}
+
+/* ─── Vignette overlay ───────────────────────────────────────────────────── */
+.warRoom { position: relative; }
+.warRoom::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 80% 65% at 50% 38%,
+    transparent 0%,
+    transparent 50%,
+    rgba(0,0,0,0.28) 72%,
+    rgba(0,0,0,0.62) 100%
+  );
+  pointer-events: none;
+  z-index: 55;
+}
+
+/* ─── World map background ───────────────────────────────────────────────── */
+.worldMap {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.06;
+}
+
+.hubGlow { animation: hubPulse 3s ease-in-out infinite; }
+.hubDot  { animation: hubPulse 3s ease-in-out infinite; }
+@keyframes hubPulse {
+  0%,100% { opacity: 0.75; }
+  50%      { opacity: 0.35; }
+}
+
+/* ─── Volumetric light cones ─────────────────────────────────────────────── */
+.lightConesRow {
+  position: absolute;
+  top: 20px;
+  left: 0;
+  right: 0;
+  height: 220px;
+  display: flex;
+  justify-content: center;
+  gap: 48px;
+  pointer-events: none;
+  z-index: 1;
+}
+.lightCone {
+  width: 200px;
+  height: 100%;
+  background: radial-gradient(
+    ellipse 50% 55% at 50% 0%,
+    rgba(185,215,255,0.09) 0%,
+    rgba(185,215,255,0.04) 42%,
+    transparent 70%
+  );
+  mix-blend-mode: screen;
+}
+
+/* ─── Enhanced ceiling with pipe/vent details ────────────────────────────── */
+.ceiling::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 5px;
+  background:
+    repeating-linear-gradient(90deg,
+      #18121e 0 18px,
+      #0e0a14 18px 20px
+    );
+  border-bottom: 1px solid #221a2c;
+}
+.ceiling::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  left: 5%;
+  right: 5%;
+  height: 4px;
+  background: repeating-linear-gradient(90deg,
+    #12101a 0 5px, transparent 5px 8px
+  );
+  opacity: 0.7;
+}
+
+/* ─── Server rack panels ─────────────────────────────────────────────────── */
+.serverRack {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+}
+
+.rackUnit {
+  height: 11px;
+  background: #101018;
+  border: 1px solid #1c1c28;
+  border-top-color: #222234;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 3px;
+}
+
+.rackLed {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: ledBlink 2s ease-in-out infinite;
+}
+.ledG {
+  background: #3dffa0;
+  box-shadow: 0 0 4px rgba(61,255,160,0.8);
+}
+.ledA {
+  background: #ffc73a;
+  box-shadow: 0 0 4px rgba(255,199,58,0.8);
+  animation-duration: 1.7s;
+}
+.ledR {
+  background: #ff5f3d;
+  box-shadow: 0 0 4px rgba(255,95,61,0.8);
+  animation-duration: 3.1s;
+}
+@keyframes ledBlink {
+  0%, 78%, 100% { opacity: 1; }
+  82%            { opacity: 0.08; }
+  86%            { opacity: 0.9; }
+  90%            { opacity: 0.08; }
+}
+
+.rackSlot {
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg, #1a1a28, #0e0e18);
+  border-radius: 1px;
+}
+
+/* ─── Foreground desk silhouette ─────────────────────────────────────────── */
+.foregroundDesk {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(6,4,1,0.45) 35%,
+    rgba(8,5,1,0.88) 100%
+  );
+  pointer-events: none;
+  z-index: 4;
+}
+.foregroundDesk::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  left: -5%;
+  right: -5%;
+  height: 6px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    #2e1c0a 8%,
+    #1e1208 50%,
+    #2e1c0a 92%,
+    transparent 100%
+  );
+  border-top: 1px solid #4a2e14;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.9), 0 1px 4px rgba(180,120,50,0.12);
+}
+
+/* ─── Filing cabinet ─────────────────────────────────────────────────────── */
+.filingCabinet {
+  width: 24px;
+  background: #1c1c26;
+  border: 1px solid #2e2e3e;
+  border-top: 2px solid #3a3a4e;
+  padding: 3px 3px 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+}
+.filingCabinet::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  background: var(--good-dim);
+  border-radius: 50%;
+  box-shadow: 0 0 5px rgba(61,255,160,0.5);
+}
+
+.cabinetDrawer {
+  height: 13px;
+  background: #252535;
+  border: 1px solid #32324a;
+  position: relative;
+}
+.cabinetDrawer::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 10px;
+  height: 3px;
+  background: #3c3c50;
+  border: 1px solid #4a4a60;
+  border-radius: 1px;
+}
+
+/* ─── Corner plant ───────────────────────────────────────────────────────── */
+.cornerPlant {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.plantTop {
+  width: 22px;
+  height: 18px;
+  background: radial-gradient(ellipse at 50% 65%, #1a4c18 0%, #0e2e0c 100%);
+  border-radius: 50% 50% 30% 30%;
+  border: 1px solid #0a1e08;
+  box-shadow:
+    -7px 4px 0 -2px #154014,
+     7px 4px 0 -2px #165018,
+     0  -4px 0 -1px #1a5a18;
+}
+
+.plantPot {
+  width: 16px;
+  height: 11px;
+  background: linear-gradient(180deg, #9a5220 0%, #5e3010 100%);
+  border: 1px solid #3a1e08;
+  clip-path: polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%);
+}
+
+/* ─── Floor tier: pixel art room image as background ─────────────────────── */
+.floorTier {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  /* tall enough for 4 desk rows — last row tops out at ~707px + 70px pod */
+  min-height: 800px;
   border-bottom: 1px solid var(--border-hi);
   flex-shrink: 0;
+  image-rendering: pixelated;
+  background-image: url('/pixel-room-v2.png');
+  background-size: 2628px auto;
+  background-position: -1528px -10px;
+  background-repeat: no-repeat;
+}
+
+/* ─── Absolute agent layer ───────────────────────────────────────────────── */
+.floorAbsLayer {
+  position: absolute;
+  inset: 0;
+}
+
+/* Each agent pod pinned to its desk via CSS custom properties */
+.absAgent {
+  position: absolute;
+  left: var(--dx);
+  top: var(--dy);
+}
+
+/* Clock + siren overlay pinned top-right */
+.roomHud {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 5;
+}
+
+/* Shelf row along back wall */
+.wallShelves {
+  display: flex;
+  gap: 4px;
+  align-items: flex-end;
+}
+.shelfUnit {
+  width: 22px;
+  height: 30px;
+  background: linear-gradient(180deg, #2c2012 0%, #1a1208 100%);
+  border: 1px solid #3e2c18;
+  border-top: 2px solid #4e3a22;
+  border-radius: 1px 1px 0 0;
+  position: relative;
+  flex-shrink: 0;
+}
+.shelfUnit::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 3px;
+  right: 3px;
+  height: 2px;
+  background: rgba(200,150,60,0.35);
+  border-radius: 1px;
+}
+.shelfUnit::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 3px;
+  right: 3px;
+  height: 2px;
+  background: rgba(200,150,60,0.18);
+  border-radius: 1px;
 }
 
 .floorLabel {
@@ -376,12 +912,31 @@
 }
 .podFake:hover { transform: none !important; }
 
-/* Station body: relative container so children can be absolutely positioned */
+/* Station body: sprite + name tag only — no monitor rendered */
 .stationBody {
   position: relative;
   width: 70px;
-  height: 82px;
+  height: 70px;
 }
+
+/* Name tag replacing the monitor label */
+.agentNameTag {
+  position: absolute;
+  bottom: 1px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 1px 5px;
+  z-index: 5;
+  border-radius: 1px;
+}
+.tagOk    { color: var(--good);  background: rgba(0,0,0,0.78); border: 1px solid var(--good-dim); }
+.tagBad   { color: var(--amber); background: rgba(0,0,0,0.78); border: 1px solid #4a3010; }
+.tagAlert { color: var(--bad);   background: rgba(0,0,0,0.78); border: 1px solid var(--bad-dim); box-shadow: 0 0 5px rgba(255,95,61,0.5); }
 
 /* Signal direction badge — top-left corner of body */
 .sigBadge {
@@ -401,7 +956,7 @@
 .sigS { background: #331010; color: var(--bad);  border: 1px solid #661a1a; }
 .sigN { background: #1a1a1a; color: #555;        border: 1px solid #333; }
 
-/* Sprite wrapper — z:1 (behind monitor) */
+/* Sprite wrapper — z:1 (behind name tag) */
 .spriteWrap {
   position: absolute;
   top: 0;
@@ -627,7 +1182,10 @@
   width: var(--seat-actor-width);
   height: var(--seat-actor-height);
   image-rendering: pixelated;
-  filter: drop-shadow(1px 2px 0 rgba(0,0,0,0.8));
+  filter:
+    drop-shadow(0 0 0 2px rgba(0,0,0,0.6))
+    drop-shadow(1px 3px 0 rgba(0,0,0,0.9))
+    drop-shadow(0 4px 6px rgba(0,0,0,0.6));
 }
 
 .seatedLayer {
@@ -655,7 +1213,7 @@
     flex-direction: row;
     align-items: flex-end;
     gap: 12px;
-    align-self: center;
+    align-self: flex-start;
   }
   .masterReadout {
     min-height: unset;
@@ -666,16 +1224,21 @@
   .agrDots    { gap: 2px; }
   .agrDot     { width: 6px; height: 6px; }
 
-  /* Floor rows: wrap to 3 per row (3 × 70px + 2 × 10px = 230px < any phone) */
-  .floorTier  { padding: 6px 12px 10px; }
-  .floorRow {
-    flex-wrap: wrap;
-    max-width: 248px;  /* forces 3-per-row: 3×70 + 2×10 = 230 fits; 4×70 = 310 wraps */
-    margin: 0 auto;
-    gap: 8px;
-    justify-content: center;
-    padding: 0;
+  /* Floor tier on mobile: scale 0.80× shows all 3 desk columns in ~360px */
+  .floorTier {
+    min-height: 400px;
+    background-size: 1100px auto;
+    background-position: -570px 0px;
   }
+  .roomHud   { top: 6px; right: 8px; }
+  .wallClock { font-size: 10px; min-width: 32px; }
+  /* mobile absolute positions come from --mx / --my */
+  .absAgent {
+    left: var(--mx);
+    top: var(--my);
+  }
+  .floorTier::before,
+  .floorTier::after { display: none; }
 
   /* Engine tier: stack panels vertically */
   .engineTier {

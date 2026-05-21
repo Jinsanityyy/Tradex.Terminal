@@ -1,6 +1,5 @@
 ﻿import type { Metadata } from "next";
 import { HeroSection } from "@/components/landing/HeroSection";
-import { TradingFloorSection } from "@/components/landing/TradingFloorSection";
 import { AgentGrid }   from "@/components/landing/AgentGrid";
 
 export const metadata: Metadata = {
@@ -13,7 +12,6 @@ export default function AboutPage() {
   return (
     <main className="bg-black min-h-screen">
       <HeroSection />
-      <TradingFloorSection />
       <AgentGrid />
 
       {/* Footer */}
