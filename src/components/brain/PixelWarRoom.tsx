@@ -404,7 +404,6 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
             </div>
             <div className={styles.stationKeyboard} />
           </div>
-          <div className={styles.masterTag}>COMMAND</div>
         </button>
 
         <div className={styles.masterReadout}>
@@ -513,31 +512,6 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
         </div>
       </div>
 
-      {/* ── Engine tier ── */}
-      <div className={styles.engineTier}>
-        <div className={styles.heatmapPanel}>
-          <div className={styles.panelHeader}>SIGNAL MATRIX</div>
-          <div className={styles.heatmapGrid}>
-            {heatmap.map((row, ri) =>
-              row.map((cell, ci) => (
-                <span key={`${ri}-${ci}`} className={`${styles.heatCell} ${styles[`heat${cell}`]}`} />
-              ))
-            )}
-          </div>
-        </div>
-
-        <div className={styles.logPanel}>
-          <div className={styles.panelHeader}>EXEC LOG</div>
-          <div className={styles.logScroll} ref={logRef}>
-            {log.map((line, i) => (
-              <div key={i} className={`${styles.logLine} ${styles[`tone${line.tone}`]}`}>
-                <span className={styles.logTime}>{line.time}</span>
-                <span>{line.text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
     </div>
   );
