@@ -4,288 +4,536 @@ import {
   Zap, Brain, TrendingUp, BarChart2, Shield, Clock,
   Newspaper, Calendar, MessageSquare, BookOpen, CheckCircle2,
   ArrowRight, Smartphone, DollarSign, LayoutGrid, Tv,
-  BrainCircuit, AtSign, Sparkles,
+  BrainCircuit, AtSign, Sparkles, Star, Lock, Ban,
 } from "lucide-react";
 
-// ── Pricing data ──────────────────────────────────────────────────────────────
-const FREE_FEATURES = [
-  "Live prices — Gold, Forex, Crypto, Indices",
-  "TradingView chart",
-  "News feed",
-  "Economic calendar",
-  "Live TV — market broadcast",
-  "Trading signals (view)",
-  "Community chat",
-  "Trading knowledge base",
+// ─── Data ────────────────────────────────────────────────────────────────────
+
+const FREE_FEATURES: { label: string; locked?: boolean }[] = [
+  { label: "Live prices — Gold, Forex, Crypto, Indices" },
+  { label: "TradingView chart" },
+  { label: "News feed" },
+  { label: "Economic calendar" },
+  { label: "Live TV — market broadcast" },
+  { label: "Trading signals (view)" },
+  { label: "Community chat" },
+  { label: "Trading knowledge base" },
+  { label: "Brain Terminal — 7 AI agents", locked: true },
+  { label: "Market Bias engine", locked: true },
+  { label: "Risk Gate", locked: true },
 ];
 
-const PRO_FEATURES = [
-  "Everything in Free",
-  "Brain Terminal — 7 AI agents",
-  "Market Bias engine",
-  "Market Intelligence",
-  "Asset Matrix",
-  "Session Intelligence",
-  "AI Catalysts feed",
-  "Trump Monitor",
-  "PnL Calendar",
-  "Candle Analysis (AI)",
-  "AI Market Briefing",
-  "Force-refresh signals",
+const PRO_FEATURES: { label: string; bold?: boolean }[] = [
+  { label: "Everything in Free" },
+  { label: "Brain Terminal — 7 AI agents", bold: true },
+  { label: "Market Bias engine", bold: true },
+  { label: "Risk Gate", bold: true },
+  { label: "Market Intelligence" },
+  { label: "Asset Matrix" },
+  { label: "Session Intelligence" },
+  { label: "AI Catalysts feed" },
+  { label: "Trump Monitor" },
+  { label: "PnL Calendar" },
+  { label: "Candle Analysis (AI)" },
+  { label: "AI Market Briefing" },
+  { label: "Force-refresh signals" },
 ];
 
-// ── Feature cards ─────────────────────────────────────────────────────────────
 const FEATURES = [
   {
     icon: <Brain className="h-5 w-5" />,
     color: "text-violet-400 bg-violet-500/10 border-violet-500/20",
-    badge: "Pro",
     title: "Brain Terminal",
     desc: "7 specialized AI agents — Trend, Price Action, News, Risk Gate, Execution, Contrarian, and Master — run in parallel to produce a single structured trade decision.",
   },
   {
     icon: <TrendingUp className="h-5 w-5" />,
-    color: "text-[#5fc77a] bg-[#5fc77a]/10 border-[#5fc77a]/20",
-    badge: "Pro",
+    color: "text-[#4ade80] bg-[#4ade80]/10 border-[#4ade80]/20",
     title: "Market Bias Engine",
     desc: "Real-time directional bias across Gold, Forex, Crypto, and Indices. Know which way the market is leaning before you enter.",
   },
   {
-    icon: <BrainCircuit className="h-5 w-5" />,
-    color: "text-sky-400 bg-sky-500/10 border-sky-500/20",
-    badge: "Pro",
-    title: "Market Intelligence",
-    desc: "Deep AI-driven analysis of macro conditions, market structure, and intermarket correlations across all asset classes.",
+    icon: <BarChart2 className="h-5 w-5" />,
+    color: "text-purple-400 bg-purple-500/10 border-purple-500/20",
+    title: "Candle Analysis AI",
+    desc: "AI-powered candlestick pattern detection with confluence scoring. Instantly identify high-probability setups across any timeframe.",
   },
   {
-    icon: <LayoutGrid className="h-5 w-5" />,
-    color: "text-blue-400 bg-blue-500/10 border-blue-500/20",
-    badge: "Pro",
-    title: "Asset Matrix",
-    desc: "Side-by-side comparison of asset performance, momentum, and bias. Spot the strongest and weakest assets at a glance.",
+    icon: <Shield className="h-5 w-5" />,
+    color: "text-red-400 bg-red-500/10 border-red-500/20",
+    title: "Risk Gate",
+    desc: "Hard rule-based gate that blocks any trade with bad RR, high volatility, or session violations. No bypass. No exceptions.",
   },
   {
     icon: <Clock className="h-5 w-5" />,
     color: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-    badge: "Pro",
     title: "Session Intelligence",
     desc: "Know exactly which trading session is active — London, New York, Tokyo — and get session-specific bias and key levels.",
   },
   {
     icon: <Newspaper className="h-5 w-5" />,
     color: "text-orange-400 bg-orange-500/10 border-orange-500/20",
-    badge: "Pro",
     title: "AI Catalysts Feed",
     desc: "Market-moving catalysts detected and scored in real-time. Never miss a news event that could flip your trade.",
   },
   {
-    icon: <BarChart2 className="h-5 w-5" />,
-    color: "text-purple-400 bg-purple-500/10 border-purple-500/20",
-    badge: "Pro",
-    title: "Candle Analysis AI",
-    desc: "AI-powered candlestick pattern detection with confluence scoring. Instantly identify high-probability setups across any timeframe.",
+    icon: <BrainCircuit className="h-5 w-5" />,
+    color: "text-sky-400 bg-sky-500/10 border-sky-500/20",
+    title: "Market Intelligence",
+    desc: "Deep AI analysis of macro conditions, market structure, and intermarket correlations across all asset classes.",
+  },
+  {
+    icon: <LayoutGrid className="h-5 w-5" />,
+    color: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+    title: "Asset Matrix",
+    desc: "Side-by-side comparison of asset performance, momentum, and bias. Spot the strongest and weakest assets at a glance.",
   },
   {
     icon: <Sparkles className="h-5 w-5" />,
     color: "text-pink-400 bg-pink-500/10 border-pink-500/20",
-    badge: "Pro",
     title: "AI Market Briefing",
-    desc: "Daily AI-generated market briefing covering macro outlook, key levels, session bias, and trade context — all in one read.",
+    desc: "Daily AI-generated briefing covering macro outlook, key levels, session bias, and trade context — all in one read.",
   },
   {
     icon: <AtSign className="h-5 w-5" />,
     color: "text-red-400 bg-red-500/10 border-red-500/20",
-    badge: "Pro",
     title: "Trump Monitor",
     desc: "Real-time tracking of Trump's Truth Social posts and statements that move markets. Stay ahead of politically-driven volatility.",
   },
   {
     icon: <DollarSign className="h-5 w-5" />,
     color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-    badge: "Pro",
     title: "PnL Calendar",
-    desc: "Visual calendar of your trading performance by day. Track wins, losses, and patterns in your trading history.",
-  },
-  {
-    icon: <Shield className="h-5 w-5" />,
-    color: "text-red-400 bg-red-500/10 border-red-500/20",
-    badge: "Pro",
-    title: "Risk Gate",
-    desc: "Hard rule-based gate inside Brain Terminal that blocks any trade with bad RR, high volatility, or session violations. No bypass.",
+    desc: "Visual calendar of your trading performance. Track wins, losses, and patterns in your daily trading history.",
   },
 ];
 
-// ── Stat bar ──────────────────────────────────────────────────────────────────
-const STATS = [
-  { value: "7", label: "AI Agents" },
-  { value: "4", label: "Asset Classes" },
-  { value: "5m", label: "Cache TTL" },
-  { value: "24/7", label: "Live Data" },
+const TESTIMONIALS = [
+  {
+    stars: 5,
+    quote: "The Brain Terminal changed how I approach every trade. Instead of second-guessing myself, I now have 7 AI agents giving me clear consensus. My win rate improved significantly in the first month.",
+    name: "Marcus R.",
+    role: "Forex trader, 4 years",
+    badge: "↑ Win rate improved 23%",
+    initials: "MR",
+  },
+  {
+    stars: 5,
+    quote: "The Risk Gate alone is worth $39/mo. It's blocked me from so many bad trades I would've taken. It's like having a strict trading coach that never lets you break your own rules.",
+    name: "Jamie L.",
+    role: "Gold & crypto trader",
+    badge: "↓ Losing trades down 40%",
+    initials: "JL",
+  },
+  {
+    stars: 5,
+    quote: "I was skeptical at first — another AI tool? But the market bias engine is genuinely accurate. I check it every London open and it's been right more than my own analysis for 3 months straight.",
+    name: "Aisha K.",
+    role: "Full-time day trader",
+    badge: "↑ 3 months consistent profit",
+    initials: "AK",
+  },
 ];
+
+// ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-[#070b14] text-white overflow-x-hidden">
+    <div
+      className="min-h-screen text-white overflow-x-hidden"
+      style={{ background: "#0a0d0f", fontFamily: "var(--font-space-grotesk), system-ui, sans-serif" }}
+    >
 
-      {/* ── Nav ─────────────────────────────────────────────────────────────── */}
-      <nav className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#070b14]/90 backdrop-blur-md">
+      {/* ── Nav ─────────────────────────────────────────────────────────── */}
+      <nav style={{ background: "rgba(10,13,15,0.92)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+        className="sticky top-0 z-50 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-5 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <Image src="/logo-transparent.png" alt="TradeX" width={32} height={32} />
-            <span className="font-bold text-sm tracking-wide">TradeX <span className="text-[#5fc77a]">Terminal</span></span>
+            <Image src="/logo-transparent.png" alt="TradeX" width={30} height={30} />
+            <span className="font-bold text-sm tracking-wide">TradeX <span style={{ color: "#4ade80" }}>Terminal</span></span>
+          </div>
+          <div className="hidden md:flex items-center gap-6 text-xs text-zinc-400">
+            <a href="#features" className="hover:text-white transition-colors">Features</a>
+            <a href="#preview" className="hover:text-white transition-colors">Preview</a>
+            <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
           </div>
           <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="text-xs text-zinc-400 hover:text-white transition-colors font-medium px-3 py-1.5"
-            >
+            <Link href="/login" className="text-xs text-zinc-400 hover:text-white transition-colors font-medium px-3 py-1.5">
               Log in
             </Link>
-            <Link
-              href="/pricing"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#5fc77a] px-4 py-1.5 text-xs font-bold text-[#070b14] hover:bg-[#4db366] transition-colors"
-            >
+            <Link href="/pricing"
+              className="inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-bold transition-colors"
+              style={{ background: "#4ade80", color: "#0a0d0f" }}>
               <Zap className="h-3 w-3" /> Get Pro
             </Link>
           </div>
         </div>
       </nav>
 
-      {/* ── Hero ────────────────────────────────────────────────────────────── */}
-      <section className="relative pt-20 pb-24 px-5 overflow-hidden">
-        {/* Background glow */}
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[#5fc77a]/[0.04] rounded-full blur-3xl" />
-          <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-violet-500/[0.04] rounded-full blur-3xl" />
+      {/* ── Hero ────────────────────────────────────────────────────────── */}
+      <section className="relative pt-24 pb-20 px-5 overflow-hidden">
+        {/* Glow blobs */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[500px] rounded-full opacity-[0.07] blur-3xl"
+            style={{ background: "radial-gradient(circle, #4ade80, transparent)" }} />
+          <div className="absolute top-32 right-0 w-[400px] h-[400px] rounded-full opacity-[0.04] blur-3xl"
+            style={{ background: "#8b5cf6" }} />
           {/* Grid */}
-          <div
-            className="absolute inset-0 opacity-[0.025]"
+          <div className="absolute inset-0 opacity-[0.02]"
             style={{
-              backgroundImage: "linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(90deg, #ffffff 1px, transparent 1px)",
+              backgroundImage: "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",
               backgroundSize: "48px 48px",
-            }}
-          />
+            }} />
         </div>
 
         <div className="relative max-w-4xl mx-auto text-center">
-          {/* Logo */}
-          <div className="flex justify-center mb-7">
-            <Image
-              src="/logo-transparent.png"
-              alt="TradeX Terminal"
-              width={88}
-              height={88}
-              className="drop-shadow-[0_0_24px_rgba(95,199,122,0.3)]"
-            />
-          </div>
+          <Image src="/logo-transparent.png" alt="TradeX Terminal" width={88} height={88}
+            className="mx-auto mb-7"
+            style={{ filter: "drop-shadow(0 0 28px rgba(74,222,128,0.35))" }} />
 
-          {/* Eyebrow */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#5fc77a]/25 bg-[#5fc77a]/[0.08] px-4 py-1.5 text-[11px] font-semibold text-[#5fc77a] tracking-wider mb-6">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#5fc77a] animate-pulse" />
+          <div className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-[11px] font-semibold tracking-wider mb-6"
+            style={{ borderColor: "rgba(74,222,128,0.25)", background: "rgba(74,222,128,0.08)", color: "#4ade80" }}>
+            <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "#4ade80" }} />
             MULTI-AGENT AI TRADING TERMINAL
           </div>
 
-          {/* Headline */}
-          <h1 className="text-4xl md:text-6xl font-black leading-[1.05] tracking-tight mb-5">
-            Your Edge. <br />
-            <span className="text-[#5fc77a]">AI-Powered.</span>
+          <h1 className="text-5xl md:text-7xl font-black leading-[1.02] tracking-tight mb-4">
+            Your Edge.<br />
+            <span style={{ color: "#4ade80" }}>AI-Powered.</span>
           </h1>
+
+          <p className="text-sm font-medium mb-4" style={{ color: "rgba(74,222,128,0.7)" }}>
+            Join 3,200+ active traders
+          </p>
 
           <p className="text-zinc-400 text-base md:text-lg max-w-2xl mx-auto leading-relaxed mb-9">
             TradeX Terminal gives serious traders 7 specialized AI agents, real-time market bias,
             candlestick AI, session intelligence, and a hard risk gate — all in one terminal.
           </p>
 
-          {/* CTAs */}
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <Link
-              href="/pricing"
-              className="inline-flex items-center gap-2 rounded-xl bg-[#5fc77a] px-7 py-3.5 text-sm font-bold text-[#070b14] hover:bg-[#4db366] transition-colors shadow-[0_0_24px_rgba(95,199,122,0.25)]"
-            >
-              <Zap className="h-4 w-4" />
-              Get Pro — $39/mo
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-5">
+            <Link href="/login"
+              className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-sm font-bold transition-all shadow-lg"
+              style={{ background: "#4ade80", color: "#0a0d0f", boxShadow: "0 0 28px rgba(74,222,128,0.3)" }}>
+              <Zap className="h-4 w-4" /> Start for Free
             </Link>
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-7 py-3.5 text-sm font-semibold text-white hover:bg-white/[0.07] transition-colors"
-            >
+            <Link href="/dashboard"
+              className="inline-flex items-center gap-2 rounded-xl border px-8 py-3.5 text-sm font-semibold transition-colors hover:bg-white/5"
+              style={{ borderColor: "rgba(255,255,255,0.1)" }}>
               Launch Terminal <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
 
-          {/* Android badge */}
-          <p className="mt-5 flex items-center justify-center gap-1.5 text-[11px] text-zinc-600">
-            <Smartphone className="h-3.5 w-3.5" />
-            Available on Android · Free to download
+          <p className="text-xs text-zinc-600 flex flex-wrap items-center justify-center gap-3">
+            <span>✓ No credit card required</span>
+            <span className="text-zinc-800">·</span>
+            <span>✓ Free plan forever</span>
+            <span className="text-zinc-800">·</span>
+            <span>✓ Cancel anytime</span>
           </p>
         </div>
       </section>
 
-      {/* ── Stats bar ───────────────────────────────────────────────────────── */}
-      <div className="border-y border-white/[0.05] bg-white/[0.02]">
+      {/* ── Stats bar ───────────────────────────────────────────────────── */}
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.015)" }}>
         <div className="max-w-4xl mx-auto px-5 py-5 grid grid-cols-2 md:grid-cols-4 gap-6">
-          {STATS.map(s => (
+          {[
+            { value: "3,200+", label: "Active Traders" },
+            { value: "7",      label: "AI Agents" },
+            { value: "4",      label: "Asset Classes" },
+            { value: "24/7",   label: "Live Data" },
+          ].map(s => (
             <div key={s.label} className="text-center">
-              <p className="text-2xl font-black text-[#5fc77a] font-mono">{s.value}</p>
+              <p className="text-2xl font-black font-mono" style={{ color: "#4ade80" }}>{s.value}</p>
               <p className="text-xs text-zinc-500 mt-0.5">{s.label}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* ── Features ────────────────────────────────────────────────────────── */}
-      <section className="py-20 px-5">
+      {/* ── Social proof bar ────────────────────────────────────────────── */}
+      <div style={{ background: "#111418", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+        <div className="max-w-5xl mx-auto px-5 py-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+          {[
+            { icon: "⭐", text: "4.9/5 average rating from 800+ reviews" },
+            { icon: "🏆", text: "#1 AI trading terminal for retail traders" },
+            { icon: "🔒", text: "Bank-grade security" },
+            { icon: "📱", text: "Available on Android" },
+          ].map(item => (
+            <div key={item.text} className="flex items-center gap-2 text-xs text-zinc-400">
+              <span>{item.icon}</span>
+              <span>{item.text}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Terminal Preview ─────────────────────────────────────────────── */}
+      <section id="preview" className="py-24 px-5" style={{ background: "#0a0d0f" }}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
-            <p className="text-xs font-bold tracking-[0.2em] text-[#5fc77a] uppercase mb-3">Features</p>
+            <p className="text-xs font-bold tracking-[0.2em] mb-3" style={{ color: "#4ade80" }}>PREVIEW</p>
+            <h2 className="text-2xl md:text-3xl font-black mb-3">See what you&apos;re getting</h2>
+            <p className="text-zinc-400 text-sm max-w-xl mx-auto">
+              This is the actual interface — real-time signals, AI bias, and agent consensus in one view.
+            </p>
+          </div>
+
+          {/* MacBook frame */}
+          <div className="relative mx-auto max-w-5xl">
+            {/* Screen bezel */}
+            <div className="rounded-2xl p-3 shadow-2xl"
+              style={{ background: "linear-gradient(180deg, #2a2a2a, #1a1a1a)", boxShadow: "0 40px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)" }}>
+              {/* Window chrome */}
+              <div className="rounded-xl overflow-hidden" style={{ background: "#0d1117" }}>
+                {/* Title bar */}
+                <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: "#111418", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full" style={{ background: "#ff5f57" }} />
+                    <div className="w-3 h-3 rounded-full" style={{ background: "#febc2e" }} />
+                    <div className="w-3 h-3 rounded-full" style={{ background: "#28c840" }} />
+                  </div>
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="rounded px-3 py-0.5 text-[10px] font-mono text-zinc-500" style={{ background: "rgba(255,255,255,0.04)" }}>
+                      tradexterminal.online/dashboard
+                    </div>
+                  </div>
+                  {/* Session pills */}
+                  <div className="hidden md:flex items-center gap-2 font-mono text-[9px]">
+                    <span className="px-2 py-0.5 rounded" style={{ background: "rgba(74,222,128,0.1)", color: "#4ade80" }}>● LDN OPEN</span>
+                    <span className="px-2 py-0.5 rounded text-zinc-500" style={{ background: "rgba(255,255,255,0.04)" }}>XAU/USD</span>
+                  </div>
+                </div>
+
+                {/* Terminal body */}
+                <div className="flex" style={{ minHeight: "400px", background: "#0a0d0f" }}>
+                  {/* Sidebar */}
+                  <div className="hidden md:flex flex-col w-36 shrink-0 py-3 px-2 gap-0.5"
+                    style={{ background: "#0d1117", borderRight: "1px solid rgba(255,255,255,0.05)" }}>
+                    <div className="flex items-center gap-1.5 px-2 py-1.5 mb-2">
+                      <Image src="/logo-transparent.png" alt="TX" width={18} height={18} />
+                      <span className="text-[10px] font-bold text-white">TradeX</span>
+                    </div>
+                    {[
+                      { label: "Dashboard", active: false },
+                      { label: "Market Bias", active: true },
+                      { label: "Catalysts", active: false },
+                      { label: "Economic Cal.", active: false },
+                      { label: "Trump Monitor", active: false },
+                      { label: "Asset Matrix", active: false },
+                      { label: "Sessions", active: false },
+                      { label: "News Flow", active: false },
+                      { label: "PnL Calendar", active: false },
+                    ].map(item => (
+                      <div key={item.label}
+                        className="flex items-center gap-1.5 px-2 py-1 rounded text-[9px] transition-colors"
+                        style={{
+                          background: item.active ? "rgba(74,222,128,0.1)" : "transparent",
+                          color: item.active ? "#4ade80" : "#6b7280",
+                        }}>
+                        <div className="w-1 h-1 rounded-full shrink-0"
+                          style={{ background: item.active ? "#4ade80" : "transparent" }} />
+                        {item.label}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Main content */}
+                  <div className="flex-1 p-4 overflow-hidden">
+                    {/* Asset chips */}
+                    <div className="flex gap-2 mb-4 flex-wrap">
+                      {[
+                        { pair: "XAU/USD", price: "4,514.10", change: "-0.84%", bias: "BEARISH", bpct: 62 },
+                        { pair: "EUR/USD", price: "1.1593",   change: "+0.08%", bias: "BULLISH", bpct: 71 },
+                        { pair: "BTC/USD", price: "103,240",  change: "-0.14%", bias: "NEUTRAL", bpct: 45 },
+                        { pair: "GBP/USD", price: "1.3484",   change: "+0.00%", bias: "BULLISH", bpct: 58 },
+                      ].map(a => (
+                        <div key={a.pair} className="rounded-lg px-3 py-2 flex-1 min-w-[90px]"
+                          style={{ background: "#111418", border: "1px solid rgba(255,255,255,0.07)" }}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[9px] font-bold text-white">{a.pair}</span>
+                            <span className="text-[8px] font-mono"
+                              style={{ color: a.change.startsWith("+") ? "#4ade80" : "#f87171" }}>
+                              {a.change}
+                            </span>
+                          </div>
+                          <div className="text-[10px] font-mono font-bold text-white mb-1.5">{a.price}</div>
+                          <div className="flex items-center gap-1">
+                            <div className="h-1 flex-1 rounded-full" style={{ background: "rgba(255,255,255,0.07)" }}>
+                              <div className="h-full rounded-full"
+                                style={{
+                                  width: `${a.bpct}%`,
+                                  background: a.bias === "BEARISH" ? "#f87171" : a.bias === "BULLISH" ? "#4ade80" : "#94a3b8",
+                                }} />
+                            </div>
+                            <span className="text-[7px] font-bold"
+                              style={{ color: a.bias === "BEARISH" ? "#f87171" : a.bias === "BULLISH" ? "#4ade80" : "#94a3b8" }}>
+                              {a.bias}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Verdict banner */}
+                    <div className="rounded-lg px-4 py-3 mb-4 flex items-center justify-between"
+                      style={{ background: "#111418", border: "1px solid rgba(255,255,255,0.07)" }}>
+                      <div>
+                        <div className="text-[9px] text-zinc-500 uppercase tracking-widest font-mono mb-1">MASTER VERDICT</div>
+                        <div className="text-2xl font-black text-white">NO TRADE</div>
+                        <div className="text-[9px] text-zinc-500 mt-0.5">Sweep gate: No confirmed session sweep detected.</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[9px] text-zinc-500 font-mono mb-1">CONVICTION</div>
+                        <div className="text-3xl font-black font-mono" style={{ color: "#f87171" }}>34</div>
+                        <div className="text-[8px]" style={{ color: "#f87171" }}>BEARISH</div>
+                      </div>
+                    </div>
+
+                    {/* Agent consensus */}
+                    <div className="rounded-lg p-3" style={{ background: "#111418", border: "1px solid rgba(255,255,255,0.07)" }}>
+                      <div className="text-[9px] text-zinc-500 uppercase tracking-widest font-mono mb-2.5">AGENT CONSENSUS</div>
+                      <div className="space-y-1.5">
+                        {[
+                          { name: "Trend Agent",       verdict: "BEARISH", pct: 28, color: "#f87171" },
+                          { name: "Price Action",      verdict: "BEARISH", pct: 48, color: "#f87171" },
+                          { name: "News Agent",        verdict: "BULLISH", pct: 83, color: "#4ade80" },
+                          { name: "Risk Gate",         verdict: "VALID",   pct: 100, color: "#4ade80" },
+                          { name: "Contrarian",        verdict: "NEUTRAL", pct: 26, color: "#94a3b8" },
+                          { name: "Master",            verdict: "NO TRADE",pct: 34, color: "#f97316" },
+                        ].map(a => (
+                          <div key={a.name} className="flex items-center gap-2">
+                            <div className="w-20 shrink-0 text-[8px] text-zinc-500">{a.name}</div>
+                            <span className="w-14 shrink-0 text-[8px] font-bold text-right" style={{ color: a.color }}>{a.verdict}</span>
+                            <div className="flex-1 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.06)" }}>
+                              <div className="h-full rounded-full" style={{ width: `${a.pct}%`, background: a.color, opacity: 0.7 }} />
+                            </div>
+                            <span className="w-6 shrink-0 text-[8px] font-mono text-zinc-600">{a.pct}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* MacBook base */}
+            <div className="mt-0 mx-auto h-5 rounded-b-xl" style={{ background: "linear-gradient(180deg,#2a2a2a,#1e1e1e)", width: "85%" }} />
+            <div className="mx-auto h-2 rounded-b-2xl" style={{ background: "#1a1a1a", width: "60%" }} />
+          </div>
+
+          <p className="text-center text-xs text-zinc-600 mt-6">
+            Actual TradeX Terminal interface — Market Bias view with 6-agent consensus
+          </p>
+        </div>
+      </section>
+
+      {/* ── Features ────────────────────────────────────────────────────── */}
+      <section id="features" className="py-20 px-5" style={{ background: "#111418" }}>
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-xs font-bold tracking-[0.2em] mb-3 uppercase" style={{ color: "#4ade80" }}>Features</p>
             <h2 className="text-2xl md:text-3xl font-black">Everything you need to trade with edge</h2>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {FEATURES.map(f => (
-              <div
-                key={f.title}
-                className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 hover:bg-white/[0.04] transition-colors"
-              >
+              <div key={f.title}
+                className="rounded-2xl p-5 transition-all duration-200 group cursor-default"
+                style={{
+                  background: "#151a1f",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(74,222,128,0.3)")}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)")}>
                 <div className="flex items-start justify-between mb-4">
-                  <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl border ${f.color}`}>
-                    {f.icon}
-                  </div>
-                  <span className="rounded-full border border-[#5fc77a]/30 bg-[#5fc77a]/10 px-2 py-0.5 text-[9px] font-bold tracking-wider text-[#5fc77a] uppercase">
+                  <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl border ${f.color}`}>{f.icon}</div>
+                  <span className="rounded-full border px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase"
+                    style={{ borderColor: "rgba(74,222,128,0.3)", background: "rgba(74,222,128,0.1)", color: "#4ade80" }}>
                     Pro
                   </span>
                 </div>
-                <h3 className="font-bold text-sm mb-2">{f.title}</h3>
+                <h3 className="font-bold text-sm mb-2 text-white">{f.title}</h3>
                 <p className="text-xs text-zinc-400 leading-relaxed">{f.desc}</p>
               </div>
             ))}
           </div>
 
-          {/* Free tools */}
-          <div className="mt-8 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
-            <p className="text-xs font-bold tracking-[0.15em] text-zinc-500 uppercase mb-4">Also included — free forever</p>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              {[
-                { icon: <Calendar className="h-4 w-4" />, label: "Economic Calendar" },
-                { icon: <Newspaper className="h-4 w-4" />, label: "News Feed" },
-                { icon: <Tv className="h-4 w-4" />, label: "Live TV" },
-                { icon: <MessageSquare className="h-4 w-4" />, label: "Community Chat" },
-                { icon: <BookOpen className="h-4 w-4" />, label: "Knowledge Base" },
-              ].map(item => (
-                <div key={item.label} className="flex items-center gap-2 text-xs text-zinc-400">
-                  <span className="text-zinc-600">{item.icon}</span>
-                  {item.label}
-                </div>
-              ))}
+          {/* Free forever bar */}
+          <div className="mt-8 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-5"
+            style={{ background: "#151a1f", border: "1px solid rgba(255,255,255,0.07)" }}>
+            <div>
+              <p className="text-xs font-bold tracking-[0.15em] text-zinc-500 uppercase mb-3">Also included — free forever</p>
+              <div className="flex flex-wrap gap-x-6 gap-y-2">
+                {[
+                  { icon: <Calendar className="h-3.5 w-3.5" />, label: "Economic Calendar" },
+                  { icon: <Newspaper className="h-3.5 w-3.5" />, label: "News Feed" },
+                  { icon: <Tv className="h-3.5 w-3.5" />, label: "Live TV" },
+                  { icon: <MessageSquare className="h-3.5 w-3.5" />, label: "Community Chat" },
+                  { icon: <BookOpen className="h-3.5 w-3.5" />, label: "Knowledge Base" },
+                ].map(item => (
+                  <div key={item.label} className="flex items-center gap-1.5 text-xs text-zinc-400">
+                    <span className="text-zinc-600">{item.icon}</span>{item.label}
+                  </div>
+                ))}
+              </div>
             </div>
+            <Link href="/login"
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border px-5 py-2.5 text-sm font-semibold transition-colors whitespace-nowrap hover:bg-white/5"
+              style={{ borderColor: "rgba(74,222,128,0.3)", color: "#4ade80" }}>
+              Start Free <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* ── Pricing ─────────────────────────────────────────────────────────── */}
-      <section className="py-20 px-5 bg-white/[0.015]" id="pricing">
-        <div className="max-w-4xl mx-auto">
+      {/* ── Testimonials ────────────────────────────────────────────────── */}
+      <section className="py-20 px-5" style={{ background: "#0a0d0f" }}>
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <p className="text-xs font-bold tracking-[0.2em] text-[#5fc77a] uppercase mb-3">Pricing</p>
+            <p className="text-xs font-bold tracking-[0.2em] mb-3 uppercase" style={{ color: "#4ade80" }}>Trader Reviews</p>
+            <h2 className="text-2xl md:text-3xl font-black">Real traders. Real results.</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {TESTIMONIALS.map(t => (
+              <div key={t.name} className="rounded-2xl p-6 flex flex-col gap-4"
+                style={{ background: "#151a1f", border: "1px solid rgba(255,255,255,0.07)" }}>
+                {/* Stars */}
+                <div className="flex gap-0.5">
+                  {Array.from({ length: t.stars }).map((_, i) => (
+                    <Star key={i} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                  ))}
+                </div>
+                {/* Quote */}
+                <p className="text-sm text-zinc-300 leading-relaxed flex-1">&ldquo;{t.quote}&rdquo;</p>
+                {/* Result badge */}
+                <div className="inline-flex self-start rounded-full px-3 py-1 text-[10px] font-bold"
+                  style={{ background: "rgba(74,222,128,0.1)", color: "#4ade80", border: "1px solid rgba(74,222,128,0.2)" }}>
+                  {t.badge}
+                </div>
+                {/* Author */}
+                <div className="flex items-center gap-3 pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black shrink-0"
+                    style={{ background: "rgba(74,222,128,0.15)", color: "#4ade80", border: "1px solid rgba(74,222,128,0.2)" }}>
+                    {t.initials}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white">{t.name}</p>
+                    <p className="text-[10px] text-zinc-500">{t.role}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Pricing ─────────────────────────────────────────────────────── */}
+      <section id="pricing" className="py-20 px-5" style={{ background: "#111418" }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-xs font-bold tracking-[0.2em] mb-3 uppercase" style={{ color: "#4ade80" }}>Pricing</p>
             <h2 className="text-2xl md:text-3xl font-black">Simple, transparent pricing</h2>
             <p className="text-zinc-400 text-sm mt-3">Start free. Upgrade when you need the edge.</p>
           </div>
@@ -293,153 +541,159 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
 
             {/* Free */}
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-7 flex flex-col">
-              <div>
-                <h3 className="text-lg font-bold mb-1">Free</h3>
-                <p className="text-zinc-500 text-sm mb-5">Essential tools for every trader</p>
-                <p className="text-4xl font-black font-mono mb-7">
-                  $0
-                  <span className="text-sm font-normal text-zinc-500 ml-1">/forever</span>
-                </p>
-                <ul className="space-y-2.5 mb-7">
-                  {FREE_FEATURES.map(f => (
-                    <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-400">
-                      <CheckCircle2 className="h-4 w-4 text-zinc-600 mt-0.5 shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="mt-auto">
-                <Link
-                  href="/login"
-                  className="flex items-center justify-center w-full rounded-xl border border-white/10 py-3 text-sm font-semibold text-zinc-300 hover:bg-white/[0.05] transition-colors"
-                >
-                  Get started free
-                </Link>
-              </div>
+            <div className="rounded-2xl p-7 flex flex-col"
+              style={{ background: "#151a1f", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <h3 className="text-lg font-bold mb-1">Free</h3>
+              <p className="text-zinc-500 text-sm mb-5">Essential tools for every trader</p>
+              <p className="text-4xl font-black font-mono mb-7">
+                $0<span className="text-sm font-normal text-zinc-500 ml-1">/forever</span>
+              </p>
+              <ul className="space-y-2 mb-7 flex-1">
+                {FREE_FEATURES.map(f => (
+                  <li key={f.label} className="flex items-start gap-2.5 text-sm">
+                    {f.locked
+                      ? <Ban className="h-4 w-4 shrink-0 mt-0.5 text-zinc-700" />
+                      : <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-zinc-600" />}
+                    <span className={f.locked ? "text-zinc-700 line-through" : "text-zinc-400"}>{f.label}</span>
+                  </li>
+                ))}
+              </ul>
+              <Link href="/login"
+                className="flex items-center justify-center w-full rounded-xl border py-3 text-sm font-semibold text-zinc-300 transition-colors hover:bg-white/5"
+                style={{ borderColor: "rgba(255,255,255,0.1)" }}>
+                Get started free
+              </Link>
             </div>
 
             {/* Pro Monthly */}
-            <div className="rounded-2xl border border-[#5fc77a]/30 bg-[#5fc77a]/[0.04] p-7 relative shadow-[0_0_60px_rgba(95,199,122,0.07)] flex flex-col">
+            <div className="rounded-2xl p-7 relative flex flex-col"
+              style={{ background: "#0e1a12", border: "1px solid rgba(74,222,128,0.3)", boxShadow: "0 0 60px rgba(74,222,128,0.07)" }}>
               <div className="absolute -top-3.5 left-6">
-                <span className="rounded-full border border-[#5fc77a]/40 bg-[#070b14] px-3 py-1 text-[10px] font-bold tracking-wider text-[#5fc77a] uppercase">
+                <span className="rounded-full border px-3 py-1 text-[10px] font-bold tracking-wider uppercase"
+                  style={{ borderColor: "rgba(74,222,128,0.4)", background: "#0a0d0f", color: "#4ade80" }}>
                   Most Popular
                 </span>
               </div>
-              <div>
-                <h3 className="text-lg font-bold mb-1">Pro Monthly</h3>
-                <p className="text-zinc-400 text-sm mb-5">Full AI-powered trading terminal</p>
-                <p className="text-4xl font-black font-mono text-[#5fc77a] mb-1">
-                  $39
-                  <span className="text-sm font-normal text-zinc-400 ml-1">/month</span>
-                </p>
-                <p className="text-xs text-zinc-600 mb-7">Billed monthly · Cancel anytime</p>
-                <ul className="space-y-2.5 mb-7">
-                  {PRO_FEATURES.map(f => (
-                    <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-300">
-                      <CheckCircle2 className="h-4 w-4 text-[#5fc77a] mt-0.5 shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="mt-auto">
-                <Link
-                  href="/pricing?billing=monthly"
-                  className="flex items-center justify-center gap-2 w-full rounded-xl bg-[#5fc77a] py-3 text-sm font-bold text-[#070b14] hover:bg-[#4db366] transition-colors"
-                >
-                  <Zap className="h-4 w-4" />
-                  Subscribe with PayPal
-                </Link>
-                <p className="text-center text-[10px] text-zinc-600 mt-3">Secure checkout · Cancel anytime</p>
-              </div>
+              <h3 className="text-lg font-bold mb-1">Pro Monthly</h3>
+              <p className="text-zinc-400 text-sm mb-5">Full AI-powered trading terminal</p>
+              <p className="text-4xl font-black font-mono mb-1" style={{ color: "#4ade80" }}>
+                $39<span className="text-sm font-normal text-zinc-400 ml-1">/month</span>
+              </p>
+              <p className="text-xs text-zinc-600 mb-7">Billed monthly · Cancel anytime</p>
+              <ul className="space-y-2 mb-7 flex-1">
+                {PRO_FEATURES.map(f => (
+                  <li key={f.label} className="flex items-start gap-2.5 text-sm">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" style={{ color: "#4ade80" }} />
+                    <span className={f.bold ? "text-white font-semibold" : "text-zinc-300"}>{f.label}</span>
+                  </li>
+                ))}
+              </ul>
+              <Link href="/pricing?billing=monthly"
+                className="flex items-center justify-center gap-2 w-full rounded-xl py-3 text-sm font-bold transition-colors"
+                style={{ background: "#4ade80", color: "#0a0d0f" }}>
+                <Zap className="h-4 w-4" /> Subscribe with PayPal
+              </Link>
+              <p className="text-center text-[10px] text-zinc-600 mt-3">Secure checkout · Cancel anytime</p>
             </div>
 
             {/* Pro Annual */}
-            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.03] p-7 relative shadow-[0_0_60px_rgba(245,158,11,0.06)] flex flex-col">
+            <div className="rounded-2xl p-7 relative flex flex-col"
+              style={{ background: "#130f06", border: "1px solid rgba(251,191,36,0.3)", boxShadow: "0 0 60px rgba(251,191,36,0.05)" }}>
               <div className="absolute -top-3.5 left-6">
-                <span className="rounded-full border border-amber-500/40 bg-[#070b14] px-3 py-1 text-[10px] font-bold tracking-wider text-amber-400 uppercase">
+                <span className="rounded-full border px-3 py-1 text-[10px] font-bold tracking-wider uppercase"
+                  style={{ borderColor: "rgba(251,191,36,0.4)", background: "#0a0d0f", color: "#fbbf24" }}>
                   Best Value
                 </span>
               </div>
-              <div>
-                <h3 className="text-lg font-bold mb-1">Pro Annual</h3>
-                <p className="text-zinc-400 text-sm mb-5">Full AI-powered trading terminal</p>
-                <div className="mb-1">
-                  <p className="text-4xl font-black font-mono text-amber-400">
-                    $399
-                    <span className="text-sm font-normal text-zinc-400 ml-1">/year</span>
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 mb-7">
-                  <span className="text-xs text-zinc-500">$33.25/mo</span>
-                  <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold text-amber-400">SAVE $69</span>
-                </div>
-                <ul className="space-y-2.5 mb-7">
-                  {PRO_FEATURES.map(f => (
-                    <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-300">
-                      <CheckCircle2 className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
+              <h3 className="text-lg font-bold mb-1">Pro Annual</h3>
+              <p className="text-zinc-400 text-sm mb-5">Full AI-powered trading terminal</p>
+              <p className="text-4xl font-black font-mono mb-1" style={{ color: "#fbbf24" }}>
+                $399<span className="text-sm font-normal text-zinc-400 ml-1">/year</span>
+              </p>
+              <div className="flex items-center gap-2 mb-7">
+                <span className="text-xs text-zinc-500">$33.25/mo</span>
+                <span className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                  style={{ background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.3)", color: "#fbbf24" }}>
+                  SAVE $69
+                </span>
               </div>
-              <div className="mt-auto">
-                <Link
-                  href="/pricing?billing=annual"
-                  className="flex items-center justify-center gap-2 w-full rounded-xl bg-amber-400 py-3 text-sm font-bold text-[#070b14] hover:bg-amber-300 transition-colors"
-                >
-                  <Zap className="h-4 w-4" />
-                  Subscribe with PayPal
-                </Link>
-                <p className="text-center text-[10px] text-zinc-600 mt-3">Secure checkout · Cancel anytime</p>
-              </div>
+              <ul className="space-y-2 mb-7 flex-1">
+                {PRO_FEATURES.map(f => (
+                  <li key={f.label} className="flex items-start gap-2.5 text-sm">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" />
+                    <span className={f.bold ? "text-white font-semibold" : "text-zinc-300"}>{f.label}</span>
+                  </li>
+                ))}
+              </ul>
+              <Link href="/pricing?billing=annual"
+                className="flex items-center justify-center gap-2 w-full rounded-xl py-3 text-sm font-bold transition-colors"
+                style={{ background: "#fbbf24", color: "#0a0d0f" }}>
+                <Zap className="h-4 w-4" /> Subscribe with PayPal
+              </Link>
+              <p className="text-center text-[10px] text-zinc-600 mt-3">Secure checkout · Cancel anytime</p>
             </div>
-
           </div>
+
+          {/* Money-back */}
+          <p className="text-center text-sm text-zinc-500 mt-8 flex items-center justify-center gap-2">
+            <Lock className="h-3.5 w-3.5" />
+            7-day money-back guarantee. No questions asked. Cancel anytime.
+          </p>
         </div>
       </section>
 
-      {/* ── CTA Banner ──────────────────────────────────────────────────────── */}
-      <section className="py-20 px-5">
-        <div className="max-w-3xl mx-auto text-center">
-          <Image
-            src="/logo-transparent.png"
-            alt="TradeX"
-            width={56}
-            height={56}
-            className="mx-auto mb-6 drop-shadow-[0_0_16px_rgba(95,199,122,0.25)]"
-          />
-          <h2 className="text-2xl md:text-3xl font-black mb-4">
-            Ready to trade smarter?
+      {/* ── Bottom CTA ──────────────────────────────────────────────────── */}
+      <section className="py-24 px-5 relative overflow-hidden" style={{ background: "#0a0d0f" }}>
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-[0.06] blur-3xl"
+            style={{ background: "#4ade80" }} />
+        </div>
+        <div className="relative max-w-3xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold mb-6"
+            style={{ borderColor: "rgba(74,222,128,0.2)", background: "rgba(74,222,128,0.06)", color: "#4ade80" }}>
+            <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "#4ade80" }} />
+            3,200+ traders already inside
+          </div>
+
+          <Image src="/logo-transparent.png" alt="TradeX" width={56} height={56}
+            className="mx-auto mb-6"
+            style={{ filter: "drop-shadow(0 0 16px rgba(74,222,128,0.25))" }} />
+
+          <h2 className="text-3xl md:text-4xl font-black mb-4">
+            Ready to stop guessing and<br className="hidden md:block" /> start trading with edge?
           </h2>
-          <p className="text-zinc-400 text-sm mb-8 max-w-md mx-auto">
-            Join traders using AI-powered analysis to get a real edge in Gold, Forex, Crypto, and Indices.
+          <p className="text-zinc-400 text-sm mb-10 max-w-lg mx-auto leading-relaxed">
+            Join thousands of traders who use TradeX to get AI-powered clarity on Gold, Forex,
+            Crypto, and Indices — every session.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-2 rounded-xl bg-[#5fc77a] px-8 py-3.5 text-sm font-bold text-[#070b14] hover:bg-[#4db366] transition-colors"
-            >
-              <Zap className="h-4 w-4" />
-              Start for Free
+
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
+            <Link href="/login"
+              className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-sm font-bold transition-all"
+              style={{ background: "#4ade80", color: "#0a0d0f", boxShadow: "0 0 28px rgba(74,222,128,0.25)" }}>
+              <Zap className="h-4 w-4" /> Start for Free
             </Link>
-            <Link
-              href="/pricing"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-8 py-3.5 text-sm font-semibold hover:bg-white/[0.05] transition-colors"
-            >
+            <Link href="#pricing"
+              className="inline-flex items-center gap-2 rounded-xl border px-8 py-3.5 text-sm font-semibold transition-colors hover:bg-white/5"
+              style={{ borderColor: "rgba(255,255,255,0.1)" }}>
               View Pricing
             </Link>
           </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-zinc-600">
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" /> No credit card required</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" /> Free plan forever</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" /> 7-day money-back guarantee</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" /> Cancel anytime</span>
+          </div>
         </div>
       </section>
 
-      {/* ── Footer ──────────────────────────────────────────────────────────── */}
-      <footer className="border-t border-white/[0.06] py-8 px-5">
+      {/* ── Footer ──────────────────────────────────────────────────────── */}
+      <footer style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }} className="py-8 px-5">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Image src="/logo-transparent.png" alt="TradeX" width={24} height={24} />
+            <Image src="/logo-transparent.png" alt="TradeX" width={22} height={22} />
             <span className="text-sm text-zinc-500">TradeX Terminal</span>
           </div>
           <div className="flex items-center gap-6 text-xs text-zinc-600">
