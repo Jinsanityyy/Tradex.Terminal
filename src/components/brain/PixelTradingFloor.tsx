@@ -2,9 +2,17 @@
 
 import type { CSSProperties } from "react";
 import { useState } from "react";
+import useSWR from "swr";
 import styles from "./PixelTradingFloor.module.css";
+import { useSettings } from "@/contexts/SettingsContext";
+import { useQuotes } from "@/hooks/useMarketData";
+import type { AgentRunResult, DirectionalBias, RiskGrade } from "@/lib/agents/schemas";
+import type { AssetSnapshot } from "@/types";
 
-type StationStatus = "TRADE-OK" | "NO-TRADE";
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type StationStatus = "TRADE-OK" | "NO-TRADE" | "ALERT";
+type SignalDir = "L" | "S" | "—";
 
 type OperatorLook = {
   skin: string;
@@ -22,33 +30,37 @@ type StationBlueprint = {
   label: string;
   left: number;
   top: number;
-  status: StationStatus;
+  baseStatus: StationStatus;
   seatedLook: OperatorLook;
 };
 
+type StationLive = { status: StationStatus; signal: SignalDir; confidence: number };
+
+// ─── Floor config ─────────────────────────────────────────────────────────────
+
 const STATION_BLUEPRINTS: StationBlueprint[] = [
   {
-    id: "trend", label: "TREND", left: 9, top: 5, status: "NO-TRADE",
+    id: "trend", label: "TREND", left: 9, top: 5, baseStatus: "NO-TRADE",
     seatedLook: { skin: "Ivory", hairStyle: "Parted Short", hairColor: "Brown", shirtColor: "Forest", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2, scale: 1.0 },
   },
   {
-    id: "pract", label: "PR.ACT", left: 30, top: 5, status: "NO-TRADE",
+    id: "pract", label: "PR.ACT", left: 30, top: 5, baseStatus: "NO-TRADE",
     seatedLook: { skin: "Gold", hairStyle: "Messy", hairColor: "Black", shirtColor: "Gray", pantsColor: "Black", shoesColor: "Black", seatFrame: 2, scale: 1.0 },
   },
   {
-    id: "news", label: "NEWS", left: 57, top: 5, status: "TRADE-OK",
+    id: "news", label: "NEWS", left: 57, top: 5, baseStatus: "TRADE-OK",
     seatedLook: { skin: "Dove", hairStyle: "Plain", hairColor: "White", shirtColor: "Teal", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2, scale: 1.0 },
   },
   {
-    id: "risk", label: "RISK", left: 83, top: 5, status: "NO-TRADE",
+    id: "risk", label: "RISK", left: 83, top: 5, baseStatus: "NO-TRADE",
     seatedLook: { skin: "Copper", hairStyle: "Swoop", hairColor: "Black", shirtColor: "Maroon", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2, scale: 1.0 },
   },
   {
-    id: "exec", label: "EXEC", left: 19, top: 55, status: "NO-TRADE",
+    id: "exec", label: "EXEC", left: 19, top: 55, baseStatus: "NO-TRADE",
     seatedLook: { skin: "Coffee", hairStyle: "Buzzcut", hairColor: "Black", shirtColor: "Navy", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2, scale: 1.0 },
   },
   {
-    id: "cntr", label: "CNTR", left: 73, top: 55, status: "TRADE-OK",
+    id: "cntr", label: "CNTR", left: 73, top: 55, baseStatus: "TRADE-OK",
     seatedLook: { skin: "Sienna", hairStyle: "Curly Short", hairColor: "Chestnut", shirtColor: "Purple", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2, scale: 1.0 },
   },
 ];
@@ -72,6 +84,74 @@ const FLOOR_DROPS: CSSProperties[] = [
   { left: "50%", top: "27%", height: "36%" },
   { left: "73%", top: "27%", height: "36%" },
 ];
+
+// ─── Real-data helpers ────────────────────────────────────────────────────────
+
+const swrFetch = (url: string) =>
+  fetch(url).then(r => { if (!r.ok) throw new Error(r.status.toString()); return r.json(); });
+
+function biasToSignal(b: DirectionalBias | undefined): SignalDir {
+  return b === "bullish" ? "L" : b === "bearish" ? "S" : "—";
+}
+function biasToStatus(b: DirectionalBias | undefined, c: number): StationStatus {
+  if (!b || b === "neutral") return "NO-TRADE";
+  return c < 40 ? "ALERT" : "TRADE-OK";
+}
+function gradeToConf(g: RiskGrade | undefined): number {
+  return g ? ({ A: 88, B: 72, C: 55, D: 38, F: 20 } as Record<RiskGrade, number>)[g] : 50;
+}
+
+function deriveStations(data: AgentRunResult): Record<string, StationLive> {
+  const { agents: ag } = data;
+  return {
+    trend: {
+      status: biasToStatus(ag.trend.bias, ag.trend.confidence),
+      signal: biasToSignal(ag.trend.bias),
+      confidence: ag.trend.confidence,
+    },
+    pract: {
+      status: ag.smc.setupPresent ? biasToStatus(ag.smc.bias, ag.smc.confidence) : "NO-TRADE",
+      signal: biasToSignal(ag.smc.bias),
+      confidence: ag.smc.confidence,
+    },
+    news: {
+      status: ag.news.riskScore > 70 ? "ALERT" : biasToStatus(ag.news.impact, ag.news.confidence),
+      signal: biasToSignal(ag.news.impact),
+      confidence: ag.news.confidence,
+    },
+    risk: {
+      status: ag.risk.valid ? "TRADE-OK" : "ALERT",
+      signal: ag.risk.valid ? "—" : "S",
+      confidence: gradeToConf(ag.risk.grade),
+    },
+    exec: {
+      status: ag.execution.signalState === "ARMED" ? "TRADE-OK"
+        : ag.execution.signalState === "NO_TRADE" ? "NO-TRADE" : "ALERT",
+      signal: ag.execution.direction === "long" ? "L"
+        : ag.execution.direction === "short" ? "S" : "—",
+      confidence: Math.min(95, ag.execution.confluenceCount * 10),
+    },
+    cntr: {
+      status: ag.contrarian.challengesBias ? "ALERT" : "NO-TRADE",
+      signal: ag.contrarian.challengesBias
+        ? (ag.trend.bias === "bullish" ? "S" : "L") : "—",
+      confidence: ag.contrarian.trapConfidence,
+    },
+  };
+}
+
+function buildTicker(quotes: AssetSnapshot[]): string {
+  if (!quotes.length) return "TRDX://ENGINE ACTIVE · MKT-SCAN RUNNING · LOADING PRICES... · ";
+  return (
+    quotes.map(q => {
+      const dir = q.changePercent > 0 ? "▲" : q.changePercent < 0 ? "▼" : "·";
+      const p = q.price < 10 ? q.price.toFixed(5) : q.price < 1000 ? q.price.toFixed(3) : Math.round(q.price).toString();
+      return `${q.symbol} ${p} ${dir}`;
+    }).join(" · ") + " · "
+  );
+}
+
+// ─── Sprite helpers ───────────────────────────────────────────────────────────
 
 function assetUrl(path: string) { return encodeURI(path); }
 function seatedBaseUrl(skin: string) {
@@ -116,13 +196,33 @@ function SeatedOperator({ look, className }: { look: OperatorLook; className?: s
   );
 }
 
+// ─── Station-to-drawer mapping ────────────────────────────────────────────────
+
 const STATION_TO_DRAWER: Record<string, string> = {
   trend: "trend", pract: "smc", news: "news",
   risk: "risk", exec: "execution", cntr: "contrarian",
 };
 
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: string) => void }) {
+  const { settings } = useSettings();
+  const { quotes } = useQuotes(30_000);
+  const { data: runData } = useSWR<AgentRunResult>(
+    `/api/agents/run?symbol=${settings.selectedSymbol}&timeframe=H1`,
+    swrFetch,
+    { revalidateOnFocus: false, dedupingInterval: 300_000 },
+  );
+
   const [selectedId, setSelectedId] = useState("risk");
+
+  const liveStates = runData ? deriveStations(runData) : null;
+  const masterFinalBias = runData?.agents.master.finalBias;
+  const masterConf = runData?.agents.master.confidence ?? 0;
+  const masterLabel = masterConf > 0
+    ? (masterFinalBias === "bullish" ? "BULLISH" : masterFinalBias === "bearish" ? "BEARISH" : "NO-TRADE")
+    : "MASTER";
+  const tickerText = buildTicker(quotes);
 
   return (
     <main className={styles.root}>
@@ -139,7 +239,10 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
           </div>
 
           <div className={styles.upperFloor}>
-            <div className={styles.wallDisplay} aria-hidden="true" />
+            {/* Live ticker */}
+            <div className={styles.wallDisplay} aria-hidden="true">
+              <span className={styles.wallTicker}>{tickerText}{tickerText}</span>
+            </div>
 
             {/* Corner plants */}
             <div className={styles.cornerPlant} style={{ left: "1.5%", top: "8%" }} aria-hidden="true" />
@@ -152,17 +255,29 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
 
             {STATION_BLUEPRINTS.map((station) => {
               const isSelected = selectedId === station.id;
-              const ok = station.status === "TRADE-OK";
+              const live = liveStates?.[station.id];
+              const status = live?.status ?? station.baseStatus;
+              const ok = status === "TRADE-OK";
+              const alert = status === "ALERT";
+              const signal = live?.signal ?? "—";
+              const confidence = live?.confidence ?? 0;
               return (
                 <button
                   key={station.id}
                   type="button"
-                  className={`${styles.stationPod} ${isSelected ? styles.stationSelected : ""}`}
+                  className={`${styles.stationPod} ${isSelected ? styles.stationSelected : ""} ${alert ? styles.stationAlert : ""}`}
                   style={{ left: `${station.left}%`, top: `${station.top}%` }}
                   onClick={() => { setSelectedId(station.id); onAgentClick?.(STATION_TO_DRAWER[station.id] ?? station.id); }}
                   aria-pressed={isSelected}
                 >
                   <div className={`${styles.stationBody} ${isSelected ? styles.stationBodySelected : ""}`}>
+
+                    {/* Signal direction badge */}
+                    {live && (
+                      <div className={`${styles.sigBadge} ${signal === "L" ? styles.sigL : signal === "S" ? styles.sigS : styles.sigN}`}>
+                        {signal}
+                      </div>
+                    )}
 
                     <div className={styles.stationKeyboard} aria-hidden="true" />
 
@@ -171,18 +286,24 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
                     </div>
 
                     <div className={styles.monitorGroup}>
-                      <div className={`${styles.monitorBezel} ${ok ? styles.monitorOk : styles.monitorNoTrade}`}>
+                      <div className={`${styles.monitorBezel} ${ok ? styles.monitorOk : alert ? styles.monitorAlert : styles.monitorNoTrade}`}>
                         <div className={styles.monitorScreen} />
-                        <span className={ok ? styles.monitorLabelOk : styles.monitorLabelBad}>{station.label}</span>
-                        <span className={`${styles.statusLed} ${ok ? styles.ledOk : styles.ledNoTrade}`} aria-hidden="true" />
+                        <span className={ok ? styles.monitorLabelOk : alert ? styles.monitorLabelAlert : styles.monitorLabelBad}>
+                          {station.label}
+                        </span>
+                        <span className={`${styles.statusLed} ${ok ? styles.ledOk : alert ? styles.ledAlert : styles.ledNoTrade}`} aria-hidden="true" />
                       </div>
                       <div className={styles.monitorNeck} />
                       <div className={styles.monitorBase} />
                     </div>
 
-                    {station.id === "risk" && (
+                    {station.id === "risk" && alert && (
                       <div className={styles.riskBadge} aria-hidden="true">!</div>
                     )}
+                  </div>
+
+                  <div className={styles.confLabel}>
+                    {live ? `${confidence}%` : ""}
                   </div>
                 </button>
               );
@@ -197,7 +318,9 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
               <div className={styles.monitorGroup}>
                 <div className={`${styles.monitorBezel} ${styles.masterBezel}`}>
                   <div className={styles.monitorScreen} />
-                  <span className={styles.masterLabel}>MASTER</span>
+                  <span className={`${styles.masterLabel} ${masterFinalBias === "bullish" ? styles.masterBiasLong : masterFinalBias === "bearish" ? styles.masterBiasShort : ""}`}>
+                    {masterLabel}
+                  </span>
                   <span className={`${styles.statusLed} ${styles.ledOk} ${styles.masterLed}`} aria-hidden="true" />
                 </div>
                 <div className={styles.monitorNeck} />
