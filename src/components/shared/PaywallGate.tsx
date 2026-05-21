@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Lock, Zap, ArrowRight, Loader2, RefreshCw } from "lucide-react";
+import { Lock, Zap, ArrowRight, Loader2, ExternalLink, RefreshCw, CheckCircle2 } from "lucide-react";
 import { useSubscription, canAccess } from "@/hooks/useSubscription";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { purchasePro, restorePurchases, initRevenueCat, checkNativeEntitlement } from "@/lib/billing/revenuecat";
-import { createClient } from "@/lib/supabase/client";
+
+const WEB_URL = "https://tradex-ten.vercel.app";
 
 interface PaywallGateProps {
   children: React.ReactNode;
@@ -28,24 +28,18 @@ function isNativeAndroid(): boolean {
   return !!(window as any).Capacitor?.isNativePlatform?.();
 }
 
+function openBrowser(url: string) {
+  // _system opens in device's default browser (not in-app WebView)
+  window.open(url, "_system");
+}
+
 export function PaywallGate({ children }: PaywallGateProps) {
   const pathname = usePathname();
   const { subscription, loading } = useSubscription();
-  const [purchasing, setPurchasing] = useState(false);
-  const [restoring, setRestoring] = useState(false);
-  const [purchaseError, setPurchaseError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshed, setRefreshed] = useState(false);
   const [billing, setBilling] = useState<"monthly" | "annual">("annual");
   const isNative = isNativeAndroid();
-
-  // Init RevenueCat once we know the user
-  useEffect(() => {
-    if (!isNative) return;
-    const supabase = createClient();
-    if (!supabase) return;
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) initRevenueCat(user.id);
-    });
-  }, [isNative]);
 
   if (loading) {
     return (
@@ -60,31 +54,12 @@ export function PaywallGate({ children }: PaywallGateProps) {
 
   const name = PAGE_NAMES[pathname] ?? "This Feature";
 
-  async function handlePurchase() {
-    setPurchaseError("");
-    setPurchasing(true);
-    const result = await purchasePro(billing);
-    setPurchasing(false);
-
-    if (result.success) {
-      // Verify entitlement and reload
-      await checkNativeEntitlement();
-      window.location.reload();
-    } else if (result.error !== "cancelled") {
-      setPurchaseError("Purchase failed. Please try again or contact support.");
-    }
-  }
-
-  async function handleRestore() {
-    setPurchaseError("");
-    setRestoring(true);
-    const restored = await restorePurchases();
-    setRestoring(false);
-    if (restored) {
-      window.location.reload();
-    } else {
-      setPurchaseError("No active subscription found to restore.");
-    }
+  async function handleRefresh() {
+    setRefreshing(true);
+    // Small delay then reload — Supabase subscription will re-fetch
+    await new Promise(r => setTimeout(r, 1200));
+    setRefreshed(true);
+    setTimeout(() => window.location.reload(), 600);
   }
 
   return (
@@ -100,7 +75,7 @@ export function PaywallGate({ children }: PaywallGateProps) {
         </div>
 
         {/* Badge */}
-        <div className="flex items-center justify-center gap-2 mb-4">
+        <div className="flex items-center justify-center mb-4">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(142,71%,45%)]/30 bg-[hsl(142,71%,45%)]/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[hsl(142,71%,45%)]">
             <Zap className="h-3 w-3" />
             Pro Feature
@@ -130,7 +105,7 @@ export function PaywallGate({ children }: PaywallGateProps) {
           <button
             onClick={() => setBilling("annual")}
             className={cn(
-              "flex-1 rounded-lg py-2 text-xs font-semibold transition-all relative",
+              "flex-1 rounded-lg py-2 text-xs font-semibold transition-all",
               billing === "annual"
                 ? "bg-[hsl(var(--card))] text-[hsl(var(--foreground))] shadow-sm"
                 : "text-[hsl(var(--muted-foreground))]"
@@ -143,7 +118,7 @@ export function PaywallGate({ children }: PaywallGateProps) {
           </button>
         </div>
 
-        {/* Price display */}
+        {/* Price */}
         <div className="rounded-xl bg-[hsl(var(--secondary))] px-4 py-4 mb-5">
           {billing === "monthly" ? (
             <>
@@ -153,62 +128,61 @@ export function PaywallGate({ children }: PaywallGateProps) {
           ) : (
             <>
               <p className="text-3xl font-bold font-mono text-[hsl(142,71%,45%)]">$399</p>
-              <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">per year · $33.25/mo</p>
+              <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">per year · $33.25/mo · save $69</p>
             </>
           )}
         </div>
 
-        {/* Error */}
-        {purchaseError && (
-          <p className="text-xs text-red-400 mb-3">{purchaseError}</p>
-        )}
-
-        {/* CTA — native Android uses Google Play Billing, web uses Stripe */}
+        {/* CTA */}
         {isNative ? (
+          // ── Android: open website in browser ──────────────────────────────────
           <>
             <button
-              onClick={handlePurchase}
-              disabled={purchasing}
-              className={cn(
-                "flex items-center justify-center gap-2 w-full rounded-xl border border-[hsl(142,71%,45%)]/40 py-3 text-sm font-semibold transition-all",
-                "bg-[hsl(142,71%,45%)]/10 text-[hsl(142,71%,45%)] active:opacity-70",
-                purchasing && "opacity-50 cursor-not-allowed"
-              )}
+              onClick={() => openBrowser(`${WEB_URL}/pricing?billing=${billing}`)}
+              className="flex items-center justify-center gap-2 w-full rounded-xl border border-[hsl(142,71%,45%)]/40 bg-[hsl(142,71%,45%)]/10 py-3 text-sm font-semibold text-[hsl(142,71%,45%)] active:opacity-70 transition-all"
             >
-              {purchasing
-                ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</>
-                : <><Zap className="h-4 w-4" /> Subscribe with Google Play</>
-              }
+              <ExternalLink className="h-4 w-4" />
+              Subscribe at tradex-ten.vercel.app
             </button>
+
+            <div className="flex items-center gap-3 my-4">
+              <div className="flex-1 h-px bg-white/5" />
+              <span className="text-[10px] text-[hsl(var(--muted-foreground))]">already subscribed?</span>
+              <div className="flex-1 h-px bg-white/5" />
+            </div>
+
             <button
-              onClick={handleRestore}
-              disabled={restoring}
-              className="flex items-center justify-center gap-1.5 w-full mt-3 py-2 text-xs text-[hsl(var(--muted-foreground))] active:opacity-70"
+              onClick={handleRefresh}
+              disabled={refreshing || refreshed}
+              className="flex items-center justify-center gap-2 w-full rounded-xl border border-white/10 py-2.5 text-xs font-medium text-[hsl(var(--muted-foreground))] active:opacity-70 disabled:opacity-50 transition-all"
             >
-              {restoring
-                ? <><Loader2 className="h-3 w-3 animate-spin" /> Restoring…</>
-                : <><RefreshCw className="h-3 w-3" /> Restore purchases</>
+              {refreshed
+                ? <><CheckCircle2 className="h-3.5 w-3.5 text-[hsl(142,71%,45%)]" /> Checking access…</>
+                : refreshing
+                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking…</>
+                : <><RefreshCw className="h-3.5 w-3.5" /> I already subscribed — refresh</>
               }
             </button>
+
+            <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-4 leading-relaxed">
+              Subscribe using the same email as your TradeX account. Access syncs automatically.
+            </p>
           </>
         ) : (
-          <Link
-            href={`/api/stripe/checkout?plan=pro&billing=${billing}`}
-            className={cn(
-              "flex items-center justify-center gap-2 w-full rounded-xl border border-[hsl(142,71%,45%)]/40 py-3 text-sm font-semibold transition-all",
-              "bg-[hsl(142,71%,45%)]/10 text-[hsl(142,71%,45%)] hover:bg-[hsl(142,71%,45%)]/15"
-            )}
-          >
-            Get Pro <ArrowRight className="h-4 w-4" />
-          </Link>
+          // ── Web: direct Stripe checkout ────────────────────────────────────────
+          <>
+            <Link
+              href={`/api/stripe/checkout?plan=pro&billing=${billing}`}
+              className="flex items-center justify-center gap-2 w-full rounded-xl border border-[hsl(142,71%,45%)]/40 bg-[hsl(142,71%,45%)]/10 py-3 text-sm font-semibold text-[hsl(142,71%,45%)] hover:bg-[hsl(142,71%,45%)]/15 transition-all"
+            >
+              <Zap className="h-4 w-4" />
+              Get Pro <ArrowRight className="h-4 w-4" />
+            </Link>
+            <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-4">
+              7-day free trial · Cancel anytime · Secure checkout
+            </p>
+          </>
         )}
-
-        <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-4">
-          {isNative
-            ? "Payment processed securely by Google Play. Cancel anytime in your Google account."
-            : "7-day free trial · Cancel anytime · Secure checkout"
-          }
-        </p>
       </div>
     </div>
   );
