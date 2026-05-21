@@ -655,7 +655,7 @@
     flex-direction: row;
     align-items: flex-end;
     gap: 12px;
-    align-self: flex-start;
+    align-self: center;
   }
   .masterReadout {
     min-height: unset;
