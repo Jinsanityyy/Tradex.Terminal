@@ -5,7 +5,8 @@ import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const TABS = [
-  { id: "bias",   label: "Market Bias",       route: "market-bias",       sidebar: "bias"    },
+  { id: "dash",   label: "Dashboard",          route: "",                  sidebar: "dashboard"},
+  { id: "bias",   label: "Market Bias",        route: "market-bias",       sidebar: "bias"    },
   { id: "cal",    label: "Economic Calendar",  route: "economic-calendar", sidebar: "calendar"},
   { id: "trump",  label: "Trump Monitor",      route: "trump-monitor",     sidebar: "trump"   },
   { id: "pnlcal", label: "PnL Calendar",       route: "pnl-calendar",      sidebar: "pnl"     },
@@ -27,6 +28,275 @@ const SIDEBAR = [
   { label: "Candle Analysis",    id: "candle"      },
   { label: "Settings",           id: "settings"    },
 ];
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+function DashboardView() {
+  const chatMessages = [
+    { name: "Gold Kuya Trader", time: "00:28", msg: "Text lng mga kuys", self: false },
+    { name: "bslw",            time: "00:42", msg: "bslw",              self: false },
+    { name: "tramyer0118",     time: "00:46", msg: "nagmatrade na ba kayo?", self: false },
+    { name: "Gold Kuya Trader", time: "00:31", msg: "Yes boss",         self: false },
+    { name: "jinsanityyy",     time: "",       msg: "Working na working", self: true },
+  ];
+  return (
+    <div className="flex-1 flex overflow-hidden" style={{ background: "#0a0d0f", minHeight: 420 }}>
+      {/* Main panels grid */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top row: Globe | Live TV | Economic Calendar */}
+        <div className="flex flex-1 overflow-hidden" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+          {/* TradeX Globe */}
+          <div className="flex-1 flex flex-col overflow-hidden" style={{ borderRight: "1px solid rgba(255,255,255,0.05)" }}>
+            <div className="flex items-center justify-between px-2 py-1 shrink-0"
+              style={{ background: "#111418", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+              <span className="text-[8px] font-bold text-zinc-400">TRADEX GLOBE</span>
+              <div className="flex gap-1">
+                <span className="text-[6px] rounded px-1.5 py-0.5 text-zinc-500" style={{ background: "rgba(255,255,255,0.05)" }}>Open</span>
+              </div>
+            </div>
+            <div className="flex-1 flex items-center justify-center relative overflow-hidden"
+              style={{ background: "radial-gradient(circle at 50% 60%, #0d1e1a 0%, #050a0d 70%)" }}>
+              <svg viewBox="0 0 120 100" className="w-36 h-28">
+                <defs>
+                  <radialGradient id="globe" cx="45%" cy="42%" r="50%">
+                    <stop offset="0%" stopColor="#0d3028" />
+                    <stop offset="100%" stopColor="#040c10" />
+                  </radialGradient>
+                </defs>
+                <ellipse cx="52" cy="50" rx="38" ry="38" fill="url(#globe)" stroke="rgba(74,222,128,0.12)" strokeWidth="0.5" />
+                {/* grid lines */}
+                {[0,1,2,3].map(i => (
+                  <ellipse key={i} cx="52" cy="50" rx={38} ry={8 + i * 10} fill="none" stroke="rgba(74,222,128,0.06)" strokeWidth="0.4" />
+                ))}
+                <line x1="14" y1="50" x2="90" y2="50" stroke="rgba(74,222,128,0.06)" strokeWidth="0.4" />
+                {/* glowing dots */}
+                {[
+                  { cx: 40, cy: 32 }, { cx: 62, cy: 45 }, { cx: 30, cy: 55 },
+                  { cx: 70, cy: 38 }, { cx: 48, cy: 60 }, { cx: 58, cy: 28 },
+                ].map((d, i) => (
+                  <circle key={i} cx={d.cx} cy={d.cy} r="2" fill="#4ade80" opacity="0.7">
+                    <animate attributeName="opacity" values="0.4;1;0.4" dur={`${1.5 + i * 0.3}s`} repeatCount="indefinite" />
+                  </circle>
+                ))}
+              </svg>
+            </div>
+          </div>
+          {/* Live TV */}
+          <div className="flex-1 flex flex-col overflow-hidden" style={{ borderRight: "1px solid rgba(255,255,255,0.05)" }}>
+            <div className="flex items-center justify-between px-2 py-1 shrink-0"
+              style={{ background: "#111418", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+              <div className="flex items-center gap-1">
+                <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#ef4444" }} />
+                <span className="text-[8px] font-bold text-zinc-400">LIVE TV</span>
+              </div>
+              <div className="flex gap-1">
+                {["Bloomberg TV", "CNBC", "Reuters TV"].map((ch, i) => (
+                  <span key={ch} className="text-[6px] rounded px-1.5 py-0.5"
+                    style={{ background: i === 0 ? "rgba(59,130,246,0.2)" : "rgba(255,255,255,0.04)", color: i === 0 ? "#60a5fa" : "#6b7280" }}>{ch}</span>
+                ))}
+              </div>
+            </div>
+            <div className="flex-1 relative overflow-hidden flex items-center justify-center"
+              style={{ background: "#0a0f14" }}>
+              {/* TV screenshot simulation */}
+              <div className="w-full h-full relative flex items-end justify-start"
+                style={{ background: "linear-gradient(135deg,#0d1821 0%,#1a2535 50%,#0d1821 100%)" }}>
+                {/* TV overlay */}
+                <div className="absolute top-1 right-1 flex items-center gap-0.5 rounded px-1 py-0.5"
+                  style={{ background: "rgba(239,68,68,0.85)" }}>
+                  <div className="w-1 h-1 rounded-full bg-white animate-pulse" />
+                  <span className="text-[6px] font-bold text-white">LIVE</span>
+                </div>
+                {/* News ticker */}
+                <div className="absolute bottom-0 left-0 right-0 flex items-center gap-2 px-2 py-0.5"
+                  style={{ background: "#1a1a6e", borderTop: "2px solid #ef4444" }}>
+                  <span className="text-[6px] font-bold text-white shrink-0">BLOOMBERG</span>
+                  <span className="text-[6px] text-zinc-300 truncate">GOLD RISES 2.55 · XAU/USD +2.43% · CRUDE OIL MARKETS ·</span>
+                </div>
+                {/* Price graphic */}
+                <div className="absolute top-2 right-6 text-right">
+                  <div className="text-[9px] font-black text-white">2.55</div>
+                  <div className="text-[7px] font-bold" style={{ color: "#4ade80" }}>+2.43%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* Economic Calendar mini */}
+          <div className="w-36 shrink-0 flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-2 py-1 shrink-0"
+              style={{ background: "#111418", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+              <span className="text-[8px] font-bold text-zinc-400">ECONOMIC CALENDAR</span>
+            </div>
+            <div className="flex-1 p-1.5 space-y-1 overflow-hidden">
+              <div className="grid grid-cols-3 gap-1 mb-1">
+                {[
+                  { l: "BIAS", v: "Neutral", c: "#f59e0b" },
+                  { l: "LIVE", v: "0",       c: "#ffffff" },
+                  { l: "QUEUE",v: "1",       c: "#ffffff" },
+                ].map(s => (
+                  <div key={s.l} className="rounded p-1" style={{ background: "#111418" }}>
+                    <div className="text-[5px] text-zinc-600 uppercase">{s.l}</div>
+                    <div className="text-[7px] font-bold" style={{ color: s.c }}>{s.v}</div>
+                  </div>
+                ))}
+              </div>
+              {[
+                { time: "22:00", name: "Revised UoM Consumer Sentiment", imp: "MED", xau: "GOLD NEUTRAL", usd: "USD NEUTRAL" },
+                { time: "22:00", name: "FOMC Meeting Minutes",            imp: "HIGH",xau: "GOLD NEUTRAL", usd: "USD NEUTRAL" },
+              ].map(ev => (
+                <div key={ev.name} className="rounded p-1.5 space-y-0.5"
+                  style={{ background: "#111418", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[6px] font-mono text-zinc-500">{ev.time}</span>
+                    <span className="rounded px-1 py-0.5 text-[5px] font-bold"
+                      style={{ background: ev.imp === "HIGH" ? "rgba(239,68,68,0.2)" : "rgba(234,179,8,0.2)", color: ev.imp === "HIGH" ? "#f87171" : "#fbbf24" }}>
+                      {ev.imp}
+                    </span>
+                  </div>
+                  <div className="text-[7px] font-bold text-white leading-tight">{ev.name}</div>
+                  <div className="flex gap-0.5">
+                    <span className="text-[5px] rounded px-1 py-0.5 text-zinc-500" style={{ background: "rgba(255,255,255,0.05)" }}>{ev.xau}</span>
+                    <span className="text-[5px] rounded px-1 py-0.5 text-zinc-500" style={{ background: "rgba(255,255,255,0.05)" }}>{ev.usd}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom row: Terminal chart | Trump Monitor | PnL Calendar */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Terminal / Chart */}
+          <div className="flex-1 flex flex-col overflow-hidden" style={{ borderRight: "1px solid rgba(255,255,255,0.05)" }}>
+            <div className="flex items-center gap-2 px-2 py-1 shrink-0"
+              style={{ background: "#111418", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+              <span className="text-[8px] font-bold text-zinc-400">TERMINAL</span>
+              <div className="flex items-center gap-1 ml-1">
+                <span className="rounded px-1.5 py-0.5 text-[6px] font-bold" style={{ background: "rgba(74,222,128,0.15)", color: "#4ade80" }}>XAU/USD</span>
+                {["1m","5m","15m","30m","1H","4H","1D"].map((t, i) => (
+                  <span key={t} className="text-[6px] px-1 rounded font-mono"
+                    style={{ background: i === 4 ? "rgba(255,255,255,0.1)" : "transparent", color: i === 4 ? "#fff" : "#6b7280" }}>{t}</span>
+                ))}
+              </div>
+            </div>
+            <div className="flex-1 relative overflow-hidden p-1" style={{ background: "#0a0d0f" }}>
+              <div className="text-[8px] text-zinc-500 mb-1 font-mono">● Gold Spot / U.S. Dollar · 1h · OANDA</div>
+              <svg viewBox="0 0 320 130" className="w-full h-full" preserveAspectRatio="none">
+                {/* Price levels */}
+                {[20,40,60,80,100,120].map(y => (
+                  <line key={y} x1="0" y1={y} x2="320" y2={y} stroke="rgba(255,255,255,0.03)" strokeWidth="0.5" />
+                ))}
+                {/* Candles — downtrend matching screenshot */}
+                {[
+                  [10,18,14,4,true],[18,25,20,6,false],[25,30,24,8,false],
+                  [30,35,28,9,false],[35,40,32,10,false],[38,45,38,11,false],
+                  [42,50,44,12,false],[48,56,50,14,false],[52,60,54,15,false],
+                  [56,65,58,16,false],[58,68,62,17,false],[60,70,64,18,false],
+                  [62,72,66,19,false],[58,68,62,17,true],[55,65,58,16,true],
+                  [52,62,55,15,false],[50,60,53,14,false],[48,58,51,13,false],
+                  [45,55,48,12,false],[42,52,45,11,false],[40,50,43,10,false],
+                  [38,48,41,9,false],[36,46,39,8,true],[34,44,37,8,false],
+                ].map(([, bH, bT, wk, bull], i) => {
+                  const xPos = 6 + i * 13;
+                  const col = bull ? "#4ade80" : "#ef4444";
+                  const bodyH = bH as number; const bodyTop = bT as number; const wick = wk as number;
+                  return (
+                    <g key={i}>
+                      <line x1={xPos} y1={bodyH - wick - 2} x2={xPos} y2={bodyH + 5} stroke={col} strokeWidth="0.8" opacity="0.7" />
+                      <rect x={xPos - 4} y={bodyH - bodyTop} width={8} height={Math.max(1, bodyTop - (bodyH - bodyTop))} fill={col} />
+                    </g>
+                  );
+                })}
+                {/* Current price line */}
+                <line x1="0" y1="90" x2="320" y2="90" stroke="rgba(248,113,113,0.4)" strokeWidth="0.5" strokeDasharray="4 3" />
+                <rect x="285" y="84" width="35" height="12" rx="1" fill="#ef4444" />
+                <text x="302" y="93" textAnchor="middle" fontSize="5" fill="white" fontFamily="monospace">4,504.5</text>
+              </svg>
+            </div>
+          </div>
+
+          {/* Trump Monitor mini */}
+          <div className="w-36 shrink-0 flex flex-col overflow-hidden" style={{ borderRight: "1px solid rgba(255,255,255,0.05)" }}>
+            <div className="px-2 py-1 shrink-0" style={{ background: "#111418", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+              <span className="text-[8px] font-bold text-zinc-400">TRUMP IMPACT MONITOR</span>
+            </div>
+            <div className="flex-1 p-2 space-y-1.5 overflow-hidden">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[6px] text-zinc-600 uppercase">AVG IMPACT</div>
+                  <div className="text-[8px] font-bold" style={{ color: "#4ade80" }}>6/18</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[6px] text-zinc-600 uppercase">TOP THEME</div>
+                  <span className="text-[6px] font-bold rounded px-1 py-0.5" style={{ background: "rgba(248,113,113,0.15)", color: "#f87171" }}>TARIFFS</span>
+                </div>
+              </div>
+              <p className="text-[6px] text-zinc-500 leading-relaxed line-clamp-3">
+                &ldquo;The Highly Respected Attorney General of Texas, Ken Paxton, an America First Patriot...&rdquo;
+              </p>
+              <div className="flex gap-1">
+                <span className="rounded px-1 py-0.5 text-[5px] text-zinc-500" style={{ background: "rgba(255,255,255,0.05)" }}>NEUTRAL</span>
+                <span className="rounded px-1 py-0.5 text-[5px] font-bold" style={{ background: "rgba(74,222,128,0.12)", color: "#4ade80" }}>TARIFFS</span>
+              </div>
+              <div className="rounded p-1.5" style={{ background: "#111418", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div className="text-[5px] text-zinc-600 uppercase mb-1">PNL CALENDAR</div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[6px] text-zinc-400">Overall Net</span>
+                  <span className="text-[7px] font-bold" style={{ color: "#4ade80" }}>+$20,837.62</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[6px] text-zinc-400">Win Rate</span>
+                  <span className="text-[7px] font-bold text-white">65%</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[6px] text-zinc-400">Trades</span>
+                  <span className="text-[7px] font-bold text-white">17</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Community Chat */}
+      <div className="w-36 shrink-0 flex flex-col overflow-hidden" style={{ borderLeft: "1px solid rgba(255,255,255,0.05)" }}>
+        <div className="flex items-center justify-between px-2 py-1 shrink-0"
+          style={{ background: "#111418", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+          <div className="flex items-center gap-1">
+            <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#4ade80" }} />
+            <span className="text-[8px] font-bold text-zinc-400">DESK CHAT</span>
+          </div>
+          <span className="text-[6px] text-zinc-600">71 online</span>
+        </div>
+        <div className="flex-1 p-1.5 space-y-2 overflow-hidden">
+          <div className="text-[7px] font-semibold text-zinc-300 mb-1">Community</div>
+          {chatMessages.map((m, i) => (
+            <div key={i} className={`flex ${m.self ? "justify-end" : "items-start gap-1"}`}>
+              {!m.self && (
+                <div className="w-4 h-4 rounded-full shrink-0 flex items-center justify-center text-[5px] font-bold"
+                  style={{ background: "rgba(74,222,128,0.15)", color: "#4ade80" }}>
+                  {m.name[0]}
+                </div>
+              )}
+              <div className={m.self ? "" : "flex-1 min-w-0"}>
+                {!m.self && <div className="text-[6px] text-zinc-500 mb-0.5">{m.name}</div>}
+                <div className={`rounded px-1.5 py-1 text-[6px] leading-relaxed inline-block max-w-full ${m.self ? "text-right" : ""}`}
+                  style={{ background: m.self ? "rgba(74,222,128,0.15)" : "rgba(255,255,255,0.05)", color: m.self ? "#4ade80" : "#d4d4d8" }}>
+                  {m.msg}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="px-2 pb-2 shrink-0">
+          <div className="rounded flex items-center gap-1 px-2 py-1.5"
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <span className="text-[6px] text-zinc-600 flex-1">Share a setup...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─── Market Bias ──────────────────────────────────────────────────────────────
 function BiasView() {
@@ -720,6 +990,7 @@ export function TerminalPreview() {
   const next = () => setActive(p => (p + 1) % TABS.length);
 
   const VIEWS = [
+    <DashboardView key="dash" />,
     <BiasView key="bias" />,
     <CalendarView key="cal" />,
     <TrumpView key="trump" />,
@@ -777,7 +1048,7 @@ export function TerminalPreview() {
               <div className="flex-1 flex items-center justify-center">
                 <div className="rounded px-3 py-0.5 text-[10px] font-mono text-zinc-500"
                   style={{ background: "rgba(255,255,255,0.04)" }}>
-                  tradexterminal.online/dashboard/{TABS[active].route}
+                  tradexterminal.online/dashboard{TABS[active].route ? `/${TABS[active].route}` : ""}
                 </div>
               </div>
               <div className="hidden md:flex items-center gap-2 font-mono text-[9px]">
