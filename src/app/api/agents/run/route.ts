@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
       const isTrialing = sub?.trial_ends_at
         ? new Date() < new Date(sub.trial_ends_at) && sub?.plan === "free"
         : false;
-      const isPaid = sub?.status === "active" && (sub?.plan === "pro" || sub?.plan === "elite");
+      const isPaid = sub?.status === "active" && sub?.plan === "pro";
 
       if (!isPaid && !isTrialing) {
         return serveCachedOrDeny(validated.symbol, validated.timeframe);

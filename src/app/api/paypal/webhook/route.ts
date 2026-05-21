@@ -11,9 +11,11 @@ function getServiceClient() {
   );
 }
 
-function getPlanFromPlanId(planId: string): "pro" | "elite" | "free" {
-  if (planId === process.env.NEXT_PUBLIC_PAYPAL_ELITE_PLAN_ID) return "elite";
-  if (planId === process.env.NEXT_PUBLIC_PAYPAL_PRO_PLAN_ID) return "pro";
+function getPlanFromPlanId(planId: string): "pro" | "free" {
+  if (
+    planId === process.env.NEXT_PUBLIC_PAYPAL_PRO_PLAN_ID ||
+    planId === process.env.NEXT_PUBLIC_PAYPAL_PRO_ANNUAL_PLAN_ID
+  ) return "pro";
   return "free";
 }
 
