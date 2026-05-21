@@ -617,9 +617,10 @@ export function BrainTerminal() {
 
               return (
                 <button
+                  type="button"
                   onClick={() => openDrawer("master")}
                   className={cn(
-                    "flex flex-col gap-2 border-t-2 bg-[hsl(var(--card))] px-3 py-3 text-left transition-all hover:bg-white/[0.04] min-h-[140px]",
+                    "flex flex-col gap-2 border-t-2 bg-[hsl(var(--card))] px-3 py-3 text-left min-h-[140px] hover:bg-white/[0.04] transition-all cursor-pointer",
                     cls.border
                   )}
                 >
