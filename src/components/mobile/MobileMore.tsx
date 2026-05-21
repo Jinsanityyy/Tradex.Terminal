@@ -53,7 +53,7 @@ const ALL_APPS: AppDef[] = [
   { id: "live-tv",              label: "Live TV",         icon: Tv,            color: "#6366f1", component: LiveTVPage },
   // ── Trading (mixed) ────────────────────────────────────────────────────────
   { id: "signals",              label: "Signals",         icon: Activity,      color: "#10b981", component: SignalsPage },
-  { id: "pnl-calendar",         label: "PnL Calendar",   icon: DollarSign,    color: "#f59e0b", component: PnlCalendarPage,    proOnly: true },
+  { id: "pnl-calendar",         label: "PnL Calendar",   icon: DollarSign,    color: "#f59e0b", component: PnlCalendarPage },
   { id: "brain",                label: "Brain Terminal",  icon: Brain,         color: "#8b5cf6", component: MobileBrain,        proOnly: true },
   { id: "candle-analysis",      label: "Candle Analysis", icon: Zap,           color: "#7c3aed", component: CandleAnalysis,     proOnly: true },
   // ── Account (free) ─────────────────────────────────────────────────────────

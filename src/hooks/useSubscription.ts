@@ -100,7 +100,7 @@ export const PLAN_ACCESS: Record<string, Plan[]> = {
   "/dashboard/catalysts":            ["pro"],
   "/dashboard/session-intelligence": ["pro"],
   "/dashboard/asset-matrix":         ["pro"],
-  "/dashboard/pnl-calendar":         ["pro"],
+  "/dashboard/pnl-calendar":         ["free", "pro"],
   "/dashboard/brain":                ["pro"],
   "/dashboard/candle-analysis":      ["pro"],
   "/dashboard/market-intelligence":  ["pro"],
