@@ -81,19 +81,28 @@ export function useSubscription() {
 }
 
 // ── Plan feature access matrix ─────────────────────────────────────────────────
+// FREE: basic market data, prices, news, calendar, signals, learn, settings
+// PRO:  all AI-powered analysis, bias engine, agent terminal, trade tools
+
 export const PLAN_ACCESS: Record<string, Plan[]> = {
+  // Free for everyone
   "/dashboard":                      ["free", "pro"],
   "/dashboard/economic-calendar":    ["free", "pro"],
   "/dashboard/news-flow":            ["free", "pro"],
-  "/dashboard/settings":             ["free", "pro"],
   "/dashboard/signals":              ["free", "pro"],
-  "/dashboard/pnl-calendar":         ["pro"],
+  "/dashboard/settings":             ["free", "pro"],
+  "/dashboard/learn":                ["free", "pro"],
+  // Pro only
   "/dashboard/market-bias":          ["pro"],
   "/dashboard/ai-briefing":          ["pro"],
   "/dashboard/trump-monitor":        ["pro"],
   "/dashboard/catalysts":            ["pro"],
   "/dashboard/session-intelligence": ["pro"],
   "/dashboard/asset-matrix":         ["pro"],
+  "/dashboard/pnl-calendar":         ["pro"],
+  "/dashboard/brain":                ["pro"],
+  "/dashboard/candle-analysis":      ["pro"],
+  "/dashboard/market-intelligence":  ["pro"],
 };
 
 export function canAccess(plan: Plan, page: string, isTrialing: boolean): boolean {

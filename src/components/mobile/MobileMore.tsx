@@ -5,12 +5,14 @@ import {
   Calendar, TrendingUp, Activity,
   Radio, Brain, Clock, History, DollarSign,
   Shield, AtSign, Newspaper, LayoutGrid,
-  ChevronLeft, ChevronRight, GraduationCap, Zap
+  ChevronLeft, ChevronRight, GraduationCap, Zap, Lock
 } from "lucide-react";
 import { MobileBrain } from "@/components/mobile/MobileBrain";
+import { MobileFeatureGate } from "@/components/mobile/MobileFeatureGate";
 import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelectorSheet";
 import { TradingKnowledgeContent } from "@/components/shared/TradingKnowledgeSidebar";
 import { CandleAnalysis } from "@/components/shared/CandleAnalysis";
+import { useSubscription } from "@/hooks/useSubscription";
 
 // Lazy load only pages that don't have routing issues
 import dynamic from "next/dynamic";
@@ -33,21 +35,26 @@ interface AppDef {
   icon: React.FC<{ className?: string; style?: React.CSSProperties }>;
   color: string;
   component: React.ComponentType;
+  proOnly?: boolean;
 }
 
 const ALL_APPS: AppDef[] = [
-  { id: "market-bias",          label: "Market Bias",     icon: TrendingUp,    color: "#10b981", component: MarketBiasPage },
-  { id: "market-intelligence",  label: "Intelligence",    icon: Brain,         color: "#8b5cf6", component: MarketIntelPage },
-  { id: "asset-matrix",         label: "Asset Matrix",    icon: LayoutGrid,    color: "#3b82f6", component: AssetMatrixPage },
-  { id: "session-intelligence", label: "Sessions",        icon: Clock,         color: "#f59e0b", component: SessionIntelPage },
-  { id: "catalysts",            label: "Catalysts",       icon: Newspaper,     color: "#ef4444", component: CatalystsPage },
+  // ── Analysis (Pro) ─────────────────────────────────────────────────────────
+  { id: "market-bias",          label: "Market Bias",     icon: TrendingUp,    color: "#10b981", component: MarketBiasPage,     proOnly: true },
+  { id: "market-intelligence",  label: "Intelligence",    icon: Brain,         color: "#8b5cf6", component: MarketIntelPage,    proOnly: true },
+  { id: "asset-matrix",         label: "Asset Matrix",    icon: LayoutGrid,    color: "#3b82f6", component: AssetMatrixPage,    proOnly: true },
+  { id: "session-intelligence", label: "Sessions",        icon: Clock,         color: "#f59e0b", component: SessionIntelPage,   proOnly: true },
+  // ── News & Events (mixed) ──────────────────────────────────────────────────
+  { id: "catalysts",            label: "Catalysts",       icon: Newspaper,     color: "#ef4444", component: CatalystsPage,      proOnly: true },
   { id: "economic-calendar",    label: "Calendar",        icon: Calendar,      color: "#3b82f6", component: CalendarPage },
-  { id: "trump-monitor",        label: "Trump",           icon: AtSign,        color: "#f59e0b", component: TrumpPage },
+  { id: "trump-monitor",        label: "Trump",           icon: AtSign,        color: "#f59e0b", component: TrumpPage,          proOnly: true },
   { id: "news-flow",            label: "News Flow",       icon: Radio,         color: "#10b981", component: NewsFlowPage },
+  // ── Trading (mixed) ────────────────────────────────────────────────────────
   { id: "signals",              label: "Signals",         icon: Activity,      color: "#10b981", component: SignalsPage },
-  { id: "pnl-calendar",         label: "PnL Calendar",   icon: DollarSign,    color: "#f59e0b", component: PnlCalendarPage },
-  { id: "brain",                label: "Brain Terminal",  icon: Brain,         color: "#8b5cf6", component: MobileBrain },
-  { id: "candle-analysis",      label: "Candle Analysis", icon: Zap,           color: "#7c3aed", component: CandleAnalysis },
+  { id: "pnl-calendar",         label: "PnL Calendar",   icon: DollarSign,    color: "#f59e0b", component: PnlCalendarPage,    proOnly: true },
+  { id: "brain",                label: "Brain Terminal",  icon: Brain,         color: "#8b5cf6", component: MobileBrain,        proOnly: true },
+  { id: "candle-analysis",      label: "Candle Analysis", icon: Zap,           color: "#7c3aed", component: CandleAnalysis,     proOnly: true },
+  // ── Account (free) ─────────────────────────────────────────────────────────
   { id: "knowledge",            label: "Knowledge",       icon: GraduationCap, color: "#a78bfa", component: TradingKnowledgeContent },
   { id: "settings",             label: "Settings",        icon: Shield,        color: "#6b7280", component: SettingsPage },
 ];
@@ -77,6 +84,7 @@ export function MobileMore() {
   const [openFolderId, setOpenFolderId] = useState<string | null>(null);
   const [activeAppId, setActiveAppId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const { subscription } = useSubscription();
 
   // Listen for deep-link events from MobileLayout (e.g. widget "Open" taps)
   useEffect(() => {
@@ -97,6 +105,7 @@ export function MobileMore() {
   // Show active page
   if (activeApp) {
     const PageComponent = activeApp.component;
+    const isLocked = activeApp.proOnly && !subscription.hasFullAccess;
     return (
       <>
         <AssetSelectorSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
@@ -113,7 +122,10 @@ export function MobileMore() {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-3 pb-6">
-            <PageComponent />
+            {isLocked
+              ? <MobileFeatureGate featureName={activeApp.label}><PageComponent /></MobileFeatureGate>
+              : <PageComponent />
+            }
           </div>
         </div>
       </>
@@ -141,15 +153,23 @@ export function MobileMore() {
           <div className="grid grid-cols-3 gap-5 px-6 py-8">
             {folderApps.map(app => {
               const Icon = app.icon;
+              const isLocked = app.proOnly && !subscription.hasFullAccess;
               return (
                 <button key={app.id}
                   onClick={() => setActiveAppId(app.id)}
                   className="flex flex-col items-center gap-2 active:opacity-60">
-                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
-                    style={{ background: `${app.color}22`, border: `1px solid ${app.color}40` }}>
-                    <Icon className="h-7 w-7" style={{ color: app.color }} />
+                  <div className="relative w-16 h-16 rounded-2xl flex items-center justify-center"
+                    style={{ background: `${app.color}22`, border: `1px solid ${isLocked ? "#3f3f46" : app.color + "40"}` }}>
+                    <Icon className="h-7 w-7" style={{ color: isLocked ? "#52525b" : app.color }} />
+                    {isLocked && (
+                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center">
+                        <Lock className="h-2.5 w-2.5 text-zinc-400" />
+                      </div>
+                    )}
                   </div>
-                  <span className="text-[11px] text-zinc-300 text-center leading-tight">{app.label}</span>
+                  <span className={`text-[11px] text-center leading-tight ${isLocked ? "text-zinc-600" : "text-zinc-300"}`}>
+                    {app.label}
+                  </span>
                 </button>
               );
             })}

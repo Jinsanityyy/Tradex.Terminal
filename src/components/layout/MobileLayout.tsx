@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { LayoutDashboard, TrendingUp, Zap, BarChart3, Users, Grid, Camera, LogOut, X } from "lucide-react";
+import { LayoutDashboard, TrendingUp, Zap, BarChart3, Users, Grid, Camera, LogOut, X, Lock } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import { cn } from "@/lib/utils";
 import { MobileHome } from "@/components/mobile/MobileHome";
@@ -9,6 +9,7 @@ import { MobileChart } from "@/components/mobile/MobileChart";
 import { MobileFeed } from "@/components/mobile/MobileFeed";
 import { MobileBrain } from "@/components/mobile/MobileBrain";
 import { MobileMore } from "@/components/mobile/MobileMore";
+import { MobileFeatureGate } from "@/components/mobile/MobileFeatureGate";
 import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { createClient } from "@/lib/supabase/client";
 import { NotificationToast } from "@/components/shared/NotificationToast";
@@ -373,7 +374,7 @@ export function MobileLayout() {
               {id === "home"      && <MobileHome />}
               {id === "chart"     && <MobileChart />}
               {id === "feed"      && <MobileFeed />}
-              {id === "brain"     && <MobileBrain />}
+              {id === "brain"     && <MobileFeatureGate featureName="Brain Terminal"><MobileBrain /></MobileFeatureGate>}
               {id === "community" && <CommunityPanel />}
               {id === "more"      && <MobileMore />}
             </div>
