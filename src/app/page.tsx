@@ -19,14 +19,15 @@ const FREE_FEATURES: { label: string; locked?: boolean }[] = [
   { label: "Trading signals (view)" },
   { label: "Community chat" },
   { label: "Trading knowledge base" },
-  { label: "Brain Terminal — 7 AI agents", locked: true },
+  { label: "Brain Terminal — 3 AI analyses/day" },
+  { label: "PnL Calendar" },
   { label: "Market Bias engine", locked: true },
   { label: "Risk Gate", locked: true },
 ];
 
 const PRO_FEATURES: { label: string; bold?: boolean }[] = [
   { label: "Everything in Free" },
-  { label: "Brain Terminal — 7 AI agents", bold: true },
+  { label: "Brain Terminal — unlimited AI analyses", bold: true },
   { label: "Market Bias engine", bold: true },
   { label: "Risk Gate", bold: true },
   { label: "Market Intelligence" },
@@ -34,7 +35,6 @@ const PRO_FEATURES: { label: string; bold?: boolean }[] = [
   { label: "Session Intelligence" },
   { label: "AI Catalysts feed" },
   { label: "Trump Monitor" },
-  { label: "PnL Calendar" },
   { label: "Candle Analysis (AI)" },
   { label: "AI Market Briefing" },
   { label: "Force-refresh signals" },
