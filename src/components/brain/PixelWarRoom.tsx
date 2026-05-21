@@ -509,14 +509,16 @@ function AgentPod({
   const status = live?.status ?? agent.baseStatus;
   const ok = status === "TRADE-OK";
   const alert = status === "ALERT";
+  const isReal = agent.real;
 
   return (
     <button
       type="button"
-      className={`${styles.agentPod} ${selected ? styles.podSelected : ""} ${alert ? styles.podAlert : ""}`}
-      onClick={onClick}
-      aria-pressed={selected}
-      tabIndex={0}
+      className={`${styles.agentPod} ${selected ? styles.podSelected : ""} ${isReal && alert ? styles.podAlert : ""}`}
+      onClick={isReal ? onClick : undefined}
+      aria-pressed={isReal ? selected : undefined}
+      tabIndex={isReal ? 0 : -1}
+      style={isReal ? undefined : { pointerEvents: "none" } as React.CSSProperties}
     >
       <div className={styles.stationBody}>
         {live && (
