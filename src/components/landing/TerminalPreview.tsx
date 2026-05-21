@@ -883,94 +883,156 @@ function PnLAnalyticsView() {
 
 // ─── Candle Analysis ──────────────────────────────────────────────────────────
 function CandleView() {
-  const candles = [
-    [10,22,18,6,true],[12,28,24,8,false],[8,20,14,5,true],[15,32,26,10,false],
-    [18,38,30,12,false],[20,42,35,14,false],[22,44,38,16,false],[18,40,34,12,true],
-    [14,36,28,8,true],[10,30,22,6,false],[8,26,20,4,false],[12,30,24,8,true],
-    [16,34,28,10,false],[14,32,26,8,false],[10,28,22,6,true],[8,24,18,4,true],
-    [6,20,15,3,false],[4,18,12,2,false],[8,22,16,5,false],[12,28,22,7,true],
-    [10,24,20,6,false],[8,22,18,4,false],[12,26,22,8,false],[14,28,24,9,false],
+  // 65 close prices (y-inverted: 0=top=high price, 210=bottom=low price)
+  // Shape: starts clustered high, then sharp drop, continued downtrend — matches screenshot
+  const closeY = [
+    50,47,52,44,49,42,46,39,43,37, // 0-9: initial cluster, slow drift down
+    41,35,39,33,37,31,40,36,43,39, // 10-19: slight up, then tip over
+    46,52,49,57,54,63,59,68,64,72, // 20-29: acceleration starts
+    68,75,70,80,75,85,80,90,85,93, // 30-39: steep drop phase
+    89,97,93,102,97,108,103,112,107,116, // 40-49: continued
+    120,114,122,118,127,122,132,127,136,130, // 50-59: lower lows
+    140,134,143,138,148,142,152,146,155,150, // 60-69: bottom area
+    158,153,161,156,163, // 70-74: final leg
   ];
 
+  type CandleRect = {
+    x: number; bodyTop: number; bodyH: number;
+    wickTop: number; wickBot: number; bull: boolean;
+  };
+
+  const rects: CandleRect[] = closeY.map((cy, i) => {
+    const prevY = i > 0 ? closeY[i - 1] : cy + 3;
+    const openY = prevY;
+    const bull = cy < openY; // price went up (y decreased)
+    const bodyTop = Math.min(openY, cy);
+    const bodyBot = Math.max(openY, cy);
+    const wkTop = 1 + (i * 7 + 3) % 9;
+    const wkBot = 1 + (i * 11 + 5) % 12;
+    return {
+      x: 5 + i * 6.3,
+      bodyTop,
+      bodyH: Math.max(1.2, bodyBot - bodyTop),
+      wickTop: bodyTop - wkTop,
+      wickBot: bodyBot + wkBot,
+      bull,
+    };
+  });
+
   return (
-    <div className="flex-1 flex overflow-hidden" style={{ background: "#0a0d0f" }}>
-      <div className="flex-1 p-3 flex flex-col overflow-hidden">
-        <div className="mb-2">
-          <div className="text-[11px] font-bold text-white">Candle Analysis</div>
-          <div className="text-[8px] text-zinc-500">Click any candle to explain why it moved</div>
-        </div>
-        <div className="flex items-center gap-1.5 mb-2">
-          <span className="rounded px-2 py-0.5 text-[8px] font-bold" style={{ background: "#4ade80", color: "#0a0d0f" }}>GOLD (XAU/USD)</span>
-          {["5s", "15s", "1H", "4H"].map((t, i) => (
-            <span key={t} className="text-[8px] px-1.5 py-0.5 rounded font-mono"
-              style={{ background: i === 2 ? "rgba(255,255,255,0.1)" : "transparent", color: i === 2 ? "#ffffff" : "#6b7280" }}>{t}</span>
-          ))}
-        </div>
-        <svg viewBox="0 0 300 160" className="w-full flex-1" preserveAspectRatio="none" style={{ minHeight: "120px" }}>
-          {candles.map(([, bH, bT, wk, bull], i) => {
-            const xPos = 5 + i * 12;
-            const col = bull ? "#4ade80" : "#ef4444";
-            const bodyH = bH as number; const bodyTop = bT as number; const wick = wk as number;
-            return (
-              <g key={i}>
-                <line x1={xPos} y1={160 - wick - bodyH} x2={xPos} y2={160 - wick + 4} stroke={col} strokeWidth="0.8" opacity="0.7" />
-                <rect x={xPos - 3.5} y={160 - wick - bodyTop} width={7} height={Math.max(1, bodyTop - (bodyH - bodyTop))} fill={col} />
-              </g>
-            );
-          })}
-        </svg>
+    <div className="flex-1 flex flex-col overflow-hidden" style={{ background: "#0a0d0f" }}>
+      {/* Header */}
+      <div className="px-3 pt-3 pb-1.5 shrink-0">
+        <div className="text-[11px] font-bold text-white">Candle Analysis</div>
+        <div className="text-[8px] text-zinc-500">Click any candle to explain why it moved</div>
       </div>
-      <div className="w-48 shrink-0 p-3 space-y-2 overflow-hidden" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
-        <div className="text-[8px] font-bold text-zinc-500 uppercase tracking-wider">CANDLE MACHINE</div>
-        <div>
-          <div className="text-[9px] font-bold text-white">XAU/USD</div>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-[10px] font-black" style={{ color: "#f87171" }}>-0.74%</span>
-            <span className="rounded px-1.5 py-0.5 text-[7px] font-bold" style={{ background: "#7c3aed", color: "#fff" }}>MAJOR</span>
-          </div>
-          <div className="flex gap-2 mt-1">
-            {["4548.48", "4541.00", "4667.18", "4585.78"].map((v, i) => (
-              <div key={i} className="text-center">
-                <div className="text-[5px] text-zinc-600">{["O","H","L","C"][i]}</div>
-                <div className="text-[6px] font-mono text-zinc-400">{v}</div>
-              </div>
+      {/* Timeframe row */}
+      <div className="flex items-center gap-1.5 px-3 pb-2 shrink-0">
+        <span className="rounded px-2 py-0.5 text-[8px] font-bold" style={{ background: "#4ade80", color: "#0a0d0f" }}>GOLD (XAU/USD)</span>
+        {["5s", "15s", "1H", "4H"].map((t, i) => (
+          <span key={t} className="text-[8px] px-1.5 py-0.5 rounded font-mono"
+            style={{
+              background: i === 2 ? "rgba(59,130,246,0.2)" : "transparent",
+              color: i === 2 ? "#60a5fa" : "#6b7280",
+              border: i === 2 ? "1px solid rgba(59,130,246,0.3)" : "none",
+            }}>{t}</span>
+        ))}
+      </div>
+      {/* Chart + panel */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Full-height chart */}
+        <div className="flex-1 relative overflow-hidden" style={{ background: "#0a0d0f" }}>
+          <svg viewBox="0 0 480 210" className="w-full h-full" preserveAspectRatio="none">
+            {/* Subtle horizontal grid */}
+            {[35,70,105,140,175].map(y => (
+              <line key={y} x1="0" y1={y} x2="480" y2={y}
+                stroke="rgba(255,255,255,0.03)" strokeWidth="0.5" />
             ))}
+            {/* Vertical divider (before analysis panel opens) */}
+            <line x1="380" y1="0" x2="380" y2="210"
+              stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
+            {/* Candles */}
+            {rects.map((c, i) => {
+              const col = c.bull ? "#26a69a" : "#ef5350";
+              return (
+                <g key={i}>
+                  {/* Wick */}
+                  <line x1={c.x + 2} y1={c.wickTop} x2={c.x + 2} y2={c.wickBot}
+                    stroke={col} strokeWidth="0.8" opacity="0.8" />
+                  {/* Body */}
+                  <rect x={c.x} y={c.bodyTop} width={4.5} height={c.bodyH} fill={col} opacity="0.95" />
+                </g>
+              );
+            })}
+            {/* Current price dashed line */}
+            <line x1="0" y1="155" x2="480" y2="155"
+              stroke="rgba(239,83,80,0.5)" strokeWidth="0.6" strokeDasharray="4 3" />
+            <rect x="450" y="149" width="30" height="12" rx="1" fill="#ef5350" />
+            <text x="465" y="158" textAnchor="middle" fontSize="5" fill="white" fontFamily="monospace">4,504.5</text>
+          </svg>
+        </div>
+        {/* CANDLE MACHINE panel */}
+        <div className="w-44 shrink-0 overflow-y-auto"
+          style={{ background: "#0d1117", borderLeft: "1px solid rgba(255,255,255,0.07)" }}>
+          <div className="flex items-center justify-between px-2 py-1.5"
+            style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+            <span className="text-[7px] font-bold text-zinc-600 uppercase tracking-wider">CANDLE MACHINE</span>
+            <span className="text-[8px] text-zinc-600">✕</span>
           </div>
-        </div>
-        <div className="rounded-lg p-2" style={{ background: "#111418", border: "1px solid rgba(255,255,255,0.07)" }}>
-          <div className="text-[7px] font-bold mb-1" style={{ color: "#4ade80" }}>WHAT HAPPENED?</div>
-          <div className="text-[8px] font-bold text-white mb-1">Bearish Engulfing</div>
-          <ul className="space-y-1">
-            {[
-              "Bearish Engulfing — strong institutional order absorbed opposing side",
-              "Significantly larger range than recent candles — unusual activity",
-              "Counter-trend move against recent mixed pressure",
-              "2 economic event(s) near this candle — see Macro Context",
-            ].map(b => (
-              <li key={b} className="text-[6px] text-zinc-400 flex gap-0.5 leading-relaxed">
-                <span style={{ color: "#4ade80" }} className="shrink-0">›</span>{b}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="rounded-lg p-2" style={{ background: "#111418", border: "1px solid rgba(255,255,255,0.07)" }}>
-          <div className="text-[7px] font-bold mb-1" style={{ color: "#fbbf24" }}>TECHNICALS</div>
-          <p className="text-[6px] text-zinc-400 leading-relaxed">Above-average range candle (4.0× ATR). Continuation within a mixed short-term structure. Long lower wick indicates buyers absorbed selling pressure at lows.</p>
-        </div>
-        <div className="rounded-lg p-2" style={{ background: "#111418", border: "1px solid rgba(255,255,255,0.07)" }}>
-          <div className="text-[7px] font-bold mb-1" style={{ color: "#3b82f6" }}>MACRO CONTEXT</div>
-          {[
-            { name: "Pending Home Sales m/m", bias: "NEUTRAL GOLD", note: "Secondary impact on gold. Trade only if deviation is large.", col: "#4ade80" },
-            { name: "CPI Release Window", bias: "NEUTRAL GOLD", note: "Highest-conviction gold trade of the month.", col: "#fbbf24" },
-          ].map(e => (
-            <div key={e.name} className="mb-1.5">
-              <div className="flex items-start justify-between gap-1 mb-0.5">
-                <span className="text-[6px] text-zinc-400">{e.name}</span>
-                <span className="text-[5px] rounded px-1 py-0.5 text-zinc-500 shrink-0" style={{ background: "rgba(255,255,255,0.06)" }}>{e.bias}</span>
+          <div className="p-2 space-y-2">
+            <div>
+              <div className="text-[10px] font-bold text-white">XAU/USD</div>
+              <div className="flex gap-3 mt-0.5 font-mono text-[6px] text-zinc-500">
+                {["4548.48","4541.00","4667.18","4585.78"].map((v, i) => (
+                  <div key={i}><span className="text-zinc-600">{["O","H","L","C"][i]} </span>{v}</div>
+                ))}
               </div>
-              <p className="text-[6px] leading-relaxed" style={{ color: e.col }}>{e.note}</p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="text-[10px] font-black" style={{ color: "#ef5350" }}>-0.74%</span>
+                <span className="rounded px-1.5 py-0.5 text-[7px] font-bold" style={{ background: "#7c3aed", color: "#fff" }}>MAJOR</span>
+              </div>
             </div>
-          ))}
+            <div className="rounded-lg p-2" style={{ background: "#111418", border: "1px solid rgba(255,255,255,0.07)" }}>
+              <div className="text-[7px] font-bold mb-1" style={{ color: "#4ade80" }}>WHAT HAPPENED?</div>
+              <div className="text-[8px] font-bold text-white mb-1">Bearish Engulfing</div>
+              <ul className="space-y-1">
+                {[
+                  "Bearish Engulfing – strong institutional order absorbed opposing side",
+                  "Significantly larger range than recent candles – unusual activity",
+                  "Counter-trend move against recent mixed pressure",
+                  "2 economic event(s) near this candle – see Macro Context",
+                ].map(b => (
+                  <li key={b} className="text-[6px] text-zinc-400 flex gap-0.5 leading-relaxed">
+                    <span style={{ color: "#4ade80" }} className="shrink-0">›</span>{b}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-lg p-2" style={{ background: "#111418", border: "1px solid rgba(255,255,255,0.07)" }}>
+              <div className="text-[7px] font-bold mb-1" style={{ color: "#fbbf24" }}>TECHNICALS</div>
+              <p className="text-[6px] text-zinc-400 leading-relaxed">Above-average range candle (4.0× ATR). Continuation within a mixed short-term structure. Long lower wick indicates buyers absorbed selling pressure at lows.</p>
+            </div>
+            <div className="rounded-lg p-2" style={{ background: "#111418", border: "1px solid rgba(255,255,255,0.07)" }}>
+              <div className="text-[7px] font-bold mb-1.5" style={{ color: "#3b82f6" }}>MACRO CONTEXT</div>
+              {[
+                { name: "Pending Home Sales m/m", bias: "NEUTRAL GOLD",
+                  body: "Housing data has indirect gold impact through rate expectations. Weak housing = rate cuts = bullish gold.",
+                  note: "Secondary impact on gold. Trade only if deviation is large.", col: "#4ade80" },
+                { name: "CPI Release Window – Mid-Month Tuesday", bias: "NEUTRAL GOLD",
+                  body: "US CPI releases typically fall on 2nd–3rd Tuesday. CPI is the most influential inflation gauge for Fed policy.",
+                  note: "Highest-conviction gold trade of the month. Confirm data direction, then enter on first 10-min pullback after the spike.", col: "#fbbf24" },
+              ].map(e => (
+                <div key={e.name} className="mb-2 pb-2" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                  <div className="flex items-start justify-between gap-1 mb-0.5">
+                    <span className="text-[7px] font-bold text-white leading-tight">{e.name}</span>
+                    <span className="text-[5px] rounded px-1 py-0.5 text-zinc-500 shrink-0" style={{ background: "rgba(255,255,255,0.06)" }}>{e.bias}</span>
+                  </div>
+                  <p className="text-[6px] text-zinc-500 leading-relaxed mb-0.5">{e.body}</p>
+                  <p className="text-[6px] leading-relaxed font-semibold" style={{ color: e.col }}>{e.note}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
