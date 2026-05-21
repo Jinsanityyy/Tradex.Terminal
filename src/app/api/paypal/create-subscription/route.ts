@@ -4,7 +4,7 @@ import { getAuthUser } from "@/lib/supabase/auth-helper";
 export const dynamic = "force-dynamic";
 
 const PAYPAL_BASE = process.env.PAYPAL_API_BASE ?? "https://api-m.paypal.com";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://traderterminal.online";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://tradexterminal.online";
 
 async function getAccessToken(): Promise<string> {
   const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID!;

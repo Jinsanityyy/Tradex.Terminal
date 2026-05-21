@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 const WEB_URL =
   process.env.NEXT_PUBLIC_APP_URL ??
-  "https://traderterminal.online";
+  "https://tradexterminal.online";
 
 interface MobileFeatureGateProps {
   children: React.ReactNode;
@@ -106,7 +106,7 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
               className="flex items-center justify-center gap-1.5 w-full rounded-xl border border-[hsl(142,71%,45%)]/40 bg-[hsl(142,71%,45%)]/10 py-2.5 text-xs font-semibold text-[hsl(142,71%,45%)] active:opacity-70 mb-2 transition-all"
             >
               <ExternalLink className="h-3.5 w-3.5" />
-              Subscribe at traderterminal.online
+              Subscribe at tradexterminal.online
             </button>
             <button
               onClick={handleRefresh}
@@ -123,7 +123,7 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
           </>
         ) : (
           <a
-            href={`/api/stripe/checkout?plan=pro&billing=${billing}`}
+            href={`/pricing?billing=${billing}`}
             className="flex items-center justify-center gap-1.5 w-full rounded-xl border border-[hsl(142,71%,45%)]/40 bg-[hsl(142,71%,45%)]/10 py-2.5 text-xs font-semibold text-[hsl(142,71%,45%)] hover:bg-[hsl(142,71%,45%)]/15 transition-all"
           >
             <Zap className="h-3.5 w-3.5" />
