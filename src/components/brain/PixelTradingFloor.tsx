@@ -2,9 +2,17 @@
 
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
+import useSWR from "swr";
 import styles from "./PixelTradingFloor.module.css";
+import { useSettings } from "@/contexts/SettingsContext";
+import { useQuotes } from "@/hooks/useMarketData";
+import type { AgentRunResult, DirectionalBias, RiskGrade } from "@/lib/agents/schemas";
+import type { AssetSnapshot } from "@/types";
 
-type StationStatus = "TRADE-OK" | "NO-TRADE";
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type StationStatus = "TRADE-OK" | "NO-TRADE" | "ALERT";
+type SignalDir = "L" | "S" | "—";
 
 type OperatorLook = {
   skin: string;
@@ -28,6 +36,10 @@ type StationBlueprint = {
   status: StationStatus;
   seatedLook: OperatorLook;
 };
+
+type StationLive = { status: StationStatus; signal: SignalDir; confidence: number };
+
+// ─── Static floor config ──────────────────────────────────────────────────────
 
 const STATION_BLUEPRINTS: StationBlueprint[] = [
   {
@@ -123,6 +135,84 @@ const CONNECTIONS = [
   { x1: 70, y1: 50, x2: 56, y2: 60 },
 ];
 
+// ─── Data helpers ─────────────────────────────────────────────────────────────
+
+async function swrFetch(url: string) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(r.statusText);
+  return r.json();
+}
+
+function biasToSignal(bias: DirectionalBias): SignalDir {
+  if (bias === "bullish") return "L";
+  if (bias === "bearish") return "S";
+  return "—";
+}
+
+function biasToStatus(bias: DirectionalBias, confidence: number): StationStatus {
+  if (bias === "neutral" || confidence < 30) return "NO-TRADE";
+  return "TRADE-OK";
+}
+
+function gradeToConf(grade: RiskGrade): number {
+  const map: Record<RiskGrade, number> = { A: 88, B: 72, C: 55, D: 38, F: 20 };
+  return map[grade] ?? 50;
+}
+
+function deriveStations(data: AgentRunResult): Record<string, StationLive> {
+  const { agents: ag } = data;
+  return {
+    trend: {
+      status: biasToStatus(ag.trend.bias, ag.trend.confidence),
+      signal: biasToSignal(ag.trend.bias),
+      confidence: ag.trend.confidence,
+    },
+    pract: {
+      status: ag.smc.setupPresent ? biasToStatus(ag.smc.bias, ag.smc.confidence) : "NO-TRADE",
+      signal: biasToSignal(ag.smc.bias),
+      confidence: ag.smc.confidence,
+    },
+    news: {
+      status: ag.news.riskScore > 70 ? "ALERT" : biasToStatus(ag.news.impact, ag.news.confidence),
+      signal: biasToSignal(ag.news.impact),
+      confidence: ag.news.confidence,
+    },
+    risk: {
+      status: ag.risk.valid ? "TRADE-OK" : "ALERT",
+      signal: ag.risk.valid ? "—" : "S",
+      confidence: gradeToConf(ag.risk.grade),
+    },
+    exec: {
+      status: ag.execution.signalState === "ARMED" ? "TRADE-OK"
+            : ag.execution.signalState === "NO_TRADE" ? "NO-TRADE"
+            : "ALERT",
+      signal: ag.execution.direction === "long" ? "L"
+            : ag.execution.direction === "short" ? "S"
+            : "—",
+      confidence: Math.min(95, ag.execution.confluenceCount * 10),
+    },
+    cntr: {
+      status: ag.contrarian.challengesBias ? "ALERT" : "NO-TRADE",
+      signal: ag.contrarian.challengesBias
+        ? (ag.trend.bias === "bullish" ? "S" : "L")
+        : "—",
+      confidence: ag.contrarian.trapConfidence,
+    },
+  };
+}
+
+function buildTicker(quotes: AssetSnapshot[]): string {
+  if (!quotes.length) return "";
+  const parts = quotes.map(q => {
+    const dir = q.change >= 0 ? "+" : "";
+    return `${q.symbol} ${q.price.toFixed(q.price > 100 ? 2 : 4)} ${dir}${q.changePercent.toFixed(2)}%`;
+  });
+  const line = parts.join("  ·  ");
+  return `${line}  ·  ${line}`;
+}
+
+// ─── Components ──────────────────────────────────────────────────────────────
+
 function assetUrl(path: string) { return encodeURI(path); }
 
 function seatedBaseUrl(skin: string) {
@@ -167,8 +257,36 @@ function SeatedOperator({ look, className }: { look: OperatorLook; className?: s
   );
 }
 
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: string) => void }) {
+  const { settings } = useSettings();
+  const symbol = settings.selectedSymbol ?? "XAUUSD";
+
+  const { data: runData } = useSWR<AgentRunResult>(
+    `/api/agents/run?symbol=${symbol}&timeframe=H1`,
+    swrFetch,
+    { dedupingInterval: 300_000, revalidateOnFocus: false }
+  );
+
+  const { quotes } = useQuotes(30_000);
+
   const [selectedIdx, setSelectedIdx] = useState(0);
+  const [liveMap, setLiveMap] = useState<Record<string, StationLive>>({});
+  const [tickerText, setTickerText] = useState("");
+  const [masterBias, setMasterBias] = useState<"LONG" | "SHORT" | "WAIT">("WAIT");
+
+  useEffect(() => {
+    if (!runData) return;
+    const map = deriveStations(runData);
+    setLiveMap(map);
+    const b = runData.agents.trend.bias;
+    setMasterBias(b === "bullish" ? "LONG" : b === "bearish" ? "SHORT" : "WAIT");
+  }, [runData]);
+
+  useEffect(() => {
+    if (quotes.length) setTickerText(buildTicker(quotes));
+  }, [quotes]);
 
   // Auto-cycle through all stations every 3s
   useEffect(() => {
@@ -179,13 +297,18 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
   }, []);
 
   const selectedStation = STATION_BLUEPRINTS[selectedIdx] ?? STATION_BLUEPRINTS[0];
+  const selectedLive = liveMap[selectedStation.id];
+
+  const liveStatus = selectedLive?.status ?? selectedStation.status;
+  const liveSignal = selectedLive?.signal ?? "—";
+  const liveConf   = selectedLive?.confidence ?? selectedStation.score;
 
   const boardScore =
-    selectedStation.status === "TRADE-OK"
-      ? selectedStation.score
+    liveStatus === "TRADE-OK"
+      ? liveConf
+      : liveStatus === "ALERT"
+      ? -Math.abs(liveConf)
       : -Math.abs(82 - selectedStation.score);
-
-  const selectedId = selectedStation.id;
 
   return (
     <main className={styles.root}>
@@ -204,6 +327,13 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
 
           {/* ── Floor canvas ───────────────────────────────────── */}
           <div className={styles.upperFloor}>
+
+            {/* Wall display ticker */}
+            <div className={styles.wallDisplay} aria-hidden="true">
+              {tickerText && (
+                <span className={styles.wallTicker}>{tickerText}</span>
+              )}
+            </div>
 
             {/* SVG data-flow connections (lowest layer) */}
             <svg className={styles.floorSvg} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -229,12 +359,17 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
             {/* ── Agent stations ─────────────────────────────── */}
             {STATION_BLUEPRINTS.map((station) => {
               const isSelected = selectedStation.id === station.id;
-              const isOk = station.status === "TRADE-OK";
+              const live = liveMap[station.id];
+              const status = live?.status ?? station.status;
+              const signal = live?.signal ?? "—";
+              const conf   = live?.confidence ?? station.score;
+              const isOk    = status === "TRADE-OK";
+              const isAlert = status === "ALERT";
               return (
                 <button
                   key={station.id}
                   type="button"
-                  className={`${styles.stationPod} ${isSelected ? styles.stationSelected : ""}`}
+                  className={`${styles.stationPod} ${isSelected ? styles.stationSelected : ""} ${isAlert ? styles.stationAlert : ""}`}
                   style={{ left: `${station.left}%`, top: `${station.top}%` }}
                   onClick={() => {
                     const idx = STATION_BLUEPRINTS.findIndex(s => s.id === station.id);
@@ -243,7 +378,12 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
                   }}
                   aria-pressed={isSelected}
                 >
-                  {/* Desk name pill — color signals status */}
+                  {/* Signal direction badge */}
+                  <div className={`${styles.sigBadge} ${signal === "L" ? styles.sigL : signal === "S" ? styles.sigS : styles.sigN}`}>
+                    {signal}
+                  </div>
+
+                  {/* Desk name pill */}
                   <div className={`${styles.stationPill} ${isOk ? styles.pillOk : styles.pillBad}`}>
                     {station.label}
                   </div>
@@ -251,12 +391,15 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
                   {/* Character — rendered FIRST so desk console clips legs */}
                   <SeatedOperator look={station.seatedLook} className={styles.stationSprite} />
 
-                  {/* Desk console (clips sprite lower body) */}
+                  {/* Desk console */}
                   <div className={`${styles.stationConsole} ${isOk ? styles.consoleOk : styles.consoleBad} ${isSelected ? styles.consoleSelected : ""}`}>
-                    <span className={styles.monitorSide} />
-                    <span className={`${styles.monitorMain} ${isOk ? styles.monitorMainOk : styles.monitorMainBad}`} />
-                    <span className={styles.monitorSide} />
+                    <span className={`${styles.monitorSide} ${isAlert ? styles.ledAlert : ""}`} />
+                    <span className={`${styles.monitorMain} ${isOk ? styles.monitorMainOk : styles.monitorMainBad} ${isAlert ? styles.monitorAlert : ""}`} />
+                    <span className={`${styles.monitorSide} ${isAlert ? styles.ledAlert : ""}`} />
                   </div>
+
+                  {/* Confidence label */}
+                  <div className={styles.confLabel}>{conf}%</div>
 
                   {/* Risk badge */}
                   {station.id === "risk" && (
@@ -273,7 +416,6 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
               onClick={() => onAgentClick?.("master")}
             >
               <div className={styles.masterChair} />
-              {/* Sprite rendered before console so console clips lower body */}
               <SeatedOperator look={CENTRAL_LOOK} className={styles.masterSeatedSprite} />
               <div className={styles.masterConsole}>
                 <span className={styles.masterMonitor} />
@@ -281,7 +423,9 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
                 <span className={styles.masterMonitorWide} />
                 <span className={styles.masterMonitor} />
               </div>
-              <span className={styles.masterLabel}>MASTER — CMD</span>
+              <span className={`${styles.masterLabel} ${masterBias === "LONG" ? styles.masterBiasLong : masterBias === "SHORT" ? styles.masterBiasShort : ""}`}>
+                MASTER — {masterBias}
+              </span>
             </button>
 
             {/* ── Selected agent info strip (bottom of floor) ── */}
@@ -290,12 +434,12 @@ export function PixelTradingFloor({ onAgentClick }: { onAgentClick?: (agentId: s
               <span className={styles.infoSep}>·</span>
               <span className={styles.infoAnalyst}>{selectedStation.analyst}</span>
               <span className={styles.infoSep}>·</span>
-              <span className={`${styles.infoStatus} ${selectedStation.status === "TRADE-OK" ? styles.infoOk : styles.infoBad}`}>
-                {selectedStation.status}
+              <span className={`${styles.infoStatus} ${liveStatus === "TRADE-OK" ? styles.infoOk : styles.infoBad}`}>
+                {liveStatus}
               </span>
               <span className={styles.infoSep}>·</span>
               <span className={styles.infoScore}>
-                SCORE {boardScore > 0 ? "+" : ""}{boardScore}.0
+                {liveSignal !== "—" ? `${liveSignal} ` : ""}CONF {liveConf}%
               </span>
               <span className={styles.infoDetail}>{selectedStation.detail}</span>
             </div>
