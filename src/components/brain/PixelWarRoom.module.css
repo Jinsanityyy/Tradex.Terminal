@@ -147,6 +147,10 @@
   overflow: hidden;
   z-index: 1;
 }
+.masterSpriteWrap .seatedActor {
+  left: 50%;
+  transform: translateX(-50%);
+}
 
 .masterMonitorGroup {
   position: absolute;
