@@ -440,13 +440,11 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {FEATURES.map(f => (
               <div key={f.title}
-                className="rounded-2xl p-5 transition-all duration-200 group cursor-default"
+                className="feature-card rounded-2xl p-5 transition-all duration-200 cursor-default"
                 style={{
                   background: "#151a1f",
                   border: "1px solid rgba(255,255,255,0.07)",
-                }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(74,222,128,0.3)")}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)")}>
+                }}>
                 <div className="flex items-start justify-between mb-4">
                   <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl border ${f.color}`}>{f.icon}</div>
                   <span className="rounded-full border px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase"
