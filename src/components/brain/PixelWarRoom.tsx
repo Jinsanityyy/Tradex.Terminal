@@ -481,19 +481,22 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
           ) : (
             /* Fallback while API data hasn't loaded yet */
             <>
-              <div className={styles.agentOverviewDetail}>{selectedAgent.detail ?? "Loading..."}</div>
-              {selectedLive && (
+              {selectedLive ? (
                 <>
+                  <div className={`${styles.agentOverviewState} ${selectedLive.status === "TRADE-OK" ? styles.statOk : selectedLive.status === "ALERT" ? styles.statDanger : styles.statWarn}`}>
+                    {selectedLive.status === "TRADE-OK" ? "ACTIVE" : selectedLive.status === "ALERT" ? "ALERT" : "STANDBY"}
+                  </div>
+                  <div className={styles.agentOverviewDetail}>{selectedAgent.detail}</div>
                   <div className={styles.statsRow}>
-                    <div className={styles.statCell}>
-                      <span className={styles.statLabel}>STATUS</span>
-                      <span className={`${styles.statValue} ${selectedLive.status === "TRADE-OK" ? styles.statOk : styles.statDanger}`}>
-                        {selectedLive.status}
-                      </span>
-                    </div>
                     <div className={styles.statCell}>
                       <span className={styles.statLabel}>CONF</span>
                       <span className={styles.statValue}>{selectedLive.confidence}%</span>
+                    </div>
+                    <div className={styles.statCell}>
+                      <span className={styles.statLabel}>SIG</span>
+                      <span className={`${styles.statValue} ${selectedLive.signal === "L" ? styles.statOk : selectedLive.signal === "S" ? styles.statDanger : ""}`}>
+                        {selectedLive.signal}
+                      </span>
                     </div>
                   </div>
                   <div className={styles.confBarWrap}>
@@ -503,6 +506,8 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
                     />
                   </div>
                 </>
+              ) : (
+                <div className={styles.agentOverviewDetail}>{selectedAgent.detail ?? "Initializing..."}</div>
               )}
             </>
           )}
