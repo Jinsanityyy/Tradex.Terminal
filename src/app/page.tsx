@@ -3,7 +3,8 @@ import Link from "next/link";
 import {
   Zap, Brain, TrendingUp, BarChart2, Shield, Clock,
   Newspaper, Calendar, MessageSquare, BookOpen, CheckCircle2,
-  ArrowRight, Smartphone,
+  ArrowRight, Smartphone, DollarSign, LayoutGrid, Tv,
+  BrainCircuit, AtSign, Sparkles,
 } from "lucide-react";
 
 // ── Pricing data ──────────────────────────────────────────────────────────────
@@ -12,6 +13,7 @@ const FREE_FEATURES = [
   "TradingView chart",
   "News feed",
   "Economic calendar",
+  "Live TV — market broadcast",
   "Trading signals (view)",
   "Community chat",
   "Trading knowledge base",
@@ -37,38 +39,79 @@ const FEATURES = [
   {
     icon: <Brain className="h-5 w-5" />,
     color: "text-violet-400 bg-violet-500/10 border-violet-500/20",
+    badge: "Pro",
     title: "Brain Terminal",
-    desc: "7 specialized AI agents — Trend, Price Action, News, Risk Gate, Execution, Contrarian, and Master — produce a single structured trade decision.",
+    desc: "7 specialized AI agents — Trend, Price Action, News, Risk Gate, Execution, Contrarian, and Master — run in parallel to produce a single structured trade decision.",
   },
   {
     icon: <TrendingUp className="h-5 w-5" />,
     color: "text-[#5fc77a] bg-[#5fc77a]/10 border-[#5fc77a]/20",
+    badge: "Pro",
     title: "Market Bias Engine",
     desc: "Real-time directional bias across Gold, Forex, Crypto, and Indices. Know which way the market is leaning before you enter.",
   },
   {
-    icon: <BarChart2 className="h-5 w-5" />,
+    icon: <BrainCircuit className="h-5 w-5" />,
     color: "text-sky-400 bg-sky-500/10 border-sky-500/20",
-    title: "Candle Analysis AI",
-    desc: "AI-powered candlestick pattern detection with confluence scoring. Instantly identify setups across any timeframe.",
+    badge: "Pro",
+    title: "Market Intelligence",
+    desc: "Deep AI-driven analysis of macro conditions, market structure, and intermarket correlations across all asset classes.",
   },
   {
-    icon: <Shield className="h-5 w-5" />,
-    color: "text-red-400 bg-red-500/10 border-red-500/20",
-    title: "Risk Gate",
-    desc: "Hard rule-based gate that blocks any trade with bad RR, high volatility, or session violations. No bypass. No exceptions.",
+    icon: <LayoutGrid className="h-5 w-5" />,
+    color: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+    badge: "Pro",
+    title: "Asset Matrix",
+    desc: "Side-by-side comparison of asset performance, momentum, and bias. Spot the strongest and weakest assets at a glance.",
   },
   {
     icon: <Clock className="h-5 w-5" />,
     color: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+    badge: "Pro",
     title: "Session Intelligence",
     desc: "Know exactly which trading session is active — London, New York, Tokyo — and get session-specific bias and key levels.",
   },
   {
     icon: <Newspaper className="h-5 w-5" />,
     color: "text-orange-400 bg-orange-500/10 border-orange-500/20",
+    badge: "Pro",
     title: "AI Catalysts Feed",
     desc: "Market-moving catalysts detected and scored in real-time. Never miss a news event that could flip your trade.",
+  },
+  {
+    icon: <BarChart2 className="h-5 w-5" />,
+    color: "text-purple-400 bg-purple-500/10 border-purple-500/20",
+    badge: "Pro",
+    title: "Candle Analysis AI",
+    desc: "AI-powered candlestick pattern detection with confluence scoring. Instantly identify high-probability setups across any timeframe.",
+  },
+  {
+    icon: <Sparkles className="h-5 w-5" />,
+    color: "text-pink-400 bg-pink-500/10 border-pink-500/20",
+    badge: "Pro",
+    title: "AI Market Briefing",
+    desc: "Daily AI-generated market briefing covering macro outlook, key levels, session bias, and trade context — all in one read.",
+  },
+  {
+    icon: <AtSign className="h-5 w-5" />,
+    color: "text-red-400 bg-red-500/10 border-red-500/20",
+    badge: "Pro",
+    title: "Trump Monitor",
+    desc: "Real-time tracking of Trump's Truth Social posts and statements that move markets. Stay ahead of politically-driven volatility.",
+  },
+  {
+    icon: <DollarSign className="h-5 w-5" />,
+    color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+    badge: "Pro",
+    title: "PnL Calendar",
+    desc: "Visual calendar of your trading performance by day. Track wins, losses, and patterns in your trading history.",
+  },
+  {
+    icon: <Shield className="h-5 w-5" />,
+    color: "text-red-400 bg-red-500/10 border-red-500/20",
+    badge: "Pro",
+    title: "Risk Gate",
+    desc: "Hard rule-based gate inside Brain Terminal that blocks any trade with bad RR, high volatility, or session violations. No bypass.",
   },
 ];
 
@@ -203,8 +246,13 @@ export default function LandingPage() {
                 key={f.title}
                 className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 hover:bg-white/[0.04] transition-colors"
               >
-                <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl border mb-4 ${f.color}`}>
-                  {f.icon}
+                <div className="flex items-start justify-between mb-4">
+                  <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl border ${f.color}`}>
+                    {f.icon}
+                  </div>
+                  <span className="rounded-full border border-[#5fc77a]/30 bg-[#5fc77a]/10 px-2 py-0.5 text-[9px] font-bold tracking-wider text-[#5fc77a] uppercase">
+                    Pro
+                  </span>
                 </div>
                 <h3 className="font-bold text-sm mb-2">{f.title}</h3>
                 <p className="text-xs text-zinc-400 leading-relaxed">{f.desc}</p>
@@ -212,13 +260,14 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* More free features */}
+          {/* Free tools */}
           <div className="mt-8 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
             <p className="text-xs font-bold tracking-[0.15em] text-zinc-500 uppercase mb-4">Also included — free forever</p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               {[
                 { icon: <Calendar className="h-4 w-4" />, label: "Economic Calendar" },
                 { icon: <Newspaper className="h-4 w-4" />, label: "News Feed" },
+                { icon: <Tv className="h-4 w-4" />, label: "Live TV" },
                 { icon: <MessageSquare className="h-4 w-4" />, label: "Community Chat" },
                 { icon: <BookOpen className="h-4 w-4" />, label: "Knowledge Base" },
               ].map(item => (

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import {
   Calendar, TrendingUp, Activity,
   Radio, Brain, Clock, History, DollarSign,
-  Shield, AtSign, Newspaper, LayoutGrid,
+  Shield, AtSign, Newspaper, LayoutGrid, Tv,
   ChevronLeft, ChevronRight, GraduationCap, Zap, Lock
 } from "lucide-react";
 import { MobileBrain } from "@/components/mobile/MobileBrain";
@@ -28,6 +28,7 @@ const AssetMatrixPage    = dynamic(() => import("@/app/dashboard/asset-matrix/pa
 const MarketIntelPage    = dynamic(() => import("@/app/dashboard/market-intelligence/page"),  { ssr: false });
 const PnlCalendarPage    = dynamic(() => import("@/app/dashboard/pnl-calendar/page"),        { ssr: false });
 const SettingsPage       = dynamic(() => import("@/app/dashboard/settings/page"),             { ssr: false });
+const LiveTVPage         = dynamic(() => import("@/app/dashboard/live-tv/page"),               { ssr: false });
 
 interface AppDef {
   id: string;
@@ -49,6 +50,7 @@ const ALL_APPS: AppDef[] = [
   { id: "economic-calendar",    label: "Calendar",        icon: Calendar,      color: "#3b82f6", component: CalendarPage },
   { id: "trump-monitor",        label: "Trump",           icon: AtSign,        color: "#f59e0b", component: TrumpPage,          proOnly: true },
   { id: "news-flow",            label: "News Flow",       icon: Radio,         color: "#10b981", component: NewsFlowPage },
+  { id: "live-tv",              label: "Live TV",         icon: Tv,            color: "#6366f1", component: LiveTVPage },
   // ── Trading (mixed) ────────────────────────────────────────────────────────
   { id: "signals",              label: "Signals",         icon: Activity,      color: "#10b981", component: SignalsPage },
   { id: "pnl-calendar",         label: "PnL Calendar",   icon: DollarSign,    color: "#f59e0b", component: PnlCalendarPage,    proOnly: true },
@@ -70,7 +72,7 @@ const FOLDERS = [
     id: "news",
     label: "News & Events",
     color: "#ef4444",
-    appIds: ["catalysts", "economic-calendar", "trump-monitor", "news-flow"],
+    appIds: ["catalysts", "economic-calendar", "trump-monitor", "news-flow", "live-tv"],
   },
   {
     id: "trading",

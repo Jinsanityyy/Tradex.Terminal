@@ -92,6 +92,7 @@ export const PLAN_ACCESS: Record<string, Plan[]> = {
   "/dashboard/signals":              ["free", "pro"],
   "/dashboard/settings":             ["free", "pro"],
   "/dashboard/learn":                ["free", "pro"],
+  "/dashboard/live-tv":              ["free", "pro"],
   // Pro only
   "/dashboard/market-bias":          ["pro"],
   "/dashboard/ai-briefing":          ["pro"],
