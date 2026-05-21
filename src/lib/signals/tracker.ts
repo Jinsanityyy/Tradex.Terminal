@@ -5,7 +5,7 @@
  * - If price hits TP1 → "win_tp1"
  * - If price hits TP2 → "win_tp2"
  * - If price hits SL  → "loss_sl"
- * - If 24h pass without resolution → "expired"
+ * - If signal window passes without resolution → "expired" (M5: 2h, M15: 4h, H1: 8h, H4: 24h)
  * - No-trade signals are closed to "informational" after 4h
  *
  * Called by the cron endpoint (/api/cron/track-signals).
@@ -20,8 +20,16 @@ import { fetchYahooCandles, type YahooCandleBar } from "@/lib/api/yahoo-finance"
 // Config
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SIGNAL_EXPIRY_MS  = 24 * 60 * 60 * 1000;   // 24h for directional signals
-const NO_TRADE_EXPIRY_MS = 4 * 60 * 60 * 1000;    // 4h for no-trade markers
+// Per-timeframe expiry: shorter windows for shorter timeframes so stale
+// session setups don't linger past their relevant kill zone window.
+const EXPIRY_MS: Record<string, number> = {
+  M5:  2 * 60 * 60 * 1000,   // 2h
+  M15: 4 * 60 * 60 * 1000,   // 4h
+  H1:  8 * 60 * 60 * 1000,   // 8h  (one trading session)
+  H4:  24 * 60 * 60 * 1000,  // 24h
+};
+const DEFAULT_EXPIRY_MS  = 12 * 60 * 60 * 1000;   // fallback
+const NO_TRADE_EXPIRY_MS =  4 * 60 * 60 * 1000;   // 4h for no-trade markers
 const SYMBOL_TO_API: Record<string, string> = {
   XAUUSD: "XAU/USD",
   EURUSD: "EUR/USD",
@@ -310,8 +318,9 @@ function resolveSignal(signal: SignalRecord, currentPrice: number): Resolution |
     return mkInvalidated(currentPrice);
   }
 
-  // Last resort: 24h without any resolution and price still near entry → expired
-  if (ageMs >= SIGNAL_EXPIRY_MS) {
+  // Last resort: no resolution within the session window → expired
+  const expiryMs = EXPIRY_MS[signal.timeframe] ?? DEFAULT_EXPIRY_MS;
+  if (ageMs >= expiryMs) {
     const distFromEntry = Math.abs(currentPrice - entry);
     // If price drifted far even after 24h, still mark as invalidated not expired
     if (distFromEntry > riskDist) return mkInvalidated(currentPrice);
@@ -371,10 +380,19 @@ export async function trackOpenSignals(): Promise<TrackingResult> {
   ]);
 
   for (const signal of open) {
-    const price = prices.get(signal.symbol);
+    let price = prices.get(signal.symbol);
+
+    // If we couldn't fetch a live price but the signal is past its expiry window,
+    // expire it anyway using the last known price at signal creation.
     if (price === undefined) {
-      result.errors.push(`${signal.id}: no price for ${signal.symbol}`);
-      continue;
+      const ageMs = Date.now() - new Date(signal.timestamp).getTime();
+      const expiryMs = EXPIRY_MS[signal.timeframe] ?? DEFAULT_EXPIRY_MS;
+      if (ageMs >= expiryMs && signal.tradePlan) {
+        price = signal.priceAtSignal;
+      } else {
+        result.errors.push(`${signal.id}: no price for ${signal.symbol}`);
+        continue;
+      }
     }
 
     const candles = candleMap.get(`${signal.symbol}_${signal.timeframe}`) ?? [];
