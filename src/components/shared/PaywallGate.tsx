@@ -9,7 +9,7 @@ import Link from "next/link";
 
 const WEB_URL =
   process.env.NEXT_PUBLIC_APP_URL ??
-  "https://tradex-ten.vercel.app";
+  "https://traderterminal.online";
 
 interface PaywallGateProps {
   children: React.ReactNode;
@@ -144,7 +144,7 @@ export function PaywallGate({ children }: PaywallGateProps) {
               className="flex items-center justify-center gap-2 w-full rounded-xl border border-[hsl(142,71%,45%)]/40 bg-[hsl(142,71%,45%)]/10 py-3 text-sm font-semibold text-[hsl(142,71%,45%)] active:opacity-70 transition-all"
             >
               <ExternalLink className="h-4 w-4" />
-              Subscribe at tradexterminal.app
+              Subscribe at traderterminal.online
             </button>
 
             <div className="flex items-center gap-3 my-4">

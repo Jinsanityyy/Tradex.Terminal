@@ -5,7 +5,9 @@ import { Lock, Zap, ExternalLink, RefreshCw, CheckCircle2, Loader2 } from "lucid
 import { useSubscription } from "@/hooks/useSubscription";
 import { cn } from "@/lib/utils";
 
-const WEB_URL = "https://tradex-ten.vercel.app";
+const WEB_URL =
+  process.env.NEXT_PUBLIC_APP_URL ??
+  "https://traderterminal.online";
 
 interface MobileFeatureGateProps {
   children: React.ReactNode;
@@ -104,7 +106,7 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
               className="flex items-center justify-center gap-1.5 w-full rounded-xl border border-[hsl(142,71%,45%)]/40 bg-[hsl(142,71%,45%)]/10 py-2.5 text-xs font-semibold text-[hsl(142,71%,45%)] active:opacity-70 mb-2 transition-all"
             >
               <ExternalLink className="h-3.5 w-3.5" />
-              Subscribe at tradex-ten.vercel.app
+              Subscribe at traderterminal.online
             </button>
             <button
               onClick={handleRefresh}
