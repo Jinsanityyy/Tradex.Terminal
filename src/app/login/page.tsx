@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Loader2, AlertCircle, ArrowLeft, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { TradingChartBg } from "@/components/shared/TradingChartBg";
@@ -18,6 +18,8 @@ const STATUS_ITEMS = [
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextUrl = searchParams.get("next") ?? "/dashboard";
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -61,7 +63,7 @@ export default function LoginPage() {
         const { error } = await supabase.auth.mfa.verify({ factorId: fId, challengeId: challenge!.id, code: mfaCode });
         if (error) throw error;
         sessionStorage.setItem("tradex_boot", email.split("@")[0].toUpperCase());
-        window.location.href = "/dashboard";
+        window.location.href = nextUrl;
       } else if (mode === "forgot") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
@@ -82,14 +84,14 @@ export default function LoginPage() {
         }
         if (data.session) {
           sessionStorage.setItem("tradex_boot", email.split("@")[0].toUpperCase());
-          window.location.href = "/dashboard";
+          window.location.href = nextUrl;
         }
       } else {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         if (data.session) {
           sessionStorage.setItem("tradex_boot", email.split("@")[0].toUpperCase());
-          window.location.href = "/dashboard";
+          window.location.href = nextUrl;
         } else {
           setSuccess("Account created! Check your email to confirm, then sign in.");
           switchMode("login");
