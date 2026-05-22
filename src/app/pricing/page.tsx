@@ -38,7 +38,7 @@ function PricingContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [billing, setBilling] = useState<"monthly" | "annual">(
-    searchParams.get("billing") === "monthly" ? "monthly" : "annual"
+    searchParams.get("billing") === "annual" ? "annual" : "monthly"
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
