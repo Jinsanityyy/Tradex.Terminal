@@ -8,12 +8,16 @@ import { LoginTransitionOverlay } from "@/components/shared/LoginTransitionOverl
 import { TradingKnowledgeSidebar } from "@/components/shared/TradingKnowledgeSidebar";
 import { PaywallGate } from "@/components/shared/PaywallGate";
 import { playAppOpen } from "@/lib/sounds";
+import { useSubscription } from "@/hooks/useSubscription";
+import Link from "next/link";
+import { Clock } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isDashboardHome = pathname === "/dashboard";
   const shellRef = useRef<HTMLDivElement>(null);
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
+  const { subscription } = useSubscription();
 
   // Play app-open sound once per session
   useEffect(() => {
@@ -46,6 +50,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       >
         <Sidebar onOpenKnowledge={() => setKnowledgeOpen(true)} />
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden transition-all duration-300 [margin-left:var(--sidebar-current-width,var(--sidebar-width))]">
+          {/* Mobile-only trial banner (sidebar is hidden on mobile so banner goes here) */}
+          {subscription.isTrialing && (
+            <div className="md:hidden flex items-center justify-between gap-3 px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 shrink-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <Clock className="h-3 w-3 text-amber-400 shrink-0" />
+                <span className="text-[11px] text-amber-400 font-medium">
+                  Free trial — <span className="font-bold">{subscription.trialDaysLeft} day{subscription.trialDaysLeft !== 1 ? "s" : ""} left</span>
+                </span>
+              </div>
+              <Link
+                href="/pricing"
+                className="shrink-0 rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-[10px] font-bold text-amber-400"
+              >
+                Upgrade
+              </Link>
+            </div>
+          )}
+
           {isDashboardHome ? (
             <main className="flex-1 overflow-hidden">
               <PaywallGate>{children}</PaywallGate>
