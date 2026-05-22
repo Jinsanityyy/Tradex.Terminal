@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle2, Smartphone } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 
 export default function ResetPasswordPage() {
@@ -16,6 +16,12 @@ export default function ResetPasswordPage() {
   const [done, setDone] = useState(false);
   const [ready, setReady] = useState(false);
 
+  // MFA state
+  const [needsMfa, setNeedsMfa] = useState(false);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
+  const [mfaLoading, setMfaLoading] = useState(false);
+
   useEffect(() => {
     const supabase = createClient();
     if (!supabase) {
@@ -25,21 +31,43 @@ export default function ResetPasswordPage() {
 
     let mounted = true;
 
-    // The /auth/callback route already exchanged the code server-side and set
-    // the session cookie — we just need to confirm the session exists.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (!mounted) return;
       if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
-        setReady(true);
+        checkMfa();
       }
     });
+
+    async function checkMfa() {
+      if (!mounted) return;
+      const supabase = createClient();
+      if (!supabase) return;
+
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session) {
+        setError("This password reset link is invalid or expired. Please request a new one.");
+        return;
+      }
+
+      // Check if MFA is required
+      const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aalData?.nextLevel === "aal2" && aalData.nextLevel !== aalData.currentLevel) {
+        // MFA needed — get the factor ID
+        const { data: factors } = await supabase.auth.mfa.listFactors();
+        const totp = factors?.totp?.find((f) => f.status === "verified");
+        setMfaFactorId(totp?.id ?? null);
+        setNeedsMfa(true);
+      } else {
+        setReady(true);
+      }
+    }
 
     supabase.auth.getSession().then(({ data, error: sessionError }) => {
       if (!mounted) return;
       if (sessionError || !data.session) {
         setError("This password reset link is invalid or expired. Please request a new one.");
       } else {
-        setReady(true);
+        checkMfa();
       }
     });
 
@@ -48,6 +76,39 @@ export default function ResetPasswordPage() {
       subscription.unsubscribe();
     };
   }, []);
+
+  async function handleMfaVerify(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setMfaLoading(true);
+
+    try {
+      const supabase = createClient();
+      if (!supabase) throw new Error("Authentication is not configured.");
+
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const totp = factors?.totp?.find((f) => f.status === "verified");
+      const factorId = mfaFactorId ?? totp?.id;
+      if (!factorId) throw new Error("No authenticator found.");
+
+      const { data: challenge } = await supabase.auth.mfa.challenge({ factorId });
+      if (!challenge) throw new Error("Failed to create MFA challenge.");
+
+      const { error } = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId: challenge.id,
+        code: mfaCode,
+      });
+      if (error) throw error;
+
+      setNeedsMfa(false);
+      setReady(true);
+    } catch (err: any) {
+      setError(err.message ?? "Invalid MFA code. Please try again.");
+    } finally {
+      setMfaLoading(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -96,12 +157,68 @@ export default function ResetPasswordPage() {
               <h2 className="text-base font-semibold text-white mb-1">Password updated!</h2>
               <p className="text-xs text-gray-500">Redirecting you to the dashboard...</p>
             </div>
+          ) : needsMfa ? (
+            /* ── MFA Verification Step ── */
+            <form onSubmit={handleMfaVerify} className="space-y-5">
+              <div className="flex items-center justify-center mb-2">
+                <div className="flex items-center justify-center w-14 h-14 rounded-2xl"
+                  style={{ border: "1px solid rgba(95,199,122,0.25)", background: "rgba(95,199,122,0.07)" }}>
+                  <Smartphone className="h-6 w-6 text-[hsl(142,71%,45%)]" />
+                </div>
+              </div>
+              <div>
+                <h1 className="text-lg font-semibold text-white mb-1 text-center">Verify your identity</h1>
+                <p className="text-xs text-gray-500 mb-6 text-center">
+                  Enter the 6-digit code from your authenticator app to continue resetting your password.
+                </p>
+                <label className="block text-[11px] font-medium text-gray-400 mb-1.5 uppercase tracking-wider text-center">
+                  Authenticator Code
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  required
+                  autoFocus
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="000000"
+                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3.5 py-2.5 text-xl text-white placeholder-gray-600 outline-none focus:border-[hsl(142,71%,45%)]/50 focus:ring-1 focus:ring-[hsl(142,71%,45%)]/20 transition-all font-mono tracking-[0.4em] text-center"
+                />
+              </div>
+
+              {error && (
+                <div className="flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2.5">
+                  <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
+                  <p className="text-xs text-red-400">{error}</p>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={mfaLoading || mfaCode.length < 6}
+                className="w-full flex items-center justify-center gap-2 rounded-lg bg-[hsl(142,71%,45%)] py-2.5 text-sm font-semibold text-[#0a0e1a] hover:bg-[hsl(142,71%,50%)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {mfaLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                Verify & Continue
+              </button>
+            </form>
           ) : !ready ? (
             <div className="text-center py-4">
-              <Loader2 className="h-6 w-6 animate-spin text-[hsl(142,71%,45%)] mx-auto mb-3" />
-              <p className="text-xs text-gray-500">Verifying reset link...</p>
+              {error ? (
+                <>
+                  <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-3" />
+                  <p className="text-sm text-red-400">{error}</p>
+                </>
+              ) : (
+                <>
+                  <Loader2 className="h-6 w-6 animate-spin text-[hsl(142,71%,45%)] mx-auto mb-3" />
+                  <p className="text-xs text-gray-500">Verifying reset link...</p>
+                </>
+              )}
             </div>
           ) : (
+            /* ── New Password Form ── */
             <>
               <h1 className="text-lg font-semibold text-white mb-1">Set new password</h1>
               <p className="text-xs text-gray-500 mb-6">Choose a new password for your account.</p>
