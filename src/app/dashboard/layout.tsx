@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { NotificationToast } from "@/components/shared/NotificationToast";
 import { LoginTransitionOverlay } from "@/components/shared/LoginTransitionOverlay";
 import { TradingKnowledgeSidebar } from "@/components/shared/TradingKnowledgeSidebar";
+import { PaywallGate } from "@/components/shared/PaywallGate";
 import { playAppOpen } from "@/lib/sounds";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -46,9 +47,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Sidebar onOpenKnowledge={() => setKnowledgeOpen(true)} />
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden transition-all duration-300 [margin-left:var(--sidebar-current-width,var(--sidebar-width))]">
           {isDashboardHome ? (
-            <main className="flex-1 overflow-hidden">{children}</main>
+            <main className="flex-1 overflow-hidden">
+              <PaywallGate>{children}</PaywallGate>
+            </main>
           ) : (
-            <main className="flex-1 overflow-y-auto p-3 pb-20 md:p-4 md:pb-4">{children}</main>
+            <main className="flex-1 overflow-y-auto p-3 pb-20 md:p-4 md:pb-4">
+              <PaywallGate>{children}</PaywallGate>
+            </main>
           )}
         </div>
       </div>
