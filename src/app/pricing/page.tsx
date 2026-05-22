@@ -2,7 +2,8 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { CheckCircle2, Zap, Lock, Loader2, AlertCircle, X } from "lucide-react";
+import { CheckCircle2, Zap, Lock, Loader2, AlertCircle, X, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import { cn } from "@/lib/utils";
 
@@ -93,6 +94,17 @@ function PricingContent() {
   return (
     <div className="min-h-screen bg-[#0a0e1a] text-white px-4 py-12">
       <div className="max-w-4xl mx-auto">
+
+        {/* Back to Dashboard */}
+        <div className="mb-8">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Dashboard
+          </Link>
+        </div>
 
         {/* Header */}
         <div className="text-center mb-10">
