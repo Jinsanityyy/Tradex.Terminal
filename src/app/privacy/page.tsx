@@ -47,13 +47,14 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-lg font-semibold text-white mb-3">5. Third-Party Services</h2>
-            <p className="mb-2">We use the following third-party services that may process your data:</p>
+            <p className="mb-2">We use the following categories of third-party services that may process your data:</p>
             <ul className="list-disc list-inside space-y-2">
-              <li><strong className="text-white">Supabase</strong> — database and authentication hosting.</li>
-              <li><strong className="text-white">PayPal</strong> — subscription payment processing.</li>
-              <li><strong className="text-white">Vercel</strong> — web application hosting.</li>
-              <li><strong className="text-white">OpenAI / AI providers</strong> — powering AI market analysis (only market data is sent, never personal data).</li>
-              <li><strong className="text-white">TradingView</strong> — embedded chart widget.</li>
+              <li><strong className="text-white">Authentication &amp; database hosting</strong> — secure storage of your account and journal data.</li>
+              <li><strong className="text-white">Payment processor</strong> — subscription billing. We do not store your payment credentials.</li>
+              <li><strong className="text-white">Web hosting &amp; CDN</strong> — delivery of the TradeX Terminal web application.</li>
+              <li><strong className="text-white">AI analysis services</strong> — powering market analysis features. Only anonymized market data is sent; your personal information is never shared.</li>
+              <li><strong className="text-white">Market data providers</strong> — real-time and historical financial market data used to power the terminal. No personal data is shared with these providers.</li>
+              <li><strong className="text-white">Charting services</strong> — interactive financial charts embedded in the app.</li>
             </ul>
           </section>
 
