@@ -33,7 +33,7 @@ export function PaywallGate({ children }: PaywallGateProps) {
   const { subscription, loading } = useSubscription();
   const [refreshing, setRefreshing] = useState(false);
   const [refreshed, setRefreshed] = useState(false);
-  const [billing, setBilling] = useState<"monthly" | "annual">("annual");
+  const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
   const [subLoading, setSubLoading] = useState(false);
   const [subError, setSubError] = useState<string | null>(null);
   const isNative = isNativeAndroid();

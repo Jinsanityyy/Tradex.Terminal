@@ -47,11 +47,17 @@ export function useSubscription() {
           .eq("user_id", user.id)
           .maybeSingle();
 
+        const now = new Date();
+
         if (data) {
           const plan        = (data.plan ?? "free") as Plan;
           const isActive    = data.status === "active";
-          const now         = new Date();
-          const trialEnd    = data.trial_ends_at ? new Date(data.trial_ends_at) : null;
+          // Prefer DB trial_ends_at; fall back to 7 days from account creation
+          const trialEndRaw = data.trial_ends_at
+            ?? (user.created_at
+              ? new Date(new Date(user.created_at).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
+              : null);
+          const trialEnd    = trialEndRaw ? new Date(trialEndRaw) : null;
           const isTrialing  = !!trialEnd && now < trialEnd && plan === "free";
           const trialDaysLeft = isTrialing
             ? Math.max(0, Math.ceil((trialEnd!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
@@ -63,12 +69,32 @@ export function useSubscription() {
             plan,
             status: data.status,
             current_period_end: data.current_period_end,
-            trial_ends_at: data.trial_ends_at,
+            trial_ends_at: trialEndRaw,
             isActive,
             isPro,
             isTrialing,
             trialDaysLeft,
             hasFullAccess,
+          });
+        } else {
+          // No subscription row yet (trigger may not have fired) —
+          // treat as trialing for 7 days from account creation
+          const createdAt = user.created_at ? new Date(user.created_at) : now;
+          const trialEnd  = new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1000);
+          const isTrialing = now < trialEnd;
+          const trialDaysLeft = isTrialing
+            ? Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+            : 0;
+          setSubscription({
+            plan: "free",
+            status: "active",
+            current_period_end: null,
+            trial_ends_at: trialEnd.toISOString(),
+            isActive: true,
+            isPro: false,
+            isTrialing,
+            trialDaysLeft,
+            hasFullAccess: isTrialing,
           });
         }
       } catch {}
