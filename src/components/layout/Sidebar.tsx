@@ -12,6 +12,7 @@ import {
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import { useSettings } from "@/contexts/SettingsContext";
 import { AGENT_SYMBOLS, getSymbolLabel, getSymbolShort } from "@/lib/assetImpact";
+import { useSubscription } from "@/hooks/useSubscription";
 
 const SIDEBAR_HIDDEN_STORAGE_KEY = "tradex-sidebar-hidden-v1";
 
@@ -40,6 +41,7 @@ interface SidebarProps {
 export function Sidebar({ onOpenKnowledge }: SidebarProps) {
   const pathname = usePathname();
   const { settings, saveSettings } = useSettings();
+  const { subscription } = useSubscription();
   const [viewportWidth, setViewportWidth] = useState(1440);
   const [desktopHidden, setDesktopHidden] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -244,6 +246,40 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
             </div>
           )}
         </div>
+
+        {/* Trial Banner */}
+        {subscription.isTrialing && (
+          <div className="px-2 pb-2">
+            {!isCompact ? (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.07] px-3 py-2.5">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Free Trial</span>
+                  <span className="text-[10px] font-mono font-bold text-amber-400">
+                    {subscription.trialDaysLeft}d left
+                  </span>
+                </div>
+                <div className="h-1 w-full rounded-full bg-white/10 overflow-hidden mb-2">
+                  <div
+                    className="h-full rounded-full bg-amber-400 transition-all"
+                    style={{ width: `${Math.max(5, (subscription.trialDaysLeft / 7) * 100)}%` }}
+                  />
+                </div>
+                <Link
+                  href="/pricing"
+                  className="flex items-center justify-center w-full rounded-lg bg-amber-500/20 border border-amber-500/30 py-1.5 text-[10px] font-bold text-amber-400 hover:bg-amber-500/30 transition-all"
+                >
+                  Upgrade to Pro
+                </Link>
+              </div>
+            ) : (
+              <Link href="/pricing" title={`${subscription.trialDaysLeft} days left in trial`}>
+                <div className="flex flex-col items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 py-1.5">
+                  <span className="text-[9px] font-mono font-bold text-amber-400">{subscription.trialDaysLeft}d</span>
+                </div>
+              </Link>
+            )}
+          </div>
+        )}
 
         {/* Bottom */}
         <div className="border-t border-[hsl(var(--border))] p-3">

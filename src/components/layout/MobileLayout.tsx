@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { LayoutDashboard, TrendingUp, Zap, BarChart3, Users, Grid, Camera, LogOut, X, Lock } from "lucide-react";
+import { LayoutDashboard, TrendingUp, Zap, BarChart3, Users, Grid, Camera, LogOut, X, Lock, Clock } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import { cn } from "@/lib/utils";
 import { MobileHome } from "@/components/mobile/MobileHome";
@@ -11,6 +11,7 @@ import { MobileBrain } from "@/components/mobile/MobileBrain";
 import { MobileMore } from "@/components/mobile/MobileMore";
 import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { createClient } from "@/lib/supabase/client";
+import { useSubscription } from "@/hooks/useSubscription";
 import { NotificationToast } from "@/components/shared/NotificationToast";
 import { LoginTransitionOverlay } from "@/components/shared/LoginTransitionOverlay";
 
@@ -42,6 +43,7 @@ export function MobileLayout() {
   const [avatar, setAvatar] = useState<string | null>(null);
   const [unreadChat, setUnreadChat] = useState(0);
   const [unreadFeed, setUnreadFeed] = useState(0);
+  const { subscription } = useSubscription();
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -353,6 +355,28 @@ export function MobileLayout() {
               Sign out
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Trial Banner */}
+      {subscription.isTrialing && (
+        <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2 bg-amber-500/10 border-b border-amber-500/20">
+          <div className="flex items-center gap-2 min-w-0">
+            <Clock className="h-3 w-3 text-amber-400 shrink-0" />
+            <span className="text-[11px] text-amber-400 font-medium truncate">
+              Free trial — <span className="font-bold">{subscription.trialDaysLeft} day{subscription.trialDaysLeft !== 1 ? "s" : ""} left</span>
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              // Navigate to more tab → pricing or open pricing
+              document.dispatchEvent(new CustomEvent("tradex:open-app", { detail: { appId: "pricing" } }));
+              window.location.href = "/pricing";
+            }}
+            className="shrink-0 rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-[10px] font-bold text-amber-400 active:opacity-70"
+          >
+            Upgrade
+          </button>
         </div>
       )}
 
