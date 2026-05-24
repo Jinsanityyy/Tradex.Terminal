@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Palette, BarChart3, Globe, Bell, Filter, RotateCcw, Save, CheckCircle2, ShieldCheck, ShieldOff, Smartphone, Loader2, AlertCircle, DollarSign } from "lucide-react";
+import { Palette, BarChart3, Globe, Bell, Filter, RotateCcw, Save, CheckCircle2, ShieldCheck, ShieldOff, Smartphone, Loader2, AlertCircle, DollarSign, Trash2 } from "lucide-react";
 import {
   useSettings, applyVisualSettings, DEFAULTS,
   Settings, Theme, Density, TimeZone, DateFormat, RefreshInterval, ImpactThreshold,
@@ -692,6 +692,35 @@ export default function SettingsPage() {
 
       {/* Security / MFA */}
       <MFASection />
+
+      {/* Danger Zone */}
+      <Card className="border-red-500/20">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm text-red-400">
+            <Trash2 className="h-4 w-4" /> Danger Zone
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-start justify-between gap-4 py-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-[hsl(var(--foreground))]">Delete Account</p>
+              <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5">Permanently delete your account and all associated data. This action cannot be undone.</p>
+            </div>
+            <button
+              onClick={async () => {
+                if (!window.confirm("Permanently delete your account? This cannot be undone.")) return;
+                try {
+                  const res = await fetch("/api/account/delete", { method: "DELETE" });
+                  if (res.ok) window.location.href = "/login";
+                } catch {}
+              }}
+              className="shrink-0 flex items-center gap-1.5 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-[10px] font-semibold text-red-400 hover:bg-red-500/20 transition-all"
+            >
+              <Trash2 className="h-3 w-3" /> Delete Account
+            </button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Sticky Save Bar  -  appears when there are unsaved changes */}
       {isDirty && (

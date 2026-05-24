@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
 import { Radio, RefreshCw } from "lucide-react";
 
@@ -83,34 +82,31 @@ export function LiveTVPanel({
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   function stopIframe() {
-    // Belt-and-suspenders: tell the YouTube player to pause immediately via
-    // postMessage so audio stops even before React finishes re-rendering.
-    try {
-      iframeRef.current?.contentWindow?.postMessage(
-        '{"event":"command","func":"pauseVideo","args":""}', "*"
-      );
-    } catch {}
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    // Nuke the src directly — this kills audio immediately without waiting
+    // for React to re-render. The iframe element stays in the DOM briefly
+    // but is silent; React unmounts it on the next render via tabVisible.
+    iframe.src = "about:blank";
   }
 
-  // Unmount iframe when browser tab is hidden — most reliable way to stop audio on mobile
+  // Stop + unmount when browser tab is hidden
   useEffect(() => {
     const onVisibility = () => {
       if (document.hidden) stopIframe();
-      // flushSync forces React to re-render synchronously so the iframe is
-      // removed from the DOM immediately, even in React 18 concurrent mode
-      flushSync(() => setTabVisible(!document.hidden));
+      setTabVisible(!document.hidden);
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
 
-  // Also stop playback when switching between mobile app bottom tabs
+  // Stop + unmount when switching mobile app bottom tabs
   useEffect(() => {
     const onMobileTabChange = (e: Event) => {
       const { active: tabId } = (e as CustomEvent<{ active: string }>).detail;
       const visible = tabId === "more" ? !document.hidden : false;
       if (!visible) stopIframe();
-      flushSync(() => setTabVisible(visible));
+      setTabVisible(visible);
     };
     document.addEventListener("tradex:mobile-tab-change", onMobileTabChange);
     return () => document.removeEventListener("tradex:mobile-tab-change", onMobileTabChange);
