@@ -367,8 +367,10 @@ export function MobileLayout() {
                 </div>
                 <div className="flex flex-col gap-2">
                   {PLANS.pro.planId ? (
-                    <button
-                      onClick={() => { window.location.href = buildPayPalUrl(PLANS.pro.planId as string); }}
+                    <a
+                      href={buildPayPalUrl(PLANS.pro.planId as string)}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/30 active:opacity-70"
                     >
                       <div className="text-left">
@@ -376,11 +378,13 @@ export function MobileLayout() {
                         <p className="text-[10px] text-zinc-500">Full terminal access</p>
                       </div>
                       <span className="text-[13px] font-black font-mono text-[hsl(var(--primary))]">$29/mo</span>
-                    </button>
+                    </a>
                   ) : null}
                   {PLANS.elite.planId ? (
-                    <button
-                      onClick={() => { window.location.href = buildPayPalUrl(PLANS.elite.planId as string); }}
+                    <a
+                      href={buildPayPalUrl(PLANS.elite.planId as string)}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 active:opacity-70"
                     >
                       <div className="text-left">
@@ -388,7 +392,7 @@ export function MobileLayout() {
                         <p className="text-[10px] text-zinc-500">Max edge + priority</p>
                       </div>
                       <span className="text-[13px] font-black font-mono text-amber-400">$99/mo</span>
-                    </button>
+                    </a>
                   ) : null}
                 </div>
               </div>
@@ -399,8 +403,10 @@ export function MobileLayout() {
                   <Crown className="h-4 w-4 text-amber-400" />
                   <span className="text-[13px] font-bold text-amber-300">Upgrade to Elite</span>
                 </div>
-                <button
-                  onClick={() => { window.location.href = buildPayPalUrl(PLANS.elite.planId as string); }}
+                <a
+                  href={buildPayPalUrl(PLANS.elite.planId as string)}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 active:opacity-70"
                 >
                   <div className="text-left">
@@ -408,7 +414,7 @@ export function MobileLayout() {
                     <p className="text-[10px] text-zinc-500">Max edge + priority</p>
                   </div>
                   <span className="text-[13px] font-black font-mono text-amber-400">$99/mo</span>
-                </button>
+                </a>
               </div>
             )}
 
