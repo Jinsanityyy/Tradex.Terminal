@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-export type Plan = "free" | "pro";
+export type Plan = "free" | "pro" | "elite";
 
 export interface Subscription {
   plan: Plan;
@@ -12,6 +12,7 @@ export interface Subscription {
   trial_ends_at: string | null;
   isActive: boolean;
   isPro: boolean;
+  isElite: boolean;
   isTrialing: boolean;
   trialDaysLeft: number;
   hasFullAccess: boolean;
@@ -24,6 +25,7 @@ const DEFAULT: Subscription = {
   trial_ends_at: null,
   isActive: true,
   isPro: false,
+  isElite: false,
   isTrialing: false,
   trialDaysLeft: 0,
   hasFullAccess: false,
@@ -47,40 +49,35 @@ export function useSubscription() {
           .eq("user_id", user.id)
           .maybeSingle();
 
-        const now = new Date();
-
         if (data) {
           const plan        = (data.plan ?? "free") as Plan;
           const isActive    = data.status === "active";
-          // Prefer DB trial_ends_at; fall back to 7 days from account creation
-          const trialEndRaw = data.trial_ends_at
-            ?? (user.created_at
-              ? new Date(new Date(user.created_at).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
-              : null);
-          const trialEnd    = trialEndRaw ? new Date(trialEndRaw) : null;
+          const now         = new Date();
+          const trialEnd    = data.trial_ends_at ? new Date(data.trial_ends_at) : null;
           const isTrialing  = !!trialEnd && now < trialEnd && plan === "free";
           const trialDaysLeft = isTrialing
             ? Math.max(0, Math.ceil((trialEnd!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
             : 0;
-          const isPro       = isActive && plan === "pro";
+          const isPro       = isActive && (plan === "pro" || plan === "elite");
+          const isElite     = isActive && plan === "elite";
           const hasFullAccess = isPro || isTrialing;
 
           setSubscription({
             plan,
             status: data.status,
             current_period_end: data.current_period_end,
-            trial_ends_at: trialEndRaw,
+            trial_ends_at: data.trial_ends_at,
             isActive,
             isPro,
+            isElite,
             isTrialing,
             trialDaysLeft,
             hasFullAccess,
           });
         } else {
-          // No subscription row yet (trigger may not have fired) —
-          // treat as trialing for 7 days from account creation
-          const createdAt = user.created_at ? new Date(user.created_at) : now;
+          const createdAt = user.created_at ? new Date(user.created_at) : new Date();
           const trialEnd  = new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1000);
+          const now = new Date();
           const isTrialing = now < trialEnd;
           const trialDaysLeft = isTrialing
             ? Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
@@ -92,6 +89,7 @@ export function useSubscription() {
             trial_ends_at: trialEnd.toISOString(),
             isActive: true,
             isPro: false,
+            isElite: false,
             isTrialing,
             trialDaysLeft,
             hasFullAccess: isTrialing,
@@ -106,30 +104,20 @@ export function useSubscription() {
   return { subscription, loading };
 }
 
-// ── Plan feature access matrix ─────────────────────────────────────────────────
-// FREE: basic market data, prices, news, calendar, signals, learn, settings
-// PRO:  all AI-powered analysis, bias engine, agent terminal, trade tools
-
+// ── Plan feature access matrix ─────────────────────────────────────────────────────
 export const PLAN_ACCESS: Record<string, Plan[]> = {
-  // Free for everyone
-  "/dashboard":                      ["free", "pro"],
-  "/dashboard/economic-calendar":    ["free", "pro"],
-  "/dashboard/news-flow":            ["free", "pro"],
-  "/dashboard/signals":              ["free", "pro"],
-  "/dashboard/settings":             ["free", "pro"],
-  "/dashboard/learn":                ["free", "pro"],
-  "/dashboard/live-tv":              ["free", "pro"],
-  // Pro only
-  "/dashboard/market-bias":          ["pro"],
-  "/dashboard/ai-briefing":          ["pro"],
-  "/dashboard/trump-monitor":        ["pro"],
-  "/dashboard/catalysts":            ["pro"],
-  "/dashboard/session-intelligence": ["pro"],
-  "/dashboard/asset-matrix":         ["pro"],
-  "/dashboard/pnl-calendar":         ["free", "pro"],
-  "/dashboard/brain":                ["free", "pro"],
-  "/dashboard/candle-analysis":      ["pro"],
-  "/dashboard/market-intelligence":  ["pro"],
+  "/dashboard":                      ["free", "pro", "elite"],
+  "/dashboard/economic-calendar":    ["free", "pro", "elite"],
+  "/dashboard/news-flow":            ["free", "pro", "elite"],
+  "/dashboard/settings":             ["free", "pro", "elite"],
+  "/dashboard/signals":              ["free", "pro", "elite"],
+  "/dashboard/pnl-calendar":         ["pro", "elite"],
+  "/dashboard/market-bias":          ["pro", "elite"],
+  "/dashboard/ai-briefing":          ["pro", "elite"],
+  "/dashboard/trump-monitor":        ["pro", "elite"],
+  "/dashboard/catalysts":            ["pro", "elite"],
+  "/dashboard/session-intelligence": ["pro", "elite"],
+  "/dashboard/asset-matrix":         ["elite"],
 };
 
 export function canAccess(plan: Plan, page: string, isTrialing: boolean): boolean {
