@@ -23,7 +23,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const saved = localStorage.getItem("tradex_settings");
       const tone = saved ? JSON.parse(saved).welcomeTone !== false : true;
       if (tone) playAppOpen();
-    } catch { playAppOpen(); }
+    } catch {}
   }, []);
 
   useEffect(() => {

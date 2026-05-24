@@ -477,7 +477,18 @@ export default function SettingsPage() {
             <Toggle checked={draft.animations} onChange={(v) => update("animations", v)} />
           </SettingRow>
           <SettingRow label="Welcome Tone" description="Play the startup chime and voice greeting on app open">
-            <Toggle checked={draft.welcomeTone} onChange={(v) => update("welcomeTone", v)} />
+            <Toggle
+              checked={draft.welcomeTone}
+              onChange={(v) => {
+                update("welcomeTone", v);
+                // Persist immediately so AudioUnlocker reads it on next launch without requiring Save
+                try {
+                  const raw = localStorage.getItem("tradex_settings");
+                  const cur = raw ? JSON.parse(raw) : {};
+                  localStorage.setItem("tradex_settings", JSON.stringify({ ...cur, welcomeTone: v }));
+                } catch {}
+              }}
+            />
           </SettingRow>
         </CardContent>
       </Card>
