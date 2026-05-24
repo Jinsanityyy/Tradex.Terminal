@@ -38,6 +38,26 @@ function buildPayPalUrl(planId: string): string {
   return `${PAYPAL_BASE}?plan_id=${planId}&redirect_url=${encodeURIComponent(successUrl)}`;
 }
 
+function isNativeApp(): boolean {
+  if (typeof window === "undefined") return false;
+  if ((window as any).Capacitor?.isNativePlatform?.()) return true;
+  if (window.matchMedia?.("(display-mode: standalone)").matches) return true;
+  return false;
+}
+
+function navigateToUpgrade(planId: string | null | undefined) {
+  if (!planId) {
+    window.location.href = "/pricing";
+    return;
+  }
+  const url = buildPayPalUrl(planId);
+  if (isNativeApp()) {
+    window.open(url, "_system");
+  } else {
+    window.location.href = url;
+  }
+}
+
 export function MobileLayout() {
   const { subscription } = useSubscription();
   const [active, setActive] = useState<TabId>("home");
@@ -211,9 +231,10 @@ export function MobileLayout() {
     if (transitionTimer.current) clearTimeout(transitionTimer.current);
     transitionTimer.current = setTimeout(() => setTransitioning(false), 180);
     if (id === "home") {
-      // Give the DOM one frame to become visible before telling the globe to re-sync
       setTimeout(() => window.dispatchEvent(new Event("tradex-home-active")), 50);
     }
+    // Let media components (e.g. Live TV) know which tab is now active
+    document.dispatchEvent(new CustomEvent("tradex:mobile-tab-change", { detail: { active: id } }));
   }, [active]);
 
   useEffect(() => {
@@ -366,25 +387,19 @@ export function MobileLayout() {
                   <span className="text-[13px] font-bold text-amber-300">Upgrade Plan</span>
                 </div>
                 <div className="flex flex-col gap-2">
-                  {PLANS.pro.planId ? (
-                    <a
-                      href={buildPayPalUrl(PLANS.pro.planId as string)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/30 active:opacity-70"
-                    >
-                      <div className="text-left">
-                        <p className="text-[12px] font-bold text-[hsl(var(--primary))]">Pro</p>
-                        <p className="text-[10px] text-zinc-500">Full terminal access</p>
-                      </div>
-                      <span className="text-[13px] font-black font-mono text-[hsl(var(--primary))]">$29/mo</span>
-                    </a>
-                  ) : null}
-                  {PLANS.elite.planId ? (
-                    <a
-                      href={buildPayPalUrl(PLANS.elite.planId as string)}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                  <button
+                    onClick={() => navigateToUpgrade(PLANS.pro.planId || null)}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/30 active:opacity-70"
+                  >
+                    <div className="text-left">
+                      <p className="text-[12px] font-bold text-[hsl(var(--primary))]">Pro</p>
+                      <p className="text-[10px] text-zinc-500">Full terminal access</p>
+                    </div>
+                    <span className="text-[13px] font-black font-mono text-[hsl(var(--primary))]">$39/mo</span>
+                  </button>
+                  {"elite" in PLANS && (PLANS as any).elite?.planId ? (
+                    <button
+                      onClick={() => navigateToUpgrade((PLANS as any).elite.planId)}
                       className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 active:opacity-70"
                     >
                       <div className="text-left">
@@ -392,21 +407,19 @@ export function MobileLayout() {
                         <p className="text-[10px] text-zinc-500">Max edge + priority</p>
                       </div>
                       <span className="text-[13px] font-black font-mono text-amber-400">$99/mo</span>
-                    </a>
+                    </button>
                   ) : null}
                 </div>
               </div>
             )}
-            {subscription.isPro && !subscription.isElite && PLANS.elite.planId && (
+            {subscription.isPro && !subscription.isElite && "elite" in PLANS && (PLANS as any).elite?.planId && (
               <div className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Crown className="h-4 w-4 text-amber-400" />
                   <span className="text-[13px] font-bold text-amber-300">Upgrade to Elite</span>
                 </div>
-                <a
-                  href={buildPayPalUrl(PLANS.elite.planId as string)}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={() => navigateToUpgrade((PLANS as any).elite.planId)}
                   className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 active:opacity-70"
                 >
                   <div className="text-left">
@@ -414,7 +427,7 @@ export function MobileLayout() {
                     <p className="text-[10px] text-zinc-500">Max edge + priority</p>
                   </div>
                   <span className="text-[13px] font-black font-mono text-amber-400">$99/mo</span>
-                </a>
+                </button>
               </div>
             )}
 

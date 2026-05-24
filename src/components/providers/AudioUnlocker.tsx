@@ -21,6 +21,8 @@ export function AudioUnlocker() {
 
       if (!played) {
         played = true;
+        // Prevent DashboardLayout from double-playing on the same session
+        sessionStorage.setItem("tradex-opened", "1");
         if (isWelcomeToneEnabled()) playAppOpen();
       }
     };

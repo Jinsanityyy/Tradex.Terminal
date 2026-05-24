@@ -79,11 +79,21 @@ export function LiveTVPanel({
   const [loading, setLoading] = useState(true);
   const [retryKey, setRetryKey] = useState(0);
   const [tabVisible, setTabVisible] = useState(true);
-  // Unmount iframe when tab is hidden — most reliable way to stop audio on mobile
+  // Unmount iframe when browser tab is hidden — most reliable way to stop audio on mobile
   useEffect(() => {
     const onVisibility = () => setTabVisible(!document.hidden);
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+  // Also stop playback when switching between mobile app bottom tabs
+  useEffect(() => {
+    const onMobileTabChange = (e: Event) => {
+      const { active } = (e as CustomEvent<{ active: string }>).detail;
+      // Live TV lives under the "more" tab; pause when any other tab becomes active
+      setTabVisible(active === "more" ? !document.hidden : false);
+    };
+    document.addEventListener("tradex:mobile-tab-change", onMobileTabChange);
+    return () => document.removeEventListener("tradex:mobile-tab-change", onMobileTabChange);
   }, []);
 
   useEffect(() => {
