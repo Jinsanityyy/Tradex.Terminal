@@ -14,7 +14,7 @@ interface Channel {
 }
 
 const EMBED_PARAMS =
-  "autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&fs=1";
+  "autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&fs=1&enablejsapi=1";
 
 const CHANNELS: Channel[] = [
   {
@@ -78,6 +78,13 @@ export function LiveTVPanel({
   const [videoIds, setVideoIds] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(true);
   const [retryKey, setRetryKey] = useState(0);
+  const [tabVisible, setTabVisible] = useState(true);
+  // Unmount iframe when tab is hidden — most reliable way to stop audio on mobile
+  useEffect(() => {
+    const onVisibility = () => setTabVisible(!document.hidden);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -155,6 +162,8 @@ export function LiveTVPanel({
             <div className="absolute inset-0 flex items-center justify-center bg-black">
               <RefreshCw className="h-6 w-6 animate-spin text-zinc-600" />
             </div>
+          ) : !tabVisible ? (
+            <div className="absolute inset-0 bg-black" />
           ) : (
             <iframe
               key={`${active.id}-${retryKey}-${videoIds[active.id] ?? "fallback"}`}
