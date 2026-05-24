@@ -86,6 +86,7 @@ export function MobileMore() {
   const [openFolderId, setOpenFolderId] = useState<string | null>(null);
   const [activeAppId, setActiveAppId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [isTabActive, setIsTabActive] = useState(true);
   const { subscription } = useSubscription();
 
   // Listen for deep-link events from MobileLayout (e.g. widget "Open" taps)
@@ -98,6 +99,17 @@ export function MobileMore() {
     };
     document.addEventListener("tradex:open-app", handler);
     return () => document.removeEventListener("tradex:open-app", handler);
+  }, []);
+
+  // Track whether the More bottom tab is currently active.
+  // When inactive, app content is unmounted so media (Live TV) stops playing.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { active } = (e as CustomEvent<{ active: string }>).detail;
+      setIsTabActive(active === "more");
+    };
+    document.addEventListener("tradex:mobile-tab-change", handler);
+    return () => document.removeEventListener("tradex:mobile-tab-change", handler);
   }, []);
 
   const activeApp = ALL_APPS.find(a => a.id === activeAppId);
@@ -124,10 +136,10 @@ export function MobileMore() {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-3 pb-6">
-            {isLocked
+            {isTabActive && (isLocked
               ? <MobileFeatureGate featureName={activeApp.label}><PageComponent /></MobileFeatureGate>
               : <PageComponent />
-            }
+            )}
           </div>
         </div>
       </>
