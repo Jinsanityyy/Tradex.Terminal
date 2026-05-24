@@ -1,8 +1,8 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Palette, BarChart3, Globe, Bell, Filter, RotateCcw, Save, CheckCircle2, ShieldCheck, ShieldOff, Smartphone, Loader2, AlertCircle, DollarSign, Trash2 } from "lucide-react";
+import { Palette, BarChart3, Globe, Bell, Filter, RotateCcw, Save, CheckCircle2, ShieldCheck, ShieldOff, Smartphone, Loader2, AlertCircle, DollarSign } from "lucide-react";
 import {
   useSettings, applyVisualSettings, DEFAULTS,
   Settings, Theme, Density, TimeZone, DateFormat, RefreshInterval, ImpactThreshold,
@@ -13,7 +13,7 @@ import { playOrderFilled, playHighImpactAlert, playSignalArmed, playAppOpen, unl
 import { createClient } from "@/lib/supabase/client";
 import Image from "next/image";
 
-// ── Atoms ────────────────────────────────────────────────────────────────────
+// ── Atoms ────────────────────────────────────────────────────────────────────────────
 
 function SettingRow({ label, description, children, wide }: { label: string; description: string; children: React.ReactNode; wide?: boolean }) {
   if (wide) {
@@ -137,7 +137,7 @@ function MultiSelect({ options, selected, onToggle, labelFn }: { options: string
   );
 }
 
-// ── Page ─────────────────────────────────────────────────────────────────────
+// ── Page ─────────────────────────────────────────────────────────────────────────────
 
 const ALL_ASSETS = [
   "XAUUSD", "XAGUSD", "USOIL",
@@ -147,7 +147,7 @@ const ALL_ASSETS = [
 ];
 const ALL_CATEGORIES = ["Central Banks", "Inflation", "Tariffs", "Geopolitics", "Crypto", "Energy", "Earnings"];
 
-// ── MFA Section ───────────────────────────────────────────────────────────────
+// ── MFA Section ──────────────────────────────────────────────────────────────────────────────
 
 function MFASection() {
   const [status, setStatus] = useState<"loading" | "enabled" | "disabled">("loading");
@@ -343,95 +343,6 @@ function MFASection() {
   );
 }
 
-// ── Delete Account Section ────────────────────────────────────────────────────
-
-function DeleteAccountSection() {
-  const [step, setStep] = useState<"idle" | "confirm">("idle");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  async function handleDelete() {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/account/delete", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to delete account");
-
-      // Sign out and redirect
-      const supabase = createClient();
-      if (supabase) await supabase.auth.signOut();
-      window.location.href = "/login?deleted=1";
-    } catch (err: any) {
-      setError(err.message ?? "Something went wrong. Please try again.");
-      setLoading(false);
-    }
-  }
-
-  return (
-    <Card className="border-red-500/20">
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-sm text-red-400">
-          <Trash2 className="h-4 w-4" /> Danger Zone
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {step === "idle" ? (
-          <div className="flex items-start justify-between gap-4 py-2">
-            <div>
-              <p className="text-xs font-medium text-[hsl(var(--foreground))]">Delete Account</p>
-              <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5">
-                Permanently delete your account and all associated data. This action cannot be undone.
-              </p>
-            </div>
-            <button
-              onClick={() => setStep("confirm")}
-              className="shrink-0 flex items-center gap-1.5 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-[10px] font-semibold text-red-400 hover:bg-red-500/20 transition-all"
-            >
-              <Trash2 className="h-3 w-3" /> Delete Account
-            </button>
-          </div>
-        ) : (
-          <div className="py-2 space-y-4">
-            <div className="rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3">
-              <p className="text-xs font-semibold text-red-400 mb-1">Are you absolutely sure?</p>
-              <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-relaxed">
-                This will permanently delete your account, subscription, trading journal, PnL data, and all settings.
-                This cannot be undone.
-              </p>
-            </div>
-
-            {error && (
-              <div className="flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2">
-                <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
-                <p className="text-xs text-red-400">{error}</p>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => { setStep("idle"); setError(""); }}
-                disabled={loading}
-                className="flex-1 rounded-lg border border-[hsl(var(--border))] py-2 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] transition-all disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={loading}
-                className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-red-500/40 bg-red-500/15 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/25 transition-all disabled:opacity-50"
-              >
-                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                {loading ? "Deleting…" : "Yes, delete my account"}
-              </button>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
 export default function SettingsPage() {
   const { settings, saveSettings, applyVisual } = useSettings();
 
@@ -564,6 +475,20 @@ export default function SettingsPage() {
           </SettingRow>
           <SettingRow label="Animations" description="Enable smooth transitions and micro-interactions">
             <Toggle checked={draft.animations} onChange={(v) => update("animations", v)} />
+          </SettingRow>
+          <SettingRow label="Welcome Tone" description="Play the startup chime and voice greeting on app open">
+            <Toggle
+              checked={draft.welcomeTone}
+              onChange={(v) => {
+                update("welcomeTone", v);
+                // Persist immediately so AudioUnlocker reads it on next launch without requiring Save
+                try {
+                  const raw = localStorage.getItem("tradex_settings");
+                  const cur = raw ? JSON.parse(raw) : {};
+                  localStorage.setItem("tradex_settings", JSON.stringify({ ...cur, welcomeTone: v }));
+                } catch {}
+              }}
+            />
           </SettingRow>
         </CardContent>
       </Card>
@@ -766,9 +691,6 @@ export default function SettingsPage() {
 
       {/* Security / MFA */}
       <MFASection />
-
-      {/* Delete Account */}
-      <DeleteAccountSection />
 
       {/* Sticky Save Bar  -  appears when there are unsaved changes */}
       {isDirty && (

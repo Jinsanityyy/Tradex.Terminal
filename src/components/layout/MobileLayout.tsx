@@ -1,7 +1,9 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { LayoutDashboard, TrendingUp, Zap, BarChart3, Users, Grid, Camera, LogOut, X, Lock, Clock } from "lucide-react";
+import { LayoutDashboard, TrendingUp, Zap, BarChart3, Users, Grid, Camera, LogOut, X, Crown } from "lucide-react";
+import { PLANS } from "@/lib/plans";
+import { useSubscription } from "@/hooks/useSubscription";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import { cn } from "@/lib/utils";
 import { MobileHome } from "@/components/mobile/MobileHome";
@@ -11,7 +13,6 @@ import { MobileBrain } from "@/components/mobile/MobileBrain";
 import { MobileMore } from "@/components/mobile/MobileMore";
 import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { createClient } from "@/lib/supabase/client";
-import { useSubscription } from "@/hooks/useSubscription";
 import { NotificationToast } from "@/components/shared/NotificationToast";
 import { LoginTransitionOverlay } from "@/components/shared/LoginTransitionOverlay";
 
@@ -28,7 +29,17 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
+const PAYPAL_BASE = "https://www.paypal.com/webapps/billing/subscriptions/subscribe";
+
+function buildPayPalUrl(planId: string): string {
+  const successUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/m?subscribed=1`
+    : "https://tradex-ten.vercel.app/m?subscribed=1";
+  return `${PAYPAL_BASE}?plan_id=${planId}&redirect_url=${encodeURIComponent(successUrl)}`;
+}
+
 export function MobileLayout() {
+  const { subscription } = useSubscription();
   const [active, setActive] = useState<TabId>("home");
   const [mounted, setMounted] = useState<Set<TabId>>(new Set(["home"]));
   const [transitioning, setTransitioning] = useState(false);
@@ -43,7 +54,6 @@ export function MobileLayout() {
   const [avatar, setAvatar] = useState<string | null>(null);
   const [unreadChat, setUnreadChat] = useState(0);
   const [unreadFeed, setUnreadFeed] = useState(0);
-  const { subscription } = useSubscription();
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -263,7 +273,7 @@ export function MobileLayout() {
       <LoginTransitionOverlay />
       <NotificationToast />
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 pb-2 bg-[hsl(var(--background))] border-b border-white/5 shrink-0" style={{ paddingTop: "max(2.5rem, env(safe-area-inset-top))" }}>
+      <div className="flex items-center justify-between px-4 pt-10 pb-2 bg-[hsl(var(--background))] border-b border-white/5 shrink-0">
         <TradeXLogo variant="wordmark" size="xs" />
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
@@ -348,6 +358,66 @@ export function MobileLayout() {
               )}
             </div>
 
+            {/* Upgrade section */}
+            {!subscription.isPro && !subscription.isElite && (
+              <div className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Crown className="h-4 w-4 text-amber-400" />
+                  <span className="text-[13px] font-bold text-amber-300">Upgrade Plan</span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {PLANS.pro.planId ? (
+                    <a
+                      href={buildPayPalUrl(PLANS.pro.planId as string)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/30 active:opacity-70"
+                    >
+                      <div className="text-left">
+                        <p className="text-[12px] font-bold text-[hsl(var(--primary))]">Pro</p>
+                        <p className="text-[10px] text-zinc-500">Full terminal access</p>
+                      </div>
+                      <span className="text-[13px] font-black font-mono text-[hsl(var(--primary))]">$29/mo</span>
+                    </a>
+                  ) : null}
+                  {PLANS.elite.planId ? (
+                    <a
+                      href={buildPayPalUrl(PLANS.elite.planId as string)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 active:opacity-70"
+                    >
+                      <div className="text-left">
+                        <p className="text-[12px] font-bold text-amber-400">Elite</p>
+                        <p className="text-[10px] text-zinc-500">Max edge + priority</p>
+                      </div>
+                      <span className="text-[13px] font-black font-mono text-amber-400">$99/mo</span>
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            )}
+            {subscription.isPro && !subscription.isElite && PLANS.elite.planId && (
+              <div className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Crown className="h-4 w-4 text-amber-400" />
+                  <span className="text-[13px] font-bold text-amber-300">Upgrade to Elite</span>
+                </div>
+                <a
+                  href={buildPayPalUrl(PLANS.elite.planId as string)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 active:opacity-70"
+                >
+                  <div className="text-left">
+                    <p className="text-[12px] font-bold text-amber-400">Elite</p>
+                    <p className="text-[10px] text-zinc-500">Max edge + priority</p>
+                  </div>
+                  <span className="text-[13px] font-black font-mono text-amber-400">$99/mo</span>
+                </a>
+              </div>
+            )}
+
             {/* Sign out */}
             <button onClick={handleLogout}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-red-500/20 bg-red-500/5 text-[13px] text-red-400">
@@ -355,28 +425,6 @@ export function MobileLayout() {
               Sign out
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Trial Banner */}
-      {subscription.isTrialing && (
-        <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2 bg-amber-500/10 border-b border-amber-500/20">
-          <div className="flex items-center gap-2 min-w-0">
-            <Clock className="h-3 w-3 text-amber-400 shrink-0" />
-            <span className="text-[11px] text-amber-400 font-medium truncate">
-              Free trial — <span className="font-bold">{subscription.trialDaysLeft} day{subscription.trialDaysLeft !== 1 ? "s" : ""} left</span>
-            </span>
-          </div>
-          <button
-            onClick={() => {
-              // Navigate to more tab → pricing or open pricing
-              document.dispatchEvent(new CustomEvent("tradex:open-app", { detail: { appId: "pricing" } }));
-              window.location.href = "/pricing";
-            }}
-            className="shrink-0 rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-[10px] font-bold text-amber-400 active:opacity-70"
-          >
-            Upgrade
-          </button>
         </div>
       )}
 
