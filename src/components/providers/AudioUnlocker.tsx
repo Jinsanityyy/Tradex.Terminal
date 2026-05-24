@@ -3,19 +3,25 @@
 import { useEffect } from "react";
 import { unlockAudio, playAppOpen } from "@/lib/sounds";
 
+function isWelcomeToneEnabled(): boolean {
+  try {
+    const saved = localStorage.getItem("tradex_settings");
+    if (!saved) return true;
+    const parsed = JSON.parse(saved);
+    return parsed.welcomeTone !== false;
+  } catch { return true; }
+}
+
 export function AudioUnlocker() {
   useEffect(() => {
     let played = false;
 
     const unlock = () => {
-      // 1. Unlock immediately (same gesture tick) — critical for Android WebView
       unlockAudio();
 
       if (!played) {
         played = true;
-        // playAppOpen() now awaits the buffer preload internally — no fixed
-        // delay needed. It plays as soon as decodeAudioData finishes.
-        playAppOpen();
+        if (isWelcomeToneEnabled()) playAppOpen();
       }
     };
 

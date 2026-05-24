@@ -15,11 +15,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const shellRef = useRef<HTMLDivElement>(null);
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
 
-  // Play app-open sound once per session
+  // Play app-open sound once per session (respects welcomeTone setting)
   useEffect(() => {
     if (sessionStorage.getItem("tradex-opened")) return;
     sessionStorage.setItem("tradex-opened", "1");
-    playAppOpen();
+    try {
+      const saved = localStorage.getItem("tradex_settings");
+      const tone = saved ? JSON.parse(saved).welcomeTone !== false : true;
+      if (tone) playAppOpen();
+    } catch { playAppOpen(); }
   }, []);
 
   useEffect(() => {

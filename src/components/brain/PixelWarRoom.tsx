@@ -355,7 +355,7 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
   const tickerText = buildTicker(quotes);
   const selectedAgent = REAL_AGENTS.find(a => a.id === selectedId) ?? REAL_AGENTS[0]!;
   const selectedLive = agentStates[selectedAgent.id];
-  const agentOverview = getAgentOverview(selectedAgent.id, runData);
+  const agentOverview = selectedId === "master" ? null : getAgentOverview(selectedAgent.id, runData);
 
   const handleClick = (agent: AgentDef) => {
     if (!agent.real) return;
@@ -386,7 +386,7 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
 
       {/* ── Command tier: MASTER + readout ── */}
       <div className={styles.commandTier}>
-        <button type="button" className={styles.masterPod} onClick={() => onAgentClick?.("master")}>
+        <button type="button" className={styles.masterPod} onClick={() => { setSelectedId("master"); onAgentClick?.("master"); }}>
           <div className={styles.masterBody}>
             <div className={styles.masterSpriteWrap}>
               <SeatedOperator look={MASTER_LOOK} />

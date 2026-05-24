@@ -1,7 +1,9 @@
 ﻿"use client";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { LayoutDashboard, TrendingUp, Zap, BarChart3, Users, Grid, Camera, LogOut, X } from "lucide-react";
+import { LayoutDashboard, TrendingUp, Zap, BarChart3, Users, Grid, Camera, LogOut, X, Crown } from "lucide-react";
+import { PLANS } from "@/lib/plans";
+import { useSubscription } from "@/hooks/useSubscription";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import { cn } from "@/lib/utils";
 import { MobileHome } from "@/components/mobile/MobileHome";
@@ -27,7 +29,17 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
+const PAYPAL_BASE = "https://www.paypal.com/webapps/billing/subscriptions/subscribe";
+
+function buildPayPalUrl(planId: string): string {
+  const successUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/m?subscribed=1`
+    : "https://tradex-ten.vercel.app/m?subscribed=1";
+  return `${PAYPAL_BASE}?plan_id=${planId}&redirect_url=${encodeURIComponent(successUrl)}`;
+}
+
 export function MobileLayout() {
+  const { subscription } = useSubscription();
   const [active, setActive] = useState<TabId>("home");
   const [mounted, setMounted] = useState<Set<TabId>>(new Set(["home"]));
   const [transitioning, setTransitioning] = useState(false);
@@ -345,6 +357,60 @@ export function MobileLayout() {
                 </button>
               )}
             </div>
+
+            {/* Upgrade section */}
+            {!subscription.isPro && !subscription.isElite && (
+              <div className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Crown className="h-4 w-4 text-amber-400" />
+                  <span className="text-[13px] font-bold text-amber-300">Upgrade Plan</span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {PLANS.pro.planId ? (
+                    <button
+                      onClick={() => { window.location.href = buildPayPalUrl(PLANS.pro.planId as string); }}
+                      className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/30 active:opacity-70"
+                    >
+                      <div className="text-left">
+                        <p className="text-[12px] font-bold text-[hsl(var(--primary))]">Pro</p>
+                        <p className="text-[10px] text-zinc-500">Full terminal access</p>
+                      </div>
+                      <span className="text-[13px] font-black font-mono text-[hsl(var(--primary))]">$29/mo</span>
+                    </button>
+                  ) : null}
+                  {PLANS.elite.planId ? (
+                    <button
+                      onClick={() => { window.location.href = buildPayPalUrl(PLANS.elite.planId as string); }}
+                      className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 active:opacity-70"
+                    >
+                      <div className="text-left">
+                        <p className="text-[12px] font-bold text-amber-400">Elite</p>
+                        <p className="text-[10px] text-zinc-500">Max edge + priority</p>
+                      </div>
+                      <span className="text-[13px] font-black font-mono text-amber-400">$99/mo</span>
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            )}
+            {subscription.isPro && !subscription.isElite && PLANS.elite.planId && (
+              <div className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Crown className="h-4 w-4 text-amber-400" />
+                  <span className="text-[13px] font-bold text-amber-300">Upgrade to Elite</span>
+                </div>
+                <button
+                  onClick={() => { window.location.href = buildPayPalUrl(PLANS.elite.planId as string); }}
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 active:opacity-70"
+                >
+                  <div className="text-left">
+                    <p className="text-[12px] font-bold text-amber-400">Elite</p>
+                    <p className="text-[10px] text-zinc-500">Max edge + priority</p>
+                  </div>
+                  <span className="text-[13px] font-black font-mono text-amber-400">$99/mo</span>
+                </button>
+              </div>
+            )}
 
             {/* Sign out */}
             <button onClick={handleLogout}

@@ -476,6 +476,9 @@ export default function SettingsPage() {
           <SettingRow label="Animations" description="Enable smooth transitions and micro-interactions">
             <Toggle checked={draft.animations} onChange={(v) => update("animations", v)} />
           </SettingRow>
+          <SettingRow label="Welcome Tone" description="Play the startup chime and voice greeting on app open">
+            <Toggle checked={draft.welcomeTone} onChange={(v) => update("welcomeTone", v)} />
+          </SettingRow>
         </CardContent>
       </Card>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Radio, RefreshCw } from "lucide-react";
 
@@ -14,7 +14,7 @@ interface Channel {
 }
 
 const EMBED_PARAMS =
-  "autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&fs=1";
+  "autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&fs=1&enablejsapi=1";
 
 const CHANNELS: Channel[] = [
   {
@@ -78,6 +78,20 @@ export function LiveTVPanel({
   const [videoIds, setVideoIds] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(true);
   const [retryKey, setRetryKey] = useState(0);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  function pauseIframe() {
+    iframeRef.current?.contentWindow?.postMessage(
+      '{"event":"command","func":"pauseVideo","args":""}', "*"
+    );
+  }
+
+  // Pause when user switches browser tabs or navigates away
+  useEffect(() => {
+    const onHide = () => { if (document.hidden) pauseIframe(); };
+    document.addEventListener("visibilitychange", onHide);
+    return () => document.removeEventListener("visibilitychange", onHide);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -157,6 +171,7 @@ export function LiveTVPanel({
             </div>
           ) : (
             <iframe
+              ref={iframeRef}
               key={`${active.id}-${retryKey}-${videoIds[active.id] ?? "fallback"}`}
               src={embedUrl}
               className="absolute inset-0 h-full w-full"
