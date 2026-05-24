@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useCallback, useEffect } from "react";
 import useSWR from "swr";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import type { AgentRunResult, Symbol, Timeframe, SignalState } from "@/lib/agents/schemas";
 import { DebateLog } from "@/components/brain/DebateLog";
 import { PixelWarRoom } from "@/components/brain/PixelWarRoom";
+import { BrainAgentPanel } from "@/components/brain/BrainOverviewDrawer";
 import { useSettings } from "@/contexts/SettingsContext";
 import { isAgentSupported, getSymbolShort, getSymbolLabel } from "@/lib/assetImpact";
 import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
@@ -22,7 +23,7 @@ const fetcher = (url: string) => fetch(url).then(r => {
   return r.json() as Promise<AgentRunResult>;
 });
 
-// ── Primitives ────────────────────────────────────────────────────────────────
+// ── Primitives ─────────────────────────────────────────────────────────────────────────────
 
 function biasColor(bias?: string) {
   if (bias === "bullish") return "text-emerald-400";
@@ -76,7 +77,7 @@ function AgentBar({ label, bias, conf }: { label: string; bias: string; conf: nu
   );
 }
 
-// ── Signal State Banner ───────────────────────────────────────────────────────
+// ── Signal State Banner ────────────────────────────────────────────────────────────────────────────
 
 const SIG_CFG: Record<SignalState, { label: string; emoji: string; bg: string; border: string; text: string; sub: string }> = {
   ARMED:    { label: "ENTER NOW",        emoji: "🟢", bg: "bg-emerald-500/12", border: "border-emerald-500/35", text: "text-emerald-300", sub: "text-emerald-300/60" },
@@ -135,7 +136,7 @@ function SignalBanner({
   );
 }
 
-// ── Trade Plan Card ───────────────────────────────────────────────────────────
+// ── Trade Plan Card ─────────────────────────────────────────────────────────────────────────────
 
 const CONFLUENCE_LIMIT = 5;
 
@@ -233,7 +234,7 @@ function TradePlanCard({ tradePlan }: { tradePlan: NonNullable<AgentRunResult["a
         </div>
       </div>
 
-      {/* Confluence chips — truncated by default, expandable */}
+      {/* Confluence chips */}
       {tradePlan.confluenceFactors && tradePlan.confluenceFactors.length > 0 && (
         <div className="px-4 pb-3 border-t border-white/[0.04] pt-3">
           <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-2">Confluence factors</p>
@@ -294,7 +295,7 @@ function TradePlanCard({ tradePlan }: { tradePlan: NonNullable<AgentRunResult["a
   );
 }
 
-// ── No-trade / Wait card ──────────────────────────────────────────────────────
+// ── No-trade / Wait card ────────────────────────────────────────────────────────────────────────────
 
 function StandAsideCard({ exec, isWait }: {
   exec?: AgentRunResult["agents"]["execution"];
@@ -335,7 +336,7 @@ function StandAsideCard({ exec, isWait }: {
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+// ── Main component ────────────────────────────────────────────────────────────────────────────
 
 const BRAIN_VALID = new Set<string>(["XAUUSD", "EURUSD", "GBPUSD", "BTCUSD"]);
 
@@ -351,7 +352,7 @@ export function MobileBrain() {
   const [refreshing, setRefreshing] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const { subscription } = useSubscription();
-  const { isOnCooldown, countdownLabel, markRefreshed, dailyLeft, hasHitDailyLimit } = useRefreshCooldown(subscription.isPro);
+  const { isOnCooldown, countdownLabel, markRefreshed } = useRefreshCooldown();
 
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 5_000);
@@ -365,7 +366,7 @@ export function MobileBrain() {
   );
 
   const handleRefresh = useCallback(async () => {
-    if (isOnCooldown || hasHitDailyLimit) return;
+    if (isOnCooldown || !subscription.hasFullAccess) return;
     setRefreshing(true);
     try {
       await mutate(
@@ -383,7 +384,7 @@ export function MobileBrain() {
     } finally {
       setRefreshing(false);
     }
-  }, [mutate, symbol, timeframe, isOnCooldown, hasHitDailyLimit, markRefreshed]);
+  }, [mutate, symbol, timeframe, isOnCooldown, subscription.hasFullAccess, markRefreshed]);
 
   const master     = data?.agents.master;
   const exec       = data?.agents.execution;
@@ -403,7 +404,7 @@ export function MobileBrain() {
   const isWaitState = sigState === "WAIT";
 
   const [view, setView] = useState<"brain" | "floor">("brain");
-  const [drawerAgentId, setDrawerAgentId] = useState("master");
+  const [drawerAgentId, setDrawerAgentId] = useState("risk");
 
   return (
     <div className="flex flex-col h-full">
@@ -434,6 +435,21 @@ export function MobileBrain() {
           <div className="shrink-0">
             <PixelWarRoom onAgentClick={setDrawerAgentId} />
           </div>
+          {data ? (
+            <div className="flex-1 overflow-hidden border-t border-white/8 bg-[#0b0b0d]">
+              <BrainAgentPanel
+                data={data}
+                activeAgent={drawerAgentId}
+                onAgentChange={setDrawerAgentId}
+              />
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center gap-2 px-6">
+              <p className="text-[11px] text-zinc-600 text-center leading-relaxed">
+                Switch to the <span className="text-zinc-400 font-semibold">Brain</span> tab and tap <span className="text-zinc-400 font-semibold">Refresh</span> to load agent analysis.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -441,7 +457,6 @@ export function MobileBrain() {
       {view === "brain" && (
         <div className="overflow-y-auto overflow-x-hidden flex-1 px-4 py-4 space-y-4 pb-24 min-w-0">
 
-          {/* Asset label + TF row */}
           <div className="flex items-center gap-1">
             <span className="text-[10px] font-bold text-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/25 px-2.5 py-1 rounded-lg mr-1">
               {getSymbolShort(symbol)}
@@ -458,18 +473,13 @@ export function MobileBrain() {
             {data && nowMs - new Date(data.timestamp).getTime() > 90_000 && !(isLoading || refreshing) && (
               <span className="ml-1 rounded bg-amber-500/10 px-1.5 py-0.5 font-mono text-[9px] border border-amber-500/20 text-amber-500">STALE</span>
             )}
-            <button onClick={handleRefresh} disabled={isLoading || refreshing || isOnCooldown || hasHitDailyLimit}
+            <button onClick={handleRefresh} disabled={isLoading || refreshing || isOnCooldown || !subscription.hasFullAccess}
               className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-[10px] text-zinc-500 disabled:opacity-60">
               <RefreshCw className={cn("h-3 w-3", (isLoading || refreshing) && "animate-spin")} />
-              {(isLoading || refreshing) ? "Running…"
-                : isOnCooldown ? countdownLabel
-                : hasHitDailyLimit ? "0 left today"
-                : !subscription.isPro ? `${dailyLeft} left today`
-                : "Refresh"}
+              {(isLoading || refreshing) ? "Running…" : isOnCooldown ? countdownLabel : !subscription.hasFullAccess ? "Pro" : "Refresh"}
             </button>
           </div>
 
-          {/* Loading skeleton */}
           {isLoading && !data && (
             <div className="space-y-3 animate-pulse">
               <div className="h-20 rounded-2xl bg-white/5" />
@@ -478,7 +488,6 @@ export function MobileBrain() {
             </div>
           )}
 
-          {/* Signal State Banner */}
           {data && (
             <SignalBanner
               state={sigState}
@@ -490,7 +499,6 @@ export function MobileBrain() {
             />
           )}
 
-          {/* Trade Plan / Stand aside  -  skeleton during refresh so stale state isn't shown */}
           {(isLoading || refreshing) && data ? (
             <div className="h-48 rounded-2xl bg-white/5 animate-pulse" />
           ) : tradePlan ? (
@@ -499,7 +507,6 @@ export function MobileBrain() {
             <StandAsideCard exec={exec} isWait={isWaitState} />
           ) : null}
 
-          {/* Agent Consensus */}
           {data && (
             <div className="bg-[hsl(var(--card))] rounded-2xl border border-white/5 p-4">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-3">Agent Consensus</p>
@@ -508,7 +515,6 @@ export function MobileBrain() {
               <AgentBar label="News"         bias={news?.impact ?? "neutral"}     conf={news?.confidence ?? 0} />
               <AgentBar label="Execution"    bias={exec?.direction === "long" ? "bullish" : exec?.direction === "short" ? "bearish" : "neutral"} conf={exec?.hasSetup ? (exec.confluenceCount ?? 0) * 10 : 20} />
               <AgentBar label="Contrarian"   bias={contrarian?.challengesBias ? "bearish" : "neutral"} conf={contrarian?.riskFactor ?? 0} />
-
               {master && (
                 <div className="mt-3 pt-3 border-t border-white/5">
                   <div className="flex justify-between items-center">
@@ -534,7 +540,6 @@ export function MobileBrain() {
             </div>
           )}
 
-          {/* Risk Gate */}
           {risk && (
             <div className="bg-[hsl(var(--card))] rounded-2xl border border-white/5 p-4">
               <div className="flex items-center justify-between mb-3">
@@ -563,7 +568,6 @@ export function MobileBrain() {
             </div>
           )}
 
-          {/* News + Contrarian */}
           {(news || contrarian) && (
             <div className="bg-[hsl(var(--card))] rounded-2xl border border-white/5 p-4 space-y-0">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-3">Market Context</p>
@@ -588,14 +592,12 @@ export function MobileBrain() {
             </div>
           )}
 
-          {/* Agent Debate Log */}
           {data?.debate && data.debate.length > 0 && (
             <div className="bg-[hsl(var(--card))] rounded-2xl border border-white/5 p-4">
               <DebateLog debate={data.debate} loading={false} />
             </div>
           )}
 
-          {/* Empty state */}
           {!data && !isLoading && (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <div className="h-12 w-12 rounded-full border border-white/10 bg-white/3 flex items-center justify-center">
