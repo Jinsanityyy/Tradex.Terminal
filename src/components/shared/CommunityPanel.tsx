@@ -53,6 +53,30 @@ function Avatar({ userId, name, email, photo }: { userId: string; name: string |
   );
 }
 
+// Extract the @query at the end of the current input (null if no active @)
+function getAtQuery(text: string): string | null {
+  const m = text.match(/@(\S*)$/);
+  return m ? m[1] : null;
+}
+
+// Render message content — highlight @mentions, bold @me
+function renderContent(content: string, myName: string): React.ReactNode {
+  const parts = content.split(/(@\S+)/g);
+  return parts.map((part, i) => {
+    if (!part.startsWith("@")) return part;
+    const mentioned = part.slice(1).toLowerCase();
+    const isMe = myName && mentioned === myName.toLowerCase();
+    return (
+      <span key={i} className={cn(
+        "font-semibold rounded px-0.5",
+        isMe ? "text-amber-300 bg-amber-400/10" : "text-blue-400"
+      )}>
+        {part}
+      </span>
+    );
+  });
+}
+
 export function CommunityPanel() {
   const [messages, setMessages]       = useState<Message[]>([]);
   const [members, setMembers]         = useState<Member[]>([]);
@@ -63,8 +87,18 @@ export function CommunityPanel() {
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [myAvatar, setMyAvatar]       = useState<string | null>(null);
   const [avatarMap, setAvatarMap]     = useState<Record<string, string>>({});
+  const [tagQuery, setTagQuery]       = useState<string | null>(null);
   const bottomRef  = useRef<HTMLDivElement>(null);
+  const inputRef   = useRef<HTMLInputElement>(null);
   const typingTimer = useRef<NodeJS.Timeout | null>(null);
+
+  // Members filtered by current @query
+  const tagMatches = tagQuery === null ? [] : members
+    .filter(m => {
+      const name = (m.display_name ?? m.email ?? "").toLowerCase();
+      return name.startsWith(tagQuery.toLowerCase()) && name.length > 0;
+    })
+    .slice(0, 6);
 
   const supabase = createClient();
 
@@ -170,6 +204,7 @@ export function CommunityPanel() {
     if (!text || !userId || !supabase || sending) return;
     setSending(true);
     setInput("");
+    setTagQuery(null);
     const optimistic: Message = {
       id: crypto.randomUUID(), user_id: userId, display_name: traderName,
       content: text, created_at: new Date().toISOString(), recipient_id: null,
@@ -183,13 +218,29 @@ export function CommunityPanel() {
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Escape") { setTagQuery(null); return; }
+    if (tagMatches.length > 0 && e.key === "Enter") {
+      e.preventDefault();
+      handleTagSelect(tagMatches[0]);
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   }
 
   function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
-    setInput(e.target.value);
+    const val = e.target.value;
+    setInput(val);
+    setTagQuery(getAtQuery(val));
     if (typingTimer.current) clearTimeout(typingTimer.current);
     broadcastTyping();
+  }
+
+  function handleTagSelect(member: Member) {
+    const name = (member.display_name ?? member.email ?? "Trader").replace(/\s+/g, "");
+    // Replace the trailing @query with @name
+    setInput(prev => prev.replace(/@(\S*)$/, `@${name} `));
+    setTagQuery(null);
+    inputRef.current?.focus();
   }
 
   // Group by date
@@ -262,9 +313,11 @@ export function CommunityPanel() {
                       "rounded-lg px-2.5 py-1.5 text-[11px] leading-relaxed max-w-[85%] break-words",
                       isOwn
                         ? "bg-[hsl(var(--primary))]/20 text-[hsl(var(--primary))] rounded-tr-none"
-                        : "bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] rounded-tl-none"
+                        : msg.content.toLowerCase().includes(`@${traderName.replace(/\s+/g,"").toLowerCase()}`)
+                          ? "bg-amber-400/10 border border-amber-400/20 text-[hsl(var(--foreground))] rounded-tl-none"
+                          : "bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] rounded-tl-none"
                     )}>
-                      {msg.content}
+                      {renderContent(msg.content, traderName.replace(/\s+/g, ""))}
                     </div>
                     {!showAvatar && (
                       <span className={cn("text-[9px] text-[hsl(var(--muted-foreground))] mt-0.5 px-1", isOwn && "text-right")}>
@@ -296,16 +349,39 @@ export function CommunityPanel() {
 
       {/* Input */}
       <div className="px-2 py-2 border-t border-[hsl(var(--border))] shrink-0">
+        {/* @mention dropdown */}
+        {tagMatches.length > 0 && (
+          <div className="mb-1.5 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden shadow-lg">
+            {tagMatches.map((m) => {
+              const name = m.display_name ?? m.email ?? "Trader";
+              return (
+                <button
+                  key={m.id}
+                  onMouseDown={(e) => { e.preventDefault(); handleTagSelect(m); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[hsl(var(--secondary))] active:bg-[hsl(var(--secondary))] transition-colors"
+                >
+                  <div className={cn("h-5 w-5 rounded-full shrink-0 flex items-center justify-center text-[9px] font-bold text-white", avatarColor(m.id))}>
+                    {name[0].toUpperCase()}
+                  </div>
+                  <span className="text-[11px] text-[hsl(var(--foreground))]">{name}</span>
+                  <span className="text-[9px] text-[hsl(var(--muted-foreground))] ml-auto">@{name.replace(/\s+/g,"")}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {!supabase || !userId ? (
           <p className="text-[9px] text-[hsl(var(--muted-foreground))] text-center py-1">Sign in to chat</p>
         ) : (
           <div className="flex gap-1.5 items-center">
             <input
+              ref={inputRef}
               type="text"
               value={input}
               onChange={handleInput}
               onKeyDown={handleKeyDown}
-              placeholder="Share a setup…"
+              placeholder="Share a setup… or @mention"
               maxLength={500}
               className="flex-1 min-w-0 rounded-lg bg-[hsl(var(--secondary))] border border-[hsl(var(--border))] px-2.5 py-1.5 text-[11px] text-[hsl(var(--foreground))] placeholder-[hsl(var(--muted-foreground))] outline-none focus:border-[hsl(var(--primary))]/50 transition-colors"
             />
