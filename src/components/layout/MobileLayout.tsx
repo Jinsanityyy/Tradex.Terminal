@@ -373,10 +373,9 @@ export function MobileLayout() {
 
       {/* Profile modal */}
       {showProfile && (
-        <div className="absolute inset-0 z-50 flex flex-col" style={{ background: "rgba(0,0,0,0.8)" }}
+        <div className="absolute inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.8)" }}
           onClick={() => setShowProfile(false)}>
-          <div className="mt-auto rounded-t-3xl bg-[hsl(var(--card))] p-5"
-            style={{ paddingBottom: "max(2.5rem, env(safe-area-inset-bottom))" }}
+          <div className="w-full max-w-sm rounded-3xl bg-[hsl(var(--card))] p-5"
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <span className="text-[14px] font-semibold">Profile</span>
