@@ -282,8 +282,9 @@ export function useMTFBias(symbol: string) {
     `/api/agents/mtf?symbol=${symbol}`,
     fetcher,
     {
-      revalidateOnFocus: false,
-      dedupingInterval: 5 * 60_000,
+      revalidateOnFocus: true,
+      refreshInterval: 5 * 60_000,
+      dedupingInterval: 60_000,
       errorRetryCount: 2,
       errorRetryInterval: 30_000,
     }

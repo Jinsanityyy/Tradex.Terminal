@@ -603,13 +603,19 @@ export async function GET(request: Request) {
     getReliableCandles(symbol, cfg, "15", ranges["15"], now),
   ]);
 
-  const h4Raw = aggregateToH4(h1Raw);
+  // Keep only the most recent candles for each TF so RSI/EMA
+  // reflect current market state, not a stale lookback window.
+  const d1  = d1Raw.slice(-150);
+  const h1  = h1Raw.slice(-200);
+  const m15 = m15Raw.slice(-300);
+
+  const h4 = aggregateToH4(h1).slice(-100);
 
   const results = {
-    D1: analyzeCandles(d1Raw) ?? NEUTRAL,
-    H4: analyzeCandles(h4Raw) ?? NEUTRAL,
-    H1: analyzeCandles(h1Raw) ?? NEUTRAL,
-    M15: analyzeCandles(m15Raw) ?? NEUTRAL,
+    D1:  analyzeCandles(d1)  ?? NEUTRAL,
+    H4:  analyzeCandles(h4)  ?? NEUTRAL,
+    H1:  analyzeCandles(h1)  ?? NEUTRAL,
+    M15: analyzeCandles(m15) ?? NEUTRAL,
   };
 
   if (
