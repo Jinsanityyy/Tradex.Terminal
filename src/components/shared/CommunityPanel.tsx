@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { Send, Loader2, Hash } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -92,13 +92,32 @@ export function CommunityPanel() {
   const inputRef   = useRef<HTMLInputElement>(null);
   const typingTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // Members filtered by current @query
-  const tagMatches = tagQuery === null ? [] : members
-    .filter(m => {
+  // Build tag candidates from actual message senders — more reliable than
+  // the profiles table which may have display_name = null for some users.
+  const messageSenders = useMemo(() => {
+    const seen = new Map<string, Member>();
+    for (const msg of messages) {
+      if (msg.display_name && !seen.has(msg.user_id)) {
+        seen.set(msg.user_id, { id: msg.user_id, display_name: msg.display_name, email: null });
+      }
+    }
+    return Array.from(seen.values());
+  }, [messages]);
+
+  // Members filtered by current @query (search message senders first, fall back to profiles)
+  const tagMatches = useMemo(() => {
+    if (tagQuery === null) return [];
+    const q = tagQuery.toLowerCase();
+    const fromMessages = messageSenders.filter(m =>
+      (m.display_name ?? "").toLowerCase().startsWith(q) && (m.display_name ?? "").length > 0
+    );
+    const fromProfiles = members.filter(m => {
       const name = (m.display_name ?? m.email ?? "").toLowerCase();
-      return name.startsWith(tagQuery.toLowerCase()) && name.length > 0;
-    })
-    .slice(0, 6);
+      return name.startsWith(q) && name.length > 0 &&
+        !fromMessages.some(s => s.id === m.id);
+    });
+    return [...fromMessages, ...fromProfiles].slice(0, 6);
+  }, [tagQuery, messageSenders, members]);
 
   const supabase = createClient();
 
