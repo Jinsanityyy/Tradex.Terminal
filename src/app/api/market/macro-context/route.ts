@@ -94,10 +94,11 @@ Respond with ONLY valid JSON (no markdown, no code fences):
 Focus on: central bank policy, USD strength, inflation data, geopolitical risk, risk-on/off sentiment. Be specific and actionable.`;
 
   const models = [
-    { version: "v1beta", model: "gemini-2.5-flash-lite-preview-06-17" },
+    { version: "v1beta", model: "gemini-2.5-flash" },
+    { version: "v1beta", model: "gemini-2.0-flash" },
+    { version: "v1beta", model: "gemini-2.0-flash-001" },
     { version: "v1beta", model: "gemini-2.0-flash-lite" },
     { version: "v1beta", model: "gemini-1.5-flash" },
-    { version: "v1",     model: "gemini-1.5-flash" },
   ];
 
   const errors: string[] = [];
