@@ -10,7 +10,7 @@ let snapshotCache: AssetSnapshot[] = [];
 let rawCache: Record<string, any> = {};
 let lastFetchTs = 0;
 let cycle = 0;
-const MIN_INTERVAL = 30_000; // 30s  -  free sources have generous limits
+const MIN_INTERVAL = 10_000; // 10s  -  SWR polls every 15s; keep server TTL lower
 
 // ── CoinGecko: real-time crypto (no API key, generous limits) ──
 const COINGECKO_MAP: Record<string, string> = {

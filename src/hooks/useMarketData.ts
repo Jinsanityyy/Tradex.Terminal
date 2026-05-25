@@ -13,7 +13,7 @@ const fetcher = async (url: string) => {
 };
 
 // ── Live Asset Prices ───────────────────────────────────
-export function useQuotes(refreshInterval = 30_000) {
+export function useQuotes(refreshInterval = 15_000) {
   const { data, error, isLoading } = useSWR<{
     data: AssetSnapshot[];
     timestamp: number;

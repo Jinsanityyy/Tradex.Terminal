@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useQuotes, useMarketBias, useKeyLevels, useCatalysts, useMarketAnalysis, useAgentResult, useSessions, useMTFBias, useTrumpPosts } from "@/hooks/useMarketData";
+import { useWebSocketPrices } from "@/hooks/useWebSocketPrices";
 import { TrendingUp, TrendingDown, Minus, Target, Zap, RefreshCw, Sparkles, ChevronDown, ChevronUp, Brain, BarChart2, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DetailModal } from "@/components/shared/DetailModal";
@@ -133,19 +134,49 @@ function LiveBadge() {
   );
 }
 
-function PriceCard({ symbol, price, change, isActive }: { symbol: string; price: number | string; change?: number; isActive?: boolean }) {
+function PriceCard({ symbol, price, change, isActive, wsPrice }: {
+  symbol: string;
+  price: number | string;
+  change?: number;
+  isActive?: boolean;
+  wsPrice?: number;
+}) {
   const up = (change ?? 0) > 0;
   const down = (change ?? 0) < 0;
+  const displayPrice = wsPrice ?? price;
+
+  // Flash green/red for 500ms whenever the WS price ticks
+  const [flash, setFlash] = useState<"up" | "down" | null>(null);
+  const prevWs = useRef<number | null>(null);
+  useEffect(() => {
+    if (wsPrice === undefined) return;
+    if (prevWs.current !== null && wsPrice !== prevWs.current) {
+      setFlash(wsPrice > prevWs.current ? "up" : "down");
+      const t = setTimeout(() => setFlash(null), 500);
+      return () => clearTimeout(t);
+    }
+    prevWs.current = wsPrice;
+  }, [wsPrice]);
+
   return (
     <div className={cn(
       "rounded-xl p-3.5 border transition-all",
       isActive
         ? "bg-[hsl(var(--primary))]/8 border-[hsl(var(--primary))]/35"
-        : "bg-[hsl(var(--card))] border-white/5"
+        : "bg-[hsl(var(--card))] border-white/5",
+      flash === "up"   && "border-emerald-500/40",
+      flash === "down" && "border-red-500/40",
     )}>
       <p className={cn("text-[10px] uppercase tracking-widest mb-1", isActive ? "text-[hsl(var(--primary))]/70" : "text-[hsl(var(--muted-foreground))]")}>{symbol}</p>
-      <p className="text-lg font-bold font-mono text-[hsl(var(--foreground))] leading-tight">
-        {typeof price === "number" ? price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : price}
+      <p className={cn(
+        "text-lg font-bold font-mono leading-tight transition-colors duration-300",
+        flash === "up"   ? "text-emerald-400" :
+        flash === "down" ? "text-red-400" :
+        "text-[hsl(var(--foreground))]"
+      )}>
+        {typeof displayPrice === "number"
+          ? displayPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 })
+          : displayPrice}
       </p>
       {change !== undefined && (
         <p className={cn("text-[10px] font-semibold mt-0.5", up ? "text-emerald-400" : down ? "text-red-400" : "text-[hsl(var(--muted-foreground))]")}>
@@ -200,6 +231,14 @@ export function MobileHome() {
     }
     return matched;
   })();
+
+  // Stable symbol list so the WS hook doesn't re-subscribe on every render
+  const wsSymbols = useMemo(
+    () => displayQuotes.map((q) => q.symbol),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [displayQuotes.map((q) => q.symbol).join(",")]
+  );
+  const { prices: wsPrices } = useWebSocketPrices(wsSymbols);
 
   // Agent signal data  -  exec has signalState + entry/SL/TP
   const master = agentData?.agents?.master;
@@ -552,7 +591,7 @@ export function MobileHome() {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {displayQuotes.length > 0
-                      ? displayQuotes.map((q) => <PriceCard key={q.symbol} symbol={q.symbol} price={q.price} change={q.changePercent} isActive={q.symbol === activeSymbol} />)
+                      ? displayQuotes.map((q) => <PriceCard key={q.symbol} symbol={q.symbol} price={q.price} change={q.changePercent} isActive={q.symbol === activeSymbol} wsPrice={wsPrices.get(q.symbol)} />)
                       : Array.from({ length: 6 }).map((_, i) => <div key={i} className="bg-[hsl(var(--card))] rounded-xl p-3.5 border border-white/5 h-[70px] animate-pulse" />)
                     }
                   </div>
