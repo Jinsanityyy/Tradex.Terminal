@@ -125,15 +125,23 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: `Symbol ${symbol} not supported` }, { status: 400 });
   }
 
-  if (!process.env.TAVILY_API_KEY) {
-    return NextResponse.json({ error: "TAVILY_API_KEY not configured" }, { status: 503 });
-  }
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 503 });
   }
 
   try {
-    const { titles, content } = await searchTavily(meta.query);
+    // Tavily is optional — if key missing, Claude uses training knowledge only
+    let titles: string[] = [];
+    let content = "";
+    if (process.env.TAVILY_API_KEY) {
+      try {
+        const result = await searchTavily(meta.query);
+        titles  = result.titles;
+        content = result.content;
+      } catch (e) {
+        console.warn("[macro-context] Tavily failed, falling back to Claude only:", e);
+      }
+    }
     const { summary, keyDrivers, sentiment } = await synthesizeWithClaude(meta.asset, symbol, content);
 
     const result: MacroContextResult = {

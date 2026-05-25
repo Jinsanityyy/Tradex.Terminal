@@ -455,10 +455,11 @@ function AnalysisPanel({
           <div className="flex items-center gap-1.5 mb-2">
             <Globe className="h-3 w-3 text-blue-400" />
             <p className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">Live Macro</p>
-            <span className="ml-auto flex items-center gap-1 text-[9px] text-zinc-600">
-              <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
-              Tavily · Claude
-            </span>
+            {!macroLoading && macroCtx && (
+              <span className="ml-auto flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+              </span>
+            )}
           </div>
 
           {macroLoading ? (
