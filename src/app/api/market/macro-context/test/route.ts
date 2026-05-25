@@ -3,14 +3,14 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const tavilyKey  = process.env.TAVILY_API_KEY;
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const tavilyKey = process.env.TAVILY_API_KEY;
+  const geminiKey = process.env.GOOGLE_AI_API_KEY;
 
   const result: Record<string, unknown> = {
     TAVILY_API_KEY:    tavilyKey  ? `set (${tavilyKey.slice(0, 6)}...)` : "MISSING",
-    ANTHROPIC_API_KEY: anthropicKey ? `set (${anthropicKey.slice(0, 10)}...)` : "MISSING",
+    GOOGLE_AI_API_KEY: geminiKey  ? `set (${geminiKey.slice(0, 6)}...)` : "MISSING",
     tavilyTest: null,
-    claudeTest: null,
+    geminiTest: null,
   };
 
   // Test Tavily
@@ -32,27 +32,26 @@ export async function GET() {
     }
   }
 
-  // Test Claude
-  if (anthropicKey) {
+  // Test Gemini
+  if (geminiKey) {
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": anthropicKey,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 20,
-          messages: [{ role: "user", content: "Say OK" }],
-        }),
-        cache: "no-store",
-      });
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: "Say OK" }] }],
+            generationConfig: { maxOutputTokens: 10 },
+          }),
+          cache: "no-store",
+        }
+      );
       const body = await res.json().catch(() => ({}));
-      result.claudeTest = { status: res.status, ok: res.ok, response: body.content?.[0]?.text ?? null, error: body.error?.message ?? null };
+      const text = body?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+      result.geminiTest = { status: res.status, ok: res.ok, response: text, error: body?.error?.message ?? null };
     } catch (e) {
-      result.claudeTest = { error: String(e) };
+      result.geminiTest = { error: String(e) };
     }
   }
 

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +45,7 @@ async function searchTavily(query: string): Promise<{ titles: string[]; content:
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,   // current Tavily API uses Bearer auth
+      "Authorization": `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       query,
@@ -72,19 +71,15 @@ async function searchTavily(query: string): Promise<{ titles: string[]; content:
   return { titles, content };
 }
 
-async function synthesizeWithClaude(
+async function synthesizeWithGemini(
   asset: string,
   symbol: string,
   content: string,
 ): Promise<{ summary: string; keyDrivers: string[]; sentiment: "bullish" | "bearish" | "neutral" }> {
-  const client = new Anthropic();
+  const apiKey = (process.env.GOOGLE_AI_API_KEY ?? "").trim();
+  if (!apiKey) throw new Error("GOOGLE_AI_API_KEY not configured");
 
-  const msg = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 512,
-    messages: [{
-      role: "user",
-      content: `You are a senior macro analyst. Based on these recent news snippets about ${asset}, provide a concise trading-relevant macro context.
+  const prompt = `You are a senior macro analyst. Based on these recent news snippets about ${asset}, provide a concise trading-relevant macro context.
 
 NEWS SNIPPETS:
 ${content || "No live news available — use general macro knowledge."}
@@ -96,21 +91,52 @@ Respond with ONLY valid JSON (no markdown, no code fences):
   "sentiment": "bullish" | "bearish" | "neutral"
 }
 
-Focus on: central bank policy, USD strength, inflation data, geopolitical risk, risk-on/off sentiment. Be specific and actionable.`,
-    }],
-  });
+Focus on: central bank policy, USD strength, inflation data, geopolitical risk, risk-on/off sentiment. Be specific and actionable.`;
 
-  const text = (msg.content[0] as { type: string; text: string }).text ?? "";
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error("Claude returned no JSON");
-  const parsed = JSON.parse(match[0]);
+  const models = [
+    { version: "v1beta", model: "gemini-2.5-flash" },
+    { version: "v1beta", model: "gemini-2.0-flash" },
+    { version: "v1beta", model: "gemini-2.0-flash-lite" },
+  ];
 
-  return {
-    summary:    typeof parsed.summary === "string" ? parsed.summary : "Macro context unavailable.",
-    keyDrivers: Array.isArray(parsed.keyDrivers) ? parsed.keyDrivers.slice(0, 4) : [],
-    sentiment:  (["bullish", "bearish", "neutral"] as const).includes(parsed.sentiment)
-      ? parsed.sentiment : "neutral",
-  };
+  const errors: string[] = [];
+  for (const { version, model } of models) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: 512, temperature: 0.3 },
+          }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        errors.push(`[${model}] ${data?.error?.message ?? `HTTP ${res.status}`}`);
+        continue;
+      }
+      const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      if (!text) {
+        errors.push(`[${model}] empty response`);
+        continue;
+      }
+      const match = text.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error(`${model} returned no JSON`);
+      const parsed = JSON.parse(match[0]);
+      return {
+        summary:    typeof parsed.summary === "string" ? parsed.summary : "Macro context unavailable.",
+        keyDrivers: Array.isArray(parsed.keyDrivers) ? parsed.keyDrivers.slice(0, 4) : [],
+        sentiment:  (["bullish", "bearish", "neutral"] as const).includes(parsed.sentiment)
+          ? parsed.sentiment : "neutral",
+      };
+    } catch (e: unknown) {
+      errors.push(`[${model}] ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  throw new Error(errors.join(" | ") || "All Gemini models failed");
 }
 
 export async function GET(request: Request) {
@@ -128,12 +154,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: `Symbol ${symbol} not supported` }, { status: 400 });
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 503 });
+  if (!process.env.GOOGLE_AI_API_KEY) {
+    return NextResponse.json({ error: "GOOGLE_AI_API_KEY not configured" }, { status: 503 });
   }
 
   try {
-    // Tavily is optional — if key missing, Claude uses training knowledge only
+    // Tavily is optional — if key missing or fails, Gemini uses training knowledge only
     let titles: string[] = [];
     let content = "";
     if (process.env.TAVILY_API_KEY) {
@@ -142,10 +168,10 @@ export async function GET(request: Request) {
         titles  = result.titles;
         content = result.content;
       } catch (e) {
-        console.warn("[macro-context] Tavily failed, falling back to Claude only:", e);
+        console.warn("[macro-context] Tavily failed, falling back to Gemini only:", e);
       }
     }
-    const { summary, keyDrivers, sentiment } = await synthesizeWithClaude(meta.asset, symbol, content);
+    const { summary, keyDrivers, sentiment } = await synthesizeWithGemini(meta.asset, symbol, content);
 
     const result: MacroContextResult = {
       symbol,
