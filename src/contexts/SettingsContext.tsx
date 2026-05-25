@@ -33,7 +33,7 @@ export interface Settings {
 }
 
 export const DEFAULTS: Settings = {
-  theme: "dark",
+  theme: "oled",
   density: "default",
   animations: true,
   welcomeTone: true,
