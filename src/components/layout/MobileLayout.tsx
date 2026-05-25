@@ -302,12 +302,7 @@ export function MobileLayout() {
 
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 pt-10 pb-2 bg-[hsl(var(--background))] border-b border-white/5 shrink-0">
-        <TradeXLogo variant="wordmark" size="xs" />
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--primary))] animate-pulse" />
-            <span className="text-[9px] text-[hsl(var(--primary))] font-medium tracking-wider uppercase">Live</span>
-          </div>
           {/* Hamburger — opens features drawer */}
           <button
             onClick={openDrawer}
@@ -315,6 +310,13 @@ export function MobileLayout() {
           >
             <Menu className="h-4 w-4 text-zinc-400" />
           </button>
+          <TradeXLogo variant="wordmark" size="xs" />
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--primary))] animate-pulse" />
+            <span className="text-[9px] text-[hsl(var(--primary))] font-medium tracking-wider uppercase">Live</span>
+          </div>
           {/* Profile button */}
           <button onClick={() => { setShowProfile(true); setDraft(traderName); setEditing(false); }}
             className="flex items-center justify-center w-7 h-7 rounded-full overflow-hidden border border-white/10">
@@ -486,7 +488,7 @@ export function MobileLayout() {
           />
         )}
 
-        {/* Right-side features drawer */}
+        {/* Left-side features drawer */}
         {/* Backdrop */}
         <div
           className={cn(
@@ -498,8 +500,8 @@ export function MobileLayout() {
         {/* Drawer panel */}
         <div
           className={cn(
-            "absolute top-0 right-0 bottom-0 z-50 w-[88%] bg-[hsl(var(--background))] shadow-2xl transition-transform duration-300 ease-out flex flex-col",
-            drawerOpen ? "translate-x-0" : "translate-x-full"
+            "absolute top-0 left-0 bottom-0 z-50 w-[88%] bg-[hsl(var(--background))] shadow-2xl transition-transform duration-300 ease-out flex flex-col",
+            drawerOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
           {/* Drawer header */}
