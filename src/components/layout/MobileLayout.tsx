@@ -77,6 +77,8 @@ export function MobileLayout() {
   const [drawerMounted, setDrawerMounted] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const activeRef = useRef(active);
+  const swipeTouchStartX = useRef<number>(0);
+  const swipeTouchStartY = useRef<number>(0);
   activeRef.current = active;
 
   function openDrawer() {
@@ -88,6 +90,24 @@ export function MobileLayout() {
   function closeDrawer() {
     setDrawerOpen(false);
     document.dispatchEvent(new CustomEvent("tradex:mobile-tab-change", { detail: { active: activeRef.current } }));
+  }
+
+  function onSwipeTouchStart(e: React.TouchEvent) {
+    swipeTouchStartX.current = e.touches[0].clientX;
+    swipeTouchStartY.current = e.touches[0].clientY;
+  }
+
+  function onContentSwipeTouchEnd(e: React.TouchEvent) {
+    if (drawerOpen) return;
+    const dx = e.changedTouches[0].clientX - swipeTouchStartX.current;
+    const dy = e.changedTouches[0].clientY - swipeTouchStartY.current;
+    if (Math.abs(dx) > Math.abs(dy) * 1.2 && dx > 60) openDrawer();
+  }
+
+  function onDrawerSwipeTouchEnd(e: React.TouchEvent) {
+    const dx = e.changedTouches[0].clientX - swipeTouchStartX.current;
+    const dy = e.changedTouches[0].clientY - swipeTouchStartY.current;
+    if (Math.abs(dx) > Math.abs(dy) * 1.2 && dx < -60) closeDrawer();
   }
 
   useEffect(() => {
@@ -458,7 +478,11 @@ export function MobileLayout() {
       )}
 
       {/* Page content — all mounted tabs stay alive, stacked absolutely */}
-      <div className="relative flex-1 min-h-0 overflow-hidden">
+      <div
+        className="relative flex-1 min-h-0 overflow-hidden"
+        onTouchStart={onSwipeTouchStart}
+        onTouchEnd={onContentSwipeTouchEnd}
+      >
         {TABS.map(({ id }) => {
           if (!mounted.has(id)) return null;
           const isActive = active === id;
@@ -503,6 +527,8 @@ export function MobileLayout() {
             "absolute top-0 left-0 bottom-0 z-50 w-[88%] bg-[hsl(var(--background))] shadow-2xl transition-transform duration-300 ease-out flex flex-col",
             drawerOpen ? "translate-x-0" : "-translate-x-full"
           )}
+          onTouchStart={onSwipeTouchStart}
+          onTouchEnd={onDrawerSwipeTouchEnd}
         >
           {/* Drawer header */}
           <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-white/5 shrink-0">
