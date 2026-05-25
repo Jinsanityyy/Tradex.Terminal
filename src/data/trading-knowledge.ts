@@ -1248,4 +1248,1054 @@ Can you give your plan to another trader and have them take the same trades as y
       },
     ],
   },
+  {
+    id: "forex-basics",
+    label: "Forex Fundamentals",
+    icon: "Building2",
+    items: [
+      {
+        id: "currency-pairs",
+        title: "Currency Pairs Explained",
+        summary: "Majors, minors, and exotics — how forex pairs are classified.",
+        content: `Every forex trade involves buying one currency and selling another. The pair is written as BASE/QUOTE  -  e.g. EUR/USD means buying Euros with US Dollars.
+
+## Major Pairs
+The most traded pairs, all involving USD. Tightest spreads, highest liquidity:
+- EUR/USD (Euro / US Dollar)
+- GBP/USD (British Pound / US Dollar)
+- USD/JPY (US Dollar / Japanese Yen)
+- USD/CHF (US Dollar / Swiss Franc)
+- AUD/USD (Australian Dollar / US Dollar)
+- USD/CAD (US Dollar / Canadian Dollar)
+- NZD/USD (New Zealand Dollar / US Dollar)
+
+## Minor Pairs (Cross Pairs)
+No USD, but involve major currencies. Slightly wider spreads:
+- EUR/GBP, EUR/JPY, GBP/JPY
+- AUD/JPY, CAD/JPY, NZD/JPY
+
+## Exotic Pairs
+One major currency + one emerging market currency. Wide spreads, lower liquidity, higher risk:
+- USD/ZAR, USD/TRY, USD/MXN, EUR/SGD
+
+## How to Read a Quote
+If EUR/USD = 1.0850, one Euro buys 1.0850 US Dollars.
+- If price goes UP → Euro strengthened (or Dollar weakened)
+- If price goes DOWN → Euro weakened (or Dollar strengthened)
+
+## Base vs Quote
+**Base currency** = first in the pair (what you're buying/selling)
+**Quote currency** = second (what you're paying with)
+
+**Tip:** Stick to majors when starting. They have the best liquidity and most reliable technical patterns.`,
+        tags: ["forex", "basics", "currency pairs"],
+      },
+      {
+        id: "pair-correlations",
+        title: "Currency Pair Correlations",
+        summary: "How pairs move together — and why it matters for your risk.",
+        content: `Some pairs move in the same direction (positive correlation), others move in opposite directions (negative correlation). This matters because trading correlated pairs can unknowingly double your risk.
+
+## Positive Correlations (move together)
+- **EUR/USD & GBP/USD** — both are USD-denominated European currencies. Often move ~80-90% in sync.
+- **AUD/USD & NZD/USD** — commodity-linked Antipodean currencies.
+- **EUR/USD & AUD/USD** — both tend to rise when USD weakens.
+
+## Negative Correlations (move opposite)
+- **EUR/USD & USD/CHF** — nearly perfectly inverse (~-90%). When EUR/USD rises, USD/CHF falls.
+- **EUR/USD & USD/JPY** — often inversely correlated.
+- **GBP/USD & USD/CAD** — tend to move opposite.
+
+## Why It Matters for Risk
+If you're long EUR/USD AND long GBP/USD, you're essentially taking the same USD-bearish trade twice. If USD strengthens, both positions lose simultaneously  -  doubling your drawdown.
+
+**Rule:** Treat correlated pairs as one position when calculating total risk. If you risk 1% on EUR/USD and 1% on GBP/USD (both long), your effective risk is ~2% on a "USD weakens" bet.
+
+## Risk-On vs Risk-Off
+- **Risk-on** (market optimism): AUD, NZD, CAD rally; JPY, CHF weaken
+- **Risk-off** (fear/uncertainty): JPY, CHF, USD rally; AUD, NZD, CAD fall
+
+USD/JPY and AUD/JPY are classic risk sentiment indicators.`,
+        tags: ["forex", "correlation", "risk"],
+      },
+      {
+        id: "carry-trade",
+        title: "The Carry Trade",
+        summary: "Profiting from interest rate differentials between currencies.",
+        content: `A carry trade involves borrowing in a low-interest-rate currency and investing in a high-interest-rate currency, profiting from the difference (the "carry").
+
+## How It Works
+Every currency has an interest rate set by its central bank. When you hold a forex position overnight (past 5pm NY), you either earn or pay the interest rate differential (called the **swap** or **rollover**).
+
+**Example:**
+- Australian Dollar (AUD) rate: 4.35%
+- Japanese Yen (JPY) rate: 0.10%
+- Difference: ~4.25%
+
+If you're long AUD/JPY, you earn ~4.25% per year (paid daily in small increments) just for holding the position overnight.
+
+## When Carries Work
+Carry trades thrive in low-volatility, risk-on environments. Investors seek yield when markets are calm.
+
+## Carry Trade Unwinds
+When volatility spikes (e.g. financial crisis, major geopolitical event), carry trades unwind fast. Everyone rushes to buy back the funding currency (usually JPY or CHF), causing sharp moves.
+
+**Classic example:** AUD/JPY drops violently during risk-off events because carry traders close longs.
+
+## Checking Swaps
+Your broker shows the daily swap rate for each pair. Long and short swaps differ. Some pairs have negative swaps both ways  -  avoid holding those overnight.
+
+**Tip:** For swing/position traders, positive swaps can add meaningful return over weeks. For short-term traders, swaps are usually irrelevant.`,
+        tags: ["forex", "carry trade", "interest rates", "swap"],
+      },
+      {
+        id: "central-banks",
+        title: "Central Banks & Monetary Policy",
+        summary: "How central bank decisions drive currency movements.",
+        content: `Central banks are the most powerful force in forex markets. Their decisions on interest rates and monetary policy directly move currencies.
+
+## Key Central Banks
+| Central Bank | Currency | Abbreviation |
+|---|---|---|
+| Federal Reserve | USD | Fed / FOMC |
+| European Central Bank | EUR | ECB |
+| Bank of England | GBP | BoE |
+| Bank of Japan | JPY | BoJ |
+| Swiss National Bank | CHF | SNB |
+| Reserve Bank of Australia | AUD | RBA |
+| Bank of Canada | CAD | BoC |
+
+## Interest Rate Decisions
+The single biggest mover in forex. Higher rates → more attractive to foreign investors → currency appreciates.
+
+**Rate hike** → currency strengthens
+**Rate cut** → currency weakens
+**Hold (no change)** → focus shifts to tone (hawkish vs dovish)
+
+## Hawkish vs Dovish
+- **Hawkish:** Concerned about inflation, signals rate hikes → bullish for the currency
+- **Dovish:** Concerned about growth/employment, signals rate cuts → bearish for the currency
+
+Even if rates stay unchanged, a hawkish press conference can rally the currency. The *tone* matters as much as the decision.
+
+## Quantitative Easing (QE) vs Tightening (QT)
+- **QE:** Central bank buys bonds, pumping money into economy → weakens currency
+- **QT:** Reduces balance sheet, removes liquidity → tends to strengthen currency
+
+## How to Trade Central Banks
+1. Mark all central bank meeting dates in your economic calendar
+2. Avoid trading the 15-30 minutes before announcements (spreads widen, stops get hunted)
+3. Wait for the initial volatility spike to settle before entering
+4. The move after the *press conference* (where the governor speaks) is often more directional than the rate decision itself`,
+        tags: ["forex", "central bank", "interest rates", "fundamental"],
+      },
+      {
+        id: "cot-report",
+        title: "COT Report",
+        summary: "How to read the Commitments of Traders report to gauge market positioning.",
+        content: `The **Commitments of Traders (COT)** report is published every Friday by the CFTC (US Commodity Futures Trading Commission). It shows the positioning of large institutional traders (hedge funds, commercial hedgers) in futures markets.
+
+## The Three Groups
+**1. Commercial Hedgers**
+Companies that use currencies operationally (e.g. an airline hedging fuel costs). They trade against the trend to hedge risk. Generally considered "smart money" but are always positioned against the trend by nature.
+
+**2. Non-Commercial (Large Speculators)**
+Hedge funds, managed money, large traders. These are the ones to watch  -  they follow trends and their positioning often predicts continuation.
+
+**3. Non-Reportable (Small Speculators)**
+Retail traders. Often used as a contrarian indicator  -  when retail is extremely one-sided, the market tends to reverse.
+
+## How to Use It
+- When large speculators (hedge funds) are at **extreme long** positions historically: market may be over-extended, watch for a reversal
+- When large speculators are **building longs** from a low position: trend may be strengthening
+- **Contrarian signal:** When retail (non-reportable) is 80%+ long, consider looking for shorts
+
+## Where to Find It
+- CFTC website (free, released every Friday, data from Tuesday)
+- Many trading sites offer visual COT charts (e.g. barchart.com, investing.com)
+
+## Limitation
+COT data is released with a 3-day lag (Tuesday data published Friday). Best used for weekly/monthly bias, not short-term trades.
+
+**Tip:** Combine COT positioning with technical levels. If large specs are extremely long AND price hits major resistance → high-probability short setup.`,
+        tags: ["forex", "COT", "institutional", "fundamental", "positioning"],
+      },
+    ],
+  },
+  {
+    id: "fundamentals",
+    label: "Economic Fundamentals",
+    icon: "BarChart2",
+    items: [
+      {
+        id: "nfp",
+        title: "NFP — Non-Farm Payrolls",
+        summary: "The most market-moving US economic report, released first Friday of each month.",
+        content: `Non-Farm Payrolls (NFP) measures the number of jobs added or lost in the US economy (excluding farm workers, government, and some non-profit employees). Released the **first Friday of every month at 8:30 AM ET**.
+
+## Why It Matters
+The US Federal Reserve has a dual mandate: **price stability (inflation)** and **maximum employment**. NFP directly measures employment, so a strong reading = Fed may hike or hold rates = bullish USD. A weak reading = Fed may cut = bearish USD.
+
+## Key Numbers to Watch
+- **Headline number:** Jobs added (e.g. +220K)
+- **Previous revision:** Last month's figure often gets revised — a big downward revision can override a good headline
+- **Unemployment Rate:** The percentage (e.g. 3.9%)
+- **Average Hourly Earnings:** Wage inflation  -  if wages rise, inflation follows, which is hawkish
+
+## How the Market Reacts
+| NFP Result | Typical USD Reaction |
+|---|---|
+| Much better than expected | USD surges |
+| Slightly better | Modest USD buy |
+| In-line | Muted reaction, focus on details |
+| Slightly worse | Modest USD sell |
+| Much worse | USD tanks |
+
+## Trading NFP
+1. **Before:** Spreads widen and liquidity thins. Avoid open positions 15-30 min before.
+2. **The spike:** Initial reaction is often reversed within minutes (the "fakeout"). Don't chase.
+3. **The real move:** Wait 5-15 minutes for the dust to settle, then look for momentum with confluence.
+4. **Reversals:** A bad NFP after a strong USD week often triggers significant reversals.
+
+**Pairs most affected:** EUR/USD, GBP/USD, USD/JPY, Gold (XAU/USD)`,
+        tags: ["fundamentals", "NFP", "USD", "economic data"],
+      },
+      {
+        id: "cpi-inflation",
+        title: "CPI & Inflation Data",
+        summary: "How Consumer Price Index readings move currency markets.",
+        content: `The **Consumer Price Index (CPI)** measures the average price change in a basket of goods and services — the primary measure of inflation used by central banks.
+
+## Why Traders Watch It
+Inflation directly drives interest rate decisions. High inflation → central bank raises rates → currency strengthens. Low inflation (or deflation) → central bank cuts rates → currency weakens.
+
+## Key CPI Metrics
+- **Headline CPI:** Includes food and energy (more volatile)
+- **Core CPI:** Excludes food and energy (more stable, watched more closely by central banks)
+- **MoM (Month-over-Month):** Change vs previous month
+- **YoY (Year-over-Year):** Change vs same month last year — the main benchmark
+
+## Major CPI Releases by Country
+| Report | Currency | Typical Release |
+|---|---|---|
+| US CPI | USD | Mid-month, 8:30 AM ET |
+| UK CPI | GBP | Mid-month, 7:00 AM GMT |
+| Eurozone CPI | EUR | End of month |
+| Australia CPI | AUD | Quarterly |
+
+## How the Market Reacts
+- **CPI higher than expected** → hawkish pressure on central bank → currency bullish
+- **CPI lower than expected** → dovish pressure → currency bearish
+- **CPI in-line** → minimal reaction, market looks at next data point
+
+## The Inflation Cycle
+1. Economy grows → demand rises → prices rise (inflation up)
+2. Central bank hikes rates to cool spending
+3. Borrowing costs rise → economy slows → inflation falls
+4. Central bank cuts rates → cycle restarts
+
+**Tip:** CPI surprises (especially upside misses) can be more powerful movers than NFP on certain pairs. Always check the economic calendar for CPI dates.`,
+        tags: ["fundamentals", "CPI", "inflation", "interest rates"],
+      },
+      {
+        id: "economic-calendar-guide",
+        title: "Reading the Economic Calendar",
+        summary: "How to use high-impact events to plan your trading week.",
+        content: `The economic calendar lists all scheduled data releases and events that can move markets. Every serious trader checks it weekly.
+
+## Impact Levels
+- 🔴 **High Impact** — Can cause significant volatility. Be in or out before release.
+- 🟡 **Medium Impact** — Watch if it affects your traded pair
+- ⚪ **Low Impact** — Usually ignored by most traders
+
+## Key High-Impact Events to Know
+| Event | Frequency | Affected Pairs |
+|---|---|---|
+| NFP (US Jobs) | Monthly | USD, Gold |
+| CPI (Inflation) | Monthly | All USD pairs |
+| FOMC Meeting | ~8x/year | All USD pairs |
+| ECB Decision | ~8x/year | EUR pairs |
+| BoE Decision | ~8x/year | GBP pairs |
+| BoJ Decision | ~8x/year | JPY pairs |
+| GDP Data | Quarterly | Respective currency |
+| Retail Sales | Monthly | Respective currency |
+| PMI Data | Monthly | Respective currency |
+
+## Weekly Planning Routine
+**Sunday evening:**
+1. Check the week's calendar for red-folder events
+2. Note which pairs you trade and when events hit
+3. Decide if you'll trade through, avoid, or reduce size around events
+
+**Before each high-impact event:**
+1. Check current market expectations (consensus)
+2. Know the previous reading
+3. Have a plan for both scenarios (beat / miss)
+
+## The "Buy the Rumour, Sell the News" Effect
+Markets often price in expectations before the release. When the data matches what was expected, the move can reverse sharply as traders take profit. Be careful holding positions into announcements when positioning is already extreme.
+
+**Tip:** A free economic calendar is available on Investing.com, Forex Factory, and Tradingview. Filter to high-impact events only to reduce noise.`,
+        tags: ["fundamentals", "economic calendar", "events", "planning"],
+      },
+      {
+        id: "interest-rates-markets",
+        title: "Interest Rates & Markets",
+        summary: "Why interest rates are the single most important macro driver in trading.",
+        content: `Interest rates set by central banks ripple through every financial market  -  currencies, stocks, bonds, commodities, and crypto. Understanding them gives you macro context for your trades.
+
+## The Basic Relationship
+**Higher rates →**
+- Borrowing is more expensive → businesses invest less → economy slows slightly
+- Savings yield more → capital flows into that country's assets → currency appreciates
+- Bond yields rise → bonds become more attractive → stocks may fall (higher discount rate on future earnings)
+
+**Lower rates →**
+- Cheap borrowing → businesses expand, consumers spend → economy stimulates
+- Low savings return → capital seeks higher-yielding assets elsewhere → currency weakens
+- Bond yields fall → stocks often rise as they become more attractive by comparison
+
+## Rate Differentials Drive Forex
+The biggest driver of long-term forex trends is the **interest rate differential** between two countries.
+
+Example: If the Fed raises rates while the ECB holds, USD becomes more attractive → EUR/USD falls.
+
+## The Yield Curve
+The yield curve plots bond yields at different maturities (1Y, 2Y, 10Y, 30Y).
+- **Normal:** Long-term yields higher than short-term (healthy economy)
+- **Inverted:** Short-term yields above long-term → historically precedes recession
+
+An inverted yield curve is a bearish signal for risk assets (stocks, commodity currencies) and often bullish for safe havens (USD, JPY, CHF, Gold).
+
+## Real Rates vs Nominal Rates
+**Real rate = Nominal rate − Inflation**
+
+If a country has 5% interest rates but 6% inflation, the real rate is -1%. A negative real rate weakens a currency even if nominal rates look high.
+
+**Gold** tends to rally when real rates are negative or falling — holding gold has no yield cost when rates are low.
+
+**Tip:** Bookmark a "Global Interest Rates" chart and check where each major central bank stands relative to each other. This shapes the macro backdrop for your directional bias.`,
+        tags: ["fundamentals", "interest rates", "macro", "bonds"],
+      },
+    ],
+  },
+  {
+    id: "indicators-advanced",
+    label: "Advanced Indicators",
+    icon: "Activity",
+    items: [
+      {
+        id: "atr",
+        title: "ATR — Average True Range",
+        summary: "Measure volatility and size your stops intelligently using ATR.",
+        content: `The **Average True Range (ATR)** measures how much an asset moves on average over a given period. It tells you the volatility of the market  -  not direction, just size of moves.
+
+## How It's Calculated
+ATR averages the True Range over N periods (default: 14).
+**True Range** = largest of:
+- Current High − Current Low
+- |Current High − Previous Close|
+- |Current Low − Previous Close|
+
+## Reading ATR
+- A high ATR = market is volatile (big candles)
+- A low ATR = market is quiet (small candles, consolidation)
+- Rising ATR = volatility expanding (potential breakout or trend)
+- Falling ATR = volatility contracting (consolidation, squeeze)
+
+## Practical Uses
+
+**1. Setting Stop Losses**
+Never set stops at arbitrary pips. Use ATR:
+- Stop = 1.0× to 1.5× ATR below entry (for longs)
+- Gives price enough room to breathe without getting stopped out by normal noise
+
+**2. Setting Take Profit**
+If daily ATR = 80 pips and you enter mid-day, the pair may only have 40 pips left in its "daily range." Helps avoid overly ambitious targets.
+
+**3. Comparing Markets**
+Use ATR to compare volatility across pairs. GBP/JPY has a much higher ATR than EUR/CHF  -  this means larger stops and position size adjustments are needed.
+
+**4. Breakout Confirmation**
+A breakout accompanied by expanding ATR has more momentum behind it than a breakout on low ATR.
+
+## ATR-Based Position Sizing
+Position size = (Account Risk $) ÷ (ATR × Point Value)
+This ensures every trade risks the same dollar amount regardless of the pair's volatility.`,
+        tags: ["indicators", "ATR", "volatility", "stop loss"],
+      },
+      {
+        id: "stochastic-rsi",
+        title: "Stochastic RSI",
+        summary: "A more sensitive oscillator for timing entries within overbought/oversold zones.",
+        content: `**Stochastic RSI (StochRSI)** applies the Stochastic formula to RSI values rather than price. The result is a faster, more sensitive oscillator that cycles between 0 and 100 (or 0 and 1).
+
+## How It Differs from RSI
+- **RSI** measures price momentum — slow to signal, more reliable for major reversals
+- **StochRSI** measures RSI's momentum — faster, more signals, better for fine-tuning entries
+
+## Reading StochRSI
+| Reading | Signal |
+|---|---|
+| Above 80 | Overbought — potential sell zone |
+| Below 20 | Oversold — potential buy zone |
+| Crosses above 20 from below | Bullish signal |
+| Crosses below 80 from above | Bearish signal |
+| %K crosses above %D | Bullish crossover |
+| %K crosses below %D | Bearish crossover |
+
+The two lines are %K (fast) and %D (smoothed version of %K).
+
+## How to Use It
+
+**Trend Entry Timing:**
+In an uptrend, wait for StochRSI to dip to oversold (below 20), then look for %K to cross above %D as a buy trigger.
+
+**Divergence:**
+Price makes a new high but StochRSI makes a lower high → hidden bearish divergence → potential reversal.
+
+**Avoid in Trending Markets:**
+In a strong trend, StochRSI stays overbought or oversold for a long time. Don't fade a trend just because StochRSI is extreme  -  wait for a cross.
+
+## Common Settings
+- Length: 14 (RSI period)
+- Stochastic Length: 14
+- Smooth K: 3
+- Smooth D: 3
+
+**Best combined with:** RSI (for confirmation), Support/Resistance (for entry timing), Volume (for confirmation).`,
+        tags: ["indicators", "stochastic", "RSI", "oscillator"],
+      },
+      {
+        id: "vwap",
+        title: "VWAP — Volume Weighted Average Price",
+        summary: "The benchmark institutional traders use — and why price respects it.",
+        content: `**VWAP** (Volume Weighted Average Price) is the average price a security has traded at throughout the day, weighted by volume. It resets every trading day.
+
+## Why VWAP Matters
+Institutions, funds, and market makers use VWAP as a benchmark. They aim to buy below VWAP and sell above it. Because of this, price frequently reacts at VWAP like support/resistance.
+
+## Reading VWAP
+- **Price above VWAP** → market is bullish intraday. Buyers in control. Longs favored.
+- **Price below VWAP** → bearish intraday. Sellers in control. Shorts favored.
+- **Price at VWAP** → contested zone. Watch for a bounce or break.
+
+## VWAP as Support/Resistance
+In trending days, price often:
+1. Breaks above VWAP
+2. Pulls back to test VWAP as support
+3. Bounces and continues higher
+
+This pullback-to-VWAP is a classic institutional entry pattern.
+
+## Standard Deviation Bands
+Many traders add ±1, ±2, ±3 standard deviation bands around VWAP. Price reaching ±2 or ±3 bands signals overextension and a potential reversion to VWAP.
+
+## Anchored VWAP
+Instead of a daily reset, Anchored VWAP starts from a specific point (earnings release, major low, key event). Used by swing traders to gauge institutional value area from that reference point.
+
+## Best For
+- Intraday trading (scalping, day trading)
+- Identifying institutional entry zones
+- Gauging whether price is "cheap" or "expensive" relative to volume
+
+**Less useful for:** Swing traders and position traders (VWAP resets daily and loses context over longer periods).`,
+        tags: ["indicators", "VWAP", "volume", "institutional", "intraday"],
+      },
+      {
+        id: "ema-sma",
+        title: "EMA vs SMA — Which to Use?",
+        summary: "The key difference between exponential and simple moving averages and when each shines.",
+        content: `Both EMA and SMA smooth out price to show the trend direction, but they calculate the "average" differently.
+
+## Simple Moving Average (SMA)
+Adds the last N closing prices and divides by N. Every period has equal weight.
+
+**Example:** 10-period SMA = (sum of last 10 closes) ÷ 10
+
+**Characteristics:**
+- Smoother, less reactive to recent price
+- Cleaner signals but slower to respond
+- Better for identifying the big picture trend
+- Popular settings: 50 SMA, 100 SMA, 200 SMA
+
+## Exponential Moving Average (EMA)
+Gives more weight to recent prices using an exponential multiplier.
+
+**Characteristics:**
+- Reacts faster to recent price moves
+- More signals but more false signals in choppy markets
+- Better for timing entries in a moving market
+- Popular settings: 8 EMA, 20 EMA, 50 EMA, 200 EMA
+
+## Side-by-Side Comparison
+| Feature | SMA | EMA |
+|---|---|---|
+| Lag | More lag | Less lag |
+| Sensitivity | Less sensitive | More sensitive |
+| False signals | Fewer | More |
+| Best for | Trend identification | Entry timing |
+| Used by institutions | 50, 100, 200 SMA | 20, 50 EMA |
+
+## The 200 MA — The Ultimate Trend Filter
+- Price **above 200 SMA/EMA** → long-term uptrend → only look for longs
+- Price **below 200 SMA/EMA** → long-term downtrend → only look for shorts
+- Price **crossing the 200** → potential major trend change
+
+## Golden Cross & Death Cross
+- **Golden Cross:** 50 SMA crosses above 200 SMA → long-term bullish signal
+- **Death Cross:** 50 SMA crosses below 200 SMA → long-term bearish signal
+
+**Recommendation:** Use EMA for short-term momentum (8, 20 EMA on lower timeframes) and SMA for the big picture trend (50, 200 SMA on daily chart).`,
+        tags: ["indicators", "EMA", "SMA", "moving averages", "trend"],
+      },
+    ],
+  },
+  {
+    id: "smc-advanced",
+    label: "ICT / SMC Advanced",
+    icon: "Crosshair",
+    items: [
+      {
+        id: "kill-zones",
+        title: "Kill Zones",
+        summary: "The specific session times when institutional orders flood the market.",
+        content: `**Kill Zones** are specific time windows identified by ICT (Inner Circle Trader) when institutional order flow is highest. The majority of significant market moves happen within these windows.
+
+## The Four Kill Zones (All Times in New York / ET)
+
+**1. Asian Kill Zone**
+🕐 20:00 – 00:00 ET (8 PM – Midnight)
+- Sets the overnight range
+- Often consolidation, building liquidity
+- Watch for Midnight Open as a reference level
+
+**2. London Open Kill Zone** ⭐⭐⭐
+🕐 02:00 – 05:00 ET (2 AM – 5 AM)
+- One of the most powerful sessions
+- Liquidity from the Asian range often gets swept
+- Major reversals and trend initiations
+- GBP and EUR pairs most active
+
+**3. New York Open Kill Zone** ⭐⭐⭐
+🕐 07:00 – 10:00 ET (7 AM – 10 AM)
+- Overlaps with London → highest liquidity
+- Best session for volatile, directional moves
+- NFP and major US data released at 8:30 AM ET
+- All USD pairs + Gold most active
+
+**4. New York Lunch / Afternoon**
+🕐 13:00 – 16:00 ET (1 PM – 4 PM)
+- Lower liquidity than morning
+- Often sees reversals or consolidation
+- Avoid trading 12:00–13:00 (lunch hour, choppy)
+
+## How to Use Kill Zones
+1. Mark your chart with vertical lines at Kill Zone open/close
+2. Wait for price to reach a POI (point of interest: OB, FVG, liquidity level)
+3. Look for entry confirmation during the Kill Zone window
+4. Avoid taking new trades outside Kill Zones if you follow ICT methodology
+
+**Best pairs per session:**
+- London: EUR/USD, GBP/USD, GBP/JPY
+- New York: EUR/USD, USD/JPY, XAU/USD`,
+        tags: ["ICT", "SMC", "kill zones", "sessions", "time"],
+      },
+      {
+        id: "power-of-3",
+        title: "Power of 3 (PO3)",
+        summary: "ICT's model of how institutional algorithms accumulate, manipulate, then distribute.",
+        content: `**Power of 3 (PO3)** is an ICT concept describing how institutional algorithms engineer price movement in three phases: Accumulation → Manipulation → Distribution.
+
+## The Three Phases
+
+**1. Accumulation**
+Smart money builds their position quietly during a low-volatility period (usually the Asian session or pre-market). Price ranges tightly, building liquidity on both sides.
+
+**2. Manipulation (The Judas Swing)**
+Price makes a false move in the OPPOSITE direction of the intended move. This:
+- Triggers stop losses of early traders
+- Creates liquidity for institutions to fill large orders
+- Traps retail traders on the wrong side
+
+If the real move is bullish, price first dips below the Asian range low (sweeping sell-stop liquidity) before reversing.
+
+**3. Distribution**
+The actual directional move happens. Price moves toward the real target (premium/discount array). This is when retail traders who weren't trapped start chasing — often near the end of the move.
+
+## Daily PO3 Example
+1. **Asian session (00:00–08:00 ET):** Accumulation. Price ranges tightly.
+2. **London open (02:00–05:00 ET):** Manipulation. Price dips below Asian low → sweeps stops.
+3. **New York open (07:00–10:00 ET):** Distribution. Price reverses and rallies through the Asian high.
+
+## Weekly PO3
+Same concept on a weekly scale:
+- **Monday/Tuesday:** Accumulation and manipulation (often Monday gives a false move)
+- **Wednesday–Thursday:** The real directional move of the week
+- **Friday:** Distribution and partial retracement before close
+
+## Practical Application
+1. Identify the likely direction (HTF bias)
+2. During London, watch for manipulation (stop sweep) of the Asian range
+3. Wait for the manipulation to complete (displacement candle away from the swept level)
+4. Enter during New York open in the direction of the real move`,
+        tags: ["ICT", "SMC", "power of 3", "PO3", "manipulation"],
+      },
+      {
+        id: "ote",
+        title: "Optimal Trade Entry (OTE)",
+        summary: "ICT's Fibonacci-based entry zone for joining institutional order flow.",
+        content: `**Optimal Trade Entry (OTE)** is an ICT concept that uses Fibonacci retracements to define the premium zone where institutions re-enter after an initial displacement move.
+
+## The OTE Zone
+After a significant impulse move (displacement), price retraces. The OTE is found between the **61.8% and 79% Fibonacci retracement levels** of that impulse.
+
+Why this range? Institutional algorithms are programmed to accumulate positions in this zone — it represents "fair value" relative to the swing after a large move.
+
+## How to Identify an OTE Setup
+
+**For Bullish OTE:**
+1. Identify a clear bullish impulse (swing low → swing high)
+2. Draw Fib from swing low (0%) to swing high (100%)
+3. Wait for price to retrace into the 61.8%–79% zone
+4. Look for confluence: FVG, Order Block, or liquidity level in that zone
+5. Enter long with stop below the swing low
+
+**For Bearish OTE:**
+1. Identify a clear bearish impulse (swing high → swing low)
+2. Draw Fib from swing high (0%) to swing low (100%)
+3. Wait for retracement into 61.8%–79% zone
+4. Look for confluence: Bearish OB or FVG in that zone
+5. Enter short with stop above swing high
+
+## Key Fibonacci Levels
+| Level | Meaning |
+|---|---|
+| 0% | Start of move |
+| 38.2% | Shallow retracement — trend very strong |
+| 50% | Mid-point — common retracement |
+| 61.8% | OTE zone begins |
+| 70.5% | ICT's "sweet spot" |
+| 79% | OTE zone ends |
+| 100% | Full retracement — impulse negated |
+
+## OTE + Kill Zone
+The most powerful setup: price retraces to OTE zone during a Kill Zone. The combination of time and price confluence significantly increases probability.
+
+**Tip:** Not every retracement into the OTE zone is a valid trade. Always require additional confluence (OB, FVG, liquidity sweep) before entering.`,
+        tags: ["ICT", "SMC", "OTE", "fibonacci", "entry"],
+      },
+      {
+        id: "institutional-candles",
+        title: "Institutional Candles",
+        summary: "How to spot the candles that signal real institutional participation.",
+        content: `**Institutional candles** (sometimes called displacement candles or mitigation candles) are large, aggressive candles that signal genuine smart money participation rather than retail noise.
+
+## Characteristics of Institutional Candles
+- **Large body** relative to recent candles (3–5× the average candle size)
+- **Minimal wicks** — the move is clean and decisive, not sloppy
+- **Closes near its high/low** — sustained pressure, not just a wick
+- **Breaks through multiple levels** — cuts through S/R, previous highs/lows, or MA levels
+- **Accompanied by volume spike** (on instruments where volume is visible)
+
+## Why They Matter
+When institutions execute large orders, they leave imprints in price data:
+1. The big candle itself (the displacement)
+2. A Fair Value Gap (FVG) — the gap created between the previous candle's high and the next candle's low
+3. An imbalance in price that often gets "filled" on a retracement
+
+## Types of Institutional Candles
+
+**Bullish Institutional Candle:**
+Large green candle, closes near high, breaks above recent resistance. Creates an upward FVG.
+
+**Bearish Institutional Candle:**
+Large red candle, closes near low, breaks below recent support. Creates a downward FVG.
+
+**Rejection Candle:**
+Large candle that reverses and closes in the opposite direction — a trap for traders who chased the initial direction.
+
+## Using Them in Trading
+
+**Step 1:** Spot the institutional candle that started a significant move
+**Step 2:** Identify the FVG or OB left behind
+**Step 3:** Wait for price to retrace to that zone
+**Step 4:** Enter in the direction of the original institutional move
+
+The logic: institutions couldn't fill all their orders in one candle, so they wait for price to return to their zone before adding more.
+
+**Caution:** A big candle alone doesn't make it institutional. It needs to break structure, leave an imbalance, and be in context with the higher timeframe bias.`,
+        tags: ["ICT", "SMC", "institutional", "candles", "displacement"],
+      },
+    ],
+  },
+  {
+    id: "strategies-advanced",
+    label: "Trading Styles & Strategies",
+    icon: "TrendingUp",
+    items: [
+      {
+        id: "scalping",
+        title: "Scalping",
+        summary: "High-frequency, short-duration trading targeting small but frequent profits.",
+        content: `**Scalping** involves taking many small trades (seconds to minutes) to accumulate small profits that add up. Scalpers target 3–15 pips per trade with tight stop losses.
+
+## Key Characteristics
+- **Timeframes:** 1M, 3M, 5M charts
+- **Hold time:** Seconds to 10 minutes
+- **Target per trade:** 3–15 pips
+- **Stop loss:** 3–10 pips
+- **Trades per day:** 5–30+
+- **Win rate needed:** High (60-70%+) due to small R:R
+
+## What Makes a Good Scalper
+1. **Low spread broker** — critical. Even 1 pip spread on a 5-pip target is 20% of your profit
+2. **Fast execution** — market orders, no requotes
+3. **Focus and discipline** — must cut losses fast, no hoping
+4. **Pattern recognition** — reading order flow, tape, or key levels quickly
+
+## Scalping Strategies
+
+**Level Scalping:**
+Set alerts at key S/R levels. When price touches, look for rejection candle and enter immediately with tight stop.
+
+**EMA Bounce Scalping:**
+Use 8 EMA + 20 EMA on 5M chart. In an uptrend, buy bounces off the 8 EMA. Exit when momentum stalls.
+
+**Order Flow Scalping:**
+On liquid assets, read the bid/ask and tape. Enter when you see large bids being hit or large offers absorbed.
+
+## Pros of Scalping
+- Many opportunities per day
+- Small drawdowns (tight stops)
+- No overnight risk
+- Quick feedback loop (learn fast)
+
+## Cons of Scalping
+- Spread and commissions eat profits — need low-cost broker
+- Mentally exhausting
+- Slippage in fast markets
+- Requires significant screen time
+
+**Who it suits:** Disciplined, patient people who can follow rules without hesitation. Not recommended for beginners — master a higher timeframe first.`,
+        tags: ["strategies", "scalping", "day trading", "1M", "5M"],
+      },
+      {
+        id: "swing-vs-day",
+        title: "Swing Trading vs Day Trading",
+        summary: "The key differences, pros, cons, and which style suits you.",
+        content: `Choosing the right trading style is as important as choosing the right strategy. Your lifestyle, personality, and schedule all influence which approach suits you best.
+
+## Day Trading
+Positions opened and closed within the same trading day. No overnight holds.
+
+**Timeframes:** 5M, 15M, 1H
+**Hold time:** Minutes to hours
+**Required screen time:** 4–8 hours/day active monitoring
+
+**Pros:**
+- No overnight gap risk
+- Quick results and feedback
+- More trading opportunities per week
+
+**Cons:**
+- Requires dedicated time blocks
+- Emotionally demanding
+- Spread/commission costs add up
+- Difficult to hold a regular job alongside
+
+## Swing Trading
+Positions held for 1 day to several weeks, capturing a "swing" in price.
+
+**Timeframes:** 4H, Daily, Weekly
+**Hold time:** 1–10 days typically
+**Required screen time:** 30–60 min/day
+
+**Pros:**
+- Compatible with a full-time job
+- Less screen time
+- Bigger moves = bigger R:R potential
+- Less emotional (not watching every tick)
+
+**Cons:**
+- Overnight swap costs (can be positive or negative)
+- Gap risk (price opens differently than it closed)
+- Fewer setups per week
+- Need patience — trades take days to play out
+
+## Which Style Suits You?
+
+| If you… | Consider… |
+|---|---|
+| Have a job / limited time | Swing trading |
+| Can watch charts 4+ hours/day | Day trading |
+| Are emotional / impatient | Swing trading |
+| Are disciplined and fast | Day trading or scalping |
+| Prefer few high-quality setups | Swing trading |
+| Like frequent action | Day trading |
+
+## Position Trading (Bonus)
+Hold for weeks to months. Only a few trades per year. Purely fundamental + weekly technical. Best for those who want minimal active management.
+
+**Recommendation:** Start with swing trading on the 4H/Daily chart. It gives you time to think, reduces emotional pressure, and lets you learn at a sustainable pace.`,
+        tags: ["strategies", "swing trading", "day trading", "style"],
+      },
+      {
+        id: "ict-model",
+        title: "The ICT Trading Model",
+        summary: "A complete framework combining SMC, kill zones, and price delivery for high-probability setups.",
+        content: `The **ICT Trading Model** (developed by Michael Huddleston, known as "Inner Circle Trader") is a complete trading methodology based on how institutional algorithms deliver price. It combines market structure, time-based analysis, and specific price levels.
+
+## The Core Components
+
+**1. Higher Timeframe Bias (HTF)**
+Start with the Weekly and Daily chart. Determine if price is in a bullish or bearish market structure (series of HH/HL or LH/LL). This is your directional bias. Only take trades in this direction.
+
+**2. Draw on Liquidity**
+Where is price likely heading? Identify:
+- Previous highs/lows (buy-side and sell-side liquidity)
+- Imbalances (FVGs) that need to be filled
+- Premium/Discount arrays (where price is "expensive" or "cheap")
+
+**3. Wait for a Kill Zone**
+Only look for entries during London or New York Kill Zones. This is when institutional algorithms are active.
+
+**4. Look for Manipulation (Stop Sweep)**
+Before the real move, price often sweeps a liquidity level in the opposite direction. This is the Judas Swing. Wait for this to happen.
+
+**5. Confirm with Lower Timeframe**
+After the sweep, drop to 5M or 15M. Look for:
+- Market structure shift (first LH in a downtrend before reversal, or first HH in uptrend)
+- FVG or OB at the OTE zone
+- Displacement candle away from the swept level
+
+**6. Execute with Precision**
+Enter at the FVG or OB. Stop below the swept liquidity. Target the opposite liquidity pool.
+
+## The ICT Daily Routine
+1. **Sunday:** Analyze weekly chart, note HTF bias and key levels
+2. **Daily:** Analyze daily chart, update bias, note POIs
+3. **Pre-session:** Mark 4H POIs, set alerts
+4. **During Kill Zone:** Drop to 5M/15M for entry
+
+## The ICT Narrative
+Always ask: "What story is price telling?" Are they running sell stops before a bullish move? Building premium before a distribution? The narrative should make sense before you enter.
+
+**Tip:** Focus on one concept at a time. Many traders spend months mastering just Kill Zones + FVGs before adding more complexity.`,
+        tags: ["ICT", "SMC", "model", "strategy", "institutional"],
+      },
+    ],
+  },
+  {
+    id: "risk-advanced",
+    label: "Advanced Risk Management",
+    icon: "ShieldCheck",
+    items: [
+      {
+        id: "correlation-risk",
+        title: "Correlation Risk",
+        summary: "Why trading correlated pairs simultaneously multiplies your real risk.",
+        content: `Correlation risk is one of the most overlooked dangers for retail traders. It occurs when you hold multiple positions that move together — effectively making one large bet disguised as multiple smaller ones.
+
+## How Correlation Multiplies Risk
+If you risk 1% on EUR/USD long and 1% on GBP/USD long simultaneously, and USD suddenly strengthens, **both positions lose at the same time**. Your actual risk isn't 1% — it's closer to 2% on a single "USD weakens" bet.
+
+## Measuring Correlation
+Correlation is measured from -1 to +1:
+- **+1.0:** Perfect positive correlation (move together)
+- **0:** No correlation
+- **-1.0:** Perfect negative correlation (move opposite)
+
+Strong correlation: |r| > 0.7
+Moderate: |r| 0.4–0.7
+
+## Common High-Correlation Pairs
+| Pair A | Pair B | Correlation |
+|---|---|---|
+| EUR/USD | GBP/USD | ~+0.85 |
+| AUD/USD | NZD/USD | ~+0.90 |
+| EUR/USD | USD/CHF | ~-0.90 |
+| USD/JPY | USD/CHF | ~+0.75 |
+
+## Managing Correlation Risk
+
+**Rule 1: Count correlated positions as one**
+If EUR/USD and GBP/USD are both long, your total risk allocation should be 1% split between them, not 1% each.
+
+**Rule 2: Hedge intentionally**
+Going long EUR/USD and long USD/CHF is roughly a neutral trade (they cancel out). Only do this intentionally.
+
+**Rule 3: Check correlations change**
+Correlations shift during major events. Safe-haven flows can break normally positive correlations. Recheck during high-impact news.
+
+**Rule 4: Portfolio view**
+Before adding any new trade, ask: what is my total effective exposure to each currency? USD, EUR, JPY, etc.
+
+**Practical Check:** List all open positions. If you have 3 USD-bearish positions each at 1%, you have 3% effective risk on USD weakness — well above your per-trade limit.`,
+        tags: ["risk management", "correlation", "portfolio", "exposure"],
+      },
+      {
+        id: "multi-position",
+        title: "Managing Multiple Positions",
+        summary: "Rules for scaling in, partial profits, and managing a portfolio of open trades.",
+        content: `As your experience grows, you'll often have multiple trades open simultaneously. Managing them well is its own skill.
+
+## Maximum Open Positions
+Set a hard cap on how many trades you hold simultaneously. Recommended limits:
+- **Beginners:** 1–2 max
+- **Intermediate:** 3–5 max
+- **Advanced:** Based on portfolio correlation analysis
+
+More positions = more to monitor, more cognitive load, more risk of correlation overlap.
+
+## Scaling In (Adding to Winners)
+Adding to a winning position increases your position size while the trade moves in your favor.
+
+**Rules for scaling in:**
+1. Only add after the trade is in profit (ideally at breakeven stop or better)
+2. Each additional entry must have its own valid reason (new OB, FVG, pullback to level)
+3. Reduce size on subsequent entries (1st entry: 1%, 2nd: 0.5%, 3rd: 0.25%)
+4. Move stop on all positions to protect the whole trade
+
+**Never average down into losing trades.** That's a loser's game.
+
+## Partial Take Profits
+Take a portion of your position at intermediate targets, let the rest run.
+
+**Example setup:**
+- Entry: 1.0850
+- TP1 at 1.0900 → close 50% of position
+- Move stop to breakeven on remaining
+- TP2 at 1.0980 → close remaining
+
+This locks in profits, removes pressure, and lets winners run.
+
+## Breakeven Stop Management
+Once price has moved 1× your risk in profit, move stop to entry price (breakeven). This makes the trade risk-free.
+
+**Timing:** Don't move to breakeven too early — you'll get stopped out by normal retracements before the trade has room to breathe.
+
+## Portfolio Daily Loss Limit
+Set a maximum daily drawdown across all positions:
+- If total open P&L hits -3%, close everything and stop for the day
+- Prevents one bad day from destroying a week of work
+- Stick to this rule even if you're "sure" the market will reverse
+
+## End-of-Day Checklist
+1. Where are all stops? Are any too tight?
+2. What's my total exposure per currency?
+3. Any high-impact news tomorrow that affects open trades?
+4. Am I overexposed in any correlated pair cluster?`,
+        tags: ["risk management", "position management", "scaling", "partial profit"],
+      },
+    ],
+  },
+  {
+    id: "psychology-advanced",
+    label: "Advanced Psychology",
+    icon: "Brain",
+    items: [
+      {
+        id: "fomo-revenge",
+        title: "FOMO & Revenge Trading",
+        summary: "The two most costly emotional mistakes — and how to break the cycle.",
+        content: `**FOMO (Fear of Missing Out)** and **Revenge Trading** are responsible for more blown accounts than any technical mistake. They're emotional responses that override logic.
+
+## FOMO — Fear of Missing Out
+
+**What it looks like:**
+- You see a big candle already moving 50 pips. You chase it and enter late.
+- You skip your planned setup because "it already moved" and then regret it.
+- You take every trade because "this might be the big move."
+
+**Why it's dangerous:**
+- You enter at the worst possible price (late, near resistance/target)
+- Your risk:reward is destroyed (entry too far from stop, too close to target)
+- If it reverses, you take a full loss while the patient trader is still near breakeven
+
+**The Fix:**
+1. **Accept that you will miss trades.** There is always another setup. The market never closes forever.
+2. **Set alerts at your levels.** Don't stare at charts watching moves happen — you'll FOMO.
+3. **Journal every FOMO trade.** You'll quickly see they almost always lose.
+4. **If you missed it, mark the level and wait for a retest.** The retest is often the better entry anyway.
+
+## Revenge Trading
+
+**What it looks like:**
+- You take a loss. You immediately jump back in trying to "make it back."
+- You increase your position size after a loss.
+- You override your setup rules because you're angry.
+
+**Why it's dangerous:**
+- You're trading emotion, not analysis. Your judgment is compromised.
+- Larger size after a loss can turn a 1% loss into a 5% loss.
+- One revenge trade becoming a series of losses = account destruction.
+
+**The Fix:**
+1. **Mandatory pause after a loss.** Minimum 10–30 minutes. Walk away from screens.
+2. **Set a daily loss limit.** 3% down → close laptop, done for the day. No exceptions.
+3. **Write down how you feel immediately after the loss.** This awareness breaks the autopilot.
+4. **Ask:** "Would I take this trade if I hadn't just lost?" If no, don't take it.
+
+## Breaking the Cycle
+Both FOMO and revenge trading come from the same root: **emotional attachment to money**.
+
+Reframe: Each trade is just one of the next 100 trades. One loss is statistically irrelevant. One missed move is statistically irrelevant. Your edge plays out over hundreds of trades — not one.`,
+        tags: ["psychology", "FOMO", "revenge trading", "emotions", "discipline"],
+      },
+      {
+        id: "discipline-routine",
+        title: "Discipline & Daily Routine",
+        summary: "Building the habits and systems that make consistent trading possible.",
+        content: `Discipline in trading isn't willpower — it's systems. The goal is to remove reliance on motivation and replace it with process.
+
+## The Pre-Session Routine
+
+**30–60 minutes before your session:**
+1. **Physical state:** Eat, hydrate. Don't trade hungry, tired, or stressed.
+2. **Market context:** Check overnight moves, news for the session, HTF chart update.
+3. **Mark levels:** Identify key POIs, set price alerts. Know your plan before price gets there.
+4. **Define your trading window:** Decide exactly which Kill Zone / session you're trading today.
+5. **Set your risk limit:** Today's max loss. If hit, session ends.
+
+## During the Session
+
+**What to do:**
+- Wait at your levels. The chart is boring most of the time — that's fine.
+- When a setup forms, execute without hesitation (analysis paralysis is also a problem).
+- Set your stop and take profit at entry, then walk away.
+
+**What not to do:**
+- Don't move your stop loss further (hoping trades come back)
+- Don't add to losing trades
+- Don't close winning trades early out of fear
+- Don't take "bonus" trades outside your setup criteria
+
+## Post-Session Routine
+1. Screenshot every trade (entry, management, exit)
+2. Journal: What was the setup? What went right? What went wrong?
+3. Review P&L — not to feel good or bad, but to identify patterns
+4. Close the charts. The session is over.
+
+## Weekly Review (Sunday or Friday Evening)
+- Review all trades from the week
+- Calculate win rate, average R:R, biggest winner/loser
+- Identify one thing to improve next week
+- Check upcoming economic calendar
+
+## Signs of Good Discipline
+✓ You can watch a setup fail to form and walk away
+✓ You take losses without immediately wanting to trade again
+✓ Your trade size is consistent regardless of emotion
+✓ You stick to your session window even when the market "looks good" outside it
+✓ You journal every single trade, wins and losses alike
+
+## Building the Habit
+New habits take 30–90 days to form. Use a simple checklist before each session. Tick each box. Over time, it becomes automatic.
+
+**The compound effect:** A trader who executes their plan at 80% consistency for one year will outperform a genius who trades 100% on emotion.`,
+        tags: ["psychology", "discipline", "routine", "habits", "consistency"],
+      },
+    ],
+  },
 ];
