@@ -13,6 +13,7 @@ import { MobileBrain } from "@/components/mobile/MobileBrain";
 import { MobileMore } from "@/components/mobile/MobileMore";
 import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 import { NotificationToast } from "@/components/shared/NotificationToast";
 import { LoginTransitionOverlay } from "@/components/shared/LoginTransitionOverlay";
 
@@ -77,9 +78,11 @@ export function MobileLayout() {
   const [drawerMounted, setDrawerMounted] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const activeRef = useRef(active);
+  const traderNameRef = useRef(traderName);
   const swipeTouchStartX = useRef<number>(0);
   const swipeTouchStartY = useRef<number>(0);
   activeRef.current = active;
+  traderNameRef.current = traderName;
 
   function openDrawer() {
     setDrawerMounted(true);
@@ -137,45 +140,62 @@ export function MobileLayout() {
       })
       .catch(() => {});
 
-    // Listen for new chat messages  -  increment badge
+    // Listen for new chat messages — badge + @mention notification
+    // Single source: realtime only (no polling to avoid double-counting)
     let myUserId: string | null = null;
-    supabase.auth.getUser().then(({ data }) => { myUserId = data.user?.id ?? null; });
-
-    let lastMessageId: string | null = null;
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    const timer = setTimeout(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      myUserId = data.user?.id ?? null;
+
       channel = supabase
         .channel("badge-listener", { config: { broadcast: { self: false } } })
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
-          const msg = payload.new as { user_id: string };
-          if (msg.user_id === myUserId) return;
-          setUnreadChat(n => n + 1);
-        })
-        .subscribe();
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "messages" },
+          (payload) => {
+            const msg = payload.new as {
+              id: string;
+              user_id: string;
+              display_name: string | null;
+              content: string;
+              recipient_id: string | null;
+            };
+            // Ignore DMs and own messages
+            if (msg.recipient_id) return;
+            if (msg.user_id === myUserId) return;
 
-      const poll = setInterval(async () => {
-        try {
-          const { data } = await supabase
-            .from("messages")
-            .select("id, user_id")
-            .order("created_at", { ascending: false })
-            .limit(1);
-          if (data && data[0]) {
-            const latest = data[0];
-            if (lastMessageId && latest.id !== lastMessageId && latest.user_id !== myUserId) {
+            // Always increment badge when chat tab is not active
+            if (activeRef.current !== "community") {
               setUnreadChat(n => n + 1);
             }
-            lastMessageId = latest.id;
-          }
-        } catch {}
-      }, 10_000);
 
-      return () => clearInterval(poll);
-    }, 1500);
+            // @mention detection — check if message tags the current user
+            const myName = traderNameRef.current.replace(/\s+/g, "").toLowerCase();
+            const isMentioned = myName.length > 0 &&
+              msg.content.toLowerCase().includes(`@${myName}`);
+
+            if (isMentioned) {
+              const sender = msg.display_name ?? "Someone";
+              toast(`🔔 ${sender} mentioned you`, {
+                description: msg.content.slice(0, 80),
+                duration: 6000,
+              });
+              if (typeof Notification !== "undefined" &&
+                  Notification.permission === "granted" &&
+                  document.hidden) {
+                new Notification(`🔔 ${sender} mentioned you`, {
+                  body: msg.content.slice(0, 80),
+                  icon: "/logo.png",
+                });
+              }
+            }
+          }
+        )
+        .subscribe();
+    });
 
     return () => {
-      clearTimeout(timer);
       if (channel) supabase.removeChannel(channel);
     };
   }, []);

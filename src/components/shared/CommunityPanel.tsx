@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState, useMemo } from "react";
 import { Send, Loader2, Hash } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 
 const TRADER_NAME_KEY = "tradex_trader_name";
 
@@ -195,6 +196,16 @@ export function CommunityPanel() {
         if (msg.recipient_id) return;
         if (msg.user_id === userId) return;
         setMessages(prev => [...prev, msg]);
+
+        // @mention notification — toast even while panel is open
+        const myName = traderName.replace(/\s+/g, "").toLowerCase();
+        if (myName && msg.content.toLowerCase().includes(`@${myName}`)) {
+          const sender = msg.display_name ?? "Someone";
+          toast(`🔔 ${sender} mentioned you`, {
+            description: msg.content.slice(0, 80),
+            duration: 5000,
+          });
+        }
       })
       .on("broadcast", { event: "typing" }, (payload) => {
         const { user_id, display_name } = payload.payload as { user_id: string; display_name: string };
