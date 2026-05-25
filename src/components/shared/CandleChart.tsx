@@ -501,18 +501,6 @@ function AnalysisPanel({
 
               {/* Summary */}
               <p className="text-[11px] text-zinc-300 leading-relaxed">{macroCtx.summary}</p>
-
-              {/* Key drivers */}
-              {macroCtx.keyDrivers.length > 0 && (
-                <div className="space-y-1 pt-1 border-t border-white/5">
-                  {macroCtx.keyDrivers.map((d, i) => (
-                    <div key={i} className="flex items-start gap-1.5">
-                      <span className="text-blue-500 text-[10px] mt-0.5 shrink-0">›</span>
-                      <p className="text-[10px] text-zinc-400 leading-snug">{d}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           ) : (
             <p className="text-[11px] text-zinc-600 italic">

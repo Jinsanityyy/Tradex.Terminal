@@ -75,6 +75,7 @@ async function fetchFromTavily(query: string): Promise<{
       search_depth: "basic",
       max_results: 6,
       include_answer: true,
+      days: 3,
     }),
     cache: "no-store",
   });
