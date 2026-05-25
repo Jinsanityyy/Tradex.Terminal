@@ -441,7 +441,7 @@ function computeRSI(closes: number[], period = 14): number {
 
 function detectStructure(candles: Candle[]): "bullish" | "bearish" | "neutral" {
   if (candles.length < 6) return "neutral";
-  const n = Math.min(12, candles.length);
+  const n = Math.min(30, candles.length);
   const recent = candles.slice(-n);
   const mid = Math.floor(n / 2);
   const first = recent.slice(0, mid);
@@ -482,10 +482,11 @@ function analyzeCandles(candles: Candle[]): TFAnalysis | null {
   if (structure === "bullish") score += 2;
   else if (structure === "bearish") score -= 2;
 
-  if (rsi > 60) score += 2;
-  else if (rsi > 50) score += 1;
-  else if (rsi < 40) score -= 2;
-  else score -= 1;
+  if (rsi > 65) score += 2;
+  else if (rsi > 55) score += 1;
+  else if (rsi < 35) score -= 2;
+  else if (rsi < 45) score -= 1;
+  // RSI 45–55: genuinely neutral, no contribution
 
   if (strength > 0.65) score += 1;
   else if (strength < 0.35) score -= 1;
