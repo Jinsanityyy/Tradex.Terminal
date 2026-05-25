@@ -2,8 +2,9 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
-  RefreshCw, Zap, TrendingUp, TrendingDown, Minus, AlertCircle, X,
+  RefreshCw, Zap, TrendingUp, TrendingDown, Minus, AlertCircle, X, Globe,
 } from "lucide-react";
+import type { MacroContextResult } from "@/app/api/market/macro-context/route";
 import { cn } from "@/lib/utils";
 import type { Symbol, Timeframe } from "@/lib/agents/schemas";
 import type { EconomicEvent } from "@/types";
@@ -377,6 +378,18 @@ function AnalysisPanel({
   const changePct = ((candle.c - candle.o) / candle.o) * 100;
   const dt        = new Date(candle.t * 1000);
 
+  // Live macro context from Tavily + Claude
+  const [macroCtx, setMacroCtx]       = useState<MacroContextResult | null>(null);
+  const [macroLoading, setMacroLoading] = useState(true);
+  useEffect(() => {
+    setMacroLoading(true);
+    fetch(`/api/market/macro-context?symbol=${symbol}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setMacroCtx(d))
+      .catch(() => {})
+      .finally(() => setMacroLoading(false));
+  }, [symbol]);
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-start justify-between px-4 pt-4 pb-3 border-b border-white/5 shrink-0">
@@ -435,6 +448,60 @@ function AnalysisPanel({
         <div>
           <p className="text-[11px] font-bold text-violet-400 uppercase tracking-wider mb-2">Technicals</p>
           <p className="text-[11px] text-zinc-400 leading-relaxed">{analysis.technicals}</p>
+        </div>
+
+        {/* ── Live Macro Context (Tavily + Claude) ───────────────────────── */}
+        <div>
+          <div className="flex items-center gap-1.5 mb-2">
+            <Globe className="h-3 w-3 text-blue-400" />
+            <p className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">Live Macro</p>
+            <span className="ml-auto flex items-center gap-1 text-[9px] text-zinc-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+              Tavily · Claude
+            </span>
+          </div>
+
+          {macroLoading ? (
+            <div className="space-y-2">
+              <div className="h-3 w-full rounded bg-white/5 animate-pulse" />
+              <div className="h-3 w-4/5 rounded bg-white/5 animate-pulse" />
+              <div className="h-3 w-3/5 rounded bg-white/5 animate-pulse" />
+            </div>
+          ) : macroCtx ? (
+            <div className="rounded-xl border border-blue-500/15 bg-blue-500/5 p-3 space-y-2.5">
+              {/* Sentiment badge */}
+              <div className="flex items-center gap-2">
+                <span className={cn(
+                  "text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider",
+                  macroCtx.sentiment === "bullish" ? "text-emerald-400 border-emerald-500/25 bg-emerald-500/10"
+                  : macroCtx.sentiment === "bearish" ? "text-red-400 border-red-500/25 bg-red-500/10"
+                  : "text-zinc-400 border-zinc-600/25 bg-zinc-700/20"
+                )}>
+                  {macroCtx.sentiment} macro
+                </span>
+                <span className="text-[9px] text-zinc-600 ml-auto">
+                  {new Date(macroCtx.generatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </div>
+
+              {/* Summary */}
+              <p className="text-[11px] text-zinc-300 leading-relaxed">{macroCtx.summary}</p>
+
+              {/* Key drivers */}
+              {macroCtx.keyDrivers.length > 0 && (
+                <div className="space-y-1 pt-1 border-t border-white/5">
+                  {macroCtx.keyDrivers.map((d, i) => (
+                    <div key={i} className="flex items-start gap-1.5">
+                      <span className="text-blue-500 text-[10px] mt-0.5 shrink-0">›</span>
+                      <p className="text-[10px] text-zinc-400 leading-snug">{d}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-[11px] text-zinc-600 italic">Live macro context unavailable.</p>
+          )}
         </div>
 
         <div>

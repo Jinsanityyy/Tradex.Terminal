@@ -97,12 +97,22 @@ export async function POST(req: NextRequest) {
     const p         = candle.o > 100 ? 2 : 4;
 
     let newsHeadlines: string[] = [];
+    let tavilyContext = "";
     try {
       const origin  = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-      const newsRes = await fetch(`${origin}/api/market/news`, { cache: "no-store" });
+      const [newsRes, macroRes] = await Promise.all([
+        fetch(`${origin}/api/market/news`, { cache: "no-store" }),
+        fetch(`${origin}/api/market/macro-context?symbol=${symbol}`, { cache: "no-store" }),
+      ]);
       if (newsRes.ok) {
         const nd = await newsRes.json();
         newsHeadlines = (nd.data ?? []).slice(0, 8).map((n: any) => n.headline as string);
+      }
+      if (macroRes.ok) {
+        const md = await macroRes.json();
+        if (md.summary) {
+          tavilyContext = `LIVE MACRO CONTEXT (Tavily + Claude synthesis):\n${md.summary}\nKey drivers: ${(md.keyDrivers ?? []).join(" | ")}\nOverall sentiment: ${md.sentiment}`;
+        }
       }
     } catch { /* proceed without */ }
 
@@ -121,7 +131,7 @@ OHLC: O=${candle.o.toFixed(p)} H=${candle.h.toFixed(p)} L=${candle.l.toFixed(p)}
 Surrounding candles:
 ${ctxStr || "No context provided"}
 
-Current macro headlines:
+${tavilyContext ? tavilyContext + "\n\n" : ""}Current macro headlines:
 ${newsHeadlines.length > 0 ? newsHeadlines.map(h => `• ${h}`).join("\n") : "• No headlines available  -  use training knowledge of macro events near this date"}
 
 Explain why this candle moved. Return JSON only.`;
