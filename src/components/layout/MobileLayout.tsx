@@ -97,17 +97,12 @@ export function MobileLayout() {
     swipeTouchStartY.current = e.touches[0].clientY;
   }
 
-  function onContentSwipeTouchEnd(e: React.TouchEvent) {
-    if (drawerOpen) return;
+  function onSwipeTouchEnd(e: React.TouchEvent) {
     const dx = e.changedTouches[0].clientX - swipeTouchStartX.current;
     const dy = e.changedTouches[0].clientY - swipeTouchStartY.current;
-    if (Math.abs(dx) > Math.abs(dy) * 1.2 && dx > 60) openDrawer();
-  }
-
-  function onDrawerSwipeTouchEnd(e: React.TouchEvent) {
-    const dx = e.changedTouches[0].clientX - swipeTouchStartX.current;
-    const dy = e.changedTouches[0].clientY - swipeTouchStartY.current;
-    if (Math.abs(dx) > Math.abs(dy) * 1.2 && dx < -60) closeDrawer();
+    if (Math.abs(dx) < Math.abs(dy) * 1.2 || Math.abs(dx) < 60) return;
+    if (!drawerOpen && dx > 0) openDrawer();
+    if (drawerOpen && dx < 0) closeDrawer();
   }
 
   useEffect(() => {
@@ -316,7 +311,11 @@ export function MobileLayout() {
   const NO_SCROLL_TABS = new Set(["chart", "community", "feed", "brain"]);
 
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden bg-[hsl(var(--background))]">
+    <div
+      className="flex flex-col h-screen w-full overflow-hidden bg-[hsl(var(--background))]"
+      onTouchStart={onSwipeTouchStart}
+      onTouchEnd={onSwipeTouchEnd}
+    >
       <LoginTransitionOverlay />
       <NotificationToast />
 
@@ -356,7 +355,8 @@ export function MobileLayout() {
       {showProfile && (
         <div className="absolute inset-0 z-50 flex flex-col" style={{ background: "rgba(0,0,0,0.8)" }}
           onClick={() => setShowProfile(false)}>
-          <div className="mt-auto rounded-t-3xl bg-[hsl(var(--card))] p-5 pb-10"
+          <div className="mt-auto rounded-t-3xl bg-[hsl(var(--card))] p-5"
+            style={{ paddingBottom: "max(2.5rem, env(safe-area-inset-bottom))" }}
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <span className="text-[14px] font-semibold">Profile</span>
@@ -478,11 +478,7 @@ export function MobileLayout() {
       )}
 
       {/* Page content — all mounted tabs stay alive, stacked absolutely */}
-      <div
-        className="relative flex-1 min-h-0 overflow-hidden"
-        onTouchStart={onSwipeTouchStart}
-        onTouchEnd={onContentSwipeTouchEnd}
-      >
+      <div className="relative flex-1 min-h-0 overflow-hidden">
         {TABS.map(({ id }) => {
           if (!mounted.has(id)) return null;
           const isActive = active === id;
@@ -527,8 +523,6 @@ export function MobileLayout() {
             "absolute top-0 left-0 bottom-0 z-50 w-[88%] bg-[hsl(var(--background))] shadow-2xl transition-transform duration-300 ease-out flex flex-col",
             drawerOpen ? "translate-x-0" : "-translate-x-full"
           )}
-          onTouchStart={onSwipeTouchStart}
-          onTouchEnd={onDrawerSwipeTouchEnd}
         >
           {/* Drawer content — MobileMore mounted on first open, kept alive after */}
           <div className="flex-1 min-h-0 overflow-hidden">
