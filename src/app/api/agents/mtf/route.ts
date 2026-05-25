@@ -508,18 +508,22 @@ function analyzeCandles(candles: Candle[]): TFAnalysis | null {
 }
 
 function aggregateToH4(h1: Candle[]): Candle[] {
-  const h4: Candle[] = [];
-  for (let i = 0; i + 3 < h1.length; i += 4) {
-    const group = h1.slice(i, i + 4);
-    h4.push({
-      t: group[0].t,
-      o: group[0].o,
-      h: Math.max(...group.map((candle) => candle.h)),
-      l: Math.min(...group.map((candle) => candle.l)),
-      c: group[group.length - 1].c,
-    });
+  // Group H1 candles by actual 4-hour UTC boundary (00,04,08,12,16,20)
+  const groups = new Map<number, Candle[]>();
+  for (const candle of h1) {
+    const bucket = Math.floor(candle.t / (4 * 3600)) * (4 * 3600);
+    if (!groups.has(bucket)) groups.set(bucket, []);
+    groups.get(bucket)!.push(candle);
   }
-  return h4;
+  return Array.from(groups.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([ts, candles]) => ({
+      t: ts,
+      o: candles[0].o,
+      h: Math.max(...candles.map(c => c.h)),
+      l: Math.min(...candles.map(c => c.l)),
+      c: candles[candles.length - 1].c,
+    }));
 }
 
 function buildSummary(r: { D1: TFAnalysis; H4: TFAnalysis; H1: TFAnalysis; M15: TFAnalysis }): string {
