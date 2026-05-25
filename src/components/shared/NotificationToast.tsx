@@ -264,6 +264,18 @@ function AlertCard({
   const ago    = useTimeAgo(notif.timestamp);
   const router = useRouter();
 
+  function handleViewInTerminal() {
+    if (!notif.chartLink) return;
+    // On mobile (/m), the app uses custom tab events — router.push does nothing.
+    // Extract the page id from the link and dispatch tradex:open-more.
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/m")) {
+      const appId = notif.chartLink.split("/").pop() ?? "";
+      document.dispatchEvent(new CustomEvent("tradex:open-more", { detail: { appId } }));
+    } else {
+      router.push(notif.chartLink);
+    }
+  }
+
   const ts   = new Date(notif.timestamp);
   const time = ts.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
   const date = ts.toLocaleDateString("en-US", { month: "short", day: "2-digit" }).toUpperCase();
@@ -458,7 +470,7 @@ function AlertCard({
             {/* View chart button */}
             {notif.chartLink && (
               <button
-                onClick={() => router.push(notif.chartLink!)}
+                onClick={handleViewInTerminal}
                 className="flex items-center gap-2 w-full py-2 px-3 transition-opacity hover:opacity-80"
                 style={{
                   background: `rgba(${getCfg(notif.type).baseRgb},0.08)`,
