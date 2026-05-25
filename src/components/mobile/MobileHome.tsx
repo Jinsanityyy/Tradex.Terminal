@@ -145,35 +145,15 @@ function PriceCard({ symbol, price, change, isActive, wsPrice }: {
   const down = (change ?? 0) < 0;
   const displayPrice = wsPrice ?? price;
 
-  // Flash green/red for 500ms whenever the WS price ticks
-  const [flash, setFlash] = useState<"up" | "down" | null>(null);
-  const prevWs = useRef<number | null>(null);
-  useEffect(() => {
-    if (wsPrice === undefined) return;
-    if (prevWs.current !== null && wsPrice !== prevWs.current) {
-      setFlash(wsPrice > prevWs.current ? "up" : "down");
-      const t = setTimeout(() => setFlash(null), 500);
-      return () => clearTimeout(t);
-    }
-    prevWs.current = wsPrice;
-  }, [wsPrice]);
-
   return (
     <div className={cn(
       "rounded-xl p-3.5 border transition-all",
       isActive
         ? "bg-[hsl(var(--primary))]/8 border-[hsl(var(--primary))]/35"
         : "bg-[hsl(var(--card))] border-white/5",
-      flash === "up"   && "border-emerald-500/40",
-      flash === "down" && "border-red-500/40",
     )}>
       <p className={cn("text-[10px] uppercase tracking-widest mb-1", isActive ? "text-[hsl(var(--primary))]/70" : "text-[hsl(var(--muted-foreground))]")}>{symbol}</p>
-      <p className={cn(
-        "text-lg font-bold font-mono leading-tight transition-colors duration-300",
-        flash === "up"   ? "text-emerald-400" :
-        flash === "down" ? "text-red-400" :
-        "text-[hsl(var(--foreground))]"
-      )}>
+      <p className="text-lg font-bold font-mono leading-tight text-[hsl(var(--foreground))]">
         {typeof displayPrice === "number"
           ? displayPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 })
           : displayPrice}
