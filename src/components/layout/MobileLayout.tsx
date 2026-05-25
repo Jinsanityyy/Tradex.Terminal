@@ -530,16 +530,6 @@ export function MobileLayout() {
           onTouchStart={onSwipeTouchStart}
           onTouchEnd={onDrawerSwipeTouchEnd}
         >
-          {/* Drawer header */}
-          <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-white/5 shrink-0">
-            <span className="text-[13px] font-semibold text-white">Features</span>
-            <button
-              onClick={closeDrawer}
-              className="flex items-center justify-center w-7 h-7 rounded-lg border border-white/10 active:bg-white/10"
-            >
-              <X className="h-4 w-4 text-zinc-400" />
-            </button>
-          </div>
           {/* Drawer content — MobileMore mounted on first open, kept alive after */}
           <div className="flex-1 min-h-0 overflow-hidden">
             {drawerMounted && <MobileMore />}
