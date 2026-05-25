@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { LayoutDashboard, TrendingUp, Zap, BarChart3, Users, Grid, Camera, LogOut, X, Crown } from "lucide-react";
+import { LayoutDashboard, TrendingUp, Zap, BarChart3, Users, Menu, Camera, LogOut, X, Crown } from "lucide-react";
 import { PLANS } from "@/lib/plans";
 import { useSubscription } from "@/hooks/useSubscription";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
@@ -19,12 +19,11 @@ import { LoginTransitionOverlay } from "@/components/shared/LoginTransitionOverl
 const TRADER_NAME_KEY = "tradex_trader_name";
 
 const TABS = [
-  { id: "home",      label: "Home",    Icon: LayoutDashboard },
-  { id: "chart",     label: "Chart",   Icon: TrendingUp },
-  { id: "feed",      label: "Feed",    Icon: Zap },
-  { id: "brain",     label: "Brain",   Icon: BarChart3 },
-  { id: "community", label: "Chat",    Icon: Users },
-  { id: "more",      label: "More",    Icon: Grid },
+  { id: "home",      label: "Home",  Icon: LayoutDashboard },
+  { id: "chart",     label: "Chart", Icon: TrendingUp },
+  { id: "feed",      label: "Feed",  Icon: Zap },
+  { id: "brain",     label: "Brain", Icon: BarChart3 },
+  { id: "community", label: "Chat",  Icon: Users },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -74,7 +73,22 @@ export function MobileLayout() {
   const [avatar, setAvatar] = useState<string | null>(null);
   const [unreadChat, setUnreadChat] = useState(0);
   const [unreadFeed, setUnreadFeed] = useState(0);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerMounted, setDrawerMounted] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const activeRef = useRef(active);
+  activeRef.current = active;
+
+  function openDrawer() {
+    setDrawerMounted(true);
+    setDrawerOpen(true);
+    document.dispatchEvent(new CustomEvent("tradex:mobile-tab-change", { detail: { active: "more" } }));
+  }
+
+  function closeDrawer() {
+    setDrawerOpen(false);
+    document.dispatchEvent(new CustomEvent("tradex:mobile-tab-change", { detail: { active: activeRef.current } }));
+  }
 
   useEffect(() => {
     setTimeout(() => setSplashDone(true), 1500);
@@ -116,7 +130,6 @@ export function MobileLayout() {
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const timer = setTimeout(() => {
-      // Try realtime first
       channel = supabase
         .channel("badge-listener", { config: { broadcast: { self: false } } })
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
@@ -126,7 +139,6 @@ export function MobileLayout() {
         })
         .subscribe();
 
-      // Polling fallback  -  check for new messages every 10s
       const poll = setInterval(async () => {
         try {
           const { data } = await supabase
@@ -233,14 +245,13 @@ export function MobileLayout() {
     if (id === "home") {
       setTimeout(() => window.dispatchEvent(new Event("tradex-home-active")), 50);
     }
-    // Let media components (e.g. Live TV) know which tab is now active
     document.dispatchEvent(new CustomEvent("tradex:mobile-tab-change", { detail: { active: id } }));
   }, [active]);
 
   useEffect(() => {
     const handler = (e: Event) => {
       const appId = (e as CustomEvent<{ appId?: string }>).detail?.appId;
-      switchTab("more");
+      openDrawer();
       if (appId) {
         setTimeout(() => {
           document.dispatchEvent(new CustomEvent("tradex:open-app", { detail: { appId } }));
@@ -249,7 +260,7 @@ export function MobileLayout() {
     };
     document.addEventListener("tradex:open-more", handler);
     return () => document.removeEventListener("tradex:open-more", handler);
-  }, [switchTab]);
+  }, []);
 
   async function handleLogout() {
     const supabase = createClient();
@@ -260,20 +271,15 @@ export function MobileLayout() {
   if (!ready || !splashDone) {
     return (
       <div className="flex flex-col h-screen w-full items-center justify-center bg-[hsl(var(--background))] gap-6">
-        {/* Logo with glow pulse */}
         <div className="relative flex items-center justify-center">
           <div className="absolute w-28 h-28 rounded-full bg-[hsl(var(--primary))]/15 animate-ping" style={{ animationDuration: "1.8s" }} />
           <div className="absolute w-20 h-20 rounded-full bg-[hsl(var(--primary))]/10 animate-pulse" />
           <TradeXLogo variant="icon" size="xl" className="relative z-10" />
         </div>
-
-        {/* Brand name */}
         <div className="text-center space-y-1">
           <p className="text-[13px] font-bold tracking-[0.25em] uppercase text-zinc-300">TradeX Terminal</p>
           <p className="text-[10px] text-zinc-600 tracking-widest uppercase">Loading your workspace…</p>
         </div>
-
-        {/* Dot loader */}
         <div className="flex gap-1.5">
           {[0, 1, 2].map(i => (
             <div
@@ -287,12 +293,13 @@ export function MobileLayout() {
     );
   }
 
-  const NO_SCROLL_TABS = new Set(["chart", "community", "more", "feed", "brain"]);
+  const NO_SCROLL_TABS = new Set(["chart", "community", "feed", "brain"]);
 
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-[hsl(var(--background))]">
       <LoginTransitionOverlay />
       <NotificationToast />
+
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 pt-10 pb-2 bg-[hsl(var(--background))] border-b border-white/5 shrink-0">
         <TradeXLogo variant="wordmark" size="xs" />
@@ -301,6 +308,13 @@ export function MobileLayout() {
             <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--primary))] animate-pulse" />
             <span className="text-[9px] text-[hsl(var(--primary))] font-medium tracking-wider uppercase">Live</span>
           </div>
+          {/* Hamburger — opens features drawer */}
+          <button
+            onClick={openDrawer}
+            className="flex items-center justify-center w-7 h-7 rounded-lg border border-white/10 bg-white/[0.03] active:bg-white/10"
+          >
+            <Menu className="h-4 w-4 text-zinc-400" />
+          </button>
           {/* Profile button */}
           <button onClick={() => { setShowProfile(true); setDraft(traderName); setEditing(false); }}
             className="flex items-center justify-center w-7 h-7 rounded-full overflow-hidden border border-white/10">
@@ -460,7 +474,6 @@ export function MobileLayout() {
               {id === "feed"      && <MobileFeed />}
               {id === "brain"     && <MobileBrain />}
               {id === "community" && <CommunityPanel />}
-              {id === "more"      && <MobileMore />}
             </div>
           );
         })}
@@ -472,14 +485,46 @@ export function MobileLayout() {
             className="mobile-tab-overlay absolute inset-0 z-50 pointer-events-none bg-[hsl(var(--background))]"
           />
         )}
+
+        {/* Right-side features drawer */}
+        {/* Backdrop */}
+        <div
+          className={cn(
+            "absolute inset-0 z-40 bg-black/60 transition-opacity duration-300",
+            drawerOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+          )}
+          onClick={closeDrawer}
+        />
+        {/* Drawer panel */}
+        <div
+          className={cn(
+            "absolute top-0 right-0 bottom-0 z-50 w-[88%] bg-[hsl(var(--background))] shadow-2xl transition-transform duration-300 ease-out flex flex-col",
+            drawerOpen ? "translate-x-0" : "translate-x-full"
+          )}
+        >
+          {/* Drawer header */}
+          <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-white/5 shrink-0">
+            <span className="text-[13px] font-semibold text-white">Features</span>
+            <button
+              onClick={closeDrawer}
+              className="flex items-center justify-center w-7 h-7 rounded-lg border border-white/10 active:bg-white/10"
+            >
+              <X className="h-4 w-4 text-zinc-400" />
+            </button>
+          </div>
+          {/* Drawer content — MobileMore mounted on first open, kept alive after */}
+          <div className="flex-1 min-h-0 overflow-hidden">
+            {drawerMounted && <MobileMore />}
+          </div>
+        </div>
       </div>
 
-      {/* Bottom tab bar — safe-area-inset-bottom ensures home bar never overlaps on iOS/Android */}
+      {/* Bottom tab bar */}
       <div
         className="shrink-0 border-t border-white/5 bg-[hsl(var(--card))]"
         style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
       >
-        <div className="grid grid-cols-6">
+        <div className="grid grid-cols-5">
           {TABS.map(({ id, label, Icon }) => {
             const isActive = active === id;
             const showBadge = (id === "community" && unreadChat > 0 && active !== "community") ||
