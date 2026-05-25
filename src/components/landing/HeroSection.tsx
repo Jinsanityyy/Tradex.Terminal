@@ -51,7 +51,6 @@ function StatusBar() {
   const items = [
     { label: "AGENTS", value: "7 / 7 ONLINE", color: "text-emerald-400" },
     { label: "SESSION", value: "NY 13:00–18:00 UTC", color: "text-sky-400" },
-    { label: "STRATEGY", value: "JADE CAP v2", color: "text-amber-400" },
     { label: "CACHE TTL", value: "300s", color: "text-slate-400" },
   ];
 
