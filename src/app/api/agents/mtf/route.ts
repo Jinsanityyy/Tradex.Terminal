@@ -160,10 +160,15 @@ function normalizeCandles(candles: Candle[]): Candle[] {
   return candles
     .filter((candle) =>
       Number.isFinite(candle.t) &&
+      candle.t > 0 &&
+      Number.isFinite(candle.c) &&
+      candle.c > 0 &&        // null → Number(null) = 0 → must reject
       Number.isFinite(candle.o) &&
+      candle.o > 0 &&
       Number.isFinite(candle.h) &&
+      candle.h > 0 &&
       Number.isFinite(candle.l) &&
-      Number.isFinite(candle.c)
+      candle.l > 0
     )
     .sort((a, b) => a.t - b.t);
 }
@@ -337,16 +342,16 @@ async function fetchYahooCandles(
 
     const candles = normalizeCandles(
       timestamps.map((timestamp: number, index: number) => {
-        const closeValue = Number(close[index]);
-        const openValue = Number(open[index]);
-        const highValue = Number(high[index]);
-        const lowValue = Number(low[index]);
+        const closeValue = close[index] != null ? Number(close[index]) : NaN;
+        const openValue  = open[index]  != null ? Number(open[index])  : closeValue;
+        const highValue  = high[index]  != null ? Number(high[index])  : closeValue;
+        const lowValue   = low[index]   != null ? Number(low[index])   : closeValue;
 
         return {
           t: Number(timestamp),
-          o: Number.isFinite(openValue) ? openValue : closeValue,
-          h: Number.isFinite(highValue) ? highValue : closeValue,
-          l: Number.isFinite(lowValue) ? lowValue : closeValue,
+          o: Number.isFinite(openValue)  && openValue  > 0 ? openValue  : closeValue,
+          h: Number.isFinite(highValue)  && highValue  > 0 ? highValue  : closeValue,
+          l: Number.isFinite(lowValue)   && lowValue   > 0 ? lowValue   : closeValue,
           c: closeValue,
         };
       })
