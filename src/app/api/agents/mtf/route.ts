@@ -462,50 +462,61 @@ function closingStrength(candle: Candle): number {
 }
 
 function analyzeCandles(candles: Candle[]): TFAnalysis | null {
-  if (candles.length < 15) return null;
-  const closes = candles.map((candle) => candle.c);
+  if (candles.length < 20) return null;
+
+  const closes   = candles.map((c) => c.c);
+  const lastClose = closes[closes.length - 1];
+
+  // Keep EMA values for display but don't use them as primary bias signal.
+  // EMA50 is too slow — in recovering markets price sits below EMA50 for
+  // weeks and creates permanent bearish bias regardless of actual momentum.
   const ema20Arr = computeEMA(closes, 20);
   const ema50Arr = computeEMA(closes, 50);
-  const lastClose = closes[closes.length - 1];
-  const ema20 = ema20Arr[ema20Arr.length - 1];
-  const ema50 = ema50Arr[ema50Arr.length - 1];
-  const rsi = computeRSI(closes);
+  const ema20    = ema20Arr[ema20Arr.length - 1];
+  const ema50    = ema50Arr[ema50Arr.length - 1];
+
+  const rsi       = computeRSI(closes);
   const structure = detectStructure(candles);
-  const strength = closingStrength(candles[candles.length - 1]);
+  const strength  = closingStrength(candles[candles.length - 1]);
 
   let score = 0;
 
-  score += lastClose > ema50 ? 1.5 : -1.5;
-  score += lastClose > ema20 ? 1.0 : -1.0;
-  score += ema20 > ema50 ? 0.5 : -0.5;
+  // ── 1. Recent momentum: compare last 10 closes vs previous 10 closes ──
+  // Much more responsive than EMA comparison — directly measures NOW.
+  const seg = Math.min(10, Math.floor(candles.length / 2));
+  const prevAvg   = closes.slice(-seg * 2, -seg).reduce((a, b) => a + b, 0) / seg;
+  const recentAvg = closes.slice(-seg).reduce((a, b) => a + b, 0) / seg;
+  const mPct = prevAvg > 0 ? (recentAvg - prevAvg) / prevAvg : 0;
+  if      (mPct >  0.002) score += 2.5;
+  else if (mPct >  0)     score += 1.0;
+  else if (mPct < -0.002) score -= 2.5;
+  else                    score -= 1.0;
 
-  if (structure === "bullish") score += 2;
+  // ── 2. Structure: higher-highs/lows or lower-highs/lows ──────────────
+  if      (structure === "bullish") score += 2;
   else if (structure === "bearish") score -= 2;
 
-  if (rsi > 65) score += 2;
+  // ── 3. RSI momentum ───────────────────────────────────────────────────
+  if      (rsi > 65) score += 2;
   else if (rsi > 55) score += 1;
   else if (rsi < 35) score -= 2;
   else if (rsi < 45) score -= 1;
-  // RSI 45–55: genuinely neutral, no contribution
+  // RSI 45–55: genuinely neutral
 
-  if (strength > 0.65) score += 1;
-  else if (strength < 0.35) score -= 1;
+  // ── 4. Closing strength of last candle ───────────────────────────────
+  if      (strength > 0.65) score += 0.5;
+  else if (strength < 0.35) score -= 0.5;
 
-  const maxScore = 8;
+  // ── 5. EMA alignment (light confirmation, not primary signal) ─────────
+  if      (ema20 > ema50 && lastClose > ema20) score += 0.5;
+  else if (ema20 < ema50 && lastClose < ema20) score -= 0.5;
+
+  const maxScore = 7.5;
   const bias: "bullish" | "bearish" | "neutral" =
     score > 1.5 ? "bullish" : score < -1.5 ? "bearish" : "neutral";
   const confidence = Math.round(Math.min(100, (Math.abs(score) / maxScore) * 100));
 
-  return {
-    bias,
-    confidence,
-    rsi: Math.round(rsi),
-    ema20,
-    ema50,
-    structure,
-    closeStrength: strength,
-    score,
-  };
+  return { bias, confidence, rsi: Math.round(rsi), ema20, ema50, structure, closeStrength: strength, score };
 }
 
 function aggregateToH4(h1: Candle[]): Candle[] {
