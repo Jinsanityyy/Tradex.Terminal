@@ -381,19 +381,26 @@ function AnalysisPanel({
   // Live macro context from Tavily + Claude
   const [macroCtx, setMacroCtx]       = useState<MacroContextResult | null>(null);
   const [macroLoading, setMacroLoading] = useState(true);
+  const [macroError, setMacroError]    = useState<string | null>(null);
   useEffect(() => {
     setMacroLoading(true);
+    setMacroError(null);
     fetch(`/api/market/macro-context?symbol=${symbol}`)
       .then(async r => {
+        const body = await r.json().catch(() => ({}));
         if (!r.ok) {
-          const err = await r.json().catch(() => ({}));
-          console.error("[macro-context]", r.status, err);
+          const msg = body.error ?? `HTTP ${r.status}`;
+          console.error("[macro-context]", r.status, body);
+          setMacroError(msg);
           return null;
         }
-        return r.json();
+        return body;
       })
       .then(d => setMacroCtx(d))
-      .catch(e => console.error("[macro-context] fetch failed:", e))
+      .catch(e => {
+        console.error("[macro-context] fetch failed:", e);
+        setMacroError(String(e));
+      })
       .finally(() => setMacroLoading(false));
   }, [symbol]);
 
@@ -508,7 +515,9 @@ function AnalysisPanel({
               )}
             </div>
           ) : (
-            <p className="text-[11px] text-zinc-600 italic">Live macro context unavailable.</p>
+            <p className="text-[11px] text-zinc-600 italic">
+              {macroError ? `Error: ${macroError}` : "Live macro context unavailable."}
+            </p>
           )}
         </div>
 
