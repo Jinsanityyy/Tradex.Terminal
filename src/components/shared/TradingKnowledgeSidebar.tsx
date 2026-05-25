@@ -4,9 +4,10 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import {
   X, Search, ChevronDown, ChevronRight, BookOpen,
   BarChart2, CandlestickChart, TrendingUp, Activity,
-  ShieldCheck, Crosshair, Building2, Brain,
+  ShieldCheck, Crosshair, Building2, Brain, LayoutGrid, BookMarked,
   type LucideIcon,
 } from "lucide-react";
+import { PatternCardsView } from "@/components/shared/PatternCards";
 
 const ICON_MAP: Record<string, LucideIcon> = {
   BookOpen, BarChart2, CandlestickChart, TrendingUp,
@@ -199,10 +200,12 @@ function CategorySection({
 }
 
 export function TradingKnowledgeContent() {
+  const [tab, setTab]   = useState<"patterns" | "topics">("patterns");
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const searchResults = useMemo(() => {
+    if (tab !== "topics") return null;
     const q = query.trim().toLowerCase();
     if (!q) return null;
     const results: Array<{ category: KnowledgeCategory; item: KnowledgeItem }> = [];
@@ -219,61 +222,100 @@ export function TradingKnowledgeContent() {
       }
     }
     return results;
-  }, [query]);
+  }, [query, tab]);
 
   return (
     <div className="flex flex-col h-full">
-      {/* Search */}
-      <div className="px-3 py-2.5 border-b border-[hsl(var(--border))] shrink-0">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search topics, indicators, patterns…"
-            className={cn(
-              "w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))]",
-              "pl-8 pr-3 py-1.5 text-[12px] text-[hsl(var(--foreground))]",
-              "placeholder:text-[hsl(var(--muted-foreground))]",
-              "outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]/50 focus:border-[hsl(var(--primary))]/50",
-              "transition-colors"
-            )}
-          />
-        </div>
+      {/* Tab switcher */}
+      <div className="flex shrink-0 border-b border-[hsl(var(--border))]">
+        <button
+          onClick={() => setTab("patterns")}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-medium border-b-2 transition-colors",
+            tab === "patterns"
+              ? "border-[hsl(var(--primary))] text-[hsl(var(--primary))]"
+              : "border-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+          )}
+        >
+          <LayoutGrid className="h-3.5 w-3.5" />
+          Patterns
+        </button>
+        <button
+          onClick={() => setTab("topics")}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-medium border-b-2 transition-colors",
+            tab === "topics"
+              ? "border-[hsl(var(--primary))] text-[hsl(var(--primary))]"
+              : "border-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+          )}
+        >
+          <BookMarked className="h-3.5 w-3.5" />
+          Topics
+        </button>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
-        {searchResults !== null ? (
-          searchResults.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
-              <Search className="h-8 w-8 text-[hsl(var(--muted-foreground))]/30" />
-              <p className="text-[12px] text-[hsl(var(--muted-foreground))]">
-                No results for &ldquo;{query}&rdquo;
-              </p>
+      {/* Patterns tab */}
+      {tab === "patterns" && (
+        <div className="flex-1 overflow-y-auto">
+          <PatternCardsView />
+        </div>
+      )}
+
+      {/* Topics tab */}
+      {tab === "topics" && (
+        <>
+          {/* Search */}
+          <div className="px-3 py-2.5 border-b border-[hsl(var(--border))] shrink-0">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search topics, indicators, patterns…"
+                className={cn(
+                  "w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))]",
+                  "pl-8 pr-3 py-1.5 text-[12px] text-[hsl(var(--foreground))]",
+                  "placeholder:text-[hsl(var(--muted-foreground))]",
+                  "outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]/50 focus:border-[hsl(var(--primary))]/50",
+                  "transition-colors"
+                )}
+              />
             </div>
-          ) : (
-            <div className="space-y-1.5 px-1">
-              <p className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-widest px-2 py-1">
-                {searchResults.length} result{searchResults.length !== 1 ? "s" : ""}
-              </p>
-              {searchResults.map(({ category, item }) => (
-                <div key={item.id}>
-                  <p className="text-[10px] text-[hsl(var(--muted-foreground))] px-2 mb-1">
-                    {(() => { const Icon = ICON_MAP[category.icon] ?? BookOpen; return <><Icon className="inline h-3 w-3 mr-1 text-zinc-500" />{category.label}</>; })()}
+          </div>
+
+          <div className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
+            {searchResults !== null ? (
+              searchResults.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
+                  <Search className="h-8 w-8 text-[hsl(var(--muted-foreground))]/30" />
+                  <p className="text-[12px] text-[hsl(var(--muted-foreground))]">
+                    No results for &ldquo;{query}&rdquo;
                   </p>
-                  <ItemCard item={item} />
                 </div>
-              ))}
-            </div>
-          )
-        ) : (
-          TRADING_KNOWLEDGE.map((cat, idx) => (
-            <CategorySection key={cat.id} category={cat} defaultOpen={idx === 0} />
-          ))
-        )}
-      </div>
+              ) : (
+                <div className="space-y-1.5 px-1">
+                  <p className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-widest px-2 py-1">
+                    {searchResults.length} result{searchResults.length !== 1 ? "s" : ""}
+                  </p>
+                  {searchResults.map(({ category, item }) => (
+                    <div key={item.id}>
+                      <p className="text-[10px] text-[hsl(var(--muted-foreground))] px-2 mb-1">
+                        {(() => { const Icon = ICON_MAP[category.icon] ?? BookOpen; return <><Icon className="inline h-3 w-3 mr-1 text-zinc-500" />{category.label}</>; })()}
+                      </p>
+                      <ItemCard item={item} />
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : (
+              TRADING_KNOWLEDGE.map((cat, idx) => (
+                <CategorySection key={cat.id} category={cat} defaultOpen={idx === 0} />
+              ))
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
