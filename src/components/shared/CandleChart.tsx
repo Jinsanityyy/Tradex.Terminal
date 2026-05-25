@@ -384,9 +384,16 @@ function AnalysisPanel({
   useEffect(() => {
     setMacroLoading(true);
     fetch(`/api/market/macro-context?symbol=${symbol}`)
-      .then(r => r.ok ? r.json() : null)
+      .then(async r => {
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          console.error("[macro-context]", r.status, err);
+          return null;
+        }
+        return r.json();
+      })
       .then(d => setMacroCtx(d))
-      .catch(() => {})
+      .catch(e => console.error("[macro-context] fetch failed:", e))
       .finally(() => setMacroLoading(false));
   }, [symbol]);
 

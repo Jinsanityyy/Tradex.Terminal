@@ -44,19 +44,22 @@ async function searchTavily(query: string): Promise<{ titles: string[]; content:
 
   const res = await fetch("https://api.tavily.com/search", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,   // current Tavily API uses Bearer auth
+    },
     body: JSON.stringify({
-      api_key: apiKey,
       query,
-      search_depth: "basic",   // 1 credit per call
+      search_depth: "basic",
       max_results: 6,
-      include_answer: false,
-      topic: "finance",
     }),
     cache: "no-store",
   });
 
-  if (!res.ok) throw new Error(`Tavily ${res.status}`);
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => "");
+    throw new Error(`Tavily ${res.status}: ${errBody.slice(0, 200)}`);
+  }
   const data = await res.json();
 
   const results: Array<{ title?: string; content?: string }> = data.results ?? [];
