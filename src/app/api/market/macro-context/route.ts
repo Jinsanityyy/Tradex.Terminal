@@ -94,9 +94,10 @@ Respond with ONLY valid JSON (no markdown, no code fences):
 Focus on: central bank policy, USD strength, inflation data, geopolitical risk, risk-on/off sentiment. Be specific and actionable.`;
 
   const models = [
-    { version: "v1beta", model: "gemini-2.5-flash" },
-    { version: "v1beta", model: "gemini-2.0-flash" },
+    { version: "v1beta", model: "gemini-2.5-flash-lite-preview-06-17" },
     { version: "v1beta", model: "gemini-2.0-flash-lite" },
+    { version: "v1beta", model: "gemini-1.5-flash" },
+    { version: "v1",     model: "gemini-1.5-flash" },
   ];
 
   const errors: string[] = [];
@@ -118,13 +119,23 @@ Focus on: central bank policy, USD strength, inflation data, geopolitical risk, 
         errors.push(`[${model}] ${data?.error?.message ?? `HTTP ${res.status}`}`);
         continue;
       }
-      const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      // Filter out thinking parts (gemini-2.5-flash returns thought:true parts)
+      const parts: Array<{ text?: string; thought?: boolean }> =
+        data?.candidates?.[0]?.content?.parts ?? [];
+      const text = parts
+        .filter(p => !p.thought)
+        .map(p => p.text ?? "")
+        .join("")
+        .trim();
       if (!text) {
         errors.push(`[${model}] empty response`);
         continue;
       }
       const match = text.match(/\{[\s\S]*\}/);
-      if (!match) throw new Error(`${model} returned no JSON`);
+      if (!match) {
+        errors.push(`[${model}] returned no JSON`);
+        continue;
+      }
       const parsed = JSON.parse(match[0]);
       return {
         summary:    typeof parsed.summary === "string" ? parsed.summary : "Macro context unavailable.",
