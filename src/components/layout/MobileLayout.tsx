@@ -28,7 +28,7 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
-const PAYPAL_BASE = "https://www.paypal.com/webapps/billing/subscriptions/subscribe";
+const PAYPAL_BASE = "https://www.paypal.com/billing/subscriptions/subscribe";
 
 function buildPayPalUrl(planId: string): string {
   const successUrl = typeof window !== "undefined"
