@@ -582,7 +582,9 @@ export async function GET(request: Request) {
   const cacheHit = cache.get(symbol);
 
   if (cacheHit && Date.now() - cacheHit.ts < CACHE_TTL) {
-    return NextResponse.json({ ...cacheHit.data, cached: true });
+    return NextResponse.json({ ...cacheHit.data, cached: true }, {
+      headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+    });
   }
 
   const cfg = FINNHUB_SYMBOLS[symbol];
@@ -642,5 +644,7 @@ export async function GET(request: Request) {
   };
 
   cache.set(symbol, { data: result, ts: Date.now() });
-  return NextResponse.json(result);
+  return NextResponse.json(result, {
+    headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+  });
 }
