@@ -12,34 +12,57 @@ export interface MacroContextResult {
   cached:      boolean;
 }
 
-// Maps our symbols to human-readable asset names + targeted Tavily search query
 const SYMBOL_META: Record<string, { asset: string; query: string }> = {
-  XAUUSD: { asset: "Gold (XAU/USD)",          query: "gold XAU/USD price macro drivers Fed dollar inflation geopolitical risk today" },
-  XAGUSD: { asset: "Silver (XAG/USD)",         query: "silver XAG/USD price macro drivers inflation industrial demand today" },
-  BTCUSD: { asset: "Bitcoin (BTC/USD)",        query: "bitcoin BTC price macro drivers institutional demand crypto sentiment today" },
-  ETHUSD: { asset: "Ethereum (ETH/USD)",       query: "ethereum ETH price crypto macro sentiment DeFi today" },
-  EURUSD: { asset: "Euro/Dollar (EUR/USD)",    query: "EURUSD euro dollar ECB Fed rate policy macro analysis today" },
-  GBPUSD: { asset: "Pound/Dollar (GBP/USD)",   query: "GBPUSD pound dollar Bank of England macro analysis today" },
-  USDJPY: { asset: "Dollar/Yen (USD/JPY)",     query: "USDJPY dollar yen BOJ Fed policy macro analysis today" },
-  USDCAD: { asset: "Dollar/CAD (USD/CAD)",     query: "USDCAD dollar canadian oil BOC macro analysis today" },
-  USDCHF: { asset: "Dollar/Franc (USD/CHF)",   query: "USDCHF dollar swiss franc safe haven SNB macro today" },
-  AUDUSD: { asset: "Aussie/Dollar (AUD/USD)",  query: "AUDUSD australian dollar RBA commodity macro today" },
-  NZDUSD: { asset: "Kiwi/Dollar (NZD/USD)",    query: "NZDUSD new zealand dollar RBNZ macro today" },
-  GBPJPY: { asset: "Pound/Yen (GBP/JPY)",      query: "GBPJPY pound yen risk sentiment macro today" },
-  USOIL:  { asset: "Crude Oil WTI",            query: "crude oil WTI price OPEC supply demand macro today" },
-  UKOIL:  { asset: "Brent Crude Oil",          query: "brent crude oil price OPEC geopolitical supply macro today" },
-  US500:  { asset: "S&P 500",                  query: "S&P 500 SPX macro drivers risk sentiment Fed earnings today" },
-  US100:  { asset: "Nasdaq 100",               query: "Nasdaq 100 NDX tech stocks macro Fed rate sentiment today" },
-  US30:   { asset: "Dow Jones",                query: "Dow Jones DJIA macro economic sentiment today" },
+  XAUUSD: { asset: "Gold (XAU/USD)",          query: "gold XAU/USD price forecast macro drivers Fed dollar inflation geopolitical risk" },
+  XAGUSD: { asset: "Silver (XAG/USD)",         query: "silver XAG/USD price forecast macro drivers inflation industrial demand" },
+  BTCUSD: { asset: "Bitcoin (BTC/USD)",        query: "bitcoin BTC/USD price forecast macro drivers institutional demand crypto sentiment" },
+  ETHUSD: { asset: "Ethereum (ETH/USD)",       query: "ethereum ETH/USD price forecast crypto macro sentiment DeFi" },
+  EURUSD: { asset: "Euro/Dollar (EUR/USD)",    query: "EURUSD euro dollar ECB Fed rate policy macro analysis forecast" },
+  GBPUSD: { asset: "Pound/Dollar (GBP/USD)",   query: "GBPUSD pound dollar Bank of England macro analysis forecast" },
+  USDJPY: { asset: "Dollar/Yen (USD/JPY)",     query: "USDJPY dollar yen BOJ Fed policy macro analysis forecast" },
+  USDCAD: { asset: "Dollar/CAD (USD/CAD)",     query: "USDCAD dollar canadian oil BOC macro analysis forecast" },
+  USDCHF: { asset: "Dollar/Franc (USD/CHF)",   query: "USDCHF dollar swiss franc safe haven SNB macro forecast" },
+  AUDUSD: { asset: "Aussie/Dollar (AUD/USD)",  query: "AUDUSD australian dollar RBA commodity macro forecast" },
+  NZDUSD: { asset: "Kiwi/Dollar (NZD/USD)",    query: "NZDUSD new zealand dollar RBNZ macro forecast" },
+  GBPJPY: { asset: "Pound/Yen (GBP/JPY)",      query: "GBPJPY pound yen risk sentiment macro forecast" },
+  USOIL:  { asset: "Crude Oil WTI",            query: "crude oil WTI price forecast OPEC supply demand macro" },
+  UKOIL:  { asset: "Brent Crude Oil",          query: "brent crude oil price forecast OPEC geopolitical supply macro" },
+  US500:  { asset: "S&P 500",                  query: "S&P 500 SPX forecast macro drivers risk sentiment Fed earnings" },
+  US100:  { asset: "Nasdaq 100",               query: "Nasdaq 100 NDX forecast tech stocks macro Fed rate sentiment" },
+  US30:   { asset: "Dow Jones",                query: "Dow Jones DJIA forecast macro economic sentiment" },
 };
 
 // In-memory cache: symbol → { data, ts }
 const cache = new Map<string, { data: MacroContextResult; ts: number }>();
 const CACHE_TTL = 60 * 60 * 1000; // 60 min
 
-async function searchTavily(query: string): Promise<{ titles: string[]; content: string }> {
+const BULLISH_WORDS = ["bullish", "rally", "surge", "gain", "rise", "rises", "rose", "upside", "support", "positive", "strong", "strength", "buy", "outperform", "advance", "higher", "boost", "optimism"];
+const BEARISH_WORDS = ["bearish", "decline", "fall", "drop", "weak", "weakness", "sell", "pressure", "downside", "negative", "concern", "risk", "slump", "crash", "lower", "loss", "fear", "retreat"];
+
+function detectSentiment(text: string): "bullish" | "bearish" | "neutral" {
+  const lower = text.toLowerCase();
+  const b = BULLISH_WORDS.filter(w => lower.includes(w)).length;
+  const r = BEARISH_WORDS.filter(w => lower.includes(w)).length;
+  if (b > r + 1) return "bullish";
+  if (r > b + 1) return "bearish";
+  return "neutral";
+}
+
+function titlesToDrivers(titles: string[]): string[] {
+  return titles
+    .slice(0, 4)
+    .map(t => {
+      const words = t.split(/\s+/);
+      return words.length > 10 ? words.slice(0, 10).join(" ") + "…" : t;
+    });
+}
+
+async function fetchFromTavily(query: string): Promise<{
+  answer: string;
+  titles: string[];
+}> {
   const apiKey = process.env.TAVILY_API_KEY;
-  if (!apiKey) return { titles: [], content: "" };
+  if (!apiKey) throw new Error("TAVILY_API_KEY not configured");
 
   const res = await fetch("https://api.tavily.com/search", {
     method: "POST",
@@ -51,6 +74,7 @@ async function searchTavily(query: string): Promise<{ titles: string[]; content:
       query,
       search_depth: "basic",
       max_results: 6,
+      include_answer: true,
     }),
     cache: "no-store",
   });
@@ -59,46 +83,35 @@ async function searchTavily(query: string): Promise<{ titles: string[]; content:
     const errBody = await res.text().catch(() => "");
     throw new Error(`Tavily ${res.status}: ${errBody.slice(0, 200)}`);
   }
+
   const data = await res.json();
+  const results: Array<{ title?: string }> = data.results ?? [];
+  const titles = results.map(r => r.title ?? "").filter(Boolean);
+  const answer: string = typeof data.answer === "string" ? data.answer : "";
 
-  const results: Array<{ title?: string; content?: string }> = data.results ?? [];
-  const titles  = results.map(r => r.title ?? "").filter(Boolean).slice(0, 6);
-  const content = results
-    .map(r => r.title && r.content ? `[${r.title}]\n${r.content.slice(0, 400)}` : "")
-    .filter(Boolean)
-    .join("\n\n");
-
-  return { titles, content };
+  return { answer, titles };
 }
 
-async function synthesizeWithGemini(
+async function fetchFromGemini(
   asset: string,
   symbol: string,
-  content: string,
 ): Promise<{ summary: string; keyDrivers: string[]; sentiment: "bullish" | "bearish" | "neutral" }> {
   const apiKey = (process.env.GOOGLE_AI_API_KEY ?? "").trim();
   if (!apiKey) throw new Error("GOOGLE_AI_API_KEY not configured");
 
-  const prompt = `You are a senior macro analyst. Based on these recent news snippets about ${asset}, provide a concise trading-relevant macro context.
-
-NEWS SNIPPETS:
-${content || "No live news available — use general macro knowledge."}
+  const prompt = `You are a senior macro analyst. Provide a concise trading-relevant macro context for ${asset} based on your training knowledge.
 
 Respond with ONLY valid JSON (no markdown, no code fences):
 {
-  "summary": "2–3 sentence macro overview of what is driving ${symbol} right now",
-  "keyDrivers": ["max 4 bullet drivers, each under 10 words"],
+  "summary": "2–3 sentence macro overview of what drives ${symbol}",
+  "keyDrivers": ["up to 4 bullet drivers, each under 10 words"],
   "sentiment": "bullish" | "bearish" | "neutral"
-}
-
-Focus on: central bank policy, USD strength, inflation data, geopolitical risk, risk-on/off sentiment. Be specific and actionable.`;
+}`;
 
   const models = [
     { version: "v1beta", model: "gemini-2.5-flash" },
     { version: "v1beta", model: "gemini-2.0-flash" },
-    { version: "v1beta", model: "gemini-2.0-flash-001" },
     { version: "v1beta", model: "gemini-2.0-flash-lite" },
-    { version: "v1beta", model: "gemini-1.5-flash" },
   ];
 
   const errors: string[] = [];
@@ -120,26 +133,15 @@ Focus on: central bank policy, USD strength, inflation data, geopolitical risk, 
         errors.push(`[${model}] ${data?.error?.message ?? `HTTP ${res.status}`}`);
         continue;
       }
-      // Filter out thinking parts (gemini-2.5-flash returns thought:true parts)
       const parts: Array<{ text?: string; thought?: boolean }> =
         data?.candidates?.[0]?.content?.parts ?? [];
-      const text = parts
-        .filter(p => !p.thought)
-        .map(p => p.text ?? "")
-        .join("")
-        .trim();
-      if (!text) {
-        errors.push(`[${model}] empty response`);
-        continue;
-      }
+      const text = parts.filter(p => !p.thought).map(p => p.text ?? "").join("").trim();
+      if (!text) { errors.push(`[${model}] empty`); continue; }
       const match = text.match(/\{[\s\S]*\}/);
-      if (!match) {
-        errors.push(`[${model}] returned no JSON`);
-        continue;
-      }
+      if (!match) { errors.push(`[${model}] no JSON`); continue; }
       const parsed = JSON.parse(match[0]);
       return {
-        summary:    typeof parsed.summary === "string" ? parsed.summary : "Macro context unavailable.",
+        summary:    typeof parsed.summary === "string" ? parsed.summary : "",
         keyDrivers: Array.isArray(parsed.keyDrivers) ? parsed.keyDrivers.slice(0, 4) : [],
         sentiment:  (["bullish", "bearish", "neutral"] as const).includes(parsed.sentiment)
           ? parsed.sentiment : "neutral",
@@ -148,14 +150,13 @@ Focus on: central bank policy, USD strength, inflation data, geopolitical risk, 
       errors.push(`[${model}] ${e instanceof Error ? e.message : String(e)}`);
     }
   }
-  throw new Error(errors.join(" | ") || "All Gemini models failed");
+  throw new Error(errors.join(" | "));
 }
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const symbol = (searchParams.get("symbol") ?? "XAUUSD").toUpperCase();
 
-  // Serve from cache if fresh
   const hit = cache.get(symbol);
   if (hit && Date.now() - hit.ts < CACHE_TTL) {
     return NextResponse.json({ ...hit.data, cached: true });
@@ -166,45 +167,50 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: `Symbol ${symbol} not supported` }, { status: 400 });
   }
 
-  if (!process.env.GOOGLE_AI_API_KEY) {
-    return NextResponse.json({ error: "GOOGLE_AI_API_KEY not configured" }, { status: 503 });
+  const hasTavily = !!process.env.TAVILY_API_KEY;
+  const hasGemini = !!process.env.GOOGLE_AI_API_KEY;
+
+  if (!hasTavily && !hasGemini) {
+    return NextResponse.json({ error: "No AI keys configured (need TAVILY_API_KEY or GOOGLE_AI_API_KEY)" }, { status: 503 });
   }
 
   try {
-    // Tavily is optional — if key missing or fails, Gemini uses training knowledge only
-    let titles: string[] = [];
-    let content = "";
-    if (process.env.TAVILY_API_KEY) {
-      try {
-        const result = await searchTavily(meta.query);
-        titles  = result.titles;
-        content = result.content;
-      } catch (e) {
-        console.warn("[macro-context] Tavily failed, falling back to Gemini only:", e);
-      }
-    }
-    const { summary, keyDrivers, sentiment } = await synthesizeWithGemini(meta.asset, symbol, content);
+    let result: MacroContextResult;
 
-    const result: MacroContextResult = {
-      symbol,
-      summary,
-      keyDrivers,
-      sentiment,
-      headlines: titles,
-      generatedAt: new Date().toISOString(),
-      cached: false,
-    };
+    if (hasTavily) {
+      // Primary: Tavily answer — no Gemini rate limits
+      const { answer, titles } = await fetchFromTavily(meta.query);
+      const summary = answer || `Live macro data for ${meta.asset} retrieved from latest news.`;
+      result = {
+        symbol,
+        summary,
+        keyDrivers: titlesToDrivers(titles),
+        sentiment:  detectSentiment(summary + " " + titles.join(" ")),
+        headlines:  titles,
+        generatedAt: new Date().toISOString(),
+        cached: false,
+      };
+    } else {
+      // Fallback: Gemini with training knowledge (no live data)
+      const { summary, keyDrivers, sentiment } = await fetchFromGemini(meta.asset, symbol);
+      result = {
+        symbol,
+        summary,
+        keyDrivers,
+        sentiment,
+        headlines:  [],
+        generatedAt: new Date().toISOString(),
+        cached: false,
+      };
+    }
 
     cache.set(symbol, { data: result, ts: Date.now() });
-
     return NextResponse.json(result, {
       headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[macro-context]", msg);
-
-    // Return stale cache rather than an error if we have it
     if (hit) return NextResponse.json({ ...hit.data, cached: true });
     return NextResponse.json({ error: msg }, { status: 500 });
   }
