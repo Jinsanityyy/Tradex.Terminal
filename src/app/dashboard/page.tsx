@@ -53,7 +53,7 @@ import {
 } from "@/hooks/useMarketData";
 import { AssetSnapshotGrid } from "@/components/shared/AssetSnapshotGrid";
 import { useTruthSocialPosts } from "@/hooks/useTruthSocialPosts";
-import { CUSTOM_NOTIFICATION_EVENT, type Notif } from "@/hooks/useNotifications";
+import { CUSTOM_NOTIFICATION_EVENT, type Notif, type NotifTradePlan } from "@/hooks/useNotifications";
 import { playSignalArmed } from "@/lib/sounds";
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import type { PnLData } from "@/app/api/pnl/route";
@@ -1262,15 +1262,33 @@ export default function DashboardPage() {
     const sameAsCurrent = armedAlertKeyRef.current === armedSignalKey;
 
     if (!alreadySeen && !sameAsCurrent) {
+      const dir = exec?.direction && exec.direction !== "none" ? exec.direction.toUpperCase() : null;
+      const tp: NotifTradePlan | undefined =
+        dir && tradePlan?.entry != null && tradePlan?.stopLoss != null && tradePlan?.tp1 != null
+          ? {
+              symbol,
+              symbolDisplay: symCfg.short,
+              direction: dir === "SHORT" ? "SELL" : "BUY",
+              entry: tradePlan.entry,
+              stopLoss: tradePlan.stopLoss,
+              tp1: tradePlan.tp1,
+              tp2: tradePlan.tp2 ?? null,
+              rrRatio: tradePlan.rrRatio ?? 1.5,
+              grade: risk?.grade,
+              timeframe,
+            }
+          : undefined;
+
       const notif: Notif = {
         id: crypto.randomUUID(),
         type: "agent",
         title: `${symCfg.short} ${timeframe} Execution Armed`,
         body:
-          exec?.direction && exec.direction !== "none"
-            ? `${exec.direction.toUpperCase()} setup armed. ${entryTrigger}`
+          dir
+            ? `${dir} setup armed. ${entryTrigger}`
             : `Execution setup armed. ${entryTrigger}`,
         timestamp: Date.now(),
+        tradePlan: tp,
       };
 
       playSignalArmed();

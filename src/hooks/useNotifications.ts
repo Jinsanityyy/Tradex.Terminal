@@ -9,6 +9,20 @@ export const CUSTOM_NOTIFICATION_EVENT = "tradex-custom-notification";
 
 export type NotifType = "news" | "trump" | "chat" | "agent" | "signal";
 
+export interface NotifTradePlan {
+  symbol: string;
+  symbolDisplay: string;
+  direction: "BUY" | "SELL";
+  entry: number;
+  stopLoss: number;
+  tp1: number;
+  tp2?: number | null;
+  rrRatio: number;
+  grade?: string;
+  signalId?: string;
+  timeframe?: string;
+}
+
 export interface Notif {
   id: string;
   type: NotifType;
@@ -17,6 +31,7 @@ export interface Notif {
   timestamp: number;
   severity?: "high" | "medium" | "low";
   chartLink?: string;
+  tradePlan?: NotifTradePlan;
 }
 
 type NotifCallback = (n: Notif) => void;

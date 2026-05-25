@@ -6,6 +6,8 @@ import { X, Newspaper, Radio, Zap, MessageSquare, TrendingUp, Bell, ExternalLink
 import { useNotifications, type Notif } from "@/hooks/useNotifications";
 import { useRouter } from "next/navigation";
 import { playNotificationPing } from "@/lib/audio";
+import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
+import type { TakenSignal } from "@/lib/trades/trade-log";
 
 // ─── Severity → accent ───────────────────────────────────────────────────────
 
@@ -89,6 +91,7 @@ export function NotificationToast() {
   const [notifs, setNotifs]   = useState<Notif[]>([]);
   const [mounted, setMounted] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [tradeModal, setTradeModal] = useState<Notif["tradePlan"] | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -135,9 +138,24 @@ export function NotificationToast() {
     return () => window.removeEventListener("keydown", handler);
   }, [dismissAll]);
 
-  if (!mounted || notifs.length === 0) return null;
+  if (!mounted) return tradeModal ? (
+    <TakeTradeModal
+      symbol={tradeModal.symbol}
+      symbolDisplay={tradeModal.symbolDisplay}
+      direction={tradeModal.direction}
+      entry={tradeModal.entry}
+      stopLoss={tradeModal.stopLoss}
+      tp1={tradeModal.tp1}
+      tp2={tradeModal.tp2}
+      rrRatio={tradeModal.rrRatio}
+      grade={tradeModal.grade}
+      timeframe={tradeModal.timeframe}
+      onClose={() => setTradeModal(null)}
+      onTaken={(_t: TakenSignal) => setTradeModal(null)}
+    />
+  ) : null;
 
-  return createPortal(
+  const portal = notifs.length === 0 ? null : createPortal(
     <>
       {/* Inject keyframes once */}
       <style>{PULSE_STYLE}</style>
@@ -188,6 +206,7 @@ export function NotificationToast() {
               onDismiss={() => dismiss(n.id)}
               onToggleExpand={() => toggleExpand(n.id)}
               onPromote={() => promote(n.id)}
+              onTakeTrade={n.tradePlan ? () => { setTradeModal(n.tradePlan!); dismissAll(); } : undefined}
             />
           ))}
 
@@ -201,12 +220,34 @@ export function NotificationToast() {
     </>,
     document.body
   );
+
+  return (
+    <>
+      {portal}
+      {tradeModal && (
+        <TakeTradeModal
+          symbol={tradeModal.symbol}
+          symbolDisplay={tradeModal.symbolDisplay}
+          direction={tradeModal.direction}
+          entry={tradeModal.entry}
+          stopLoss={tradeModal.stopLoss}
+          tp1={tradeModal.tp1}
+          tp2={tradeModal.tp2}
+          rrRatio={tradeModal.rrRatio}
+          grade={tradeModal.grade}
+          timeframe={tradeModal.timeframe}
+          onClose={() => setTradeModal(null)}
+          onTaken={(_t: TakenSignal) => setTradeModal(null)}
+        />
+      )}
+    </>
+  );
 }
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
 function AlertCard({
-  notif, primary, index, isExpanded, onDismiss, onToggleExpand, onPromote,
+  notif, primary, index, isExpanded, onDismiss, onToggleExpand, onPromote, onTakeTrade,
 }: {
   notif: Notif;
   primary: boolean;
@@ -215,6 +256,7 @@ function AlertCard({
   onDismiss: () => void;
   onToggleExpand: () => void;
   onPromote: () => void;
+  onTakeTrade?: () => void;
 }) {
   const cfg    = getCfg(notif.type);
   const accent = resolveAccent(notif);
@@ -369,6 +411,24 @@ function AlertCard({
         <p className="text-[12px] leading-relaxed" style={{ color: "rgba(255,255,255,0.38)" }}>
           <HighlightedText text={notif.body} />
         </p>
+
+        {/* Take Trade CTA — only for armed signals with a trade plan */}
+        {onTakeTrade && (
+          <button
+            onClick={onTakeTrade}
+            className="mt-3 w-full flex items-center justify-center gap-2 py-2 px-3 transition-all hover:opacity-90 active:scale-[0.98]"
+            style={{
+              background: "rgba(34,197,94,0.12)",
+              border: "1px solid rgba(34,197,94,0.35)",
+              borderRadius: 3,
+            }}
+          >
+            <TrendingUp className="h-3.5 w-3.5" style={{ color: "#22c55e" }} />
+            <span className="text-[11px] font-mono font-bold tracking-[0.2em] uppercase" style={{ color: "#22c55e" }}>
+              Take This Trade
+            </span>
+          </button>
+        )}
 
         {/* Expanded panel */}
         {isExpanded && (
