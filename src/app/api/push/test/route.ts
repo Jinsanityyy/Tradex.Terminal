@@ -95,7 +95,7 @@ export async function GET(req: NextRequest) {
   const fcmTokens = (fcmData?.data ?? []) as Array<{ id: string; token: string }>;
   const webSubs   = (subData?.data ?? []) as Array<{ id: string; subscription: import("web-push").PushSubscription }>;
 
-  let fcmResult   = { sent: 0, failed: 0, expired: [] as string[] };
+  let fcmResult   = { sent: 0, failed: 0, expired: [] as string[], messageIds: [] as string[] };
   let webResult   = { sent: 0, failed: 0, expired: [] as string[] };
   const hasFcmEnv = Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
   const hasVapid  = Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
@@ -117,7 +117,8 @@ export async function GET(req: NextRequest) {
         envConfigured: hasFcmEnv,
         sent:          fcmResult.sent,
         failed:        fcmResult.failed,
-        tokens: fcmTokens.map(t => "..." + t.token.slice(-12)),
+        messageIds:    fcmResult.messageIds,   // real Firebase message IDs if delivered
+        tokens:        fcmTokens.map(t => "..." + t.token.slice(-12)),
       },
       webPush: {
         subsFound:     webSubs.length,

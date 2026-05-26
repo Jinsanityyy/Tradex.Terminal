@@ -21,37 +21,23 @@ export interface FcmPayload {
 }
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://tradexterminal.online";
-const LOGO_URL = `${APP_URL}/icon-512.png`; // Hosted TradeX logo shown in notification
+export const LOGO_URL = `${APP_URL}/icon-512.png`;
 
 export async function sendFcmToToken(
   token: string,
   payload: FcmPayload
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; messageId?: string }> {
   try {
     const app = getApp();
-    const isHigh = payload.severity === "high";
-    await app.messaging().send({
+    // Bare minimum payload — strips all Android overrides to isolate delivery issue
+    const messageId = await app.messaging().send({
       token,
       notification: {
         title: payload.title,
         body:  payload.body,
       },
-      data: {
-        url:      payload.url ?? "/m",
-        severity: payload.severity ?? "medium",
-        type:     payload.type ?? "agent",
-      },
-      android: {
-        priority: isHigh ? "high" : "normal",
-        notification: {
-          channelId:            "default",  // channel created by @capacitor/push-notifications
-          priority:             isHigh ? "max" : "default",
-          defaultVibrateTimings: true,
-          color:                isHigh ? "#ef4444" : "#f59e0b",
-        },
-      },
     });
-    return { ok: true };
+    return { ok: true, messageId };
   } catch (err: unknown) {
     const code = (err as { code?: string }).code;
     if (
@@ -67,15 +53,21 @@ export async function sendFcmToToken(
 export async function sendFcmToMany(
   tokens: Array<{ id: string; token: string }>,
   payload: FcmPayload
-): Promise<{ sent: number; failed: number; expired: string[] }> {
+): Promise<{ sent: number; failed: number; expired: string[]; messageIds: string[] }> {
   let sent = 0, failed = 0;
   const expired: string[] = [];
+  const messageIds: string[] = [];
   await Promise.allSettled(
     tokens.map(async ({ id, token }) => {
       const result = await sendFcmToToken(token, payload);
-      if (result.ok) { sent++; }
-      else { failed++; if (result.error === "expired") expired.push(id); }
+      if (result.ok) {
+        sent++;
+        if (result.messageId) messageIds.push(result.messageId);
+      } else {
+        failed++;
+        if (result.error === "expired") expired.push(id);
+      }
     })
   );
-  return { sent, failed, expired };
+  return { sent, failed, expired, messageIds };
 }
