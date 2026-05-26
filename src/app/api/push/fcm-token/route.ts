@@ -21,6 +21,20 @@ async function getSupabase() {
   );
 }
 
+// GET /api/push/fcm-token — list tokens for current user (debug)
+export async function GET() {
+  const sb = await getSupabase();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data } = await sb
+    .from("fcm_tokens")
+    .select("id, token")
+    .eq("user_id", user.id);
+
+  return NextResponse.json({ tokens: data ?? [] });
+}
+
 // POST /api/push/fcm-token — save FCM token for current user
 export async function POST(req: NextRequest) {
   const sb = await getSupabase();
