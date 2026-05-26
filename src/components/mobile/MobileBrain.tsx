@@ -432,24 +432,7 @@ export function MobileBrain() {
       {/* Floor */}
       {view === "floor" && (
         <div className="flex flex-col flex-1 overflow-hidden">
-          <div className="shrink-0">
-            <PixelWarRoom onAgentClick={setDrawerAgentId} />
-          </div>
-          {data ? (
-            <div className="flex-1 overflow-hidden border-t border-white/8 bg-[#0b0b0d]">
-              <BrainAgentPanel
-                data={data}
-                activeAgent={drawerAgentId}
-                onAgentChange={setDrawerAgentId}
-              />
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center gap-2 px-6">
-              <p className="text-[11px] text-zinc-600 text-center leading-relaxed">
-                Switch to the <span className="text-zinc-400 font-semibold">Brain</span> tab and tap <span className="text-zinc-400 font-semibold">Refresh</span> to load agent analysis.
-              </p>
-            </div>
-          )}
+          <PixelWarRoom onAgentClick={setDrawerAgentId} />
         </div>
       )}
 
