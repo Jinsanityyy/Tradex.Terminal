@@ -8,6 +8,7 @@
 import type { AgentRunResult } from "@/lib/agents/schemas";
 import type { SignalRecord, SignalTradePlan } from "./types";
 import { saveSignal, getOpenSignals, updateSignal } from "./storage";
+import { notifyNewSignal } from "@/lib/push/notify";
 
 /**
  * Build a stable, unique ID from agent run metadata.
@@ -178,10 +179,13 @@ export async function logSignal(result: AgentRunResult): Promise<SignalRecord | 
 
     const saved = await saveSignal(record);
 
-    // If this is a new directional armed signal, close out any open signals
-    // in the opposite direction  -  the bias has flipped, those setups are gone.
+    // If this is a new directional armed signal:
+    // 1. Close out opposing open signals (bias flip)
+    // 2. Fire instant push notification to all users
     if (saved && record.tradePlan) {
       await invalidateOpposingSignals(result);
+      // Fire-and-forget  -  never block signal saving
+      void notifyNewSignal(saved).catch(() => {});
     }
 
     return saved;
