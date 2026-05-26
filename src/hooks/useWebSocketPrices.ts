@@ -40,13 +40,13 @@ export function useWebSocketPrices(symbols: string[]): WSPriceState {
   const [prices, setPrices] = useState<Map<string, number>>(new Map());
   const [connected, setConnected] = useState(false);
 
-  const wsRef       = useRef<WebSocket | null>(null);
-  const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const mountedRef  = useRef(true);
-  const symbolsRef  = useRef<string[]>(symbols);
+  const wsRef         = useRef<WebSocket | null>(null);
+  const timerRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef    = useRef(true);
+  const symbolsRef    = useRef<string[]>(symbols);
   const subscribedRef = useRef<Set<string>>(new Set());
+  const tokenRef      = useRef<string | null>(null);
 
-  // Always keep ref current so the onopen closure picks up latest symbols
   symbolsRef.current = symbols;
 
   const subscribeAll = useCallback((ws: WebSocket) => {
@@ -60,7 +60,7 @@ export function useWebSocketPrices(symbols: string[]): WSPriceState {
   }, []);
 
   const connect = useCallback(() => {
-    const apiKey = process.env.NEXT_PUBLIC_FINNHUB_API_KEY;
+    const apiKey = tokenRef.current;
     if (!apiKey || typeof window === "undefined") return;
 
     const state = wsRef.current?.readyState;
@@ -108,13 +108,23 @@ export function useWebSocketPrices(symbols: string[]): WSPriceState {
 
   useEffect(() => {
     mountedRef.current = true;
-    connect();
+
+    // Fetch token from server — keeps the API key out of the client bundle
+    fetch("/api/ws/token")
+      .then((r) => r.ok ? r.json() : Promise.reject())
+      .then(({ token }: { token: string }) => {
+        if (!mountedRef.current) return;
+        tokenRef.current = token;
+        connect();
+      })
+      .catch(() => { /* unauthenticated or key not configured */ });
+
     return () => {
       mountedRef.current = false;
       if (timerRef.current) clearTimeout(timerRef.current);
       const ws = wsRef.current;
       if (ws) {
-        ws.onclose = null; // prevent reconnect after unmount
+        ws.onclose = null;
         ws.close();
       }
     };

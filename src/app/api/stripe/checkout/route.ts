@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-03-25.dahlia" as any });
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
     // Support both GET (from PaywallGate Link) and POST (from fetch)
     let billing: "monthly" | "annual" = "monthly";

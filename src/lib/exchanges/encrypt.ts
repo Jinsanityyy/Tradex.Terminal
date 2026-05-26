@@ -4,10 +4,11 @@ const ALGO = "aes-256-gcm";
 const KEY_ENV = process.env.EXCHANGE_ENCRYPTION_KEY ?? "";
 
 function getKey(): Buffer {
-  if (!KEY_ENV || KEY_ENV.length < 32) {
-    // Fallback: derive a fixed key from the Supabase anon key (dev only)
-    const base = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "tradex-dev-key";
-    return crypto.createHash("sha256").update(base).digest();
+  if (!KEY_ENV || KEY_ENV.length < 64) {
+    throw new Error(
+      "EXCHANGE_ENCRYPTION_KEY is not set or too short. " +
+      "Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
+    );
   }
   return Buffer.from(KEY_ENV.slice(0, 64), "hex");
 }

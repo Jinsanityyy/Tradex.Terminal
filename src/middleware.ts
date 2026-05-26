@@ -34,7 +34,15 @@ export async function middleware(req: NextRequest) {
       },
     });
     // Refreshes the session token  -  do not remove
-    await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // Protect dashboard and mobile app routes — redirect to login if unauthenticated
+    const isProtected = pathname.startsWith("/dashboard") || pathname.startsWith("/m");
+    if (isProtected && !user) {
+      const loginUrl = new URL("/login", req.url);
+      loginUrl.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
   }
 
   // ── Mobile redirect ─────────────────────────────────────────────────────────
@@ -42,9 +50,11 @@ export async function middleware(req: NextRequest) {
     || pathname === "/manifest.json" || pathname === "/sw.js" || pathname.startsWith("/workbox-")
     || pathname === "/robots.txt" || pathname === "/sitemap.xml"
     || pathname.startsWith("/.well-known");
-  const isLoginPage  = pathname === "/login";
-  const isAuthPage   = pathname === "/reset-password" || pathname === "/auth/callback";
-  if (!isStatic && !isLoginPage && !isAuthPage) {
+  const isLoginPage    = pathname === "/login";
+  const isAuthPage     = pathname === "/reset-password" || pathname === "/auth/callback";
+  const isPublicPage   = pathname === "/about" || pathname === "/pricing" || pathname === "/privacy"
+    || pathname === "/globe" || pathname === "/";
+  if (!isStatic && !isLoginPage && !isAuthPage && !isPublicPage) {
     const mobile = isMobile(req);
     const onMobileRoute = pathname.startsWith("/m");
 

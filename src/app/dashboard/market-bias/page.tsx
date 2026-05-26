@@ -1,6 +1,16 @@
 ﻿"use client";
 
 import React, { useState, useEffect } from "react";
+
+// ── Shared row layout ─────────────────────────────────────
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-[11px] text-zinc-500 shrink-0">{label}</span>
+      <div className="text-right">{children}</div>
+    </div>
+  );
+}
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAgentResult, useQuotes } from "@/hooks/useMarketData";
 import { cn } from "@/lib/utils";
@@ -797,12 +807,3 @@ export default function MarketBiasPage() {
   );
 }
 
-// ── Shared row layout ─────────────────────────────────────
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-[11px] text-zinc-500 shrink-0">{label}</span>
-      <div className="text-right">{children}</div>
-    </div>
-  );
-}
