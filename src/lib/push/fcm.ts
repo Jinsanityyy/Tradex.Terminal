@@ -29,12 +29,21 @@ export async function sendFcmToToken(
 ): Promise<{ ok: boolean; error?: string; messageId?: string }> {
   try {
     const app = getApp();
-    // Bare minimum payload — strips all Android overrides to isolate delivery issue
+    const isHigh = payload.severity !== "low";
     const messageId = await app.messaging().send({
       token,
       notification: {
         title: payload.title,
         body:  payload.body,
+      },
+      android: {
+        priority: "high",              // bypass Doze mode — same as Firebase Console test
+        notification: {
+          channelId:            "default",
+          priority:             isHigh ? "max" : "default",
+          defaultVibrateTimings: true,
+          color:                payload.severity === "high" ? "#ef4444" : "#f59e0b",
+        },
       },
     });
     return { ok: true, messageId };
