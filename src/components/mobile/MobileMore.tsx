@@ -279,27 +279,25 @@ export function MobileMore() {
             </p>
 
             {/* Push notification toggle */}
-            {push.status !== "unsupported" && (
-              <button
-                onClick={push.toggle}
-                disabled={push.busy || push.status === "denied"}
-                className="w-full flex items-center gap-4 px-4 py-3 active:bg-white/5 transition-colors disabled:opacity-50"
-              >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: push.status === "subscribed" ? "#10b98122" : "#6b728022", border: `1px solid ${push.status === "subscribed" ? "#10b98135" : "#6b728035"}` }}>
-                  {push.busy ? <Loader2 className="h-5 w-5 text-zinc-400 animate-spin" /> : push.status === "subscribed" ? <Bell className="h-5 w-5 text-emerald-400" /> : <BellOff className="h-5 w-5 text-zinc-500" />}
-                </div>
-                <div className="flex-1 text-left">
-                  <p className="text-[14px] font-medium text-zinc-100">Push Notifications</p>
-                  <p className="text-[11px] text-zinc-500 mt-0.5">
-                    {push.status === "subscribed" ? "Enabled — tap to disable" : push.status === "denied" ? "Blocked in browser settings" : "Tap to enable alerts"}
-                  </p>
-                </div>
-                <div className={`w-11 h-6 rounded-full transition-colors ${push.status === "subscribed" ? "bg-emerald-500" : "bg-zinc-700"}`}>
-                  <div className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform ${push.status === "subscribed" ? "translate-x-5" : "translate-x-0.5"}`} />
-                </div>
-              </button>
-            )}
+            <button
+              onClick={push.status === "subscribed" || push.status === "unsubscribed" ? push.toggle : undefined}
+              disabled={push.busy || push.status === "denied" || push.status === "unsupported"}
+              className="w-full flex items-center gap-4 px-4 py-3 active:bg-white/5 transition-colors disabled:opacity-50"
+            >
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: push.status === "subscribed" ? "#10b98122" : "#6b728022", border: `1px solid ${push.status === "subscribed" ? "#10b98135" : "#6b728035"}` }}>
+                {push.busy ? <Loader2 className="h-5 w-5 text-zinc-400 animate-spin" /> : push.status === "subscribed" ? <Bell className="h-5 w-5 text-emerald-400" /> : <BellOff className="h-5 w-5 text-zinc-500" />}
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-[14px] font-medium text-zinc-100">Push Notifications</p>
+                <p className="text-[11px] text-zinc-500 mt-0.5">
+                  {push.status === "subscribed" ? "Enabled — tap to disable" : push.status === "denied" ? "Blocked in browser settings" : push.status === "unsupported" ? "Not supported on this browser" : "Tap to enable alerts"}
+                </p>
+              </div>
+              <div className={`w-11 h-6 rounded-full transition-colors ${push.status === "subscribed" ? "bg-emerald-500" : "bg-zinc-700"}`}>
+                <div className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform ${push.status === "subscribed" ? "translate-x-5" : "translate-x-0.5"}`} />
+              </div>
+            </button>
 
             {(["knowledge", "settings"] as const).map(id => {
               const app = ALL_APPS.find(a => a.id === id)!;
