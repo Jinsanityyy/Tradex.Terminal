@@ -20,29 +20,38 @@ export interface FcmPayload {
   type?: string;
 }
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://tradexterminal.online";
+const LOGO_URL = `${APP_URL}/icon-512.png`; // Hosted TradeX logo shown in notification
+
 export async function sendFcmToToken(
   token: string,
   payload: FcmPayload
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const app = getApp();
+    const isHigh = payload.severity === "high";
     await app.messaging().send({
       token,
-      notification: { title: payload.title, body: payload.body },
+      notification: {
+        title: payload.title,
+        body:  payload.body,
+        imageUrl: LOGO_URL,   // Big TradeX logo below the notification text
+      },
       data: {
-        url: payload.url ?? "/m",
+        url:      payload.url ?? "/m",
         severity: payload.severity ?? "medium",
-        type: payload.type ?? "agent",
+        type:     payload.type ?? "agent",
       },
       android: {
-        priority: payload.severity === "high" ? "high" : "normal",
+        priority: isHigh ? "high" : "normal",
         notification: {
-          channelId: "tradex_alerts",
-          priority: payload.severity === "high" ? "max" : "default",
+          channelId:            "tradex_alerts",
+          priority:             isHigh ? "max" : "default",
           defaultVibrateTimings: true,
-          icon: "ic_notification",
-          color: payload.severity === "high" ? "#ef4444" : "#f59e0b",
+          // No custom icon drawable — Android falls back to the app launcher icon
+          color:       isHigh ? "#ef4444" : "#f59e0b",  // red for high, gold for medium
           clickAction: "TRADEX_NOTIFICATION_CLICK",
+          imageUrl:    LOGO_URL,
         },
       },
     });
