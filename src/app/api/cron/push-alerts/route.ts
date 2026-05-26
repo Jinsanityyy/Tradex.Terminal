@@ -178,6 +178,6 @@ export async function GET(req: NextRequest) {
     fcm: fcmSent,
     payloads: payloads.length,
     subscribers: subs.length + fcmTokens.length,
-    expiredCleaned: uniqueExpired.length,
+    expiredCleaned: new Set(allExpiredSubs).size + new Set(allExpiredFcm).size,
   });
 }

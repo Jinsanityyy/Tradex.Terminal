@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
+import type { PushNotificationsPlugin } from "@capacitor/push-notifications";
 
 export function useFcmPush() {
   useEffect(() => {
@@ -45,7 +46,7 @@ export function useFcmPush() {
   }, []);
 }
 
-async function registerFcm(PushNotifications: Awaited<ReturnType<typeof import("@capacitor/push-notifications")>>["PushNotifications"]) {
+async function registerFcm(PushNotifications: PushNotificationsPlugin) {
   await PushNotifications.register();
 
   PushNotifications.addListener("registration", async (token) => {
