@@ -33,8 +33,9 @@ export async function sendFcmToToken(
     const messageId = await app.messaging().send({
       token,
       notification: {
-        title: payload.title,
-        body:  payload.body,
+        title:    payload.title,
+        body:     payload.body,
+        imageUrl: LOGO_URL,   // TradeX logo shown when notification is expanded
       },
       android: {
         priority: "high",              // bypass Doze mode — same as Firebase Console test
