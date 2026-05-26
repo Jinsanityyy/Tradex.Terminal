@@ -13,6 +13,133 @@ import { playOrderFilled, playHighImpactAlert, playSignalArmed, playAppOpen, unl
 import { createClient } from "@/lib/supabase/client";
 import Image from "next/image";
 
+// ── Push notification helper (must be triggered by user gesture on iOS) ──────────────
+
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
+
+async function doSubscribe(): Promise<"subscribed" | "denied" | "unsupported" | "error"> {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+    return "unsupported";
+  }
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") return "denied";
+
+    const sw  = await navigator.serviceWorker.ready;
+    const res = await fetch("/api/push/subscribe");
+    if (!res.ok) return "error";
+    const { publicKey } = await res.json();
+    if (!publicKey) return "error";
+
+    let sub = await sw.pushManager.getSubscription();
+    if (!sub) {
+      sub = await sw.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
+    }
+
+    const saveRes = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subscription: sub.toJSON() }),
+    });
+    return saveRes.ok ? "subscribed" : "error";
+  } catch {
+    return "error";
+  }
+}
+
+async function doUnsubscribe(): Promise<void> {
+  if (!("serviceWorker" in navigator)) return;
+  try {
+    const sw  = await navigator.serviceWorker.ready;
+    const sub = await sw.pushManager.getSubscription();
+    if (!sub) return;
+    await fetch("/api/push/subscribe", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint: sub.endpoint }),
+    });
+    await sub.unsubscribe();
+  } catch {}
+}
+
+function PushNotificationToggle() {
+  const [status, setStatus] = React.useState<"loading" | "unsupported" | "denied" | "subscribed" | "unsubscribed">("loading");
+  const [busy, setBusy]     = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setStatus("unsupported"); return;
+    }
+    if (Notification.permission === "denied") { setStatus("denied"); return; }
+    navigator.serviceWorker.ready.then((sw) =>
+      sw.pushManager.getSubscription().then((sub) => {
+        setStatus(sub ? "subscribed" : "unsubscribed");
+      })
+    ).catch(() => setStatus("unsubscribed"));
+  }, []);
+
+  async function handleEnable() {
+    setBusy(true);
+    const result = await doSubscribe();
+    setStatus(result === "subscribed" ? "subscribed" : result === "denied" ? "denied" : "unsubscribed");
+    setBusy(false);
+  }
+
+  async function handleDisable() {
+    setBusy(true);
+    await doUnsubscribe();
+    setStatus("unsubscribed");
+    setBusy(false);
+  }
+
+  if (status === "loading") return null;
+  if (status === "unsupported") return (
+    <p className="mt-3 text-[10px] text-zinc-500">Push notifications not supported on this browser.</p>
+  );
+
+  return (
+    <div className="mt-3 pt-3 border-t border-white/6">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium text-[hsl(var(--foreground))]">Background Push Alerts</p>
+          <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5">
+            {status === "subscribed"  && "Receiving push notifications even when app is closed"}
+            {status === "unsubscribed" && "Get notified even when the app is closed"}
+            {status === "denied"      && "Blocked — enable notifications in your browser settings"}
+          </p>
+        </div>
+        {status === "subscribed" ? (
+          <button
+            onClick={handleDisable}
+            disabled={busy}
+            className="shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-white/5 border border-white/10 text-zinc-400 hover:bg-white/10 transition-all disabled:opacity-50"
+          >
+            {busy ? "..." : "Disable"}
+          </button>
+        ) : status === "denied" ? (
+          <span className="text-[10px] text-red-400 shrink-0">Blocked</span>
+        ) : (
+          <button
+            onClick={handleEnable}
+            disabled={busy}
+            className="shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-amber-500/20 border border-amber-500/30 text-amber-300 hover:bg-amber-500/30 transition-all disabled:opacity-50"
+          >
+            {busy ? "Enabling…" : "Enable"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Atoms ────────────────────────────────────────────────────────────────────────────
 
 function SettingRow({ label, description, children, wide }: { label: string; description: string; children: React.ReactNode; wide?: boolean }) {
@@ -623,11 +750,8 @@ export default function SettingsPage() {
               </SettingRow>
             );
           })}
-          {typeof Notification !== "undefined" && Notification.permission === "denied" && (
-            <p className="mt-2 text-[10px] text-red-400">
-              Browser notifications are blocked. Enable them in your browser site settings.
-            </p>
-          )}
+          {/* Push notification subscription button */}
+          <PushNotificationToggle />
 
           {/* Welcome Tone */}
           <SettingRow label="Welcome Tone" description="Play the startup chime and voice greeting on app open">
