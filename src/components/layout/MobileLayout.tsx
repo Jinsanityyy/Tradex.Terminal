@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { NotificationToast } from "@/components/shared/NotificationToast";
 import { LoginTransitionOverlay } from "@/components/shared/LoginTransitionOverlay";
+import { useFcmPush } from "@/hooks/useFcmPush";
 
 const TRADER_NAME_KEY = "tradex_trader_name";
 
@@ -59,6 +60,7 @@ function navigateToUpgrade(planId: string | null | undefined) {
 }
 
 export function MobileLayout() {
+  useFcmPush();
   const { subscription } = useSubscription();
   const [active, setActive] = useState<TabId>("home");
   const [mounted, setMounted] = useState<Set<TabId>>(new Set(["home"]));

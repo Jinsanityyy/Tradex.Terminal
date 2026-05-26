@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendPushToMany } from "@/lib/push/sender";
+import { sendFcmToMany } from "@/lib/push/fcm";
 import type { PushPayload } from "@/lib/push/sender";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +44,16 @@ async function getAllSubscriptions(sb: ReturnType<typeof getSupabaseAdmin>) {
     .select("id, subscription");
   if (error || !data) return [];
   return data as Array<{ id: string; subscription: PushSubscriptionJSON }>;
+}
+
+async function getAllFcmTokens(sb: ReturnType<typeof getSupabaseAdmin>) {
+  const { data } = await sb.from("fcm_tokens").select("id, token");
+  return (data ?? []) as Array<{ id: string; token: string }>;
+}
+
+async function removeExpiredFcmTokens(sb: ReturnType<typeof getSupabaseAdmin>, ids: string[]) {
+  if (ids.length === 0) return;
+  await sb.from("fcm_tokens").delete().in("id", ids);
 }
 
 async function removeExpiredSubscriptions(sb: ReturnType<typeof getSupabaseAdmin>, ids: string[]) {
@@ -130,30 +141,43 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, pushed: 0, reason: "no new alerts" });
   }
 
-  // ── Send each payload to all subscribers ──────────────────────────────────
+  // ── Send to Web Push subscribers ─────────────────────────────────────────
   const validSubs = subs.map(s => ({
     id: s.id,
     subscription: s.subscription as import("web-push").PushSubscription,
   }));
 
   let totalSent = 0;
-  const allExpired: string[] = [];
+  const allExpiredSubs: string[] = [];
 
   for (const payload of payloads) {
     const result = await sendPushToMany(validSubs, payload);
     totalSent += result.sent;
-    allExpired.push(...result.expired);
+    allExpiredSubs.push(...result.expired);
   }
+  await removeExpiredSubscriptions(sb, [...new Set(allExpiredSubs)]);
 
-  // Clean up expired subscriptions
-  const uniqueExpired = [...new Set(allExpired)];
-  await removeExpiredSubscriptions(sb, uniqueExpired);
+  // ── Send to FCM (native Android/iOS app) ─────────────────────────────────
+  const fcmTokens = await getAllFcmTokens(sb);
+  let fcmSent = 0;
+  const allExpiredFcm: string[] = [];
+
+  if (fcmTokens.length > 0 && process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    for (const payload of payloads) {
+      const result = await sendFcmToMany(fcmTokens, payload);
+      fcmSent += result.sent;
+      allExpiredFcm.push(...result.expired);
+    }
+    await removeExpiredFcmTokens(sb, [...new Set(allExpiredFcm)]);
+  }
 
   return NextResponse.json({
     ok: true,
-    pushed: totalSent,
+    pushed: totalSent + fcmSent,
+    webPush: totalSent,
+    fcm: fcmSent,
     payloads: payloads.length,
-    subscribers: subs.length,
+    subscribers: subs.length + fcmTokens.length,
     expiredCleaned: uniqueExpired.length,
   });
 }
