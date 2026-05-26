@@ -89,69 +89,65 @@ function AppRow({ app, onPress, isLocked }: { app: AppDef; onPress: () => void; 
 
 type PushStatus = "unsupported" | "denied" | "subscribed" | "unsubscribed";
 
+type PushPlugin = Awaited<typeof import("@capacitor/push-notifications")>["PushNotifications"];
+
 function usePushStatus() {
   const [status, setStatus] = useState<PushStatus>("unsubscribed");
   const [busy, setBusy] = useState(false);
+  const pushRef = React.useRef<PushPlugin | null>(null);
+
+  const isNative = typeof window !== "undefined" &&
+    typeof (window as any).Capacitor !== "undefined" &&
+    (window as any).Capacitor.isNativePlatform?.() === true;
+
+  // Pre-load the plugin immediately so toggle() has no async import delay
+  useEffect(() => {
+    if (!isNative) return;
+    import("@capacitor/push-notifications").then(({ PushNotifications }) => {
+      pushRef.current = PushNotifications;
+      PushNotifications.checkPermissions().then(perm => {
+        if (perm.receive === "granted") setStatus("subscribed");
+        else if (perm.receive === "denied") setStatus("denied");
+        else setStatus("unsubscribed");
+      }).catch(() => setStatus("unsubscribed"));
+    }).catch(() => setStatus("unsubscribed"));
+  }, [isNative]);
 
   useEffect(() => {
+    if (isNative) return; // handled above
     let cancelled = false;
-    (async () => {
-      // Detect Capacitor native via window.Capacitor (injected by bridge before page load)
-      const isNative = typeof window !== "undefined" &&
-        typeof (window as any).Capacitor !== "undefined" &&
-        (window as any).Capacitor.isNativePlatform?.() === true;
-
-      if (isNative) {
-        // Always stay in native path — never fall through to web push
-        try {
-          const { PushNotifications } = await import("@capacitor/push-notifications");
-          const perm = await PushNotifications.checkPermissions();
-          if (cancelled) return;
-          if (perm.receive === "granted") setStatus("subscribed");
-          else if (perm.receive === "denied") setStatus("denied");
-          else setStatus("unsubscribed");
-        } catch {
-          if (!cancelled) setStatus("unsubscribed");
-        }
-        return; // Never fall through to web push on native
-      }
-
-      // Web push fallback (browser only)
-      if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
-        setStatus("unsupported"); return;
-      }
-      if (typeof Notification !== "undefined" && Notification.permission === "denied") {
-        setStatus("denied"); return;
-      }
-      navigator.serviceWorker.ready
-        .then(sw => sw.pushManager.getSubscription())
-        .then(sub => { if (!cancelled && sub) setStatus("subscribed"); })
-        .catch(() => {});
-    })();
+    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setStatus("unsupported"); return;
+    }
+    if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+      setStatus("denied"); return;
+    }
+    navigator.serviceWorker.ready
+      .then(sw => sw.pushManager.getSubscription())
+      .then(sub => { if (!cancelled && sub) setStatus("subscribed"); })
+      .catch(() => {});
     return () => { cancelled = true; };
-  }, []);
+  }, [isNative]);
 
   async function toggle() {
     setBusy(true);
     try {
-      const isNative = typeof window !== "undefined" &&
-        typeof (window as any).Capacitor !== "undefined" &&
-        (window as any).Capacitor.isNativePlatform?.() === true;
-
       if (isNative) {
-        const { PushNotifications } = await import("@capacitor/push-notifications");
+        const PN = pushRef.current;
+        if (!PN) { toast.error("Push plugin not ready"); setBusy(false); return; }
+
         if (status === "subscribed") {
           await fetch("/api/push/fcm-token", { method: "DELETE" }).catch(() => {});
           setStatus("unsubscribed");
           toast.success("Push notifications disabled");
         } else {
-          toast("Requesting permission…");
-          const perm = await PushNotifications.requestPermissions();
+          // requestPermissions called synchronously after user tap — no awaited imports
+          const perm = await PN.requestPermissions();
           if (perm.receive !== "granted") {
             setStatus("denied");
-            toast.error("Permission denied — enable in Android Settings → Apps → TradeX → Notifications");
+            toast.error("Blocked — go to Settings → Apps → TradeX → Notifications");
           } else {
-            await PushNotifications.register();
+            await PN.register();
             setStatus("subscribed");
             toast.success("Push notifications enabled! 🔔");
           }
@@ -182,6 +178,7 @@ function usePushStatus() {
         setStatus(save.ok ? "subscribed" : "unsubscribed");
       }
     } catch (err) {
+      toast.error(`Error: ${(err as Error)?.message ?? "unknown"}`);
       console.warn("[Push] toggle error:", err);
     }
     setBusy(false);
