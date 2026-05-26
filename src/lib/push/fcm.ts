@@ -32,19 +32,17 @@ export async function sendFcmToToken(
     const isHigh = payload.severity !== "low";
     const messageId = await app.messaging().send({
       token,
-      notification: {
+      // Data-only message — TradeXMessagingService on Android handles display
+      // and sets ic_launcher_round as the large icon (full-color notification circle).
+      data: {
         title:    payload.title,
         body:     payload.body,
-        imageUrl: LOGO_URL,   // TradeX logo shown when notification is expanded
+        url:      payload.url      ?? "/dashboard",
+        severity: payload.severity ?? "medium",
+        type:     payload.type     ?? "agent",
       },
       android: {
-        priority: "high",              // bypass Doze mode — same as Firebase Console test
-        notification: {
-          channelId:            "default",
-          priority:             isHigh ? "max" : "default",
-          defaultVibrateTimings: true,
-          color:                "#0a0e1a",  // TradeX dark background — matches logo
-        },
+        priority: "high",   // bypass Doze mode — critical for background delivery
       },
     });
     return { ok: true, messageId };
