@@ -93,39 +93,81 @@ function usePushStatus() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
-      setStatus("unsupported"); return;
-    }
-    if (typeof Notification !== "undefined" && Notification.permission === "denied") {
-      setStatus("denied"); return;
-    }
-    navigator.serviceWorker.ready
-      .then(sw => sw.pushManager.getSubscription())
-      .then(sub => { if (sub) setStatus("subscribed"); })
-      .catch(() => {});
+    let cancelled = false;
+    (async () => {
+      try {
+        const { Capacitor } = await import("@capacitor/core");
+        if (Capacitor.isNativePlatform()) {
+          const { PushNotifications } = await import("@capacitor/push-notifications");
+          const perm = await PushNotifications.checkPermissions();
+          if (cancelled) return;
+          if (perm.receive === "granted") setStatus("subscribed");
+          else if (perm.receive === "denied") setStatus("denied");
+          else setStatus("unsubscribed");
+          return;
+        }
+      } catch {}
+      // Web push fallback
+      if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+        setStatus("unsupported"); return;
+      }
+      if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+        setStatus("denied"); return;
+      }
+      navigator.serviceWorker.ready
+        .then(sw => sw.pushManager.getSubscription())
+        .then(sub => { if (!cancelled && sub) setStatus("subscribed"); })
+        .catch(() => {});
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   async function toggle() {
     setBusy(true);
-    if (status === "subscribed") {
-      const sw = await navigator.serviceWorker.ready;
-      const sub = await sw.pushManager.getSubscription();
-      if (sub) { await fetch("/api/push/subscribe", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) }); await sub.unsubscribe(); }
-      setStatus("unsubscribed");
-    } else {
-      const perm = await Notification.requestPermission();
-      if (perm !== "granted") { setStatus("denied"); setBusy(false); return; }
-      const sw = await navigator.serviceWorker.ready;
-      const res = await fetch("/api/push/subscribe");
-      const { publicKey } = await res.json();
-      const padding = "=".repeat((4 - (publicKey.length % 4)) % 4);
-      const base64 = (publicKey + padding).replace(/-/g, "+").replace(/_/g, "/");
-      const raw = window.atob(base64);
-      const arr = new Uint8Array(raw.length);
-      for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
-      const sub = await sw.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: arr.buffer });
-      const save = await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sub) });
-      setStatus(save.ok ? "subscribed" : "unsubscribed");
+    try {
+      const { Capacitor } = await import("@capacitor/core");
+
+      if (Capacitor.isNativePlatform()) {
+        const { PushNotifications } = await import("@capacitor/push-notifications");
+        if (status === "subscribed") {
+          await fetch("/api/push/fcm-token", { method: "DELETE" }).catch(() => {});
+          setStatus("unsubscribed");
+        } else {
+          const perm = await PushNotifications.requestPermissions();
+          if (perm.receive !== "granted") {
+            setStatus("denied");
+          } else {
+            await PushNotifications.register();
+            setStatus("subscribed");
+          }
+        }
+        setBusy(false);
+        return;
+      }
+
+      // Web push fallback
+      if (status === "subscribed") {
+        const sw = await navigator.serviceWorker.ready;
+        const sub = await sw.pushManager.getSubscription();
+        if (sub) { await fetch("/api/push/subscribe", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) }); await sub.unsubscribe(); }
+        setStatus("unsubscribed");
+      } else {
+        const perm = await Notification.requestPermission();
+        if (perm !== "granted") { setStatus("denied"); setBusy(false); return; }
+        const sw = await navigator.serviceWorker.ready;
+        const res = await fetch("/api/push/subscribe");
+        const { publicKey } = await res.json();
+        const padding = "=".repeat((4 - (publicKey.length % 4)) % 4);
+        const base64 = (publicKey + padding).replace(/-/g, "+").replace(/_/g, "/");
+        const raw = window.atob(base64);
+        const arr = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+        const sub = await sw.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: arr.buffer });
+        const save = await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sub) });
+        setStatus(save.ok ? "subscribed" : "unsubscribed");
+      }
+    } catch (err) {
+      console.warn("[Push] toggle error:", err);
     }
     setBusy(false);
   }
