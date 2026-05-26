@@ -35,7 +35,6 @@ export async function sendFcmToToken(
       notification: {
         title: payload.title,
         body:  payload.body,
-        imageUrl: LOGO_URL,   // Big TradeX logo below the notification text
       },
       data: {
         url:      payload.url ?? "/m",
@@ -45,12 +44,9 @@ export async function sendFcmToToken(
       android: {
         priority: isHigh ? "high" : "normal",
         notification: {
-          // No channelId — let Firebase use the app's default channel
-          // (avoids silent drop on Android 8+ when channel doesn't exist)
           priority:             isHigh ? "max" : "default",
           defaultVibrateTimings: true,
           color:                isHigh ? "#ef4444" : "#f59e0b",
-          imageUrl:             LOGO_URL,
         },
       },
     });
