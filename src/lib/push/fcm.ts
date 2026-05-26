@@ -44,6 +44,7 @@ export async function sendFcmToToken(
       android: {
         priority: isHigh ? "high" : "normal",
         notification: {
+          channelId:            "default",  // channel created by @capacitor/push-notifications
           priority:             isHigh ? "max" : "default",
           defaultVibrateTimings: true,
           color:                isHigh ? "#ef4444" : "#f59e0b",
