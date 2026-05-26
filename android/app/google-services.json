@@ -9,6 +9,25 @@
       "client_info": {
         "mobilesdk_app_id": "1:327390468174:android:cdc1fbb62b0d1c06d2cb1f",
         "android_client_info": {
+          "package_name": "com.tradex.terminal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBci_zRuNRG1IPGD3jgsWLE4VoMHyAZmnQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:327390468174:android:d47db9bda101c7cdd2cb1f",
+        "android_client_info": {
           "package_name": "online.tradexterminal.twa"
         }
       },
