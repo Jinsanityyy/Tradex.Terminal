@@ -14,6 +14,7 @@ import { TradingKnowledgeContent } from "@/components/shared/TradingKnowledgeSid
 import { CandleAnalysis } from "@/components/shared/CandleAnalysis";
 import { useSubscription } from "@/hooks/useSubscription";
 
+import { toast } from "sonner";
 import dynamic from "next/dynamic";
 
 const MarketBiasPage   = dynamic(() => import("@/app/dashboard/market-bias/page"),          { ssr: false });
@@ -142,13 +143,17 @@ function usePushStatus() {
         if (status === "subscribed") {
           await fetch("/api/push/fcm-token", { method: "DELETE" }).catch(() => {});
           setStatus("unsubscribed");
+          toast.success("Push notifications disabled");
         } else {
+          toast("Requesting permission…");
           const perm = await PushNotifications.requestPermissions();
           if (perm.receive !== "granted") {
             setStatus("denied");
+            toast.error("Permission denied — enable in Android Settings → Apps → TradeX → Notifications");
           } else {
             await PushNotifications.register();
             setStatus("subscribed");
+            toast.success("Push notifications enabled! 🔔");
           }
         }
         setBusy(false);

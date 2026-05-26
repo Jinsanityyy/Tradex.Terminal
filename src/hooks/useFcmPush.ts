@@ -10,13 +10,10 @@ export function useFcmPush() {
 
     // Dynamically import to avoid SSR/web bundle issues
     import("@capacitor/push-notifications").then(({ PushNotifications }) => {
-      // Check/request permission
+      // Only register if permission already granted — do NOT auto-request.
+      // User enables via the toggle in hamburger menu.
       PushNotifications.checkPermissions().then((perm) => {
-        if (perm.receive === "prompt") {
-          PushNotifications.requestPermissions().then((result) => {
-            if (result.receive === "granted") registerFcm(PushNotifications);
-          });
-        } else if (perm.receive === "granted") {
+        if (perm.receive === "granted") {
           registerFcm(PushNotifications);
         }
       });
