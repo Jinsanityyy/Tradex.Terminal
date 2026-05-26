@@ -57,8 +57,9 @@
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/ic_launcher_background" />
 
-        <!-- Custom FCM service — priority 1 ensures it runs before Capacitor's
-             default service so we can set the full-color large icon (notification circle) -->
+        <!-- TradeXMessagingService disabled — interferes with FCM delivery -->
+        <!-- Will re-enable once large-icon approach is confirmed working -->
+        <!--
         <service
             android:name=".TradeXMessagingService"
             android:exported="false">
@@ -66,6 +67,7 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+        -->
     </application>
 
     <!-- Permissions -->
