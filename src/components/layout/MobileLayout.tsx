@@ -111,6 +111,23 @@ export function MobileLayout() {
   }
 
   useEffect(() => {
+    let hiddenAt = 0;
+    const RELOAD_AFTER_MS = 10 * 60 * 1000; // reload if hidden > 10 min
+
+    function onVisibility() {
+      if (document.hidden) {
+        hiddenAt = Date.now();
+      } else if (hiddenAt > 0 && Date.now() - hiddenAt > RELOAD_AFTER_MS) {
+        // Phone was asleep a long time — reload so data + auth state are fresh
+        window.location.reload();
+      }
+    }
+
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
+  useEffect(() => {
     setTimeout(() => setSplashDone(true), 1500);
   }, []);
 
