@@ -32,7 +32,12 @@ export async function GET() {
     .select("id, token")
     .eq("user_id", user.id);
 
-  return NextResponse.json({ tokens: data ?? [] });
+  const tokens = (data ?? []) as Array<{ id: string; token: string }>;
+  // Return plain text so it's easy to copy on mobile
+  const text = tokens.map((t, i) => `Token ${i + 1}:\n${t.token}`).join("\n\n");
+  return new Response(text || "No tokens found", {
+    headers: { "Content-Type": "text/plain" },
+  });
 }
 
 // POST /api/push/fcm-token — save FCM token for current user
