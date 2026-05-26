@@ -85,6 +85,52 @@ const PULSE_STYLE = `
 }
 `;
 
+// ─── Web Push registration ────────────────────────────────────────────────────
+
+async function registerPushSubscription() {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) return;
+  try {
+    const sw = await navigator.serviceWorker.ready;
+
+    // Fetch VAPID public key from server
+    const res = await fetch("/api/push/subscribe");
+    if (!res.ok) return;
+    const { publicKey } = await res.json();
+    if (!publicKey) return;
+
+    // Subscribe (or re-use existing)
+    let sub = await sw.pushManager.getSubscription();
+    if (!sub) {
+      sub = await sw.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
+    }
+
+    // Send subscription to server
+    await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subscription: sub.toJSON() }),
+    });
+
+    // Listen for SW messages — when the user taps a push notification while
+    // the app is open, the SW posts PUSH_NAVIGATE so we can handle routing.
+    navigator.serviceWorker.addEventListener("message", (e) => {
+      if (e.data?.type === "PUSH_NAVIGATE" && e.data.url) {
+        window.location.href = e.data.url;
+      }
+    });
+  } catch {}
+}
+
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function NotificationToast() {
@@ -106,8 +152,13 @@ export function NotificationToast() {
   useNotifications(addNotif);
 
   useEffect(() => {
-    if (typeof Notification !== "undefined" && Notification.permission === "default") {
-      Notification.requestPermission();
+    if (typeof Notification === "undefined") return;
+    if (Notification.permission === "default") {
+      Notification.requestPermission().then((perm) => {
+        if (perm === "granted") registerPushSubscription();
+      });
+    } else if (Notification.permission === "granted") {
+      registerPushSubscription();
     }
   }, []);
 
