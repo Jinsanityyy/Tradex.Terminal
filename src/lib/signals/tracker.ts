@@ -16,7 +16,7 @@ import type { Timeframe } from "@/lib/agents/schemas";
 import { getOpenSignals, getSignals, updateSignal } from "./storage";
 import { fetchYahooCandles, type YahooCandleBar } from "@/lib/api/yahoo-finance";
 import { clearAgentArmedCache } from "@/lib/agents/agent-cache-store";
-import { notifyOutcome } from "@/lib/push/notify";
+import { notifyOutcome, notifyEntryZone } from "@/lib/push/notify";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Config
@@ -407,6 +407,8 @@ export async function trackOpenSignals(): Promise<TrackingResult> {
       const threshold = entry * 0.003;
       if (Math.abs(price - entry) <= threshold) {
         await updateSignal(signal.id, { entryZoneNotified: true });
+        // Fire instant push — price is approaching the entry now
+        void notifyEntryZone(signal).catch(() => {});
       }
     }
 

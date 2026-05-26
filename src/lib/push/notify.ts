@@ -74,6 +74,24 @@ export async function notifyNewSignal(signal: SignalRecord): Promise<void> {
 }
 
 /**
+ * Notify all users when price enters the entry zone (~0.3% from entry).
+ */
+export async function notifyEntryZone(signal: SignalRecord): Promise<void> {
+  if (!signal.tradePlan) return;
+  const dir = signal.tradePlan.direction === "long" ? "🟢 BUY" : "🔴 SELL";
+  const sym = signal.symbolDisplay ?? signal.symbol;
+
+  await broadcast({
+    title:    `⚠️ Entry Zone: ${sym}`,
+    body:     `${dir} entry at ${signal.tradePlan.entry} — price is approaching now!`,
+    url:      "/dashboard/signals",
+    severity: "high",
+    type:     "signal",
+    tag:      `entry-${signal.id}`,
+  });
+}
+
+/**
  * Notify all users when a signal hits SL or TP.
  */
 export async function notifyOutcome(
