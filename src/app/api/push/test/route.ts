@@ -74,15 +74,6 @@ const SAMPLES: Record<string, Parameters<typeof broadcast>[0]> = {
 };
 
 export async function GET(req: NextRequest) {
-  // Simple auth — same secret as cron, or open if no secret configured
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const secret = req.nextUrl.searchParams.get("secret") ?? "";
-    if (secret !== cronSecret) {
-      return NextResponse.json({ error: "Unauthorized — pass ?secret=CRON_SECRET" }, { status: 401 });
-    }
-  }
-
   const type = req.nextUrl.searchParams.get("type") ?? "signal";
   const payload = SAMPLES[type];
 
