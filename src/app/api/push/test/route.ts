@@ -17,7 +17,7 @@ import type { PushPayload } from "@/lib/push/sender";
 
 export const dynamic = "force-dynamic";
 
-const SAMPLES: Record<string, Parameters<typeof broadcast>[0]> = {
+const SAMPLES: Record<string, PushPayload & { tag?: string }> = {
   signal: {
     title: "📊 New Signal: XAUUSD",
     body:  "🟢 BUY | Entry: 3,245.50 | RR: 2.4R | TF: H1",
