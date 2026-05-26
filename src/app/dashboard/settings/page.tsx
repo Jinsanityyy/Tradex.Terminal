@@ -73,19 +73,19 @@ async function doUnsubscribe(): Promise<void> {
 }
 
 function PushNotificationToggle() {
-  const [status, setStatus] = React.useState<"loading" | "unsupported" | "denied" | "subscribed" | "unsubscribed">("loading");
-  const [busy, setBusy]     = React.useState(false);
+  const [status, setStatus] = React.useState<"unsupported" | "denied" | "subscribed" | "unsubscribed">(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) return "unsupported";
+    if (typeof Notification !== "undefined" && Notification.permission === "denied") return "denied";
+    return "unsubscribed";
+  });
+  const [busy, setBusy] = React.useState(false);
 
   React.useEffect(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
-      setStatus("unsupported"); return;
-    }
-    if (Notification.permission === "denied") { setStatus("denied"); return; }
-    navigator.serviceWorker.ready.then((sw) =>
-      sw.pushManager.getSubscription().then((sub) => {
-        setStatus(sub ? "subscribed" : "unsubscribed");
-      })
-    ).catch(() => setStatus("unsubscribed"));
+    if (status === "unsupported" || status === "denied") return;
+    navigator.serviceWorker.ready
+      .then((sw) => sw.pushManager.getSubscription())
+      .then((sub) => { if (sub) setStatus("subscribed"); })
+      .catch(() => {});
   }, []);
 
   async function handleEnable() {
@@ -102,7 +102,6 @@ function PushNotificationToggle() {
     setBusy(false);
   }
 
-  if (status === "loading") return null;
   if (status === "unsupported") return (
     <p className="mt-3 text-[10px] text-zinc-500">Push notifications not supported on this browser.</p>
   );
