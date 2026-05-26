@@ -95,19 +95,27 @@ function usePushStatus() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        const { Capacitor } = await import("@capacitor/core");
-        if (Capacitor.isNativePlatform()) {
+      // Detect Capacitor native via window.Capacitor (injected by bridge before page load)
+      const isNative = typeof window !== "undefined" &&
+        typeof (window as any).Capacitor !== "undefined" &&
+        (window as any).Capacitor.isNativePlatform?.() === true;
+
+      if (isNative) {
+        // Always stay in native path — never fall through to web push
+        try {
           const { PushNotifications } = await import("@capacitor/push-notifications");
           const perm = await PushNotifications.checkPermissions();
           if (cancelled) return;
           if (perm.receive === "granted") setStatus("subscribed");
           else if (perm.receive === "denied") setStatus("denied");
           else setStatus("unsubscribed");
-          return;
+        } catch {
+          if (!cancelled) setStatus("unsubscribed");
         }
-      } catch {}
-      // Web push fallback
+        return; // Never fall through to web push on native
+      }
+
+      // Web push fallback (browser only)
       if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
         setStatus("unsupported"); return;
       }
@@ -125,9 +133,11 @@ function usePushStatus() {
   async function toggle() {
     setBusy(true);
     try {
-      const { Capacitor } = await import("@capacitor/core");
+      const isNative = typeof window !== "undefined" &&
+        typeof (window as any).Capacitor !== "undefined" &&
+        (window as any).Capacitor.isNativePlatform?.() === true;
 
-      if (Capacitor.isNativePlatform()) {
+      if (isNative) {
         const { PushNotifications } = await import("@capacitor/push-notifications");
         if (status === "subscribed") {
           await fetch("/api/push/fcm-token", { method: "DELETE" }).catch(() => {});
