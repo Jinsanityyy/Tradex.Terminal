@@ -45,13 +45,12 @@ export async function sendFcmToToken(
       android: {
         priority: isHigh ? "high" : "normal",
         notification: {
-          channelId:            "tradex_alerts",
+          // No channelId — let Firebase use the app's default channel
+          // (avoids silent drop on Android 8+ when channel doesn't exist)
           priority:             isHigh ? "max" : "default",
           defaultVibrateTimings: true,
-          // No custom icon drawable — Android falls back to the app launcher icon
-          color:       isHigh ? "#ef4444" : "#f59e0b",  // red for high, gold for medium
-          clickAction: "TRADEX_NOTIFICATION_CLICK",
-          imageUrl:    LOGO_URL,
+          color:                isHigh ? "#ef4444" : "#f59e0b",
+          imageUrl:             LOGO_URL,
         },
       },
     });
