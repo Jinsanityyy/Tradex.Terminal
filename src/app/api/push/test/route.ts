@@ -88,11 +88,11 @@ export async function GET(req: NextRequest) {
 
   const db = getServiceClient();
   const [fcmData, subData] = await Promise.all([
-    db?.from("fcm_tokens").select("id, token, updated_at, created_at").order("updated_at", { ascending: false }),
+    db?.from("fcm_tokens").select("id, token"),
     db?.from("push_subscriptions").select("id, subscription"),
   ]);
 
-  const fcmTokens = (fcmData?.data ?? []) as Array<{ id: string; token: string; updated_at?: string; created_at?: string }>;
+  const fcmTokens = (fcmData?.data ?? []) as Array<{ id: string; token: string }>;
   const webSubs   = (subData?.data ?? []) as Array<{ id: string; subscription: import("web-push").PushSubscription }>;
 
   let fcmResult   = { sent: 0, failed: 0, expired: [] as string[] };
@@ -117,11 +117,7 @@ export async function GET(req: NextRequest) {
         envConfigured: hasFcmEnv,
         sent:          fcmResult.sent,
         failed:        fcmResult.failed,
-        // Show last 4 chars of each token + when it was registered
-        tokens: fcmTokens.map(t => ({
-          tail:       "..." + t.token.slice(-12),
-          registered: t.updated_at ?? t.created_at ?? "unknown",
-        })),
+        tokens: fcmTokens.map(t => "..." + t.token.slice(-12)),
       },
       webPush: {
         subsFound:     webSubs.length,
