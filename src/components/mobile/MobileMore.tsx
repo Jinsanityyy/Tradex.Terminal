@@ -5,7 +5,7 @@ import {
   Calendar, TrendingUp, Activity,
   Radio, Brain, Clock, DollarSign,
   Shield, AtSign, Newspaper, LayoutGrid, Tv,
-  ChevronLeft, ChevronRight, GraduationCap, Zap, Lock, Crown
+  ChevronLeft, ChevronRight, GraduationCap, Zap, Lock, Crown, Bell, BellOff, Loader2
 } from "lucide-react";
 import { MobileBrain } from "@/components/mobile/MobileBrain";
 import { MobileFeatureGate } from "@/components/mobile/MobileFeatureGate";
@@ -86,6 +86,53 @@ function AppRow({ app, onPress, isLocked }: { app: AppDef; onPress: () => void; 
   );
 }
 
+type PushStatus = "unsupported" | "denied" | "subscribed" | "unsubscribed";
+
+function usePushStatus() {
+  const [status, setStatus] = useState<PushStatus>("unsubscribed");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setStatus("unsupported"); return;
+    }
+    if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+      setStatus("denied"); return;
+    }
+    navigator.serviceWorker.ready
+      .then(sw => sw.pushManager.getSubscription())
+      .then(sub => { if (sub) setStatus("subscribed"); })
+      .catch(() => {});
+  }, []);
+
+  async function toggle() {
+    setBusy(true);
+    if (status === "subscribed") {
+      const sw = await navigator.serviceWorker.ready;
+      const sub = await sw.pushManager.getSubscription();
+      if (sub) { await fetch("/api/push/subscribe", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) }); await sub.unsubscribe(); }
+      setStatus("unsubscribed");
+    } else {
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") { setStatus("denied"); setBusy(false); return; }
+      const sw = await navigator.serviceWorker.ready;
+      const res = await fetch("/api/push/subscribe");
+      const { publicKey } = await res.json();
+      const padding = "=".repeat((4 - (publicKey.length % 4)) % 4);
+      const base64 = (publicKey + padding).replace(/-/g, "+").replace(/_/g, "/");
+      const raw = window.atob(base64);
+      const arr = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+      const sub = await sw.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: arr.buffer });
+      const save = await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sub) });
+      setStatus(save.ok ? "subscribed" : "unsubscribed");
+    }
+    setBusy(false);
+  }
+
+  return { status, busy, toggle };
+}
+
 export function MobileMore() {
   const [activeAppId, setActiveAppId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -93,6 +140,7 @@ export function MobileMore() {
   const [traderName, setTraderName] = useState("");
   const [avatar, setAvatar] = useState<string | null>(null);
   const { subscription } = useSubscription();
+  const push = usePushStatus();
 
   useEffect(() => {
     setTraderName(localStorage.getItem("tradex_trader_name") || "");
@@ -229,6 +277,30 @@ export function MobileMore() {
             <p className="px-4 pt-5 pb-2 text-[10px] font-bold uppercase tracking-widest text-zinc-600">
               Account
             </p>
+
+            {/* Push notification toggle */}
+            {push.status !== "unsupported" && (
+              <button
+                onClick={push.toggle}
+                disabled={push.busy || push.status === "denied"}
+                className="w-full flex items-center gap-4 px-4 py-3 active:bg-white/5 transition-colors disabled:opacity-50"
+              >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: push.status === "subscribed" ? "#10b98122" : "#6b728022", border: `1px solid ${push.status === "subscribed" ? "#10b98135" : "#6b728035"}` }}>
+                  {push.busy ? <Loader2 className="h-5 w-5 text-zinc-400 animate-spin" /> : push.status === "subscribed" ? <Bell className="h-5 w-5 text-emerald-400" /> : <BellOff className="h-5 w-5 text-zinc-500" />}
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-[14px] font-medium text-zinc-100">Push Notifications</p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">
+                    {push.status === "subscribed" ? "Enabled — tap to disable" : push.status === "denied" ? "Blocked in browser settings" : "Tap to enable alerts"}
+                  </p>
+                </div>
+                <div className={`w-11 h-6 rounded-full transition-colors ${push.status === "subscribed" ? "bg-emerald-500" : "bg-zinc-700"}`}>
+                  <div className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform ${push.status === "subscribed" ? "translate-x-5" : "translate-x-0.5"}`} />
+                </div>
+              </button>
+            )}
+
             {(["knowledge", "settings"] as const).map(id => {
               const app = ALL_APPS.find(a => a.id === id)!;
               return (
