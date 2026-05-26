@@ -18,6 +18,7 @@ export interface FcmPayload {
   url?: string;
   severity?: "high" | "medium" | "low";
   type?: string;
+  tag?: string;
 }
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://tradexterminal.online";
@@ -29,30 +30,23 @@ export async function sendFcmToToken(
 ): Promise<{ ok: boolean; error?: string; messageId?: string }> {
   try {
     const app = getApp();
-    const isHigh = payload.severity !== "low";
+    const data: Record<string, string> = {
+      title: payload.title,
+      body: payload.body,
+      url: payload.url ?? "/dashboard",
+      severity: payload.severity ?? "medium",
+      type: payload.type ?? "agent",
+      imageUrl: LOGO_URL,
+    };
+    if (payload.tag) {
+      data.tag = payload.tag;
+    }
+
     const messageId = await app.messaging().send({
       token,
-      notification: {
-        title:    payload.title,
-        body:     payload.body,
-        imageUrl: LOGO_URL,
-      },
-      // Also send data so TradeXMessagingService can read fields in foreground
-      data: {
-        title:    payload.title,
-        body:     payload.body,
-        url:      payload.url      ?? "/dashboard",
-        severity: payload.severity ?? "medium",
-        type:     payload.type     ?? "agent",
-      },
+      data,
       android: {
         priority: "high",
-        notification: {
-          channelId:             "default",
-          priority:              isHigh ? "max" : "default",
-          defaultVibrateTimings: true,
-          color:                 "#0a0e1a",
-        },
       },
     });
     return { ok: true, messageId };

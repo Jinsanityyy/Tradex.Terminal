@@ -20,13 +20,22 @@ export function useFcmPush() {
 
       // Handle foreground notifications
       PushNotifications.addListener("pushNotificationReceived", (notification) => {
+        const title =
+          notification.title ??
+          (notification.data?.title as string | undefined) ??
+          "TradeX Alert";
+        const body =
+          notification.body ??
+          (notification.data?.body as string | undefined) ??
+          "";
+
         // Fire custom event so NotificationToast picks it up
         window.dispatchEvent(new CustomEvent("tradex-custom-notification", {
           detail: {
             id: notification.id ?? crypto.randomUUID(),
             type: (notification.data?.type as string) ?? "agent",
-            title: notification.title ?? "TradeX Alert",
-            body: notification.body ?? "",
+            title,
+            body,
             timestamp: Date.now(),
             severity: (notification.data?.severity as string) ?? "high",
             chartLink: notification.data?.url as string | undefined,

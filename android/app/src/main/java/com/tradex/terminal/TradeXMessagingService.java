@@ -1,5 +1,6 @@
 package com.tradex.terminal;
 
+import android.app.ActivityManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -8,81 +9,146 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Build;
+import android.text.TextUtils;
 
+import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
+import androidx.core.content.ContextCompat;
 
-import com.google.firebase.messaging.FirebaseMessagingService;
+import com.capacitorjs.plugins.pushnotifications.MessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
-public class TradeXMessagingService extends FirebaseMessagingService {
+import java.util.Map;
+
+public class TradeXMessagingService extends MessagingService {
 
     private static final String CHANNEL_ID = "default";
 
     @Override
-    public void onMessageReceived(RemoteMessage message) {
-        String title = message.getData().get("title");
-        String body  = message.getData().get("body");
-
-        if (title == null && message.getNotification() != null) {
-            title = message.getNotification().getTitle();
+    public void onMessageReceived(@NonNull RemoteMessage message) {
+        if (isAppInForeground()) {
+            super.onMessageReceived(message);
+            return;
         }
-        if (body == null && message.getNotification() != null) {
-            body = message.getNotification().getBody();
-        }
-
-        if (title == null) title = "TradeX Alert";
-        if (body   == null) body  = "";
 
         createChannel();
-        showNotification(title, body);
+        showNotification(message);
     }
 
-    private void showNotification(String title, String body) {
+    private void showNotification(RemoteMessage message) {
+        String title = firstNonEmpty(
+            message.getData().get("title"),
+            message.getNotification() != null ? message.getNotification().getTitle() : null,
+            "TradeX Alert"
+        );
+        String body = firstNonEmpty(
+            message.getData().get("body"),
+            message.getNotification() != null ? message.getNotification().getBody() : null,
+            ""
+        );
+        String severity = firstNonEmpty(message.getData().get("severity"), "medium");
+        String tag = emptyToNull(message.getData().get("tag"));
+
         Bitmap largeIcon = BitmapFactory.decodeResource(
-            getResources(), R.mipmap.ic_launcher_round
+            getResources(),
+            R.mipmap.ic_launcher_round
         );
 
         Intent launch = getPackageManager().getLaunchIntentForPackage(getPackageName());
-        PendingIntent pi = null;
+        PendingIntent pendingIntent = null;
         if (launch != null) {
-            pi = PendingIntent.getActivity(
-                this, 0, launch,
+            launch.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+
+            if (!TextUtils.isEmpty(message.getMessageId())) {
+                launch.putExtra("google.message_id", message.getMessageId());
+            }
+
+            for (Map.Entry<String, String> entry : message.getData().entrySet()) {
+                launch.putExtra(entry.getKey(), entry.getValue());
+            }
+
+            pendingIntent = PendingIntent.getActivity(
+                this,
+                buildNotificationId(message),
+                launch,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
             );
         }
 
-        NotificationCompat.Builder builder =
-            new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_notification)
-                .setLargeIcon(largeIcon)
-                .setContentTitle(title)
-                .setContentText(body)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setDefaults(NotificationCompat.DEFAULT_VIBRATE | NotificationCompat.DEFAULT_SOUND)
-                .setAutoCancel(true);
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setLargeIcon(largeIcon)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority("high".equalsIgnoreCase(severity)
+                ? NotificationCompat.PRIORITY_HIGH
+                : NotificationCompat.PRIORITY_DEFAULT)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setColor(ContextCompat.getColor(this, R.color.ic_launcher_background))
+            .setDefaults(NotificationCompat.DEFAULT_VIBRATE | NotificationCompat.DEFAULT_SOUND)
+            .setAutoCancel(true);
 
-        if (pi != null) builder.setContentIntent(pi);
+        if (pendingIntent != null) {
+            builder.setContentIntent(pendingIntent);
+        }
 
-        NotificationManagerCompat mgr = NotificationManagerCompat.from(this);
+        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
         try {
-            mgr.notify((int) System.currentTimeMillis(), builder.build());
-        } catch (SecurityException ignored) {}
+            int notificationId = buildNotificationId(message);
+            if (tag != null) {
+                notificationManager.notify(tag, notificationId, builder.build());
+            } else {
+                notificationManager.notify(notificationId, builder.build());
+            }
+        } catch (SecurityException ignored) {
+        }
     }
 
     private void createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationManager nm =
+            NotificationManager notificationManager =
                 (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-            if (nm != null) {
-                NotificationChannel ch = new NotificationChannel(
+            if (notificationManager != null) {
+                NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
                     "TradeX Notifications",
                     NotificationManager.IMPORTANCE_HIGH
                 );
-                ch.setDescription("TradeX market alerts and signals");
-                nm.createNotificationChannel(ch);
+                channel.setDescription("TradeX market alerts and signals");
+                notificationManager.createNotificationChannel(channel);
             }
         }
+    }
+
+    private boolean isAppInForeground() {
+        ActivityManager.RunningAppProcessInfo appProcessInfo =
+            new ActivityManager.RunningAppProcessInfo();
+        ActivityManager.getMyMemoryState(appProcessInfo);
+        return appProcessInfo.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+            || appProcessInfo.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE;
+    }
+
+    private int buildNotificationId(RemoteMessage message) {
+        String stableKey = firstNonEmpty(
+            message.getData().get("tag"),
+            message.getMessageId(),
+            String.valueOf(System.currentTimeMillis())
+        );
+        return stableKey.hashCode();
+    }
+
+    private String firstNonEmpty(String... values) {
+        for (String value : values) {
+            if (!TextUtils.isEmpty(value)) {
+                return value;
+            }
+        }
+        return "";
+    }
+
+    private String emptyToNull(String value) {
+        return TextUtils.isEmpty(value) ? null : value;
     }
 }
