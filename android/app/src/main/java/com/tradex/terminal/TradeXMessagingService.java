@@ -3,6 +3,7 @@ package com.tradex.terminal;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -14,26 +15,12 @@ import androidx.core.app.NotificationManagerCompat;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
-/**
- * Custom FCM service that intercepts all push messages and displays them
- * with the full-color TradeX logo as the large icon (notification circle).
- *
- * Priority 1 in AndroidManifest ensures this runs before the Capacitor
- * default service so we control the notification appearance.
- */
 public class TradeXMessagingService extends FirebaseMessagingService {
 
     private static final String CHANNEL_ID = "default";
 
     @Override
-    public void onCreate() {
-        super.onCreate();
-        createChannel();
-    }
-
-    @Override
     public void onMessageReceived(RemoteMessage message) {
-        // Prefer explicit data fields, fall back to notification payload
         String title = message.getData().get("title");
         String body  = message.getData().get("body");
 
@@ -47,16 +34,15 @@ public class TradeXMessagingService extends FirebaseMessagingService {
         if (title == null) title = "TradeX Alert";
         if (body   == null) body  = "";
 
+        createChannel();
         showNotification(title, body);
     }
 
     private void showNotification(String title, String body) {
-        // Full-color TradeX logo shown in the notification circle
         Bitmap largeIcon = BitmapFactory.decodeResource(
             getResources(), R.mipmap.ic_launcher_round
         );
 
-        // Tap opens the app
         Intent launch = getPackageManager().getLaunchIntentForPackage(getPackageName());
         PendingIntent pi = null;
         if (launch != null) {
@@ -68,8 +54,8 @@ public class TradeXMessagingService extends FirebaseMessagingService {
 
         NotificationCompat.Builder builder =
             new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_notification)   // white monochrome — status bar
-                .setLargeIcon(largeIcon)                    // full-color logo — notification circle
+                .setSmallIcon(R.drawable.ic_notification)
+                .setLargeIcon(largeIcon)
                 .setContentTitle(title)
                 .setContentText(body)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -81,21 +67,22 @@ public class TradeXMessagingService extends FirebaseMessagingService {
         NotificationManagerCompat mgr = NotificationManagerCompat.from(this);
         try {
             mgr.notify((int) System.currentTimeMillis(), builder.build());
-        } catch (SecurityException ignored) {
-            // POST_NOTIFICATIONS permission not granted
-        }
+        } catch (SecurityException ignored) {}
     }
 
     private void createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel ch = new NotificationChannel(
-                CHANNEL_ID,
-                "TradeX Notifications",
-                NotificationManager.IMPORTANCE_HIGH
-            );
-            ch.setDescription("TradeX market alerts and signals");
-            NotificationManager nm = getSystemService(NotificationManager.class);
-            if (nm != null) nm.createNotificationChannel(ch);
+            NotificationManager nm =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (nm != null) {
+                NotificationChannel ch = new NotificationChannel(
+                    CHANNEL_ID,
+                    "TradeX Notifications",
+                    NotificationManager.IMPORTANCE_HIGH
+                );
+                ch.setDescription("TradeX market alerts and signals");
+                nm.createNotificationChannel(ch);
+            }
         }
     }
 }
