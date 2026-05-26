@@ -10,7 +10,10 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { broadcast } from "@/lib/push/notify";
+import { getServiceClient } from "@/lib/supabase/service";
+import { sendFcmToMany } from "@/lib/push/fcm";
+import { sendPushToMany } from "@/lib/push/sender";
+import type { PushPayload } from "@/lib/push/sender";
 
 export const dynamic = "force-dynamic";
 
@@ -83,13 +86,44 @@ export async function GET(req: NextRequest) {
     }, { status: 400 });
   }
 
-  await broadcast(payload);
+  const db = getServiceClient();
+  const [fcmData, subData] = await Promise.all([
+    db?.from("fcm_tokens").select("id, token"),
+    db?.from("push_subscriptions").select("id, subscription"),
+  ]);
+
+  const fcmTokens = (fcmData?.data ?? []) as Array<{ id: string; token: string }>;
+  const webSubs   = (subData?.data ?? []) as Array<{ id: string; subscription: import("web-push").PushSubscription }>;
+
+  let fcmResult   = { sent: 0, failed: 0, expired: [] as string[] };
+  let webResult   = { sent: 0, failed: 0, expired: [] as string[] };
+  const hasFcmEnv = Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  const hasVapid  = Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
+
+  if (fcmTokens.length > 0 && hasFcmEnv) {
+    fcmResult = await sendFcmToMany(fcmTokens, payload as PushPayload);
+  }
+  if (webSubs.length > 0 && hasVapid) {
+    webResult = await sendPushToMany(webSubs, payload as PushPayload);
+  }
 
   return NextResponse.json({
-    ok:      true,
-    sent:    true,
+    ok: true,
     type,
     payload,
-    message: `Test "${type}" notification sent to all subscribers`,
+    debug: {
+      fcm: {
+        tokensFound:   fcmTokens.length,
+        envConfigured: hasFcmEnv,
+        sent:          fcmResult.sent,
+        failed:        fcmResult.failed,
+      },
+      webPush: {
+        subsFound:     webSubs.length,
+        envConfigured: hasVapid,
+        sent:          webResult.sent,
+        failed:        webResult.failed,
+      },
+    },
   });
 }
