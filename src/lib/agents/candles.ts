@@ -75,8 +75,8 @@ const FINNHUB_RESOLUTION: Record<Timeframe, string> = {
 
 const lastKnownCandles = new Map<string, CandleBar[]>();
 
-function logCandleDebug(payload: Record<string, unknown>) {
-  console.log("[mtf-candles]", JSON.stringify(payload));
+function logCandleDebug(_payload: Record<string, unknown>) {
+  // Production logging removed — re-enable locally with: console.log("[mtf-candles]", JSON.stringify(_payload))
 }
 
 function cacheKey(symbol: Symbol, timeframe: Timeframe): string {
@@ -804,7 +804,7 @@ async function fetchFinnhubDailyCandles(symbol: Symbol): Promise<CandleBar[] | n
       );
 
       if (hasValidCandles(candles)) {
-        console.log("[mtf-candles]", JSON.stringify({ symbol, interval: "D1", provider: "finnhub", providerSymbol, status: "ok", candles: candles.length }));
+        // debug: mtf-candles log removed from production
         return candles;
       }
     } catch {
@@ -845,7 +845,7 @@ async function fetchTwelvedataDailyCandles(symbol: Symbol): Promise<CandleBar[] 
     );
 
     if (hasValidCandles(candles)) {
-      console.log("[mtf-candles]", JSON.stringify({ symbol, interval: "D1", provider: "twelvedata", status: "ok", candles: candles.length }));
+      // debug: mtf-candles log removed from production
     }
     return hasValidCandles(candles) ? candles : null;
   } catch {
@@ -870,7 +870,7 @@ export async function getDailyStructure(symbol: Symbol): Promise<DailyStructure 
         const yahooBars = await fetchYahooCandles(displaySym, "D1");
         if (yahooBars && yahooBars.length > 0) {
           candles = normalizeCandles(yahooBars);
-          console.log("[mtf-candles]", JSON.stringify({ symbol, interval: "D1", provider: "yahoo", status: "ok", candles: candles.length }));
+          // debug: mtf-candles log removed from production
         }
       } catch {
         // skip
@@ -891,10 +891,7 @@ export async function getDailyStructure(symbol: Symbol): Promise<DailyStructure 
   const structuralHigh = Math.max(...window20.map(bar => bar.h));
   const structuralLow  = Math.min(...window20.map(bar => bar.l));
 
-  console.log("[mtf-candles]", JSON.stringify({
-    symbol, interval: "D1", provider: "resolved", status: "ok",
-    candles: candles.length, drift20d: drift20d.toFixed(2), drift5d: drift5d.toFixed(2), rsi14d: rsi14d.toFixed(1),
-  }));
+  logCandleDebug({ symbol, interval: "D1", provider: "resolved", status: "ok", candles: candles.length });
 
   return { drift20d, drift5d, rsi14d, structuralHigh, structuralLow };
 }

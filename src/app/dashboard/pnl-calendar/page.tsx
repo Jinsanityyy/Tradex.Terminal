@@ -1050,7 +1050,9 @@ export default function PnLCalendarPage() {
 
       {/* ── Analytics Tab ── */}
       {activeTab === "analytics" && (
-        <AnalyticsView trades={manualTrades} daily={daily} />
+        loading
+          ? <div className="flex items-center justify-center py-20"><div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-600 border-t-zinc-300" /></div>
+          : <AnalyticsView trades={manualTrades} daily={daily} />
       )}
 
       {activeTab === "calendar" && <>

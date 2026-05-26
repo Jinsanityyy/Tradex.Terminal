@@ -271,9 +271,7 @@ export async function runExecutionAgent(
 
     // ── HTF bias check ──────────────────────────────────────────────────────────────────
     const sweepActive = smc.liquiditySweepDetected && smc.setupPresent && smc.bias !== "neutral";
-    console.log(`[exec] ${symbol} ${timeframe} sweep=${smc.liquiditySweepDetected} setupPresent=${smc.setupPresent} bias=${smc.bias} htfBias=${htfBias}@${htfConfidence}% kz=${inKillzone}`);
     if (!sweepActive && (htfBias === "neutral" || htfConfidence < 35)) {
-      console.log(`[exec] blocked: no directional bias (sweep=${smc.liquiditySweepDetected} htfBias=${htfBias} htfConf=${htfConfidence})`);
       return noTradeResult(start, "No directional bias confirmed  -  stand aside");
     }
 
@@ -384,7 +382,6 @@ export async function runExecutionAgent(
         entryZone = `${session} kill zone  -  HTF ${htfBias} at ${htfConfidence}% conviction, market entry`;
         slZone    = `${isBullish ? "Below" : "Above"} ATR-based stop ${stopLoss.toFixed(2)}  -  bias invalidated on close through`;
         entryInStructure = true;
-        console.log(`[exec] HTF continuation path: ${symbol} ${timeframe} ${htfBias}@${htfConfidence}% entry=${entry.toFixed(2)} sl=${stopLoss.toFixed(2)} slDist=${slDist.toFixed(2)}`);
       } else if (hasBias) {
         return waitResult(start, "B",
           `HTF ${htfBias} bias at ${htfConfidence}% confidence but no sweep, FVG, or OB in current session  -  awaiting structure formation`
@@ -399,7 +396,6 @@ export async function runExecutionAgent(
       const MAX_ENTRY_DIST_PCT = CRYPTO_SYMS.has(symbol) ? 2.0 : GOLD_SYMS.has(symbol) ? 1.5 : 1.5;
       const entryDistPct = Math.abs(current - entry) / current * 100;
       if (entryDistPct > MAX_ENTRY_DIST_PCT) {
-        console.log(`[exec] Entry too far: ${symbol} structural entry=${entry.toFixed(2)} current=${current.toFixed(2)} dist=${entryDistPct.toFixed(2)}% > ${MAX_ENTRY_DIST_PCT}%`);
         return waitResult(start, "B",
           `Structural entry ${entry.toFixed(2)} is ${entryDistPct.toFixed(2)}% from current ${current.toFixed(2)}  -  too far to be actionable, await pullback`
         );
@@ -424,7 +420,6 @@ export async function runExecutionAgent(
       const limitMsg = GOLD_SYMS.has(symbol)
         ? `Gold ${timeframe} SL = ${riskDist.toFixed(1)} pts (allowed: ${lim.min}–${lim.max} pts)`
         : `SL ${riskDist.toFixed(4)} exceeds ${((CRYPTO_SYMS.has(symbol) ? CRYPTO_SL_MAX[timeframe] ?? 0.025 : PCT_SL_MAX[timeframe] ?? 0.008) * 100).toFixed(1)}% max for ${timeframe}`;
-      console.log(`[exec] SL out-of-range blocked: ${symbol} ${timeframe} entry=${entry.toFixed(2)} sl=${stopLoss.toFixed(2)} riskDist=${riskDist.toFixed(2)}  -  ${limitMsg}`);
       return waitResult(start, "B", `${limitMsg}  -  wait for better structure`);
     }
 
@@ -500,7 +495,6 @@ export async function runExecutionAgent(
     const confluenceFactors = passedFactors.map(f => f.label);
 
     const grade = gradeSetup(rrRatio, confluenceCount, slInRange, inKillzone, entryInStructure);
-    console.log(`[exec] ${symbol} ${timeframe} grade=${grade} rr=${rrRatio} conf=${confluenceCount} slInRange=${slInRange} kz=${inKillzone} entryInStruct=${entryInStructure} entry=${entry.toFixed(2)} sl=${stopLoss.toFixed(2)} riskDist=${riskDist.toFixed(2)}`);
 
     // Grade C → reject entirely, no signal
     if (grade === "C") {
