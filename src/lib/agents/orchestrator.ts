@@ -373,7 +373,9 @@ export async function runAgentOrchestrator(
   };
 
   // ── Persist result to Supabase cache ────────────────────────────────────
-  void setAgentCache(symbol, timeframe, result).catch(err =>
+  // ARMED signals use extended TTL so entry/SL/TP values stay locked on reopen
+  const isArmed = !!master.tradePlan;
+  void setAgentCache(symbol, timeframe, result, isArmed).catch(err =>
     console.warn("[orchestrator] cache write failed:", err)
   );
 

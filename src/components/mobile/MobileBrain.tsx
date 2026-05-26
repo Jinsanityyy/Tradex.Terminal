@@ -359,10 +359,16 @@ export function MobileBrain() {
     return () => window.clearInterval(id);
   }, []);
 
-  const { data, isLoading, mutate } = useSWR<AgentRunResult>(
+  const { data, isLoading, error, mutate } = useSWR<AgentRunResult>(
     `/api/agents/run?symbol=${symbol}&timeframe=${timeframe}`,
     fetcher,
-    { revalidateOnFocus: false, dedupingInterval: 300_000 }
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 300_000,
+      errorRetryCount: 2,
+      errorRetryInterval: 15_000,
+    }
   );
 
   const handleRefresh = useCallback(async () => {
@@ -581,7 +587,24 @@ export function MobileBrain() {
             </div>
           )}
 
-          {!data && !isLoading && (
+          {!data && !isLoading && error && (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <div className="h-12 w-12 rounded-full border border-red-500/20 bg-red-500/8 flex items-center justify-center">
+                <AlertTriangle className="h-5 w-5 text-red-400" />
+              </div>
+              <p className="text-[12px] font-semibold text-zinc-400">Analysis unavailable</p>
+              <p className="text-[11px] text-zinc-600 text-center max-w-[220px]">Server timed out or lost connection. Tap Refresh to retry.</p>
+              <button
+                onClick={handleRefresh}
+                disabled={isOnCooldown || !subscription.hasFullAccess}
+                className="mt-1 px-4 py-2 rounded-xl border border-white/10 text-[11px] text-zinc-400 active:bg-white/5 disabled:opacity-40"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {!data && !isLoading && !error && (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <div className="h-12 w-12 rounded-full border border-white/10 bg-white/3 flex items-center justify-center">
                 <RefreshCw className="h-5 w-5 text-zinc-600" />

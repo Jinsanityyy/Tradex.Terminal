@@ -15,6 +15,7 @@ import type { SignalRecord, SignalOutcome, SignalStatus } from "./types";
 import type { Timeframe } from "@/lib/agents/schemas";
 import { getOpenSignals, getSignals, updateSignal } from "./storage";
 import { fetchYahooCandles, type YahooCandleBar } from "@/lib/api/yahoo-finance";
+import { clearAgentArmedCache } from "@/lib/agents/agent-cache-store";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Config
@@ -423,6 +424,8 @@ export async function trackOpenSignals(): Promise<TrackingResult> {
         status: resolution.status,
         pnlR: resolution.outcome.pnlR,
       });
+      // Clear the armed lock so the next app open fetches fresh agents
+      void clearAgentArmedCache(signal.symbol, signal.timeframe).catch(() => {});
     }
   }
 
