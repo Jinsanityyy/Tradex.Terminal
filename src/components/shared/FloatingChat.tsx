@@ -109,7 +109,11 @@ export function FloatingChat() {
           const senderName = msg.display_name ?? "Trader";
           toast(`💬 ${senderName}`, { description: msg.content.slice(0, 60), duration: 4000 });
           if (Notification.permission === "granted" && document.hidden) {
-            new Notification(`💬 ${senderName} in Group Chat`, { body: msg.content.slice(0, 80), icon: "/logo.png" });
+            if (navigator.serviceWorker?.controller) {
+              navigator.serviceWorker.ready.then(reg => reg.showNotification(`💬 ${senderName} in Group Chat`, { body: msg.content.slice(0, 80), icon: "/logo.png" })).catch(() => {});
+            } else {
+              try { new Notification(`💬 ${senderName} in Group Chat`, { body: msg.content.slice(0, 80), icon: "/logo.png" }); } catch {}
+            }
           }
         }
       })

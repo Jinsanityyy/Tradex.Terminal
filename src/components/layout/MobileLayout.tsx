@@ -203,10 +203,11 @@ export function MobileLayout() {
               if (typeof Notification !== "undefined" &&
                   Notification.permission === "granted" &&
                   document.hidden) {
-                new Notification(`🔔 ${sender} mentioned you`, {
-                  body: msg.content.slice(0, 80),
-                  icon: "/logo.png",
-                });
+                if (navigator.serviceWorker?.controller) {
+                  navigator.serviceWorker.ready.then(reg => reg.showNotification(`🔔 ${sender} mentioned you`, { body: msg.content.slice(0, 80), icon: "/logo.png" })).catch(() => {});
+                } else {
+                  try { new Notification(`🔔 ${sender} mentioned you`, { body: msg.content.slice(0, 80), icon: "/logo.png" }); } catch {}
+                }
               }
             }
           }

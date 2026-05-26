@@ -9,6 +9,14 @@ import { playNotificationPing } from "@/lib/audio";
 import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
 import type { TakenSignal } from "@/lib/trades/trade-log";
 
+function showNativeNotification(title: string, options: NotificationOptions) {
+  if (navigator.serviceWorker?.controller) {
+    navigator.serviceWorker.ready.then(reg => reg.showNotification(title, options)).catch(() => {});
+  } else {
+    try { new Notification(title, options); } catch {}
+  }
+}
+
 // ─── Severity → accent ───────────────────────────────────────────────────────
 
 const SEVERITY_COLOR: Record<string, string> = {
@@ -147,7 +155,7 @@ export function NotificationToast() {
     setNotifs(prev => [n, ...prev].slice(0, 5));
     playNotificationPing();
     if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-      new Notification(n.title, { body: n.body, icon: "/logo.png" });
+      showNativeNotification(n.title, { body: n.body, icon: "/logo.png" });
     }
   }, []);
 
