@@ -28,15 +28,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     const shell = shellRef.current;
     if (!shell) return;
-
-    const preventContextMenu = (event: MouseEvent) => {
-      event.preventDefault();
-    };
-
-    shell.addEventListener("contextmenu", preventContextMenu, true);
-    return () => {
-      shell.removeEventListener("contextmenu", preventContextMenu, true);
-    };
   }, []);
 
   return (

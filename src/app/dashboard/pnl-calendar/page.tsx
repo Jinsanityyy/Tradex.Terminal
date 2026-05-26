@@ -176,7 +176,7 @@ function DayJournalModal({
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
-    Array.from(e.dataTransfer.files).forEach(f => handleFileUpload(f));
+    Array.from(e.dataTransfer.files as FileList).forEach((f: File) => handleFileUpload(f));
   }
 
   const hasPnl = pnlData && pnlData.trades > 0;
@@ -261,8 +261,8 @@ function DayJournalModal({
                   multiple
                   className="hidden"
                   onChange={e => {
-                    const files = Array.from(e.target.files ?? []);
-                    files.forEach(f => handleFileUpload(f));
+                    const files = Array.from((e.target.files ?? []) as FileList);
+                    files.forEach((f: File) => handleFileUpload(f));
                     e.target.value = "";
                   }}
                 />
@@ -1366,7 +1366,7 @@ export default function PnLCalendarPage() {
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-[hsl(var(--muted-foreground))]">Entries this month</span>
                 <span className="text-[11px] font-semibold text-[hsl(var(--foreground))] font-mono">
-                  {Array.from(journalEntries.values()).filter(e => {
+                  {Array.from(journalEntries.values()).filter((e: JournalEntry) => {
                     const key = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`;
                     return e.date.startsWith(key) && (e.note?.trim() || e.screenshot_urls?.length > 0);
                   }).length}

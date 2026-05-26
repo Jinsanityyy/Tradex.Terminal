@@ -50,6 +50,7 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "economic-calendar", x: 0, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "pnl-calendar", x: 12, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "lot-calculator", x: 0, y: 40, w: 8, h: 8, minW: 6, minH: 7 },
+    { i: "live-prices", x: 8, y: 40, w: 16, h: 4, minW: 8, minH: 3 },
   ],
   minimal: [
     { i: "chart", x: 0, y: 0, w: 16, h: 16, minW: 10, minH: 14 },
@@ -65,6 +66,7 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "economic-calendar", x: 0, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "pnl-calendar", x: 12, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "lot-calculator", x: 0, y: 40, w: 8, h: 8, minW: 6, minH: 7 },
+    { i: "live-prices", x: 8, y: 40, w: 16, h: 4, minW: 8, minH: 3 },
   ],
   // "Custom" starts as a copy of "pro"  -  users save over it via "Save Layout"
   custom: [
@@ -81,6 +83,7 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "economic-calendar", x: 0, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "pnl-calendar", x: 12, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "lot-calculator", x: 0, y: 40, w: 8, h: 8, minW: 6, minH: 7 },
+    { i: "live-prices", x: 8, y: 40, w: 16, h: 4, minW: 8, minH: 3 },
   ],
 };
 

@@ -91,7 +91,9 @@ export function CommunityPanel() {
   const [tagQuery, setTagQuery]       = useState<string | null>(null);
   const bottomRef  = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLInputElement>(null);
-  const typingTimer = useRef<NodeJS.Timeout | null>(null);
+  const typingTimer  = useRef<NodeJS.Timeout | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const channelRef   = useRef<any>(null);
 
   // Build tag candidates from actual message senders — more reliable than
   // the profiles table which may have display_name = null for some users.
@@ -120,7 +122,8 @@ export function CommunityPanel() {
     return [...fromMessages, ...fromProfiles].slice(0, 6);
   }, [tagQuery, messageSenders, members]);
 
-  const supabase = createClient();
+  // Stable client reference — prevents useEffect dependency churn
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     const sb = createClient();
@@ -214,7 +217,11 @@ export function CommunityPanel() {
         setTimeout(() => setTypingUsers(prev => prev.filter(n => n !== display_name)), 2000);
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    channelRef.current = channel;
+    return () => {
+      channelRef.current = null;
+      supabase.removeChannel(channel);
+    };
   }, [userId, supabase]);
 
   useEffect(() => {
@@ -222,8 +229,8 @@ export function CommunityPanel() {
   }, [messages]);
 
   function broadcastTyping() {
-    if (!supabase || !userId) return;
-    supabase.channel("community_chat").send({
+    if (!channelRef.current || !userId) return;
+    channelRef.current.send({
       type: "broadcast", event: "typing",
       payload: { user_id: userId, display_name: traderName },
     });
@@ -295,7 +302,7 @@ export function CommunityPanel() {
           <div className="flex items-center gap-1">
             <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
             <span className="text-[10px] text-[hsl(var(--muted-foreground))]">
-              {Math.max(1, members.length)} online
+              {members.length || "..."} members
             </span>
           </div>
         </div>

@@ -140,11 +140,7 @@ export function useAnalytics() {
     scrollDepth.current  = 0;
     pageViewId.current   = null;
 
-    // Start new page view
-    track("pageview_start", { sessionToken: token, page: pathname, pageTitle: title })
-      .then(); // fire and forget
-
-    // Capture returned pageViewId asynchronously
+    // Start new page view — single fetch so we can capture the returned pageViewId
     fetch("/api/analytics/track", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
