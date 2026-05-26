@@ -43,7 +43,7 @@ export async function sendFcmToToken(
           channelId:            "default",
           priority:             isHigh ? "max" : "default",
           defaultVibrateTimings: true,
-          color:                payload.severity === "high" ? "#ef4444" : "#f59e0b",
+          color:                "#0a0e1a",  // TradeX dark background — matches logo
         },
       },
     });
