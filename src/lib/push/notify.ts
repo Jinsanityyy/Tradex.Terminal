@@ -31,7 +31,7 @@ async function getWebPushSubs() {
 
 // ── Core sender ────────────────────────────────────────────────────────────
 
-async function broadcast(payload: PushPayload): Promise<void> {
+export async function broadcast(payload: PushPayload): Promise<void> {
   try {
     const [fcmTokens, webSubs] = await Promise.all([getFcmTokens(), getWebPushSubs()]);
 
