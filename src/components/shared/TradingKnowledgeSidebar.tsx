@@ -47,14 +47,14 @@ function renderContent(content: string) {
           .map((c) => c.trim())
       );
       elements.push(
-        <div key={`table-${i}`} className="overflow-x-auto my-2.5">
-          <table className="w-full text-[11px] border-collapse">
+        <div key={`table-${i}`} className="overflow-x-auto my-3">
+          <table className="w-full text-[13px] border-collapse">
             <thead>
               <tr className="border-b border-[hsl(var(--border))]">
                 {headers.map((h, idx) => (
                   <th
                     key={idx}
-                    className="text-left py-1.5 px-2 text-[hsl(var(--muted-foreground))] font-semibold uppercase tracking-wide"
+                    className="text-left py-2 px-3 text-[hsl(var(--muted-foreground))] font-semibold uppercase tracking-wide"
                   >
                     {h}
                   </th>
@@ -68,7 +68,7 @@ function renderContent(content: string) {
                   className="border-b border-[hsl(var(--border))]/50 hover:bg-[hsl(var(--secondary))]/30"
                 >
                   {row.map((cell, cIdx) => (
-                    <td key={cIdx} className="py-1.5 px-2 text-[hsl(var(--foreground))]/80">
+                    <td key={cIdx} className="py-2 px-3 text-[hsl(var(--foreground))]/80">
                       {cell}
                     </td>
                   ))}
@@ -89,7 +89,7 @@ function renderContent(content: string) {
     // Heading ##
     if (line.startsWith("## ")) {
       elements.push(
-        <p key={`h-${i}`} className="text-[12px] font-bold text-[hsl(var(--foreground))] mt-3 mb-1">
+        <p key={`h-${i}`} className="text-[14px] font-bold text-[hsl(var(--foreground))] mt-4 mb-1.5">
           {line.slice(3)}
         </p>
       );
@@ -100,14 +100,14 @@ function renderContent(content: string) {
     // Bold + body line with **text**
     const parsedLine = parseInline(line);
     elements.push(
-      <p key={`p-${i}`} className="text-[12px] text-[hsl(var(--foreground))]/80 leading-relaxed">
+      <p key={`p-${i}`} className="text-[13px] text-[hsl(var(--foreground))]/80 leading-relaxed">
         {parsedLine}
       </p>
     );
     i++;
   }
 
-  return <div className="space-y-0.5">{elements}</div>;
+  return <div className="space-y-1">{elements}</div>;
 }
 
 function parseInline(text: string): React.ReactNode {
@@ -128,30 +128,30 @@ function ItemCard({ item }: { item: KnowledgeItem }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="border border-[hsl(var(--border))] rounded-lg overflow-hidden">
+    <div className="border border-[hsl(var(--border))] rounded-xl overflow-hidden">
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-start gap-2.5 px-3 py-2.5 text-left hover:bg-[hsl(var(--secondary))]/50 transition-colors"
+        className="w-full flex items-start gap-3 px-4 py-3.5 text-left hover:bg-[hsl(var(--secondary))]/50 transition-colors"
       >
         <span className="mt-0.5 shrink-0 text-[hsl(var(--muted-foreground))]">
           {expanded ? (
-            <ChevronDown className="h-3.5 w-3.5" />
+            <ChevronDown className="h-4 w-4" />
           ) : (
-            <ChevronRight className="h-3.5 w-3.5" />
+            <ChevronRight className="h-4 w-4" />
           )}
         </span>
         <div className="flex-1 min-w-0">
-          <p className="text-[12.5px] font-semibold text-[hsl(var(--foreground))] leading-tight">
+          <p className="text-[14px] font-semibold text-[hsl(var(--foreground))] leading-tight">
             {item.title}
           </p>
-          <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 leading-snug">
+          <p className="text-[12.5px] text-[hsl(var(--muted-foreground))] mt-1 leading-snug">
             {item.summary}
           </p>
         </div>
       </button>
 
       {expanded && (
-        <div className="px-3 pb-3 pt-1 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))]/40">
+        <div className="px-4 pb-4 pt-2 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))]/40">
           {renderContent(item.content)}
         </div>
       )}
@@ -172,24 +172,24 @@ function CategorySection({
     <div>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-[hsl(var(--secondary))]/60 transition-colors"
+        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[hsl(var(--secondary))]/60 transition-colors"
       >
-        {(() => { const Icon = ICON_MAP[category.icon] ?? BookOpen; return <Icon className="h-3.5 w-3.5 shrink-0 text-zinc-500" />; })()}
-        <span className="flex-1 text-left text-[13px] font-semibold text-[hsl(var(--foreground))]">
+        {(() => { const Icon = ICON_MAP[category.icon] ?? BookOpen; return <Icon className="h-4.5 w-4.5 shrink-0 text-zinc-400" style={{ width: 18, height: 18 }} />; })()}
+        <span className="flex-1 text-left text-[15px] font-semibold text-[hsl(var(--foreground))]">
           {category.label}
         </span>
-        <span className="text-[10px] text-[hsl(var(--muted-foreground))] mr-1">
+        <span className="text-[12px] font-medium text-[hsl(var(--muted-foreground))] mr-1 bg-[hsl(var(--secondary))]/60 px-2 py-0.5 rounded-full">
           {category.items.length}
         </span>
         {open ? (
-          <ChevronDown className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />
+          <ChevronDown className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
         ) : (
-          <ChevronRight className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />
+          <ChevronRight className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
         )}
       </button>
 
       {open && (
-        <div className="mt-1 mb-2 ml-2 space-y-1.5">
+        <div className="mt-1 mb-3 ml-3 space-y-2">
           {category.items.map((item) => (
             <ItemCard key={item.id} item={item} />
           ))}
@@ -231,25 +231,25 @@ export function TradingKnowledgeContent() {
         <button
           onClick={() => setTab("patterns")}
           className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-medium border-b-2 transition-colors",
+            "flex-1 flex items-center justify-center gap-2 py-3.5 text-[14px] font-semibold border-b-2 transition-colors",
             tab === "patterns"
               ? "border-[hsl(var(--primary))] text-[hsl(var(--primary))]"
               : "border-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
           )}
         >
-          <LayoutGrid className="h-3.5 w-3.5" />
+          <LayoutGrid className="h-4 w-4" />
           Patterns
         </button>
         <button
           onClick={() => setTab("topics")}
           className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-medium border-b-2 transition-colors",
+            "flex-1 flex items-center justify-center gap-2 py-3.5 text-[14px] font-semibold border-b-2 transition-colors",
             tab === "topics"
               ? "border-[hsl(var(--primary))] text-[hsl(var(--primary))]"
               : "border-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
           )}
         >
-          <BookMarked className="h-3.5 w-3.5" />
+          <BookMarked className="h-4 w-4" />
           Topics
         </button>
       </div>
@@ -265,17 +265,17 @@ export function TradingKnowledgeContent() {
       {tab === "topics" && (
         <>
           {/* Search */}
-          <div className="px-3 py-2.5 border-b border-[hsl(var(--border))] shrink-0">
+          <div className="px-4 py-3 border-b border-[hsl(var(--border))] shrink-0">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted-foreground))]" />
               <input
                 ref={inputRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search topics, indicators, patterns…"
                 className={cn(
-                  "w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))]",
-                  "pl-8 pr-3 py-1.5 text-[12px] text-[hsl(var(--foreground))]",
+                  "w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background))]",
+                  "pl-10 pr-4 py-2.5 text-[14px] text-[hsl(var(--foreground))]",
                   "placeholder:text-[hsl(var(--muted-foreground))]",
                   "outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]/50 focus:border-[hsl(var(--primary))]/50",
                   "transition-colors"
@@ -284,24 +284,24 @@ export function TradingKnowledgeContent() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
+          <div className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
             {searchResults !== null ? (
               searchResults.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
-                  <Search className="h-8 w-8 text-[hsl(var(--muted-foreground))]/30" />
-                  <p className="text-[12px] text-[hsl(var(--muted-foreground))]">
+                <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+                  <Search className="h-10 w-10 text-[hsl(var(--muted-foreground))]/30" />
+                  <p className="text-[14px] text-[hsl(var(--muted-foreground))]">
                     No results for &ldquo;{query}&rdquo;
                   </p>
                 </div>
               ) : (
-                <div className="space-y-1.5 px-1">
-                  <p className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-widest px-2 py-1">
+                <div className="space-y-2 px-1">
+                  <p className="text-[12px] text-[hsl(var(--muted-foreground))] uppercase tracking-widest px-2 py-1">
                     {searchResults.length} result{searchResults.length !== 1 ? "s" : ""}
                   </p>
                   {searchResults.map(({ category, item }) => (
                     <div key={item.id}>
-                      <p className="text-[10px] text-[hsl(var(--muted-foreground))] px-2 mb-1">
-                        {(() => { const Icon = ICON_MAP[category.icon] ?? BookOpen; return <><Icon className="inline h-3 w-3 mr-1 text-zinc-500" />{category.label}</>; })()}
+                      <p className="text-[12px] text-[hsl(var(--muted-foreground))] px-2 mb-1.5">
+                        {(() => { const Icon = ICON_MAP[category.icon] ?? BookOpen; return <><Icon className="inline h-3.5 w-3.5 mr-1 text-zinc-500" />{category.label}</>; })()}
                       </p>
                       <ItemCard item={item} />
                     </div>
@@ -346,28 +346,28 @@ export function TradingKnowledgeSidebar({ open, onClose }: TradingKnowledgeSideb
       {/* Panel */}
       <aside
         className={cn(
-          "fixed right-0 top-0 z-[50] flex h-screen w-[360px] max-w-[calc(100vw-60px)] flex-col",
+          "fixed right-0 top-0 z-[50] flex h-screen w-[480px] max-w-[calc(100vw-60px)] flex-col",
           "border-l border-[hsl(var(--border))] bg-[hsl(var(--card))]",
           "transition-transform duration-300 ease-in-out",
           open ? "translate-x-0" : "translate-x-full"
         )}
       >
         {/* Header */}
-        <div className="flex items-center gap-2.5 border-b border-[hsl(var(--border))] px-4 py-3 shrink-0">
-          <BookOpen className="h-4 w-4 text-[hsl(var(--primary))]" />
+        <div className="flex items-center gap-3 border-b border-[hsl(var(--border))] px-5 py-4 shrink-0">
+          <BookOpen className="h-5 w-5 text-[hsl(var(--primary))]" />
           <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-bold text-[hsl(var(--foreground))] leading-tight">
+            <p className="text-[16px] font-bold text-[hsl(var(--foreground))] leading-tight">
               Trading Knowledge
             </p>
-            <p className="text-[10px] text-[hsl(var(--muted-foreground))]">
+            <p className="text-[12px] text-[hsl(var(--muted-foreground))] mt-0.5">
               {totalTopics} topics · Basics to Advanced
             </p>
           </div>
           <button
             onClick={onClose}
-            className="rounded-md p-1.5 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))] transition-colors"
+            className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))] transition-colors"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
@@ -376,8 +376,8 @@ export function TradingKnowledgeSidebar({ open, onClose }: TradingKnowledgeSideb
         </div>
 
         {/* Footer */}
-        <div className="border-t border-[hsl(var(--border))] px-4 py-2.5 shrink-0">
-          <p className="text-[10px] text-[hsl(var(--muted-foreground))] text-center">
+        <div className="border-t border-[hsl(var(--border))] px-5 py-3 shrink-0">
+          <p className="text-[12px] text-[hsl(var(--muted-foreground))] text-center">
             {TRADING_KNOWLEDGE.length} categories · Basics → SMC → Psychology
           </p>
         </div>

@@ -878,13 +878,13 @@ const SentimentBadge: React.FC<SentimentBadgeProps> = ({ sentiment }) => {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-bold tracking-wide border",
+        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-bold tracking-wide border",
         cfg.bg,
         cfg.text,
         cfg.border
       )}
     >
-      <span className={cn("w-1.5 h-1.5 rounded-full", cfg.dot)} />
+      <span className={cn("w-2 h-2 rounded-full", cfg.dot)} />
       {cfg.label}
     </span>
   );
@@ -913,17 +913,17 @@ const PatternCard: React.FC<PatternCardProps> = ({ pattern }) => {
   return (
     <article
       className={cn(
-        "rounded-xl border border-white/5 bg-zinc-900 overflow-hidden",
-        "shadow-lg shadow-black/40"
+        "rounded-2xl border border-white/5 bg-zinc-900 overflow-hidden",
+        "shadow-xl shadow-black/50"
       )}
     >
       {/* Header */}
-      <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-3">
+      <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4">
         <div className="min-w-0">
-          <h3 className="text-white font-bold text-base leading-tight truncate">{name}</h3>
+          <h3 className="text-white font-bold text-[17px] leading-tight truncate">{name}</h3>
           <span
             className={cn(
-              "inline-block mt-1 text-[10px] font-semibold tracking-widest uppercase px-2 py-0.5 rounded border",
+              "inline-block mt-1.5 text-[11px] font-semibold tracking-widest uppercase px-2.5 py-0.5 rounded-md border",
               categoryBadgeClass[category]
             )}
           >
@@ -936,21 +936,23 @@ const PatternCard: React.FC<PatternCardProps> = ({ pattern }) => {
       </div>
 
       {/* Divider */}
-      <div className="h-px bg-white/5 mx-4" />
+      <div className="h-px bg-white/5 mx-5" />
 
-      {/* SVG Diagram */}
-      <div className="px-3 py-3 bg-black/20">
-        <Diagram />
+      {/* SVG Diagram — taller for better visibility */}
+      <div className="px-4 py-4 bg-black/30">
+        <div style={{ minHeight: 160 }}>
+          <Diagram />
+        </div>
       </div>
 
       {/* Divider */}
-      <div className="h-px bg-white/5 mx-4" />
+      <div className="h-px bg-white/5 mx-5" />
 
       {/* Bullet points */}
-      <ul className="px-4 py-3 space-y-1.5">
+      <ul className="px-5 py-4 space-y-2.5">
         {points.map((point, i) => (
-          <li key={i} className="flex items-start gap-2 text-sm text-zinc-300 leading-snug">
-            <span className="mt-[3px] shrink-0 text-zinc-500 select-none">›</span>
+          <li key={i} className="flex items-start gap-2.5 text-[14px] text-zinc-300 leading-snug">
+            <span className="mt-[2px] shrink-0 text-zinc-500 select-none text-base">›</span>
             <span>{point}</span>
           </li>
         ))}
@@ -986,13 +988,13 @@ export const PatternCardsView: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-black text-white">
       {/* Filter Tabs */}
-      <div className="flex items-center gap-1 px-3 pt-3 pb-2 shrink-0 overflow-x-auto scrollbar-none">
+      <div className="flex items-center gap-1.5 px-4 pt-4 pb-3 shrink-0 overflow-x-auto scrollbar-none border-b border-white/5">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all",
+              "flex items-center gap-2 px-4 py-2 rounded-lg text-[14px] font-medium whitespace-nowrap transition-all",
               activeTab === tab.id
                 ? "bg-zinc-800 text-white shadow-sm"
                 : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900"
@@ -1001,7 +1003,7 @@ export const PatternCardsView: React.FC = () => {
             {tab.label}
             <span
               className={cn(
-                "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
+                "text-[11px] font-bold px-2 py-0.5 rounded-full",
                 activeTab === tab.id
                   ? "bg-zinc-700 text-zinc-200"
                   : "bg-zinc-900 text-zinc-600"
@@ -1014,7 +1016,7 @@ export const PatternCardsView: React.FC = () => {
       </div>
 
       {/* Scrollable card list */}
-      <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {filtered.map((pattern) => (
           <PatternCard key={pattern.id} pattern={pattern} />
         ))}
