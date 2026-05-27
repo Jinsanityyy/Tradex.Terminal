@@ -196,22 +196,31 @@ export async function GET(req: NextRequest) {
       }>;
 
       // 4a. New open signals (new trade setups)
+      // Deduplicate by content fingerprint (symbol|entry|dir|tf) NOT by DB id —
+      // force-refresh creates a new DB record each time (new UUID) so ID-based
+      // dedup lets the same signal fire repeatedly as the user refreshes.
       const seenSignals = await getSeenIds(sb, SEEN_SIGNALS_KEY);
-      const newSignals  = recent.filter(s => s.status === "open" && !seenSignals.has(s.id) && s.tradePlan);
+      const signalFp = (s: typeof recent[0]) =>
+        `${s.symbol}|${s.tradePlan?.entry}|${s.tradePlan?.direction}|${s.timeframe}`;
+      const newSignals = recent.filter(
+        s => s.status === "open" && s.tradePlan && !seenSignals.has(signalFp(s))
+      );
 
       for (const s of newSignals.slice(0, 2)) {
-        const dir    = s.tradePlan!.direction === "long" ? "🟢 BUY" : "🔴 SELL";
-        const rr     = s.tradePlan!.rrRatio?.toFixed(1) ?? "?";
+        const dir = s.tradePlan!.direction === "long" ? "🟢 BUY" : "🔴 SELL";
+        const rr  = s.tradePlan!.rrRatio?.toFixed(1) ?? "?";
         payloads.push({
           title: `📊 New Signal: ${s.symbolDisplay ?? s.symbol}`,
           body: `${dir} | Entry: ${s.tradePlan!.entry} | RR: ${rr}R | TF: ${s.timeframe}`,
           url: "/dashboard/signals",
           severity: "high",
           type: "signal",
-          tag: `signal-${s.id}`,
+          // tag collapses duplicate notifications on the device
+          tag: `signal-${s.symbol}-${s.tradePlan!.entry}-${s.tradePlan!.direction}`,
         });
       }
-      await markSeen(sb, SEEN_SIGNALS_KEY, newSignals.map(s => s.id));
+      // Store fingerprints so the same setup never re-notifies even with a new DB id
+      await markSeen(sb, SEEN_SIGNALS_KEY, newSignals.slice(0, 2).map(signalFp));
 
       // 4b. SL / TP hit outcomes
       const seenSlTp    = await getSeenIds(sb, SEEN_SLTP_KEY);
