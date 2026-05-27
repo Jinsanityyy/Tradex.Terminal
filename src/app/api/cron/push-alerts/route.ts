@@ -128,7 +128,7 @@ export async function GET(req: NextRequest) {
     const res = await fetch(`${baseUrl}/api/market/trump`, { cache: "no-store" });
     if (res.ok) {
       const json = await res.json();
-      const posts     = (json.posts ?? []).filter((p: { id?: string }) => p.id);
+      const posts     = (json.data ?? json.posts ?? []).filter((p: { id?: string }) => p.id);
       const seenTrump = await getSeenIds(sb, SEEN_TRUMP_KEY);
       const newPosts  = posts.filter((p: { id?: string }) => !seenTrump.has(p.id!));
 
@@ -160,7 +160,9 @@ export async function GET(req: NextRequest) {
         impactScore: number;
         category?: string;
       }>;
-      const highNews = allNews.filter(n => n.id && n.impactScore >= 8);
+      const cutoff   = Date.now() - 30 * 60 * 1000; // only news from last 30 min
+      const highNews = (allNews as Array<{ id: string; headline: string; impactScore: number; timestamp?: string }>)
+        .filter(n => n.id && n.impactScore >= 8 && (!n.timestamp || new Date(n.timestamp).getTime() >= cutoff));
       const seenNews = await getSeenIds(sb, SEEN_NEWS_KEY);
       const newNews  = highNews.filter(n => !seenNews.has(n.id));
 

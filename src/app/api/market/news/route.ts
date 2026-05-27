@@ -193,7 +193,7 @@ async function fetchTavilyGoldNews(): Promise<NewsItem[]> {
           ? new Date(r.published_date).toISOString()
           : new Date(Date.now() - i * 5 * 60 * 1000).toISOString();
         return {
-          id: `tv-${i}-${Date.now()}`,
+          id: `tv-${headline.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 40)}`,
           timestamp: ts,
           headline,
           category: cat,
