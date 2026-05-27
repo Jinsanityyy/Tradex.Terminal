@@ -153,10 +153,14 @@ public class TradeXMessagingService extends MessagingService {
     }
 
     private Bitmap buildTradeXLargeIcon() {
-        // ic_tradex_large.png = full app icon with dark background + TRADEX text (512x512 PNG)
-        Bitmap logo = BitmapFactory.decodeResource(getResources(), R.drawable.ic_tradex_large);
+        // Decode at native size (no auto-upscaling) to avoid OOM on high-density devices
+        BitmapFactory.Options opts = new BitmapFactory.Options();
+        opts.inScaled = false;
+        Bitmap logo = BitmapFactory.decodeResource(getResources(), R.drawable.ic_tradex_large, opts);
         if (logo == null) return null;
         int targetSize = Math.max(96, Math.round(64 * getResources().getDisplayMetrics().density));
-        return Bitmap.createScaledBitmap(logo, targetSize, targetSize, true);
+        Bitmap scaled = Bitmap.createScaledBitmap(logo, targetSize, targetSize, true);
+        logo.recycle();
+        return scaled;
     }
 }
