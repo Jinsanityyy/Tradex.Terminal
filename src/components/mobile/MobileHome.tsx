@@ -193,8 +193,27 @@ export function MobileHome() {
   const [takingTrade, setTakingTrade] = useState(false);
   const [closingTrade, setClosingTrade] = useState<TakenSignal | null>(null);
   const containerRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLElement>;
+  const [lastOutcome, setLastOutcome] = useState<{ status: string; pnlR?: number } | null>(null);
 
   useEffect(() => { setTradeLog(loadTradeLog()); }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/signals?symbol=${activeSymbol}&limit=10&period=7d`)
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (cancelled || !json) return;
+        const resolved = (json.recent ?? []).find(
+          (s: { status: string }) => ["win_tp1", "win_tp2", "loss_sl"].includes(s.status)
+        );
+        setLastOutcome(resolved
+          ? { status: resolved.status, pnlR: resolved.outcome?.pnlR }
+          : null
+        );
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [activeSymbol]);
 
   const symbolBiasLabel = getSymbolLabel(activeSymbol);
   const symbolBiasShort = getSymbolShort(activeSymbol);
@@ -480,6 +499,22 @@ export function MobileHome() {
                     )}
                     {signalState === "NO_TRADE" && master?.noTradeReason && (
                       <p className="text-[9px] text-zinc-600 mt-1 leading-tight line-clamp-2">{master.noTradeReason}</p>
+                    )}
+                    {lastOutcome && (
+                      <div className={cn(
+                        "mt-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold",
+                        lastOutcome.status === "loss_sl"
+                          ? "bg-red-500/15 text-red-400"
+                          : "bg-emerald-500/15 text-emerald-400"
+                      )}>
+                        {lastOutcome.status === "win_tp2" ? "TP2 ✅✅" :
+                         lastOutcome.status === "win_tp1" ? "TP1 ✅"   : "SL ❌"}
+                        {lastOutcome.pnlR != null && (
+                          <span className="opacity-70 ml-0.5">
+                            {lastOutcome.pnlR > 0 ? `+${lastOutcome.pnlR}R` : `${lastOutcome.pnlR}R`}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
 
