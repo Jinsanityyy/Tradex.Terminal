@@ -50,10 +50,7 @@ public class TradeXMessagingService extends MessagingService {
         String severity = firstNonEmpty(message.getData().get("severity"), "medium");
         String tag = emptyToNull(message.getData().get("tag"));
 
-        Bitmap largeIcon = BitmapFactory.decodeResource(
-            getResources(),
-            R.mipmap.ic_launcher_round
-        );
+        Bitmap largeIcon = buildTradeXLargeIcon();
 
         Intent launch = getPackageManager().getLaunchIntentForPackage(getPackageName());
         PendingIntent pendingIntent = null;
@@ -78,7 +75,6 @@ public class TradeXMessagingService extends MessagingService {
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setLargeIcon(largeIcon)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
@@ -89,6 +85,10 @@ public class TradeXMessagingService extends MessagingService {
             .setColor(ContextCompat.getColor(this, R.color.ic_launcher_background))
             .setDefaults(NotificationCompat.DEFAULT_VIBRATE | NotificationCompat.DEFAULT_SOUND)
             .setAutoCancel(true);
+
+        if (largeIcon != null) {
+            builder.setLargeIcon(largeIcon);
+        }
 
         if (pendingIntent != null) {
             builder.setContentIntent(pendingIntent);
@@ -150,5 +150,13 @@ public class TradeXMessagingService extends MessagingService {
 
     private String emptyToNull(String value) {
         return TextUtils.isEmpty(value) ? null : value;
+    }
+
+    private Bitmap buildTradeXLargeIcon() {
+        // ic_tradex_large.png = full app icon with dark background + TRADEX text (512x512 PNG)
+        Bitmap logo = BitmapFactory.decodeResource(getResources(), R.drawable.ic_tradex_large);
+        if (logo == null) return null;
+        int targetSize = Math.max(96, Math.round(64 * getResources().getDisplayMetrics().density));
+        return Bitmap.createScaledBitmap(logo, targetSize, targetSize, true);
     }
 }
