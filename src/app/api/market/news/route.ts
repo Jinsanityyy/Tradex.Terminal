@@ -107,6 +107,97 @@ const FALLBACK_NEWS: NewsItem[] = [
   },
 ];
 
+function sourceFromUrl(url: string): string {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    const map: Record<string, string> = {
+      "wsj.com": "Dow Jones Newswires",
+      "tradingeconomics.com": "Trading Economics",
+      "reuters.com": "Reuters",
+      "bloomberg.com": "Bloomberg",
+      "kitco.com": "Kitco",
+      "forexlive.com": "Forex Live",
+      "marketwatch.com": "MarketWatch",
+      "cnbc.com": "CNBC",
+      "ft.com": "Financial Times",
+      "investing.com": "Investing.com",
+      "fxstreet.com": "FXStreet",
+      "goldprice.org": "Gold Price",
+      "bullionvault.com": "BullionVault",
+    };
+    for (const [domain, name] of Object.entries(map)) {
+      if (host.includes(domain)) return name;
+    }
+    return host;
+  } catch {
+    return "News";
+  }
+}
+
+async function fetchTavilyGoldNews(): Promise<NewsItem[]> {
+  const apiKey = process.env.TAVILY_API_KEY;
+  if (!apiKey) return [];
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const res = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        query: "gold XAU/USD price news",
+        search_depth: "basic",
+        max_results: 8,
+        include_answer: false,
+        days: 1,
+      }),
+      signal: controller.signal,
+      cache: "no-store",
+    });
+    clearTimeout(timer);
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    const results: Array<{
+      title?: string;
+      url?: string;
+      content?: string;
+      published_date?: string;
+    }> = data.results ?? [];
+
+    return results
+      .filter(r => r.title)
+      .map((r, i) => {
+        const headline = r.title!;
+        const sent = deriveSentiment(headline);
+        const cat = categorize(headline);
+        const { goldImpact, goldReasoning, usdImpact, usdReasoning } = deriveGoldUSD(headline, cat, sent);
+        const ts = r.published_date
+          ? new Date(r.published_date).toISOString()
+          : new Date(Date.now() - i * 5 * 60 * 1000).toISOString();
+        return {
+          id: `tv-${i}-${Date.now()}`,
+          timestamp: ts,
+          headline,
+          category: cat,
+          sentiment: sent,
+          impactScore: deriveImpact(headline),
+          affectedAssets: ["XAUUSD", ...extractAssets(headline)].filter((v, idx, arr) => arr.indexOf(v) === idx),
+          summary: (r.content ?? "").slice(0, 250),
+          source: r.url ? sourceFromUrl(r.url) : "News",
+          goldImpact,
+          goldReasoning,
+          usdImpact,
+          usdReasoning,
+        } satisfies NewsItem;
+      });
+  } catch {
+    clearTimeout(timer);
+    return [];
+  }
+}
+
 export async function GET() {
   if (cache.data.length > 0 && Date.now() - cache.ts < CACHE_TTL) {
     return NextResponse.json({ data: cache.data, timestamp: cache.ts, cached: true });
@@ -114,57 +205,56 @@ export async function GET() {
 
   try {
     const key = process.env.FINNHUB_API_KEY;
-    if (!key) {
-      return NextResponse.json({ data: FALLBACK_NEWS, timestamp: Date.now(), fallback: true });
+
+    const [finnhubRes, tavilyGoldNews] = await Promise.allSettled([
+      key ? (async () => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 8000);
+        const res = await fetch(
+          `https://finnhub.io/api/v1/news?category=general&token=${key}`,
+          { signal: controller.signal, cache: "no-store" }
+        );
+        clearTimeout(timer);
+        if (!res.ok) throw new Error(`Finnhub: ${res.status}`);
+        return res.json();
+      })() : Promise.resolve(null),
+      fetchTavilyGoldNews(),
+    ]);
+
+    const finnhubNews: NewsItem[] = [];
+    if (finnhubRes.status === "fulfilled" && finnhubRes.value) {
+      const raw: { id: number; headline: string; summary: string; source: string; datetime: number; category: string; related: string }[] =
+        finnhubRes.value ?? [];
+      raw.slice(0, 30).forEach((item, i) => {
+        const cat = categorize(item.headline);
+        const sent = deriveSentiment(item.headline);
+        const { goldImpact, goldReasoning, usdImpact, usdReasoning } = deriveGoldUSD(item.headline, cat, sent);
+        finnhubNews.push({
+          id: `fn-${item.id ?? i}`,
+          timestamp: new Date(item.datetime * 1000).toISOString(),
+          headline: item.headline,
+          category: cat,
+          sentiment: sent,
+          impactScore: deriveImpact(item.headline),
+          affectedAssets: extractAssets(item.headline + " " + (item.related ?? "")),
+          summary: "",
+          source: item.source,
+          goldImpact,
+          goldReasoning,
+          usdImpact,
+          usdReasoning,
+        });
+      });
     }
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
+    const goldNews = tavilyGoldNews.status === "fulfilled" ? tavilyGoldNews.value : [];
 
-    const res = await fetch(
-      `https://finnhub.io/api/v1/news?category=general&token=${key}`,
-      { signal: controller.signal, cache: "no-store" }
-    );
-    clearTimeout(timer);
+    // Gold-specific Tavily news first, then general Finnhub news
+    const merged = [...goldNews, ...finnhubNews];
 
-    if (!res.ok) throw new Error(`Finnhub: ${res.status}`);
-
-    const raw: {
-      id: number;
-      headline: string;
-      summary: string;
-      source: string;
-      datetime: number;
-      category: string;
-      related: string;
-      url: string;
-      image: string;
-    }[] = await res.json();
-
-    const news: NewsItem[] = raw.slice(0, 30).map((item, i) => {
-      const cat = categorize(item.headline);
-      const sent = deriveSentiment(item.headline);
-      const { goldImpact, goldReasoning, usdImpact, usdReasoning } = deriveGoldUSD(item.headline, cat, sent);
-      return {
-        id: `fn-${item.id ?? i}`,
-        timestamp: new Date(item.datetime * 1000).toISOString(),
-        headline: item.headline,
-        category: cat,
-        sentiment: sent,
-        impactScore: deriveImpact(item.headline),
-        affectedAssets: extractAssets(item.headline + " " + (item.related ?? "")),
-        summary: item.summary?.slice(0, 250) ?? "",
-        source: item.source,
-        goldImpact,
-        goldReasoning,
-        usdImpact,
-        usdReasoning,
-      };
-    });
-
-    if (news.length > 0) {
-      cache = { data: news, ts: Date.now() };
-      return NextResponse.json({ data: news, timestamp: Date.now(), count: news.length });
+    if (merged.length > 0) {
+      cache = { data: merged, ts: Date.now() };
+      return NextResponse.json({ data: merged, timestamp: Date.now(), count: merged.length });
     }
 
     return NextResponse.json({ data: FALLBACK_NEWS, timestamp: Date.now(), fallback: true });
