@@ -13,7 +13,7 @@ import type { EconomicEvent } from "@/types";
 
 interface RawCandle { t: number; o: number; h: number; l: number; c: number }
 
-interface NewsItem { headline: string; timestamp: string; sentiment?: string }
+interface NewsItem { headline: string; timestamp: string; sentiment?: string; affectedAssets?: string[] }
 
 interface MacroEvent {
   event:            string;
@@ -219,6 +219,7 @@ function analyseCandle(
   news:     NewsItem[],
   tf:       Timeframe,
   calendar: EconomicEvent[],
+  symbol:   string,
 ): InstantAnalysis {
   const idx  = allBars.findIndex(b => b.t === candle.t);
   const prev = idx > 0 ? allBars[idx - 1] : null;
@@ -266,7 +267,10 @@ function analyseCandle(
 
   const windowSecs = tfWindowSecs(tf) * 2;
   const relatedNews = news
-    .filter(n => Math.abs(new Date(n.timestamp).getTime() / 1000 - candle.t) <= windowSecs)
+    .filter(n =>
+      Math.abs(new Date(n.timestamp).getTime() / 1000 - candle.t) <= windowSecs &&
+      (n.affectedAssets ?? []).includes(symbol)
+    )
     .map(n => n.headline)
     .slice(0, 3);
 
@@ -870,7 +874,7 @@ export function CandleChart({
   const handleSelect = useCallback((candle: RawCandle) => {
     setSelected(prev => {
       if (prev?.candle.t === candle.t) return null;
-      const analysis = analyseCandle(candle, bars, newsRef.current, timeframe, calendarRef.current);
+      const analysis = analyseCandle(candle, bars, newsRef.current, timeframe, calendarRef.current, symbol);
       return { candle, analysis };
     });
   }, [bars, timeframe]);
