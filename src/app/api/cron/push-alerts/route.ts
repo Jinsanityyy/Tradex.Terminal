@@ -187,7 +187,7 @@ export async function GET(req: NextRequest) {
     const res = await fetch(`${baseUrl}/api/signals?period=24h&limit=20`, { cache: "no-store" });
     if (res.ok) {
       const json = await res.json();
-      const signalCutoff = Date.now() - 15 * 60 * 1000; // only signals from last 15 min
+      const signalCutoff = Date.now() - 6 * 60 * 1000; // only signals from last 6 min (1 cron cycle)
       const recent = ((json.recent ?? []) as Array<{
         id: string;
         symbol: string;
@@ -199,15 +199,12 @@ export async function GET(req: NextRequest) {
         tradePlan: { direction: string; entry: number; tp1: number; stopLoss: number; rrRatio: number } | null;
       }>).filter(s => !s.timestamp || new Date(s.timestamp).getTime() >= signalCutoff);
 
-      // 4a. New open signals (new trade setups)
-      // Deduplicate by content fingerprint (symbol|entry|dir|tf) NOT by DB id —
-      // force-refresh creates a new DB record each time (new UUID) so ID-based
-      // dedup lets the same signal fire repeatedly as the user refreshes.
+      // 4a. New open signals
+      // Within the 6-min window, each signal has a unique DB id — use that for dedup.
+      // Fingerprint dedup was unreliable because push_state may not persist across instances.
       const seenSignals = await getSeenIds(sb, SEEN_SIGNALS_KEY);
-      const signalFp = (s: typeof recent[0]) =>
-        `${s.symbol}|${s.tradePlan?.entry}|${s.tradePlan?.direction}|${s.timeframe}`;
       const newSignals = recent.filter(
-        s => s.status === "open" && s.tradePlan && !seenSignals.has(signalFp(s))
+        s => s.status === "open" && s.tradePlan && !seenSignals.has(s.id)
       );
 
       for (const s of newSignals.slice(0, 2)) {
@@ -219,12 +216,10 @@ export async function GET(req: NextRequest) {
           url: "/dashboard/signals",
           severity: "high",
           type: "signal",
-          // tag collapses duplicate notifications on the device
           tag: `signal-${s.symbol}-${s.tradePlan!.entry}-${s.tradePlan!.direction}`,
         });
       }
-      // Store fingerprints so the same setup never re-notifies even with a new DB id
-      await markSeen(sb, SEEN_SIGNALS_KEY, newSignals.slice(0, 2).map(signalFp));
+      await markSeen(sb, SEEN_SIGNALS_KEY, newSignals.slice(0, 2).map(s => s.id));
 
       // 4b. SL / TP hit outcomes
       const seenSlTp    = await getSeenIds(sb, SEEN_SLTP_KEY);
