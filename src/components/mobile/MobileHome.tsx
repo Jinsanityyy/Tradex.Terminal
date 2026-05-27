@@ -500,22 +500,6 @@ export function MobileHome() {
                     {signalState === "NO_TRADE" && master?.noTradeReason && (
                       <p className="text-[9px] text-zinc-600 mt-1 leading-tight line-clamp-2">{master.noTradeReason}</p>
                     )}
-                    {lastOutcome && (
-                      <div className={cn(
-                        "mt-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold",
-                        lastOutcome.status === "loss_sl"
-                          ? "bg-red-500/15 text-red-400"
-                          : "bg-emerald-500/15 text-emerald-400"
-                      )}>
-                        {lastOutcome.status === "win_tp2" ? "TP2 ✅✅" :
-                         lastOutcome.status === "win_tp1" ? "TP1 ✅"   : "SL ❌"}
-                        {lastOutcome.pnlR != null && (
-                          <span className="opacity-70 ml-0.5">
-                            {lastOutcome.pnlR > 0 ? `+${lastOutcome.pnlR}R` : `${lastOutcome.pnlR}R`}
-                          </span>
-                        )}
-                      </div>
-                    )}
                   </div>
 
                   {/* Active Session */}
@@ -556,14 +540,32 @@ export function MobileHome() {
                   signalState === "ARMED"   ? "bg-emerald-500/8 border-emerald-500/25" :
                   signalState === "PENDING" ? "bg-amber-500/8 border-amber-500/25" :
                   "bg-white/5 border-white/10")}>
-                  <p className={cn("text-[9px] uppercase tracking-wider mb-2",
-                    signalState === "ARMED"   ? "text-emerald-500/70" :
-                    signalState === "PENDING" ? "text-amber-500/70" :
-                    "text-zinc-600")}>
-                    {signalState === "ARMED" ? "⚡ Armed  -  Confirm trigger" :
-                     signalState === "PENDING" ? "⏳ Pending  -  Waiting for entry" :
-                     "Last Setup"}
-                  </p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className={cn("text-[9px] uppercase tracking-wider",
+                      signalState === "ARMED"   ? "text-emerald-500/70" :
+                      signalState === "PENDING" ? "text-amber-500/70" :
+                      "text-zinc-600")}>
+                      {signalState === "ARMED" ? "⚡ Armed  -  Confirm trigger" :
+                       signalState === "PENDING" ? "⏳ Pending  -  Waiting for entry" :
+                       "Last Setup"}
+                    </p>
+                    {lastOutcome && signalState !== "ARMED" && signalState !== "PENDING" && (
+                      <div className={cn(
+                        "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold",
+                        lastOutcome.status === "loss_sl"
+                          ? "bg-red-500/15 text-red-400"
+                          : "bg-emerald-500/15 text-emerald-400"
+                      )}>
+                        {lastOutcome.status === "win_tp2" ? "TP2 ✅✅" :
+                         lastOutcome.status === "win_tp1" ? "TP1 ✅"   : "SL ❌"}
+                        {lastOutcome.pnlR != null && (
+                          <span className="opacity-70 ml-0.5">
+                            {lastOutcome.pnlR > 0 ? `+${lastOutcome.pnlR}R` : `${lastOutcome.pnlR}R`}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <div className="grid grid-cols-4 gap-2">
                     {[
                       { label: "Entry", value: entry > 100 ? entry.toFixed(2) : entry.toFixed(4), color: "text-zinc-100" },
