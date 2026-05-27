@@ -224,12 +224,56 @@ export function MobileHome() {
   const master = agentData?.agents?.master;
   const exec = agentData?.agents?.execution;
   const tradePlan = master?.tradePlan;
+
+  // ── Live price recalculation ─────────────────────────────────────────────
+  // Analysis is cached (up to 5 min). Use live price to compute real distance
+  // so we never show a stale "0.17% from entry" when price has moved far away.
+  const SYMBOL_TO_QUOTE: Record<string, string> = {
+    XAUUSD: "XAU/USD", EURUSD: "EUR/USD", GBPUSD: "GBP/USD", BTCUSD: "BTC/USD",
+    USDJPY: "USD/JPY", USOIL: "USO/USD",
+  };
+  const liveQuote = quotes.find(q => q.symbol === (SYMBOL_TO_QUOTE[activeSymbol] ?? activeSymbol));
+  const livePrice = liveQuote?.price ?? null;
+
+  const liveDistanceToEntry = (livePrice != null && exec?.entry != null)
+    ? parseFloat((Math.abs(livePrice - exec.entry) / exec.entry * 100).toFixed(2))
+    : exec?.distanceToEntry ?? null;
+
+  const liveSignalStateReason = (() => {
+    if (!exec?.entry || livePrice == null) return exec?.signalStateReason;
+    const dist = liveDistanceToEntry!;
+    const p = exec.entry > 100 ? 1 : 4;
+    const pricePastEntry = exec.direction === "long"
+      ? livePrice > exec.entry
+      : livePrice < exec.entry;
+    if (pricePastEntry && dist > 0.3)
+      return `Price already moved ${dist.toFixed(2)}% past entry. Do NOT chase — wait for next setup.`;
+    if (dist <= 0.15)
+      return `${exec.grade} setup — price is ${dist.toFixed(2)}% from entry. Confirm trigger and execute.`;
+    if (dist <= 1.0)
+      return `Price is ${dist.toFixed(2)}% from entry zone at ${exec.entry.toFixed(p)}. Wait for price to return before entering.`;
+    return `Price is ${dist.toFixed(2)}% away from entry at ${exec.entry.toFixed(p)}. Monitor — no action yet.`;
+  })();
+
+  const liveSignalState = (() => {
+    const isNoTrade = master?.finalBias === "no-trade" || !!master?.noTradeReason;
+    if (isNoTrade || !exec?.hasSetup) return "NO_TRADE";
+    if (liveDistanceToEntry == null) return exec?.signalState ?? "NO_TRADE";
+    const dist = liveDistanceToEntry;
+    const pricePastEntry = exec.direction === "long"
+      ? (livePrice ?? 0) > (exec.entry ?? 0)
+      : (livePrice ?? 0) < (exec.entry ?? 0);
+    if (pricePastEntry && dist > 0.3) return "EXPIRED";
+    if (dist <= 0.15) return "ARMED";
+    return "PENDING";
+  })();
+
   // If master agent says no-trade, honour it regardless of what the execution
   // agent computed — execution can find a B/B+ setup while master still vetoes.
   const signalState: string =
     master?.finalBias === "no-trade" || master?.noTradeReason
       ? "NO_TRADE"
-      : exec?.signalState ?? "NO_TRADE";
+      : liveSignalState;
   const finalBias = master?.finalBias ?? "neutral";
 
   // Entry/SL/TP  -  exec has live values, tradePlan has logged values
@@ -485,8 +529,8 @@ export function MobileHome() {
                       </div>
                     ))}
                   </div>
-                  {exec?.signalStateReason && (
-                    <p className="text-[10px] text-zinc-600 mt-2 leading-tight">{exec.signalStateReason}</p>
+                  {liveSignalStateReason && (
+                    <p className="text-[10px] text-zinc-600 mt-2 leading-tight">{liveSignalStateReason}</p>
                   )}
                   {/* Take / Close trade buttons */}
                   {(() => {
