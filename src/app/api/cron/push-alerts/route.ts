@@ -15,6 +15,24 @@ import type { PushPayload } from "@/lib/push/sender";
 export const dynamic = "force-dynamic";
 export const maxDuration = 55;
 
+// ── In-memory fingerprint cache (persists across cron runs within the same instance) ──
+// Primary dedup layer — does not depend on push_state table being accessible.
+const MEM_SEEN: Map<string, number> = new Map();
+const MEM_TTL = 4 * 60 * 60 * 1000; // 4 hours
+
+function memSeen(fp: string): boolean {
+  const ts = MEM_SEEN.get(fp);
+  if (!ts) return false;
+  if (Date.now() - ts > MEM_TTL) { MEM_SEEN.delete(fp); return false; }
+  return true;
+}
+function memMark(fps: string[]) {
+  const now = Date.now();
+  fps.forEach(fp => MEM_SEEN.set(fp, now));
+  // Prune stale entries
+  for (const [k, v] of MEM_SEEN) if (now - v > MEM_TTL) MEM_SEEN.delete(k);
+}
+
 const SEEN_CATALYSTS_KEY = "push_seen_catalysts";
 const SEEN_TRUMP_KEY     = "push_seen_trump";
 const SEEN_NEWS_KEY      = "push_seen_news";
@@ -199,12 +217,18 @@ export async function GET(req: NextRequest) {
         tradePlan: { direction: string; entry: number; tp1: number; stopLoss: number; rrRatio: number } | null;
       }>).filter(s => !s.timestamp || new Date(s.timestamp).getTime() >= signalCutoff);
 
-      // 4a. New open signals
-      // Within the 6-min window, each signal has a unique DB id — use that for dedup.
-      // Fingerprint dedup was unreliable because push_state may not persist across instances.
-      const seenSignals = await getSeenIds(sb, SEEN_SIGNALS_KEY);
-      const newSignals = recent.filter(
-        s => s.status === "open" && s.tradePlan && !seenSignals.has(s.id)
+      // 4a. New open signals — three-layer dedup:
+      // 1. 6-min timestamp window (time-based, no state needed)
+      // 2. In-memory fingerprint cache (reliable within same Vercel instance)
+      // 3. push_state DB cache (persistent, best-effort fallback)
+      const signalFp = (s: typeof recent[0]) =>
+        `${s.symbol}|${s.tradePlan?.entry}|${s.tradePlan?.direction}|${s.timeframe}`;
+      const seenSignals = await getSeenIds(sb, SEEN_SIGNALS_KEY).catch(() => new Set<string>());
+      const newSignals = recent.filter(s =>
+        s.status === "open" &&
+        s.tradePlan &&
+        !memSeen(signalFp(s)) &&
+        !seenSignals.has(signalFp(s))
       );
 
       for (const s of newSignals.slice(0, 2)) {
@@ -219,7 +243,9 @@ export async function GET(req: NextRequest) {
           tag: `signal-${s.symbol}-${s.tradePlan!.entry}-${s.tradePlan!.direction}`,
         });
       }
-      await markSeen(sb, SEEN_SIGNALS_KEY, newSignals.slice(0, 2).map(s => s.id));
+      const sentFps = newSignals.slice(0, 2).map(signalFp);
+      memMark(sentFps);
+      await markSeen(sb, SEEN_SIGNALS_KEY, sentFps).catch(() => {});
 
       // 4b. SL / TP hit outcomes
       const seenSlTp    = await getSeenIds(sb, SEEN_SLTP_KEY);
