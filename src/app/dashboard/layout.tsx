@@ -7,6 +7,7 @@ import { NotificationToast } from "@/components/shared/NotificationToast";
 import { LoginTransitionOverlay } from "@/components/shared/LoginTransitionOverlay";
 import { TradingKnowledgeSidebar } from "@/components/shared/TradingKnowledgeSidebar";
 import { playAppOpen } from "@/lib/sounds";
+import { TrialExpiryBanner } from "@/components/shared/TrialExpiryBanner";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -40,6 +41,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       >
         <Sidebar onOpenKnowledge={() => setKnowledgeOpen(true)} />
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden transition-all duration-300 [margin-left:var(--sidebar-current-width,var(--sidebar-width))]">
+          <TrialExpiryBanner />
           {isDashboardHome ? (
             <main className="flex-1 overflow-hidden">{children}</main>
           ) : (

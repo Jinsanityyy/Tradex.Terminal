@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { NotificationToast } from "@/components/shared/NotificationToast";
 import { LoginTransitionOverlay } from "@/components/shared/LoginTransitionOverlay";
 import { useFcmPush } from "@/hooks/useFcmPush";
+import { TrialExpiryBanner } from "@/components/shared/TrialExpiryBanner";
 
 const TRADER_NAME_KEY = "tradex_trader_name";
 
@@ -515,6 +516,9 @@ export function MobileLayout() {
           </div>
         </div>
       )}
+
+      {/* Trial expiry banner — shown when trial ≤ 2 days or expired */}
+      <TrialExpiryBanner compact />
 
       {/* Page content — all mounted tabs stay alive, stacked absolutely */}
       <div className="relative flex-1 min-h-0 overflow-hidden">
