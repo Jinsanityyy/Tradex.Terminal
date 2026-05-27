@@ -272,6 +272,21 @@ export function MobileHome() {
     master?.finalBias === "no-trade" || master?.noTradeReason
       ? "NO_TRADE"
       : liveSignalState;
+
+  // Patch execution agent with live-computed signal state so the agent cards
+  // and dots stay consistent with the top-level signal display.
+  const patchedAgentData = agentData ? {
+    ...agentData,
+    agents: {
+      ...agentData.agents,
+      execution: agentData.agents?.execution ? {
+        ...agentData.agents.execution,
+        signalState: liveSignalState,
+        distanceToEntry: liveDistanceToEntry ?? agentData.agents.execution.distanceToEntry,
+        signalStateReason: liveSignalStateReason ?? agentData.agents.execution.signalStateReason,
+      } : agentData.agents?.execution,
+    },
+  } : null;
   const finalBias = master?.finalBias ?? "neutral";
 
   // Entry/SL/TP  -  exec has live values, tradePlan has logged values
@@ -742,7 +757,7 @@ export function MobileHome() {
               );
 
             case "agents": {
-              const ad = agentData?.agents;
+              const ad = patchedAgentData?.agents;
               const mTone = (b?: string) =>
                 b === "bullish" || b === "valid" ? "green" :
                 b === "bearish" || b === "blocked" ? "red" :
@@ -780,7 +795,7 @@ export function MobileHome() {
                     <div className="flex-1 border-t border-white/[0.04]" />
                   </div>
                   <AgentCardsWidget
-                    data={agentData ?? undefined}
+                    data={patchedAgentData ?? undefined}
                     isLoading={!agentData}
                     visibleAgents={new Set(["trend", "smc", "news", "risk", "contrarian", "execution", "master"])}
                   />
