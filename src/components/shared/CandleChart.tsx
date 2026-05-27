@@ -369,20 +369,35 @@ function analyseCandle(
   else
     summary += `${sentiment === "bullish" ? "Buyers" : "Sellers"} were in control with ${prevTrend === sentiment ? "trend confirmation" : "counter-trend momentum"}.`;
 
+  // Sort relatedNews: items that match candle direction first, then by time proximity
+  const candleImpact = bull ? "bullish" : "bearish";
+  relatedNews.sort((a, b) => {
+    const aMatch = a.goldImpact === candleImpact ? 0 : 1;
+    const bMatch = b.goldImpact === candleImpact ? 0 : 1;
+    return aMatch - bMatch;
+  });
+
   // Plain-language "why it moved" explanation combining candle data + top headline reasoning
   let newsExplanation = "";
   if (relatedNews.length > 0) {
-    const p       = candle.o > 100 ? 0 : 2;
+    const p          = candle.o > 100 ? 0 : 2;
     const priceDelta = Math.abs(candle.c - candle.o).toFixed(p);
-    const moveStr = candle.o > 100
+    const moveStr    = candle.o > 100
       ? `$${priceDelta} ${dir} move (${chStr})`
       : `${chStr} ${dir} move`;
-    const topReason = relatedNews.find(n => n.goldReasoning)?.goldReasoning
-      ?? relatedNews[0].headline;
-    newsExplanation = `${moveStr}: ${topReason}`;
-    // Append second reasoning if different and adds context
-    const second = relatedNews.find((n, i) => i > 0 && n.goldReasoning && n.goldReasoning !== topReason);
-    if (second?.goldReasoning) newsExplanation += ` ${second.goldReasoning}`;
+
+    const aligned    = relatedNews.filter(n => n.goldImpact === candleImpact);
+    const conflicting = relatedNews.filter(n => n.goldImpact != null && n.goldImpact !== "neutral" && n.goldImpact !== candleImpact);
+
+    if (aligned.length > 0) {
+      // At least one headline matches — use its reasoning
+      newsExplanation = `${moveStr}: ${aligned[0].goldReasoning ?? aligned[0].headline}`;
+    } else if (conflicting.length > 0) {
+      // All headlines contradict the move — flag counter-trend
+      newsExplanation = `${moveStr}: Counter-trend move — macro headlines are ${conflicting[0].goldImpact} for gold but price moved ${dir}. Possible ${dir === "bullish" ? "short-covering / buy-the-dip" : "sell-the-news / profit-taking"} event or institutional counter-position.`;
+    } else {
+      newsExplanation = `${moveStr}: ${relatedNews.find(n => n.goldReasoning)?.goldReasoning ?? relatedNews[0].headline}`;
+    }
   }
 
   return { sentiment, magnitude, pattern, summary, drivers, technicals, relatedNews, newsExplanation, macroEvents };
@@ -610,26 +625,35 @@ function AnalysisPanel({
               )}
               <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1.5">Headlines</p>
               <div className="rounded-xl border border-white/8 bg-white/3 overflow-hidden divide-y divide-white/5">
-                {analysis.relatedNews.map((item, i) => (
-                  <div key={i} className="px-3 py-2.5 space-y-1">
+                {analysis.relatedNews.map((item, i) => {
+                  const candleDir = bull ? "bullish" : "bearish";
+                  const conflicts = item.goldImpact != null && item.goldImpact !== "neutral" && item.goldImpact !== candleDir;
+                  return (
+                  <div key={i} className={cn("px-3 py-2.5 space-y-1", conflicts && "opacity-60")}>
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-[11px] text-zinc-300 leading-snug">{item.headline}</p>
-                      {item.goldImpact && item.goldImpact !== "neutral" && (
-                        <span className={cn(
-                          "text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider shrink-0 mt-0.5",
-                          item.goldImpact === "bullish"
-                            ? "text-emerald-400 border-emerald-500/25 bg-emerald-500/10"
-                            : "text-red-400 border-red-500/25 bg-red-500/10"
-                        )}>
-                          {item.goldImpact} gold
-                        </span>
-                      )}
+                      <div className="flex flex-col items-end gap-1 shrink-0 mt-0.5">
+                        {item.goldImpact && item.goldImpact !== "neutral" && (
+                          <span className={cn(
+                            "text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider",
+                            item.goldImpact === "bullish"
+                              ? "text-emerald-400 border-emerald-500/25 bg-emerald-500/10"
+                              : "text-red-400 border-red-500/25 bg-red-500/10"
+                          )}>
+                            {item.goldImpact} gold
+                          </span>
+                        )}
+                        {conflicts && (
+                          <span className="text-[8px] text-zinc-600 uppercase tracking-wider">↕ counter</span>
+                        )}
+                      </div>
                     </div>
                     {item.goldReasoning && (
                       <p className="text-[10px] text-zinc-400 leading-relaxed">{item.goldReasoning}</p>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
