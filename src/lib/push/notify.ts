@@ -13,6 +13,22 @@ import { sendPushToMany } from "@/lib/push/sender";
 import type { PushPayload } from "@/lib/push/sender";
 import type { SignalRecord, SignalStatus } from "@/lib/signals/types";
 
+// ── Signal dedup — prevents re-notifying the same setup on every home refresh ──
+const SIGNAL_SEEN = new Map<string, number>();
+const SIGNAL_TTL  = 4 * 60 * 60 * 1000; // 4 hours
+
+function signalAlreadyNotified(fp: string): boolean {
+  const ts = SIGNAL_SEEN.get(fp);
+  if (!ts) return false;
+  if (Date.now() - ts > SIGNAL_TTL) { SIGNAL_SEEN.delete(fp); return false; }
+  return true;
+}
+function markSignalNotified(fp: string) {
+  SIGNAL_SEEN.set(fp, Date.now());
+  const cutoff = Date.now() - SIGNAL_TTL;
+  for (const [k, v] of SIGNAL_SEEN) if (v < cutoff) SIGNAL_SEEN.delete(k);
+}
+
 // ── Fetch recipients ────────────────────────────────────────────────────────
 
 async function getFcmTokens() {
@@ -59,6 +75,12 @@ export async function broadcast(payload: PushPayload): Promise<void> {
  */
 export async function notifyNewSignal(signal: SignalRecord): Promise<void> {
   if (!signal.tradePlan) return;
+
+  // Dedup: same symbol+entry+direction+timeframe within 4 hours = skip
+  const fp = `${signal.symbol}|${signal.tradePlan.entry}|${signal.tradePlan.direction}|${signal.timeframe}`;
+  if (signalAlreadyNotified(fp)) return;
+  markSignalNotified(fp);
+
   const dir  = signal.tradePlan.direction === "long" ? "🟢 BUY" : "🔴 SELL";
   const rr   = signal.tradePlan.rrRatio?.toFixed(1) ?? "?";
   const sym  = signal.symbolDisplay ?? signal.symbol;
@@ -69,7 +91,8 @@ export async function notifyNewSignal(signal: SignalRecord): Promise<void> {
     url:   "/dashboard/signals",
     severity: "high",
     type:  "signal",
-    tag:   `signal-${signal.id}`,
+    // Fingerprint-based tag so device collapses duplicates even across cold starts
+    tag:   `signal-${signal.symbol}-${signal.tradePlan.entry}-${signal.tradePlan.direction}`,
   });
 }
 
