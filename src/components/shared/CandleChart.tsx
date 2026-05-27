@@ -41,6 +41,7 @@ interface InstantAnalysis {
   technicals:      string;
   relatedNews:     RelatedNewsItem[];
   newsExplanation: string;
+  newsConflict:    boolean;
   macroEvents:     MacroEvent[];
 }
 
@@ -377,8 +378,9 @@ function analyseCandle(
     return aMatch - bMatch;
   });
 
-  // Plain-language "why it moved" explanation combining candle data + top headline reasoning
+  // Plain-language "why it moved" explanation — layman's terms
   let newsExplanation = "";
+  let newsConflict    = false; // true when news direction contradicts the candle
   if (relatedNews.length > 0) {
     const p          = candle.o > 100 ? 0 : 2;
     const priceDelta = Math.abs(candle.c - candle.o).toFixed(p);
@@ -389,18 +391,32 @@ function analyseCandle(
     const aligned    = relatedNews.filter(n => n.goldImpact === candleImpact);
     const conflicting = relatedNews.filter(n => n.goldImpact != null && n.goldImpact !== "neutral" && n.goldImpact !== candleImpact);
 
-    if (aligned.length > 0) {
-      // At least one headline matches — use its reasoning
+    if (aligned.length > 0 && conflicting.length === 0) {
+      // News matches the move cleanly
       newsExplanation = `${moveStr}: ${aligned[0].goldReasoning ?? aligned[0].headline}`;
+    } else if (aligned.length > 0 && conflicting.length > 0) {
+      // Mixed — explain the conflict in plain terms
+      newsConflict = true;
+      const reason = aligned[0].goldReasoning ?? aligned[0].headline;
+      if (bull) {
+        newsExplanation = `${moveStr}: ${reason} Even though some headlines were bearish, buyers stepped in anyway — likely short-covering or strong demand at key levels.`;
+      } else {
+        newsExplanation = `${moveStr}: ${reason} Even though some headlines were bullish for gold, price dropped — this is a "sell the news" move. Traders who bought early locked in profits when the good news hit.`;
+      }
     } else if (conflicting.length > 0) {
-      // All headlines contradict the move — flag counter-trend
-      newsExplanation = `${moveStr}: Counter-trend move — macro headlines are ${conflicting[0].goldImpact} for gold but price moved ${dir}. Possible ${dir === "bullish" ? "short-covering / buy-the-dip" : "sell-the-news / profit-taking"} event or institutional counter-position.`;
+      // All news contradicts the move
+      newsConflict = true;
+      if (bull) {
+        newsExplanation = `${moveStr}: News was mostly bearish for gold, but price went up anyway. This is a "buy the dip" or short squeeze — sellers got trapped and buyers pushed price higher.`;
+      } else {
+        newsExplanation = `${moveStr}: News was mostly bullish for gold, but price dropped. Classic "sell the news" — traders bought the rumor and sold when the news confirmed. The move down can continue if buyers don't step back in.`;
+      }
     } else {
       newsExplanation = `${moveStr}: ${relatedNews.find(n => n.goldReasoning)?.goldReasoning ?? relatedNews[0].headline}`;
     }
   }
 
-  return { sentiment, magnitude, pattern, summary, drivers, technicals, relatedNews, newsExplanation, macroEvents };
+  return { sentiment, magnitude, pattern, summary, drivers, technicals, relatedNews, newsExplanation, newsConflict, macroEvents };
 }
 
 // ── Small UI helpers ──────────────────────────────────────────────────────────
@@ -618,8 +634,18 @@ function AnalysisPanel({
           {analysis.macroEvents.length === 0 && analysis.relatedNews.length > 0 && (
             <div className="mb-3">
               {analysis.newsExplanation && (
-                <div className="rounded-xl border border-violet-500/20 bg-violet-500/8 px-3 py-2.5 mb-2">
-                  <p className="text-[9px] font-bold text-violet-400 uppercase tracking-wider mb-1">Why It Moved</p>
+                <div className={cn(
+                  "rounded-xl border px-3 py-2.5 mb-2",
+                  analysis.newsConflict
+                    ? "border-amber-500/25 bg-amber-500/8"
+                    : "border-violet-500/20 bg-violet-500/8"
+                )}>
+                  <p className={cn(
+                    "text-[9px] font-bold uppercase tracking-wider mb-1",
+                    analysis.newsConflict ? "text-amber-400" : "text-violet-400"
+                  )}>
+                    {analysis.newsConflict ? "⚠ Mixed Signals" : "Why It Moved"}
+                  </p>
                   <p className="text-[11px] text-zinc-200 leading-relaxed">{analysis.newsExplanation}</p>
                 </div>
               )}
