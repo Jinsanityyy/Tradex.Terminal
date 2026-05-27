@@ -13,7 +13,7 @@ import type { EconomicEvent } from "@/types";
 
 interface RawCandle { t: number; o: number; h: number; l: number; c: number }
 
-interface NewsItem { headline: string; timestamp: string; sentiment?: string; affectedAssets?: string[] }
+interface NewsItem { headline: string; timestamp: string; sentiment?: string; affectedAssets?: string[]; goldImpact?: string }
 
 interface MacroEvent {
   event:            string;
@@ -159,6 +159,18 @@ function buildSessionContext(candleT: number): MacroEvent[] {
     });
   }
 
+  // ── Late NY / US Afternoon 15:30–20:00 UTC ──────────────────────────────
+  if (min >= 930 && min < 1200 && dow >= 1 && dow <= 5) {
+    events.push({
+      event: "Late NY Session (15:30–20:00 UTC / 11:30 AM–4 PM EST)",
+      impact: "medium",
+      goldImpact: "neutral",
+      goldReasoning: "Afternoon NY session sees position squaring and late macro catalysts: Fed speaker events, Treasury auctions (13:00–15:00 EDT), and geopolitical headlines. Large moves often originate from news flow rather than scheduled data. Gold can see sharp continuation or reversal of morning trends.",
+      tradeImplication: "Monitor for Fed speaker surprises and geopolitical headlines. Moves during this window are often news-driven — wait for the catalyst candle to close before entering.",
+      status: "completed",
+    });
+  }
+
   // ── Asian session 00:00–08:00 UTC ───────────────────────────────────────
   if (min >= 0 && min < 480 && dow >= 1 && dow <= 5) {
     events.push({
@@ -266,10 +278,20 @@ function analyseCandle(
   const technicals = techParts.join(" ") || "No strong structural signal on this candle.";
 
   const windowSecs = tfWindowSecs(tf) * 2;
+  const candleDate = new Date(candle.t * 1000).toISOString().slice(0, 10);
   const relatedNews = news
-    .filter(n =>
-      Math.abs(new Date(n.timestamp).getTime() / 1000 - candle.t) <= windowSecs &&
-      (n.affectedAssets ?? []).includes(symbol)
+    .filter(n => {
+      const inWindow = Math.abs(new Date(n.timestamp).getTime() / 1000 - candle.t) <= windowSecs;
+      if (symbol === "XAUUSD") {
+        const sameDay = new Date(n.timestamp).toISOString().slice(0, 10) === candleDate;
+        const goldRelevant = (n.affectedAssets ?? []).includes("XAUUSD") || (n.goldImpact != null && n.goldImpact !== "neutral");
+        return goldRelevant && (inWindow || sameDay);
+      }
+      return inWindow && (n.affectedAssets ?? []).includes(symbol);
+    })
+    .sort((a, b) =>
+      Math.abs(new Date(a.timestamp).getTime() - candle.t * 1000) -
+      Math.abs(new Date(b.timestamp).getTime() - candle.t * 1000)
     )
     .map(n => n.headline)
     .slice(0, 3);
