@@ -228,12 +228,10 @@ export function MobileHome() {
   // ── Live price recalculation ─────────────────────────────────────────────
   // Analysis is cached (up to 5 min). Use live price to compute real distance
   // so we never show a stale "0.17% from entry" when price has moved far away.
-  const SYMBOL_TO_QUOTE: Record<string, string> = {
-    XAUUSD: "XAU/USD", EURUSD: "EUR/USD", GBPUSD: "GBP/USD", BTCUSD: "BTC/USD",
-    USDJPY: "USD/JPY", USOIL: "USO/USD",
-  };
-  const liveQuote = quotes.find(q => q.symbol === (SYMBOL_TO_QUOTE[activeSymbol] ?? activeSymbol));
-  const livePrice = liveQuote?.price ?? null;
+  // quotes uses "XAUUSD" format (no slash) — same as activeSymbol — so match directly.
+  // Prefer WebSocket price (most real-time); fall back to REST quote price.
+  const liveQuote = quotes.find(q => q.symbol === activeSymbol);
+  const livePrice: number | null = wsPrices.get(activeSymbol) ?? liveQuote?.price ?? null;
 
   const liveDistanceToEntry = (livePrice != null && exec?.entry != null)
     ? parseFloat((Math.abs(livePrice - exec.entry) / exec.entry * 100).toFixed(2))
