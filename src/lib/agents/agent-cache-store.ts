@@ -37,6 +37,14 @@ export async function getAgentCache(
 
     // ARMED signals get a longer TTL — check before the default 5-min expiry
     if (result._armedUntil && Date.now() < result._armedUntil) {
+      // If the armed signal is already EXPIRED (price moved past entry), clear the
+      // lock now so the next run fetches fresh agents and shows NO TRADE instead.
+      const execState = (result as AgentRunResult & { _armedUntil?: number })
+        .agents?.execution?.signalState;
+      if (execState === "EXPIRED") {
+        void clearAgentArmedCache(symbol, timeframe).catch(() => {});
+        return null;
+      }
       return { ...result, cached: true };
     }
 
