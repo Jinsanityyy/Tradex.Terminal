@@ -107,6 +107,22 @@ const FALLBACK_NEWS: NewsItem[] = [
   },
 ];
 
+function isRealNews(headline: string): boolean {
+  if (!headline || headline.length < 25) return false;
+  const junk = [
+    /exchange rate/i,
+    /\bforex\s+(price|rate|chart|quotes?)\b/i,
+    /latest news and headlines/i,
+    /\blive\s+(price|chart|rate|quotes?)\b/i,
+    /\bstock\s+price\s+(&|and)\s+charts?\b/i,
+    / - [A-Za-z]+\.(com|net|org|io)\s*$/i,
+    /^[A-Z/]+(USD|EUR|GBP)\s*[-—]\s*[A-Z][a-z].*price\s*$/i,
+    /\bquote\s+&\s+chart\b/i,
+    /\bspot\s+price\b.*\bhistory\b/i,
+  ];
+  return !junk.some(p => p.test(headline));
+}
+
 function sourceFromUrl(url: string): string {
   try {
     const host = new URL(url).hostname.replace(/^www\./, "");
@@ -167,7 +183,7 @@ async function fetchTavilyGoldNews(): Promise<NewsItem[]> {
     }> = data.results ?? [];
 
     return results
-      .filter(r => r.title)
+      .filter(r => r.title && isRealNews(r.title))
       .map((r, i) => {
         const headline = r.title!;
         const sent = deriveSentiment(headline);
@@ -225,7 +241,7 @@ export async function GET() {
     if (finnhubRes.status === "fulfilled" && finnhubRes.value) {
       const raw: { id: number; headline: string; summary: string; source: string; datetime: number; category: string; related: string }[] =
         finnhubRes.value ?? [];
-      raw.slice(0, 30).forEach((item, i) => {
+      raw.filter(item => isRealNews(item.headline)).slice(0, 30).forEach((item, i) => {
         const cat = categorize(item.headline);
         const sent = deriveSentiment(item.headline);
         const { goldImpact, goldReasoning, usdImpact, usdReasoning } = deriveGoldUSD(item.headline, cat, sent);
