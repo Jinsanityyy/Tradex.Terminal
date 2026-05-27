@@ -13,7 +13,7 @@ import type { EconomicEvent } from "@/types";
 
 interface RawCandle { t: number; o: number; h: number; l: number; c: number }
 
-interface NewsItem { headline: string; timestamp: string; sentiment?: string; affectedAssets?: string[]; goldImpact?: string }
+interface NewsItem { headline: string; timestamp: string; sentiment?: string; affectedAssets?: string[]; goldImpact?: string; goldReasoning?: string }
 
 interface MacroEvent {
   event:            string;
@@ -26,6 +26,12 @@ interface MacroEvent {
   status:           "upcoming" | "live" | "completed";
 }
 
+interface RelatedNewsItem {
+  headline:      string;
+  goldImpact?:   "bullish" | "bearish" | "neutral";
+  goldReasoning?: string;
+}
+
 interface InstantAnalysis {
   sentiment:   "bullish" | "bearish" | "neutral";
   magnitude:   "major" | "moderate" | "minor";
@@ -33,7 +39,7 @@ interface InstantAnalysis {
   summary:     string;
   drivers:     string[];
   technicals:  string;
-  relatedNews: string[];
+  relatedNews: RelatedNewsItem[];
   macroEvents: MacroEvent[];
 }
 
@@ -293,7 +299,11 @@ function analyseCandle(
       Math.abs(new Date(a.timestamp).getTime() - candle.t * 1000) -
       Math.abs(new Date(b.timestamp).getTime() - candle.t * 1000)
     )
-    .map(n => n.headline)
+    .map(n => ({
+      headline:      n.headline,
+      goldImpact:    n.goldImpact as "bullish" | "bearish" | "neutral" | undefined,
+      goldReasoning: n.goldReasoning,
+    }))
     .slice(0, 3);
 
   // Match scheduled economic calendar events (from external API, if available)
@@ -572,13 +582,30 @@ function AnalysisPanel({
             </div>
           )}
 
-          {/* Fallback: news headlines */}
+          {/* Fallback: news headlines with gold impact explanation */}
           {analysis.macroEvents.length === 0 && analysis.relatedNews.length > 0 && (
             <div className="mb-3">
               <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1.5">Headlines</p>
               <div className="rounded-xl border border-white/8 bg-white/3 overflow-hidden divide-y divide-white/5">
-                {analysis.relatedNews.map((h, i) => (
-                  <p key={i} className="px-3 py-2.5 text-[11px] text-zinc-300 leading-relaxed">{h}</p>
+                {analysis.relatedNews.map((item, i) => (
+                  <div key={i} className="px-3 py-2.5 space-y-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-[11px] text-zinc-300 leading-snug">{item.headline}</p>
+                      {item.goldImpact && item.goldImpact !== "neutral" && (
+                        <span className={cn(
+                          "text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider shrink-0 mt-0.5",
+                          item.goldImpact === "bullish"
+                            ? "text-emerald-400 border-emerald-500/25 bg-emerald-500/10"
+                            : "text-red-400 border-red-500/25 bg-red-500/10"
+                        )}>
+                          {item.goldImpact} gold
+                        </span>
+                      )}
+                    </div>
+                    {item.goldReasoning && (
+                      <p className="text-[10px] text-zinc-400 leading-relaxed">{item.goldReasoning}</p>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
