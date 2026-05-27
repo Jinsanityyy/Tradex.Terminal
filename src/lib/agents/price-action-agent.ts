@@ -516,17 +516,14 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   const isLowConfidenceSweep = sweepLabel === "London High" &&
     !(fvgDetected && sweepBias === dailyBias);
   const setupType: SetupType = fvgDetected ? "FVG" : liquiditySweepDetected ? "Sweep" : "None";
-  // A confirmed sweep alone is a valid setup — execution agent grades it lower (B vs A).
-  // Previously requiring FVG caused clean sweep-only setups to be silently discarded.
-  const setupPresent = liquiditySweepDetected && !isLowConfidenceSweep;
+  // FVG confirmation is required — backtest on 6826 H1 candles showed sweep-only
+  // setups have only 28% win rate vs 53% with FVG. The FVG is a legitimate quality filter.
+  const setupPresent = liquiditySweepDetected && fvgDetected && !isLowConfidenceSweep;
   const bias: DirectionalBias = liquiditySweepDetected ? sweepBias : dailyBias;
 
   const bosDetected   = liquiditySweepDetected && bias === dailyBias;
   const chochDetected = fvgDetected;
-  // Sweep + FVG = higher confidence. Sweep only = slightly lower.
-  const confidence = liquiditySweepDetected
-    ? Math.min(95, (fvgDetected ? 60 : 48) + sweepModifier)
-    : 40;
+  const confidence = liquiditySweepDetected ? Math.min(95, 50 + sweepModifier) : 40;
 
   const slBuffer   = minSweep * 0.5;
 
