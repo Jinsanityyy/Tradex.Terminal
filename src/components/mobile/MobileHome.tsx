@@ -178,7 +178,7 @@ export function MobileHome() {
   const { levels } = useKeyLevels();
   const { catalysts } = useCatalysts();
   const { narrative, sentiment, generateFresh } = useMarketAnalysis();
-  const { result: agentData } = useAgentResult(activeSymbol, "H1");
+  const { result: agentData, refresh: refreshAgent } = useAgentResult(activeSymbol, "H1");
   const { sessions } = useSessions();
   const { mtfData, mtfLoading } = useMTFBias(activeSymbol);
   const { posts: trumpPosts } = useTrumpPosts();
@@ -326,10 +326,10 @@ export function MobileHome() {
     await Promise.all([
       mutate("/api/market/quotes"),
       mutate("/api/market/catalysts"),
-      mutate("/api/agents/run"),
+      refreshAgent(),   // POST with forceRefresh: true → generates a fresh signal
     ]);
     markRefreshed();
-  }, [isOnCooldown, markRefreshed]);
+  }, [isOnCooldown, markRefreshed, refreshAgent]);
 
   const { refreshing, pullDistance, THRESHOLD } = usePullToRefresh(handleRefresh, divRef as React.RefObject<HTMLElement>);
 
