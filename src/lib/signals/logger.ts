@@ -17,8 +17,10 @@ import { notifyNewSignal } from "@/lib/push/notify";
  */
 function buildId(result: AgentRunResult): string {
   const isNoTrade = result.agents.master.finalBias === "no-trade";
-  // No-trade signals: bucket into 30-min windows to avoid spamming identical INFO rows
-  const bucket = isNoTrade ? 30 : 1;
+  const noPlan    = !result.agents.master.tradePlan;
+  // Informational signals (no-trade or directional-but-no-plan): 30-min buckets
+  // to avoid spamming identical INFO rows on every home refresh.
+  const bucket = (isNoTrade || noPlan) ? 30 : 1;
   const slot = Math.floor(new Date(result.timestamp).getTime() / (60_000 * bucket));
   return `${slot}_${result.symbol}_${result.timeframe}`;
 }
@@ -103,6 +105,37 @@ async function invalidateOpposingSignals(result: AgentRunResult): Promise<void> 
 }
 
 /**
+ * When there's no valid setup, mark any open armed signals for this symbol as
+ * "expired" if they're more than 1 hour old and price has drifted > 0.5% away
+ * from their entry. Prevents stale open signals from showing forever on home.
+ */
+async function closeStaleOpenSignals(symbol: string, currentPrice: number): Promise<void> {
+  try {
+    const open = await getOpenSignals();
+    const stale = open.filter(s => {
+      if (s.symbol !== symbol || !s.tradePlan) return false;
+      const ageMs = Date.now() - new Date(s.timestamp).getTime();
+      if (ageMs < 60 * 60 * 1000) return false; // < 1 hour: give it time
+      const drift = Math.abs(currentPrice - s.tradePlan.entry) / s.tradePlan.entry;
+      return drift > 0.005; // price moved > 0.5% from entry = setup no longer valid
+    });
+    await Promise.all(stale.map(s =>
+      updateSignal(s.id, {
+        status: "expired",
+        outcome: {
+          resolvedAt: new Date().toISOString(),
+          priceAtResolution: currentPrice,
+          pnlPercent: 0,
+          pnlR: 0,
+        },
+      })
+    ));
+  } catch {
+    // non-critical
+  }
+}
+
+/**
  * Log a signal from an AgentRunResult.
  * Idempotent  -  same run logged twice within the same minute is deduplicated.
  * Returns the saved record, or null if logging failed (never throws).
@@ -112,17 +145,16 @@ export async function logSignal(result: AgentRunResult): Promise<SignalRecord | 
     const master = result.agents.master;
     const snapshot = result.snapshot;
 
-    // Don't log directional signals without a trade plan  -  no entry/SL/TP = nothing actionable.
-    // These occur when execution agent has no valid setup (e.g. wrong session, no structure).
-    // Only informational no-trade signals are allowed without a trade plan.
-    if (master.finalBias !== "no-trade" && !master.tradePlan) {
-      return null;
-    }
-
     // Skip if an open armed signal with the exact same entry/SL/TP already exists.
     if (await isDuplicateArmedSignal(result)) {
       return null;
     }
+
+    // Directional bias but no trade plan = execution agent found no clean entry (B/B+/C grade).
+    // Treat as informational so the home screen shows "NO TRADE" instead of keeping the old
+    // expired signal visible.
+    const hasActionablePlan = master.finalBias !== "no-trade" && !!master.tradePlan;
+    const isInformational   = !hasActionablePlan;
 
     const record: SignalRecord = {
       id: buildId(result),
@@ -135,13 +167,15 @@ export async function logSignal(result: AgentRunResult): Promise<SignalRecord | 
       confidence: master.confidence,
       consensusScore: master.consensusScore,
       strategyMatch: master.strategyMatch ?? null,
-      noTradeReason: master.noTradeReason ?? null,
+      noTradeReason: master.noTradeReason ?? (isInformational && master.finalBias !== "no-trade"
+        ? "No valid entry setup — bias detected but execution grade too low"
+        : null),
 
       priceAtSignal: snapshot.price.current,
 
       tradePlan: extractTradePlan(result),
 
-      status: master.finalBias === "no-trade" ? "informational" : "open",
+      status: isInformational ? "informational" : "open",
       outcome: null,
 
       supports: master.supports ?? [],
@@ -179,13 +213,14 @@ export async function logSignal(result: AgentRunResult): Promise<SignalRecord | 
 
     const saved = await saveSignal(record);
 
-    // If this is a new directional armed signal:
-    // 1. Close out opposing open signals (bias flip)
-    // 2. Fire instant push notification to all users
     if (saved && record.tradePlan) {
+      // Armed signal: close opposing open signals (bias flip) + push notify
       await invalidateOpposingSignals(result);
-      // Fire-and-forget  -  never block signal saving
       void notifyNewSignal(saved).catch(() => {});
+    } else if (saved && isInformational) {
+      // No-trade / no-plan: close any stale same-symbol open signals so they don't
+      // stay "open" forever on the home screen when there's no longer a valid setup.
+      void closeStaleOpenSignals(result.symbol, snapshot.price.current).catch(() => {});
     }
 
     return saved;
