@@ -111,8 +111,14 @@ async function fetchMarketData(symbol: Symbol): Promise<{
         return true;
       });
 
-    // Prefer Finnhub first (fresher), then fill gaps with internal news
-    let news: RawNewsItem[] = dedup([...finnhubNews, ...internalNews]);
+    // Keep only news from the last 6 hours — stale headlines skew directional bias
+    // (especially the geopolitical gold override that fires on bullWeight >= bearWeight = 0).
+    // Items with datetime=0 (unknown age) are kept but placed last.
+    const SIX_HOURS_AGO_SEC = Math.floor(Date.now() / 1000) - 6 * 3600;
+    const allNews = dedup([...finnhubNews, ...internalNews]);
+    const recentNews = allNews.filter(n => n.datetime > 0 && n.datetime >= SIX_HOURS_AGO_SEC);
+    const unknownAge = allNews.filter(n => n.datetime === 0);
+    let news: RawNewsItem[] = [...recentNews, ...unknownAge].slice(0, 20);
 
     return { quote: quote as Record<string, string | { high: string; low: string }> | null, news };
   } catch {
@@ -307,7 +313,10 @@ export async function runAgentOrchestrator(
       dailyStructure ?? undefined
     );
   } else {
-    // Live quote unavailable  -  all agent outputs are based on synthetic data
+    // Live quote unavailable — serve cached result if available rather than running
+    // agents on synthetic data (flat candles break FVG/sweep detection entirely).
+    const cached = await getAgentCache(symbol, timeframe);
+    if (cached) return cached;
     snapshot = buildMockSnapshot(symbol, timeframe);
     isMockData = true;
   }

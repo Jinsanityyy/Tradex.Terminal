@@ -132,62 +132,58 @@ export async function runRiskAgent(
     }
 
     // ── Valid / Invalid decision ──────────────────────────────────────────
-    // Hard blocks: session closed, truly extreme volatility (>2.5%), or RR < 1:1
-    // High volatility (1.5–2.5%) is a warning only  -  adjust size, don't block
-    const isClosed    = session === "Closed";
-    const extremeVol  = volatilityScore >= 92;   // only blocks on >2.5% moves
-    const tooManyWarnings = warnings.length >= 5; // raised from 4 → 5
-    const rrTooLow    = rrEstimate !== null && rrEstimate < 1.6;  // minimum = 1.6R hard block
+    const isClosed = session === "Closed";
+    const extremeVol = volatilityScore >= 92;
+    const rrTooLow   = rrEstimate !== null && rrEstimate < 1.6;
 
-    // Kill zone enforcement  -  only trade during high-probability session windows.
-    // Asian Kill Zone:  00:00–03:00 UTC = 8:00–11:00 AM PHT (Tokyo open)
-    // NY Kill Zone:     09:30–11:30 AM EST = 13:30–15:30 UTC = 9:30–11:30 PM PHT
-    // London Kill Zone: 08:00–11:00 AM GMT = 08:00–11:00 UTC = 4:00–7:00 PM PHT
+    // Kill zone windows (widened to cover full high-probability window per session):
+    // NY:     12:30–17:00 UTC  (7:30–12:00 AM EST — NY open through mid-morning)
+    // London: 07:00–11:30 UTC  (full London session open)
+    // Asian:  00:00–05:00 UTC  (Tokyo open through early Asia)
     const isNYSession     = session === "New York";
     const isLondonSession = session === "London";
     const isAsianSession  = session === "Asia";
-    const nowUTC          = new Date(snapshot.timestamp);
-    const nowUTCHour      = nowUTC.getUTCHours();
-    const nowUTCMin       = nowUTC.getUTCMinutes();
+    const nowUTC    = new Date(snapshot.timestamp);
+    const nowUTCHour = nowUTC.getUTCHours();
+    const nowUTCMin  = nowUTC.getUTCMinutes();
+    const nowUTCMins = nowUTCHour * 60 + nowUTCMin; // total minutes since midnight
 
-    const inNYKillZone = isNYSession &&
-      (nowUTCHour > 13 || (nowUTCHour === 13 && nowUTCMin >= 30)) &&
-      (nowUTCHour < 15  || (nowUTCHour === 15 && nowUTCMin <  30));
-    const outsideNYKillZone = isNYSession && !inNYKillZone;
+    const inNYKillZone     = isNYSession     && nowUTCMins >= 750 && nowUTCMins < 1020; // 12:30–17:00
+    const inLondonKillZone = isLondonSession && nowUTCMins >= 420 && nowUTCMins < 690;  // 07:00–11:30
+    const inAsianKillZone  = isAsianSession  && nowUTCMins >= 0   && nowUTCMins < 300;  // 00:00–05:00
 
-    const inLondonKillZone      = isLondonSession && nowUTCHour >= 8 && nowUTCHour < 11;
+    const outsideNYKillZone     = isNYSession     && !inNYKillZone;
     const outsideLondonKillZone = isLondonSession && !inLondonKillZone;
-
-    const inAsianKillZone      = isAsianSession && nowUTCHour >= 0 && nowUTCHour < 3;
-    const outsideAsianKillZone = isAsianSession && !inAsianKillZone;
-
+    const outsideAsianKillZone  = isAsianSession  && !inAsianKillZone;
     const outsideKillZone = outsideNYKillZone || outsideLondonKillZone || outsideAsianKillZone;
 
-    // If execution found a setup, the sweep formed during the kill zone by definition.
-    // Don't block based on time  -  the setup remains valid until price invalidates it.
+    // If execution confirmed a setup, the sweep formed during the kill zone — keep it valid.
     const setupConfirmed = executionHasSetup === true;
 
     if (outsideNYKillZone && !setupConfirmed) {
       warnings.push(
-        `Outside NY Kill Zone (9:30–11:30 PM PHT / 13:30–15:30 UTC). ` +
+        `Outside NY Kill Zone (12:30–17:00 UTC). ` +
         `Current UTC: ${nowUTCHour}:${String(nowUTCMin).padStart(2, "0")}. ` +
-        `Win rate drops significantly outside this window.`
+        `Win rate drops outside the NY open window.`
       );
     }
     if (outsideLondonKillZone && !setupConfirmed) {
       warnings.push(
-        `Outside London Kill Zone (4:00–7:00 PM PHT / 08:00–11:00 UTC). ` +
+        `Outside London Kill Zone (07:00–11:30 UTC). ` +
         `Current UTC: ${nowUTCHour}:${String(nowUTCMin).padStart(2, "0")}. ` +
         `Avoid entries during London consolidation hours.`
       );
     }
     if (outsideAsianKillZone && !setupConfirmed) {
       warnings.push(
-        `Outside Asian Kill Zone (8:00–11:00 AM PHT / 00:00–03:00 UTC). ` +
+        `Outside Asian Kill Zone (00:00–05:00 UTC). ` +
         `Current UTC: ${nowUTCHour}:${String(nowUTCMin).padStart(2, "0")}. ` +
-        `Asian session outside Tokyo open  -  lower liquidity, avoid new positions.`
+        `Lower liquidity outside Tokyo open — avoid new positions.`
       );
     }
+
+    // Evaluate AFTER kill zone pushes so the count is accurate
+    const tooManyWarnings = warnings.length >= 6;
 
     const valid = !isClosed && !extremeVol && !tooManyWarnings && !rrTooLow && (!outsideKillZone || setupConfirmed);
 

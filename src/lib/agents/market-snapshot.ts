@@ -234,7 +234,17 @@ export async function buildMarketSnapshot(
 
   const utcHour   = new Date().getUTCHours();
   const session   = getSession(utcHour);
-  const atrProxy  = Math.abs(pctChange);
+
+  // Real ATR: average H-L range over last 14 candles as % of close.
+  // Falls back to |pctChange| only when candles are unavailable.
+  const atrProxy = (() => {
+    if (timeframeCandles && timeframeCandles.length >= 3) {
+      const recent = timeframeCandles.slice(-14);
+      const avgHL  = recent.reduce((s, c) => s + (c.h - c.l), 0) / recent.length;
+      return close > 0 ? (avgHL / close) * 100 : Math.abs(pctChange);
+    }
+    return Math.abs(pctChange);
+  })();
 
   // Volatility classification
   const volatilityHigh  = atrProxy > 1.0;
