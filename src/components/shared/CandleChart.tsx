@@ -834,6 +834,19 @@ export function CandleChart({
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.data) newsRef.current = d.data; })
       .catch(() => {});
+    fetch("/api/market/trump", { cache: "no-store" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d?.data) return;
+        const trumpItems: NewsItem[] = d.data.map((p: any) => ({
+          headline: `[Trump] ${(p.content as string).slice(0, 140)}`,
+          timestamp: p.timestamp,
+          sentiment: p.sentimentClassification,
+          affectedAssets: p.affectedAssets ?? [],
+        }));
+        newsRef.current = [...newsRef.current, ...trumpItems];
+      })
+      .catch(() => {});
     fetch("/api/market/calendar", { cache: "no-store" })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.data) calendarRef.current = d.data; })

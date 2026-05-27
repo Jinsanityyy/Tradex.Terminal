@@ -100,9 +100,10 @@ export async function POST(req: NextRequest) {
     let tavilyContext = "";
     try {
       const origin  = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-      const [newsRes, macroRes] = await Promise.all([
+      const [newsRes, macroRes, trumpRes] = await Promise.all([
         fetch(`${origin}/api/market/news`, { cache: "no-store" }),
         fetch(`${origin}/api/market/macro-context?symbol=${symbol}`, { cache: "no-store" }),
+        fetch(`${origin}/api/market/trump`, { cache: "no-store" }),
       ]);
       if (newsRes.ok) {
         const nd = await newsRes.json();
@@ -113,6 +114,13 @@ export async function POST(req: NextRequest) {
         if (md.summary) {
           tavilyContext = `LIVE MACRO CONTEXT (Tavily + Claude synthesis):\n${md.summary}\nKey drivers: ${(md.keyDrivers ?? []).join(" | ")}\nOverall sentiment: ${md.sentiment}`;
         }
+      }
+      if (trumpRes.ok) {
+        const td = await trumpRes.json();
+        const trumpHeadlines: string[] = (td.data ?? [])
+          .slice(0, 4)
+          .map((p: any) => `[Trump] ${(p.content as string).slice(0, 140)}`);
+        newsHeadlines = [...trumpHeadlines, ...newsHeadlines];
       }
     } catch { /* proceed without */ }
 
