@@ -33,14 +33,15 @@ interface RelatedNewsItem {
 }
 
 interface InstantAnalysis {
-  sentiment:   "bullish" | "bearish" | "neutral";
-  magnitude:   "major" | "moderate" | "minor";
-  pattern:     string;
-  summary:     string;
-  drivers:     string[];
-  technicals:  string;
-  relatedNews: RelatedNewsItem[];
-  macroEvents: MacroEvent[];
+  sentiment:       "bullish" | "bearish" | "neutral";
+  magnitude:       "major" | "moderate" | "minor";
+  pattern:         string;
+  summary:         string;
+  drivers:         string[];
+  technicals:      string;
+  relatedNews:     RelatedNewsItem[];
+  newsExplanation: string;
+  macroEvents:     MacroEvent[];
 }
 
 const SYMBOLS: { id: Symbol; label: string }[] = [
@@ -368,7 +369,23 @@ function analyseCandle(
   else
     summary += `${sentiment === "bullish" ? "Buyers" : "Sellers"} were in control with ${prevTrend === sentiment ? "trend confirmation" : "counter-trend momentum"}.`;
 
-  return { sentiment, magnitude, pattern, summary, drivers, technicals, relatedNews, macroEvents };
+  // Plain-language "why it moved" explanation combining candle data + top headline reasoning
+  let newsExplanation = "";
+  if (relatedNews.length > 0) {
+    const p       = candle.o > 100 ? 0 : 2;
+    const priceDelta = Math.abs(candle.c - candle.o).toFixed(p);
+    const moveStr = candle.o > 100
+      ? `$${priceDelta} ${dir} move (${chStr})`
+      : `${chStr} ${dir} move`;
+    const topReason = relatedNews.find(n => n.goldReasoning)?.goldReasoning
+      ?? relatedNews[0].headline;
+    newsExplanation = `${moveStr}: ${topReason}`;
+    // Append second reasoning if different and adds context
+    const second = relatedNews.find((n, i) => i > 0 && n.goldReasoning && n.goldReasoning !== topReason);
+    if (second?.goldReasoning) newsExplanation += ` ${second.goldReasoning}`;
+  }
+
+  return { sentiment, magnitude, pattern, summary, drivers, technicals, relatedNews, newsExplanation, macroEvents };
 }
 
 // ── Small UI helpers ──────────────────────────────────────────────────────────
@@ -585,6 +602,12 @@ function AnalysisPanel({
           {/* Fallback: news headlines with gold impact explanation */}
           {analysis.macroEvents.length === 0 && analysis.relatedNews.length > 0 && (
             <div className="mb-3">
+              {analysis.newsExplanation && (
+                <div className="rounded-xl border border-violet-500/20 bg-violet-500/8 px-3 py-2.5 mb-2">
+                  <p className="text-[9px] font-bold text-violet-400 uppercase tracking-wider mb-1">Why It Moved</p>
+                  <p className="text-[11px] text-zinc-200 leading-relaxed">{analysis.newsExplanation}</p>
+                </div>
+              )}
               <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1.5">Headlines</p>
               <div className="rounded-xl border border-white/8 bg-white/3 overflow-hidden divide-y divide-white/5">
                 {analysis.relatedNews.map((item, i) => (
