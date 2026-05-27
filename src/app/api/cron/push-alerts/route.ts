@@ -187,15 +187,17 @@ export async function GET(req: NextRequest) {
     const res = await fetch(`${baseUrl}/api/signals?period=24h&limit=20`, { cache: "no-store" });
     if (res.ok) {
       const json = await res.json();
-      const recent = (json.recent ?? []) as Array<{
+      const signalCutoff = Date.now() - 15 * 60 * 1000; // only signals from last 15 min
+      const recent = ((json.recent ?? []) as Array<{
         id: string;
         symbol: string;
         symbolDisplay: string;
         finalBias: string;
         timeframe: string;
         status: string;
+        timestamp?: string;
         tradePlan: { direction: string; entry: number; tp1: number; stopLoss: number; rrRatio: number } | null;
-      }>;
+      }>).filter(s => !s.timestamp || new Date(s.timestamp).getTime() >= signalCutoff);
 
       // 4a. New open signals (new trade setups)
       // Deduplicate by content fingerprint (symbol|entry|dir|tf) NOT by DB id —
