@@ -15,6 +15,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { isAgentSupported, getSymbolShort, getSymbolLabel } from "@/lib/assetImpact";
 import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useQuotes } from "@/hooks/useMarketData";
 
 const TIMEFRAMES: Timeframe[] = ["M5", "M15", "H1", "H4"];
 
@@ -403,9 +404,55 @@ export function MobileBrain() {
   const finalBias  = master?.finalBias ?? "no-trade";
   const isNoTrade  = finalBias === "no-trade";
 
+  // ── Live price recalculation ──────────────────────────────────────────────
+  // The analysis result is cached (up to 5 min). Recalculate distanceToEntry
+  // and signalStateReason using the current live price so it never shows stale %.
+  const SYMBOL_TO_QUOTE: Partial<Record<Symbol, string>> = {
+    XAUUSD: "XAU/USD", EURUSD: "EUR/USD", GBPUSD: "GBP/USD", BTCUSD: "BTC/USD",
+  };
+  const { quotes } = useQuotes(15_000);
+  const quoteSymbol = SYMBOL_TO_QUOTE[symbol];
+  const liveQuote  = quoteSymbol ? quotes.find(q => q.symbol === quoteSymbol) : undefined;
+  const livePrice  = liveQuote?.price ?? null;
+
+  const liveDistanceToEntry = (livePrice != null && exec?.entry != null)
+    ? parseFloat((Math.abs(livePrice - exec.entry) / exec.entry * 100).toFixed(2))
+    : exec?.distanceToEntry ?? null;
+
+  const liveSignalStateReason = (() => {
+    if (!exec?.entry || livePrice == null) return exec?.signalStateReason;
+    const dist = liveDistanceToEntry!;
+    const p = exec.entry > 100 ? 1 : 4;
+    const pricePastEntry = exec.direction === "long"
+      ? livePrice > exec.entry
+      : livePrice < exec.entry;
+    if (pricePastEntry && dist > 0.3) {
+      return `Price already moved ${dist.toFixed(2)}% past entry zone. Do NOT chase — wait for the next setup.`;
+    } else if (dist <= 0.15) {
+      return `${exec.grade} setup — price is ${dist.toFixed(2)}% from entry. Confirm trigger and execute.`;
+    } else if (dist <= 1.0) {
+      return `Price is ${dist.toFixed(2)}% from entry zone at ${exec.entry.toFixed(p)}. Wait for price to return before entering.`;
+    } else {
+      return `Price is ${dist.toFixed(2)}% away from entry at ${exec.entry.toFixed(p)}. Monitor — no action yet.`;
+    }
+  })();
+
+  // Re-derive signal state from live distance (catches stale PENDING when price has moved far)
+  const liveSignalState: SignalState = (() => {
+    if (isNoTrade || !exec?.hasSetup) return "NO_TRADE";
+    if (liveDistanceToEntry == null) return exec?.signalState ?? "NO_TRADE";
+    const dist = liveDistanceToEntry;
+    const pricePastEntry = exec.direction === "long"
+      ? (livePrice ?? 0) > (exec.entry ?? 0)
+      : (livePrice ?? 0) < (exec.entry ?? 0);
+    if (pricePastEntry && dist > 0.3) return "EXPIRED";
+    if (dist <= 0.15) return "ARMED";
+    return "PENDING";
+  })();
+
   const sigState: SignalState = isNoTrade
     ? "NO_TRADE"
-    : (exec?.signalState ?? "NO_TRADE");
+    : liveSignalState;
 
   const isWaitState = sigState === "WAIT";
 
@@ -480,11 +527,11 @@ export function MobileBrain() {
           {data && (
             <SignalBanner
               state={sigState}
-              reason={exec?.signalStateReason ?? master?.noTradeReason}
+              reason={liveSignalStateReason ?? master?.noTradeReason}
               grade={exec?.grade}
               confidence={master?.confidence}
               confluenceCount={exec?.confluenceCount}
-              distanceToEntry={exec?.distanceToEntry}
+              distanceToEntry={liveDistanceToEntry}
             />
           )}
 
