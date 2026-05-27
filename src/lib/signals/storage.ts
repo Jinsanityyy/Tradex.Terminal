@@ -181,11 +181,20 @@ export async function saveSignal(record: SignalRecord): Promise<SignalRecord | n
   }
 
   const row = recordToRow(record);
-  const { error } = await db.from("signals").upsert(row, { onConflict: "id", ignoreDuplicates: true });
+  const { data, error } = await db
+    .from("signals")
+    .upsert(row, { onConflict: "id", ignoreDuplicates: true })
+    .select("id");
+
   if (error) {
     console.warn("[signals/storage] upsert failed:", error.message);
     return null;
   }
+
+  // ignoreDuplicates: if the row already existed, Supabase returns empty array.
+  // Return null so callers (notifyNewSignal etc.) don't re-fire for existing signals.
+  if (!data || data.length === 0) return null;
+
   return record;
 }
 
