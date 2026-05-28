@@ -153,16 +153,12 @@ export function LiveTVPanel({
 
       <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-white/8 bg-black">
         <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-          {loading ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-black">
-              <RefreshCw className="h-6 w-6 animate-spin text-zinc-600" />
-            </div>
-          ) : !tabVisible ? (
+          {!tabVisible ? (
             <div className="absolute inset-0 bg-black" />
           ) : (
             <iframe
               ref={iframeRef}
-              key={`${active.id}-${retryKey}-${videoIds[active.id] ?? "fallback"}`}
+              key={`${active.id}-${retryKey}`}
               src={embedUrl}
               className="absolute inset-0 h-full w-full"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
