@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CatalystFeed } from "@/components/shared/CatalystFeed";
@@ -25,6 +25,16 @@ export default function CatalystsPage() {
   const { news, isLive: isNewsLive } = useNews(60_000);
   const [activeChannel, setActiveChannel] = useState(LIVE_CHANNELS[0]);
   const [streamKey, setStreamKey] = useState(0);
+  const videoPanelRef = useRef<HTMLDivElement>(null);
+  const [videoPanelHeight, setVideoPanelHeight] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    const el = videoPanelRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setVideoPanelHeight(entry.contentRect.height));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const liveCatalysts = catalysts.filter(c => c.status === "live");
   const completedCatalysts = catalysts.filter(c => c.status === "completed");
@@ -117,9 +127,9 @@ export default function CatalystsPage() {
         </TabsContent>
 
         <TabsContent value="news">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:items-stretch">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:items-start">
             {/* Compact video panel */}
-            <div className="rounded-xl border border-white/8 overflow-hidden bg-black flex flex-col">
+            <div ref={videoPanelRef} className="rounded-xl border border-white/8 overflow-hidden bg-black flex flex-col">
               <div className="flex items-center gap-2 px-3 py-2 border-b border-white/6 bg-[#0a0b0e] shrink-0">
                 <span className="relative flex h-1.5 w-1.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
@@ -172,8 +182,11 @@ export default function CatalystsPage() {
               </div>
             </div>
 
-            {/* Live headlines beside the video */}
-            <Card className="overflow-hidden flex flex-col h-full">
+            {/* Live headlines beside the video — pinned to video panel height */}
+            <Card
+              className="overflow-hidden flex flex-col"
+              style={{ height: videoPanelHeight ?? "auto" }}
+            >
               <CardHeader className="pb-2 shrink-0">
                 <CardTitle className="flex items-center gap-2 text-sm">
                   <Newspaper className="h-3.5 w-3.5" />
