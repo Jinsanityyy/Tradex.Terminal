@@ -6,7 +6,7 @@ export type Bias = "bullish" | "bearish" | "neutral";
 export type Sentiment = "risk-on" | "risk-off" | "mixed";
 export type Impact = "high" | "medium" | "low";
 export type EventStatus = "upcoming" | "live" | "completed";
-export type Session = "asia" | "london" | "new-york" | "closed";
+export type Session = "asia" | "london" | "new-york" | "sydney" | "closed";
 export type AssetClass = "forex" | "commodity" | "index" | "crypto" | "bond";
 
 export type MarketRegime =

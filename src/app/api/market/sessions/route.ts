@@ -13,19 +13,26 @@ const CACHE_TTL = 120_000; // 2 min
 // Overlap London+NY: 13:00 – 16:00 UTC
 
 interface SessionWindow {
-  name: "asia" | "london" | "new-york";
+  name: "asia" | "london" | "new-york" | "sydney";
   label: string;
   openUTC: number;  // hour
   closeUTC: number; // hour
+  wrapsDay?: boolean; // true for sessions crossing midnight (Sydney: 22-07)
 }
 
 const SESSIONS: SessionWindow[] = [
+  { name: "sydney",   label: "Sydney",       openUTC: 22, closeUTC: 7,  wrapsDay: true },
   { name: "asia",     label: "Asia / Tokyo", openUTC: 0,  closeUTC: 9 },
   { name: "london",   label: "London",       openUTC: 7,  closeUTC: 16 },
   { name: "new-york", label: "New York",     openUTC: 13, closeUTC: 22 },
 ];
 
 function getSessionStatus(session: SessionWindow, nowHour: number): "active" | "closed" | "upcoming" {
+  if (session.wrapsDay) {
+    // Active when: hour >= openUTC (evening) OR hour < closeUTC (early morning)
+    if (nowHour >= session.openUTC || nowHour < session.closeUTC) return "active";
+    return nowHour >= session.closeUTC && nowHour < session.openUTC ? "upcoming" : "closed";
+  }
   if (nowHour >= session.openUTC && nowHour < session.closeUTC) return "active";
   if (nowHour >= session.closeUTC) return "closed";
   return "upcoming";
@@ -166,7 +173,12 @@ function generateKeyMoves(
 
   if (status === "upcoming") {
     // For upcoming sessions, list what to watch
-    if (session.name === "new-york") {
+    if (session.name === "sydney") {
+      moves.push("Sydney open — first session of the day; sets early risk tone");
+      moves.push("AUD/USD and NZD/USD most active — watch RBA/RBNZ commentary");
+      if (gold) moves.push(`Gold at $${parseFloat(gold.price).toFixed(0)} heading into Sydney open`);
+      moves.push("Thin liquidity — gaps possible on overnight news");
+    } else if (session.name === "new-york") {
       moves.push("Watch for US economic data releases and Fed commentary");
       if (gold) moves.push(`Gold at $${parseFloat(gold.price).toFixed(0)}  -  key level heading into NY`);
       moves.push("Tariff and geopolitical headlines may drive volatility");
@@ -175,10 +187,13 @@ function generateKeyMoves(
       moves.push("European data releases and ECB commentary expected");
       if (eurusd) moves.push(`EUR/USD at ${eurusd.price}  -  watch for directional break`);
       moves.push("London open typically drives gold direction for the day");
-    } else {
+    } else if (session.name === "asia") {
       moves.push("PBoC and BOJ policy signals to monitor");
       if (usdjpy) moves.push(`USD/JPY at ${usdjpy.price}  -  Tokyo session sets JPY tone`);
       moves.push("Thin liquidity typical  -  watch for stop hunting around key levels");
+    } else {
+      moves.push("Sydney/Asia overlap — AUD, NZD, JPY in focus");
+      moves.push("Thin liquidity — momentum moves can extend quickly");
     }
   } else {
     // For active/closed sessions, show what happened
@@ -210,6 +225,11 @@ function generateKeyMoves(
 }
 
 function generateLiquidityNotes(session: SessionWindow, status: "active" | "closed" | "upcoming", nowHour: number): string {
+  if (session.name === "sydney") {
+    return status === "active"
+      ? "Sydney session open. AUD/NZD pairs most active. Thin liquidity — watch for sharp moves on news. Sets early tone for Asia."
+      : "Sydney session closed. Low-liquidity period. Key moves were driven by AUD/NZD flows and commodity pricing.";
+  }
   if (session.name === "asia") {
     return status === "active"
       ? "Thin liquidity typical in early Asia. JPY crosses and gold may see stop hunting. Volume picks up after Tokyo open."

@@ -7,9 +7,10 @@ import { TrendingUp, TrendingDown, Clock, Wifi, WifiOff, LogOut, User, Camera } 
 import { createClient } from "@/lib/supabase/client";
 
 const SESSION_WINDOWS = [
-  { name: "Asia",     label: "TYO", tz: "Asia/Tokyo",        openUTC: 0,  closeUTC: 9,  color: "#A78BFA" },
-  { name: "London",   label: "LDN", tz: "Europe/London",     openUTC: 7,  closeUTC: 16, color: "#60A5FA" },
-  { name: "New York", label: "NYC", tz: "America/New_York",  openUTC: 13, closeUTC: 22, color: "#FCD34D" },
+  { name: "Sydney",   label: "SYD", tz: "Australia/Sydney",  openUTC: 22, closeUTC: 7,  color: "#34D399", wrapsDay: true  },
+  { name: "Asia",     label: "TYO", tz: "Asia/Tokyo",        openUTC: 0,  closeUTC: 9,  color: "#A78BFA", wrapsDay: false },
+  { name: "London",   label: "LDN", tz: "Europe/London",     openUTC: 7,  closeUTC: 16, color: "#60A5FA", wrapsDay: false },
+  { name: "New York", label: "NYC", tz: "America/New_York",  openUTC: 13, closeUTC: 22, color: "#FCD34D", wrapsDay: false },
 ] as const;
 
 function pad2(n: number) { return n.toString().padStart(2, "0"); }
@@ -26,12 +27,18 @@ function useSessionCountdowns() {
   return SESSION_WINDOWS.map((s) => {
     const openSecs  = s.openUTC  * 3600;
     const closeSecs = s.closeUTC * 3600;
-    const isActive  = utcSecs >= openSecs && utcSecs < closeSecs;
-    const secs = isActive
-      ? closeSecs - utcSecs
-      : utcSecs < openSecs
-        ? openSecs - utcSecs
-        : 86400 - utcSecs + openSecs;
+    const isActive  = s.wrapsDay
+      ? utcSecs >= openSecs || utcSecs < closeSecs
+      : utcSecs >= openSecs && utcSecs < closeSecs;
+    const secs = s.wrapsDay
+      ? isActive
+        ? utcSecs >= openSecs ? 86400 - utcSecs + closeSecs : closeSecs - utcSecs
+        : openSecs - utcSecs
+      : isActive
+        ? closeSecs - utcSecs
+        : utcSecs < openSecs
+          ? openSecs - utcSecs
+          : 86400 - utcSecs + openSecs;
     const h = Math.floor(secs / 3600);
     const m = Math.floor((secs % 3600) / 60);
     const s2 = secs % 60;
@@ -357,6 +364,7 @@ export function TopStatusBar() {
       <div className="flex items-center gap-2 md:gap-4 shrink-0">
         {/* Clocks  -  desktop only */}
         <div className="hidden lg:flex items-center gap-4">
+          <SessionClock label="SYD" timezone="Australia/Sydney" />
           <SessionClock label="TYO" timezone="Asia/Tokyo" />
           <SessionClock label="LDN" timezone="Europe/London" />
           <SessionClock label="NYC" timezone="America/New_York" />

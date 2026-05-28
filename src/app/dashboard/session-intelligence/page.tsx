@@ -48,7 +48,7 @@ export default function SessionIntelligencePage() {
                   <span className={`text-xs font-semibold ${
                     s.status === "active" ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]"
                   }`}>
-                    {s.session === "new-york" ? "New York" : s.session.charAt(0).toUpperCase() + s.session.slice(1)}
+                    {s.session === "new-york" ? "New York" : s.session === "asia" ? "Asia / Tokyo" : s.session.charAt(0).toUpperCase() + s.session.slice(1)}
                   </span>
                   <span className={`text-[10px] block ${
                     s.status === "active" ? "text-[hsl(var(--primary))]/70" : "text-[hsl(var(--muted-foreground))]"

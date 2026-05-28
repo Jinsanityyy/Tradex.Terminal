@@ -8,6 +8,7 @@ interface SessionDef {
   tz: string;
   openUTC: number;
   closeUTC: number;
+  wrapsDay?: boolean;
   color: string;
   bg: string;
   border: string;
@@ -15,6 +16,17 @@ interface SessionDef {
 }
 
 const SESSIONS: SessionDef[] = [
+  {
+    name: "Sydney",
+    tz: "Australia/Sydney",
+    openUTC: 22,
+    closeUTC: 7,
+    wrapsDay: true,
+    color: "#34D399",
+    bg: "#34D39912",
+    border: "#34D39930",
+    dot: "#34D399",
+  },
   {
     name: "Asia / Tokyo",
     tz: "Asia/Tokyo",
@@ -71,22 +83,37 @@ function getLocalTime(tz: string): string {
 function computeSession(session: SessionDef, now: Date) {
   const utcSecs =
     now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds();
-  const openSecs = session.openUTC * 3600;
+  const openSecs  = session.openUTC  * 3600;
   const closeSecs = session.closeUTC * 3600;
 
-  const isActive = utcSecs >= openSecs && utcSecs < closeSecs;
+  let isActive: boolean;
   let countdown: number;
   let countdownLabel: string;
 
-  if (isActive) {
-    countdown = closeSecs - utcSecs;
-    countdownLabel = "closes in";
-  } else if (utcSecs < openSecs) {
-    countdown = openSecs - utcSecs;
-    countdownLabel = "opens in";
+  if (session.wrapsDay) {
+    // Sydney: open 22:00–07:00 UTC (crosses midnight)
+    isActive = utcSecs >= openSecs || utcSecs < closeSecs;
+    if (isActive) {
+      countdown = utcSecs >= openSecs
+        ? 86400 - utcSecs + closeSecs   // evening side: time to midnight + close
+        : closeSecs - utcSecs;           // morning side: time to close
+      countdownLabel = "closes in";
+    } else {
+      countdown = openSecs - utcSecs;
+      countdownLabel = "opens in";
+    }
   } else {
-    countdown = 86400 - utcSecs + openSecs;
-    countdownLabel = "opens in";
+    isActive = utcSecs >= openSecs && utcSecs < closeSecs;
+    if (isActive) {
+      countdown = closeSecs - utcSecs;
+      countdownLabel = "closes in";
+    } else if (utcSecs < openSecs) {
+      countdown = openSecs - utcSecs;
+      countdownLabel = "opens in";
+    } else {
+      countdown = 86400 - utcSecs + openSecs;
+      countdownLabel = "opens in";
+    }
   }
 
   return { isActive, countdown, countdownLabel };
