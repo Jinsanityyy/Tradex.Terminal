@@ -84,7 +84,6 @@ export async function notifyNewSignal(signal: SignalRecord): Promise<void> {
   const dir  = signal.tradePlan.direction === "long" ? "🟢 BUY" : "🔴 SELL";
   const rr   = signal.tradePlan.rrRatio?.toFixed(1) ?? "?";
   const sym  = signal.symbolDisplay ?? signal.symbol;
-  const fp   = `${signal.symbol}|${signal.tradePlan.entry}|${signal.tradePlan.direction}|${signal.timeframe}`;
 
   await broadcast({
     title: `📊 New Signal: ${sym}`,
