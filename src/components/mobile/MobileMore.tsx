@@ -72,6 +72,8 @@ interface MicroData {
   direction: BiasDir;
   openSignals: number | null;
   session: string | null;
+  winRate: number | null;
+  avgRR: number | null;
 }
 
 function getActiveSession(): string | null {
@@ -90,6 +92,8 @@ function useMicroData(): MicroData {
     direction: null,
     openSignals: null,
     session: getActiveSession(),
+    winRate: null,
+    avgRR: null,
   });
 
   useEffect(() => {
@@ -98,6 +102,7 @@ function useMicroData(): MicroData {
     return () => clearInterval(id);
   }, []);
 
+  // 24 h — direction + open count
   useEffect(() => {
     fetch("/api/signals?limit=20&period=24h")
       .then(r => r.ok ? r.json() : null)
@@ -111,6 +116,34 @@ function useMicroData(): MicroData {
           last?.finalBias === "bearish" ? "bearish" :
           last ? "neutral" : null;
         setData((d: MicroData) => ({ ...d, openSignals: open, direction: dir }));
+      })
+      .catch(() => {});
+  }, []);
+
+  // 7 d — win rate + avg R:R for the P&L widget
+  useEffect(() => {
+    fetch("/api/signals?limit=100&period=7d")
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (!json) return;
+        const recent = (json.recent ?? []) as Array<{
+          status: string;
+          tradePlan?: { rrRatio?: number };
+        }>;
+        const closed = recent.filter(s =>
+          ["win_tp1", "win_tp2", "loss_sl"].includes(s.status)
+        );
+        const wins = closed.filter(s => s.status.startsWith("win_")).length;
+        const winRate = closed.length >= 3
+          ? Math.round((wins / closed.length) * 100)
+          : null;
+        const rrs = recent
+          .map(s => s.tradePlan?.rrRatio)
+          .filter((r): r is number => typeof r === "number" && r > 0);
+        const avgRR = rrs.length >= 3
+          ? parseFloat((rrs.reduce((a, b) => a + b, 0) / rrs.length).toFixed(1))
+          : null;
+        setData(d => ({ ...d, winRate, avgRR }));
       })
       .catch(() => {});
   }, []);
@@ -146,6 +179,85 @@ function getAppTag(
     default:
       return {};
   }
+}
+
+// ── P&L Summary Widget ─────────────────────────────────────────────────────
+
+function StatCell({
+  label, value, sub, valueClass,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  valueClass?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-[4px]">
+      <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-zinc-600 leading-none">
+        {label}
+      </span>
+      <span className={cn("text-[13px] font-semibold leading-none tabular-nums", valueClass ?? "text-zinc-100")}>
+        {value}
+      </span>
+      {sub && (
+        <span className="text-[9px] font-mono leading-none text-zinc-600">
+          {sub}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function PnlWidget({ micro }: { micro: MicroData }) {
+  // Wire to a real P&L endpoint when available (e.g. /api/pnl/summary → { dailyPnl, dailyPnlPct })
+  const dailyPnl: number | null    = null;
+  const dailyPnlPct: number | null = null;
+
+  const pnlValue = dailyPnl !== null
+    ? `${dailyPnl >= 0 ? "+" : ""}$${Math.abs(dailyPnl).toFixed(2)}`
+    : "—";
+  const pnlSub = dailyPnl !== null && dailyPnlPct !== null
+    ? `(${dailyPnl >= 0 ? "+" : ""}${dailyPnlPct.toFixed(2)}%)`
+    : undefined;
+  const pnlClass = dailyPnl === null
+    ? "text-zinc-700"
+    : dailyPnl >= 0
+    ? "text-emerald-400"
+    : "text-red-400";
+
+  const sessionLabel = micro.session ?? "CLOSED";
+  const sessionSub   = micro.session ? "ACTIVE" : undefined;
+  const sessionClass = micro.session ? "text-zinc-100" : "text-zinc-600";
+
+  return (
+    <div className="mt-1">
+      <div className="h-px bg-white/[0.05] mx-4 mb-[14px]" />
+      <div className="px-4 pb-5 grid grid-cols-2 gap-x-3 gap-y-[14px]">
+        <StatCell
+          label="Daily P&L"
+          value={pnlValue}
+          sub={pnlSub}
+          valueClass={pnlClass}
+        />
+        <StatCell
+          label="Session"
+          value={sessionLabel}
+          sub={sessionSub}
+          valueClass={sessionClass}
+        />
+        <StatCell
+          label="Win Rate (7d)"
+          value={micro.winRate !== null ? `${micro.winRate}%` : "—"}
+          valueClass={micro.winRate !== null ? "text-zinc-100" : "text-zinc-700"}
+        />
+        <StatCell
+          label="Avg R:R"
+          value={micro.avgRR !== null ? `1 : ${micro.avgRR}` : "—"}
+          valueClass={micro.avgRR !== null ? "text-zinc-100" : "text-zinc-700"}
+        />
+      </div>
+    </div>
+  );
 }
 
 // ── AppRow ─────────────────────────────────────────────────────────────────
@@ -555,8 +667,11 @@ export function MobileMore() {
             })}
           </div>
 
+          {/* ── P&L Summary Widget ─────────────────────────────────────── */}
+          <PnlWidget micro={micro} />
+
           {/* Bottom padding */}
-          <div className="h-8" />
+          <div className="h-4" />
         </div>
       </div>
     </>
