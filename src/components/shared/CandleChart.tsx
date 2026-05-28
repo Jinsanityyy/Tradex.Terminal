@@ -695,11 +695,13 @@ function AnalysisPanel({
 
 // ── Custom SVG Candle Chart  -  supports pinch-to-zoom and pan ─────────────────
 
-function SvgCandleChart({ bars, selected, onSelect, height }: {
+function SvgCandleChart({ bars, selected, onSelect, height, news, tfSecs }: {
   bars:     RawCandle[];
   selected: RawCandle | null;
   onSelect: (c: RawCandle) => void;
   height:   number;
+  news:     NewsItem[];
+  tfSecs:   number;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [cw, setCw] = useState(0);
@@ -847,6 +849,20 @@ function SvgCandleChart({ bars, selected, onSelect, height }: {
   const tStep  = Math.max(1, Math.floor(N / 5));
   const tLabels = visible.map((b, i) => ({ b, i })).filter(({ i }) => i % tStep === 0);
 
+  // Map news items to their nearest visible candle
+  const newsByCandle = new Map<number, NewsItem[]>();
+  for (const item of news) {
+    const itemSec = new Date(item.timestamp).getTime() / 1000;
+    for (const c of visible) {
+      if (Math.abs(itemSec - c.t) <= tfSecs) {
+        const arr = newsByCandle.get(c.t) ?? [];
+        arr.push(item);
+        newsByCandle.set(c.t, arr);
+        break;
+      }
+    }
+  }
+
   return (
     <div ref={wrapRef} className="w-full select-none relative" style={{ height }}>
       {/* Desktop zoom controls */}
@@ -898,6 +914,28 @@ function SvgCandleChart({ bars, selected, onSelect, height }: {
                   fill={col} stroke={isSel ? "#a78bfa" : "none"}
                   strokeWidth={isSel ? 1.5 : 0} opacity={0.9} />
                 {isSel && <circle cx={cx} cy={bTop - 7} r={2.5} fill="#a78bfa" />}
+              </g>
+            );
+          })}
+
+          {/* News headline pins — colored diamonds above candles with news */}
+          {visible.map((c, i) => {
+            const items = newsByCandle.get(c.t);
+            if (!items?.length) return null;
+            const bullN = items.filter(n => n.goldImpact === "bullish").length;
+            const bearN = items.filter(n => n.goldImpact === "bearish").length;
+            const col   = bullN > bearN ? "#10b981" : bearN > bullN ? "#ef4444" : "#f59e0b";
+            const cx     = i * slot + slot / 2;
+            const wickY  = pToY(c.h);
+            const flagY  = Math.max(-10, wickY - 14);
+            return (
+              <g key={`npin-${c.t}`} style={{ cursor: "pointer" }}
+                 onClick={(e) => { e.stopPropagation(); onSelect(c); }}>
+                <line x1={cx} y1={flagY + 6} x2={cx} y2={wickY - 1}
+                  stroke={col} strokeWidth={1} strokeDasharray="2,2" opacity={0.55} />
+                <g transform={`translate(${cx},${flagY}) rotate(45)`}>
+                  <rect x={-4} y={-4} width={8} height={8} rx={1} fill={col} opacity={0.92} />
+                </g>
               </g>
             );
           })}
@@ -1083,6 +1121,8 @@ export function CandleChart({
             selected={selected?.candle ?? null}
             onSelect={handleSelect}
             height={chartHeight}
+            news={newsRef.current}
+            tfSecs={tfWindowSecs(timeframe)}
           />
         </div>
 
