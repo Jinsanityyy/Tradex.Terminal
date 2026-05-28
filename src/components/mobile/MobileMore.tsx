@@ -46,7 +46,7 @@ const ALL_APPS: AppDef[] = [
   { id: "market-intelligence",  label: "Insights",          icon: Brain,         component: MarketIntelPage,           proOnly: true  },
   { id: "signals",              label: "Signals",           icon: Activity,      component: SignalsPage                               },
   { id: "catalysts",            label: "Macro Events",      icon: AlertTriangle, component: CatalystsPage,             proOnly: true  },
-  { id: "trump-monitor",        label: "Political Risk",    icon: BarChart2,     component: TrumpPage,                 proOnly: true  },
+  { id: "trump-monitor",        label: "Trump Monitor",     icon: BarChart2,     component: TrumpPage,                 proOnly: true  },
   { id: "news-flow",            label: "News Feed",         icon: Rss,           component: NewsFlowPage                              },
   { id: "economic-calendar",    label: "Calendar",          icon: Calendar,      component: CalendarPage                              },
   { id: "pnl-calendar",         label: "P&L Tracker",       icon: DollarSign,    component: PnlCalendarPage,           proOnly: true  },
