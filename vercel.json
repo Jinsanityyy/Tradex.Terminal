@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/cron/push-alerts",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 8 * * *"
     },
     {
       "path": "/api/cron/trial-expiry",
