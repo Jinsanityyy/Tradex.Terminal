@@ -88,7 +88,6 @@ function ArticleReader({
       : item.sentiment === "bearish"
       ? "Risk-off macro backdrop — defensive positioning expected"
       : "Neutral macro backdrop — no strong directional signal",
-    assetImpact.reasoning || null,
     item.impactScore >= 8
       ? `High impact (${item.impactScore}/10) — warrants immediate attention`
       : null,
@@ -150,10 +149,10 @@ function ArticleReader({
           <ImpactBadge impact={assetImpact.impact} label={symbolShort} />
         </div>
 
-        {/* Body text — fall back to goldReasoning when summary is empty */}
-        {(item.summary || item.goldReasoning) && (
+        {/* Body text — only real summaries, not the derived reasoning fallback */}
+        {item.summary && item.summary.trim().length > 25 && (
           <p className="text-[14px] text-zinc-300 leading-[1.7] tracking-[0.01em]">
-            {item.summary || item.goldReasoning}
+            {item.summary}
           </p>
         )}
 
