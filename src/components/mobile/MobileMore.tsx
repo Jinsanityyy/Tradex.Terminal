@@ -51,7 +51,7 @@ const ALL_APPS: AppDef[] = [
   { id: "economic-calendar",    label: "Calendar",          icon: Calendar,      component: CalendarPage                              },
   { id: "pnl-calendar",         label: "P&L Tracker",       icon: DollarSign,    component: PnlCalendarPage,           proOnly: true  },
   { id: "candle-analysis",      label: "Candle Analysis",   icon: Zap,           component: CandleAnalysis,            proOnly: true  },
-  { id: "brain",                label: "AI Desk",           icon: Brain,         component: MobileBrain                               },
+  { id: "brain",                label: "Trading Floor",     icon: Brain,         component: MobileBrain                               },
   { id: "live-tv",              label: "Live Feed",         icon: Tv,            component: LiveTVPage                                },
   { id: "knowledge",            label: "Knowledge Base",    icon: BookOpen,      component: TradingKnowledgeContent                   },
   { id: "settings",             label: "Settings",          icon: Settings2,     component: SettingsPage                              },
@@ -72,8 +72,6 @@ interface MicroData {
   direction: BiasDir;
   openSignals: number | null;
   session: string | null;
-  winRate: number | null;
-  avgRR: number | null;
 }
 
 function getActiveSession(): string | null {
@@ -92,8 +90,6 @@ function useMicroData(): MicroData {
     direction: null,
     openSignals: null,
     session: getActiveSession(),
-    winRate: null,
-    avgRR: null,
   });
 
   useEffect(() => {
@@ -102,7 +98,6 @@ function useMicroData(): MicroData {
     return () => clearInterval(id);
   }, []);
 
-  // 24 h — direction + open count
   useEffect(() => {
     fetch("/api/signals?limit=20&period=24h")
       .then(r => r.ok ? r.json() : null)
@@ -116,34 +111,6 @@ function useMicroData(): MicroData {
           last?.finalBias === "bearish" ? "bearish" :
           last ? "neutral" : null;
         setData((d: MicroData) => ({ ...d, openSignals: open, direction: dir }));
-      })
-      .catch(() => {});
-  }, []);
-
-  // 7 d — win rate + avg R:R for the P&L widget
-  useEffect(() => {
-    fetch("/api/signals?limit=100&period=7d")
-      .then(r => r.ok ? r.json() : null)
-      .then(json => {
-        if (!json) return;
-        const recent = (json.recent ?? []) as Array<{
-          status: string;
-          tradePlan?: { rrRatio?: number };
-        }>;
-        const closed = recent.filter(s =>
-          ["win_tp1", "win_tp2", "loss_sl"].includes(s.status)
-        );
-        const wins = closed.filter(s => s.status.startsWith("win_")).length;
-        const winRate = closed.length >= 3
-          ? Math.round((wins / closed.length) * 100)
-          : null;
-        const rrs = recent
-          .map(s => s.tradePlan?.rrRatio)
-          .filter((r): r is number => typeof r === "number" && r > 0);
-        const avgRR = rrs.length >= 3
-          ? parseFloat((rrs.reduce((a, b) => a + b, 0) / rrs.length).toFixed(1))
-          : null;
-        setData(d => ({ ...d, winRate, avgRR }));
       })
       .catch(() => {});
   }, []);
@@ -184,18 +151,54 @@ function getAppTag(
 // ── P&L Summary Widget ─────────────────────────────────────────────────────
 
 function PnlWidget({ micro }: { micro: MicroData }) {
-  // Wire: fetch("/api/pnl/summary").then(d => { setPnl(d.pnl); setPnlPct(d.pct); })
-  const [dailyPnl,    setPnl]    = useState<number | null>(null);
-  const [dailyPnlPct, setPnlPct] = useState<number | null>(null);
-  void setPnl; void setPnlPct;
+  const [dailyPnl,  setDailyPnl]  = useState<number | null>(null);
+  const [winRate7d, setWinRate7d] = useState<number | null>(null);
+  const [avgRR,     setAvgRR]     = useState<number | null>(null);
+
+  // Daily P&L + 7-day win rate from user's actual trade log
+  useEffect(() => {
+    fetch("/api/pnl")
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (!json) return;
+        type DayRow = { date: string; pnl: number; trades: number; wins: number };
+        const daily = (json.daily ?? []) as DayRow[];
+        const today = new Date().toISOString().slice(0, 10);
+
+        const todayRow = daily.find(d => d.date === today);
+        setDailyPnl(todayRow?.pnl ?? null);
+
+        const cutoff = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+        const week   = daily.filter(d => d.date >= cutoff && d.trades > 0);
+        const tTotal = week.reduce((s, d) => s + d.trades, 0);
+        const tWins  = week.reduce((s, d) => s + d.wins, 0);
+        setWinRate7d(tTotal >= 3 ? Math.round((tWins / tTotal) * 100) : null);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Avg R:R from per-trade P&L (avgWin / |avgLoss|)
+  useEffect(() => {
+    fetch("/api/manual-trades")
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (!json) return;
+        type TradeRow = { pnl: number };
+        const trades = (Array.isArray(json) ? json : (json.trades ?? [])) as TradeRow[];
+        const wins   = trades.filter(t => t.pnl > 0).map(t => t.pnl);
+        const losses = trades.filter(t => t.pnl < 0).map(t => Math.abs(t.pnl));
+        if (wins.length < 2 || losses.length < 2) return;
+        const avgWin  = wins.reduce((a, b) => a + b, 0) / wins.length;
+        const avgLoss = losses.reduce((a, b) => a + b, 0) / losses.length;
+        setAvgRR(parseFloat((avgWin / avgLoss).toFixed(1)));
+      })
+      .catch(() => {});
+  }, []);
 
   const pnlPos   = dailyPnl !== null && dailyPnl >= 0;
   const pnlValue = dailyPnl !== null
     ? `${pnlPos ? "+" : ""}$${Math.abs(dailyPnl).toFixed(2)}`
     : "—";
-  const pnlPct = dailyPnl !== null && dailyPnlPct !== null
-    ? `${pnlPos ? "+" : ""}${dailyPnlPct.toFixed(2)}%`
-    : null;
   const pnlClass = dailyPnl === null ? "text-zinc-700"
     : pnlPos ? "text-emerald-400" : "text-red-400";
 
@@ -229,13 +232,8 @@ function PnlWidget({ micro }: { micro: MicroData }) {
             <span className={cn("text-[13px] font-bold leading-none tabular-nums", pnlClass)}>
               {pnlValue}
             </span>
-            <span className={cn(
-              "text-[8.5px] font-mono leading-none",
-              pnlPct
-                ? pnlPos ? "text-emerald-500/50" : "text-red-500/50"
-                : "text-zinc-800"
-            )}>
-              {pnlPct ?? "PENDING"}
+            <span className="text-[8.5px] font-mono leading-none text-zinc-700">
+              TODAY
             </span>
           </div>
 
@@ -271,12 +269,12 @@ function PnlWidget({ micro }: { micro: MicroData }) {
             </span>
             <span className={cn(
               "text-[13px] font-bold leading-none tabular-nums",
-              micro.winRate !== null ? "text-zinc-100" : "text-zinc-700"
+              winRate7d !== null ? "text-zinc-100" : "text-zinc-700"
             )}>
-              {micro.winRate !== null ? `${micro.winRate}%` : "—"}
+              {winRate7d !== null ? `${winRate7d}%` : "—"}
             </span>
             <span className="text-[8.5px] font-mono leading-none text-zinc-700">
-              {micro.winRate !== null ? "CLOSED TRADES" : "NO DATA"}
+              {winRate7d !== null ? "7D TRADES" : "NO DATA"}
             </span>
           </div>
 
@@ -287,12 +285,12 @@ function PnlWidget({ micro }: { micro: MicroData }) {
             </span>
             <span className={cn(
               "text-[13px] font-bold leading-none tabular-nums",
-              micro.avgRR !== null ? "text-zinc-100" : "text-zinc-700"
+              avgRR !== null ? "text-zinc-100" : "text-zinc-700"
             )}>
-              {micro.avgRR !== null ? `1 : ${micro.avgRR}` : "—"}
+              {avgRR !== null ? `1 : ${avgRR}` : "—"}
             </span>
             <span className="text-[8.5px] font-mono leading-none text-zinc-700">
-              {micro.avgRR !== null ? "REWARD RATIO" : "NO DATA"}
+              {avgRR !== null ? "REWARD RATIO" : "NO DATA"}
             </span>
           </div>
 
