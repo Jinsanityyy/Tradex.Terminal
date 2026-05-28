@@ -134,7 +134,19 @@ function parseRssText(xml: string): Array<{ title: string; description: string; 
     const title   = (/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/.exec(block) ?? /<title>(.*?)<\/title>/.exec(block))?.[1]?.trim() ?? "";
     const desc    = (/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/.exec(block) ?? /<description>(.*?)<\/description>/.exec(block))?.[1]?.trim() ?? "";
     const pubDate = (/<pubDate>(.*?)<\/pubDate>/.exec(block))?.[1]?.trim() ?? "";
-    const link    = (/<link>(.*?)<\/link>/.exec(block) ?? /<link\s[^>]*href="([^"]+)"/.exec(block))?.[1]?.trim() ?? "";
+
+    // Multi-pattern link extraction: CDATA, plain text, Atom href, then guid fallback
+    const rawLink = (
+      /<link><!\[CDATA\[([\s\S]*?)\]\]><\/link>/i.exec(block) ??
+      /<link>(https?:\/\/[^\s<]+)<\/link>/i.exec(block) ??
+      /<link\s[^>]*href="([^"]+)"/i.exec(block)
+    )?.[1]?.trim() ?? "";
+    const guidRaw = (
+      /<guid[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/guid>/i.exec(block) ??
+      /<guid[^>]*>([\s\S]*?)<\/guid>/i.exec(block)
+    )?.[1]?.trim() ?? "";
+    const link = rawLink || (guidRaw.startsWith("http") ? guidRaw : "");
+
     if (title) items.push({ title, description: stripHtml(desc), pubDate, link });
   }
   return items;

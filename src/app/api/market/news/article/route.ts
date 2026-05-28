@@ -25,8 +25,19 @@ function isAllowed(url: string): boolean {
   }
 }
 
+function isBlockedPage(html: string): boolean {
+  const lower = html.slice(0, 2000).toLowerCase();
+  return (
+    lower.includes("just a moment") ||
+    lower.includes("enable javascript and cookies") ||
+    lower.includes("cf-browser-verification") ||
+    lower.includes("checking your browser") ||
+    lower.includes("ddos-guard")
+  );
+}
+
 function extractArticleText(html: string): string {
-  // Remove scripts, styles, nav, header, footer, ads
+  // Strip noise elements entirely
   let text = html
     .replace(/<script[\s\S]*?<\/script>/gi, "")
     .replace(/<style[\s\S]*?<\/style>/gi, "")
@@ -35,16 +46,17 @@ function extractArticleText(html: string): string {
     .replace(/<footer[\s\S]*?<\/footer>/gi, "")
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/<aside[\s\S]*?<\/aside>/gi, "")
-    .replace(/<figure[\s\S]*?<\/figure>/gi, "");
+    .replace(/<figure[\s\S]*?<\/figure>/gi, "")
+    .replace(/<form[\s\S]*?<\/form>/gi, "")
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, "");
 
-  // Try to isolate the article body — look for <article>, main content divs
-  const articleMatch =
+  // Prefer <article> or <main> — they reliably wrap the content body
+  const containerMatch =
     /<article[^>]*>([\s\S]*?)<\/article>/i.exec(text) ??
-    /<div[^>]+(?:class|id)="[^"]*(?:article|content|story|body|post)[^"]*"[^>]*>([\s\S]*?)<\/div>/i.exec(text);
+    /<main[^>]*>([\s\S]*?)<\/main>/i.exec(text);
+  if (containerMatch) text = containerMatch[1];
 
-  if (articleMatch) text = articleMatch[1];
-
-  // Convert <p>, <li>, <h1>-<h6> to plain text with line breaks
+  // Convert semantic tags to plain text
   text = text
     .replace(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi, "\n\n$1\n\n")
     .replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, "$1\n\n")
@@ -53,11 +65,11 @@ function extractArticleText(html: string): string {
     .replace(/<[^>]+>/g, " ")
     .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"').replace(/&#039;/g, "'").replace(/&nbsp;/g, " ")
-    .replace(/\s{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  // Return up to 3000 chars — enough for a solid article view
-  return text.slice(0, 3000);
+  return text.slice(0, 4000);
 }
 
 export async function GET(req: NextRequest) {
@@ -89,9 +101,14 @@ export async function GET(req: NextRequest) {
     }
 
     const html = await res.text();
+
+    if (isBlockedPage(html)) {
+      return NextResponse.json({ error: "Bot protection active" }, { status: 403 });
+    }
+
     const body = extractArticleText(html);
 
-    if (!body || body.length < 50) {
+    if (!body || body.length < 100) {
       return NextResponse.json({ error: "No article body found" }, { status: 404 });
     }
 
