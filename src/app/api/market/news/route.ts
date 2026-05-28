@@ -125,8 +125,8 @@ function isRealNews(headline: string): boolean {
 
 // ── Multi-source RSS ──────────────────────────────────────────────────────
 
-function parseRssText(xml: string): Array<{ title: string; description: string; pubDate: string }> {
-  const items: Array<{ title: string; description: string; pubDate: string }> = [];
+function parseRssText(xml: string): Array<{ title: string; description: string; pubDate: string; link: string }> {
+  const items: Array<{ title: string; description: string; pubDate: string; link: string }> = [];
   const itemRe = /<item>([\s\S]*?)<\/item>/g;
   let m: RegExpExecArray | null;
   while ((m = itemRe.exec(xml)) !== null) {
@@ -134,7 +134,8 @@ function parseRssText(xml: string): Array<{ title: string; description: string; 
     const title   = (/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/.exec(block) ?? /<title>(.*?)<\/title>/.exec(block))?.[1]?.trim() ?? "";
     const desc    = (/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/.exec(block) ?? /<description>(.*?)<\/description>/.exec(block))?.[1]?.trim() ?? "";
     const pubDate = (/<pubDate>(.*?)<\/pubDate>/.exec(block))?.[1]?.trim() ?? "";
-    if (title) items.push({ title, description: stripHtml(desc), pubDate });
+    const link    = (/<link>(.*?)<\/link>/.exec(block) ?? /<link\s[^>]*href="([^"]+)"/.exec(block))?.[1]?.trim() ?? "";
+    if (title) items.push({ title, description: stripHtml(desc), pubDate, link });
   }
   return items;
 }
@@ -195,6 +196,7 @@ async function fetchRssFeed(cfg: typeof RSS_SOURCES[number]): Promise<NewsItem[]
           affectedAssets: extractAssets(headline),
           summary: r.description,
           source: cfg.source,
+          url: r.link || undefined,
           goldImpact,
           goldReasoning,
           usdImpact,

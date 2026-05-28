@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { cn, timeAgo } from "@/lib/utils";
 import {
   ArrowLeft, TrendingUp, TrendingDown, Minus,
@@ -89,6 +89,20 @@ function ArticleReader({
   const selectedSymbol = settings.selectedSymbol ?? "XAUUSD";
   const symbolShort    = getSymbolShort(selectedSymbol);
   const symbolLabel    = getSymbolLabel(selectedSymbol);
+
+  const [articleBody, setArticleBody] = useState<string | null>(null);
+  const [bodyLoading, setBodyLoading] = useState(false);
+
+  useEffect(() => {
+    if (!item.url) return;
+    setBodyLoading(true);
+    setArticleBody(null);
+    fetch(`/api/market/news/article?url=${encodeURIComponent(item.url)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.body) setArticleBody(data.body); })
+      .catch(() => {})
+      .finally(() => setBodyLoading(false));
+  }, [item.url]);
 
   const assetImpact = getImpactForSymbol({
     goldImpact:    item.goldImpact,
@@ -205,10 +219,39 @@ function ArticleReader({
           {item.category.replace(/-/g, " ")}
         </span>
 
-        {/* Body text — full summary when no key points, or remaining text */}
-        {item.summary && item.summary.trim().length > 25 && keyPoints.length === 0 && (
+        {/* Full article body — fetched from source URL */}
+        {bodyLoading && (
+          <div className="space-y-2.5 animate-pulse">
+            {[100, 90, 95, 80, 70].map((w, i) => (
+              <div key={i} className="h-3 rounded bg-zinc-800" style={{ width: `${w}%` }} />
+            ))}
+          </div>
+        )}
+
+        {articleBody && !bodyLoading && (
+          <div className="space-y-4">
+            {articleBody.split(/\n\n+/).filter(p => p.trim().length > 20).map((para, i) => (
+              <p key={i} className={cn(
+                "leading-[1.78] tracking-[0.005em]",
+                para.startsWith("•") ? "text-[13px] text-zinc-400 pl-1" : "text-[14px] text-zinc-300"
+              )}>
+                {para.trim()}
+              </p>
+            ))}
+          </div>
+        )}
+
+        {/* Fallback — RSS description when no URL or fetch failed */}
+        {!bodyLoading && !articleBody && item.summary && item.summary.trim().length > 25 && (
           <p className="text-[14px] text-zinc-300 leading-[1.75] tracking-[0.005em]">
             {item.summary}
+          </p>
+        )}
+
+        {/* No content at all */}
+        {!bodyLoading && !articleBody && (!item.summary || item.summary.trim().length <= 25) && (
+          <p className="text-[13px] text-zinc-600 italic">
+            Full article content unavailable. Tap the source link to read on {item.source}.
           </p>
         )}
 
@@ -227,8 +270,8 @@ function ArticleReader({
           </div>
         )}
 
-        {/* Footer tags */}
-        <div className="flex flex-wrap gap-2 pt-1">
+        {/* Footer tags + read original */}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
           {[item.source, item.category.replace(/-/g, " ")].map(tag => (
             <span
               key={tag}
@@ -237,6 +280,16 @@ function ArticleReader({
               {tag}
             </span>
           ))}
+          {item.url && (
+            <a
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-auto flex items-center gap-1 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+            >
+              Read on {item.source} →
+            </a>
+          )}
         </div>
 
         {/* Copyright */}
