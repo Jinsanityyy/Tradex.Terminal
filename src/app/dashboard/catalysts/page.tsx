@@ -117,7 +117,7 @@ export default function CatalystsPage() {
         </TabsContent>
 
         <TabsContent value="news">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:items-stretch">
             {/* Compact video panel */}
             <div className="rounded-xl border border-white/8 overflow-hidden bg-black flex flex-col">
               <div className="flex items-center gap-2 px-3 py-2 border-b border-white/6 bg-[#0a0b0e] shrink-0">
@@ -173,7 +173,7 @@ export default function CatalystsPage() {
             </div>
 
             {/* Live headlines beside the video */}
-            <Card className="overflow-hidden flex flex-col">
+            <Card className="overflow-hidden flex flex-col h-full">
               <CardHeader className="pb-2 shrink-0">
                 <CardTitle className="flex items-center gap-2 text-sm">
                   <Newspaper className="h-3.5 w-3.5" />
@@ -186,7 +186,7 @@ export default function CatalystsPage() {
                   </div>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="overflow-y-auto" style={{ maxHeight: "420px" }}>
+              <CardContent className="flex-1 min-h-0 overflow-y-auto">
                 <NewsFeed items={news} compact />
               </CardContent>
             </Card>
