@@ -193,7 +193,7 @@ export function MobileHome() {
   const [takingTrade, setTakingTrade] = useState(false);
   const [closingTrade, setClosingTrade] = useState<TakenSignal | null>(null);
   const containerRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLElement>;
-  const [lastOutcome, setLastOutcome] = useState<{ status: string; pnlR?: number } | null>(null);
+  const [lastOutcome, setLastOutcome] = useState<{ status: string; pnlR?: number; entry?: number; stopLoss?: number; tp1?: number; rrRatio?: number } | null>(null);
 
   useEffect(() => { setTradeLog(loadTradeLog()); }, []);
 
@@ -207,7 +207,14 @@ export function MobileHome() {
           (s: { status: string }) => ["win_tp1", "win_tp2", "loss_sl"].includes(s.status)
         );
         setLastOutcome(resolved
-          ? { status: resolved.status, pnlR: resolved.outcome?.pnlR }
+          ? {
+              status: resolved.status,
+              pnlR: resolved.outcome?.pnlR,
+              entry: resolved.tradePlan?.entry,
+              stopLoss: resolved.tradePlan?.stopLoss,
+              tp1: resolved.tradePlan?.tp1,
+              rrRatio: resolved.tradePlan?.rrRatio,
+            }
           : null
         );
       })
@@ -308,11 +315,11 @@ export function MobileHome() {
   } : null;
   const finalBias = master?.finalBias ?? "neutral";
 
-  // Entry/SL/TP  -  exec has live values, tradePlan has logged values
-  const entry = exec?.entry ?? tradePlan?.entry ?? null;
-  const stopLoss = exec?.stopLoss ?? tradePlan?.stopLoss ?? null;
-  const tp1 = exec?.tp1 ?? tradePlan?.tp1 ?? null;
-  const rrRatio = exec?.rrRatio ?? tradePlan?.rrRatio ?? null;
+  // Entry/SL/TP — live exec > logged tradePlan > last resolved signal (for "Last Setup" display)
+  const entry = exec?.entry ?? tradePlan?.entry ?? lastOutcome?.entry ?? null;
+  const stopLoss = exec?.stopLoss ?? tradePlan?.stopLoss ?? lastOutcome?.stopLoss ?? null;
+  const tp1 = exec?.tp1 ?? tradePlan?.tp1 ?? lastOutcome?.tp1 ?? null;
+  const rrRatio = exec?.rrRatio ?? tradePlan?.rrRatio ?? lastOutcome?.rrRatio ?? null;
   const direction = exec?.direction ?? tradePlan?.direction ?? null;
   const trigger = exec?.trigger ?? tradePlan?.trigger ?? null;
 
