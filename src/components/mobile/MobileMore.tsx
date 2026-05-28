@@ -34,7 +34,7 @@ const LiveTVPage       = dynamic(() => import("@/app/dashboard/live-tv/page"),  
 interface AppDef {
   id: string;
   label: string;
-  icon: React.FC<{ className?: string }>;
+  icon: React.FC<{ className?: string; strokeWidth?: number }>;
   component: React.ComponentType;
   proOnly?: boolean;
 }
@@ -176,19 +176,22 @@ function AppRow({
         isActive && "border-l-2 border-emerald-500 bg-white/[0.03] !pl-[14px]"
       )}
     >
-      <Icon className={cn(
-        "h-3 w-3 shrink-0",
-        isLocked ? "text-zinc-800 opacity-30" : "text-zinc-500 opacity-40"
-      )} />
+      <Icon
+        className={cn(
+          "h-3 w-3 shrink-0",
+          isLocked ? "text-zinc-700 opacity-40" : "text-zinc-400 opacity-50"
+        )}
+        strokeWidth={1.5}
+      />
       <span className={cn(
-        "flex-1 text-[11.5px] font-normal text-left leading-none tracking-[0.01em]",
-        isLocked ? "text-zinc-700" : "text-zinc-300"
+        "flex-1 text-[11.5px] text-left leading-none tracking-[0.01em]",
+        isLocked ? "text-zinc-600 font-normal" : "text-zinc-200 font-medium"
       )}>
         {app.label}
       </span>
       <div className="w-[52px] flex justify-end shrink-0">
         {isLocked ? (
-          <span className="text-[8.5px] font-mono uppercase tracking-widest text-zinc-800">
+          <span className="text-[8.5px] font-mono uppercase tracking-widest text-zinc-600">
             PRO
           </span>
         ) : tag ? (
@@ -371,7 +374,7 @@ export function MobileMore() {
               onClick={() => setActiveAppId(null)}
               className="flex items-center gap-1.5 text-zinc-500 active:text-zinc-200 py-1 cursor-pointer transition-colors"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
               <span className="text-[11px] font-normal uppercase tracking-wide">Menu</span>
             </button>
             <span className="text-[11px] text-zinc-600 mx-1">/</span>
@@ -415,17 +418,19 @@ export function MobileMore() {
           className="px-4 pb-3 border-b border-white/[0.06] shrink-0"
           style={{ paddingTop: "max(2.75rem, env(safe-area-inset-top))" }}
         >
-          <div className="flex items-center gap-3">
-            {/* Avatar */}
-            <div className="w-8 h-8 rounded-full overflow-hidden border border-white/[0.08] shrink-0 bg-zinc-900">
-              {avatar
-                ? <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
-                : <div className="w-full h-full flex items-center justify-center">
-                    <span className="text-[13px] font-bold text-emerald-400">
-                      {(traderName || "T")[0].toUpperCase()}
-                    </span>
-                  </div>
-              }
+          <div className="flex items-center min-h-[48px]">
+            {/* Avatar — 48×48 tap zone, 32×32 visual */}
+            <div className="shrink-0 flex items-center justify-center w-[44px] h-[48px] -ml-2 mr-1">
+              <div className="w-8 h-8 rounded-full overflow-hidden border border-white/[0.08] bg-zinc-900">
+                {avatar
+                  ? <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
+                  : <div className="w-full h-full flex items-center justify-center">
+                      <span className="text-[13px] font-bold text-emerald-400">
+                        {(traderName || "T")[0].toUpperCase()}
+                      </span>
+                    </div>
+                }
+              </div>
             </div>
 
             {/* Name + tier */}
@@ -446,12 +451,15 @@ export function MobileMore() {
                   {planLabel}
                 </span>
               </div>
-              <p className="text-[10px] text-zinc-700 mt-[3px] uppercase tracking-wider leading-none">
+              <p className="text-[10px] text-zinc-500 mt-[4px] uppercase tracking-wider leading-none">
                 Tradex Terminal
               </p>
             </div>
 
-            <AssetChip size="sm" onPress={() => setSheetOpen(true)} />
+            {/* AssetChip — 48px tall tap zone */}
+            <div className="shrink-0 flex items-center min-h-[48px]">
+              <AssetChip size="sm" onPress={() => setSheetOpen(true)} />
+            </div>
           </div>
         </div>
 
@@ -467,7 +475,7 @@ export function MobileMore() {
               <div key={section.label}>
                 {/* Section divider */}
                 <div className="flex items-center gap-2.5 px-4 pt-3 pb-1">
-                  <span className="text-[8px] font-semibold tracking-[0.10em] text-zinc-500/40 shrink-0">
+                  <span className="text-[8px] font-semibold tracking-[0.12em] text-zinc-500/60 shrink-0">
                     {section.label}
                   </span>
                   <div className="flex-1 h-px bg-white/[0.05]" />
@@ -495,7 +503,7 @@ export function MobileMore() {
           {/* ── Account section ─────────────────────────────────────────── */}
           <div>
             <div className="flex items-center gap-2.5 px-4 pt-3 pb-1">
-              <span className="text-[8px] font-semibold tracking-[0.10em] text-zinc-500/40 shrink-0">
+              <span className="text-[8px] font-semibold tracking-[0.12em] text-zinc-500/60 shrink-0">
                 ACCOUNT
               </span>
               <div className="flex-1 h-px bg-white/[0.05]" />
@@ -512,12 +520,12 @@ export function MobileMore() {
               className="w-full flex items-center gap-3 px-4 py-[7px] active:bg-white/[0.04] transition-colors cursor-pointer disabled:opacity-40"
             >
               {push.busy
-                ? <Loader2 className="h-3 w-3 text-zinc-500 opacity-40 animate-spin shrink-0" />
+                ? <Loader2 className="h-3 w-3 text-zinc-400 opacity-50 animate-spin shrink-0" strokeWidth={1.5} />
                 : push.status === "subscribed"
-                ? <Bell    className="h-3 w-3 text-emerald-500 opacity-60 shrink-0" />
-                : <BellOff className="h-3 w-3 text-zinc-600 opacity-40 shrink-0" />
+                ? <Bell    className="h-3 w-3 text-emerald-500 opacity-60 shrink-0" strokeWidth={1.5} />
+                : <BellOff className="h-3 w-3 text-zinc-500 opacity-50 shrink-0" strokeWidth={1.5} />
               }
-              <span className="flex-1 text-[11.5px] font-normal text-zinc-300 text-left leading-none tracking-[0.01em]">
+              <span className="flex-1 text-[11.5px] font-medium text-zinc-200 text-left leading-none tracking-[0.01em]">
                 Alerts
               </span>
               {/* Toggle pill */}
