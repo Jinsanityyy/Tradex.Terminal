@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  Calendar, TrendingUp, Activity,
-  Radio, Brain, Clock, DollarSign,
-  Shield, AtSign, Newspaper, LayoutGrid, Tv,
-  ChevronLeft, ChevronRight, GraduationCap, Zap, Lock, Crown, Bell, BellOff, Loader2
+  TrendingUp, Brain, Clock, LayoutGrid,
+  AlertTriangle, Calendar, Activity, Rss,
+  DollarSign, Tv, BookOpen, Settings,
+  ChevronLeft, Bell, BellOff, Loader2, Crown,
+  Zap, BarChart2,
 } from "lucide-react";
 import { MobileBrain } from "@/components/mobile/MobileBrain";
 import { MobileFeatureGate } from "@/components/mobile/MobileFeatureGate";
@@ -13,9 +14,9 @@ import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelector
 import { TradingKnowledgeContent } from "@/components/shared/TradingKnowledgeSidebar";
 import { CandleAnalysis } from "@/components/shared/CandleAnalysis";
 import { useSubscription } from "@/hooks/useSubscription";
-
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
+import { cn } from "@/lib/utils";
 
 const MarketBiasPage   = dynamic(() => import("@/app/dashboard/market-bias/page"),          { ssr: false });
 const CatalystsPage    = dynamic(() => import("@/app/dashboard/catalysts/page"),            { ssr: false });
@@ -33,74 +34,184 @@ const LiveTVPage       = dynamic(() => import("@/app/dashboard/live-tv/page"),  
 interface AppDef {
   id: string;
   label: string;
-  icon: React.FC<{ className?: string; style?: React.CSSProperties }>;
-  color: string;
+  icon: React.FC<{ className?: string }>;
   component: React.ComponentType;
   proOnly?: boolean;
 }
 
 const ALL_APPS: AppDef[] = [
-  { id: "market-bias",          label: "Market Bias",     icon: TrendingUp,    color: "#10b981", component: MarketBiasPage,     proOnly: true },
-  { id: "market-intelligence",  label: "Intelligence",    icon: Brain,         color: "#8b5cf6", component: MarketIntelPage,    proOnly: true },
-  { id: "asset-matrix",         label: "Asset Matrix",    icon: LayoutGrid,    color: "#3b82f6", component: AssetMatrixPage,    proOnly: true },
-  { id: "session-intelligence", label: "Sessions",        icon: Clock,         color: "#f59e0b", component: SessionIntelPage,   proOnly: true },
-  { id: "catalysts",            label: "Catalysts",       icon: Newspaper,     color: "#ef4444", component: CatalystsPage,      proOnly: true },
-  { id: "economic-calendar",    label: "Calendar",        icon: Calendar,      color: "#3b82f6", component: CalendarPage },
-  { id: "trump-monitor",        label: "Trump Monitor",   icon: AtSign,        color: "#f59e0b", component: TrumpPage,          proOnly: true },
-  { id: "news-flow",            label: "News Flow",       icon: Radio,         color: "#10b981", component: NewsFlowPage },
-  { id: "live-tv",              label: "Live TV",         icon: Tv,            color: "#6366f1", component: LiveTVPage },
-  { id: "signals",              label: "Signals",         icon: Activity,      color: "#10b981", component: SignalsPage },
-  { id: "pnl-calendar",         label: "PnL Calendar",   icon: DollarSign,    color: "#f59e0b", component: PnlCalendarPage },
-  { id: "brain",                label: "Brain Terminal",  icon: Brain,         color: "#8b5cf6", component: MobileBrain },
-  { id: "candle-analysis",      label: "Candle Analysis", icon: Zap,           color: "#7c3aed", component: CandleAnalysis,     proOnly: true },
-  { id: "knowledge",            label: "Knowledge",       icon: GraduationCap, color: "#a78bfa", component: TradingKnowledgeContent },
-  { id: "settings",             label: "Settings",        icon: Shield,        color: "#6b7280", component: SettingsPage },
+  { id: "market-bias",          label: "Market Direction",  icon: TrendingUp,    component: MarketBiasPage,            proOnly: true  },
+  { id: "asset-matrix",         label: "Cross-Asset",       icon: LayoutGrid,    component: AssetMatrixPage,           proOnly: true  },
+  { id: "session-intelligence", label: "Trading Sessions",  icon: Clock,         component: SessionIntelPage,          proOnly: true  },
+  { id: "market-intelligence",  label: "Insights",          icon: Brain,         component: MarketIntelPage,           proOnly: true  },
+  { id: "signals",              label: "Signals",           icon: Activity,      component: SignalsPage                               },
+  { id: "catalysts",            label: "Macro Events",      icon: AlertTriangle, component: CatalystsPage,             proOnly: true  },
+  { id: "trump-monitor",        label: "Political Risk",    icon: BarChart2,     component: TrumpPage,                 proOnly: true  },
+  { id: "news-flow",            label: "News Feed",         icon: Rss,           component: NewsFlowPage                              },
+  { id: "economic-calendar",    label: "Calendar",          icon: Calendar,      component: CalendarPage                              },
+  { id: "pnl-calendar",         label: "P&L Tracker",       icon: DollarSign,    component: PnlCalendarPage,           proOnly: true  },
+  { id: "candle-analysis",      label: "Candle Analysis",   icon: Zap,           component: CandleAnalysis,            proOnly: true  },
+  { id: "brain",                label: "Brain Terminal",    icon: Brain,         component: MobileBrain                               },
+  { id: "live-tv",              label: "Live TV",           icon: Tv,            component: LiveTVPage                                },
+  { id: "knowledge",            label: "Knowledge Base",    icon: BookOpen,      component: TradingKnowledgeContent                   },
+  { id: "settings",             label: "Settings",          icon: Settings,      component: SettingsPage                              },
 ];
 
 const SECTIONS = [
-  { label: "Analysis",      appIds: ["market-bias", "market-intelligence", "asset-matrix", "session-intelligence"] },
-  { label: "News & Events", appIds: ["catalysts", "economic-calendar", "trump-monitor", "news-flow", "live-tv"] },
-  { label: "Trading",       appIds: ["signals", "pnl-calendar", "brain", "candle-analysis"] },
+  { label: "MARKET",       appIds: ["market-bias", "asset-matrix", "session-intelligence"] },
+  { label: "INTELLIGENCE", appIds: ["market-intelligence", "signals"] },
+  { label: "MACRO",        appIds: ["catalysts", "trump-monitor", "news-flow", "economic-calendar"] },
+  { label: "TOOLS",        appIds: ["pnl-calendar", "candle-analysis", "brain", "live-tv"] },
 ];
 
-function AppRow({ app, onPress, isLocked }: { app: AppDef; onPress: () => void; isLocked: boolean }) {
+// ── Micro data ─────────────────────────────────────────────────────────────
+
+type BiasDir = "bullish" | "bearish" | "neutral" | null;
+
+interface MicroData {
+  direction: BiasDir;
+  openSignals: number | null;
+  session: string | null;
+}
+
+function getActiveSession(): string | null {
+  const now = new Date();
+  const t = now.getUTCHours() * 60 + now.getUTCMinutes();
+  if (t >= 13 * 60 && t < 17 * 60) return "NY+LDN";
+  if (t >= 13 * 60 && t < 22 * 60) return "NY";
+  if (t >= 8 * 60 && t < 17 * 60) return "LDN";
+  if (t >= 0 * 60 && t < 9 * 60)  return "TYO";
+  if (t >= 22 * 60 || t < 7 * 60) return "SYD";
+  return null;
+}
+
+function useMicroData(): MicroData {
+  const [data, setData] = useState<MicroData>({
+    direction: null,
+    openSignals: null,
+    session: getActiveSession(),
+  });
+
+  useEffect(() => {
+    const tick = () => setData((d: MicroData) => ({ ...d, session: getActiveSession() }));
+    const id = setInterval(tick, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/signals?limit=20&period=24h")
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (!json) return;
+        const recent = (json.recent ?? []) as Array<{ status: string; finalBias?: string }>;
+        const open = recent.filter(s => s.status === "open").length;
+        const last = recent.find(s => s.finalBias && s.finalBias !== "no-trade");
+        const dir: BiasDir =
+          last?.finalBias === "bullish" ? "bullish" :
+          last?.finalBias === "bearish" ? "bearish" :
+          last ? "neutral" : null;
+        setData((d: MicroData) => ({ ...d, openSignals: open, direction: dir }));
+      })
+      .catch(() => {});
+  }, []);
+
+  return data;
+}
+
+type TagVariant = "green" | "red" | "amber" | "muted";
+
+function getAppTag(
+  id: string,
+  micro: MicroData
+): { tag?: string; variant?: TagVariant } {
+  switch (id) {
+    case "market-bias":
+      if (!micro.direction) return {};
+      return micro.direction === "bullish" ? { tag: "BULLISH", variant: "green" }
+           : micro.direction === "bearish" ? { tag: "BEARISH", variant: "red"   }
+           :                                 { tag: "NEUTRAL",  variant: "muted" };
+    case "session-intelligence":
+      return micro.session
+        ? { tag: micro.session, variant: "green" }
+        : { tag: "CLOSED", variant: "muted" };
+    case "signals":
+      if (micro.openSignals === null) return {};
+      return micro.openSignals > 0
+        ? { tag: `${micro.openSignals} OPEN`, variant: "green" }
+        : { tag: "NONE", variant: "muted" };
+    case "news-flow":
+      return { tag: "LIVE", variant: "green" };
+    case "trump-monitor":
+      return { tag: "MONITOR", variant: "amber" };
+    default:
+      return {};
+  }
+}
+
+// ── AppRow ─────────────────────────────────────────────────────────────────
+
+function AppRow({
+  app, onPress, isLocked, tag, variant,
+}: {
+  app: AppDef;
+  onPress: () => unknown;
+  isLocked: boolean;
+  tag?: string;
+  variant?: TagVariant;
+}) {
   const Icon = app.icon;
+  const tagColors: Record<TagVariant, string> = {
+    green: "text-emerald-400",
+    red:   "text-red-400",
+    amber: "text-amber-500",
+    muted: "text-zinc-600",
+  };
+
   return (
     <button
       onClick={onPress}
-      className="w-full flex items-center gap-4 px-4 py-3 active:bg-white/5 transition-colors"
+      className="w-full flex items-center gap-3 px-4 py-[10px] active:bg-white/[0.04] transition-colors cursor-pointer"
     >
-      <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-        style={{ background: `${app.color}22`, border: `1px solid ${isLocked ? "#27272a" : app.color + "35"}` }}
-      >
-        <Icon className="h-5 w-5" style={{ color: isLocked ? "#52525b" : app.color }} />
-      </div>
-      <span className={`flex-1 text-[14px] font-medium text-left ${isLocked ? "text-zinc-600" : "text-zinc-100"}`}>
+      <Icon className={cn(
+        "h-[14px] w-[14px] shrink-0",
+        isLocked ? "text-zinc-800" : "text-zinc-500"
+      )} />
+      <span className={cn(
+        "flex-1 text-[12.5px] font-normal text-left leading-none tracking-[0.01em]",
+        isLocked ? "text-zinc-700" : "text-zinc-300"
+      )}>
         {app.label}
       </span>
-      {isLocked
-        ? <Lock className="h-3.5 w-3.5 text-zinc-700 shrink-0" />
-        : <ChevronRight className="h-4 w-4 text-zinc-700 shrink-0" />
-      }
+      {isLocked ? (
+        <span className="text-[9px] font-mono uppercase tracking-widest text-zinc-800">
+          PRO
+        </span>
+      ) : tag ? (
+        <span className={cn(
+          "text-[9.5px] font-mono uppercase tracking-wide shrink-0",
+          tagColors[variant ?? "muted"]
+        )}>
+          {tag}
+        </span>
+      ) : null}
     </button>
   );
 }
 
-type PushStatus = "unsupported" | "denied" | "subscribed" | "unsubscribed";
+// ── Push notification hook (unchanged logic) ───────────────────────────────
 
+type PushStatus = "unsupported" | "denied" | "subscribed" | "unsubscribed";
 type PushPlugin = Awaited<typeof import("@capacitor/push-notifications")>["PushNotifications"];
 
 function usePushStatus() {
   const [status, setStatus] = useState<PushStatus>("unsubscribed");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy]     = useState(false);
   const pushRef = React.useRef<PushPlugin | null>(null);
 
   const isNative = typeof window !== "undefined" &&
     typeof (window as any).Capacitor !== "undefined" &&
     (window as any).Capacitor.isNativePlatform?.() === true;
 
-  // Pre-load the plugin immediately so toggle() has no async import delay
   useEffect(() => {
     if (!isNative) return;
     import("@capacitor/push-notifications").then(({ PushNotifications }) => {
@@ -114,7 +225,7 @@ function usePushStatus() {
   }, [isNative]);
 
   useEffect(() => {
-    if (isNative) return; // handled above
+    if (isNative) return;
     let cancelled = false;
     if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
       setStatus("unsupported"); return;
@@ -135,51 +246,57 @@ function usePushStatus() {
       if (isNative) {
         const PN = pushRef.current;
         if (!PN) { toast.error("Push plugin not ready"); setBusy(false); return; }
-
         if (status === "subscribed") {
           await fetch("/api/push/fcm-token", { method: "DELETE" }).catch(() => {});
           setStatus("unsubscribed");
           toast.success("Push notifications disabled");
         } else {
-          // requestPermissions called synchronously after user tap — no awaited imports
-          const perm = await PN.requestPermissions();
+          const perm = await PN.requestPermissions() as { receive: string };
           if (perm.receive !== "granted") {
             setStatus("denied");
             toast.error("Blocked — go to Settings → Apps → TradeX → Notifications");
           } else {
             await PN.register();
             setStatus("subscribed");
-            toast.success("Push notifications enabled! 🔔");
+            toast.success("Push notifications enabled");
           }
         }
         setBusy(false);
         return;
       }
-
-      // Web push fallback
       if (status === "subscribed") {
         const sw = await navigator.serviceWorker.ready;
         const sub = await sw.pushManager.getSubscription();
-        if (sub) { await fetch("/api/push/subscribe", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) }); await sub.unsubscribe(); }
+        if (sub) {
+          await fetch("/api/push/subscribe", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ endpoint: sub.endpoint }),
+          });
+          await sub.unsubscribe();
+        }
         setStatus("unsubscribed");
       } else {
         const perm = await Notification.requestPermission();
         if (perm !== "granted") { setStatus("denied"); setBusy(false); return; }
-        const sw = await navigator.serviceWorker.ready;
+        const sw  = await navigator.serviceWorker.ready;
         const res = await fetch("/api/push/subscribe");
         const { publicKey } = await res.json();
         const padding = "=".repeat((4 - (publicKey.length % 4)) % 4);
-        const base64 = (publicKey + padding).replace(/-/g, "+").replace(/_/g, "/");
+        const base64  = (publicKey + padding).replace(/-/g, "+").replace(/_/g, "/");
         const raw = window.atob(base64);
         const arr = new Uint8Array(raw.length);
         for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
-        const sub = await sw.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: arr.buffer });
-        const save = await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sub) });
+        const sub  = await sw.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: arr.buffer });
+        const save = await fetch("/api/push/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(sub),
+        });
         setStatus(save.ok ? "subscribed" : "unsubscribed");
       }
     } catch (err) {
       toast.error(`Error: ${(err as Error)?.message ?? "unknown"}`);
-      console.warn("[Push] toggle error:", err);
     }
     setBusy(false);
   }
@@ -187,21 +304,24 @@ function usePushStatus() {
   return { status, busy, toggle };
 }
 
+// ── Main component ─────────────────────────────────────────────────────────
+
 export function MobileMore() {
   const [activeAppId, setActiveAppId] = useState<string | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetOpen,   setSheetOpen]   = useState(false);
   const [isTabActive, setIsTabActive] = useState(true);
-  const [traderName, setTraderName] = useState("");
-  const [avatar, setAvatar] = useState<string | null>(null);
+  const [traderName,  setTraderName]  = useState("");
+  const [avatar,      setAvatar]      = useState<string | null>(null);
   const { subscription } = useSubscription();
-  const push = usePushStatus();
+  const push  = usePushStatus();
+  const micro = useMicroData();
 
   useEffect(() => {
     setTraderName(localStorage.getItem("tradex_trader_name") || "");
     setAvatar(localStorage.getItem("tradex_avatar"));
     const onStorage = (e: StorageEvent) => {
       if (e.key === "tradex_trader_name") setTraderName(e.newValue || "");
-      if (e.key === "tradex_avatar") setAvatar(e.newValue);
+      if (e.key === "tradex_avatar")      setAvatar(e.newValue);
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
@@ -210,8 +330,7 @@ export function MobileMore() {
   useEffect(() => {
     const handler = (e: Event) => {
       const appId = (e as CustomEvent<{ appId?: string }>).detail?.appId;
-      if (!appId) return;
-      setActiveAppId(appId);
+      if (appId) setActiveAppId(appId);
     };
     document.addEventListener("tradex:open-app", handler);
     return () => document.removeEventListener("tradex:open-app", handler);
@@ -228,30 +347,40 @@ export function MobileMore() {
 
   const activeApp = ALL_APPS.find(a => a.id === activeAppId);
 
-  // ── Active app page ───────────────────────────────────────────────────────
+  // ── App page view ────────────────────────────────────────────────────────
   if (activeApp) {
     const PageComponent = activeApp.component;
     const isLocked = activeApp.proOnly && !subscription.hasFullAccess;
     return (
       <>
         <AssetSelectorSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
-        <div className="flex flex-col h-full bg-[hsl(var(--background))]" style={{ paddingTop: "max(2.5rem, env(safe-area-inset-top))" }}>
-          <div className="flex items-center gap-2 px-4 pb-3 border-b border-white/5 shrink-0">
+        <div
+          className="flex flex-col h-full bg-[hsl(var(--background))]"
+          style={{ paddingTop: "max(2.5rem, env(safe-area-inset-top))" }}
+        >
+          {/* Back bar */}
+          <div className="flex items-center gap-2 px-3 pb-2.5 border-b border-white/[0.06] shrink-0">
             <button
               onClick={() => setActiveAppId(null)}
-              className="flex items-center gap-1 text-zinc-400 active:text-white py-1"
+              className="flex items-center gap-1.5 text-zinc-500 active:text-zinc-200 py-1 cursor-pointer transition-colors"
             >
-              <ChevronLeft className="h-5 w-5" />
-              <span className="text-[12px]">Back</span>
+              <ChevronLeft className="h-4 w-4" />
+              <span className="text-[11px] font-normal uppercase tracking-wide">Menu</span>
             </button>
-            <span className="text-[13px] font-semibold text-white ml-1">{activeApp.label}</span>
+            <span className="text-[11px] text-zinc-600 mx-1">/</span>
+            <span className="text-[12px] font-medium text-zinc-200">{activeApp.label}</span>
             <div className="ml-auto">
               <AssetChip size="sm" onPress={() => setSheetOpen(true)} />
             </div>
           </div>
+
           <div className="flex-1 overflow-y-auto p-3 pb-6">
             {isTabActive && (isLocked
-              ? <MobileFeatureGate featureName={activeApp.label}><PageComponent /></MobileFeatureGate>
+              ? (
+                  <MobileFeatureGate featureName={activeApp.label}>
+                    <PageComponent />
+                  </MobileFeatureGate>
+                )
               : <PageComponent />
             )}
           </div>
@@ -260,64 +389,93 @@ export function MobileMore() {
     );
   }
 
-  // ── Plan badge ────────────────────────────────────────────────────────────
-  const planLabel = subscription.isPro ? "Pro" : subscription.isElite ? "Elite" : subscription.isTrialing ? "Trial" : "Free";
-  const planColor = subscription.isPro || subscription.isElite ? "#f59e0b" : subscription.isTrialing ? "#10b981" : "#6b7280";
+  // ── Plan label ───────────────────────────────────────────────────────────
+  const planLabel =
+    subscription.isElite   ? "ELITE" :
+    subscription.isPro     ? "PRO" :
+    subscription.isTrialing ? "TRIAL" : "FREE";
 
-  // ── Main menu (FB style) ──────────────────────────────────────────────────
+  const isPaid = subscription.isPro || subscription.isElite;
+
+  // ── Main menu ────────────────────────────────────────────────────────────
   return (
     <>
       <AssetSelectorSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
       <div className="flex flex-col h-full bg-[hsl(var(--background))]">
 
-        {/* Profile header */}
-        <div className="px-4 pb-4 border-b border-white/5 shrink-0" style={{ paddingTop: "max(2.75rem, env(safe-area-inset-top))" }}>
+        {/* ── Header ─────────────────────────────────────────────────────── */}
+        <div
+          className="px-4 pb-3 border-b border-white/[0.06] shrink-0"
+          style={{ paddingTop: "max(2.75rem, env(safe-area-inset-top))" }}
+        >
           <div className="flex items-center gap-3">
             {/* Avatar */}
-            <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-white/10 shrink-0">
+            <div className="w-8 h-8 rounded-full overflow-hidden border border-white/[0.08] shrink-0 bg-zinc-900">
               {avatar
                 ? <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
-                : <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
-                    <span className="text-xl font-bold text-[hsl(var(--primary))]">
+                : <div className="w-full h-full flex items-center justify-center">
+                    <span className="text-[13px] font-bold text-emerald-400">
                       {(traderName || "T")[0].toUpperCase()}
                     </span>
                   </div>
               }
             </div>
-            {/* Name + plan */}
-            <div className="min-w-0">
-              <p className="text-[15px] font-bold text-white truncate">{traderName || "Trader"}</p>
-              <span
-                className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5"
-                style={{ background: `${planColor}22`, color: planColor, border: `1px solid ${planColor}40` }}
-              >
-                {(subscription.isPro || subscription.isElite) && <Crown className="h-2.5 w-2.5" />}
-                {planLabel}
-              </span>
+
+            {/* Name + tier */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-[13px] font-semibold text-zinc-100 truncate leading-none">
+                  {traderName || "Trader"}
+                </p>
+                <span className={cn(
+                  "text-[8px] font-bold tracking-widest px-1.5 py-[2px] rounded border leading-none",
+                  isPaid
+                    ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                    : subscription.isTrialing
+                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                    : "bg-zinc-800 text-zinc-600 border-zinc-700"
+                )}>
+                  {isPaid && <Crown className="inline h-2 w-2 mr-0.5 -mt-px" />}
+                  {planLabel}
+                </span>
+              </div>
+              <p className="text-[10px] text-zinc-700 mt-[3px] uppercase tracking-wider leading-none">
+                Tradex Terminal
+              </p>
             </div>
-            {/* Asset selector */}
-            <div className="ml-auto shrink-0">
-              <AssetChip size="sm" onPress={() => setSheetOpen(true)} />
-            </div>
+
+            <AssetChip size="sm" onPress={() => setSheetOpen(true)} />
           </div>
         </div>
 
-        {/* Scrollable list */}
-        <div className="flex-1 overflow-y-auto pb-6">
-          {SECTIONS.map((section, si) => {
-            const apps = ALL_APPS.filter(a => section.appIds.includes(a.id));
+        {/* ── Scrollable sections ─────────────────────────────────────────── */}
+        <div className="flex-1 overflow-y-auto">
+
+          {SECTIONS.map((section) => {
+            const apps = section.appIds
+              .map(id => ALL_APPS.find(a => a.id === id))
+              .filter(Boolean) as AppDef[];
+
             return (
               <div key={section.label}>
-                <p className="px-4 pt-5 pb-2 text-[10px] font-bold uppercase tracking-widest text-zinc-600">
-                  {section.label}
-                </p>
+                {/* Section divider */}
+                <div className="flex items-center gap-2.5 px-4 pt-4 pb-1">
+                  <span className="text-[9px] font-semibold tracking-[0.14em] text-zinc-700 shrink-0">
+                    {section.label}
+                  </span>
+                  <div className="flex-1 h-px bg-white/[0.05]" />
+                </div>
+
                 {apps.map(app => {
                   const isLocked = !!app.proOnly && !subscription.hasFullAccess;
+                  const { tag, variant } = getAppTag(app.id, micro);
                   return (
                     <AppRow
                       key={app.id}
                       app={app}
                       isLocked={isLocked}
+                      tag={tag}
+                      variant={variant}
                       onPress={() => setActiveAppId(app.id)}
                     />
                   );
@@ -326,33 +484,47 @@ export function MobileMore() {
             );
           })}
 
-          {/* Account */}
+          {/* ── Account section ─────────────────────────────────────────── */}
           <div>
-            <p className="px-4 pt-5 pb-2 text-[10px] font-bold uppercase tracking-widest text-zinc-600">
-              Account
-            </p>
+            <div className="flex items-center gap-2.5 px-4 pt-4 pb-1">
+              <span className="text-[9px] font-semibold tracking-[0.14em] text-zinc-700 shrink-0">
+                ACCOUNT
+              </span>
+              <div className="flex-1 h-px bg-white/[0.05]" />
+            </div>
 
-            {/* Push notification toggle */}
+            {/* Push notifications row */}
             <button
-              onClick={push.status === "subscribed" || push.status === "unsubscribed" ? push.toggle : undefined}
+              onClick={
+                push.status === "subscribed" || push.status === "unsubscribed"
+                  ? push.toggle
+                  : undefined
+              }
               disabled={push.busy || push.status === "denied" || push.status === "unsupported"}
-              className="w-full flex items-center gap-4 px-4 py-3 active:bg-white/5 transition-colors disabled:opacity-50"
+              className="w-full flex items-center gap-3 px-4 py-[10px] active:bg-white/[0.04] transition-colors cursor-pointer disabled:opacity-40"
             >
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: push.status === "subscribed" ? "#10b98122" : "#6b728022", border: `1px solid ${push.status === "subscribed" ? "#10b98135" : "#6b728035"}` }}>
-                {push.busy ? <Loader2 className="h-5 w-5 text-zinc-400 animate-spin" /> : push.status === "subscribed" ? <Bell className="h-5 w-5 text-emerald-400" /> : <BellOff className="h-5 w-5 text-zinc-500" />}
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-[14px] font-medium text-zinc-100">Push Notifications</p>
-                <p className="text-[11px] text-zinc-500 mt-0.5">
-                  {push.status === "subscribed" ? "Enabled — tap to disable" : push.status === "denied" ? "Blocked in browser settings" : push.status === "unsupported" ? "Not supported on this browser" : "Tap to enable alerts"}
-                </p>
-              </div>
-              <div className={`w-11 h-6 rounded-full transition-colors ${push.status === "subscribed" ? "bg-emerald-500" : "bg-zinc-700"}`}>
-                <div className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform ${push.status === "subscribed" ? "translate-x-5" : "translate-x-0.5"}`} />
+              {push.busy
+                ? <Loader2 className="h-[14px] w-[14px] text-zinc-500 animate-spin shrink-0" />
+                : push.status === "subscribed"
+                ? <Bell    className="h-[14px] w-[14px] text-emerald-500 shrink-0" />
+                : <BellOff className="h-[14px] w-[14px] text-zinc-600 shrink-0" />
+              }
+              <span className="flex-1 text-[12.5px] font-normal text-zinc-300 text-left leading-none tracking-[0.01em]">
+                Alerts
+              </span>
+              {/* Toggle pill */}
+              <div className={cn(
+                "w-9 h-[20px] rounded-full transition-colors shrink-0 relative",
+                push.status === "subscribed" ? "bg-emerald-500/80" : "bg-zinc-800"
+              )}>
+                <div className={cn(
+                  "absolute top-[2px] w-4 h-4 bg-white rounded-full shadow transition-transform",
+                  push.status === "subscribed" ? "translate-x-[18px]" : "translate-x-[2px]"
+                )} />
               </div>
             </button>
 
+            {/* Knowledge + Settings */}
             {(["knowledge", "settings"] as const).map(id => {
               const app = ALL_APPS.find(a => a.id === id)!;
               return (
@@ -365,6 +537,9 @@ export function MobileMore() {
               );
             })}
           </div>
+
+          {/* Bottom padding */}
+          <div className="h-8" />
         </div>
       </div>
     </>
