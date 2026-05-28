@@ -84,6 +84,7 @@ export async function notifyNewSignal(signal: SignalRecord): Promise<void> {
   const dir  = signal.tradePlan.direction === "long" ? "🟢 BUY" : "🔴 SELL";
   const rr   = signal.tradePlan.rrRatio?.toFixed(1) ?? "?";
   const sym  = signal.symbolDisplay ?? signal.symbol;
+  const fp   = `${signal.symbol}|${signal.tradePlan.entry}|${signal.tradePlan.direction}|${signal.timeframe}`;
 
   await broadcast({
     title: `📊 New Signal: ${sym}`,
@@ -94,6 +95,18 @@ export async function notifyNewSignal(signal: SignalRecord): Promise<void> {
     // Fingerprint-based tag so device collapses duplicates even across cold starts
     tag:   `signal-${signal.symbol}-${signal.tradePlan.entry}-${signal.tradePlan.direction}`,
   });
+
+  // Mark fingerprint as seen so the 5-min cron doesn't send a duplicate.
+  try {
+    const db = getServiceClient();
+    if (db) {
+      const { data } = await db.from("push_state").select("ids").eq("key", "push_seen_signals").single();
+      const existing = new Set<string>((data?.ids ?? []) as string[]);
+      existing.add(fp);
+      const arr = [...existing].slice(-200);
+      await db.from("push_state").upsert({ key: "push_seen_signals", ids: arr }, { onConflict: "key" });
+    }
+  } catch {}
 }
 
 /**

@@ -44,9 +44,20 @@ export async function sendFcmToToken(
 
     const messageId = await app.messaging().send({
       token,
+      // notification field ensures Firebase delivers even when app is killed.
+      // TradeXMessagingService still handles onMessageReceived for custom display.
+      notification: {
+        title: payload.title,
+        body: payload.body,
+      },
       data,
       android: {
         priority: "high",
+        notification: {
+          channelId: "default",
+          sound: "default",
+          tag: payload.tag,
+        },
       },
     });
     return { ok: true, messageId };
