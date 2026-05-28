@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import {
   TrendingUp, Brain, Clock, LayoutGrid,
   AlertTriangle, Calendar, Activity, Rss,
-  DollarSign, Tv, BookOpen, Settings,
+  DollarSign, Tv, BookOpen, Settings2,
   ChevronLeft, Bell, BellOff, Loader2, Crown,
   Zap, BarChart2,
 } from "lucide-react";
@@ -54,7 +54,7 @@ const ALL_APPS: AppDef[] = [
   { id: "brain",                label: "Brain Terminal",    icon: Brain,         component: MobileBrain                               },
   { id: "live-tv",              label: "Live TV",           icon: Tv,            component: LiveTVPage                                },
   { id: "knowledge",            label: "Knowledge Base",    icon: BookOpen,      component: TradingKnowledgeContent                   },
-  { id: "settings",             label: "Settings",          icon: Settings,      component: SettingsPage                              },
+  { id: "settings",             label: "Settings",          icon: Settings2,     component: SettingsPage                              },
 ];
 
 const SECTIONS = [
