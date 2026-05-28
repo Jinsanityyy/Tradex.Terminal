@@ -34,15 +34,17 @@ function ImpactBadge({ impact, label }: { impact?: "bullish" | "bearish" | "neut
 
 function assetDir(
   asset: string,
-  goldImpact?: "bullish" | "bearish" | "neutral",
-  usdImpact?:  "bullish" | "bearish" | "neutral",
-  fallback?:   "bullish" | "bearish" | "neutral",
+  post: { goldImpact?: "bullish"|"bearish"|"neutral"; usdImpact?: "bullish"|"bearish"|"neutral"; assetImpacts?: Record<string, "bullish"|"bearish"|"neutral">; sentimentClassification: "bullish"|"bearish"|"neutral" },
 ): "bullish" | "bearish" | "neutral" {
+  // 1. Per-asset AI data (most accurate)
+  if (post.assetImpacts?.[asset]) return post.assetImpacts[asset];
+  // 2. Gold/USD legacy fields
   const isGold = asset === "XAUUSD" || asset === "GOLD";
   const isUsd  = asset === "DXY"    || asset === "USD";
-  if (isGold && goldImpact) return goldImpact;
-  if (isUsd  && usdImpact)  return usdImpact;
-  return fallback ?? "neutral";
+  if (isGold && post.goldImpact) return post.goldImpact;
+  if (isUsd  && post.usdImpact)  return post.usdImpact;
+  // 3. No AI data — don't guess, show neutral
+  return "neutral";
 }
 
 function TrumpPostDetail({ post }: { post: TrumpPost }) {
@@ -64,16 +66,14 @@ function TrumpPostDetail({ post }: { post: TrumpPost }) {
         <div className="ml-auto flex items-center gap-1.5 flex-wrap">
           {/* Per-asset direction chips — AI data when available, else derived from sentiment */}
           {(() => {
-            const sent = post.sentimentClassification;
-            const key  = (a: string) => assetDir(a, post.goldImpact, post.usdImpact, sent);
             const chips = post.affectedAssets
               .filter(a => ["XAUUSD","GOLD","DXY","USD","USOIL"].includes(a))
               .slice(0, 3);
             if (chips.length === 0) {
-              return <Badge variant={sent}>{sent}</Badge>;
+              return <Badge variant={post.sentimentClassification}>{post.sentimentClassification}</Badge>;
             }
             return chips.map(a => (
-              <ImpactBadge key={a} impact={key(a)} label={a === "GOLD" ? "XAUUSD" : a} />
+              <ImpactBadge key={a} impact={assetDir(a, post)} label={a === "GOLD" ? "XAUUSD" : a} />
             ));
           })()}
         </div>
@@ -162,7 +162,7 @@ function TrumpPostDetail({ post }: { post: TrumpPost }) {
         <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Affected Assets</p>
         <div className="flex flex-wrap gap-1.5">
           {post.affectedAssets.map((a) => {
-            const dir   = assetDir(a, post.goldImpact, post.usdImpact, post.sentimentClassification);
+            const dir   = assetDir(a, post);
             const arrow = dir === "bullish" ? " ↑" : dir === "bearish" ? " ↓" : "";
             const cls   = dir === "bullish"
               ? "bg-emerald-500/12 text-emerald-400 border-emerald-500/25"
@@ -357,14 +357,12 @@ export function TrumpFeedPanel({ posts, limit, compact = false }: TrumpFeedPanel
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                   {(() => {
-                    const sent  = post.sentimentClassification;
-                    const key   = (a: string) => assetDir(a, post.goldImpact, post.usdImpact, sent);
                     const chips = post.affectedAssets
                       .filter(a => ["XAUUSD","GOLD","DXY","USD","USOIL"].includes(a))
                       .slice(0, 2);
-                    if (chips.length === 0) return <Badge variant={sent}>{sent}</Badge>;
+                    if (chips.length === 0) return <Badge variant={post.sentimentClassification}>{post.sentimentClassification}</Badge>;
                     return chips.map(a => (
-                      <ImpactBadge key={a} impact={key(a)} label={a === "GOLD" ? "XAUUSD" : a} />
+                      <ImpactBadge key={a} impact={assetDir(a, post)} label={a === "GOLD" ? "XAUUSD" : a} />
                     ));
                   })()}
                   <div className="flex items-center gap-0.5">

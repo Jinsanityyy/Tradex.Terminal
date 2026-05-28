@@ -170,15 +170,20 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-async function analyzeGoldUSD(content: string, category: string): Promise<{
-  goldImpact: "bullish" | "bearish" | "neutral";
+type AssetDir = "bullish" | "bearish" | "neutral";
+type AIAnalysis = {
+  goldImpact: AssetDir;
   goldReasoning: string;
-  usdImpact: "bullish" | "bearish" | "neutral";
+  usdImpact: AssetDir;
   usdReasoning: string;
-} | null> {
+  assetImpacts: Record<string, AssetDir>;
+};
+
+async function analyzeAssets(content: string, category: string, assets: string[]): Promise<AIAnalysis | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
   try {
+    const assetList = assets.join(", ");
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -188,17 +193,27 @@ async function analyzeGoldUSD(content: string, category: string): Promise<{
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 300,
-        system: `You are a macro analyst. Given a Trump statement, state the specific directional impact on Gold (XAUUSD) and USD (DXY). Be specific to this exact content  -  no generic templates. Valid JSON only.`,
+        max_tokens: 400,
+        system: `You are a macro trader. Given a market-moving headline, determine the specific directional impact on each listed asset. Be precise — a ceasefire is bearish for gold/oil, a tariff is bearish for equities, etc. No generic templates. Return valid JSON only.`,
         messages: [{
           role: "user",
-          content: `Trump post: "${content.slice(0, 400)}"\nCategory: ${category}\n\nReturn ONLY this JSON:\n{"goldImpact":"bullish|bearish|neutral","goldReasoning":"1 sentence why gold moves this way","usdImpact":"bullish|bearish|neutral","usdReasoning":"1 sentence why USD moves this way"}`,
+          content: `Headline: "${content.slice(0, 400)}"\nCategory: ${category}\nAssets to analyze: ${assetList}\n\nReturn ONLY this JSON (use exact asset symbols as keys):\n{"goldImpact":"bullish|bearish|neutral","goldReasoning":"1 sentence","usdImpact":"bullish|bearish|neutral","usdReasoning":"1 sentence","assetImpacts":{"${assets.join('":"bullish|bearish|neutral","')}":"bullish|bearish|neutral"}}`,
         }],
       }),
     });
     const data = await res.json();
     const text = (data.content?.[0]?.text ?? "").replace(/```json|```/g, "").trim();
-    return JSON.parse(text);
+    const parsed = JSON.parse(text);
+    // Ensure assetImpacts exists and all assets are covered
+    if (!parsed.assetImpacts) parsed.assetImpacts = {};
+    for (const a of assets) {
+      if (!parsed.assetImpacts[a]) {
+        const isGold = a === "XAUUSD" || a === "GOLD";
+        const isUsd  = a === "DXY"    || a === "USD";
+        parsed.assetImpacts[a] = isGold ? parsed.goldImpact : isUsd ? parsed.usdImpact : "neutral";
+      }
+    }
+    return parsed;
   } catch {
     return null;
   }
@@ -490,9 +505,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ data: [], timestamp: Date.now(), empty: true, feedSource: "none" });
   }
 
-  // Enrich with Claude Gold/USD analysis (parallel, best-effort)
+  // Enrich with per-asset AI analysis (parallel, best-effort)
   const aiResults = await Promise.allSettled(
-    rawPosts.map(p => analyzeGoldUSD(p.content, p.policyCategory))
+    rawPosts.map(p => analyzeAssets(p.content, p.policyCategory, p.affectedAssets))
   );
 
   const posts: TrumpPost[] = rawPosts.map((p, i) => {
@@ -503,6 +518,7 @@ export async function GET(req: Request) {
       goldReasoning: ai?.goldReasoning,
       usdImpact:     ai?.usdImpact,
       usdReasoning:  ai?.usdReasoning,
+      assetImpacts:  ai?.assetImpacts,
     };
   });
 

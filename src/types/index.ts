@@ -168,6 +168,7 @@ export interface TrumpPost {
   goldReasoning?: string;
   usdImpact?: "bullish" | "bearish" | "neutral";
   usdReasoning?: string;
+  assetImpacts?: Record<string, "bullish" | "bearish" | "neutral">;
 }
 
 export interface SessionSummary {
