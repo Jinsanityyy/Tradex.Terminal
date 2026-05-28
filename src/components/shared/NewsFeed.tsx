@@ -60,14 +60,16 @@ function buildArticleContent(item: NewsItem): string {
   const context = contextMap[cat] ?? `This development falls under the ${cat.replace(/-/g, " ")} category and carries implications for risk appetite, capital flows, and asset pricing across correlated markets.`;
   parts.push(context);
 
-  // Para 3: what to watch
-  const assets = item.affectedAssets?.length ? item.affectedAssets.slice(0, 3).join(", ") : "key markets";
-  const watchSuffix = sent === "bearish"
-    ? "Watch for safe-haven demand in gold and JPY, and monitor risk assets for signs of follow-through selling."
-    : sent === "bullish"
-    ? "A risk-on response may see equities and commodity currencies outperform while safe-haven demand fades."
-    : "Price action around key technical levels will confirm whether this event triggers a sustained directional move.";
-  parts.push(`Monitor ${assets} for follow-through price action in the coming sessions. ${watchSuffix} Confirm directional conviction with volume and session close rather than acting on the initial spike.`);
+  // Para 3: what to watch — only include when there are real named assets
+  if (item.affectedAssets?.length) {
+    const assets = item.affectedAssets.slice(0, 3).join(", ");
+    const watchSuffix = sent === "bearish"
+      ? "Watch for safe-haven demand in gold and JPY, and monitor risk assets for signs of follow-through selling."
+      : sent === "bullish"
+      ? "A risk-on response may see equities and commodity currencies outperform while safe-haven demand fades."
+      : "Price action around key technical levels will confirm whether this event triggers a sustained directional move.";
+    parts.push(`Monitor ${assets} for follow-through price action in the coming sessions. ${watchSuffix} Confirm directional conviction with volume and session close rather than acting on the initial spike.`);
+  }
 
   return parts.join("\n\n");
 }
