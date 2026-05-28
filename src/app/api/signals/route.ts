@@ -53,6 +53,19 @@ export async function GET(req: NextRequest) {
       ? Math.min(limitParam, 200)
       : 50;
 
+    // One-time cleanup: delete stale mock signals at ~3305 (wrong price, never real)
+    void (async () => {
+      try {
+        const { getServiceClient } = await import("@/lib/supabase/service");
+        const db = getServiceClient();
+        if (!db) return;
+        await db.from("signals").delete()
+          .eq("symbol", "XAUUSD")
+          .gte("entry_price", 3300)
+          .lte("entry_price", 3315);
+      } catch { /* ignore */ }
+    })();
+
     // Opportunistic outcome tracking  -  kicks in max once per minute per instance.
     // This replaces the Vercel cron (which hit the Hobby plan limit).
     const now = Date.now();
