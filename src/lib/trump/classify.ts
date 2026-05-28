@@ -35,7 +35,35 @@ export function stripHtml(html: string): string {
     .replace(/\s+/g, " ").trim();
 }
 
+// Detect domestic political posts with no market relevance:
+// endorsements, rally announcements, election commentary, social opinions
+function isDomesticPolitics(text: string): boolean {
+  const lower = text.toLowerCase();
+  const domestic = [
+    "congratulations", "congrats", "great win", "tremendous win", "strong win",
+    "senator", "governor", "congressman", "candidate", "runoff", "primary",
+    "rally for", "rallies for", "will do", "big rally", "beautiful rally",
+    "campaign", "election", "will vote", "vegan", "open borders", "weak on crime",
+    "god bless america", "make america great", "fake news", "witch hunt",
+    "great career", "will remain my friend", "low iq", "insulting to",
+  ];
+  const market = [
+    "tariff", "trade deal", "trade war", "sanction", "federal reserve", "rate cut",
+    "rate hike", "interest rate", "china trade", "iran deal", "russia", "ukraine",
+    "oil supply", "opec", "nuclear deal", "executive order", "shutdown", "dollar",
+    "inflation", "gdp", "recession", "military strike", "military action", "air strike",
+  ];
+  const domesticHits = domestic.filter(s => lower.includes(s)).length;
+  const marketHits   = market.filter(s => lower.includes(s)).length;
+  return domesticHits >= 2 && marketHits === 0;
+}
+
 export function classifyPost(text: string) {
+  // Short-circuit: domestic political posts have no market impact
+  if (isDomesticPolitics(text)) {
+    return { category: "Politics", assets: [] as string[], tags: ["politics"], isDomestic: true };
+  }
+
   const lower = text.toLowerCase();
   let bestCategory = "Politics";
   let bestAssets: string[] = ["SPX", "DXY"];
@@ -46,23 +74,32 @@ export function classifyPost(text: string) {
     if (hits > bestScore) { bestScore = hits; bestCategory = p.category; bestAssets = p.assets; }
     if (hits > 0) tags.push(p.category.toLowerCase().replace(/\s/g, "-"));
   }
-  return { category: bestCategory, assets: bestAssets, tags: tags.length > 0 ? tags : ["politics"] };
+  return { category: bestCategory, assets: bestAssets, tags: tags.length > 0 ? tags : ["politics"], isDomestic: false };
 }
 
 export function deriveSentiment(text: string): "bullish" | "bearish" | "neutral" {
+  // Domestic posts are market-neutral regardless of positive/negative tone
+  if (isDomesticPolitics(text)) return "neutral";
+
   const h = text.toLowerCase();
-  const bull = ["deal", "agree", "peace", "boost", "support", "win", "success", "great", "beautiful", "fantastic", "tremendous"];
-  const bear = ["threat", "war", "sanction", "attack", "block", "ban", "shutdown", "hit", "blow", "defeat", "disaster", "terrible"];
+  const bull = ["trade deal", "peace deal", "rate cut", "stimulus", "boost economy", "strong growth"];
+  const bear = ["tariff", "sanction", "war", "shutdown", "rate hike", "recession", "attack", "nuclear"];
   const b = bull.filter(w => h.includes(w)).length;
   const s = bear.filter(w => h.includes(w)).length;
   return b > s ? "bullish" : s > b ? "bearish" : "neutral";
 }
 
 export function deriveImpactScore(text: string): number {
+  // Domestic political endorsements/rallies/social commentary = near-zero market impact
+  if (isDomesticPolitics(text)) return 1;
+
   const lower = text.toLowerCase();
-  let score = 5;
-  const hi = ["tariff", "war", "sanction", "nuclear", "shut down", "executive order", "deal", "attack", "military", "rate cut", "rate hike"];
-  const med = ["threaten", "warn", "demand", "urge", "announce", "plan", "propose"];
+  let score = 4;
+  // Precise high-impact phrases only — avoid false positives from casual word use
+  const hi = ["tariff", "trade war", "sanction", "nuclear deal", "shut down government",
+               "executive order", "rate cut", "rate hike", "military strike", "military action",
+               "air strike", "bomb", "invasion", "peace deal", "ceasefire"];
+  const med = ["threaten", "warn", "demand", "urge", "impose", "announce deal", "propose"];
   score += hi.filter(w => lower.includes(w)).length * 1.5;
   score += med.filter(w => lower.includes(w)).length * 0.5;
   return Math.min(10, Math.round(score));
@@ -84,8 +121,10 @@ export function mapTruthSocialStatus(s: {
   if (s.reblog || s.in_reply_to_id) return null;
   const text = stripHtml(s.content) || s.card?.title || s.card?.description || "";
   if (!text) return null;
-  const { category, assets, tags } = classifyPost(text);
-  const template = IMPACT_TEMPLATES[category] ?? IMPACT_TEMPLATES.Government;
+  const { category, assets, tags, isDomestic } = classifyPost(text);
+  const template = isDomestic
+    ? { whyItMatters: "Domestic political commentary — endorsement, rally, or social opinion with no direct market implications.", reaction: "No expected market reaction." }
+    : (IMPACT_TEMPLATES[category] ?? IMPACT_TEMPLATES.Government);
   return {
     id: `ts-${s.id}`,
     timestamp: s.created_at,
