@@ -30,7 +30,48 @@ function scoreColor(score: number) {
   return "text-zinc-600";
 }
 
-// Split summary into 2-3 key-point bullets (split on period + space)
+// Build article body client-side from available RSS data — no API needed
+function buildArticleContent(item: NewsItem): string {
+  const parts: string[] = [];
+  const cat = item.category;
+  const sent = item.sentiment;
+
+  // Para 1: what happened
+  if (item.summary && item.summary.trim().length > 40) {
+    parts.push(item.summary.trim());
+  } else {
+    // Derive a lead sentence from category
+    const catLabel = cat === "central-banks" ? "central bank" : cat.replace(/-/g, " ");
+    const sentLabel = sent === "bullish" ? "positive" : sent === "bearish" ? "negative" : "mixed";
+    parts.push(`${item.headline}. This ${catLabel} development carries ${sentLabel} implications for global markets.`);
+  }
+
+  // Para 2: market context based on category
+  const contextMap: Record<string, string> = {
+    "geopolitics": "Geopolitical events of this nature typically shift risk appetite across markets. Escalation or de-escalation signals drive flows into or out of safe-haven assets like gold and the Japanese yen, while risk currencies and equities react inversely to the perceived threat level.",
+    "politics": "Political developments influence market sentiment by altering the outlook for fiscal policy, trade agreements, and regulatory environments. Traders watch for policy clarity as uncertainty itself is typically priced into risk premiums across asset classes.",
+    "central-banks": "Central bank communication directly moves rate expectations and yield differentials. Even subtle shifts in tone can reprice entire asset classes — particularly gold (which is sensitive to real yields) and currency pairs driven by interest rate spreads.",
+    "inflation": "Inflation prints are among the highest-impact data releases for markets. Above or below-consensus figures directly reprice Fed rate expectations, which flows through to real yields, the US dollar, and inversely, gold prices.",
+    "tariffs": "Trade policy shifts introduce supply chain uncertainty and inflation risk simultaneously. Tariff escalation tends to support gold as a hedge while pressuring risk assets and complicating central bank policy paths.",
+    "economy": "Economic data shapes the growth and recession outlook, influencing central bank projections and risk appetite. Strong data reduces rate-cut expectations while weak data raises them — driving divergent moves in yield-sensitive assets.",
+    "commodities": "Commodity-specific catalysts often have direct transmission into inflation expectations and currency dynamics, particularly for commodity-linked currencies like AUD and CAD, and for gold as an inflation hedge.",
+    "crypto": "Cryptocurrency market moves reflect broader risk appetite and institutional flow dynamics, with limited direct macro transmission unless the move is large enough to impact broader liquidity or sentiment.",
+  };
+  const context = contextMap[cat] ?? `This development falls under the ${cat.replace(/-/g, " ")} category and carries implications for risk appetite, capital flows, and asset pricing across correlated markets.`;
+  parts.push(context);
+
+  // Para 3: what to watch
+  const assets = item.affectedAssets?.length ? item.affectedAssets.slice(0, 3).join(", ") : "key markets";
+  const watchSuffix = sent === "bearish"
+    ? "Watch for safe-haven demand in gold and JPY, and monitor risk assets for signs of follow-through selling."
+    : sent === "bullish"
+    ? "A risk-on response may see equities and commodity currencies outperform while safe-haven demand fades."
+    : "Price action around key technical levels will confirm whether this event triggers a sustained directional move.";
+  parts.push(`Monitor ${assets} for follow-through price action in the coming sessions. ${watchSuffix} Confirm directional conviction with volume and session close rather than acting on the initial spike.`);
+
+  return parts.join("\n\n");
+}
+
 function extractKeyPoints(text: string): string[] {
   if (!text || text.length < 20) return [];
   const sentences = text
@@ -90,47 +131,31 @@ function ArticleReader({
   const symbolShort    = getSymbolShort(selectedSymbol);
   const symbolLabel    = getSymbolLabel(selectedSymbol);
 
+  // Sync generated body — always available immediately
+  const generatedBody = buildArticleContent(item);
   const [articleBody, setArticleBody] = useState<string | null>(null);
   const [bodySource, setBodySource] = useState<"scrape" | "ai" | null>(null);
-  const [aiLoading, setAiLoading] = useState(true);
 
   useEffect(() => {
     setArticleBody(null);
     setBodySource(null);
-    setAiLoading(true);
-
-    const tryAiExpand = () =>
-      fetch("/api/market/news/expand", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          headline:       item.headline,
-          summary:        item.summary,
-          category:       item.category,
-          sentiment:      item.sentiment,
-          goldReasoning:  item.goldReasoning,
-          usdReasoning:   item.usdReasoning,
-          affectedAssets: item.affectedAssets,
-        }),
-      })
-        .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data?.body) { setArticleBody(data.body); setBodySource("ai"); } })
-        .catch(() => {})
-        .finally(() => setAiLoading(false));
-
-    if (item.url) {
-      fetch(`/api/market/news/article?url=${encodeURIComponent(item.url)}`)
-        .then(r => r.ok ? r.json() : null)
-        .then(async data => {
-          if (data?.body) { setArticleBody(data.body); setBodySource("scrape"); setAiLoading(false); }
-          else await tryAiExpand();
-        })
-        .catch(async () => { await tryAiExpand(); });
-    } else {
-      tryAiExpand();
-    }
+    // Try AI expand in background — if it works, upgrades generatedBody
+    fetch("/api/market/news/expand", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        headline: item.headline, summary: item.summary, category: item.category,
+        sentiment: item.sentiment, goldReasoning: item.goldReasoning,
+        usdReasoning: item.usdReasoning, affectedAssets: item.affectedAssets,
+      }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.body) { setArticleBody(data.body); setBodySource("ai"); } })
+      .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.id]);
+
+  const displayBody = articleBody ?? generatedBody;
 
   const assetImpact = getImpactForSymbol({
     goldImpact:    item.goldImpact,
@@ -247,39 +272,23 @@ function ArticleReader({
         </span>
 
         {/* Article body */}
-        {aiLoading && !articleBody && (
-          <div className="space-y-2.5 animate-pulse">
-            {[100, 92, 96, 84, 75, 88].map((w, i) => (
-              <div key={i} className="h-3 rounded bg-zinc-800/70" style={{ width: `${w}%` }} />
-            ))}
-            <p className="text-[10px] text-zinc-700 pt-1">Generating analysis…</p>
-          </div>
-        )}
-
-        {articleBody && (
-          <div className="space-y-4">
-            {bodySource === "ai" && (
-              <div className="flex items-center gap-1.5 -mb-1">
-                <span className="inline-flex items-center gap-1 px-2 py-[3px] rounded text-[9.5px] font-semibold bg-violet-500/10 border border-violet-500/20 text-violet-400 tracking-wide">
-                  AI ANALYSIS
-                </span>
-              </div>
-            )}
-            {articleBody.split(/\n\n+/).filter(p => p.trim().length > 10).map((para, i) => (
-              <p key={i} className={cn(
-                "leading-[1.78] tracking-[0.005em]",
-                para.startsWith("•") ? "text-[13px] text-zinc-400 pl-1" : "text-[14px] text-zinc-300"
-              )}>
-                {para.trim()}
-              </p>
-            ))}
-          </div>
-        )}
-
-        {/* Fallback when AI fails — show RSS summary if available */}
-        {!aiLoading && !articleBody && item.summary && item.summary.trim().length > 25 && (
-          <p className="text-[14px] text-zinc-300 leading-[1.75]">{item.summary.trim()}</p>
-        )}
+        <div className="space-y-4">
+          {bodySource === "ai" && (
+            <div className="flex items-center gap-1.5 -mb-1">
+              <span className="inline-flex items-center gap-1 px-2 py-[3px] rounded text-[9.5px] font-semibold bg-violet-500/10 border border-violet-500/20 text-violet-400 tracking-wide">
+                AI ANALYSIS
+              </span>
+            </div>
+          )}
+          {displayBody.split(/\n\n+/).filter(p => p.trim().length > 10).map((para, i) => (
+            <p key={i} className={cn(
+              "leading-[1.78] tracking-[0.005em]",
+              para.startsWith("•") ? "text-[13px] text-zinc-400 pl-1" : "text-[14px] text-zinc-300"
+            )}>
+              {para.trim()}
+            </p>
+          ))}
+        </div>
 
         {/* Gold/Asset context block */}
         {assetImpact.reasoning && (
