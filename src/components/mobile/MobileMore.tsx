@@ -152,7 +152,8 @@ function getAppTag(
 
 function PnlWidget({ micro }: { micro: MicroData }) {
   const [dailyPnl,  setDailyPnl]  = useState<number | null>(null);
-  const [winRate7d, setWinRate7d] = useState<number | null>(null);
+  const [winRate7d,    setWinRate7d]    = useState<number | null>(null);
+  const [winRateLabel, setWinRateLabel] = useState<string>("7D");
   const [avgRR,     setAvgRR]     = useState<number | null>(null);
 
   // Daily P&L + 7-day win rate from user's actual trade log
@@ -173,10 +174,19 @@ function PnlWidget({ micro }: { micro: MicroData }) {
 
         const todayRow = daily.find(d => d.date === today);
         setDailyPnl(todayRow?.pnl ?? null);
-        const week   = daily.filter(d => d.date >= cutoffStr && d.trades > 0);
-        const tTotal = week.reduce((s, d) => s + d.trades, 0);
-        const tWins  = week.reduce((s, d) => s + d.wins, 0);
-        setWinRate7d(tTotal >= 3 ? Math.round((tWins / tTotal) * 100) : null);
+        // Try 7-day window first; fall back to all-time if fewer than 1 trade in window
+        const week    = daily.filter(d => d.date >= cutoffStr && d.trades > 0);
+        const wTotal  = week.reduce((s, d) => s + d.trades, 0);
+        const wWins   = week.reduce((s, d) => s + d.wins, 0);
+        if (wTotal >= 1) {
+          setWinRate7d(Math.round((wWins / wTotal) * 100));
+          setWinRateLabel("7D");
+        } else {
+          const allTotal = daily.reduce((s, d) => s + d.trades, 0);
+          const allWins  = daily.reduce((s, d) => s + d.wins, 0);
+          setWinRate7d(allTotal >= 1 ? Math.round((allWins / allTotal) * 100) : null);
+          setWinRateLabel("ALL TIME");
+        }
       })
       .catch(() => {});
   }, []);
@@ -270,7 +280,7 @@ function PnlWidget({ micro }: { micro: MicroData }) {
           {/* └ Win Rate */}
           <div className="flex flex-col gap-[4px] px-3 py-[9px] border-r border-white/[0.05]">
             <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
-              Win Rate
+              Win Rate ({winRateLabel})
             </span>
             <span className={cn(
               "text-[13px] font-bold leading-none tabular-nums",
@@ -279,7 +289,7 @@ function PnlWidget({ micro }: { micro: MicroData }) {
               {winRate7d !== null ? `${winRate7d}%` : "—"}
             </span>
             <span className="text-[8px] font-mono leading-none text-zinc-700/50">
-              {winRate7d !== null ? "7D TRADES" : "NO DATA"}
+              {winRate7d !== null ? winRateLabel : "NO DATA"}
             </span>
           </div>
 
