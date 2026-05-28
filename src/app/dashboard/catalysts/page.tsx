@@ -173,7 +173,7 @@ export default function CatalystsPage() {
             </div>
 
             {/* Live headlines beside the video */}
-            <Card className="overflow-hidden flex flex-col">
+            <Card className="overflow-hidden flex flex-col h-full">
               <CardHeader className="pb-2 shrink-0">
                 <CardTitle className="flex items-center gap-2 text-sm">
                   <Newspaper className="h-3.5 w-3.5" />
@@ -186,7 +186,7 @@ export default function CatalystsPage() {
                   </div>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="flex-1 overflow-y-auto" style={{ maxHeight: "420px" }}>
+              <CardContent className="flex-1 min-h-0 overflow-y-auto">
                 <NewsFeed items={news} compact />
               </CardContent>
             </Card>

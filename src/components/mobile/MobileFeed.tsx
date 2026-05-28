@@ -16,10 +16,11 @@ import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelector
 type Tab = "live" | "catalysts" | "calendar" | "trump";
 
 const LIVE_CHANNELS = [
-  { id: "bloomberg", name: "Bloomberg", embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCIALMKvObZNtJ6AmdCLP7Lg&autoplay=1" },
-  { id: "cnbc",      name: "CNBC",      embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCrp_UI8XtuYfpiqluWLD7Lw&autoplay=1" },
-  { id: "reuters",   name: "Reuters",   embedUrl: "https://www.youtube.com/embed/live_stream?channel=UChqUTb7kYRX8-EiaN3XFrSQ&autoplay=1" },
-  { id: "aljazeera", name: "Al Jazeera",embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCNye-wNBqNL5ZzHSJdse18g&autoplay=1" },
+  { id: "bloomberg", name: "Bloomberg",   embedUrl: "https://www.youtube-nocookie.com/embed/iEpJwprxDdk?autoplay=1&mute=0&controls=1&rel=0" },
+  { id: "cnbc",      name: "CNBC",        embedUrl: "https://www.youtube-nocookie.com/embed/kbeYeyt8IW0?autoplay=1&mute=0&controls=1&rel=0" },
+  { id: "reuters",   name: "Reuters",     embedUrl: "https://www.youtube-nocookie.com/embed/INDhdbMGeKU?autoplay=1&mute=0&controls=1&rel=0" },
+  { id: "aljazeera", name: "Al Jazeera",  embedUrl: "https://www.youtube-nocookie.com/embed/gCNeDWCI0vo?autoplay=1&mute=0&controls=1&rel=0" },
+  { id: "yahoo",     name: "Yahoo Fin",   embedUrl: "https://www.youtube-nocookie.com/embed/KQp-e_XQnDE?autoplay=1&mute=0&controls=1&rel=0" },
 ];
 
 export function MobileFeed() {
