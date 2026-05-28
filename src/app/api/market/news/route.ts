@@ -125,8 +125,8 @@ function isRealNews(headline: string): boolean {
 
 // ── Multi-source RSS ──────────────────────────────────────────────────────
 
-function parseRssText(xml: string): Array<{ title: string; description: string; pubDate: string; link: string }> {
-  const items: Array<{ title: string; description: string; pubDate: string; link: string }> = [];
+function parseRssText(xml: string): Array<{ title: string; description: string; pubDate: string; link: string; imageUrl: string }> {
+  const items: Array<{ title: string; description: string; pubDate: string; link: string; imageUrl: string }> = [];
   const itemRe = /<item>([\s\S]*?)<\/item>/g;
   let m: RegExpExecArray | null;
   while ((m = itemRe.exec(xml)) !== null) {
@@ -147,7 +147,16 @@ function parseRssText(xml: string): Array<{ title: string; description: string; 
     )?.[1]?.trim() ?? "";
     const link = rawLink || (guidRaw.startsWith("http") ? guidRaw : "");
 
-    if (title) items.push({ title, description: stripHtml(desc), pubDate, link });
+    // Extract image URL from media:content, media:thumbnail, enclosure, or first <img> in content
+    const imageUrl = (
+      /<media:content[^>]+url="(https?:\/\/[^"]+)"/i.exec(block) ??
+      /<media:thumbnail[^>]+url="(https?:\/\/[^"]+)"/i.exec(block) ??
+      /<enclosure[^>]+url="(https?:\/\/[^"]+)"[^>]+type="image/i.exec(block) ??
+      /<enclosure[^>]+type="image[^"]*"[^>]+url="(https?:\/\/[^"]+)"/i.exec(block) ??
+      /<img[^>]+src="(https?:\/\/[^"]+)"/i.exec(block)
+    )?.[1] ?? "";
+
+    if (title) items.push({ title, description: stripHtml(desc), pubDate, link, imageUrl });
   }
   return items;
 }
@@ -209,6 +218,7 @@ async function fetchRssFeed(cfg: typeof RSS_SOURCES[number]): Promise<NewsItem[]
           summary: r.description,
           source: cfg.source,
           url: r.link || undefined,
+          imageUrl: r.imageUrl || undefined,
           goldImpact,
           goldReasoning,
           usdImpact,

@@ -196,6 +196,7 @@ export interface NewsItem {
   usdImpact?: "bullish" | "bearish" | "neutral";
   usdReasoning?: string;
   url?: string;
+  imageUrl?: string;
 }
 
 export interface AIBriefing {

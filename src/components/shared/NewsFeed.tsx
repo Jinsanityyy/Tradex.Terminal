@@ -133,6 +133,24 @@ function ArticleReader({
   const symbolShort    = getSymbolShort(selectedSymbol);
   const symbolLabel    = getSymbolLabel(selectedSymbol);
 
+  // Live price for the primary affected asset
+  const [livePrice, setLivePrice] = useState<{ price: number; pct: number } | null>(null);
+  useEffect(() => {
+    const sym = item.affectedAssets?.includes("XAUUSD") ? "XAU/USD"
+      : item.affectedAssets?.includes("BTCUSD") ? "BTC/USD"
+      : item.affectedAssets?.includes("EURUSD") ? "EUR/USD"
+      : null;
+    if (!sym) return;
+    fetch("/api/market/quotes", { cache: "no-store" })
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { data?: Array<{ symbol: string; price: number; changePercent: number }> } | null) => {
+        const q = d?.data?.find(a => a.symbol === sym);
+        if (q) setLivePrice({ price: q.price, pct: q.changePercent });
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id]);
+
   // Sync generated body — always available immediately
   const generatedBody = buildArticleContent(item);
   const [articleBody, setArticleBody] = useState<string | null>(null);
@@ -248,6 +266,49 @@ function ArticleReader({
             {item.sentiment.toUpperCase()}
           </span>
         </div>
+
+        {/* Live price strip for primary affected asset */}
+        {livePrice && (() => {
+          const sym = item.affectedAssets?.includes("XAUUSD") ? "XAU/USD"
+            : item.affectedAssets?.includes("BTCUSD") ? "BTC/USD"
+            : item.affectedAssets?.includes("EURUSD") ? "EUR/USD"
+            : null;
+          if (!sym) return null;
+          const up   = livePrice.pct >= 0;
+          const abbr = sym === "XAU/USD" ? "Au" : sym === "BTC/USD" ? "₿" : "FX";
+          const desc = sym === "XAU/USD" ? "Gold vs US Dollar" : sym === "BTC/USD" ? "Bitcoin vs US Dollar" : sym;
+          return (
+            <div className="flex items-center gap-3 rounded-lg border border-white/[0.07] bg-white/[0.025] px-3 py-2.5 -mt-1">
+              <div className="h-7 w-7 rounded flex items-center justify-center bg-amber-500/10 border border-amber-500/20 shrink-0">
+                <span className="text-[9px] font-bold text-amber-400">{abbr}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-semibold text-zinc-300 leading-none mb-0.5">{sym}</p>
+                <p className="text-[9px] text-zinc-600 leading-none">{desc}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[13px] font-bold font-mono text-zinc-100 leading-none mb-0.5">
+                  {livePrice.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
+                </p>
+                <p className={cn("text-[11px] font-bold font-mono leading-none", up ? "text-emerald-400" : "text-red-400")}>
+                  {up ? "↑" : "↓"} {Math.abs(livePrice.pct).toFixed(2)}%
+                </p>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Article hero image */}
+        {item.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={item.imageUrl}
+            alt={item.headline}
+            className="w-full rounded-lg object-cover max-h-48 border border-white/[0.06]"
+            loading="lazy"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+        )}
 
         {/* KEY POINTS ── only when we have bullets from summary */}
         {keyPoints.length > 0 && (
