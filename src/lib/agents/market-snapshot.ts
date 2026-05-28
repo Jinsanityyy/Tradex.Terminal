@@ -304,7 +304,7 @@ export async function buildMarketSnapshot(
 // Mock snapshot for fallback / testing when market data is unavailable
 export function buildMockSnapshot(symbol: Symbol, timeframe: Timeframe): MarketSnapshot {
   const prices: Partial<Record<Symbol, number>> = {
-    XAUUSD: 4400.00,
+    XAUUSD: 3300.00,
     EURUSD: 1.1340,
     GBPUSD: 1.3280,
     BTCUSD: 107000.00,

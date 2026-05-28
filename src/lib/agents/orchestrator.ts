@@ -13,7 +13,7 @@ import type {
   RiskAgentOutput, ExecutionAgentOutput, ContrarianAgentOutput,
 } from "./schemas";
 import { DEFAULT_WEIGHTS } from "./schemas";
-import { buildMarketSnapshot, buildMockSnapshot } from "./market-snapshot";
+import { buildMarketSnapshot } from "./market-snapshot";
 import { getValidatedCandles, getDailyStructure } from "./candles";
 import { runTrendAgent }     from "./trend-agent";
 import { runPriceActionAgent } from "./price-action-agent";
@@ -313,12 +313,10 @@ export async function runAgentOrchestrator(
       dailyStructure ?? undefined
     );
   } else {
-    // Live quote unavailable — serve cached result if available rather than running
-    // agents on synthetic data (flat candles break FVG/sweep detection entirely).
+    // Live quote unavailable — serve cached result; never run agents on stale mock prices.
     const cached = await getAgentCache(symbol, timeframe);
     if (cached) return cached;
-    snapshot = buildMockSnapshot(symbol, timeframe);
-    isMockData = true;
+    throw new Error(`Market data unavailable for ${symbol} — no cached result to serve`);
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
