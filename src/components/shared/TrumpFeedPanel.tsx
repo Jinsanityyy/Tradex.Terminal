@@ -32,6 +32,19 @@ function ImpactBadge({ impact, label }: { impact?: "bullish" | "bearish" | "neut
   );
 }
 
+function assetDir(
+  asset: string,
+  goldImpact?: "bullish" | "bearish" | "neutral",
+  usdImpact?:  "bullish" | "bearish" | "neutral",
+  fallback?:   "bullish" | "bearish" | "neutral",
+): "bullish" | "bearish" | "neutral" {
+  const isGold = asset === "XAUUSD" || asset === "GOLD";
+  const isUsd  = asset === "DXY"    || asset === "USD";
+  if (isGold && goldImpact) return goldImpact;
+  if (isUsd  && usdImpact)  return usdImpact;
+  return fallback ?? "neutral";
+}
+
 function TrumpPostDetail({ post }: { post: TrumpPost }) {
   const sentimentIcon = post.sentimentClassification === "bullish"
     ? <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
@@ -49,16 +62,20 @@ function TrumpPostDetail({ post }: { post: TrumpPost }) {
         </div>
         <span className="text-[10px] text-[hsl(var(--muted-foreground))]">{timeAgo(post.timestamp)}</span>
         <div className="ml-auto flex items-center gap-1.5 flex-wrap">
-          {/* Specific asset direction chips — shown when AI data is available */}
-          {(post.goldImpact || post.usdImpact) ? (
-            <>
-              {post.goldImpact && <ImpactBadge impact={post.goldImpact} label="XAUUSD" />}
-              {post.usdImpact  && <ImpactBadge impact={post.usdImpact}  label="USD" />}
-            </>
-          ) : (
-            /* Fallback: generic sentiment badge */
-            <Badge variant={post.sentimentClassification}>{post.sentimentClassification}</Badge>
-          )}
+          {/* Per-asset direction chips — AI data when available, else derived from sentiment */}
+          {(() => {
+            const sent = post.sentimentClassification;
+            const key  = (a: string) => assetDir(a, post.goldImpact, post.usdImpact, sent);
+            const chips = post.affectedAssets
+              .filter(a => ["XAUUSD","GOLD","DXY","USD","USOIL"].includes(a))
+              .slice(0, 3);
+            if (chips.length === 0) {
+              return <Badge variant={sent}>{sent}</Badge>;
+            }
+            return chips.map(a => (
+              <ImpactBadge key={a} impact={key(a)} label={a === "GOLD" ? "XAUUSD" : a} />
+            ));
+          })()}
         </div>
         <div className="flex items-center gap-1">
           <Flame className={cn("h-3.5 w-3.5", post.impactScore >= 7 ? "text-amber-400" : "text-[hsl(var(--muted-foreground))]")} />
@@ -140,16 +157,14 @@ function TrumpPostDetail({ post }: { post: TrumpPost }) {
         </>
       )}
 
-      {/* Affected assets — color-coded when direction data is available */}
+      {/* Affected assets — always color-coded with direction arrows */}
       <div className="space-y-1.5">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Affected Assets</p>
         <div className="flex flex-wrap gap-1.5">
           {post.affectedAssets.map((a) => {
-            const isGold = a === "XAUUSD" || a === "GOLD";
-            const isUsd  = a === "DXY" || a === "USD";
-            const dir    = isGold ? post.goldImpact : isUsd ? post.usdImpact : undefined;
-            const arrow  = dir === "bullish" ? " ↑" : dir === "bearish" ? " ↓" : "";
-            const cls    = dir === "bullish"
+            const dir   = assetDir(a, post.goldImpact, post.usdImpact, post.sentimentClassification);
+            const arrow = dir === "bullish" ? " ↑" : dir === "bearish" ? " ↓" : "";
+            const cls   = dir === "bullish"
               ? "bg-emerald-500/12 text-emerald-400 border-emerald-500/25"
               : dir === "bearish"
               ? "bg-red-500/12 text-red-400 border-red-500/25"
@@ -341,14 +356,17 @@ export function TrumpFeedPanel({ posts, limit, compact = false }: TrumpFeedPanel
                   <span className="text-[10px] text-[hsl(var(--muted-foreground))]">{timeAgo(post.timestamp)}</span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
-                  {(post.goldImpact || post.usdImpact) ? (
-                    <>
-                      {post.goldImpact && <ImpactBadge impact={post.goldImpact} label="XAUUSD" />}
-                      {post.usdImpact  && <ImpactBadge impact={post.usdImpact}  label="USD" />}
-                    </>
-                  ) : (
-                    <Badge variant={post.sentimentClassification}>{post.sentimentClassification}</Badge>
-                  )}
+                  {(() => {
+                    const sent  = post.sentimentClassification;
+                    const key   = (a: string) => assetDir(a, post.goldImpact, post.usdImpact, sent);
+                    const chips = post.affectedAssets
+                      .filter(a => ["XAUUSD","GOLD","DXY","USD","USOIL"].includes(a))
+                      .slice(0, 2);
+                    if (chips.length === 0) return <Badge variant={sent}>{sent}</Badge>;
+                    return chips.map(a => (
+                      <ImpactBadge key={a} impact={key(a)} label={a === "GOLD" ? "XAUUSD" : a} />
+                    ));
+                  })()}
                   <div className="flex items-center gap-0.5">
                     <Flame className={cn("h-3 w-3", post.impactScore >= 7 ? "text-amber-400" : "text-[hsl(var(--muted-foreground))]")} />
                     <span className="text-[10px] font-mono font-semibold text-[hsl(var(--foreground))]">{post.impactScore}/10</span>
