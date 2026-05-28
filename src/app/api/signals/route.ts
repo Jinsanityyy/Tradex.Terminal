@@ -152,16 +152,39 @@ export async function PATCH(req: NextRequest) {
 }
 
 /**
- * DELETE /api/signals/cleanup
- * Marks all open directional signals without a trade plan as "informational".
- * These are junk rows logged before the execution agent was fixed.
+ * DELETE /api/signals
+ * - With ?entryPrice=3305.90&symbol=XAUUSD  → hard-deletes that specific signal row
+ * - Without params → marks all open directionless signals as "informational"
  */
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
   try {
     const { getServiceClient } = await import("@/lib/supabase/service");
     const db = getServiceClient();
     if (!db) return NextResponse.json({ error: "No DB client" }, { status: 500 });
 
+    const { searchParams } = new URL(req.url);
+    const entryPriceParam = searchParams.get("entryPrice");
+    const symbolParam     = searchParams.get("symbol");
+
+    // Targeted delete by entry price + symbol
+    if (entryPriceParam && symbolParam) {
+      const entryPrice = parseFloat(entryPriceParam);
+      if (!Number.isFinite(entryPrice)) {
+        return NextResponse.json({ error: "Invalid entryPrice" }, { status: 400 });
+      }
+      // Match within ±1 of the given price to handle floating-point rounding
+      const { error, count } = await db
+        .from("signals")
+        .delete()
+        .eq("symbol", symbolParam)
+        .gte("entry_price", entryPrice - 1)
+        .lte("entry_price", entryPrice + 1);
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, deleted: count ?? 0 });
+    }
+
+    // Default cleanup: mark open directionless signals as informational
     const { error, count } = await db
       .from("signals")
       .update({ status: "informational" })
