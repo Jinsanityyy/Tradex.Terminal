@@ -182,8 +182,11 @@ type AIAnalysis = {
 async function analyzeAssets(content: string, category: string, assets: string[]): Promise<AIAnalysis | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
+
+  // Build the assetImpacts schema string for the prompt without | separators
+  const assetSchema = assets.map(a => `    "${a}": "bearish"`).join(",\n");
+
   try {
-    const assetList = assets.join(", ");
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -193,24 +196,51 @@ async function analyzeAssets(content: string, category: string, assets: string[]
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 400,
-        system: `You are a macro trader. Given a market-moving headline, determine the specific directional impact on each listed asset. Be precise — a ceasefire is bearish for gold/oil, a tariff is bearish for equities, etc. No generic templates. Return valid JSON only.`,
+        max_tokens: 450,
+        system: `You are a macro trading analyst. Given a news headline, determine the precise directional impact on specific financial assets.
+
+Rules:
+- Ceasefire/peace deal → oil BEARISH, gold BEARISH, equities BULLISH
+- Tariff/trade war → equities BEARISH, USD volatile, gold BULLISH
+- Rate cut signal → USD BEARISH, gold BULLISH
+- Geopolitical escalation → oil BULLISH, gold BULLISH, equities BEARISH
+- Strong US data → USD BULLISH, gold BEARISH
+- Be decisive. Use "neutral" only when the asset truly has no reaction.
+- Output valid JSON only. No explanation outside the JSON.`,
         messages: [{
           role: "user",
-          content: `Headline: "${content.slice(0, 400)}"\nCategory: ${category}\nAssets to analyze: ${assetList}\n\nReturn ONLY this JSON (use exact asset symbols as keys):\n{"goldImpact":"bullish|bearish|neutral","goldReasoning":"1 sentence","usdImpact":"bullish|bearish|neutral","usdReasoning":"1 sentence","assetImpacts":{"${assets.join('":"bullish|bearish|neutral","')}":"bullish|bearish|neutral"}}`,
+          content: `Headline: "${content.slice(0, 350)}"
+Category: ${category}
+Assets to rate: ${assets.join(", ")}
+
+Return this exact JSON structure with your analysis (replace "bearish" with the correct direction for each):
+{
+  "goldImpact": "bearish",
+  "goldReasoning": "one sentence explaining gold direction",
+  "usdImpact": "neutral",
+  "usdReasoning": "one sentence explaining USD direction",
+  "assetImpacts": {
+${assetSchema}
+  }
+}`,
         }],
       }),
     });
     const data = await res.json();
-    const text = (data.content?.[0]?.text ?? "").replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(text);
-    // Ensure assetImpacts exists and all assets are covered
+    const raw  = (data.content?.[0]?.text ?? "").replace(/```json|```/g, "").trim();
+    // Extract JSON object from response
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    const parsed = JSON.parse(jsonMatch[0]);
     if (!parsed.assetImpacts) parsed.assetImpacts = {};
+    // Fill any missing assets from gold/USD fields as fallback
     for (const a of assets) {
       if (!parsed.assetImpacts[a]) {
         const isGold = a === "XAUUSD" || a === "GOLD";
         const isUsd  = a === "DXY"    || a === "USD";
-        parsed.assetImpacts[a] = isGold ? parsed.goldImpact : isUsd ? parsed.usdImpact : "neutral";
+        parsed.assetImpacts[a] = isGold ? (parsed.goldImpact ?? "neutral")
+                                : isUsd  ? (parsed.usdImpact  ?? "neutral")
+                                : "neutral";
       }
     }
     return parsed;

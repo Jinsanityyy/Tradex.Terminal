@@ -36,14 +36,16 @@ function assetDir(
   asset: string,
   post: { goldImpact?: "bullish"|"bearish"|"neutral"; usdImpact?: "bullish"|"bearish"|"neutral"; assetImpacts?: Record<string, "bullish"|"bearish"|"neutral">; sentimentClassification: "bullish"|"bearish"|"neutral" },
 ): "bullish" | "bearish" | "neutral" {
-  // 1. Per-asset AI data (most accurate)
-  if (post.assetImpacts?.[asset]) return post.assetImpacts[asset];
-  // 2. Gold/USD legacy fields
+  // 1. Per-asset AI data (most specific)
+  const specific = post.assetImpacts?.[asset];
+  if (specific && specific !== "neutral") return specific;
+  if (specific === "neutral") return "neutral";
+  // 2. Gold/USD named fields (legacy / Truth Social posts)
   const isGold = asset === "XAUUSD" || asset === "GOLD";
   const isUsd  = asset === "DXY"    || asset === "USD";
   if (isGold && post.goldImpact) return post.goldImpact;
   if (isUsd  && post.usdImpact)  return post.usdImpact;
-  // 3. No AI data — don't guess, show neutral
+  // 3. No AI data at all — neutral
   return "neutral";
 }
 
