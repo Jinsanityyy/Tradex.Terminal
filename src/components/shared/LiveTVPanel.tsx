@@ -8,7 +8,7 @@ interface Channel {
   id: string;
   name: string;
   label: string;
-  channelId: string;
+  liveVideoId: string;
   handle: string;
   color: string;
 }
@@ -16,12 +16,13 @@ interface Channel {
 const EMBED_PARAMS =
   "autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&fs=1&enablejsapi=1";
 
+// Permanent 24/7 live stream video IDs — stable, no scraping needed
 const CHANNELS: Channel[] = [
   {
     id: "bloomberg",
     name: "Bloomberg TV",
     label: "Markets · Macro · Equities",
-    channelId: "UCIALMKvObZNtJ6AmdCLP7Lg",
+    liveVideoId: "iEpJwprxDdk",
     handle: "@BloombergTelevision",
     color: "text-blue-400 border-blue-500/40 bg-blue-500/10",
   },
@@ -29,7 +30,7 @@ const CHANNELS: Channel[] = [
     id: "cnbc",
     name: "CNBC",
     label: "US Markets · Earnings · Fed",
-    channelId: "UCrp_UI8XtuYfpiqluWLD7Lw",
+    liveVideoId: "kbeYeyt8IW0",
     handle: "@CNBC",
     color: "text-blue-300 border-blue-400/40 bg-blue-400/10",
   },
@@ -37,7 +38,7 @@ const CHANNELS: Channel[] = [
     id: "reuters",
     name: "Reuters TV",
     label: "Global News · Geopolitics",
-    channelId: "UChqUTb7kYRX8-EiaN3XFrSQ",
+    liveVideoId: "INDhdbMGeKU",
     handle: "@reuters",
     color: "text-orange-400 border-orange-500/40 bg-orange-500/10",
   },
@@ -45,27 +46,19 @@ const CHANNELS: Channel[] = [
     id: "al-jazeera",
     name: "Al Jazeera",
     label: "Geopolitics · Middle East · Oil",
-    channelId: "UCNye-wNBqNL5ZzHSJdse18g",
+    liveVideoId: "gCNeDWCI0vo",
     handle: "@AlJazeeraEnglish",
     color: "text-amber-400 border-amber-500/40 bg-amber-500/10",
   },
   {
-    id: "wion",
-    name: "WION",
-    label: "Global · Geopolitics · Asia",
-    channelId: "UCmqvpsWGSBBOcvLMSCKEFGQ",
-    handle: "@WIONews",
-    color: "text-emerald-400 border-emerald-500/40 bg-emerald-500/10",
+    id: "yahoo",
+    name: "Yahoo Finance",
+    label: "Markets · Earnings · Economy",
+    liveVideoId: "KQp-e_XQnDE",
+    handle: "@YahooFinance",
+    color: "text-violet-400 border-violet-500/40 bg-violet-500/10",
   },
 ];
-
-function buildEmbedUrl(videoId: string | null, channelId: string): string {
-  if (videoId) {
-    return `https://www.youtube-nocookie.com/embed/${videoId}?${EMBED_PARAMS}`;
-  }
-  // Fallback to channel live stream embed
-  return `https://www.youtube-nocookie.com/embed/live_stream?channel=${channelId}&${EMBED_PARAMS}`;
-}
 
 export function LiveTVPanel({
   showHeader = true,
@@ -75,8 +68,6 @@ export function LiveTVPanel({
   showFooterNote?: boolean;
 }) {
   const [active, setActive] = useState<Channel>(CHANNELS[0]);
-  const [videoIds, setVideoIds] = useState<Record<string, string | null>>({});
-  const [loading, setLoading] = useState(true);
   const [retryKey, setRetryKey] = useState(0);
   const [tabVisible, setTabVisible] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -84,9 +75,6 @@ export function LiveTVPanel({
   function stopIframe() {
     const iframe = iframeRef.current;
     if (!iframe) return;
-    // Nuke the src directly — this kills audio immediately without waiting
-    // for React to re-render. The iframe element stays in the DOM briefly
-    // but is silent; React unmounts it on the next render via tabVisible.
     iframe.src = "about:blank";
   }
 
@@ -112,25 +100,7 @@ export function LiveTVPanel({
     return () => document.removeEventListener("tradex:mobile-tab-change", onMobileTabChange);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-
-    fetch("/api/youtube/live")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: { id: string; videoId: string | null }[]) => {
-        if (cancelled) return;
-        const map: Record<string, string | null> = {};
-        data.forEach((d) => { map[d.id] = d.videoId; });
-        setVideoIds(map);
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false); });
-
-    return () => { cancelled = true; };
-  }, [retryKey]);
-
-  const embedUrl = buildEmbedUrl(videoIds[active.id] ?? null, active.channelId);
+  const embedUrl = `https://www.youtube-nocookie.com/embed/${active.liveVideoId}?${EMBED_PARAMS}`;
 
   return (
     <div className="flex h-full min-h-0 flex-col space-y-3">
@@ -149,10 +119,9 @@ export function LiveTVPanel({
           <button
             type="button"
             onClick={() => setRetryKey((k) => k + 1)}
-            disabled={loading}
-            className="flex items-center gap-1.5 rounded-md border border-white/10 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-40"
+            className="flex items-center gap-1.5 rounded-md border border-white/10 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
           >
-            <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
+            <RefreshCw className="h-3 w-3" />
             Refresh
           </button>
         </div>
