@@ -389,11 +389,12 @@ export async function runAgentOrchestrator(
   );
 
   // ── Log signal to history (fire-and-forget  -  never blocks the response) ──
-  // The logger is idempotent (dedupes by minute+symbol+TF) so cache-hits or
-  // rapid re-runs within the same minute will not create duplicate records.
-  void logSignal(result).catch(err =>
-    console.warn("[orchestrator] signal log failed:", err)
-  );
+  // Skip logging when using mock data — price levels would be wrong (stale hardcoded values).
+  if (!isMockData) {
+    void logSignal(result).catch(err =>
+      console.warn("[orchestrator] signal log failed:", err)
+    );
+  }
 
   return result;
 }
