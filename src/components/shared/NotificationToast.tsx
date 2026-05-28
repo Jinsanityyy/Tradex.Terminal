@@ -327,8 +327,7 @@ function AlertCard({
 
   function handleViewInTerminal() {
     if (!notif.chartLink) return;
-    // On mobile (/m), the app uses custom tab events — router.push does nothing.
-    // Extract the page id from the link and dispatch tradex:open-more.
+    onDismiss(); // close the alert first so the navigation is visible
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/m")) {
       const appId = notif.chartLink.split("/").pop() ?? "";
       document.dispatchEvent(new CustomEvent("tradex:open-more", { detail: { appId } }));
@@ -474,16 +473,21 @@ function AlertCard({
         {/* Divider */}
         <div style={{ height: 1, background: "rgba(255,255,255,0.04)", marginBottom: 10 }} />
 
-        {/* Title */}
-        <p className="font-semibold leading-snug mb-1.5 tracking-tight"
-          style={{ fontSize: 15, color: "rgba(255,255,255,0.9)", letterSpacing: "-0.01em" }}>
-          {notif.title}
-        </p>
+        {/* Title + body — tappable if there's a chartLink */}
+        <div
+          onClick={notif.chartLink ? handleViewInTerminal : undefined}
+          style={{ cursor: notif.chartLink ? "pointer" : "default" }}
+        >
+          <p className="font-semibold leading-snug mb-1.5 tracking-tight"
+            style={{ fontSize: 15, color: "rgba(255,255,255,0.9)", letterSpacing: "-0.01em" }}>
+            {notif.title}
+          </p>
 
-        {/* Body  -  always visible */}
-        <p className="text-[12px] leading-relaxed" style={{ color: "rgba(255,255,255,0.38)" }}>
-          <HighlightedText text={notif.body} />
-        </p>
+          {/* Body  -  always visible */}
+          <p className="text-[12px] leading-relaxed" style={{ color: "rgba(255,255,255,0.38)" }}>
+            <HighlightedText text={notif.body} />
+          </p>
+        </div>
 
         {/* Take Trade CTA — only for armed signals with a trade plan */}
         {onTakeTrade && (
