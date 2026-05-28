@@ -92,17 +92,45 @@ function ArticleReader({
 
   const [articleBody, setArticleBody] = useState<string | null>(null);
   const [bodyLoading, setBodyLoading] = useState(false);
+  const [bodySource, setBodySource] = useState<"scrape" | "ai" | null>(null);
 
   useEffect(() => {
-    if (!item.url) return;
     setBodyLoading(true);
     setArticleBody(null);
-    fetch(`/api/market/news/article?url=${encodeURIComponent(item.url)}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.body) setArticleBody(data.body); })
-      .catch(() => {})
-      .finally(() => setBodyLoading(false));
-  }, [item.url]);
+    setBodySource(null);
+
+    const tryAiExpand = () =>
+      fetch("/api/market/news/expand", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          headline:       item.headline,
+          summary:        item.summary,
+          category:       item.category,
+          sentiment:      item.sentiment,
+          goldReasoning:  item.goldReasoning,
+          usdReasoning:   item.usdReasoning,
+          affectedAssets: item.affectedAssets,
+        }),
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data?.body) { setArticleBody(data.body); setBodySource("ai"); } })
+        .catch(() => {});
+
+    if (item.url) {
+      fetch(`/api/market/news/article?url=${encodeURIComponent(item.url)}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(async data => {
+          if (data?.body) { setArticleBody(data.body); setBodySource("scrape"); }
+          else await tryAiExpand();
+        })
+        .catch(async () => { await tryAiExpand(); })
+        .finally(() => setBodyLoading(false));
+    } else {
+      tryAiExpand().finally(() => setBodyLoading(false));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id]);
 
   const assetImpact = getImpactForSymbol({
     goldImpact:    item.goldImpact,
@@ -219,7 +247,7 @@ function ArticleReader({
           {item.category.replace(/-/g, " ")}
         </span>
 
-        {/* Full article body — fetched from source URL */}
+        {/* Article body */}
         {bodyLoading && (
           <div className="space-y-2.5 animate-pulse">
             {[100, 90, 95, 80, 70].map((w, i) => (
@@ -230,6 +258,13 @@ function ArticleReader({
 
         {articleBody && !bodyLoading && (
           <div className="space-y-4">
+            {bodySource === "ai" && (
+              <div className="flex items-center gap-1.5 -mb-1">
+                <span className="inline-flex items-center gap-1 px-2 py-[3px] rounded text-[9.5px] font-semibold bg-violet-500/10 border border-violet-500/20 text-violet-400 tracking-wide">
+                  AI ANALYSIS
+                </span>
+              </div>
+            )}
             {articleBody.split(/\n\n+/).filter(p => p.trim().length > 20).map((para, i) => (
               <p key={i} className={cn(
                 "leading-[1.78] tracking-[0.005em]",
@@ -241,7 +276,7 @@ function ArticleReader({
           </div>
         )}
 
-        {/* Fallback — RSS description when no URL or fetch failed */}
+        {/* Fallback — RSS description when AI also failed */}
         {!bodyLoading && !articleBody && item.summary && item.summary.trim().length > 25 && (
           <p className="text-[14px] text-zinc-300 leading-[1.75] tracking-[0.005em]">
             {item.summary}
