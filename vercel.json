@@ -3,6 +3,14 @@
     {
       "path": "/api/market/trump/cnn-sync",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/push-alerts",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/trial-expiry",
+      "schedule": "0 9 * * *"
     }
   ],
   "headers": [
