@@ -48,7 +48,18 @@ function TrumpPostDetail({ post }: { post: TrumpPost }) {
           <span className="text-[11px] text-[hsl(var(--muted-foreground))]">{post.source}</span>
         </div>
         <span className="text-[10px] text-[hsl(var(--muted-foreground))]">{timeAgo(post.timestamp)}</span>
-        <Badge variant={post.sentimentClassification} className="ml-auto">{post.sentimentClassification}</Badge>
+        <div className="ml-auto flex items-center gap-1.5 flex-wrap">
+          {/* Specific asset direction chips — shown when AI data is available */}
+          {(post.goldImpact || post.usdImpact) ? (
+            <>
+              {post.goldImpact && <ImpactBadge impact={post.goldImpact} label="XAUUSD" />}
+              {post.usdImpact  && <ImpactBadge impact={post.usdImpact}  label="USD" />}
+            </>
+          ) : (
+            /* Fallback: generic sentiment badge */
+            <Badge variant={post.sentimentClassification}>{post.sentimentClassification}</Badge>
+          )}
+        </div>
         <div className="flex items-center gap-1">
           <Flame className={cn("h-3.5 w-3.5", post.impactScore >= 7 ? "text-amber-400" : "text-[hsl(var(--muted-foreground))]")} />
           <span className="text-xs font-mono font-bold text-[hsl(var(--foreground))]">{post.impactScore}/10</span>
@@ -129,15 +140,26 @@ function TrumpPostDetail({ post }: { post: TrumpPost }) {
         </>
       )}
 
-      {/* Affected assets */}
+      {/* Affected assets — color-coded when direction data is available */}
       <div className="space-y-1.5">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Affected Assets</p>
         <div className="flex flex-wrap gap-1.5">
-          {post.affectedAssets.map((a) => (
-            <span key={a} className="text-[10px] font-mono px-2 py-1 rounded bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] border border-[hsl(var(--border))]">
-              {a}
-            </span>
-          ))}
+          {post.affectedAssets.map((a) => {
+            const isGold = a === "XAUUSD" || a === "GOLD";
+            const isUsd  = a === "DXY" || a === "USD";
+            const dir    = isGold ? post.goldImpact : isUsd ? post.usdImpact : undefined;
+            const arrow  = dir === "bullish" ? " ↑" : dir === "bearish" ? " ↓" : "";
+            const cls    = dir === "bullish"
+              ? "bg-emerald-500/12 text-emerald-400 border-emerald-500/25"
+              : dir === "bearish"
+              ? "bg-red-500/12 text-red-400 border-red-500/25"
+              : "bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] border-[hsl(var(--border))]";
+            return (
+              <span key={a} className={cn("text-[10px] font-mono font-semibold px-2 py-1 rounded border", cls)}>
+                {a}{arrow}
+              </span>
+            );
+          })}
         </div>
       </div>
 
@@ -318,8 +340,15 @@ export function TrumpFeedPanel({ posts, limit, compact = false }: TrumpFeedPanel
                   <span className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))]">{post.source}</span>
                   <span className="text-[10px] text-[hsl(var(--muted-foreground))]">{timeAgo(post.timestamp)}</span>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <Badge variant={post.sentimentClassification}>{post.sentimentClassification}</Badge>
+                <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                  {(post.goldImpact || post.usdImpact) ? (
+                    <>
+                      {post.goldImpact && <ImpactBadge impact={post.goldImpact} label="XAUUSD" />}
+                      {post.usdImpact  && <ImpactBadge impact={post.usdImpact}  label="USD" />}
+                    </>
+                  ) : (
+                    <Badge variant={post.sentimentClassification}>{post.sentimentClassification}</Badge>
+                  )}
                   <div className="flex items-center gap-0.5">
                     <Flame className={cn("h-3 w-3", post.impactScore >= 7 ? "text-amber-400" : "text-[hsl(var(--muted-foreground))]")} />
                     <span className="text-[10px] font-mono font-semibold text-[hsl(var(--foreground))]">{post.impactScore}/10</span>
