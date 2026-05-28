@@ -183,79 +183,120 @@ function getAppTag(
 
 // ── P&L Summary Widget ─────────────────────────────────────────────────────
 
-function StatCell({
-  label, value, sub, valueClass,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  valueClass?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-[4px]">
-      <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-zinc-600 leading-none">
-        {label}
-      </span>
-      <span className={cn("text-[13px] font-semibold leading-none tabular-nums", valueClass ?? "text-zinc-100")}>
-        {value}
-      </span>
-      {sub && (
-        <span className="text-[9px] font-mono leading-none text-zinc-600">
-          {sub}
-        </span>
-      )}
-    </div>
-  );
-}
-
 function PnlWidget({ micro }: { micro: MicroData }) {
-  // Wire to real endpoint: fetch("/api/pnl/summary").then(d => { setPnl(d.pnl); setPnlPct(d.pct); })
+  // Wire: fetch("/api/pnl/summary").then(d => { setPnl(d.pnl); setPnlPct(d.pct); })
   const [dailyPnl,    setPnl]    = useState<number | null>(null);
   const [dailyPnlPct, setPnlPct] = useState<number | null>(null);
-  void setPnl; void setPnlPct; // suppress unused-var until endpoint is wired
+  void setPnl; void setPnlPct;
 
+  const pnlPos   = dailyPnl !== null && dailyPnl >= 0;
   const pnlValue = dailyPnl !== null
-    ? `${dailyPnl >= 0 ? "+" : ""}$${Math.abs(dailyPnl).toFixed(2)}`
+    ? `${pnlPos ? "+" : ""}$${Math.abs(dailyPnl).toFixed(2)}`
     : "—";
-  const pnlSub = dailyPnl !== null && dailyPnlPct !== null
-    ? `(${dailyPnl >= 0 ? "+" : ""}${dailyPnlPct.toFixed(2)}%)`
-    : undefined;
-  const pnlClass = dailyPnl === null
-    ? "text-zinc-700"
-    : dailyPnl >= 0
-    ? "text-emerald-400"
-    : "text-red-400";
+  const pnlPct = dailyPnl !== null && dailyPnlPct !== null
+    ? `${pnlPos ? "+" : ""}${dailyPnlPct.toFixed(2)}%`
+    : null;
+  const pnlClass = dailyPnl === null ? "text-zinc-700"
+    : pnlPos ? "text-emerald-400" : "text-red-400";
 
-  const sessionLabel = micro.session ?? "CLOSED";
-  const sessionSub   = micro.session ? "ACTIVE" : undefined;
-  const sessionClass = micro.session ? "text-zinc-100" : "text-zinc-600";
+  const hasSession = !!micro.session;
 
   return (
-    <div className="mt-1">
-      <div className="h-px bg-white/[0.05] mx-4 mb-[14px]" />
-      <div className="px-4 pb-5 grid grid-cols-2 gap-x-3 gap-y-[14px]">
-        <StatCell
-          label="Daily P&L"
-          value={pnlValue}
-          sub={pnlSub}
-          valueClass={pnlClass}
-        />
-        <StatCell
-          label="Session"
-          value={sessionLabel}
-          sub={sessionSub}
-          valueClass={sessionClass}
-        />
-        <StatCell
-          label="Win Rate (7d)"
-          value={micro.winRate !== null ? `${micro.winRate}%` : "—"}
-          valueClass={micro.winRate !== null ? "text-zinc-100" : "text-zinc-700"}
-        />
-        <StatCell
-          label="Avg R:R"
-          value={micro.avgRR !== null ? `1 : ${micro.avgRR}` : "—"}
-          valueClass={micro.avgRR !== null ? "text-zinc-100" : "text-zinc-700"}
-        />
+    <div className="px-3 pb-4 mt-2">
+      {/* Card shell */}
+      <div
+        className="rounded-lg border border-white/[0.06] overflow-hidden"
+        style={{ background: "rgba(255,255,255,0.022)" }}
+      >
+        {/* Card header strip */}
+        <div className="flex items-center justify-between px-3 py-[6px] border-b border-white/[0.05]">
+          <span className="text-[8px] font-bold tracking-[0.18em] text-zinc-700 uppercase">
+            Performance
+          </span>
+          <span className="text-[8px] font-mono tracking-[0.06em] text-zinc-700">
+            7 DAY
+          </span>
+        </div>
+
+        {/* 2 × 2 quadrant grid */}
+        <div className="grid grid-cols-2">
+
+          {/* ┌ Daily P&L ──────────────────── */}
+          <div className="flex flex-col gap-[5px] px-3 py-[10px] border-b border-r border-white/[0.05]">
+            <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
+              Daily P&L
+            </span>
+            <span className={cn("text-[13px] font-bold leading-none tabular-nums", pnlClass)}>
+              {pnlValue}
+            </span>
+            <span className={cn(
+              "text-[8.5px] font-mono leading-none",
+              pnlPct
+                ? pnlPos ? "text-emerald-500/50" : "text-red-500/50"
+                : "text-zinc-800"
+            )}>
+              {pnlPct ?? "PENDING"}
+            </span>
+          </div>
+
+          {/* ┐ Session ────────────────────── */}
+          <div className="flex flex-col gap-[5px] px-3 py-[10px] border-b border-white/[0.05]">
+            <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
+              Session
+            </span>
+            <div className="flex items-center gap-[5px]">
+              <div className={cn(
+                "w-[5px] h-[5px] rounded-full shrink-0",
+                hasSession ? "bg-emerald-500" : "bg-zinc-700"
+              )} />
+              <span className={cn(
+                "text-[13px] font-bold leading-none",
+                hasSession ? "text-zinc-100" : "text-zinc-600"
+              )}>
+                {micro.session ?? "CLOSED"}
+              </span>
+            </div>
+            <span className={cn(
+              "text-[8.5px] font-mono leading-none",
+              hasSession ? "text-emerald-500/50" : "text-zinc-800"
+            )}>
+              {hasSession ? "ACTIVE" : "—"}
+            </span>
+          </div>
+
+          {/* └ Win Rate ───────────────────── */}
+          <div className="flex flex-col gap-[5px] px-3 py-[10px] border-r border-white/[0.05]">
+            <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
+              Win Rate
+            </span>
+            <span className={cn(
+              "text-[13px] font-bold leading-none tabular-nums",
+              micro.winRate !== null ? "text-zinc-100" : "text-zinc-700"
+            )}>
+              {micro.winRate !== null ? `${micro.winRate}%` : "—"}
+            </span>
+            <span className="text-[8.5px] font-mono leading-none text-zinc-700">
+              {micro.winRate !== null ? "CLOSED TRADES" : "NO DATA"}
+            </span>
+          </div>
+
+          {/* ┘ Avg R:R ────────────────────── */}
+          <div className="flex flex-col gap-[5px] px-3 py-[10px]">
+            <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
+              Avg R:R
+            </span>
+            <span className={cn(
+              "text-[13px] font-bold leading-none tabular-nums",
+              micro.avgRR !== null ? "text-zinc-100" : "text-zinc-700"
+            )}>
+              {micro.avgRR !== null ? `1 : ${micro.avgRR}` : "—"}
+            </span>
+            <span className="text-[8.5px] font-mono leading-none text-zinc-700">
+              {micro.avgRR !== null ? "REWARD RATIO" : "NO DATA"}
+            </span>
+          </div>
+
+        </div>
       </div>
     </div>
   );
