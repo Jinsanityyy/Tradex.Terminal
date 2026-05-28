@@ -205,13 +205,14 @@ function PnlWidget({ micro }: { micro: MicroData }) {
   const hasSession = !!micro.session;
 
   return (
-    <div className="px-3 pb-4 mt-2">
-      {/* Card shell */}
+    // mx-4 = 16px each side, matches menu-row px-4 so card edges align with list content
+    <div className="mx-4 pb-4 mt-2">
+      {/* Card shell — solid dark bg so it never disappears on AMOLED */}
       <div
-        className="rounded-lg border border-white/[0.06] overflow-hidden"
-        style={{ background: "rgba(255,255,255,0.022)" }}
+        className="rounded-lg border border-white/[0.04] overflow-hidden"
+        style={{ background: "#0d1117" }}
       >
-        {/* Card header strip */}
+        {/* Header strip */}
         <div className="flex items-center justify-between px-3 py-[6px] border-b border-white/[0.05]">
           <span className="text-[8px] font-bold tracking-[0.18em] text-zinc-700 uppercase">
             Performance
@@ -224,27 +225,28 @@ function PnlWidget({ micro }: { micro: MicroData }) {
         {/* 2 × 2 quadrant grid */}
         <div className="grid grid-cols-2">
 
-          {/* ┌ Daily P&L ──────────────────── */}
-          <div className="flex flex-col gap-[5px] px-3 py-[10px] border-b border-r border-white/[0.05]">
+          {/* ┌ Daily P&L */}
+          <div className="flex flex-col gap-[4px] px-3 py-[9px] border-b border-r border-white/[0.05]">
             <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
               Daily P&L
             </span>
             <span className={cn("text-[13px] font-bold leading-none tabular-nums", pnlClass)}>
               {pnlValue}
             </span>
-            <span className="text-[8.5px] font-mono leading-none text-zinc-700">
+            <span className="text-[8px] font-mono leading-none text-zinc-700/50">
               TODAY
             </span>
           </div>
 
-          {/* ┐ Session ────────────────────── */}
-          <div className="flex flex-col gap-[5px] px-3 py-[10px] border-b border-white/[0.05]">
+          {/* ┐ Session */}
+          <div className="flex flex-col gap-[4px] px-3 py-[9px] border-b border-white/[0.05]">
             <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
               Session
             </span>
-            <div className="flex items-center gap-[5px]">
+            {/* dot + value — inline-flex keeps them on one baseline */}
+            <div className="inline-flex items-center gap-[5px]">
               <div className={cn(
-                "w-[5px] h-[5px] rounded-full shrink-0",
+                "w-[5px] h-[5px] rounded-full shrink-0 mt-[1px]",
                 hasSession ? "bg-emerald-500" : "bg-zinc-700"
               )} />
               <span className={cn(
@@ -255,15 +257,15 @@ function PnlWidget({ micro }: { micro: MicroData }) {
               </span>
             </div>
             <span className={cn(
-              "text-[8.5px] font-mono leading-none",
-              hasSession ? "text-emerald-500/50" : "text-zinc-800"
+              "text-[8px] font-mono leading-none",
+              hasSession ? "text-emerald-500/50" : "text-zinc-700/50"
             )}>
               {hasSession ? "ACTIVE" : "—"}
             </span>
           </div>
 
-          {/* └ Win Rate ───────────────────── */}
-          <div className="flex flex-col gap-[5px] px-3 py-[10px] border-r border-white/[0.05]">
+          {/* └ Win Rate */}
+          <div className="flex flex-col gap-[4px] px-3 py-[9px] border-r border-white/[0.05]">
             <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
               Win Rate
             </span>
@@ -273,13 +275,13 @@ function PnlWidget({ micro }: { micro: MicroData }) {
             )}>
               {winRate7d !== null ? `${winRate7d}%` : "—"}
             </span>
-            <span className="text-[8.5px] font-mono leading-none text-zinc-700">
+            <span className="text-[8px] font-mono leading-none text-zinc-700/50">
               {winRate7d !== null ? "7D TRADES" : "NO DATA"}
             </span>
           </div>
 
-          {/* ┘ Avg R:R ────────────────────── */}
-          <div className="flex flex-col gap-[5px] px-3 py-[10px]">
+          {/* ┘ Avg R:R */}
+          <div className="flex flex-col gap-[4px] px-3 py-[9px]">
             <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
               Avg R:R
             </span>
@@ -289,7 +291,7 @@ function PnlWidget({ micro }: { micro: MicroData }) {
             )}>
               {avgRR !== null ? `1 : ${avgRR}` : "—"}
             </span>
-            <span className="text-[8.5px] font-mono leading-none text-zinc-700">
+            <span className="text-[8px] font-mono leading-none text-zinc-700/50">
               {avgRR !== null ? "REWARD RATIO" : "NO DATA"}
             </span>
           </div>
