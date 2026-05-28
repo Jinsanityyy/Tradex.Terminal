@@ -123,119 +123,6 @@ function isRealNews(headline: string): boolean {
   return !junk.some(p => p.test(headline));
 }
 
-function sourceFromUrl(url: string): string {
-  try {
-    const host = new URL(url).hostname.replace(/^www\./, "");
-    const map: Record<string, string> = {
-      "wsj.com": "Dow Jones Newswires",
-      "tradingeconomics.com": "Trading Economics",
-      "reuters.com": "Reuters",
-      "bloomberg.com": "Bloomberg",
-      "kitco.com": "Kitco",
-      "forexlive.com": "Forex Live",
-      "marketwatch.com": "MarketWatch",
-      "cnbc.com": "CNBC",
-      "ft.com": "Financial Times",
-      "investing.com": "Investing.com",
-      "fxstreet.com": "FXStreet",
-      "goldprice.org": "Gold Price",
-      "bullionvault.com": "BullionVault",
-    };
-    for (const [domain, name] of Object.entries(map)) {
-      if (host.includes(domain)) return name;
-    }
-    return host;
-  } catch {
-    return "News";
-  }
-}
-
-function cleanSummary(raw: string): string {
-  const cleaned = raw
-    // Markdown links [label](url) → keep label only
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    // Bare URLs
-    .replace(/https?:\/\/[^\s),]+/g, "")
-    // Stray URL-only parentheses (https://...)
-    .replace(/\([^)]*https?[^)]*\)/g, "")
-    // Navigation artifacts
-    .replace(/skip\s+to\s+(main\s+)?content\.?/gi, "")
-    .replace(/trending:\s*/gi, "")
-    // Collapse whitespace
-    .replace(/[|\[\]]/g, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-
-  // Walk forward through period-separated segments and return
-  // the first one that's long enough to be real prose (≥ 60 chars)
-  const segments = cleaned.split(/(?<=[.!?])\s+(?=[A-Z])/);
-  const prose = segments.find(s => s.trim().length >= 60) ?? cleaned;
-  return prose.trim().slice(0, 300);
-}
-
-: Promise<NewsItem[]> {
-  const apiKey = process.env.TAVILY_API_KEY;
-  if (!apiKey) return [];
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
-
-  try {
-    const res = await fetch("https://api.tavily.com/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        query: "gold XAU/USD price news",
-        search_depth: "basic",
-        max_results: 8,
-        include_answer: false,
-        days: 1,
-      }),
-      signal: controller.signal,
-      cache: "no-store",
-    });
-    clearTimeout(timer);
-    if (!res.ok) return [];
-
-    const data = await res.json();
-    const results: Array<{
-      title?: string;
-      url?: string;
-      content?: string;
-      published_date?: string;
-    }> = data.results ?? [];
-
-    return results
-      .filter(r => r.title && isRealNews(r.title))
-      .map((r, i) => {
-        const headline = r.title!;
-        const sent = deriveSentiment(headline);
-        const cat = categorize(headline);
-        const { goldImpact, goldReasoning, usdImpact, usdReasoning } = deriveGoldUSD(headline, cat, sent);
-        const ts = r.published_date
-          ? new Date(r.published_date).toISOString()
-          : new Date(Date.now() - i * 5 * 60 * 1000).toISOString();
-        return {
-          id: `tv-${headline.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 40)}`,
-          timestamp: ts,
-          headline,
-          category: cat,
-          sentiment: sent,
-          impactScore: deriveImpact(headline),
-          affectedAssets: ["XAUUSD", ...extractAssets(headline)].filter((v, idx, arr) => arr.indexOf(v) === idx),
-          summary: cleanSummary(r.content ?? ""),
-          source: r.url ? sourceFromUrl(r.url) : "News",
-          goldImpact,
-          goldReasoning,
-          usdImpact,
-          usdReasoning,
-        } satisfies NewsItem;
-      });
-  } catch {
-    clearTimeout(timer);
-    return [];
-  }
-}
 
 export async function GET() {
   if (cache.data.length > 0 && Date.now() - cache.ts < CACHE_TTL) {
@@ -244,56 +131,47 @@ export async function GET() {
 
   try {
     const key = process.env.FINNHUB_API_KEY;
-
-    const [finnhubRes, tavilyGoldNews] = await Promise.allSettled([
-      key ? (async () => {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 8000);
-        const res = await fetch(
-          `https://finnhub.io/api/v1/news?category=general&token=${key}`,
-          { signal: controller.signal, cache: "no-store" }
-        );
-        clearTimeout(timer);
-        if (!res.ok) throw new Error(`Finnhub: ${res.status}`);
-        return res.json();
-      })() : Promise.resolve(null),
-      fetchTavilyGoldNews(),
-    ]);
-
-    const finnhubNews: NewsItem[] = [];
-    if (finnhubRes.status === "fulfilled" && finnhubRes.value) {
-      const raw: { id: number; headline: string; summary: string; source: string; datetime: number; category: string; related: string }[] =
-        finnhubRes.value ?? [];
-      raw.filter(item => isRealNews(item.headline)).slice(0, 30).forEach((item, i) => {
-        const cat = categorize(item.headline);
-        const sent = deriveSentiment(item.headline);
-        const { goldImpact, goldReasoning, usdImpact, usdReasoning } = deriveGoldUSD(item.headline, cat, sent);
-        finnhubNews.push({
-          id: `fn-${item.id ?? i}`,
-          timestamp: new Date(item.datetime * 1000).toISOString(),
-          headline: item.headline,
-          category: cat,
-          sentiment: sent,
-          impactScore: deriveImpact(item.headline),
-          affectedAssets: extractAssets(item.headline + " " + (item.related ?? "")),
-          summary: "",
-          source: item.source,
-          goldImpact,
-          goldReasoning,
-          usdImpact,
-          usdReasoning,
-        });
-      });
+    if (!key) {
+      return NextResponse.json({ data: FALLBACK_NEWS, timestamp: Date.now(), fallback: true });
     }
 
-    const goldNews = tavilyGoldNews.status === "fulfilled" ? tavilyGoldNews.value : [];
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(
+      `https://finnhub.io/api/v1/news?category=general&token=${key}`,
+      { signal: controller.signal, cache: "no-store" }
+    );
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(`Finnhub: ${res.status}`);
 
-    // Gold-specific Tavily news first, then general Finnhub news
-    const merged = [...goldNews, ...finnhubNews];
+    const raw: { id: number; headline: string; summary: string; source: string; datetime: number; category: string; related: string }[] =
+      await res.json() ?? [];
 
-    if (merged.length > 0) {
-      cache = { data: merged, ts: Date.now() };
-      return NextResponse.json({ data: merged, timestamp: Date.now(), count: merged.length });
+    const news: NewsItem[] = [];
+    raw.filter(item => isRealNews(item.headline)).slice(0, 30).forEach((item, i) => {
+      const cat = categorize(item.headline);
+      const sent = deriveSentiment(item.headline);
+      const { goldImpact, goldReasoning, usdImpact, usdReasoning } = deriveGoldUSD(item.headline, cat, sent);
+      news.push({
+        id: `fn-${item.id ?? i}`,
+        timestamp: new Date(item.datetime * 1000).toISOString(),
+        headline: item.headline,
+        category: cat,
+        sentiment: sent,
+        impactScore: deriveImpact(item.headline),
+        affectedAssets: extractAssets(item.headline + " " + (item.related ?? "")),
+        summary: item.summary ?? "",
+        source: item.source,
+        goldImpact,
+        goldReasoning,
+        usdImpact,
+        usdReasoning,
+      });
+    });
+
+    if (news.length > 0) {
+      cache = { data: news, ts: Date.now() };
+      return NextResponse.json({ data: news, timestamp: Date.now(), count: news.length });
     }
 
     return NextResponse.json({ data: FALLBACK_NEWS, timestamp: Date.now(), fallback: true });
