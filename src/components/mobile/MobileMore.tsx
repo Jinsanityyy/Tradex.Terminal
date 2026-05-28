@@ -50,7 +50,7 @@ const ALL_APPS: AppDef[] = [
   { id: "news-flow",            label: "News Feed",         icon: Rss,           component: NewsFlowPage                              },
   { id: "economic-calendar",    label: "Calendar",          icon: Calendar,      component: CalendarPage                              },
   { id: "pnl-calendar",         label: "P&L Tracker",       icon: DollarSign,    component: PnlCalendarPage,           proOnly: true  },
-  { id: "candle-analysis",      label: "Price Action",      icon: Zap,           component: CandleAnalysis,            proOnly: true  },
+  { id: "candle-analysis",      label: "Candle Analysis",   icon: Zap,           component: CandleAnalysis,            proOnly: true  },
   { id: "brain",                label: "AI Desk",           icon: Brain,         component: MobileBrain                               },
   { id: "live-tv",              label: "Live Feed",         icon: Tv,            component: LiveTVPage                                },
   { id: "knowledge",            label: "Knowledge Base",    icon: BookOpen,      component: TradingKnowledgeContent                   },
