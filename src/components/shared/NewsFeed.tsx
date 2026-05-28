@@ -150,10 +150,12 @@ function ArticleReader({
           <ImpactBadge impact={assetImpact.impact} label={symbolShort} />
         </div>
 
-        {/* Body text */}
-        <p className="text-[14px] text-zinc-300 leading-[1.7] tracking-[0.01em]">
-          {item.summary}
-        </p>
+        {/* Body text — fall back to goldReasoning when summary is empty */}
+        {(item.summary || item.goldReasoning) && (
+          <p className="text-[14px] text-zinc-300 leading-[1.7] tracking-[0.01em]">
+            {item.summary || item.goldReasoning}
+          </p>
+        )}
 
         {/* Key context block */}
         {contextBullets.length > 0 && (

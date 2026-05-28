@@ -150,7 +150,30 @@ function sourceFromUrl(url: string): string {
   }
 }
 
-async function fetchTavilyGoldNews(): Promise<NewsItem[]> {
+function cleanSummary(raw: string): string {
+  const cleaned = raw
+    // Markdown links [label](url) → keep label only
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    // Bare URLs
+    .replace(/https?:\/\/[^\s),]+/g, "")
+    // Stray URL-only parentheses (https://...)
+    .replace(/\([^)]*https?[^)]*\)/g, "")
+    // Navigation artifacts
+    .replace(/skip\s+to\s+(main\s+)?content\.?/gi, "")
+    .replace(/trending:\s*/gi, "")
+    // Collapse whitespace
+    .replace(/[|\[\]]/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  // Walk forward through period-separated segments and return
+  // the first one that's long enough to be real prose (≥ 60 chars)
+  const segments = cleaned.split(/(?<=[.!?])\s+(?=[A-Z])/);
+  const prose = segments.find(s => s.trim().length >= 60) ?? cleaned;
+  return prose.trim().slice(0, 300);
+}
+
+: Promise<NewsItem[]> {
   const apiKey = process.env.TAVILY_API_KEY;
   if (!apiKey) return [];
 
@@ -200,7 +223,7 @@ async function fetchTavilyGoldNews(): Promise<NewsItem[]> {
           sentiment: sent,
           impactScore: deriveImpact(headline),
           affectedAssets: ["XAUUSD", ...extractAssets(headline)].filter((v, idx, arr) => arr.indexOf(v) === idx),
-          summary: (r.content ?? "").slice(0, 250),
+          summary: cleanSummary(r.content ?? ""),
           source: r.url ? sourceFromUrl(r.url) : "News",
           goldImpact,
           goldReasoning,
