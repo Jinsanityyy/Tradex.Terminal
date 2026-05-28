@@ -123,7 +123,7 @@ function isRealNews(headline: string): boolean {
   return !junk.some(p => p.test(headline));
 }
 
-// ── FXStreet RSS ──────────────────────────────────────────────────────────
+// ── Multi-source RSS ──────────────────────────────────────────────────────
 
 function parseRssText(xml: string): Array<{ title: string; description: string; pubDate: string }> {
   const items: Array<{ title: string; description: string; pubDate: string }> = [];
@@ -149,26 +149,36 @@ function stripHtml(html: string): string {
     .slice(0, 300);
 }
 
-async function fetchFxStreetRss(): Promise<NewsItem[]> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 6000);
-  try {
-    const res = await fetch("https://www.fxstreet.com/rss/news", {
-      signal: controller.signal,
-      cache: "no-store",
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; TradexBot/1.0)" },
-    });
-    clearTimeout(timer);
-    if (!res.ok) return [];
+const RSS_SOURCES = [
+  { url: "https://www.forexlive.com/feed/news",          source: "ForexLive", prefix: "fl" },
+  { url: "https://www.kitco.com/rss/kitco-news.xml",     source: "Kitco",     prefix: "kt" },
+  { url: "https://www.fxstreet.com/rss/news",            source: "FXStreet",  prefix: "fx" },
+] as const;
 
+const RSS_HEADERS = {
+  "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Accept":          "application/rss+xml, application/xml, text/xml, */*",
+  "Accept-Language": "en-US,en;q=0.9",
+  "Cache-Control":   "no-cache",
+};
+
+async function fetchRssFeed(cfg: typeof RSS_SOURCES[number]): Promise<NewsItem[]> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 7000);
+  try {
+    const res = await fetch(cfg.url, { signal: controller.signal, cache: "no-store", headers: RSS_HEADERS });
+    clearTimeout(timer);
+    if (!res.ok) {
+      console.error(`[news] ${cfg.source} RSS failed: HTTP ${res.status}`);
+      return [];
+    }
     const xml = await res.text();
     const raw = parseRssText(xml);
-
     return raw
       .filter(r => isRealNews(r.title))
-      .slice(0, 12)
+      .slice(0, 10)
       .map((r, i) => {
-        const headline = r.title;
+        const headline = r.title.replace(/\s*[-–—]\s*(Reuters|AP|Bloomberg|FXStreet|ForexLive|Kitco)\s*$/i, "").trim();
         const sent = deriveSentiment(headline);
         const cat  = categorize(headline);
         const { goldImpact, goldReasoning, usdImpact, usdReasoning } = deriveGoldUSD(headline, cat, sent);
@@ -176,7 +186,7 @@ async function fetchFxStreetRss(): Promise<NewsItem[]> {
           ? new Date(r.pubDate).toISOString()
           : new Date(Date.now() - i * 8 * 60 * 1000).toISOString();
         return {
-          id: `fx-${headline.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 40)}`,
+          id: `${cfg.prefix}-${headline.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 40)}`,
           timestamp: ts,
           headline,
           category: cat,
@@ -184,17 +194,23 @@ async function fetchFxStreetRss(): Promise<NewsItem[]> {
           impactScore: deriveImpact(headline),
           affectedAssets: extractAssets(headline),
           summary: r.description,
-          source: "FXStreet",
+          source: cfg.source,
           goldImpact,
           goldReasoning,
           usdImpact,
           usdReasoning,
         } satisfies NewsItem;
       });
-  } catch {
+  } catch (err) {
+    console.error(`[news] ${cfg.source} RSS error:`, err);
     clearTimeout(timer);
     return [];
   }
+}
+
+async function fetchAllRss(): Promise<NewsItem[]> {
+  const results = await Promise.allSettled(RSS_SOURCES.map(s => fetchRssFeed(s)));
+  return results.flatMap(r => r.status === "fulfilled" ? r.value : []);
 }
 
 
@@ -209,7 +225,7 @@ export async function GET() {
       return NextResponse.json({ data: FALLBACK_NEWS, timestamp: Date.now(), fallback: true });
     }
 
-    const [finnhubResult, fxstreetResult] = await Promise.allSettled([
+    const [finnhubResult, rssResult] = await Promise.allSettled([
       (async () => {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 8000);
@@ -221,7 +237,7 @@ export async function GET() {
         if (!res.ok) throw new Error(`Finnhub: ${res.status}`);
         return (await res.json() ?? []) as { id: number; headline: string; summary: string; source: string; datetime: number; category: string; related: string }[];
       })(),
-      fetchFxStreetRss(),
+      fetchAllRss(),
     ]);
 
     const finnhubNews: NewsItem[] = [];
@@ -230,17 +246,18 @@ export async function GET() {
         .filter(item => isRealNews(item.headline))
         .slice(0, 30)
         .forEach((item, i) => {
-          const cat = categorize(item.headline);
-          const sent = deriveSentiment(item.headline);
-          const { goldImpact, goldReasoning, usdImpact, usdReasoning } = deriveGoldUSD(item.headline, cat, sent);
+          const headline = item.headline.replace(/\s*[-–—]\s*(Reuters|AP|Bloomberg)\s*$/i, "").trim();
+          const cat = categorize(headline);
+          const sent = deriveSentiment(headline);
+          const { goldImpact, goldReasoning, usdImpact, usdReasoning } = deriveGoldUSD(headline, cat, sent);
           finnhubNews.push({
             id: `fn-${item.id ?? i}`,
             timestamp: new Date(item.datetime * 1000).toISOString(),
-            headline: item.headline,
+            headline,
             category: cat,
             sentiment: sent,
-            impactScore: deriveImpact(item.headline),
-            affectedAssets: extractAssets(item.headline + " " + (item.related ?? "")),
+            impactScore: deriveImpact(headline),
+            affectedAssets: extractAssets(headline + " " + (item.related ?? "")),
             summary: item.summary ?? "",
             source: item.source,
             goldImpact,
@@ -251,10 +268,10 @@ export async function GET() {
         });
     }
 
-    const fxstreetNews: NewsItem[] = fxstreetResult.status === "fulfilled" ? fxstreetResult.value : [];
+    const rssNews: NewsItem[] = rssResult.status === "fulfilled" ? rssResult.value : [];
 
-    // FXStreet first (gold-focused), then Finnhub general news
-    const merged = [...fxstreetNews, ...finnhubNews];
+    // RSS sources first (forex/gold-focused), then Finnhub general news
+    const merged = [...rssNews, ...finnhubNews];
 
     if (merged.length > 0) {
       cache = { data: merged, ts: Date.now() };
