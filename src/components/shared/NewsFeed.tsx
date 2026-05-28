@@ -179,7 +179,7 @@ function ArticleReader({
     : item.headline;
 
   return (
-    <div className="flex flex-col min-h-full">
+    <div className="flex flex-col h-full overflow-hidden">
 
       {/* ── Breadcrumb ─────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-1.5 mb-5 shrink-0">
@@ -198,7 +198,7 @@ function ArticleReader({
       </div>
 
       {/* ── Scrollable body ───────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto pb-16 space-y-5">
+      <div className="flex-1 overflow-y-auto pb-4 space-y-5 min-h-0">
 
         {/* Publisher row */}
         <div className="flex items-center gap-2">
