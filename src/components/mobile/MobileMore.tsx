@@ -163,13 +163,17 @@ function PnlWidget({ micro }: { micro: MicroData }) {
         if (!json) return;
         type DayRow = { date: string; pnl: number; trades: number; wins: number };
         const daily = (json.daily ?? []) as DayRow[];
-        const today = new Date().toISOString().slice(0, 10);
+
+        // Use LOCAL date — toISOString() gives UTC which mismatches stored dates
+        // when device timezone is ahead of UTC (e.g. PH = UTC+8, 2AM local = prev day UTC)
+        const now    = new Date();
+        const today  = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        const cutoff = new Date(now.getTime() - 7 * 86_400_000);
+        const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth()+1).padStart(2,'0')}-${String(cutoff.getDate()).padStart(2,'0')}`;
 
         const todayRow = daily.find(d => d.date === today);
         setDailyPnl(todayRow?.pnl ?? null);
-
-        const cutoff = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
-        const week   = daily.filter(d => d.date >= cutoff && d.trades > 0);
+        const week   = daily.filter(d => d.date >= cutoffStr && d.trades > 0);
         const tTotal = week.reduce((s, d) => s + d.trades, 0);
         const tWins  = week.reduce((s, d) => s + d.wins, 0);
         setWinRate7d(tTotal >= 3 ? Math.round((tWins / tTotal) * 100) : null);
@@ -207,10 +211,9 @@ function PnlWidget({ micro }: { micro: MicroData }) {
   return (
     // mx-4 = 16px each side, matches menu-row px-4 so card edges align with list content
     <div className="mx-4 pb-4 mt-2">
-      {/* Card shell — solid dark bg so it never disappears on AMOLED */}
       <div
-        className="rounded-lg border border-white/[0.04] overflow-hidden"
-        style={{ background: "#0d1117" }}
+        className="rounded-lg border border-white/[0.06] overflow-hidden"
+        style={{ background: "rgba(255,255,255,0.022)" }}
       >
         {/* Header strip */}
         <div className="flex items-center justify-between px-3 py-[6px] border-b border-white/[0.05]">
