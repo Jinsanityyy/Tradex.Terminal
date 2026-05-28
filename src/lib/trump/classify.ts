@@ -1,16 +1,17 @@
 import type { TrumpPost } from "@/types";
 
 const POLICY_MAP = [
-  { category: "Tariffs",    keywords: ["tariff", "trade war", "trade deal", "import", "export", "customs", "duties"],        assets: ["DXY", "SPX", "EURUSD", "USDCAD"] },
+  { category: "Tariffs",    keywords: ["tariff", "trade war", "trade deal", "import tariff", "export tariff", "customs duty", "trade deficit", "trade surplus"],  assets: ["DXY", "SPX", "EURUSD", "USDCAD"] },
   { category: "China",      keywords: ["china", "beijing", "xi jinping", "chinese", "taiwan"],                               assets: ["USDCAD", "SPX", "BTCUSD", "XAUUSD"] },
   { category: "Fed",        keywords: ["fed ", "federal reserve", "rate cut", "rate hike", "powell", "interest rate"],       assets: ["DXY", "US10Y", "XAUUSD", "SPX"] },
   { category: "Crypto",     keywords: ["bitcoin", "crypto", "digital asset", "blockchain", "ethereum"],                     assets: ["BTCUSD", "ETHUSD"] },
-  { category: "Oil",        keywords: ["oil", "opec", "saudi", "energy", "pipeline", "drilling", "gas price"],              assets: ["USOIL", "USDCAD", "XAUUSD"] },
-  { category: "Iran",       keywords: ["iran", "tehran", "hormuz", "sanctions", "nuclear deal"],                            assets: ["USOIL", "XAUUSD", "DXY"] },
-  { category: "Russia",     keywords: ["russia", "putin", "ukraine", "moscow", "sanctions"],                                assets: ["XAUUSD", "USOIL", "EURUSD"] },
-  { category: "Economy",    keywords: ["economy", "jobs", "gdp", "recession", "spending", "budget", "deficit"],             assets: ["SPX", "DXY", "US10Y"] },
-  { category: "Geopolitics",keywords: ["military", "war", "nato", "defense", "bomb", "missile", "attack"],                  assets: ["XAUUSD", "USOIL", "DXY", "SPX"] },
-  { category: "Government", keywords: ["congress", "senate", "shutdown", "executive order", "dhs", "fbi", "doj"],           assets: ["SPX", "DXY"] },
+  { category: "Oil",        keywords: ["oil price", "opec", "saudi arabia", "oil supply", "pipeline", "drilling", "gas price", "crude oil", "liquefied natural gas", "lng"],  assets: ["USOIL", "USDCAD", "XAUUSD"] },
+  { category: "Iran",       keywords: ["iran", "tehran", "hormuz", "nuclear deal", "iran sanctions"],                        assets: ["USOIL", "XAUUSD", "DXY"] },
+  { category: "Russia",     keywords: ["russia", "putin", "ukraine", "moscow", "russia sanctions"],                          assets: ["XAUUSD", "USOIL", "EURUSD"] },
+  { category: "Economy",    keywords: ["economy", "jobs report", "gdp", "recession", "federal spending", "budget deficit", "national debt"],  assets: ["SPX", "DXY", "US10Y"] },
+  { category: "Geopolitics",keywords: ["military strike", "military action", "air strike", "war declaration", "nato", "missile attack", "bomb threat", "invasion"],  assets: ["XAUUSD", "USOIL", "DXY", "SPX"] },
+  { category: "Government", keywords: ["congress", "senate", "government shutdown", "executive order", "dhs", "fbi", "doj"],  assets: ["SPX", "DXY"] },
+  { category: "Diplomacy",  keywords: ["peace deal", "ceasefire", "peace agreement", "bilateral", "cooperation", "prosperity", "secretary of state", "diplomatic", "trade route", "partnership agreement", "summit", "alliance"],  assets: ["DXY", "XAUUSD", "SPX"] },
 ];
 
 const IMPACT_TEMPLATES: Record<string, { whyItMatters: string; reaction: string }> = {
@@ -24,6 +25,7 @@ const IMPACT_TEMPLATES: Record<string, { whyItMatters: string; reaction: string 
   Economy:     { whyItMatters: "Presidential economic commentary shapes confidence and fiscal policy trajectory.", reaction: "Equities and USD respond to growth narrative." },
   Geopolitics: { whyItMatters: "Military actions and geopolitical escalation drive safe-haven flows.", reaction: "Gold and treasuries bid, equities sell-off, VIX elevated." },
   Government:  { whyItMatters: "Government shutdown threats create uncertainty for fiscal spending.", reaction: "Equities cautious, USD mixed." },
+  Diplomacy:   { whyItMatters: "Diplomatic breakthroughs reduce geopolitical risk premiums and open new trade and energy corridors.", reaction: "Risk-on tone, gold eases from safe-haven bid, USD mixed, energy routes repriced." },
 };
 
 export function stripHtml(html: string): string {
@@ -52,6 +54,8 @@ function isDomesticPolitics(text: string): boolean {
     "rate hike", "interest rate", "china trade", "iran deal", "russia", "ukraine",
     "oil supply", "opec", "nuclear deal", "executive order", "shutdown", "dollar",
     "inflation", "gdp", "recession", "military strike", "military action", "air strike",
+    "peace deal", "ceasefire", "bilateral", "secretary of state", "energy company",
+    "natural gas", "pipeline", "trade route", "prosperity", "prime minister",
   ];
   const domesticHits = domestic.filter(s => lower.includes(s)).length;
   const marketHits   = market.filter(s => lower.includes(s)).length;
