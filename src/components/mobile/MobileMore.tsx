@@ -209,9 +209,10 @@ function StatCell({
 }
 
 function PnlWidget({ micro }: { micro: MicroData }) {
-  // Wire to a real P&L endpoint when available (e.g. /api/pnl/summary → { dailyPnl, dailyPnlPct })
-  const dailyPnl: number | null    = null;
-  const dailyPnlPct: number | null = null;
+  // Wire to real endpoint: fetch("/api/pnl/summary").then(d => { setPnl(d.pnl); setPnlPct(d.pct); })
+  const [dailyPnl,    setPnl]    = useState<number | null>(null);
+  const [dailyPnlPct, setPnlPct] = useState<number | null>(null);
+  void setPnl; void setPnlPct; // suppress unused-var until endpoint is wired
 
   const pnlValue = dailyPnl !== null
     ? `${dailyPnl >= 0 ? "+" : ""}$${Math.abs(dailyPnl).toFixed(2)}`
