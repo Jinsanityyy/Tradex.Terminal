@@ -151,10 +151,15 @@ export async function GET(req: NextRequest) {
       const newPosts  = posts.filter((p: { id?: string }) => !seenTrump.has(p.id!));
 
       for (const p of newPosts.slice(0, 2)) {
-        const body = (p.content ?? "").slice(0, 100) + ((p.content ?? "").length > 100 ? "…" : "");
+        const impactLevel = p.impactScore >= 7 ? "HIGH IMPACT" : p.impactScore >= 4 ? "MEDIUM IMPACT" : null;
+        const assetTags = [
+          p.goldImpact && p.goldImpact !== "neutral" ? `XAUUSD ${p.goldImpact === "bullish" ? "↑" : "↓"}` : null,
+          p.usdImpact  && p.usdImpact  !== "neutral" ? `USD ${p.usdImpact   === "bullish" ? "↑" : "↓"}` : null,
+        ].filter(Boolean).join("  ");
+        const snippet = (p.content ?? "").slice(0, 80) + ((p.content ?? "").length > 80 ? "…" : "");
         payloads.push({
-          title: "🇺🇸 Trump Post",
-          body,
+          title: impactLevel ? `🇺🇸 ${impactLevel}: Trump` : "🇺🇸 Trump Post",
+          body:  assetTags ? `${snippet}\n${assetTags}` : snippet,
           url: "/dashboard/trump-monitor",
           severity: "high",
           type: "trump",

@@ -166,100 +166,113 @@ function fmtCount(n?: number) {
   return String(n);
 }
 
+function ImpactLevelBadge({ score }: { score: number }) {
+  if (score >= 7) return (
+    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border bg-red-500/20 border-red-500/40 text-red-300 uppercase tracking-wider">
+      HIGH IMPACT
+    </span>
+  );
+  if (score >= 4) return (
+    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border bg-amber-500/20 border-amber-500/40 text-amber-300 uppercase tracking-wider">
+      MEDIUM IMPACT
+    </span>
+  );
+  return (
+    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border bg-zinc-700/40 border-zinc-600/40 text-zinc-500 uppercase tracking-wider">
+      LOW IMPACT
+    </span>
+  );
+}
+
+function AssetDirectionChip({ label, direction }: { label: string; direction?: "bullish" | "bearish" | "neutral" }) {
+  if (!direction || direction === "neutral") return null;
+  const up = direction === "bullish";
+  return (
+    <span className={cn(
+      "inline-flex items-center gap-0.5 text-[10px] font-bold font-mono px-2 py-0.5 rounded border",
+      up
+        ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
+        : "bg-red-500/15 border-red-500/30 text-red-400"
+    )}>
+      {label} {up ? "↑" : "↓"}
+    </span>
+  );
+}
+
 function TruthSocialCard({ post, onClick }: { post: TrumpPost; onClick: () => void }) {
-  const date = new Date(post.timestamp);
-  const dateStr = date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  const timeStr = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const hasAssetImpact = post.goldImpact || post.usdImpact;
 
   return (
     <div
       onClick={onClick}
-      className="cursor-pointer rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] hover:border-amber-500/40 hover:bg-amber-500/[0.03] transition-all"
+      className={cn(
+        "cursor-pointer rounded-xl border overflow-hidden transition-all",
+        post.impactScore >= 7
+          ? "border-red-500/25 bg-red-950/20 hover:border-red-500/40"
+          : post.impactScore >= 4
+          ? "border-amber-500/20 bg-amber-500/[0.03] hover:border-amber-500/35"
+          : "border-white/8 bg-[hsl(var(--secondary))] hover:border-amber-500/20"
+      )}
     >
-      {/* Card body */}
-      <div className="p-4">
-        {/* Header row */}
-        <div className="flex items-start gap-3 mb-3">
-          {/* Avatar */}
-          {post.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={post.avatarUrl}
-              alt="Donald J. Trump"
-              className="shrink-0 h-10 w-10 rounded-full object-cover border-2 border-amber-500/30"
-            />
-          ) : (
-            <div className="shrink-0 h-10 w-10 rounded-full bg-gradient-to-br from-red-600 via-white to-blue-700 flex items-center justify-center text-base select-none border-2 border-amber-500/30">
-              🇺🇸
-            </div>
-          )}
-
-          {/* Name + username */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[13px] font-bold text-[hsl(var(--foreground))]">Donald J. Trump</span>
-              {/* Verified checkmark  -  Truth Social red */}
-              <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="12" fill="#E8222E" />
-                <path d="M7 12.5l3.5 3.5 6.5-7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              {post.postUrl && (
-                <a
-                  href={post.postUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="ml-auto text-[10px] text-amber-500/60 hover:text-amber-400 flex items-center gap-0.5"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              )}
-            </div>
-            <span className="text-[11px] text-zinc-500">@realDonaldTrump</span>
-          </div>
-
-          {/* Impact badge */}
-          <div className="shrink-0 flex items-center gap-1">
-            <Flame className={cn("h-3.5 w-3.5", post.impactScore >= 7 ? "text-amber-400" : "text-zinc-600")} />
-            <span className="text-[11px] font-mono font-bold text-zinc-300">{post.impactScore}/10</span>
-          </div>
-        </div>
-
-        {/* Post text */}
-        <p className="text-[13px] text-[hsl(var(--foreground))] leading-relaxed whitespace-pre-wrap break-words mb-3">
-          {post.content}
-        </p>
-
-        {/* Gold/USD impact inline */}
-        {(post.goldImpact || post.usdImpact) && (
-          <div className="flex items-center gap-1.5 mb-3 flex-wrap">
-            <ImpactBadge impact={post.goldImpact} label="GOLD" />
-            <ImpactBadge impact={post.usdImpact} label="USD" />
-          </div>
+      {/* Impact level + timestamp */}
+      <div className="px-3.5 pt-3 pb-1.5 flex items-center gap-2">
+        <ImpactLevelBadge score={post.impactScore} />
+        <span className="text-[10px] text-zinc-500">{timeAgo(post.timestamp)}</span>
+        {post.postUrl && (
+          <a
+            href={post.postUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="ml-auto text-zinc-600 hover:text-amber-400 transition-colors"
+          >
+            <ExternalLink className="h-3 w-3" />
+          </a>
         )}
-
-        {/* Footer: counts + timestamp */}
-        <div className="flex items-center gap-4 pt-2 border-t border-white/5 text-zinc-500 text-[11px]">
-          {fmtCount(post.retruths) != null && (
-            <span><strong className="text-zinc-300">{fmtCount(post.retruths)}</strong> ReTruths</span>
-          )}
-          {fmtCount(post.likes) != null && (
-            <span><strong className="text-zinc-300">{fmtCount(post.likes)}</strong> Likes</span>
-          )}
-          <span className="ml-auto">{dateStr}, {timeStr}</span>
-        </div>
-
       </div>
 
-      {/* Market analysis strip */}
-      <div className="border-t border-amber-500/10 bg-amber-500/[0.03] px-4 py-2 rounded-b-xl">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant={post.sentimentClassification} className="text-[10px]">{post.sentimentClassification}</Badge>
-          <Badge variant="outline" className="text-[10px]">{post.policyCategory}</Badge>
-          {post.tags.slice(0, 3).map(t => (
-            <span key={t} className="text-[10px] font-mono text-zinc-600">#{t}</span>
-          ))}
-          <span className="ml-auto text-[10px] text-zinc-600 italic">click for full analysis</span>
+      {/* Post content as headline */}
+      <div className="px-3.5 pb-3">
+        <p className="text-[13px] font-bold text-zinc-100 leading-snug mb-2">
+          {post.content.length > 180 ? post.content.slice(0, 180) + "…" : post.content}
+        </p>
+
+        {/* AI-generated market reasoning shown inline */}
+        {(post.goldReasoning || post.potentialReaction) && (
+          <p className="text-[11px] text-zinc-400 leading-relaxed mb-2.5">
+            {post.goldReasoning ?? post.potentialReaction}
+          </p>
+        )}
+
+        {/* Asset direction chips — XAUUSD ↓  USD ↑ */}
+        {hasAssetImpact && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <AssetDirectionChip label="XAUUSD" direction={post.goldImpact} />
+            <AssetDirectionChip label="USD"    direction={post.usdImpact}  />
+          </div>
+        )}
+      </div>
+
+      {/* Footer: avatar + name + engagement counts */}
+      <div className="px-3.5 py-2 border-t border-white/5 flex items-center gap-2">
+        {post.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={post.avatarUrl} alt="Trump" className="h-5 w-5 rounded-full object-cover border border-amber-500/30 shrink-0" />
+        ) : (
+          <div className="h-5 w-5 rounded-full bg-gradient-to-br from-red-600 via-white to-blue-700 flex items-center justify-center text-[9px] shrink-0 border border-amber-500/30">🇺🇸</div>
+        )}
+        <span className="text-[10px] font-semibold text-zinc-400">Donald J. Trump</span>
+        <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="12" fill="#E8222E" />
+          <path d="M7 12.5l3.5 3.5 6.5-7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <div className="ml-auto flex items-center gap-3">
+          {fmtCount(post.retruths) != null && (
+            <span className="text-[10px] text-zinc-600"><strong className="text-zinc-500">{fmtCount(post.retruths)}</strong> RT</span>
+          )}
+          {fmtCount(post.likes) != null && (
+            <span className="text-[10px] text-zinc-600"><strong className="text-zinc-500">{fmtCount(post.likes)}</strong> ♥</span>
+          )}
         </div>
       </div>
     </div>
