@@ -123,6 +123,80 @@ function isRealNews(headline: string): boolean {
   return !junk.some(p => p.test(headline));
 }
 
+// ── FXStreet RSS ──────────────────────────────────────────────────────────
+
+function parseRssText(xml: string): Array<{ title: string; description: string; pubDate: string }> {
+  const items: Array<{ title: string; description: string; pubDate: string }> = [];
+  const itemRe = /<item>([\s\S]*?)<\/item>/g;
+  let m: RegExpExecArray | null;
+  while ((m = itemRe.exec(xml)) !== null) {
+    const block = m[1];
+    const title   = (/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/.exec(block) ?? /<title>(.*?)<\/title>/.exec(block))?.[1]?.trim() ?? "";
+    const desc    = (/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/.exec(block) ?? /<description>(.*?)<\/description>/.exec(block))?.[1]?.trim() ?? "";
+    const pubDate = (/<pubDate>(.*?)<\/pubDate>/.exec(block))?.[1]?.trim() ?? "";
+    if (title) items.push({ title, description: stripHtml(desc), pubDate });
+  }
+  return items;
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#039;/g, "'").replace(/&nbsp;/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim()
+    .slice(0, 300);
+}
+
+async function fetchFxStreetRss(): Promise<NewsItem[]> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6000);
+  try {
+    const res = await fetch("https://www.fxstreet.com/rss/news", {
+      signal: controller.signal,
+      cache: "no-store",
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; TradexBot/1.0)" },
+    });
+    clearTimeout(timer);
+    if (!res.ok) return [];
+
+    const xml = await res.text();
+    const raw = parseRssText(xml);
+
+    return raw
+      .filter(r => isRealNews(r.title))
+      .slice(0, 12)
+      .map((r, i) => {
+        const headline = r.title;
+        const sent = deriveSentiment(headline);
+        const cat  = categorize(headline);
+        const { goldImpact, goldReasoning, usdImpact, usdReasoning } = deriveGoldUSD(headline, cat, sent);
+        const ts = r.pubDate
+          ? new Date(r.pubDate).toISOString()
+          : new Date(Date.now() - i * 8 * 60 * 1000).toISOString();
+        return {
+          id: `fx-${headline.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 40)}`,
+          timestamp: ts,
+          headline,
+          category: cat,
+          sentiment: sent,
+          impactScore: deriveImpact(headline),
+          affectedAssets: extractAssets(headline),
+          summary: r.description,
+          source: "FXStreet",
+          goldImpact,
+          goldReasoning,
+          usdImpact,
+          usdReasoning,
+        } satisfies NewsItem;
+      });
+  } catch {
+    clearTimeout(timer);
+    return [];
+  }
+}
+
 
 export async function GET() {
   if (cache.data.length > 0 && Date.now() - cache.ts < CACHE_TTL) {
@@ -135,43 +209,56 @@ export async function GET() {
       return NextResponse.json({ data: FALLBACK_NEWS, timestamp: Date.now(), fallback: true });
     }
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    const res = await fetch(
-      `https://finnhub.io/api/v1/news?category=general&token=${key}`,
-      { signal: controller.signal, cache: "no-store" }
-    );
-    clearTimeout(timer);
-    if (!res.ok) throw new Error(`Finnhub: ${res.status}`);
+    const [finnhubResult, fxstreetResult] = await Promise.allSettled([
+      (async () => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 8000);
+        const res = await fetch(
+          `https://finnhub.io/api/v1/news?category=general&token=${key}`,
+          { signal: controller.signal, cache: "no-store" }
+        );
+        clearTimeout(timer);
+        if (!res.ok) throw new Error(`Finnhub: ${res.status}`);
+        return (await res.json() ?? []) as { id: number; headline: string; summary: string; source: string; datetime: number; category: string; related: string }[];
+      })(),
+      fetchFxStreetRss(),
+    ]);
 
-    const raw: { id: number; headline: string; summary: string; source: string; datetime: number; category: string; related: string }[] =
-      await res.json() ?? [];
+    const finnhubNews: NewsItem[] = [];
+    if (finnhubResult.status === "fulfilled") {
+      finnhubResult.value
+        .filter(item => isRealNews(item.headline))
+        .slice(0, 30)
+        .forEach((item, i) => {
+          const cat = categorize(item.headline);
+          const sent = deriveSentiment(item.headline);
+          const { goldImpact, goldReasoning, usdImpact, usdReasoning } = deriveGoldUSD(item.headline, cat, sent);
+          finnhubNews.push({
+            id: `fn-${item.id ?? i}`,
+            timestamp: new Date(item.datetime * 1000).toISOString(),
+            headline: item.headline,
+            category: cat,
+            sentiment: sent,
+            impactScore: deriveImpact(item.headline),
+            affectedAssets: extractAssets(item.headline + " " + (item.related ?? "")),
+            summary: item.summary ?? "",
+            source: item.source,
+            goldImpact,
+            goldReasoning,
+            usdImpact,
+            usdReasoning,
+          });
+        });
+    }
 
-    const news: NewsItem[] = [];
-    raw.filter(item => isRealNews(item.headline)).slice(0, 30).forEach((item, i) => {
-      const cat = categorize(item.headline);
-      const sent = deriveSentiment(item.headline);
-      const { goldImpact, goldReasoning, usdImpact, usdReasoning } = deriveGoldUSD(item.headline, cat, sent);
-      news.push({
-        id: `fn-${item.id ?? i}`,
-        timestamp: new Date(item.datetime * 1000).toISOString(),
-        headline: item.headline,
-        category: cat,
-        sentiment: sent,
-        impactScore: deriveImpact(item.headline),
-        affectedAssets: extractAssets(item.headline + " " + (item.related ?? "")),
-        summary: item.summary ?? "",
-        source: item.source,
-        goldImpact,
-        goldReasoning,
-        usdImpact,
-        usdReasoning,
-      });
-    });
+    const fxstreetNews: NewsItem[] = fxstreetResult.status === "fulfilled" ? fxstreetResult.value : [];
 
-    if (news.length > 0) {
-      cache = { data: news, ts: Date.now() };
-      return NextResponse.json({ data: news, timestamp: Date.now(), count: news.length });
+    // FXStreet first (gold-focused), then Finnhub general news
+    const merged = [...fxstreetNews, ...finnhubNews];
+
+    if (merged.length > 0) {
+      cache = { data: merged, ts: Date.now() };
+      return NextResponse.json({ data: merged, timestamp: Date.now(), count: merged.length });
     }
 
     return NextResponse.json({ data: FALLBACK_NEWS, timestamp: Date.now(), fallback: true });
