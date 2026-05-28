@@ -91,26 +91,14 @@ function ArticleReader({
   const symbolLabel    = getSymbolLabel(selectedSymbol);
 
   const [articleBody, setArticleBody] = useState<string | null>(null);
-  const [bodySource, setBodySource] = useState<"scrape" | "ai" | "local" | null>(null);
-
-  // Phase 1: synthesize from existing fields — instant, always has content
-  const localBody = React.useMemo(() => {
-    const parts: string[] = [];
-    if (item.summary && item.summary.trim().length > 20) parts.push(item.summary.trim());
-    if (item.goldReasoning && item.goldReasoning.trim().length > 10)
-      parts.push(`Gold market: ${item.goldReasoning.trim()}`);
-    if (item.usdReasoning && item.usdReasoning.trim().length > 10)
-      parts.push(`US Dollar: ${item.usdReasoning.trim()}`);
-    const assets = item.affectedAssets?.length ? item.affectedAssets.join(", ") : null;
-    if (assets) parts.push(`Key markets affected: ${assets}. Overall sentiment: ${item.sentiment}.`);
-    return parts.length > 0 ? parts.join("\n\n") : null;
-  }, [item.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [bodySource, setBodySource] = useState<"scrape" | "ai" | null>(null);
+  const [aiLoading, setAiLoading] = useState(true);
 
   useEffect(() => {
     setArticleBody(null);
     setBodySource(null);
+    setAiLoading(true);
 
-    // Phase 2: try to fetch real article or AI expansion in the background
     const tryAiExpand = () =>
       fetch("/api/market/news/expand", {
         method: "POST",
@@ -127,13 +115,14 @@ function ArticleReader({
       })
         .then(r => r.ok ? r.json() : null)
         .then(data => { if (data?.body) { setArticleBody(data.body); setBodySource("ai"); } })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => setAiLoading(false));
 
     if (item.url) {
       fetch(`/api/market/news/article?url=${encodeURIComponent(item.url)}`)
         .then(r => r.ok ? r.json() : null)
         .then(async data => {
-          if (data?.body) { setArticleBody(data.body); setBodySource("scrape"); }
+          if (data?.body) { setArticleBody(data.body); setBodySource("scrape"); setAiLoading(false); }
           else await tryAiExpand();
         })
         .catch(async () => { await tryAiExpand(); });
@@ -142,9 +131,6 @@ function ArticleReader({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.id]);
-
-  // Use AI/scrape result if available, otherwise show local synthesis
-  const displayBody = articleBody ?? localBody;
 
   const assetImpact = getImpactForSymbol({
     goldImpact:    item.goldImpact,
@@ -260,8 +246,17 @@ function ArticleReader({
           {item.category.replace(/-/g, " ")}
         </span>
 
-        {/* Article body — always has content (local synthesis → upgraded to AI when ready) */}
-        {displayBody && (
+        {/* Article body */}
+        {aiLoading && !articleBody && (
+          <div className="space-y-2.5 animate-pulse">
+            {[100, 92, 96, 84, 75, 88].map((w, i) => (
+              <div key={i} className="h-3 rounded bg-zinc-800/70" style={{ width: `${w}%` }} />
+            ))}
+            <p className="text-[10px] text-zinc-700 pt-1">Generating analysis…</p>
+          </div>
+        )}
+
+        {articleBody && (
           <div className="space-y-4">
             {bodySource === "ai" && (
               <div className="flex items-center gap-1.5 -mb-1">
@@ -270,18 +265,20 @@ function ArticleReader({
                 </span>
               </div>
             )}
-            {displayBody.split(/\n\n+/).filter(p => p.trim().length > 10).map((para, i) => (
+            {articleBody.split(/\n\n+/).filter(p => p.trim().length > 10).map((para, i) => (
               <p key={i} className={cn(
                 "leading-[1.78] tracking-[0.005em]",
-                para.startsWith("•") ? "text-[13px] text-zinc-400 pl-1"
-                : para.startsWith("Gold market:") || para.startsWith("US Dollar:") || para.startsWith("Key markets")
-                  ? "text-[13px] text-zinc-400"
-                : "text-[14px] text-zinc-300"
+                para.startsWith("•") ? "text-[13px] text-zinc-400 pl-1" : "text-[14px] text-zinc-300"
               )}>
                 {para.trim()}
               </p>
             ))}
           </div>
+        )}
+
+        {/* Fallback when AI fails — show RSS summary if available */}
+        {!aiLoading && !articleBody && item.summary && item.summary.trim().length > 25 && (
+          <p className="text-[14px] text-zinc-300 leading-[1.75]">{item.summary.trim()}</p>
         )}
 
         {/* Gold/Asset context block */}
