@@ -50,9 +50,9 @@ const ALL_APPS: AppDef[] = [
   { id: "news-flow",            label: "News Feed",         icon: Rss,           component: NewsFlowPage                              },
   { id: "economic-calendar",    label: "Calendar",          icon: Calendar,      component: CalendarPage                              },
   { id: "pnl-calendar",         label: "P&L Tracker",       icon: DollarSign,    component: PnlCalendarPage,           proOnly: true  },
-  { id: "candle-analysis",      label: "Candle Analysis",   icon: Zap,           component: CandleAnalysis,            proOnly: true  },
-  { id: "brain",                label: "Brain Terminal",    icon: Brain,         component: MobileBrain                               },
-  { id: "live-tv",              label: "Live TV",           icon: Tv,            component: LiveTVPage                                },
+  { id: "candle-analysis",      label: "Price Action",      icon: Zap,           component: CandleAnalysis,            proOnly: true  },
+  { id: "brain",                label: "AI Desk",           icon: Brain,         component: MobileBrain                               },
+  { id: "live-tv",              label: "Live Feed",         icon: Tv,            component: LiveTVPage                                },
   { id: "knowledge",            label: "Knowledge Base",    icon: BookOpen,      component: TradingKnowledgeContent                   },
   { id: "settings",             label: "Settings",          icon: Settings2,     component: SettingsPage                              },
 ];
@@ -151,13 +151,14 @@ function getAppTag(
 // ── AppRow ─────────────────────────────────────────────────────────────────
 
 function AppRow({
-  app, onPress, isLocked, tag, variant,
+  app, onPress, isLocked, tag, variant, isActive,
 }: {
   app: AppDef;
   onPress: () => unknown;
   isLocked: boolean;
   tag?: string;
   variant?: TagVariant;
+  isActive?: boolean;
 }) {
   const Icon = app.icon;
   const tagColors: Record<TagVariant, string> = {
@@ -170,30 +171,35 @@ function AppRow({
   return (
     <button
       onClick={onPress}
-      className="w-full flex items-center gap-3 px-4 py-[10px] active:bg-white/[0.04] transition-colors cursor-pointer"
+      className={cn(
+        "w-full flex items-center gap-3 px-4 py-[7px] active:bg-white/[0.04] transition-colors cursor-pointer",
+        isActive && "border-l-2 border-emerald-500 bg-white/[0.03] !pl-[14px]"
+      )}
     >
       <Icon className={cn(
-        "h-[14px] w-[14px] shrink-0",
-        isLocked ? "text-zinc-800" : "text-zinc-500"
+        "h-3 w-3 shrink-0",
+        isLocked ? "text-zinc-800 opacity-30" : "text-zinc-500 opacity-40"
       )} />
       <span className={cn(
-        "flex-1 text-[12.5px] font-normal text-left leading-none tracking-[0.01em]",
+        "flex-1 text-[11.5px] font-normal text-left leading-none tracking-[0.01em]",
         isLocked ? "text-zinc-700" : "text-zinc-300"
       )}>
         {app.label}
       </span>
-      {isLocked ? (
-        <span className="text-[9px] font-mono uppercase tracking-widest text-zinc-800">
-          PRO
-        </span>
-      ) : tag ? (
-        <span className={cn(
-          "text-[9.5px] font-mono uppercase tracking-wide shrink-0",
-          tagColors[variant ?? "muted"]
-        )}>
-          {tag}
-        </span>
-      ) : null}
+      <div className="w-[52px] flex justify-end shrink-0">
+        {isLocked ? (
+          <span className="text-[8.5px] font-mono uppercase tracking-widest text-zinc-800">
+            PRO
+          </span>
+        ) : tag ? (
+          <span className={cn(
+            "text-[9px] font-mono uppercase tracking-wide",
+            tagColors[variant ?? "muted"]
+          )}>
+            {tag}
+          </span>
+        ) : null}
+      </div>
     </button>
   );
 }
@@ -307,8 +313,9 @@ function usePushStatus() {
 // ── Main component ─────────────────────────────────────────────────────────
 
 export function MobileMore() {
-  const [activeAppId, setActiveAppId] = useState<string | null>(null);
-  const [sheetOpen,   setSheetOpen]   = useState(false);
+  const [activeAppId,  setActiveAppId]  = useState<string | null>(null);
+  const [highlightId,  setHighlightId]  = useState<string | null>(null);
+  const [sheetOpen,    setSheetOpen]    = useState(false);
   const [isTabActive, setIsTabActive] = useState(true);
   const [traderName,  setTraderName]  = useState("");
   const [avatar,      setAvatar]      = useState<string | null>(null);
@@ -459,8 +466,8 @@ export function MobileMore() {
             return (
               <div key={section.label}>
                 {/* Section divider */}
-                <div className="flex items-center gap-2.5 px-4 pt-4 pb-1">
-                  <span className="text-[9px] font-semibold tracking-[0.14em] text-zinc-700 shrink-0">
+                <div className="flex items-center gap-2.5 px-4 pt-3 pb-1">
+                  <span className="text-[8px] font-semibold tracking-[0.10em] text-zinc-500/40 shrink-0">
                     {section.label}
                   </span>
                   <div className="flex-1 h-px bg-white/[0.05]" />
@@ -476,7 +483,8 @@ export function MobileMore() {
                       isLocked={isLocked}
                       tag={tag}
                       variant={variant}
-                      onPress={() => setActiveAppId(app.id)}
+                      isActive={app.id === highlightId}
+                      onPress={() => { setHighlightId(app.id); setActiveAppId(app.id); }}
                     />
                   );
                 })}
@@ -486,8 +494,8 @@ export function MobileMore() {
 
           {/* ── Account section ─────────────────────────────────────────── */}
           <div>
-            <div className="flex items-center gap-2.5 px-4 pt-4 pb-1">
-              <span className="text-[9px] font-semibold tracking-[0.14em] text-zinc-700 shrink-0">
+            <div className="flex items-center gap-2.5 px-4 pt-3 pb-1">
+              <span className="text-[8px] font-semibold tracking-[0.10em] text-zinc-500/40 shrink-0">
                 ACCOUNT
               </span>
               <div className="flex-1 h-px bg-white/[0.05]" />
@@ -501,15 +509,15 @@ export function MobileMore() {
                   : undefined
               }
               disabled={push.busy || push.status === "denied" || push.status === "unsupported"}
-              className="w-full flex items-center gap-3 px-4 py-[10px] active:bg-white/[0.04] transition-colors cursor-pointer disabled:opacity-40"
+              className="w-full flex items-center gap-3 px-4 py-[7px] active:bg-white/[0.04] transition-colors cursor-pointer disabled:opacity-40"
             >
               {push.busy
-                ? <Loader2 className="h-[14px] w-[14px] text-zinc-500 animate-spin shrink-0" />
+                ? <Loader2 className="h-3 w-3 text-zinc-500 opacity-40 animate-spin shrink-0" />
                 : push.status === "subscribed"
-                ? <Bell    className="h-[14px] w-[14px] text-emerald-500 shrink-0" />
-                : <BellOff className="h-[14px] w-[14px] text-zinc-600 shrink-0" />
+                ? <Bell    className="h-3 w-3 text-emerald-500 opacity-60 shrink-0" />
+                : <BellOff className="h-3 w-3 text-zinc-600 opacity-40 shrink-0" />
               }
-              <span className="flex-1 text-[12.5px] font-normal text-zinc-300 text-left leading-none tracking-[0.01em]">
+              <span className="flex-1 text-[11.5px] font-normal text-zinc-300 text-left leading-none tracking-[0.01em]">
                 Alerts
               </span>
               {/* Toggle pill */}
@@ -532,7 +540,8 @@ export function MobileMore() {
                   key={id}
                   app={app}
                   isLocked={false}
-                  onPress={() => setActiveAppId(id)}
+                  isActive={id === highlightId}
+                  onPress={() => { setHighlightId(id); setActiveAppId(id); }}
                 />
               );
             })}
