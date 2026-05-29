@@ -1,9 +1,9 @@
 ﻿"use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn, timeAgo } from "@/lib/utils";
-import { Newspaper, TrendingUp, TrendingDown, Minus, Target, ExternalLink } from "lucide-react";
+import { Newspaper, TrendingUp, TrendingDown, Minus, Target } from "lucide-react";
 import type { NewsItem } from "@/types";
 import { DetailModal } from "./DetailModal";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -36,6 +36,20 @@ function NewsDetail({ item }: { item: NewsItem }) {
   const symbolLabel = getSymbolLabel(selectedSymbol);
   const symbolShort = getSymbolShort(selectedSymbol);
 
+  const [paragraphs, setParagraphs] = useState<string[] | null>(null);
+  const [articleLoading, setArticleLoading] = useState(false);
+
+  useEffect(() => {
+    if (!item.url) return;
+    setArticleLoading(true);
+    setParagraphs(null);
+    fetch(`/api/market/news/article?url=${encodeURIComponent(item.url)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.paragraphs?.length) setParagraphs(data.paragraphs); })
+      .catch(() => {})
+      .finally(() => setArticleLoading(false));
+  }, [item.url]);
+
   const assetImpact = getImpactForSymbol({
     goldImpact: item.goldImpact,
     goldReasoning: item.goldReasoning,
@@ -56,9 +70,12 @@ function NewsDetail({ item }: { item: NewsItem }) {
     return r;
   })();
 
+  // Article body: fetched full content > RSS summary fallback
+  const bodyParagraphs: string[] = paragraphs ?? (item.summary ? [item.summary] : []);
+
   return (
     <div className="space-y-5">
-      {/* Source + time + category */}
+      {/* Source · time · category */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-[11px] font-semibold text-zinc-300">{item.source}</span>
         <span className="text-zinc-700">·</span>
@@ -68,26 +85,23 @@ function NewsDetail({ item }: { item: NewsItem }) {
         </span>
       </div>
 
-      {/* Article body — full summary text */}
-      {item.summary ? (
-        <p className="text-[14px] text-zinc-200 leading-[1.75] tracking-tight">
-          {item.summary}
-        </p>
+      {/* Article body */}
+      {articleLoading ? (
+        <div className="space-y-2.5">
+          {[1, 0.9, 0.7, 0.5].map((w, i) => (
+            <div key={i} className="h-3.5 rounded bg-white/5 animate-pulse" style={{ width: `${w * 100}%` }} />
+          ))}
+        </div>
+      ) : bodyParagraphs.length > 0 ? (
+        <div className="space-y-3">
+          {bodyParagraphs.map((p, i) => (
+            <p key={i} className="text-[14px] text-zinc-200 leading-[1.75]">{p}</p>
+          ))}
+        </div>
       ) : (
-        <p className="text-[13px] text-zinc-500 leading-relaxed italic">
-          Wire flash — no article body. Tap "Read Full Article" to open source.
+        <p className="text-[13px] text-zinc-500 italic">
+          Article content unavailable for this wire item.
         </p>
-      )}
-
-      {/* Read Full Article button */}
-      {item.url && (
-        <button
-          onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/8 text-[hsl(var(--primary))] text-[12px] font-semibold active:opacity-70"
-        >
-          <ExternalLink className="h-3.5 w-3.5" />
-          Read Full Article
-        </button>
       )}
 
       {/* Divider */}
@@ -107,7 +121,7 @@ function NewsDetail({ item }: { item: NewsItem }) {
         )}
       </div>
 
-      {/* Sentiment + impact score + affected assets */}
+      {/* Tags row */}
       <div className="flex items-center gap-2 flex-wrap">
         <Badge variant={item.sentiment}>
           {item.sentiment === "bullish" ? "RISK-ON" : item.sentiment === "bearish" ? "RISK-OFF" : "NEUTRAL"}
@@ -118,7 +132,7 @@ function NewsDetail({ item }: { item: NewsItem }) {
           item.impactScore >= 6 ? "bg-amber-500/15 text-amber-400" :
           "bg-zinc-800 text-zinc-400"
         )}>
-          {item.impactScore}/10 impact
+          {item.impactScore}/10
         </span>
         {item.affectedAssets?.map((a) => (
           <span key={a} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[hsl(var(--secondary))] text-zinc-500">
