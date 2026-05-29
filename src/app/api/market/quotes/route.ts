@@ -59,39 +59,47 @@ async function fetchCrypto(): Promise<Record<string, any>> {
 async function fetchForexRates(): Promise<Record<string, any>> {
   const results: Record<string, any> = {};
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    const res = await fetch(
-      "https://api.fxratesapi.com/latest?base=USD&currencies=EUR,GBP,JPY,CAD,CHF,AUD,NZD",
-      { signal: controller.signal, cache: "no-store" }
-    );
+    const currencies = "EUR,GBP,JPY,CAD,CHF,AUD,NZD";
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yyyymmdd = yesterday.toISOString().slice(0, 10);
+
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 10_000);
+
+    // Fetch current and yesterday's rates in parallel for real daily change
+    const [res, histRes] = await Promise.all([
+      fetch(`https://api.fxratesapi.com/latest?base=USD&currencies=${currencies}`,
+        { signal: abort.signal, cache: "no-store" }),
+      fetch(`https://api.fxratesapi.com/historical?date=${yyyymmdd}&base=USD&currencies=${currencies}`,
+        { signal: abort.signal, cache: "no-store" }),
+    ]);
     clearTimeout(timer);
+
     if (!res.ok) return results;
     const data = await res.json();
     if (!data.success || !data.rates) return results;
 
     const rates = data.rates;
+    const histRates = (histRes.ok ? await histRes.json().catch(() => null) : null)?.rates ?? rates;
 
-    // Map Twelve Data symbols to rate conversions
-    const forexMap: Record<string, { rate: () => number }> = {
-      "EUR/USD": { rate: () => 1 / rates.EUR },
-      "GBP/USD": { rate: () => 1 / rates.GBP },
-      "USD/JPY": { rate: () => rates.JPY },
-      "USD/CAD": { rate: () => rates.CAD },
-      "USD/CHF": { rate: () => rates.CHF },
-      "AUD/USD": { rate: () => 1 / rates.AUD },
-      "NZD/USD": { rate: () => 1 / rates.NZD },
-      "GBP/JPY": { rate: () => rates.JPY / rates.GBP },
-      "EUR/GBP": { rate: () => rates.GBP / rates.EUR },
+    const forexMap: Record<string, { rate: (r: typeof rates) => number }> = {
+      "EUR/USD": { rate: (r) => 1 / r.EUR },
+      "GBP/USD": { rate: (r) => 1 / r.GBP },
+      "USD/JPY": { rate: (r) => r.JPY },
+      "USD/CAD": { rate: (r) => r.CAD },
+      "USD/CHF": { rate: (r) => r.CHF },
+      "AUD/USD": { rate: (r) => 1 / r.AUD },
+      "NZD/USD": { rate: (r) => 1 / r.NZD },
+      "GBP/JPY": { rate: (r) => r.JPY / r.GBP },
+      "EUR/GBP": { rate: (r) => r.GBP / r.EUR },
     };
 
     for (const [sym, calc] of Object.entries(forexMap)) {
-      const price = calc.rate();
+      const price = calc.rate(rates);
       if (!isFinite(price) || price <= 0) continue;
 
-      // Get previous price from cache for change calc
-      const prev = rawCache[sym];
-      const prevPrice = prev ? parseFloat(prev.close) : price;
+      const prevPrice = calc.rate(histRates);
       const change = price - prevPrice;
       const pctChange = prevPrice ? (change / prevPrice) * 100 : 0;
 
