@@ -255,11 +255,14 @@ export function MobileHome() {
     try { return JSON.parse(localStorage.getItem(lastSetupKey) ?? "null"); } catch { return null; }
   })();
 
-  const entry     = liveEntry    ?? cachedSetup?.entry    ?? null;
-  const stopLoss  = liveStopLoss ?? cachedSetup?.stopLoss ?? null;
-  const tp1       = liveTp1      ?? cachedSetup?.tp1      ?? null;
-  const rrRatio   = liveRrRatio  ?? cachedSetup?.rrRatio  ?? null;
-  const direction = liveDirection ?? cachedSetup?.direction ?? null;
+  // Open trade for active symbol — used as final fallback for Last Setup display
+  const openTrade = tradeLog.find(t => t.status === "open" && t.symbol === activeSymbol);
+
+  const entry     = liveEntry    ?? cachedSetup?.entry    ?? openTrade?.entry    ?? null;
+  const stopLoss  = liveStopLoss ?? cachedSetup?.stopLoss ?? openTrade?.stopLoss ?? null;
+  const tp1       = liveTp1      ?? cachedSetup?.tp1      ?? openTrade?.tp1      ?? null;
+  const rrRatio   = liveRrRatio  ?? cachedSetup?.rrRatio  ?? openTrade?.rrRatio  ?? null;
+  const direction = liveDirection ?? cachedSetup?.direction ?? (openTrade ? (openTrade.direction === "BUY" ? "long" : "short") : null);
   const trigger   = liveTrigger  ?? cachedSetup?.trigger  ?? null;
 
   // Active session
