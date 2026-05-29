@@ -178,7 +178,7 @@ export function MobileHome() {
   const { levels } = useKeyLevels();
   const { catalysts } = useCatalysts();
   const { narrative, sentiment, generateFresh } = useMarketAnalysis();
-  const { result: agentData, refresh: refreshAgent } = useAgentResult(activeSymbol, "H1");
+  const { result: agentData, isLoading: agentLoading, error: agentError, refresh: refreshAgent } = useAgentResult(activeSymbol, "H1");
   const { sessions } = useSessions();
   const { mtfData, mtfLoading } = useMTFBias(activeSymbol);
   const { posts: trumpPosts } = useTrumpPosts();
@@ -838,11 +838,21 @@ export function MobileHome() {
                     )}
                     <div className="flex-1 border-t border-white/[0.04]" />
                   </div>
+                  {agentError && !agentData ? (
+                    <div className="flex flex-col items-center justify-center py-10 gap-2">
+                      <p className="text-[11px] text-zinc-500">Analysis unavailable</p>
+                      <button onClick={() => refreshAgent().catch(() => {})}
+                        className="text-[10px] text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30 px-3 py-1.5 rounded-lg active:opacity-70">
+                        Retry
+                      </button>
+                    </div>
+                  ) : (
                   <AgentCardsWidget
                     data={patchedAgentData ?? undefined}
-                    isLoading={!agentData}
+                    isLoading={agentLoading && !agentData}
                     visibleAgents={new Set(["trend", "smc", "news", "risk", "contrarian", "execution", "master"])}
                   />
+                  )}
                 </section>
               );
             }

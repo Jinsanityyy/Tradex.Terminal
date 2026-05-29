@@ -309,6 +309,7 @@ export function useAgentResult(symbol: Symbol, timeframe: Timeframe = "H1", refr
       dedupingInterval: 120_000,
       errorRetryCount: 2,
       errorRetryInterval: 30_000,
+      keepPreviousData: true,
     }
   );
 
