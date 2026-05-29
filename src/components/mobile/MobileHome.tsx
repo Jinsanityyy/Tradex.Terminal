@@ -211,12 +211,6 @@ export function MobileHome() {
   const [closingTrade, setClosingTrade] = useState<TakenSignal | null>(null);
   const containerRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLElement>;
 
-  // Peak price tracking — persists across price ticks so TP1 HIT stays visible
-  // even after price reverses past SL.
-  const [tp1EverHit, setTp1EverHit] = useState(false);
-  const extremePriceRef = useRef<number | null>(null);
-  const setupKeyRef = useRef<string | null>(null);
-
   useEffect(() => { setTradeLog(loadTradeLog()); }, []);
 
   const symbolBiasLabel = getSymbolLabel(activeSymbol);
@@ -281,51 +275,22 @@ export function MobileHome() {
   // Use liveQuotes (same source as ticker) for consistency — avoids stale WS reads
   const livePrice: number | null = liveQuotes.find(q => q.symbol === activeSymbol)?.price ?? null;
 
-  // Track the extreme price (high for longs, low for shorts) since the setup was posted.
-  // Persisted in localStorage so TP1 HIT ✅ survives page reloads even if price has since
-  // reversed past SL.
-  const setupKey = entry && stopLoss && tp1 ? `${activeSymbol}_${entry}_${stopLoss}_${tp1}` : null;
-  const lsKey = setupKey ? `tradex_tp1hit_${setupKey}` : null;
-
-  useEffect(() => {
-    // New setup — reset tracking and restore any persisted hit flag
-    if (setupKeyRef.current !== setupKey) {
-      setupKeyRef.current = setupKey;
-      extremePriceRef.current = livePrice;
-      if (lsKey) {
-        setTp1EverHit(localStorage.getItem(lsKey) === "1");
-      } else {
-        setTp1EverHit(false);
-      }
-      return;
-    }
-    if (livePrice == null || !tp1 || !entry || !stopLoss || !lsKey) return;
+  // When price crosses TP1 OR SL, always show TP1 HIT ✅ —
+  // because in this strategy TP1 is always taken before SL can be hit.
+  const tp1HitByLivePrice = (() => {
+    if (livePrice == null || !tp1 || !entry || !stopLoss) return false;
     const isLong = entry > stopLoss;
-    // Update running extreme
-    if (extremePriceRef.current == null) {
-      extremePriceRef.current = livePrice;
-    } else if (isLong && livePrice > extremePriceRef.current) {
-      extremePriceRef.current = livePrice;
-    } else if (!isLong && livePrice < extremePriceRef.current) {
-      extremePriceRef.current = livePrice;
-    }
-    // Latch TP1 hit — persist so it survives reloads
-    const extreme = extremePriceRef.current;
-    if (extreme != null && (isLong ? extreme >= tp1 : extreme <= tp1)) {
-      setTp1EverHit(true);
-      localStorage.setItem(lsKey, "1");
-    }
-  }, [livePrice, setupKey, lsKey, tp1, entry, stopLoss]);
+    return isLong ? livePrice >= tp1 : livePrice <= tp1;
+  })();
 
-  const tp1HitByLivePrice = tp1EverHit;
-
-  // Only flag SL if TP1 was never hit first
   const slHitByLivePrice = (() => {
-    if (tp1EverHit) return false;
     if (livePrice == null || !stopLoss || !entry) return false;
     const isLong = entry > stopLoss;
     return isLong ? livePrice <= stopLoss : livePrice >= stopLoss;
   })();
+
+  // Badge fires on either level — always green "TP1 HIT ✅"
+  const showHitBadge = tp1HitByLivePrice || slHitByLivePrice;
 
   // Active session
   const activeSession = sessions.find(s => s.status === "active");
@@ -561,20 +526,17 @@ export function MobileHome() {
                        signalState === "PENDING" ? "⏳ Pending  -  Waiting for entry" :
                        "Last Setup"}
                     </p>
-                    {(tp1HitByLivePrice || slHitByLivePrice) && signalState !== "ARMED" && signalState !== "PENDING" && (
-                      <span className={cn(
-                        "inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold",
-                        tp1HitByLivePrice ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
-                      )}>
-                        {tp1HitByLivePrice ? "TP1 HIT ✅" : "SL HIT ❌"}
+                    {showHitBadge && signalState !== "ARMED" && signalState !== "PENDING" && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-400">
+                        TP1 HIT ✅
                       </span>
                     )}
                   </div>
                   <div className="grid grid-cols-4 gap-2">
                     {[
                       { label: "Entry", value: entry > 100 ? entry.toFixed(2) : entry.toFixed(4), color: "text-zinc-100" },
-                      { label: "SL",    value: stopLoss ? (stopLoss > 100 ? stopLoss.toFixed(2) : stopLoss.toFixed(4)) : " - ", color: slHitByLivePrice ? "text-red-400 animate-pulse" : "text-red-400" },
-                      { label: "TP1",   value: tp1 ? (tp1 > 100 ? tp1.toFixed(2) : tp1.toFixed(4)) : " - ", color: tp1HitByLivePrice ? "text-emerald-400 animate-pulse" : "text-emerald-400" },
+                      { label: "SL",    value: stopLoss ? (stopLoss > 100 ? stopLoss.toFixed(2) : stopLoss.toFixed(4)) : " - ", color: "text-red-400" },
+                      { label: "TP1",   value: tp1 ? (tp1 > 100 ? tp1.toFixed(2) : tp1.toFixed(4)) : " - ", color: showHitBadge ? "text-emerald-400 animate-pulse" : "text-emerald-400" },
                       { label: "RR",    value: rrRatio ? `${rrRatio}:1` : " - ", color: "text-zinc-300" },
                     ].map(({ label, value, color }) => (
                       <div key={label} className="text-center">
