@@ -3,9 +3,9 @@ import type { NewsItem } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-// Cache news for 2 minutes
+// Cache news for 45 seconds (FinancialJuice is real-time breaking news)
 let cache: { data: NewsItem[]; ts: number } = { data: [], ts: 0 };
-const CACHE_TTL = 120_000;
+const CACHE_TTL = 45_000;
 
 // ── Static fallback news when Finnhub key unavailable ─────────────────────
 const FALLBACK_NEWS: NewsItem[] = [
@@ -114,34 +114,45 @@ export async function GET() {
 
   try {
     const key = process.env.FINNHUB_API_KEY;
-    if (!key) {
-      return NextResponse.json({ data: FALLBACK_NEWS, timestamp: Date.now(), fallback: true });
+
+    // Run both sources in parallel regardless of key availability
+    const [finnhubNews, fjNews] = await Promise.all([
+      key ? fetchFinnhubNews(key) : Promise.resolve([] as NewsItem[]),
+      fetchFinancialJuice(),
+    ]);
+
+    const merged = mergeNews(finnhubNews, fjNews);
+
+    if (merged.length > 0) {
+      cache = { data: merged, ts: Date.now() };
+      return NextResponse.json({ data: merged, timestamp: Date.now(), count: merged.length });
     }
 
+    return NextResponse.json({ data: FALLBACK_NEWS, timestamp: Date.now(), fallback: true });
+  } catch (error) {
+    console.error("News error:", error);
+    const fallback = cache.data.length > 0 ? cache.data : FALLBACK_NEWS;
+    return NextResponse.json({ data: fallback, timestamp: Date.now(), error: "fetch failed" });
+  }
+}
+
+async function fetchFinnhubNews(key: string): Promise<NewsItem[]> {
+  try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 8000);
-
     const res = await fetch(
       `https://finnhub.io/api/v1/news?category=general&token=${key}`,
       { signal: controller.signal, cache: "no-store" }
     );
     clearTimeout(timer);
-
-    if (!res.ok) throw new Error(`Finnhub: ${res.status}`);
+    if (!res.ok) return [];
 
     const raw: {
-      id: number;
-      headline: string;
-      summary: string;
-      source: string;
-      datetime: number;
-      category: string;
-      related: string;
-      url: string;
-      image: string;
+      id: number; headline: string; summary: string; source: string;
+      datetime: number; related: string;
     }[] = await res.json();
 
-    const news: NewsItem[] = raw.slice(0, 30).map((item, i) => {
+    return raw.slice(0, 30).map((item, i) => {
       const cat = categorize(item.headline);
       const sent = deriveSentiment(item.headline);
       const { goldImpact, goldReasoning, usdImpact, usdReasoning } = deriveGoldUSD(item.headline, cat, sent);
@@ -155,24 +166,88 @@ export async function GET() {
         affectedAssets: extractAssets(item.headline + " " + (item.related ?? "")),
         summary: item.summary?.slice(0, 250) ?? "",
         source: item.source,
-        goldImpact,
-        goldReasoning,
-        usdImpact,
-        usdReasoning,
+        goldImpact, goldReasoning, usdImpact, usdReasoning,
       };
     });
+  } catch {
+    return [];
+  }
+}
 
-    if (news.length > 0) {
-      cache = { data: news, ts: Date.now() };
-      return NextResponse.json({ data: news, timestamp: Date.now(), count: news.length });
+async function fetchFinancialJuice(): Promise<NewsItem[]> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch("https://www.financialjuice.com/feed.ashx", {
+      signal: controller.signal,
+      cache: "no-store",
+      headers: { Accept: "application/rss+xml, application/xml, text/xml, */*" },
+    });
+    clearTimeout(timer);
+    if (!res.ok) return [];
+
+    const xml = await res.text();
+    const items: NewsItem[] = [];
+    const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+    let match;
+    let i = 0;
+
+    while ((match = itemRegex.exec(xml)) !== null && i < 40) {
+      const block = match[1];
+      const title = xmlField(block, "title");
+      const pubDate = xmlField(block, "pubDate");
+      const description = xmlField(block, "description");
+
+      if (!title) continue;
+
+      const ts = pubDate ? new Date(pubDate) : new Date();
+      if (isNaN(ts.getTime())) continue;
+
+      const cat = categorize(title);
+      const sent = deriveSentiment(title);
+      const { goldImpact, goldReasoning, usdImpact, usdReasoning } = deriveGoldUSD(title, cat, sent);
+
+      items.push({
+        id: `fj-${i}`,
+        timestamp: ts.toISOString(),
+        headline: title,
+        category: cat,
+        sentiment: sent,
+        impactScore: deriveImpact(title),
+        affectedAssets: extractAssets(title + " " + (description ?? "")),
+        summary: description?.slice(0, 250) ?? "",
+        source: "FinancialJuice",
+        goldImpact, goldReasoning, usdImpact, usdReasoning,
+      });
+      i++;
     }
 
-    return NextResponse.json({ data: FALLBACK_NEWS, timestamp: Date.now(), fallback: true });
-  } catch (error) {
-    console.error("News error:", error);
-    const fallback = cache.data.length > 0 ? cache.data : FALLBACK_NEWS;
-    return NextResponse.json({ data: fallback, timestamp: Date.now(), error: "fetch failed" });
+    return items;
+  } catch {
+    return [];
   }
+}
+
+function xmlField(block: string, field: string): string {
+  // Try CDATA first, then plain text
+  const cdata = new RegExp(`<${field}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${field}>`, "i").exec(block);
+  if (cdata) return cdata[1].trim();
+  const plain = new RegExp(`<${field}[^>]*>([\\s\\S]*?)<\\/${field}>`, "i").exec(block);
+  if (plain) return plain[1].trim();
+  return "";
+}
+
+function mergeNews(a: NewsItem[], b: NewsItem[]): NewsItem[] {
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 50);
+  const seen = new Set(a.map(n => norm(n.headline)));
+  const merged = [...a];
+  for (const item of b) {
+    if (!seen.has(norm(item.headline))) {
+      merged.push(item);
+      seen.add(norm(item.headline));
+    }
+  }
+  return merged.sort((x, y) => new Date(y.timestamp).getTime() - new Date(x.timestamp).getTime());
 }
 
 function categorize(headline: string): string {
