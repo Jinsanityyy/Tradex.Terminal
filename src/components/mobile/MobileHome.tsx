@@ -25,7 +25,7 @@ const GlobeClient = dynamic(() => import("@/components/globe/GlobeClient"), { ss
 import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
 import { CloseTradeModal } from "@/components/shared/CloseTradeModal";
-import { loadTradeLog, findOpenBySetup, discardTrade, type TakenSignal } from "@/lib/trades/trade-log";
+import { loadTradeLog, closeTrade, findOpenBySetup, discardTrade, type TakenSignal } from "@/lib/trades/trade-log";
 import { playSignalArmed } from "@/lib/sounds";
 import useSWR from "swr";
 import type { DailyPnL, MonthlyPnL } from "@/app/api/pnl/route";
@@ -257,6 +257,19 @@ export function MobileHome() {
 
   // Open trade for active symbol — used as final fallback for Last Setup display
   const openTrade = tradeLog.find(t => t.status === "open" && t.symbol === activeSymbol);
+
+  // Auto-detect SL/TP hits from live price and close the trade automatically
+  const livePrice = wsPrices.get(activeSymbol) ?? liveQuotes.find(q => q.symbol === activeSymbol)?.price ?? null;
+  useEffect(() => {
+    if (!livePrice || !openTrade) return;
+    const { direction: dir, stopLoss: sl, tp1: tp, id } = openTrade;
+    const slHit  = dir === "BUY" ? livePrice <= sl : livePrice >= sl;
+    const tp1Hit = dir === "BUY" ? livePrice >= tp : livePrice <= tp;
+    if (slHit || tp1Hit) {
+      closeTrade(id, livePrice);
+      setTradeLog(loadTradeLog());
+    }
+  }, [livePrice, openTrade?.id, openTrade?.stopLoss, openTrade?.tp1]);
 
   const entry     = liveEntry    ?? cachedSetup?.entry    ?? openTrade?.entry    ?? null;
   const stopLoss  = liveStopLoss ?? cachedSetup?.stopLoss ?? openTrade?.stopLoss ?? null;
