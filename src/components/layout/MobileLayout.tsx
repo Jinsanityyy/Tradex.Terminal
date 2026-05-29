@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { LayoutDashboard, TrendingUp, Zap, BarChart3, Users, Grid, Camera, LogOut, X, Lock, Clock } from "lucide-react";
+import { LayoutDashboard, TrendingUp, Zap, BarChart3, Users, Menu, Camera, LogOut, X, Lock, Clock } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import { cn } from "@/lib/utils";
 import { MobileHome } from "@/components/mobile/MobileHome";
@@ -18,12 +18,11 @@ import { LoginTransitionOverlay } from "@/components/shared/LoginTransitionOverl
 const TRADER_NAME_KEY = "tradex_trader_name";
 
 const TABS = [
-  { id: "home",      label: "Home",    Icon: LayoutDashboard },
-  { id: "chart",     label: "Chart",   Icon: TrendingUp },
-  { id: "feed",      label: "Feed",    Icon: Zap },
-  { id: "brain",     label: "Brain",   Icon: BarChart3 },
-  { id: "community", label: "Chat",    Icon: Users },
-  { id: "more",      label: "More",    Icon: Grid },
+  { id: "home",      label: "Home",  Icon: LayoutDashboard },
+  { id: "chart",     label: "Chart", Icon: TrendingUp },
+  { id: "feed",      label: "Feed",  Icon: Zap },
+  { id: "brain",     label: "Brain", Icon: BarChart3 },
+  { id: "community", label: "Chat",  Icon: Users },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -43,6 +42,7 @@ export function MobileLayout() {
   const [avatar, setAvatar] = useState<string | null>(null);
   const [unreadChat, setUnreadChat] = useState(0);
   const [unreadFeed, setUnreadFeed] = useState(0);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const { subscription } = useSubscription();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -209,7 +209,7 @@ export function MobileLayout() {
   useEffect(() => {
     const handler = (e: Event) => {
       const appId = (e as CustomEvent<{ appId?: string }>).detail?.appId;
-      switchTab("more");
+      setDrawerOpen(true);
       if (appId) {
         setTimeout(() => {
           document.dispatchEvent(new CustomEvent("tradex:open-app", { detail: { appId } }));
@@ -256,7 +256,7 @@ export function MobileLayout() {
     );
   }
 
-  const NO_SCROLL_TABS = new Set(["chart", "community", "more", "feed", "brain"]);
+  const NO_SCROLL_TABS = new Set(["chart", "community", "feed", "brain"]);
 
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-[hsl(var(--background))]">
@@ -270,6 +270,11 @@ export function MobileLayout() {
             <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--primary))] animate-pulse" />
             <span className="text-[9px] text-[hsl(var(--primary))] font-medium tracking-wider uppercase">Live</span>
           </div>
+          {/* Hamburger menu */}
+          <button onClick={() => setDrawerOpen(true)}
+            className="flex items-center justify-center w-7 h-7 rounded-lg border border-white/10 active:opacity-70">
+            <Menu className="w-4 h-4 text-zinc-400" />
+          </button>
           {/* Profile button */}
           <button onClick={() => { setShowProfile(true); setDraft(traderName); setEditing(false); }}
             className="flex items-center justify-center w-7 h-7 rounded-full overflow-hidden border border-white/10">
@@ -399,7 +404,6 @@ export function MobileLayout() {
               {id === "feed"      && <MobileFeed />}
               {id === "brain"     && <MobileBrain />}
               {id === "community" && <CommunityPanel />}
-              {id === "more"      && <MobileMore />}
             </div>
           );
         })}
@@ -413,12 +417,33 @@ export function MobileLayout() {
         )}
       </div>
 
+      {/* Hamburger drawer */}
+      {drawerOpen && (
+        <div className="absolute inset-0 z-50 flex flex-col" onClick={() => setDrawerOpen(false)}>
+          <div className="flex-1" />
+          <div className="rounded-t-3xl bg-[hsl(var(--card))] border-t border-white/10 overflow-hidden"
+            style={{ maxHeight: "88vh" }}
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 pt-4 pb-2">
+              <span className="text-[13px] font-semibold text-zinc-300">Menu</span>
+              <button onClick={() => setDrawerOpen(false)}
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-white/5 active:opacity-70">
+                <X className="w-4 h-4 text-zinc-400" />
+              </button>
+            </div>
+            <div className="overflow-y-auto" style={{ maxHeight: "calc(88vh - 60px)" }}>
+              <MobileMore />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Bottom tab bar — safe-area-inset-bottom ensures home bar never overlaps on iOS/Android */}
       <div
         className="shrink-0 border-t border-white/5 bg-[hsl(var(--card))]"
         style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
       >
-        <div className="grid grid-cols-6">
+        <div className="grid grid-cols-5">
           {TABS.map(({ id, label, Icon }) => {
             const isActive = active === id;
             const showBadge = (id === "community" && unreadChat > 0 && active !== "community") ||
