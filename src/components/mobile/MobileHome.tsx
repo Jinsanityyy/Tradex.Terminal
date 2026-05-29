@@ -346,6 +346,15 @@ export function MobileHome() {
   const direction = liveDirection ?? cachedSetup?.direction ?? null;
   const trigger   = liveTrigger  ?? cachedSetup?.trigger  ?? null;
 
+  // Detect if live price has crossed SL of the open trade
+  const openTradeForSl = tradeLog.find(t => t.status === "open" && t.symbol === activeSymbol);
+  const slHitByLivePrice = (() => {
+    if (!openTradeForSl || livePrice == null) return false;
+    return openTradeForSl.direction === "BUY"
+      ? livePrice <= openTradeForSl.stopLoss
+      : livePrice >= openTradeForSl.stopLoss;
+  })();
+
   // Active session
   const activeSession = sessions.find(s => s.status === "active");
 
@@ -580,16 +589,18 @@ export function MobileHome() {
                        signalState === "PENDING" ? "⏳ Pending  -  Waiting for entry" :
                        "Last Setup"}
                     </p>
-                    {lastOutcome && signalState !== "ARMED" && signalState !== "PENDING" && (
+                    {(lastOutcome || slHitByLivePrice) && signalState !== "ARMED" && signalState !== "PENDING" && (
                       <div className={cn(
                         "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold",
-                        lastOutcome.status === "loss_sl"
+                        (lastOutcome?.status === "loss_sl" || slHitByLivePrice)
                           ? "bg-red-500/15 text-red-400"
                           : "bg-emerald-500/15 text-emerald-400"
                       )}>
-                        {lastOutcome.status === "win_tp2" ? "TP2 ✅✅" :
-                         lastOutcome.status === "win_tp1" ? "TP1 ✅"   : "SL ❌"}
-                        {lastOutcome.pnlR != null && (
+                        {lastOutcome
+                          ? (lastOutcome.status === "win_tp2" ? "TP2 ✅✅" :
+                             lastOutcome.status === "win_tp1" ? "TP1 ✅" : "SL ❌")
+                          : "SL HIT ❌"}
+                        {lastOutcome?.pnlR != null && (
                           <span className="opacity-70 ml-0.5">
                             {lastOutcome.pnlR > 0 ? `+${lastOutcome.pnlR}R` : `${lastOutcome.pnlR}R`}
                           </span>
@@ -600,7 +611,7 @@ export function MobileHome() {
                   <div className="grid grid-cols-4 gap-2">
                     {[
                       { label: "Entry", value: entry > 100 ? entry.toFixed(2) : entry.toFixed(4), color: "text-zinc-100" },
-                      { label: "SL",    value: stopLoss ? (stopLoss > 100 ? stopLoss.toFixed(2) : stopLoss.toFixed(4)) : " - ", color: "text-red-400" },
+                      { label: "SL",    value: stopLoss ? (stopLoss > 100 ? stopLoss.toFixed(2) : stopLoss.toFixed(4)) : " - ", color: slHitByLivePrice ? "text-red-400 animate-pulse" : "text-red-400" },
                       { label: "TP1",   value: tp1 ? (tp1 > 100 ? tp1.toFixed(2) : tp1.toFixed(4)) : " - ", color: "text-emerald-400" },
                       { label: "RR",    value: rrRatio ? `${rrRatio}:1` : " - ", color: "text-zinc-300" },
                     ].map(({ label, value, color }) => (
