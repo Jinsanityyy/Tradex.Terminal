@@ -13,7 +13,7 @@ const fetcher = async (url: string) => {
 };
 
 // ── Live Asset Prices ───────────────────────────────────
-export function useQuotes(refreshInterval = 30_000) {
+export function useQuotes(refreshInterval = 15_000) {
   const { data, error, isLoading } = useSWR<{
     data: AssetSnapshot[];
     timestamp: number;
@@ -22,7 +22,7 @@ export function useQuotes(refreshInterval = 30_000) {
   }>("/api/market/quotes", fetcher, {
     refreshInterval,
     revalidateOnFocus: false,
-    dedupingInterval: 15_000,
+    dedupingInterval: 5_000,
     errorRetryCount: 3,
     errorRetryInterval: 10_000,
     loadingTimeout: 15_000,
@@ -283,7 +283,9 @@ export function useMTFBias(symbol: string) {
     fetcher,
     {
       revalidateOnFocus: false,
-      dedupingInterval: 5 * 60_000,
+      revalidateOnReconnect: false,
+      refreshInterval: 5 * 60_000,
+      dedupingInterval: 60_000,
       errorRetryCount: 2,
       errorRetryInterval: 30_000,
     }

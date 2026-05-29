@@ -167,7 +167,7 @@ export function MobileHome() {
   const { levels } = useKeyLevels();
   const { catalysts } = useCatalysts();
   const { narrative, sentiment, generateFresh } = useMarketAnalysis();
-  const { result: agentData } = useAgentResult(activeSymbol, "H1");
+  const { result: agentData, isLoading: agentLoading, error: agentError, refresh: refreshAgent } = useAgentResult(activeSymbol, "H1");
   const { sessions } = useSessions();
   const { mtfData, mtfLoading } = useMTFBias(activeSymbol);
   const { posts: trumpPosts } = useTrumpPosts();
@@ -214,12 +214,35 @@ export function MobileHome() {
   const finalBias = master?.finalBias ?? "neutral";
 
   // Entry/SL/TP  -  exec has live values, tradePlan has logged values
-  const entry = exec?.entry ?? tradePlan?.entry ?? null;
-  const stopLoss = exec?.stopLoss ?? tradePlan?.stopLoss ?? null;
-  const tp1 = exec?.tp1 ?? tradePlan?.tp1 ?? null;
-  const rrRatio = exec?.rrRatio ?? tradePlan?.rrRatio ?? null;
-  const direction = exec?.direction ?? tradePlan?.direction ?? null;
-  const trigger = exec?.trigger ?? tradePlan?.trigger ?? null;
+  const liveEntry    = exec?.entry    ?? tradePlan?.entry    ?? null;
+  const liveStopLoss = exec?.stopLoss ?? tradePlan?.stopLoss ?? null;
+  const liveTp1      = exec?.tp1      ?? tradePlan?.tp1      ?? null;
+  const liveRrRatio  = exec?.rrRatio  ?? tradePlan?.rrRatio  ?? null;
+  const liveDirection = exec?.direction ?? tradePlan?.direction ?? null;
+  const liveTrigger   = exec?.trigger   ?? tradePlan?.trigger   ?? null;
+
+  // Persist last known setup per symbol so "Last Setup" survives a NO_TRADE refresh
+  const lastSetupKey = `tradex_last_setup_${activeSymbol}`;
+  useEffect(() => {
+    if (!liveEntry || !liveStopLoss || !liveTp1) return;
+    try {
+      localStorage.setItem(lastSetupKey, JSON.stringify({
+        entry: liveEntry, stopLoss: liveStopLoss, tp1: liveTp1,
+        rrRatio: liveRrRatio, direction: liveDirection, trigger: liveTrigger,
+      }));
+    } catch {}
+  }, [liveEntry, liveStopLoss, liveTp1, liveRrRatio, liveDirection, liveTrigger, lastSetupKey]);
+
+  const cachedSetup = (() => {
+    try { return JSON.parse(localStorage.getItem(lastSetupKey) ?? "null"); } catch { return null; }
+  })();
+
+  const entry     = liveEntry    ?? cachedSetup?.entry    ?? null;
+  const stopLoss  = liveStopLoss ?? cachedSetup?.stopLoss ?? null;
+  const tp1       = liveTp1      ?? cachedSetup?.tp1      ?? null;
+  const rrRatio   = liveRrRatio  ?? cachedSetup?.rrRatio  ?? null;
+  const direction = liveDirection ?? cachedSetup?.direction ?? null;
+  const trigger   = liveTrigger  ?? cachedSetup?.trigger  ?? null;
 
   // Active session
   const activeSession = sessions.find(s => s.status === "active");
@@ -259,14 +282,15 @@ export function MobileHome() {
   }, [signalState, activeSymbol, entry]);
 
   const handleRefresh = useCallback(async () => {
-    if (isOnCooldown) return;
+    // Always refresh quotes/catalysts so pull-to-refresh gives visible feedback
     await Promise.all([
-      mutate("/api/market/quotes"),
-      mutate("/api/market/catalysts"),
-      mutate("/api/agents/run"),
+      mutate("/api/market/quotes").catch(() => {}),
+      mutate("/api/market/catalysts").catch(() => {}),
     ]);
+    if (isOnCooldown) return;
+    await refreshAgent().catch(() => {});
     markRefreshed();
-  }, [isOnCooldown, markRefreshed]);
+  }, [isOnCooldown, markRefreshed, refreshAgent]);
 
   const { refreshing, pullDistance, THRESHOLD } = usePullToRefresh(handleRefresh, divRef as React.RefObject<HTMLElement>);
 
@@ -718,11 +742,21 @@ export function MobileHome() {
                     )}
                     <div className="flex-1 border-t border-white/[0.04]" />
                   </div>
+                  {agentError && !agentData ? (
+                    <div className="flex flex-col items-center justify-center py-10 gap-2">
+                      <p className="text-[11px] text-zinc-500">Analysis unavailable</p>
+                      <button onClick={() => refreshAgent().catch(() => {})}
+                        className="text-[10px] text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30 px-3 py-1.5 rounded-lg active:opacity-70">
+                        Retry
+                      </button>
+                    </div>
+                  ) : (
                   <AgentCardsWidget
                     data={agentData ?? undefined}
-                    isLoading={!agentData}
+                    isLoading={agentLoading && !agentData}
                     visibleAgents={new Set(["trend", "smc", "news", "risk", "contrarian", "execution", "master"])}
                   />
+                  )}
                 </section>
               );
             }
