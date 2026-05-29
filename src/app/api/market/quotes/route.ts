@@ -152,22 +152,53 @@ async function fetchMetals(): Promise<Record<string, any>> {
     };
   };
 
+  const parseYahooV7Quote = (data: any, symbol: string, name: string) => {
+    const q = data?.quoteResponse?.result?.[0];
+    if (!q?.regularMarketPrice) return null;
+    const price = q.regularMarketPrice as number;
+    const prev = (q.regularMarketPreviousClose || q.regularMarketOpen || price) as number;
+    const change = price - prev;
+    const pct = prev ? (change / prev) * 100 : 0;
+    return {
+      symbol, name,
+      close: price.toFixed(2),
+      previous_close: prev.toFixed(2),
+      open: (q.regularMarketOpen || price).toFixed(2),
+      high: (q.regularMarketDayHigh || price).toFixed(2),
+      low: (q.regularMarketDayLow || price).toFixed(2),
+      change: change.toFixed(2),
+      percent_change: pct.toFixed(4),
+      is_market_open: true,
+    };
+  };
+
   try {
-    const [goldRes, silverRes, oilRes] = await Promise.all([
-      // XAUUSD=X = spot gold (matches TradingView OANDA:XAUUSD); GC=F is futures (~$30 premium)
-      fetch("https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD=X?interval=1d&range=5d", { cache: "no-store" })
+    // Spot metals via v7 quote (XAUUSD=X, XAGUSD=X = spot price matching TradingView)
+    // GC=F / SI=F are futures (~$30-40 premium) — used only as last-resort fallback
+    const [spotMetalsRes, goldFuturesRes, silverFuturesRes, oilRes] = await Promise.all([
+      fetch("https://query1.finance.yahoo.com/v7/finance/quote?symbols=XAUUSD%3DX%2CXAGUSD%3DX", { cache: "no-store" })
         .then(r => r.ok ? r.json() : null).catch(() => null),
-      // XAGUSD=X = spot silver; SI=F is futures
-      fetch("https://query1.finance.yahoo.com/v8/finance/chart/XAGUSD=X?interval=1d&range=5d", { cache: "no-store" })
+      fetch("https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=5d", { cache: "no-store" })
+        .then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch("https://query1.finance.yahoo.com/v8/finance/chart/SI=F?interval=1d&range=5d", { cache: "no-store" })
         .then(r => r.ok ? r.json() : null).catch(() => null),
       fetch("https://query1.finance.yahoo.com/v8/finance/chart/CL=F?interval=1d&range=5d", { cache: "no-store" })
         .then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
 
-    const gold = parseYahoo(goldRes, "XAU/USD", "Gold");
+    // Gold: prefer spot (v7 quote XAUUSD=X), fall back to futures (GC=F)
+    const spotResults = spotMetalsRes?.quoteResponse?.result ?? [];
+    const spotGoldData = spotResults.find((r: any) => r?.symbol === "XAUUSD=X");
+    const spotSilverData = spotResults.find((r: any) => r?.symbol === "XAGUSD=X");
+
+    const gold = spotGoldData
+      ? parseYahooV7Quote({ quoteResponse: { result: [spotGoldData] } }, "XAU/USD", "Gold")
+      : parseYahoo(goldFuturesRes, "XAU/USD", "Gold");
     if (gold) results["XAU/USD"] = gold;
 
-    const silver = parseYahoo(silverRes, "XAG/USD", "Silver");
+    const silver = spotSilverData
+      ? parseYahooV7Quote({ quoteResponse: { result: [spotSilverData] } }, "XAG/USD", "Silver")
+      : parseYahoo(silverFuturesRes, "XAG/USD", "Silver");
     if (silver) results["XAG/USD"] = silver;
 
     const oil = parseYahoo(oilRes, "CL", "Crude Oil");
