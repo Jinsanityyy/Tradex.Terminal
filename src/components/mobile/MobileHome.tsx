@@ -125,11 +125,19 @@ function MobilePnLWidget() {
   );
 }
 
-function LiveBadge() {
+function LiveBadge({ dataTimestamp }: { dataTimestamp?: number }) {
+  const ageMs = dataTimestamp ? Date.now() - dataTimestamp : 0;
+  const isStale = ageMs > 2 * 60 * 1000;
   return (
-    <span className="flex items-center gap-1 text-[9px] font-medium text-[hsl(var(--primary))] uppercase tracking-wider">
-      <span className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--primary))] animate-pulse" />
-      Live
+    <span className={cn(
+      "flex items-center gap-1 text-[9px] font-medium uppercase tracking-wider",
+      isStale ? "text-amber-400" : "text-[hsl(var(--primary))]"
+    )}>
+      <span className={cn(
+        "w-1.5 h-1.5 rounded-full",
+        isStale ? "bg-amber-400" : "bg-[hsl(var(--primary))] animate-pulse"
+      )} />
+      {isStale ? "Stale" : "Live"}
     </span>
   );
 }
@@ -173,7 +181,7 @@ export function MobileHome() {
     ? (settings.selectedSymbol as "XAUUSD" | "EURUSD" | "GBPUSD" | "BTCUSD")
     : "XAUUSD";
 
-  const { quotes } = useQuotes();
+  const { quotes, timestamp: quotesTimestamp, isLive: quotesIsLive } = useQuotes();
   const { biasData } = useMarketBias();
   const { levels } = useKeyLevels();
   const { catalysts } = useCatalysts();
@@ -193,8 +201,58 @@ export function MobileHome() {
   const [takingTrade, setTakingTrade] = useState(false);
   const [closingTrade, setClosingTrade] = useState<TakenSignal | null>(null);
   const containerRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLElement>;
+  const quotesTimestampRef = useRef<number>(0);
+  const [lastOutcome, setLastOutcome] = useState<{ status: string; pnlR?: number; entry?: number; stopLoss?: number; tp1?: number; rrRatio?: number } | null>(null);
 
   useEffect(() => { setTradeLog(loadTradeLog()); }, []);
+
+  // Keep a ref to the latest quotes timestamp so the visibility handler
+  // can check staleness without a stale closure.
+  useEffect(() => {
+    if (quotesIsLive) quotesTimestampRef.current = quotesTimestamp;
+  }, [quotesTimestamp, quotesIsLive]);
+
+  // BUG 4: On Android, the WebView is suspended in the background so SWR
+  // intervals stop firing. When the app comes back to foreground, force a
+  // fresh fetch of non-LLM data if the last successful fetch was >2 min ago.
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+      const age = Date.now() - quotesTimestampRef.current;
+      if (age > 2 * 60 * 1000) {
+        mutate("/api/market/quotes");
+        mutate("/api/market/catalysts");
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/signals?symbol=${activeSymbol}&limit=10&period=7d`)
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (cancelled || !json) return;
+        const resolved = (json.recent ?? []).find(
+          (s: { status: string }) => ["win_tp1", "win_tp2", "loss_sl"].includes(s.status)
+        );
+        setLastOutcome(resolved
+          ? {
+              status: resolved.status,
+              pnlR: resolved.outcome?.pnlR,
+              entry: resolved.tradePlan?.entry,
+              stopLoss: resolved.tradePlan?.stopLoss,
+              tp1: resolved.tradePlan?.tp1,
+              rrRatio: resolved.tradePlan?.rrRatio,
+            }
+          : null
+        );
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [activeSymbol]);
+
 
   const symbolBiasLabel = getSymbolLabel(activeSymbol);
   const symbolBiasShort = getSymbolShort(activeSymbol);
@@ -624,7 +682,7 @@ export function MobileHome() {
                 <section key="live_prices">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-[11px] font-semibold uppercase tracking-wider">Live Prices</span>
-                    <LiveBadge />
+                    <LiveBadge dataTimestamp={quotesIsLive ? quotesTimestamp : undefined} />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {displayQuotes.length > 0

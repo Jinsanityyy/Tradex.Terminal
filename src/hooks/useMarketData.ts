@@ -307,8 +307,12 @@ export function useAgentResult(symbol: Symbol, timeframe: Timeframe = "H1", refr
       refreshInterval,
       revalidateOnFocus: false,
       dedupingInterval: 120_000,
-      errorRetryCount: 2,
-      errorRetryInterval: 30_000,
+      keepPreviousData: true,
+      onErrorRetry: (_err, _key, _cfg, revalidate, { retryCount }) => {
+        if (retryCount >= 3) return; // show error state after 3 failures
+        const delays = [30_000, 60_000, 120_000];
+        setTimeout(() => revalidate({ retryCount }), delays[retryCount] ?? 120_000);
+      },
     }
   );
 

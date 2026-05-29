@@ -40,17 +40,33 @@ export function useRefreshCooldown(isPro = false) {
     }
     // Restore daily count
     setDailyCount(getTodayCount());
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function startCountdown(initialSeconds: number) {
+  function startCountdown(_initialSeconds: number) {
     if (intervalRef.current) clearInterval(intervalRef.current);
-    setSecondsLeft(initialSeconds);
+    setSecondsLeft(_initialSeconds);
     intervalRef.current = setInterval(() => {
-      setSecondsLeft(s => {
-        if (s <= 1) { clearInterval(intervalRef.current!); intervalRef.current = null; return 0; }
-        return s - 1;
-      });
+      // Recalculate from the stored timestamp on every tick so that background
+      // pauses (Android Doze / WebView throttle) don't leave the timer stuck.
+      const raw = typeof window !== "undefined"
+        ? localStorage.getItem(STORAGE_KEY) : null;
+      if (!raw) {
+        clearInterval(intervalRef.current!);
+        intervalRef.current = null;
+        setSecondsLeft(0);
+        return;
+      }
+      const elapsed   = Date.now() - parseInt(raw, 10);
+      const remaining = Math.max(0, Math.ceil((COOLDOWN_MS - elapsed) / 1000));
+      setSecondsLeft(remaining);
+      if (remaining <= 0) {
+        clearInterval(intervalRef.current!);
+        intervalRef.current = null;
+      }
     }, 1000);
   }
 
