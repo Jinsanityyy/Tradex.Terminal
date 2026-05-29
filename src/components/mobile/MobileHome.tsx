@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useQuotes, useMarketBias, useKeyLevels, useCatalysts, useMarketAnalysis, useAgentResult, useSessions, useMTFBias, useTrumpPosts } from "@/hooks/useMarketData";
-import { useLivePrices } from "@/hooks/useLivePrices";
+import { useWebSocketPrices } from "@/hooks/useWebSocketPrices";
 import { TrendingUp, TrendingDown, Minus, Target, Zap, RefreshCw, Sparkles, ChevronDown, ChevronUp, Brain, BarChart2, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DetailModal } from "@/components/shared/DetailModal";
@@ -164,13 +164,19 @@ export function MobileHome() {
     : "XAUUSD";
 
   const { quotes } = useQuotes();
-  const livePrices = useLivePrices();
+
+  const DEFAULT_ASSETS = ["XAUUSD", "BTCUSD", "EURUSD", "USDJPY", "USOIL", "GBPUSD"];
+  const keyAssets = settings.trackedAssets.length > 0 ? settings.trackedAssets : DEFAULT_ASSETS;
+
+  // Subscribe only to displayed symbols — routes everything through Finnhub WSS (port 443)
+  // including BTC via BINANCE:BTCUSDT proxy. Uses FINNHUB_API_KEY server-side (no NEXT_PUBLIC_).
+  const { prices: wsPrices } = useWebSocketPrices(keyAssets);
 
   // Merge WebSocket per-tick prices on top of SWR quotes (% change still from SWR prev close)
   const liveQuotes = useMemo(() => {
-    if (Object.keys(livePrices).length === 0) return quotes;
+    if (wsPrices.size === 0) return quotes;
     return quotes.map(q => {
-      const lp = livePrices[q.symbol];
+      const lp = wsPrices.get(q.symbol);
       if (!lp) return q;
       const prevClose = q.changePercent != null && q.price > 0
         ? q.price / (1 + q.changePercent / 100)
@@ -178,7 +184,7 @@ export function MobileHome() {
       const newChange = prevClose > 0 ? ((lp - prevClose) / prevClose) * 100 : q.changePercent;
       return { ...q, price: lp, changePercent: newChange };
     });
-  }, [quotes, livePrices]);
+  }, [quotes, wsPrices]);
 
   const { biasData } = useMarketBias();
   const { levels } = useKeyLevels();
@@ -205,10 +211,6 @@ export function MobileHome() {
   const symbolBiasLabel = getSymbolLabel(activeSymbol);
   const symbolBiasShort = getSymbolShort(activeSymbol);
 
-  const DEFAULT_ASSETS = ["XAUUSD", "BTCUSD", "EURUSD", "USDJPY", "USOIL", "GBPUSD"];
-  const keyAssets = settings.trackedAssets.length > 0
-    ? settings.trackedAssets
-    : DEFAULT_ASSETS;
   const displayQuotes = (() => {
     const matched = keyAssets.map((sym) => liveQuotes.find((q) => q.symbol === sym)).filter(Boolean) as typeof quotes;
     if (matched.length === 0 && liveQuotes.length > 0) {
