@@ -12,6 +12,7 @@ export interface Subscription {
   trial_ends_at: string | null;
   isActive: boolean;
   isPro: boolean;
+  isElite?: boolean;
   isTrialing: boolean;
   trialDaysLeft: number;
   hasFullAccess: boolean;
