@@ -211,6 +211,12 @@ export function MobileHome() {
   const [closingTrade, setClosingTrade] = useState<TakenSignal | null>(null);
   const containerRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLElement>;
 
+  // Peak price tracking — persists across price ticks so TP1 HIT stays visible
+  // even after price reverses past SL.
+  const [tp1EverHit, setTp1EverHit] = useState(false);
+  const extremePriceRef = useRef<number | null>(null);
+  const setupKeyRef = useRef<string | null>(null);
+
   useEffect(() => { setTradeLog(loadTradeLog()); }, []);
 
   const symbolBiasLabel = getSymbolLabel(activeSymbol);
@@ -275,15 +281,39 @@ export function MobileHome() {
   // Use liveQuotes (same source as ticker) for consistency — avoids stale WS reads
   const livePrice: number | null = liveQuotes.find(q => q.symbol === activeSymbol)?.price ?? null;
 
-  const tp1HitByLivePrice = (() => {
-    if (livePrice == null || !tp1 || !entry || !stopLoss) return false;
+  // Track the extreme price (high for longs, low for shorts) since the setup was posted.
+  // This means TP1 HIT ✅ stays visible even after price reverses back past SL.
+  const setupKey = entry && stopLoss && tp1 ? `${activeSymbol}_${entry}_${stopLoss}_${tp1}` : null;
+  useEffect(() => {
+    // Reset when the setup changes
+    if (setupKeyRef.current !== setupKey) {
+      setupKeyRef.current = setupKey;
+      extremePriceRef.current = livePrice;
+      setTp1EverHit(false);
+      return;
+    }
+    if (livePrice == null || !tp1 || !entry || !stopLoss) return;
     const isLong = entry > stopLoss;
-    return isLong ? livePrice >= tp1 : livePrice <= tp1;
-  })();
+    // Update running extreme
+    if (extremePriceRef.current == null) {
+      extremePriceRef.current = livePrice;
+    } else if (isLong && livePrice > extremePriceRef.current) {
+      extremePriceRef.current = livePrice;
+    } else if (!isLong && livePrice < extremePriceRef.current) {
+      extremePriceRef.current = livePrice;
+    }
+    // Latch TP1 hit — never un-latch
+    const extreme = extremePriceRef.current;
+    if (extreme != null && (isLong ? extreme >= tp1 : extreme <= tp1)) {
+      setTp1EverHit(true);
+    }
+  }, [livePrice, setupKey, tp1, entry, stopLoss]);
 
-  // Only flag SL if TP hasn't already been hit
+  const tp1HitByLivePrice = tp1EverHit;
+
+  // Only flag SL if TP1 was never hit first
   const slHitByLivePrice = (() => {
-    if (tp1HitByLivePrice) return false;
+    if (tp1EverHit) return false;
     if (livePrice == null || !stopLoss || !entry) return false;
     const isLong = entry > stopLoss;
     return isLong ? livePrice <= stopLoss : livePrice >= stopLoss;
