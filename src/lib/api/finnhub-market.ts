@@ -28,17 +28,10 @@ interface FinnhubQuotePayload {
   t: number;   // unix timestamp
 }
 
+// Gold and silver are intentionally excluded — Finnhub's REST /quote for OANDA:XAU_USD
+// can return a futures-like price ($30-40 above LBMA spot). fxratesapi provides LBMA
+// spot in fetchForexRates() and takes priority for XAU/XAG in quotes/route.ts.
 const FINNHUB_SYMBOLS: FinnhubSymbolConfig[] = [
-  {
-    providerSymbols: ["OANDA:XAU_USD", "FOREXCOM:XAUUSD"],
-    displaySymbol: "XAU/USD",
-    name: "Gold",
-  },
-  {
-    providerSymbols: ["OANDA:XAG_USD", "FOREXCOM:XAGUSD"],
-    displaySymbol: "XAG/USD",
-    name: "Silver",
-  },
   {
     providerSymbols: ["OANDA:USOIL", "FXCM:USOIL"],
     displaySymbol: "CL",

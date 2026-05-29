@@ -299,25 +299,31 @@ export async function GET() {
 
     let newQuotes = 0;
 
+    // Finnhub covers forex and crypto well, but its gold/silver REST quote
+    // can be futures-priced (~$35 above spot). fxratesapi uses LBMA spot which
+    // matches TradingView, so let it override Finnhub for metals.
+    const FXRATESAPI_WINS = new Set(["XAU/USD", "XAG/USD"]);
+
     for (const [sym, quote] of Object.entries(finnhubData)) {
+      if (FXRATESAPI_WINS.has(sym)) continue; // let fxratesapi handle gold/silver
       rawCache[sym] = quote;
       newQuotes++;
     }
 
     // Apply fallback data only when Finnhub did not provide the symbol
     for (const [sym, quote] of Object.entries(cryptoData)) {
-      if (finnhubData[sym]) continue;
+      if (finnhubData[sym] && !FXRATESAPI_WINS.has(sym)) continue;
       rawCache[sym] = quote;
       newQuotes++;
     }
     for (const [sym, quote] of Object.entries(forexData)) {
-      if (finnhubData[sym]) continue;
+      // fxratesapi always wins for its symbols (gold/silver spot + forex)
       rawCache[sym] = quote;
       newQuotes++;
     }
-    // Only use Yahoo Finance for metals/oil not already covered by Finnhub or fxratesapi
+    // Only use Yahoo Finance for metals/oil not already covered by fxratesapi
     for (const sym of ["XAU/USD", "XAG/USD", "CL"] as const) {
-      if (finnhubData[sym] || forexData[sym]) delete metalsData[sym];
+      if (forexData[sym]) delete metalsData[sym];
     }
     for (const [sym, quote] of Object.entries(metalsData)) {
       rawCache[sym] = quote;
