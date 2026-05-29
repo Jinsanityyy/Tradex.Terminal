@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useCatalysts, useEconomicCalendar, useTrumpPosts, useNews } from "@/hooks/useMarketData";
 import { cn } from "@/lib/utils";
 import { Zap, CalendarDays, AtSign, TrendingUp, TrendingDown, Target, Shield, Radio } from "lucide-react";
@@ -39,6 +39,31 @@ export function MobileFeed() {
   const [activeChannel, setActiveChannel] = useState(LIVE_CHANNELS[0]);
   const [selectedEvent, setSelectedEvent] = useState<EconomicEvent | null>(null);
   const [selectedPost, setSelectedPost] = useState<TrumpPost | null>(null);
+  const [feedTabActive, setFeedTabActive] = useState(true);
+  const liveIframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    const onTabChange = (e: Event) => {
+      const { active } = (e as CustomEvent<{ active: string }>).detail;
+      const isActive = active === "feed";
+      if (!isActive && liveIframeRef.current) {
+        liveIframeRef.current.src = "about:blank";
+      }
+      setFeedTabActive(isActive);
+    };
+    const onVisibility = () => {
+      if (document.hidden && liveIframeRef.current) {
+        liveIframeRef.current.src = "about:blank";
+      }
+      setFeedTabActive(!document.hidden);
+    };
+    document.addEventListener("tradex:mobile-tab-change", onTabChange);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      document.removeEventListener("tradex:mobile-tab-change", onTabChange);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
 
   const tabs = [
     { id: "live" as Tab,      label: "Live",      Icon: Radio },
@@ -86,9 +111,13 @@ export function MobileFeed() {
             </div>
             <div className="px-3 pt-2 pb-1">
               <div className="rounded-xl overflow-hidden border border-white/5" style={{ aspectRatio: "16/9" }}>
-                <iframe src={activeChannel.embedUrl} className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
-                  allowFullScreen title={activeChannel.name} />
+                {feedTabActive ? (
+                  <iframe ref={liveIframeRef} src={activeChannel.embedUrl} className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
+                    allowFullScreen title={activeChannel.name} />
+                ) : (
+                  <div className="w-full h-full bg-black" />
+                )}
               </div>
             </div>
             <div className="px-3 pb-4 mt-2">

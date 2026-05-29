@@ -1,5 +1,4 @@
 interface FinnhubSymbolConfig {
-  endpoint: "forex" | "crypto";
   providerSymbols: string[];
   displaySymbol: string;
   name: string;
@@ -19,145 +18,103 @@ export interface FinnhubQuoteRecord {
   fifty_two_week?: { high: string; low: string };
 }
 
-const DAY_SECONDS = 24 * 60 * 60;
+// Finnhub /quote response shape
+interface FinnhubQuotePayload {
+  c: number;   // current price (live)
+  h: number;   // high of day
+  l: number;   // low of day
+  o: number;   // open of day
+  pc: number;  // previous close (yesterday)
+  t: number;   // unix timestamp
+}
 
-const FINNHUB_QUOTE_SYMBOLS: FinnhubSymbolConfig[] = [
+const FINNHUB_SYMBOLS: FinnhubSymbolConfig[] = [
   {
-    endpoint: "forex",
-    providerSymbols: ["OANDA:XAU_USD", "FOREXCOM:XAUUSD", "OANDA:XAUUSD"],
+    providerSymbols: ["OANDA:XAU_USD", "FOREXCOM:XAUUSD"],
     displaySymbol: "XAU/USD",
     name: "Gold",
   },
   {
-    endpoint: "forex",
     providerSymbols: ["OANDA:XAG_USD", "FOREXCOM:XAGUSD"],
     displaySymbol: "XAG/USD",
     name: "Silver",
   },
   {
-    endpoint: "forex",
     providerSymbols: ["OANDA:USOIL", "FXCM:USOIL"],
     displaySymbol: "CL",
     name: "Crude Oil WTI",
   },
   {
-    endpoint: "forex",
     providerSymbols: ["OANDA:EUR_USD"],
     displaySymbol: "EUR/USD",
     name: "EUR/USD",
   },
   {
-    endpoint: "forex",
     providerSymbols: ["OANDA:GBP_USD"],
     displaySymbol: "GBP/USD",
     name: "GBP/USD",
   },
   {
-    endpoint: "crypto",
+    providerSymbols: ["OANDA:USD_JPY"],
+    displaySymbol: "USD/JPY",
+    name: "USD/JPY",
+  },
+  {
     providerSymbols: ["BINANCE:BTCUSDT"],
     displaySymbol: "BTC/USD",
     name: "Bitcoin",
   },
 ];
 
-interface FinnhubCandlesPayload {
-  c?: number[];
-  h?: number[];
-  l?: number[];
-  o?: number[];
-  s?: string;
-  t?: number[];
-}
-
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-async function fetchCandles(
-  endpoint: FinnhubSymbolConfig["endpoint"],
-  providerSymbol: string,
-  resolution: string,
-  from: number,
-  to: number,
+async function fetchFinnhubQuote(
+  symbol: string,
   apiKey: string
-): Promise<FinnhubCandlesPayload | null> {
-  const url = `https://finnhub.io/api/v1/${endpoint}/candle?symbol=${providerSymbol}&resolution=${resolution}&from=${from}&to=${to}&token=${apiKey}`;
+): Promise<FinnhubQuotePayload | null> {
   try {
-    const response = await fetch(url, { cache: "no-store" });
-    if (!response.ok) return null;
-    const payload = (await response.json()) as FinnhubCandlesPayload;
-    if (payload?.s !== "ok" || !Array.isArray(payload.c) || payload.c.length === 0) return null;
-    return payload;
+    const res = await fetch(
+      `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${apiKey}`,
+      { cache: "no-store" }
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as FinnhubQuotePayload;
+    // c === 0 means Finnhub has no data for this symbol
+    if (!isFiniteNumber(data.c) || data.c === 0) return null;
+    return data;
   } catch {
     return null;
   }
-}
-
-function buildQuoteRecord(
-  config: FinnhubSymbolConfig,
-  intraday: FinnhubCandlesPayload,
-  daily?: FinnhubCandlesPayload | null
-): FinnhubQuoteRecord | null {
-  const closes = intraday.c ?? [];
-  const opens = intraday.o ?? [];
-  const highs = intraday.h ?? [];
-  const lows = intraday.l ?? [];
-
-  const lastIdx = closes.length - 1;
-  const prevIdx = closes.length - 2;
-  const last = closes[lastIdx];
-  const prev = prevIdx >= 0 ? closes[prevIdx] : last;
-  const open = isFiniteNumber(opens[lastIdx]) ? opens[lastIdx] : last;
-  const high = isFiniteNumber(highs[lastIdx]) ? highs[lastIdx] : last;
-  const low = isFiniteNumber(lows[lastIdx]) ? lows[lastIdx] : last;
-
-  if (!isFiniteNumber(last) || !isFiniteNumber(prev)) return null;
-
-  const change = last - prev;
-  const percentChange = prev !== 0 ? (change / prev) * 100 : 0;
-
-  const dailyHighs = daily?.h?.filter(isFiniteNumber) ?? [];
-  const dailyLows = daily?.l?.filter(isFiniteNumber) ?? [];
-  const fiftyTwoWeek =
-    dailyHighs.length > 0 && dailyLows.length > 0
-      ? {
-          high: Math.max(...dailyHighs).toString(),
-          low: Math.min(...dailyLows).toString(),
-        }
-      : undefined;
-
-  return {
-    symbol: config.displaySymbol,
-    name: config.name,
-    close: last.toString(),
-    open: open.toString(),
-    high: high.toString(),
-    low: low.toString(),
-    previous_close: prev.toString(),
-    change: change.toString(),
-    percent_change: percentChange.toString(),
-    is_market_open: true,
-    ...(fiftyTwoWeek ? { fifty_two_week: fiftyTwoWeek } : {}),
-  };
 }
 
 async function fetchQuoteForConfig(
   config: FinnhubSymbolConfig,
   apiKey: string
 ): Promise<FinnhubQuoteRecord | null> {
-  const to = Math.floor(Date.now() / 1000);
-  const intradayFrom = to - 2 * DAY_SECONDS;
-  const dailyFrom = to - 400 * DAY_SECONDS;
+  for (const sym of config.providerSymbols) {
+    const q = await fetchFinnhubQuote(sym, apiKey);
+    if (!q) continue;
 
-  for (const providerSymbol of config.providerSymbols) {
-    const intraday = await fetchCandles(config.endpoint, providerSymbol, "5", intradayFrom, to, apiKey);
-    if (!intraday) continue;
+    const price = q.c;
+    const prevClose = isFiniteNumber(q.pc) && q.pc > 0 ? q.pc : price;
+    const change = price - prevClose;
+    const percentChange = prevClose > 0 ? (change / prevClose) * 100 : 0;
 
-    const daily = await fetchCandles(config.endpoint, providerSymbol, "D", dailyFrom, to, apiKey);
-    const quote = buildQuoteRecord(config, intraday, daily);
-    if (quote) return quote;
+    return {
+      symbol: config.displaySymbol,
+      name: config.name,
+      close: price.toString(),
+      open: (isFiniteNumber(q.o) && q.o > 0 ? q.o : price).toString(),
+      high: (isFiniteNumber(q.h) && q.h > 0 ? q.h : price).toString(),
+      low: (isFiniteNumber(q.l) && q.l > 0 ? q.l : price).toString(),
+      previous_close: prevClose.toString(),
+      change: change.toString(),
+      percent_change: percentChange.toString(),
+      is_market_open: true,
+    };
   }
-
   return null;
 }
 
@@ -166,11 +123,13 @@ export async function fetchFinnhubQuoteMap(): Promise<Record<string, FinnhubQuot
   if (!apiKey) return {};
 
   const entries = await Promise.all(
-    FINNHUB_QUOTE_SYMBOLS.map(async (config) => {
+    FINNHUB_SYMBOLS.map(async (config) => {
       const quote = await fetchQuoteForConfig(config, apiKey);
       return quote ? [config.displaySymbol, quote] as const : null;
     })
   );
 
-  return Object.fromEntries(entries.filter((entry): entry is readonly [string, FinnhubQuoteRecord] => entry !== null));
+  return Object.fromEntries(
+    entries.filter((e): e is readonly [string, FinnhubQuoteRecord] => e !== null)
+  );
 }

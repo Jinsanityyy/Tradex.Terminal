@@ -59,77 +59,69 @@ async function fetchCrypto(): Promise<Record<string, any>> {
 async function fetchForexRates(): Promise<Record<string, any>> {
   const results: Record<string, any> = {};
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    const res = await fetch(
-      "https://api.fxratesapi.com/latest?base=USD&currencies=EUR,GBP,JPY,CAD,CHF,AUD,NZD",
-      { signal: controller.signal, cache: "no-store" }
-    );
+    // XAU/XAG included — fxratesapi returns LBMA spot prices matching TradingView
+    const currencies = "EUR,GBP,JPY,CAD,CHF,AUD,NZD,XAU,XAG";
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yyyymmdd = yesterday.toISOString().slice(0, 10);
+
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 10_000);
+
+    // Fetch current and yesterday's rates in parallel for real daily % change
+    const [res, histRes] = await Promise.all([
+      fetch(`https://api.fxratesapi.com/latest?base=USD&currencies=${currencies}`,
+        { signal: abort.signal, cache: "no-store" }),
+      fetch(`https://api.fxratesapi.com/historical?date=${yyyymmdd}&base=USD&currencies=${currencies}`,
+        { signal: abort.signal, cache: "no-store" }),
+    ]);
     clearTimeout(timer);
+
     if (!res.ok) return results;
     const data = await res.json();
     if (!data.success || !data.rates) return results;
 
     const rates = data.rates;
+    const histData = histRes.ok ? await histRes.json().catch(() => null) : null;
+    const histRates: typeof rates | null = histData?.rates ?? null;
 
-    // Map Twelve Data symbols to rate conversions
-    const forexMap: Record<string, { rate: () => number }> = {
-      "EUR/USD": { rate: () => 1 / rates.EUR },
-      "GBP/USD": { rate: () => 1 / rates.GBP },
-      "USD/JPY": { rate: () => rates.JPY },
-      "USD/CAD": { rate: () => rates.CAD },
-      "USD/CHF": { rate: () => rates.CHF },
-      "AUD/USD": { rate: () => 1 / rates.AUD },
-      "NZD/USD": { rate: () => 1 / rates.NZD },
-      "GBP/JPY": { rate: () => rates.JPY / rates.GBP },
-      "EUR/GBP": { rate: () => rates.GBP / rates.EUR },
+    const forexMap: Record<string, (r: typeof rates) => number> = {
+      "EUR/USD": (r) => 1 / r.EUR,
+      "GBP/USD": (r) => 1 / r.GBP,
+      "USD/JPY": (r) => r.JPY,
+      "USD/CAD": (r) => r.CAD,
+      "USD/CHF": (r) => r.CHF,
+      "AUD/USD": (r) => 1 / r.AUD,
+      "NZD/USD": (r) => 1 / r.NZD,
+      "GBP/JPY": (r) => r.JPY / r.GBP,
+      "EUR/GBP": (r) => r.GBP / r.EUR,
+      // Spot metals via LBMA rates — r.XAU = troy oz per USD, so invert for USD per oz
+      "XAU/USD": (r) => r.XAU ? 1 / r.XAU : 0,
+      "XAG/USD": (r) => r.XAG ? 1 / r.XAG : 0,
     };
 
-    // Fetch yesterday's rates once as fallback when rawCache is cold (Vercel cold start)
-    let histRates: Record<string, number> | null = null;
-    if (Object.keys(rawCache).length === 0) {
-      try {
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const ymd = yesterday.toISOString().slice(0, 10);
-        const hr = await fetch(
-          `https://api.fxratesapi.com/historical?date=${ymd}&base=USD&currencies=EUR,GBP,JPY,CAD,CHF,AUD,NZD`,
-          { cache: "no-store" }
-        );
-        if (hr.ok) {
-          const hd = await hr.json();
-          if (hd.success && hd.rates) histRates = hd.rates as Record<string, number>;
-        }
-      } catch { /* ignore */ }
-    }
-
-    const histForexMap: Record<string, () => number> = histRates ? {
-      "EUR/USD": () => 1 / histRates!.EUR,
-      "GBP/USD": () => 1 / histRates!.GBP,
-      "USD/JPY": () => histRates!.JPY,
-      "USD/CAD": () => histRates!.CAD,
-      "USD/CHF": () => histRates!.CHF,
-      "AUD/USD": () => 1 / histRates!.AUD,
-      "NZD/USD": () => 1 / histRates!.NZD,
-      "GBP/JPY": () => histRates!.JPY / histRates!.GBP,
-      "EUR/GBP": () => histRates!.GBP / histRates!.EUR,
-    } : {};
-
     for (const [sym, calc] of Object.entries(forexMap)) {
-      const price = calc.rate();
+      const price = calc(rates);
       if (!isFinite(price) || price <= 0) continue;
 
-      // Use rawCache if warm; fall back to yesterday's hist rate on cold start
-      const prev = rawCache[sym];
-      const prevPrice = prev
-        ? parseFloat(prev.close)
-        : (histForexMap[sym] ? histForexMap[sym]() : price);
+      // Priority: 1) yesterday's historical rates (accurate daily change, cold-start safe)
+      //           2) rawCache from previous poll (accurate between polls)
+      //           3) current price (no change data available)
+      let prevPrice: number;
+      if (histRates) {
+        prevPrice = calc(histRates);
+      } else {
+        const prev = rawCache[sym];
+        prevPrice = prev ? parseFloat(prev.close) : price;
+      }
+      if (!isFinite(prevPrice) || prevPrice <= 0) prevPrice = price;
       const change = price - prevPrice;
-      const pctChange = prevPrice ? (change / prevPrice) * 100 : 0;
+      const pctChange = prevPrice > 0 ? (change / prevPrice) * 100 : 0;
 
+      const nameMap: Record<string, string> = { "XAU/USD": "Gold", "XAG/USD": "Silver" };
       results[sym] = {
         symbol: sym,
-        name: "",
+        name: nameMap[sym] ?? "",
         close: price.toString(),
         previous_close: prevPrice.toString(),
         change: change.toString(),
@@ -165,8 +157,32 @@ async function fetchMetals(): Promise<Record<string, any>> {
     };
   };
 
+  const parseYahooV7Quote = (data: any, symbol: string, name: string) => {
+    const q = data?.quoteResponse?.result?.[0];
+    if (!q?.regularMarketPrice) return null;
+    const price = q.regularMarketPrice as number;
+    const prev = (q.regularMarketPreviousClose || q.regularMarketOpen || price) as number;
+    const change = price - prev;
+    const pct = prev ? (change / prev) * 100 : 0;
+    return {
+      symbol, name,
+      close: price.toFixed(2),
+      previous_close: prev.toFixed(2),
+      open: (q.regularMarketOpen || price).toFixed(2),
+      high: (q.regularMarketDayHigh || price).toFixed(2),
+      low: (q.regularMarketDayLow || price).toFixed(2),
+      change: change.toFixed(2),
+      percent_change: pct.toFixed(4),
+      is_market_open: true,
+    };
+  };
+
   try {
-    const [goldRes, silverRes, oilRes] = await Promise.all([
+    // Spot metals via v7 quote (XAUUSD=X, XAGUSD=X = spot price matching TradingView)
+    // GC=F / SI=F are futures (~$30-40 premium) — used only as last-resort fallback
+    const [spotMetalsRes, goldFuturesRes, silverFuturesRes, oilRes] = await Promise.all([
+      fetch("https://query1.finance.yahoo.com/v7/finance/quote?symbols=XAUUSD%3DX%2CXAGUSD%3DX", { cache: "no-store" })
+        .then(r => r.ok ? r.json() : null).catch(() => null),
       fetch("https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=5d", { cache: "no-store" })
         .then(r => r.ok ? r.json() : null).catch(() => null),
       fetch("https://query1.finance.yahoo.com/v8/finance/chart/SI=F?interval=1d&range=5d", { cache: "no-store" })
@@ -175,10 +191,19 @@ async function fetchMetals(): Promise<Record<string, any>> {
         .then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
 
-    const gold = parseYahoo(goldRes, "XAU/USD", "Gold");
+    // Gold: prefer spot (v7 quote XAUUSD=X), fall back to futures (GC=F)
+    const spotResults = spotMetalsRes?.quoteResponse?.result ?? [];
+    const spotGoldData = spotResults.find((r: any) => r?.symbol === "XAUUSD=X");
+    const spotSilverData = spotResults.find((r: any) => r?.symbol === "XAGUSD=X");
+
+    const gold = spotGoldData
+      ? parseYahooV7Quote({ quoteResponse: { result: [spotGoldData] } }, "XAU/USD", "Gold")
+      : parseYahoo(goldFuturesRes, "XAU/USD", "Gold");
     if (gold) results["XAU/USD"] = gold;
 
-    const silver = parseYahoo(silverRes, "XAG/USD", "Silver");
+    const silver = spotSilverData
+      ? parseYahooV7Quote({ quoteResponse: { result: [spotSilverData] } }, "XAG/USD", "Silver")
+      : parseYahoo(silverFuturesRes, "XAG/USD", "Silver");
     if (silver) results["XAG/USD"] = silver;
 
     const oil = parseYahoo(oilRes, "CL", "Crude Oil");
@@ -290,9 +315,9 @@ export async function GET() {
       rawCache[sym] = quote;
       newQuotes++;
     }
-    // Only use Yahoo Finance for metals/oil that Finnhub didn't cover
+    // Only use Yahoo Finance for metals/oil not already covered by Finnhub or fxratesapi
     for (const sym of ["XAU/USD", "XAG/USD", "CL"] as const) {
-      if (finnhubData[sym]) delete metalsData[sym];
+      if (finnhubData[sym] || forexData[sym]) delete metalsData[sym];
     }
     for (const [sym, quote] of Object.entries(metalsData)) {
       rawCache[sym] = quote;

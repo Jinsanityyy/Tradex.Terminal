@@ -22,7 +22,7 @@ export function useQuotes(refreshInterval = 15_000) {
   }>("/api/market/quotes", fetcher, {
     refreshInterval,
     revalidateOnFocus: false,
-    dedupingInterval: 15_000,
+    dedupingInterval: 5_000,
     errorRetryCount: 3,
     errorRetryInterval: 10_000,
     loadingTimeout: 15_000,

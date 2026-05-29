@@ -13,6 +13,7 @@ export interface Settings {
   theme: Theme;
   density: Density;
   animations: boolean;
+  welcomeTone: boolean;
   trackedAssets: string[];
   defaultBiasAsset: string;
   selectedSymbol: string;
@@ -35,6 +36,7 @@ export const DEFAULTS: Settings = {
   theme: "dark",
   density: "default",
   animations: true,
+  welcomeTone: true,
   trackedAssets: ["XAUUSD", "BTCUSD", "EURUSD", "USDJPY", "USOIL", "GBPUSD"],
   defaultBiasAsset: "Gold",
   selectedSymbol: "XAUUSD",

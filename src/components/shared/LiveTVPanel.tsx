@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Radio, RefreshCw } from "lucide-react";
 
@@ -14,7 +14,7 @@ interface Channel {
 }
 
 const EMBED_PARAMS =
-  "autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&fs=1";
+  "autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&fs=1&enablejsapi=1";
 
 const CHANNELS: Channel[] = [
   {
@@ -78,6 +78,39 @@ export function LiveTVPanel({
   const [videoIds, setVideoIds] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(true);
   const [retryKey, setRetryKey] = useState(0);
+  const [tabVisible, setTabVisible] = useState(true);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  function stopIframe() {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    // Nuke the src directly — this kills audio immediately without waiting
+    // for React to re-render. The iframe element stays in the DOM briefly
+    // but is silent; React unmounts it on the next render via tabVisible.
+    iframe.src = "about:blank";
+  }
+
+  // Stop + unmount when browser tab is hidden
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.hidden) stopIframe();
+      setTabVisible(!document.hidden);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
+  // Stop + unmount when switching mobile app bottom tabs
+  useEffect(() => {
+    const onMobileTabChange = (e: Event) => {
+      const { active: tabId } = (e as CustomEvent<{ active: string }>).detail;
+      const visible = tabId === "more" ? !document.hidden : false;
+      if (!visible) stopIframe();
+      setTabVisible(visible);
+    };
+    document.addEventListener("tradex:mobile-tab-change", onMobileTabChange);
+    return () => document.removeEventListener("tradex:mobile-tab-change", onMobileTabChange);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -155,8 +188,11 @@ export function LiveTVPanel({
             <div className="absolute inset-0 flex items-center justify-center bg-black">
               <RefreshCw className="h-6 w-6 animate-spin text-zinc-600" />
             </div>
+          ) : !tabVisible ? (
+            <div className="absolute inset-0 bg-black" />
           ) : (
             <iframe
+              ref={iframeRef}
               key={`${active.id}-${retryKey}-${videoIds[active.id] ?? "fallback"}`}
               src={embedUrl}
               className="absolute inset-0 h-full w-full"
