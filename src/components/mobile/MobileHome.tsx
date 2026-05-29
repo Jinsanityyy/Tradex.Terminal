@@ -157,6 +157,8 @@ function PriceCard({ symbol, price, change, isActive }: { symbol: string; price:
   );
 }
 
+const DEFAULT_ASSETS = ["XAUUSD", "BTCUSD", "EURUSD", "USDJPY", "USOIL", "GBPUSD"];
+
 export function MobileHome() {
   const { settings } = useSettings();
   const activeSymbol = isAgentSupported(settings.selectedSymbol ?? "XAUUSD")
@@ -165,8 +167,11 @@ export function MobileHome() {
 
   const { quotes } = useQuotes();
 
-  const DEFAULT_ASSETS = ["XAUUSD", "BTCUSD", "EURUSD", "USDJPY", "USOIL", "GBPUSD"];
-  const keyAssets = settings.trackedAssets.length > 0 ? settings.trackedAssets : DEFAULT_ASSETS;
+  const keyAssets = useMemo(
+    () => settings.trackedAssets.length > 0 ? settings.trackedAssets : DEFAULT_ASSETS,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [settings.trackedAssets.join(",")]
+  );
 
   // Subscribe only to displayed symbols — routes everything through Finnhub WSS (port 443)
   // including BTC via BINANCE:BTCUSDT proxy. Uses FINNHUB_API_KEY server-side (no NEXT_PUBLIC_).
@@ -211,13 +216,13 @@ export function MobileHome() {
   const symbolBiasLabel = getSymbolLabel(activeSymbol);
   const symbolBiasShort = getSymbolShort(activeSymbol);
 
-  const displayQuotes = (() => {
+  const displayQuotes = useMemo(() => {
     const matched = keyAssets.map((sym) => liveQuotes.find((q) => q.symbol === sym)).filter(Boolean) as typeof quotes;
     if (matched.length === 0 && liveQuotes.length > 0) {
       return DEFAULT_ASSETS.map((sym) => liveQuotes.find((q) => q.symbol === sym)).filter(Boolean) as typeof quotes;
     }
     return matched;
-  })();
+  }, [keyAssets, liveQuotes]);
 
   // Agent signal data  -  exec has signalState + entry/SL/TP
   const master = agentData?.agents?.master;
