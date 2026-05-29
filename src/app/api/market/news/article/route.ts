@@ -36,6 +36,14 @@ export async function GET(req: NextRequest) {
     }
 
     const html = await res.text();
+
+    // Bail out if the page is a login/paywall wall — return empty so the
+    // caller falls back to the RSS summary instead.
+    if (isLoginWall(html)) {
+      cache.set(url, { paragraphs: [], ts: Date.now() });
+      return NextResponse.json({ paragraphs: [] });
+    }
+
     const paragraphs = extractParagraphs(html);
 
     cache.set(url, { paragraphs, ts: Date.now() });
@@ -43,6 +51,21 @@ export async function GET(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "fetch failed" }, { status: 500 });
   }
+}
+
+const LOGIN_WALL_PATTERNS = [
+  /enter your email address.*reset your password/is,
+  /sign in to (continue|read|access)/i,
+  /log ?in (to|and) (read|access|continue)/i,
+  /subscribe (to|for) (full|premium|access)/i,
+  /create (a free )?account to (read|access|continue)/i,
+  /this content is (available|only) (to|for) (subscribers|members|premium)/i,
+  /you('ve| have) reached your (free )?article limit/i,
+];
+
+function isLoginWall(html: string): boolean {
+  const sample = html.slice(0, 20000);
+  return LOGIN_WALL_PATTERNS.some(p => p.test(sample));
 }
 
 function decodeEntities(s: string): string {
