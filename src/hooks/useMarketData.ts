@@ -314,15 +314,20 @@ export function useAgentResult(symbol: Symbol, timeframe: Timeframe = "H1", refr
   );
 
   const refresh = useCallback(async () => {
-    const res = await fetch("/api/agents/run", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbol, timeframe, forceRefresh: true }),
-    });
-    if (!res.ok) throw new Error("Failed");
-    const fresh = await res.json();
-    revalidate(fresh, false);
-    return fresh as AgentRunResult;
+    try {
+      const res = await fetch("/api/agents/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbol, timeframe, forceRefresh: true }),
+      });
+      if (res.ok) {
+        const fresh = await res.json();
+        revalidate(fresh, false);
+        return fresh as AgentRunResult;
+      }
+    } catch { /* fall through */ }
+    // POST unavailable (non-pro user, gate, or error) — trigger GET revalidation
+    await revalidate();
   }, [symbol, timeframe, revalidate]);
 
   return {

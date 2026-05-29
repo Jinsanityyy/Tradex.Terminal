@@ -361,12 +361,13 @@ export function MobileHome() {
   }, [signalState, activeSymbol, entry]);
 
   const handleRefresh = useCallback(async () => {
-    if (isOnCooldown) return;
+    // Always refresh quotes/catalysts so pull-to-refresh gives visible feedback
     await Promise.all([
-      mutate("/api/market/quotes"),
-      mutate("/api/market/catalysts"),
-      refreshAgent(),   // POST with forceRefresh: true → generates a fresh signal
+      mutate("/api/market/quotes").catch(() => {}),
+      mutate("/api/market/catalysts").catch(() => {}),
     ]);
+    if (isOnCooldown) return;
+    await refreshAgent().catch(() => {});
     markRefreshed();
   }, [isOnCooldown, markRefreshed, refreshAgent]);
 

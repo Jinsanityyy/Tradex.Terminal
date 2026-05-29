@@ -27,7 +27,7 @@ import { logSignal }         from "@/lib/signals/logger";
 // ─────────────────────────────────────────────────────────────────────────────
 // Cache (Supabase-backed, shared across all serverless instances)
 // ─────────────────────────────────────────────────────────────────────────────
-import { getAgentCache, setAgentCache } from "./agent-cache-store";
+import { getAgentCache, getAgentCacheStale, setAgentCache } from "./agent-cache-store";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Market Data Fetcher
@@ -316,6 +316,9 @@ export async function runAgentOrchestrator(
     // Live quote unavailable — serve cached result; never run agents on stale mock prices.
     const cached = await getAgentCache(symbol, timeframe);
     if (cached) return cached;
+    // Regular cache expired — serve stale as last resort rather than returning 500
+    const stale = await getAgentCacheStale(symbol, timeframe);
+    if (stale) return stale;
     throw new Error(`Market data unavailable for ${symbol} — no cached result to serve`);
   }
 
