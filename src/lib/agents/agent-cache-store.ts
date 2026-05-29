@@ -34,6 +34,26 @@ export async function getAgentCache(
   }
 }
 
+/** Returns any cached result regardless of TTL — last-resort fallback when live data fails. */
+export async function getAgentCacheStale(
+  symbol: Symbol,
+  timeframe: Timeframe
+): Promise<AgentRunResult | null> {
+  const db = getServiceClient();
+  if (!db) return null;
+  try {
+    const { data, error } = await db
+      .from("agent_cache")
+      .select("result")
+      .eq("id", cacheId(symbol, timeframe))
+      .maybeSingle();
+    if (error || !data?.result) return null;
+    return { ...(data.result as AgentRunResult), cached: true };
+  } catch {
+    return null;
+  }
+}
+
 /** Upserts the result into the Supabase cache. Fire-and-forget safe. */
 export async function setAgentCache(
   symbol: Symbol,
