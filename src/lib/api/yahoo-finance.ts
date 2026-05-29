@@ -4,7 +4,7 @@
  */
 
 const YAHOO_TICKER: Record<string, string> = {
-  "XAU/USD": "GC=F",
+  "XAU/USD": "XAUUSD=X",  // spot gold — GC=F is futures (+$10-30 premium, causes false SL hits)
   "EUR/USD": "EURUSD=X",
   "GBP/USD": "GBPUSD=X",
   "BTC/USD": "BTC-USD",
