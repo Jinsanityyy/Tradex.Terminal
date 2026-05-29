@@ -154,9 +154,11 @@ async function fetchMetals(): Promise<Record<string, any>> {
 
   try {
     const [goldRes, silverRes, oilRes] = await Promise.all([
-      fetch("https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=5d", { cache: "no-store" })
+      // XAUUSD=X = spot gold (matches TradingView OANDA:XAUUSD); GC=F is futures (~$30 premium)
+      fetch("https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD=X?interval=1d&range=5d", { cache: "no-store" })
         .then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch("https://query1.finance.yahoo.com/v8/finance/chart/SI=F?interval=1d&range=5d", { cache: "no-store" })
+      // XAGUSD=X = spot silver; SI=F is futures
+      fetch("https://query1.finance.yahoo.com/v8/finance/chart/XAGUSD=X?interval=1d&range=5d", { cache: "no-store" })
         .then(r => r.ok ? r.json() : null).catch(() => null),
       fetch("https://query1.finance.yahoo.com/v8/finance/chart/CL=F?interval=1d&range=5d", { cache: "no-store" })
         .then(r => r.ok ? r.json() : null).catch(() => null),
