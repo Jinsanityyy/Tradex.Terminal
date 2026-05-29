@@ -59,7 +59,8 @@ async function fetchCrypto(): Promise<Record<string, any>> {
 async function fetchForexRates(): Promise<Record<string, any>> {
   const results: Record<string, any> = {};
   try {
-    const currencies = "EUR,GBP,JPY,CAD,CHF,AUD,NZD";
+    // XAU/XAG included — fxratesapi returns LBMA spot prices matching TradingView
+    const currencies = "EUR,GBP,JPY,CAD,CHF,AUD,NZD,XAU,XAG";
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yyyymmdd = yesterday.toISOString().slice(0, 10);
@@ -94,6 +95,9 @@ async function fetchForexRates(): Promise<Record<string, any>> {
       "NZD/USD": (r) => 1 / r.NZD,
       "GBP/JPY": (r) => r.JPY / r.GBP,
       "EUR/GBP": (r) => r.GBP / r.EUR,
+      // Spot metals via LBMA rates — r.XAU = troy oz per USD, so invert for USD per oz
+      "XAU/USD": (r) => r.XAU ? 1 / r.XAU : 0,
+      "XAG/USD": (r) => r.XAG ? 1 / r.XAG : 0,
     };
 
     for (const [sym, calc] of Object.entries(forexMap)) {
@@ -114,9 +118,10 @@ async function fetchForexRates(): Promise<Record<string, any>> {
       const change = price - prevPrice;
       const pctChange = prevPrice > 0 ? (change / prevPrice) * 100 : 0;
 
+      const nameMap: Record<string, string> = { "XAU/USD": "Gold", "XAG/USD": "Silver" };
       results[sym] = {
         symbol: sym,
-        name: "",
+        name: nameMap[sym] ?? "",
         close: price.toString(),
         previous_close: prevPrice.toString(),
         change: change.toString(),
@@ -310,9 +315,9 @@ export async function GET() {
       rawCache[sym] = quote;
       newQuotes++;
     }
-    // Only use Yahoo Finance for metals/oil that Finnhub didn't cover
+    // Only use Yahoo Finance for metals/oil not already covered by Finnhub or fxratesapi
     for (const sym of ["XAU/USD", "XAG/USD", "CL"] as const) {
-      if (finnhubData[sym]) delete metalsData[sym];
+      if (finnhubData[sym] || forexData[sym]) delete metalsData[sym];
     }
     for (const [sym, quote] of Object.entries(metalsData)) {
       rawCache[sym] = quote;
