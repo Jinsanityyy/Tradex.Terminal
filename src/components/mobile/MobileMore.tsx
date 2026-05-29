@@ -568,11 +568,10 @@ export function MobileMore() {
 
   // ── Plan label ───────────────────────────────────────────────────────────
   const planLabel =
-    subscription.isElite   ? "ELITE" :
     subscription.isPro     ? "PRO" :
     subscription.isTrialing ? "TRIAL" : "FREE";
 
-  const isPaid = subscription.isPro || subscription.isElite;
+  const isPaid = subscription.isPro;
 
   // ── Main menu ────────────────────────────────────────────────────────────
   return (

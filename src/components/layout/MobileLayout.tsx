@@ -456,53 +456,21 @@ export function MobileLayout() {
             </div>
 
             {/* Upgrade section */}
-            {!subscription.isPro && !subscription.isElite && (
+            {!subscription.isPro && (
               <div className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Crown className="h-4 w-4 text-amber-400" />
-                  <span className="text-[13px] font-bold text-amber-300">Upgrade Plan</span>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => navigateToUpgrade(PLANS.pro.planId || null)}
-                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/30 active:opacity-70"
-                  >
-                    <div className="text-left">
-                      <p className="text-[12px] font-bold text-[hsl(var(--primary))]">Pro</p>
-                      <p className="text-[10px] text-zinc-500">Full terminal access</p>
-                    </div>
-                    <span className="text-[13px] font-black font-mono text-[hsl(var(--primary))]">$39/mo</span>
-                  </button>
-                  {"elite" in PLANS && (PLANS as any).elite?.planId ? (
-                    <button
-                      onClick={() => navigateToUpgrade((PLANS as any).elite.planId)}
-                      className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 active:opacity-70"
-                    >
-                      <div className="text-left">
-                        <p className="text-[12px] font-bold text-amber-400">Elite</p>
-                        <p className="text-[10px] text-zinc-500">Max edge + priority</p>
-                      </div>
-                      <span className="text-[13px] font-black font-mono text-amber-400">$99/mo</span>
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            )}
-            {subscription.isPro && !subscription.isElite && "elite" in PLANS && (PLANS as any).elite?.planId && (
-              <div className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Crown className="h-4 w-4 text-amber-400" />
-                  <span className="text-[13px] font-bold text-amber-300">Upgrade to Elite</span>
+                  <span className="text-[13px] font-bold text-amber-300">Upgrade to Pro</span>
                 </div>
                 <button
-                  onClick={() => navigateToUpgrade((PLANS as any).elite.planId)}
-                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 active:opacity-70"
+                  onClick={() => navigateToUpgrade(PLANS.pro.planId || null)}
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/30 active:opacity-70"
                 >
                   <div className="text-left">
-                    <p className="text-[12px] font-bold text-amber-400">Elite</p>
-                    <p className="text-[10px] text-zinc-500">Max edge + priority</p>
+                    <p className="text-[12px] font-bold text-[hsl(var(--primary))]">Pro</p>
+                    <p className="text-[10px] text-zinc-500">Full terminal access</p>
                   </div>
-                  <span className="text-[13px] font-black font-mono text-amber-400">$99/mo</span>
+                  <span className="text-[13px] font-black font-mono text-[hsl(var(--primary))]">$39/mo</span>
                 </button>
               </div>
             )}

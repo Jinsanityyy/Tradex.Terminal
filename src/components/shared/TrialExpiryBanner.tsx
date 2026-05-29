@@ -51,7 +51,7 @@ export function TrialExpiryBanner({ compact = false }: Props) {
 
   if (loading || dismissed) return null;
   // Already subscribed — nothing to show
-  if (subscription.isPro || subscription.isElite) return null;
+  if (subscription.isPro) return null;
 
   const { isTrialing, trialDaysLeft, trial_ends_at, hasFullAccess } = subscription;
 
