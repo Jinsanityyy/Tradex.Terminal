@@ -270,12 +270,12 @@ export function MobileHome() {
   // WebSocket live price for active symbol (most real-time)
   const livePrice: number | null = wsPrices.get(activeSymbol) ?? quotes.find(q => q.symbol === activeSymbol)?.price ?? null;
 
-  // Detect if live price has crossed SL of the open trade
+  // Detect if live price has crossed the displayed setup's SL
+  // Works even without a logged open trade — uses entry vs SL to infer direction
   const slHitByLivePrice = (() => {
-    if (!openTrade || livePrice == null) return false;
-    return openTrade.direction === "BUY"
-      ? livePrice <= openTrade.stopLoss
-      : livePrice >= openTrade.stopLoss;
+    if (livePrice == null || !stopLoss || !entry) return false;
+    const isLong = entry > stopLoss; // long = entry above SL
+    return isLong ? livePrice <= stopLoss : livePrice >= stopLoss;
   })();
 
   // Active session
