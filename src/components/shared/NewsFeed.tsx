@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn, timeAgo } from "@/lib/utils";
-import { Newspaper, TrendingUp, TrendingDown, Minus, Target } from "lucide-react";
+import { Newspaper, TrendingUp, TrendingDown, Minus, Target, ExternalLink } from "lucide-react";
 import type { NewsItem } from "@/types";
 import { DetailModal } from "./DetailModal";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -58,8 +58,8 @@ function NewsDetail({ item }: { item: NewsItem }) {
 
   return (
     <div className="space-y-5">
-      {/* Source + time */}
-      <div className="flex items-center gap-2">
+      {/* Source + time + category */}
+      <div className="flex items-center gap-2 flex-wrap">
         <span className="text-[11px] font-semibold text-zinc-300">{item.source}</span>
         <span className="text-zinc-700">·</span>
         <span className="text-[11px] text-zinc-500">{timeAgo(item.timestamp)}</span>
@@ -68,15 +68,26 @@ function NewsDetail({ item }: { item: NewsItem }) {
         </span>
       </div>
 
-      {/* Article body — summary is the main content */}
+      {/* Article body — full summary text */}
       {item.summary ? (
-        <p className="text-[14px] text-zinc-200 leading-[1.7] tracking-tight">
+        <p className="text-[14px] text-zinc-200 leading-[1.75] tracking-tight">
           {item.summary}
         </p>
       ) : (
-        <p className="text-[13px] text-zinc-400 leading-relaxed italic">
-          No article body available for this wire item.
+        <p className="text-[13px] text-zinc-500 leading-relaxed italic">
+          Wire flash — no article body. Tap "Read Full Article" to open source.
         </p>
+      )}
+
+      {/* Read Full Article button */}
+      {item.url && (
+        <button
+          onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/8 text-[hsl(var(--primary))] text-[12px] font-semibold active:opacity-70"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          Read Full Article
+        </button>
       )}
 
       {/* Divider */}
@@ -96,7 +107,7 @@ function NewsDetail({ item }: { item: NewsItem }) {
         )}
       </div>
 
-      {/* Impact score + sentiment row */}
+      {/* Sentiment + impact score + affected assets */}
       <div className="flex items-center gap-2 flex-wrap">
         <Badge variant={item.sentiment}>
           {item.sentiment === "bullish" ? "RISK-ON" : item.sentiment === "bearish" ? "RISK-OFF" : "NEUTRAL"}

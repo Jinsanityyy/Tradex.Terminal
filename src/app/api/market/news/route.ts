@@ -149,7 +149,7 @@ async function fetchFinnhubNews(key: string): Promise<NewsItem[]> {
 
     const raw: {
       id: number; headline: string; summary: string; source: string;
-      datetime: number; related: string;
+      datetime: number; related: string; url: string;
     }[] = await res.json();
 
     return raw.slice(0, 30).map((item, i) => {
@@ -164,8 +164,9 @@ async function fetchFinnhubNews(key: string): Promise<NewsItem[]> {
         sentiment: sent,
         impactScore: deriveImpact(item.headline),
         affectedAssets: extractAssets(item.headline + " " + (item.related ?? "")),
-        summary: item.summary?.slice(0, 250) ?? "",
+        summary: item.summary ?? "",
         source: item.source,
+        url: item.url || undefined,
         goldImpact, goldReasoning, usdImpact, usdReasoning,
       };
     });
@@ -201,6 +202,12 @@ async function fetchFinancialJuice(): Promise<NewsItem[]> {
         .trim();
       const pubDate = xmlField(block, "pubDate");
       const description = decodeHtmlEntities(xmlField(block, "description"));
+      // Extract article URL from <link> or <guid>
+      const rawLink = xmlField(block, "link");
+      const rawGuid = xmlField(block, "guid");
+      const articleUrl = (rawLink?.startsWith("http") ? rawLink : null)
+        ?? (rawGuid?.startsWith("http") ? rawGuid : null)
+        ?? undefined;
 
       const title = rawTitle;
       if (!title) continue;
@@ -220,8 +227,9 @@ async function fetchFinancialJuice(): Promise<NewsItem[]> {
         sentiment: sent,
         impactScore: deriveImpact(title),
         affectedAssets: extractAssets(title + " " + (description ?? "")),
-        summary: description?.slice(0, 250) ?? "",
+        summary: description ?? "",
         source: "FinancialJuice",
+        url: articleUrl,
         goldImpact, goldReasoning, usdImpact, usdReasoning,
       });
       i++;

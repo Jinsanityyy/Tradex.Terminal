@@ -191,6 +191,7 @@ export interface NewsItem {
   affectedAssets: string[];
   summary: string;
   source: string;
+  url?: string;
   goldImpact?: "bullish" | "bearish" | "neutral";
   goldReasoning?: string;
   usdImpact?: "bullish" | "bearish" | "neutral";
