@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useQuotes, useMarketBias, useKeyLevels, useCatalysts, useMarketAnalysis, useAgentResult, useSessions, useMTFBias, useTrumpPosts } from "@/hooks/useMarketData";
+import { useLivePrices } from "@/hooks/useLivePrices";
 import { TrendingUp, TrendingDown, Minus, Target, Zap, RefreshCw, Sparkles, ChevronDown, ChevronUp, Brain, BarChart2, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DetailModal } from "@/components/shared/DetailModal";
@@ -163,6 +164,22 @@ export function MobileHome() {
     : "XAUUSD";
 
   const { quotes } = useQuotes();
+  const livePrices = useLivePrices();
+
+  // Merge WebSocket per-tick prices on top of SWR quotes (% change still from SWR prev close)
+  const liveQuotes = useMemo(() => {
+    if (Object.keys(livePrices).length === 0) return quotes;
+    return quotes.map(q => {
+      const lp = livePrices[q.symbol];
+      if (!lp) return q;
+      const prevClose = q.changePercent != null && q.price > 0
+        ? q.price / (1 + q.changePercent / 100)
+        : q.price;
+      const newChange = prevClose > 0 ? ((lp - prevClose) / prevClose) * 100 : q.changePercent;
+      return { ...q, price: lp, changePercent: newChange };
+    });
+  }, [quotes, livePrices]);
+
   const { biasData } = useMarketBias();
   const { levels } = useKeyLevels();
   const { catalysts } = useCatalysts();
@@ -193,10 +210,9 @@ export function MobileHome() {
     ? settings.trackedAssets
     : DEFAULT_ASSETS;
   const displayQuotes = (() => {
-    const matched = keyAssets.map((sym) => quotes.find((q) => q.symbol === sym)).filter(Boolean) as typeof quotes;
-    // If nothing matched (e.g. stale localStorage with old format), fall back to defaults
-    if (matched.length === 0 && quotes.length > 0) {
-      return DEFAULT_ASSETS.map((sym) => quotes.find((q) => q.symbol === sym)).filter(Boolean) as typeof quotes;
+    const matched = keyAssets.map((sym) => liveQuotes.find((q) => q.symbol === sym)).filter(Boolean) as typeof quotes;
+    if (matched.length === 0 && liveQuotes.length > 0) {
+      return DEFAULT_ASSETS.map((sym) => liveQuotes.find((q) => q.symbol === sym)).filter(Boolean) as typeof quotes;
     }
     return matched;
   })();
