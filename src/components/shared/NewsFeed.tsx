@@ -49,13 +49,25 @@ function NewsDetail({ item }: { item: NewsItem }) {
   const divCls    = item.sentiment === "bullish" ? "border-emerald-500/15" : item.sentiment === "bearish" ? "border-red-500/15"    : "border-zinc-700/30";
   const iconCls   = item.sentiment === "bullish" ? "text-emerald-400"      : item.sentiment === "bearish" ? "text-red-400"         : "text-zinc-500";
 
+  const backdropBullet = item.sentiment === "bullish"
+    ? "Risk-on macro backdrop  —  broad risk appetite rising"
+    : item.sentiment === "bearish"
+    ? "Risk-off macro backdrop  —  defensive positioning expected"
+    : "Neutral macro backdrop  —  no strong directional signal";
+
+  // Only include reasoning bullet if it adds something beyond the generic backdrop text
+  const reasoningBullet = (() => {
+    const r = assetImpact.reasoning;
+    if (!r) return null;
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "").slice(0, 30);
+    if (norm(r) === norm(backdropBullet)) return null;
+    if (r.toLowerCase().startsWith("neutral macro backdrop")) return null;
+    return r;
+  })();
+
   const bullets: string[] = [
-    item.sentiment === "bullish"
-      ? "Risk-on macro backdrop  —  broad risk appetite rising"
-      : item.sentiment === "bearish"
-      ? "Risk-off macro backdrop  —  defensive positioning expected"
-      : "Neutral macro backdrop  —  no strong directional signal",
-    assetImpact.reasoning || null,
+    backdropBullet,
+    reasoningBullet,
     item.impactScore >= 8 ? `High impact score (${item.impactScore}/10)  —  warrants immediate attention and position review` : null,
   ].filter((b): b is string => Boolean(b));
 

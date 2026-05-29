@@ -194,10 +194,12 @@ async function fetchFinancialJuice(): Promise<NewsItem[]> {
 
     while ((match = itemRegex.exec(xml)) !== null && i < 40) {
       const block = match[1];
-      const title = xmlField(block, "title");
+      // FinancialJuice prefixes every title with "FinancialJuice: " — strip it
+      const rawTitle = xmlField(block, "title").replace(/^FinancialJuice:\s*/i, "").trim();
       const pubDate = xmlField(block, "pubDate");
       const description = xmlField(block, "description");
 
+      const title = rawTitle;
       if (!title) continue;
 
       const ts = pubDate ? new Date(pubDate) : new Date();
