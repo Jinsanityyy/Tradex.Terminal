@@ -16,11 +16,18 @@ import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelector
 type Tab = "live" | "catalysts" | "calendar" | "trump";
 
 const LIVE_CHANNELS = [
-  { id: "bloomberg", name: "Bloomberg", embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCIALMKvObZNtJ6AmdCLP7Lg&autoplay=1" },
-  { id: "cnbc",      name: "CNBC",      embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCrp_UI8XtuYfpiqluWLD7Lw&autoplay=1" },
-  { id: "reuters",   name: "Reuters",   embedUrl: "https://www.youtube.com/embed/live_stream?channel=UChqUTb7kYRX8-EiaN3XFrSQ&autoplay=1" },
-  { id: "aljazeera", name: "Al Jazeera",embedUrl: "https://www.youtube.com/embed/live_stream?channel=UCNye-wNBqNL5ZzHSJdse18g&autoplay=1" },
+  { id: "bloomberg", name: "Bloomberg", channelId: "UCIALMKvObZNtJ6AmdCLP7Lg" },
+  { id: "cnbc",      name: "CNBC",      channelId: "UCrp_UI8XtuYfpiqluWLD7Lw" },
+  { id: "reuters",   name: "Reuters",   channelId: "UChqUTb7kYRX8-EiaN3XFrSQ" },
+  { id: "aljazeera", name: "Al Jazeera",channelId: "UCNye-wNBqNL5ZzHSJdse18g" },
 ];
+
+const EMBED_PARAMS = "autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3";
+
+function buildEmbedUrl(videoId: string | null, channelId: string): string {
+  if (videoId) return `https://www.youtube-nocookie.com/embed/${videoId}?${EMBED_PARAMS}`;
+  return `https://www.youtube-nocookie.com/embed/live_stream?channel=${channelId}&${EMBED_PARAMS}`;
+}
 
 export function MobileFeed() {
   const { settings } = useSettings();
@@ -40,21 +47,34 @@ export function MobileFeed() {
   const [selectedEvent, setSelectedEvent] = useState<EconomicEvent | null>(null);
   const [selectedPost, setSelectedPost] = useState<TrumpPost | null>(null);
   const [feedTabActive, setFeedTabActive] = useState(true);
+  const [videoIds, setVideoIds] = useState<Record<string, string | null>>({});
+  const [tvLoading, setTvLoading] = useState(false);
   const liveIframeRef = useRef<HTMLIFrameElement>(null);
 
+  // Fetch actual live video IDs so we don't get "video unavailable" from stale channel embeds
   useEffect(() => {
+    setTvLoading(true);
+    fetch("/api/youtube/live")
+      .then(r => r.ok ? r.json() : [])
+      .then((data: { id: string; videoId: string | null }[]) => {
+        const map: Record<string, string | null> = {};
+        data.forEach(d => { map[d.id] = d.videoId; });
+        setVideoIds(map);
+      })
+      .catch(() => {})
+      .finally(() => setTvLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const stopIframe = () => { if (liveIframeRef.current) liveIframeRef.current.src = "about:blank"; };
     const onTabChange = (e: Event) => {
       const { active } = (e as CustomEvent<{ active: string }>).detail;
       const isActive = active === "feed";
-      if (!isActive && liveIframeRef.current) {
-        liveIframeRef.current.src = "about:blank";
-      }
+      if (!isActive) stopIframe();
       setFeedTabActive(isActive);
     };
     const onVisibility = () => {
-      if (document.hidden && liveIframeRef.current) {
-        liveIframeRef.current.src = "about:blank";
-      }
+      if (document.hidden) stopIframe();
       setFeedTabActive(!document.hidden);
     };
     document.addEventListener("tradex:mobile-tab-change", onTabChange);
@@ -64,6 +84,13 @@ export function MobileFeed() {
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
+
+  // Pause video when switching away from the Live sub-tab
+  useEffect(() => {
+    if (tab !== "live" && liveIframeRef.current) {
+      liveIframeRef.current.src = "about:blank";
+    }
+  }, [tab]);
 
   const tabs = [
     { id: "live" as Tab,      label: "Live",      Icon: Radio },
@@ -111,10 +138,22 @@ export function MobileFeed() {
             </div>
             <div className="px-3 pt-2 pb-1">
               <div className="rounded-xl overflow-hidden border border-white/5" style={{ aspectRatio: "16/9" }}>
-                {feedTabActive ? (
-                  <iframe ref={liveIframeRef} src={activeChannel.embedUrl} className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
-                    allowFullScreen title={activeChannel.name} />
+                {feedTabActive && tab === "live" ? (
+                  tvLoading ? (
+                    <div className="w-full h-full bg-black flex items-center justify-center">
+                      <div className="w-5 h-5 rounded-full border-2 border-zinc-700 border-t-zinc-400 animate-spin" />
+                    </div>
+                  ) : (
+                    <iframe
+                      ref={liveIframeRef}
+                      key={`${activeChannel.id}-${videoIds[activeChannel.id] ?? "fallback"}`}
+                      src={buildEmbedUrl(videoIds[activeChannel.id] ?? null, activeChannel.channelId)}
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      title={activeChannel.name}
+                    />
+                  )
                 ) : (
                   <div className="w-full h-full bg-black" />
                 )}
