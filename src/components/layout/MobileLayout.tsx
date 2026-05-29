@@ -1,7 +1,9 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { LayoutDashboard, TrendingUp, Zap, BarChart3, Users, Menu, Camera, LogOut, X, Lock, Clock } from "lucide-react";
+import { LayoutDashboard, TrendingUp, Zap, BarChart3, Users, Menu, Camera, LogOut, X, Crown } from "lucide-react";
+import { PLANS } from "@/lib/plans";
+import { useSubscription } from "@/hooks/useSubscription";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import { cn } from "@/lib/utils";
 import { MobileHome } from "@/components/mobile/MobileHome";
@@ -11,9 +13,11 @@ import { MobileBrain } from "@/components/mobile/MobileBrain";
 import { MobileMore } from "@/components/mobile/MobileMore";
 import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { createClient } from "@/lib/supabase/client";
-import { useSubscription } from "@/hooks/useSubscription";
+import { toast } from "sonner";
 import { NotificationToast } from "@/components/shared/NotificationToast";
 import { LoginTransitionOverlay } from "@/components/shared/LoginTransitionOverlay";
+import { useFcmPush } from "@/hooks/useFcmPush";
+import { TrialExpiryBanner } from "@/components/shared/TrialExpiryBanner";
 
 const TRADER_NAME_KEY = "tradex_trader_name";
 
@@ -27,7 +31,38 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
+const PAYPAL_BASE = "https://www.paypal.com/billing/subscriptions/subscribe";
+
+function buildPayPalUrl(planId: string): string {
+  const successUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/m?subscribed=1`
+    : "https://tradex-ten.vercel.app/m?subscribed=1";
+  return `${PAYPAL_BASE}?plan_id=${planId}&redirect_url=${encodeURIComponent(successUrl)}`;
+}
+
+function isNativeApp(): boolean {
+  if (typeof window === "undefined") return false;
+  if ((window as any).Capacitor?.isNativePlatform?.()) return true;
+  if (window.matchMedia?.("(display-mode: standalone)").matches) return true;
+  return false;
+}
+
+function navigateToUpgrade(planId: string | null | undefined) {
+  if (!planId) {
+    window.location.href = "/pricing";
+    return;
+  }
+  const url = buildPayPalUrl(planId);
+  if (isNativeApp()) {
+    window.open(url, "_system");
+  } else {
+    window.location.href = url;
+  }
+}
+
 export function MobileLayout() {
+  useFcmPush();
+  const { subscription } = useSubscription();
   const [active, setActive] = useState<TabId>("home");
   const [mounted, setMounted] = useState<Set<TabId>>(new Set(["home"]));
   const [transitioning, setTransitioning] = useState(false);
@@ -44,12 +79,13 @@ export function MobileLayout() {
   const [unreadFeed, setUnreadFeed] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMounted, setDrawerMounted] = useState(false);
-  const { subscription } = useSubscription();
   const fileRef = useRef<HTMLInputElement>(null);
   const activeRef = useRef(active);
-  const swipeTouchStartX = useRef(0);
-  const swipeTouchStartY = useRef(0);
+  const traderNameRef = useRef(traderName);
+  const swipeTouchStartX = useRef<number>(0);
+  const swipeTouchStartY = useRef<number>(0);
   activeRef.current = active;
+  traderNameRef.current = traderName;
 
   function openDrawer() {
     setDrawerMounted(true);
@@ -74,6 +110,23 @@ export function MobileLayout() {
     if (!drawerOpen && dx > 0) openDrawer();
     if (drawerOpen && dx < 0) closeDrawer();
   }
+
+  useEffect(() => {
+    let hiddenAt = 0;
+    const RELOAD_AFTER_MS = 10 * 60 * 1000; // reload if hidden > 10 min
+
+    function onVisibility() {
+      if (document.hidden) {
+        hiddenAt = Date.now();
+      } else if (hiddenAt > 0 && Date.now() - hiddenAt > RELOAD_AFTER_MS) {
+        // Phone was asleep a long time — reload so data + auth state are fresh
+        window.location.reload();
+      }
+    }
+
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
 
   useEffect(() => {
     setTimeout(() => setSplashDone(true), 1500);
@@ -107,47 +160,63 @@ export function MobileLayout() {
       })
       .catch(() => {});
 
-    // Listen for new chat messages  -  increment badge
+    // Listen for new chat messages — badge + @mention notification
+    // Single source: realtime only (no polling to avoid double-counting)
     let myUserId: string | null = null;
-    supabase.auth.getUser().then(({ data }) => { myUserId = data.user?.id ?? null; });
-
-    let lastMessageId: string | null = null;
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    const timer = setTimeout(() => {
-      // Try realtime first
+    supabase.auth.getUser().then(({ data }) => {
+      myUserId = data.user?.id ?? null;
+
       channel = supabase
         .channel("badge-listener", { config: { broadcast: { self: false } } })
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
-          const msg = payload.new as { user_id: string };
-          if (msg.user_id === myUserId) return;
-          setUnreadChat(n => n + 1);
-        })
-        .subscribe();
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "messages" },
+          (payload) => {
+            const msg = payload.new as {
+              id: string;
+              user_id: string;
+              display_name: string | null;
+              content: string;
+              recipient_id: string | null;
+            };
+            // Ignore DMs and own messages
+            if (msg.recipient_id) return;
+            if (msg.user_id === myUserId) return;
 
-      // Polling fallback  -  check for new messages every 10s
-      const poll = setInterval(async () => {
-        try {
-          const { data } = await supabase
-            .from("messages")
-            .select("id, user_id")
-            .order("created_at", { ascending: false })
-            .limit(1);
-          if (data && data[0]) {
-            const latest = data[0];
-            if (lastMessageId && latest.id !== lastMessageId && latest.user_id !== myUserId) {
+            // Always increment badge when chat tab is not active
+            if (activeRef.current !== "community") {
               setUnreadChat(n => n + 1);
             }
-            lastMessageId = latest.id;
-          }
-        } catch {}
-      }, 10_000);
 
-      return () => clearInterval(poll);
-    }, 1500);
+            // @mention detection — check if message tags the current user
+            const myName = traderNameRef.current.replace(/\s+/g, "").toLowerCase();
+            const isMentioned = myName.length > 0 &&
+              msg.content.toLowerCase().includes(`@${myName}`);
+
+            if (isMentioned) {
+              const sender = msg.display_name ?? "Someone";
+              toast(`🔔 ${sender} mentioned you`, {
+                description: msg.content.slice(0, 80),
+                duration: 6000,
+              });
+              if (typeof Notification !== "undefined" &&
+                  Notification.permission === "granted" &&
+                  document.hidden) {
+                if (navigator.serviceWorker?.controller) {
+                  navigator.serviceWorker.ready.then(reg => reg.showNotification(`🔔 ${sender} mentioned you`, { body: msg.content.slice(0, 80), icon: "/logo.png" })).catch(() => {});
+                } else {
+                  try { new Notification(`🔔 ${sender} mentioned you`, { body: msg.content.slice(0, 80), icon: "/logo.png" }); } catch {}
+                }
+              }
+            }
+          }
+        )
+        .subscribe();
+    });
 
     return () => {
-      clearTimeout(timer);
       if (channel) supabase.removeChannel(channel);
     };
   }, []);
@@ -230,9 +299,9 @@ export function MobileLayout() {
     if (transitionTimer.current) clearTimeout(transitionTimer.current);
     transitionTimer.current = setTimeout(() => setTransitioning(false), 180);
     if (id === "home") {
-      // Give the DOM one frame to become visible before telling the globe to re-sync
       setTimeout(() => window.dispatchEvent(new Event("tradex-home-active")), 50);
     }
+    document.dispatchEvent(new CustomEvent("tradex:mobile-tab-change", { detail: { active: id } }));
   }, [active]);
 
   useEffect(() => {
@@ -247,7 +316,7 @@ export function MobileLayout() {
     };
     document.addEventListener("tradex:open-more", handler);
     return () => document.removeEventListener("tradex:open-more", handler);
-  }, [switchTab]);
+  }, []);
 
   async function handleLogout() {
     const supabase = createClient();
@@ -258,20 +327,15 @@ export function MobileLayout() {
   if (!ready || !splashDone) {
     return (
       <div className="flex flex-col h-screen w-full items-center justify-center bg-[hsl(var(--background))] gap-6">
-        {/* Logo with glow pulse */}
         <div className="relative flex items-center justify-center">
           <div className="absolute w-28 h-28 rounded-full bg-[hsl(var(--primary))]/15 animate-ping" style={{ animationDuration: "1.8s" }} />
           <div className="absolute w-20 h-20 rounded-full bg-[hsl(var(--primary))]/10 animate-pulse" />
           <TradeXLogo variant="icon" size="xl" className="relative z-10" />
         </div>
-
-        {/* Brand name */}
         <div className="text-center space-y-1">
           <p className="text-[13px] font-bold tracking-[0.25em] uppercase text-zinc-300">TradeX Terminal</p>
           <p className="text-[10px] text-zinc-600 tracking-widest uppercase">Loading your workspace…</p>
         </div>
-
-        {/* Dot loader */}
         <div className="flex gap-1.5">
           {[0, 1, 2].map(i => (
             <div
@@ -288,22 +352,31 @@ export function MobileLayout() {
   const NO_SCROLL_TABS = new Set(["chart", "community", "feed", "brain"]);
 
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden bg-[hsl(var(--background))]">
+    <div
+      className="flex flex-col h-screen w-full overflow-hidden bg-[hsl(var(--background))]"
+      onTouchStart={onSwipeTouchStart}
+      onTouchEnd={onSwipeTouchEnd}
+    >
       <LoginTransitionOverlay />
       <NotificationToast />
+
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 pb-2 bg-[hsl(var(--background))] border-b border-white/5 shrink-0" style={{ paddingTop: "max(2.5rem, env(safe-area-inset-top))" }}>
-        <TradeXLogo variant="wordmark" size="xs" />
+      <div className="flex items-center justify-between px-4 pt-10 pb-2 bg-[hsl(var(--background))] border-b border-white/5 shrink-0">
+        <div className="flex items-center gap-3">
+          {/* Hamburger — opens features drawer */}
+          <button
+            onClick={openDrawer}
+            className="flex items-center justify-center w-7 h-7 rounded-lg border border-white/10 bg-white/[0.03] active:bg-white/10"
+          >
+            <Menu className="h-4 w-4 text-zinc-400" />
+          </button>
+          <TradeXLogo variant="wordmark" size="xs" />
+        </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--primary))] animate-pulse" />
             <span className="text-[9px] text-[hsl(var(--primary))] font-medium tracking-wider uppercase">Live</span>
           </div>
-          {/* Hamburger menu */}
-          <button onClick={openDrawer}
-            className="flex items-center justify-center w-7 h-7 rounded-lg border border-white/10 active:opacity-70">
-            <Menu className="w-4 h-4 text-zinc-400" />
-          </button>
           {/* Profile button */}
           <button onClick={() => { setShowProfile(true); setDraft(traderName); setEditing(false); }}
             className="flex items-center justify-center w-7 h-7 rounded-full overflow-hidden border border-white/10">
@@ -321,9 +394,9 @@ export function MobileLayout() {
 
       {/* Profile modal */}
       {showProfile && (
-        <div className="absolute inset-0 z-50 flex flex-col" style={{ background: "rgba(0,0,0,0.8)" }}
+        <div className="absolute inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.8)" }}
           onClick={() => setShowProfile(false)}>
-          <div className="mt-auto rounded-t-3xl bg-[hsl(var(--card))] p-5 pb-10"
+          <div className="w-full max-w-sm rounded-3xl bg-[hsl(var(--card))] p-5"
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <span className="text-[14px] font-semibold">Profile</span>
@@ -382,6 +455,58 @@ export function MobileLayout() {
               )}
             </div>
 
+            {/* Upgrade section */}
+            {!subscription.isPro && !subscription.isElite && (
+              <div className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Crown className="h-4 w-4 text-amber-400" />
+                  <span className="text-[13px] font-bold text-amber-300">Upgrade Plan</span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => navigateToUpgrade(PLANS.pro.planId || null)}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/30 active:opacity-70"
+                  >
+                    <div className="text-left">
+                      <p className="text-[12px] font-bold text-[hsl(var(--primary))]">Pro</p>
+                      <p className="text-[10px] text-zinc-500">Full terminal access</p>
+                    </div>
+                    <span className="text-[13px] font-black font-mono text-[hsl(var(--primary))]">$39/mo</span>
+                  </button>
+                  {"elite" in PLANS && (PLANS as any).elite?.planId ? (
+                    <button
+                      onClick={() => navigateToUpgrade((PLANS as any).elite.planId)}
+                      className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 active:opacity-70"
+                    >
+                      <div className="text-left">
+                        <p className="text-[12px] font-bold text-amber-400">Elite</p>
+                        <p className="text-[10px] text-zinc-500">Max edge + priority</p>
+                      </div>
+                      <span className="text-[13px] font-black font-mono text-amber-400">$99/mo</span>
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            )}
+            {subscription.isPro && !subscription.isElite && "elite" in PLANS && (PLANS as any).elite?.planId && (
+              <div className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Crown className="h-4 w-4 text-amber-400" />
+                  <span className="text-[13px] font-bold text-amber-300">Upgrade to Elite</span>
+                </div>
+                <button
+                  onClick={() => navigateToUpgrade((PLANS as any).elite.planId)}
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 active:opacity-70"
+                >
+                  <div className="text-left">
+                    <p className="text-[12px] font-bold text-amber-400">Elite</p>
+                    <p className="text-[10px] text-zinc-500">Max edge + priority</p>
+                  </div>
+                  <span className="text-[13px] font-black font-mono text-amber-400">$99/mo</span>
+                </button>
+              </div>
+            )}
+
             {/* Sign out */}
             <button onClick={handleLogout}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-red-500/20 bg-red-500/5 text-[13px] text-red-400">
@@ -392,32 +517,11 @@ export function MobileLayout() {
         </div>
       )}
 
-      {/* Trial Banner */}
-      {subscription.isTrialing && (
-        <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2 bg-amber-500/10 border-b border-amber-500/20">
-          <div className="flex items-center gap-2 min-w-0">
-            <Clock className="h-3 w-3 text-amber-400 shrink-0" />
-            <span className="text-[11px] text-amber-400 font-medium truncate">
-              Free trial — <span className="font-bold">{subscription.trialDaysLeft} day{subscription.trialDaysLeft !== 1 ? "s" : ""} left</span>
-            </span>
-          </div>
-          <button
-            onClick={() => {
-              // Navigate to more tab → pricing or open pricing
-              document.dispatchEvent(new CustomEvent("tradex:open-app", { detail: { appId: "pricing" } }));
-              window.location.href = "/pricing";
-            }}
-            className="shrink-0 rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-[10px] font-bold text-amber-400 active:opacity-70"
-          >
-            Upgrade
-          </button>
-        </div>
-      )}
+      {/* Trial expiry banner — shown when trial ≤ 2 days or expired */}
+      <TrialExpiryBanner compact />
 
       {/* Page content — all mounted tabs stay alive, stacked absolutely */}
-      <div className="relative flex-1 min-h-0 overflow-hidden"
-        onTouchStart={onSwipeTouchStart}
-        onTouchEnd={onSwipeTouchEnd}>
+      <div className="relative flex-1 min-h-0 overflow-hidden">
         {TABS.map(({ id }) => {
           if (!mounted.has(id)) return null;
           const isActive = active === id;
@@ -447,7 +551,8 @@ export function MobileLayout() {
           />
         )}
 
-        {/* Left-side features drawer — backdrop */}
+        {/* Left-side features drawer */}
+        {/* Backdrop */}
         <div
           className={cn(
             "absolute inset-0 z-40 bg-black/60 transition-opacity duration-300",
@@ -455,20 +560,21 @@ export function MobileLayout() {
           )}
           onClick={closeDrawer}
         />
-        {/* Left-side features drawer — panel */}
+        {/* Drawer panel */}
         <div
           className={cn(
             "absolute top-0 left-0 bottom-0 z-50 w-[88%] bg-[hsl(var(--background))] shadow-2xl transition-transform duration-300 ease-out flex flex-col",
             drawerOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
+          {/* Drawer content — MobileMore mounted on first open, kept alive after */}
           <div className="flex-1 min-h-0 overflow-hidden">
             {drawerMounted && <MobileMore />}
           </div>
         </div>
       </div>
 
-      {/* Bottom tab bar — safe-area-inset-bottom ensures home bar never overlaps on iOS/Android */}
+      {/* Bottom tab bar */}
       <div
         className="shrink-0 border-t border-white/5 bg-[hsl(var(--card))]"
         style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}

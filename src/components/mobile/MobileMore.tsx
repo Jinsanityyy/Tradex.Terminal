@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  Calendar, TrendingUp, Activity,
-  Radio, Brain, Clock, History, DollarSign,
-  Shield, AtSign, Newspaper, LayoutGrid, Tv,
-  ChevronLeft, ChevronRight, GraduationCap, Zap, Lock
+  TrendingUp, Brain, Clock, LayoutGrid,
+  AlertTriangle, Calendar, Activity, Rss,
+  DollarSign, Tv, BookOpen, Settings2,
+  ChevronLeft, Bell, BellOff, Loader2, Crown,
+  Zap, BarChart2,
 } from "lucide-react";
 import { MobileBrain } from "@/components/mobile/MobileBrain";
 import { MobileFeatureGate } from "@/components/mobile/MobileFeatureGate";
@@ -13,239 +14,666 @@ import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelector
 import { TradingKnowledgeContent } from "@/components/shared/TradingKnowledgeSidebar";
 import { CandleAnalysis } from "@/components/shared/CandleAnalysis";
 import { useSubscription } from "@/hooks/useSubscription";
-
-// Lazy load only pages that don't have routing issues
+import { toast } from "sonner";
 import dynamic from "next/dynamic";
+import { cn } from "@/lib/utils";
 
-const MarketBiasPage     = dynamic(() => import("@/app/dashboard/market-bias/page"),          { ssr: false });
-const CatalystsPage      = dynamic(() => import("@/app/dashboard/catalysts/page"),            { ssr: false });
-const CalendarPage       = dynamic(() => import("@/app/dashboard/economic-calendar/page"),    { ssr: false });
-const TrumpPage          = dynamic(() => import("@/app/dashboard/trump-monitor/page"),        { ssr: false });
-const SignalsPage        = dynamic(() => import("@/app/dashboard/signals/page"),              { ssr: false });
-const NewsFlowPage       = dynamic(() => import("@/app/dashboard/news-flow/page"),            { ssr: false });
-const SessionIntelPage   = dynamic(() => import("@/app/dashboard/session-intelligence/page"), { ssr: false });
-const AssetMatrixPage    = dynamic(() => import("@/app/dashboard/asset-matrix/page"),         { ssr: false });
-const MarketIntelPage    = dynamic(() => import("@/app/dashboard/market-intelligence/page"),  { ssr: false });
-const PnlCalendarPage    = dynamic(() => import("@/app/dashboard/pnl-calendar/page"),        { ssr: false });
-const SettingsPage       = dynamic(() => import("@/app/dashboard/settings/page"),             { ssr: false });
-const LiveTVPage         = dynamic(() => import("@/app/dashboard/live-tv/page"),               { ssr: false });
+const MarketBiasPage   = dynamic(() => import("@/app/dashboard/market-bias/page"),          { ssr: false });
+const CatalystsPage    = dynamic(() => import("@/app/dashboard/catalysts/page"),            { ssr: false });
+const CalendarPage     = dynamic(() => import("@/app/dashboard/economic-calendar/page"),    { ssr: false });
+const TrumpPage        = dynamic(() => import("@/app/dashboard/trump-monitor/page"),        { ssr: false });
+const SignalsPage      = dynamic(() => import("@/app/dashboard/signals/page"),              { ssr: false });
+const NewsFlowPage     = dynamic(() => import("@/app/dashboard/news-flow/page"),            { ssr: false });
+const SessionIntelPage = dynamic(() => import("@/app/dashboard/session-intelligence/page"), { ssr: false });
+const AssetMatrixPage  = dynamic(() => import("@/app/dashboard/asset-matrix/page"),         { ssr: false });
+const MarketIntelPage  = dynamic(() => import("@/app/dashboard/market-intelligence/page"),  { ssr: false });
+const PnlCalendarPage  = dynamic(() => import("@/app/dashboard/pnl-calendar/page"),        { ssr: false });
+const SettingsPage     = dynamic(() => import("@/app/dashboard/settings/page"),             { ssr: false });
+const LiveTVPage       = dynamic(() => import("@/app/dashboard/live-tv/page"),               { ssr: false });
 
 interface AppDef {
   id: string;
   label: string;
-  icon: React.FC<{ className?: string; style?: React.CSSProperties }>;
-  color: string;
+  icon: React.FC<{ className?: string; strokeWidth?: number }>;
   component: React.ComponentType;
   proOnly?: boolean;
 }
 
 const ALL_APPS: AppDef[] = [
-  // ── Analysis (Pro) ─────────────────────────────────────────────────────────
-  { id: "market-bias",          label: "Market Bias",     icon: TrendingUp,    color: "#10b981", component: MarketBiasPage,     proOnly: true },
-  { id: "market-intelligence",  label: "Intelligence",    icon: Brain,         color: "#8b5cf6", component: MarketIntelPage,    proOnly: true },
-  { id: "asset-matrix",         label: "Asset Matrix",    icon: LayoutGrid,    color: "#3b82f6", component: AssetMatrixPage,    proOnly: true },
-  { id: "session-intelligence", label: "Sessions",        icon: Clock,         color: "#f59e0b", component: SessionIntelPage,   proOnly: true },
-  // ── News & Events (mixed) ──────────────────────────────────────────────────
-  { id: "catalysts",            label: "Catalysts",       icon: Newspaper,     color: "#ef4444", component: CatalystsPage,      proOnly: true },
-  { id: "economic-calendar",    label: "Calendar",        icon: Calendar,      color: "#3b82f6", component: CalendarPage },
-  { id: "trump-monitor",        label: "Trump",           icon: AtSign,        color: "#f59e0b", component: TrumpPage,          proOnly: true },
-  { id: "news-flow",            label: "News Flow",       icon: Radio,         color: "#10b981", component: NewsFlowPage },
-  { id: "live-tv",              label: "Live TV",         icon: Tv,            color: "#6366f1", component: LiveTVPage },
-  // ── Trading (mixed) ────────────────────────────────────────────────────────
-  { id: "signals",              label: "Signals",         icon: Activity,      color: "#10b981", component: SignalsPage },
-  { id: "pnl-calendar",         label: "PnL Calendar",   icon: DollarSign,    color: "#f59e0b", component: PnlCalendarPage },
-  { id: "brain",                label: "Brain Terminal",  icon: Brain,         color: "#8b5cf6", component: MobileBrain },
-  { id: "candle-analysis",      label: "Candle Analysis", icon: Zap,           color: "#7c3aed", component: CandleAnalysis,     proOnly: true },
-  // ── Account (free) ─────────────────────────────────────────────────────────
-  { id: "knowledge",            label: "Knowledge",       icon: GraduationCap, color: "#a78bfa", component: TradingKnowledgeContent },
-  { id: "settings",             label: "Settings",        icon: Shield,        color: "#6b7280", component: SettingsPage },
+  { id: "market-bias",          label: "Market Direction",  icon: TrendingUp,    component: MarketBiasPage,            proOnly: true  },
+  { id: "asset-matrix",         label: "Cross-Asset",       icon: LayoutGrid,    component: AssetMatrixPage,           proOnly: true  },
+  { id: "session-intelligence", label: "Trading Sessions",  icon: Clock,         component: SessionIntelPage,          proOnly: true  },
+  { id: "market-intelligence",  label: "Insights",          icon: Brain,         component: MarketIntelPage,           proOnly: true  },
+  { id: "signals",              label: "Signals",           icon: Activity,      component: SignalsPage                               },
+  { id: "catalysts",            label: "Macro Events",      icon: AlertTriangle, component: CatalystsPage,             proOnly: true  },
+  { id: "trump-monitor",        label: "Trump Monitor",     icon: BarChart2,     component: TrumpPage,                 proOnly: true  },
+  { id: "news-flow",            label: "News Feed",         icon: Rss,           component: NewsFlowPage                              },
+  { id: "economic-calendar",    label: "Calendar",          icon: Calendar,      component: CalendarPage                              },
+  { id: "pnl-calendar",         label: "P&L Tracker",       icon: DollarSign,    component: PnlCalendarPage,           proOnly: true  },
+  { id: "candle-analysis",      label: "Candle Analysis",   icon: Zap,           component: CandleAnalysis,            proOnly: true  },
+  { id: "brain",                label: "AI Desk",           icon: Brain,         component: MobileBrain                               },
+  { id: "live-tv",              label: "Live Feed",         icon: Tv,            component: LiveTVPage                                },
+  { id: "knowledge",            label: "Knowledge Base",    icon: BookOpen,      component: TradingKnowledgeContent                   },
+  { id: "settings",             label: "Settings",          icon: Settings2,     component: SettingsPage                              },
 ];
 
-const FOLDERS = [
-  {
-    id: "analysis",
-    label: "Analysis",
-    color: "#3b82f6",
-    appIds: ["market-bias", "market-intelligence", "asset-matrix", "session-intelligence"],
-  },
-  {
-    id: "news",
-    label: "News & Events",
-    color: "#ef4444",
-    appIds: ["catalysts", "economic-calendar", "trump-monitor", "news-flow", "live-tv"],
-  },
-  {
-    id: "trading",
-    label: "Trading",
-    color: "#10b981",
-    appIds: ["signals", "pnl-calendar", "brain", "candle-analysis"],
-  },
+const SECTIONS = [
+  { label: "MARKET",       appIds: ["market-bias", "asset-matrix", "session-intelligence"] },
+  { label: "INTELLIGENCE", appIds: ["market-intelligence", "signals"] },
+  { label: "MACRO",        appIds: ["catalysts", "trump-monitor", "news-flow", "economic-calendar"] },
+  { label: "TOOLS",        appIds: ["pnl-calendar", "candle-analysis", "brain", "live-tv"] },
 ];
+
+// ── Micro data ─────────────────────────────────────────────────────────────
+
+type BiasDir = "bullish" | "bearish" | "neutral" | null;
+
+interface MicroData {
+  direction: BiasDir;
+  openSignals: number | null;
+  session: string | null;
+  winRate: number | null;
+  avgRR: number | null;
+}
+
+function getActiveSession(): string | null {
+  const now = new Date();
+  const t = now.getUTCHours() * 60 + now.getUTCMinutes();
+  if (t >= 13 * 60 && t < 17 * 60) return "NY+LDN";
+  if (t >= 13 * 60 && t < 22 * 60) return "NY";
+  if (t >= 8 * 60 && t < 17 * 60) return "LDN";
+  if (t >= 0 * 60 && t < 9 * 60)  return "TYO";
+  if (t >= 22 * 60 || t < 7 * 60) return "SYD";
+  return null;
+}
+
+function useMicroData(): MicroData {
+  const [data, setData] = useState<MicroData>({
+    direction: null,
+    openSignals: null,
+    session: getActiveSession(),
+    winRate: null,
+    avgRR: null,
+  });
+
+  useEffect(() => {
+    const tick = () => setData((d: MicroData) => ({ ...d, session: getActiveSession() }));
+    const id = setInterval(tick, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // 24 h — direction + open count
+  useEffect(() => {
+    fetch("/api/signals?limit=20&period=24h")
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (!json) return;
+        const recent = (json.recent ?? []) as Array<{ status: string; finalBias?: string }>;
+        const open = recent.filter(s => s.status === "open").length;
+        const last = recent.find(s => s.finalBias && s.finalBias !== "no-trade");
+        const dir: BiasDir =
+          last?.finalBias === "bullish" ? "bullish" :
+          last?.finalBias === "bearish" ? "bearish" :
+          last ? "neutral" : null;
+        setData((d: MicroData) => ({ ...d, openSignals: open, direction: dir }));
+      })
+      .catch(() => {});
+  }, []);
+
+  // 7 d — win rate + avg R:R for the P&L widget
+  useEffect(() => {
+    fetch("/api/signals?limit=100&period=7d")
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (!json) return;
+        const recent = (json.recent ?? []) as Array<{
+          status: string;
+          tradePlan?: { rrRatio?: number };
+        }>;
+        const closed = recent.filter(s =>
+          ["win_tp1", "win_tp2", "loss_sl"].includes(s.status)
+        );
+        const wins = closed.filter(s => s.status.startsWith("win_")).length;
+        const winRate = closed.length >= 3
+          ? Math.round((wins / closed.length) * 100)
+          : null;
+        const rrs = recent
+          .map(s => s.tradePlan?.rrRatio)
+          .filter((r): r is number => typeof r === "number" && r > 0);
+        const avgRR = rrs.length >= 3
+          ? parseFloat((rrs.reduce((a, b) => a + b, 0) / rrs.length).toFixed(1))
+          : null;
+        setData(d => ({ ...d, winRate, avgRR }));
+      })
+      .catch(() => {});
+  }, []);
+
+  return data;
+}
+
+type TagVariant = "green" | "red" | "amber" | "muted";
+
+function getAppTag(
+  id: string,
+  micro: MicroData
+): { tag?: string; variant?: TagVariant } {
+  switch (id) {
+    case "market-bias":
+      if (!micro.direction) return {};
+      return micro.direction === "bullish" ? { tag: "BULLISH", variant: "green" }
+           : micro.direction === "bearish" ? { tag: "BEARISH", variant: "red"   }
+           :                                 { tag: "NEUTRAL",  variant: "muted" };
+    case "session-intelligence":
+      return micro.session
+        ? { tag: micro.session, variant: "green" }
+        : { tag: "CLOSED", variant: "muted" };
+    case "signals":
+      if (micro.openSignals === null) return {};
+      return micro.openSignals > 0
+        ? { tag: `${micro.openSignals} OPEN`, variant: "green" }
+        : { tag: "NONE", variant: "muted" };
+    case "news-flow":
+      return { tag: "LIVE", variant: "green" };
+    case "trump-monitor":
+      return { tag: "MONITOR", variant: "amber" };
+    default:
+      return {};
+  }
+}
+
+// ── P&L Summary Widget ─────────────────────────────────────────────────────
+
+function StatCell({
+  label, value, sub, valueClass,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  valueClass?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-[4px]">
+      <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-zinc-600 leading-none">
+        {label}
+      </span>
+      <span className={cn("text-[13px] font-semibold leading-none tabular-nums", valueClass ?? "text-zinc-100")}>
+        {value}
+      </span>
+      {sub && (
+        <span className="text-[9px] font-mono leading-none text-zinc-600">
+          {sub}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function PnlWidget({ micro }: { micro: MicroData }) {
+  // Wire to a real P&L endpoint when available (e.g. /api/pnl/summary → { dailyPnl, dailyPnlPct })
+  const dailyPnl: number | null    = null;
+  const dailyPnlPct: number | null = null;
+
+  const pnlValue = dailyPnl !== null
+    ? `${dailyPnl >= 0 ? "+" : ""}$${Math.abs(dailyPnl).toFixed(2)}`
+    : "—";
+  const pnlSub = dailyPnl !== null && dailyPnlPct !== null
+    ? `(${dailyPnl >= 0 ? "+" : ""}${dailyPnlPct.toFixed(2)}%)`
+    : undefined;
+  const pnlClass = dailyPnl === null
+    ? "text-zinc-700"
+    : dailyPnl >= 0
+    ? "text-emerald-400"
+    : "text-red-400";
+
+  const sessionLabel = micro.session ?? "CLOSED";
+  const sessionSub   = micro.session ? "ACTIVE" : undefined;
+  const sessionClass = micro.session ? "text-zinc-100" : "text-zinc-600";
+
+  return (
+    <div className="mt-1">
+      <div className="h-px bg-white/[0.05] mx-4 mb-[14px]" />
+      <div className="px-4 pb-5 grid grid-cols-2 gap-x-3 gap-y-[14px]">
+        <StatCell
+          label="Daily P&L"
+          value={pnlValue}
+          sub={pnlSub}
+          valueClass={pnlClass}
+        />
+        <StatCell
+          label="Session"
+          value={sessionLabel}
+          sub={sessionSub}
+          valueClass={sessionClass}
+        />
+        <StatCell
+          label="Win Rate (7d)"
+          value={micro.winRate !== null ? `${micro.winRate}%` : "—"}
+          valueClass={micro.winRate !== null ? "text-zinc-100" : "text-zinc-700"}
+        />
+        <StatCell
+          label="Avg R:R"
+          value={micro.avgRR !== null ? `1 : ${micro.avgRR}` : "—"}
+          valueClass={micro.avgRR !== null ? "text-zinc-100" : "text-zinc-700"}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── AppRow ─────────────────────────────────────────────────────────────────
+
+function AppRow({
+  app, onPress, isLocked, tag, variant, isActive,
+}: {
+  app: AppDef;
+  onPress: () => unknown;
+  isLocked: boolean;
+  tag?: string;
+  variant?: TagVariant;
+  isActive?: boolean;
+}) {
+  const Icon = app.icon;
+  const tagColors: Record<TagVariant, string> = {
+    green: "text-emerald-400",
+    red:   "text-red-400",
+    amber: "text-amber-500",
+    muted: "text-zinc-600",
+  };
+
+  return (
+    <button
+      onClick={onPress}
+      className={cn(
+        "w-full flex items-center gap-3 px-4 py-[7px] active:bg-white/[0.04] transition-colors cursor-pointer",
+        isActive && "border-l-2 border-emerald-500 bg-white/[0.03] !pl-[14px]"
+      )}
+    >
+      <Icon
+        className={cn(
+          "h-3 w-3 shrink-0",
+          isLocked ? "text-zinc-700 opacity-40" : "text-zinc-400 opacity-50"
+        )}
+        strokeWidth={1.5}
+      />
+      <span className={cn(
+        "flex-1 text-[11.5px] text-left leading-none tracking-[0.01em]",
+        isLocked ? "text-zinc-600 font-normal" : "text-zinc-200 font-medium"
+      )}>
+        {app.label}
+      </span>
+      <div className="w-[52px] flex justify-end shrink-0">
+        {isLocked ? (
+          <span className="text-[8.5px] font-mono uppercase tracking-widest text-zinc-600">
+            PRO
+          </span>
+        ) : tag ? (
+          <span className={cn(
+            "text-[9px] font-mono uppercase tracking-wide",
+            tagColors[variant ?? "muted"]
+          )}>
+            {tag}
+          </span>
+        ) : null}
+      </div>
+    </button>
+  );
+}
+
+// ── Push notification hook (unchanged logic) ───────────────────────────────
+
+type PushStatus = "unsupported" | "denied" | "subscribed" | "unsubscribed";
+type PushPlugin = Awaited<typeof import("@capacitor/push-notifications")>["PushNotifications"];
+
+function usePushStatus() {
+  const [status, setStatus] = useState<PushStatus>("unsubscribed");
+  const [busy, setBusy]     = useState(false);
+  const pushRef = React.useRef<PushPlugin | null>(null);
+
+  const isNative = typeof window !== "undefined" &&
+    typeof (window as any).Capacitor !== "undefined" &&
+    (window as any).Capacitor.isNativePlatform?.() === true;
+
+  useEffect(() => {
+    if (!isNative) return;
+    import("@capacitor/push-notifications").then(({ PushNotifications }) => {
+      pushRef.current = PushNotifications;
+      PushNotifications.checkPermissions().then(perm => {
+        if (perm.receive === "granted") setStatus("subscribed");
+        else if (perm.receive === "denied") setStatus("denied");
+        else setStatus("unsubscribed");
+      }).catch(() => setStatus("unsubscribed"));
+    }).catch(() => setStatus("unsubscribed"));
+  }, [isNative]);
+
+  useEffect(() => {
+    if (isNative) return;
+    let cancelled = false;
+    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setStatus("unsupported"); return;
+    }
+    if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+      setStatus("denied"); return;
+    }
+    navigator.serviceWorker.ready
+      .then(sw => sw.pushManager.getSubscription())
+      .then(sub => { if (!cancelled && sub) setStatus("subscribed"); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isNative]);
+
+  async function toggle() {
+    setBusy(true);
+    try {
+      if (isNative) {
+        const PN = pushRef.current;
+        if (!PN) { toast.error("Push plugin not ready"); setBusy(false); return; }
+        if (status === "subscribed") {
+          await fetch("/api/push/fcm-token", { method: "DELETE" }).catch(() => {});
+          setStatus("unsubscribed");
+          toast.success("Push notifications disabled");
+        } else {
+          const perm = await PN.requestPermissions() as { receive: string };
+          if (perm.receive !== "granted") {
+            setStatus("denied");
+            toast.error("Blocked — go to Settings → Apps → TradeX → Notifications");
+          } else {
+            await PN.register();
+            setStatus("subscribed");
+            toast.success("Push notifications enabled");
+          }
+        }
+        setBusy(false);
+        return;
+      }
+      if (status === "subscribed") {
+        const sw = await navigator.serviceWorker.ready;
+        const sub = await sw.pushManager.getSubscription();
+        if (sub) {
+          await fetch("/api/push/subscribe", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ endpoint: sub.endpoint }),
+          });
+          await sub.unsubscribe();
+        }
+        setStatus("unsubscribed");
+      } else {
+        const perm = await Notification.requestPermission();
+        if (perm !== "granted") { setStatus("denied"); setBusy(false); return; }
+        const sw  = await navigator.serviceWorker.ready;
+        const res = await fetch("/api/push/subscribe");
+        const { publicKey } = await res.json();
+        const padding = "=".repeat((4 - (publicKey.length % 4)) % 4);
+        const base64  = (publicKey + padding).replace(/-/g, "+").replace(/_/g, "/");
+        const raw = window.atob(base64);
+        const arr = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+        const sub  = await sw.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: arr.buffer });
+        const save = await fetch("/api/push/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(sub),
+        });
+        setStatus(save.ok ? "subscribed" : "unsubscribed");
+      }
+    } catch (err) {
+      toast.error(`Error: ${(err as Error)?.message ?? "unknown"}`);
+    }
+    setBusy(false);
+  }
+
+  return { status, busy, toggle };
+}
+
+// ── Main component ─────────────────────────────────────────────────────────
 
 export function MobileMore() {
-  const [openFolderId, setOpenFolderId] = useState<string | null>(null);
-  const [activeAppId, setActiveAppId] = useState<string | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [activeAppId,  setActiveAppId]  = useState<string | null>(null);
+  const [highlightId,  setHighlightId]  = useState<string | null>(null);
+  const [sheetOpen,    setSheetOpen]    = useState(false);
+  const [isTabActive, setIsTabActive] = useState(true);
+  const [traderName,  setTraderName]  = useState("");
+  const [avatar,      setAvatar]      = useState<string | null>(null);
   const { subscription } = useSubscription();
+  const push  = usePushStatus();
+  const micro = useMicroData();
 
-  // Listen for deep-link events from MobileLayout (e.g. widget "Open" taps)
+  useEffect(() => {
+    setTraderName(localStorage.getItem("tradex_trader_name") || "");
+    setAvatar(localStorage.getItem("tradex_avatar"));
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "tradex_trader_name") setTraderName(e.newValue || "");
+      if (e.key === "tradex_avatar")      setAvatar(e.newValue);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
   useEffect(() => {
     const handler = (e: Event) => {
       const appId = (e as CustomEvent<{ appId?: string }>).detail?.appId;
-      if (!appId) return;
-      setOpenFolderId(null);
-      setActiveAppId(appId);
+      if (appId) setActiveAppId(appId);
     };
     document.addEventListener("tradex:open-app", handler);
     return () => document.removeEventListener("tradex:open-app", handler);
   }, []);
 
-  const activeApp = ALL_APPS.find(a => a.id === activeAppId);
-  const openFolder = FOLDERS.find(f => f.id === openFolderId);
-  const folderApps = openFolder ? ALL_APPS.filter(a => openFolder.appIds.includes(a.id)) : [];
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { active } = (e as CustomEvent<{ active: string }>).detail;
+      setIsTabActive(active === "more");
+    };
+    document.addEventListener("tradex:mobile-tab-change", handler);
+    return () => document.removeEventListener("tradex:mobile-tab-change", handler);
+  }, []);
 
-  // Show active page
+  const activeApp = ALL_APPS.find(a => a.id === activeAppId);
+
+  // ── App page view ────────────────────────────────────────────────────────
   if (activeApp) {
     const PageComponent = activeApp.component;
     const isLocked = activeApp.proOnly && !subscription.hasFullAccess;
     return (
       <>
         <AssetSelectorSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
-        <div className="flex flex-col h-full bg-[hsl(var(--background))]">
-          <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-white/5 shrink-0">
-            <button onClick={() => setActiveAppId(null)}
-              className="flex items-center gap-1 text-zinc-400 active:text-white py-1">
-              <ChevronLeft className="h-5 w-5" />
-              <span className="text-[12px]">Back</span>
+        <div
+          className="flex flex-col h-full bg-[hsl(var(--background))]"
+          style={{ paddingTop: "max(2.5rem, env(safe-area-inset-top))" }}
+        >
+          {/* Back bar */}
+          <div className="flex items-center gap-2 px-3 pb-2.5 border-b border-white/[0.06] shrink-0">
+            <button
+              onClick={() => setActiveAppId(null)}
+              className="flex items-center gap-1.5 text-zinc-500 active:text-zinc-200 py-1 cursor-pointer transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
+              <span className="text-[11px] font-normal uppercase tracking-wide">Menu</span>
             </button>
-            <span className="text-[13px] font-semibold text-white ml-1">{activeApp.label}</span>
+            <span className="text-[11px] text-zinc-600 mx-1">/</span>
+            <span className="text-[12px] font-medium text-zinc-200">{activeApp.label}</span>
             <div className="ml-auto">
               <AssetChip size="sm" onPress={() => setSheetOpen(true)} />
             </div>
           </div>
+
           <div className="flex-1 overflow-y-auto p-3 pb-6">
-            {isLocked
-              ? <MobileFeatureGate featureName={activeApp.label}><PageComponent /></MobileFeatureGate>
+            {isTabActive && (isLocked
+              ? (
+                  <MobileFeatureGate featureName={activeApp.label}>
+                    <PageComponent />
+                  </MobileFeatureGate>
+                )
               : <PageComponent />
-            }
+            )}
           </div>
         </div>
       </>
     );
   }
 
-  // Show folder contents
-  if (openFolder) {
-    return (
-      <>
-        <AssetSelectorSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
-        <div className="flex flex-col h-full bg-[hsl(var(--background))]">
-          <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-white/5 shrink-0">
-            <button onClick={() => setOpenFolderId(null)}
-              className="flex items-center gap-1 text-zinc-400 active:text-white py-1">
-              <ChevronLeft className="h-5 w-5" />
-              <span className="text-[12px]">More</span>
-            </button>
-            <span className="text-[13px] font-semibold text-white ml-1">{openFolder.label}</span>
-            <div className="ml-auto">
-              <AssetChip size="sm" onPress={() => setSheetOpen(true)} />
-            </div>
-          </div>
-        <div className="flex-1 overflow-y-auto">
-          <div className="grid grid-cols-3 gap-5 px-6 py-8">
-            {folderApps.map(app => {
-              const Icon = app.icon;
-              const isLocked = app.proOnly && !subscription.hasFullAccess;
-              return (
-                <button key={app.id}
-                  onClick={() => setActiveAppId(app.id)}
-                  className="flex flex-col items-center gap-2 active:opacity-60">
-                  <div className="relative w-16 h-16 rounded-2xl flex items-center justify-center"
-                    style={{ background: `${app.color}22`, border: `1px solid ${isLocked ? "#3f3f46" : app.color + "40"}` }}>
-                    <Icon className="h-7 w-7" style={{ color: isLocked ? "#52525b" : app.color }} />
-                    {isLocked && (
-                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center">
-                        <Lock className="h-2.5 w-2.5 text-zinc-400" />
-                      </div>
-                    )}
-                  </div>
-                  <span className={`text-[11px] text-center leading-tight ${isLocked ? "text-zinc-600" : "text-zinc-300"}`}>
-                    {app.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-      </>
-    );
-  }
+  // ── Plan label ───────────────────────────────────────────────────────────
+  const planLabel =
+    subscription.isElite   ? "ELITE" :
+    subscription.isPro     ? "PRO" :
+    subscription.isTrialing ? "TRIAL" : "FREE";
 
-  // Main folder grid
-  const settingsApp = ALL_APPS.find(a => a.id === "settings")!;
-  const SettingsIcon = settingsApp.icon;
+  const isPaid = subscription.isPro || subscription.isElite;
 
+  // ── Main menu ────────────────────────────────────────────────────────────
   return (
     <>
       <AssetSelectorSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
       <div className="flex flex-col h-full bg-[hsl(var(--background))]">
-      <div className="flex-1 overflow-y-auto px-6 py-6 pb-4">
-        <div className="flex items-center justify-between mb-6">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">All Features</p>
-          <AssetChip size="sm" onPress={() => setSheetOpen(true)} />
-        </div>
-        <div className="grid grid-cols-3 gap-6">
-          {FOLDERS.map(folder => {
-            const apps = ALL_APPS.filter(a => folder.appIds.includes(a.id));
-            return (
-              <button key={folder.id}
-                onClick={() => setOpenFolderId(folder.id)}
-                className="flex flex-col items-center gap-2 active:opacity-60">
-                <div className="w-full aspect-square rounded-2xl p-2 grid grid-cols-2 grid-rows-2 gap-1.5"
-                  style={{ background: `${folder.color}18`, border: `1px solid ${folder.color}30` }}>
-                  {apps.slice(0, 4).map((app, i) => {
-                    const Icon = app.icon;
-                    return (
-                      <div key={i} className="rounded-lg flex items-center justify-center"
-                        style={{ background: `${app.color}30` }}>
-                        <Icon className="h-3.5 w-3.5" style={{ color: app.color }} />
-                      </div>
-                    );
-                  })}
-                </div>
-                <span className="text-[11px] font-medium text-zinc-300 text-center">{folder.label}</span>
-              </button>
-            );
-          })}
+
+        {/* ── Header ─────────────────────────────────────────────────────── */}
+        <div
+          className="px-4 pb-3 border-b border-white/[0.06] shrink-0"
+          style={{ paddingTop: "max(2.75rem, env(safe-area-inset-top))" }}
+        >
+          <div className="flex items-center min-h-[48px]">
+            {/* Avatar — 48×48 tap zone, 32×32 visual */}
+            <div className="shrink-0 flex items-center justify-center w-[44px] h-[48px] -ml-2 mr-1">
+              <div className="w-8 h-8 rounded-full overflow-hidden border border-white/[0.08] bg-zinc-900">
+                {avatar
+                  ? <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
+                  : <div className="w-full h-full flex items-center justify-center">
+                      <span className="text-[13px] font-bold text-emerald-400">
+                        {(traderName || "T")[0].toUpperCase()}
+                      </span>
+                    </div>
+                }
+              </div>
+            </div>
+
+            {/* Name + tier */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-[13px] font-semibold text-zinc-100 truncate leading-none">
+                  {traderName || "Trader"}
+                </p>
+                <span className={cn(
+                  "text-[8px] font-bold tracking-widest px-1.5 py-[2px] rounded border leading-none",
+                  isPaid
+                    ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                    : subscription.isTrialing
+                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                    : "bg-zinc-800 text-zinc-600 border-zinc-700"
+                )}>
+                  {isPaid && <Crown className="inline h-2 w-2 mr-0.5 -mt-px" />}
+                  {planLabel}
+                </span>
+              </div>
+              <p className="text-[10px] text-zinc-500 mt-[4px] uppercase tracking-wider leading-none">
+                Tradex Terminal
+              </p>
+            </div>
+
+            {/* AssetChip — 48px tall tap zone */}
+            <div className="shrink-0 flex items-center min-h-[48px]">
+              <AssetChip size="sm" onPress={() => setSheetOpen(true)} />
+            </div>
+          </div>
         </div>
 
-        {/* Standalone apps row */}
-        <div className="mt-8">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 mb-4">Account</p>
-          <div className="flex flex-col gap-2">
+        {/* ── Scrollable sections ─────────────────────────────────────────── */}
+        <div className="flex-1 overflow-y-auto">
+
+          {SECTIONS.map((section) => {
+            const apps = section.appIds
+              .map(id => ALL_APPS.find(a => a.id === id))
+              .filter(Boolean) as AppDef[];
+
+            return (
+              <div key={section.label}>
+                {/* Section divider */}
+                <div className="flex items-center gap-2.5 px-4 pt-3 pb-1">
+                  <span className="text-[8px] font-semibold tracking-[0.12em] text-zinc-500/60 shrink-0">
+                    {section.label}
+                  </span>
+                  <div className="flex-1 h-px bg-white/[0.05]" />
+                </div>
+
+                {apps.map(app => {
+                  const isLocked = !!app.proOnly && !subscription.hasFullAccess;
+                  const { tag, variant } = getAppTag(app.id, micro);
+                  return (
+                    <AppRow
+                      key={app.id}
+                      app={app}
+                      isLocked={isLocked}
+                      tag={tag}
+                      variant={variant}
+                      isActive={app.id === highlightId}
+                      onPress={() => { setHighlightId(app.id); setActiveAppId(app.id); }}
+                    />
+                  );
+                })}
+              </div>
+            );
+          })}
+
+          {/* ── Account section ─────────────────────────────────────────── */}
+          <div>
+            <div className="flex items-center gap-2.5 px-4 pt-3 pb-1">
+              <span className="text-[8px] font-semibold tracking-[0.12em] text-zinc-500/60 shrink-0">
+                ACCOUNT
+              </span>
+              <div className="flex-1 h-px bg-white/[0.05]" />
+            </div>
+
+            {/* Push notifications row */}
+            <button
+              onClick={
+                push.status === "subscribed" || push.status === "unsubscribed"
+                  ? push.toggle
+                  : undefined
+              }
+              disabled={push.busy || push.status === "denied" || push.status === "unsupported"}
+              className="w-full flex items-center gap-3 px-4 py-[7px] active:bg-white/[0.04] transition-colors cursor-pointer disabled:opacity-40"
+            >
+              {push.busy
+                ? <Loader2 className="h-3 w-3 text-zinc-400 opacity-50 animate-spin shrink-0" strokeWidth={1.5} />
+                : push.status === "subscribed"
+                ? <Bell    className="h-3 w-3 text-emerald-500 opacity-60 shrink-0" strokeWidth={1.5} />
+                : <BellOff className="h-3 w-3 text-zinc-500 opacity-50 shrink-0" strokeWidth={1.5} />
+              }
+              <span className="flex-1 text-[11.5px] font-medium text-zinc-200 text-left leading-none tracking-[0.01em]">
+                Alerts
+              </span>
+              {/* Toggle pill */}
+              <div className={cn(
+                "w-9 h-[20px] rounded-full transition-colors shrink-0 relative",
+                push.status === "subscribed" ? "bg-emerald-500/80" : "bg-zinc-800"
+              )}>
+                <div className={cn(
+                  "absolute top-[2px] w-4 h-4 bg-white rounded-full shadow transition-transform",
+                  push.status === "subscribed" ? "translate-x-[18px]" : "translate-x-[2px]"
+                )} />
+              </div>
+            </button>
+
+            {/* Knowledge + Settings */}
             {(["knowledge", "settings"] as const).map(id => {
               const app = ALL_APPS.find(a => a.id === id)!;
-              const Icon = app.icon;
               return (
-                <button key={id}
-                  onClick={() => setActiveAppId(id)}
-                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl active:opacity-60"
-                  style={{ background: `${app.color}15`, border: `1px solid ${app.color}30` }}
-                >
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                    style={{ background: `${app.color}22`, border: `1px solid ${app.color}40` }}>
-                    <Icon className="h-5 w-5" style={{ color: app.color }} />
-                  </div>
-                  <span className="text-[13px] font-medium text-zinc-200">{app.label}</span>
-                  <ChevronRight className="h-4 w-4 text-zinc-600 ml-auto" />
-                </button>
+                <AppRow
+                  key={id}
+                  app={app}
+                  isLocked={false}
+                  isActive={id === highlightId}
+                  onPress={() => { setHighlightId(id); setActiveAppId(id); }}
+                />
               );
             })}
           </div>
+
+          {/* ── P&L Summary Widget ─────────────────────────────────────── */}
+          <PnlWidget micro={micro} />
+
+          {/* Bottom padding */}
+          <div className="h-4" />
         </div>
       </div>
-    </div>
     </>
   );
 }
