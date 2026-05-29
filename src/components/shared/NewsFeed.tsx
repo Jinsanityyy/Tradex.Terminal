@@ -70,11 +70,13 @@ function NewsDetail({ item }: { item: NewsItem }) {
     return r;
   })();
 
-  // Article body: fetched full content > RSS summary fallback
+  // Article body: fetched full content > RSS summary > headline (wire items have no body)
   // Use summary if paragraphs is null (not yet fetched) OR empty (paywall/no content)
   const bodyParagraphs: string[] = (paragraphs && paragraphs.length > 0)
     ? paragraphs
-    : (item.summary ? [item.summary] : []);
+    : item.summary
+      ? [item.summary]
+      : [item.headline];
 
   return (
     <div className="space-y-5">
