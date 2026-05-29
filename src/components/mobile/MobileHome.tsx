@@ -282,17 +282,24 @@ export function MobileHome() {
   const livePrice: number | null = liveQuotes.find(q => q.symbol === activeSymbol)?.price ?? null;
 
   // Track the extreme price (high for longs, low for shorts) since the setup was posted.
-  // This means TP1 HIT ✅ stays visible even after price reverses back past SL.
+  // Persisted in localStorage so TP1 HIT ✅ survives page reloads even if price has since
+  // reversed past SL.
   const setupKey = entry && stopLoss && tp1 ? `${activeSymbol}_${entry}_${stopLoss}_${tp1}` : null;
+  const lsKey = setupKey ? `tradex_tp1hit_${setupKey}` : null;
+
   useEffect(() => {
-    // Reset when the setup changes
+    // New setup — reset tracking and restore any persisted hit flag
     if (setupKeyRef.current !== setupKey) {
       setupKeyRef.current = setupKey;
       extremePriceRef.current = livePrice;
-      setTp1EverHit(false);
+      if (lsKey) {
+        setTp1EverHit(localStorage.getItem(lsKey) === "1");
+      } else {
+        setTp1EverHit(false);
+      }
       return;
     }
-    if (livePrice == null || !tp1 || !entry || !stopLoss) return;
+    if (livePrice == null || !tp1 || !entry || !stopLoss || !lsKey) return;
     const isLong = entry > stopLoss;
     // Update running extreme
     if (extremePriceRef.current == null) {
@@ -302,12 +309,13 @@ export function MobileHome() {
     } else if (!isLong && livePrice < extremePriceRef.current) {
       extremePriceRef.current = livePrice;
     }
-    // Latch TP1 hit — never un-latch
+    // Latch TP1 hit — persist so it survives reloads
     const extreme = extremePriceRef.current;
     if (extreme != null && (isLong ? extreme >= tp1 : extreme <= tp1)) {
       setTp1EverHit(true);
+      localStorage.setItem(lsKey, "1");
     }
-  }, [livePrice, setupKey, tp1, entry, stopLoss]);
+  }, [livePrice, setupKey, lsKey, tp1, entry, stopLoss]);
 
   const tp1HitByLivePrice = tp1EverHit;
 
