@@ -13,7 +13,7 @@ const fetcher = async (url: string) => {
 };
 
 // ── Live Asset Prices ───────────────────────────────────
-export function useQuotes(refreshInterval = 30_000) {
+export function useQuotes(refreshInterval = 15_000) {
   const { data, error, isLoading } = useSWR<{
     data: AssetSnapshot[];
     timestamp: number;
@@ -283,7 +283,9 @@ export function useMTFBias(symbol: string) {
     fetcher,
     {
       revalidateOnFocus: false,
-      dedupingInterval: 5 * 60_000,
+      revalidateOnReconnect: false,
+      refreshInterval: 5 * 60_000,
+      dedupingInterval: 60_000,
       errorRetryCount: 2,
       errorRetryInterval: 30_000,
     }
@@ -307,25 +309,19 @@ export function useAgentResult(symbol: Symbol, timeframe: Timeframe = "H1", refr
       dedupingInterval: 120_000,
       errorRetryCount: 2,
       errorRetryInterval: 30_000,
-      keepPreviousData: true,
     }
   );
 
   const refresh = useCallback(async () => {
-    try {
-      const res = await fetch("/api/agents/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol, timeframe, forceRefresh: true }),
-      });
-      if (res.ok) {
-        const fresh = await res.json();
-        revalidate(fresh, false);
-        return fresh as AgentRunResult;
-      }
-    } catch { /* fall through */ }
-    // POST unavailable (non-pro user, gate, or error) — trigger GET revalidation
-    await revalidate();
+    const res = await fetch("/api/agents/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol, timeframe, forceRefresh: true }),
+    });
+    if (!res.ok) throw new Error("Failed");
+    const fresh = await res.json();
+    revalidate(fresh, false);
+    return fresh as AgentRunResult;
   }, [symbol, timeframe, revalidate]);
 
   return {
