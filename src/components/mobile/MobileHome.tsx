@@ -267,6 +267,17 @@ export function MobileHome() {
   const direction = liveDirection ?? cachedSetup?.direction ?? (recentTrade ? (recentTrade.direction === "BUY" ? "long" : "short") : null);
   const trigger   = liveTrigger  ?? cachedSetup?.trigger  ?? null;
 
+  // WebSocket live price for active symbol (most real-time)
+  const livePrice: number | null = wsPrices.get(activeSymbol) ?? quotes.find(q => q.symbol === activeSymbol)?.price ?? null;
+
+  // Detect if live price has crossed SL of the open trade
+  const slHitByLivePrice = (() => {
+    if (!openTrade || livePrice == null) return false;
+    return openTrade.direction === "BUY"
+      ? livePrice <= openTrade.stopLoss
+      : livePrice >= openTrade.stopLoss;
+  })();
+
   // Active session
   const activeSession = sessions.find(s => s.status === "active");
 
@@ -492,18 +503,25 @@ export function MobileHome() {
                   signalState === "ARMED"   ? "bg-emerald-500/8 border-emerald-500/25" :
                   signalState === "PENDING" ? "bg-amber-500/8 border-amber-500/25" :
                   "bg-white/5 border-white/10")}>
-                  <p className={cn("text-[9px] uppercase tracking-wider mb-2",
-                    signalState === "ARMED"   ? "text-emerald-500/70" :
-                    signalState === "PENDING" ? "text-amber-500/70" :
-                    "text-zinc-600")}>
-                    {signalState === "ARMED" ? "⚡ Armed  -  Confirm trigger" :
-                     signalState === "PENDING" ? "⏳ Pending  -  Waiting for entry" :
-                     "Last Setup"}
-                  </p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className={cn("text-[9px] uppercase tracking-wider",
+                      signalState === "ARMED"   ? "text-emerald-500/70" :
+                      signalState === "PENDING" ? "text-amber-500/70" :
+                      "text-zinc-600")}>
+                      {signalState === "ARMED" ? "⚡ Armed  -  Confirm trigger" :
+                       signalState === "PENDING" ? "⏳ Pending  -  Waiting for entry" :
+                       "Last Setup"}
+                    </p>
+                    {slHitByLivePrice && signalState !== "ARMED" && signalState !== "PENDING" && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-500/15 text-red-400">
+                        SL HIT ❌
+                      </span>
+                    )}
+                  </div>
                   <div className="grid grid-cols-4 gap-2">
                     {[
                       { label: "Entry", value: entry > 100 ? entry.toFixed(2) : entry.toFixed(4), color: "text-zinc-100" },
-                      { label: "SL",    value: stopLoss ? (stopLoss > 100 ? stopLoss.toFixed(2) : stopLoss.toFixed(4)) : " - ", color: "text-red-400" },
+                      { label: "SL",    value: stopLoss ? (stopLoss > 100 ? stopLoss.toFixed(2) : stopLoss.toFixed(4)) : " - ", color: slHitByLivePrice ? "text-red-400 animate-pulse" : "text-red-400" },
                       { label: "TP1",   value: tp1 ? (tp1 > 100 ? tp1.toFixed(2) : tp1.toFixed(4)) : " - ", color: "text-emerald-400" },
                       { label: "RR",    value: rrRatio ? `${rrRatio}:1` : " - ", color: "text-zinc-300" },
                     ].map(({ label, value, color }) => (
