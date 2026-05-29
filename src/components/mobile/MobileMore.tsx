@@ -51,7 +51,7 @@ const ALL_APPS: AppDef[] = [
   { id: "economic-calendar",    label: "Calendar",          icon: Calendar,      component: CalendarPage                              },
   { id: "pnl-calendar",         label: "P&L Tracker",       icon: DollarSign,    component: PnlCalendarPage,           proOnly: true  },
   { id: "candle-analysis",      label: "Candle Analysis",   icon: Zap,           component: CandleAnalysis,            proOnly: true  },
-  { id: "brain",                label: "AI Desk",           icon: Brain,         component: MobileBrain                               },
+  { id: "brain",                label: "Trading Floor",     icon: Brain,         component: MobileBrain                               },
   { id: "live-tv",              label: "Live Feed",         icon: Tv,            component: LiveTVPage                                },
   { id: "knowledge",            label: "Knowledge Base",    icon: BookOpen,      component: TradingKnowledgeContent                   },
   { id: "settings",             label: "Settings",          icon: Settings2,     component: SettingsPage                              },
@@ -72,8 +72,6 @@ interface MicroData {
   direction: BiasDir;
   openSignals: number | null;
   session: string | null;
-  winRate: number | null;
-  avgRR: number | null;
 }
 
 function getActiveSession(): string | null {
@@ -92,8 +90,6 @@ function useMicroData(): MicroData {
     direction: null,
     openSignals: null,
     session: getActiveSession(),
-    winRate: null,
-    avgRR: null,
   });
 
   useEffect(() => {
@@ -102,7 +98,6 @@ function useMicroData(): MicroData {
     return () => clearInterval(id);
   }, []);
 
-  // 24 h — direction + open count
   useEffect(() => {
     fetch("/api/signals?limit=20&period=24h")
       .then(r => r.ok ? r.json() : null)
@@ -116,34 +111,6 @@ function useMicroData(): MicroData {
           last?.finalBias === "bearish" ? "bearish" :
           last ? "neutral" : null;
         setData((d: MicroData) => ({ ...d, openSignals: open, direction: dir }));
-      })
-      .catch(() => {});
-  }, []);
-
-  // 7 d — win rate + avg R:R for the P&L widget
-  useEffect(() => {
-    fetch("/api/signals?limit=100&period=7d")
-      .then(r => r.ok ? r.json() : null)
-      .then(json => {
-        if (!json) return;
-        const recent = (json.recent ?? []) as Array<{
-          status: string;
-          tradePlan?: { rrRatio?: number };
-        }>;
-        const closed = recent.filter(s =>
-          ["win_tp1", "win_tp2", "loss_sl"].includes(s.status)
-        );
-        const wins = closed.filter(s => s.status.startsWith("win_")).length;
-        const winRate = closed.length >= 3
-          ? Math.round((wins / closed.length) * 100)
-          : null;
-        const rrs = recent
-          .map(s => s.tradePlan?.rrRatio)
-          .filter((r): r is number => typeof r === "number" && r > 0);
-        const avgRR = rrs.length >= 3
-          ? parseFloat((rrs.reduce((a, b) => a + b, 0) / rrs.length).toFixed(1))
-          : null;
-        setData(d => ({ ...d, winRate, avgRR }));
       })
       .catch(() => {});
   }, []);
@@ -183,78 +150,166 @@ function getAppTag(
 
 // ── P&L Summary Widget ─────────────────────────────────────────────────────
 
-function StatCell({
-  label, value, sub, valueClass,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  valueClass?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-[4px]">
-      <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-zinc-600 leading-none">
-        {label}
-      </span>
-      <span className={cn("text-[13px] font-semibold leading-none tabular-nums", valueClass ?? "text-zinc-100")}>
-        {value}
-      </span>
-      {sub && (
-        <span className="text-[9px] font-mono leading-none text-zinc-600">
-          {sub}
-        </span>
-      )}
-    </div>
-  );
-}
-
 function PnlWidget({ micro }: { micro: MicroData }) {
-  // Wire to a real P&L endpoint when available (e.g. /api/pnl/summary → { dailyPnl, dailyPnlPct })
-  const dailyPnl: number | null    = null;
-  const dailyPnlPct: number | null = null;
+  const [dailyPnl,  setDailyPnl]  = useState<number | null>(null);
+  const [winRate7d,    setWinRate7d]    = useState<number | null>(null);
+  const [winRateLabel, setWinRateLabel] = useState<string>("7D");
+  const [avgRR,     setAvgRR]     = useState<number | null>(null);
 
+  // Daily P&L + 7-day win rate from user's actual trade log
+  useEffect(() => {
+    fetch("/api/pnl")
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (!json) return;
+        type DayRow = { date: string; pnl: number; trades: number; wins: number };
+        const daily = (json.daily ?? []) as DayRow[];
+
+        // Use LOCAL date — toISOString() gives UTC which mismatches stored dates
+        // when device timezone is ahead of UTC (e.g. PH = UTC+8, 2AM local = prev day UTC)
+        const now    = new Date();
+        const today  = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        const cutoff = new Date(now.getTime() - 7 * 86_400_000);
+        const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth()+1).padStart(2,'0')}-${String(cutoff.getDate()).padStart(2,'0')}`;
+
+        const todayRow = daily.find(d => d.date === today);
+        setDailyPnl(todayRow?.pnl ?? null);
+        // Try 7-day window first; fall back to all-time if fewer than 1 trade in window
+        const week    = daily.filter(d => d.date >= cutoffStr && d.trades > 0);
+        const wTotal  = week.reduce((s, d) => s + d.trades, 0);
+        const wWins   = week.reduce((s, d) => s + d.wins, 0);
+        if (wTotal >= 1) {
+          setWinRate7d(Math.round((wWins / wTotal) * 100));
+          setWinRateLabel("7D");
+        } else {
+          const allTotal = daily.reduce((s, d) => s + d.trades, 0);
+          const allWins  = daily.reduce((s, d) => s + d.wins, 0);
+          setWinRate7d(allTotal >= 1 ? Math.round((allWins / allTotal) * 100) : null);
+          setWinRateLabel("ALL TIME");
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Avg R:R from per-trade P&L (avgWin / |avgLoss|)
+  useEffect(() => {
+    fetch("/api/manual-trades")
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (!json) return;
+        type TradeRow = { pnl: number };
+        const trades = (Array.isArray(json) ? json : (json.trades ?? [])) as TradeRow[];
+        const wins   = trades.filter(t => t.pnl > 0).map(t => t.pnl);
+        const losses = trades.filter(t => t.pnl < 0).map(t => Math.abs(t.pnl));
+        if (wins.length < 2 || losses.length < 2) return;
+        const avgWin  = wins.reduce((a, b) => a + b, 0) / wins.length;
+        const avgLoss = losses.reduce((a, b) => a + b, 0) / losses.length;
+        setAvgRR(parseFloat((avgWin / avgLoss).toFixed(1)));
+      })
+      .catch(() => {});
+  }, []);
+
+  const pnlPos   = dailyPnl !== null && dailyPnl >= 0;
   const pnlValue = dailyPnl !== null
-    ? `${dailyPnl >= 0 ? "+" : ""}$${Math.abs(dailyPnl).toFixed(2)}`
+    ? `${pnlPos ? "+" : ""}$${Math.abs(dailyPnl).toFixed(2)}`
     : "—";
-  const pnlSub = dailyPnl !== null && dailyPnlPct !== null
-    ? `(${dailyPnl >= 0 ? "+" : ""}${dailyPnlPct.toFixed(2)}%)`
-    : undefined;
-  const pnlClass = dailyPnl === null
-    ? "text-zinc-700"
-    : dailyPnl >= 0
-    ? "text-emerald-400"
-    : "text-red-400";
+  const pnlClass = dailyPnl === null ? "text-zinc-700"
+    : pnlPos ? "text-emerald-400" : "text-red-400";
 
-  const sessionLabel = micro.session ?? "CLOSED";
-  const sessionSub   = micro.session ? "ACTIVE" : undefined;
-  const sessionClass = micro.session ? "text-zinc-100" : "text-zinc-600";
+  const hasSession = !!micro.session;
 
   return (
-    <div className="mt-1">
-      <div className="h-px bg-white/[0.05] mx-4 mb-[14px]" />
-      <div className="px-4 pb-5 grid grid-cols-2 gap-x-3 gap-y-[14px]">
-        <StatCell
-          label="Daily P&L"
-          value={pnlValue}
-          sub={pnlSub}
-          valueClass={pnlClass}
-        />
-        <StatCell
-          label="Session"
-          value={sessionLabel}
-          sub={sessionSub}
-          valueClass={sessionClass}
-        />
-        <StatCell
-          label="Win Rate (7d)"
-          value={micro.winRate !== null ? `${micro.winRate}%` : "—"}
-          valueClass={micro.winRate !== null ? "text-zinc-100" : "text-zinc-700"}
-        />
-        <StatCell
-          label="Avg R:R"
-          value={micro.avgRR !== null ? `1 : ${micro.avgRR}` : "—"}
-          valueClass={micro.avgRR !== null ? "text-zinc-100" : "text-zinc-700"}
-        />
+    // mx-4 = 16px each side, matches menu-row px-4 so card edges align with list content
+    <div className="mx-4 pb-4 mt-2">
+      <div
+        className="rounded-lg border border-white/[0.06] overflow-hidden"
+        style={{ background: "rgba(255,255,255,0.022)" }}
+      >
+        {/* Header strip */}
+        <div className="flex items-center justify-between px-3 py-[6px] border-b border-white/[0.05]">
+          <span className="text-[8px] font-bold tracking-[0.18em] text-zinc-700 uppercase">
+            Performance
+          </span>
+          <span className="text-[8px] font-mono tracking-[0.06em] text-zinc-700">
+            7 DAY
+          </span>
+        </div>
+
+        {/* 2 × 2 quadrant grid */}
+        <div className="grid grid-cols-2">
+
+          {/* ┌ Daily P&L */}
+          <div className="flex flex-col gap-[4px] px-3 py-[9px] border-b border-r border-white/[0.05]">
+            <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
+              Daily P&L
+            </span>
+            <span className={cn("text-[13px] font-bold leading-none tabular-nums", pnlClass)}>
+              {pnlValue}
+            </span>
+            <span className="text-[8px] font-mono leading-none text-zinc-700/50">
+              TODAY
+            </span>
+          </div>
+
+          {/* ┐ Session */}
+          <div className="flex flex-col gap-[4px] px-3 py-[9px] border-b border-white/[0.05]">
+            <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
+              Session
+            </span>
+            {/* dot + value — inline-flex keeps them on one baseline */}
+            <div className="inline-flex items-center gap-[5px]">
+              <div className={cn(
+                "w-[5px] h-[5px] rounded-full shrink-0 mt-[1px]",
+                hasSession ? "bg-emerald-500" : "bg-zinc-700"
+              )} />
+              <span className={cn(
+                "text-[13px] font-bold leading-none",
+                hasSession ? "text-zinc-100" : "text-zinc-600"
+              )}>
+                {micro.session ?? "CLOSED"}
+              </span>
+            </div>
+            <span className={cn(
+              "text-[8px] font-mono leading-none",
+              hasSession ? "text-emerald-500/50" : "text-zinc-700/50"
+            )}>
+              {hasSession ? "ACTIVE" : "—"}
+            </span>
+          </div>
+
+          {/* └ Win Rate */}
+          <div className="flex flex-col gap-[4px] px-3 py-[9px] border-r border-white/[0.05]">
+            <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
+              Win Rate ({winRateLabel})
+            </span>
+            <span className={cn(
+              "text-[13px] font-bold leading-none tabular-nums",
+              winRate7d !== null ? "text-zinc-100" : "text-zinc-700"
+            )}>
+              {winRate7d !== null ? `${winRate7d}%` : "—"}
+            </span>
+            <span className="text-[8px] font-mono leading-none text-zinc-700/50">
+              {winRate7d !== null ? winRateLabel : "NO DATA"}
+            </span>
+          </div>
+
+          {/* ┘ Avg R:R */}
+          <div className="flex flex-col gap-[4px] px-3 py-[9px]">
+            <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
+              Avg R:R
+            </span>
+            <span className={cn(
+              "text-[13px] font-bold leading-none tabular-nums",
+              avgRR !== null ? "text-zinc-100" : "text-zinc-700"
+            )}>
+              {avgRR !== null ? `1 : ${avgRR}` : "—"}
+            </span>
+            <span className="text-[8px] font-mono leading-none text-zinc-700/50">
+              {avgRR !== null ? "REWARD RATIO" : "NO DATA"}
+            </span>
+          </div>
+
+        </div>
       </div>
     </div>
   );
