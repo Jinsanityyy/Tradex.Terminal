@@ -214,12 +214,35 @@ export function MobileHome() {
   const finalBias = master?.finalBias ?? "neutral";
 
   // Entry/SL/TP  -  exec has live values, tradePlan has logged values
-  const entry = exec?.entry ?? tradePlan?.entry ?? null;
-  const stopLoss = exec?.stopLoss ?? tradePlan?.stopLoss ?? null;
-  const tp1 = exec?.tp1 ?? tradePlan?.tp1 ?? null;
-  const rrRatio = exec?.rrRatio ?? tradePlan?.rrRatio ?? null;
-  const direction = exec?.direction ?? tradePlan?.direction ?? null;
-  const trigger = exec?.trigger ?? tradePlan?.trigger ?? null;
+  const liveEntry    = exec?.entry    ?? tradePlan?.entry    ?? null;
+  const liveStopLoss = exec?.stopLoss ?? tradePlan?.stopLoss ?? null;
+  const liveTp1      = exec?.tp1      ?? tradePlan?.tp1      ?? null;
+  const liveRrRatio  = exec?.rrRatio  ?? tradePlan?.rrRatio  ?? null;
+  const liveDirection = exec?.direction ?? tradePlan?.direction ?? null;
+  const liveTrigger   = exec?.trigger   ?? tradePlan?.trigger   ?? null;
+
+  // Persist last known setup per symbol so "Last Setup" survives a NO_TRADE refresh
+  const lastSetupKey = `tradex_last_setup_${activeSymbol}`;
+  useEffect(() => {
+    if (!liveEntry || !liveStopLoss || !liveTp1) return;
+    try {
+      localStorage.setItem(lastSetupKey, JSON.stringify({
+        entry: liveEntry, stopLoss: liveStopLoss, tp1: liveTp1,
+        rrRatio: liveRrRatio, direction: liveDirection, trigger: liveTrigger,
+      }));
+    } catch {}
+  }, [liveEntry, liveStopLoss, liveTp1, liveRrRatio, liveDirection, liveTrigger, lastSetupKey]);
+
+  const cachedSetup = (() => {
+    try { return JSON.parse(localStorage.getItem(lastSetupKey) ?? "null"); } catch { return null; }
+  })();
+
+  const entry     = liveEntry    ?? cachedSetup?.entry    ?? null;
+  const stopLoss  = liveStopLoss ?? cachedSetup?.stopLoss ?? null;
+  const tp1       = liveTp1      ?? cachedSetup?.tp1      ?? null;
+  const rrRatio   = liveRrRatio  ?? cachedSetup?.rrRatio  ?? null;
+  const direction = liveDirection ?? cachedSetup?.direction ?? null;
+  const trigger   = liveTrigger  ?? cachedSetup?.trigger  ?? null;
 
   // Active session
   const activeSession = sessions.find(s => s.status === "active");
