@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn, timeAgo } from "@/lib/utils";
-import { Newspaper, TrendingUp, TrendingDown, Minus, Target, BookOpen, ChevronRight } from "lucide-react";
+import { Newspaper, TrendingUp, TrendingDown, Minus, Target } from "lucide-react";
 import type { NewsItem } from "@/types";
 import { DetailModal } from "./DetailModal";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -44,112 +44,77 @@ function NewsDetail({ item }: { item: NewsItem }) {
     sentimentTag: item.sentiment,
   }, selectedSymbol);
 
-  const borderCls = item.sentiment === "bullish" ? "border-emerald-500/25" : item.sentiment === "bearish" ? "border-red-500/25" : "border-zinc-600/30";
-  const bgCls     = item.sentiment === "bullish" ? "bg-emerald-500/[0.04]" : item.sentiment === "bearish" ? "bg-red-500/[0.04]"    : "bg-zinc-800/20";
-  const divCls    = item.sentiment === "bullish" ? "border-emerald-500/15" : item.sentiment === "bearish" ? "border-red-500/15"    : "border-zinc-700/30";
-  const iconCls   = item.sentiment === "bullish" ? "text-emerald-400"      : item.sentiment === "bearish" ? "text-red-400"         : "text-zinc-500";
+  const impactColor =
+    assetImpact.impact === "bullish" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/25" :
+    assetImpact.impact === "bearish" ? "text-red-400 bg-red-500/10 border-red-500/25" :
+    "text-zinc-400 bg-zinc-500/10 border-zinc-600/30";
 
-  const backdropBullet = item.sentiment === "bullish"
-    ? "Risk-on macro backdrop  —  broad risk appetite rising"
-    : item.sentiment === "bearish"
-    ? "Risk-off macro backdrop  —  defensive positioning expected"
-    : "Neutral macro backdrop  —  no strong directional signal";
-
-  // Only include reasoning bullet if it adds something beyond the generic backdrop text
-  const reasoningBullet = (() => {
+  // Reasoning is non-trivial only if it's not just the generic "Neutral macro..." fallback
+  const meaningfulReasoning = (() => {
     const r = assetImpact.reasoning;
-    if (!r) return null;
-    const norm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "").slice(0, 30);
-    if (norm(r) === norm(backdropBullet)) return null;
-    if (r.toLowerCase().startsWith("neutral macro backdrop")) return null;
+    if (!r || r.toLowerCase().startsWith("neutral macro backdrop")) return null;
     return r;
   })();
 
-  const bullets: string[] = [
-    backdropBullet,
-    reasoningBullet,
-    item.impactScore >= 8 ? `High impact score (${item.impactScore}/10)  —  warrants immediate attention and position review` : null,
-  ].filter((b): b is string => Boolean(b));
-
   return (
-    <div className="space-y-4">
-      {/* Meta + impact row */}
+    <div className="space-y-5">
+      {/* Source + time */}
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-semibold text-zinc-300">{item.source}</span>
+        <span className="text-zinc-700">·</span>
+        <span className="text-[11px] text-zinc-500">{timeAgo(item.timestamp)}</span>
+        <span className="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-[hsl(var(--secondary))] text-zinc-500 uppercase">
+          {item.category.replace("-", " ")}
+        </span>
+      </div>
+
+      {/* Article body — summary is the main content */}
+      {item.summary ? (
+        <p className="text-[14px] text-zinc-200 leading-[1.7] tracking-tight">
+          {item.summary}
+        </p>
+      ) : (
+        <p className="text-[13px] text-zinc-400 leading-relaxed italic">
+          No article body available for this wire item.
+        </p>
+      )}
+
+      {/* Divider */}
+      <div className="border-t border-white/5" />
+
+      {/* Impact on selected symbol */}
+      <div className={cn("rounded-xl border px-4 py-3 space-y-2", impactColor)}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Target className="h-3.5 w-3.5 opacity-70" />
+            <span className="text-[10px] font-bold uppercase tracking-wider opacity-70">{symbolLabel} Impact</span>
+          </div>
+          <ImpactBadge impact={assetImpact.impact} label={symbolShort} />
+        </div>
+        {meaningfulReasoning && (
+          <p className="text-[12px] leading-relaxed opacity-90">{meaningfulReasoning}</p>
+        )}
+      </div>
+
+      {/* Impact score + sentiment row */}
       <div className="flex items-center gap-2 flex-wrap">
         <Badge variant={item.sentiment}>
           {item.sentiment === "bullish" ? "RISK-ON" : item.sentiment === "bearish" ? "RISK-OFF" : "NEUTRAL"}
         </Badge>
-        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))] uppercase">
-          {item.category.replace("-", " ")}
-        </span>
         <span className={cn(
           "text-[10px] font-mono font-bold px-2 py-0.5 rounded",
           item.impactScore >= 8 ? "bg-red-500/15 text-red-400" :
           item.impactScore >= 6 ? "bg-amber-500/15 text-amber-400" :
           "bg-zinc-800 text-zinc-400"
         )}>
-          {item.impactScore}/10
+          {item.impactScore}/10 impact
         </span>
-        <span className="text-[10px] text-[hsl(var(--muted-foreground))] ml-auto">
-          {item.source} · {timeAgo(item.timestamp)}
-        </span>
-      </div>
-
-      {/* ── NEWS ANALYSIS BLOCK (uniform format) ─────────────────────────── */}
-      <div className={cn("rounded-xl border overflow-hidden", borderCls, bgCls)}>
-        <div className={cn("flex items-center gap-2 px-3.5 py-2.5 border-b", divCls)}>
-          <BookOpen className={cn("h-3.5 w-3.5", iconCls)} />
-          <span className={cn("text-[10px] font-bold uppercase tracking-widest", iconCls)}>News Analysis</span>
-          <span className={cn("ml-auto text-[9px] uppercase tracking-wider opacity-50", iconCls)}>
-            {item.category.replace("-", " ")}
+        {item.affectedAssets?.map((a) => (
+          <span key={a} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[hsl(var(--secondary))] text-zinc-500">
+            {a}
           </span>
-        </div>
-        <div className="px-3.5 py-3">
-          <p className="text-[12px] text-zinc-200 leading-relaxed">{item.summary}</p>
-        </div>
-        {bullets.length > 0 && (
-          <div className="px-3.5 pb-3.5 space-y-2">
-            <p className={cn("text-[9px] font-bold uppercase tracking-widest opacity-70", iconCls)}>Key Context</p>
-            <ul className="space-y-1.5">
-              {bullets.map((b, i) => (
-                <li key={i} className="flex items-start gap-2">
-                  <ChevronRight className={cn("h-3 w-3 mt-0.5 shrink-0 opacity-60", iconCls)} />
-                  <span className="text-[11px] text-zinc-400 leading-snug">{b}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        ))}
       </div>
-
-      {/* Symbol-specific impact badge */}
-      <div className="flex gap-2 flex-wrap">
-        <ImpactBadge impact={assetImpact.impact} label={symbolShort} />
-      </div>
-
-      {/* Symbol-specific context */}
-      {assetImpact.reasoning && (
-        <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
-          <div className="flex items-center gap-1.5">
-            <Target className="h-3.5 w-3.5 text-amber-400" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">{symbolLabel} Context</span>
-          </div>
-          <p className="text-[11.5px] text-[hsl(var(--foreground))] leading-relaxed">{assetImpact.reasoning}</p>
-        </div>
-      )}
-
-      {/* Affected assets */}
-      {item.affectedAssets?.length > 0 && (
-        <div className="space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Affected Assets</p>
-          <div className="flex flex-wrap gap-1.5">
-            {item.affectedAssets.map((a) => (
-              <span key={a} className="text-[10px] font-mono px-2 py-1 rounded-md bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))]">
-                {a}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

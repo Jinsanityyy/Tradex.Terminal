@@ -194,10 +194,13 @@ async function fetchFinancialJuice(): Promise<NewsItem[]> {
 
     while ((match = itemRegex.exec(xml)) !== null && i < 40) {
       const block = match[1];
-      // FinancialJuice prefixes every title with "FinancialJuice: " — strip it
-      const rawTitle = xmlField(block, "title").replace(/^FinancialJuice:\s*/i, "").trim();
+      // Strip "FinancialJuice: " prefix and editorial suffixes like " - FJElite"
+      const rawTitle = decodeHtmlEntities(xmlField(block, "title"))
+        .replace(/^FinancialJuice:\s*/i, "")
+        .replace(/\s*-\s*FJ\w*\s*$/i, "")
+        .trim();
       const pubDate = xmlField(block, "pubDate");
-      const description = xmlField(block, "description");
+      const description = decodeHtmlEntities(xmlField(block, "description"));
 
       const title = rawTitle;
       if (!title) continue;
@@ -228,6 +231,13 @@ async function fetchFinancialJuice(): Promise<NewsItem[]> {
   } catch {
     return [];
   }
+}
+
+function decodeHtmlEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#039;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
 }
 
 function xmlField(block: string, field: string): string {
