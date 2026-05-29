@@ -3,9 +3,9 @@ import type { NewsItem } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-// Cache news for 2 minutes
+// Cache news for 45 seconds (FinancialJuice is real-time breaking news)
 let cache: { data: NewsItem[]; ts: number } = { data: [], ts: 0 };
-const CACHE_TTL = 120_000;
+const CACHE_TTL = 45_000;
 
 // ── Static fallback news when Finnhub key unavailable ─────────────────────
 const FALLBACK_NEWS: NewsItem[] = [
@@ -172,9 +172,10 @@ function stripHtml(html: string): string {
 }
 
 const RSS_SOURCES = [
-  { url: "https://www.forexlive.com/feed/news",          source: "ForexLive", prefix: "fl" },
-  { url: "https://www.kitco.com/rss/kitco-news.xml",     source: "Kitco",     prefix: "kt" },
-  { url: "https://www.fxstreet.com/rss/news",            source: "FXStreet",  prefix: "fx" },
+  { url: "https://www.financialjuice.com/feed.ashx",     source: "FinancialJuice", prefix: "fj" },
+  { url: "https://www.forexlive.com/feed/news",          source: "ForexLive",      prefix: "fl" },
+  { url: "https://www.kitco.com/rss/kitco-news.xml",     source: "Kitco",          prefix: "kt" },
+  { url: "https://www.fxstreet.com/rss/news",            source: "FXStreet",       prefix: "fx" },
 ] as const;
 
 const RSS_HEADERS = {
