@@ -53,6 +53,12 @@ const FINNHUB_QUOTE_SYMBOLS: FinnhubSymbolConfig[] = [
     name: "GBP/USD",
   },
   {
+    endpoint: "forex",
+    providerSymbols: ["OANDA:USD_JPY"],
+    displaySymbol: "USD/JPY",
+    name: "USD/JPY",
+  },
+  {
     endpoint: "crypto",
     providerSymbols: ["BINANCE:BTCUSDT"],
     displaySymbol: "BTC/USD",
