@@ -12,6 +12,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "invalid url" }, { status: 400 });
   }
 
+  // Skip known paywall/login-only domains immediately
+  const BLOCKED_DOMAINS = ["financialjuice.com", "wsj.com", "ft.com", "bloomberg.com"];
+  try { if (BLOCKED_DOMAINS.some(d => new URL(url).hostname.includes(d))) return NextResponse.json({ paragraphs: [] }); } catch {}
+
   const hit = cache.get(url);
   if (hit && Date.now() - hit.ts < CACHE_TTL) {
     return NextResponse.json({ paragraphs: hit.paragraphs, cached: true });

@@ -71,7 +71,10 @@ function NewsDetail({ item }: { item: NewsItem }) {
   })();
 
   // Article body: fetched full content > RSS summary fallback
-  const bodyParagraphs: string[] = paragraphs ?? (item.summary ? [item.summary] : []);
+  // Use summary if paragraphs is null (not yet fetched) OR empty (paywall/no content)
+  const bodyParagraphs: string[] = (paragraphs && paragraphs.length > 0)
+    ? paragraphs
+    : (item.summary ? [item.summary] : []);
 
   return (
     <div className="space-y-5">
