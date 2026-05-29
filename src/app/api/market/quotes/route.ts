@@ -85,13 +85,45 @@ async function fetchForexRates(): Promise<Record<string, any>> {
       "EUR/GBP": { rate: () => rates.GBP / rates.EUR },
     };
 
+    // Fetch yesterday's rates once as fallback when rawCache is cold (Vercel cold start)
+    let histRates: Record<string, number> | null = null;
+    if (Object.keys(rawCache).length === 0) {
+      try {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const ymd = yesterday.toISOString().slice(0, 10);
+        const hr = await fetch(
+          `https://api.fxratesapi.com/historical?date=${ymd}&base=USD&currencies=EUR,GBP,JPY,CAD,CHF,AUD,NZD`,
+          { cache: "no-store" }
+        );
+        if (hr.ok) {
+          const hd = await hr.json();
+          if (hd.success && hd.rates) histRates = hd.rates as Record<string, number>;
+        }
+      } catch { /* ignore */ }
+    }
+
+    const histForexMap: Record<string, () => number> = histRates ? {
+      "EUR/USD": () => 1 / histRates!.EUR,
+      "GBP/USD": () => 1 / histRates!.GBP,
+      "USD/JPY": () => histRates!.JPY,
+      "USD/CAD": () => histRates!.CAD,
+      "USD/CHF": () => histRates!.CHF,
+      "AUD/USD": () => 1 / histRates!.AUD,
+      "NZD/USD": () => 1 / histRates!.NZD,
+      "GBP/JPY": () => histRates!.JPY / histRates!.GBP,
+      "EUR/GBP": () => histRates!.GBP / histRates!.EUR,
+    } : {};
+
     for (const [sym, calc] of Object.entries(forexMap)) {
       const price = calc.rate();
       if (!isFinite(price) || price <= 0) continue;
 
-      // Get previous price from cache for change calc
+      // Use rawCache if warm; fall back to yesterday's hist rate on cold start
       const prev = rawCache[sym];
-      const prevPrice = prev ? parseFloat(prev.close) : price;
+      const prevPrice = prev
+        ? parseFloat(prev.close)
+        : (histForexMap[sym] ? histForexMap[sym]() : price);
       const change = price - prevPrice;
       const pctChange = prevPrice ? (change / prevPrice) * 100 : 0;
 
