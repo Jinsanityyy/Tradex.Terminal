@@ -43,8 +43,37 @@ export function MobileLayout() {
   const [unreadChat, setUnreadChat] = useState(0);
   const [unreadFeed, setUnreadFeed] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerMounted, setDrawerMounted] = useState(false);
   const { subscription } = useSubscription();
   const fileRef = useRef<HTMLInputElement>(null);
+  const activeRef = useRef(active);
+  const swipeTouchStartX = useRef(0);
+  const swipeTouchStartY = useRef(0);
+  activeRef.current = active;
+
+  function openDrawer() {
+    setDrawerMounted(true);
+    setDrawerOpen(true);
+    document.dispatchEvent(new CustomEvent("tradex:mobile-tab-change", { detail: { active: "more" } }));
+  }
+
+  function closeDrawer() {
+    setDrawerOpen(false);
+    document.dispatchEvent(new CustomEvent("tradex:mobile-tab-change", { detail: { active: activeRef.current } }));
+  }
+
+  function onSwipeTouchStart(e: React.TouchEvent) {
+    swipeTouchStartX.current = e.touches[0].clientX;
+    swipeTouchStartY.current = e.touches[0].clientY;
+  }
+
+  function onSwipeTouchEnd(e: React.TouchEvent) {
+    const dx = e.changedTouches[0].clientX - swipeTouchStartX.current;
+    const dy = e.changedTouches[0].clientY - swipeTouchStartY.current;
+    if (Math.abs(dx) < Math.abs(dy) * 1.2 || Math.abs(dx) < 60) return;
+    if (!drawerOpen && dx > 0) openDrawer();
+    if (drawerOpen && dx < 0) closeDrawer();
+  }
 
   useEffect(() => {
     setTimeout(() => setSplashDone(true), 1500);
@@ -209,7 +238,7 @@ export function MobileLayout() {
   useEffect(() => {
     const handler = (e: Event) => {
       const appId = (e as CustomEvent<{ appId?: string }>).detail?.appId;
-      setDrawerOpen(true);
+      openDrawer();
       if (appId) {
         setTimeout(() => {
           document.dispatchEvent(new CustomEvent("tradex:open-app", { detail: { appId } }));
@@ -271,7 +300,7 @@ export function MobileLayout() {
             <span className="text-[9px] text-[hsl(var(--primary))] font-medium tracking-wider uppercase">Live</span>
           </div>
           {/* Hamburger menu */}
-          <button onClick={() => setDrawerOpen(true)}
+          <button onClick={openDrawer}
             className="flex items-center justify-center w-7 h-7 rounded-lg border border-white/10 active:opacity-70">
             <Menu className="w-4 h-4 text-zinc-400" />
           </button>
@@ -386,7 +415,9 @@ export function MobileLayout() {
       )}
 
       {/* Page content — all mounted tabs stay alive, stacked absolutely */}
-      <div className="relative flex-1 min-h-0 overflow-hidden">
+      <div className="relative flex-1 min-h-0 overflow-hidden"
+        onTouchStart={onSwipeTouchStart}
+        onTouchEnd={onSwipeTouchEnd}>
         {TABS.map(({ id }) => {
           if (!mounted.has(id)) return null;
           const isActive = active === id;
@@ -415,28 +446,27 @@ export function MobileLayout() {
             className="mobile-tab-overlay absolute inset-0 z-50 pointer-events-none bg-[hsl(var(--background))]"
           />
         )}
-      </div>
 
-      {/* Hamburger drawer */}
-      {drawerOpen && (
-        <div className="absolute inset-0 z-50 flex flex-col" onClick={() => setDrawerOpen(false)}>
-          <div className="flex-1" />
-          <div className="rounded-t-3xl bg-[hsl(var(--card))] border-t border-white/10 overflow-hidden"
-            style={{ maxHeight: "88vh" }}
-            onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 pt-4 pb-2">
-              <span className="text-[13px] font-semibold text-zinc-300">Menu</span>
-              <button onClick={() => setDrawerOpen(false)}
-                className="w-7 h-7 flex items-center justify-center rounded-full bg-white/5 active:opacity-70">
-                <X className="w-4 h-4 text-zinc-400" />
-              </button>
-            </div>
-            <div className="overflow-y-auto" style={{ maxHeight: "calc(88vh - 60px)" }}>
-              <MobileMore />
-            </div>
+        {/* Left-side features drawer — backdrop */}
+        <div
+          className={cn(
+            "absolute inset-0 z-40 bg-black/60 transition-opacity duration-300",
+            drawerOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+          )}
+          onClick={closeDrawer}
+        />
+        {/* Left-side features drawer — panel */}
+        <div
+          className={cn(
+            "absolute top-0 left-0 bottom-0 z-50 w-[88%] bg-[hsl(var(--background))] shadow-2xl transition-transform duration-300 ease-out flex flex-col",
+            drawerOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          <div className="flex-1 min-h-0 overflow-hidden">
+            {drawerMounted && <MobileMore />}
           </div>
         </div>
-      )}
+      </div>
 
       {/* Bottom tab bar — safe-area-inset-bottom ensures home bar never overlaps on iOS/Android */}
       <div
