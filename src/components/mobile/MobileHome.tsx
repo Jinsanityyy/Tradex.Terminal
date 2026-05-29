@@ -315,13 +315,36 @@ export function MobileHome() {
   } : null;
   const finalBias = master?.finalBias ?? "neutral";
 
-  // Entry/SL/TP — live exec > logged tradePlan > last resolved signal (for "Last Setup" display)
-  const entry = exec?.entry ?? tradePlan?.entry ?? lastOutcome?.entry ?? null;
-  const stopLoss = exec?.stopLoss ?? tradePlan?.stopLoss ?? lastOutcome?.stopLoss ?? null;
-  const tp1 = exec?.tp1 ?? tradePlan?.tp1 ?? lastOutcome?.tp1 ?? null;
-  const rrRatio = exec?.rrRatio ?? tradePlan?.rrRatio ?? lastOutcome?.rrRatio ?? null;
-  const direction = exec?.direction ?? tradePlan?.direction ?? null;
-  const trigger = exec?.trigger ?? tradePlan?.trigger ?? null;
+  // Entry/SL/TP — live exec > logged tradePlan > last resolved signal > localStorage (for "Last Setup" display)
+  const liveEntry    = exec?.entry    ?? tradePlan?.entry    ?? lastOutcome?.entry    ?? null;
+  const liveStopLoss = exec?.stopLoss ?? tradePlan?.stopLoss ?? lastOutcome?.stopLoss ?? null;
+  const liveTp1      = exec?.tp1      ?? tradePlan?.tp1      ?? lastOutcome?.tp1      ?? null;
+  const liveRrRatio  = exec?.rrRatio  ?? tradePlan?.rrRatio  ?? lastOutcome?.rrRatio  ?? null;
+  const liveDirection = exec?.direction ?? tradePlan?.direction ?? null;
+  const liveTrigger   = exec?.trigger   ?? tradePlan?.trigger   ?? null;
+
+  // Persist last known setup per symbol so it survives NO_TRADE refreshes
+  const lastSetupKey = `tradex_last_setup_${activeSymbol}`;
+  useEffect(() => {
+    if (!liveEntry || !liveStopLoss || !liveTp1) return;
+    try {
+      localStorage.setItem(lastSetupKey, JSON.stringify({
+        entry: liveEntry, stopLoss: liveStopLoss, tp1: liveTp1,
+        rrRatio: liveRrRatio, direction: liveDirection, trigger: liveTrigger,
+      }));
+    } catch {}
+  }, [liveEntry, liveStopLoss, liveTp1, liveRrRatio, liveDirection, liveTrigger, lastSetupKey]);
+
+  const cachedSetup = (() => {
+    try { return JSON.parse(localStorage.getItem(lastSetupKey) ?? "null"); } catch { return null; }
+  })();
+
+  const entry     = liveEntry    ?? cachedSetup?.entry    ?? null;
+  const stopLoss  = liveStopLoss ?? cachedSetup?.stopLoss ?? null;
+  const tp1       = liveTp1      ?? cachedSetup?.tp1      ?? null;
+  const rrRatio   = liveRrRatio  ?? cachedSetup?.rrRatio  ?? null;
+  const direction = liveDirection ?? cachedSetup?.direction ?? null;
+  const trigger   = liveTrigger  ?? cachedSetup?.trigger  ?? null;
 
   // Active session
   const activeSession = sessions.find(s => s.status === "active");
