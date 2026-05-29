@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 
-// ── Finnhub symbol map (metals, forex, oil) ───────────────────────────────
+// ── Finnhub symbol map (metals, forex, oil + crypto via Binance proxy) ────
 const WS_SYMBOL_MAP: Record<string, string> = {
   XAUUSD: "OANDA:XAU_USD",
   XAGUSD: "OANDA:XAG_USD",
@@ -19,6 +19,13 @@ const WS_SYMBOL_MAP: Record<string, string> = {
   AUDJPY: "OANDA:AUD_JPY",
   USOIL:  "OANDA:WTICO_USD",
   UKOIL:  "OANDA:BCO_USD",
+  // Crypto — routed through Finnhub's Binance proxy (no extra key, same WS connection)
+  BTCUSD: "BINANCE:BTCUSDT",
+  ETHUSD: "BINANCE:ETHUSDT",
+  LTCUSD: "BINANCE:LTCUSDT",
+  SOLUSD: "BINANCE:SOLUSDT",
+  XRPUSD: "BINANCE:XRPUSDT",
+  BNBUSD: "BINANCE:BNBUSDT",
 };
 
 const FINNHUB_TO_SYMBOL: Record<string, string> = Object.fromEntries(
