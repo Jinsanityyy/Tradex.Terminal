@@ -283,8 +283,6 @@ export function MobileHome() {
   // Use liveQuotes (same source as ticker) for consistency — avoids stale WS reads
   const livePrice: number | null = liveQuotes.find(q => q.symbol === activeSymbol)?.price ?? null;
 
-  // When price crosses TP1 OR SL, always show TP1 HIT ✅ —
-  // because in this strategy TP1 is always taken before SL can be hit.
   const tp1HitByLivePrice = (() => {
     if (livePrice == null || !tp1 || !entry || !stopLoss) return false;
     const isLong = entry > stopLoss;
@@ -297,8 +295,10 @@ export function MobileHome() {
     return isLong ? livePrice <= stopLoss : livePrice >= stopLoss;
   })();
 
-  // Badge fires on either level — always green "TP1 HIT ✅"
-  const showHitBadge = tp1HitByLivePrice || slHitByLivePrice;
+  const hitBadge: { label: string; className: string } | null =
+    tp1HitByLivePrice ? { label: "TP1 HIT ✅", className: "bg-emerald-500/15 text-emerald-400" } :
+    slHitByLivePrice  ? { label: "SL HIT ❌",  className: "bg-red-500/15 text-red-400" } :
+    null;
 
   // Active session
   const activeSession = sessions.find(s => s.status === "active");
@@ -531,9 +531,9 @@ export function MobileHome() {
                        effectiveSignalState === "PENDING" ? "⏳ Pending  -  Waiting for entry" :
                        "Last Setup"}
                     </p>
-                    {showHitBadge && effectiveSignalState !== "ARMED" && effectiveSignalState !== "PENDING" && (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-400">
-                        TP1 HIT ✅
+                    {hitBadge && effectiveSignalState !== "ARMED" && effectiveSignalState !== "PENDING" && (
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold ${hitBadge.className}`}>
+                        {hitBadge.label}
                       </span>
                     )}
                   </div>
@@ -541,7 +541,7 @@ export function MobileHome() {
                     {[
                       { label: "Entry", value: entry > 100 ? entry.toFixed(2) : entry.toFixed(4), color: "text-zinc-100" },
                       { label: "SL",    value: stopLoss ? (stopLoss > 100 ? stopLoss.toFixed(2) : stopLoss.toFixed(4)) : " - ", color: "text-red-400" },
-                      { label: "TP1",   value: tp1 ? (tp1 > 100 ? tp1.toFixed(2) : tp1.toFixed(4)) : " - ", color: showHitBadge ? "text-emerald-400 animate-pulse" : "text-emerald-400" },
+                      { label: "TP1",   value: tp1 ? (tp1 > 100 ? tp1.toFixed(2) : tp1.toFixed(4)) : " - ", color: tp1HitByLivePrice ? "text-emerald-400 animate-pulse" : "text-emerald-400" },
                       { label: "RR",    value: rrRatio ? `${rrRatio}:1` : " - ", color: "text-zinc-300" },
                     ].map(({ label, value, color }) => (
                       <div key={label} className="text-center">
