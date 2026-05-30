@@ -20,6 +20,8 @@ async function timedFetch(url: string, opts?: RequestInit): Promise<Response> {
   ]);
 }
 
+const CHROME_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
 // ── Dukascopy SSI ─────────────────────────────────────────────────────────────
 async function fetchSentiment(): Promise<{
   longPct: number; shortPct: number;
@@ -27,8 +29,17 @@ async function fetchSentiment(): Promise<{
 } | null> {
   try {
     const res = await timedFetch(
-      "https://freeserv.dukascopy.com/2.0/?path=trading_tools/SSI&stream=false&period=LIVE",
-      { headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" } }
+      "https://freeserv.dukascopy.com/2.0/?path=trading_tools/SSI&stream=false",
+      {
+        headers: {
+          "User-Agent": CHROME_UA,
+          "Accept": "application/json, text/plain, */*",
+          "Accept-Language": "en-US,en;q=0.9",
+          "Referer": "https://www.dukascopy.com/trading-tools/widgets/ssi/",
+          "Origin": "https://www.dukascopy.com",
+          "Cache-Control": "no-cache",
+        },
+      }
     );
     if (!res.ok) return null;
     const raw = await res.json();
@@ -42,37 +53,50 @@ async function fetchSentiment(): Promise<{
     const shortPct = Math.round(Number(gold.c ?? gold.shortPercent ?? 0) || (100 - longPct));
     if (!longPct) return null;
     const extreme = longPct >= 70 || shortPct >= 70;
-    // Contrarian: crowd heavily short → institutions likely long → bullish signal
     const sig: "bullish" | "bearish" | "neutral" =
       shortPct >= 70 ? "bullish" : longPct >= 70 ? "bearish" : "neutral";
     return { longPct, shortPct, sig, extreme };
   } catch { return null; }
 }
 
-// ── CME Open Interest ─────────────────────────────────────────────────────────
+// ── GC Futures volume via Yahoo Finance (CME blocks server-side requests) ─────
 async function fetchOI(): Promise<{
   oiChange: number; priceChange: number;
   sig: "bullish" | "bearish" | "neutral"; label: string;
 } | null> {
   try {
     const res = await timedFetch(
-      "https://www.cmegroup.com/CmeWS/mvc/Settlements/futures/activeContracts/GC.json",
-      { headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json", Referer: "https://www.cmegroup.com/" } }
+      "https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=5d",
+      { headers: { "User-Agent": CHROME_UA, "Accept": "application/json" } }
     );
     if (!res.ok) return null;
     const json = await res.json();
-    const front = (json?.settlements ?? json?.items ?? [])[0];
-    if (!front) return null;
-    const oiChange = parseInt(String(front.change ?? front.oiChange ?? "0").replace(/,/g, ""), 10) || 0;
-    const settle    = parseFloat(String(front.settle ?? "0").replace(/,/g, ""));
-    const prev      = parseFloat(String(front.priorSettle ?? settle).replace(/,/g, ""));
-    const priceChange = prev > 0 ? settle - prev : 0;
+    const result = json?.chart?.result?.[0];
+    if (!result) return null;
+
+    const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
+    const volumes: (number | null)[] = result.indicators?.quote?.[0]?.volume ?? [];
+
+    // Filter out nulls (non-trading days)
+    const validCloses = closes.filter((v): v is number => v != null);
+    const validVols   = volumes.filter((v): v is number => v != null);
+    if (validCloses.length < 2 || validVols.length < 2) return null;
+
+    const lastClose = validCloses[validCloses.length - 1];
+    const prevClose = validCloses[validCloses.length - 2];
+    const lastVol   = validVols[validVols.length - 1];
+    const prevVol   = validVols[validVols.length - 2];
+
+    const priceChange = lastClose - prevClose;
+    const oiChange    = lastVol - prevVol; // volume as OI proxy
+
     let sig: "bullish" | "bearish" | "neutral" = "neutral";
-    let label = "OI data insufficient";
-    if      (priceChange > 0 && oiChange > 0) { sig = "bullish"; label = "Price↑ OI↑ — real longs entering"; }
-    else if (priceChange > 0 && oiChange < 0) { sig = "neutral"; label = "Price↑ OI↓ — short covering (weak)"; }
-    else if (priceChange < 0 && oiChange > 0) { sig = "bearish"; label = "Price↓ OI↑ — real shorts entering"; }
-    else if (priceChange < 0 && oiChange < 0) { sig = "neutral"; label = "Price↓ OI↓ — longs exiting (exhaustion)"; }
+    let label = "GC volume data insufficient";
+    if      (priceChange > 0 && oiChange > 0) { sig = "bullish"; label = "Price↑ Vol↑ — buyers absorbing"; }
+    else if (priceChange > 0 && oiChange < 0) { sig = "neutral"; label = "Price↑ Vol↓ — short covering (weak)"; }
+    else if (priceChange < 0 && oiChange > 0) { sig = "bearish"; label = "Price↓ Vol↑ — sellers pressing"; }
+    else if (priceChange < 0 && oiChange < 0) { sig = "neutral"; label = "Price↓ Vol↓ — sellers exhausting"; }
+
     return { oiChange, priceChange, sig, label };
   } catch { return null; }
 }
