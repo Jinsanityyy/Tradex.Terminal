@@ -359,11 +359,14 @@ export function useAgentResult(symbol: Symbol, timeframe: Timeframe = "H1", refr
 // ── Last resolved signal for a symbol ──────────────────────────────────────
 export function useLastSignal(symbol: string) {
   const { data } = useSWR<{ recent: Array<{ status: string; entry_price: number; stop_loss: number; take_profit: number }> }>(
-    symbol ? `/api/signals?symbol=${symbol}&limit=1` : null,
+    symbol ? `/api/signals?symbol=${symbol}&limit=10` : null,
     fetcher,
     { refreshInterval: 60_000, revalidateOnFocus: true, dedupingInterval: 30_000 }
   );
-  const last = data?.recent?.[0] ?? null;
+  // Find the most recent signal that was actually resolved — skip open/pending ones
+  const last = data?.recent?.find(s =>
+    s.status === "win_tp1" || s.status === "win_tp2" || s.status === "loss_sl"
+  ) ?? null;
   return {
     status: last?.status ?? null,
     isWin:  last?.status === "win_tp1" || last?.status === "win_tp2",
