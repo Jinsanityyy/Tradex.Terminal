@@ -9,7 +9,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { SlidersHorizontal } from "lucide-react";
-import type { AgentRunResult } from "@/lib/agents/schemas";
+import type { AgentRunResult, InstitutionalFlowAgentOutput } from "@/lib/agents/schemas";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -411,11 +411,29 @@ export function AgentCardsWidget({
 }) {
   const [drawerOpen, setDrawerOpen]   = useState(false);
   const [drawerAgent, setDrawerAgent] = useState<string | undefined>();
+  const [institutional, setInstitutional] = useState<InstitutionalFlowAgentOutput | null>(null);
 
   function openDrawer(id: string) {
     setDrawerAgent(id);
     setDrawerOpen(true);
   }
+
+  // Institutional data comes from its own standalone endpoint (not part of the 7-agent run)
+  useEffect(() => {
+    if (!visibleAgents.has("institutional")) return;
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await fetch("/api/market/institutional");
+        if (!res.ok || cancelled) return;
+        const json = await res.json();
+        if (!cancelled) setInstitutional(json as InstitutionalFlowAgentOutput);
+      } catch {}
+    }
+    load();
+    const interval = setInterval(load, 10 * 60 * 1000); // refresh every 10 min
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [visibleAgents]);
 
   const agents     = data?.agents;
   const tr         = agents?.trend;
@@ -424,7 +442,6 @@ export function AgentCardsWidget({
   const risk       = agents?.risk;
   const contrarian    = agents?.contrarian;
   const execution     = agents?.execution;
-  const institutional = agents?.institutional;
 
   const execConf = execution?.rrRatio != null
     ? Math.min(90, Math.round(execution.rrRatio * 20))

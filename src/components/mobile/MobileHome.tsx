@@ -848,7 +848,6 @@ export function MobileHome() {
                 { id: "RG", tone: ad?.risk ? (ad.risk.valid ? "green" : "red") : "gray" },
                 { id: "CT", tone: ad?.contrarian?.challengesBias ? "red" : "gray" },
                 { id: "EX", tone: ad?.execution?.direction === "long" ? "green" : ad?.execution?.direction === "short" ? "red" : ad?.execution?.signalState === "ARMED" ? "yellow" : "gray" },
-                { id: "IF", tone: ad?.institutional?.dataAvailable ? mTone(ad?.institutional?.flow) : "gray" },
                 { id: "MA", tone: mTone(ad?.master?.finalBias) },
               ];
               return (

@@ -375,7 +375,6 @@ export interface AgentRunResult {
     risk: RiskAgentOutput;
     execution: ExecutionAgentOutput;
     contrarian: ContrarianAgentOutput;
-    institutional: InstitutionalFlowAgentOutput;
     master: MasterDecisionOutput;
   };
   debate?: DebateEntry[];
