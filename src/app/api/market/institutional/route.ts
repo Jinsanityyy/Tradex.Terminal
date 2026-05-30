@@ -44,66 +44,114 @@ function withTimeout(p: Promise<Response>): Promise<Response> {
   return Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), TIMEOUT))]);
 }
 
-// ── CFTC Managed Money (replaces Dukascopy — blocked server-side) ─────────────
-// COMEX Gold CFTC code: 088691. Data published weekly (Fri for prior Tue).
+// ── CFTC Managed Money ────────────────────────────────────────────────────────
+// COMEX Gold code: 088691. Data published weekly (Fri for prior Tue).
+// Tries CFTC OData JSON API first (reliable), falls back to raw text file.
 async function fetchManagedMoney(): Promise<SentimentData | null> {
+  return (await fetchCFTCOData()) ?? (await fetchCFTCText());
+}
+
+async function fetchCFTCOData(): Promise<SentimentData | null> {
   try {
+    const qs = new URLSearchParams({
+      "$format": "json",
+      "$top": "1",
+      "$filter": "CFTC_Contract_Market_Code eq '088691'",
+      "$orderby": "As_of_Date_Form_YYYY_MM_DD desc",
+    });
     const res = await Promise.race([
-      fetch("https://www.cftc.gov/files/dea/newcot/c_disagg.txt", {
-        headers: { "User-Agent": CHROME_UA, "Accept": "text/plain, */*" },
+      fetch(`https://publicreporting.cftc.gov/api/odata/wsdot/DisaggregatedFuturesOnly?${qs}`, {
+        headers: { "User-Agent": CHROME_UA, "Accept": "application/json" },
       }),
-      new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 12000)),
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 10000)),
     ]);
     if (!res.ok) return null;
-    const text = await res.text();
+    const json = await res.json();
+    const rec = json?.value?.[0];
+    if (!rec) return null;
 
-    const rows = text.split("\n");
-    if (rows.length < 2) return null;
+    // Field names in OData response (locate dynamically to handle naming changes)
+    const keys     = Object.keys(rec);
+    const longKey  = keys.find(k => /money|mm/i.test(k) && /long/i.test(k) && !/short|spread/i.test(k));
+    const shortKey = keys.find(k => /money|mm/i.test(k) && /short/i.test(k) && !/spread/i.test(k));
+    if (!longKey || !shortKey) return null;
 
-    // Parse a quoted CSV row into string array
-    function parseRow(row: string): string[] {
-      const out: string[] = [];
-      let cur = "";
-      let inQ = false;
-      for (const ch of row) {
-        if (ch === '"') { inQ = !inQ; }
-        else if (ch === "," && !inQ) { out.push(cur); cur = ""; }
-        else { cur += ch; }
-      }
-      out.push(cur);
-      return out;
-    }
+    return buildSentiment(Number(rec[longKey]) || 0, Number(rec[shortKey]) || 0);
+  } catch { return null; }
+}
 
-    const headers = parseRow(rows[0]);
-    // Locate "Money Manager-Long (All)" and "Money Manager-Short (All)"
-    const mmLongIdx  = headers.findIndex(h => /money\s*manager.+long/i.test(h) && !/short|spread/i.test(h));
-    const mmShortIdx = headers.findIndex(h => /money\s*manager.+short/i.test(h) && !/spread/i.test(h));
-    if (mmLongIdx < 0 || mmShortIdx < 0) return null;
-
-    // Last occurrence of gold row = most recent week
-    const goldRow = rows.filter(r => r.includes("088691")).pop();
-    if (!goldRow) return null;
-
-    const fields  = parseRow(goldRow);
-    const mmLong  = parseInt((fields[mmLongIdx]  ?? "").replace(/,/g, ""), 10) || 0;
-    const mmShort = parseInt((fields[mmShortIdx] ?? "").replace(/,/g, ""), 10) || 0;
-    if (!mmLong && !mmShort) return null;
-
-    const total    = mmLong + mmShort;
-    const longPct  = Math.round((mmLong / total) * 100);
-    const shortPct = 100 - longPct;
-
-    // Direct signal — managed money is "smart money", not contrarian
-    const extreme = longPct >= 70 || shortPct >= 70;
-    const signal: SentimentData["signal"] =
-      longPct  >= 70 ? "bullish" :
-      shortPct >= 70 ? "bearish" :
-      "neutral";
-
-    return { longPct, shortPct, signal, extreme };
-  } catch {
-    return null;
+async function fetchCFTCText(): Promise<SentimentData | null> {
+  const urls = [
+    "https://www.cftc.gov/files/dea/newcot/c_disagg.txt",
+    "https://www.cftc.gov/dea/newcot/c_disagg.txt",
+  ];
+  for (const url of urls) {
+    try {
+      const res = await Promise.race([
+        fetch(url, { headers: { "User-Agent": CHROME_UA, "Accept": "text/plain, */*" } }),
+        new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 12000)),
+      ]);
+      if (!res.ok) continue;
+      const text = await res.text();
+      const result = parseCFTCCsv(text);
+      if (result) return result;
+    } catch { continue; }
   }
+  return null;
+}
+
+function parseCFTCCsv(raw: string): SentimentData | null {
+  const rows = raw.replace(/\r/g, "").split("\n").filter(r => r.trim());
+  if (rows.length < 2) return null;
+
+  function parseRow(row: string): string[] {
+    const out: string[] = [];
+    let cur = "", inQ = false;
+    for (const ch of row) {
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === "," && !inQ) { out.push(cur.trim()); cur = ""; }
+      else { cur += ch; }
+    }
+    out.push(cur.trim());
+    return out;
+  }
+
+  const headers = parseRow(rows[0]);
+  // Try multiple known header patterns across CFTC report versions
+  const longPatterns  = [/money\s*manager.+long/i, /leveraged\s*fund.+long/i, /noncommercial.+long/i];
+  const shortPatterns = [/money\s*manager.+short/i, /leveraged\s*fund.+short/i, /noncommercial.+short/i];
+
+  let mmLongIdx = -1, mmShortIdx = -1;
+  for (const p of longPatterns) {
+    const idx = headers.findIndex(h => p.test(h) && !/short|spread/i.test(h));
+    if (idx >= 0) { mmLongIdx = idx; break; }
+  }
+  for (const p of shortPatterns) {
+    const idx = headers.findIndex(h => p.test(h) && !/spread/i.test(h));
+    if (idx >= 0) { mmShortIdx = idx; break; }
+  }
+  if (mmLongIdx < 0 || mmShortIdx < 0) return null;
+
+  const goldRow = rows.filter(r => r.includes("088691")).pop();
+  if (!goldRow) return null;
+
+  const fields  = parseRow(goldRow);
+  const mmLong  = parseInt((fields[mmLongIdx]  ?? "").replace(/,/g, ""), 10) || 0;
+  const mmShort = parseInt((fields[mmShortIdx] ?? "").replace(/,/g, ""), 10) || 0;
+  return buildSentiment(mmLong, mmShort);
+}
+
+function buildSentiment(mmLong: number, mmShort: number): SentimentData | null {
+  if (!mmLong && !mmShort) return null;
+  const total    = mmLong + mmShort;
+  const longPct  = Math.round((mmLong / total) * 100);
+  const shortPct = 100 - longPct;
+  const extreme  = longPct >= 70 || shortPct >= 70;
+  const signal: SentimentData["signal"] =
+    longPct  >= 70 ? "bullish" :
+    shortPct >= 70 ? "bearish" :
+    "neutral";
+  return { longPct, shortPct, signal, extreme };
 }
 
 // ── GC Futures volume via Yahoo Finance (CME blocks server-side requests) ─────
