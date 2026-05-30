@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { useQuotes, useMarketBias, useKeyLevels, useCatalysts, useMarketAnalysis, useAgentResult, useSessions, useMTFBias, useTrumpPosts } from "@/hooks/useMarketData";
+import { useQuotes, useMarketBias, useKeyLevels, useCatalysts, useMarketAnalysis, useAgentResult, useSessions, useMTFBias, useTrumpPosts, useLastSignal } from "@/hooks/useMarketData";
 import { useWebSocketPrices } from "@/hooks/useWebSocketPrices";
 import { TrendingUp, TrendingDown, Minus, Target, Zap, RefreshCw, Sparkles, ChevronDown, ChevronUp, Brain, BarChart2, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -200,6 +200,7 @@ export function MobileHome() {
   const { sessions } = useSessions();
   const { mtfData, mtfLoading } = useMTFBias(activeSymbol);
   const { posts: trumpPosts } = useTrumpPosts();
+  const { isWin: lastSignalWin, isLoss: lastSignalLoss } = useLastSignal(activeSymbol);
   const [generating, setGenerating] = useState(false);
   const [selectedCatalyst, setSelectedCatalyst] = useState<Catalyst | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -283,21 +284,9 @@ export function MobileHome() {
   // Use liveQuotes (same source as ticker) for consistency — avoids stale WS reads
   const livePrice: number | null = liveQuotes.find(q => q.symbol === activeSymbol)?.price ?? null;
 
-  const tp1HitByLivePrice = (() => {
-    if (livePrice == null || !tp1 || !entry || !stopLoss) return false;
-    const isLong = entry > stopLoss;
-    return isLong ? livePrice >= tp1 : livePrice <= tp1;
-  })();
-
-  const slHitByLivePrice = (() => {
-    if (livePrice == null || !stopLoss || !entry) return false;
-    const isLong = entry > stopLoss;
-    return isLong ? livePrice <= stopLoss : livePrice >= stopLoss;
-  })();
-
   const hitBadge: { label: string; className: string } | null =
-    tp1HitByLivePrice ? { label: "TP1 HIT ✅", className: "bg-emerald-500/15 text-emerald-400" } :
-    slHitByLivePrice  ? { label: "SL HIT ❌",  className: "bg-red-500/15 text-red-400" } :
+    lastSignalWin  ? { label: "TP1 HIT ✅", className: "bg-emerald-500/15 text-emerald-400" } :
+    lastSignalLoss ? { label: "SL HIT ❌",  className: "bg-red-500/15 text-red-400" } :
     null;
 
   // Active session
@@ -541,7 +530,7 @@ export function MobileHome() {
                     {[
                       { label: "Entry", value: entry > 100 ? entry.toFixed(2) : entry.toFixed(4), color: "text-zinc-100" },
                       { label: "SL",    value: stopLoss ? (stopLoss > 100 ? stopLoss.toFixed(2) : stopLoss.toFixed(4)) : " - ", color: "text-red-400" },
-                      { label: "TP1",   value: tp1 ? (tp1 > 100 ? tp1.toFixed(2) : tp1.toFixed(4)) : " - ", color: tp1HitByLivePrice ? "text-emerald-400 animate-pulse" : "text-emerald-400" },
+                      { label: "TP1",   value: tp1 ? (tp1 > 100 ? tp1.toFixed(2) : tp1.toFixed(4)) : " - ", color: lastSignalWin ? "text-emerald-400 animate-pulse" : "text-emerald-400" },
                       { label: "RR",    value: rrRatio ? `${rrRatio}:1` : " - ", color: "text-zinc-300" },
                     ].map(({ label, value, color }) => (
                       <div key={label} className="text-center">

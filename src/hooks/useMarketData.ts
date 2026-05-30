@@ -355,3 +355,18 @@ export function useAgentResult(symbol: Symbol, timeframe: Timeframe = "H1", refr
     refresh,
   };
 }
+
+// ── Last resolved signal for a symbol ──────────────────────────────────────
+export function useLastSignal(symbol: string) {
+  const { data } = useSWR<{ recent: Array<{ status: string; entry_price: number; stop_loss: number; take_profit: number }> }>(
+    symbol ? `/api/signals?symbol=${symbol}&limit=1` : null,
+    fetcher,
+    { refreshInterval: 60_000, revalidateOnFocus: true, dedupingInterval: 30_000 }
+  );
+  const last = data?.recent?.[0] ?? null;
+  return {
+    status: last?.status ?? null,
+    isWin:  last?.status === "win_tp1" || last?.status === "win_tp2",
+    isLoss: last?.status === "loss_sl",
+  };
+}
