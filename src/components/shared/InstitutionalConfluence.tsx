@@ -424,77 +424,180 @@ function VolumeDetail({ data }: { data: InstitutionalData | null }) {
   );
 }
 
-function OptionsDetail({ data }: { data: InstitutionalData | null }) {
+// ── P/C Ratio scale zones — lower P/C = more bullish ─────────────────────────
+const PCR_ZONES = [
+  { id: "ext-bear",  label: "Extreme\nBearish",  range: "> 1.8",   min: 1.8,  max: Infinity, bar: "bg-red-600",          text: "text-red-400" },
+  { id: "str-bear",  label: "Strong\nBearish",   range: "1.3–1.8", min: 1.3,  max: 1.8,      bar: "bg-red-500/70",       text: "text-red-400" },
+  { id: "neutral",   label: "Neutral",            range: "0.7–1.3", min: 0.7,  max: 1.3,      bar: "bg-zinc-600",         text: "text-zinc-400" },
+  { id: "str-bull",  label: "Strong\nBullish",   range: "0.5–0.7", min: 0.5,  max: 0.7,      bar: "bg-emerald-500/70",   text: "text-emerald-400" },
+  { id: "ext-bull",  label: "Extreme\nBullish",  range: "< 0.5",   min: 0,    max: 0.5,      bar: "bg-emerald-600",      text: "text-emerald-400" },
+] as const;
+
+function getPCRZone(pcr: number) {
+  return PCR_ZONES.find(z => pcr >= z.min && pcr < z.max) ?? PCR_ZONES[2];
+}
+
+function PCRScale({ pcr }: { pcr: number }) {
+  const active = getPCRZone(pcr);
   return (
-    <div className="space-y-4">
-      {data?.options && (
-        <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-2">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Current Reading</p>
-          <div className="flex items-center gap-4">
-            <div>
-              <p className="text-[8px] text-zinc-600">P/C Ratio</p>
-              <p className={cn("text-base font-bold font-mono",
-                data.options.putCallRatio < 0.7 ? "text-emerald-400" :
-                data.options.putCallRatio > 1.3 ? "text-red-400" : "text-zinc-300")}>
-                {data.options.putCallRatio.toFixed(2)}
-              </p>
-            </div>
-            <div>
-              <p className="text-[8px] text-zinc-600">Call Vol</p>
-              <p className="text-base font-bold font-mono text-emerald-400">{data.options.callVolume.toLocaleString()}</p>
-            </div>
-            <div>
-              <p className="text-[8px] text-zinc-600">Put Vol</p>
-              <p className="text-base font-bold font-mono text-red-400">{data.options.putVolume.toLocaleString()}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <SignalBadge signal={data.options.signal} />
-            {(data.options.unusualCalls > 0 || data.options.unusualPuts > 0) && (
-              <span className="text-[10px] font-bold text-amber-400">
-                Unusual: {data.options.unusualCalls}C / {data.options.unusualPuts}P
+    <div className="space-y-2">
+      {/* Bar segments */}
+      <div className="flex gap-0.5 h-2 rounded-full overflow-hidden">
+        {PCR_ZONES.map((z) => (
+          <div
+            key={z.id}
+            className={cn(
+              "flex-1 transition-all duration-300",
+              z.id === active.id ? z.bar : `${z.bar} opacity-20`,
+            )}
+          />
+        ))}
+      </div>
+      {/* Labels */}
+      <div className="flex">
+        {PCR_ZONES.map((z) => (
+          <div key={z.id} className="flex-1 flex flex-col items-center gap-0.5">
+            <p className={cn(
+              "text-center text-[8px] leading-tight whitespace-pre-line transition-all duration-300",
+              z.id === active.id ? cn("font-bold", z.text) : "text-zinc-700 font-normal",
+            )}>
+              {z.label}
+            </p>
+            <p className={cn(
+              "text-[7px] tabular-nums transition-all duration-300",
+              z.id === active.id ? z.text : "text-zinc-800",
+            )}>
+              {z.range}
+            </p>
+            {z.id === active.id && (
+              <span className="text-[6px] font-bold tracking-wider text-[#D4AF37] border border-[#D4AF37]/40 bg-[#D4AF37]/10 rounded px-1">
+                {pcr.toFixed(2)}
               </span>
             )}
           </div>
-          <p className="text-[10px] text-zinc-500 italic">{optionsBiasNote(data.options)}</p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function OptionsDetail({ data }: { data: InstitutionalData | null }) {
+  const opts = data?.options ?? null;
+  const zone = opts ? getPCRZone(opts.putCallRatio) : null;
+
+  return (
+    <div className="space-y-4">
+
+      {/* ── Current Reading ── */}
+      {opts && (
+        <div className="rounded-xl border border-white/8 bg-[hsl(var(--secondary))] overflow-hidden">
+          <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/6">
+            <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-zinc-500">Current Reading</p>
+            <SignalBadge signal={opts.signal} />
+          </div>
+          <div className="px-3.5 py-3 space-y-3">
+            {/* P/C — primary number */}
+            <div className="flex items-end gap-3">
+              <div>
+                <p className="text-[8px] uppercase tracking-[0.15em] text-zinc-600 mb-1">P/C Ratio</p>
+                <p className={cn("text-2xl font-bold font-mono tabular-nums leading-none", zone?.text ?? "text-zinc-300")}>
+                  {opts.putCallRatio.toFixed(2)}
+                </p>
+              </div>
+              {zone && (
+                <div className="mb-0.5">
+                  <span className={cn(
+                    "text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded border",
+                    opts.signal === "bullish" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" :
+                    opts.signal === "bearish" ? "border-red-500/30 bg-red-500/10 text-red-400" :
+                    "border-zinc-500/30 bg-zinc-500/10 text-zinc-400"
+                  )}>
+                    {zone.label.replace("\n", " ")}
+                  </span>
+                </div>
+              )}
+            </div>
+            {/* Call / Put volumes */}
+            <div className="flex gap-4">
+              <div>
+                <p className="text-[8px] text-zinc-600">Call Vol</p>
+                <p className="text-sm font-bold font-mono text-emerald-400">{opts.callVolume.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-[8px] text-zinc-600">Put Vol</p>
+                <p className="text-sm font-bold font-mono text-red-400">{opts.putVolume.toLocaleString()}</p>
+              </div>
+              {(opts.unusualCalls > 0 || opts.unusualPuts > 0) && (
+                <div>
+                  <p className="text-[8px] text-zinc-600">Unusual</p>
+                  <p className="text-sm font-bold text-amber-400">{opts.unusualCalls}C / {opts.unusualPuts}P</p>
+                </div>
+              )}
+            </div>
+            <p className="text-[10px] text-zinc-500 italic leading-relaxed">{optionsBiasNote(opts)}</p>
+          </div>
         </div>
       )}
 
+      <div className="border-t border-[#1A1A1A]" />
+
+      {/* ── How It Works ── */}
       <AccentBox accent="blue" icon={<Eye />} label="How It Works">
         <p className="text-[11px] text-zinc-300 leading-relaxed">
-          Options are contracts that give the right to buy (CALL) or sell (PUT) an asset at a specific price. Institutions use them to hedge positions, express directional views with leverage, or speculate on big moves. Tracking their options activity reveals where smart money is leaning.
+          Options are contracts that give the right to buy (CALL) or sell (PUT) an asset at a specific price. Institutions use them to hedge positions, express directional views with leverage, or speculate on big moves. Tracking their activity reveals where smart money is leaning.
         </p>
       </AccentBox>
 
+      <div className="border-t border-[#1A1A1A]" />
+
+      {/* ── Call vs Put ── */}
       <Section heading="Call Volume vs Put Volume">
         <div className="space-y-2">
           <div className="rounded-lg bg-emerald-500/[0.05] border border-emerald-500/15 p-2.5 space-y-1">
             <p className="text-[10px] font-bold text-emerald-400">CALL Volume</p>
-            <p className="text-[11px] text-zinc-300">Right to buy. High call volume = traders betting price goes UP. Bullish positioning.</p>
+            <p className="text-[11px] text-zinc-300">Right to buy. High call volume = traders betting price goes UP. Lowers the P/C ratio.</p>
           </div>
           <div className="rounded-lg bg-red-500/[0.05] border border-red-500/15 p-2.5 space-y-1">
             <p className="text-[10px] font-bold text-red-400">PUT Volume</p>
-            <p className="text-[11px] text-zinc-300">Right to sell. High put volume = traders hedging or betting price goes DOWN. Bearish positioning.</p>
+            <p className="text-[11px] text-zinc-300">Right to sell. High put volume = traders hedging or betting price goes DOWN. Raises the P/C ratio.</p>
           </div>
         </div>
       </Section>
 
-      <Section heading="Put/Call Ratio (P/C)">
-        <BulletList items={[
-          "P/C < 0.7 → BULLISH. Calls dominating — more bets on upside.",
-          "P/C > 1.3 → BEARISH. Puts heavy — institutions hedging or speculating downside.",
-          "P/C 0.7–1.3 → NEUTRAL. Balanced flow, no strong directional signal.",
-        ]} color="text-zinc-300" />
-      </Section>
+      <div className="border-t border-[#1A1A1A]" />
 
+      {/* ── P/C Scale ── */}
+      <div>
+        <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-zinc-500 mb-3">Put/Call Ratio Scale</p>
+        <div className="rounded-xl border border-white/8 bg-[hsl(var(--secondary))] p-3.5 space-y-3">
+          <div className="flex items-center justify-between text-[8px] text-zinc-600 font-mono">
+            <span>← MORE BEARISH</span>
+            <span>MORE BULLISH →</span>
+          </div>
+          {opts
+            ? <PCRScale pcr={opts.putCallRatio} />
+            : <PCRScale pcr={1.0} />
+          }
+          <p className="text-[10px] text-zinc-500 leading-relaxed">
+            Lower P/C = more calls than puts = bullish. A P/C of {opts ? opts.putCallRatio.toFixed(2) : "—"} means{" "}
+            {opts ? `${(1 / opts.putCallRatio).toFixed(2)}× more calls than puts` : "data unavailable"}.
+          </p>
+        </div>
+      </div>
+
+      <div className="border-t border-[#1A1A1A]" />
+
+      {/* ── Unusual Volume ── */}
       <AccentBox accent="amber" icon={<Eye />} label="Unusual Volume">
         <p className="text-[11px] text-zinc-300 leading-relaxed">
-          When a specific strike has volume &gt; 3× its open interest and &gt; 500 contracts — a large player is loading a position. This is often a leading indicator that institutional money is moving before a major price event.
+          When a specific strike has volume &gt; 3× its open interest and &gt; 500 contracts — a large player is loading a position. This often leads price moves before the broader market reacts.
         </p>
       </AccentBox>
 
+      <div className="border-t border-[#1A1A1A]" />
+
       <Section heading="Data Source" color="text-zinc-500">
-        <p>CBOE GLD (SPDR Gold ETF) options — ~15-minute delay. GLD tracks gold price 1:1, so its options flow directly reflects gold institutional bias.</p>
+        <p>CBOE GLD (SPDR Gold ETF) options — ~15-minute delay. GLD tracks gold 1:1, so its options flow directly reflects gold institutional bias.</p>
       </Section>
     </div>
   );
