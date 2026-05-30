@@ -154,7 +154,11 @@ function AccentBox({ accent, icon, label, children }: {
   return (
     <div className={cn("rounded-xl border transition-colors", border)}>
       <div className={cn("flex items-center gap-2 px-3.5 py-2.5 border-b", divider)}>
-        <span className={cn("h-3.5 w-3.5 shrink-0", text)}>{icon}</span>
+        {React.isValidElement(icon)
+          ? React.cloneElement(icon as React.ReactElement<{ className?: string }>, {
+              className: cn("h-3.5 w-3.5 shrink-0", text),
+            })
+          : icon}
         <span className={cn("text-[10px] font-bold uppercase tracking-widest", text)}>{label}</span>
       </div>
       <div className="px-3.5 py-3 space-y-2">{children}</div>
