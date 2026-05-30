@@ -23,6 +23,7 @@ import { LiveTVPanel } from "@/components/shared/LiveTVPanel";
 import dynamic from "next/dynamic";
 const GlobeClient = dynamic(() => import("@/components/globe/GlobeClient"), { ssr: false });
 import { CommunityPanel } from "@/components/shared/CommunityPanel";
+import { InstitutionalConfluence } from "@/components/shared/InstitutionalConfluence";
 import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
 import { CloseTradeModal } from "@/components/shared/CloseTradeModal";
 import { loadTradeLog, findOpenBySetup, discardTrade, type TakenSignal } from "@/lib/trades/trade-log";
@@ -856,6 +857,13 @@ export function MobileHome() {
 
             case "pnl_calendar":
               return <MobilePnLWidget key="pnl_calendar" />;
+
+            case "institutional":
+              return (
+                <section key="institutional">
+                  <InstitutionalConfluence />
+                </section>
+              );
 
             default:
               return null;

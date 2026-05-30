@@ -23,6 +23,7 @@ export const WIDGET_DEFS = [
   { id: "community",       label: "Community",         desc: "Live trader chat room" },
   { id: "lot_calculator",  label: "Lot Calculator",    desc: "Position size & risk calculator" },
   { id: "pnl_calendar",   label: "PnL Calendar",      desc: "Monthly performance stats & trade history" },
+  { id: "institutional",   label: "Institutional Flow",desc: "Retail sentiment, CME open interest & CBOE options flow" },
 ] as const;
 
 export type WidgetId = typeof WIDGET_DEFS[number]["id"];
@@ -49,6 +50,7 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig[] = [
   { id: "community",      visible: false },
   { id: "lot_calculator", visible: false },
   { id: "pnl_calendar",  visible: false },
+  { id: "institutional",  visible: false },
 ];
 
 const STORAGE_KEY = "tradex-mobile-widgets-v3";
