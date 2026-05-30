@@ -87,7 +87,7 @@ export function InstitutionalConfluence() {
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
         <div>
           <p className="text-[9px] uppercase tracking-widest text-zinc-600 mb-0.5">Institutional Confluence</p>
-          <p className="text-[10px] text-zinc-500">Dukascopy · CME OI · CBOE Options</p>
+          <p className="text-[10px] text-zinc-500">Dukascopy · GC Volume · CBOE Options</p>
         </div>
         {data && !allNull && (
           <div className="flex flex-col items-end gap-1">
@@ -121,22 +121,22 @@ export function InstitutionalConfluence() {
               </Row>
             )}
 
-            {/* CME Open Interest */}
+            {/* GC Futures Volume (Yahoo Finance) */}
             {data?.oi ? (
-              <Row label="CME Gold OI (GC Futures)" signal={data.oi.signal}>
+              <Row label="GC Futures Volume" signal={data.oi.signal}>
                 <p className="text-[11px] text-zinc-200">{data.oi.label}</p>
                 <div className="flex items-center gap-3 mt-1">
                   <span className="text-[9px] text-zinc-500">
-                    OI: <span className="text-zinc-300 font-mono">{data.oi.openInterest.toLocaleString()}</span>
+                    Vol: <span className="text-zinc-300 font-mono">{data.oi.openInterest.toLocaleString()}</span>
                   </span>
                   <span className={cn("text-[9px] font-mono font-bold",
                     data.oi.oiChange > 0 ? "text-emerald-400" : data.oi.oiChange < 0 ? "text-red-400" : "text-zinc-500")}>
-                    {data.oi.oiChange > 0 ? "+" : ""}{data.oi.oiChange.toLocaleString()} contracts
+                    {data.oi.oiChange > 0 ? "+" : ""}{data.oi.oiChange.toLocaleString()} vs prev
                   </span>
                 </div>
               </Row>
             ) : (
-              <Row label="CME Gold OI (GC Futures)">
+              <Row label="GC Futures Volume">
                 <p className="text-[10px] text-zinc-600 italic">Unavailable</p>
               </Row>
             )}
@@ -182,7 +182,7 @@ export function InstitutionalConfluence() {
 
       <div className="px-4 pb-3">
         <p className="text-[9px] text-zinc-700">
-          Dukascopy: retail contrarian · CME OI: real vs fake moves · CBOE: smart money options
+          Dukascopy: retail contrarian · GC Vol: buyers vs sellers · CBOE: smart money options
         </p>
       </div>
     </div>

@@ -39,6 +39,7 @@ export interface InstitutionalData {
 }
 
 const TIMEOUT = 8000;
+const CHROME_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 function withTimeout(p: Promise<Response>): Promise<Response> {
   return Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), TIMEOUT))]);
 }
@@ -47,13 +48,21 @@ function withTimeout(p: Promise<Response>): Promise<Response> {
 async function fetchSentiment(): Promise<SentimentData | null> {
   try {
     const res = await withTimeout(fetch(
-      "https://freeserv.dukascopy.com/2.0/?path=trading_tools/SSI&stream=false&period=LIVE",
-      { headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" } }
+      "https://freeserv.dukascopy.com/2.0/?path=trading_tools/SSI&stream=false",
+      {
+        headers: {
+          "User-Agent": CHROME_UA,
+          "Accept": "application/json, text/plain, */*",
+          "Accept-Language": "en-US,en;q=0.9",
+          "Referer": "https://www.dukascopy.com/trading-tools/widgets/ssi/",
+          "Origin": "https://www.dukascopy.com",
+          "Cache-Control": "no-cache",
+        },
+      }
     ));
     if (!res.ok) return null;
     const raw = await res.json();
 
-    // Response can be array or {data:[...]}
     const items: unknown[] = Array.isArray(raw) ? raw : (raw?.data ?? raw?.instruments ?? []);
     const gold = (items as Record<string, unknown>[]).find((i) =>
       String(i.a ?? i.name ?? i.instrumentId ?? "").toUpperCase().includes("XAU") ||
@@ -67,11 +76,10 @@ async function fetchSentiment(): Promise<SentimentData | null> {
 
     if (!longPct) return null;
 
-    // Contrarian: if retails are heavily long → bearish signal for price
     const extreme = longPct >= 70 || shortPct >= 70;
     const signal: SentimentData["signal"] =
-      shortPct >= 70 ? "bullish" :  // retails heavily short → contrarian bullish
-      longPct  >= 70 ? "bearish" :  // retails heavily long  → contrarian bearish
+      shortPct >= 70 ? "bullish" :
+      longPct  >= 70 ? "bearish" :
       "neutral";
 
     return { longPct: Math.round(longPct), shortPct: Math.round(shortPct), signal, extreme };
@@ -80,44 +88,47 @@ async function fetchSentiment(): Promise<SentimentData | null> {
   }
 }
 
-// ── CME Gold Futures (GC) Open Interest ──────────────────────────────────────
+// ── GC Futures volume via Yahoo Finance (CME blocks server-side requests) ─────
 async function fetchOI(): Promise<OIData | null> {
   try {
-    // CME settlements for front-month Gold contract
     const res = await withTimeout(fetch(
-      "https://www.cmegroup.com/CmeWS/mvc/Settlements/futures/activeContracts/GC.json",
-      { headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json", Referer: "https://www.cmegroup.com/" } }
+      "https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=5d",
+      { headers: { "User-Agent": CHROME_UA, "Accept": "application/json" } }
     ));
     if (!res.ok) return null;
     const json = await res.json();
 
-    // Front-month is first entry
-    const contracts = json?.settlements ?? json?.items ?? [];
-    const front = contracts[0];
-    if (!front) return null;
+    const result = json?.chart?.result?.[0];
+    if (!result) return null;
 
-    const openInterest = parseInt(String(front.openInterest ?? front.oi ?? "0").replace(/,/g, ""), 10);
-    const oiChangeStr = String(front.change ?? front.oiChange ?? front.ptChange ?? "0").replace(/,/g, "");
-    const oiChange = parseInt(oiChangeStr, 10) || 0;
-    const settle = parseFloat(String(front.settle ?? front.settlement ?? "0").replace(/,/g, ""));
-    const prevSettle = parseFloat(String(front.priorSettle ?? front.previousSettle ?? settle).replace(/,/g, ""));
-    const priceChange = prevSettle > 0 ? settle - prevSettle : 0;
+    const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
+    const volumes: (number | null)[] = result.indicators?.quote?.[0]?.volume ?? [];
 
-    // Classic OI interpretation
+    const validCloses = closes.filter((v): v is number => v != null);
+    const validVols   = volumes.filter((v): v is number => v != null);
+    if (validCloses.length < 2 || validVols.length < 2) return null;
+
+    const lastClose = validCloses[validCloses.length - 1];
+    const prevClose = validCloses[validCloses.length - 2];
+    const lastVol   = validVols[validVols.length - 1];
+    const prevVol   = validVols[validVols.length - 2];
+
+    const priceChange = lastClose - prevClose;
+    const oiChange    = lastVol - prevVol;
+
     let signal: OIData["signal"] = "neutral";
-    let label = "Insufficient data";
-
+    let label = "GC volume data insufficient";
     if (priceChange > 0 && oiChange > 0) {
-      signal = "bullish"; label = "Price↑ OI↑ — new longs entering";
+      signal = "bullish"; label = "Price↑ Vol↑ — buyers absorbing";
     } else if (priceChange > 0 && oiChange < 0) {
-      signal = "neutral"; label = "Price↑ OI↓ — shorts covering (weak)";
+      signal = "neutral"; label = "Price↑ Vol↓ — short covering (weak)";
     } else if (priceChange < 0 && oiChange > 0) {
-      signal = "bearish"; label = "Price↓ OI↑ — new shorts entering";
+      signal = "bearish"; label = "Price↓ Vol↑ — sellers pressing";
     } else if (priceChange < 0 && oiChange < 0) {
-      signal = "neutral"; label = "Price↓ OI↓ — longs exiting (exhaustion)";
+      signal = "neutral"; label = "Price↓ Vol↓ — sellers exhausting";
     }
 
-    return { openInterest, oiChange, priceChange, signal, label };
+    return { openInterest: lastVol, oiChange, priceChange, signal, label };
   } catch {
     return null;
   }
