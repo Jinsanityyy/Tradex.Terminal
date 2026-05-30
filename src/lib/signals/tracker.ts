@@ -485,3 +485,72 @@ export async function reprocessRecentLosses(withinHours = 24): Promise<Reprocess
 
   return result;
 }
+
+/**
+ * Re-evaluates win_tp1/win_tp2 signals where the recorded price_at_resolution
+ * is on the WRONG side of take_profit — meaning TP was never actually hit.
+ *
+ * Caused by direction being NULL in DB, which defaulted to "long", so
+ * currentPrice >= tp1 (always true for SHORT setups above TP level) fired
+ * immediately on the first cron tick.
+ */
+export async function reprocessIncorrectWins(): Promise<ReprocessResult> {
+  const result: ReprocessResult = { checkedCount: 0, correctedCount: 0, corrections: [], errors: [] };
+
+  const [wins1, wins2] = await Promise.all([
+    getSignals({ status: "win_tp1" }),
+    getSignals({ status: "win_tp2" }),
+  ]);
+  const allWins = [...wins1, ...wins2];
+  result.checkedCount = allWins.length;
+  if (allWins.length === 0) return result;
+
+  for (const signal of allWins) {
+    try {
+      const plan = signal.tradePlan;
+      if (!plan) continue;
+
+      const { direction, entry, stopLoss, tp1 } = plan;
+      const priceAtRes = signal.outcome?.priceAtResolution;
+      if (priceAtRes == null) continue;
+
+      // Valid TP hit: price reached the correct side of TP for this direction
+      const validTpHit =
+        direction === "short" ? priceAtRes <= tp1 :
+        direction === "long"  ? priceAtRes >= tp1 :
+        false;
+
+      if (validTpHit) continue;
+
+      // Price was NOT at TP when resolved — tag was wrong
+      const riskDist = Math.abs(entry - stopLoss);
+      const correctedOutcome: SignalOutcome = {
+        resolvedAt: signal.outcome?.resolvedAt ?? new Date().toISOString(),
+        priceAtResolution: stopLoss,
+        pnlR: -1,
+        pnlPercent: riskDist > 0 ? -((riskDist / entry) * 100) : -1,
+      };
+
+      const updated = await updateSignal(signal.id, {
+        status: "loss_sl",
+        outcome: correctedOutcome,
+      });
+
+      if (updated) {
+        result.correctedCount += 1;
+        result.corrections.push({
+          id:     signal.id,
+          symbol: signal.symbol,
+          from:   signal.status,
+          to:     "loss_sl",
+          pnlR:   -1,
+        });
+        console.log(`[reprocess] corrected ${signal.id}: ${signal.status} → loss_sl (priceAtRes ${priceAtRes} not at tp ${tp1})`);
+      }
+    } catch (err) {
+      result.errors.push(`${signal.id}: ${String(err)}`);
+    }
+  }
+
+  return result;
+}

@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { computeStats, getRecentSignals } from "@/lib/signals/stats";
-import { trackOpenSignals, reprocessRecentLosses } from "@/lib/signals/tracker";
+import { trackOpenSignals, reprocessRecentLosses, reprocessIncorrectWins } from "@/lib/signals/tracker";
 import type { Symbol } from "@/lib/agents/schemas";
 import type { SignalStats } from "@/lib/signals/types";
 
@@ -61,7 +61,8 @@ export async function GET(req: NextRequest) {
       // Fire-and-forget  -  don't block the response.
       void Promise.all([
         trackOpenSignals(),
-        reprocessRecentLosses(4), // correct false SL hits from last 4h on every load
+        reprocessRecentLosses(4),
+        reprocessIncorrectWins(),  // correct false TP hits caused by wrong direction
       ]).catch(err => console.warn("[api/signals] tracker run failed:", err));
     }
 
