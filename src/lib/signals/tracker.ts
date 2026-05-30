@@ -106,7 +106,6 @@ function resolveFromOHLC(
   if (!plan) return null;
 
   const signalSec = new Date(signal.timestamp).getTime() / 1000;
-  const tfSec     = TF_SECONDS[signal.timeframe] ?? 3600;
   // Only include candles that OPENED after the signal was created.
   // The candle that was active at signal time may have its high/low set from price
   // action that happened BEFORE the signal, causing false SL/TP hits.
