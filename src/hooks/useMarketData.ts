@@ -22,7 +22,7 @@ export function useQuotes(refreshInterval = 15_000) {
   }>("/api/market/quotes", fetcher, {
     refreshInterval,
     revalidateOnFocus: false,
-    dedupingInterval: 5_000,
+    dedupingInterval: 15_000,
     errorRetryCount: 3,
     errorRetryInterval: 10_000,
     loadingTimeout: 15_000,
@@ -298,42 +298,7 @@ export function useMTFBias(symbol: string) {
   };
 }
 
-// ── Single Agent Run (for Market Bias page) ─────────────
-export function useAgentResult(symbol: Symbol, timeframe: Timeframe = "H1", refreshInterval = 300_000) {
-  const { data, error, isLoading, mutate: revalidate } = useSWR<AgentRunResult>(
-    `/api/agents/run?symbol=${symbol}&timeframe=${timeframe}`,
-    fetcher,
-    {
-      refreshInterval,
-      revalidateOnFocus: false,
-      dedupingInterval: 120_000,
-      errorRetryCount: 2,
-      errorRetryInterval: 30_000,
-    }
-  );
-
-  const refresh = useCallback(async () => {
-    const res = await fetch("/api/agents/run", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbol, timeframe, forceRefresh: true }),
-    });
-    if (!res.ok) throw new Error("Failed");
-    const fresh = await res.json();
-    revalidate(fresh, false);
-    return fresh as AgentRunResult;
-  }, [symbol, timeframe, revalidate]);
-
-  return {
-    result: data ?? null,
-    isLoading,
-    isLive: !!data && !data.cached,
-    error,
-    refresh,
-  };
-}
-
-// ── Institutional Confluence (Dukascopy + CME OI + CBOE Options) ────────────
+// ── Institutional Confluence (CFTC + Yahoo GC + CBOE Options) ────────────────
 import type { InstitutionalData } from "@/app/api/market/institutional/route";
 
 export function useInstitutionalData(refreshInterval = 10 * 60_000) {
@@ -348,4 +313,45 @@ export function useInstitutionalData(refreshInterval = 10 * 60_000) {
     }
   );
   return { institutional: data ?? null, institutionalLoading: isLoading, institutionalError: error };
+}
+
+// ── Single Agent Run (for Market Bias page) ─────────────
+export function useAgentResult(symbol: Symbol, timeframe: Timeframe = "H1", refreshInterval = 300_000) {
+  const { data, error, isLoading, mutate: revalidate } = useSWR<AgentRunResult>(
+    `/api/agents/run?symbol=${symbol}&timeframe=${timeframe}`,
+    fetcher,
+    {
+      refreshInterval,
+      revalidateOnFocus: false,
+      dedupingInterval: 120_000,
+      errorRetryCount: 2,
+      errorRetryInterval: 30_000,
+      keepPreviousData: true,
+    }
+  );
+
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch("/api/agents/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbol, timeframe, forceRefresh: true }),
+      });
+      if (res.ok) {
+        const fresh = await res.json();
+        revalidate(fresh, false);
+        return fresh as AgentRunResult;
+      }
+    } catch { /* fall through */ }
+    // POST unavailable (non-pro user, gate, or error) — trigger GET revalidation
+    await revalidate();
+  }, [symbol, timeframe, revalidate]);
+
+  return {
+    result: data ?? null,
+    isLoading,
+    isLive: !!data && !data.cached,
+    error,
+    refresh,
+  };
 }
