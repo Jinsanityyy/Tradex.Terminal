@@ -236,6 +236,13 @@ export function MobileHome() {
       : exec?.signalState ?? "NO_TRADE";
   const finalBias = master?.finalBias ?? "neutral";
 
+  const isCrypto = SYMBOL_META[activeSymbol]?.group === "Crypto";
+  const isWeekend = (() => { const d = new Date().getUTCDay(); return d === 0 || d === 6; })();
+  // Suppress ARMED/PENDING when market is closed — agent data is stale from last week
+  const effectiveSignalState = (isWeekend && !isCrypto && (signalState === "ARMED" || signalState === "PENDING"))
+    ? "NO_TRADE"
+    : signalState;
+
   // Entry/SL/TP  -  exec has live values, tradePlan has logged values
   const liveEntry    = exec?.entry    ?? tradePlan?.entry    ?? null;
   const liveStopLoss = exec?.stopLoss ?? tradePlan?.stopLoss ?? null;
@@ -320,14 +327,14 @@ export function MobileHome() {
   const prevSignalRef    = useRef<string | null>(null);
   useEffect(() => {
     const prev = prevSignalRef.current;
-    prevSignalRef.current = signalState;
-    if (signalState !== "ARMED") return;
+    prevSignalRef.current = effectiveSignalState;
+    if (effectiveSignalState !== "ARMED") return;
     if (prev === null) return; // skip initial render
     const key = `${activeSymbol}_${entry}`;
     if (key === lastArmedKeyRef.current) return;
     lastArmedKeyRef.current = key;
     playSignalArmed();
-  }, [signalState, activeSymbol, entry]);
+  }, [effectiveSignalState, activeSymbol, entry]);
 
   const handleRefresh = useCallback(async () => {
     // Always refresh quotes/catalysts so pull-to-refresh gives visible feedback
@@ -353,11 +360,8 @@ export function MobileHome() {
     saveWidgetConfig(config);
   }
 
-  const signalColor = signalState === "ARMED" ? "text-emerald-400" : signalState === "PENDING" ? "text-amber-400" : "text-zinc-500";
-  const signalBg = signalState === "ARMED" ? "bg-emerald-500/10 border-emerald-500/30" : signalState === "PENDING" ? "bg-amber-500/10 border-amber-500/30" : "bg-white/5 border-white/5";
-
-  const isCrypto = SYMBOL_META[activeSymbol]?.group === "Crypto";
-  const isWeekend = (() => { const d = new Date().getUTCDay(); return d === 0 || d === 6; })();
+  const signalColor = effectiveSignalState === "ARMED" ? "text-emerald-400" : effectiveSignalState === "PENDING" ? "text-amber-400" : "text-zinc-500";
+  const signalBg = effectiveSignalState === "ARMED" ? "bg-emerald-500/10 border-emerald-500/30" : effectiveSignalState === "PENDING" ? "bg-amber-500/10 border-amber-500/30" : "bg-white/5 border-white/5";
 
   const catalystImpact = catalysts[0]
     ? getCatalystImpactForSymbol(catalysts[0], activeSymbol)
@@ -468,8 +472,8 @@ export function MobileHome() {
                   {/* Signal State */}
                   <div className={cn("rounded-xl p-3.5 border", signalBg)}>
                     <p className="text-[9px] text-zinc-600 uppercase tracking-widest mb-1">Signal</p>
-                    <p className={cn("text-[13px] font-bold uppercase", signalColor)}>{signalState.replace("_", " ")}</p>
-                    {direction && direction.toLowerCase() !== "none" && signalState !== "NO_TRADE" && (
+                    <p className={cn("text-[13px] font-bold uppercase", signalColor)}>{effectiveSignalState.replace("_", " ")}</p>
+                    {direction && direction.toLowerCase() !== "none" && effectiveSignalState !== "NO_TRADE" && (
                       <p className="text-[9px] text-zinc-600 mt-1 truncate">
                         {direction.toUpperCase()} · {trigger && trigger.toLowerCase() !== "none" ? trigger : " - "}
                       </p>
@@ -514,19 +518,19 @@ export function MobileHome() {
             case "entry_strip":
               return entry ? (
                 <div key="entry_strip" className={cn("border rounded-xl px-4 py-3",
-                  signalState === "ARMED"   ? "bg-emerald-500/8 border-emerald-500/25" :
-                  signalState === "PENDING" ? "bg-amber-500/8 border-amber-500/25" :
+                  effectiveSignalState === "ARMED"   ? "bg-emerald-500/8 border-emerald-500/25" :
+                  effectiveSignalState === "PENDING" ? "bg-amber-500/8 border-amber-500/25" :
                   "bg-white/5 border-white/10")}>
                   <div className="flex items-center justify-between mb-2">
                     <p className={cn("text-[9px] uppercase tracking-wider",
-                      signalState === "ARMED"   ? "text-emerald-500/70" :
-                      signalState === "PENDING" ? "text-amber-500/70" :
+                      effectiveSignalState === "ARMED"   ? "text-emerald-500/70" :
+                      effectiveSignalState === "PENDING" ? "text-amber-500/70" :
                       "text-zinc-600")}>
-                      {signalState === "ARMED" ? "⚡ Armed  -  Confirm trigger" :
-                       signalState === "PENDING" ? "⏳ Pending  -  Waiting for entry" :
+                      {effectiveSignalState === "ARMED" ? "⚡ Armed  -  Confirm trigger" :
+                       effectiveSignalState === "PENDING" ? "⏳ Pending  -  Waiting for entry" :
                        "Last Setup"}
                     </p>
-                    {showHitBadge && signalState !== "ARMED" && signalState !== "PENDING" && (
+                    {showHitBadge && effectiveSignalState !== "ARMED" && effectiveSignalState !== "PENDING" && (
                       <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-400">
                         TP1 HIT ✅
                       </span>
@@ -582,7 +586,7 @@ export function MobileHome() {
                         </div>
                       );
                     }
-                    if (signalState === "ARMED" || signalState === "PENDING") {
+                    if (effectiveSignalState === "ARMED" || effectiveSignalState === "PENDING") {
                       return (
                         <button
                           onClick={() => setTakingTrade(true)}
