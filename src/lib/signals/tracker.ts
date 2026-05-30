@@ -104,10 +104,11 @@ function resolveFromOHLC(
   if (!plan) return null;
 
   const signalSec = new Date(signal.timestamp).getTime() / 1000;
-  const tfSec     = TF_SECONDS[signal.timeframe] ?? 3600;
-  // Include the candle that was ACTIVE at signal creation (may have opened before
-  // the signal but captured the price move). A candle opened at t covers [t, t+tfSec).
-  const candles = allCandles.filter(c => c.t + tfSec > signalSec);
+  // Only evaluate candles that STARTED after signal creation.
+  // Including the active candle (which may have opened before the signal) causes
+  // false TP/SL hits from price action that predates the signal. The snapshot-based
+  // resolver handles intra-candle hits in real time via cron ticks.
+  const candles = allCandles.filter(c => c.t >= signalSec);
   if (candles.length === 0) return null;
 
   const { direction, entry, stopLoss, tp1, tp2 } = plan;
