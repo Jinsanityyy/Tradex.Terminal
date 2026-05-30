@@ -135,9 +135,17 @@ export function MobileLayout() {
   useEffect(() => {
     const supabase = createClient();
     if (!supabase) { setReady(true); return; }
+
+    // Safety net — never let the splash hang more than 6s regardless of auth state
+    const safetyTimer = setTimeout(() => setReady(true), 6000);
+
     supabase.auth.getSession().then(({ data }) => {
+      clearTimeout(safetyTimer);
       if (!data.session) { window.location.href = "/login"; }
       else { setReady(true); }
+    }).catch(() => {
+      clearTimeout(safetyTimer);
+      setReady(true);
     });
     // Load localStorage immediately as cache
     const saved = localStorage.getItem(TRADER_NAME_KEY);
