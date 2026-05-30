@@ -140,19 +140,27 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Signal not found", detail: findErr?.message }, { status: 404 });
     }
 
-    // Calculate correct pnlR if not provided
     const riskDist = Math.abs(found.entry_price - found.stop_loss);
     const tpDist   = Math.abs(found.take_profit - found.entry_price);
-    const resolvedPnlR = pnlR ?? (riskDist > 0 ? parseFloat((tpDist / riskDist).toFixed(2)) : 1.5);
+    const isLoss   = toStatus === "loss_sl";
+
+    const resolvedPnlR = isLoss
+      ? -1
+      : (pnlR ?? (riskDist > 0 ? parseFloat((tpDist / riskDist).toFixed(2)) : 1.5));
+
+    const resolvedPrice       = isLoss ? found.stop_loss : found.take_profit;
+    const resolvedPnlPercent  = isLoss
+      ? parseFloat((-(riskDist / found.entry_price) * 100).toFixed(4))
+      : parseFloat((tpDist / found.entry_price * 100).toFixed(4));
 
     const { error: updateErr } = await db
       .from("signals")
       .update({
         status:               toStatus,
         resolved_at:          new Date().toISOString(),
-        price_at_resolution:  found.take_profit,
+        price_at_resolution:  resolvedPrice,
         pnl_r:                resolvedPnlR,
-        pnl_percent:          parseFloat((tpDist / found.entry_price * 100).toFixed(4)),
+        pnl_percent:          resolvedPnlPercent,
       })
       .eq("id", found.id);
 
