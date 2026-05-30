@@ -298,6 +298,23 @@ export function useMTFBias(symbol: string) {
   };
 }
 
+// ── Institutional Confluence (CFTC + Yahoo GC + CBOE Options) ────────────────
+import type { InstitutionalData } from "@/app/api/market/institutional/route";
+
+export function useInstitutionalData(refreshInterval = 10 * 60_000) {
+  const { data, isLoading, error } = useSWR<InstitutionalData>(
+    "/api/market/institutional",
+    fetcher,
+    {
+      refreshInterval,
+      revalidateOnFocus: false,
+      dedupingInterval: 5 * 60_000,
+      errorRetryCount: 2,
+    }
+  );
+  return { institutional: data ?? null, institutionalLoading: isLoading, institutionalError: error };
+}
+
 // ── Single Agent Run (for Market Bias page) ─────────────
 export function useAgentResult(symbol: Symbol, timeframe: Timeframe = "H1", refreshInterval = 300_000) {
   const { data, error, isLoading, mutate: revalidate } = useSWR<AgentRunResult>(
