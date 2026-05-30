@@ -154,50 +154,101 @@ function buildSentiment(mmLong: number, mmShort: number): SentimentData | null {
   return { longPct, shortPct, signal, extreme };
 }
 
-// ── GC Futures volume via Yahoo Finance (CME blocks server-side requests) ─────
+// ── GC Futures volume — Stooq primary, Yahoo fallback ────────────────────────
 async function fetchOI(): Promise<OIData | null> {
+  return (await fetchOIStooq()) ?? (await fetchOIYahoo());
+}
+
+// Stooq.com CSV: no auth, reliable server-side access
+async function fetchOIStooq(): Promise<OIData | null> {
   try {
-    const res = await withTimeout(fetch(
-      "https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=5d",
-      { headers: { "User-Agent": CHROME_UA, "Accept": "application/json" } }
-    ));
+    const res = await Promise.race([
+      fetch("https://stooq.com/q/d/l/?s=gc.f&i=d", {
+        headers: { "User-Agent": CHROME_UA, "Accept": "text/csv,text/plain,*/*" },
+      }),
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 10000)),
+    ]);
     if (!res.ok) return null;
-    const json = await res.json();
+    const text = await res.text();
 
-    const result = json?.chart?.result?.[0];
-    if (!result) return null;
+    // CSV: Date,Open,High,Low,Close,Volume
+    const rows = text.trim().replace(/\r/g, "").split("\n").filter(r => r.trim());
+    if (rows.length < 3) return null; // need header + at least 2 data rows
 
-    const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
-    const volumes: (number | null)[] = result.indicators?.quote?.[0]?.volume ?? [];
+    // last 2 data rows (most recent first on stooq, or ascending — handle both)
+    const dataRows = rows.slice(1).filter(r => !r.startsWith("Date")); // skip header
+    if (dataRows.length < 2) return null;
 
-    const validCloses = closes.filter((v): v is number => v != null);
-    const validVols   = volumes.filter((v): v is number => v != null);
-    if (validCloses.length < 2 || validVols.length < 2) return null;
-
-    const lastClose = validCloses[validCloses.length - 1];
-    const prevClose = validCloses[validCloses.length - 2];
-    const lastVol   = validVols[validVols.length - 1];
-    const prevVol   = validVols[validVols.length - 2];
-
-    const priceChange = lastClose - prevClose;
-    const oiChange    = lastVol - prevVol;
-
-    let signal: OIData["signal"] = "neutral";
-    let label = "GC volume data insufficient";
-    if (priceChange > 0 && oiChange > 0) {
-      signal = "bullish"; label = "Price↑ Vol↑ — buyers absorbing";
-    } else if (priceChange > 0 && oiChange < 0) {
-      signal = "neutral"; label = "Price↑ Vol↓ — short covering (weak)";
-    } else if (priceChange < 0 && oiChange > 0) {
-      signal = "bearish"; label = "Price↓ Vol↑ — sellers pressing";
-    } else if (priceChange < 0 && oiChange < 0) {
-      signal = "neutral"; label = "Price↓ Vol↓ — sellers exhausting";
+    function parseRow(row: string) {
+      const cols = row.split(",");
+      return { close: parseFloat(cols[4] ?? "0"), vol: parseInt(cols[5] ?? "0", 10) };
     }
 
-    return { openInterest: lastVol, oiChange, priceChange, signal, label };
-  } catch {
-    return null;
+    const last = parseRow(dataRows[dataRows.length - 1]);
+    const prev = parseRow(dataRows[dataRows.length - 2]);
+    if (!last.close || !prev.close) return null;
+
+    return buildOIData(last.close, prev.close, last.vol, prev.vol);
+  } catch { return null; }
+}
+
+// Yahoo Finance fallback — may be rate-limited from Vercel IPs
+async function fetchOIYahoo(): Promise<OIData | null> {
+  const urls = [
+    "https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=5d",
+    "https://query2.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=5d",
+  ];
+  for (const url of urls) {
+    try {
+      const res = await Promise.race([
+        fetch(url, {
+          headers: {
+            "User-Agent": CHROME_UA,
+            "Accept": "application/json",
+            "Referer": "https://finance.yahoo.com/",
+          },
+        }),
+        new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 8000)),
+      ]);
+      if (!res.ok) continue;
+      const json = await res.json();
+      const result = json?.chart?.result?.[0];
+      if (!result) continue;
+
+      const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
+      const volumes: (number | null)[] = result.indicators?.quote?.[0]?.volume ?? [];
+      const validCloses = closes.filter((v): v is number => v != null);
+      const validVols   = volumes.filter((v): v is number => v != null);
+      if (validCloses.length < 2 || validVols.length < 2) continue;
+
+      const lastClose = validCloses[validCloses.length - 1];
+      const prevClose = validCloses[validCloses.length - 2];
+      const lastVol   = validVols[validVols.length - 1];
+      const prevVol   = validVols[validVols.length - 2];
+      return buildOIData(lastClose, prevClose, lastVol, prevVol);
+    } catch { continue; }
   }
+  return null;
+}
+
+function buildOIData(lastClose: number, prevClose: number, lastVol: number, prevVol: number): OIData | null {
+  if (!lastClose || !prevClose) return null;
+  const priceChange = lastClose - prevClose;
+  const oiChange    = lastVol - prevVol;
+
+  let signal: OIData["signal"] = "neutral";
+  let label = "GC volume data insufficient";
+  if (priceChange > 0 && oiChange > 0) {
+    signal = "bullish"; label = "Price↑ Vol↑ — buyers absorbing";
+  } else if (priceChange > 0 && oiChange < 0) {
+    signal = "neutral"; label = "Price↑ Vol↓ — short covering (weak)";
+  } else if (priceChange < 0 && oiChange > 0) {
+    signal = "bearish"; label = "Price↓ Vol↑ — sellers pressing";
+  } else if (priceChange < 0 && oiChange < 0) {
+    signal = "neutral"; label = "Price↓ Vol↓ — sellers exhausting";
+  }
+
+  return { openInterest: lastVol, oiChange, priceChange, signal, label };
 }
 
 // ── CBOE GLD Options Flow ─────────────────────────────────────────────────────
