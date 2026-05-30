@@ -301,9 +301,9 @@ export function useMTFBias(symbol: string) {
 // ── Institutional Confluence (CFTC + Yahoo GC + CBOE Options) ────────────────
 import type { InstitutionalData } from "@/app/api/market/institutional/route";
 
-export function useInstitutionalData(refreshInterval = 10 * 60_000) {
+export function useInstitutionalData(asset = "XAUUSD", refreshInterval = 10 * 60_000) {
   const { data, isLoading, error } = useSWR<InstitutionalData>(
-    "/api/market/institutional",
+    `/api/market/institutional?asset=${asset}`,
     fetcher,
     {
       refreshInterval,

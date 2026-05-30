@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const CACHE_TTL = 10 * 60 * 1000; // 10 min
+const CACHE_TTL = 10 * 60 * 1000;
 const cache = new Map<string, { data: InstitutionalData; ts: number }>();
 
 export interface SentimentData {
   longPct: number;
   shortPct: number;
-  signal: "bullish" | "bearish" | "neutral"; // contrarian
-  extreme: boolean; // >70% one side
+  signal: "bullish" | "bearish" | "neutral";
+  extreme: boolean;
 }
 
 export interface OIData {
@@ -17,14 +17,14 @@ export interface OIData {
   oiChange: number;
   priceChange: number;
   signal: "bullish" | "bearish" | "neutral";
-  label: string; // e.g. "Price↑ OI↑ → Real buyers"
+  label: string;
 }
 
 export interface OptionsData {
   putCallRatio: number;
   callVolume: number;
   putVolume: number;
-  unusualCalls: number; // count of strikes with unusual call volume
+  unusualCalls: number;
   unusualPuts: number;
   signal: "bullish" | "bearish" | "neutral";
 }
@@ -34,29 +34,41 @@ export interface InstitutionalData {
   oi: OIData | null;
   options: OptionsData | null;
   confluence: "bullish" | "bearish" | "neutral";
-  score: number; // -3 to +3
+  score: number;
   ts: number;
 }
 
-const TIMEOUT = 8000;
-const CHROME_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-function withTimeout(p: Promise<Response>): Promise<Response> {
-  return Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), TIMEOUT))]);
+// ── Asset configuration ───────────────────────────────────────────────────────
+
+interface AssetConfig {
+  label: string;
+  cftcCode: string;          // CFTC contract market code (disaggregated report)
+  stooqTicker: string;       // Stooq.com ticker for volume
+  yahooTicker: string;       // Yahoo Finance fallback ticker
+  optionsTicker: string;     // CBOE ETF options ticker
 }
+
+const ASSET_CONFIGS: Record<string, AssetConfig> = {
+  XAUUSD: { label: "Gold",      cftcCode: "088691", stooqTicker: "gc.f",    yahooTicker: "GC=F",    optionsTicker: "GLD"  },
+  XAGUSD: { label: "Silver",    cftcCode: "084691", stooqTicker: "si.f",    yahooTicker: "SI=F",    optionsTicker: "SLV"  },
+  BTC:    { label: "Bitcoin",   cftcCode: "133741", stooqTicker: "btc-usd", yahooTicker: "BTC-USD", optionsTicker: "IBIT" },
+  USOIL:  { label: "Crude Oil", cftcCode: "067651", stooqTicker: "cl.f",    yahooTicker: "CL=F",    optionsTicker: "USO"  },
+};
+
+const CHROME_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
 // ── CFTC Managed Money ────────────────────────────────────────────────────────
-// COMEX Gold code: 088691. Data published weekly (Fri for prior Tue).
-// Tries CFTC OData JSON API first (reliable), falls back to raw text file.
-async function fetchManagedMoney(): Promise<SentimentData | null> {
-  return (await fetchCFTCOData()) ?? (await fetchCFTCText());
+
+async function fetchManagedMoney(cftcCode: string): Promise<SentimentData | null> {
+  return (await fetchCFTCOData(cftcCode)) ?? (await fetchCFTCText(cftcCode));
 }
 
-async function fetchCFTCOData(): Promise<SentimentData | null> {
+async function fetchCFTCOData(cftcCode: string): Promise<SentimentData | null> {
   try {
     const qs = new URLSearchParams({
       "$format": "json",
       "$top": "1",
-      "$filter": "CFTC_Contract_Market_Code eq '088691'",
+      "$filter": `CFTC_Contract_Market_Code eq '${cftcCode}'`,
       "$orderby": "As_of_Date_Form_YYYY_MM_DD desc",
     });
     const res = await Promise.race([
@@ -70,7 +82,6 @@ async function fetchCFTCOData(): Promise<SentimentData | null> {
     const rec = json?.value?.[0];
     if (!rec) return null;
 
-    // Field names in OData response (locate dynamically to handle naming changes)
     const keys     = Object.keys(rec);
     const longKey  = keys.find(k => /money|mm/i.test(k) && /long/i.test(k) && !/short|spread/i.test(k));
     const shortKey = keys.find(k => /money|mm/i.test(k) && /short/i.test(k) && !/spread/i.test(k));
@@ -80,7 +91,7 @@ async function fetchCFTCOData(): Promise<SentimentData | null> {
   } catch { return null; }
 }
 
-async function fetchCFTCText(): Promise<SentimentData | null> {
+async function fetchCFTCText(cftcCode: string): Promise<SentimentData | null> {
   const urls = [
     "https://www.cftc.gov/files/dea/newcot/c_disagg.txt",
     "https://www.cftc.gov/dea/newcot/c_disagg.txt",
@@ -93,14 +104,14 @@ async function fetchCFTCText(): Promise<SentimentData | null> {
       ]);
       if (!res.ok) continue;
       const text = await res.text();
-      const result = parseCFTCCsv(text);
+      const result = parseCFTCCsv(text, cftcCode);
       if (result) return result;
     } catch { continue; }
   }
   return null;
 }
 
-function parseCFTCCsv(raw: string): SentimentData | null {
+function parseCFTCCsv(raw: string, cftcCode: string): SentimentData | null {
   const rows = raw.replace(/\r/g, "").split("\n").filter(r => r.trim());
   if (rows.length < 2) return null;
 
@@ -117,7 +128,6 @@ function parseCFTCCsv(raw: string): SentimentData | null {
   }
 
   const headers = parseRow(rows[0]);
-  // Try multiple known header patterns across CFTC report versions
   const longPatterns  = [/money\s*manager.+long/i, /leveraged\s*fund.+long/i, /noncommercial.+long/i];
   const shortPatterns = [/money\s*manager.+short/i, /leveraged\s*fund.+short/i, /noncommercial.+short/i];
 
@@ -132,10 +142,10 @@ function parseCFTCCsv(raw: string): SentimentData | null {
   }
   if (mmLongIdx < 0 || mmShortIdx < 0) return null;
 
-  const goldRow = rows.filter(r => r.includes("088691")).pop();
-  if (!goldRow) return null;
+  const assetRow = rows.filter(r => r.includes(cftcCode)).pop();
+  if (!assetRow) return null;
 
-  const fields  = parseRow(goldRow);
+  const fields  = parseRow(assetRow);
   const mmLong  = parseInt((fields[mmLongIdx]  ?? "").replace(/,/g, ""), 10) || 0;
   const mmShort = parseInt((fields[mmShortIdx] ?? "").replace(/,/g, ""), 10) || 0;
   return buildSentiment(mmLong, mmShort);
@@ -154,16 +164,16 @@ function buildSentiment(mmLong: number, mmShort: number): SentimentData | null {
   return { longPct, shortPct, signal, extreme };
 }
 
-// ── GC Futures volume — Stooq primary, Yahoo fallback ────────────────────────
-async function fetchOI(): Promise<OIData | null> {
-  return (await fetchOIStooq()) ?? (await fetchOIYahoo());
+// ── Futures volume — Stooq primary, Yahoo fallback ───────────────────────────
+
+async function fetchOI(stooqTicker: string, yahooTicker: string): Promise<OIData | null> {
+  return (await fetchOIStooq(stooqTicker)) ?? (await fetchOIYahoo(yahooTicker));
 }
 
-// Stooq.com CSV: no auth, reliable server-side access
-async function fetchOIStooq(): Promise<OIData | null> {
+async function fetchOIStooq(ticker: string): Promise<OIData | null> {
   try {
     const res = await Promise.race([
-      fetch("https://stooq.com/q/d/l/?s=gc.f&i=d", {
+      fetch(`https://stooq.com/q/d/l/?s=${ticker}&i=d`, {
         headers: { "User-Agent": CHROME_UA, "Accept": "text/csv,text/plain,*/*" },
       }),
       new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 10000)),
@@ -171,12 +181,10 @@ async function fetchOIStooq(): Promise<OIData | null> {
     if (!res.ok) return null;
     const text = await res.text();
 
-    // CSV: Date,Open,High,Low,Close,Volume
     const rows = text.trim().replace(/\r/g, "").split("\n").filter(r => r.trim());
-    if (rows.length < 3) return null; // need header + at least 2 data rows
+    if (rows.length < 3) return null;
 
-    // last 2 data rows (most recent first on stooq, or ascending — handle both)
-    const dataRows = rows.slice(1).filter(r => !r.startsWith("Date")); // skip header
+    const dataRows = rows.slice(1).filter(r => !r.startsWith("Date"));
     if (dataRows.length < 2) return null;
 
     function parseRow(row: string) {
@@ -192,21 +200,13 @@ async function fetchOIStooq(): Promise<OIData | null> {
   } catch { return null; }
 }
 
-// Yahoo Finance fallback — may be rate-limited from Vercel IPs
-async function fetchOIYahoo(): Promise<OIData | null> {
-  const urls = [
-    "https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=5d",
-    "https://query2.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=5d",
-  ];
-  for (const url of urls) {
+async function fetchOIYahoo(ticker: string): Promise<OIData | null> {
+  const base = `https://query{n}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5d`;
+  for (const n of [1, 2]) {
     try {
       const res = await Promise.race([
-        fetch(url, {
-          headers: {
-            "User-Agent": CHROME_UA,
-            "Accept": "application/json",
-            "Referer": "https://finance.yahoo.com/",
-          },
+        fetch(base.replace("{n}", String(n)), {
+          headers: { "User-Agent": CHROME_UA, "Accept": "application/json", "Referer": "https://finance.yahoo.com/" },
         }),
         new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 8000)),
       ]);
@@ -221,11 +221,10 @@ async function fetchOIYahoo(): Promise<OIData | null> {
       const validVols   = volumes.filter((v): v is number => v != null);
       if (validCloses.length < 2 || validVols.length < 2) continue;
 
-      const lastClose = validCloses[validCloses.length - 1];
-      const prevClose = validCloses[validCloses.length - 2];
-      const lastVol   = validVols[validVols.length - 1];
-      const prevVol   = validVols[validVols.length - 2];
-      return buildOIData(lastClose, prevClose, lastVol, prevVol);
+      return buildOIData(
+        validCloses[validCloses.length - 1], validCloses[validCloses.length - 2],
+        validVols[validVols.length - 1],     validVols[validVols.length - 2],
+      );
     } catch { continue; }
   }
   return null;
@@ -237,7 +236,7 @@ function buildOIData(lastClose: number, prevClose: number, lastVol: number, prev
   const oiChange    = lastVol - prevVol;
 
   let signal: OIData["signal"] = "neutral";
-  let label = "GC volume data insufficient";
+  let label = "Volume data insufficient";
   if (priceChange > 0 && oiChange > 0) {
     signal = "bullish"; label = "Price↑ Vol↑ — buyers absorbing";
   } else if (priceChange > 0 && oiChange < 0) {
@@ -251,13 +250,16 @@ function buildOIData(lastClose: number, prevClose: number, lastVol: number, prev
   return { openInterest: lastVol, oiChange, priceChange, signal, label };
 }
 
-// ── CBOE GLD Options Flow ─────────────────────────────────────────────────────
-async function fetchOptions(): Promise<OptionsData | null> {
+// ── CBOE Options Flow ─────────────────────────────────────────────────────────
+
+async function fetchOptions(etfTicker: string): Promise<OptionsData | null> {
   try {
-    const res = await withTimeout(fetch(
-      "https://cdn.cboe.com/api/global/delayed_quotes/options/GLD.json",
-      { headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" } }
-    ));
+    const res = await Promise.race([
+      fetch(`https://cdn.cboe.com/api/global/delayed_quotes/options/${etfTicker}.json`, {
+        headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" },
+      }),
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 8000)),
+    ]);
     if (!res.ok) return null;
     const json = await res.json();
 
@@ -286,8 +288,8 @@ async function fetchOptions(): Promise<OptionsData | null> {
 
     const putCallRatio = putVol / (callVol || 1);
     const signal: OptionsData["signal"] =
-      putCallRatio < 0.7  ? "bullish" :  // calls dominating
-      putCallRatio > 1.3  ? "bearish" :  // puts dominating
+      putCallRatio < 0.7 ? "bullish" :
+      putCallRatio > 1.3 ? "bearish" :
       "neutral";
 
     return {
@@ -298,12 +300,11 @@ async function fetchOptions(): Promise<OptionsData | null> {
       unusualPuts,
       signal,
     };
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 // ── Score + Confluence ────────────────────────────────────────────────────────
+
 function calcConfluence(
   sentiment: SentimentData | null,
   oi: OIData | null,
@@ -324,21 +325,27 @@ function calcConfluence(
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
-export async function GET() {
-  const cached = cache.get("institutional");
+
+export async function GET(req: Request) {
+  const url    = new URL(req.url);
+  const asset  = url.searchParams.get("asset") ?? "XAUUSD";
+  const cfg    = ASSET_CONFIGS[asset] ?? ASSET_CONFIGS.XAUUSD;
+  const cacheKey = `inst_${asset}`;
+
+  const cached = cache.get(cacheKey);
   if (cached && Date.now() - cached.ts < CACHE_TTL) {
     return NextResponse.json(cached.data);
   }
 
   const [sentiment, oi, options] = await Promise.all([
-    fetchManagedMoney(),
-    fetchOI(),
-    fetchOptions(),
+    fetchManagedMoney(cfg.cftcCode),
+    fetchOI(cfg.stooqTicker, cfg.yahooTicker),
+    fetchOptions(cfg.optionsTicker),
   ]);
 
   const { confluence, score } = calcConfluence(sentiment, oi, options);
   const data: InstitutionalData = { sentiment, oi, options, confluence, score, ts: Date.now() };
 
-  cache.set("institutional", { data, ts: Date.now() });
+  cache.set(cacheKey, { data, ts: Date.now() });
   return NextResponse.json(data);
 }

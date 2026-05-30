@@ -665,8 +665,18 @@ function DetailModal({ source, data, onClose }: {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
+const ASSETS = [
+  { id: "XAUUSD", tab: "XAU",  full: "Gold",      cftcLabel: "CFTC MM",        volLabel: "GC Futures",  optLabel: "GLD Options" },
+  { id: "XAGUSD", tab: "XAG",  full: "Silver",    cftcLabel: "CFTC MM",        volLabel: "SI Futures",  optLabel: "SLV Options" },
+  { id: "BTC",    tab: "BTC",  full: "Bitcoin",   cftcLabel: "CME BTC COT",    volLabel: "BTC Volume",  optLabel: "IBIT Options" },
+  { id: "USOIL",  tab: "OIL",  full: "Crude Oil", cftcLabel: "CFTC MM",        volLabel: "CL Futures",  optLabel: "USO Options" },
+] as const;
+type AssetId = (typeof ASSETS)[number]["id"];
+
 export function InstitutionalConfluence() {
-  const { institutional: data, institutionalLoading } = useInstitutionalData();
+  const [asset, setAsset] = useState<AssetId>("XAUUSD");
+  const assetCfg = ASSETS.find(a => a.id === asset)!;
+  const { institutional: data, institutionalLoading } = useInstitutionalData(asset);
   const [openDetail, setOpenDetail] = useState<DetailSource | null>(null);
 
   if (institutionalLoading) {
@@ -686,23 +696,42 @@ export function InstitutionalConfluence() {
     <>
       <div className="rounded-xl border border-white/5 bg-[hsl(var(--card))] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
-          <div>
-            <p className="text-[9px] uppercase tracking-widest text-zinc-600 mb-0.5">Institutional Confluence</p>
-            <p className="text-[10px] text-zinc-500">CFTC Managed Money · GC Volume · CBOE Options</p>
-            {data?.ts && (
-              <p className="flex items-center gap-1 text-[9px] text-zinc-700 mt-0.5">
-                <Clock className="h-2.5 w-2.5" />
-                Updated {timeAgo(data.ts)}
-              </p>
+        <div className="border-b border-white/5">
+          <div className="flex items-center justify-between px-4 pt-3 pb-2">
+            <div>
+              <p className="text-[9px] uppercase tracking-widest text-zinc-600 mb-0.5">Institutional Confluence</p>
+              <p className="text-[10px] text-zinc-500">{assetCfg.cftcLabel} · {assetCfg.volLabel} · {assetCfg.optLabel}</p>
+              {data?.ts && (
+                <p className="flex items-center gap-1 text-[9px] text-zinc-700 mt-0.5">
+                  <Clock className="h-2.5 w-2.5" />
+                  Updated {timeAgo(data.ts)}
+                </p>
+              )}
+            </div>
+            {data && !allNull && (
+              <div className="flex flex-col items-end gap-1">
+                <SignalBadge signal={data.confluence} />
+                <ConfluenceDots score={data.score} />
+              </div>
             )}
           </div>
-          {data && !allNull && (
-            <div className="flex flex-col items-end gap-1">
-              <SignalBadge signal={data.confluence} />
-              <ConfluenceDots score={data.score} />
-            </div>
-          )}
+          {/* Asset tabs */}
+          <div className="flex gap-1 px-3 pb-2">
+            {ASSETS.map((a) => (
+              <button
+                key={a.id}
+                onClick={() => setAsset(a.id)}
+                className={cn(
+                  "px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide transition-all",
+                  asset === a.id
+                    ? "bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30"
+                    : "text-zinc-600 hover:text-zinc-400 hover:bg-white/5 border border-transparent"
+                )}
+              >
+                {a.tab}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="p-3 space-y-2">
@@ -736,7 +765,7 @@ export function InstitutionalConfluence() {
 
               {data?.oi ? (
                 <Row
-                  label="GC Futures Volume"
+                  label={assetCfg.volLabel}
                   hint="Daily volume confirms whether price moves have real participation."
                   signal={data.oi.label.includes("insufficient") ? undefined : data.oi.signal}
                   onClick={() => setOpenDetail("volume")}
@@ -765,14 +794,14 @@ export function InstitutionalConfluence() {
                   )}
                 </Row>
               ) : (
-                <Row label="GC Futures Volume" hint="Gold futures volume — confirms if price moves have real participation." onClick={() => setOpenDetail("volume")}>
+                <Row label={assetCfg.volLabel} hint="Futures volume — confirms if price moves have real participation." onClick={() => setOpenDetail("volume")}>
                   <p className="text-[10px] text-zinc-600 italic">Unavailable</p>
                 </Row>
               )}
 
               {data?.options ? (
                 <Row
-                  label="CBOE Options Flow (GLD)"
+                  label={`CBOE Options Flow (${assetCfg.optLabel.split(" ")[0]})`}
                   hint="P/C < 0.7 = calls dominating (bullish). P/C > 1.3 = puts heavy (bearish)."
                   signal={data.options.signal}
                   onClick={() => setOpenDetail("options")}
@@ -806,7 +835,7 @@ export function InstitutionalConfluence() {
                   <p className="text-[9px] text-zinc-600 mt-1.5 italic">{optionsBiasNote(data.options)}</p>
                 </Row>
               ) : (
-                <Row label="CBOE Options Flow (GLD)" hint="GLD ETF put/call ratio — tracks institutional gold positioning." onClick={() => setOpenDetail("options")}>
+                <Row label={`CBOE Options Flow (${assetCfg.optLabel.split(" ")[0]})`} hint="ETF put/call ratio — tracks institutional positioning." onClick={() => setOpenDetail("options")}>
                   <p className="text-[10px] text-zinc-600 italic">Unavailable</p>
                 </Row>
               )}
