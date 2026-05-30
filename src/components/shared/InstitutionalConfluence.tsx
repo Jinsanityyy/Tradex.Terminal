@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Minus, RefreshCw, AlertTriangle, Clock, X, ChevronRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, RefreshCw, AlertTriangle, Clock, X, ChevronRight, Eye } from "lucide-react";
 import { useInstitutionalData } from "@/hooks/useMarketData";
 import type { InstitutionalData } from "@/app/api/market/institutional/route";
 
@@ -83,7 +84,6 @@ function Row({ label, hint, children, signal, onClick }: {
   );
 }
 
-// Bias implication lines per source
 function cftcBiasNote(s: NonNullable<InstitutionalData["sentiment"]>): string {
   if (s.extreme) {
     const dir = s.longPct > s.shortPct ? "long" : "short";
@@ -105,139 +105,181 @@ function optionsBiasNote(o: NonNullable<InstitutionalData["options"]>): string {
   return `Bias implication → balanced options flow (P/C ${o.putCallRatio.toFixed(2)}). No strong directional signal from options.`;
 }
 
-// ── Detail Sheet ──────────────────────────────────────────────────────────────
+// ── Detail Modal ──────────────────────────────────────────────────────────────
 
 type DetailSource = "cftc" | "volume" | "options";
 
-interface DetailConfig {
-  title: string;
-  subtitle: string;
-  sections: { heading: string; body: string }[];
+function BulletList({ items, color = "text-zinc-400" }: { items: string[]; color?: string }) {
+  return (
+    <ul className="space-y-1.5">
+      {items.map((item, i) => (
+        <li key={i} className="flex items-start gap-2">
+          <ChevronRight className="h-3 w-3 text-zinc-600 mt-0.5 shrink-0" />
+          <span className={cn("text-[11px] leading-relaxed", color)}>{item}</span>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
-const DETAIL_CONTENT: Record<DetailSource, DetailConfig> = {
-  cftc: {
-    title: "Managed Money (CFTC)",
-    subtitle: "Weekly hedge fund positioning report from the US government",
-    sections: [
-      {
-        heading: "Ano ito?",
-        body: "Ang CFTC (Commodity Futures Trading Commission) ay isang ahensya ng US government na nag-rerekord ng lahat ng malalaking trades sa futures markets. Bawat Biyernes, nag-publish sila ng COT (Commitments of Traders) report — isang listahan kung paano nakaka-posisyon ang mga hedge fund at big institutions sa gold futures.",
-      },
-      {
-        heading: "Paano mo ito basahin?",
-        body: "\"Managed Money\" = mga hedge fund at professional money managers. Kung 70%+ ng kanilang posisyon ay LONG (naniniwalang tataas ang presyo), ibig sabihin ay may malakas na institutional conviction. Ang presyo ng gold ay karaniwang sumusunod sa direksyon ng mga hedge fund.",
-      },
-      {
-        heading: "Bakit mahalaga ito sa bias?",
-        body: "Ang mga hedge fund ay may mas malaking impormasyon kaysa sa average retail trader — may research teams sila, macroeconomic models, at direktang access sa Fed. Kaya ang kanilang positioning ay isang malakas na signal. Kung 75% sila ay long sa gold, highly likely na bullish ang macro environment para sa gold.",
-      },
-      {
-        heading: "Limitasyon",
-        body: "Ang CFTC data ay may 3-day lag — ang report sa Biyernes ay para sa Martes na positioning. At ito ay weekly report lang, hindi real-time. Gamitin ito bilang macro backdrop, hindi bilang short-term entry signal.",
-      },
-    ],
-  },
-  volume: {
-    title: "GC Futures Volume",
-    subtitle: "Gold futures daily volume to confirm price move strength",
-    sections: [
-      {
-        heading: "Ano ito?",
-        body: "Ito ay ang dami ng gold futures contracts (GC) na na-trade sa araw na iyon. Ang volume ay nagpapatunay kung ang price move ay may \"conviction\" o hindi — basically, may sumusuporta ba talaga sa move na iyon.",
-      },
-      {
-        heading: "Paano mo ito basahin?",
-        body: "Mayroong 4 na kombinasyon:\n\n• Price↑ + Volume↑ = BULLISH — Real buyers ang nagdadrive ng presyo. Magtiwala sa uptrend.\n\n• Price↑ + Volume↓ = NEUTRAL — Shorts lang ang sumusuko (short covering), hindi real buying. Huwag mag-chase ng longs.\n\n• Price↓ + Volume↑ = BEARISH — Real sellers ang nagdadrive. Magtiwala sa downtrend.\n\n• Price↓ + Volume↓ = NEUTRAL — Sellers exhausted na. Pwedeng mag-reverse.",
-      },
-      {
-        heading: "Bakit mahalaga ito sa bias?",
-        body: "Ang price movement na walang volume ay parang rumor lang — hindi ito solid. Halimbawa, kung tumaas ang gold ng $20 pero bumagsak ang volume, ibig sabihin ay shorts lang ang nag-cover, hindi real institutional buying. Hindi ito sustainable na move.",
-      },
-      {
-        heading: "Data source",
-        body: "Kinukuha namin ito mula sa Yahoo Finance (GC=F) na may ~15 minuto na delay. Hindi ito exactly real-time, pero sapat para makita ang direction ng institutional participation sa araw na iyon.",
-      },
-    ],
-  },
-  options: {
-    title: "CBOE Options Flow (GLD)",
-    subtitle: "Options market activity on GLD ETF — tracks smart money hedging",
-    sections: [
-      {
-        heading: "Ano ang options?",
-        body: "Ang options ay kontrata na nagbibigay ng karapatang bumili (CALL) o magbenta (PUT) ng isang asset sa specific na presyo. Ang mga institutional traders at hedge funds ay gumagamit ng options para:\n• Mag-hedge ng kanilang positions\n• Mag-speculate nang mas maliit na risk\n• Mag-express ng directional view nang naka-leverage",
-      },
-      {
-        heading: "Call Volume vs Put Volume",
-        body: "• CALL VOLUME = Dami ng \"right to buy\" contracts na na-trade. Kapag mataas ito, ibig sabihin ay maraming traders ang nag-bet na TATAAS ang presyo.\n\n• PUT VOLUME = Dami ng \"right to sell\" contracts. Kapag mataas ito, ibig sabihin ay maraming traders ang nag-bet na BABABA ang presyo, o nag-hhe-hedge sila laban sa downside.",
-      },
-      {
-        heading: "Put/Call Ratio (P/C)",
-        body: "Ito ang pinakamahalagang numero dito:\n\n• P/C < 0.7 = Calls dominating → BULLISH signal. More people are betting on upside.\n\n• P/C > 1.3 = Puts dominating → BEARISH signal. Smart money is hedging or betting on downside.\n\n• P/C 0.7–1.3 = Balanced → NEUTRAL. No strong directional signal.",
-      },
-      {
-        heading: "Unusual Volume",
-        body: "Kapag ang volume ng isang specific strike ay 3x ng open interest at higit sa 500 contracts, ito ay \"unusual\" — ibig sabihin ay may malaking manlalaro na nagla-load ng position. Ito ay malakas na signal na may institutional money na gumagalaw.",
-      },
-      {
-        heading: "Bakit GLD at hindi GC options?",
-        body: "Ginagamit namin ang GLD (SPDR Gold ETF) options dahil mas liquid ito at mas accessible ang CBOE data. Ang GLD ay direktang sumusunod sa gold price, kaya ang options flow nito ay direkta ring nagpapakita ng institutional gold bias.",
-      },
-    ],
-  },
-};
-
-function DetailSheet({ source, data, onClose }: {
-  source: DetailSource;
-  data: InstitutionalData | null;
-  onClose: () => void;
+function Section({ heading, color = "text-zinc-400", children }: {
+  heading: string; color?: string; children: React.ReactNode;
 }) {
-  const config = DETAIL_CONTENT[source];
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">{heading}</p>
+      <div className={cn("text-[11px] leading-relaxed", color)}>{children}</div>
+    </div>
+  );
+}
 
-  const liveContext = () => {
-    if (!data) return null;
-    if (source === "cftc" && data.sentiment) {
-      return (
-        <div className="rounded-lg bg-white/[0.04] border border-white/[0.08] p-3 space-y-2">
-          <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Current Data</p>
+function AccentBox({ accent, icon, label, children }: {
+  accent: "blue" | "emerald" | "amber";
+  icon: React.ReactNode;
+  label: string;
+  children: React.ReactNode;
+}) {
+  const border = accent === "blue" ? "border-blue-500/25 bg-blue-500/[0.04]" :
+                 accent === "emerald" ? "border-emerald-500/25 bg-emerald-500/[0.04]" :
+                 "border-amber-500/25 bg-amber-500/[0.04]";
+  const text = accent === "blue" ? "text-blue-400" :
+               accent === "emerald" ? "text-emerald-400" :
+               "text-amber-400";
+  return (
+    <div className={cn("rounded-xl border", border)}>
+      <div className={cn("flex items-center gap-2 px-3.5 py-2.5 border-b", border.split(" ")[0].replace("25", "15"))}>
+        <span className={cn("h-3.5 w-3.5", text)}>{icon}</span>
+        <span className={cn("text-[10px] font-bold uppercase tracking-widest", text)}>{label}</span>
+      </div>
+      <div className="px-3.5 py-3 space-y-2">{children}</div>
+    </div>
+  );
+}
+
+function CFTCDetail({ data }: { data: InstitutionalData | null }) {
+  return (
+    <div className="space-y-4">
+      {data?.sentiment && (
+        <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-2">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Current Reading</p>
           <MMBar longPct={data.sentiment.longPct} shortPct={data.sentiment.shortPct} />
-          <p className="text-[10px] text-zinc-400">
-            {data.sentiment.extreme
-              ? `⚠️ Extreme positioning: hedge funds ${data.sentiment.longPct > data.sentiment.shortPct ? `${data.sentiment.longPct}% net long` : `${data.sentiment.shortPct}% net short`}`
-              : "No extreme positioning — balanced hedge fund stance"
-            }
-          </p>
-          <p className="text-[9px] text-zinc-600 italic">{cftcBiasNote(data.sentiment)}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <SignalBadge signal={data.sentiment.signal} />
+            <span className="text-[11px] text-zinc-400">
+              {data.sentiment.extreme
+                ? `Extreme — hedge funds ${data.sentiment.longPct > data.sentiment.shortPct ? `${data.sentiment.longPct}% net long` : `${data.sentiment.shortPct}% net short`}`
+                : "No extreme positioning"}
+            </span>
+          </div>
+          <p className="text-[10px] text-zinc-500 italic">{cftcBiasNote(data.sentiment)}</p>
         </div>
-      );
-    }
-    if (source === "volume" && data.oi) {
-      return (
-        <div className="rounded-lg bg-white/[0.04] border border-white/[0.08] p-3 space-y-1.5">
-          <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Current Data</p>
-          <div className="flex items-center justify-between">
+      )}
+
+      <AccentBox accent="blue" icon={<Eye />} label="How It Works">
+        <p className="text-[11px] text-zinc-300 leading-relaxed">
+          The CFTC (Commodity Futures Trading Commission) is a US government agency that records every large trade in the futures market. Every Friday they publish the COT (Commitments of Traders) report — showing exactly how hedge funds and big institutions are positioned in gold futures.
+        </p>
+      </AccentBox>
+
+      <Section heading="What is Managed Money?">
+        <p className="text-zinc-300">
+          &ldquo;Managed Money&rdquo; = hedge funds and professional money managers. When 70%+ of their position is LONG, it signals strong institutional conviction that gold will rise. Price typically follows the direction of institutional flow.
+        </p>
+      </Section>
+
+      <Section heading="How to Use It for Bias">
+        <BulletList items={[
+          "MM Long ≥ 70% → BULLISH signal. Hedge funds are loaded long — ride with institutions.",
+          "MM Short ≥ 70% → BEARISH signal. Hedge funds are positioned for a drop.",
+          "40–60% range → NEUTRAL. No strong directional conviction from smart money.",
+        ]} color="text-zinc-300" />
+      </Section>
+
+      <Section heading="Trade Implication">
+        <BulletList items={[
+          "Extreme long positioning + bullish structure = high-confidence long setups.",
+          "Extreme short + bearish structure = institutional selling pressure, avoid longs.",
+          "Use CFTC as a macro backdrop, not a short-term entry trigger.",
+        ]} color="text-zinc-400" />
+      </Section>
+
+      <Section heading="Limitations" color="text-zinc-500">
+        <p>Data has a 3-day lag — Friday&apos;s report reflects Tuesday&apos;s positions. Weekly, not real-time. Use alongside volume and options for confirmation.</p>
+      </Section>
+    </div>
+  );
+}
+
+function VolumeDetail({ data }: { data: InstitutionalData | null }) {
+  return (
+    <div className="space-y-4">
+      {data?.oi && (
+        <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-2">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Current Reading</p>
+          <div className="flex items-center gap-2 flex-wrap">
             <SignalBadge signal={data.oi.signal} />
-            <p className="text-[11px] text-zinc-200">{data.oi.label}</p>
+            <span className="text-[11px] text-zinc-200">{data.oi.label}</span>
           </div>
           <div className="flex gap-4">
-            <span className="text-[9px] text-zinc-500">Vol: <span className="text-zinc-300 font-mono">{data.oi.openInterest.toLocaleString()}</span></span>
+            <span className="text-[9px] text-zinc-500">Volume: <span className="text-zinc-300 font-mono">{data.oi.openInterest.toLocaleString()}</span></span>
             <span className={cn("text-[9px] font-mono font-bold", data.oi.oiChange > 0 ? "text-emerald-400" : "text-red-400")}>
               {data.oi.oiChange > 0 ? "+" : ""}{data.oi.oiChange.toLocaleString()} vs prev
             </span>
           </div>
-          <p className="text-[9px] text-zinc-600 italic">{volBiasNote(data.oi)}</p>
+          <p className="text-[10px] text-zinc-500 italic">{volBiasNote(data.oi)}</p>
         </div>
-      );
-    }
-    if (source === "options" && data.options) {
-      return (
-        <div className="rounded-lg bg-white/[0.04] border border-white/[0.08] p-3 space-y-1.5">
-          <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Current Data</p>
+      )}
+
+      <AccentBox accent="blue" icon={<Eye />} label="How It Works">
+        <p className="text-[11px] text-zinc-300 leading-relaxed">
+          Volume is the total number of GC (Gold Futures) contracts traded in a day. Volume confirms whether a price move has real conviction behind it — or if it&apos;s just a low-participation drift.
+        </p>
+      </AccentBox>
+
+      <Section heading="Reading Price + Volume Together">
+        <div className="space-y-2">
+          {[
+            { combo: "Price ↑ + Volume ↑", signal: "BULLISH", detail: "Real buyers driving the move. Trust the uptrend.", color: "text-emerald-400" },
+            { combo: "Price ↑ + Volume ↓", signal: "WEAK", detail: "Shorts covering, not real buying. Don't chase longs.", color: "text-zinc-400" },
+            { combo: "Price ↓ + Volume ↑", signal: "BEARISH", detail: "Real sellers pressing. Trust the downtrend.", color: "text-red-400" },
+            { combo: "Price ↓ + Volume ↓", signal: "EXHAUSTION", detail: "Sellers running out of steam. Watch for reversal.", color: "text-amber-400" },
+          ].map(({ combo, signal, detail, color }) => (
+            <div key={combo} className="flex items-start gap-3 rounded-lg bg-white/[0.03] p-2.5">
+              <div className="shrink-0">
+                <p className="text-[9px] text-zinc-500 font-mono">{combo}</p>
+                <p className={cn("text-[10px] font-bold", color)}>{signal}</p>
+              </div>
+              <p className="text-[10px] text-zinc-400 leading-relaxed mt-0.5">{detail}</p>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section heading="Trade Implication">
+        <BulletList items={[
+          "A $20 gold move with rising volume = institutional participation. Setup is valid.",
+          "A $20 move with falling volume = momentum traders only. Be cautious.",
+          "Volume spike on a key level = liquidity grab or institutional entry.",
+        ]} color="text-zinc-400" />
+      </Section>
+
+      <Section heading="Data Source" color="text-zinc-500">
+        <p>Yahoo Finance GC=F — approximately 15-minute delay. Reflects the current trading day&apos;s participation compared to the previous session.</p>
+      </Section>
+    </div>
+  );
+}
+
+function OptionsDetail({ data }: { data: InstitutionalData | null }) {
+  return (
+    <div className="space-y-4">
+      {data?.options && (
+        <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-2">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Current Reading</p>
           <div className="flex items-center gap-4">
             <div>
               <p className="text-[8px] text-zinc-600">P/C Ratio</p>
-              <p className={cn("text-sm font-bold font-mono",
+              <p className={cn("text-base font-bold font-mono",
                 data.options.putCallRatio < 0.7 ? "text-emerald-400" :
                 data.options.putCallRatio > 1.3 ? "text-red-400" : "text-zinc-300")}>
                 {data.options.putCallRatio.toFixed(2)}
@@ -245,62 +287,118 @@ function DetailSheet({ source, data, onClose }: {
             </div>
             <div>
               <p className="text-[8px] text-zinc-600">Call Vol</p>
-              <p className="text-sm font-bold font-mono text-emerald-400">{data.options.callVolume.toLocaleString()}</p>
+              <p className="text-base font-bold font-mono text-emerald-400">{data.options.callVolume.toLocaleString()}</p>
             </div>
             <div>
               <p className="text-[8px] text-zinc-600">Put Vol</p>
-              <p className="text-sm font-bold font-mono text-red-400">{data.options.putVolume.toLocaleString()}</p>
+              <p className="text-base font-bold font-mono text-red-400">{data.options.putVolume.toLocaleString()}</p>
             </div>
           </div>
-          <p className="text-[9px] text-zinc-600 italic">{optionsBiasNote(data.options)}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <SignalBadge signal={data.options.signal} />
+            {(data.options.unusualCalls > 0 || data.options.unusualPuts > 0) && (
+              <span className="text-[10px] font-bold text-amber-400">
+                Unusual: {data.options.unusualCalls}C / {data.options.unusualPuts}P
+              </span>
+            )}
+          </div>
+          <p className="text-[10px] text-zinc-500 italic">{optionsBiasNote(data.options)}</p>
         </div>
-      );
-    }
-    return null;
-  };
+      )}
 
-  return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      {/* Sheet */}
-      <div className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-2xl bg-[hsl(var(--card))] border-t border-white/10 shadow-2xl">
-        {/* Handle */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="h-1 w-10 rounded-full bg-zinc-700" />
+      <AccentBox accent="blue" icon={<Eye />} label="How It Works">
+        <p className="text-[11px] text-zinc-300 leading-relaxed">
+          Options are contracts that give the right to buy (CALL) or sell (PUT) an asset at a specific price. Institutions use them to hedge positions, express directional views with leverage, or speculate on big moves. Tracking their options activity reveals where smart money is leaning.
+        </p>
+      </AccentBox>
+
+      <Section heading="Call Volume vs Put Volume">
+        <div className="space-y-2">
+          <div className="rounded-lg bg-emerald-500/[0.05] border border-emerald-500/15 p-2.5 space-y-1">
+            <p className="text-[10px] font-bold text-emerald-400">CALL Volume</p>
+            <p className="text-[11px] text-zinc-300">Right to buy. High call volume = traders betting price goes UP. Bullish positioning.</p>
+          </div>
+          <div className="rounded-lg bg-red-500/[0.05] border border-red-500/15 p-2.5 space-y-1">
+            <p className="text-[10px] font-bold text-red-400">PUT Volume</p>
+            <p className="text-[11px] text-zinc-300">Right to sell. High put volume = traders hedging or betting price goes DOWN. Bearish positioning.</p>
+          </div>
         </div>
+      </Section>
+
+      <Section heading="Put/Call Ratio (P/C)">
+        <BulletList items={[
+          "P/C < 0.7 → BULLISH. Calls dominating — more bets on upside.",
+          "P/C > 1.3 → BEARISH. Puts heavy — institutions hedging or speculating downside.",
+          "P/C 0.7–1.3 → NEUTRAL. Balanced flow, no strong directional signal.",
+        ]} color="text-zinc-300" />
+      </Section>
+
+      <AccentBox accent="amber" icon={<Eye />} label="Unusual Volume">
+        <p className="text-[11px] text-zinc-300 leading-relaxed">
+          When a specific strike has volume &gt; 3× its open interest and &gt; 500 contracts — a large player is loading a position. This is often a leading indicator that institutional money is moving before a major price event.
+        </p>
+      </AccentBox>
+
+      <Section heading="Data Source" color="text-zinc-500">
+        <p>CBOE GLD (SPDR Gold ETF) options — ~15-minute delay. GLD tracks gold price 1:1, so its options flow directly reflects gold institutional bias.</p>
+      </Section>
+    </div>
+  );
+}
+
+const DETAIL_CONFIG: Record<DetailSource, { title: string; subtitle: string }> = {
+  cftc:    { title: "Managed Money (CFTC)", subtitle: "Weekly hedge fund positioning — COT disaggregated report" },
+  volume:  { title: "GC Futures Volume", subtitle: "Daily gold futures volume — confirms move conviction" },
+  options: { title: "CBOE Options Flow (GLD)", subtitle: "Options market activity — tracks smart money hedging and positioning" },
+};
+
+function DetailModal({ source, data, onClose }: {
+  source: DetailSource;
+  data: InstitutionalData | null;
+  onClose: () => void;
+}) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  if (!mounted) return null;
+
+  const cfg = DETAIL_CONFIG[source];
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+      <div className="absolute inset-0 bg-black/72 backdrop-blur-[6px]" onClick={onClose} />
+      <div className="relative z-10 flex w-full max-w-[760px] max-h-[82vh] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[hsl(220,18%,7%)] shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
         {/* Header */}
-        <div className="flex items-start justify-between px-4 pt-2 pb-3 border-b border-white/5">
+        <div className="flex items-center justify-between border-b border-white/6 bg-[hsl(220,18%,7%)]/95 px-5 py-4 backdrop-blur shrink-0">
           <div>
-            <p className="text-sm font-semibold text-zinc-100">{config.title}</p>
-            <p className="text-[10px] text-zinc-500 mt-0.5">{config.subtitle}</p>
+            <h2 className="text-sm font-semibold text-white">{cfg.title}</h2>
+            <p className="text-[10px] text-zinc-500 mt-0.5">{cfg.subtitle}</p>
           </div>
           <button
             onClick={onClose}
-            className="rounded-full p-1.5 text-zinc-500 hover:bg-white/10 active:bg-white/15 transition-colors"
+            className="ml-4 rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-white/8 hover:text-white"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
         {/* Content */}
-        <div className="px-4 py-3 space-y-4 pb-8">
-          {/* Live context first */}
-          {liveContext()}
-          {/* Explanation sections */}
-          {config.sections.map((section) => (
-            <div key={section.heading} className="space-y-1.5">
-              <p className="text-[10px] font-bold text-zinc-300 uppercase tracking-wide">{section.heading}</p>
-              <p className="text-[11px] text-zinc-400 leading-relaxed whitespace-pre-line">{section.body}</p>
-            </div>
-          ))}
+        <div className="min-h-0 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
+          {source === "cftc"    && <CFTCDetail data={data} />}
+          {source === "volume"  && <VolumeDetail data={data} />}
+          {source === "options" && <OptionsDetail data={data} />}
         </div>
       </div>
-    </>
+    </div>,
+    document.body
   );
 }
+
+// ── Main Component ────────────────────────────────────────────────────────────
 
 export function InstitutionalConfluence() {
   const { institutional: data, institutionalLoading } = useInstitutionalData();
@@ -350,11 +448,10 @@ export function InstitutionalConfluence() {
             </div>
           ) : (
             <>
-              {/* CFTC Managed Money */}
               {data?.sentiment ? (
                 <Row
                   label="Managed Money (CFTC)"
-                  hint="Weekly COT report — shows how hedge funds are positioned. Heavy one-sided positioning (70%+) signals strong institutional conviction."
+                  hint="Weekly COT report — shows how hedge funds are positioned."
                   signal={data.sentiment.signal}
                   onClick={() => setOpenDetail("cftc")}
                 >
@@ -367,20 +464,15 @@ export function InstitutionalConfluence() {
                   <p className="text-[9px] text-zinc-600 mt-0.5 italic">{cftcBiasNote(data.sentiment)}</p>
                 </Row>
               ) : (
-                <Row
-                  label="Managed Money (CFTC)"
-                  hint="Weekly CFTC report — hedge fund net positioning on COMEX gold."
-                  onClick={() => setOpenDetail("cftc")}
-                >
+                <Row label="Managed Money (CFTC)" hint="Weekly CFTC report — hedge fund net positioning on COMEX gold." onClick={() => setOpenDetail("cftc")}>
                   <p className="text-[10px] text-zinc-600 italic">Unavailable</p>
                 </Row>
               )}
 
-              {/* GC Futures Volume */}
               {data?.oi ? (
                 <Row
                   label="GC Futures Volume"
-                  hint="Gold futures daily volume from Yahoo Finance. Volume confirms whether a price move is real or just short covering."
+                  hint="Daily volume confirms whether price moves have real participation."
                   signal={data.oi.signal}
                   onClick={() => setOpenDetail("volume")}
                 >
@@ -397,20 +489,15 @@ export function InstitutionalConfluence() {
                   <p className="text-[9px] text-zinc-600 mt-1.5 italic">{volBiasNote(data.oi)}</p>
                 </Row>
               ) : (
-                <Row
-                  label="GC Futures Volume"
-                  hint="Gold futures volume — confirms if price moves have real participation behind them."
-                  onClick={() => setOpenDetail("volume")}
-                >
+                <Row label="GC Futures Volume" hint="Gold futures volume — confirms if price moves have real participation." onClick={() => setOpenDetail("volume")}>
                   <p className="text-[10px] text-zinc-600 italic">Unavailable</p>
                 </Row>
               )}
 
-              {/* CBOE Options */}
               {data?.options ? (
                 <Row
                   label="CBOE Options Flow (GLD)"
-                  hint="GLD ETF options activity. P/C < 0.7 = calls dominating (bullish). P/C > 1.3 = puts heavy (bearish). Unusual volume = smart money positioning."
+                  hint="P/C < 0.7 = calls dominating (bullish). P/C > 1.3 = puts heavy (bearish)."
                   signal={data.options.signal}
                   onClick={() => setOpenDetail("options")}
                 >
@@ -443,11 +530,7 @@ export function InstitutionalConfluence() {
                   <p className="text-[9px] text-zinc-600 mt-1.5 italic">{optionsBiasNote(data.options)}</p>
                 </Row>
               ) : (
-                <Row
-                  label="CBOE Options Flow (GLD)"
-                  hint="GLD ETF put/call ratio — tracks whether options traders are positioned bullish or bearish on gold."
-                  onClick={() => setOpenDetail("options")}
-                >
+                <Row label="CBOE Options Flow (GLD)" hint="GLD ETF put/call ratio — tracks institutional gold positioning." onClick={() => setOpenDetail("options")}>
                   <p className="text-[10px] text-zinc-600 italic">Unavailable</p>
                 </Row>
               )}
@@ -462,9 +545,8 @@ export function InstitutionalConfluence() {
         </div>
       </div>
 
-      {/* Detail Sheet */}
       {openDetail && (
-        <DetailSheet
+        <DetailModal
           source={openDetail}
           data={data ?? null}
           onClose={() => setOpenDetail(null)}
