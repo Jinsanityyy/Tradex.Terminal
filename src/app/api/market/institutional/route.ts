@@ -44,45 +44,63 @@ function withTimeout(p: Promise<Response>): Promise<Response> {
   return Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), TIMEOUT))]);
 }
 
-// ── Dukascopy SSI ─────────────────────────────────────────────────────────────
-async function fetchSentiment(): Promise<SentimentData | null> {
+// ── CFTC Managed Money (replaces Dukascopy — blocked server-side) ─────────────
+// COMEX Gold CFTC code: 088691. Data published weekly (Fri for prior Tue).
+async function fetchManagedMoney(): Promise<SentimentData | null> {
   try {
-    const res = await withTimeout(fetch(
-      "https://freeserv.dukascopy.com/2.0/?path=trading_tools/SSI&stream=false",
-      {
-        headers: {
-          "User-Agent": CHROME_UA,
-          "Accept": "application/json, text/plain, */*",
-          "Accept-Language": "en-US,en;q=0.9",
-          "Referer": "https://www.dukascopy.com/trading-tools/widgets/ssi/",
-          "Origin": "https://www.dukascopy.com",
-          "Cache-Control": "no-cache",
-        },
-      }
-    ));
+    const res = await Promise.race([
+      fetch("https://www.cftc.gov/files/dea/newcot/c_disagg.txt", {
+        headers: { "User-Agent": CHROME_UA, "Accept": "text/plain, */*" },
+      }),
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 12000)),
+    ]);
     if (!res.ok) return null;
-    const raw = await res.json();
+    const text = await res.text();
 
-    const items: unknown[] = Array.isArray(raw) ? raw : (raw?.data ?? raw?.instruments ?? []);
-    const gold = (items as Record<string, unknown>[]).find((i) =>
-      String(i.a ?? i.name ?? i.instrumentId ?? "").toUpperCase().includes("XAU") ||
-      String(i.a ?? i.name ?? i.instrumentId ?? "").toUpperCase().includes("GOLD")
-    );
-    if (!gold) return null;
+    const rows = text.split("\n");
+    if (rows.length < 2) return null;
 
-    const longPct = Number(gold.b ?? gold.longPercent ?? gold.longVolume ?? 0);
-    const shortPct = Number(gold.c ?? gold.shortPercent ?? gold.shortVolume ?? 0) ||
-      (100 - longPct);
+    // Parse a quoted CSV row into string array
+    function parseRow(row: string): string[] {
+      const out: string[] = [];
+      let cur = "";
+      let inQ = false;
+      for (const ch of row) {
+        if (ch === '"') { inQ = !inQ; }
+        else if (ch === "," && !inQ) { out.push(cur); cur = ""; }
+        else { cur += ch; }
+      }
+      out.push(cur);
+      return out;
+    }
 
-    if (!longPct) return null;
+    const headers = parseRow(rows[0]);
+    // Locate "Money Manager-Long (All)" and "Money Manager-Short (All)"
+    const mmLongIdx  = headers.findIndex(h => /money\s*manager.+long/i.test(h) && !/short|spread/i.test(h));
+    const mmShortIdx = headers.findIndex(h => /money\s*manager.+short/i.test(h) && !/spread/i.test(h));
+    if (mmLongIdx < 0 || mmShortIdx < 0) return null;
 
+    // Last occurrence of gold row = most recent week
+    const goldRow = rows.filter(r => r.includes("088691")).pop();
+    if (!goldRow) return null;
+
+    const fields  = parseRow(goldRow);
+    const mmLong  = parseInt((fields[mmLongIdx]  ?? "").replace(/,/g, ""), 10) || 0;
+    const mmShort = parseInt((fields[mmShortIdx] ?? "").replace(/,/g, ""), 10) || 0;
+    if (!mmLong && !mmShort) return null;
+
+    const total    = mmLong + mmShort;
+    const longPct  = Math.round((mmLong / total) * 100);
+    const shortPct = 100 - longPct;
+
+    // Direct signal — managed money is "smart money", not contrarian
     const extreme = longPct >= 70 || shortPct >= 70;
     const signal: SentimentData["signal"] =
-      shortPct >= 70 ? "bullish" :
-      longPct  >= 70 ? "bearish" :
+      longPct  >= 70 ? "bullish" :
+      shortPct >= 70 ? "bearish" :
       "neutral";
 
-    return { longPct: Math.round(longPct), shortPct: Math.round(shortPct), signal, extreme };
+    return { longPct, shortPct, signal, extreme };
   } catch {
     return null;
   }
@@ -214,7 +232,7 @@ export async function GET() {
   }
 
   const [sentiment, oi, options] = await Promise.all([
-    fetchSentiment(),
+    fetchManagedMoney(),
     fetchOI(),
     fetchOptions(),
   ]);

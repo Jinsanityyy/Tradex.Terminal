@@ -87,7 +87,7 @@ export function InstitutionalConfluence() {
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
         <div>
           <p className="text-[9px] uppercase tracking-widest text-zinc-600 mb-0.5">Institutional Confluence</p>
-          <p className="text-[10px] text-zinc-500">Dukascopy · GC Volume · CBOE Options</p>
+          <p className="text-[10px] text-zinc-500">CFTC Managed Money · GC Volume · CBOE Options</p>
         </div>
         {data && !allNull && (
           <div className="flex flex-col items-end gap-1">
@@ -105,18 +105,18 @@ export function InstitutionalConfluence() {
           </div>
         ) : (
           <>
-            {/* Retail Sentiment */}
+            {/* CFTC Managed Money */}
             {data?.sentiment ? (
-              <Row label="Retail Sentiment (Dukascopy)" signal={data.sentiment.signal}>
+              <Row label="Managed Money (CFTC)" signal={data.sentiment.signal}>
                 <SentimentBar longPct={data.sentiment.longPct} shortPct={data.sentiment.shortPct} />
                 <p className="text-[10px] text-zinc-400 mt-1">
                   {data.sentiment.extreme
-                    ? `⚠️ Extreme — ${data.sentiment.shortPct > data.sentiment.longPct ? "crowd heavily short" : "crowd heavily long"}, contrarian ${data.sentiment.signal}`
-                    : "No extreme reading — low contrarian value"}
+                    ? `⚠️ Extreme — hedge funds ${data.sentiment.longPct > data.sentiment.shortPct ? `${data.sentiment.longPct}% net long` : `${data.sentiment.shortPct}% net short`}`
+                    : "No extreme positioning from managed money"}
                 </p>
               </Row>
             ) : (
-              <Row label="Retail Sentiment (Dukascopy)">
+              <Row label="Managed Money (CFTC)">
                 <p className="text-[10px] text-zinc-600 italic">Unavailable</p>
               </Row>
             )}
@@ -182,7 +182,7 @@ export function InstitutionalConfluence() {
 
       <div className="px-4 pb-3">
         <p className="text-[9px] text-zinc-700">
-          Dukascopy: retail contrarian · GC Vol: buyers vs sellers · CBOE: smart money options
+          CFTC: hedge fund net positioning · GC Vol: buyers vs sellers · CBOE: smart money options
         </p>
       </div>
     </div>
