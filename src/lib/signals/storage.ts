@@ -111,7 +111,11 @@ function rowToRecord(row: SignalRow): SignalRecord {
   const isArmed = row.is_armed && row.entry_price !== null && row.stop_loss !== null && row.take_profit !== null;
   const tradePlan: SignalTradePlan | null = isArmed
     ? {
-        direction: (row.direction === "short" ? "short" : "long"),
+        direction: row.direction === "short"
+          ? "short"
+          : row.direction === "long"
+            ? "long"
+            : (row.stop_loss! > row.entry_price! ? "short" : "long"),
         entry: row.entry_price!,
         stopLoss: row.stop_loss!,
         tp1: row.take_profit!,
