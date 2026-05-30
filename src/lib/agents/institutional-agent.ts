@@ -1,62 +1,79 @@
 /**
- * Agent 8  -  Institutional Flow Agent (Rule-Based, No LLM)
+ * Institutional Flow Agent (Rule-Based, No LLM)
  *
  * Three free data sources combined into a directional signal:
- * - Dukascopy SSI: retail sentiment → contrarian signal at extremes
- * - CME GC open interest: confirms if price moves are real (OI↑) or fake (OI↓)
+ * - CFTC Managed Money: hedge fund net positioning (weekly COT)
+ * - Yahoo Finance GC=F: gold futures volume as direction proxy
  * - CBOE GLD options: put/call ratio + unusual volume detection
  */
 
 import type { InstitutionalFlowAgentOutput } from "./schemas";
 
-const TIMEOUT_MS = 7000;
 const signal = (v: string): "bullish" | "bearish" | "neutral" =>
   v === "bullish" ? "bullish" : v === "bearish" ? "bearish" : "neutral";
 
-async function timedFetch(url: string, opts?: RequestInit): Promise<Response> {
-  return Promise.race([
-    fetch(url, opts),
-    new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), TIMEOUT_MS)),
-  ]);
-}
-
 const CHROME_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
-// ── Dukascopy SSI ─────────────────────────────────────────────────────────────
-async function fetchSentiment(): Promise<{
+// ── CFTC Managed Money (Dukascopy blocks server-side requests) ────────────────
+// COMEX Gold code: 088691. Published weekly (Fri for prior Tue).
+async function fetchManagedMoney(): Promise<{
   longPct: number; shortPct: number;
   sig: "bullish" | "bearish" | "neutral"; extreme: boolean;
 } | null> {
   try {
-    const res = await timedFetch(
-      "https://freeserv.dukascopy.com/2.0/?path=trading_tools/SSI&stream=false",
-      {
-        headers: {
-          "User-Agent": CHROME_UA,
-          "Accept": "application/json, text/plain, */*",
-          "Accept-Language": "en-US,en;q=0.9",
-          "Referer": "https://www.dukascopy.com/trading-tools/widgets/ssi/",
-          "Origin": "https://www.dukascopy.com",
-          "Cache-Control": "no-cache",
-        },
-      }
-    );
+    const res = await Promise.race([
+      fetch("https://www.cftc.gov/files/dea/newcot/c_disagg.txt", {
+        headers: { "User-Agent": CHROME_UA, "Accept": "text/plain, */*" },
+      }),
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 12000)),
+    ]);
     if (!res.ok) return null;
-    const raw = await res.json();
-    const items: Record<string, unknown>[] = Array.isArray(raw) ? raw : (raw?.data ?? raw?.instruments ?? []);
-    const gold = items.find(i =>
-      String(i.a ?? i.name ?? i.instrumentId ?? "").toUpperCase().includes("XAU") ||
-      String(i.a ?? i.name ?? i.instrumentId ?? "").toUpperCase().includes("GOLD")
-    );
-    if (!gold) return null;
-    const longPct  = Math.round(Number(gold.b ?? gold.longPercent  ?? 0));
-    const shortPct = Math.round(Number(gold.c ?? gold.shortPercent ?? 0) || (100 - longPct));
-    if (!longPct) return null;
-    const extreme = longPct >= 70 || shortPct >= 70;
+    const text = await res.text();
+    const rows = text.split("\n");
+    if (rows.length < 2) return null;
+
+    function parseRow(row: string): string[] {
+      const out: string[] = [];
+      let cur = "", inQ = false;
+      for (const ch of row) {
+        if (ch === '"') { inQ = !inQ; }
+        else if (ch === "," && !inQ) { out.push(cur); cur = ""; }
+        else { cur += ch; }
+      }
+      out.push(cur);
+      return out;
+    }
+
+    const headers    = parseRow(rows[0]);
+    const mmLongIdx  = headers.findIndex(h => /money\s*manager.+long/i.test(h)  && !/short|spread/i.test(h));
+    const mmShortIdx = headers.findIndex(h => /money\s*manager.+short/i.test(h) && !/spread/i.test(h));
+    if (mmLongIdx < 0 || mmShortIdx < 0) return null;
+
+    const goldRow = rows.filter(r => r.includes("088691")).pop();
+    if (!goldRow) return null;
+
+    const fields  = parseRow(goldRow);
+    const mmLong  = parseInt((fields[mmLongIdx]  ?? "").replace(/,/g, ""), 10) || 0;
+    const mmShort = parseInt((fields[mmShortIdx] ?? "").replace(/,/g, ""), 10) || 0;
+    if (!mmLong && !mmShort) return null;
+
+    const total    = mmLong + mmShort;
+    const longPct  = Math.round((mmLong / total) * 100);
+    const shortPct = 100 - longPct;
+    const extreme  = longPct >= 70 || shortPct >= 70;
     const sig: "bullish" | "bearish" | "neutral" =
-      shortPct >= 70 ? "bullish" : longPct >= 70 ? "bearish" : "neutral";
+      longPct  >= 70 ? "bullish" :
+      shortPct >= 70 ? "bearish" :
+      "neutral";
     return { longPct, shortPct, sig, extreme };
   } catch { return null; }
+}
+
+async function timedFetch(url: string, opts?: RequestInit): Promise<Response> {
+  return Promise.race([
+    fetch(url, opts),
+    new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 7000)),
+  ]);
 }
 
 // ── GC Futures volume via Yahoo Finance (CME blocks server-side requests) ─────
@@ -134,7 +151,7 @@ export async function runInstitutionalAgent(): Promise<InstitutionalFlowAgentOut
   const start = Date.now();
 
   const [sentimentData, oiData, optionsData] = await Promise.all([
-    fetchSentiment(),
+    fetchManagedMoney(),
     fetchOI(),
     fetchOptions(),
   ]);
@@ -153,14 +170,14 @@ export async function runInstitutionalAgent(): Promise<InstitutionalFlowAgentOut
       oiChange: null,
       putCallRatio: null,
       insight: "All data sources offline — skipping",
-      reasons: ["Dukascopy, CME and CBOE all returned errors"],
+      reasons: ["CFTC, Yahoo Finance and CBOE all returned errors"],
       score: 0,
       dataAvailable: false,
       processingTime: Date.now() - start,
     };
   }
 
-  // Score: sentiment extreme = ±2, non-extreme = ±1; OI and options = ±1 each
+  // Score: managed money extreme = ±2, non-extreme = ±1; volume and options = ±1 each
   let score = 0;
   if (sentimentData) {
     const s = sentimentData.sig === "bullish" ? 1 : sentimentData.sig === "bearish" ? -1 : 0;
@@ -172,27 +189,24 @@ export async function runInstitutionalAgent(): Promise<InstitutionalFlowAgentOut
   const flow: InstitutionalFlowAgentOutput["flow"] =
     score >= 2 ? "bullish" : score <= -2 ? "bearish" : "neutral";
 
-  // Confidence: proportional to how many sources agree and how extreme
   const sourcesActive = [sentimentData, oiData, optionsData].filter(Boolean).length;
   const absScore = Math.abs(score);
   const maxScore = sourcesActive <= 1 ? 2 : sourcesActive === 2 ? 3 : 4;
   const confidence = Math.round((absScore / maxScore) * 80 + (sourcesActive / 3) * 20);
 
-  // Insight
   const parts: string[] = [];
   if (sentimentData?.extreme)
-    parts.push(`${sentimentData.shortPct > sentimentData.longPct ? sentimentData.shortPct + "% retails short (contrarian bullish)" : sentimentData.longPct + "% retails long (contrarian bearish)"}`);
+    parts.push(`Hedge funds ${sentimentData.longPct > sentimentData.shortPct ? sentimentData.longPct + "% net long" : sentimentData.shortPct + "% net short"} (CFTC)`);
   if (oiData && oiData.sig !== "neutral") parts.push(oiData.label);
   if (optionsData && optionsData.sig !== "neutral")
     parts.push(`P/C ${optionsData.pcRatio.toFixed(2)} (${optionsData.sig === "bullish" ? "calls dominating" : "puts dominating"})`);
   const insight = parts.length > 0 ? parts[0] : "No extreme institutional readings";
 
-  // Reasons
   const reasons: string[] = [];
   if (sentimentData)
-    reasons.push(`Retail: ${sentimentData.longPct}% long / ${sentimentData.shortPct}% short → contrarian ${sentimentData.sig}${sentimentData.extreme ? " (EXTREME)" : ""}`);
+    reasons.push(`CFTC managed money: ${sentimentData.longPct}% long / ${sentimentData.shortPct}% short → ${sentimentData.sig}${sentimentData.extreme ? " (EXTREME)" : ""}`);
   if (oiData)
-    reasons.push(`CME OI: ${oiData.label} (Δ${oiData.oiChange >= 0 ? "+" : ""}${oiData.oiChange.toLocaleString()} contracts)`);
+    reasons.push(`GC volume: ${oiData.label} (Δ${oiData.oiChange >= 0 ? "+" : ""}${oiData.oiChange.toLocaleString()})`);
   if (optionsData)
     reasons.push(`CBOE options P/C ratio ${optionsData.pcRatio.toFixed(2)} → ${optionsData.sig}`);
   if (reasons.length === 0) reasons.push("Insufficient data for meaningful signal");
