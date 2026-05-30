@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Minus, RefreshCw, AlertTriangle, Clock, X, ChevronRight, Eye } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, RefreshCw, AlertTriangle, Clock, X, ChevronRight, Eye, Loader2 } from "lucide-react";
 import { useInstitutionalData } from "@/hooks/useMarketData";
 import type { InstitutionalData } from "@/app/api/market/institutional/route";
 
@@ -134,21 +134,27 @@ function Section({ heading, color = "text-zinc-400", children }: {
 }
 
 function AccentBox({ accent, icon, label, children }: {
-  accent: "blue" | "emerald" | "amber";
+  accent: "blue" | "emerald" | "amber" | "gold";
   icon: React.ReactNode;
   label: string;
   children: React.ReactNode;
 }) {
-  const border = accent === "blue" ? "border-blue-500/25 bg-blue-500/[0.04]" :
+  const border = accent === "blue"    ? "border-blue-500/25 bg-blue-500/[0.04]" :
                  accent === "emerald" ? "border-emerald-500/25 bg-emerald-500/[0.04]" :
+                 accent === "gold"    ? "border-[#D4AF37]/25 bg-[#D4AF37]/[0.04]" :
                  "border-amber-500/25 bg-amber-500/[0.04]";
-  const text = accent === "blue" ? "text-blue-400" :
+  const divider = accent === "blue"    ? "border-blue-500/15" :
+                  accent === "emerald" ? "border-emerald-500/15" :
+                  accent === "gold"    ? "border-[#D4AF37]/15" :
+                  "border-amber-500/15";
+  const text = accent === "blue"    ? "text-blue-400" :
                accent === "emerald" ? "text-emerald-400" :
+               accent === "gold"    ? "text-[#D4AF37]" :
                "text-amber-400";
   return (
-    <div className={cn("rounded-xl border", border)}>
-      <div className={cn("flex items-center gap-2 px-3.5 py-2.5 border-b", border.split(" ")[0].replace("25", "15"))}>
-        <span className={cn("h-3.5 w-3.5", text)}>{icon}</span>
+    <div className={cn("rounded-xl border transition-colors", border)}>
+      <div className={cn("flex items-center gap-2 px-3.5 py-2.5 border-b", divider)}>
+        <span className={cn("h-3.5 w-3.5 shrink-0", text)}>{icon}</span>
         <span className={cn("text-[10px] font-bold uppercase tracking-widest", text)}>{label}</span>
       </div>
       <div className="px-3.5 py-3 space-y-2">{children}</div>
@@ -210,61 +216,205 @@ function CFTCDetail({ data }: { data: InstitutionalData | null }) {
   );
 }
 
+type VolCondition = "bullish" | "weak" | "bearish" | "exhaustion" | null;
+
+function getActiveCondition(oi: NonNullable<InstitutionalData["oi"]>): VolCondition {
+  if (oi.label.includes("insufficient")) return null;
+  if (oi.signal === "bullish") return "bullish";
+  if (oi.signal === "bearish") return "bearish";
+  if (oi.label.includes("covering")) return "weak";
+  if (oi.label.includes("exhausting")) return "exhaustion";
+  return null;
+}
+
+const VOL_CONDITIONS = [
+  {
+    id: "bullish" as VolCondition,
+    combo: "Price ↑  +  Volume ↑",
+    signal: "BULLISH",
+    detail: "Real buyers absorbing supply",
+    signalCls: "text-emerald-400",
+    cardActiveCls: "border-[#D4AF37]/50 bg-[#D4AF37]/[0.04]",
+    cardBaseCls: "border-white/5 bg-white/[0.02]",
+  },
+  {
+    id: "weak" as VolCondition,
+    combo: "Price ↑  +  Volume ↓",
+    signal: "WEAK",
+    detail: "Shorts covering, not real buying",
+    signalCls: "text-zinc-400",
+    cardActiveCls: "border-[#D4AF37]/50 bg-[#D4AF37]/[0.04]",
+    cardBaseCls: "border-white/5 bg-white/[0.02]",
+  },
+  {
+    id: "bearish" as VolCondition,
+    combo: "Price ↓  +  Volume ↑",
+    signal: "BEARISH",
+    detail: "Real sellers pressing the market",
+    signalCls: "text-red-400",
+    cardActiveCls: "border-[#D4AF37]/50 bg-[#D4AF37]/[0.04]",
+    cardBaseCls: "border-white/5 bg-white/[0.02]",
+  },
+  {
+    id: "exhaustion" as VolCondition,
+    combo: "Price ↓  +  Volume ↓",
+    signal: "EXHAUSTION",
+    detail: "Sellers losing steam — watch for reversal",
+    signalCls: "text-amber-400",
+    cardActiveCls: "border-[#D4AF37]/50 bg-[#D4AF37]/[0.04]",
+    cardBaseCls: "border-white/5 bg-white/[0.02]",
+  },
+] as const;
+
 function VolumeDetail({ data }: { data: InstitutionalData | null }) {
+  const oi = data?.oi ?? null;
+  const isInsufficient = !oi || oi.label.includes("insufficient");
+  const activeCondition = oi ? getActiveCondition(oi) : null;
+
   return (
     <div className="space-y-4">
-      {data?.oi && (
-        <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-2">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Current Reading</p>
-          <div className="flex items-center gap-2 flex-wrap">
-            <SignalBadge signal={data.oi.signal} />
-            <span className="text-[11px] text-zinc-200">{data.oi.label}</span>
-          </div>
-          <div className="flex gap-4">
-            <span className="text-[9px] text-zinc-500">Volume: <span className="text-zinc-300 font-mono">{data.oi.openInterest.toLocaleString()}</span></span>
-            <span className={cn("text-[9px] font-mono font-bold", data.oi.oiChange > 0 ? "text-emerald-400" : "text-red-400")}>
-              {data.oi.oiChange > 0 ? "+" : ""}{data.oi.oiChange.toLocaleString()} vs prev
-            </span>
-          </div>
-          <p className="text-[10px] text-zinc-500 italic">{volBiasNote(data.oi)}</p>
-        </div>
-      )}
 
-      <AccentBox accent="blue" icon={<Eye />} label="How It Works">
+      {/* ── Current Reading ── */}
+      <div className="rounded-xl border border-white/8 bg-[hsl(var(--secondary))] overflow-hidden">
+        <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/6">
+          <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-zinc-500">Current Reading</p>
+          {oi && !isInsufficient && <SignalBadge signal={oi.signal} />}
+        </div>
+        <div className="px-3.5 py-3">
+          {isInsufficient ? (
+            <div className="flex items-center gap-3 py-1">
+              <Loader2 className="h-4 w-4 animate-spin text-zinc-600 shrink-0" />
+              <div>
+                <p className="text-[11px] text-zinc-500">Awaiting volume data</p>
+                <p className="text-[9px] text-zinc-700 mt-0.5">Updates every 15 min · Yahoo Finance GC=F</p>
+              </div>
+            </div>
+          ) : oi ? (
+            <div className="space-y-3">
+              {/* Volume — primary number, large */}
+              <div>
+                <p className="text-[8px] uppercase tracking-[0.15em] text-zinc-600 mb-1">Today&apos;s Volume</p>
+                <p className="text-2xl font-bold font-mono text-white tabular-nums leading-none">
+                  {oi.openInterest.toLocaleString()}
+                </p>
+                {oi.oiChange !== 0 && (
+                  <p className={cn(
+                    "text-[11px] font-mono font-semibold mt-1 transition-colors",
+                    oi.oiChange > 0 ? "text-emerald-400" : "text-red-400"
+                  )}>
+                    {oi.oiChange > 0 ? "↑" : "↓"}{Math.abs(oi.oiChange).toLocaleString()} vs prev session
+                  </p>
+                )}
+              </div>
+              <p className="text-[10px] text-zinc-500 italic leading-relaxed">{volBiasNote(oi)}</p>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="border-t border-[#1A1A1A]" />
+
+      {/* ── How It Works ── */}
+      <AccentBox accent="gold" icon={<Eye />} label="How It Works">
         <p className="text-[11px] text-zinc-300 leading-relaxed">
-          Volume is the total number of GC (Gold Futures) contracts traded in a day. Volume confirms whether a price move has real conviction behind it — or if it&apos;s just a low-participation drift.
+          Volume is the total number of GC (Gold Futures) contracts traded in a session.
+          It confirms whether a price move has real institutional participation behind it —
+          or if it&apos;s just a low-conviction drift with no follow-through.
         </p>
       </AccentBox>
 
-      <Section heading="Reading Price + Volume Together">
+      <div className="border-t border-[#1A1A1A]" />
+
+      {/* ── Condition Cards ── */}
+      <div>
+        <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-zinc-500 mb-2.5">Reading Price + Volume Together</p>
+        <div className="space-y-2">
+          {VOL_CONDITIONS.map((c) => {
+            const isActive = activeCondition === c.id;
+            const isKnown = activeCondition !== null;
+            return (
+              <div
+                key={c.id}
+                className={cn(
+                  "rounded-lg border p-2.5 transition-all duration-300",
+                  isActive ? c.cardActiveCls : c.cardBaseCls,
+                  isKnown && !isActive && "opacity-35"
+                )}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <p className="text-[9px] text-zinc-500 font-mono shrink-0">{c.combo}</p>
+                    <p className={cn("text-[10px] font-bold shrink-0", c.signalCls)}>{c.signal}</p>
+                  </div>
+                  {isActive && (
+                    <span className="shrink-0 text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border border-[#D4AF37]/40 text-[#D4AF37] bg-[#D4AF37]/10">
+                      CURRENT
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] text-zinc-400 leading-relaxed mt-1">{c.detail}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="border-t border-[#1A1A1A]" />
+
+      {/* ── Trade Implications ── */}
+      <div>
+        <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-zinc-500 mb-2.5">Trade Implication</p>
         <div className="space-y-2">
           {[
-            { combo: "Price ↑ + Volume ↑", signal: "BULLISH", detail: "Real buyers driving the move. Trust the uptrend.", color: "text-emerald-400" },
-            { combo: "Price ↑ + Volume ↓", signal: "WEAK", detail: "Shorts covering, not real buying. Don't chase longs.", color: "text-zinc-400" },
-            { combo: "Price ↓ + Volume ↑", signal: "BEARISH", detail: "Real sellers pressing. Trust the downtrend.", color: "text-red-400" },
-            { combo: "Price ↓ + Volume ↓", signal: "EXHAUSTION", detail: "Sellers running out of steam. Watch for reversal.", color: "text-amber-400" },
-          ].map(({ combo, signal, detail, color }) => (
-            <div key={combo} className="flex items-start gap-3 rounded-lg bg-white/[0.03] p-2.5">
-              <div className="shrink-0">
-                <p className="text-[9px] text-zinc-500 font-mono">{combo}</p>
-                <p className={cn("text-[10px] font-bold", color)}>{signal}</p>
+            {
+              condition: "Price ↑ + Rising Volume",
+              meaning: "Institutional participation confirmed",
+              action: "Seek entry confirmation — setup is valid",
+              color: "text-emerald-400",
+              border: "border-emerald-500/15",
+              bg: "bg-emerald-500/[0.03]",
+            },
+            {
+              condition: "Price ↑ + Falling Volume",
+              meaning: "Short covering only, no real buyers",
+              action: "Do not chase — wait for volume to re-enter",
+              color: "text-[#D4AF37]",
+              border: "border-[#D4AF37]/15",
+              bg: "bg-[#D4AF37]/[0.03]",
+            },
+            {
+              condition: "Volume spike at key level",
+              meaning: "Liquidity grab or institutional entry",
+              action: "Mark the level — watch for close confirmation",
+              color: "text-[#D4AF37]",
+              border: "border-[#D4AF37]/15",
+              bg: "bg-[#D4AF37]/[0.03]",
+            },
+            {
+              condition: "Price ↓ + High Volume",
+              meaning: "Real selling pressure from institutions",
+              action: "Avoid longs — seek short setup at resistance",
+              color: "text-red-400",
+              border: "border-red-500/15",
+              bg: "bg-red-500/[0.03]",
+            },
+          ].map(({ condition, meaning, action, color, border, bg }) => (
+            <div key={condition} className={cn("rounded-lg border p-2.5", border, bg)}>
+              <p className={cn("text-[9px] font-bold uppercase tracking-wide mb-1", color)}>{condition}</p>
+              <div className="flex items-start gap-1.5 text-[10px] text-zinc-400 leading-relaxed">
+                <span>{meaning}</span>
+                <span className="text-zinc-700 shrink-0">→</span>
+                <span className={color}>{action}</span>
               </div>
-              <p className="text-[10px] text-zinc-400 leading-relaxed mt-0.5">{detail}</p>
             </div>
           ))}
         </div>
-      </Section>
+      </div>
 
-      <Section heading="Trade Implication">
-        <BulletList items={[
-          "A $20 gold move with rising volume = institutional participation. Setup is valid.",
-          "A $20 move with falling volume = momentum traders only. Be cautious.",
-          "Volume spike on a key level = liquidity grab or institutional entry.",
-        ]} color="text-zinc-400" />
-      </Section>
+      <div className="border-t border-[#1A1A1A]" />
 
       <Section heading="Data Source" color="text-zinc-500">
-        <p>Yahoo Finance GC=F — approximately 15-minute delay. Reflects the current trading day&apos;s participation compared to the previous session.</p>
+        <p>Yahoo Finance GC=F — ~15-minute delay. Reflects current session participation vs. prior session.</p>
       </Section>
     </div>
   );
@@ -372,19 +522,27 @@ function DetailModal({ source, data, onClose }: {
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
       <div className="absolute inset-0 bg-black/72 backdrop-blur-[6px]" onClick={onClose} />
-      <div className="relative z-10 flex w-full max-w-[760px] max-h-[82vh] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[hsl(220,18%,7%)] shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+      <div className="relative z-10 flex w-full max-w-[760px] max-h-[82vh] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[hsl(220,18%,7%)] shadow-[0_24px_80px_rgba(0,0,0,0.45),0_0_30px_rgba(212,175,55,0.08)]">
+        {/* Gold top accent line */}
+        <div className="h-[2px] w-full bg-gradient-to-r from-[#D4AF37]/60 via-[#D4AF37]/30 to-transparent shrink-0" />
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/6 bg-[hsl(220,18%,7%)]/95 px-5 py-4 backdrop-blur shrink-0">
-          <div>
-            <h2 className="text-sm font-semibold text-white">{cfg.title}</h2>
-            <p className="text-[10px] text-zinc-500 mt-0.5">{cfg.subtitle}</p>
+        <div className="flex items-center justify-between border-b border-white/6 bg-[hsl(220,18%,7%)]/95 px-5 py-3.5 backdrop-blur shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-0.5 h-7 rounded-full bg-[#D4AF37]/70 shrink-0" />
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-white leading-tight">{cfg.title}</h2>
+              <p className="text-[10px] text-zinc-500 mt-0.5 leading-tight">{cfg.subtitle}</p>
+            </div>
           </div>
-          <button
-            onClick={onClose}
-            className="ml-4 rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-white/8 hover:text-white"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2 ml-3 shrink-0">
+            <span className="text-[8px] font-bold tracking-[0.2em] text-[#D4AF37]/50 font-mono">TX</span>
+            <button
+              onClick={onClose}
+              className="rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-white/8 hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
         {/* Content */}
         <div className="min-h-0 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
@@ -473,20 +631,31 @@ export function InstitutionalConfluence() {
                 <Row
                   label="GC Futures Volume"
                   hint="Daily volume confirms whether price moves have real participation."
-                  signal={data.oi.signal}
+                  signal={data.oi.label.includes("insufficient") ? undefined : data.oi.signal}
                   onClick={() => setOpenDetail("volume")}
                 >
-                  <p className="text-[11px] text-zinc-200">{data.oi.label}</p>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="text-[9px] text-zinc-500">
-                      Vol: <span className="text-zinc-300 font-mono">{data.oi.openInterest.toLocaleString()}</span>
-                    </span>
-                    <span className={cn("text-[9px] font-mono font-bold",
-                      data.oi.oiChange > 0 ? "text-emerald-400" : data.oi.oiChange < 0 ? "text-red-400" : "text-zinc-500")}>
-                      {data.oi.oiChange > 0 ? "+" : ""}{data.oi.oiChange.toLocaleString()} vs prev
-                    </span>
-                  </div>
-                  <p className="text-[9px] text-zinc-600 mt-1.5 italic">{volBiasNote(data.oi)}</p>
+                  {data.oi.label.includes("insufficient") ? (
+                    <div className="flex items-center gap-2 py-0.5">
+                      <Loader2 className="h-3 w-3 animate-spin text-zinc-600 shrink-0" />
+                      <p className="text-[10px] text-zinc-600">Awaiting session data</p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-[11px] text-zinc-200">{data.oi.label}</p>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-[9px] text-zinc-500">
+                          Vol: <span className="text-zinc-300 font-mono">{data.oi.openInterest.toLocaleString()}</span>
+                        </span>
+                        {data.oi.oiChange !== 0 && (
+                          <span className={cn("text-[9px] font-mono font-bold",
+                            data.oi.oiChange > 0 ? "text-emerald-400" : "text-red-400")}>
+                            {data.oi.oiChange > 0 ? "↑" : "↓"}{Math.abs(data.oi.oiChange).toLocaleString()} vs prev
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[9px] text-zinc-600 mt-1.5 italic">{volBiasNote(data.oi)}</p>
+                    </>
+                  )}
                 </Row>
               ) : (
                 <Row label="GC Futures Volume" hint="Gold futures volume — confirms if price moves have real participation." onClick={() => setOpenDetail("volume")}>
