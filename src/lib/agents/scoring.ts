@@ -165,8 +165,8 @@ export function computeConsensus(
   const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None" && Math.abs(normalizedScore) < 15;
 
   // ── Final Bias Decision ───────────────────────────────────────────────────
-  const BULL_THRESHOLD = 15;
-  const BEAR_THRESHOLD = -15;
+  const BULL_THRESHOLD = 20;
+  const BEAR_THRESHOLD = -20;
 
   let finalBias: FinalBias;
   let noTradeReason: string | undefined;
