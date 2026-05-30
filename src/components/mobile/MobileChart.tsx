@@ -1,9 +1,22 @@
 "use client";
 
-import React, { useState, Component } from "react";
+import React, { useState, useEffect, Component } from "react";
 import { TradingViewChart } from "@/components/shared/TradingViewChart";
 import { cn } from "@/lib/utils";
 import { RefreshCw } from "lucide-react";
+import { useSettings } from "@/contexts/SettingsContext";
+
+const TO_TV: Record<string, string> = {
+  XAUUSD: "OANDA:XAUUSD",
+  BTCUSD: "COINBASE:BTCUSD",
+  EURUSD: "FX:EURUSD",
+  GBPUSD: "FX:GBPUSD",
+  USOIL:  "TVC:USOIL",
+};
+
+const TO_APP: Record<string, string> = Object.fromEntries(
+  Object.entries(TO_TV).map(([k, v]) => [v, k])
+);
 
 const SYMBOLS = [
   { label: "Gold",    value: "OANDA:XAUUSD" },
@@ -41,12 +54,25 @@ class ChartErrorBoundary extends Component<
 }
 
 export function MobileChart() {
-  const [symbol, setSymbol] = useState("OANDA:XAUUSD");
+  const { settings, saveSettings } = useSettings();
+  const [symbol, setSymbol] = useState(() => TO_TV[settings.selectedSymbol] ?? "OANDA:XAUUSD");
   const [chartKey, setChartKey] = useState(0);
+
+  // Sync chart when home-page asset selector changes
+  useEffect(() => {
+    const tv = TO_TV[settings.selectedSymbol] ?? "OANDA:XAUUSD";
+    if (tv !== symbol) {
+      setSymbol(tv);
+      setChartKey((k) => k + 1);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.selectedSymbol]);
 
   function handleSymbol(value: string) {
     setSymbol(value);
     setChartKey((k) => k + 1);
+    const appSym = TO_APP[value];
+    if (appSym) saveSettings({ ...settings, selectedSymbol: appSym });
   }
 
   const activeChip = SYMBOLS.find((s) => s.value === symbol);
