@@ -21,9 +21,10 @@ const AGENTS = [
   { id: "smc",        label: "Price Action",  row: 1 as const },
   { id: "news",       label: "News Agent",    row: 1 as const },
   { id: "risk",       label: "Risk Gate",     row: 1 as const },
-  { id: "contrarian", label: "Contrarian",    row: 2 as const },
-  { id: "execution",  label: "Execution",     row: 2 as const },
-  { id: "master",     label: "Master Agent",  row: 2 as const },
+  { id: "contrarian",   label: "Contrarian",    row: 2 as const },
+  { id: "execution",    label: "Execution",     row: 2 as const },
+  { id: "institutional",label: "Inst. Flow",   row: 2 as const },
+  { id: "master",       label: "Master Agent",  row: 2 as const },
 ] as const;
 
 export type AgentId = typeof AGENTS[number]["id"];
@@ -421,8 +422,9 @@ export function AgentCardsWidget({
   const smc        = agents?.smc;
   const news       = agents?.news;
   const risk       = agents?.risk;
-  const contrarian = agents?.contrarian;
-  const execution  = agents?.execution;
+  const contrarian    = agents?.contrarian;
+  const execution     = agents?.execution;
+  const institutional = agents?.institutional;
 
   const execConf = execution?.rrRatio != null
     ? Math.min(90, Math.round(execution.rrRatio * 20))
@@ -481,12 +483,19 @@ export function AgentCardsWidget({
     { k: "RR",    v: execution.rrRatio != null ? `${execution.rrRatio.toFixed(2)}:1` : "—" },
   ] : [];
 
+  const instTags: DiagTag[] = institutional ? [
+    { k: "RETAIL",   v: institutional.retailLongPct != null ? `${institutional.retailLongPct}% L` : "—" },
+    { k: "CME OI",   v: institutional.oiChange != null ? (institutional.oiChange >= 0 ? `+${institutional.oiChange.toLocaleString()}` : `${institutional.oiChange.toLocaleString()}`) : "—" },
+    { k: "P/C",      v: institutional.putCallRatio != null ? institutional.putCallRatio.toFixed(2) : "—" },
+    { k: "SCORE",    v: `${institutional.score >= 0 ? "+" : ""}${institutional.score}` },
+  ] : [];
+
   const show = (id: AgentId) => visibleAgents.has(id);
 
   // Row 1: trend, smc, news, risk
   const row1 = (["trend", "smc", "news", "risk"] as const).filter(show);
-  // Row 2: contrarian, execution, master
-  const row2 = (["contrarian", "execution", "master"] as const).filter(show);
+  // Row 2: contrarian, execution, institutional, master
+  const row2 = (["contrarian", "execution", "institutional", "master"] as const).filter(show);
 
   const noAgents = row1.length === 0 && row2.length === 0;
 
@@ -601,6 +610,22 @@ export function AgentCardsWidget({
                       expired={execution?.signalState === "EXPIRED"}
                       loading={isLoading && !data}
                       onClick={data ? () => openDrawer("execution") : undefined}
+                    />
+                  )}
+                  {id === "institutional" && (
+                    <AgentCard
+                      name="Inst. Flow"
+                      state={institutional?.dataAvailable ? institutional.flow.toUpperCase() : "OFFLINE"}
+                      confidence={institutional?.confidence ?? 0}
+                      insight={institutional?.insight ?? "Fetching institutional data…"}
+                      sub={institutional?.score != null ? `Score ${institutional.score >= 0 ? "+" : ""}${institutional.score} / 3` : undefined}
+                      tone={
+                        institutional?.flow === "bullish" ? "green" :
+                        institutional?.flow === "bearish" ? "red"   : "gray"
+                      }
+                      tags={instTags}
+                      loading={isLoading && !data}
+                      onClick={data ? () => openDrawer("institutional") : undefined}
                     />
                   )}
                   {id === "master" && data && (

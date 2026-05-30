@@ -276,6 +276,28 @@ export interface ContrarianAgentOutput {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Agent 8  -  Institutional Flow Agent
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface InstitutionalFlowAgentOutput {
+  agentId: "institutional";
+  flow: "bullish" | "bearish" | "neutral";
+  confidence: number;           // 0–100
+  sentimentSignal: "bullish" | "bearish" | "neutral"; // contrarian from retail
+  oiSignal: "bullish" | "bearish" | "neutral";        // CME open interest
+  optionsSignal: "bullish" | "bearish" | "neutral";   // CBOE put/call
+  retailLongPct: number | null;   // % retail longs (Dukascopy)
+  oiChange: number | null;        // CME OI change
+  putCallRatio: number | null;    // CBOE P/C ratio
+  insight: string;                // one-line summary
+  reasons: string[];
+  score: number;                  // -3 to +3
+  dataAvailable: boolean;         // false if all sources failed
+  processingTime: number;
+  error?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Agent 7  -  Master Decision Agent
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -353,6 +375,7 @@ export interface AgentRunResult {
     risk: RiskAgentOutput;
     execution: ExecutionAgentOutput;
     contrarian: ContrarianAgentOutput;
+    institutional: InstitutionalFlowAgentOutput;
     master: MasterDecisionOutput;
   };
   debate?: DebateEntry[];

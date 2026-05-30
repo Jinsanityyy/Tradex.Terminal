@@ -18,6 +18,7 @@ import { getValidatedCandles, getDailyStructure } from "./candles";
 import { runTrendAgent }     from "./trend-agent";
 import { runPriceActionAgent } from "./price-action-agent";
 import { runNewsAgent }      from "./news-agent";
+import { runInstitutionalAgent } from "./institutional-agent";
 import { runRiskAgent }      from "./risk-agent";
 import { runExecutionAgent } from "./execution-agent";
 import { runContrarianAgent } from "./contrarian-agent";
@@ -325,11 +326,12 @@ export async function runAgentOrchestrator(
   const apiKey = process.env.ANTHROPIC_API_KEY;
 
   // ── Phase 1: Independent agents  -  all run with Claude when available ─────
-  // Trend, News, and Price Action all run in parallel
-  const [trend, newsAgent, smc] = await Promise.all([
+  // Trend, News, Price Action, and Institutional Flow all run in parallel
+  const [trend, newsAgent, smc, institutional] = await Promise.all([
     runTrendAgent(snapshot, apiKey),
     runNewsAgent(snapshot, apiKey),
     runPriceActionAgent(snapshot, apiKey),
+    runInstitutionalAgent(),  // no LLM needed, pure data fetch
   ]);
 
   // ── Phase 2a: Execution + Contrarian  -  depend on trend + smc ────────────
@@ -374,6 +376,7 @@ export async function runAgentOrchestrator(
       risk,
       execution,
       contrarian,
+      institutional,
       master,
     },
     debate,
