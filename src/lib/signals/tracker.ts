@@ -112,6 +112,7 @@ function resolveFromOHLC(
   if (candles.length === 0) return null;
 
   const { direction, entry, stopLoss, tp1, tp2 } = plan;
+  if (!direction) return null;
   const riskDist = Math.abs(entry - stopLoss);
   if (riskDist <= 0) return null;
 
@@ -215,6 +216,24 @@ function resolveSignal(signal: SignalRecord, currentPrice: number): Resolution |
   const { direction, entry, stopLoss, tp1, tp2 } = plan;
   const riskDist = Math.abs(entry - stopLoss);
   if (riskDist <= 0) return null;
+
+  // No direction stored — skip TP/SL detection entirely to avoid false hits.
+  // Still allow expiry so the signal doesn't stay open forever.
+  if (!direction) {
+    const expiryMs = EXPIRY_MS[signal.timeframe] ?? DEFAULT_EXPIRY_MS;
+    if (ageMs >= expiryMs) {
+      return {
+        status: "expired",
+        outcome: {
+          resolvedAt: new Date().toISOString(),
+          priceAtResolution: currentPrice,
+          pnlPercent: 0,
+          pnlR: 0,
+        },
+      };
+    }
+    return null;
+  }
 
   // Long logic: SL is below entry, TP is above
   // Short logic: SL is above entry, TP is below
