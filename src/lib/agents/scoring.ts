@@ -80,7 +80,12 @@ export function computeConsensus(
   const items: AgentConsensusItem[] = [];
 
   // ── Trend Agent (directional weight) ──────────────────────────────────────
-  items.push(agentScore("trend", trend.bias, trend.confidence, weights.trend));
+  // Halve effective confidence when TF alignment is weak — only inside scoring,
+  // the Trend Agent output itself is unchanged.
+  const trendConf = trend.timeframeBias.aligned
+    ? trend.confidence
+    : Math.round(trend.confidence * 0.5);
+  items.push(agentScore("trend", trend.bias, trendConf, weights.trend));
 
   // ── SMC Agent (highest directional weight) ────────────────────────────────
   // Boost weight when a concrete setup is confirmed. No penalty when absent  - 
