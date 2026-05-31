@@ -46,6 +46,9 @@ function VerifyEmailContent() {
     if (user?.email_confirmed_at) {
       setVerified(true);
       setTimeout(() => { window.location.href = "/dashboard"; }, 1200);
+    } else if (!user) {
+      // Email confirmed in a different tab — no session here. Send to login.
+      window.location.href = `/login${email ? `?email=${encodeURIComponent(email)}` : ""}`;
     }
     setChecking(false);
   }
