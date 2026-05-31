@@ -144,9 +144,17 @@ export function computeConsensus(
   // ── Sum weighted scores ───────────────────────────────────────────────────
   const rawSum = items.reduce((acc, item) => acc + item.weightedScore, 0);
 
+  // Risk grade nudge: A adds small boost, D/F subtract small penalty, B/C neutral.
+  // Applied only when risk is valid — invalid risk already forces no-trade via gate.
+  const riskGradeModifier = !risk.valid ? 0
+    : risk.grade === "A" ? 3.0
+    : risk.grade === "D" ? -3.0
+    : risk.grade === "F" ? -6.0
+    : 0;
+
   // Normalize to -100..+100 range (max possible score with weights = 100)
   const totalWeight = weights.trend + weights.smc + weights.news + weights.execution + weights.contrarian;
-  const normalizedScore = clamp(Math.round((rawSum / (totalWeight * 100)) * 100 * 100) / 100, -100, 100);
+  const normalizedScore = clamp(Math.round(((rawSum + riskGradeModifier) / (totalWeight * 100)) * 100 * 100) / 100, -100, 100);
 
   // ── Risk Gate ─────────────────────────────────────────────────────────────
   const riskBlocks = !risk.valid;
