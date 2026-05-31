@@ -126,11 +126,13 @@ export function computeConsensus(
   items.push(agentScore("execution", execBias, execConf, weights.execution));
 
   // ── Contrarian Agent (penalty factor) ────────────────────────────────────
-  // The contrarian agent always opposes  -  it acts as a headwind.
-  // If contrarian has strong challenge, it reduces the net score.
-  const contrBias = contrarian.challengesBias ? "opposing" : "neutral";
-  const contrSign = contrarian.challengesBias ? -1 : 0;
-  const contrScore = contrSign * (contrarian.riskFactor / 100) * weights.contrarian * 100;
+  // Gradual penalty: any riskFactor > 25 contributes, scaling linearly to max at 100.
+  // Removes the hard cliff at riskFactor 50 — low-confidence warnings now register.
+  const contrPenalty = contrarian.riskFactor > 25
+    ? ((contrarian.riskFactor - 25) / 75) * weights.contrarian * 100
+    : 0;
+  const contrScore = -contrPenalty;
+  const contrBias = contrPenalty > 0 ? "opposing" : "neutral";
   items.push({
     agentId: "contrarian",
     bias: contrBias,
