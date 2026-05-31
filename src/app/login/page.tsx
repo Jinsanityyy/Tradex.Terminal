@@ -87,15 +87,10 @@ export default function LoginPage() {
           window.location.href = nextUrl;
         }
       } else {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        if (data.session) {
-          sessionStorage.setItem("tradex_boot", email.split("@")[0].toUpperCase());
-          window.location.href = nextUrl;
-        } else {
-          setSuccess("Account created! Check your email to confirm, then sign in.");
-          switchMode("login");
-        }
+        // Always send to email verification — never skip to dashboard on signup
+        window.location.href = `/verify-email?email=${encodeURIComponent(email)}`;
       }
     } catch (err: any) {
       setError(err.message ?? "Something went wrong.");
