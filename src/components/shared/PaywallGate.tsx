@@ -42,14 +42,10 @@ export function PaywallGate({ children }: PaywallGateProps) {
     setSubLoading(true);
     setSubError(null);
     try {
-      const planId = billing === "annual"
-        ? process.env.NEXT_PUBLIC_PAYPAL_PRO_ANNUAL_PLAN_ID
-        : process.env.NEXT_PUBLIC_PAYPAL_PRO_PLAN_ID;
-
-      const res = await fetch("/api/paypal/create-subscription", {
+      const res = await fetch("/api/paddle/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId }),
+        body: JSON.stringify({ billing }),
       });
 
       if (res.status === 401) {
@@ -58,17 +54,17 @@ export function PaywallGate({ children }: PaywallGateProps) {
       }
 
       const data = await res.json();
-      if (!res.ok || !data.approveUrl) {
+      if (!res.ok || !data.checkoutUrl) {
         setSubError(data.error ?? "Failed to start checkout. Try again.");
         setSubLoading(false);
         return;
       }
 
       if (isNative) {
-        window.open(data.approveUrl, "_system");
+        window.open(data.checkoutUrl, "_system");
         setSubLoading(false);
       } else {
-        window.location.href = data.approveUrl;
+        window.location.href = data.checkoutUrl;
       }
     } catch {
       setSubError("Something went wrong. Please try again.");
@@ -190,7 +186,7 @@ export function PaywallGate({ children }: PaywallGateProps) {
         {isNative ? (
           <>
             <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-3 leading-relaxed">
-              PayPal opens in your browser. Return here after payment.
+              Paddle checkout opens in your browser. Return here after payment.
             </p>
             <div className="flex items-center gap-3 my-3">
               <div className="flex-1 h-px bg-white/5" />
@@ -212,7 +208,7 @@ export function PaywallGate({ children }: PaywallGateProps) {
           </>
         ) : (
           <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-4">
-            Cancel anytime · Secure checkout via PayPal
+            Cancel anytime · Secure checkout via Paddle
           </p>
         )}
       </div>

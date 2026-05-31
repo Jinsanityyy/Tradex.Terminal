@@ -61,30 +61,20 @@ function PricingContent() {
         return;
       }
 
-      const planId = billing === "annual"
-        ? process.env.NEXT_PUBLIC_PAYPAL_PRO_ANNUAL_PLAN_ID
-        : process.env.NEXT_PUBLIC_PAYPAL_PRO_PLAN_ID;
-
-      if (!planId) {
-        setError("Payment not configured yet. Please try again later.");
-        setLoading(false);
-        return;
-      }
-
-      const res = await fetch("/api/paypal/create-subscription", {
+      const res = await fetch("/api/paddle/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId }),
+        body: JSON.stringify({ billing }),
       });
 
       const data = await res.json();
-      if (!res.ok || !data.approveUrl) {
+      if (!res.ok || !data.checkoutUrl) {
         setError(data.error ?? "Failed to start checkout. Please try again.");
         setLoading(false);
         return;
       }
 
-      window.location.href = data.approveUrl;
+      window.location.href = data.checkoutUrl;
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
@@ -223,13 +213,13 @@ function PricingContent() {
               className="flex items-center justify-center gap-2 w-full rounded-xl bg-[#5fc77a] py-3 text-sm font-bold text-[#0a0e1a] hover:bg-[#4db366] active:opacity-80 disabled:opacity-50 transition-all"
             >
               {loading ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Redirecting to PayPal…</>
+                <><Loader2 className="h-4 w-4 animate-spin" /> Redirecting to checkout…</>
               ) : (
-                <><Zap className="h-4 w-4" /> Subscribe with PayPal</>
+                <><Zap className="h-4 w-4" /> Subscribe Now</>
               )}
             </button>
             <p className="text-[10px] text-zinc-500 text-center mt-3">
-              Secure checkout via PayPal · Cancel anytime
+              Secure checkout via Paddle · Cancel anytime
             </p>
           </div>
         </div>
@@ -237,7 +227,7 @@ function PricingContent() {
         {/* Footer note */}
         <div className="flex items-center justify-center gap-2 mt-8 text-xs text-zinc-600">
           <Lock className="h-3 w-3" />
-          Payment processed securely by PayPal. TradeX never stores your payment credentials.
+          Payment processed securely by Paddle. TradeX never stores your payment credentials.
         </div>
       </div>
     </div>
