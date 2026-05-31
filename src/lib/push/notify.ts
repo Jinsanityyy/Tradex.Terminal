@@ -53,11 +53,11 @@ export async function broadcast(payload: PushPayload): Promise<void> {
 
     const sends: Promise<unknown>[] = [];
 
-    if (fcmTokens.length > 0 && process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    if (fcmTokens.length > 0 && process.env.FIREBASE_NT_JSON) {
       sends.push(sendFcmToMany(fcmTokens, payload).catch(() => {}));
     }
 
-    if (webSubs.length > 0 && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    if (webSubs.length > 0 && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PR_ATE_KEY) {
       sends.push(sendPushToMany(webSubs, payload).catch(() => {}));
     }
 

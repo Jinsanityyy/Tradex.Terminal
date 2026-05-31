@@ -14,9 +14,9 @@ let configured = false;
 function ensureConfigured() {
   if (configured) return;
   const pub  = process.env.VAPID_PUBLIC_KEY;
-  const priv = process.env.VAPID_PRIVATE_KEY;
+  const priv = process.env.VAPID_PR_ATE_KEY;
   const mail = process.env.VAPID_EMAIL ?? "mailto:admin@tradex.app";
-  if (!pub || !priv) throw new Error("VAPID keys not set. Run: npx web-push generate-vapid-keys");
+  if (!pub || !priv) throw new Error("VAPID keys not set (VAPID_PUBLIC_KEY / VAPID_PR_ATE_KEY)");
   webpush.setVapidDetails(mail, pub, priv);
   configured = true;
 }

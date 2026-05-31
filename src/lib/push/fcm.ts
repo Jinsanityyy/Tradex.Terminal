@@ -4,8 +4,8 @@ let initialized = false;
 
 function getApp() {
   if (initialized) return admin.app();
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (!serviceAccount) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON not set");
+  const serviceAccount = process.env.FIREBASE_NT_JSON;
+  if (!serviceAccount) throw new Error("FIREBASE_NT_JSON not set");
   const credential = admin.credential.cert(JSON.parse(serviceAccount));
   admin.initializeApp({ credential });
   initialized = true;

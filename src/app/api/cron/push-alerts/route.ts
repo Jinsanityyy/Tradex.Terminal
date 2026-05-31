@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
   }
 
   const vapidPub  = process.env.VAPID_PUBLIC_KEY;
-  const vapidPriv = process.env.VAPID_PRIVATE_KEY;
+  const vapidPriv = process.env.VAPID_PR_ATE_KEY;
   if (!vapidPub || !vapidPriv) {
     return NextResponse.json({ ok: false, error: "VAPID keys not configured" }, { status: 503 });
   }
@@ -303,7 +303,7 @@ export async function GET(req: NextRequest) {
   let fcmSent = 0;
   const allExpiredFcm: string[] = [];
 
-  if (fcmTokens.length > 0 && process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+  if (fcmTokens.length > 0 && process.env.FIREBASE_NT_JSON) {
     for (const payload of payloads) {
       const result = await sendFcmToMany(fcmTokens, payload);
       fcmSent += result.sent;

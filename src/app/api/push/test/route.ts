@@ -97,8 +97,8 @@ export async function GET(req: NextRequest) {
 
   let fcmResult   = { sent: 0, failed: 0, expired: [] as string[], messageIds: [] as string[] };
   let webResult   = { sent: 0, failed: 0, expired: [] as string[] };
-  const hasFcmEnv = Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
-  const hasVapid  = Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
+  const hasFcmEnv = Boolean(process.env.FIREBASE_NT_JSON);
+  const hasVapid  = Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PR_ATE_KEY);
 
   if (fcmTokens.length > 0 && hasFcmEnv) {
     fcmResult = await sendFcmToMany(fcmTokens, payload as PushPayload);
