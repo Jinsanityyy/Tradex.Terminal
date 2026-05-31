@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { Crown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSubscription } from "@/hooks/useSubscription";
-import { PLANS } from "@/lib/plans";
 
 function isNativeApp(): boolean {
   if (typeof window === "undefined") return false;
@@ -13,19 +12,29 @@ function isNativeApp(): boolean {
   return false;
 }
 
-function navigateToUpgrade() {
-  const planId = PLANS.pro.planId;
-  if (!planId) {
-    window.location.href = "/pricing";
-    return;
-  }
-  const successUrl = `${window.location.origin}/m?subscribed=1`;
-  const url = `https://www.paypal.com/billing/subscriptions/subscribe?plan_id=${planId}&redirect_url=${encodeURIComponent(successUrl)}`;
-  if (isNativeApp()) {
-    window.open(url, "_system");
-  } else {
-    window.location.href = url;
-  }
+async function navigateToUpgrade() {
+  try {
+    const res = await fetch("/api/paddle/create-checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ billing: "monthly" }),
+    });
+    if (res.status === 401) {
+      window.location.href = "/login?next=/pricing";
+      return;
+    }
+    const data = await res.json();
+    if (data.checkoutUrl) {
+      if (isNativeApp()) {
+        window.open(data.checkoutUrl, "_system");
+      } else {
+        window.location.href = data.checkoutUrl;
+      }
+      return;
+    }
+  } catch {}
+  // fallback to pricing page if fetch fails
+  window.location.href = "/pricing";
 }
 
 interface Props {
