@@ -32,14 +32,10 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
     setSubLoading(true);
     setSubError(null);
     try {
-      const planId = billing === "annual"
-        ? process.env.NEXT_PUBLIC_PAYPAL_PRO_ANNUAL_PLAN_ID
-        : process.env.NEXT_PUBLIC_PAYPAL_PRO_PLAN_ID;
-
-      const res = await fetch("/api/paypal/create-subscription", {
+      const res = await fetch("/api/paddle/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId }),
+        body: JSON.stringify({ billing }),
       });
 
       if (res.status === 401) {
@@ -48,20 +44,17 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
       }
 
       const data = await res.json();
-      if (!res.ok || !data.approveUrl) {
+      if (!res.ok || !data.checkoutUrl) {
         setSubError(data.error ?? "Failed to start checkout. Try again.");
         setSubLoading(false);
         return;
       }
 
       if (isNative) {
-        // TWA/Capacitor: open PayPal in system Chrome browser so payment
-        // stays outside the WebView (avoids PayPal WebView restrictions)
-        window.open(data.approveUrl, "_system");
+        window.open(data.checkoutUrl, "_system");
         setSubLoading(false);
       } else {
-        // Desktop web: navigate in same tab
-        window.location.href = data.approveUrl;
+        window.location.href = data.checkoutUrl;
       }
     } catch {
       setSubError("Something went wrong. Please try again.");
@@ -77,8 +70,7 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
     );
   }
 
-  const paywallEnabled = process.env.NEXT_PUBLIC_MOBILE_PAYWALL_ENABLED === "true";
-  if (!paywallEnabled || subscription.hasFullAccess) return <>{children}</>;
+  if (subscription.isPro) return <>{children}</>;
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -159,7 +151,7 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
         {isNative && (
           <>
             <p className="text-[9px] text-zinc-600 mb-2 leading-relaxed">
-              PayPal opens in your browser. Return here after payment.
+              Paddle checkout opens in your browser. Return here after payment.
             </p>
             <button
               onClick={handleRefresh}

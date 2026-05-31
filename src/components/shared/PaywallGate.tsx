@@ -80,9 +80,8 @@ export function PaywallGate({ children }: PaywallGateProps) {
     );
   }
 
-  const paywallEnabled = process.env.NEXT_PUBLIC_MOBILE_PAYWALL_ENABLED === "true";
-  const hasAccess = canAccess(subscription.plan, pathname, subscription.isTrialing) && subscription.isActive;
-  if (!paywallEnabled || hasAccess) return <>{children}</>;
+  const hasAccess = canAccess(subscription.plan, pathname, false) && subscription.isActive;
+  if (hasAccess) return <>{children}</>;
 
   const name = PAGE_NAMES[pathname] ?? "This Feature";
 

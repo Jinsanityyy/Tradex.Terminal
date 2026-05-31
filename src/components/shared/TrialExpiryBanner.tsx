@@ -64,7 +64,7 @@ export function TrialExpiryBanner({ compact = false }: Props) {
 
   const { isTrialing, trialDaysLeft, trial_ends_at, hasFullAccess } = subscription;
 
-  const showWarning = isTrialing && trialDaysLeft <= 2;
+  const showWarning = isTrialing;
   const showExpired = !hasFullAccess && !isTrialing && !!trial_ends_at;
 
   if (!showWarning && !showExpired) return null;
