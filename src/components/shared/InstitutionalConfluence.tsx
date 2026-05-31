@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { TrendingUp, TrendingDown, Minus, RefreshCw, AlertTriangle, Clock, X, ChevronRight, Eye, Loader2 } from "lucide-react";
 import { useInstitutionalData } from "@/hooks/useMarketData";
 import type { InstitutionalData } from "@/app/api/market/institutional/route";
+import { useSettings } from "@/contexts/SettingsContext";
 
 function timeAgo(ts: number): string {
   const mins = Math.floor((Date.now() - ts) / 60000);
@@ -673,11 +674,40 @@ const ASSETS = [
 ] as const;
 type AssetId = (typeof ASSETS)[number]["id"];
 
+const GLOBAL_TO_ASSET_ID: Record<string, AssetId> = {
+  XAUUSD: "XAUUSD",
+  XAGUSD: "XAGUSD",
+  BTCUSD: "BTC",
+  USOIL:  "USOIL",
+};
+const ASSET_ID_TO_GLOBAL: Record<AssetId, string> = {
+  XAUUSD: "XAUUSD",
+  XAGUSD: "XAGUSD",
+  BTC:    "BTCUSD",
+  USOIL:  "USOIL",
+};
+
+function toAssetId(symbol: string): AssetId {
+  return (GLOBAL_TO_ASSET_ID[symbol] as AssetId | undefined) ?? "XAUUSD";
+}
+
 export function InstitutionalConfluence() {
-  const [asset, setAsset] = useState<AssetId>("XAUUSD");
+  const { settings, saveSettings } = useSettings();
+  const [asset, setAsset] = useState<AssetId>(() => toAssetId(settings.selectedSymbol));
   const assetCfg = ASSETS.find(a => a.id === asset)!;
   const { institutional: data, institutionalLoading } = useInstitutionalData(asset);
   const [openDetail, setOpenDetail] = useState<DetailSource | null>(null);
+
+  useEffect(() => {
+    const mapped = toAssetId(settings.selectedSymbol);
+    if (mapped !== asset) setAsset(mapped);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.selectedSymbol]);
+
+  function handleSetAsset(id: AssetId) {
+    setAsset(id);
+    saveSettings({ ...settings, selectedSymbol: ASSET_ID_TO_GLOBAL[id] });
+  }
 
   if (institutionalLoading) {
     return (
@@ -720,7 +750,7 @@ export function InstitutionalConfluence() {
             {ASSETS.map((a) => (
               <button
                 key={a.id}
-                onClick={() => setAsset(a.id)}
+                onClick={() => handleSetAsset(a.id)}
                 className={cn(
                   "px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide transition-all",
                   asset === a.id
