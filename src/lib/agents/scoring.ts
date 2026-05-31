@@ -157,9 +157,20 @@ export function computeConsensus(
     : risk.grade === "F" ? -6.0
     : 0;
 
+  // TF conflict penalty: weak alignment + H1 or H4 opposing the signal direction.
+  // Only fires when aligned = false (Fix 1 already halved trendConf in this state).
+  const signalDirectionBull = rawSum > 0;
+  const signalDirectionBear = rawSum < 0;
+  const h1OrH4ConflictsBull = trend.timeframeBias.H1 === "bearish" || trend.timeframeBias.H4 === "bearish";
+  const h1OrH4ConflictsBear = trend.timeframeBias.H1 === "bullish" || trend.timeframeBias.H4 === "bullish";
+  const tfConflictPenalty = !trend.timeframeBias.aligned && (
+    (signalDirectionBull && h1OrH4ConflictsBull) ||
+    (signalDirectionBear && h1OrH4ConflictsBear)
+  ) ? -15 : 0;
+
   // Normalize to -100..+100 range (max possible score with weights = 100)
   const totalWeight = weights.trend + weights.smc + weights.news + weights.execution + weights.contrarian;
-  const normalizedScore = clamp(Math.round(((rawSum + riskGradeModifier) / (totalWeight * 100)) * 100 * 100) / 100, -100, 100);
+  const normalizedScore = clamp(Math.round(((rawSum + riskGradeModifier + tfConflictPenalty) / (totalWeight * 100)) * 100 * 100) / 100, -100, 100);
 
   // ── Risk Gate ─────────────────────────────────────────────────────────────
   const riskBlocks = !risk.valid;
