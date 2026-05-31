@@ -18,28 +18,25 @@ function VerifyEmailContent() {
   const [resendSuccess, setResendSuccess] = useState(false);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Poll every 3 s — auto-redirect the moment email_confirmed_at is set
+  // Poll every 3 s — auto-redirect the moment email_confirmed_at is set.
+  // We do NOT redirect to login when user is null: signUp() with email
+  // confirmation enabled returns session=null, so getUser() is null until
+  // the user clicks the verification link. Just wait on this page.
   useEffect(() => {
     const supabase = createClient();
     if (!supabase) return;
 
     async function check() {
       const { data: { user } } = await supabase!.auth.getUser();
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
-      if (user.email_confirmed_at) {
+      if (user?.email_confirmed_at) {
         setVerified(true);
-        // Small delay so user sees the ✓ before redirect
         setTimeout(() => { window.location.href = "/dashboard"; }, 1200);
       }
     }
 
-    check(); // immediate check on mount
     const interval = setInterval(check, 3000);
     return () => clearInterval(interval);
-  }, [router]);
+  }, []);
 
   async function handleManualCheck() {
     setChecking(true);
