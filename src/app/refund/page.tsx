@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Refund Policy — TradeX Terminal",
+  title: "Refund Policy | TradeX Terminal",
   description: "Refund Policy for TradeX Terminal",
 };
 
@@ -38,7 +38,7 @@ export default function RefundPage() {
 
           <section>
             <h2 className="text-lg font-semibold text-white mb-3">5. Chargebacks</h2>
-            <p>Initiating a chargeback or payment dispute without first contacting us to resolve the issue may result in the immediate suspension of your account. We encourage you to reach out directly — most billing concerns can be resolved quickly.</p>
+            <p>Initiating a chargeback or payment dispute without first contacting us to resolve the issue may result in the immediate suspension of your account. We encourage you to reach out directly, as most billing concerns can be resolved quickly.</p>
           </section>
 
           <section>

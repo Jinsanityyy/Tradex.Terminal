@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Terms of Service — TradeX Terminal",
+  title: "Terms of Service | TradeX Terminal",
   description: "Terms of Service for TradeX Terminal",
 };
 
@@ -30,7 +30,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-lg font-semibold text-white mb-3">3. Not Financial Advice</h2>
-            <p>All content provided by TradeX Terminal — including AI signals, bias analysis, trade plans, and market commentary — is for <strong className="text-white">informational and educational purposes only</strong>. Nothing on this platform constitutes financial advice, investment advice, or a recommendation to buy or sell any financial instrument. You are solely responsible for your own trading decisions. Past performance shown in the app does not guarantee future results. Trading financial instruments involves significant risk and you may lose all of your capital.</p>
+            <p>All content provided by TradeX Terminal (including AI signals, bias analysis, trade plans, and market commentary) is for <strong className="text-white">informational and educational purposes only</strong>. Nothing on this platform constitutes financial advice, investment advice, or a recommendation to buy or sell any financial instrument. You are solely responsible for your own trading decisions. Past performance shown in the app does not guarantee future results. Trading financial instruments involves significant risk and you may lose all of your capital.</p>
           </section>
 
           <section>
@@ -68,7 +68,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-lg font-semibold text-white mb-3">8. Intellectual Property</h2>
-            <p>All content, features, and functionality of TradeX Terminal — including AI models, signal logic, UI design, and branding — are the exclusive property of TradeX Terminal. You are granted a limited, non-exclusive, non-transferable license to use the Service for personal, non-commercial purposes only.</p>
+            <p>All content, features, and functionality of TradeX Terminal (including AI models, signal logic, UI design, and branding) are the exclusive property of TradeX Terminal. You are granted a limited, non-exclusive, non-transferable license to use the Service for personal, non-commercial purposes only.</p>
           </section>
 
           <section>
@@ -78,7 +78,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-lg font-semibold text-white mb-3">10. Limitation of Liability</h2>
-            <p>To the maximum extent permitted by law, TradeX Terminal shall not be liable for any direct, indirect, incidental, special, or consequential damages arising from your use of the Service, including but not limited to trading losses, loss of data, or loss of profits — even if we have been advised of the possibility of such damages.</p>
+            <p>To the maximum extent permitted by law, TradeX Terminal shall not be liable for any direct, indirect, incidental, special, or consequential damages arising from your use of the Service, including but not limited to trading losses, loss of data, or loss of profits, even if we have been advised of the possibility of such damages.</p>
           </section>
 
           <section>

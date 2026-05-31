@@ -1,5 +1,5 @@
 ﻿export const metadata = {
-  title: "Privacy Policy — TradeX Terminal",
+  title: "Privacy Policy | TradeX Terminal",
   description: "Privacy Policy for TradeX Terminal",
 };
 
@@ -23,7 +23,7 @@ export default function PrivacyPage() {
               <li><strong className="text-white">Profile information:</strong> Display name and avatar photo that you choose to set.</li>
               <li><strong className="text-white">Usage data:</strong> Pages visited, features used, and interaction patterns to improve the app.</li>
               <li><strong className="text-white">Trading journal entries:</strong> Trade notes, PnL records, and journal data you manually enter.</li>
-              <li><strong className="text-white">Payment information:</strong> Subscription status only. We do not store credit card numbers — payments are processed securely by PayPal.</li>
+              <li><strong className="text-white">Payment information:</strong> Subscription status only. We do not store credit card numbers. Payments are processed securely by Paddle.</li>
               <li><strong className="text-white">Device information:</strong> Browser type, operating system, and device type for compatibility purposes.</li>
             </ul>
           </section>
@@ -49,12 +49,12 @@ export default function PrivacyPage() {
             <h2 className="text-lg font-semibold text-white mb-3">5. Third-Party Services</h2>
             <p className="mb-2">We use the following categories of third-party services that may process your data:</p>
             <ul className="list-disc list-inside space-y-2">
-              <li><strong className="text-white">Authentication &amp; database hosting</strong> — secure storage of your account and journal data.</li>
-              <li><strong className="text-white">Payment processor</strong> — subscription billing. We do not store your payment credentials.</li>
-              <li><strong className="text-white">Web hosting &amp; CDN</strong> — delivery of the TradeX Terminal web application.</li>
-              <li><strong className="text-white">AI analysis services</strong> — powering market analysis features. Only anonymized market data is sent; your personal information is never shared.</li>
-              <li><strong className="text-white">Market data providers</strong> — real-time and historical financial market data used to power the terminal. No personal data is shared with these providers.</li>
-              <li><strong className="text-white">Charting services</strong> — interactive financial charts embedded in the app.</li>
+              <li><strong className="text-white">Authentication and database hosting:</strong> secure storage of your account and journal data.</li>
+              <li><strong className="text-white">Payment processor (Paddle):</strong> subscription billing. We do not store your payment credentials.</li>
+              <li><strong className="text-white">Web hosting and CDN:</strong> delivery of the TradeX Terminal web application.</li>
+              <li><strong className="text-white">AI analysis services:</strong> powering market analysis features. Only anonymized market data is sent; your personal information is never shared.</li>
+              <li><strong className="text-white">Market data providers:</strong> real-time and historical financial market data used to power the terminal. No personal data is shared with these providers.</li>
+              <li><strong className="text-white">Charting services:</strong> interactive financial charts embedded in the app.</li>
             </ul>
           </section>
 
