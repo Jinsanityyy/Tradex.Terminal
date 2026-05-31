@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAgentResult, useQuotes } from "@/hooks/useMarketData";
+import { useSettings } from "@/contexts/SettingsContext";
 import { cn } from "@/lib/utils";
 import {
   Target, TrendingUp, TrendingDown, Minus, Shield, Zap,
@@ -262,9 +263,27 @@ function AgentRow({ label, bias, confidence, weight }: { label: string; bias: st
   );
 }
 
+const BIAS_VALID = new Set(["XAUUSD", "EURUSD", "GBPUSD", "BTCUSD"]);
+
 // ── Main page ─────────────────────────────────────────────
 export default function MarketBiasPage() {
-  const [selected, setSelected] = useState<Symbol>("XAUUSD");
+  const { settings, saveSettings } = useSettings();
+  const [selected, setSelected] = useState<Symbol>(() => {
+    const s = settings.selectedSymbol;
+    return (BIAS_VALID.has(s) ? s : "XAUUSD") as Symbol;
+  });
+
+  // Stay in sync with global asset selector (sidebar or other pages)
+  useEffect(() => {
+    const s = settings.selectedSymbol;
+    if (BIAS_VALID.has(s) && s !== selected) setSelected(s as Symbol);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.selectedSymbol]);
+
+  function handleSelect(sym: Symbol) {
+    setSelected(sym);
+    saveSettings({ ...settings, selectedSymbol: sym });
+  }
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { result, isLoading, isLive, error, refresh } = useAgentResult(selected, "H1");
   const { quotes } = useQuotes();
@@ -335,7 +354,7 @@ export default function MarketBiasPage() {
           return (
             <button
               key={a.symbol}
-              onClick={() => setSelected(a.symbol)}
+              onClick={() => handleSelect(a.symbol)}
               className={cn(
                 "rounded-xl border px-4 py-2.5 text-left transition-all min-w-[108px]",
                 isSelected
