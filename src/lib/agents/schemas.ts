@@ -200,6 +200,7 @@ export interface NewsAgentOutput {
   tailRiskEvents: string[];
   reasons: string[];
   processingTime: number;
+  latestNewsTimestamp?: number;  // Unix seconds of most recent processed headline
   error?: string;
 }
 

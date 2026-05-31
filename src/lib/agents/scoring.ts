@@ -98,7 +98,17 @@ export function computeConsensus(
   const adjustedNewsConf = isSafeHaven && news.riskScore > 40
     ? Math.min(80, news.confidence * (1 + news.riskScore / 300))
     : Math.max(30, news.confidence * (1 - news.riskScore / 250));
-  items.push(agentScore("news", news.impact, Math.round(adjustedNewsConf), weights.news));
+
+  // Freshness decay: full weight ≤2h, linear decay to 0.2 over 2–6h, floor 0.1 >6h
+  let freshenedNewsConf = adjustedNewsConf;
+  if (news.latestNewsTimestamp) {
+    const ageHours = (Date.now() / 1000 - news.latestNewsTimestamp) / 3600;
+    const multiplier = ageHours <= 2 ? 1.0
+      : ageHours <= 6 ? 1.0 - ((ageHours - 2) / 4) * 0.8
+      : 0.1;
+    freshenedNewsConf = Math.round(Math.max(10, adjustedNewsConf * multiplier));
+  }
+  items.push(agentScore("news", news.impact, freshenedNewsConf, weights.news));
 
   // ── Execution Agent (confirms setup) ──────────────────────────────────────
   // Confidence scales with setup grade so an A+ and a B+ don't contribute equally.

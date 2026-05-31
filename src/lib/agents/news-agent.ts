@@ -130,6 +130,9 @@ Determine: macro regime, weighted directional impact for this asset, and what co
     tailRiskEvents: parsed.tailRiskEvents ?? [],
     reasons: (parsed.reasons ?? []).slice(0, 5),
     processingTime: Date.now() - start,
+    latestNewsTimestamp: snapshot.recentNews.length > 0
+      ? Math.max(...snapshot.recentNews.map(n => n.timestamp))
+      : undefined,
   };
 }
 
@@ -524,6 +527,9 @@ export async function runNewsAgent(snapshot: MarketSnapshot, anthropicApiKey?: s
       tailRiskEvents,
       reasons: reasons.slice(0, 5),
       processingTime: Date.now() - start,
+      latestNewsTimestamp: recentNews.length > 0
+        ? Math.max(...recentNews.map(n => n.timestamp))
+        : undefined,
     };
   } catch (err) {
     return {
