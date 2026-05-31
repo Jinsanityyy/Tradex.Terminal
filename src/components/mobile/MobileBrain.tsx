@@ -15,6 +15,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { isAgentSupported, getSymbolShort, getSymbolLabel } from "@/lib/assetImpact";
 import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
 import { useSubscription } from "@/hooks/useSubscription";
+import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelectorSheet";
 
 const TIMEFRAMES: Timeframe[] = ["M5", "M15", "H1", "H4"];
 
@@ -405,9 +406,11 @@ export function MobileBrain() {
 
   const [view, setView] = useState<"brain" | "floor">("brain");
   const [drawerAgentId, setDrawerAgentId] = useState("risk");
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   return (
     <div className="flex flex-col h-full">
+      <AssetSelectorSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
       {/* Tab bar */}
       <div className="flex shrink-0 items-center border-b border-white/5 px-4 pt-2">
         <div className="flex flex-1">
@@ -426,7 +429,7 @@ export function MobileBrain() {
             </button>
           ))}
         </div>
-        <span className="text-[10px] font-bold text-zinc-500 pb-1">{getSymbolLabel(symbol)}</span>
+        <AssetChip size="sm" onPress={() => setSheetOpen(true)} />
       </div>
 
       {/* Floor */}
