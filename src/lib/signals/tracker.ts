@@ -19,6 +19,27 @@ import { clearAgentArmedCache } from "@/lib/agents/agent-cache-store";
 import { notifyOutcome, notifyEntryZone } from "@/lib/push/notify";
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Market-hours guard
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Symbols that trade 24/7 and should always be tracked.
+const ALWAYS_OPEN_SYMBOLS = new Set(["BTCUSD"]);
+
+/**
+ * Returns false during the forex/metals weekend closure.
+ * Gold and FX pairs are closed from ~21:00 UTC Friday to ~21:00 UTC Sunday.
+ * We use a simple UTC-day check: Saturday all day, Sunday before 21:00 UTC.
+ * Stale Yahoo weekend prices cause false TP/SL hits if we skip this.
+ */
+function isForexMarketOpen(): boolean {
+  const now  = new Date();
+  const day  = now.getUTCDay(); // 0=Sun, 6=Sat
+  if (day === 6) return false;
+  if (day === 0 && now.getUTCHours() < 21) return false;
+  return true;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Config
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -381,7 +402,13 @@ export async function trackOpenSignals(): Promise<TrackingResult> {
     fetchCandleMap(open),
   ]);
 
+  const forexOpen = isForexMarketOpen();
+
   for (const signal of open) {
+    // Skip forex/metals resolution during weekend closure to prevent false TP/SL
+    // hits from stale Yahoo prices. Crypto (BTCUSD) trades 24/7 — always process.
+    if (!ALWAYS_OPEN_SYMBOLS.has(signal.symbol) && !forexOpen) continue;
+
     let price = prices.get(signal.symbol);
 
     // If we couldn't fetch a live price but the signal is past its expiry window,

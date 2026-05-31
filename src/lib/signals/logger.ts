@@ -10,6 +10,16 @@ import type { SignalRecord, SignalTradePlan } from "./types";
 import { saveSignal, getOpenSignals, updateSignal } from "./storage";
 import { notifyNewSignal } from "@/lib/push/notify";
 
+const ALWAYS_OPEN_SYMBOLS = new Set(["BTCUSD"]);
+
+function isForexMarketOpen(): boolean {
+  const now = new Date();
+  const day = now.getUTCDay();
+  if (day === 6) return false;
+  if (day === 0 && now.getUTCHours() < 21) return false;
+  return true;
+}
+
 /**
  * Build a stable, unique ID from agent run metadata.
  * Within the same minute, same symbol+timeframe produces the same ID  -  so
@@ -148,6 +158,14 @@ export async function logSignal(result: AgentRunResult): Promise<SignalRecord | 
 
     // Skip if an open armed signal with the exact same entry/SL/TP already exists.
     if (await isDuplicateArmedSignal(result)) {
+      return null;
+    }
+
+    // Don't log armed signals for instruments whose market is closed.
+    // Agent data during weekends is stale (last Friday prices) and would
+    // generate false setups that get immediately mis-resolved by the tracker.
+    const hasArmedPlan = master.finalBias !== "no-trade" && !!master.tradePlan;
+    if (hasArmedPlan && !ALWAYS_OPEN_SYMBOLS.has(result.symbol) && !isForexMarketOpen()) {
       return null;
     }
 
