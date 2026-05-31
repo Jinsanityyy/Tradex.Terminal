@@ -90,7 +90,13 @@ export default function LoginPage() {
         // Sign out any existing session first — prevents a logged-in confirmed
         // user's session from leaking into the verify-email page and bypassing verification
         await supabase.auth.signOut();
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          },
+        });
         if (error) throw error;
         window.location.href = `/verify-email?email=${encodeURIComponent(email)}`;
       }
