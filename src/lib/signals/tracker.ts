@@ -15,6 +15,21 @@ import type { SignalRecord, SignalOutcome, SignalStatus } from "./types";
 import type { Timeframe } from "@/lib/agents/schemas";
 import { getOpenSignals, getSignals, updateSignal } from "./storage";
 import { fetchYahooCandles, type YahooCandleBar } from "@/lib/api/yahoo-finance";
+import { notifyOutcome, notifyEntryZone } from "@/lib/push/notify";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Market-hours guard
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ALWAYS_OPEN_SYMBOLS = new Set(["BTCUSD"]);
+
+function isForexMarketOpen(): boolean {
+  const now  = new Date();
+  const day  = now.getUTCDay();
+  if (day === 6) return false;
+  if (day === 0 && now.getUTCHours() < 21) return false;
+  return true;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Config
@@ -399,7 +414,12 @@ export async function trackOpenSignals(): Promise<TrackingResult> {
     fetchCandleMap(open),
   ]);
 
+  const forexOpen = isForexMarketOpen();
+
   for (const signal of open) {
+    // Skip forex/metals during weekend closure — stale Yahoo prices cause false TP/SL hits
+    if (!ALWAYS_OPEN_SYMBOLS.has(signal.symbol) && !forexOpen) continue;
+
     let price = prices.get(signal.symbol);
 
     // If we couldn't fetch a live price but the signal is past its expiry window,
@@ -425,6 +445,7 @@ export async function trackOpenSignals(): Promise<TrackingResult> {
       const threshold = entry * 0.003;
       if (Math.abs(price - entry) <= threshold) {
         await updateSignal(signal.id, { entryZoneNotified: true });
+        void notifyEntryZone(signal).catch(() => {});
       }
     }
 
@@ -443,6 +464,7 @@ export async function trackOpenSignals(): Promise<TrackingResult> {
         status: resolution.status,
         pnlR: resolution.outcome.pnlR,
       });
+      void notifyOutcome(updated, resolution.status).catch(() => {});
     }
   }
 

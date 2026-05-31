@@ -8,6 +8,17 @@
 import type { AgentRunResult } from "@/lib/agents/schemas";
 import type { SignalRecord, SignalTradePlan } from "./types";
 import { saveSignal, getOpenSignals, updateSignal } from "./storage";
+import { notifyNewSignal } from "@/lib/push/notify";
+
+const ALWAYS_OPEN_SYMBOLS = new Set(["BTCUSD"]);
+
+function isForexMarketOpen(): boolean {
+  const now = new Date();
+  const day = now.getUTCDay();
+  if (day === 6) return false;
+  if (day === 0 && now.getUTCHours() < 21) return false;
+  return true;
+}
 
 /**
  * Build a stable, unique ID from agent run metadata.
@@ -123,6 +134,13 @@ export async function logSignal(result: AgentRunResult): Promise<SignalRecord | 
       return null;
     }
 
+    // Don't log armed signals when the market is closed — stale weekend prices
+    // produce junk setups that get immediately mis-resolved by the tracker.
+    const hasArmedPlan = master.finalBias !== "no-trade" && !!master.tradePlan;
+    if (hasArmedPlan && !ALWAYS_OPEN_SYMBOLS.has(result.symbol) && !isForexMarketOpen()) {
+      return null;
+    }
+
     const record: SignalRecord = {
       id: buildId(result),
       timestamp: result.timestamp,
@@ -178,10 +196,9 @@ export async function logSignal(result: AgentRunResult): Promise<SignalRecord | 
 
     const saved = await saveSignal(record);
 
-    // If this is a new directional armed signal, close out any open signals
-    // in the opposite direction  -  the bias has flipped, those setups are gone.
     if (saved && record.tradePlan) {
       await invalidateOpposingSignals(result);
+      void notifyNewSignal(saved).catch(() => {});
     }
 
     return saved;
