@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Crown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSubscription } from "@/hooks/useSubscription";
+import { createClient } from "@/lib/supabase/client";
 
 function isNativeApp(): boolean {
   if (typeof window === "undefined") return false;
@@ -33,33 +34,38 @@ async function navigateToUpgrade() {
       return;
     }
   } catch {}
-  // fallback to pricing page if fetch fails
   window.location.href = "/pricing";
 }
 
+function storageKey(userId: string | null): string {
+  const date = new Date().toISOString().slice(0, 10);
+  // Include userId so dismissal on one account never hides the banner on another
+  return userId ? `tradex_trial_banner_${date}_${userId}` : `tradex_trial_banner_${date}`;
+}
+
 interface Props {
-  /** Pass true for the compact mobile strip (no vertical padding tweak) */
   compact?: boolean;
 }
 
-/**
- * Sticky banner shown when a user's trial is about to expire (≤ 2 days)
- * or has already expired. Dismissed per-day via sessionStorage.
- * Used in both MobileLayout and desktop DashboardLayout.
- */
 export function TrialExpiryBanner({ compact = false }: Props) {
   const { subscription, loading } = useSubscription();
+  const [userId, setUserId] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
+  // Resolve userId once on mount, then check session storage with a user-scoped key
   useEffect(() => {
-    const dateKey = new Date().toISOString().slice(0, 10);
-    if (sessionStorage.getItem(`tradex_trial_banner_${dateKey}`)) {
-      setDismissed(true);
-    }
+    const supabase = createClient();
+    if (!supabase) return;
+    supabase.auth.getUser().then(({ data }) => {
+      const id = data.user?.id ?? null;
+      setUserId(id);
+      if (sessionStorage.getItem(storageKey(id))) {
+        setDismissed(true);
+      }
+    });
   }, []);
 
   if (loading || dismissed) return null;
-  // Already subscribed — nothing to show
   if (subscription.isPro) return null;
 
   const { isTrialing, trialDaysLeft, trial_ends_at, hasFullAccess } = subscription;
@@ -78,8 +84,7 @@ export function TrialExpiryBanner({ compact = false }: Props) {
       : `Trial expires in ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"}.`;
 
   function dismiss() {
-    const dateKey = new Date().toISOString().slice(0, 10);
-    sessionStorage.setItem(`tradex_trial_banner_${dateKey}`, "1");
+    sessionStorage.setItem(storageKey(userId), "1");
     setDismissed(true);
   }
 
