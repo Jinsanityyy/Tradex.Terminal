@@ -34,10 +34,10 @@ jobs:
             let g = fs.readFileSync('android/app/build.gradle', 'utf8');
             g = g.replace('applicationId \"com.tradex.terminal\"', 'applicationId \"com.tradex.terminal.dev\"');
             fs.writeFileSync('android/app/build.gradle', g);
-            let gs = fs.readFileSync('android/app/google-services.json', 'utf8');
-            gs = gs.replace(/com\.tradex\.terminal/g, 'com.tradex.terminal.dev');
-            fs.writeFileSync('android/app/google-services.json', gs);
           "
+          # Remove google-services.json so Firebase init is skipped for dev builds
+          # (google-services plugin is applied conditionally — no file = no crash)
+          rm -f android/app/google-services.json
       - name: Create assets dir
         run: mkdir -p android/app/src/main/assets
       - run: npx cap sync android
