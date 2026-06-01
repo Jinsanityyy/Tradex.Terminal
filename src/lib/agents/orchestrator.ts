@@ -331,25 +331,28 @@ export async function runAgentOrchestrator(
   // ── Phase 2b: Risk  -  uses actual RR + setup presence from execution ──────
   const risk = await runRiskAgent(snapshot, execution.rrRatio, execution.hasSetup);
 
-  // ── Phase 3: Debate  -  agents challenge each other ────────────────────────
-  // Skip when risk gate is invalid  -  outcome is predetermined (no-trade), no debate needed
-  let debate: DebateEntry[] | undefined;
-  if (apiKey && risk.valid) {
-    try {
-      debate = await runDebatePhase(
-        { symbolDisplay: snapshot.symbolDisplay, symbol, timeframe, price: snapshot.price },
-        trend, smc, newsAgent, risk, execution, contrarian,
-        apiKey
-      );
-    } catch (err) {
-      console.warn("[orchestrator] debate phase failed:", err);
-    }
-  }
+  // ── Phase 3 + 4: Debate (display-only) and Master decision run in parallel ──
+  // The debate is theatrical narrative for the UI; the Master decides purely on
+  // the numeric agent outputs. Running them concurrently removes the debate from
+  // the critical path and makes the final decision robust to a debate-call failure.
+  const debatePromise: Promise<DebateEntry[] | undefined> =
+    apiKey && risk.valid
+      ? runDebatePhase(
+          { symbolDisplay: snapshot.symbolDisplay, symbol, timeframe, price: snapshot.price },
+          trend, smc, newsAgent, risk, execution, contrarian,
+          apiKey
+        ).catch((err) => {
+          console.warn("[orchestrator] debate phase failed:", err);
+          return undefined;
+        })
+      : Promise.resolve(undefined);
 
-  // ── Phase 4: Master adjudicates after seeing the full debate ─────────────
-  const master = await runMasterAgent(
-    snapshot, trend, smc, newsAgent, risk, execution, contrarian, weights, apiKey, debate
-  );
+  const [debate, master] = await Promise.all([
+    debatePromise,
+    runMasterAgent(
+      snapshot, trend, smc, newsAgent, risk, execution, contrarian, weights, apiKey
+    ),
+  ]);
 
   const result: AgentRunResult = {
     symbol,

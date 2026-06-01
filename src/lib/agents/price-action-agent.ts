@@ -352,11 +352,17 @@ function detectNYSweepAndFVG(
     levels.londonHigh !== null ? { level: levels.londonHigh, bias: "bearish" as const, label: "London High", mod: 0  } : null,
   ] as (SweepTarget | null)[]).filter((x): x is SweepTarget => x !== null);
 
+  // Kill-zone timing precision only matters on intraday timeframes. On swing
+  // timeframes (H1/H4) a liquidity sweep + FVG is valid regardless of the exact
+  // session window  -  requiring the 2-hour NY window there killed nearly all
+  // swing setups (a single H4 candle spans 4 hours and rarely aligns).
+  const requireKillZone = timeframe === "M5" || timeframe === "M15";
+
   for (let i = 0; i < nyC.length - 2; i++) {
     const sc = nyC[i];
 
-    // Sweep candle must overlap NY Kill Zone (13:30–15:30 UTC) or London Kill Zone (08:00–11:00 UTC)
-    if (!inKillZone(sc.t, timeframe)) continue;
+    // Intraday only: sweep candle must overlap a kill zone (NY/London/Asia)
+    if (requireKillZone && !inKillZone(sc.t, timeframe)) continue;
 
     for (const tgt of targets) {
       // London High: skip ONLY when no FVG confirmation will come  -  the full loop still
