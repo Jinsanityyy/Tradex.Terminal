@@ -385,10 +385,8 @@ export function TopStatusBar() {
           )}
         </div>
 
-        {/* Session countdown timers  -  right of live indicator, left of user menu */}
+        {/* Session countdown timers */}
         <SessionTimerBar />
-
-        <UserMenu />
       </div>
     </header>
   );

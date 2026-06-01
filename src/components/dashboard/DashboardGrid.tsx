@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import GridLayout, { getCompactor, type Layout, type LayoutItem } from "react-grid-layout";
 import { Check, ChevronDown, Plus, RotateCcw, Save } from "lucide-react";
 import { WidgetCard } from "./WidgetCard";
-import { UserMenu, SessionTimerBar } from "@/components/layout/TopStatusBar";
+import { SessionTimerBar } from "@/components/layout/TopStatusBar";
 
 export interface WidgetDef {
   id: string;
@@ -966,10 +966,6 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
         </div>
 
         <SessionTimerBar />
-
-        <div className="shrink-0">
-          <UserMenu />
-        </div>
 
         <div ref={addWidgetMenuRef} className="relative shrink-0">
           <button

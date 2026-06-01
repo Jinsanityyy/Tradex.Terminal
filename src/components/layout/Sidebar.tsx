@@ -10,12 +10,13 @@ import {
   DollarSign, Tv, Settings2,
   Crown, Zap, BarChart2,
   ChevronLeft, ChevronRight, Menu, X, GraduationCap, LayoutDashboard,
-  ChevronDown, CheckCircle2,
+  ChevronDown, CheckCircle2, LogOut, Camera,
 } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import { useSettings } from "@/contexts/SettingsContext";
 import { AGENT_SYMBOLS, getSymbolLabel, getSymbolShort } from "@/lib/assetImpact";
 import { useSubscription } from "@/hooks/useSubscription";
+import { createClient } from "@/lib/supabase/client";
 
 const SIDEBAR_HIDDEN_STORAGE_KEY = "tradex-sidebar-hidden-v1";
 
@@ -302,6 +303,11 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
   const [desktopHidden, setDesktopHidden] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [traderName, setTraderName] = useState("");
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
   const micro = useMicroData();
 
   const isMobile = viewportWidth < 768;
@@ -310,12 +316,62 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
 
   useEffect(() => {
     setTraderName(localStorage.getItem("tradex_trader_name") || "");
+    setAvatar(localStorage.getItem("tradex_avatar"));
     const onStorage = (e: StorageEvent) => {
       if (e.key === "tradex_trader_name") setTraderName(e.newValue || "");
+      if (e.key === "tradex_avatar") setAvatar(e.newValue);
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
+
+  async function handleLogout() {
+    const supabase = createClient();
+    if (supabase) await supabase.auth.signOut();
+    window.location.href = "/login";
+  }
+
+  function saveName() {
+    const trimmed = draft.trim();
+    if (trimmed) {
+      setTraderName(trimmed);
+      localStorage.setItem("tradex_trader_name", trimmed);
+      fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ display_name: trimmed }),
+      }).catch(() => {});
+    }
+    setEditing(false);
+  }
+
+  function handleAvatar(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = async () => {
+        const MAX = 80;
+        const ratio = Math.min(MAX / img.width, MAX / img.height, 1);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * ratio);
+        canvas.height = Math.round(img.height * ratio);
+        canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const b64 = canvas.toDataURL("image/jpeg", 0.85);
+        setAvatar(b64);
+        localStorage.setItem("tradex_avatar", b64);
+        window.dispatchEvent(new StorageEvent("storage", { key: "tradex_avatar", newValue: b64 }));
+        fetch("/api/profile/avatar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ avatarUrl: b64 }),
+        }).catch(() => {});
+      };
+      img.src = ev.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  }
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -358,39 +414,122 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
         )}
       >
         {/* Header */}
-        <div className="px-4 pt-4 pb-3 border-b border-white/[0.06] shrink-0">
-          <div className="flex items-center gap-2">
+        <div className="shrink-0 border-b border-white/[0.06]">
+          {/* Logo row */}
+          <div className="flex items-center justify-between px-4 pt-3 pb-2">
             <Link href="/dashboard" className="shrink-0">
-              <TradeXLogo variant="icon" size="sm" />
+              <TradeXLogo variant="wordmark" size="xs" />
             </Link>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <p className="text-[12px] font-semibold text-zinc-100 truncate leading-none">
-                  {traderName || "Trader"}
-                </p>
-                <span className={cn(
-                  "text-[7px] font-bold tracking-widest px-1.5 py-[2px] rounded border leading-none shrink-0",
-                  isPaid
-                    ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
-                    : subscription.isTrialing
-                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                    : "bg-zinc-800 text-zinc-600 border-zinc-700"
-                )}>
-                  {isPaid && <Crown className="inline h-2 w-2 mr-0.5 -mt-px" />}
-                  {planLabel}
-                </span>
-              </div>
-              <p className="text-[9px] text-zinc-500 mt-[3px] uppercase tracking-wider leading-none">
-                Tradex Terminal
-              </p>
-            </div>
             <button
               onClick={() => setDesktopHidden(true)}
-              className="shrink-0 p-1 text-zinc-700 hover:text-zinc-300 transition-colors"
+              className="p-1 text-zinc-700 hover:text-zinc-300 transition-colors"
               title="Hide sidebar"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
             </button>
+          </div>
+
+          {/* User profile row */}
+          <div className="px-3 pb-3 relative">
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatar} />
+            <button
+              onClick={() => { setProfileOpen(v => !v); setDraft(traderName); setEditing(false); }}
+              className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-white/[0.04] transition-colors group"
+            >
+              {/* Avatar */}
+              <div className="relative shrink-0 w-8 h-8 rounded-full overflow-hidden border border-white/[0.1] bg-zinc-900">
+                {avatar
+                  ? <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
+                  : <div className="w-full h-full flex items-center justify-center">
+                      <span className="text-[13px] font-bold text-[hsl(var(--primary))]">
+                        {(traderName || "T")[0].toUpperCase()}
+                      </span>
+                    </div>
+                }
+              </div>
+              {/* Name + plan */}
+              <div className="flex-1 min-w-0 text-left">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-[12px] font-semibold text-zinc-100 truncate leading-none">
+                    {traderName || "Trader"}
+                  </p>
+                  <span className={cn(
+                    "text-[7px] font-bold tracking-widest px-1.5 py-[2px] rounded border leading-none shrink-0",
+                    isPaid
+                      ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                      : subscription.isTrialing
+                      ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                      : "bg-zinc-800 text-zinc-600 border-zinc-700"
+                  )}>
+                    {isPaid && <Crown className="inline h-2 w-2 mr-0.5 -mt-px" />}
+                    {planLabel}
+                  </span>
+                </div>
+                <p className="text-[9px] text-zinc-600 mt-[2px] uppercase tracking-wider leading-none">
+                  Tradex Terminal
+                </p>
+              </div>
+              <ChevronDown className={cn("h-3 w-3 text-zinc-600 shrink-0 transition-transform", profileOpen && "rotate-180")} />
+            </button>
+
+            {/* Profile dropdown */}
+            {profileOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
+                <div className="absolute left-3 right-3 top-full z-50 mt-1 rounded-xl border border-white/[0.08] bg-[hsl(var(--card))] shadow-2xl overflow-hidden">
+                  {/* Edit name */}
+                  <div className="px-3 pt-3 pb-2">
+                    <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1.5">Trader Name</p>
+                    {editing ? (
+                      <div className="flex gap-1.5">
+                        <input
+                          autoFocus
+                          value={draft}
+                          onChange={e => setDraft(e.target.value)}
+                          onKeyDown={e => e.key === "Enter" && saveName()}
+                          maxLength={20}
+                          placeholder="Your name..."
+                          className="flex-1 rounded-md bg-white/[0.05] border border-[hsl(var(--primary))]/30 px-2 py-1.5 text-[12px] text-white outline-none"
+                        />
+                        <button onClick={saveName} className="rounded-md bg-[hsl(var(--primary))]/20 border border-[hsl(var(--primary))]/30 px-2.5 text-[10px] text-[hsl(var(--primary))] font-bold">
+                          Save
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setDraft(traderName); setEditing(true); }}
+                        className="w-full flex items-center justify-between rounded-md bg-white/[0.04] px-2.5 py-1.5 hover:bg-white/[0.07] transition-colors"
+                      >
+                        <span className="text-[12px] font-semibold text-zinc-200">{traderName || "Set name"}</span>
+                        <span className="text-[10px] text-[hsl(var(--primary))]">Edit</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="border-t border-white/[0.06]" />
+
+                  {/* Change photo */}
+                  <button
+                    onClick={() => { fileRef.current?.click(); setProfileOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-zinc-400 hover:bg-white/[0.04] transition-colors"
+                  >
+                    <Camera className="h-3.5 w-3.5 shrink-0" />
+                    <span className="text-[12px]">{avatar ? "Change photo" : "Upload photo"}</span>
+                  </button>
+
+                  <div className="border-t border-white/[0.06]" />
+
+                  {/* Sign out */}
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-red-400 hover:bg-red-500/10 transition-colors"
+                  >
+                    <LogOut className="h-3.5 w-3.5 shrink-0" />
+                    <span className="text-[12px] font-medium">Sign out</span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
