@@ -1,19 +1,20 @@
 ﻿"use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useCatalysts, useEconomicCalendar, useTrumpPosts, useNews } from "@/hooks/useMarketData";
+import { useCatalysts, useEconomicCalendar, useTrumpPosts, useNews, useAgentResult } from "@/hooks/useMarketData";
 import { cn } from "@/lib/utils";
-import { Zap, CalendarDays, AtSign, TrendingUp, TrendingDown, Target, Shield, Radio } from "lucide-react";
+import { Zap, CalendarDays, AtSign, TrendingUp, TrendingDown, Target, Shield, Radio, BookOpen } from "lucide-react";
 import { DetailModal } from "@/components/shared/DetailModal";
 import { CatalystFeed } from "@/components/shared/CatalystFeed";
 import { NewsFeed } from "@/components/shared/NewsFeed";
 import { LiveNewsTicker } from "@/components/shared/LiveNewsTicker";
+import { MarketDriverBrief } from "@/components/mobile/MarketDriverBrief";
 import type { EconomicEvent, TrumpPost } from "@/types";
 import { useSettings } from "@/contexts/SettingsContext";
 import { isAgentSupported, getSymbolLabel, getSymbolShort, getEventImpactForSymbol, getImpactForSymbol } from "@/lib/assetImpact";
 import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelectorSheet";
 
-type Tab = "live" | "catalysts" | "calendar" | "trump";
+type Tab = "brief" | "live" | "catalysts" | "calendar" | "trump";
 
 const LIVE_CHANNELS = [
   { id: "bloomberg", name: "Bloomberg", channelId: "UCIALMKvObZNtJ6AmdCLP7Lg" },
@@ -37,8 +38,9 @@ export function MobileFeed() {
   const symbolLabel = getSymbolLabel(selectedSymbol);
   const symbolShort = getSymbolShort(selectedSymbol);
 
-  const [tab, setTab] = useState<Tab>("live");
+  const [tab, setTab] = useState<Tab>("brief");
   const [sheetOpen, setSheetOpen] = useState(false);
+  const { result: agentData } = useAgentResult(selectedSymbol, "H1");
   const { catalysts } = useCatalysts();
   const { events } = useEconomicCalendar();
   const { posts } = useTrumpPosts();
@@ -93,6 +95,7 @@ export function MobileFeed() {
   }, [tab]);
 
   const tabs = [
+    { id: "brief" as Tab,     label: "Brief",     Icon: BookOpen },
     { id: "live" as Tab,      label: "Live",      Icon: Radio },
     { id: "catalysts" as Tab, label: "Catalysts", Icon: Zap },
     { id: "calendar" as Tab,  label: "Calendar",  Icon: CalendarDays },
@@ -120,6 +123,29 @@ export function MobileFeed() {
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0">
+
+        {/* BRIEF TAB */}
+        {tab === "brief" && (
+          <div className="px-3 py-3">
+            {agentData ? (
+              <MarketDriverBrief
+                symbol={selectedSymbol}
+                symbolDisplay={agentData.symbolDisplay}
+                snapshot={agentData.snapshot}
+                news={agentData.agents.news}
+                smc={agentData.agents.smc}
+                trend={agentData.agents.trend}
+                execution={agentData.agents.execution}
+                master={agentData.agents.master}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16 gap-2">
+                <div className="w-5 h-5 rounded-full border-2 border-zinc-700 border-t-zinc-400 animate-spin" />
+                <p className="text-[10px] text-zinc-600">Generating market brief…</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* LIVE TAB */}
         {tab === "live" && (
