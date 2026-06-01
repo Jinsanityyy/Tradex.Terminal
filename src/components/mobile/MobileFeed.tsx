@@ -40,7 +40,7 @@ export function MobileFeed() {
 
   const [tab, setTab] = useState<Tab>("brief");
   const [sheetOpen, setSheetOpen] = useState(false);
-  const { result: agentData } = useAgentResult(selectedSymbol, "H1");
+  const { result: agentData } = useAgentResult(selectedSymbol as import("@/lib/agents/schemas").Symbol, "H1");
   const { catalysts } = useCatalysts();
   const { events } = useEconomicCalendar();
   const { posts } = useTrumpPosts();
