@@ -284,9 +284,18 @@ export function MobileHome() {
   // Use liveQuotes (same source as ticker) for consistency — avoids stale WS reads
   const livePrice: number | null = liveQuotes.find(q => q.symbol === activeSymbol)?.price ?? null;
 
+  // True when the cached last-setup SL was breached by live price before the trade
+  // was ever entered (no DB record exists, so useLastSignal returns nothing).
+  const slBreachedBeforeEntry = !!(
+    stopLoss && livePrice && direction &&
+    !lastSignalWin && !lastSignalLoss &&
+    (direction === "long" ? livePrice <= stopLoss : livePrice >= stopLoss)
+  );
+
   const hitBadge: { label: string; className: string } | null =
-    lastSignalWin  ? { label: "TP1 HIT ✅", className: "bg-emerald-500/15 text-emerald-400" } :
-    lastSignalLoss ? { label: "SL HIT ❌",  className: "bg-red-500/15 text-red-400" } :
+    lastSignalWin        ? { label: "TP1 HIT ✅",     className: "bg-emerald-500/15 text-emerald-400" } :
+    lastSignalLoss       ? { label: "SL HIT ❌",       className: "bg-red-500/15 text-red-400" } :
+    slBreachedBeforeEntry ? { label: "SL BREACHED ❌", className: "bg-red-500/15 text-red-400" } :
     null;
 
   // Active session
