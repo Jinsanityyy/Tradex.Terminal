@@ -832,7 +832,7 @@ export function TradingKnowledgeSidebar({ open, onClose }: { open: boolean; onCl
         onClick={onClose}
       />
       <aside className={cn(
-        "fixed right-0 top-0 z-[50] flex h-screen w-[380px] max-w-[calc(100vw-60px)] flex-col",
+        "fixed right-0 top-0 z-[50] flex h-screen w-[520px] max-w-[calc(100vw-60px)] flex-col",
         "border-l border-[hsl(var(--border))] bg-[hsl(var(--card))]",
         "transition-transform duration-300 ease-in-out",
         open ? "translate-x-0" : "translate-x-full"
