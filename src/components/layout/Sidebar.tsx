@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -10,14 +10,16 @@ import {
   DollarSign, Tv, Settings2,
   Crown, Zap, BarChart2,
   ChevronLeft, ChevronRight, Menu, X, GraduationCap, LayoutDashboard,
+  ChevronDown, CheckCircle2,
 } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
+import { useSettings } from "@/contexts/SettingsContext";
+import { AGENT_SYMBOLS, getSymbolLabel, getSymbolShort } from "@/lib/assetImpact";
 import { useSubscription } from "@/hooks/useSubscription";
-import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelectorSheet";
 
 const SIDEBAR_HIDDEN_STORAGE_KEY = "tradex-sidebar-hidden-v1";
 
-// ── Nav sections (mirrors MobileMore) ────────────────────────────────────────
+// ── Nav sections ──────────────────────────────────────────────────────────────
 
 const SECTIONS = [
   {
@@ -61,6 +63,136 @@ const MOBILE_TAB_ITEMS = [
   { label: "News",      href: "/dashboard/news-flow",     icon: Rss              },
   { label: "Catalysts", href: "/dashboard/catalysts",     icon: AlertTriangle    },
 ];
+
+// ── Micro data for nav status tags (mirrors MobileMore) ──────────────────────
+
+type BiasDir = "bullish" | "bearish" | "neutral" | null;
+interface MicroData { direction: BiasDir; openSignals: number | null; session: string | null; }
+
+function getActiveSession(): string | null {
+  const t = new Date().getUTCHours() * 60 + new Date().getUTCMinutes();
+  if (t >= 13 * 60 && t < 17 * 60) return "NY+LDN";
+  if (t >= 13 * 60 && t < 22 * 60) return "NY";
+  if (t >= 8 * 60  && t < 17 * 60) return "LDN";
+  if (t >= 0 * 60  && t < 9 * 60)  return "TYO";
+  if (t >= 22 * 60 || t < 7 * 60)  return "SYD";
+  return null;
+}
+
+function useMicroData(): MicroData {
+  const [data, setData] = useState<MicroData>({ direction: null, openSignals: null, session: getActiveSession() });
+  useEffect(() => {
+    const id = setInterval(() => setData(d => ({ ...d, session: getActiveSession() })), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  useEffect(() => {
+    fetch("/api/signals?limit=20&period=24h")
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (!json) return;
+        const recent = (json.recent ?? []) as Array<{ status: string; finalBias?: string }>;
+        const open = recent.filter(s => s.status === "open").length;
+        const last = recent.find(s => s.finalBias && s.finalBias !== "no-trade");
+        const dir: BiasDir = last?.finalBias === "bullish" ? "bullish" : last?.finalBias === "bearish" ? "bearish" : last ? "neutral" : null;
+        setData(d => ({ ...d, openSignals: open, direction: dir }));
+      }).catch(() => {});
+  }, []);
+  return data;
+}
+
+type TagVariant = "green" | "red" | "amber" | "muted";
+const tagColors: Record<TagVariant, string> = {
+  green: "text-emerald-400", red: "text-red-400", amber: "text-amber-500", muted: "text-zinc-600",
+};
+
+function getNavTag(id: string, micro: MicroData): { tag?: string; variant?: TagVariant } {
+  switch (id) {
+    case "market-bias":
+      if (!micro.direction) return {};
+      return micro.direction === "bullish" ? { tag: "BULL",    variant: "green" }
+           : micro.direction === "bearish" ? { tag: "BEAR",    variant: "red"   }
+           :                                 { tag: "NEUTRAL", variant: "muted" };
+    case "session-intelligence":
+      return micro.session ? { tag: micro.session, variant: "green" } : { tag: "CLOSED", variant: "muted" };
+    case "signals":
+      if (micro.openSignals === null) return {};
+      return micro.openSignals > 0 ? { tag: `${micro.openSignals}`, variant: "green" } : { tag: "—", variant: "muted" };
+    case "news-flow":
+      return { tag: "LIVE", variant: "green" };
+    case "trump-monitor":
+      return { tag: "ON", variant: "amber" };
+    default:
+      return {};
+  }
+}
+
+// ── Inline asset selector (sidebar-contained, no full-screen sheet) ───────────
+
+function SidebarAssetSelector() {
+  const { settings, saveSettings } = useSettings();
+  const selectedSymbol = settings.selectedSymbol ?? "XAUUSD";
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [open]);
+
+  function select(sym: string) {
+    saveSettings({ ...settings, selectedSymbol: sym });
+    setOpen(false);
+  }
+
+  return (
+    <div ref={ref} className="relative px-3 pt-2 pb-2 border-t border-white/[0.06]">
+      <p className="text-[8px] uppercase tracking-[0.12em] text-zinc-600 mb-1 px-0.5">Active Asset</p>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between rounded-md bg-white/[0.04] border border-white/[0.06] px-2.5 py-1.5 hover:bg-white/[0.07] transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-mono font-bold text-[hsl(var(--primary))]">
+            {getSymbolShort(selectedSymbol)}
+          </span>
+          <span className="text-[9px] text-zinc-500">{getSymbolLabel(selectedSymbol)}</span>
+        </div>
+        <ChevronDown className={cn("h-3 w-3 text-zinc-600 transition-transform", open && "rotate-180")} />
+      </button>
+
+      {/* Dropdown — appears above, contained within sidebar */}
+      {open && (
+        <div className="absolute bottom-full left-3 right-3 mb-1 rounded-lg border border-white/[0.08] bg-[hsl(var(--card))] shadow-xl overflow-hidden z-10">
+          {AGENT_SYMBOLS.map(sym => {
+            const selected = sym === selectedSymbol;
+            return (
+              <button
+                key={sym}
+                onClick={() => select(sym)}
+                className={cn(
+                  "w-full flex items-center gap-2.5 px-3 py-2 transition-colors text-left",
+                  selected ? "bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]" : "hover:bg-white/[0.04] text-zinc-300"
+                )}
+              >
+                <span className={cn(
+                  "text-[10px] font-mono font-bold w-10 shrink-0",
+                  selected ? "text-[hsl(var(--primary))]" : "text-zinc-400"
+                )}>
+                  {getSymbolShort(sym)}
+                </span>
+                <span className="text-[10px] flex-1 truncate">{getSymbolLabel(sym)}</span>
+                {selected && <CheckCircle2 className="h-3 w-3 shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── PnL performance mini widget ───────────────────────────────────────────────
 
@@ -107,7 +239,7 @@ function SidebarPnlWidget() {
   const pnlClass = dailyPnl === null ? "text-zinc-700" : pnlPos ? "text-emerald-400" : "text-red-400";
 
   return (
-    <div className="mx-3 mb-2">
+    <div className="mx-3 mb-2 mt-2">
       <div className="rounded-lg border border-white/[0.06] overflow-hidden" style={{ background: "rgba(255,255,255,0.022)" }}>
         <div className="flex items-center justify-between px-3 py-[5px] border-b border-white/[0.05]">
           <span className="text-[8px] font-bold tracking-[0.18em] text-zinc-700 uppercase">Performance</span>
@@ -150,7 +282,7 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
   const [desktopHidden, setDesktopHidden] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [traderName, setTraderName] = useState("");
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const micro = useMicroData();
 
   const isMobile = viewportWidth < 768;
   const isPaid = subscription.isPro;
@@ -196,8 +328,6 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
 
   return (
     <>
-      <AssetSelectorSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
-
       {/* ── Desktop Sidebar ──────────────────────────────────────────────── */}
       <aside
         className={cn(
@@ -234,8 +364,6 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
                 Tradex Terminal
               </p>
             </div>
-            {/* Asset chip — right side, mirrors mobile header */}
-            <AssetChip size="sm" onPress={() => setSheetOpen(true)} />
             <button
               onClick={() => setDesktopHidden(true)}
               className="shrink-0 p-1 text-zinc-700 hover:text-zinc-300 transition-colors"
@@ -275,6 +403,7 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
                 const Icon = item.icon;
                 const active = isActive(item.href);
                 const locked = item.proOnly && !subscription.hasFullAccess;
+                const { tag, variant } = getNavTag(item.id, micro);
                 return (
                   <Link
                     key={item.id}
@@ -291,7 +420,12 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
                     <span className={cn("flex-1 text-[11.5px] tracking-[0.01em]", locked ? "font-normal" : "font-medium")}>
                       {item.label}
                     </span>
-                    {locked && <span className="text-[8px] font-mono uppercase tracking-widest text-zinc-600">PRO</span>}
+                    {locked
+                      ? <span className="text-[8px] font-mono uppercase tracking-widest text-zinc-600">PRO</span>
+                      : tag
+                      ? <span className={cn("text-[9px] font-mono uppercase tracking-wide", tagColors[variant ?? "muted"])}>{tag}</span>
+                      : null
+                    }
                   </Link>
                 );
               })}
@@ -331,12 +465,13 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
 
         </nav>
 
-        {/* ── Footer: performance + live indicator ─────────────────────────── */}
+        {/* ── Footer: performance + asset selector + live indicator ────────── */}
         <div className="shrink-0 border-t border-white/[0.06]">
           <SidebarPnlWidget />
+          <SidebarAssetSelector />
 
           {/* Live indicator */}
-          <div className="flex items-center gap-2 px-4 py-3 border-t border-white/[0.05]">
+          <div className="flex items-center gap-2 px-4 py-2.5 border-t border-white/[0.05]">
             <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 pulse-live" />
             <span className="text-[9px] uppercase tracking-widest text-zinc-600">Live Terminal</span>
           </div>
