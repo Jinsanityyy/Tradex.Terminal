@@ -40,7 +40,7 @@ export function MobileFeed() {
 
   const [tab, setTab] = useState<Tab>("brief");
   const [sheetOpen, setSheetOpen] = useState(false);
-  const { result: agentData } = useAgentResult(selectedSymbol as import("@/lib/agents/schemas").Symbol, "H1");
+  const { result: agentData, isLive, refresh: refreshAgent } = useAgentResult(selectedSymbol as import("@/lib/agents/schemas").Symbol, "H1");
   const { catalysts } = useCatalysts();
   const { events } = useEconomicCalendar();
   const { posts } = useTrumpPosts();
@@ -137,6 +137,8 @@ export function MobileFeed() {
                 trend={agentData.agents.trend}
                 execution={agentData.agents.execution}
                 master={agentData.agents.master}
+                isCached={!isLive}
+                onRefresh={refreshAgent}
               />
             ) : (
               <div className="flex flex-col items-center justify-center py-16 gap-2">

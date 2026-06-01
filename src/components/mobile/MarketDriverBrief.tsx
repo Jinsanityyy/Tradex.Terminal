@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
-import { Lightbulb } from "lucide-react";
+import React, { useState } from "react";
+import { Lightbulb, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type {
   NewsAgentOutput,
@@ -17,14 +17,16 @@ import type {
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface MarketDriverBriefProps {
-  symbol: string;           // e.g. "XAUUSD"
-  symbolDisplay: string;    // e.g. "Gold"
+  symbol: string;
+  symbolDisplay: string;
   snapshot: MarketSnapshot;
   news: NewsAgentOutput;
   smc: SMCAgentOutput;
   trend: TrendAgentOutput;
   execution: ExecutionAgentOutput;
   master: MasterDecisionOutput;
+  isCached?: boolean;
+  onRefresh?: () => Promise<void>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -479,7 +481,25 @@ export function MarketDriverBrief({
   trend,
   execution,
   master,
+  isCached = false,
+  onRefresh,
 }: MarketDriverBriefProps) {
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function handleRefresh() {
+    if (!onRefresh || refreshing) return;
+    setRefreshing(true);
+    try { await onRefresh(); } finally { setRefreshing(false); }
+  }
+
+  // How old is the data?
+  const ageLabel = (() => {
+    if (!snapshot.timestamp) return null;
+    const mins = Math.round((Date.now() - new Date(snapshot.timestamp).getTime()) / 60_000);
+    if (mins < 1) return "just now";
+    if (mins === 1) return "1 min ago";
+    return `${mins} min ago`;
+  })();
   // Build raw driver data, filtering out null (skipped) drivers
   const rawDrivers = [
     buildNewsDriver(news),
@@ -509,24 +529,39 @@ export function MarketDriverBrief({
 
       {/* Card header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-        <div className="flex items-center gap-2">
-          <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 shrink-0">
             Market Driver Brief
           </span>
-          <span className="text-[9px] text-zinc-700">·</span>
-          <span className="text-[9px] font-semibold uppercase tracking-wide text-zinc-400">
+          <span className="text-[9px] text-zinc-700 shrink-0">·</span>
+          <span className="text-[9px] font-semibold uppercase tracking-wide text-zinc-400 shrink-0">
             {symbolDisplay}
           </span>
-          {drivers.length > 0 && (
+          {ageLabel && (
             <>
-              <span className="text-[9px] text-zinc-700">·</span>
-              <span className="text-[9px] text-zinc-600 tabular-nums">
-                {drivers.length} driver{drivers.length !== 1 ? "s" : ""}
+              <span className="text-[9px] text-zinc-700 shrink-0">·</span>
+              <span className={cn(
+                "text-[9px] tabular-nums shrink-0",
+                isCached ? "text-amber-500" : "text-zinc-600"
+              )}>
+                {isCached ? `cached ${ageLabel}` : ageLabel}
               </span>
             </>
           )}
         </div>
-        <ImpactTag label={overallTag} />
+        <div className="flex items-center gap-2 shrink-0 ml-2">
+          {onRefresh && (
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="text-zinc-600 hover:text-zinc-400 active:text-zinc-300 transition-colors disabled:opacity-40"
+              aria-label="Refresh analysis"
+            >
+              <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
+            </button>
+          )}
+          <ImpactTag label={overallTag} />
+        </div>
       </div>
 
       {/* Driver cards */}
