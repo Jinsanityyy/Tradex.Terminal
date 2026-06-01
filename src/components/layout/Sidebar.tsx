@@ -1,38 +1,201 @@
-﻿"use client";
+"use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard, Target, Zap, CalendarDays, UserCircle,
-  Grid3X3, Clock, Newspaper, Settings,
-  ChevronLeft, ChevronRight, ChevronDown, BarChart2, Menu, X, History, GraduationCap, Lightbulb,
+  TrendingUp, Brain, Clock, LayoutGrid,
+  AlertTriangle, Calendar, Activity, Rss,
+  DollarSign, Tv, BookOpen, Settings2,
+  Bell, BellOff, Loader2, Crown, Zap, BarChart2,
+  ChevronLeft, ChevronRight, Menu, X, GraduationCap, LayoutDashboard,
 } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import { useSettings } from "@/contexts/SettingsContext";
 import { AGENT_SYMBOLS, getSymbolLabel, getSymbolShort } from "@/lib/assetImpact";
 import { useSubscription } from "@/hooks/useSubscription";
+import { toast } from "sonner";
 
 const SIDEBAR_HIDDEN_STORAGE_KEY = "tradex-sidebar-hidden-v1";
 
-const navItems = [
-  { label: "Dashboard",           href: "/dashboard",                        icon: LayoutDashboard },
-  { label: "Market Bias",         href: "/dashboard/market-bias",            icon: Target },
-  { label: "Catalysts",           href: "/dashboard/catalysts",              icon: Zap },
-  { label: "Economic Calendar",   href: "/dashboard/economic-calendar",      icon: CalendarDays },
-  { label: "Trump Monitor",       href: "/dashboard/trump-monitor",          icon: UserCircle, accent: true },
-  { label: "Asset Matrix",        href: "/dashboard/asset-matrix",           icon: Grid3X3 },
-  { label: "Session Intelligence",href: "/dashboard/session-intelligence",   icon: Clock },
-  { label: "News Flow",           href: "/dashboard/news-flow",              icon: Newspaper },
-  { label: "PnL Calendar",        href: "/dashboard/pnl-calendar",           icon: BarChart2, accent2: true },
-  { label: "Signal History",      href: "/dashboard/signals",                icon: History },
-  { label: "Candle Analysis",     href: "/dashboard/candle-analysis",        icon: Lightbulb },
-  { label: "Settings",            href: "/dashboard/settings",               icon: Settings },
+// ── Nav sections (mirrors MobileMore) ────────────────────────────────────────
+
+const SECTIONS = [
+  {
+    label: "MARKET",
+    items: [
+      { id: "market-bias",          href: "/dashboard/market-bias",          label: "Market Direction", icon: TrendingUp,    proOnly: true  },
+      { id: "asset-matrix",         href: "/dashboard/asset-matrix",         label: "Cross-Asset",      icon: LayoutGrid,    proOnly: true  },
+      { id: "session-intelligence", href: "/dashboard/session-intelligence", label: "Trading Sessions", icon: Clock,         proOnly: true  },
+    ],
+  },
+  {
+    label: "INTELLIGENCE",
+    items: [
+      { id: "market-intelligence",  href: "/dashboard/market-intelligence",  label: "Insights",         icon: Brain,         proOnly: true  },
+      { id: "signals",              href: "/dashboard/signals",              label: "Signals",           icon: Activity,      proOnly: false },
+    ],
+  },
+  {
+    label: "MACRO",
+    items: [
+      { id: "catalysts",            href: "/dashboard/catalysts",            label: "Macro Events",     icon: AlertTriangle, proOnly: true  },
+      { id: "trump-monitor",        href: "/dashboard/trump-monitor",        label: "Trump Monitor",    icon: BarChart2,     proOnly: true  },
+      { id: "news-flow",            href: "/dashboard/news-flow",            label: "News Feed",        icon: Rss,           proOnly: false },
+      { id: "economic-calendar",    href: "/dashboard/economic-calendar",    label: "Calendar",         icon: Calendar,      proOnly: false },
+    ],
+  },
+  {
+    label: "TOOLS",
+    items: [
+      { id: "pnl-calendar",         href: "/dashboard/pnl-calendar",         label: "P&L Tracker",      icon: DollarSign,    proOnly: true  },
+      { id: "candle-analysis",      href: "/dashboard/candle-analysis",      label: "Candle Analysis",  icon: Zap,           proOnly: true  },
+      { id: "brain",                href: "/dashboard/brain",                label: "Trading Floor",    icon: Brain,         proOnly: false },
+      { id: "live-tv",              href: "/dashboard/live-tv",              label: "Live Feed",        icon: Tv,            proOnly: false },
+    ],
+  },
 ];
 
-// 4 items shown in the mobile bottom tab bar
-const MOBILE_TAB_ITEMS = [navItems[0], navItems[1], navItems[7], navItems[2]];
+const MOBILE_TAB_ITEMS = [
+  { label: "Dashboard", href: "/dashboard",                icon: LayoutDashboard },
+  { label: "Market",    href: "/dashboard/market-bias",   icon: TrendingUp       },
+  { label: "News",      href: "/dashboard/news-flow",     icon: Rss              },
+  { label: "Catalysts", href: "/dashboard/catalysts",     icon: AlertTriangle    },
+];
+
+// ── Push notification hook ────────────────────────────────────────────────────
+
+type PushStatus = "unsupported" | "denied" | "subscribed" | "unsubscribed";
+
+function usePushStatus() {
+  const [status, setStatus] = useState<PushStatus>("unsubscribed");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setStatus("unsupported"); return;
+    }
+    if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+      setStatus("denied"); return;
+    }
+    navigator.serviceWorker.ready
+      .then(sw => sw.pushManager.getSubscription())
+      .then(sub => { if (sub) setStatus("subscribed"); })
+      .catch(() => {});
+  }, []);
+
+  async function toggle() {
+    setBusy(true);
+    try {
+      if (status === "subscribed") {
+        const sw = await navigator.serviceWorker.ready;
+        const sub = await sw.pushManager.getSubscription();
+        if (sub) {
+          await fetch("/api/push/subscribe", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
+          await sub.unsubscribe();
+        }
+        setStatus("unsubscribed");
+      } else {
+        const perm = await Notification.requestPermission();
+        if (perm !== "granted") { setStatus("denied"); setBusy(false); return; }
+        const sw  = await navigator.serviceWorker.ready;
+        const res = await fetch("/api/push/subscribe");
+        const { publicKey } = await res.json();
+        const padding = "=".repeat((4 - (publicKey.length % 4)) % 4);
+        const base64  = (publicKey + padding).replace(/-/g, "+").replace(/_/g, "/");
+        const raw = window.atob(base64);
+        const arr = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+        const sub  = await sw.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: arr.buffer });
+        const save = await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sub) });
+        setStatus(save.ok ? "subscribed" : "unsubscribed");
+      }
+    } catch (err) {
+      toast.error(`Error: ${(err as Error)?.message ?? "unknown"}`);
+    }
+    setBusy(false);
+  }
+
+  return { status, busy, toggle };
+}
+
+// ── PnL performance mini widget ───────────────────────────────────────────────
+
+function SidebarPnlWidget() {
+  const [dailyPnl, setDailyPnl] = useState<number | null>(null);
+  const [winRate,  setWinRate]  = useState<number | null>(null);
+  const [session,  setSession]  = useState<string | null>(null);
+
+  useEffect(() => {
+    const getSession = () => {
+      const t = new Date().getUTCHours() * 60 + new Date().getUTCMinutes();
+      if (t >= 13 * 60 && t < 17 * 60) return "NY+LDN";
+      if (t >= 13 * 60 && t < 22 * 60) return "NY";
+      if (t >= 8 * 60  && t < 17 * 60) return "LDN";
+      if (t >= 0 * 60  && t < 9 * 60)  return "TYO";
+      if (t >= 22 * 60 || t < 7 * 60)  return "SYD";
+      return null;
+    };
+    setSession(getSession());
+    const id = setInterval(() => setSession(getSession()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/pnl").then(r => r.ok ? r.json() : null).then(json => {
+      if (!json) return;
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+      const cutoff = new Date(now.getTime() - 7 * 86_400_000);
+      const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth()+1).padStart(2,"0")}-${String(cutoff.getDate()).padStart(2,"0")}`;
+      type DayRow = { date: string; pnl: number; trades: number; wins: number };
+      const daily = (json.daily ?? []) as DayRow[];
+      setDailyPnl(daily.find((d: DayRow) => d.date === today)?.pnl ?? null);
+      const week = daily.filter((d: DayRow) => d.date >= cutoffStr && d.trades > 0);
+      const tot  = week.reduce((s: number, d: DayRow) => s + d.trades, 0);
+      const wins = week.reduce((s: number, d: DayRow) => s + d.wins, 0);
+      if (tot >= 1) setWinRate(Math.round((wins / tot) * 100));
+    }).catch(() => {});
+  }, []);
+
+  const hasSession = !!session;
+  const pnlPos  = dailyPnl !== null && dailyPnl >= 0;
+  const pnlVal  = dailyPnl !== null ? `${pnlPos ? "+" : ""}$${Math.abs(dailyPnl).toFixed(2)}` : "—";
+  const pnlClass = dailyPnl === null ? "text-zinc-700" : pnlPos ? "text-emerald-400" : "text-red-400";
+
+  return (
+    <div className="mx-3 mb-2">
+      <div className="rounded-lg border border-white/[0.06] overflow-hidden" style={{ background: "rgba(255,255,255,0.022)" }}>
+        <div className="flex items-center justify-between px-3 py-[5px] border-b border-white/[0.05]">
+          <span className="text-[8px] font-bold tracking-[0.18em] text-zinc-700 uppercase">Performance</span>
+          <span className="text-[8px] font-mono text-zinc-700">7 DAY</span>
+        </div>
+        <div className="grid grid-cols-2">
+          {[
+            { label: "Daily P&L",  value: pnlVal,                         sub: "TODAY",    cls: pnlClass,  br: true,  bb: true  },
+            { label: "Session",    value: session ?? "CLOSED",             sub: hasSession ? "ACTIVE" : "—", cls: hasSession ? "text-zinc-100" : "text-zinc-600", br: false, bb: true  },
+            { label: "Win Rate",   value: winRate !== null ? `${winRate}%` : "—", sub: "7D", cls: winRate !== null ? "text-zinc-100" : "text-zinc-700", br: true,  bb: false },
+            { label: "Avg R:R",    value: "—",                            sub: "NO DATA",  cls: "text-zinc-700", br: false, bb: false },
+          ].map(({ label, value, sub, cls, br, bb }) => (
+            <div key={label} className={cn("flex flex-col gap-[3px] px-3 py-[7px]", br && "border-r border-white/[0.05]", bb && "border-b border-white/[0.05]")}>
+              <span className="text-[7.5px] font-semibold uppercase tracking-[0.14em] text-zinc-600">{label}</span>
+              <div className="flex items-center gap-1">
+                {label === "Session" && (
+                  <div className={cn("w-[5px] h-[5px] rounded-full shrink-0", hasSession ? "bg-emerald-500" : "bg-zinc-700")} />
+                )}
+                <span className={cn("text-[12px] font-bold tabular-nums leading-none", cls)}>{value}</span>
+              </div>
+              <span className="text-[7px] font-mono text-zinc-700/50">{sub}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Sidebar ──────────────────────────────────────────────────────────────
 
 interface SidebarProps {
   onOpenKnowledge?: () => void;
@@ -42,295 +205,250 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
   const pathname = usePathname();
   const { settings, saveSettings } = useSettings();
   const { subscription } = useSubscription();
+  const push = usePushStatus();
   const [viewportWidth, setViewportWidth] = useState(1440);
   const [desktopHidden, setDesktopHidden] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [assetOpen, setAssetOpen] = useState(false);
+  const [traderName, setTraderName] = useState("");
+  const [avatar, setAvatar] = useState<string | null>(null);
+
   const isMobile = viewportWidth < 768;
-  const isCompact = !isMobile && viewportWidth < 1280;
-
   const selectedSymbol = settings.selectedSymbol ?? "XAUUSD";
+  const isPaid = subscription.isPro;
+  const planLabel = subscription.isPro ? "PRO" : subscription.isTrialing ? "TRIAL" : "FREE";
 
-  function selectAsset(sym: string) {
-    saveSettings({ ...settings, selectedSymbol: sym });
-    setAssetOpen(false);
-  }
-
-  function cycleAsset() {
-    const idx = AGENT_SYMBOLS.indexOf(selectedSymbol as typeof AGENT_SYMBOLS[number]);
-    const next = AGENT_SYMBOLS[(idx + 1) % AGENT_SYMBOLS.length];
-    selectAsset(next);
-  }
+  useEffect(() => {
+    setTraderName(localStorage.getItem("tradex_trader_name") || "");
+    setAvatar(localStorage.getItem("tradex_avatar"));
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "tradex_trader_name") setTraderName(e.newValue || "");
+      if (e.key === "tradex_avatar")      setAvatar(e.newValue);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-
     const storedHidden = window.localStorage.getItem(SIDEBAR_HIDDEN_STORAGE_KEY) === "1";
     setDesktopHidden(storedHidden);
     setViewportWidth(window.innerWidth);
-
-    const handleResize = () => {
-      setViewportWidth(window.innerWidth);
-    };
-
+    const handleResize = () => setViewportWidth(window.innerWidth);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-
     document.documentElement.style.setProperty(
       "--sidebar-current-width",
-      isMobile || desktopHidden ? "0px" : isCompact ? "60px" : "var(--sidebar-width)"
+      isMobile || desktopHidden ? "0px" : "var(--sidebar-width)"
     );
-  }, [desktopHidden, isCompact, isMobile]);
+  }, [desktopHidden, isMobile]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-
     window.localStorage.setItem(SIDEBAR_HIDDEN_STORAGE_KEY, desktopHidden ? "1" : "0");
   }, [desktopHidden]);
 
-  // Close mobile drawer on route change
-  React.useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [pathname]);
+  React.useEffect(() => { setMobileMenuOpen(false); }, [pathname]);
 
   function isActive(href: string) {
     return href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
   }
 
+  function cycleAsset() {
+    const idx = AGENT_SYMBOLS.indexOf(selectedSymbol as typeof AGENT_SYMBOLS[number]);
+    const next = AGENT_SYMBOLS[(idx + 1) % AGENT_SYMBOLS.length];
+    saveSettings({ ...settings, selectedSymbol: next });
+  }
+
   return (
     <>
-      {/* ── Desktop Sidebar (hidden on mobile) ──────────────────────────── */}
+      {/* ── Desktop Sidebar ──────────────────────────────────────────────── */}
       <aside
         className={cn(
           "hidden md:fixed md:left-0 md:top-0 md:z-40 md:flex md:h-screen md:flex-col",
-          "border-r border-[hsl(var(--border))] bg-[hsl(var(--card))] transition-all duration-300",
-          isCompact ? "md:w-[60px]" : "md:w-[var(--sidebar-width)]",
+          "border-r border-[hsl(var(--border))] bg-[hsl(var(--background))] transition-all duration-300",
+          "md:w-[var(--sidebar-width)]",
           desktopHidden ? "md:-translate-x-full" : "md:translate-x-0"
         )}
       >
-        {/* Logo */}
-        <div className="flex h-[var(--topbar-height)] items-center justify-between border-b border-[hsl(var(--border))] px-3">
-          {!isCompact && (
-            <Link href="/dashboard" className="flex items-center">
-              <TradeXLogo variant="wordmark" size="sm" />
-            </Link>
-          )}
-          {isCompact && (
-            <Link href="/dashboard" className="mx-auto">
+        {/* Header */}
+        <div className="px-4 pt-4 pb-3 border-b border-white/[0.06] shrink-0">
+          <div className="flex items-center gap-2 mb-3">
+            <Link href="/dashboard" className="shrink-0">
               <TradeXLogo variant="icon" size="sm" />
             </Link>
-          )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <p className="text-[12px] font-semibold text-zinc-100 truncate leading-none">
+                  {traderName || "Trader"}
+                </p>
+                <span className={cn(
+                  "text-[7px] font-bold tracking-widest px-1.5 py-[2px] rounded border leading-none shrink-0",
+                  isPaid
+                    ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                    : subscription.isTrialing
+                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                    : "bg-zinc-800 text-zinc-600 border-zinc-700"
+                )}>
+                  {isPaid && <Crown className="inline h-2 w-2 mr-0.5 -mt-px" />}
+                  {planLabel}
+                </span>
+              </div>
+              <p className="text-[9px] text-zinc-500 mt-[3px] uppercase tracking-wider leading-none">
+                Tradex Terminal
+              </p>
+            </div>
+            <button
+              onClick={() => setDesktopHidden(true)}
+              className="shrink-0 p-1 text-zinc-700 hover:text-zinc-300 transition-colors"
+              title="Hide sidebar"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {/* Asset chip */}
           <button
-            onClick={() => setDesktopHidden(true)}
-            className={cn(
-              "rounded-md p-1 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))] transition-colors",
-              isCompact && "mx-auto"
-            )}
-            title="Hide sidebar"
+            onClick={cycleAsset}
+            className="w-full flex items-center justify-between rounded-md bg-white/[0.04] border border-white/[0.06] px-2.5 py-1.5 hover:bg-white/[0.07] transition-colors"
           >
-            <ChevronLeft className="h-4 w-4 transition-transform" />
+            <span className="text-[10px] font-mono font-bold text-[hsl(var(--primary))]">
+              {getSymbolShort(selectedSymbol)}
+            </span>
+            <span className="text-[9px] text-zinc-600">{getSymbolLabel(selectedSymbol)}</span>
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2">
-          {isCompact ? (
-            /* Compact: single column icon-only cards */
-            <div className="flex flex-col gap-1">
-              {navItems.map((item) => {
-                const active = isActive(item.href);
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    title={item.label}
-                    className={cn(
-                      "flex flex-col items-center justify-center rounded-xl border py-3 transition-all",
-                      active
-                        ? "border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
-                        : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]"
-                    )}
-                  >
-                    <Icon
-                      className={cn(
-                        "h-[18px] w-[18px]",
-                        item.accent && !active && "text-amber-500/70",
-                        (item as any).accent2 && !active && "text-emerald-400/80"
-                      )}
-                    />
-                  </Link>
-                );
-              })}
-              <button
-                onClick={onOpenKnowledge}
-                title="Trading Knowledge"
-                className="flex flex-col items-center justify-center rounded-xl border border-violet-500/30 bg-violet-500/5 py-3 text-violet-400 transition-all hover:bg-violet-500/10"
-              >
-                <GraduationCap className="h-[18px] w-[18px]" />
-              </button>
-            </div>
-          ) : (
-            /* Full width: 2-column card grid matching mobile drawer style */
-            <div className="grid grid-cols-2 gap-1.5">
-              {navItems.map((item) => {
-                const active = isActive(item.href);
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      "flex flex-col items-center gap-2 rounded-xl border px-2 py-3.5 transition-all",
-                      active
-                        ? "border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
-                        : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]"
-                    )}
-                  >
-                    <Icon
-                      className={cn(
-                        "h-5 w-5",
-                        item.accent && !active && "text-amber-500/70",
-                        (item as any).accent2 && !active && "text-emerald-400/80"
-                      )}
-                    />
-                    <span className="text-[10px] font-semibold text-center leading-tight">{item.label}</span>
-                    {active && <div className="h-1 w-1 rounded-full bg-[hsl(var(--primary))]" />}
-                  </Link>
-                );
-              })}
+        {/* Scrollable nav */}
+        <nav className="flex-1 overflow-y-auto">
 
-              {/* Trading Knowledge */}
-              <button
-                onClick={onOpenKnowledge}
-                className="flex flex-col items-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/5 px-2 py-3.5 text-violet-400 transition-all hover:bg-violet-500/10"
-              >
-                <GraduationCap className="h-5 w-5" />
-                <span className="text-[10px] font-semibold text-center leading-tight">Knowledge</span>
-                <span className="text-[8px] font-bold uppercase tracking-wider text-violet-400/70 bg-violet-400/10 px-1.5 py-0.5 rounded">New</span>
-              </button>
-            </div>
-          )}
-        </nav>
-
-        {/* Asset Selector */}
-        <div className="border-t border-[hsl(var(--border))] px-2 py-2">
-          {!isCompact ? (
-            <div className="relative">
-              <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1 px-0.5">Active Asset</p>
-              <button
-                onClick={() => setAssetOpen((o) => !o)}
-                className="w-full flex items-center justify-between rounded-md px-2.5 py-1.5 text-[12px] font-medium bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--secondary))]/80 border border-[hsl(var(--border))] transition-colors"
-              >
-                <span className="flex items-center gap-2">
-                  <span className="font-mono text-[hsl(var(--primary))] text-[11px]">{getSymbolShort(selectedSymbol)}</span>
-                  <span className="text-zinc-500 text-[10px]">{getSymbolLabel(selectedSymbol)}</span>
-                </span>
-                <ChevronDown className={cn("h-3.5 w-3.5 text-zinc-500 transition-transform", assetOpen && "rotate-180")} />
-              </button>
-              {assetOpen && (
-                <div className="absolute bottom-full left-0 right-0 mb-1 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-xl overflow-hidden z-50">
-                  {AGENT_SYMBOLS.map((sym) => (
-                    <button
-                      key={sym}
-                      onClick={() => selectAsset(sym)}
-                      className={cn(
-                        "w-full flex items-center gap-2.5 px-3 py-2 text-[12px] transition-colors",
-                        selectedSymbol === sym
-                          ? "bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
-                          : "hover:bg-[hsl(var(--secondary))] text-zinc-300"
-                      )}
-                    >
-                      <span className="font-mono text-[11px]">{getSymbolShort(sym)}</span>
-                      <span className="text-zinc-500 text-[10px]">{getSymbolLabel(sym)}</span>
-                      {selectedSymbol === sym && (
-                        <span className="ml-auto text-[8px] font-bold uppercase tracking-widest text-[hsl(var(--primary))]/70">Active</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
+          {/* Dashboard */}
+          <div className="px-3 pt-2 pb-0">
+            <Link
+              href="/dashboard"
+              className={cn(
+                "flex items-center gap-3 px-1 py-[7px] transition-colors",
+                pathname === "/dashboard"
+                  ? "border-l-2 border-emerald-500 pl-[2px] bg-white/[0.03] text-zinc-100"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.03]"
               )}
-            </div>
-          ) : (
-            <div className="flex justify-center">
-              <button
-                onClick={cycleAsset}
-                className="rounded-md px-1.5 py-1 text-[10px] font-mono font-bold text-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 hover:bg-[hsl(var(--primary))]/15 transition-colors"
-                title={`Active: ${selectedSymbol} — click to switch`}
-              >
-                {selectedSymbol.slice(0, 3)}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Trial Banner */}
-        {subscription.isTrialing && (
-          <div className="px-2 pb-2">
-            {!isCompact ? (
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.07] px-3 py-2.5">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Free Trial</span>
-                  <span className="text-[10px] font-mono font-bold text-amber-400">
-                    {subscription.trialDaysLeft}d left
-                  </span>
-                </div>
-                <div className="h-1 w-full rounded-full bg-white/10 overflow-hidden mb-2">
-                  <div
-                    className="h-full rounded-full bg-amber-400 transition-all"
-                    style={{ width: `${Math.max(5, (subscription.trialDaysLeft / 7) * 100)}%` }}
-                  />
-                </div>
-                <Link
-                  href="/pricing"
-                  className="flex items-center justify-center w-full rounded-lg bg-amber-500/20 border border-amber-500/30 py-1.5 text-[10px] font-bold text-amber-400 hover:bg-amber-500/30 transition-all"
-                >
-                  Upgrade to Pro
-                </Link>
-              </div>
-            ) : (
-              <Link href="/pricing" title={`${subscription.trialDaysLeft} days left in trial`}>
-                <div className="flex flex-col items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 py-1.5">
-                  <span className="text-[9px] font-mono font-bold text-amber-400">{subscription.trialDaysLeft}d</span>
-                </div>
-              </Link>
-            )}
+            >
+              <LayoutDashboard className="h-3 w-3 shrink-0 opacity-50" strokeWidth={1.5} />
+              <span className="text-[11.5px] font-medium tracking-[0.01em]">Dashboard</span>
+            </Link>
           </div>
-        )}
 
-        {/* Bottom */}
-        <div className="border-t border-[hsl(var(--border))] p-3">
-          {!isCompact ? (
-            <div className="flex items-center gap-2">
-              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 pulse-live" />
-              <span className="text-[10px] uppercase tracking-widest text-[hsl(var(--muted-foreground))]">
-                Live Terminal
-              </span>
+          {SECTIONS.map((section) => (
+            <div key={section.label}>
+              <div className="flex items-center gap-2 px-4 pt-3 pb-[3px]">
+                <span className="text-[8px] font-semibold tracking-[0.12em] text-zinc-500/60 shrink-0">{section.label}</span>
+                <div className="flex-1 h-px bg-white/[0.05]" />
+              </div>
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.href);
+                const locked = item.proOnly && !subscription.hasFullAccess;
+                return (
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-[7px] transition-colors",
+                      active
+                        ? "border-l-2 border-emerald-500 bg-white/[0.03] pl-[14px] text-zinc-100"
+                        : "hover:bg-white/[0.03]",
+                      locked ? "text-zinc-600" : active ? "" : "text-zinc-400"
+                    )}
+                  >
+                    <Icon className={cn("h-3 w-3 shrink-0", locked ? "opacity-20" : "opacity-50")} strokeWidth={1.5} />
+                    <span className={cn("flex-1 text-[11.5px] tracking-[0.01em]", locked ? "font-normal" : "font-medium")}>
+                      {item.label}
+                    </span>
+                    {locked && <span className="text-[8px] font-mono uppercase tracking-widest text-zinc-600">PRO</span>}
+                  </Link>
+                );
+              })}
             </div>
-          ) : (
-            <div className="flex justify-center">
-              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 pulse-live" />
+          ))}
+
+          {/* ACCOUNT */}
+          <div>
+            <div className="flex items-center gap-2 px-4 pt-3 pb-[3px]">
+              <span className="text-[8px] font-semibold tracking-[0.12em] text-zinc-500/60 shrink-0">ACCOUNT</span>
+              <div className="flex-1 h-px bg-white/[0.05]" />
             </div>
-          )}
-        </div>
+
+            {/* Alerts */}
+            <button
+              onClick={push.status === "subscribed" || push.status === "unsubscribed" ? push.toggle : undefined}
+              disabled={push.busy || push.status === "denied" || push.status === "unsupported"}
+              className="w-full flex items-center gap-3 px-4 py-[7px] hover:bg-white/[0.03] transition-colors disabled:opacity-40"
+            >
+              {push.busy
+                ? <Loader2 className="h-3 w-3 shrink-0 opacity-50 animate-spin text-zinc-400" strokeWidth={1.5} />
+                : push.status === "subscribed"
+                ? <Bell    className="h-3 w-3 shrink-0 opacity-60 text-emerald-500" strokeWidth={1.5} />
+                : <BellOff className="h-3 w-3 shrink-0 opacity-50 text-zinc-500" strokeWidth={1.5} />
+              }
+              <span className="flex-1 text-[11.5px] font-medium text-zinc-300 text-left tracking-[0.01em]">Alerts</span>
+              <div className={cn("w-8 h-[18px] rounded-full relative shrink-0 transition-colors", push.status === "subscribed" ? "bg-emerald-500/80" : "bg-zinc-800")}>
+                <div className={cn("absolute top-[2px] w-[14px] h-[14px] bg-white rounded-full shadow transition-transform", push.status === "subscribed" ? "translate-x-[16px]" : "translate-x-[2px]")} />
+              </div>
+            </button>
+
+            {/* Knowledge Base */}
+            <button
+              onClick={onOpenKnowledge}
+              className="w-full flex items-center gap-3 px-4 py-[7px] hover:bg-white/[0.03] transition-colors text-zinc-400"
+            >
+              <GraduationCap className="h-3 w-3 shrink-0 opacity-50 text-violet-400" strokeWidth={1.5} />
+              <span className="flex-1 text-[11.5px] font-medium text-left tracking-[0.01em]">Knowledge Base</span>
+            </button>
+
+            {/* Settings */}
+            <Link
+              href="/dashboard/settings"
+              className={cn(
+                "flex items-center gap-3 px-4 py-[7px] transition-colors",
+                isActive("/dashboard/settings")
+                  ? "border-l-2 border-emerald-500 bg-white/[0.03] pl-[14px] text-zinc-100"
+                  : "hover:bg-white/[0.03] text-zinc-400"
+              )}
+            >
+              <Settings2 className="h-3 w-3 shrink-0 opacity-50" strokeWidth={1.5} />
+              <span className="text-[11.5px] font-medium tracking-[0.01em]">Settings</span>
+            </Link>
+          </div>
+
+          {/* PnL widget */}
+          <div className="mt-3">
+            <SidebarPnlWidget />
+          </div>
+
+          {/* Live indicator */}
+          <div className="flex items-center gap-2 px-4 py-3 border-t border-white/[0.05]">
+            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 pulse-live" />
+            <span className="text-[9px] uppercase tracking-widest text-zinc-600">Live Terminal</span>
+          </div>
+        </nav>
       </aside>
 
-      {!isMobile && desktopHidden ? (
+      {/* Show button when hidden */}
+      {!isMobile && desktopHidden && (
         <button
           type="button"
           onClick={() => setDesktopHidden(false)}
-          className="hidden md:fixed md:left-3 md:top-3 md:z-50 md:flex md:h-9 md:w-9 md:items-center md:justify-center rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]"
+          className="hidden md:fixed md:left-3 md:top-3 md:z-50 md:flex md:h-9 md:w-9 md:items-center md:justify-center rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))] transition-colors"
           title="Show sidebar"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
-      ) : null}
+      )}
 
-      {/* ── Mobile Bottom Tab Bar ───────────────────────────────────────── */}
+      {/* ── Mobile Bottom Tab Bar ─────────────────────────────────────────── */}
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-stretch bg-[hsl(var(--card))]/95 backdrop-blur-md border-t border-[hsl(var(--border))]"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
@@ -347,9 +465,7 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
                 active ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]"
               )}
             >
-              {active && (
-                <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full bg-[hsl(var(--primary))]" />
-              )}
+              {active && <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full bg-[hsl(var(--primary))]" />}
               <Icon className="h-[18px] w-[18px]" />
               <span className="text-[9px] font-semibold uppercase tracking-wide leading-none">
                 {item.label.split(" ")[0]}
@@ -358,7 +474,6 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
           );
         })}
 
-        {/* More button */}
         <button
           onClick={() => setMobileMenuOpen(true)}
           className="flex flex-1 flex-col items-center justify-center gap-1 py-2.5 text-[hsl(var(--muted-foreground))] transition-colors"
@@ -368,26 +483,20 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
         </button>
       </nav>
 
-      {/* ── Mobile Full Menu Drawer ─────────────────────────────────────── */}
+      {/* ── Mobile Full Menu Drawer ───────────────────────────────────────── */}
       {mobileMenuOpen && (
         <>
-          {/* Backdrop */}
           <div
             className="md:hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
             onClick={() => setMobileMenuOpen(false)}
           />
-
-          {/* Sheet */}
           <div
             className="md:hidden fixed bottom-0 left-0 right-0 z-[70] rounded-t-2xl border-t border-[hsl(var(--border))] bg-[hsl(var(--card))]"
             style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}
           >
-            {/* Pull handle */}
             <div className="flex justify-center pt-3 pb-2">
               <div className="h-1 w-10 rounded-full bg-[hsl(var(--border))]" />
             </div>
-
-            {/* Header */}
             <div className="flex items-center justify-between px-5 pb-3">
               <div className="flex items-center gap-2">
                 <TradeXLogo variant="icon" size="xs" />
@@ -400,15 +509,29 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
                 <X className="h-4 w-4" />
               </button>
             </div>
-
-            {/* Nav grid */}
             <div className="px-4 pb-2 grid grid-cols-3 gap-2 overflow-y-auto" style={{ maxHeight: "55vh" }}>
-              {navItems.map((item) => {
+              {[
+                ...SECTIONS.flatMap(s => s.items),
+                { id: "knowledge", href: "#",                       label: "Knowledge", icon: GraduationCap, proOnly: false },
+                { id: "settings",  href: "/dashboard/settings",     label: "Settings",  icon: Settings2,     proOnly: false },
+              ].map((item) => {
                 const active = isActive(item.href);
                 const Icon = item.icon;
+                if (item.id === "knowledge") {
+                  return (
+                    <button
+                      key="knowledge"
+                      onClick={() => { setMobileMenuOpen(false); onOpenKnowledge?.(); }}
+                      className="flex flex-col items-center gap-2.5 rounded-xl border border-violet-500/30 bg-violet-500/5 px-2 py-4 text-violet-400 transition-all hover:bg-violet-500/10"
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span className="text-[10px] font-semibold text-center leading-tight">{item.label}</span>
+                    </button>
+                  );
+                }
                 return (
                   <Link
-                    key={item.href}
+                    key={item.id}
                     href={item.href}
                     onClick={() => setMobileMenuOpen(false)}
                     className={cn(
@@ -418,34 +541,12 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
                         : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]"
                     )}
                   >
-                    <Icon
-                      className={cn(
-                        "h-5 w-5",
-                        item.accent && !active && "text-amber-500/70",
-                        (item as any).accent2 && !active && "text-emerald-400/80",
-                        (item as any).accent3 && !active && "text-blue-400/80"
-                      )}
-                    />
+                    <Icon className="h-5 w-5" />
                     <span className="text-[10px] font-semibold text-center leading-tight">{item.label}</span>
                     {active && <div className="h-1 w-1 rounded-full bg-[hsl(var(--primary))]" />}
                   </Link>
                 );
               })}
-
-              {/* Trading Knowledge  -  inside the grid so it's always visible */}
-              <button
-                onClick={() => { setMobileMenuOpen(false); onOpenKnowledge?.(); }}
-                className="flex flex-col items-center gap-2.5 rounded-xl border border-violet-500/30 bg-violet-500/5 px-2 py-4 text-violet-400 transition-all hover:bg-violet-500/10"
-              >
-                <GraduationCap className="h-5 w-5" />
-                <span className="text-[10px] font-semibold text-center leading-tight">Knowledge</span>
-              </button>
-            </div>
-
-            {/* Live indicator */}
-            <div className="flex items-center justify-center gap-2 pt-3 pb-1">
-              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 pulse-live" />
-              <span className="text-[10px] uppercase tracking-widest text-[hsl(var(--muted-foreground))]">Live Terminal</span>
             </div>
           </div>
         </>
