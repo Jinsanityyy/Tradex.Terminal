@@ -31,6 +31,9 @@ jobs:
             c = c.replace('appName: \"TradeX\"', 'appName: \"TradeX Dev\"');
             c = c.replace(/url:\s*\"[^\"]+\"/, 'url: \"' + process.env.DEV_URL + '\"');
             fs.writeFileSync('capacitor.config.ts', c);
+            let g = fs.readFileSync('android/app/build.gradle', 'utf8');
+            g = g.replace('applicationId \"com.tradex.terminal\"', 'applicationId \"com.tradex.terminal.dev\"');
+            fs.writeFileSync('android/app/build.gradle', g);
           "
       - name: Create assets dir
         run: mkdir -p android/app/src/main/assets
