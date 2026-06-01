@@ -35,7 +35,6 @@ const SECTIONS = [
     label: "INTELLIGENCE",
     items: [
       { id: "market-intelligence",  href: "/dashboard/market-intelligence",  label: "Insights",         icon: Brain,         proOnly: true  },
-      { id: "signals",              href: "/dashboard/signals",              label: "Signals",           icon: Activity,      proOnly: false },
     ],
   },
   {

@@ -59,7 +59,7 @@ const ALL_APPS: AppDef[] = [
 
 const SECTIONS = [
   { label: "MARKET",       appIds: ["market-bias", "asset-matrix", "session-intelligence"] },
-  { label: "INTELLIGENCE", appIds: ["market-intelligence", "signals"] },
+  { label: "INTELLIGENCE", appIds: ["market-intelligence"] },
   { label: "MACRO",        appIds: ["catalysts", "trump-monitor", "news-flow", "economic-calendar"] },
   { label: "TOOLS",        appIds: ["pnl-calendar", "candle-analysis", "brain", "live-tv"] },
 ];
