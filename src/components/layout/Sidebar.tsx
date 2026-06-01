@@ -12,9 +12,8 @@ import {
   ChevronLeft, ChevronRight, Menu, X, GraduationCap, LayoutDashboard,
 } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
-import { useSettings } from "@/contexts/SettingsContext";
-import { AGENT_SYMBOLS, getSymbolLabel, getSymbolShort } from "@/lib/assetImpact";
 import { useSubscription } from "@/hooks/useSubscription";
+import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelectorSheet";
 
 const SIDEBAR_HIDDEN_STORAGE_KEY = "tradex-sidebar-hidden-v1";
 
@@ -146,15 +145,14 @@ interface SidebarProps {
 
 export function Sidebar({ onOpenKnowledge }: SidebarProps) {
   const pathname = usePathname();
-  const { settings, saveSettings } = useSettings();
   const { subscription } = useSubscription();
   const [viewportWidth, setViewportWidth] = useState(1440);
   const [desktopHidden, setDesktopHidden] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [traderName, setTraderName] = useState("");
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const isMobile = viewportWidth < 768;
-  const selectedSymbol = settings.selectedSymbol ?? "XAUUSD";
   const isPaid = subscription.isPro;
   const planLabel = subscription.isPro ? "PRO" : subscription.isTrialing ? "TRIAL" : "FREE";
 
@@ -196,14 +194,10 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
     return href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
   }
 
-  function cycleAsset() {
-    const idx = AGENT_SYMBOLS.indexOf(selectedSymbol as typeof AGENT_SYMBOLS[number]);
-    const next = AGENT_SYMBOLS[(idx + 1) % AGENT_SYMBOLS.length];
-    saveSettings({ ...settings, selectedSymbol: next });
-  }
-
   return (
     <>
+      <AssetSelectorSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
+
       {/* ── Desktop Sidebar ──────────────────────────────────────────────── */}
       <aside
         className={cn(
@@ -215,7 +209,7 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
       >
         {/* Header */}
         <div className="px-4 pt-4 pb-3 border-b border-white/[0.06] shrink-0">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2">
             <Link href="/dashboard" className="shrink-0">
               <TradeXLogo variant="icon" size="sm" />
             </Link>
@@ -240,6 +234,8 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
                 Tradex Terminal
               </p>
             </div>
+            {/* Asset chip — right side, mirrors mobile header */}
+            <AssetChip size="sm" onPress={() => setSheetOpen(true)} />
             <button
               onClick={() => setDesktopHidden(true)}
               className="shrink-0 p-1 text-zinc-700 hover:text-zinc-300 transition-colors"
@@ -333,28 +329,11 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
             </Link>
           </div>
 
-          {/* PnL widget */}
-          <div className="mt-3">
-            <SidebarPnlWidget />
-          </div>
         </nav>
 
-        {/* ── Footer: asset selector + live indicator ──────────────────────── */}
+        {/* ── Footer: performance + live indicator ─────────────────────────── */}
         <div className="shrink-0 border-t border-white/[0.06]">
-          {/* Asset selector */}
-          <div className="px-3 pt-3 pb-2">
-            <p className="text-[8px] uppercase tracking-[0.12em] text-zinc-600 mb-1 px-0.5">Active Asset</p>
-            <button
-              onClick={cycleAsset}
-              className="w-full flex items-center justify-between rounded-md bg-white/[0.04] border border-white/[0.06] px-2.5 py-1.5 hover:bg-white/[0.07] transition-colors"
-              title="Click to switch asset"
-            >
-              <span className="text-[10px] font-mono font-bold text-[hsl(var(--primary))]">
-                {getSymbolShort(selectedSymbol)}
-              </span>
-              <span className="text-[9px] text-zinc-600">{getSymbolLabel(selectedSymbol)}</span>
-            </button>
-          </div>
+          <SidebarPnlWidget />
 
           {/* Live indicator */}
           <div className="flex items-center gap-2 px-4 py-3 border-t border-white/[0.05]">
