@@ -156,7 +156,7 @@ public class TradeXMessagingService extends MessagingService {
         // Decode at native size (no auto-upscaling) to avoid OOM on high-density devices
         BitmapFactory.Options opts = new BitmapFactory.Options();
         opts.inScaled = false;
-        Bitmap logo = BitmapFactory.decodeResource(getResources(), R.drawable.ic_tradex_large, opts);
+        Bitmap logo = BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher, opts);
         if (logo == null) return null;
         int targetSize = Math.max(96, Math.round(64 * getResources().getDisplayMetrics().density));
         Bitmap scaled = Bitmap.createScaledBitmap(logo, targetSize, targetSize, true);
