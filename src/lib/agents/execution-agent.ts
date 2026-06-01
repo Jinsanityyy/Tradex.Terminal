@@ -559,6 +559,15 @@ export async function runExecutionAgent(
       signalStateReason = `Price is ${distanceToEntry.toFixed(2)}% away from entry at ${entry.toFixed(p)}. Monitor  -  no action yet.`;
     }
 
+    // Override: if price has already moved through the SL level before entry was
+    // triggered, the structural basis of the setup is gone — mark as EXPIRED so
+    // the UI does not keep showing ARMED/PENDING on a dead setup.
+    const slBreachedBeforeEntry = isBullish ? current <= stopLoss : current >= stopLoss;
+    if (slBreachedBeforeEntry) {
+      signalState       = "EXPIRED";
+      signalStateReason = `Price (${current.toFixed(p)}) moved through SL (${stopLoss.toFixed(p)}) before entry triggered. Setup invalidated  -  wait for a new setup.`;
+    }
+
     return {
       agentId: "execution",
       hasSetup: true,
