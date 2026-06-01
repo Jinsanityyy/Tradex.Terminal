@@ -88,10 +88,17 @@ export function computeConsensus(
   items.push(agentScore("trend", trend.bias, trendConf, weights.trend));
 
   // ── SMC Agent (highest directional weight) ────────────────────────────────
-  // Boost weight when a concrete setup is confirmed. No penalty when absent  - 
-  // the agent's confidence is already low (40) when no setup is present, which
-  // naturally reduces its contribution without a separate weight cut.
-  const smcWeight = weights.smc + (smc.setupPresent ? 0.08 : 0);
+  // Boost weight when a concrete setup is confirmed.
+  // De-correlation: when SMC has NO independent setup (no sweep/FVG/OB) its bias
+  // simply defaults to the daily htfBias — the same underlying drift signal the
+  // Trend agent already votes on. Counting it at full weight creates an illusory
+  // "two agents agree" consensus. Halve its weight in that echo case so the
+  // multi-agent score reflects genuinely independent signals.
+  const smcHasIndependentSignal = smc.setupPresent || smc.liquiditySweepDetected;
+  let smcWeight = weights.smc + (smc.setupPresent ? 0.08 : 0);
+  if (!smcHasIndependentSignal && smc.bias !== "neutral" && smc.bias === trend.bias) {
+    smcWeight *= 0.5;
+  }
   items.push(agentScore("smc", smc.bias, smc.confidence, clamp(smcWeight, 0, 0.5)));
 
   // ── News Agent (supports / opposes) ───────────────────────────────────────
