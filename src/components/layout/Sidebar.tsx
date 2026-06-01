@@ -7,15 +7,14 @@ import { cn } from "@/lib/utils";
 import {
   TrendingUp, Brain, Clock, LayoutGrid,
   AlertTriangle, Calendar, Activity, Rss,
-  DollarSign, Tv, BookOpen, Settings2,
-  Bell, BellOff, Loader2, Crown, Zap, BarChart2,
+  DollarSign, Tv, Settings2,
+  Crown, Zap, BarChart2,
   ChevronLeft, ChevronRight, Menu, X, GraduationCap, LayoutDashboard,
 } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import { useSettings } from "@/contexts/SettingsContext";
 import { AGENT_SYMBOLS, getSymbolLabel, getSymbolShort } from "@/lib/assetImpact";
 import { useSubscription } from "@/hooks/useSubscription";
-import { toast } from "sonner";
 
 const SIDEBAR_HIDDEN_STORAGE_KEY = "tradex-sidebar-hidden-v1";
 
@@ -63,62 +62,6 @@ const MOBILE_TAB_ITEMS = [
   { label: "News",      href: "/dashboard/news-flow",     icon: Rss              },
   { label: "Catalysts", href: "/dashboard/catalysts",     icon: AlertTriangle    },
 ];
-
-// ── Push notification hook ────────────────────────────────────────────────────
-
-type PushStatus = "unsupported" | "denied" | "subscribed" | "unsubscribed";
-
-function usePushStatus() {
-  const [status, setStatus] = useState<PushStatus>("unsubscribed");
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
-      setStatus("unsupported"); return;
-    }
-    if (typeof Notification !== "undefined" && Notification.permission === "denied") {
-      setStatus("denied"); return;
-    }
-    navigator.serviceWorker.ready
-      .then(sw => sw.pushManager.getSubscription())
-      .then(sub => { if (sub) setStatus("subscribed"); })
-      .catch(() => {});
-  }, []);
-
-  async function toggle() {
-    setBusy(true);
-    try {
-      if (status === "subscribed") {
-        const sw = await navigator.serviceWorker.ready;
-        const sub = await sw.pushManager.getSubscription();
-        if (sub) {
-          await fetch("/api/push/subscribe", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
-          await sub.unsubscribe();
-        }
-        setStatus("unsubscribed");
-      } else {
-        const perm = await Notification.requestPermission();
-        if (perm !== "granted") { setStatus("denied"); setBusy(false); return; }
-        const sw  = await navigator.serviceWorker.ready;
-        const res = await fetch("/api/push/subscribe");
-        const { publicKey } = await res.json();
-        const padding = "=".repeat((4 - (publicKey.length % 4)) % 4);
-        const base64  = (publicKey + padding).replace(/-/g, "+").replace(/_/g, "/");
-        const raw = window.atob(base64);
-        const arr = new Uint8Array(raw.length);
-        for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
-        const sub  = await sw.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: arr.buffer });
-        const save = await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sub) });
-        setStatus(save.ok ? "subscribed" : "unsubscribed");
-      }
-    } catch (err) {
-      toast.error(`Error: ${(err as Error)?.message ?? "unknown"}`);
-    }
-    setBusy(false);
-  }
-
-  return { status, busy, toggle };
-}
 
 // ── PnL performance mini widget ───────────────────────────────────────────────
 
@@ -205,12 +148,10 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
   const pathname = usePathname();
   const { settings, saveSettings } = useSettings();
   const { subscription } = useSubscription();
-  const push = usePushStatus();
   const [viewportWidth, setViewportWidth] = useState(1440);
   const [desktopHidden, setDesktopHidden] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [traderName, setTraderName] = useState("");
-  const [avatar, setAvatar] = useState<string | null>(null);
 
   const isMobile = viewportWidth < 768;
   const selectedSymbol = settings.selectedSymbol ?? "XAUUSD";
@@ -219,10 +160,8 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
 
   useEffect(() => {
     setTraderName(localStorage.getItem("tradex_trader_name") || "");
-    setAvatar(localStorage.getItem("tradex_avatar"));
     const onStorage = (e: StorageEvent) => {
       if (e.key === "tradex_trader_name") setTraderName(e.newValue || "");
-      if (e.key === "tradex_avatar")      setAvatar(e.newValue);
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
@@ -309,17 +248,6 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
               <ChevronLeft className="h-3.5 w-3.5" />
             </button>
           </div>
-
-          {/* Asset chip */}
-          <button
-            onClick={cycleAsset}
-            className="w-full flex items-center justify-between rounded-md bg-white/[0.04] border border-white/[0.06] px-2.5 py-1.5 hover:bg-white/[0.07] transition-colors"
-          >
-            <span className="text-[10px] font-mono font-bold text-[hsl(var(--primary))]">
-              {getSymbolShort(selectedSymbol)}
-            </span>
-            <span className="text-[9px] text-zinc-600">{getSymbolLabel(selectedSymbol)}</span>
-          </button>
         </div>
 
         {/* Scrollable nav */}
@@ -381,24 +309,6 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
               <div className="flex-1 h-px bg-white/[0.05]" />
             </div>
 
-            {/* Alerts */}
-            <button
-              onClick={push.status === "subscribed" || push.status === "unsubscribed" ? push.toggle : undefined}
-              disabled={push.busy || push.status === "denied" || push.status === "unsupported"}
-              className="w-full flex items-center gap-3 px-4 py-[7px] hover:bg-white/[0.03] transition-colors disabled:opacity-40"
-            >
-              {push.busy
-                ? <Loader2 className="h-3 w-3 shrink-0 opacity-50 animate-spin text-zinc-400" strokeWidth={1.5} />
-                : push.status === "subscribed"
-                ? <Bell    className="h-3 w-3 shrink-0 opacity-60 text-emerald-500" strokeWidth={1.5} />
-                : <BellOff className="h-3 w-3 shrink-0 opacity-50 text-zinc-500" strokeWidth={1.5} />
-              }
-              <span className="flex-1 text-[11.5px] font-medium text-zinc-300 text-left tracking-[0.01em]">Alerts</span>
-              <div className={cn("w-8 h-[18px] rounded-full relative shrink-0 transition-colors", push.status === "subscribed" ? "bg-emerald-500/80" : "bg-zinc-800")}>
-                <div className={cn("absolute top-[2px] w-[14px] h-[14px] bg-white rounded-full shadow transition-transform", push.status === "subscribed" ? "translate-x-[16px]" : "translate-x-[2px]")} />
-              </div>
-            </button>
-
             {/* Knowledge Base */}
             <button
               onClick={onOpenKnowledge}
@@ -427,13 +337,31 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
           <div className="mt-3">
             <SidebarPnlWidget />
           </div>
+        </nav>
+
+        {/* ── Footer: asset selector + live indicator ──────────────────────── */}
+        <div className="shrink-0 border-t border-white/[0.06]">
+          {/* Asset selector */}
+          <div className="px-3 pt-3 pb-2">
+            <p className="text-[8px] uppercase tracking-[0.12em] text-zinc-600 mb-1 px-0.5">Active Asset</p>
+            <button
+              onClick={cycleAsset}
+              className="w-full flex items-center justify-between rounded-md bg-white/[0.04] border border-white/[0.06] px-2.5 py-1.5 hover:bg-white/[0.07] transition-colors"
+              title="Click to switch asset"
+            >
+              <span className="text-[10px] font-mono font-bold text-[hsl(var(--primary))]">
+                {getSymbolShort(selectedSymbol)}
+              </span>
+              <span className="text-[9px] text-zinc-600">{getSymbolLabel(selectedSymbol)}</span>
+            </button>
+          </div>
 
           {/* Live indicator */}
           <div className="flex items-center gap-2 px-4 py-3 border-t border-white/[0.05]">
             <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 pulse-live" />
             <span className="text-[9px] uppercase tracking-widest text-zinc-600">Live Terminal</span>
           </div>
-        </nav>
+        </div>
       </aside>
 
       {/* Show button when hidden */}
