@@ -57,7 +57,7 @@ export async function broadcast(payload: PushPayload): Promise<void> {
       sends.push(sendFcmToMany(fcmTokens, payload).catch(() => {}));
     }
 
-    if (webSubs.length > 0 && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PR_ATE_KEY) {
+    if (webSubs.length > 0 && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
       sends.push(sendPushToMany(webSubs, payload).catch(() => {}));
     }
 

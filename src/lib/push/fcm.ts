@@ -57,6 +57,16 @@ export async function sendFcmToToken(
           tag: payload.tag,
         },
       },
+      apns: {
+        headers: { "apns-priority": "10" },
+        payload: {
+          aps: {
+            sound: "default",
+            badge: 1,
+            contentAvailable: true,
+          },
+        },
+      },
     });
     return { ok: true, messageId };
   } catch (err: unknown) {
