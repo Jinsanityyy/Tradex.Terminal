@@ -300,22 +300,29 @@ function buildStructureDriver(
   const price = snapshot.price.current;
   const formattedPrice = fmtPrice(price);
 
+  // When SMC and trend disagree, show MIXED instead of blindly using smc.bias
+  const agentsAgree = smc.bias === trend.bias || trend.bias === "neutral";
+  const effectiveBias = agentsAgree ? smc.bias : "neutral";
+
   const biasPhrase =
-    smc.bias === "bullish" ? "RESETS BULLISH" :
-    smc.bias === "bearish" ? "CONFIRMS BEARISH" :
-    "STRUCTURE MIXED";
+    effectiveBias === "bullish" ? "RESETS BULLISH" :
+    effectiveBias === "bearish" ? "CONFIRMS BEARISH" :
+    smc.chochDetected            ? "POTENTIAL REVERSAL"
+                                 : "STRUCTURE MIXED";
 
   // Most significant structure event detected
   let eventPhrase = "KEY LEVEL HELD";
-  if (smc.chochDetected)          eventPhrase = "CHoCH CONFIRMED";
-  else if (smc.bosDetected)       eventPhrase = "BOS CONFIRMED";
+  if (smc.chochDetected)               eventPhrase = "CHoCH CONFIRMED";
+  else if (smc.bosDetected)            eventPhrase = "BOS CONFIRMED";
   else if (smc.liquiditySweepDetected) eventPhrase = "LIQUIDITY SWEPT";
   else if (smc.setupPresent && smc.setupType !== "None")
-                                   eventPhrase = `${smc.setupType} ACTIVE`;
+                                       eventPhrase = `${smc.setupType} ACTIVE`;
 
   const title = `$${formattedPrice} — ${eventPhrase} · ${biasPhrase}`;
 
-  const impactTag = resolveImpactTag(smc.bias);
+  const impactTag = resolveImpactTag(
+    agentsAgree ? smc.bias : "neutral"
+  );
 
   // SMC reasons (up to 3) + trend reasons (up to 2), all price-highlighted
   const smcBullets: React.ReactNode[] = (smc.reasons ?? [])
