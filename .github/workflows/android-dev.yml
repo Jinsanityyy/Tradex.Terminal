@@ -5,34 +5,22 @@ on:
     branches: [develop]
 
 jobs:
-  build-dev-apk:
-    name: Build Debug APK → Firebase App Distribution
+  build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
+      - run: npm ci
       - uses: actions/setup-java@v4
         with:
           java-version: 17
           distribution: temurin
-
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-
-      # Patch capacitor.config.ts for the dev variant:
-      #   - appId  → com.tradex.terminal.dev  (installs alongside production)
-      #   - appName → TradeX Dev
-      #   - server.url → develop-branch Vercel preview (DEV_SERVER_URL secret)
-      - name: Patch Capacitor config for dev
+      - name: Patch config for dev
         env:
           DEV_URL: ${{ secrets.DEV_SERVER_URL }}
         run: |
@@ -44,22 +32,13 @@ jobs:
             c = c.replace(/url:\s*\"[^\"]+\"/, 'url: \"' + process.env.DEV_URL + '\"');
             fs.writeFileSync('capacitor.config.ts', c);
           "
-
-      - name: Sync Capacitor (web assets → Android)
-        run: npx cap sync android
-
-      - name: Build debug APK
+      - run: npx cap sync android
+      - name: Build APK
         working-directory: android
         run: ./gradlew assembleDebug
-
-      - name: Distribute to Firebase App Distribution
-        uses: wzieba/Firebase-Distribution-Github-Action@v1
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
-          appId: ${{ secrets.FIREBASE_APP_ID_DEV }}
-          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DEV }}
-          groups: testers
-          file: android/app/build/outputs/apk/debug/app-debug.apk
-          releaseNotes: |
-            Branch: ${{ github.ref_name }}
-            Commit: ${{ github.sha }}
-            ${{ github.event.head_commit.message }}
+          name: TradeX-Dev
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
