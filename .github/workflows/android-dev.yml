@@ -1,0 +1,60 @@
+name: Android Dev Build
+
+on:
+  push:
+    branches: [develop]
+
+jobs:
+  build-dev-apk:
+    name: Build Debug APK → artifact
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      # Patch capacitor.config.ts in-place for the dev variant:
+      #   - appId  → com.tradex.terminal.dev  (so both apps can coexist on device)
+      #   - appName → TradeX Dev
+      #   - server.url → your develop-branch Vercel preview URL (DEV_SERVER_URL secret)
+      - name: Patch Capacitor config for dev
+        env:
+          DEV_URL: ${{ secrets.DEV_SERVER_URL }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            let c = fs.readFileSync('capacitor.config.ts', 'utf8');
+            c = c.replace('com.tradex.terminal', 'com.tradex.terminal.dev');
+            c = c.replace('appName: \"TradeX\"', 'appName: \"TradeX Dev\"');
+            c = c.replace(/url:\s*\"[^\"]+\"/, 'url: \"' + process.env.DEV_URL + '\"');
+            fs.writeFileSync('capacitor.config.ts', c);
+          "
+
+      - name: Sync Capacitor (web assets → Android)
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: tradex-dev-${{ github.sha }}
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
