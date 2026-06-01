@@ -14,7 +14,7 @@ interface Channel {
 }
 
 const EMBED_PARAMS =
-  "autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&fs=1&enablejsapi=1";
+  "autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&fs=1";
 
 const CHANNELS: Channel[] = [
   {
@@ -59,11 +59,8 @@ const CHANNELS: Channel[] = [
   },
 ];
 
-function buildEmbedUrl(videoId: string | null, channelId: string): string {
-  if (videoId) {
-    return `https://www.youtube-nocookie.com/embed/${videoId}?${EMBED_PARAMS}`;
-  }
-  // Fallback to channel live stream embed
+function buildEmbedUrl(channelId: string): string {
+  // Always use channel live embed — YouTube automatically serves the current live stream
   return `https://www.youtube-nocookie.com/embed/live_stream?channel=${channelId}&${EMBED_PARAMS}`;
 }
 
@@ -75,8 +72,6 @@ export function LiveTVPanel({
   showFooterNote?: boolean;
 }) {
   const [active, setActive] = useState<Channel>(CHANNELS[0]);
-  const [videoIds, setVideoIds] = useState<Record<string, string | null>>({});
-  const [loading, setLoading] = useState(true);
   const [retryKey, setRetryKey] = useState(0);
   const [tabVisible, setTabVisible] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -112,25 +107,7 @@ export function LiveTVPanel({
     return () => document.removeEventListener("tradex:mobile-tab-change", onMobileTabChange);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-
-    fetch("/api/youtube/live")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: { id: string; videoId: string | null }[]) => {
-        if (cancelled) return;
-        const map: Record<string, string | null> = {};
-        data.forEach((d) => { map[d.id] = d.videoId; });
-        setVideoIds(map);
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false); });
-
-    return () => { cancelled = true; };
-  }, [retryKey]);
-
-  const embedUrl = buildEmbedUrl(videoIds[active.id] ?? null, active.channelId);
+  const embedUrl = buildEmbedUrl(active.channelId);
 
   return (
     <div className="flex h-full min-h-0 flex-col space-y-3">
@@ -149,10 +126,9 @@ export function LiveTVPanel({
           <button
             type="button"
             onClick={() => setRetryKey((k) => k + 1)}
-            disabled={loading}
-            className="flex items-center gap-1.5 rounded-md border border-white/10 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-40"
+            className="flex items-center gap-1.5 rounded-md border border-white/10 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
           >
-            <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
+            <RefreshCw className="h-3 w-3" />
             Refresh
           </button>
         </div>
@@ -184,16 +160,12 @@ export function LiveTVPanel({
 
       <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-white/8 bg-black">
         <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-          {loading ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-black">
-              <RefreshCw className="h-6 w-6 animate-spin text-zinc-600" />
-            </div>
-          ) : !tabVisible ? (
+          {!tabVisible ? (
             <div className="absolute inset-0 bg-black" />
           ) : (
             <iframe
               ref={iframeRef}
-              key={`${active.id}-${retryKey}-${videoIds[active.id] ?? "fallback"}`}
+              key={`${active.id}-${retryKey}`}
               src={embedUrl}
               className="absolute inset-0 h-full w-full"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
