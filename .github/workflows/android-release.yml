@@ -1,0 +1,62 @@
+name: Android Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      # Only rebuild the Android app when native-layer files change.
+      # Pure web changes are handled by Vercel — no new APK needed
+      # since the app loads from the remote Vercel URL.
+      - capacitor.config.ts
+      - android/**
+      - package.json
+      - package-lock.json
+
+jobs:
+  build-and-upload:
+    name: Build AAB → Google Play (Internal Testing)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Sync Capacitor (web assets → Android)
+        run: npx cap sync android
+
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
+
+      - name: Build release AAB
+        working-directory: android
+        run: ./gradlew bundleRelease
+        env:
+          KEYSTORE_PATH: release.keystore
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Upload to Google Play (Internal Testing)
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+          packageName: com.tradex.terminal
+          releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
