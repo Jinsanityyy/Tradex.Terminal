@@ -290,7 +290,16 @@ export async function runTrendAgent(
 
     // ── Secondary: HTF structure (weight halved  -  JadeCap PDH/PDL dominates) ─
     biasScore += htfBias === "bullish" ? htfConfidence * 0.5 : htfBias === "bearish" ? -htfConfidence * 0.5 : 0;
-    if (timeframeBias.aligned) biasScore += timeframeBias.H4 === "bullish" ? 15 : -15;
+    // TF-alignment bonus. H1/H4 votes are anchored to htfBias, so on their own the
+    // "aligned" flag just echoes the htfBias term above (double-count). Award full
+    // credit only when an INDEPENDENT lower timeframe (M5/M15) confirms the
+    // direction; otherwise give half credit to avoid inflating on an htfBias echo.
+    if (timeframeBias.aligned) {
+      const dir = timeframeBias.H4;
+      const ltfConfirms = timeframeBias.M5 === dir || timeframeBias.M15 === dir;
+      const bonus = ltfConfirms ? 15 : 7;
+      biasScore += dir === "bullish" ? bonus : dir === "bearish" ? -bonus : 0;
+    }
     if (rsi > 55) biasScore += 8;
     if (rsi < 45) biasScore -= 8;
     if (macdHist > 0) biasScore += 5;
