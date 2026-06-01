@@ -277,6 +277,15 @@ export async function runExecutionAgent(
       return noTradeResult(start, "No directional bias confirmed  -  stand aside");
     }
 
+    // Block direction when htfBias contradicts SMC structure and no sweep is present.
+    // htfBias is drift-based (5-day recovery can read "bullish" even in a bearish
+    // price-action structure). Without a sweep confirming the reversal, the conflict
+    // means there is no clean directional edge.
+    if (!sweepActive && smc.bias !== "neutral" && smc.bias !== htfBias) {
+      console.log(`[exec] blocked: htfBias=${htfBias} conflicts with SMC bias=${smc.bias} and no sweep`);
+      return noTradeResult(start, `HTF bias (${htfBias}) conflicts with SMC structure (${smc.bias})  -  no confirmed direction without a sweep`);
+    }
+
     // ── Direction ──────────────────────────────────────────────────────────────────────────────
     const { keyLevels, setupType, bosDetected, liquiditySweepDetected } = smc;
     const isBullish = (liquiditySweepDetected && smc.bias !== "neutral")

@@ -299,11 +299,17 @@ export async function runMasterAgent(
 
     let resolvedBias = llmRaw;
 
-    if (llmRaw === "bullish" && bearishStruct && !bosToUpside && !execution.hasSetup) {
-      // Bearish structure + no confirmed bullish reversal + no exec setup = block long calls
+    // A counter-structure execution setup does NOT bypass the structural override.
+    // execution.hasSetup=true can arise from a drift-based htfBias that contradicts
+    // current price-action structure (e.g. a 5-day recovery reading "bullish" while
+    // trend + SMC are both bearish). Only a confirmed BOS (bosToUpside/bosToDownside)
+    // is strong enough evidence of a structural shift to allow a counter-structure trade.
+    const execLongAgainstBear  = execution.hasSetup && execution.direction === "long"  && bearishStruct;
+    const execShortAgainstBull = execution.hasSetup && execution.direction === "short" && bullishStruct;
+
+    if ((llmRaw === "bullish" || execLongAgainstBear) && bearishStruct && !bosToUpside) {
       resolvedBias = "no-trade";
-    } else if (llmRaw === "bearish" && bullishStruct && !bosToDownside && !execution.hasSetup) {
-      // Bullish structure + no confirmed bearish reversal + no exec setup = block short calls
+    } else if ((llmRaw === "bearish" || execShortAgainstBull) && bullishStruct && !bosToDownside) {
       resolvedBias = "no-trade";
     } else if (resolvedBias !== "no-trade" && !activeSetup && noSetup) {
       // No confirmed setup at all = stand aside
