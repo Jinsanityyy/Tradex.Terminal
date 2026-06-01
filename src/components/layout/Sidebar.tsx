@@ -138,62 +138,83 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-3 px-2">
-          <div className="space-y-0.5">
-            {navItems.map((item) => {
-              const active = isActive(item.href);
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "group flex items-center gap-3 rounded-md px-2.5 py-2 text-[13px] font-medium transition-all duration-150",
-                    active
-                      ? "bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
-                      : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]",
-                    isCompact && "justify-center px-2"
-                  )}
-                  title={isCompact ? item.label : undefined}
-                >
-                  <Icon
+          {isCompact ? (
+            /* Compact: single column icon-only cards */
+            <div className="flex flex-col gap-1">
+              {navItems.map((item) => {
+                const active = isActive(item.href);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={item.label}
                     className={cn(
-                      "h-[18px] w-[18px] shrink-0 transition-colors",
-                      active ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--foreground))]",
-                      item.accent && !active && "text-amber-500/70",
-                      (item as any).accent2 && !active && "text-emerald-400/80",
-                      (item as any).accent3 && !active && "text-blue-400/80"
+                      "flex flex-col items-center justify-center rounded-xl border py-3 transition-all",
+                      active
+                        ? "border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
+                        : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]"
                     )}
-                  />
-                  {!isCompact && <span className="truncate">{item.label}</span>}
-                  {!isCompact && active && (
-                    <div className="ml-auto h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))]" />
-                  )}
-                </Link>
-              );
-            })}
+                  >
+                    <Icon
+                      className={cn(
+                        "h-[18px] w-[18px]",
+                        item.accent && !active && "text-amber-500/70",
+                        (item as any).accent2 && !active && "text-emerald-400/80"
+                      )}
+                    />
+                  </Link>
+                );
+              })}
+              <button
+                onClick={onOpenKnowledge}
+                title="Trading Knowledge"
+                className="flex flex-col items-center justify-center rounded-xl border border-violet-500/30 bg-violet-500/5 py-3 text-violet-400 transition-all hover:bg-violet-500/10"
+              >
+                <GraduationCap className="h-[18px] w-[18px]" />
+              </button>
+            </div>
+          ) : (
+            /* Full width: 2-column card grid matching mobile drawer style */
+            <div className="grid grid-cols-2 gap-1.5">
+              {navItems.map((item) => {
+                const active = isActive(item.href);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "flex flex-col items-center gap-2 rounded-xl border px-2 py-3.5 transition-all",
+                      active
+                        ? "border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
+                        : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]"
+                    )}
+                  >
+                    <Icon
+                      className={cn(
+                        "h-5 w-5",
+                        item.accent && !active && "text-amber-500/70",
+                        (item as any).accent2 && !active && "text-emerald-400/80"
+                      )}
+                    />
+                    <span className="text-[10px] font-semibold text-center leading-tight">{item.label}</span>
+                    {active && <div className="h-1 w-1 rounded-full bg-[hsl(var(--primary))]" />}
+                  </Link>
+                );
+              })}
 
-            {/* Divider */}
-            <div className="my-1.5 border-t border-[hsl(var(--border))]" />
-
-            {/* Trading Knowledge */}
-            <button
-              onClick={onOpenKnowledge}
-              className={cn(
-                "group flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-[13px] font-medium transition-all duration-150",
-                "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]",
-                isCompact && "justify-center px-2"
-              )}
-              title={isCompact ? "Trading Knowledge" : undefined}
-            >
-              <GraduationCap className="h-[18px] w-[18px] shrink-0 text-violet-400/80 group-hover:text-violet-400 transition-colors" />
-              {!isCompact && <span className="truncate">Trading Knowledge</span>}
-              {!isCompact && (
-                <span className="ml-auto text-[9px] font-bold uppercase tracking-wider text-violet-400/70 bg-violet-400/10 px-1.5 py-0.5 rounded">
-                  New
-                </span>
-              )}
-            </button>
-          </div>
+              {/* Trading Knowledge */}
+              <button
+                onClick={onOpenKnowledge}
+                className="flex flex-col items-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/5 px-2 py-3.5 text-violet-400 transition-all hover:bg-violet-500/10"
+              >
+                <GraduationCap className="h-5 w-5" />
+                <span className="text-[10px] font-semibold text-center leading-tight">Knowledge</span>
+                <span className="text-[8px] font-bold uppercase tracking-wider text-violet-400/70 bg-violet-400/10 px-1.5 py-0.5 rounded">New</span>
+              </button>
+            </div>
+          )}
         </nav>
 
         {/* Asset Selector */}

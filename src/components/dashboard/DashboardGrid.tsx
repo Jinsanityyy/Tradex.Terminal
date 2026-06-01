@@ -33,6 +33,12 @@ const OPTIONAL_WIDGET_DEFAULTS: Record<string, boolean> = {
   "pnl-calendar": true,
   "lot-calculator": true,
   "live-prices": true,
+  "signal-session": true,
+  "entry-strip": true,
+  "asset-bias": true,
+  "key-levels": true,
+  "ai-analysis": true,
+  "more-catalysts": true,
 };
 
 const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
@@ -50,6 +56,12 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "economic-calendar", x: 0, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "pnl-calendar", x: 12, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "lot-calculator", x: 0, y: 40, w: 8, h: 8, minW: 6, minH: 7 },
+    { i: "signal-session", x: 0, y: 48, w: 8, h: 5, minW: 6, minH: 4 },
+    { i: "entry-strip", x: 8, y: 48, w: 8, h: 5, minW: 6, minH: 4 },
+    { i: "asset-bias", x: 16, y: 48, w: 8, h: 5, minW: 6, minH: 4 },
+    { i: "key-levels", x: 0, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
+    { i: "ai-analysis", x: 8, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
+    { i: "more-catalysts", x: 16, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
   ],
   minimal: [
     { i: "chart", x: 0, y: 0, w: 16, h: 16, minW: 10, minH: 14 },
@@ -65,6 +77,12 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "economic-calendar", x: 0, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "pnl-calendar", x: 12, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "lot-calculator", x: 0, y: 40, w: 8, h: 8, minW: 6, minH: 7 },
+    { i: "signal-session", x: 0, y: 48, w: 8, h: 5, minW: 6, minH: 4 },
+    { i: "entry-strip", x: 8, y: 48, w: 8, h: 5, minW: 6, minH: 4 },
+    { i: "asset-bias", x: 16, y: 48, w: 8, h: 5, minW: 6, minH: 4 },
+    { i: "key-levels", x: 0, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
+    { i: "ai-analysis", x: 8, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
+    { i: "more-catalysts", x: 16, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
   ],
   // "Custom" starts as a copy of "pro"  -  users save over it via "Save Layout"
   custom: [
@@ -81,6 +99,12 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "economic-calendar", x: 0, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "pnl-calendar", x: 12, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "lot-calculator", x: 0, y: 40, w: 8, h: 8, minW: 6, minH: 7 },
+    { i: "signal-session", x: 0, y: 48, w: 8, h: 5, minW: 6, minH: 4 },
+    { i: "entry-strip", x: 8, y: 48, w: 8, h: 5, minW: 6, minH: 4 },
+    { i: "asset-bias", x: 16, y: 48, w: 8, h: 5, minW: 6, minH: 4 },
+    { i: "key-levels", x: 0, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
+    { i: "ai-analysis", x: 8, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
+    { i: "more-catalysts", x: 16, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
   ],
 };
 

@@ -39,6 +39,7 @@ import { SessionSummaryCard } from "@/components/shared/SessionSummaryCard";
 import { LotCalculatorWidget } from "@/components/shared/LotCalculatorWidget";
 import { TrumpImpactPreview } from "@/components/shared/TrumpFeedPanel";
 import { MTFBiasPanel } from "@/components/shared/MTFBiasPanel";
+import { KeyLevelsCard } from "@/components/shared/KeyLevelsCard";
 import { AgentCardsWidget, AgentCardsFilterButton, ALL_AGENT_IDS } from "@/components/brain/AgentCardsWidget";
 import type { AgentId } from "@/components/brain/AgentCardsWidget";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -48,6 +49,8 @@ import {
   useCatalysts,
   useSessions,
   useMarketAnalysis,
+  useMarketBias,
+  useKeyLevels,
   useMTFBias,
   useQuotes,
 } from "@/hooks/useMarketData";
@@ -927,7 +930,9 @@ export default function DashboardPage() {
   // TS posts first, server posts deduplicated after (same logic as trump-monitor page)
   const tsIds = new Set(tsTrumpPosts.map(p => p.id));
   const trumpPosts = [...tsTrumpPosts, ...serverTrumpPosts.filter(p => !tsIds.has(p.id))];
-  const { tradeContext } = useMarketAnalysis();
+  const { tradeContext, narrative } = useMarketAnalysis();
+  const { biasData } = useMarketBias();
+  const { levels } = useKeyLevels();
   const { mtfData, mtfLoading } = useMTFBias(symbol);
   const { data: pnlSnapshot, isLoading: pnlLoading } = useSWR<PnLData>(
     "/api/pnl",
@@ -1060,6 +1065,28 @@ export default function DashboardPage() {
   const isNoTrade = finalBias === "no-trade";
   const signalState = isNoTrade ? "NO_TRADE" : exec?.signalState;
   const signalConfig = signalStateConfig(signalState);
+
+  // Entry-strip values
+  const tradeEntry = exec?.entry ?? tradePlan?.entry ?? null;
+  const tradeStopLoss = exec?.stopLoss ?? tradePlan?.stopLoss ?? null;
+  const tradeTp1 = exec?.tp1 ?? tradePlan?.tp1 ?? null;
+  const tradeRR = exec?.rrRatio ?? tradePlan?.rrRatio ?? null;
+  const tradeDirection = exec?.direction ?? tradePlan?.direction ?? null;
+  const tradeTrigger = exec?.triggerCondition ?? tradePlan?.triggerCondition ?? null;
+
+  // Asset bias (tech data first, fall back to master agent)
+  const BIAS_SEARCH: Record<string, string> = {
+    XAUUSD: "gold", BTCUSD: "bitcoin", EURUSD: "euro", GBPUSD: "pound",
+  };
+  const techBias = biasData.find((b) => {
+    const term = BIAS_SEARCH[symbol];
+    return term && b.asset?.toLowerCase().includes(term);
+  });
+  const activeBias = techBias
+    ? { bias: techBias.bias as string, confidence: techBias.confidence }
+    : master
+      ? { bias: master.finalBias as string, confidence: master.confidence }
+      : null;
   const signalReason =
     exec?.signalStateReason ??
     master?.noTradeReason ??
@@ -1806,6 +1833,203 @@ export default function DashboardPage() {
           </div>
         );
       })(),
+    },
+    {
+      id: "signal-session",
+      title: "Signal & Session",
+      content: (
+        <div className="h-full min-h-0 overflow-y-auto p-3">
+          <div className="grid grid-cols-2 gap-3 h-full">
+            {/* Signal State */}
+            <div className={cn("rounded-xl p-4 border flex flex-col gap-2",
+              signalState === "ARMED"   ? "bg-emerald-500/10 border-emerald-500/30" :
+              signalState === "PENDING" ? "bg-amber-500/10 border-amber-500/30" :
+              "bg-white/5 border-white/5")}>
+              <p className="text-[9px] text-zinc-600 uppercase tracking-widest">Signal</p>
+              <p className={cn("text-[15px] font-bold uppercase",
+                signalState === "ARMED" ? "text-emerald-400" : signalState === "PENDING" ? "text-amber-400" : "text-zinc-500")}>
+                {(signalState ?? "NO_TRADE").replace("_", " ")}
+              </p>
+              {tradeDirection && tradeDirection.toLowerCase() !== "none" && signalState !== "NO_TRADE" && (
+                <p className="text-[10px] text-zinc-600 truncate">
+                  {tradeDirection.toUpperCase()} · {tradeTrigger && tradeTrigger.toLowerCase() !== "none" ? tradeTrigger : "–"}
+                </p>
+              )}
+              {signalState === "NO_TRADE" && master?.noTradeReason && (
+                <p className="text-[10px] text-zinc-600 leading-tight line-clamp-3">{master.noTradeReason}</p>
+              )}
+            </div>
+
+            {/* Active Session */}
+            <div className="bg-[hsl(var(--card))] rounded-xl p-4 border border-white/5 flex flex-col gap-2">
+              <p className="text-[9px] text-zinc-600 uppercase tracking-widest">Session</p>
+              {sessions.find(s => s.status === "active") ? (() => {
+                const s = sessions.find(s => s.status === "active")!;
+                return (
+                  <>
+                    <p className="text-[15px] font-bold text-zinc-200">{s.session}</p>
+                    <span className={cn("text-[10px] font-bold uppercase",
+                      s.volatilityTone === "high" ? "text-red-400" :
+                      s.volatilityTone === "moderate" ? "text-amber-400" : "text-emerald-400")}>
+                      {s.volatilityTone} vol
+                    </span>
+                  </>
+                );
+              })() : (
+                <>
+                  <p className="text-[15px] font-bold text-zinc-500">Between</p>
+                  <p className="text-[10px] text-zinc-700">Sessions</p>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "entry-strip",
+      title: "Trade Setup",
+      content: (
+        <div className="h-full min-h-0 overflow-y-auto p-3">
+          {tradeEntry ? (
+            <div className={cn("rounded-xl px-4 py-3 border",
+              signalState === "ARMED"   ? "bg-emerald-500/8 border-emerald-500/25" :
+              signalState === "PENDING" ? "bg-amber-500/8 border-amber-500/25" :
+              "bg-white/5 border-white/10")}>
+              <p className={cn("text-[9px] uppercase tracking-wider mb-3",
+                signalState === "ARMED"   ? "text-emerald-500/70" :
+                signalState === "PENDING" ? "text-amber-500/70" : "text-zinc-600")}>
+                {signalState === "ARMED" ? "⚡ Armed — Confirm trigger" :
+                 signalState === "PENDING" ? "⏳ Pending — Waiting for entry" : "Last Setup"}
+              </p>
+              <div className="grid grid-cols-4 gap-3">
+                {[
+                  { label: "Entry", value: tradeEntry > 100 ? tradeEntry.toFixed(2) : tradeEntry.toFixed(4), color: "text-zinc-100" },
+                  { label: "SL",    value: tradeStopLoss ? (tradeStopLoss > 100 ? tradeStopLoss.toFixed(2) : tradeStopLoss.toFixed(4)) : "–", color: "text-red-400" },
+                  { label: "TP1",   value: tradeTp1 ? (tradeTp1 > 100 ? tradeTp1.toFixed(2) : tradeTp1.toFixed(4)) : "–", color: "text-emerald-400" },
+                  { label: "R:R",   value: tradeRR ? `${tradeRR}:1` : "–", color: "text-zinc-300" },
+                ].map(({ label, value, color }) => (
+                  <div key={label} className="text-center rounded-lg bg-white/5 py-2.5 px-1">
+                    <p className="text-[8px] text-zinc-600 mb-1">{label}</p>
+                    <p className={cn("text-[12px] font-mono font-bold", color)}>{value}</p>
+                  </div>
+                ))}
+              </div>
+              {exec?.signalStateReason && (
+                <p className="text-[10px] text-zinc-600 mt-2 leading-tight">{exec.signalStateReason}</p>
+              )}
+            </div>
+          ) : (
+            <PanelPlaceholder title="No active setup." detail="Entry zone has not been reached yet — monitor the terminal." />
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "asset-bias",
+      title: `${symCfg.short} Asset Bias`,
+      content: (
+        <div className="h-full min-h-0 overflow-y-auto p-3">
+          {activeBias ? (
+            <div className="rounded-xl p-4 border border-white/5 bg-white/[0.02] space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-bold text-zinc-200">{symCfg.short}</span>
+                <span className={cn("text-[11px] font-bold px-3 py-1 rounded-full",
+                  activeBias.bias === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
+                  activeBias.bias === "bearish" ? "bg-red-500/15 text-red-400" :
+                  "bg-zinc-500/15 text-zinc-400")}>
+                  {activeBias.bias?.toUpperCase()}
+                </span>
+              </div>
+              <div>
+                <div className="flex justify-between text-[9px] text-zinc-600 mb-1.5">
+                  <span>Conviction</span><span className="font-mono text-zinc-400">{activeBias.confidence}%</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-white/5">
+                  <div className={cn("h-full rounded-full transition-all",
+                    activeBias.bias === "bullish" ? "bg-emerald-400" : activeBias.bias === "bearish" ? "bg-red-400" : "bg-zinc-400")}
+                    style={{ width: `${activeBias.confidence}%` }} />
+                </div>
+              </div>
+              <p className="text-[10px] text-zinc-600 leading-relaxed">
+                {activeBias.confidence >= 70 ? "High conviction — strong directional alignment across factors." :
+                 activeBias.confidence >= 50 ? "Moderate conviction — majority of factors align but some uncertainty remains." :
+                 "Low conviction — mixed signals, trade with reduced size or wait for confirmation."}
+              </p>
+            </div>
+          ) : (
+            <PanelPlaceholder title="Loading bias data…" detail="Bias analysis will appear once market data loads." />
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "key-levels",
+      title: "Key Levels",
+      content: (
+        <div className="h-full min-h-0 overflow-y-auto p-3">
+          {levels.length > 0 ? (
+            <KeyLevelsCard levels={levels} compact />
+          ) : (
+            <PanelPlaceholder title="No key levels yet." detail="Price structure levels will appear as data loads." />
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "ai-analysis",
+      title: "AI Analysis",
+      content: (
+        <div className="h-full min-h-0 overflow-y-auto p-3 space-y-3">
+          {narrative.regime && (
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-zinc-600 uppercase tracking-wider">Regime</span>
+              <span className="text-[10px] font-semibold text-amber-400">{narrative.regime}</span>
+            </div>
+          )}
+          {narrative.summary && (
+            <p className="text-[11px] text-zinc-400 leading-relaxed">{narrative.summary}</p>
+          )}
+          {narrative.dominantTheme && (
+            <div className="rounded-lg bg-white/5 px-3 py-2">
+              <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Dominant Theme</p>
+              <p className="text-[11px] text-zinc-300">{narrative.dominantTheme}</p>
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "more-catalysts",
+      title: "More Catalysts",
+      headerRight: (
+        <Link href="/dashboard/catalysts" className={widgetActionClass}>
+          All
+        </Link>
+      ),
+      content: (
+        <div className="h-full min-h-0 overflow-y-auto p-3">
+          {catalysts.length > 1 ? (
+            <div className="space-y-2">
+              {catalysts.slice(1, 6).map((c, i) => (
+                <div key={i} className="bg-white/[0.02] rounded-xl px-3 py-2.5 border border-white/5">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-[11px] text-zinc-200 leading-snug flex-1">{c.title}</p>
+                    <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0",
+                      c.importance === "high" ? "bg-red-500/15 text-red-400" :
+                      c.importance === "medium" ? "bg-amber-500/15 text-amber-400" :
+                      "bg-zinc-500/15 text-zinc-400")}>
+                      {c.importance?.toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <PanelPlaceholder title="No additional catalysts." detail="More events will appear as they are detected." />
+          )}
+        </div>
+      ),
     },
   ];
 
