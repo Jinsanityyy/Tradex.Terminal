@@ -62,12 +62,26 @@ export function useFcmPush() {
 
       // Only register if permission already granted — do NOT auto-request.
       // User enables via the toggle in hamburger menu.
-      PushNotifications.checkPermissions().then((perm) => {
-        if (perm.receive === "granted") {
-          PushNotifications.register().catch((err) => {
-            console.warn("[FCM] Register failed:", err);
-          });
-        }
+      PushNotifications.checkPermissions().then(async (perm) => {
+        if (perm.receive !== "granted") return;
+
+        // Android 8+ requires a notification channel to exist before any
+        // notification can be displayed. Without this, FCM messages with
+        // channelId "default" are silently dropped by the OS.
+        await PushNotifications.createChannel({
+          id: "default",
+          name: "TradeX Alerts",
+          description: "Signal alerts, SL/TP hits, and market events",
+          importance: 5,
+          visibility: 1,
+          sound: "default",
+          vibration: true,
+          lights: true,
+        }).catch(() => {});
+
+        PushNotifications.register().catch((err) => {
+          console.warn("[FCM] Register failed:", err);
+        });
       });
     });
 

@@ -432,6 +432,16 @@ function usePushStatus() {
             setStatus("denied");
             toast.error("Blocked — go to Settings → Apps → TradeX → Notifications");
           } else {
+            await PN.createChannel({
+              id: "default",
+              name: "TradeX Alerts",
+              description: "Signal alerts, SL/TP hits, and market events",
+              importance: 5,
+              visibility: 1,
+              sound: "default",
+              vibration: true,
+              lights: true,
+            }).catch(() => {});
             await PN.register();
             setStatus("subscribed");
             toast.success("Push notifications enabled");
