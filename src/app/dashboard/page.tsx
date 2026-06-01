@@ -40,6 +40,7 @@ import { LotCalculatorWidget } from "@/components/shared/LotCalculatorWidget";
 import { TrumpImpactPreview } from "@/components/shared/TrumpFeedPanel";
 import { MTFBiasPanel } from "@/components/shared/MTFBiasPanel";
 import { KeyLevelsCard } from "@/components/shared/KeyLevelsCard";
+import { InstitutionalConfluence } from "@/components/shared/InstitutionalConfluence";
 import { AgentCardsWidget, AgentCardsFilterButton, ALL_AGENT_IDS } from "@/components/brain/AgentCardsWidget";
 import type { AgentId } from "@/components/brain/AgentCardsWidget";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -2028,6 +2029,15 @@ export default function DashboardPage() {
           ) : (
             <PanelPlaceholder title="No additional catalysts." detail="More events will appear as they are detected." />
           )}
+        </div>
+      ),
+    },
+    {
+      id: "institutional",
+      title: "Institutional Flow",
+      content: (
+        <div className="h-full min-h-0 overflow-y-auto p-3">
+          <InstitutionalConfluence />
         </div>
       ),
     },

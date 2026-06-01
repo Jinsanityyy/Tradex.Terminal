@@ -39,6 +39,7 @@ const OPTIONAL_WIDGET_DEFAULTS: Record<string, boolean> = {
   "key-levels": true,
   "ai-analysis": true,
   "more-catalysts": true,
+  "institutional": true,
 };
 
 const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
@@ -62,6 +63,7 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "key-levels", x: 0, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
     { i: "ai-analysis", x: 8, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
     { i: "more-catalysts", x: 16, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
+    { i: "institutional", x: 0, y: 59, w: 12, h: 8, minW: 8, minH: 6 },
   ],
   minimal: [
     { i: "chart", x: 0, y: 0, w: 16, h: 16, minW: 10, minH: 14 },
@@ -83,6 +85,7 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "key-levels", x: 0, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
     { i: "ai-analysis", x: 8, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
     { i: "more-catalysts", x: 16, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
+    { i: "institutional", x: 0, y: 59, w: 12, h: 8, minW: 8, minH: 6 },
   ],
   // "Custom" starts as a copy of "pro"  -  users save over it via "Save Layout"
   custom: [
@@ -105,6 +108,7 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "key-levels", x: 0, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
     { i: "ai-analysis", x: 8, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
     { i: "more-catalysts", x: 16, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
+    { i: "institutional", x: 0, y: 59, w: 12, h: 8, minW: 8, minH: 6 },
   ],
 };
 
