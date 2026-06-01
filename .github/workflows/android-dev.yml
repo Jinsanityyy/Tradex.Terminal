@@ -6,7 +6,7 @@ on:
 
 jobs:
   build-dev-apk:
-    name: Build Debug APK → artifact
+    name: Build Debug APK → Firebase App Distribution
     runs-on: ubuntu-latest
 
     steps:
@@ -28,10 +28,10 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      # Patch capacitor.config.ts in-place for the dev variant:
-      #   - appId  → com.tradex.terminal.dev  (so both apps can coexist on device)
+      # Patch capacitor.config.ts for the dev variant:
+      #   - appId  → com.tradex.terminal.dev  (installs alongside production)
       #   - appName → TradeX Dev
-      #   - server.url → your develop-branch Vercel preview URL (DEV_SERVER_URL secret)
+      #   - server.url → develop-branch Vercel preview (DEV_SERVER_URL secret)
       - name: Patch Capacitor config for dev
         env:
           DEV_URL: ${{ secrets.DEV_SERVER_URL }}
@@ -52,9 +52,14 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Distribute to Firebase App Distribution
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
         with:
-          name: tradex-dev-${{ github.sha }}
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 14
+          appId: ${{ secrets.FIREBASE_APP_ID_DEV }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DEV }}
+          groups: testers
+          file: android/app/build/outputs/apk/debug/app-debug.apk
+          releaseNotes: |
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            ${{ github.event.head_commit.message }}
