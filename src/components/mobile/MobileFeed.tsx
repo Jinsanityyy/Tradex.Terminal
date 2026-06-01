@@ -138,7 +138,7 @@ export function MobileFeed() {
                 execution={agentData.agents.execution}
                 master={agentData.agents.master}
                 isCached={!isLive}
-                onRefresh={refreshAgent}
+                onRefresh={() => refreshAgent().then(() => {})}
               />
             ) : (
               <div className="flex flex-col items-center justify-center py-16 gap-2">
