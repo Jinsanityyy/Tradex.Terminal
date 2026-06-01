@@ -81,22 +81,42 @@ function getActiveSession(): string | null {
 
 function useMicroData(): MicroData {
   const [data, setData] = useState<MicroData>({ direction: null, openSignals: null, session: getActiveSession() });
+
   useEffect(() => {
     const id = setInterval(() => setData(d => ({ ...d, session: getActiveSession() })), 60_000);
     return () => clearInterval(id);
   }, []);
+
+  // Market direction from the actual bias API (XAU/USD = first asset = Gold)
+  useEffect(() => {
+    fetch("/api/market/bias")
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (!json) return;
+        const biasData = Array.isArray(json) ? json : (json.data ?? []);
+        const gold = biasData.find((b: { asset: string; bias: string }) =>
+          b.asset?.includes("XAU") || b.asset?.includes("Gold")
+        ) ?? biasData[0];
+        if (!gold) return;
+        const dir: BiasDir =
+          gold.bias === "bullish" ? "bullish" :
+          gold.bias === "bearish" ? "bearish" : "neutral";
+        setData(d => ({ ...d, direction: dir }));
+      }).catch(() => {});
+  }, []);
+
+  // Open signal count from signals API
   useEffect(() => {
     fetch("/api/signals?limit=20&period=24h")
       .then(r => r.ok ? r.json() : null)
       .then(json => {
         if (!json) return;
-        const recent = (json.recent ?? []) as Array<{ status: string; finalBias?: string }>;
+        const recent = (json.recent ?? []) as Array<{ status: string }>;
         const open = recent.filter(s => s.status === "open").length;
-        const last = recent.find(s => s.finalBias && s.finalBias !== "no-trade");
-        const dir: BiasDir = last?.finalBias === "bullish" ? "bullish" : last?.finalBias === "bearish" ? "bearish" : last ? "neutral" : null;
-        setData(d => ({ ...d, openSignals: open, direction: dir }));
+        setData(d => ({ ...d, openSignals: open }));
       }).catch(() => {});
   }, []);
+
   return data;
 }
 

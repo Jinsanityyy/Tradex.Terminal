@@ -17,31 +17,12 @@ const CHANNELS: ChannelDef[] = [
   { id: "wion",       handle: "@WIONews",              channelId: "UCmqvpsWGSBBOcvLMSCKEFGQ" },
 ];
 
-// In-memory cache — survives warm lambda restarts
 const cache = new Map<string, { videoId: string | null; ts: number }>();
-const CACHE_TTL = 8 * 60 * 1000; // 8 minutes
+const CACHE_TTL = 8 * 60 * 1000;
 
-async function fetchLiveVideoId(handle: string, channelId: string): Promise<string | null> {
-  // 1. RSS feed — most stable, not rate-limited by bot detection
-  try {
-    const rss = await fetch(
-      `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`,
-      {
-        headers: { Accept: "application/xml, text/xml" },
-        signal: AbortSignal.timeout(5000),
-      }
-    );
-    if (rss.ok) {
-      const xml = await rss.text();
-      // First entry in RSS is the most recent video (often the live stream)
-      const m = xml.match(/<yt:videoId>([a-zA-Z0-9_-]{11})<\/yt:videoId>/);
-      if (m) return m[1];
-    }
-  } catch {
-    // fall through to HTML scrape
-  }
-
-  // 2. HTML scrape of /live redirect — fallback
+// Fetch the /live page and return videoId ONLY if it's an actual live broadcast.
+// We scrape the page for "isLive":true or "liveBroadcastContent":"live" signals.
+async function fetchLiveVideoId(handle: string): Promise<string | null> {
   try {
     const res = await fetch(`https://www.youtube.com/${handle}/live`, {
       headers: {
@@ -51,14 +32,29 @@ async function fetchLiveVideoId(handle: string, channelId: string): Promise<stri
         "Accept-Language": "en-US,en;q=0.9",
       },
       redirect: "follow",
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(7000),
     });
 
+    // If YouTube redirected to a non-watch URL, no live stream right now
     const finalUrl = res.url;
     const urlMatch = finalUrl.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
-    if (urlMatch) return urlMatch[1];
 
     const html = await res.text();
+
+    // Check that this is actually a live broadcast (not a recent VOD)
+    const isLive =
+      html.includes('"isLive":true') ||
+      html.includes('"liveBroadcastContent":"live"') ||
+      html.includes('"status":"LIVE"') ||
+      html.includes("isLiveBroadcast") ||
+      // YouTube sometimes embeds this in the page data
+      /"broadcastType":"LIVE"/.test(html);
+
+    if (!isLive) return null;
+
+    // Extract the video ID
+    if (urlMatch) return urlMatch[1];
+
     const patterns = [
       /"videoId":"([a-zA-Z0-9_-]{11})"/,
       /canonical.*?watch\?v=([a-zA-Z0-9_-]{11})/,
@@ -69,7 +65,7 @@ async function fetchLiveVideoId(handle: string, channelId: string): Promise<stri
       if (m) return m[1];
     }
   } catch {
-    // network error or timeout
+    // network error / timeout — fall through to channel embed
   }
   return null;
 }
@@ -83,7 +79,7 @@ export async function GET() {
       if (cached && now - cached.ts < CACHE_TTL) {
         return { id: ch.id, videoId: cached.videoId };
       }
-      const videoId = await fetchLiveVideoId(ch.handle, ch.channelId);
+      const videoId = await fetchLiveVideoId(ch.handle);
       cache.set(ch.id, { videoId, ts: now });
       return { id: ch.id, videoId };
     })
