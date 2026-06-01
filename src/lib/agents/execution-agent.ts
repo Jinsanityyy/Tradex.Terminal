@@ -163,6 +163,9 @@ function scoreConfluence(
 
 // ── Grade Calculation ────────────────────────────────────────────────────────────────────────────
 
+// Thresholds are calibrated for the BLENDED realized R:R (50% TP1 + 50% TP2),
+// which caps near ~2.0R given the TP1=1.5R / TP2=2.5R structure. A pure-TP2 scale
+// would never be reached and would force everything to grade C.
 function gradeSetup(
   rrRatio: number,
   confluenceCount: number,
@@ -171,14 +174,14 @@ function gradeSetup(
   entryInStructure: boolean,
 ): SetupGrade {
   if (!entryInStructure) {
-    if (rrRatio >= 2.0 && confluenceCount >= 3) return "B+";
-    if (rrRatio >= 2.0 && confluenceCount >= 2) return "B";
+    if (rrRatio >= 1.6 && confluenceCount >= 3) return "B+";
+    if (rrRatio >= 1.5 && confluenceCount >= 2) return "B";
     return "C";
   }
-  if (rrRatio >= 3.0 && confluenceCount >= 4 && slInRange && inKillzone) return "A+";
-  if (rrRatio >= 2.5 && confluenceCount >= 3 && slInRange) return "A";
-  if (rrRatio >= 2.0 && confluenceCount >= 3) return "B+";
-  if (rrRatio >= 2.0 && confluenceCount >= 2) return "B";
+  if (rrRatio >= 1.9 && confluenceCount >= 4 && slInRange && inKillzone) return "A+";
+  if (rrRatio >= 1.7 && confluenceCount >= 3 && slInRange) return "A";
+  if (rrRatio >= 1.6 && confluenceCount >= 3) return "B+";
+  if (rrRatio >= 1.4 && confluenceCount >= 2) return "B";
   return "C";
 }
 
@@ -497,11 +500,17 @@ export async function runExecutionAgent(
     tp2 = roundToPrecision(tp2, current);
     if (tp3 !== null) tp3 = roundToPrecision(tp3, current);
 
-    const reward  = Math.abs(tp2 - entry);
-    const rrRatio = riskDistRounded > 0 ? parseFloat((reward / riskDistRounded).toFixed(2)) : null;
-    if (rrRatio === null) {
+    // ── Honest blended R:R ───────────────────────────────────────────────────────
+    // The management plan scales 50% out at TP1 and runs 50% to TP2, so the realized
+    // expectancy is the blend  -  NOT the full TP2 distance. Reporting pure TP2 R:R
+    // overstated edge and let marginal setups through the risk gate.
+    if (riskDistRounded <= 0) {
       return noTradeResult(start, "R:R calculation failed  -  zero risk distance");
     }
+    const tp1R = Math.abs(tp1 - entry) / riskDistRounded;
+    const tp2R = Math.abs(tp2 - entry) / riskDistRounded;
+    const blendedRR = 0.5 * tp1R + 0.5 * tp2R;
+    const rrRatio: number = parseFloat(blendedRR.toFixed(2));
 
     const factors         = scoreConfluence(snapshot, smc, news, isBullish, inKillzone);
     const passedFactors   = factors.filter(f => f.pass);

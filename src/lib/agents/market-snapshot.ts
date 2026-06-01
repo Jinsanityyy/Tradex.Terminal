@@ -8,6 +8,7 @@
 import type { MarketSnapshot, Symbol, Timeframe, PriceZone, SnapshotCandle } from "./schemas";
 import type { CandleBar, DailyStructure } from "./candles";
 import { deriveConvictionBias } from "@/lib/api/conviction";
+import { computeMACD, computeATR, computeATRPercent } from "./indicators";
 
 interface RawQuote {
   close: string;
@@ -178,13 +179,24 @@ export async function buildMarketSnapshot(
   })();
 
   const rsiVal = Math.min(100, Math.max(0, derivedRsi));
+  // RSI is "real" only when it came from actual candle history (not the synthetic blend)
+  const rsiReal = (timeframeContext?.rsi ?? null) !== null || (rsi ?? null) !== null;
 
   // Effective values for bias (invert EUR/USD since it's a DXY proxy)
   const effPctChange = cfg.invertBias ? -pctChange : pctChange;
   const effHigh      = cfg.invertBias ? close * 2 - structuralLow  : structuralHigh;
   const effLow       = cfg.invertBias ? close * 2 - structuralHigh : structuralLow;
-  const effMacd      = effPctChange * 0.05;
   const effRsi       = cfg.invertBias ? 100 - rsiVal : rsiVal;
+
+  // ── Real MACD(12,26,9) from candle closes ────────────────────────────────────
+  // Falls back to the legacy pctChange proxy only when candle history is too short.
+  const tfCloses     = timeframeCandles ? normalizeCandles(timeframeCandles).map(b => b.c) : [];
+  const realMacd     = computeMACD(tfCloses);
+  const macdReal     = realMacd !== null;
+  // Invert MACD for DXY-proxy pairs so it agrees with the inverted bias direction.
+  const effMacd      = realMacd !== null
+    ? (cfg.invertBias ? -realMacd.histogram : realMacd.histogram)
+    : effPctChange * 0.05;
 
   // For conviction, blend 5-day and 20-day drift weighted by timeframe:
   // H1/H4 are intraday/swing TFs  -  weight recent 5-day momentum more heavily
@@ -234,7 +246,23 @@ export async function buildMarketSnapshot(
 
   const utcHour   = new Date().getUTCHours();
   const session   = getSession(utcHour);
-  const atrProxy  = Math.abs(pctChange);
+
+  // ── Real volatility from ATR(14) ─────────────────────────────────────────────
+  // Volatility thresholds (risk-agent) are calibrated for the asset's typical DAILY
+  // % move, so prefer real daily ATR%. Fall back to timeframe ATR%, then |pctChange|.
+  const tfCandlesNorm  = timeframeCandles ? normalizeCandles(timeframeCandles) : [];
+  const tfAtrPercent   = tfCandlesNorm.length >= 15
+    ? computeATRPercent(tfCandlesNorm, close, 14)
+    : null;
+  const tfAtrAbs       = tfCandlesNorm.length >= 15
+    ? computeATR(tfCandlesNorm, 14)
+    : null;
+  const dailyAtrPct    = dailyStructure?.atr14dPercent && dailyStructure.atr14dPercent > 0
+    ? dailyStructure.atr14dPercent
+    : null;
+  const atrReal        = dailyAtrPct !== null || tfAtrPercent !== null;
+  const atrProxy       = dailyAtrPct ?? tfAtrPercent ?? Math.abs(pctChange);
+  const atrAbs         = tfAtrAbs ?? Math.abs(close - prevClose);
 
   // Volatility classification
   const volatilityHigh  = atrProxy > 1.0;
@@ -273,6 +301,10 @@ export async function buildMarketSnapshot(
       rsi: rsiVal,
       macdHist: effMacd,
       atrProxy,
+      atr: atrAbs,
+      rsiReal,
+      macdReal,
+      atrReal,
       session,
       sessionHour: utcHour,
     },
@@ -335,6 +367,10 @@ export function buildMockSnapshot(symbol: Symbol, timeframe: Timeframe): MarketS
       rsi:             63,
       macdHist:        0.003,
       atrProxy:        0.62,
+      atr:             price * 0.0062,
+      rsiReal:         false,
+      macdReal:        false,
+      atrReal:         false,
       session:         getSession(new Date().getUTCHours()),
       sessionHour:     new Date().getUTCHours(),
     },

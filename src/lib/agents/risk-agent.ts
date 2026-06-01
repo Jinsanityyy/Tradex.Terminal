@@ -127,8 +127,10 @@ export async function runRiskAgent(
     }
 
     // ── RR check (uses actual execution RR, not an estimate) ─────────────
-    if (rrEstimate !== null && rrEstimate < 1.5) {
-      warnings.push(`RR ${rrEstimate.toFixed(1)}:1 below minimum threshold (1.5:1)  -  trade not worth the risk`);
+    // rrEstimate is the BLENDED realized R:R (50% TP1 + 50% TP2), so the minimum
+    // viable threshold is lower than a pure-TP2 figure would be.
+    if (rrEstimate !== null && rrEstimate < 1.3) {
+      warnings.push(`Blended R:R ${rrEstimate.toFixed(2)}:1 below minimum (1.3:1)  -  realized edge too thin`);
     }
 
     // ── Valid / Invalid decision ──────────────────────────────────────────
@@ -137,7 +139,7 @@ export async function runRiskAgent(
     const isClosed    = session === "Closed";
     const extremeVol  = volatilityScore >= 92;   // only blocks on >2.5% moves
     const tooManyWarnings = warnings.length >= 5; // raised from 4 → 5
-    const rrTooLow    = rrEstimate !== null && rrEstimate < 1.6;  // minimum = 1.6R hard block
+    const rrTooLow    = rrEstimate !== null && rrEstimate < 1.3;  // blended-RR hard block
 
     // Kill zone enforcement  -  only trade during high-probability session windows.
     // Asian Kill Zone:  00:00–03:00 UTC = 8:00–11:00 AM PHT (Tokyo open)

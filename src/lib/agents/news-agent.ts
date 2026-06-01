@@ -20,53 +20,6 @@ import type {
 // LLM Prompt
 // ─────────────────────────────────────────────────────────────────────────────
 
-const NEWS_SYSTEM = `You are the Macro & News Analysis Agent in a professional multi-agent trading terminal. You interpret macroeconomic context, geopolitical developments, and news flow to determine market impact.
-
-Your job: analyze real news headlines and determine how they affect the specified asset. Think like a macro-focused fund manager.
-
-STEP 1  -  FILTER: Before analyzing, identify and EXCLUDE headlines with zero financial market relevance:
-- Entertainment: movies, box office, TV shows, music, awards
-- Sports: games, tournaments, player transfers
-- Non-systemic corporate: airline CEO quotes, celebrity lawsuits, product launches
-- Lifestyle: fashion, food, travel, health tips
-Only analyze headlines that could plausibly move institutional capital or risk appetite.
-
-STEP 2  -  WEIGHT: Not all headlines are equal.
-- HIGH-impact catalyst (military attack, central bank surprise, systemic risk): counts 3× in overall direction
-- MEDIUM: counts 1×; LOW: counts 0.5×
-- If any HIGH-impact catalyst has a clear direction, it DOMINATES unless directly contradicted by another HIGH-impact event
-
-MACRO REGIMES:
-- geopolitical: war, sanctions, conflict → safe-haven bid (gold), risk-off
-- fed-policy: Fed, FOMC, rate decisions → USD impact, rate-sensitive moves
-- inflation: CPI, PCE, price data → real yield, gold, USD reactions
-- tariff: trade war, import duties → risk uncertainty, commodity impact
-- macro-data: GDP, NFP, employment → forward guidance, risk appetite
-- calm: no major catalysts → technical price action dominates
-
-ASSET IMPACT RULES  -  STRICT:
-- XAUUSD (Gold):
-  * BULLISH: military conflict, Iran escalation, oil chokepoint closure (Hormuz), nuclear threat, Fed rate cuts, dollar weakness, banking crisis, inflation surge, sanctions
-  * BEARISH: ceasefire/peace deal, Fed rate hike surprise, strong USD rally, risk-on equity surge, inflation easing sharply
-  * CRITICAL: Geopolitical military action (Iran attacking ships, Hormuz tension, nuclear threat) = ALWAYS BULLISH for gold. Do NOT let irrelevant neutral news cancel this.
-  * CRITICAL: If riskScore >= 70 and regime is geopolitical, impact must be "bullish" for XAUUSD unless there is explicit ceasefire/de-escalation news
-- EURUSD: bullish on ECB hawkish, dollar weakness, risk-on; bearish on ECB dovish, dollar strength, euro crisis
-- GBPUSD: bullish on BOE hawkish, risk-on, UK data beat; bearish on BOE dovish, UK recession, dollar strength
-- BTCUSD: bullish on institutional adoption, ETF news, rate cuts, risk-on; bearish on regulation, bans, rate hikes
-
-Return ONLY valid JSON:
-{
-  "impact": "bullish" | "bearish" | "neutral",
-  "riskScore": 0-100,
-  "confidence": 0-100,
-  "dominantCatalyst": "description of the key market-moving theme",
-  "regime": "geopolitical" | "fed-policy" | "inflation" | "tariff" | "macro-data" | "calm",
-  "catalysts": [{ "headline": "...", "impact": "high|medium|low", "direction": "bullish|bearish|neutral", "affectedAsset": true|false }],
-  "biasChangers": ["event that could flip the current bias"],
-  "tailRiskEvents": ["tail risk if any"],
-  "reasons": ["reason1", "reason2", "reason3"]
-}`;
-
 // Headlines with no financial market relevance  -  filter before LLM call
 const IRRELEVANT_PATTERNS = [
   /box office|movie season|film opens|blockbuster|\boscars?\b|\bemmys?\b|\bgrammys?\b/i,
@@ -79,61 +32,6 @@ const IRRELEVANT_PATTERNS = [
 
 function isMarketRelevant(text: string): boolean {
   return !IRRELEVANT_PATTERNS.some(r => r.test(text));
-}
-
-async function runLLMNews(client: Anthropic, snapshot: MarketSnapshot): Promise<NewsAgentOutput> {
-  const start = Date.now();
-  const { recentNews, symbol } = snapshot;
-
-  // Pre-filter irrelevant headlines so LLM focuses only on market-moving news
-  const relevantNews = recentNews.filter(n => isMarketRelevant(`${n.headline} ${n.summary}`));
-  const headlineList = relevantNews.slice(0, 10).map((n, i) =>
-    `${i + 1}. "${n.headline}"  -  ${n.summary.slice(0, 100)}`
-  ).join("\n");
-
-  const msg = `
-Analyze macro/news impact for ${snapshot.symbolDisplay} (${snapshot.symbol}).
-
-MARKET-RELEVANT NEWS (irrelevant headlines already filtered out):
-${headlineList || "No relevant market news available  -  assume calm macro environment"}
-
-MARKET CONTEXT:
-- Asset: ${snapshot.symbolDisplay}
-- Current price: ${snapshot.price.current}
-- Price change: ${snapshot.price.changePercent > 0 ? "+" : ""}${snapshot.price.changePercent.toFixed(2)}%
-- HTF Bias from structure: ${snapshot.structure.htfBias.toUpperCase()} at ${snapshot.structure.htfConfidence}%
-- Session: ${snapshot.indicators.session}
-
-REMINDER: Apply the HIGH-impact dominance rule. If any HIGH-impact geopolitical event (military conflict, Iran, nuclear, Hormuz) is present for XAUUSD, the overall impact must be "bullish" unless contradicted by explicit de-escalation.
-Determine: macro regime, weighted directional impact for this asset, and what could flip the bias.`.trim();
-
-  const response = await anthropicCreate(client, {
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 700,
-    system: NEWS_SYSTEM,
-    messages: [{ role: "user", content: msg }],
-  });
-
-  const raw = response.content[0].type === "text" ? response.content[0].text : "";
-  const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
-  const parsed = JSON.parse(cleaned);
-
-  return {
-    agentId: "news",
-    impact: parsed.impact as DirectionalBias,
-    riskScore: parsed.riskScore,
-    confidence: parsed.confidence,
-    dominantCatalyst: parsed.dominantCatalyst,
-    regime: parsed.regime,
-    catalysts: (parsed.catalysts ?? []) as CatalystEvent[],
-    biasChangers: parsed.biasChangers ?? [],
-    tailRiskEvents: parsed.tailRiskEvents ?? [],
-    reasons: (parsed.reasons ?? []).slice(0, 5),
-    processingTime: Date.now() - start,
-    latestNewsTimestamp: snapshot.recentNews.length > 0
-      ? Math.max(...snapshot.recentNews.map(n => n.timestamp))
-      : undefined,
-  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -344,17 +242,40 @@ function computeRiskScore(regime: string, newsCount: number, hasHighImpact: bool
 // Main Agent Function
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Optional LLM narration — rewrites reasons + dominantCatalyst to read well, but
+// NEVER changes the deterministic impact / riskScore / regime decision.
+async function narrateNews(
+  client: Anthropic,
+  snapshot: MarketSnapshot,
+  computed: NewsAgentOutput
+): Promise<{ reasons: string[]; dominantCatalyst: string } | null> {
+  const headlines = snapshot.recentNews.slice(0, 8)
+    .map((n, i) => `${i + 1}. ${n.headline}`).join("\n");
+  const sys = `You are the Macro & News Agent writing rationale for a trade terminal. The directional impact has ALREADY been decided deterministically. Write 3-4 concise institutional reasons supporting the GIVEN impact, plus a one-line dominant catalyst. Do NOT contradict the impact. Return ONLY JSON: {"reasons":[...],"dominantCatalyst":"..."}.`;
+  const msg = `
+DECIDED IMPACT: ${computed.impact.toUpperCase()} @ ${computed.confidence}% | Regime: ${computed.regime} | Risk ${computed.riskScore}/100
+Asset: ${snapshot.symbolDisplay} (${snapshot.symbol})
+HEADLINES:
+${headlines || "No market-relevant news"}
+Return JSON only.`.trim();
+
+  const response = await anthropicCreate(client, {
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 400,
+    system: sys,
+    messages: [{ role: "user", content: msg }],
+  });
+  const raw = response.content[0].type === "text" ? response.content[0].text : "";
+  const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
+  const parsed = JSON.parse(cleaned);
+  if (Array.isArray(parsed?.reasons) && parsed.reasons.length > 0 && typeof parsed.dominantCatalyst === "string") {
+    return { reasons: parsed.reasons.slice(0, 5), dominantCatalyst: parsed.dominantCatalyst };
+  }
+  return null;
+}
+
 export async function runNewsAgent(snapshot: MarketSnapshot, anthropicApiKey?: string): Promise<NewsAgentOutput> {
   const start = Date.now();
-
-  if (anthropicApiKey) {
-    try {
-      const client = new Anthropic({ apiKey: anthropicApiKey });
-      return await runLLMNews(client, snapshot);
-    } catch (err) {
-      console.warn("News Agent LLM fallback:", err);
-    }
-  }
 
   try {
     const { recentNews, symbol } = snapshot;
@@ -515,7 +436,7 @@ export async function runNewsAgent(snapshot: MarketSnapshot, anthropicApiKey?: s
 
     const riskScore = computeRiskScore(regime, recentNews.length, hasHighImpact);
 
-    return {
+    const result: NewsAgentOutput = {
       agentId: "news",
       impact,
       riskScore,
@@ -531,6 +452,23 @@ export async function runNewsAgent(snapshot: MarketSnapshot, anthropicApiKey?: s
         ? Math.max(...recentNews.map(n => n.timestamp))
         : undefined,
     };
+
+    // Optional LLM narration — rewrites reasons + dominantCatalyst only.
+    if (anthropicApiKey && catalysts.length > 0) {
+      try {
+        const client = new Anthropic({ apiKey: anthropicApiKey });
+        const narrated = await narrateNews(client, snapshot, result);
+        if (narrated) {
+          result.reasons = narrated.reasons;
+          result.dominantCatalyst = narrated.dominantCatalyst;
+          result.processingTime = Date.now() - start;
+        }
+      } catch (err) {
+        console.warn("[news-agent] narration failed, using deterministic reasons:", err);
+      }
+    }
+
+    return result;
   } catch (err) {
     return {
       agentId: "news",

@@ -21,95 +21,6 @@ import type {
 } from "./schemas";
 import { getTimeframeBiasFromCandles, getMAFromCandles } from "./candles";
 
-const TREND_SYSTEM = `You are the Trend Analysis Agent. Determine the dominant trend using Price Action + RSI + MACD + Moving Averages.
-
-FRAMEWORK:
-- Market structure: Higher Highs (HH) + Higher Lows (HL) = BULLISH; Lower Highs (LH) + Lower Lows (LL) = BEARISH
-- Break of Structure (BOS): decisive close beyond last swing high/low -> structure shift
-- RSI(14): above 50 = bullish momentum, below 50 = bearish; >70 overbought, <30 oversold
-- MACD histogram: positive = expanding bullish momentum; negative = expanding bearish; divergence = weakening trend
-- Moving Averages: price > EMA20 > EMA50 = bullish MA stack; price < EMA20 < EMA50 = bearish MA stack; EMA200 = long-term trend
-- Trend phases:
-  - Expansion: strong structure + RSI trending + MACD aligned + MA stacked
-  - Pullback: corrective move, structure intact, RSI resetting toward 50
-  - Range: no clear HH/HL or LH/LL, RSI oscillating around 50, flat MAs
-  - Reversal: BOS in opposite direction + RSI crossing 50 + MACD crossing zero
-  - Breakout: momentum spike out of range, RSI expansion, MACD diverging
-
-BIAS RULES:
-- H4/H1 bias: primary trend from structure + MA stack
-- If MA stack aligned with structure -> high confidence
-- RSI divergence against trend = reduce confidence
-- MACD histogram opposing structure = reduce confidence
-
-Return ONLY valid JSON - no markdown, no code blocks:
-{
-  "bias": "bullish" | "bearish" | "neutral",
-  "confidence": 0-100,
-  "timeframeBias": { "M5": "bullish|bearish|neutral", "M15": "bullish|bearish|neutral", "H1": "bullish|bearish|neutral", "H4": "bullish|bearish|neutral", "aligned": true|false },
-  "maAlignment": true|false,
-  "momentumDirection": "expanding" | "contracting" | "flat",
-  "marketPhase": "Expansion" | "Pullback" | "Range" | "Reversal" | "Breakout",
-  "reasons": ["reason1", "reason2", "reason3", "reason4"],
-  "invalidationLevel": number | null
-}`;
-
-async function runLLMTrend(client: Anthropic, snapshot: MarketSnapshot): Promise<TrendAgentOutput> {
-  const start = Date.now();
-  const { price, structure, indicators } = snapshot;
-
-  const maData = await getMAFromCandles(snapshot.symbol, snapshot.timeframe, price.current)
-    .catch(() => ({ ma20: null, ma50: null, ma200: null, maStack: "neutral" as const }));
-
-  const msg = `
-Analyze trend for ${snapshot.symbolDisplay} (${snapshot.symbol}) on ${snapshot.timeframe}.
-
-PRICE DATA:
-- Current: ${price.current} | Open: ${price.open} | High: ${price.high} | Low: ${price.low}
-- Change: ${price.changePercent > 0 ? "+" : ""}${price.changePercent.toFixed(2)}% today
-- Position in today's range: ${price.positionInDay.toFixed(0)}%
-
-MARKET STRUCTURE:
-- 52-week range: ${structure.low52w} - ${structure.high52w}
-- Position: ${structure.pos52w}% of range (${structure.zone})
-- HTF Bias (D1-anchored): ${structure.htfBias.toUpperCase()} at ${structure.htfConfidence}% conviction
-- Structure context: ${structure.smcContext}
-- NOTE: HTF bias is derived from 20-day daily drift  -  weight this heavily over intraday % change
-
-INDICATORS:
-- RSI(14): ${indicators.rsi.toFixed(1)} (${indicators.rsi > 70 ? "overbought" : indicators.rsi < 30 ? "oversold" : indicators.rsi > 50 ? "bullish" : "bearish"})
-- MACD histogram: ${indicators.macdHist > 0 ? "+" : ""}${indicators.macdHist.toFixed(4)} (${indicators.macdHist > 0 ? "bullish momentum" : "bearish momentum"})
-- EMA20: ${maData.ma20 !== null ? maData.ma20.toFixed(4) : "N/A"} | EMA50: ${maData.ma50 !== null ? maData.ma50.toFixed(4) : "N/A"} | EMA200: ${maData.ma200 !== null ? maData.ma200.toFixed(4) : "N/A"}
-- MA Stack: ${maData.maStack.toUpperCase()} (${maData.maStack === "bullish" ? "price > EMA20 > EMA50 - trend confirmed" : maData.maStack === "bearish" ? "price < EMA20 < EMA50 - trend confirmed" : "mixed - no clear stack"})
-- Session: ${indicators.session} (hour ${indicators.sessionHour} UTC)
-
-Determine trend bias, market phase, and give institutional-grade reasoning using structure + RSI + MACD + MA alignment.`.trim();
-
-  const response = await anthropicCreate(client, {
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 600,
-    system: TREND_SYSTEM,
-    messages: [{ role: "user", content: msg }],
-  });
-
-  const raw = response.content[0].type === "text" ? response.content[0].text : "";
-  const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
-  const parsed = JSON.parse(cleaned);
-
-  return {
-    agentId: "trend",
-    bias: parsed.bias as DirectionalBias,
-    confidence: parsed.confidence,
-    timeframeBias: parsed.timeframeBias as TimeframeBias,
-    maAlignment: parsed.maAlignment,
-    momentumDirection: parsed.momentumDirection,
-    marketPhase: parsed.marketPhase as MarketPhase,
-    reasons: parsed.reasons,
-    invalidationLevel: parsed.invalidationLevel,
-    processingTime: Date.now() - start,
-  };
-}
-
 function deriveFallbackTimeframeBias(snapshot: MarketSnapshot): TimeframeBias {
   const { htfBias, htfConfidence } = snapshot.structure;
   const { changePercent, positionInDay } = snapshot.price;
@@ -276,20 +187,56 @@ function resolveFinalBias(
   return preliminaryBias;
 }
 
+// ── Optional LLM narration ──────────────────────────────────────────────────────
+// The deterministic computation is the SOURCE OF TRUTH for bias/confidence/phase.
+// The LLM is used ONLY to rewrite the human-readable `reasons` so they stay
+// perfectly consistent with the decided bias. Bias/confidence are never changed.
+async function narrateTrendReasons(
+  client: Anthropic,
+  snapshot: MarketSnapshot,
+  computed: TrendAgentOutput,
+  maData: { ma20: number | null; ma50: number | null; ma200: number | null; maStack: string }
+): Promise<string[] | null> {
+  const { price, structure, indicators } = snapshot;
+  const sys = `You are the Trend Analysis Agent writing the rationale for a trade terminal. The directional decision has ALREADY been made deterministically. Your ONLY job is to write 4-5 concise, institutional-grade bullet reasons that justify the GIVEN bias using the supplied data. Do NOT contradict the bias. Return ONLY a JSON array of strings.`;
+
+  const msg = `
+DECIDED BIAS: ${computed.bias.toUpperCase()} @ ${computed.confidence}% | Phase: ${computed.marketPhase} | Momentum: ${computed.momentumDirection}
+${snapshot.symbolDisplay} (${snapshot.symbol}) ${snapshot.timeframe}
+
+DATA:
+- Price ${price.current} | Change ${price.changePercent > 0 ? "+" : ""}${price.changePercent.toFixed(2)}%
+- HTF bias ${structure.htfBias.toUpperCase()} @ ${structure.htfConfidence}%
+- TF alignment: M5 ${computed.timeframeBias.M5} / M15 ${computed.timeframeBias.M15} / H1 ${computed.timeframeBias.H1} / H4 ${computed.timeframeBias.H4} (aligned: ${computed.timeframeBias.aligned})
+- RSI(14) ${indicators.rsi.toFixed(1)}${indicators.rsiReal ? "" : " (estimated)"} | MACD hist ${indicators.macdHist > 0 ? "+" : ""}${indicators.macdHist.toFixed(4)}${indicators.macdReal ? "" : " (proxy)"}
+- MA stack ${maData.maStack.toUpperCase()} | EMA20 ${maData.ma20?.toFixed(2) ?? "N/A"} EMA50 ${maData.ma50?.toFixed(2) ?? "N/A"}
+- Daily ATR ${indicators.atrProxy.toFixed(2)}%${indicators.atrReal ? "" : " (proxy)"} | Session ${indicators.session}
+
+Write 4-5 reasons that justify the ${computed.bias.toUpperCase()} call. JSON array of strings only.`.trim();
+
+  const response = await anthropicCreate(client, {
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 400,
+    system: sys,
+    messages: [{ role: "user", content: msg }],
+  });
+  const raw = response.content[0].type === "text" ? response.content[0].text : "";
+  const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
+  const parsed = JSON.parse(cleaned);
+  if (Array.isArray(parsed) && parsed.every(s => typeof s === "string") && parsed.length > 0) {
+    return parsed.slice(0, 5);
+  }
+  return null;
+}
+
 export async function runTrendAgent(
   snapshot: MarketSnapshot,
   anthropicApiKey?: string
 ): Promise<TrendAgentOutput> {
   const start = Date.now();
-
-  if (anthropicApiKey) {
-    try {
-      const client = new Anthropic({ apiKey: anthropicApiKey });
-      return await runLLMTrend(client, snapshot);
-    } catch (err) {
-      console.warn("[trend-agent] LLM fallback:", err);
-    }
-  }
+  // Track MA data so the optional narration step can reuse it without re-fetching.
+  let maDataForNarration: { ma20: number | null; ma50: number | null; ma200: number | null; maStack: string } =
+    { ma20: null, ma50: null, ma200: null, maStack: "neutral" };
 
   try {
     const { htfBias, htfConfidence } = snapshot.structure;
@@ -298,6 +245,7 @@ export async function runTrendAgent(
 
     const maData = await getMAFromCandles(snapshot.symbol, snapshot.timeframe, current)
       .catch(() => ({ ma20: null, ma50: null, ma200: null, maStack: "neutral" as const }));
+    maDataForNarration = maData;
 
     const timeframeBias = await resolveTimeframeBias(snapshot);
     const momentum = deriveMomentumDirection(rsi, changePercent, macdHist, maData.maStack, snapshot.indicators.atrProxy);
@@ -387,7 +335,7 @@ export async function runTrendAgent(
       }
     }
 
-    return {
+    const result: TrendAgentOutput = {
       agentId: "trend",
       bias,
       confidence: Math.round(confidence),
@@ -399,6 +347,22 @@ export async function runTrendAgent(
       invalidationLevel,
       processingTime: Date.now() - start,
     };
+
+    // Optional LLM narration — rewrites `reasons` only, never the decided bias.
+    if (anthropicApiKey) {
+      try {
+        const client = new Anthropic({ apiKey: anthropicApiKey });
+        const narrated = await narrateTrendReasons(client, snapshot, result, maDataForNarration);
+        if (narrated) {
+          result.reasons = narrated;
+          result.processingTime = Date.now() - start;
+        }
+      } catch (err) {
+        console.warn("[trend-agent] narration failed, using deterministic reasons:", err);
+      }
+    }
+
+    return result;
   } catch (err) {
     return {
       agentId: "trend",

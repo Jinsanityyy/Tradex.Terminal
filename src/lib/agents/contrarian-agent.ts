@@ -17,82 +17,35 @@ import type { TrendAgentOutput, SMCAgentOutput } from "./schemas";
 // LLM Prompt
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CONTRARIAN_SYSTEM = `You are the Contrarian Agent in a professional multi-agent trading terminal. Your job is to challenge the dominant thesis and identify where the primary setup FAILS.
-
-You are a devil's advocate. The other agents are biased toward their setups. Your job is to poke holes.
-
-WHAT TO LOOK FOR:
-- Bull traps: price extended to premium zone with RSI overbought  -  smart money may distribute
-- Bear traps: price oversold at discount zone  -  lows swept, reversal imminent
-- False breakouts: large range candle with small body (wick rejection)  -  not genuine BOS
-- Stop hunts: price near 52-week extremes  -  equal highs/lows are liquidity magnets
-- HTF-LTF divergence: daily bias says one thing but intraday moving opposite
-- Weak conviction: both trend and structure agents below 60%  -  no real edge
-- Asia session unreliability: Asia moves often reverse at London open
-- CHoCH uncertainty: structural shift in progress, counter-trap possible
-
-Return ONLY valid JSON:
-{
-  "challengesBias": true|false,
-  "trapType": "bull trap" | "bear trap" | "false breakout" | "stop hunt" | "htf-ltf divergence" | null,
-  "trapConfidence": 0-100,
-  "oppositeLiquidity": number | null,
-  "failureReasons": ["reason1", "reason2", "reason3"],
-  "alternativeScenario": "What happens if the primary thesis is WRONG  -  specific price action scenario",
-  "riskFactor": 0-100
-}`;
-
-async function runLLMContrarian(
+// Optional LLM narration — rewrites failureReasons + alternativeScenario only.
+// The deterministic trap detection (challengesBias / riskFactor / trapType) is authoritative.
+async function narrateContrarian(
   client: Anthropic,
   snapshot: MarketSnapshot,
   trend: TrendAgentOutput,
-  smc: SMCAgentOutput
-): Promise<ContrarianAgentOutput> {
-  const start = Date.now();
-  const { price, structure, indicators } = snapshot;
-
+  smc: SMCAgentOutput,
+  computed: ContrarianAgentOutput
+): Promise<{ failureReasons: string[]; alternativeScenario: string } | null> {
+  const sys = `You are the Contrarian Agent for a trade terminal. The risk assessment has ALREADY been decided deterministically. Write 3-4 concise reasons that support the GIVEN trap assessment, plus a one-line alternative scenario. Do NOT change the verdict. Return ONLY JSON: {"failureReasons":[...],"alternativeScenario":"..."}.`;
   const msg = `
-Challenge the primary thesis for ${snapshot.symbolDisplay} (${snapshot.symbol}).
-
-PRIMARY THESIS TO CHALLENGE:
-- Trend Agent says: ${trend.bias.toUpperCase()} at ${trend.confidence}% confidence
-  Reasons: ${trend.reasons.slice(0, 2).join("; ")}
-- Price Action says: ${smc.bias.toUpperCase()} at ${smc.confidence}% | Setup: ${smc.setupType}
-  BOS detected: ${smc.bosDetected} | Sweep: ${smc.liquiditySweepDetected} | Zone: ${smc.premiumDiscount}
-
-MARKET DATA:
-- Price: ${price.current} | Change: ${price.changePercent > 0 ? "+" : ""}${price.changePercent.toFixed(2)}%
-- High: ${price.high} | Low: ${price.low} | Day range: ${price.dayRange.toFixed(4)}
-- RSI: ${indicators.rsi.toFixed(1)} | ATR: ${indicators.atrProxy.toFixed(2)}%
-- Session: ${indicators.session}
-- 52W position: ${structure.pos52w}% (${structure.zone}) | HTF: ${structure.htfBias} at ${structure.htfConfidence}%
-- In premium: ${structure.inPremium} | In discount: ${structure.inDiscount}
-- 52W High: ${structure.high52w} | 52W Low: ${structure.low52w}
-
-Find the trap. Identify where the primary setup fails. Opposite liquidity level = where retail stops would be hunted.`.trim();
+DECIDED: challengesBias=${computed.challengesBias} | trap=${computed.trapType ?? "none"} | riskFactor=${computed.riskFactor}/100
+Primary thesis: Trend ${trend.bias.toUpperCase()} @ ${trend.confidence}%, PA ${smc.bias.toUpperCase()} @ ${smc.confidence}%
+${snapshot.symbolDisplay} ${snapshot.price.current} | RSI ${snapshot.indicators.rsi.toFixed(0)} | 52W pos ${snapshot.structure.pos52w}% | Zone ${snapshot.structure.zone} | Session ${snapshot.indicators.session}
+Return JSON only.`.trim();
 
   const response = await anthropicCreate(client, {
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 600,
-    system: CONTRARIAN_SYSTEM,
+    max_tokens: 400,
+    system: sys,
     messages: [{ role: "user", content: msg }],
   });
-
   const raw = response.content[0].type === "text" ? response.content[0].text : "";
   const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
   const parsed = JSON.parse(cleaned);
-
-  return {
-    agentId: "contrarian",
-    challengesBias: parsed.challengesBias,
-    trapType: parsed.trapType,
-    trapConfidence: parsed.trapConfidence,
-    oppositeLiquidity: parsed.oppositeLiquidity,
-    failureReasons: (parsed.failureReasons ?? []).slice(0, 4),
-    alternativeScenario: parsed.alternativeScenario,
-    riskFactor: Math.min(95, parsed.riskFactor ?? 20),
-    processingTime: Date.now() - start,
-  };
+  if (Array.isArray(parsed?.failureReasons) && parsed.failureReasons.length > 0 && typeof parsed.alternativeScenario === "string") {
+    return { failureReasons: parsed.failureReasons.slice(0, 4), alternativeScenario: parsed.alternativeScenario };
+  }
+  return null;
 }
 
 export async function runContrarianAgent(
@@ -102,15 +55,6 @@ export async function runContrarianAgent(
   anthropicApiKey?: string
 ): Promise<ContrarianAgentOutput> {
   const start = Date.now();
-
-  if (anthropicApiKey) {
-    try {
-      const client = new Anthropic({ apiKey: anthropicApiKey });
-      return await runLLMContrarian(client, snapshot, trend, smc);
-    } catch (err) {
-      console.warn("Contrarian Agent LLM fallback:", err);
-    }
-  }
 
   try {
     const { price, structure, indicators } = snapshot;
@@ -254,7 +198,7 @@ export async function runContrarianAgent(
       riskFactor = 15;
     }
 
-    return {
+    const result: ContrarianAgentOutput = {
       agentId: "contrarian",
       challengesBias,
       trapType,
@@ -265,6 +209,23 @@ export async function runContrarianAgent(
       riskFactor: Math.min(95, riskFactor),
       processingTime: Date.now() - start,
     };
+
+    // Optional LLM narration — rewrites failureReasons + alternativeScenario only.
+    if (anthropicApiKey) {
+      try {
+        const client = new Anthropic({ apiKey: anthropicApiKey });
+        const narrated = await narrateContrarian(client, snapshot, trend, smc, result);
+        if (narrated) {
+          result.failureReasons = narrated.failureReasons;
+          result.alternativeScenario = narrated.alternativeScenario;
+          result.processingTime = Date.now() - start;
+        }
+      } catch (err) {
+        console.warn("[contrarian-agent] narration failed, using deterministic reasons:", err);
+      }
+    }
+
+    return result;
   } catch (err) {
     return {
       agentId: "contrarian",

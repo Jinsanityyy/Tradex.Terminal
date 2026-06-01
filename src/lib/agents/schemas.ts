@@ -77,9 +77,13 @@ export interface StructureData {
 }
 
 export interface IndicatorData {
-  rsi: number;           // 14-period RSI
-  macdHist: number;
-  atrProxy: number;      // abs % change as ATR proxy
+  rsi: number;           // 14-period RSI (real, from candles when available)
+  macdHist: number;      // real MACD(12,26,9) histogram from candle closes
+  atrProxy: number;      // daily volatility as % (real ATR% when available, else |pctChange|)
+  atr: number;           // absolute ATR(14) in price units for SL sizing (0 when unavailable)
+  rsiReal: boolean;      // true when rsi came from real candle history (not synthetic)
+  macdReal: boolean;     // true when macdHist came from real MACD (not pctChange proxy)
+  atrReal: boolean;      // true when atrProxy/atr came from real ATR (not |pctChange|)
   session: string;       // "Asia" | "London" | "New York" | "Closed"
   sessionHour: number;   // UTC hour
 }

@@ -1,5 +1,6 @@
 ﻿import type { DirectionalBias, Symbol, Timeframe, TimeframeBias } from "./schemas";
 import { fetchYahooCandles } from "@/lib/api/yahoo-finance";
+import { computeATR } from "./indicators";
 
 export interface CandleBar {
   t: number;
@@ -773,6 +774,7 @@ export interface DailyStructure {
   rsi14d: number;         // 14-period RSI of daily closes
   structuralHigh: number; // 20-day range high
   structuralLow: number;  // 20-day range low
+  atr14dPercent: number;  // ATR(14) of daily candles as % of last close (real volatility)
 }
 
 async function fetchFinnhubDailyCandles(symbol: Symbol): Promise<CandleBar[] | null> {
@@ -891,10 +893,15 @@ export async function getDailyStructure(symbol: Symbol): Promise<DailyStructure 
   const structuralHigh = Math.max(...window20.map(bar => bar.h));
   const structuralLow  = Math.min(...window20.map(bar => bar.l));
 
+  // Real daily ATR(14) as % of last close  -  the proper volatility measure
+  const atr14d         = computeATR(candles, 14);
+  const atr14dPercent  = atr14d !== null && last.c > 0 ? (atr14d / last.c) * 100 : 0;
+
   console.log("[mtf-candles]", JSON.stringify({
     symbol, interval: "D1", provider: "resolved", status: "ok",
-    candles: candles.length, drift20d: drift20d.toFixed(2), drift5d: drift5d.toFixed(2), rsi14d: rsi14d.toFixed(1),
+    candles: candles.length, drift20d: drift20d.toFixed(2), drift5d: drift5d.toFixed(2),
+    rsi14d: rsi14d.toFixed(1), atr14dPercent: atr14dPercent.toFixed(2),
   }));
 
-  return { drift20d, drift5d, rsi14d, structuralHigh, structuralLow };
+  return { drift20d, drift5d, rsi14d, structuralHigh, structuralLow, atr14dPercent };
 }

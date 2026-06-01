@@ -5,6 +5,7 @@
 
 import type { MarketSnapshot, Symbol, Timeframe, PriceZone, SnapshotCandle } from "@/lib/agents/schemas";
 import { rsi as computeRsi, ema, macdHistogram, pos52w as compute52w, detectSession } from "./indicators";
+import { computeATR } from "@/lib/agents/indicators";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Inline conviction bias (mirrors src/lib/api/conviction.ts, no import needed)
@@ -156,10 +157,15 @@ export function buildHistoricalSnapshot(
 
   // Session from candle timestamp
   const { session, sessionHour } = detectSession(cur.t);
-  const atrProxy  = Math.abs(changePct);
 
   // Recent 60 candles for PA agent
   const recent60  = candles.slice(Math.max(0, index - 59), index + 1) as SnapshotCandle[];
+
+  // Real ATR(14) from recent candles; fall back to |changePct| when too short
+  const atrWindow = candles.slice(Math.max(0, index - 28), index + 1);
+  const atrAbsBt  = computeATR(atrWindow, 14);
+  const atrProxy  = atrAbsBt !== null && close > 0 ? (atrAbsBt / close) * 100 : Math.abs(changePct);
+  const atrReal   = atrAbsBt !== null;
 
   const symbolDisplay: Record<string, string> = {
     XAUUSD: "Gold (XAUUSD)",
@@ -200,6 +206,10 @@ export function buildHistoricalSnapshot(
       rsi:         parseFloat(rsiVal.toFixed(2)),
       macdHist:    parseFloat(macdH.toFixed(6)),
       atrProxy:    parseFloat(atrProxy.toFixed(4)),
+      atr:         atrAbsBt !== null ? parseFloat(atrAbsBt.toFixed(6)) : Math.abs(change),
+      rsiReal:     !isNaN(series.rsiSeries[index]),
+      macdReal:    !isNaN(series.macdSeries[index]),
+      atrReal,
       session,
       sessionHour,
     },

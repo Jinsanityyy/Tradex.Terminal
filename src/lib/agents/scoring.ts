@@ -329,10 +329,12 @@ export function evaluateRiskGrade(
 
   if (!hasSetup) score -= 20;
 
+  // rrRatio here is the blended realized R:R (caps near ~2.0R), so thresholds
+  // are scaled accordingly rather than using pure-TP2 figures.
   if (rrRatio !== null) {
-    if (rrRatio < 1.5) score -= 20;
-    else if (rrRatio < 2) score -= 10;
-    else if (rrRatio >= 3) score += 10;
+    if (rrRatio < 1.3) score -= 20;
+    else if (rrRatio < 1.5) score -= 10;
+    else if (rrRatio >= 1.8) score += 10;
   } else {
     score -= 15;
   }
