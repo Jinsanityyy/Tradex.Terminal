@@ -189,7 +189,10 @@ export async function runRiskAgent(
       );
     }
 
-    const valid = !isClosed && !extremeVol && !tooManyWarnings && !rrTooLow && (!outsideKillZone || setupConfirmed);
+    // Kill zone is a strong warning (reduces score + counts toward warning limit)
+    // but not a standalone hard block — the execution grading already penalises
+    // off-session setups via the killzone confluence factor.
+    const valid = !isClosed && !extremeVol && !tooManyWarnings && !rrTooLow;
 
     // ── Max risk ──────────────────────────────────────────────────────────
     let maxRiskPercent = 1.0; // default 1% account risk
