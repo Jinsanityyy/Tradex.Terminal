@@ -447,6 +447,8 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   const upperWick   = high - Math.max(current, open);
   const lowerWick   = Math.min(current, open) - low;
 
+  // Estimated session levels (proxies from day range) — used ONLY for display/context,
+  // never to claim a real sweep. The reality flags below gate the fallback detector.
   let asianHigh  = equilibrium + dayRange * 0.18;
   let asianLow   = equilibrium - dayRange * 0.18;
   let londonHigh = equilibrium + dayRange * 0.27;
@@ -454,16 +456,19 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   let pdh        = prevClose + dayRange * 0.40;
   let pdl        = prevClose - dayRange * 0.40;
 
+  // Track which levels came from REAL candle history vs proxy estimates.
+  const realLvl = { asianHigh: false, asianLow: false, londonHigh: false, londonLow: false, pdh: false, pdl: false };
+
   const minFvgGapVal = fvgMinGap(snapshot.symbol, current);
   const candles = snapshot.recentCandles as CandleSlim[] | undefined;
   if (candles && candles.length >= 10) {
     const real = computeActualSessionLevels(candles);
-    if (real.asianHigh  !== null) asianHigh  = real.asianHigh;
-    if (real.asianLow   !== null) asianLow   = real.asianLow;
-    if (real.londonHigh !== null) londonHigh = real.londonHigh;
-    if (real.londonLow  !== null) londonLow  = real.londonLow;
-    if (real.pdh        !== null) pdh        = real.pdh;
-    if (real.pdl        !== null) pdl        = real.pdl;
+    if (real.asianHigh  !== null) { asianHigh  = real.asianHigh;  realLvl.asianHigh  = true; }
+    if (real.asianLow   !== null) { asianLow   = real.asianLow;   realLvl.asianLow   = true; }
+    if (real.londonHigh !== null) { londonHigh = real.londonHigh; realLvl.londonHigh = true; }
+    if (real.londonLow  !== null) { londonLow  = real.londonLow;  realLvl.londonLow  = true; }
+    if (real.pdh        !== null) { pdh        = real.pdh;        realLvl.pdh        = true; }
+    if (real.pdl        !== null) { pdl        = real.pdl;        realLvl.pdl        = true; }
   }
 
   let liquiditySweepDetected = false;
@@ -497,20 +502,23 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
     }
   }
 
+  // Single-candle fallback sweep — ONLY against levels derived from real candle
+  // history. Sweeping a proxy-estimated level is meaningless, so a fabricated level
+  // can never produce a setup.
   if (!liquiditySweepDetected && inNYSession) {
-    if (lowerWick >= minSweep && low < londonLow && current > londonLow) {
+    if (realLvl.londonLow && lowerWick >= minSweep && low < londonLow && current > londonLow) {
       liquiditySweepDetected = true;
       sweepLevel = londonLow; sweepLabel = "London Low"; sweepModifier = 15; sweepBias = "bullish";
-    } else if (upperWick >= minSweep && high > pdh && current < pdh) {
+    } else if (realLvl.pdh && upperWick >= minSweep && high > pdh && current < pdh) {
       liquiditySweepDetected = true;
       sweepLevel = pdh; sweepLabel = "PDH"; sweepModifier = 10; sweepBias = "bearish";
-    } else if (upperWick >= minSweep && high > asianHigh && current < asianHigh) {
+    } else if (realLvl.asianHigh && upperWick >= minSweep && high > asianHigh && current < asianHigh) {
       liquiditySweepDetected = true;
       sweepLevel = asianHigh; sweepLabel = "Asian High"; sweepModifier = 10; sweepBias = "bearish";
-    } else if (lowerWick >= minSweep && low < asianLow && current > asianLow) {
+    } else if (realLvl.asianLow && lowerWick >= minSweep && low < asianLow && current > asianLow) {
       liquiditySweepDetected = true;
       sweepLevel = asianLow; sweepLabel = "Asian Low"; sweepModifier = 5; sweepBias = "bullish";
-    } else if (upperWick >= minSweep && high > londonHigh && current < londonHigh) {
+    } else if (realLvl.londonHigh && upperWick >= minSweep && high > londonHigh && current < londonHigh) {
       liquiditySweepDetected = true;
       sweepLevel = londonHigh; sweepLabel = "London High"; sweepModifier = 0; sweepBias = "bearish";
     }
@@ -648,8 +656,12 @@ export async function runPriceActionAgent(
     console.warn("Price action agent rule-based scan failed:", err);
   }
 
-  // Phase 2: LLM for broader structural analysis when no candle sweep is confirmed
-  if (anthropicApiKey) {
+  // Phase 2: LLM for broader structural analysis when no candle sweep is confirmed.
+  // Skip the LLM entirely when there is no real candle history — it would only see
+  // proxy-estimated session levels and could fabricate a sweep. The rule-based
+  // result (daily-bias read, no setup) is the honest answer in that case.
+  const hasRealCandles = (snapshot.recentCandles?.length ?? 0) >= 10;
+  if (anthropicApiKey && hasRealCandles) {
     try {
       const client = new Anthropic({ apiKey: anthropicApiKey });
       return await runLLMAnalysis(client, snapshot);
