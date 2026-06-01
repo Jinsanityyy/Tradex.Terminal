@@ -15,7 +15,7 @@ import { getAuthUser } from "@/lib/supabase/auth-helper";
 import { getAgentCache } from "@/lib/agents/agent-cache-store";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 55; // Vercel Pro: 60s max  -  keep 5s buffer for cleanup
+export const maxDuration = 55; // Vercel Pro: 60s max — agents now on Sonnet, keep 5s buffer
 
 const VALID_SYMBOLS: Symbol[] = ["XAUUSD", "EURUSD", "GBPUSD", "BTCUSD"];
 const VALID_TIMEFRAMES: Timeframe[] = ["M5", "M15", "H1", "H4"];

@@ -108,7 +108,7 @@ REMINDER: Apply the HIGH-impact dominance rule. If any HIGH-impact geopolitical 
 Determine: macro regime, weighted directional impact for this asset, and what could flip the bias.`.trim();
 
   const response = await anthropicCreate(client, {
-    model: "claude-haiku-4-5-20251001",
+    model: "claude-sonnet-4-6",
     max_tokens: 700,
     system: NEWS_SYSTEM,
     messages: [{ role: "user", content: msg }],

@@ -86,7 +86,7 @@ INDICATORS:
 Determine trend bias, market phase, and give institutional-grade reasoning using structure + RSI + MACD + MA alignment.`.trim();
 
   const response = await anthropicCreate(client, {
-    model: "claude-haiku-4-5-20251001",
+    model: "claude-sonnet-4-6",
     max_tokens: 600,
     system: TREND_SYSTEM,
     messages: [{ role: "user", content: msg }],

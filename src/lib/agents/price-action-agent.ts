@@ -173,7 +173,7 @@ INDICATORS:
 Apply the analysis rules above. Only flag a sweep if in NY session AND wick exceeds level. Return JSON only.`.trim();
 
   const msg = await anthropicCreate(client, {
-    model: "claude-haiku-4-5-20251001",
+    model: "claude-sonnet-4-6",
     max_tokens: 900,
     system: JADE_CAP_SYSTEM,
     messages: [{ role: "user", content: userMessage }],

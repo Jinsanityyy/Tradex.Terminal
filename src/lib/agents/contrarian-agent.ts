@@ -72,7 +72,7 @@ MARKET DATA:
 Find the trap. Identify where the primary setup fails. Opposite liquidity level = where retail stops would be hunted.`.trim();
 
   const response = await anthropicCreate(client, {
-    model: "claude-haiku-4-5-20251001",
+    model: "claude-sonnet-4-6",
     max_tokens: 600,
     system: CONTRARIAN_SYSTEM,
     messages: [{ role: "user", content: msg }],

@@ -253,7 +253,7 @@ Generate the debate. Each agent argues their position and, if they disagree with
 ]`.trim();
 
   const response = await anthropicCreate(client, {
-    model: "claude-haiku-4-5-20251001",
+    model: "claude-sonnet-4-6",
     max_tokens: 1200,
     system: DEBATE_SYSTEM,
     messages: [{ role: "user", content: msg }],
