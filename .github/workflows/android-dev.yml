@@ -32,6 +32,8 @@ jobs:
             c = c.replace(/url:\s*\"[^\"]+\"/, 'url: \"' + process.env.DEV_URL + '\"');
             fs.writeFileSync('capacitor.config.ts', c);
           "
+      - name: Create assets dir
+        run: mkdir -p android/app/src/main/assets
       - run: npx cap sync android
       - name: Build APK
         working-directory: android
