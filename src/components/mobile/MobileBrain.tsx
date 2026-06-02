@@ -368,7 +368,11 @@ export function MobileBrain() {
   const { data, isLoading, mutate } = useSWR<AgentRunResult>(
     `/api/agents/run?symbol=${symbol}&timeframe=${timeframe}`,
     fetcher,
-    { revalidateOnFocus: false, dedupingInterval: 300_000 }
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 90_000,   // allow re-fetch after 90s
+      refreshInterval: 180_000,   // auto-refresh every 3 min in background
+    }
   );
 
   const handleRefresh = useCallback(async () => {
@@ -528,7 +532,7 @@ export function MobileBrain() {
                 {tf}
               </button>
             ))}
-            {data && nowMs - new Date(data.timestamp).getTime() > 90_000 && !(isLoading || refreshing) && (
+            {data && nowMs - new Date(data.timestamp).getTime() > 180_000 && !(isLoading || refreshing) && (
               <span className="ml-1 rounded bg-amber-500/10 px-1.5 py-0.5 font-mono text-[9px] border border-amber-500/20 text-amber-500">STALE</span>
             )}
             <button onClick={handleRefresh} disabled={isLoading || refreshing || isOnCooldown || !subscription.hasFullAccess}

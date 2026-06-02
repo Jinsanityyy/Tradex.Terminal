@@ -852,7 +852,11 @@ export default function DashboardPage() {
   const { data, isValidating, mutate } = useSWR<AgentRunResult>(
     `/api/agents/run?symbol=${symbol}&timeframe=${timeframe}`,
     fetcher,
-    { revalidateOnFocus: false, dedupingInterval: 300_000 }
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 90_000,   // allow re-fetch after 90s
+      refreshInterval: 180_000,   // auto-refresh every 3 min in background
+    }
   );
 
   const handleRefresh = useCallback(async () => {
