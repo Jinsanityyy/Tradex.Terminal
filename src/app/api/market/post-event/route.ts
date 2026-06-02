@@ -1,4 +1,5 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
+import { llmCreate, llmAvailable } from "@/lib/agents/llm-provider";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +25,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "title required" }, { status: 400 });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
+  if (!llmAvailable()) {
     return NextResponse.json({ error: "AI not configured" }, { status: 503 });
   }
 
@@ -60,23 +60,13 @@ Return ONLY valid JSON (no markdown):
 }`;
 
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1200,
-        messages: [{ role: "user", content: prompt }],
-      }),
+    const msg = await llmCreate({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1200,
+      messages: [{ role: "user", content: prompt }],
     });
 
-    if (!res.ok) throw new Error(`Anthropic ${res.status}`);
-    const data = await res.json();
-    const text = (data.content?.[0]?.text ?? "").replace(/```json|```/g, "").trim();
+    const text = (msg.content[0]?.type === "text" ? msg.content[0].text : "").replace(/```json|```/g, "").trim();
     const parsed: PostEventAnalysis = JSON.parse(text);
     return NextResponse.json(parsed);
   } catch (err) {

@@ -23,6 +23,7 @@ import { runExecutionAgent } from "./execution-agent";
 import { runContrarianAgent } from "./contrarian-agent";
 import { runMasterAgent }    from "./master-agent";
 import { logSignal }         from "@/lib/signals/logger";
+import { llmAvailable }      from "./llm-provider";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cache (Supabase-backed, shared across all serverless instances)
@@ -312,7 +313,13 @@ export async function runAgentOrchestrator(
     isMockData = true;
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  // Truthy whenever ANY LLM provider is configured (Gemini free tier or
+  // Anthropic). Agents gate their narration on this; the real provider call is
+  // resolved inside anthropicCreate → llm-provider. The sentinel value is never
+  // used as an actual Anthropic key when running on Gemini.
+  const apiKey = llmAvailable()
+    ? (process.env.ANTHROPIC_API_KEY ?? "llm-provider")
+    : undefined;
 
   // ── Phase 1: Independent agents  -  all run with Claude when available ─────
   // Trend, News, and Price Action all run in parallel

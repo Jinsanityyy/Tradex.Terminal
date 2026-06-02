@@ -1,4 +1,5 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
+import { llmCreate, llmAvailable } from "@/lib/agents/llm-provider";
 
 export async function POST(req: NextRequest) {
   const { title, explanation, affectedMarkets, importance, forecast, previous, actual, status, source } = await req.json();
@@ -17,14 +18,9 @@ export async function POST(req: NextRequest) {
   const statusContext = status ? `\nEvent status: ${status}` : "";
   const sourceContext = source ? `\nSource: ${source}` : "";
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": process.env.ANTHROPIC_API_KEY ?? "",
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
+  if (!llmAvailable()) return NextResponse.json(null);
+
+  const msg = await llmCreate({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 1200,
       system: `You are a senior macro market analyst at a trading desk. You write fundamental market analysis  -  not trading signals, not technical analysis, not SMC.
@@ -74,11 +70,9 @@ Return ONLY this JSON (no markdown):
   "confirmationNote": "1-2 sentences: what confirms this interpretation is correct, and what would invalidate or reverse it."
 }`
       }]
-    })
-  });
+  }).catch(() => null);
 
-  const data = await res.json();
-  const raw = data.content?.[0]?.text ?? "";
+  const raw = msg?.content[0]?.type === "text" ? msg.content[0].text : "";
   const text = raw.replace(/```json[\s\S]*?```/g, (m: string) => m.slice(7, -3)).replace(/```/g, "").trim();
 
   try {
