@@ -61,6 +61,32 @@ function normalizeCandles(candles: CandleBar[]): CandleBar[] {
     .sort((a, b) => a.t - b.t);
 }
 
+const METAL_SYMS = new Set<Symbol>(["XAUUSD", "XAGUSD", "XPTUSD"]);
+
+// Anchor metal candles to the live LBMA spot quote. Finnhub/Yahoo gold candles can be
+// futures-priced (~$30-40 above spot), but the quote (fxratesapi) and the on-screen
+// price are LBMA spot. Shifting every OHLC by the constant (spot − lastClose) offset
+// rebases absolute price to spot while leaving structure untouched: candle ranges,
+// liquidity sweeps, FVGs, RSI, MACD and ATR all depend on differences, which a constant
+// offset preserves. The payoff is that current price AND entry/SL/TP land in spot terms,
+// so a signal no longer reads "$35 away" from the price the user is looking at.
+function rebaseMetalCandlesToSpot(
+  symbol: Symbol,
+  candles: CandleBar[] | undefined,
+  spotClose: number,
+): CandleBar[] | undefined {
+  if (!candles?.length || !METAL_SYMS.has(symbol) || !(spotClose > 0)) return candles;
+  const sorted = normalizeCandles(candles);
+  if (sorted.length === 0) return candles;
+  const lastClose = sorted[sorted.length - 1].c;
+  if (!(lastClose > 0)) return candles;
+  const offset = spotClose - lastClose;
+  // Only rebase when the divergence is meaningful (> 0.1% of price) — when the candle
+  // feed is already spot (e.g. TwelveData) or fxratesapi failed, offset ≈ 0 → no-op.
+  if (Math.abs(offset) < spotClose * 0.001) return candles;
+  return sorted.map((b) => ({ ...b, o: b.o + offset, h: b.h + offset, l: b.l + offset, c: b.c + offset }));
+}
+
 function computeRsiFromCloses(closes: number[], period = 14): number | null {
   if (closes.length <= period) return null;
 
@@ -145,9 +171,12 @@ export async function buildMarketSnapshot(
   dailyStructure?: DailyStructure
 ): Promise<MarketSnapshot> {
   const cfg = SYMBOL_CONFIG[symbol] ?? { display: symbol, apiSymbol: symbol, invertBias: false };
-  const timeframeContext = deriveTimeframePriceContext(timeframeCandles);
 
+  // Metals: rebase the candle series to the live LBMA spot quote so price + levels
+  // match the on-screen (spot) price rather than a futures-priced candle feed.
   const quoteClose     = parseFloat(rawQuote.close) || 0;
+  const tfCandles      = rebaseMetalCandlesToSpot(symbol, timeframeCandles, quoteClose);
+  const timeframeContext = deriveTimeframePriceContext(tfCandles);
   const close          = timeframeContext?.close ?? quoteClose;
   const open           = timeframeContext?.open ?? (parseFloat(rawQuote.open ?? rawQuote.close) || close);
   const high           = timeframeContext?.high ?? (parseFloat(rawQuote.high ?? rawQuote.close) || close);
@@ -190,7 +219,7 @@ export async function buildMarketSnapshot(
 
   // ── Real MACD(12,26,9) from candle closes ────────────────────────────────────
   // Falls back to the legacy pctChange proxy only when candle history is too short.
-  const tfCloses     = timeframeCandles ? normalizeCandles(timeframeCandles).map(b => b.c) : [];
+  const tfCloses     = tfCandles ? normalizeCandles(tfCandles).map(b => b.c) : [];
   const realMacd     = computeMACD(tfCloses);
   const macdReal     = realMacd !== null;
   // Invert MACD for DXY-proxy pairs so it agrees with the inverted bias direction.
@@ -250,7 +279,7 @@ export async function buildMarketSnapshot(
   // ── Real volatility from ATR(14) ─────────────────────────────────────────────
   // Volatility thresholds (risk-agent) are calibrated for the asset's typical DAILY
   // % move, so prefer real daily ATR%. Fall back to timeframe ATR%, then |pctChange|.
-  const tfCandlesNorm  = timeframeCandles ? normalizeCandles(timeframeCandles) : [];
+  const tfCandlesNorm  = tfCandles ? normalizeCandles(tfCandles) : [];
   const tfAtrPercent   = tfCandlesNorm.length >= 15
     ? computeATRPercent(tfCandlesNorm, close, 14)
     : null;
@@ -314,8 +343,8 @@ export async function buildMarketSnapshot(
       timestamp: n.datetime,
     })),
     // Pass last 60 candles so price-action-agent can compute real session levels + FVG
-    recentCandles: timeframeCandles
-      ? (normalizeCandles(timeframeCandles).slice(-60) as SnapshotCandle[])
+    recentCandles: tfCandles
+      ? (normalizeCandles(tfCandles).slice(-60) as SnapshotCandle[])
       : undefined,
     volatilityHigh,
     isExtended,

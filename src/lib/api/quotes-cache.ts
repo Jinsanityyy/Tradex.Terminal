@@ -23,6 +23,48 @@ export function getCachedQuotes(): Map<string, CachedQuote> {
   return quotesMap;
 }
 
+// ── fxratesapi.com: LBMA spot for gold/silver (free, ~1 min updates) ──────────
+// Finnhub deliberately EXCLUDES XAU/XAG because its REST /quote can return a
+// futures-like price (~$30-40 above LBMA spot). Spot is the price the user sees on
+// the terminal + TradingView, so the signal must price gold off the SAME feed —
+// otherwise entries look "$35 away" from the displayed price. This is authoritative
+// for XAU/XAG and overrides the Yahoo (GC=F futures) fallback below.
+async function fetchMetalsSpot(): Promise<Record<string, CachedQuote>> {
+  const out: Record<string, CachedQuote> = {};
+  try {
+    const currencies = "XAU,XAG";
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const ymd = yesterday.toISOString().slice(0, 10);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const [latest, hist] = await Promise.all([
+      fetch(`https://api.fxratesapi.com/latest?base=USD&currencies=${currencies}`, { signal: ctrl.signal, cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(`https://api.fxratesapi.com/historical?date=${ymd}&base=USD&currencies=${currencies}`, { signal: ctrl.signal, cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
+    ]);
+    clearTimeout(timer);
+    const rates = latest?.rates;
+    if (!rates) return out;
+    const histRates = hist?.rates ?? null;
+    const map: [string, string, string][] = [["XAU/USD", "XAU", "Gold"], ["XAG/USD", "XAG", "Silver"]];
+    for (const [sym, code, name] of map) {
+      const r = rates[code];
+      if (!r || r <= 0) continue;
+      const price = 1 / r; // fxratesapi gives metal-per-USD → invert to USD per troy oz
+      const prev  = histRates?.[code] ? 1 / histRates[code] : price;
+      const change = price - prev;
+      const pct = prev > 0 ? (change / prev) * 100 : 0;
+      out[sym] = {
+        symbol: sym, name,
+        close: price.toString(), previous_close: prev.toString(),
+        open: prev.toString(), high: price.toString(), low: price.toString(),
+        change: change.toString(), percent_change: pct.toString(), is_market_open: true,
+      };
+    }
+  } catch { /* fxratesapi unavailable — Yahoo fallback still covers XAU/USD */ }
+  return out;
+}
+
 let warming = false;
 export async function ensureCacheWarm(): Promise<void> {
   const now = Date.now();
@@ -39,13 +81,15 @@ export async function ensureCacheWarm(): Promise<void> {
 
     // Warm from Finnhub first, then Twelve Data for supplementary symbols
     const tdKey = process.env.TWELVEDATA_API_KEY ?? "";
-    const [finnhubQuotes, cryptoRes, tdSupplementRes] = await Promise.all([
+    const [finnhubQuotes, cryptoRes, tdSupplementRes, metalsSpot] = await Promise.all([
       fetchFinnhubQuoteMap(),
       fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,litecoin&vs_currencies=usd&include_24hr_change=true", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
       // Twelve Data batch quote for supplementary symbols not covered by Finnhub
       tdKey
         ? fetch(`https://api.twelvedata.com/quote?symbol=USD%2FJPY,WTI%2FUSD&apikey=${tdKey}`, { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null)
         : Promise.resolve(null),
+      // LBMA spot for gold/silver — authoritative for XAU/XAG (matches the display)
+      fetchMetalsSpot(),
     ]);
 
     const parseTwelveQuote = (data: any, sym: string): Omit<CachedQuote, "symbol" | "name"> | null => {
@@ -64,6 +108,12 @@ export async function ensureCacheWarm(): Promise<void> {
     };
 
     for (const [sym, quote] of Object.entries(finnhubQuotes)) {
+      quotesMap.set(sym, quote);
+    }
+
+    // LBMA spot metals — set AFTER Finnhub and BEFORE the Yahoo fallback so XAU/XAG
+    // resolve to spot (not GC=F futures). Yahoo fallback skips symbols already present.
+    for (const [sym, quote] of Object.entries(metalsSpot)) {
       quotesMap.set(sym, quote);
     }
 
