@@ -1064,8 +1064,42 @@ export default function DashboardPage() {
 
   const finalBias = master?.finalBias ?? "no-trade";
   const isNoTrade = finalBias === "no-trade";
-  const signalState = isNoTrade ? "NO_TRADE" : exec?.signalState;
+
+  // ── Real-time signal state override ──────────────────────────────────────
+  // Agent runs are cached (up to 5 min). If price has moved through SL or
+  // far from entry since the last run, override the cached signalState here
+  // using the live quote so the UI never shows a stale ARMED/PENDING.
+  const livePrice = quotes.find(q => q.symbol === symbol)?.price ?? null;
+  const signalState = (() => {
+    const raw = isNoTrade ? "NO_TRADE" : exec?.signalState;
+    if (!livePrice || !exec?.entry || !exec?.stopLoss || !exec?.direction) return raw;
+    if (raw === "NO_TRADE" || raw === "EXPIRED") return raw;
+    const isBullish = exec.direction === "long";
+    const slBreached = isBullish ? livePrice <= exec.stopLoss : livePrice >= exec.stopLoss;
+    if (slBreached) return "EXPIRED" as const;
+    const distPct = Math.abs(livePrice - exec.entry) / exec.entry * 100;
+    const pricePastEntry = isBullish ? livePrice > exec.entry : livePrice < exec.entry;
+    if (pricePastEntry && distPct > 0.3) return "EXPIRED" as const;
+    if (distPct <= 0.15) return "ARMED" as const;
+    return "PENDING" as const;
+  })();
+
   const signalConfig = signalStateConfig(signalState);
+
+  // Live-computed distance and reason (overrides stale cached values)
+  const liveDistanceToEntry = (livePrice && exec?.entry)
+    ? (Math.abs(livePrice - exec.entry) / exec.entry * 100).toFixed(2)
+    : exec?.distanceToEntry?.toFixed(2) ?? null;
+
+  const liveSignalReason = (() => {
+    if (!livePrice || !exec?.entry || !exec?.stopLoss) return exec?.signalStateReason ?? null;
+    const isBullish = exec.direction === "long";
+    const p = exec.entry > 100 ? 2 : 4;
+    if (isBullish ? livePrice <= exec.stopLoss : livePrice >= exec.stopLoss) {
+      return `Price (${livePrice.toFixed(p)}) moved through SL (${exec.stopLoss.toFixed(p)}) — setup invalidated. Wait for a new setup.`;
+    }
+    return exec?.signalStateReason ?? null;
+  })();
 
   // Entry-strip values
   const tradeEntry = exec?.entry ?? tradePlan?.entry ?? null;
@@ -1089,6 +1123,7 @@ export default function DashboardPage() {
       ? { bias: master.finalBias as string, confidence: master.confidence }
       : null;
   const signalReason =
+    liveSignalReason ??
     exec?.signalStateReason ??
     master?.noTradeReason ??
     "No active trade plan. Monitor the terminal for the next valid setup.";
@@ -1962,8 +1997,10 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
-              {exec?.signalStateReason && (
-                <p className="text-[10px] mt-2 leading-tight" style={{ color: "var(--t-muted)" }}>{exec.signalStateReason}</p>
+              {(liveSignalReason ?? exec?.signalStateReason) && (
+                <p className="text-[10px] mt-2 leading-tight" style={{ color: signalState === "EXPIRED" ? "var(--t-bearish)" : "var(--t-muted)" }}>
+                  {liveSignalReason ?? exec?.signalStateReason}
+                </p>
               )}
             </div>
           ) : (
@@ -2299,7 +2336,7 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-3 gap-3">
                     <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Signal State</p><p className={cn("font-semibold uppercase text-[11px]", exec.signalState === "ARMED" ? "text-emerald-400" : exec.signalState === "PENDING" ? "text-amber-400" : "text-zinc-500")}>{exec.signalState}</p></div>
                     <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Direction</p><p className={cn("font-semibold uppercase", exec.direction === "long" ? "text-emerald-400" : exec.direction === "short" ? "text-red-400" : "text-zinc-500")}>{exec.direction}</p></div>
-                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Distance</p><p className="font-mono text-zinc-300">{exec.distanceToEntry != null ? `${exec.distanceToEntry}%` : " - "}</p></div>
+                    <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Distance</p><p className="font-mono text-zinc-300">{liveDistanceToEntry != null ? `${liveDistanceToEntry}%` : " - "}</p></div>
                   </div>
                   {exec.entry && <div className="grid grid-cols-3 gap-3">
                     <div><p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Entry</p><p className="font-mono text-zinc-100">{exec.entry.toFixed(exec.entry > 100 ? 2 : 4)}</p></div>

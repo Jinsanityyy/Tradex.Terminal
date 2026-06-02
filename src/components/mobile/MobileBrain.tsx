@@ -15,6 +15,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { isAgentSupported, getSymbolShort, getSymbolLabel } from "@/lib/assetImpact";
 import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useQuotes } from "@/hooks/useMarketData";
 import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelectorSheet";
 
 const TIMEFRAMES: Timeframe[] = ["M5", "M15", "H1", "H4"];
@@ -354,6 +355,7 @@ export function MobileBrain() {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const { subscription } = useSubscription();
   const { isOnCooldown, countdownLabel, markRefreshed } = useRefreshCooldown();
+  const { quotes } = useQuotes();
 
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 5_000);
@@ -418,9 +420,33 @@ export function MobileBrain() {
     ? new Date(cachedDebate.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     : null;
 
-  const sigState: SignalState = isNoTrade
-    ? "NO_TRADE"
-    : (exec?.signalState ?? "NO_TRADE");
+  const livePrice = quotes.find(q => q.symbol === symbol)?.price ?? null;
+
+  const sigState: SignalState = (() => {
+    const raw: SignalState = isNoTrade ? "NO_TRADE" : (exec?.signalState ?? "NO_TRADE");
+    if (!livePrice || !exec?.entry || !exec?.stopLoss || !exec?.direction) return raw;
+    if (raw === "NO_TRADE" || raw === "EXPIRED") return raw;
+    const isBullish = exec.direction === "long";
+    if (isBullish ? livePrice <= exec.stopLoss : livePrice >= exec.stopLoss) return "EXPIRED";
+    const distPct = Math.abs(livePrice - exec.entry) / exec.entry * 100;
+    const pastEntry = isBullish ? livePrice > exec.entry : livePrice < exec.entry;
+    if (pastEntry && distPct > 0.3) return "EXPIRED";
+    if (distPct <= 0.15) return "ARMED";
+    return "PENDING";
+  })();
+
+  const liveDistancePct = (livePrice && exec?.entry)
+    ? Math.abs(livePrice - exec.entry) / exec.entry * 100
+    : exec?.distanceToEntry ?? null;
+
+  const liveReason = (() => {
+    if (!livePrice || !exec?.entry || !exec?.stopLoss) return exec?.signalStateReason;
+    const isBullish = exec.direction === "long";
+    const p = exec.entry > 100 ? 2 : 4;
+    if (isBullish ? livePrice <= exec.stopLoss : livePrice >= exec.stopLoss)
+      return `Price (${livePrice.toFixed(p)}) moved through SL (${exec.stopLoss.toFixed(p)}) — setup invalidated.`;
+    return exec?.signalStateReason;
+  })();
 
   const isWaitState = sigState === "WAIT";
 
@@ -514,11 +540,11 @@ export function MobileBrain() {
           {data && (
             <SignalBanner
               state={sigState}
-              reason={exec?.signalStateReason ?? master?.noTradeReason}
+              reason={liveReason ?? master?.noTradeReason}
               grade={exec?.grade}
               confidence={master?.confidence}
               confluenceCount={exec?.confluenceCount}
-              distanceToEntry={exec?.distanceToEntry}
+              distanceToEntry={liveDistancePct}
             />
           )}
 
