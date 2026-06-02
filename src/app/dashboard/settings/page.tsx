@@ -18,22 +18,22 @@ import Image from "next/image";
 function SettingRow({ label, description, children, wide }: { label: string; description: string; children: React.ReactNode; wide?: boolean }) {
   if (wide) {
     return (
-      <div className="py-3 border-b border-[hsl(var(--border))]/50 last:border-0 space-y-2">
+      <div className="py-5 border-b border-[hsl(var(--border))]/50 last:border-0 space-y-3">
         <div>
           <p className="text-xs font-medium text-[hsl(var(--foreground))]">{label}</p>
-          <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5">{description}</p>
+          <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-1">{description}</p>
         </div>
         {children}
       </div>
     );
   }
   return (
-    <div className="flex items-start justify-between gap-4 py-3.5 border-b border-[hsl(var(--border))]/50 last:border-0 overflow-hidden">
+    <div className="flex items-start justify-between gap-4 py-5 border-b border-[hsl(var(--border))]/50 last:border-0 overflow-hidden">
       <div className="min-w-0 flex-1">
         <p className="text-xs font-medium text-[hsl(var(--foreground))]">{label}</p>
-        <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5">{description}</p>
+        <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-1">{description}</p>
       </div>
-      <div className="shrink-0 max-w-[55%] flex flex-wrap justify-end gap-1">{children}</div>
+      <div className="shrink-0 max-w-[60%] flex flex-wrap justify-end gap-1.5">{children}</div>
     </div>
   );
 }
@@ -48,13 +48,13 @@ function SegmentedPills<T extends string>({
   options: T[]; value: T; onChange: (v: T) => void; labels?: Record<string, string>;
 }) {
   return (
-    <div className="flex gap-px overflow-x-auto scrollbar-none rounded-lg border border-[hsl(var(--border))] p-0.5 shrink-0">
+    <div className="flex gap-0.5 overflow-x-auto scrollbar-none rounded-lg border border-[hsl(var(--border))] p-1 shrink-0">
       {options.map((o) => (
         <button
           key={o}
           onClick={() => onChange(o)}
           className={cn(
-            "rounded px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide transition-all whitespace-nowrap",
+            "rounded px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide transition-all whitespace-nowrap",
             value === o
               ? "bg-[hsl(var(--primary))]/15 text-[hsl(var(--primary))]"
               : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
@@ -92,13 +92,13 @@ function Pills<T extends string>({
   options: T[]; value: T; onChange: (v: T) => void; labels?: Record<string, string>;
 }) {
   return (
-    <div className="flex flex-wrap gap-1 justify-end">
+    <div className="flex flex-wrap gap-1.5 justify-end">
       {options.map((o) => (
         <button
           key={o}
           onClick={() => onChange(o)}
           className={cn(
-            "rounded-md px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider transition-all border whitespace-nowrap",
+            "rounded-md px-3 py-1 text-[10px] font-medium uppercase tracking-wider transition-all border whitespace-nowrap",
             value === o
               ? "border-[hsl(var(--primary))]/50 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
               : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
@@ -113,7 +113,7 @@ function Pills<T extends string>({
 
 function MultiSelect({ options, selected, onToggle, labelFn }: { options: string[]; selected: string[]; onToggle: (v: string) => void; labelFn?: (v: string) => string }) {
   return (
-    <div className="grid grid-cols-3 gap-1.5">
+    <div className="grid grid-cols-3 gap-2">
       {options.map((o) => {
         const active = selected.includes(o);
         const display = labelFn ? labelFn(o) : o;
@@ -122,7 +122,7 @@ function MultiSelect({ options, selected, onToggle, labelFn }: { options: string
             key={o}
             onClick={() => onToggle(o)}
             className={cn(
-              "flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[10px] font-medium transition-all border",
+              "flex items-center justify-center gap-1.5 rounded-md px-2 py-2 text-[10px] font-medium transition-all border",
               active
                 ? "border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
                 : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
@@ -223,7 +223,7 @@ function MFASection() {
 
   return (
     <Card>
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-3 pt-1">
         <CardTitle className="flex items-center gap-2 text-sm">
           <ShieldCheck className="h-4 w-4 text-emerald-400" /> Security
         </CardTitle>
@@ -404,7 +404,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-5 max-w-3xl">
+    <div className="space-y-6 max-w-3xl">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -451,13 +451,13 @@ export default function SettingsPage() {
 
       {/* Appearance */}
       <Card>
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-3 pt-1">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Palette className="h-4 w-4 text-purple-400" /> Appearance
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <SettingRow label="Theme" description="Terminal color scheme  -  previewed live, saved on click Save">
+          <SettingRow wide label="Theme" description="Terminal color scheme  -  previewed live, saved on click Save">
             <SegmentedPills<Theme>
               options={["dark", "midnight", "oled", "nord", "bloomberg", "pink", "light"]}
               value={draft.theme}
@@ -481,7 +481,7 @@ export default function SettingsPage() {
 
       {/* Market Preferences */}
       <Card>
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-3 pt-1">
           <CardTitle className="flex items-center gap-2 text-sm">
             <BarChart3 className="h-4 w-4 text-[hsl(var(--primary))]" /> Market Preferences
           </CardTitle>
@@ -510,7 +510,7 @@ export default function SettingsPage() {
 
       {/* Risk Management */}
       <Card>
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-3 pt-1">
           <CardTitle className="flex items-center gap-2 text-sm">
             <DollarSign className="h-4 w-4 text-amber-400" /> Risk Management
             {draft.accountBalance === DEFAULTS.accountBalance && draft.riskPerTrade === DEFAULTS.riskPerTrade && (
@@ -578,7 +578,7 @@ export default function SettingsPage() {
 
       {/* Time & Region */}
       <Card>
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-3 pt-1">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Globe className="h-4 w-4 text-blue-400" /> Time & Region
           </CardTitle>
@@ -603,7 +603,7 @@ export default function SettingsPage() {
 
       {/* Notifications */}
       <Card>
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-3 pt-1">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Bell className="h-4 w-4 text-amber-400" /> Notifications
           </CardTitle>
@@ -670,7 +670,7 @@ export default function SettingsPage() {
 
       {/* Feed Filters */}
       <Card>
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-3 pt-1">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Filter className="h-4 w-4 text-[hsl(var(--muted-foreground))]" /> Feed Filters
             {draft.feedCategories.length === 0 && <AttentionDot />}
@@ -695,7 +695,7 @@ export default function SettingsPage() {
 
       {/* Danger Zone */}
       <Card className="border-red-500/20">
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-3 pt-1">
           <CardTitle className="flex items-center gap-2 text-sm text-red-400">
             <Trash2 className="h-4 w-4" /> Danger Zone
           </CardTitle>
