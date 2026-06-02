@@ -1152,7 +1152,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
               {i > 0 && (
                 <span style={{ ...MONO_STYLE, fontSize: 11, color: '#3A3A45', margin: '0 10px' }}>│</span>
               )}
-              <div style={{ display: 'flex', items: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
                 <span style={{ ...MONO_STYLE, fontSize: 10, color: '#E8E8E8', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase' }}>
                   {session.label}
                 </span>
