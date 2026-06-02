@@ -382,10 +382,16 @@ export async function runExecutionAgent(
     } else {
       const hasBias = htfBias !== "neutral" && htfConfidence >= 35;
 
-      // Kill zone + strong HTF conviction: build a trend-continuation entry at market.
-      // Applies when there is no session sweep/FVG/OB but multiple agents agree on direction.
-      // Uses daily-range-scaled SL so quality thresholds are met.
-      const strongKZBias = hasBias && inKillzone && htfConfidence >= 55;
+      // Trend-continuation entry AT MARKET when there is no session sweep/FVG/OB but a
+      // clean directional bias exists. This is the key "entry near current price" path —
+      // it anchors entry to `current` instead of a stale structural level, so signals
+      // are immediately actionable rather than sitting far away.
+      // Inside a kill zone we require htfConfidence ≥ 45; outside a kill zone we require
+      // a stronger ≥ 60 to compensate for the weaker session timing.
+      const strongKZBias = hasBias && (
+        (inKillzone && htfConfidence >= 45) ||
+        (!inKillzone && htfConfidence >= 60)
+      );
       if (strongKZBias) {
         const slDist = GOLD_SYMS.has(symbol)
           ? Math.max(dayRange * 0.25, (GOLD_SL_LIMITS[timeframe]?.min ?? 5))
@@ -393,7 +399,7 @@ export async function runExecutionAgent(
         entry    = current;
         stopLoss = isBullish ? current - slDist : current + slDist;
         trigger  = "HTF continuation";
-        entryZone = `${session} kill zone  -  HTF ${htfBias} at ${htfConfidence}% conviction, market entry`;
+        entryZone = `${inKillzone ? `${session} kill zone` : `${session} session`}  -  HTF ${htfBias} at ${htfConfidence}% conviction, market entry`;
         slZone    = `${isBullish ? "Below" : "Above"} ATR-based stop ${stopLoss.toFixed(2)}  -  bias invalidated on close through`;
         entryInStructure = true;
         console.log(`[exec] HTF continuation path: ${symbol} ${timeframe} ${htfBias}@${htfConfidence}% entry=${entry.toFixed(2)} sl=${stopLoss.toFixed(2)} slDist=${slDist.toFixed(2)}`);
@@ -407,8 +413,12 @@ export async function runExecutionAgent(
     }
 
     // ── Entry distance guard — reject structural levels too far from current price ────────────
+    // Tightened so signals are actionable near the live price. The old 1.5% gold cap
+    // allowed entries ~$50 away on gold @3300 ("ang layo sa price"). New caps:
+    //   gold/forex 0.6%, crypto 1.0%. Beyond this the structural level is stale →
+    //   WAIT for a pullback instead of throwing a far, un-actionable entry.
     {
-      const MAX_ENTRY_DIST_PCT = CRYPTO_SYMS.has(symbol) ? 2.0 : GOLD_SYMS.has(symbol) ? 1.5 : 1.5;
+      const MAX_ENTRY_DIST_PCT = CRYPTO_SYMS.has(symbol) ? 1.0 : 0.6;
       const entryDistPct = Math.abs(current - entry) / current * 100;
       if (entryDistPct > MAX_ENTRY_DIST_PCT) {
         console.log(`[exec] Entry too far: ${symbol} structural entry=${entry.toFixed(2)} current=${current.toFixed(2)} dist=${entryDistPct.toFixed(2)}% > ${MAX_ENTRY_DIST_PCT}%`);
@@ -566,7 +576,7 @@ export async function runExecutionAgent(
     if (pricePastEntry && distanceToEntry > 1.0) {
       signalState       = "EXPIRED";
       signalStateReason = `Price already moved ${distanceToEntry.toFixed(2)}% past entry zone. Do NOT chase  -  wait for the next setup.`;
-    } else if (distanceToEntry <= 0.15) {
+    } else if (distanceToEntry <= 0.25) {
       signalState       = "ARMED";
       signalStateReason = `${grade} setup  -  price is ${distanceToEntry.toFixed(2)}% from entry. Confirm trigger and execute.`;
     } else if (distanceToEntry <= 1.0) {

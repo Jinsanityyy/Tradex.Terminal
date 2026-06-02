@@ -530,7 +530,13 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   const isLowConfidenceSweep = sweepLabel === "London High" &&
     !(fvgDetected && sweepBias === dailyBias);
   const setupType: SetupType = fvgDetected ? "FVG" : liquiditySweepDetected ? "Sweep" : "None";
-  const setupPresent = liquiditySweepDetected && fvgDetected && !isLowConfidenceSweep;
+  // A confirmed sweep no longer REQUIRES an FVG to count as a setup. Requiring both a
+  // sweep AND a 3-candle FVG within 6 candles was the single biggest "no-trade" driver
+  // (the combo rarely co-occurs on one run). A sweep that closes back inside a real
+  // session level and aligns with the daily bias is itself a valid stop-run reversal
+  // setup. FVG presence still upgrades quality/grade downstream; it is no longer a gate.
+  const sweepAlignsDailyBias = liquiditySweepDetected && sweepBias === dailyBias;
+  const setupPresent = liquiditySweepDetected && !isLowConfidenceSweep && (fvgDetected || sweepAlignsDailyBias);
   const bias: DirectionalBias = liquiditySweepDetected ? sweepBias : dailyBias;
 
 

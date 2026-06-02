@@ -140,8 +140,12 @@ export function computeConsensus(
   // ── Contrarian Agent (penalty factor) ────────────────────────────────────
   // Gradual penalty: any riskFactor > 25 contributes, scaling linearly to max at 100.
   // Removes the hard cliff at riskFactor 50 — low-confidence warnings now register.
-  const contrPenalty = contrarian.riskFactor > 25
-    ? ((contrarian.riskFactor - 25) / 75) * weights.contrarian * 100
+  // Softened: penalty only engages above riskFactor 30 (was 25) and scales over a
+  // wider 70-pt span, so routine background contrarian risk no longer drags every
+  // score below the neutral band. Genuine high-risk traps (riskFactor → 100) still
+  // apply close to the full contrarian weight.
+  const contrPenalty = contrarian.riskFactor > 30
+    ? ((contrarian.riskFactor - 30) / 70) * weights.contrarian * 100
     : 0;
   const contrScore = -contrPenalty;
   const contrBias = contrPenalty > 0 ? "opposing" : "neutral";
@@ -205,11 +209,16 @@ export function computeConsensus(
   // Sweep gate: allow signal when consensus is strong (≥15) even without a sweep.
   // A confirmed sweep is still the best setup, but strong multi-agent agreement
   // (trend + SMC + news all aligned) can produce a valid directional signal.
-  const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None" && Math.abs(normalizedScore) < 15;
+  const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None" && Math.abs(normalizedScore) < 14;
 
   // ── Final Bias Decision ───────────────────────────────────────────────────
-  const BULL_THRESHOLD = 20;
-  const BEAR_THRESHOLD = -20;
+  // Neutral band narrowed from ±20 → ±14. The raw score is already heavily damped
+  // by the contrarian penalty, SMC echo-halving, news freshness decay and trend
+  // TF-alignment halving, so a ±20 band rejected the bulk of genuinely directional
+  // setups as "neutral". ±14 lets real multi-agent agreement through while still
+  // filtering coin-flip conditions.
+  const BULL_THRESHOLD = 14;
+  const BEAR_THRESHOLD = -14;
 
   let finalBias: FinalBias;
   let noTradeReason: string | undefined;
