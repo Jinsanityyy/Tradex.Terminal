@@ -81,12 +81,12 @@ function AgentBar({ label, bias, conf }: { label: string; bias: string; conf: nu
 
 // ── Signal State Banner ────────────────────────────────────────────────────────────────────────────
 
-const SIG_CFG: Record<SignalState, { label: string; emoji: string; bg: string; border: string; text: string; sub: string }> = {
-  ARMED:    { label: "ENTER NOW",        emoji: "🟢", bg: "bg-emerald-500/12", border: "border-emerald-500/35", text: "text-emerald-300", sub: "text-emerald-300/60" },
-  PENDING:  { label: "PENDING",          emoji: "🟡", bg: "bg-amber-500/10",   border: "border-amber-500/30",   text: "text-amber-300",   sub: "text-amber-300/60"   },
-  EXPIRED:  { label: "EXPIRED",          emoji: "⚪", bg: "bg-zinc-800/50",    border: "border-zinc-600/25",    text: "text-zinc-400",    sub: "text-zinc-600"       },
-  WAIT:     { label: "WAIT",             emoji: "🟠", bg: "bg-orange-500/10",  border: "border-orange-500/30",  text: "text-orange-300",  sub: "text-orange-300/60"  },
-  NO_TRADE: { label: "NO TRADE",         emoji: "⛔", bg: "bg-zinc-900/60",    border: "border-zinc-700/20",    text: "text-zinc-500",    sub: "text-zinc-600"       },
+const SIG_CFG: Record<SignalState, { label: string; dot: string; pulse: boolean; bg: string; border: string; text: string; sub: string }> = {
+  ARMED:    { label: "ENTER NOW", dot: "bg-emerald-400", pulse: true,  bg: "bg-emerald-500/12", border: "border-emerald-500/35", text: "text-emerald-300", sub: "text-emerald-300/60" },
+  PENDING:  { label: "PENDING",   dot: "bg-amber-400",   pulse: true,  bg: "bg-amber-500/10",   border: "border-amber-500/30",   text: "text-amber-300",   sub: "text-amber-300/60"   },
+  EXPIRED:  { label: "EXPIRED",   dot: "bg-zinc-500",    pulse: false, bg: "bg-zinc-800/50",    border: "border-zinc-600/25",    text: "text-zinc-400",    sub: "text-zinc-600"       },
+  WAIT:     { label: "WAIT",      dot: "bg-orange-400",  pulse: true,  bg: "bg-orange-500/10",  border: "border-orange-500/30",  text: "text-orange-300",  sub: "text-orange-300/60"  },
+  NO_TRADE: { label: "NO TRADE",  dot: "bg-zinc-600",    pulse: false, bg: "bg-zinc-900/60",    border: "border-zinc-700/20",    text: "text-zinc-500",    sub: "text-zinc-600"       },
 };
 
 function SignalBanner({
@@ -108,7 +108,10 @@ function SignalBanner({
   return (
     <div className={cn("rounded-2xl border px-4 py-3.5", c.bg, c.border)}>
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-base">{c.emoji}</span>
+        <span className="relative flex h-2.5 w-2.5 shrink-0">
+          {c.pulse && <span className={cn("absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping", c.dot)} />}
+          <span className={cn("relative inline-flex h-2.5 w-2.5 rounded-full", c.dot)} />
+        </span>
         <span className={cn("text-[13px] font-black uppercase tracking-wider", c.text)}>{c.label}</span>
         {grade && <GradeBadge grade={grade} />}
         {confidence != null && (
@@ -550,8 +553,19 @@ export function MobileBrain() {
 
           {(isLoading || refreshing) && data ? (
             <div className="h-48 rounded-2xl bg-white/5 animate-pulse" />
-          ) : tradePlan ? (
+          ) : tradePlan && sigState !== "EXPIRED" ? (
             <TradePlanCard tradePlan={tradePlan} />
+          ) : tradePlan && sigState === "EXPIRED" ? (
+            <div className="relative">
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-black/60 backdrop-blur-[2px]">
+                <span className="rounded-lg border border-zinc-600/40 bg-zinc-900/80 px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-zinc-400">
+                  Setup Invalidated
+                </span>
+              </div>
+              <div className="pointer-events-none opacity-30">
+                <TradePlanCard tradePlan={tradePlan} />
+              </div>
+            </div>
           ) : data ? (
             <StandAsideCard exec={exec} isWait={isWaitState} />
           ) : null}
