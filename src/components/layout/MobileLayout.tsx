@@ -570,7 +570,7 @@ export function MobileLayout() {
                 className="flex flex-col items-center justify-center gap-0.5 py-3 transition-colors relative">
                 <div className="relative">
                   <Icon className={cn("w-5 h-5 transition-colors",
-                    isActive ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]")} />
+                    isActive ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]")} strokeWidth={1.5} />
                   {showBadge && (
                     <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-red-500 text-[8px] font-bold text-white flex items-center justify-center px-0.5">
                       {badgeCount > 9 ? "9+" : badgeCount}

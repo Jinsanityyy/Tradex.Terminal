@@ -683,27 +683,31 @@ export default function SettingsPage() {
             const Icon = section.icon;
             const isActive = activeSection === section.id;
             return (
-              <button
-                key={section.id}
-                onClick={() => setActiveSection(section.id)}
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-[9px] text-left transition-colors cursor-pointer",
-                  isActive
-                    ? "border-l-2 border-[hsl(var(--primary))] bg-white/[0.03] pl-[14px]"
-                    : "hover:bg-white/[0.03]"
+              <React.Fragment key={section.id}>
+                {section.danger && (
+                  <div className="mx-4 my-3 h-px bg-[hsl(var(--border))]/60" />
                 )}
-              >
-                <Icon className={cn(
-                  "h-3 w-3 shrink-0 opacity-50",
-                  isActive ? "text-[hsl(var(--foreground))]" : section.danger ? "text-red-400" : "text-[hsl(var(--muted-foreground))]"
-                )} strokeWidth={1.5} />
-                <span className={cn(
-                  "flex-1 text-[11.5px] font-medium tracking-[0.01em]",
-                  section.danger ? "text-red-400" : isActive ? "text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))]"
-                )}>
-                  {section.label}
-                </span>
-              </button>
+                <button
+                  onClick={() => setActiveSection(section.id)}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-4 py-[9px] text-left transition-colors cursor-pointer",
+                    isActive
+                      ? "border-l-2 border-[hsl(var(--primary))] bg-white/[0.03] pl-[14px]"
+                      : "hover:bg-white/[0.03]"
+                  )}
+                >
+                  <Icon className={cn(
+                    "h-3 w-3 shrink-0 opacity-50",
+                    isActive ? "text-[hsl(var(--foreground))]" : section.danger ? "text-red-400" : "text-[hsl(var(--muted-foreground))]"
+                  )} strokeWidth={1.5} />
+                  <span className={cn(
+                    "flex-1 text-[11.5px] font-medium tracking-[0.01em]",
+                    section.danger ? "text-red-400" : isActive ? "text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))]"
+                  )}>
+                    {section.label}
+                  </span>
+                </button>
+              </React.Fragment>
             );
           })}
         </nav>

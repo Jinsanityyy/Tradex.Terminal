@@ -24,10 +24,10 @@
   --ring: 142 71% 45%;
   --radius: 0.5rem;
 
-  --chart-green: 142 71% 45%;
+  --chart-green: 142 76% 48%;   /* #30D158 */
   --chart-blue: 217 91% 60%;
-  --chart-amber: 38 92% 50%;
-  --chart-red: 0 84% 60%;
+  --chart-amber: 38 100% 52%;   /* #FF9F0A */
+  --chart-red: 3 100% 62%;      /* #FF453A */
   --chart-purple: 270 70% 60%;
 
   --sidebar-width: 240px;
@@ -110,47 +110,77 @@ iframe,
   background: #070707 !important;
 }
 
-/* Premium Utilities */
+/* ── Premium Utilities ──────────────────────────────── */
+
+/* Glows — calibrated to not bleed on black backgrounds */
 .glow-green {
-  box-shadow: 0 0 20px rgba(34, 197, 94, 0.15), 0 0 60px rgba(34, 197, 94, 0.05);
+  box-shadow: 0 0 16px rgba(48, 209, 88, 0.18), 0 0 48px rgba(48, 209, 88, 0.06);
 }
 .glow-red {
-  box-shadow: 0 0 20px rgba(239, 68, 68, 0.15), 0 0 60px rgba(239, 68, 68, 0.05);
+  box-shadow: 0 0 16px rgba(255, 69, 58, 0.20), 0 0 48px rgba(255, 69, 58, 0.07);
 }
 .glow-blue {
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.15), 0 0 60px rgba(59, 130, 246, 0.05);
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.18), 0 0 48px rgba(59, 130, 246, 0.06);
 }
 .glow-amber {
-  box-shadow: 0 0 20px rgba(245, 158, 11, 0.15);
+  box-shadow: 0 0 16px rgba(255, 159, 10, 0.20), 0 0 40px rgba(255, 159, 10, 0.07);
 }
 
 .gradient-card {
-  background: linear-gradient(135deg, hsl(220 14% 12%), hsl(220 20% 4%));
+  background: linear-gradient(135deg, hsl(220 10% 9%), hsl(220 12% 5%));
 }
 .glass-card {
-  background: linear-gradient(135deg, hsl(220 18% 8% / 0.8), hsl(220 20% 5% / 0.6));
+  background: linear-gradient(135deg, hsl(220 10% 8% / 0.85), hsl(220 12% 5% / 0.65));
   backdrop-filter: blur(12px);
-  border: 1px solid hsl(220 13% 15% / 0.6);
+  border: 1px solid hsl(220 10% 18% / 0.6);
 }
 
-.text-positive { color: hsl(142, 71%, 45%); }
-.text-negative { color: hsl(0, 84%, 60%); }
-.text-neutral-accent { color: hsl(38, 92%, 50%); }
+/* Signal colors — #30D158 / #FF453A (Apple HIG standard) */
+.text-positive       { color: #30D158; }
+.text-negative       { color: #FF453A; }
+.text-neutral-accent { color: #FF9F0A; }
 
 .badge-bullish {
-  background: hsl(142 71% 45% / 0.12);
-  color: hsl(142, 71%, 50%);
-  border: 1px solid hsl(142 71% 45% / 0.2);
+  background: rgba(48, 209, 88, 0.10);
+  color: #30D158;
+  border: 1px solid rgba(48, 209, 88, 0.22);
 }
 .badge-bearish {
-  background: hsl(0 84% 60% / 0.12);
-  color: hsl(0, 84%, 65%);
-  border: 1px solid hsl(0 84% 60% / 0.2);
+  background: rgba(255, 69, 58, 0.10);
+  color: #FF453A;
+  border: 1px solid rgba(255, 69, 58, 0.22);
 }
 .badge-neutral {
-  background: hsl(38 92% 50% / 0.12);
-  color: hsl(38, 92%, 55%);
-  border: 1px solid hsl(38 92% 50% / 0.2);
+  background: rgba(255, 159, 10, 0.10);
+  color: #FF9F0A;
+  border: 1px solid rgba(255, 159, 10, 0.22);
+}
+
+/* Large price / metric display — monospace, tabular, tight tracking */
+.price-display {
+  font-family: var(--font-geist-mono), var(--font-jetbrains-mono), 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+  font-weight: 700;
+}
+
+/* Secondary label — scannable metadata text */
+.metric-label {
+  font-size: 0.625rem;         /* 10px */
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Stat value row — large number with muted label */
+.stat-value {
+  font-family: var(--font-geist-mono), monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 1.125rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
 }
 
 /* Pulse animation for live indicators */
@@ -210,27 +240,33 @@ iframe,
 
 /* ── Theme variants ─────────────────────────────────── */
 
-/* Default dark — TradingView style, slightly elevated surfaces */
+/* Default dark — deep neutral black, high contrast, terminal-grade */
 :root,
 [data-theme="dark"] {
-  --background: 225 14% 12%;
-  --card: 225 13% 15%;
-  --popover: 225 13% 15%;
-  --secondary: 225 11% 18%;
-  --muted: 225 10% 22%;
-  --muted-foreground: 225 8% 62%;
-  --border: 225 10% 20%;
-  --input: 225 10% 20%;
-  --t-bg:           #0B0F14;
-  --t-card:         #11161C;
-  --t-card-2:       #161C24;
-  --t-border:       rgba(255,255,255,0.06);
-  --t-border-sub:   #1e2530;
-  --t-text:         #E6EDF3;
-  --t-muted:        #8B949E;
-  --t-glow-green:   rgba(0,200,150,0.10);
-  --t-glow-red:     rgba(255,77,79,0.10);
-  --t-glow-amber:   rgba(245,158,11,0.10);
+  --background: 220 9% 7%;      /* #0D0E10 — near-black, neutral (not blue) */
+  --foreground: 0 0% 88%;       /* #E0E0E0 — off-white, reduces eye strain */
+  --card: 220 8% 10%;           /* #151618 — clearly distinct from background */
+  --card-foreground: 0 0% 88%;
+  --popover: 220 8% 10%;
+  --popover-foreground: 0 0% 88%;
+  --secondary: 220 7% 14%;      /* #1C1D1F */
+  --secondary-foreground: 0 0% 88%;
+  --muted: 220 6% 18%;          /* #272829 */
+  --muted-foreground: 220 5% 56%; /* #878A8E — readable but clearly secondary */
+  --border: 220 7% 16%;         /* #222426 — visible card edges */
+  --input: 220 7% 16%;
+  --chart-green: 142 76% 48%;   /* #30D158 — Apple HIG bullish green */
+  --chart-red: 3 100% 62%;      /* #FF453A — Apple HIG bearish red */
+  --t-bg:           #0D0E10;
+  --t-card:         #151618;
+  --t-card-2:       #1C1D1F;
+  --t-border:       rgba(255,255,255,0.07);
+  --t-border-sub:   rgba(255,255,255,0.04);
+  --t-text:         #E0E0E0;
+  --t-muted:        #878A8E;
+  --t-glow-green:   rgba(48,209,88,0.10);
+  --t-glow-red:     rgba(255,69,58,0.10);
+  --t-glow-amber:   rgba(255,159,10,0.10);
   --t-glow-mul:     1;
 }
 
@@ -256,10 +292,10 @@ iframe,
   --ring: 215 90% 62%;
   --sidebar-bg: 230 25% 4%;
 
-  --chart-green: 142 71% 45%;
+  --chart-green: 142 76% 48%;   /* #30D158 */
   --chart-blue: 215 90% 62%;
-  --chart-amber: 38 92% 50%;
-  --chart-red: 0 84% 60%;
+  --chart-amber: 38 100% 52%;
+  --chart-red: 3 100% 62%;      /* #FF453A */
   --chart-purple: 252 68% 68%;
 
   --t-bg:           #0D1117;
