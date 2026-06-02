@@ -5,7 +5,7 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: "default" | "bullish" | "bearish" | "neutral" | "outline" | "high" | "medium" | "low";
 }
 
-function Badge({ className, variant = "default", ...props }: BadgeProps) {
+function Badge({ className, variant = "default", style, ...props }: BadgeProps) {
   const variants: Record<string, string> = {
     default: "bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] border border-[hsl(var(--border))]",
     bullish: "badge-bullish",
@@ -20,10 +20,11 @@ function Badge({ className, variant = "default", ...props }: BadgeProps) {
   return (
     <div
       className={cn(
-        "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider",
+        "inline-flex items-center px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider",
         variants[variant],
         className
       )}
+      style={{ borderRadius: "var(--t-badge-radius, 6px)", ...style }}
       {...props}
     />
   );
