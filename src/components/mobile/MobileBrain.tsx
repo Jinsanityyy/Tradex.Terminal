@@ -428,12 +428,18 @@ export function MobileBrain() {
   const sigState: SignalState = (() => {
     const raw: SignalState = isNoTrade ? "NO_TRADE" : (exec?.signalState ?? "NO_TRADE");
     if (!livePrice || !exec?.entry || !exec?.stopLoss || !exec?.direction) return raw;
-    if (raw === "NO_TRADE" || raw === "EXPIRED") return raw;
+    // NO_TRADE: always respect agent decision
+    if (raw === "NO_TRADE") return raw;
     const isBullish = exec.direction === "long";
+    // Hard check 1: SL breached by live price → always EXPIRED regardless of cached state
     if (isBullish ? livePrice <= exec.stopLoss : livePrice >= exec.stopLoss) return "EXPIRED";
+    // Hard check 2: price chased >1% past entry zone (meaningful miss, not just noise)
+    // Using 1.0% (~$45 on XAUUSD) instead of 0.3% to avoid false expiries on
+    // brief spikes or stale 5-min cache data.
     const distPct = Math.abs(livePrice - exec.entry) / exec.entry * 100;
     const pastEntry = isBullish ? livePrice > exec.entry : livePrice < exec.entry;
-    if (pastEntry && distPct > 0.3) return "EXPIRED";
+    if (pastEntry && distPct > 1.0) return "EXPIRED";
+    // Price is in a valid zone — override any stale EXPIRED state from the cache
     if (distPct <= 0.15) return "ARMED";
     return "PENDING";
   })();

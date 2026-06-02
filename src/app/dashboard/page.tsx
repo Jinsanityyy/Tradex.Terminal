@@ -1073,13 +1073,16 @@ export default function DashboardPage() {
   const signalState = (() => {
     const raw = isNoTrade ? "NO_TRADE" : exec?.signalState;
     if (!livePrice || !exec?.entry || !exec?.stopLoss || !exec?.direction) return raw;
-    if (raw === "NO_TRADE" || raw === "EXPIRED") return raw;
+    if (raw === "NO_TRADE") return raw;
     const isBullish = exec.direction === "long";
+    // Hard check: SL breached by live price → always EXPIRED
     const slBreached = isBullish ? livePrice <= exec.stopLoss : livePrice >= exec.stopLoss;
     if (slBreached) return "EXPIRED" as const;
+    // Hard check: price chased >1% past entry (meaningful miss, not noise/stale cache)
     const distPct = Math.abs(livePrice - exec.entry) / exec.entry * 100;
     const pricePastEntry = isBullish ? livePrice > exec.entry : livePrice < exec.entry;
-    if (pricePastEntry && distPct > 0.3) return "EXPIRED" as const;
+    if (pricePastEntry && distPct > 1.0) return "EXPIRED" as const;
+    // Price back in valid zone — override any stale EXPIRED from cache
     if (distPct <= 0.15) return "ARMED" as const;
     return "PENDING" as const;
   })();

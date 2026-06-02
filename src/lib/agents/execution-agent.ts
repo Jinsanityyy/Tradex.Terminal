@@ -563,7 +563,7 @@ export async function runExecutionAgent(
     let signalState: SignalState;
     let signalStateReason: string;
 
-    if (pricePastEntry && distanceToEntry > 0.3) {
+    if (pricePastEntry && distanceToEntry > 1.0) {
       signalState       = "EXPIRED";
       signalStateReason = `Price already moved ${distanceToEntry.toFixed(2)}% past entry zone. Do NOT chase  -  wait for the next setup.`;
     } else if (distanceToEntry <= 0.15) {
