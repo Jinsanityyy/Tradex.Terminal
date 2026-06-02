@@ -307,16 +307,16 @@ iframe,
 [data-theme="codgray"] {
   --background: 0 0% 9%;        /* #171717  — the reference color */
   --foreground: 0 0% 95%;
-  --card: 0 0% 9%;             /* #171717  — same as bg, flat look */
+  --card: 0 0% 9%;              /* #171717  — flat with bg */
   --card-foreground: 0 0% 95%;
-  --popover: 0 0% 10%;          /* #1a1a1a  — popovers a hair above bg */
+  --popover: 0 0% 11%;          /* #1c1c1c  — dropdowns/menus only, tiny lift */
   --popover-foreground: 0 0% 95%;
-  --secondary: 0 0% 12%;        /* #1f1f1f  — subtle elevation only */
+  --secondary: 0 0% 9%;         /* #171717  — flat; separation via borders */
   --secondary-foreground: 0 0% 95%;
-  --muted: 0 0% 15%;            /* #262626 */
+  --muted: 0 0% 11%;            /* #1c1c1c */
   --muted-foreground: 0 0% 56%;
-  --border: 0 0% 13%;           /* #212121  — barely-there separators */
-  --input: 0 0% 13%;
+  --border: 0 0% 15%;           /* #262626  — borders define structure now */
+  --input: 0 0% 12%;
   --sidebar-bg: 0 0% 9%;        /* #171717  — match bg, fully flat */
 
   --t-bg:           #171717;
