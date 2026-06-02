@@ -145,7 +145,7 @@ function CatalystModal({ cat, index, onClose }: { cat: Catalyst; index: number; 
           <div className="rounded-lg p-3.5" style={{ background: "color-mix(in srgb, var(--t-text) 4%, transparent)", border: "1px solid var(--t-border)" }}>
             <p className="text-[9px] font-bold uppercase tracking-widest mb-2" style={{ color: accentColor, opacity: 0.8 }}>Overview</p>
             <p className="text-[11.5px] leading-relaxed" style={{ color: "var(--t-muted)" }}>
-              <PriceHighlight text={cat.analysis?.eventOverview || cat.explanation} />
+              <PriceHighlight text={cat.analysis?.eventOverview || cat.marketImplication || cat.explanation} />
             </p>
             {cat.analysis?.whyMarketsCare && (
               <p className="text-[11px] leading-relaxed mt-2" style={{ color: "var(--t-muted)", opacity: 0.8 }}>
@@ -182,26 +182,31 @@ function CatalystModal({ cat, index, onClose }: { cat: Catalyst; index: number; 
             </div>
           )}
 
-          {/* Gold + USD reasoning */}
-          {(cat.goldReasoning || cat.usdReasoning) && (
-            <div className="space-y-2">
-              {cat.goldReasoning && (
-                <div className="rounded-lg p-3" style={{ background: "color-mix(in srgb, var(--t-text) 4%, transparent)", border: "1px solid var(--t-border)" }}>
-                  <p className="text-[9px] font-bold uppercase tracking-widest mb-1.5" style={{ color: "var(--t-muted)", opacity: 0.5 }}>Gold</p>
-                  <p className="text-[10.5px] leading-snug" style={{ color: "var(--t-muted)" }}>{cat.goldReasoning}</p>
-                </div>
-              )}
-              {cat.usdReasoning && (
-                <div className="rounded-lg p-3" style={{ background: "color-mix(in srgb, var(--t-text) 4%, transparent)", border: "1px solid var(--t-border)" }}>
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <Shield className="h-3 w-3" style={{ color: "var(--t-muted)", opacity: 0.5 }} />
-                    <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--t-muted)", opacity: 0.5 }}>USD</p>
+          {/* Gold + USD reasoning (skip if already shown in asset impact section) */}
+          {(() => {
+            const showGold = cat.goldReasoning && cat.goldReasoning !== assetImpact.reasoning;
+            const showUsd  = cat.usdReasoning  && cat.usdReasoning  !== assetImpact.reasoning;
+            if (!showGold && !showUsd) return null;
+            return (
+              <div className="space-y-2">
+                {showGold && (
+                  <div className="rounded-lg p-3" style={{ background: "color-mix(in srgb, var(--t-text) 4%, transparent)", border: "1px solid var(--t-border)" }}>
+                    <p className="text-[9px] font-bold uppercase tracking-widest mb-1.5" style={{ color: "var(--t-muted)", opacity: 0.5 }}>Gold</p>
+                    <p className="text-[10.5px] leading-snug" style={{ color: "var(--t-muted)" }}>{cat.goldReasoning}</p>
                   </div>
-                  <p className="text-[10.5px] leading-snug" style={{ color: "var(--t-muted)" }}>{cat.usdReasoning}</p>
-                </div>
-              )}
-            </div>
-          )}
+                )}
+                {showUsd && (
+                  <div className="rounded-lg p-3" style={{ background: "color-mix(in srgb, var(--t-text) 4%, transparent)", border: "1px solid var(--t-border)" }}>
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Shield className="h-3 w-3" style={{ color: "var(--t-muted)", opacity: 0.5 }} />
+                      <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--t-muted)", opacity: 0.5 }}>USD</p>
+                    </div>
+                    <p className="text-[10.5px] leading-snug" style={{ color: "var(--t-muted)" }}>{cat.usdReasoning}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Per-asset breakdown from AI */}
           {cat.analysis?.assets && cat.analysis.assets.length > 0 && (
