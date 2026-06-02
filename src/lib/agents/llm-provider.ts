@@ -51,7 +51,9 @@ export function llmAvailable(): boolean {
 }
 
 function geminiModel(): string {
-  return process.env.GEMINI_MODEL || "gemini-2.0-flash";
+  // gemini-2.5-flash is on the free tier and handles JSON-mode well.
+  // (gemini-2.0-flash returns 429 "limit: 0" on free-tier keys.)
+  return process.env.GEMINI_MODEL || "gemini-2.5-flash";
 }
 
 // ── Gemini ───────────────────────────────────────────────────────────────────
@@ -73,6 +75,10 @@ async function geminiCreate(params: LLMParams, timeoutMs: number): Promise<LLMRe
       temperature: params.temperature ?? 0.5,
       // Every caller in this codebase parses JSON, so ask Gemini for clean JSON.
       responseMimeType: "application/json",
+      // Gemini 2.5/3.x Flash are "thinking" models — without this they spend the
+      // whole token budget on hidden reasoning and truncate the JSON (MAX_TOKENS).
+      // Disabling thinking keeps the small per-agent budgets (300-1200) usable.
+      thinkingConfig: { thinkingBudget: 0 },
     },
   };
   if (params.system) body.systemInstruction = { parts: [{ text: params.system }] };
