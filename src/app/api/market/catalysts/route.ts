@@ -157,7 +157,7 @@ Markets: ${markets.join(", ")}
 Importance: ${importance}
 
 Return ONLY this JSON:
-{"eventOverview":"2-3 sentences what this means in plain language","whyMarketsCare":"2-3 sentences on the specific macro mechanism","assets":[{"name":"asset name","ticker":"e.g. XAUUSD","bias":"Bullish|Bearish|Neutral|Mixed","context":"2-3 sentences specific causal chain from THIS event"}],"marketLogic":"2 sentences cause-effect chain specific to this event","conditions":"1-2 sentences what confirms or invalidates this"}`
+{"eventOverview":"2-3 sentences what this means in plain language","whyMarketsCare":"2-3 sentences on the specific macro mechanism","assets":[{"name":"asset name","ticker":"e.g. XAUUSD","bias":"Bullish|Bearish|Neutral|Mixed","context":"2-3 sentences specific causal chain from THIS event"}],"marketLogic":"2 sentences cause-effect chain specific to this event","conditions":"1-2 sentences what confirms or invalidates this","keyPoints":["3-5 short bullet strings — specific data, price levels, or cause-effect statements from this event"],"beginnerTip":"2-3 sentences explaining this event in simple terms a beginner would understand — what does it mean for gold/dollar prices in plain language"}`
         }]
     });
     const text = (msg.content[0]?.type === "text" ? msg.content[0].text : "").replace(/```json|```/g, "").trim();
@@ -165,6 +165,18 @@ Return ONLY this JSON:
   } catch {
     return null;
   }
+}
+
+function deriveDriverCategory(headline: string): string {
+  const h = headline.toLowerCase();
+  if (h.includes("war") || h.includes("military") || h.includes("ceasefire") || h.includes("geopolit") || h.includes("iran") || h.includes("nuclear") || h.includes("sanction") || h.includes("attack") || h.includes("hormuz")) return "GEOPOLITICS";
+  if (h.includes("fed") || h.includes("rate cut") || h.includes("rate hike") || h.includes("powell") || h.includes("fomc") || h.includes("central bank") || h.includes("boe") || h.includes("ecb") || h.includes("rba")) return "MONETARY POLICY";
+  if (h.includes("cpi") || h.includes("inflation") || h.includes("gdp") || h.includes("nfp") || h.includes("payroll") || h.includes("employment") || h.includes("pce") || h.includes("pmi") || h.includes("retail sales")) return "MACRO DATA";
+  if (h.includes("oil") || h.includes("opec") || h.includes("energy") || h.includes("natural gas")) return "ENERGY";
+  if (h.includes("tariff") || h.includes("trade war") || h.includes("trade deal") || h.includes("export") || h.includes("import ban")) return "TRADE";
+  if (h.includes("bitcoin") || h.includes("crypto") || h.includes("ethereum") || h.includes("stablecoin")) return "CRYPTO";
+  if (h.includes("earnings") || h.includes("ipo") || h.includes("merger") || h.includes("acquisition")) return "EQUITIES";
+  return "MACRO";
 }
 
 function deriveStatus(datetime: number): "live" | "completed" {
@@ -184,6 +196,9 @@ const FALLBACK_CATALYSTS: Catalyst[] = [
     explanation: "Federal Open Market Committee meeting where rate decision and forward guidance will be announced. Gold and USD will move sharply on outcome.",
     marketImplication: "Hawkish hold = USD bid, Gold pressured. Rate cut signal = USD sell, Gold rally.",
     sentimentTag: "neutral",
+    driverCategory: "MONETARY POLICY",
+    keyPoints: ["Hawkish hold reinforces real yield pressure on gold", "Rate cut signal triggers USD sell-off and gold rally", "Watch Powell's press conference tone for forward guidance signals"],
+    beginnerTip: "The Fed controls interest rates, which directly affect gold. When rates stay high, gold usually falls because investors prefer interest-bearing assets. When rates are cut, gold usually rises.",
     goldImpact: "neutral",
     goldReasoning: "Outcome-dependent  -  hawkish hold pressures gold via higher real yields; dovish pivot or rate cut signal triggers a gold rally as USD weakens.",
     usdImpact: "bullish",
@@ -199,6 +214,9 @@ const FALLBACK_CATALYSTS: Catalyst[] = [
     explanation: "Consumer Price Index  -  the most important gold driver. Hot CPI = bearish gold (hawkish Fed). Cold CPI = bullish gold (rate cuts).",
     marketImplication: "CPI beat = sell Gold rallies. CPI miss = buy Gold dips aggressively.",
     sentimentTag: "neutral",
+    driverCategory: "MACRO DATA",
+    keyPoints: ["Hot CPI above forecast pushes rate-cut timeline further out", "Cold CPI accelerates Fed pivot bets and fuels gold breakout", "Core CPI (ex food/energy) matters more to the Fed than headline"],
+    beginnerTip: "CPI measures how much prices have risen. If prices are still rising fast (hot CPI), the Fed keeps rates high, which is bad for gold. If inflation is cooling (soft CPI), rate cuts are likely, which is great for gold.",
     goldImpact: "neutral",
     goldReasoning: "Hot CPI beats push Fed rate-cut timelines out, raising real yields and crushing gold; a soft miss accelerates rate-cut bets and fuels a gold breakout.",
     usdImpact: "neutral",
@@ -214,6 +232,9 @@ const FALLBACK_CATALYSTS: Catalyst[] = [
     explanation: "Monthly employment report  -  strong jobs = delayed rate cuts = bearish Gold. Weak jobs = recession fears + rate cuts = bullish Gold.",
     marketImplication: "Strong NFP = sell Gold. Weak NFP = buy Gold. Trade the 30-min retest for cleaner entry.",
     sentimentTag: "neutral",
+    driverCategory: "MACRO DATA",
+    keyPoints: ["Above 200K jobs = Fed stays on hold, gold faces headwinds", "Below 150K jobs = recession fears spike, gold rallies on rate-cut bets", "Unemployment rate and wage growth are secondary but still market-moving"],
+    beginnerTip: "Non-Farm Payrolls tells us how many new jobs were created. More jobs = strong economy = Fed keeps rates high = bad for gold. Fewer jobs = weak economy = Fed may cut rates = good for gold.",
     goldImpact: "neutral",
     goldReasoning: "Strong NFP above 200K removes urgency for rate cuts, reducing gold's appeal; a weak print below 150K sparks recession fears and drives safe-haven gold demand.",
     usdImpact: "neutral",
@@ -229,6 +250,9 @@ const FALLBACK_CATALYSTS: Catalyst[] = [
     explanation: "Ongoing trade war developments continue to drive safe-haven demand for Gold. Any escalation boosts Gold; any deal progress weighs on it.",
     marketImplication: "Trade escalation = buy Gold dips. Trade deal progress = risk-on, sell Gold rallies.",
     sentimentTag: "bearish",
+    driverCategory: "TRADE",
+    keyPoints: ["Tariff escalation triggers risk-off safe-haven flows into gold", "Every new tariff headline adds a geopolitical risk premium to spot prices", "A trade deal or de-escalation would flip the trade — risk-on, sell gold rallies"],
+    beginnerTip: "Trade wars create uncertainty, which makes investors nervous. When investors are nervous, they buy gold as a 'safe place' to store money. More tariffs = more fear = higher gold. A trade deal = less fear = gold might drop.",
     goldImpact: "bullish",
     goldReasoning: "Active trade war escalation drives risk-off safe-haven flows directly into gold  -  every tariff headline adds a geopolitical risk premium to spot prices.",
     usdImpact: "neutral",
@@ -289,6 +313,9 @@ export async function GET() {
         explanation: item.summary?.slice(0, 300) || item.headline,
         marketImplication: generateMarketImplication(item.headline, sentiment, affectedMarkets),
         sentimentTag: sentiment,
+        driverCategory: deriveDriverCategory(item.headline),
+        keyPoints: [],
+        beginnerTip: undefined,
         analysis: null,
       });
     }
@@ -314,6 +341,9 @@ export async function GET() {
       return {
         ...c,
         analysis: ai,
+        driverCategory: deriveDriverCategory(c.title),
+        keyPoints: Array.isArray(ai?.keyPoints) ? ai.keyPoints : [],
+        beginnerTip: typeof ai?.beginnerTip === "string" ? ai.beginnerTip : null,
         goldImpact:    goldAsset ? toBias(goldAsset.bias) : fallback.goldImpact,
         goldReasoning: goldAsset?.context                 ?? fallback.goldReasoning,
         usdImpact:     usdAsset  ? toBias(usdAsset.bias)  : fallback.usdImpact,

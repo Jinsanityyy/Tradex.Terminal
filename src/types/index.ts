@@ -105,6 +105,9 @@ export interface Catalyst {
   goldReasoning?: string;
   usdImpact?: "bullish" | "bearish" | "neutral";
   usdReasoning?: string;
+  driverCategory?: string;
+  keyPoints?: string[];
+  beginnerTip?: string;
   analysis?: {
     eventOverview: string;
     whyMarketsCare: string;

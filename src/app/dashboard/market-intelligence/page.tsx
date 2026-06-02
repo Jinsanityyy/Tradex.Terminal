@@ -204,7 +204,7 @@ export default function MarketIntelligencePage() {
                 />
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <CatalystFeed catalysts={catalysts} limit={4} compact />
+                <CatalystFeed catalysts={catalysts} limit={4} />
               </CardContent>
             </Card>
 
