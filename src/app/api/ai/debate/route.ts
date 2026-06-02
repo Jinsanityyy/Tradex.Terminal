@@ -1,9 +1,7 @@
 ﻿import { NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import { llmCreate, llmAvailable } from "@/lib/agents/llm-provider";
 
 export const dynamic = "force-dynamic";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ── Agent prompts ──────────────────────────────────────────────────────────────
 
@@ -65,14 +63,14 @@ async function runAgent(
   userMessage: string,
   agentName: string,
 ): Promise<Record<string, unknown>> {
-  const msg = await client.messages.create({
+  const msg = await llmCreate({
     model: "claude-sonnet-4-6",
     max_tokens: 800,
     system: systemPrompt,
     messages: [{ role: "user", content: userMessage }],
   });
 
-  const raw = msg.content[0].type === "text" ? msg.content[0].text : "{}";
+  const raw = msg.content[0]?.type === "text" ? msg.content[0].text : "{}";
   const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
 
   try {
@@ -86,8 +84,11 @@ async function runAgent(
 
 export async function POST(req: Request) {
   try {
-    if (!process.env.ANTHROPIC_API_KEY) {
-      return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 500 });
+    if (!llmAvailable()) {
+      return NextResponse.json(
+        { error: "No LLM provider configured (set GEMINI_API_KEY or ANTHROPIC_API_KEY)" },
+        { status: 500 }
+      );
     }
 
     const body = await req.json();

@@ -301,6 +301,90 @@ iframe,
   --t-glow-mul:     0.4;
 }
 
+/* Nord — cool arctic blue-gray (deepened for terminal contrast), frost accent */
+[data-theme="nord"] {
+  --background: 220 16% 17%;    /* #242933 — deepened Polar Night */
+  --foreground: 220 27% 94%;    /* #ECEFF4 — Snow Storm */
+  --card: 220 16% 22%;          /* #2E3440 — nord0 */
+  --card-foreground: 220 27% 94%;
+  --popover: 220 16% 22%;
+  --popover-foreground: 220 27% 94%;
+  --primary: 193 43% 67%;       /* #88C0D0 — Frost */
+  --primary-foreground: 220 16% 14%;
+  --secondary: 222 16% 28%;     /* #3B4252 — nord1 */
+  --secondary-foreground: 220 27% 94%;
+  --muted: 220 16% 32%;         /* #434C5E — nord2 */
+  --muted-foreground: 220 14% 62%;
+  --accent: 210 34% 63%;        /* #81A1C1 — nord9 */
+  --accent-foreground: 220 16% 14%;
+  --destructive: 354 42% 56%;   /* #BF616A — Aurora red */
+  --destructive-foreground: 0 0% 98%;
+  --border: 222 16% 26%;
+  --input: 222 16% 26%;
+  --ring: 193 43% 67%;
+  --sidebar-bg: 220 16% 14%;    /* #1c2027 */
+
+  --chart-green: 92 27% 65%;    /* #A3BE8C */
+  --chart-blue: 193 43% 67%;    /* #88C0D0 */
+  --chart-amber: 40 68% 73%;    /* #EBCB8B */
+  --chart-red: 354 42% 56%;     /* #BF616A */
+  --chart-purple: 311 20% 63%;  /* #B48EAD */
+
+  --t-bg:           #242933;
+  --t-card:         #2E3440;
+  --t-card-2:       #3B4252;
+  --t-border:       rgba(236,239,244,0.09);
+  --t-border-sub:   rgba(236,239,244,0.06);
+  --t-text:         #ECEFF4;
+  --t-muted:        #8B93A5;
+  --t-glow-green:   rgba(163,190,140,0.10);
+  --t-glow-red:     rgba(191,97,106,0.10);
+  --t-glow-amber:   rgba(235,203,139,0.10);
+  --t-glow-mul:     1;
+}
+
+/* Bloomberg Amber — black terminal with amber chrome (finance classic) */
+[data-theme="bloomberg"] {
+  --background: 0 0% 4%;        /* #0A0A0A */
+  --foreground: 40 30% 88%;     /* #ECE3D0 — warm off-white */
+  --card: 30 11% 7%;            /* #141210 — warm near-black */
+  --card-foreground: 40 30% 88%;
+  --popover: 33 17% 9%;         /* #1a1712 */
+  --popover-foreground: 40 30% 88%;
+  --primary: 41 100% 50%;       /* #FFB000 — amber */
+  --primary-foreground: 0 0% 4%;
+  --secondary: 38 22% 10%;      /* #1F1B14 */
+  --secondary-foreground: 40 30% 88%;
+  --muted: 38 25% 13%;          /* #2A2419 */
+  --muted-foreground: 40 15% 58%;
+  --accent: 41 100% 50%;        /* #FFB000 — amber */
+  --accent-foreground: 0 0% 4%;
+  --destructive: 359 100% 65%;  /* #FF4D4F */
+  --destructive-foreground: 0 0% 98%;
+  --border: 38 28% 13%;
+  --input: 38 28% 13%;
+  --ring: 41 100% 50%;
+  --sidebar-bg: 0 0% 2%;        /* #060606 */
+
+  --chart-green: 154 78% 43%;   /* #19C37D */
+  --chart-blue: 212 100% 65%;   /* #4DA3FF */
+  --chart-amber: 41 100% 50%;   /* #FFB000 */
+  --chart-red: 359 100% 65%;    /* #FF4D4F */
+  --chart-purple: 270 70% 75%;  /* #C792EA */
+
+  --t-bg:           #0A0A0A;
+  --t-card:         #141210;
+  --t-card-2:       #1F1B14;
+  --t-border:       rgba(255,176,0,0.10);
+  --t-border-sub:   rgba(255,176,0,0.06);
+  --t-text:         #ECE3D0;
+  --t-muted:        #B0A488;
+  --t-glow-green:   rgba(25,195,125,0.08);
+  --t-glow-red:     rgba(255,77,79,0.08);
+  --t-glow-amber:   rgba(255,176,0,0.12);
+  --t-glow-mul:     1;
+}
+
 /* Pink — dark terminal with rose/pink chrome */
 [data-theme="pink"] {
   --background: 340 28% 7%;

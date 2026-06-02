@@ -1,6 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 import * as https from "node:https";
 import type { TrumpPost } from "@/types";
+import { llmCreate, llmAvailable } from "@/lib/agents/llm-provider";
 
 // HTTP/1.1 GET via node:https  -  handles gzip/deflate decompression + redirects
 import * as zlib from "node:zlib";
@@ -176,28 +177,18 @@ async function analyzeGoldUSD(content: string, category: string): Promise<{
   usdImpact: "bullish" | "bearish" | "neutral";
   usdReasoning: string;
 } | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return null;
+  if (!llmAvailable()) return null;
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 300,
-        system: `You are a macro analyst. Given a Trump statement, state the specific directional impact on Gold (XAUUSD) and USD (DXY). Be specific to this exact content  -  no generic templates. Valid JSON only.`,
-        messages: [{
-          role: "user",
-          content: `Trump post: "${content.slice(0, 400)}"\nCategory: ${category}\n\nReturn ONLY this JSON:\n{"goldImpact":"bullish|bearish|neutral","goldReasoning":"1 sentence why gold moves this way","usdImpact":"bullish|bearish|neutral","usdReasoning":"1 sentence why USD moves this way"}`,
-        }],
-      }),
+    const msg = await llmCreate({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 300,
+      system: `You are a macro analyst. Given a Trump statement, state the specific directional impact on Gold (XAUUSD) and USD (DXY). Be specific to this exact content  -  no generic templates. Valid JSON only.`,
+      messages: [{
+        role: "user",
+        content: `Trump post: "${content.slice(0, 400)}"\nCategory: ${category}\n\nReturn ONLY this JSON:\n{"goldImpact":"bullish|bearish|neutral","goldReasoning":"1 sentence why gold moves this way","usdImpact":"bullish|bearish|neutral","usdReasoning":"1 sentence why USD moves this way"}`,
+      }],
     });
-    const data = await res.json();
-    const text = (data.content?.[0]?.text ?? "").replace(/```json|```/g, "").trim();
+    const text = (msg.content[0]?.type === "text" ? msg.content[0].text : "").replace(/```json|```/g, "").trim();
     return JSON.parse(text);
   } catch {
     return null;

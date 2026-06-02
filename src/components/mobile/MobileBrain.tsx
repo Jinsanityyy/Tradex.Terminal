@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import useSWR from "swr";
 import {
   RefreshCw, Shield, TrendingUp, TrendingDown,
@@ -398,6 +398,26 @@ export function MobileBrain() {
   const finalBias  = master?.finalBias ?? "no-trade";
   const isNoTrade  = finalBias === "no-trade";
 
+  // ── Debate cache ──────────────────────────────────────────────────────────
+  // The debate is an optional, display-only LLM call (orchestrator gates it on
+  // risk.valid and swallows failures). On the free Gemini tier it gets
+  // rate-limited often, so a fresh run can arrive with no debate even when one
+  // existed moments ago. Cache the last successful debate per symbol and show
+  // it (with an "as of" label) instead of letting the whole panel vanish.
+  const lastDebateRef = useRef<{ symbol: string; debate: NonNullable<AgentRunResult["debate"]>; ts: string } | null>(null);
+  const liveDebate = data?.debate && data.debate.length > 0 ? data.debate : null;
+  useEffect(() => {
+    if (liveDebate && data) {
+      lastDebateRef.current = { symbol, debate: liveDebate, ts: data.timestamp };
+    }
+  }, [liveDebate, data, symbol]);
+  const cachedDebate  = lastDebateRef.current?.symbol === symbol ? lastDebateRef.current : null;
+  const debateToShow  = liveDebate ?? cachedDebate?.debate ?? null;
+  const debateIsCached = !liveDebate && !!cachedDebate;
+  const debateAsOf = debateIsCached && cachedDebate
+    ? new Date(cachedDebate.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : null;
+
   const sigState: SignalState = isNoTrade
     ? "NO_TRADE"
     : (exec?.signalState ?? "NO_TRADE");
@@ -595,9 +615,14 @@ export function MobileBrain() {
             </div>
           )}
 
-          {data?.debate && data.debate.length > 0 && (
+          {debateToShow && debateToShow.length > 0 && (
             <div className="bg-[hsl(var(--card))] rounded-2xl border border-white/5 p-4">
-              <DebateLog debate={data.debate} loading={false} />
+              {debateIsCached && (
+                <p className="text-[10px] text-amber-400/80 mb-2 leading-tight">
+                  Showing last debate · as of {debateAsOf} (latest run had none — rate-limited or no challenge)
+                </p>
+              )}
+              <DebateLog debate={debateToShow} loading={false} />
             </div>
           )}
 

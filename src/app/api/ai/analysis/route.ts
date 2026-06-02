@@ -1,5 +1,5 @@
 ﻿import { NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import { llmCreate, llmAvailable } from "@/lib/agents/llm-provider";
 
 export const dynamic = "force-dynamic";
 
@@ -82,9 +82,11 @@ CRITICAL: Respond with ONLY valid JSON  -  no markdown, no code blocks, no pream
 
 export async function POST(req: Request) {
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 500 });
+    if (!llmAvailable()) {
+      return NextResponse.json(
+        { error: "No LLM provider configured (set GEMINI_API_KEY or ANTHROPIC_API_KEY)" },
+        { status: 500 }
+      );
     }
 
     const body = await req.json();
@@ -146,16 +148,14 @@ ${(invalidationFactors || []).map((f: string) => `• ${f}`).join("\n") || "• 
 Based on this data, provide your professional SMC/ICT analysis. Respond with valid JSON only.
 `.trim();
 
-    const client = new Anthropic({ apiKey });
-
-    const message = await client.messages.create({
+    const message = await llmCreate({
       model: "claude-sonnet-4-6",
       max_tokens: 1200,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userMessage }],
     });
 
-    const raw = message.content[0].type === "text" ? message.content[0].text : "";
+    const raw = message.content[0]?.type === "text" ? message.content[0].text : "";
 
     // Strip any accidental markdown fences
     const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();

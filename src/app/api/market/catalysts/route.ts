@@ -1,5 +1,6 @@
 ﻿import { NextResponse } from "next/server";
 import type { Catalyst } from "@/types";
+import { llmCreate, llmAvailable } from "@/lib/agents/llm-provider";
 
 export const dynamic = "force-dynamic";
 
@@ -137,14 +138,8 @@ function deriveGoldUSDFallback(headline: string, sentiment: "bullish" | "bearish
 
 async function generateAnalysis(title: string, summary: string, markets: string[], importance: string) {
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY ?? "",
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
+    if (!llmAvailable()) return null;
+    const msg = await llmCreate({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 800,
         system: `You are a senior macro market analyst. Write fundamental market analysis  -  not trading signals, not technical analysis.
@@ -164,10 +159,8 @@ Importance: ${importance}
 Return ONLY this JSON:
 {"eventOverview":"2-3 sentences what this means in plain language","whyMarketsCare":"2-3 sentences on the specific macro mechanism","assets":[{"name":"asset name","ticker":"e.g. XAUUSD","bias":"Bullish|Bearish|Neutral|Mixed","context":"2-3 sentences specific causal chain from THIS event"}],"marketLogic":"2 sentences cause-effect chain specific to this event","conditions":"1-2 sentences what confirms or invalidates this"}`
         }]
-      })
     });
-    const data = await res.json();
-    const text = (data.content?.[0]?.text ?? "").replace(/```json|```/g, "").trim();
+    const text = (msg.content[0]?.type === "text" ? msg.content[0].text : "").replace(/```json|```/g, "").trim();
     return JSON.parse(text);
   } catch {
     return null;

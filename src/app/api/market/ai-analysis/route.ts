@@ -1,5 +1,5 @@
 ﻿import { NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import { llmCreate, llmAvailable } from "@/lib/agents/llm-provider";
 import type { AssetAIAnalysis } from "@/types";
 import { setAIAnalysisCache } from "@/lib/api/ai-analysis-cache";
 
@@ -118,7 +118,6 @@ function getCurrentSession(): string {
 
 // ── Analyze one asset via Claude ──────────────────────────────────────────────
 async function analyzeAsset(
-  client: Anthropic,
   symbol: string,
   display: string,
   price: number,
@@ -180,14 +179,14 @@ Use this to calibrate realistic targets. TP1 should target price action within t
 Return valid JSON only.
 `.trim();
 
-  const message = await client.messages.create({
+  const message = await llmCreate({
     model: "claude-sonnet-4-6",
     max_tokens: 1100,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: userMessage }],
   });
 
-  const raw = message.content[0].type === "text" ? message.content[0].text : "";
+  const raw = message.content[0]?.type === "text" ? message.content[0].text : "";
   const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
 
   return JSON.parse(cleaned) as AssetAIAnalysis;
@@ -233,7 +232,7 @@ export async function GET() {
     return NextResponse.json({ data: cache.data, timestamp: cache.ts, cached: true });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const hasLLM = llmAvailable();
 
   try {
     // Get market data from existing caches (no extra API calls)
@@ -285,9 +284,7 @@ export async function GET() {
     // Call Claude for each valid asset in parallel (or use fallback)
     const results: Record<string, AssetAIAnalysis> = {};
 
-    if (apiKey) {
-      const client = new Anthropic({ apiKey });
-
+    if (hasLLM) {
       await Promise.all(
         contexts.map(async ctx => {
           if (!ctx.valid) {
@@ -296,7 +293,6 @@ export async function GET() {
           }
           try {
             results[ctx.symbol] = await analyzeAsset(
-              client,
               ctx.symbol,
               ctx.display,
               ctx.price,
