@@ -187,14 +187,14 @@ export function MobileFeed() {
                     <p className="text-xs font-medium leading-snug flex-1">{e.event}</p>
                     <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 uppercase",
                       e.impact === "high" ? "bg-red-500/15 text-red-400" :
-                      e.impact === "medium" ? "bg-amber-500/15 text-amber-400" : "bg-zinc-500/15 text-zinc-400")}>
+                      e.impact === "medium" ? "bg-[#FF6B00]/15 text-[#FF6B00]" : "bg-zinc-500/15 text-zinc-400")}>
                       {e.impact}
                     </span>
                   </div>
                   <div className="flex gap-3 text-[9px] text-zinc-600 mb-1.5">
                     <span>{e.currency}</span>
                     {e.time && <span>{e.time}</span>}
-                    {e.actual != null && <span className="text-emerald-400">A: {e.actual}</span>}
+                    {e.actual != null && <span className="text-[#00C853]">A: {e.actual}</span>}
                     {e.forecast != null && <span>F: {e.forecast}</span>}
                   </div>
                   <div className="flex gap-1.5 flex-wrap">
@@ -202,9 +202,9 @@ export function MobileFeed() {
                       const { impact, reasoning } = getEventImpactForSymbol(e, selectedSymbol);
                       return (
                         <>
-                          <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-semibold",
-                            impact === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
-                            impact === "bearish" ? "bg-red-500/15 text-red-400" : "bg-zinc-500/15 text-zinc-400")}>
+                          <span className={cn("text-[9px] px-1.5 py-0.5 rounded-[2px] font-semibold",
+                            impact === "bullish" ? "bg-[#00C853]/15 text-[#00C853]" :
+                            impact === "bearish" ? "bg-[#FF3D3D]/15 text-[#FF3D3D]" : "bg-zinc-500/15 text-zinc-400")}>
                             {symbolShort} {impact.toUpperCase()}
                           </span>
                           {reasoning && (
@@ -238,9 +238,9 @@ export function MobileFeed() {
                       {(() => {
                         const { impact } = getImpactForSymbol({ goldImpact: p.goldImpact, usdImpact: p.usdImpact, sentimentTag: p.sentimentClassification }, selectedSymbol);
                         return (
-                          <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded uppercase",
-                            impact === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
-                            impact === "bearish" ? "bg-red-500/15 text-red-400" : "bg-zinc-500/15 text-zinc-400")}>
+                          <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-[2px] uppercase",
+                            impact === "bullish" ? "bg-[#00C853]/15 text-[#00C853]" :
+                            impact === "bearish" ? "bg-[#FF3D3D]/15 text-[#FF3D3D]" : "bg-zinc-500/15 text-zinc-400")}>
                             {symbolShort} {impact.toUpperCase()}
                           </span>
                         );
@@ -265,7 +265,7 @@ export function MobileFeed() {
               <span className="text-[11px] font-mono text-zinc-500">{selectedEvent.currency} · {selectedEvent.time}</span>
               <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full uppercase",
                 selectedEvent.impact === "high" ? "bg-red-500/15 text-red-400" :
-                selectedEvent.impact === "medium" ? "bg-amber-500/15 text-amber-400" : "bg-zinc-500/15 text-zinc-400")}>
+                selectedEvent.impact === "medium" ? "bg-[#FF6B00]/15 text-[#FF6B00]" : "bg-zinc-500/15 text-zinc-400")}>
                 {selectedEvent.impact} impact
               </span>
             </div>
@@ -287,8 +287,8 @@ export function MobileFeed() {
                 <>
                   <div className="flex gap-2 flex-wrap">
                     <span className={cn("inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold",
-                      impact === "bullish" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" :
-                      impact === "bearish" ? "bg-red-500/15 text-red-400 border-red-500/30" :
+                      impact === "bullish" ? "bg-[#00C853]/15 text-[#00C853] border-[#00C853]/30" :
+                      impact === "bearish" ? "bg-[#FF3D3D]/15 text-[#FF3D3D] border-[#FF3D3D]/30" :
                       "bg-zinc-500/15 text-zinc-400 border-zinc-500/30")}>
                       {impact === "bullish" ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
                       {symbolShort} {impact.toUpperCase()}
@@ -297,8 +297,8 @@ export function MobileFeed() {
                   {reasoning && (
                     <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5">
                       <div className="flex items-center gap-1.5 mb-1.5">
-                        <Target className="h-3.5 w-3.5 text-amber-400" />
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">{symbolLabel} Analysis</span>
+                        <Target className="h-3.5 w-3.5 text-[#FF6B00]" />
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-[#FF6B00]">{symbolLabel} Analysis</span>
                       </div>
                       <p className="text-xs leading-relaxed">{reasoning}</p>
                     </div>
@@ -332,8 +332,8 @@ export function MobileFeed() {
               <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 text-center">
                 <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1">Sentiment</p>
                 <p className={cn("text-sm font-bold uppercase",
-                  selectedPost.sentimentClassification === "bullish" ? "text-emerald-400" :
-                  selectedPost.sentimentClassification === "bearish" ? "text-red-400" : "text-amber-400")}>
+                  selectedPost.sentimentClassification === "bullish" ? "text-[#00C853]" :
+                  selectedPost.sentimentClassification === "bearish" ? "text-[#FF3D3D]" : "text-[#FF6B00]")}>
                   {selectedPost.sentimentClassification}
                 </p>
               </div>

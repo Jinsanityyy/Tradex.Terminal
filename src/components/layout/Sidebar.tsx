@@ -455,9 +455,9 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
                   <span className={cn(
                     "text-[7px] font-bold tracking-widest px-1.5 py-[2px] rounded border leading-none shrink-0",
                     isPaid
-                      ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                      ? "bg-[#FF6B00]/10 text-[#FF6B00] border-[#FF6B00]/20"
                       : subscription.isTrialing
-                      ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                      ? "bg-[#00C853]/10 text-[#00C853] border-[#00C853]/20"
                       : "bg-zinc-800 text-zinc-600 border-zinc-700"
                   )}>
                     {isPaid && <Crown className="inline h-2 w-2 mr-0.5 -mt-px" />}

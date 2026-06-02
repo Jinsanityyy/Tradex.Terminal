@@ -369,29 +369,29 @@ export function MobileLayout() {
       <NotificationToast />
 
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 pt-10 pb-2 bg-[hsl(var(--background))] border-b border-white/5 shrink-0">
+      <div className="flex items-center justify-between px-4 pt-10 pb-2 bg-[#0D0D0F] border-b border-[#1E1E24] shrink-0">
         <div className="flex items-center gap-3">
           {/* Hamburger — opens features drawer */}
           <button
             onClick={openDrawer}
-            className="flex items-center justify-center w-7 h-7 rounded-lg border border-white/10 bg-white/[0.03] active:bg-white/10"
+            className="flex items-center justify-center w-7 h-7 rounded-[2px] border border-[#1E1E24] active:bg-white/5"
           >
-            <Menu className="h-4 w-4 text-zinc-400" />
+            <Menu className="h-4 w-4 text-[#6B6B7A]" />
           </button>
           <TradeXLogo variant="wordmark" size="xs" />
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--primary))] animate-pulse" />
-            <span className="text-[9px] text-[hsl(var(--primary))] font-medium tracking-wider uppercase">Live</span>
+            <div className="w-1.5 h-1.5 rounded-[1px] pulse-accent" />
+            <span className="text-[9px] text-[#FF6B00] tracking-wider uppercase" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>Live</span>
           </div>
           {/* Profile button */}
           <button onClick={() => { setShowProfile(true); setDraft(traderName); setEditing(false); }}
-            className="flex items-center justify-center w-7 h-7 rounded-full overflow-hidden border border-white/10">
+            className="flex items-center justify-center w-7 h-7 rounded-[2px] overflow-hidden border border-[#1E1E24]">
             {avatar
               ? <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
-              : <div className="w-full h-full bg-[hsl(var(--secondary))] flex items-center justify-center">
-                  <span className="text-[10px] font-bold text-[hsl(var(--primary))]">
+              : <div className="w-full h-full bg-[#141418] flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-[#FF6B00]">
                     {(traderName || "T")[0].toUpperCase()}
                   </span>
                 </div>
@@ -404,7 +404,7 @@ export function MobileLayout() {
       {showProfile && (
         <div className="absolute inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.8)" }}
           onClick={() => setShowProfile(false)}>
-          <div className="w-full max-w-sm rounded-3xl bg-[hsl(var(--card))] p-5"
+          <div className="w-full max-w-sm rounded-[2px] bg-[#141418] border border-[#1E1E24] p-5"
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <span className="text-[14px] font-semibold">Profile</span>
@@ -465,20 +465,20 @@ export function MobileLayout() {
 
             {/* Upgrade section */}
             {!subscription.isPro && (
-              <div className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+              <div className="mb-4 rounded-[2px] border border-[#FF6B00]/20 bg-[#FF6B00]/5 p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <Crown className="h-4 w-4 text-amber-400" />
-                  <span className="text-[13px] font-bold text-amber-300">Upgrade to Pro</span>
+                  <Crown className="h-4 w-4 text-[#FF6B00]" />
+                  <span className="text-[11px] font-bold text-[#FF6B00] uppercase tracking-widest" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>Upgrade to Pro</span>
                 </div>
                 <button
                   onClick={() => navigateToUpgrade(PLANS.pro.planId || null)}
-                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/30 active:opacity-70"
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-[2px] bg-[#FF6B00]/10 border border-[#FF6B00]/30 active:opacity-70"
                 >
                   <div className="text-left">
-                    <p className="text-[12px] font-bold text-[hsl(var(--primary))]">Pro</p>
-                    <p className="text-[10px] text-zinc-500">Full terminal access</p>
+                    <p className="text-[12px] font-bold text-[#FF6B00]" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>PRO</p>
+                    <p className="text-[10px] text-[#6B6B7A]">Full terminal access</p>
                   </div>
-                  <span className="text-[13px] font-black font-mono text-[hsl(var(--primary))]">$39/mo</span>
+                  <span className="text-[13px] font-bold text-[#FF6B00]" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>$39/mo</span>
                 </button>
               </div>
             )}
@@ -552,7 +552,7 @@ export function MobileLayout() {
 
       {/* Bottom tab bar */}
       <div
-        className="shrink-0 border-t border-white/5 bg-[hsl(var(--card))]"
+        className="shrink-0 border-t border-[#1E1E24] bg-[#141418]"
         style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
       >
         <div className="grid grid-cols-5">
@@ -570,19 +570,20 @@ export function MobileLayout() {
                 className="flex flex-col items-center justify-center gap-0.5 py-3 transition-colors relative">
                 <div className="relative">
                   <Icon className={cn("w-5 h-5 transition-colors",
-                    isActive ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]")} strokeWidth={1.5} />
+                    isActive ? "text-white" : "text-[#6B6B7A]")} strokeWidth={1.5} />
                   {showBadge && (
-                    <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-red-500 text-[8px] font-bold text-white flex items-center justify-center px-0.5">
+                    <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-[2px] bg-[#FF3D3D] text-[8px] font-bold text-white flex items-center justify-center px-0.5">
                       {badgeCount > 9 ? "9+" : badgeCount}
                     </span>
                   )}
                 </div>
-                <span className={cn("text-[9px] font-medium tracking-wide transition-colors",
-                  isActive ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]")}>
+                <span className={cn("text-[9px] tracking-wide transition-colors",
+                  isActive ? "text-white font-semibold" : "text-[#6B6B7A] font-medium")}
+                  style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>
                   {label}
                 </span>
                 {isActive && (
-                  <div className="absolute bottom-0 w-6 h-0.5 bg-[hsl(var(--primary))] rounded-full" />
+                  <div className="absolute bottom-0 w-6 h-0.5 bg-white" />
                 )}
               </button>
             );

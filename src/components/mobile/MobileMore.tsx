@@ -214,7 +214,7 @@ function PnlWidget({ micro }: { micro: MicroData }) {
     ? `${pnlPos ? "+" : ""}$${Math.abs(dailyPnl).toFixed(2)}`
     : "—";
   const pnlClass = dailyPnl === null ? "text-zinc-700"
-    : pnlPos ? "text-emerald-400" : "text-red-400";
+    : pnlPos ? "text-[#00C853]" : "text-[#FF3D3D]";
 
   const hasSession = !!micro.session;
 
@@ -260,7 +260,7 @@ function PnlWidget({ micro }: { micro: MicroData }) {
             <div className="inline-flex items-center gap-[5px]">
               <div className={cn(
                 "w-[5px] h-[5px] rounded-full shrink-0 mt-[1px]",
-                hasSession ? "bg-emerald-500" : "bg-zinc-700"
+                hasSession ? "bg-[#00C853]" : "bg-zinc-700"
               )} />
               <span className={cn(
                 "text-[13px] font-bold leading-none",
@@ -271,7 +271,7 @@ function PnlWidget({ micro }: { micro: MicroData }) {
             </div>
             <span className={cn(
               "text-[8px] font-mono leading-none",
-              hasSession ? "text-emerald-500/50" : "text-zinc-700/50"
+              hasSession ? "text-[#00C853]/50" : "text-zinc-700/50"
             )}>
               {hasSession ? "ACTIVE" : "—"}
             </span>
@@ -329,9 +329,9 @@ function AppRow({
 }) {
   const Icon = app.icon;
   const tagColors: Record<TagVariant, string> = {
-    green: "text-emerald-400",
-    red:   "text-red-400",
-    amber: "text-amber-500",
+    green: "text-[#00C853]",
+    red:   "text-[#FF3D3D]",
+    amber: "text-[#FF6B00]",
     muted: "text-zinc-600",
   };
 
@@ -340,7 +340,7 @@ function AppRow({
       onClick={onPress}
       className={cn(
         "w-full flex items-center gap-3 px-4 py-[7px] active:bg-white/[0.04] transition-colors cursor-pointer",
-        isActive && "border-l-2 border-emerald-500 bg-white/[0.03] !pl-[14px]"
+        isActive && "border-l-2 border-[#FF6B00] bg-white/[0.03] !pl-[14px]"
       )}
     >
       <Icon
@@ -601,7 +601,7 @@ export function MobileMore() {
                 {avatar
                   ? <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
                   : <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-[13px] font-bold text-emerald-400">
+                      <span className="text-[13px] font-bold text-[#FF6B00]">
                         {(traderName || "T")[0].toUpperCase()}
                       </span>
                     </div>
@@ -616,11 +616,11 @@ export function MobileMore() {
                   {traderName || "Trader"}
                 </p>
                 <span className={cn(
-                  "text-[8px] font-bold tracking-widest px-1.5 py-[2px] rounded border leading-none",
+                  "text-[8px] font-bold tracking-widest px-1.5 py-[2px] rounded-[2px] border leading-none",
                   isPaid
-                    ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                    ? "bg-[#FF6B00]/10 text-[#FF6B00] border-[#FF6B00]/20"
                     : subscription.isTrialing
-                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                    ? "bg-[#00C853]/10 text-[#00C853] border-[#00C853]/20"
                     : "bg-zinc-800 text-zinc-600 border-zinc-700"
                 )}>
                   {isPaid && <Crown className="inline h-2 w-2 mr-0.5 -mt-px" />}
@@ -698,7 +698,7 @@ export function MobileMore() {
               {push.busy
                 ? <Loader2 className="h-3 w-3 text-zinc-400 opacity-50 animate-spin shrink-0" strokeWidth={1.5} />
                 : push.status === "subscribed"
-                ? <Bell    className="h-3 w-3 text-emerald-500 opacity-60 shrink-0" strokeWidth={1.5} />
+                ? <Bell    className="h-3 w-3 text-[#00C853] opacity-60 shrink-0" strokeWidth={1.5} />
                 : <BellOff className="h-3 w-3 text-zinc-500 opacity-50 shrink-0" strokeWidth={1.5} />
               }
               <span className="flex-1 text-[11.5px] font-medium text-zinc-200 text-left leading-none tracking-[0.01em]">
@@ -707,7 +707,7 @@ export function MobileMore() {
               {/* Toggle pill */}
               <div className={cn(
                 "w-9 h-[20px] rounded-full transition-colors shrink-0 relative",
-                push.status === "subscribed" ? "bg-emerald-500/80" : "bg-zinc-800"
+                push.status === "subscribed" ? "bg-[#00C853]/80" : "bg-zinc-800"
               )}>
                 <div className={cn(
                   "absolute top-[2px] w-4 h-4 bg-white rounded-full shadow transition-transform",

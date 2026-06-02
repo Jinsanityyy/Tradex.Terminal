@@ -3,31 +3,31 @@
 @tailwind utilities;
 
 :root {
-  --background: 225 14% 12%;
-  --foreground: 0 0% 95%;
-  --card: 225 13% 15%;
-  --card-foreground: 0 0% 95%;
-  --popover: 225 13% 15%;
-  --popover-foreground: 0 0% 95%;
-  --primary: 142 71% 45%;
-  --primary-foreground: 225 14% 12%;
-  --secondary: 225 11% 18%;
-  --secondary-foreground: 0 0% 95%;
-  --muted: 225 10% 22%;
-  --muted-foreground: 225 8% 62%;
-  --accent: 217 91% 60%;
-  --accent-foreground: 0 0% 95%;
-  --destructive: 0 84% 60%;
+  --background: 240 7% 5%;
+  --foreground: 0 0% 91%;
+  --card: 240 7% 8%;
+  --card-foreground: 0 0% 91%;
+  --popover: 240 7% 8%;
+  --popover-foreground: 0 0% 91%;
+  --primary: 25 100% 50%;
+  --primary-foreground: 0 0% 0%;
+  --secondary: 240 8% 11%;
+  --secondary-foreground: 0 0% 91%;
+  --muted: 240 9% 15%;
+  --muted-foreground: 240 5% 44%;
+  --accent: 25 100% 50%;
+  --accent-foreground: 0 0% 0%;
+  --destructive: 0 100% 62%;
   --destructive-foreground: 0 0% 95%;
-  --border: 225 10% 20%;
-  --input: 225 10% 20%;
-  --ring: 142 71% 45%;
-  --radius: 0.5rem;
+  --border: 240 10% 13%;
+  --input: 240 10% 13%;
+  --ring: 25 100% 50%;
+  --radius: 2px;
 
-  --chart-green: 142 76% 48%;   /* #30D158 */
+  --chart-green: 146 100% 39%;  /* #00C853 */
   --chart-blue: 217 91% 60%;
-  --chart-amber: 38 100% 52%;   /* #FF9F0A */
-  --chart-red: 3 100% 62%;      /* #FF453A */
+  --chart-amber: 25 100% 50%;   /* #FF6B00 */
+  --chart-red: 0 100% 62%;      /* #FF3D3D */
   --chart-purple: 270 70% 60%;
 
   --sidebar-width: 240px;
@@ -135,52 +135,86 @@ iframe,
   border: 1px solid hsl(220 10% 18% / 0.6);
 }
 
-/* Signal colors — #30D158 / #FF453A (Apple HIG standard) */
-.text-positive       { color: #30D158; }
-.text-negative       { color: #FF453A; }
-.text-neutral-accent { color: #FF9F0A; }
+/* Signal colors — Bloomberg terminal palette */
+.text-positive       { color: #00C853; }
+.text-negative       { color: #FF3D3D; }
+.text-neutral-accent { color: #FF6B00; }
 
 .badge-bullish {
-  background: rgba(48, 209, 88, 0.10);
-  color: #30D158;
-  border: 1px solid rgba(48, 209, 88, 0.22);
+  background: rgba(0, 200, 83, 0.08);
+  color: #00C853;
+  border: 1px solid rgba(0, 200, 83, 0.22);
 }
 .badge-bearish {
-  background: rgba(255, 69, 58, 0.10);
-  color: #FF453A;
-  border: 1px solid rgba(255, 69, 58, 0.22);
+  background: rgba(255, 61, 61, 0.08);
+  color: #FF3D3D;
+  border: 1px solid rgba(255, 61, 61, 0.22);
 }
 .badge-neutral {
-  background: rgba(255, 159, 10, 0.10);
-  color: #FF9F0A;
-  border: 1px solid rgba(255, 159, 10, 0.22);
+  background: rgba(255, 107, 0, 0.08);
+  color: #FF6B00;
+  border: 1px solid rgba(255, 107, 0, 0.22);
 }
 
-/* Large price / metric display — monospace, tabular, tight tracking */
+/* Large price / metric display — IBM Plex Mono, tabular */
 .price-display {
-  font-family: var(--font-geist-mono), var(--font-jetbrains-mono), 'JetBrains Mono', monospace;
+  font-family: var(--font-ibm-plex-mono), var(--font-jetbrains-mono), 'IBM Plex Mono', 'Courier New', monospace;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.01em;
   font-weight: 700;
 }
 
-/* Secondary label — scannable metadata text */
+/* Secondary label — terminal data label */
 .metric-label {
-  font-size: 0.625rem;         /* 10px */
-  font-weight: 600;
-  letter-spacing: 0.10em;
+  font-size: 0.625rem;
+  font-family: var(--font-ibm-plex-mono), 'IBM Plex Mono', monospace;
+  font-weight: 400;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: hsl(var(--muted-foreground));
+  color: #6B6B7A;
 }
 
-/* Stat value row — large number with muted label */
+/* Stat value row — mono numbers */
 .stat-value {
-  font-family: var(--font-geist-mono), monospace;
+  font-family: var(--font-ibm-plex-mono), 'IBM Plex Mono', monospace;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   font-size: 1.125rem;
   line-height: 1;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
+}
+
+/* Terminal mono — IBM Plex Mono with tabular nums */
+.terminal-mono {
+  font-family: var(--font-ibm-plex-mono), 'IBM Plex Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Terminal label — 10px, uppercase, muted, mono */
+.terminal-label {
+  font-family: var(--font-ibm-plex-mono), 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: #6B6B7A;
+  font-weight: 400;
+}
+
+/* Terminal section — 10px, uppercase, wider tracking */
+.terminal-section {
+  font-family: var(--font-ibm-plex-mono), 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #6B6B7A;
+  font-weight: 400;
+}
+
+/* Description body text — DM Sans */
+.terminal-body {
+  font-family: var(--font-dm-sans), system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 /* Pulse animation for live indicators */
@@ -190,6 +224,16 @@ iframe,
 }
 .pulse-live {
   animation: pulse-live 2s ease-in-out infinite;
+}
+
+/* Orange accent pulse for LIVE dot — #FF6B00 */
+@keyframes pulse-accent {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255,107,0,0.4); }
+  50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(255,107,0,0); }
+}
+.pulse-accent {
+  animation: pulse-accent 2s ease-in-out infinite;
+  background: #FF6B00;
 }
 
 /* ── Brain / Agent animations ───────────────────────── */
@@ -240,33 +284,45 @@ iframe,
 
 /* ── Theme variants ─────────────────────────────────── */
 
-/* Default dark — deep neutral black, high contrast, terminal-grade */
+/* Bloomberg Terminal — clinical, data-dense, zero decorative elements */
 :root,
 [data-theme="dark"] {
-  --background: 220 9% 7%;      /* #0D0E10 — near-black, neutral (not blue) */
-  --foreground: 0 0% 88%;       /* #E0E0E0 — off-white, reduces eye strain */
-  --card: 220 8% 10%;           /* #151618 — clearly distinct from background */
-  --card-foreground: 0 0% 88%;
-  --popover: 220 8% 10%;
-  --popover-foreground: 0 0% 88%;
-  --secondary: 220 7% 14%;      /* #1C1D1F */
-  --secondary-foreground: 0 0% 88%;
-  --muted: 220 6% 18%;          /* #272829 */
-  --muted-foreground: 220 5% 56%; /* #878A8E — readable but clearly secondary */
-  --border: 220 7% 16%;         /* #222426 — visible card edges */
-  --input: 220 7% 16%;
-  --chart-green: 142 76% 48%;   /* #30D158 — Apple HIG bullish green */
-  --chart-red: 3 100% 62%;      /* #FF453A — Apple HIG bearish red */
-  --t-bg:           #0D0E10;
-  --t-card:         #151618;
-  --t-card-2:       #1C1D1F;
-  --t-border:       rgba(255,255,255,0.07);
+  --background: 240 7% 5%;      /* #0D0D0F */
+  --foreground: 0 0% 91%;       /* #E8E8E8 */
+  --card: 240 7% 8%;            /* #141418 */
+  --card-foreground: 0 0% 91%;
+  --popover: 240 7% 8%;
+  --popover-foreground: 0 0% 91%;
+  --primary: 25 100% 50%;       /* #FF6B00 — terminal orange */
+  --primary-foreground: 0 0% 0%;
+  --secondary: 240 8% 11%;      /* #1A1A1F */
+  --secondary-foreground: 0 0% 91%;
+  --muted: 240 9% 15%;          /* #212127 */
+  --muted-foreground: 240 5% 44%; /* #6B6B7A */
+  --accent: 25 100% 50%;        /* #FF6B00 */
+  --accent-foreground: 0 0% 0%;
+  --destructive: 0 100% 62%;    /* #FF3D3D */
+  --destructive-foreground: 0 0% 95%;
+  --border: 240 10% 13%;        /* #1E1E24 */
+  --input: 240 10% 13%;
+  --ring: 25 100% 50%;
+  --radius: 2px;
+  --chart-green: 146 100% 39%;  /* #00C853 */
+  --chart-red: 0 100% 62%;      /* #FF3D3D */
+  --t-bg:           #0D0D0F;
+  --t-card:         #141418;
+  --t-card-2:       #1A1A1F;
+  --t-border:       #1E1E24;
   --t-border-sub:   rgba(255,255,255,0.04);
-  --t-text:         #E0E0E0;
-  --t-muted:        #878A8E;
-  --t-glow-green:   rgba(48,209,88,0.10);
-  --t-glow-red:     rgba(255,69,58,0.10);
-  --t-glow-amber:   rgba(255,159,10,0.10);
+  --t-text:         #E8E8E8;
+  --t-muted:        #6B6B7A;
+  --t-text-muted2:  #3A3A45;
+  --t-accent:       #FF6B00;
+  --t-bullish:      #00C853;
+  --t-bearish:      #FF3D3D;
+  --t-glow-green:   rgba(0,200,83,0.10);
+  --t-glow-red:     rgba(255,61,61,0.10);
+  --t-glow-amber:   rgba(255,107,0,0.12);
   --t-glow-mul:     1;
 }
 

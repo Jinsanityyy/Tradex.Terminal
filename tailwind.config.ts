@@ -10,6 +10,8 @@ const config: Config = {
         sans: ["var(--font-geist-sans)", "system-ui", "-apple-system", "sans-serif"],
         mono: ["var(--font-geist-mono)", "'Courier New'", "monospace"],
         data: ["var(--font-jetbrains-mono)", "var(--font-geist-mono)", "'Courier New'", "monospace"],
+        "ibm-plex-mono": ["var(--font-ibm-plex-mono)", "'IBM Plex Mono'", "'Courier New'", "monospace"],
+        "dm-sans": ["var(--font-dm-sans)", "system-ui", "sans-serif"],
       },
     },
   },
