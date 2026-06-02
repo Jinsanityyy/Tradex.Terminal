@@ -301,6 +301,35 @@ iframe,
   --t-glow-mul:     0.4;
 }
 
+/* Cod Gray — neutral near-black (#171717), no color tint */
+[data-theme="codgray"] {
+  --background: 0 0% 9%;        /* #171717 */
+  --foreground: 0 0% 95%;
+  --card: 0 0% 12%;             /* #1f1f1f */
+  --card-foreground: 0 0% 95%;
+  --popover: 0 0% 12%;
+  --popover-foreground: 0 0% 95%;
+  --secondary: 0 0% 16%;        /* #292929 */
+  --secondary-foreground: 0 0% 95%;
+  --muted: 0 0% 22%;
+  --muted-foreground: 0 0% 60%;
+  --border: 0 0% 18%;
+  --input: 0 0% 18%;
+  --sidebar-bg: 0 0% 7%;        /* #121212 — slightly darker than bg */
+
+  --t-bg:           #171717;
+  --t-card:         #1F1F1F;
+  --t-card-2:       #262626;
+  --t-border:       rgba(255,255,255,0.07);
+  --t-border-sub:   rgba(255,255,255,0.05);
+  --t-text:         #EDEDED;
+  --t-muted:        #9A9A9A;
+  --t-glow-green:   rgba(0,200,150,0.08);
+  --t-glow-red:     rgba(255,77,79,0.08);
+  --t-glow-amber:   rgba(245,158,11,0.08);
+  --t-glow-mul:     0.7;
+}
+
 /* Pink — dark terminal with rose/pink chrome */
 [data-theme="pink"] {
   --background: 340 28% 7%;
