@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { SlidersHorizontal } from "lucide-react";
 import type { AgentRunResult } from "@/lib/agents/schemas";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
+import { useThemePersonality } from "@/lib/themePersonality";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -49,11 +50,11 @@ function biasTone(bias: string | undefined): Tone {
   return "gray";
 }
 
-const TONE_CLS: Record<Tone, { border: string; text: string; bar: string }> = {
-  green:  { border: "border-t-emerald-500/70", text: "text-emerald-400", bar: "bg-emerald-500" },
-  red:    { border: "border-t-red-500/70",     text: "text-red-400",     bar: "bg-red-500"     },
-  yellow: { border: "border-t-amber-500/70",   text: "text-amber-400",   bar: "bg-amber-500"   },
-  gray:   { border: "border-t-zinc-700/40",    text: "text-zinc-400",    bar: "bg-zinc-600"    },
+const TONE_VARS: Record<Tone, { borderTopColor: string; color: string; barBg: string }> = {
+  green:  { borderTopColor: "var(--t-bullish)", color: "var(--t-bullish)", barBg: "var(--t-bullish)" },
+  red:    { borderTopColor: "var(--t-bearish)", color: "var(--t-bearish)", barBg: "var(--t-bearish)" },
+  yellow: { borderTopColor: "var(--t-accent)",  color: "var(--t-accent)",  barBg: "var(--t-accent)"  },
+  gray:   { borderTopColor: "var(--t-muted)",   color: "var(--t-muted)",   barBg: "var(--t-muted)"   },
 };
 
 function fmt(s: string | undefined): string {
@@ -102,8 +103,8 @@ export function AgentCardsFilterButton({
         className={cn(
           "inline-flex items-center gap-1 rounded border px-2 py-1 text-[9px] font-medium transition-colors",
           open
-            ? "border-white/15 bg-white/[0.06] text-zinc-200"
-            : "border-white/[0.08] text-zinc-500 hover:border-white/15 hover:text-zinc-200"
+            ? "border-[var(--t-border)] bg-[var(--t-card-2)] text-[var(--t-text)]"
+            : "border-[var(--t-border)] text-[var(--t-muted)] hover:text-[var(--t-text)]"
         )}
       >
         <SlidersHorizontal className="h-2.5 w-2.5" />
@@ -111,8 +112,11 @@ export function AgentCardsFilterButton({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-30 mt-1 w-44 rounded-lg border border-white/[0.08] bg-[#0b0b0d]/95 p-2 shadow-2xl backdrop-blur">
-          <p className="mb-1.5 px-1 text-[9px] font-medium uppercase tracking-[0.18em] text-zinc-600">
+        <div
+          className="absolute right-0 top-full z-30 mt-1 w-44 rounded-lg border p-2 shadow-2xl backdrop-blur"
+          style={{ borderColor: "var(--t-border)", backgroundColor: "var(--t-card)" }}
+        >
+          <p className="mb-1.5 px-1 text-[9px] font-medium uppercase tracking-[0.18em] text-[var(--t-muted)]">
             Show / hide agents
           </p>
           <div className="space-y-0.5">
@@ -123,26 +127,26 @@ export function AgentCardsFilterButton({
                   key={a.id}
                   type="button"
                   onClick={() => toggle(a.id)}
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[10px] transition-colors hover:bg-white/[0.05]"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[10px] transition-colors hover:bg-[var(--t-card-2)]"
                 >
                   <span
-                    className={cn(
-                      "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border text-[8px]",
+                    className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border text-[8px]"
+                    style={
                       checked
-                        ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-400"
-                        : "border-white/10 text-transparent"
-                    )}
+                        ? { borderColor: "color-mix(in srgb, var(--t-bullish) 50%, transparent)", backgroundColor: "color-mix(in srgb, var(--t-bullish) 20%, transparent)", color: "var(--t-bullish)" }
+                        : { borderColor: "var(--t-border)", color: "transparent" }
+                    }
                   >
                     ✓
                   </span>
-                  <span className={checked ? "text-zinc-200" : "text-zinc-600"}>
+                  <span style={{ color: checked ? "var(--t-text)" : "var(--t-muted)" }}>
                     {a.label}
                   </span>
                 </button>
               );
             })}
           </div>
-          <div className="mt-1.5 flex gap-1 border-t border-white/[0.06] pt-1.5">
+          <div className="mt-1.5 flex gap-1 border-t pt-1.5" style={{ borderColor: "var(--t-border)" }}>
             <button
               type="button"
               onClick={() => {
@@ -150,7 +154,7 @@ export function AgentCardsFilterButton({
                 try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...next])); } catch {}
                 onChange(next);
               }}
-              className="flex-1 rounded px-1 py-1 text-[9px] text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300 transition-colors"
+              className="flex-1 rounded px-1 py-1 text-[9px] transition-colors hover:bg-[var(--t-card-2)] text-[var(--t-muted)] hover:text-[var(--t-text)]"
             >
               All
             </button>
@@ -161,7 +165,7 @@ export function AgentCardsFilterButton({
                 try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...next])); } catch {}
                 onChange(next);
               }}
-              className="flex-1 rounded px-1 py-1 text-[9px] text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300 transition-colors"
+              className="flex-1 rounded px-1 py-1 text-[9px] transition-colors hover:bg-[var(--t-card-2)] text-[var(--t-muted)] hover:text-[var(--t-text)]"
             >
               Master only
             </button>
@@ -180,11 +184,11 @@ type DiagTag = { k: string; v: string };
 function DiagGrid({ tags }: { tags: DiagTag[] }) {
   const slots: DiagTag[] = Array.from({ length: 4 }, (_, i) => tags[i] ?? { k: "—", v: "—" });
   return (
-    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-white/[0.04] pt-1.5">
+    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t pt-1.5" style={{ borderColor: "var(--t-border)" }}>
       {slots.map((t, i) => (
         <div key={i} className="min-w-0">
-          <div className="truncate font-mono text-[7px] uppercase tracking-widest text-zinc-700">{t.k}</div>
-          <div className="truncate font-mono text-[9px] font-semibold text-zinc-500">{t.v}</div>
+          <div className="truncate font-mono text-[7px] uppercase tracking-widest" style={{ color: "var(--t-text-muted2)" }}>{t.k}</div>
+          <div className="truncate font-mono text-[9px] font-semibold" style={{ color: "var(--t-muted)" }}>{t.v}</div>
         </div>
       ))}
     </div>
@@ -192,47 +196,50 @@ function DiagGrid({ tags }: { tags: DiagTag[] }) {
 }
 
 // Center-anchored consensus gauge with directional fill and glowing marker dot
-function ConsensusGauge({ score, cls }: { score: number; cls: typeof TONE_CLS[Tone] }) {
+function ConsensusGauge({ score, tone }: { score: number; tone: Tone }) {
+  const vars    = TONE_VARS[tone];
   const pct     = Math.min(50, Math.abs(score) / 2);
   const isBull  = score > 0;
   const markerL = isBull ? 50 + pct : 50 - pct;
 
   return (
-    <div className="border-t border-white/[0.04] pt-1.5">
+    <div className="border-t pt-1.5" style={{ borderColor: "var(--t-border)" }}>
       <div className="mb-1 flex items-center justify-between">
-        <span className="font-mono text-[7.5px] uppercase tracking-widest text-zinc-700">Consensus</span>
-        <span className={cn("font-mono text-[10px] font-black", isBull ? "text-emerald-400" : score < 0 ? "text-red-400" : "text-zinc-500")}>
+        <span className="font-mono text-[7.5px] uppercase tracking-widest" style={{ color: "var(--t-text-muted2)" }}>Consensus</span>
+        <span
+          className="font-mono text-[10px] font-black"
+          style={{ color: score === 0 ? "var(--t-muted)" : vars.color }}
+        >
           {score > 0 ? `+${score.toFixed(0)}` : score.toFixed(0)}
         </span>
       </div>
       <div
         className="relative h-[3px] w-full overflow-hidden rounded-full"
-        style={{ background: "linear-gradient(to right,rgba(239,68,68,0.22) 0%,rgba(39,39,42,0.85) 38%,rgba(39,39,42,0.85) 62%,rgba(16,185,129,0.22) 100%)" }}
+        style={{ background: "linear-gradient(to right,color-mix(in srgb,var(--t-bearish) 22%,transparent) 0%,var(--t-border) 38%,var(--t-border) 62%,color-mix(in srgb,var(--t-bullish) 22%,transparent) 100%)" }}
       >
-        <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-white/20" />
+        <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2" style={{ background: "var(--t-text-muted2)" }} />
         {score !== 0 && (
           <div
-            className={cn("absolute inset-y-0 rounded-full transition-all duration-700", isBull ? "bg-emerald-500" : "bg-red-500")}
+            className="absolute inset-y-0 rounded-full transition-all duration-700"
             style={
               isBull
-                ? { left: "50%", width: `${pct}%`, boxShadow: "0 0 6px rgba(16,185,129,0.7)" }
-                : { right: "50%", width: `${pct}%`, boxShadow: "0 0 6px rgba(239,68,68,0.7)" }
+                ? { left: "50%", width: `${pct}%`, backgroundColor: "var(--t-bullish)" }
+                : { right: "50%", width: `${pct}%`, backgroundColor: "var(--t-bearish)" }
             }
           />
         )}
       </div>
       <div className="relative mt-0.5" style={{ height: "7px" }}>
         <div
-          className={cn(
-            "absolute top-0 h-[7px] w-[7px] -translate-x-1/2 rounded-full border border-[hsl(var(--card))] transition-all duration-700",
-            isBull    ? "bg-emerald-400 shadow-[0_0_5px_rgba(16,185,129,0.9)]" :
-            score < 0 ? "bg-red-400 shadow-[0_0_5px_rgba(239,68,68,0.9)]" :
-                        "bg-zinc-500"
-          )}
-          style={{ left: `${markerL}%` }}
+          className="absolute top-0 h-[7px] w-[7px] -translate-x-1/2 rounded-full border transition-all duration-700"
+          style={{
+            left: `${markerL}%`,
+            borderColor: "var(--t-card)",
+            backgroundColor: score === 0 ? "var(--t-muted)" : vars.barBg,
+          }}
         />
       </div>
-      <div className="flex justify-between text-[7px] text-zinc-800">
+      <div className="flex justify-between text-[7px]" style={{ color: "var(--t-text-muted2)" }}>
         <span>BEAR</span>
         <span>BULL</span>
       </div>
@@ -263,21 +270,28 @@ function AgentCard({
   expired?: boolean;
   onClick?: () => void;
 }) {
-  const cls = TONE_CLS[tone];
+  const vars = TONE_VARS[tone];
+  const { progressBarStyle } = useThemePersonality();
+  const isSegmented = progressBarStyle === "segmented";
+  const segments = 10;
+  const filledCount = Math.round(Math.min(100, confidence) / (100 / segments));
 
   if (loading) {
     return (
-      <div className="flex h-full min-h-[158px] flex-col gap-2.5 border-t-2 border-t-zinc-700/30 bg-[hsl(var(--card))] px-3 py-3 animate-pulse">
-        <div className="h-2 w-20 rounded bg-white/6" />
-        <div className="h-4 w-16 rounded bg-white/5" />
-        <div className="h-[3px] w-full rounded-full bg-white/5" />
-        <div className="h-2.5 w-full rounded bg-white/[0.03]" />
-        <div className="h-2.5 w-2/3 rounded bg-white/[0.025]" />
-        <div className="mt-auto grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-white/[0.04] pt-1.5">
+      <div
+        className="flex h-full min-h-[158px] flex-col gap-2.5 border-t-2 px-3 py-3 animate-pulse"
+        style={{ borderTopColor: "var(--t-border)", backgroundColor: "var(--t-card)" }}
+      >
+        <div className="h-2 w-20 rounded" style={{ background: "var(--t-border)" }} />
+        <div className="h-4 w-16 rounded" style={{ background: "var(--t-border)" }} />
+        <div className="h-[3px] w-full rounded-full" style={{ background: "var(--t-border)" }} />
+        <div className="h-2.5 w-full rounded" style={{ background: "var(--t-card-2)" }} />
+        <div className="h-2.5 w-2/3 rounded" style={{ background: "var(--t-card-2)" }} />
+        <div className="mt-auto grid grid-cols-2 gap-x-3 gap-y-1.5 border-t pt-1.5" style={{ borderColor: "var(--t-border)" }}>
           {[...Array(4)].map((_, i) => (
             <div key={i} className="space-y-0.5">
-              <div className="h-1.5 w-8 rounded bg-white/5" />
-              <div className="h-2 w-12 rounded bg-white/[0.03]" />
+              <div className="h-1.5 w-8 rounded" style={{ background: "var(--t-border)" }} />
+              <div className="h-2 w-12 rounded" style={{ background: "var(--t-card-2)" }} />
             </div>
           ))}
         </div>
@@ -290,23 +304,43 @@ function AgentCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex h-full min-h-[158px] w-full flex-col border-t-2 bg-[hsl(var(--card))] text-left transition-all",
-        cls.border,
-        onClick && "hover:bg-white/[0.04] cursor-pointer"
+        "flex h-full min-h-[158px] w-full flex-col border-t-2 text-left transition-all",
+        onClick && "cursor-pointer"
       )}
+      style={{
+        borderTopColor: vars.borderTopColor,
+        backgroundColor: "var(--t-card)",
+      }}
     >
       <div className={cn("flex flex-1 flex-col gap-1.5 px-3 py-3", expired && "opacity-[0.55]")}>
-        <span className="truncate text-[9px] font-bold uppercase leading-none tracking-[0.14em] text-zinc-600">{name}</span>
-        <span className={cn("text-[13px] font-black uppercase leading-none tracking-wide", cls.text)}>{state}</span>
+        <span className="truncate text-[9px] font-bold uppercase leading-none tracking-[0.14em]" style={{ color: "var(--t-muted)" }}>{name}</span>
+        <span className="text-[13px] font-black uppercase leading-none tracking-wide" style={{ color: vars.color }}>{state}</span>
         <div className="flex items-center gap-2">
-          <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-zinc-800">
-            <div className={cn("h-full rounded-full transition-all duration-500", cls.bar)} style={{ width: `${Math.min(100, confidence)}%` }} />
-          </div>
-          <span className="w-7 shrink-0 text-right font-mono text-[10px] text-zinc-600">{confidence}%</span>
+          {isSegmented ? (
+            <div className="flex flex-1 gap-px" style={{ height: "3px" }}>
+              {Array.from({ length: segments }, (_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    flex: 1,
+                    backgroundColor: i < filledCount ? vars.barBg : "var(--t-border)",
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="h-[3px] flex-1 overflow-hidden rounded-full" style={{ backgroundColor: "var(--t-border)" }}>
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, confidence)}%`, backgroundColor: vars.barBg }}
+              />
+            </div>
+          )}
+          <span className="w-7 shrink-0 text-right font-mono text-[10px]" style={{ color: "var(--t-muted)" }}>{confidence}%</span>
         </div>
         <div className="flex flex-1 flex-col gap-0.5">
-          <span className="line-clamp-2 text-[10px] leading-snug text-zinc-500">{insight}</span>
-          {sub ? <span className="text-[9px] text-zinc-700">{sub}</span> : null}
+          <span className="line-clamp-2 text-[10px] leading-snug" style={{ color: "var(--t-muted)" }}>{insight}</span>
+          {sub ? <span className="text-[9px]" style={{ color: "var(--t-text-muted2)" }}>{sub}</span> : null}
         </div>
         <DiagGrid tags={tags ?? []} />
       </div>
@@ -331,21 +365,27 @@ function MasterCard({
   const execution = data.agents.execution;
   const finalBias = master.finalBias;
   const tone      = biasTone(finalBias);
-  const cls       = TONE_CLS[tone];
+  const vars      = TONE_VARS[tone];
+  const { progressBarStyle } = useThemePersonality();
+  const isSegmented = progressBarStyle === "segmented";
+  const segments = 10;
+  const filledCount = Math.round(master.confidence / (100 / segments));
 
   const masterInsight = finalBias !== "no-trade"
     ? (master.strategyMatch ?? `${finalBias.toUpperCase()} signal confirmed`)
     : (master.noTradeReason ?? "Insufficient consensus to trade");
 
   const rawScore = master.consensusScore;
-  const consensusLabel = rawScore > 0 ? `+${rawScore.toFixed(0)}` : rawScore.toFixed(0);
 
   if (loading) {
     return (
-      <div className="flex h-full min-h-[158px] flex-col gap-2.5 border-t-2 border-t-zinc-700/30 bg-[hsl(var(--card))] px-3 py-3 animate-pulse">
-        <div className="h-2 w-20 rounded bg-white/6" />
-        <div className="h-4 w-16 rounded bg-white/5" />
-        <div className="h-[3px] w-full rounded-full bg-white/5" />
+      <div
+        className="flex h-full min-h-[158px] flex-col gap-2.5 border-t-2 px-3 py-3 animate-pulse"
+        style={{ borderTopColor: "var(--t-border)", backgroundColor: "var(--t-card)" }}
+      >
+        <div className="h-2 w-20 rounded" style={{ background: "var(--t-border)" }} />
+        <div className="h-4 w-16 rounded" style={{ background: "var(--t-border)" }} />
+        <div className="h-[3px] w-full rounded-full" style={{ background: "var(--t-border)" }} />
       </div>
     );
   }
@@ -354,31 +394,49 @@ function MasterCard({
     <button
       type="button"
       onClick={onClick}
-      className={cn(
-        "flex h-full min-h-[158px] w-full flex-col border-t-2 bg-[hsl(var(--card))] text-left transition-all hover:bg-white/[0.04]",
-        cls.border
-      )}
+      className="flex h-full min-h-[158px] w-full flex-col border-t-2 text-left transition-all"
+      style={{
+        borderTopColor: vars.borderTopColor,
+        backgroundColor: "var(--t-card)",
+      }}
     >
       <div className="flex flex-1 flex-col gap-1.5 px-3 py-3">
         <div className="flex items-center justify-between">
-          <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-600">Master Agent</span>
-          <span className={cn("text-[9px] font-bold uppercase tracking-[0.1em]", cls.text)}>{fmt(finalBias)}</span>
+          <span className="text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: "var(--t-muted)" }}>Master Agent</span>
+          <span className="text-[9px] font-bold uppercase tracking-[0.1em]" style={{ color: vars.color }}>{fmt(finalBias)}</span>
         </div>
         <div className="space-y-1">
           <div className="flex justify-between text-[8px]">
-            <span className="text-zinc-700 uppercase tracking-widest">Confidence</span>
-            <span className={cn("font-mono font-bold", cls.text)}>{master.confidence}%</span>
+            <span className="uppercase tracking-widest" style={{ color: "var(--t-text-muted2)" }}>Confidence</span>
+            <span className="font-mono font-bold" style={{ color: vars.color }}>{master.confidence}%</span>
           </div>
-          <div className="h-[3px] w-full rounded-full bg-white/5">
-            <div className={cn("h-full rounded-full transition-all duration-500", cls.bar)} style={{ width: `${master.confidence}%` }} />
-          </div>
+          {isSegmented ? (
+            <div className="flex gap-px" style={{ height: "3px" }}>
+              {Array.from({ length: segments }, (_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    flex: 1,
+                    backgroundColor: i < filledCount ? vars.barBg : "var(--t-border)",
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="h-[3px] w-full rounded-full" style={{ backgroundColor: "var(--t-border)" }}>
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${master.confidence}%`, backgroundColor: vars.barBg }}
+              />
+            </div>
+          )}
         </div>
         <div className="flex flex-1 flex-col gap-0.5">
-          <p className="line-clamp-2 text-[10px] leading-snug text-zinc-400">{masterInsight}</p>
+          <p className="line-clamp-2 text-[10px] leading-snug" style={{ color: "var(--t-muted)" }}>{masterInsight}</p>
         </div>
-        <ConsensusGauge score={rawScore} cls={cls} />
+        <ConsensusGauge score={rawScore} tone={tone} />
         {execution.hasSetup && execution.entry != null && (
-          <div className="grid grid-cols-4 gap-x-2 gap-y-1 border-t border-white/[0.04] pt-1.5">
+          <div className="grid grid-cols-4 gap-x-2 gap-y-1 border-t pt-1.5" style={{ borderColor: "var(--t-border)" }}>
             {[
               { label: "ENT", value: fmtPrice(execution.entry)    },
               { label: "SL",  value: fmtPrice(execution.stopLoss) },
@@ -386,8 +444,8 @@ function MasterCard({
               { label: "RR",  value: execution.rrRatio != null ? `${execution.rrRatio.toFixed(1)}:1` : "—" },
             ].map(({ label, value }) => (
               <div key={label} className="flex flex-col gap-0.5">
-                <span className="text-[8px] font-mono text-zinc-700">{label}</span>
-                <span className="text-[10px] font-mono font-bold text-zinc-300">{value}</span>
+                <span className="text-[8px] font-mono" style={{ color: "var(--t-text-muted2)" }}>{label}</span>
+                <span className="text-[10px] font-mono font-bold" style={{ color: "var(--t-text)" }}>{value}</span>
               </div>
             ))}
           </div>

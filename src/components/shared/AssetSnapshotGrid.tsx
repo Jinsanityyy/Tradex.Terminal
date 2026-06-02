@@ -33,18 +33,23 @@ export function AssetSnapshotGrid({ assets, compact = false }: AssetSnapshotGrid
         return (
           <div
             key={asset.symbol}
-            className="group rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 transition-all hover:bg-[hsl(var(--secondary))] hover:border-[hsl(var(--muted))]"
+            className="group border p-3 transition-all hover:bg-[var(--t-card-2)]"
+            style={{
+              borderRadius: 'var(--t-card-radius)',
+              borderColor: 'var(--t-border)',
+              backgroundColor: 'var(--t-card)',
+            }}
           >
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] font-medium uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--t-muted)]">
                 {asset.symbol}
               </span>
               <TrendIcon className={cn(
                 "h-3.5 w-3.5",
-                isPositive ? "text-positive" : isNeutral ? "text-[hsl(var(--muted-foreground))]" : "text-negative"
+                isPositive ? "text-positive" : isNeutral ? "text-[var(--t-muted)]" : "text-negative"
               )} />
             </div>
-            <div className="text-base font-bold font-mono text-[hsl(var(--foreground))]">
+            <div className="text-base font-bold font-mono text-[var(--t-text)]">
               {formatAssetPrice(asset.symbol, asset.price)}
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">
@@ -52,7 +57,7 @@ export function AssetSnapshotGrid({ assets, compact = false }: AssetSnapshotGrid
                 {formatPercent(asset.changePercent)}
               </span>
               {!compact && (
-                <span className="text-[10px] text-[hsl(var(--muted-foreground))]">{asset.name}</span>
+                <span className="text-[10px] text-[var(--t-muted)]">{asset.name}</span>
               )}
             </div>
           </div>

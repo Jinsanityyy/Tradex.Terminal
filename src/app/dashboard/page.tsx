@@ -1842,44 +1842,71 @@ export default function DashboardPage() {
         <div className="h-full min-h-0 overflow-y-auto p-3">
           <div className="grid grid-cols-2 gap-3 h-full">
             {/* Signal State */}
-            <div className={cn("rounded-xl p-4 border flex flex-col gap-2",
-              signalState === "ARMED"   ? "bg-emerald-500/10 border-emerald-500/30" :
-              signalState === "PENDING" ? "bg-amber-500/10 border-amber-500/30" :
-              "bg-white/5 border-white/5")}>
-              <p className="text-[9px] text-zinc-600 uppercase tracking-widest">Signal</p>
-              <p className={cn("text-[15px] font-bold uppercase",
-                signalState === "ARMED" ? "text-emerald-400" : signalState === "PENDING" ? "text-amber-400" : "text-zinc-500")}>
+            <div
+              className="p-4 border flex flex-col gap-2"
+              style={{
+                borderRadius: "var(--t-card-radius)",
+                backgroundColor: signalState === "ARMED"
+                  ? "color-mix(in srgb, var(--t-bullish) 10%, transparent)"
+                  : signalState === "PENDING"
+                  ? "color-mix(in srgb, var(--t-accent) 10%, transparent)"
+                  : "var(--t-card)",
+                borderColor: signalState === "ARMED"
+                  ? "color-mix(in srgb, var(--t-bullish) 30%, transparent)"
+                  : signalState === "PENDING"
+                  ? "color-mix(in srgb, var(--t-accent) 30%, transparent)"
+                  : "var(--t-border)",
+              }}
+            >
+              <p className="text-[9px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>Signal</p>
+              <p className="text-[15px] font-bold uppercase" style={{
+                color: signalState === "ARMED" ? "var(--t-bullish)"
+                     : signalState === "PENDING" ? "var(--t-accent)"
+                     : "var(--t-muted)",
+              }}>
                 {(signalState ?? "NO_TRADE").replace("_", " ")}
               </p>
               {tradeDirection && tradeDirection.toLowerCase() !== "none" && signalState !== "NO_TRADE" && (
-                <p className="text-[10px] text-zinc-600 truncate">
+                <p className="text-[10px] truncate" style={{ color: "var(--t-muted)" }}>
                   {tradeDirection.toUpperCase()} · {tradeTrigger && tradeTrigger.toLowerCase() !== "none" ? tradeTrigger : "–"}
                 </p>
               )}
               {signalState === "NO_TRADE" && master?.noTradeReason && (
-                <p className="text-[10px] text-zinc-600 leading-tight line-clamp-3">{master.noTradeReason}</p>
+                <p className="text-[10px] leading-tight line-clamp-3" style={{ color: "var(--t-muted)" }}>{master.noTradeReason}</p>
               )}
             </div>
 
             {/* Active Session */}
-            <div className="bg-[hsl(var(--card))] rounded-xl p-4 border border-white/5 flex flex-col gap-2">
-              <p className="text-[9px] text-zinc-600 uppercase tracking-widest">Session</p>
+            <div
+              className="p-4 border flex flex-col gap-2"
+              style={{
+                backgroundColor: "var(--t-card)",
+                borderRadius: "var(--t-card-radius)",
+                borderColor: "var(--t-border)",
+              }}
+            >
+              <p className="text-[9px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>Session</p>
               {sessions.find(s => s.status === "active") ? (() => {
                 const s = sessions.find(s => s.status === "active")!;
                 return (
                   <>
-                    <p className="text-[15px] font-bold text-zinc-200">{s.session}</p>
-                    <span className={cn("text-[10px] font-bold uppercase",
-                      s.volatilityTone === "high" ? "text-red-400" :
-                      s.volatilityTone === "moderate" ? "text-amber-400" : "text-emerald-400")}>
+                    <p className="text-[15px] font-bold" style={{ color: "var(--t-text)" }}>{s.session}</p>
+                    <span
+                      className="text-[10px] font-bold uppercase"
+                      style={{
+                        color: s.volatilityTone === "high" ? "var(--t-bearish)"
+                             : s.volatilityTone === "moderate" ? "var(--t-accent)"
+                             : "var(--t-bullish)",
+                      }}
+                    >
                       {s.volatilityTone} vol
                     </span>
                   </>
                 );
               })() : (
                 <>
-                  <p className="text-[15px] font-bold text-zinc-500">Between</p>
-                  <p className="text-[10px] text-zinc-700">Sessions</p>
+                  <p className="text-[15px] font-bold" style={{ color: "var(--t-muted)" }}>Between</p>
+                  <p className="text-[10px]" style={{ color: "var(--t-muted)", opacity: 0.5 }}>Sessions</p>
                 </>
               )}
             </div>
@@ -1893,31 +1920,50 @@ export default function DashboardPage() {
       content: (
         <div className="h-full min-h-0 overflow-y-auto p-3">
           {tradeEntry ? (
-            <div className={cn("rounded-xl px-4 py-3 border",
-              signalState === "ARMED"   ? "bg-emerald-500/8 border-emerald-500/25" :
-              signalState === "PENDING" ? "bg-amber-500/8 border-amber-500/25" :
-              "bg-white/5 border-white/10")}>
-              <p className={cn("text-[9px] uppercase tracking-wider mb-3",
-                signalState === "ARMED"   ? "text-emerald-500/70" :
-                signalState === "PENDING" ? "text-amber-500/70" : "text-zinc-600")}>
+            <div
+              className="px-4 py-3 border"
+              style={{
+                borderRadius: "var(--t-card-radius)",
+                backgroundColor: signalState === "ARMED"
+                  ? "color-mix(in srgb, var(--t-bullish) 8%, transparent)"
+                  : signalState === "PENDING"
+                  ? "color-mix(in srgb, var(--t-accent) 8%, transparent)"
+                  : "color-mix(in srgb, var(--t-text) 5%, transparent)",
+                borderColor: signalState === "ARMED"
+                  ? "color-mix(in srgb, var(--t-bullish) 25%, transparent)"
+                  : signalState === "PENDING"
+                  ? "color-mix(in srgb, var(--t-accent) 25%, transparent)"
+                  : "var(--t-border)",
+              }}
+            >
+              <p
+                className="text-[9px] uppercase tracking-wider mb-3"
+                style={{
+                  color: signalState === "ARMED"
+                    ? "color-mix(in srgb, var(--t-bullish) 70%, transparent)"
+                    : signalState === "PENDING"
+                    ? "color-mix(in srgb, var(--t-accent) 70%, transparent)"
+                    : "var(--t-muted)",
+                }}
+              >
                 {signalState === "ARMED" ? "⚡ Armed — Confirm trigger" :
                  signalState === "PENDING" ? "⏳ Pending — Waiting for entry" : "Last Setup"}
               </p>
               <div className="grid grid-cols-4 gap-3">
                 {[
-                  { label: "Entry", value: tradeEntry > 100 ? tradeEntry.toFixed(2) : tradeEntry.toFixed(4), color: "text-zinc-100" },
-                  { label: "SL",    value: tradeStopLoss ? (tradeStopLoss > 100 ? tradeStopLoss.toFixed(2) : tradeStopLoss.toFixed(4)) : "–", color: "text-red-400" },
-                  { label: "TP1",   value: tradeTp1 ? (tradeTp1 > 100 ? tradeTp1.toFixed(2) : tradeTp1.toFixed(4)) : "–", color: "text-emerald-400" },
-                  { label: "R:R",   value: tradeRR ? `${tradeRR}:1` : "–", color: "text-zinc-300" },
-                ].map(({ label, value, color }) => (
-                  <div key={label} className="text-center rounded-lg bg-white/5 py-2.5 px-1">
-                    <p className="text-[8px] text-zinc-600 mb-1">{label}</p>
-                    <p className={cn("text-[12px] font-mono font-bold", color)}>{value}</p>
+                  { label: "Entry", value: tradeEntry > 100 ? tradeEntry.toFixed(2) : tradeEntry.toFixed(4), colorVar: "var(--t-text)" },
+                  { label: "SL",    value: tradeStopLoss ? (tradeStopLoss > 100 ? tradeStopLoss.toFixed(2) : tradeStopLoss.toFixed(4)) : "–", colorVar: "var(--t-bearish)" },
+                  { label: "TP1",   value: tradeTp1 ? (tradeTp1 > 100 ? tradeTp1.toFixed(2) : tradeTp1.toFixed(4)) : "–", colorVar: "var(--t-bullish)" },
+                  { label: "R:R",   value: tradeRR ? `${tradeRR}:1` : "–", colorVar: "var(--t-text)" },
+                ].map(({ label, value, colorVar }) => (
+                  <div key={label} className="text-center py-2.5 px-1" style={{ borderRadius: "var(--t-card-radius)", backgroundColor: "var(--t-card-2)" }}>
+                    <p className="text-[8px] mb-1" style={{ color: "var(--t-muted)" }}>{label}</p>
+                    <p className="text-[12px] font-mono font-bold" style={{ color: colorVar }}>{value}</p>
                   </div>
                 ))}
               </div>
               {exec?.signalStateReason && (
-                <p className="text-[10px] text-zinc-600 mt-2 leading-tight">{exec.signalStateReason}</p>
+                <p className="text-[10px] mt-2 leading-tight" style={{ color: "var(--t-muted)" }}>{exec.signalStateReason}</p>
               )}
             </div>
           ) : (

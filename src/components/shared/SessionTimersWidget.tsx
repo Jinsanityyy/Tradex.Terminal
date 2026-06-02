@@ -8,43 +8,12 @@ interface SessionDef {
   tz: string;
   openUTC: number;
   closeUTC: number;
-  color: string;
-  bg: string;
-  border: string;
-  dot: string;
 }
 
 const SESSIONS: SessionDef[] = [
-  {
-    name: "Asia / Tokyo",
-    tz: "Asia/Tokyo",
-    openUTC: 0,
-    closeUTC: 9,
-    color: "#A78BFA",
-    bg: "#A78BFA12",
-    border: "#A78BFA30",
-    dot: "#A78BFA",
-  },
-  {
-    name: "London",
-    tz: "Europe/London",
-    openUTC: 7,
-    closeUTC: 16,
-    color: "#60A5FA",
-    bg: "#60A5FA12",
-    border: "#60A5FA30",
-    dot: "#60A5FA",
-  },
-  {
-    name: "New York",
-    tz: "America/New_York",
-    openUTC: 13,
-    closeUTC: 22,
-    color: "#FCD34D",
-    bg: "#FCD34D12",
-    border: "#FCD34D30",
-    dot: "#FCD34D",
-  },
+  { name: "Asia / Tokyo", tz: "Asia/Tokyo",       openUTC: 0,  closeUTC: 9  },
+  { name: "London",       tz: "Europe/London",     openUTC: 7,  closeUTC: 16 },
+  { name: "New York",     tz: "America/New_York",  openUTC: 13, closeUTC: 22 },
 ];
 
 function pad(n: number) {
@@ -105,7 +74,7 @@ export function SessionTimersWidget() {
       {/* UTC clock */}
       <div
         className="flex items-center justify-between rounded-lg px-3 py-2"
-        style={{ background: "var(--t-card)", border: "1px solid var(--t-border-sub)" }}
+        style={{ background: "var(--t-card)", border: "1px solid var(--t-border)" }}
       >
         <div className="flex items-center gap-2">
           <Clock className="h-3.5 w-3.5" style={{ color: "var(--t-muted)" }} />
@@ -131,8 +100,10 @@ export function SessionTimersWidget() {
             key={s.name}
             className="rounded-xl p-3 transition-all"
             style={{
-              background: isActive ? s.bg : "var(--t-card)",
-              border: `1px solid ${isActive ? s.border : "var(--t-border-sub)"}`,
+              background: isActive
+                ? "color-mix(in srgb, var(--t-accent) 8%, transparent)"
+                : "var(--t-card)",
+              border: `1px solid ${isActive ? "color-mix(in srgb, var(--t-accent) 25%, transparent)" : "var(--t-border)"}`,
             }}
           >
             {/* Header */}
@@ -141,7 +112,7 @@ export function SessionTimersWidget() {
                 {isActive ? (
                   <Radio
                     className="h-3.5 w-3.5"
-                    style={{ color: s.color, animation: "pulse 2s infinite" }}
+                    style={{ color: "var(--t-accent)", animation: "pulse 2s infinite" }}
                   />
                 ) : (
                   <div
@@ -151,7 +122,7 @@ export function SessionTimersWidget() {
                 )}
                 <span
                   className="text-[11px] font-bold tracking-wide"
-                  style={{ color: isActive ? s.color : "var(--t-muted)" }}
+                  style={{ color: isActive ? "var(--t-text)" : "var(--t-muted)" }}
                 >
                   {s.name}
                 </span>
@@ -159,9 +130,11 @@ export function SessionTimersWidget() {
               <span
                 className="text-[9px] uppercase tracking-widest font-semibold px-2 py-0.5 rounded"
                 style={{
-                  background: isActive ? s.border : "transparent",
-                  color: isActive ? s.color : "var(--t-muted)",
-                  border: `1px solid ${isActive ? s.border : "var(--t-border-sub)"}`,
+                  background: isActive
+                    ? "color-mix(in srgb, var(--t-accent) 15%, transparent)"
+                    : "transparent",
+                  color: isActive ? "var(--t-accent)" : "var(--t-muted)",
+                  border: `1px solid ${isActive ? "color-mix(in srgb, var(--t-accent) 30%, transparent)" : "var(--t-border)"}`,
                 }}
               >
                 {isActive ? "LIVE" : "CLOSED"}
@@ -179,7 +152,7 @@ export function SessionTimersWidget() {
                 </div>
                 <div
                   className="text-sm font-mono font-bold"
-                  style={{ color: isActive ? s.color : "var(--t-muted)" }}
+                  style={{ color: isActive ? "var(--t-text)" : "var(--t-muted)" }}
                 >
                   {localTime}
                 </div>
@@ -210,10 +183,13 @@ export function SessionTimersWidget() {
           return (
             <div
               className="flex items-center gap-2 rounded-lg px-3 py-2"
-              style={{ background: "#F59E0B10", border: "1px solid #F59E0B30" }}
+              style={{
+                background: "color-mix(in srgb, var(--t-accent) 6%, transparent)",
+                border: "1px solid color-mix(in srgb, var(--t-accent) 20%, transparent)",
+              }}
             >
-              <div className="h-2 w-2 rounded-full" style={{ background: "#F59E0B" }} />
-              <span className="text-[10px] font-semibold" style={{ color: "#F59E0B" }}>
+              <div className="h-2 w-2 rounded-full" style={{ background: "var(--t-accent)" }} />
+              <span className="text-[10px] font-semibold" style={{ color: "var(--t-accent)" }}>
                 London–NY Overlap · Highest liquidity window
               </span>
             </div>

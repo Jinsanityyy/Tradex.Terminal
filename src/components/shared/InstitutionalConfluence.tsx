@@ -7,6 +7,7 @@ import { TrendingUp, TrendingDown, Minus, RefreshCw, AlertTriangle, Clock, X, Ch
 import { useInstitutionalData } from "@/hooks/useMarketData";
 import type { InstitutionalData } from "@/app/api/market/institutional/route";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useThemePersonality } from "@/lib/themePersonality";
 
 function timeAgo(ts: number): string {
   const mins = Math.floor((Date.now() - ts) / 60000);
@@ -19,12 +20,12 @@ function timeAgo(ts: number): string {
 
 function SignalBadge({ signal }: { signal: "bullish" | "bearish" | "neutral" }) {
   const Icon = signal === "bullish" ? TrendingUp : signal === "bearish" ? TrendingDown : Minus;
-  const cls =
-    signal === "bullish" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" :
-    signal === "bearish" ? "bg-red-500/15 text-red-400 border-red-500/30" :
-    "bg-zinc-500/15 text-zinc-400 border-zinc-500/30";
+  const cls = signal === "bullish" ? "badge-bullish" : signal === "bearish" ? "badge-bearish" : "badge-neutral";
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase", cls)}>
+    <span
+      className={cn("inline-flex items-center gap-1 border px-1.5 py-0.5 text-[9px] font-bold uppercase", cls)}
+      style={{ borderRadius: "var(--t-badge-radius)" }}
+    >
       <Icon className="h-2.5 w-2.5" />
       {signal}
     </span>
@@ -32,16 +33,36 @@ function SignalBadge({ signal }: { signal: "bullish" | "bearish" | "neutral" }) 
 }
 
 function MMBar({ longPct, shortPct }: { longPct: number; shortPct: number }) {
+  const { progressBarStyle } = useThemePersonality();
+  const isSegmented = progressBarStyle === "segmented";
+  const segments = 10;
+  const filledLong = Math.round(longPct / (100 / segments));
+
   return (
     <div className="space-y-1">
-      <div className="flex justify-between text-[9px] text-zinc-500">
+      <div className="flex justify-between text-[9px] text-[var(--t-muted)]">
         <span>MM Long {longPct}%</span>
         <span>MM Short {shortPct}%</span>
       </div>
-      <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
-        <div className="bg-emerald-500/70 transition-all" style={{ width: `${longPct}%` }} />
-        <div className="bg-red-500/70 transition-all"   style={{ width: `${shortPct}%` }} />
-      </div>
+      {isSegmented ? (
+        <div className="flex gap-px h-1.5 w-full overflow-hidden">
+          {Array.from({ length: segments }, (_, i) => (
+            <div
+              key={i}
+              style={{
+                flex: 1,
+                backgroundColor: i < filledLong ? "var(--t-bullish)" : "var(--t-border)",
+                opacity: i < filledLong ? 0.7 : 1,
+              }}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="flex h-1.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "var(--t-border)" }}>
+          <div className="transition-all" style={{ width: `${longPct}%`, backgroundColor: "var(--t-bullish)", opacity: 0.7 }} />
+          <div className="transition-all" style={{ width: `${shortPct}%`, backgroundColor: "var(--t-bearish)", opacity: 0.7 }} />
+        </div>
+      )}
     </div>
   );
 }
@@ -50,10 +71,15 @@ function ConfluenceDots({ score }: { score: number }) {
   const dots = Array.from({ length: 6 }, (_, i) => {
     const filled = score >= 0 ? i >= 3 && (i - 3) < score : i < 3 && (3 - i) <= Math.abs(score);
     return (
-      <span key={i} className={cn(
-        "inline-block h-2 w-2 rounded-full",
-        filled ? (score > 0 ? "bg-emerald-400" : "bg-red-400") : "bg-zinc-700"
-      )} />
+      <span
+        key={i}
+        className="inline-block h-2 w-2 rounded-full"
+        style={{
+          backgroundColor: filled
+            ? (score > 0 ? "var(--t-accent)" : "var(--t-bearish)")
+            : "var(--t-border)",
+        }}
+      />
     );
   });
   return <div className="flex items-center gap-1">{dots}</div>;
@@ -65,19 +91,24 @@ function Row({ label, hint, children, signal, onClick }: {
   return (
     <div
       className={cn(
-        "space-y-1.5 rounded-lg bg-white/[0.03] border border-white/5 p-3",
-        onClick && "cursor-pointer active:bg-white/[0.06] hover:bg-white/[0.05] transition-colors"
+        "space-y-1.5 border p-3",
+        onClick && "cursor-pointer transition-colors"
       )}
+      style={{
+        borderRadius: "var(--t-card-radius)",
+        backgroundColor: "var(--t-card-2)",
+        borderColor: "var(--t-border)",
+      }}
       onClick={onClick}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">{label}</p>
-          <p className="text-[9px] text-zinc-700 mt-0.5 leading-relaxed">{hint}</p>
+          <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--t-muted)]">{label}</p>
+          <p className="text-[9px] mt-0.5 leading-relaxed text-[var(--t-text-muted2)]">{hint}</p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {signal && <SignalBadge signal={signal} />}
-          {onClick && <ChevronRight className="h-3 w-3 text-zinc-700" />}
+          {onClick && <ChevronRight className="h-3 w-3 text-[var(--t-muted)]" />}
         </div>
       </div>
       {children}
@@ -711,10 +742,13 @@ export function InstitutionalConfluence() {
 
   if (institutionalLoading) {
     return (
-      <div className="space-y-2 rounded-xl border border-white/5 bg-[hsl(var(--card))] p-4">
-        <p className="text-[9px] uppercase tracking-widest text-zinc-600">Institutional Confluence</p>
+      <div
+        className="space-y-2 border p-4"
+        style={{ borderRadius: "var(--t-card-radius)", borderColor: "var(--t-border)", backgroundColor: "var(--t-card)" }}
+      >
+        <p className="text-[9px] uppercase tracking-widest text-[var(--t-muted)]">Institutional Confluence</p>
         <div className="flex items-center justify-center py-6">
-          <RefreshCw className="h-4 w-4 animate-spin text-zinc-600" />
+          <RefreshCw className="h-4 w-4 animate-spin text-[var(--t-muted)]" />
         </div>
       </div>
     );
@@ -724,15 +758,18 @@ export function InstitutionalConfluence() {
 
   return (
     <>
-      <div className="rounded-xl border border-white/5 bg-[hsl(var(--card))] overflow-hidden">
+      <div
+        className="border overflow-hidden"
+        style={{ borderRadius: "var(--t-card-radius)", borderColor: "var(--t-border)", backgroundColor: "var(--t-card)" }}
+      >
         {/* Header */}
-        <div className="border-b border-white/5">
+        <div className="border-b border-[var(--t-border)]">
           <div className="flex items-center justify-between px-4 pt-3 pb-2">
             <div>
-              <p className="text-[9px] uppercase tracking-widest text-zinc-600 mb-0.5">Institutional Confluence</p>
-              <p className="text-[10px] text-zinc-500">{assetCfg.cftcLabel} · {assetCfg.volLabel} · {assetCfg.optLabel}</p>
+              <p className="text-[9px] uppercase tracking-widest text-[var(--t-muted)] mb-0.5">Institutional Confluence</p>
+              <p className="text-[10px] text-[var(--t-muted)]">{assetCfg.cftcLabel} · {assetCfg.volLabel} · {assetCfg.optLabel}</p>
               {data?.ts && (
-                <p className="flex items-center gap-1 text-[9px] text-zinc-700 mt-0.5">
+                <p className="flex items-center gap-1 text-[9px] text-[var(--t-text-muted2)] mt-0.5">
                   <Clock className="h-2.5 w-2.5" />
                   Updated {timeAgo(data.ts)}
                 </p>
@@ -751,12 +788,21 @@ export function InstitutionalConfluence() {
               <button
                 key={a.id}
                 onClick={() => handleSetAsset(a.id)}
-                className={cn(
-                  "px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide transition-all",
+                className="px-2.5 py-1 text-[9px] font-bold uppercase tracking-wide transition-all border"
+                style={
                   asset === a.id
-                    ? "bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30"
-                    : "text-zinc-600 hover:text-zinc-400 hover:bg-white/5 border border-transparent"
-                )}
+                    ? {
+                        color: "var(--t-accent)",
+                        borderColor: "var(--t-accent)",
+                        borderRadius: "var(--t-badge-radius)",
+                        backgroundColor: "color-mix(in srgb, var(--t-accent) 12%, transparent)",
+                      }
+                    : {
+                        color: "var(--t-muted)",
+                        borderColor: "transparent",
+                        borderRadius: "var(--t-badge-radius)",
+                      }
+                }
               >
                 {a.tab}
               </button>
@@ -767,8 +813,8 @@ export function InstitutionalConfluence() {
         <div className="p-3 space-y-2">
           {allNull ? (
             <div className="flex items-center gap-2 py-4 justify-center">
-              <AlertTriangle className="h-4 w-4 text-zinc-600" />
-              <p className="text-[11px] text-zinc-600">Data unavailable — sources offline</p>
+              <AlertTriangle className="h-4 w-4 text-[var(--t-muted)]" />
+              <p className="text-[11px] text-[var(--t-muted)]">Data unavailable — sources offline</p>
             </div>
           ) : (
             <>
@@ -780,16 +826,16 @@ export function InstitutionalConfluence() {
                   onClick={() => setOpenDetail("cftc")}
                 >
                   <MMBar longPct={data.sentiment.longPct} shortPct={data.sentiment.shortPct} />
-                  <p className="text-[10px] text-zinc-400 mt-1.5">
+                  <p className="text-[10px] text-[var(--t-muted)] mt-1.5">
                     {data.sentiment.extreme
                       ? `⚠️ Extreme — hedge funds ${data.sentiment.longPct > data.sentiment.shortPct ? `${data.sentiment.longPct}% net long` : `${data.sentiment.shortPct}% net short`}`
                       : "No extreme positioning from managed money"}
                   </p>
-                  <p className="text-[9px] text-zinc-600 mt-0.5 italic">{cftcBiasNote(data.sentiment)}</p>
+                  <p className="text-[9px] text-[var(--t-text-muted2)] mt-0.5 italic">{cftcBiasNote(data.sentiment)}</p>
                 </Row>
               ) : (
                 <Row label="Managed Money (CFTC)" hint="Weekly CFTC report — hedge fund net positioning on COMEX gold." onClick={() => setOpenDetail("cftc")}>
-                  <p className="text-[10px] text-zinc-600 italic">Unavailable</p>
+                  <p className="text-[10px] text-[var(--t-muted)] italic">Unavailable</p>
                 </Row>
               )}
 
@@ -802,30 +848,32 @@ export function InstitutionalConfluence() {
                 >
                   {data.oi.label.includes("insufficient") ? (
                     <div className="flex items-center gap-2 py-0.5">
-                      <Loader2 className="h-3 w-3 animate-spin text-zinc-600 shrink-0" />
-                      <p className="text-[10px] text-zinc-600">Awaiting session data</p>
+                      <Loader2 className="h-3 w-3 animate-spin text-[var(--t-muted)] shrink-0" />
+                      <p className="text-[10px] text-[var(--t-muted)]">Awaiting session data</p>
                     </div>
                   ) : (
                     <>
-                      <p className="text-[11px] text-zinc-200">{data.oi.label}</p>
+                      <p className="text-[11px] text-[var(--t-text)]">{data.oi.label}</p>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-[9px] text-zinc-500">
-                          Vol: <span className="text-zinc-300 font-mono">{data.oi.openInterest.toLocaleString()}</span>
+                        <span className="text-[9px] text-[var(--t-muted)]">
+                          Vol: <span className="text-[var(--t-text)] font-mono">{data.oi.openInterest.toLocaleString()}</span>
                         </span>
                         {data.oi.oiChange !== 0 && (
-                          <span className={cn("text-[9px] font-mono font-bold",
-                            data.oi.oiChange > 0 ? "text-emerald-400" : "text-red-400")}>
+                          <span
+                            className="text-[9px] font-mono font-bold"
+                            style={{ color: data.oi.oiChange > 0 ? "var(--t-bullish)" : "var(--t-bearish)" }}
+                          >
                             {data.oi.oiChange > 0 ? "↑" : "↓"}{Math.abs(data.oi.oiChange).toLocaleString()} vs prev
                           </span>
                         )}
                       </div>
-                      <p className="text-[9px] text-zinc-600 mt-1.5 italic">{volBiasNote(data.oi)}</p>
+                      <p className="text-[9px] text-[var(--t-text-muted2)] mt-1.5 italic">{volBiasNote(data.oi)}</p>
                     </>
                   )}
                 </Row>
               ) : (
                 <Row label={assetCfg.volLabel} hint="Futures volume — confirms if price moves have real participation." onClick={() => setOpenDetail("volume")}>
-                  <p className="text-[10px] text-zinc-600 italic">Unavailable</p>
+                  <p className="text-[10px] text-[var(--t-muted)] italic">Unavailable</p>
                 </Row>
               )}
 
@@ -838,35 +886,42 @@ export function InstitutionalConfluence() {
                 >
                   <div className="flex items-center gap-4">
                     <div>
-                      <p className="text-[8px] text-zinc-600">P/C Ratio</p>
-                      <p className={cn("text-sm font-bold font-mono",
-                        data.options.putCallRatio < 0.7 ? "text-emerald-400" :
-                        data.options.putCallRatio > 1.3 ? "text-red-400" : "text-zinc-300")}>
+                      <p className="text-[8px] text-[var(--t-muted)]">P/C Ratio</p>
+                      <p
+                        className="text-sm font-bold font-mono"
+                        style={{
+                          color: data.options.putCallRatio < 0.7
+                            ? "var(--t-bullish)"
+                            : data.options.putCallRatio > 1.3
+                            ? "var(--t-bearish)"
+                            : "var(--t-text)",
+                        }}
+                      >
                         {data.options.putCallRatio.toFixed(2)}
                       </p>
                     </div>
                     <div>
-                      <p className="text-[8px] text-zinc-600">Call Vol</p>
-                      <p className="text-sm font-bold font-mono text-emerald-400">{data.options.callVolume.toLocaleString()}</p>
+                      <p className="text-[8px] text-[var(--t-muted)]">Call Vol</p>
+                      <p className="text-sm font-bold font-mono text-[var(--t-bullish)]">{data.options.callVolume.toLocaleString()}</p>
                     </div>
                     <div>
-                      <p className="text-[8px] text-zinc-600">Put Vol</p>
-                      <p className="text-sm font-bold font-mono text-red-400">{data.options.putVolume.toLocaleString()}</p>
+                      <p className="text-[8px] text-[var(--t-muted)]">Put Vol</p>
+                      <p className="text-sm font-bold font-mono text-[var(--t-accent)]">{data.options.putVolume.toLocaleString()}</p>
                     </div>
                     {(data.options.unusualCalls > 0 || data.options.unusualPuts > 0) && (
                       <div>
-                        <p className="text-[8px] text-zinc-600">Unusual</p>
-                        <p className="text-[11px] font-bold text-amber-400">
+                        <p className="text-[8px] text-[var(--t-muted)]">Unusual</p>
+                        <p className="text-[11px] font-bold text-[var(--t-accent)]">
                           {data.options.unusualCalls}C / {data.options.unusualPuts}P
                         </p>
                       </div>
                     )}
                   </div>
-                  <p className="text-[9px] text-zinc-600 mt-1.5 italic">{optionsBiasNote(data.options)}</p>
+                  <p className="text-[9px] text-[var(--t-text-muted2)] mt-1.5 italic">{optionsBiasNote(data.options)}</p>
                 </Row>
               ) : (
                 <Row label={`CBOE Options Flow (${assetCfg.optLabel.split(" ")[0]})`} hint="ETF put/call ratio — tracks institutional positioning." onClick={() => setOpenDetail("options")}>
-                  <p className="text-[10px] text-zinc-600 italic">Unavailable</p>
+                  <p className="text-[10px] text-[var(--t-muted)] italic">Unavailable</p>
                 </Row>
               )}
             </>
@@ -874,7 +929,7 @@ export function InstitutionalConfluence() {
         </div>
 
         <div className="px-4 pb-3">
-          <p className="text-[9px] text-zinc-700">
+          <p className="text-[9px] text-[var(--t-text-muted2)]">
             CFTC weekly · GC volume 15-min delay · CBOE 15-min delay · Tap any row for explanation
           </p>
         </div>

@@ -26,13 +26,13 @@ export function WidgetCard({
   return (
     <div
       className={cn(
-        "widget-card-shell flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-white/[0.06] bg-[hsl(var(--card))]",
+        "widget-card-shell flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--t-card-radius)] border border-[var(--t-border)] bg-[var(--t-card)]",
         className
       )}
     >
-      <div className="widget-drag-handle flex h-7 shrink-0 cursor-grab select-none items-center gap-2 border-b border-white/[0.05] bg-[hsl(var(--secondary))]/80 px-2.5 active:cursor-grabbing">
-        <GripVertical className="h-3.5 w-3.5 shrink-0 text-zinc-600" />
-        <span className="min-w-0 flex-1 truncate text-[9px] font-semibold uppercase tracking-[0.2em] text-[hsl(var(--muted-foreground))]">
+      <div className="widget-drag-handle flex h-7 shrink-0 cursor-grab select-none items-center gap-2 border-b border-[var(--t-border)] bg-[var(--t-card-2)] px-2.5 active:cursor-grabbing">
+        <GripVertical className="h-3.5 w-3.5 shrink-0 text-[var(--t-muted)]" />
+        <span className="min-w-0 flex-1 truncate text-[9px] font-semibold uppercase tracking-[0.2em] text-[var(--t-muted)]">
           {title}
         </span>
 
@@ -47,7 +47,7 @@ export function WidgetCard({
           title={isCollapsed ? "Expand widget" : "Collapse widget"}
           onMouseDown={(event) => event.stopPropagation()}
           onClick={onCollapse}
-          className="rounded p-0.5 text-zinc-600 transition-colors hover:text-zinc-300"
+          className="rounded p-0.5 text-[var(--t-muted)] transition-colors hover:text-[var(--t-text)]"
         >
           {isCollapsed ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         </button>
@@ -57,7 +57,7 @@ export function WidgetCard({
           title="Hide widget"
           onMouseDown={(event) => event.stopPropagation()}
           onClick={onClose}
-          className="rounded p-0.5 text-zinc-600 transition-colors hover:text-red-400"
+          className="rounded p-0.5 text-[var(--t-muted)] transition-colors hover:text-[var(--t-bearish)]"
         >
           <X className="h-3 w-3" />
         </button>

@@ -1133,35 +1133,38 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
   // ── Collapsed (embedded only) ────────────────────────────────────────────
   if (embedded && globeCollapsed) {
     return (
-      <div style={{ background: '#141418', border: '1px solid #1E1E24', borderRadius: 2, overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid #1E1E24' }}>
-          <span style={{ ...MONO_STYLE, fontSize: 10, color: '#6B6B7A', letterSpacing: '2px', textTransform: 'uppercase' }}>
+      <div style={{ background: 'var(--t-card)', border: '1px solid var(--t-border)', borderRadius: 'var(--t-card-radius)', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid var(--t-border)' }}>
+          <span style={{ ...MONO_STYLE, fontSize: 10, color: 'var(--t-muted)', letterSpacing: '2px', textTransform: 'uppercase' }}>
             ── INTEL GLOBE
           </span>
           <button
             type="button"
             onClick={toggleGlobeCollapsed}
-            style={{ ...MONO_STYLE, fontSize: 11, color: '#6B6B7A', background: 'transparent', border: '1px solid #1E1E24', borderRadius: 2, padding: '2px 8px', cursor: 'pointer', letterSpacing: 1 }}
+            style={{ ...MONO_STYLE, fontSize: 11, color: 'var(--t-muted)', background: 'transparent', border: '1px solid var(--t-border)', borderRadius: 'var(--t-badge-radius)', padding: '2px 8px', cursor: 'pointer', letterSpacing: 1 }}
           >
             [+]
           </button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 0, padding: '10px 12px', overflowX: 'auto' }}>
-          {SESSION_DATA.map((session, i) => (
-            <React.Fragment key={session.label}>
-              {i > 0 && (
-                <span style={{ ...MONO_STYLE, fontSize: 11, color: '#3A3A45', margin: '0 10px' }}>│</span>
-              )}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-                <span style={{ ...MONO_STYLE, fontSize: 10, color: '#E8E8E8', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase' }}>
-                  {session.label}
-                </span>
-                <span style={{ ...MONO_STYLE, fontSize: 10, color: '#6B6B7A', marginLeft: 6 }}>
-                  ▪ {session.status}
-                </span>
-              </div>
-            </React.Fragment>
-          ))}
+          {SESSION_DATA.map((session, i) => {
+            const isActive = session.status !== 'CLOSED';
+            return (
+              <React.Fragment key={session.label}>
+                {i > 0 && (
+                  <span style={{ ...MONO_STYLE, fontSize: 11, color: 'var(--t-text-muted2)', margin: '0 10px' }}>│</span>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                  <span style={{ ...MONO_STYLE, fontSize: 10, color: isActive ? 'var(--t-text)' : 'var(--t-muted)', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase' }}>
+                    {session.label}
+                  </span>
+                  <span style={{ ...MONO_STYLE, fontSize: 10, color: isActive ? 'var(--t-accent)' : 'var(--t-muted)', marginLeft: 6 }}>
+                    ▪ {session.status}
+                  </span>
+                </div>
+              </React.Fragment>
+            );
+          })}
         </div>
       </div>
     );
@@ -1194,10 +1197,10 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
             zIndex: 40,
             ...MONO_STYLE,
             fontSize: 11,
-            color: '#6B6B7A',
+            color: 'var(--t-muted)',
             background: 'rgba(8,10,14,0.88)',
-            border: '1px solid #1E1E24',
-            borderRadius: 2,
+            border: '1px solid var(--t-border)',
+            borderRadius: 'var(--t-badge-radius)',
             padding: '3px 8px',
             cursor: 'pointer',
             letterSpacing: 1,
