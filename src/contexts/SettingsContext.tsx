@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 
-export type Theme = "dark" | "midnight" | "oled" | "codgray" | "royalcharcoal" | "pink" | "light";
+export type Theme = "dark" | "midnight" | "oled" | "pink" | "light";
 export type Density = "compact" | "default" | "expanded";
 export type TimeZone = "ET" | "CT" | "PT" | "UTC" | "GMT";
 export type DateFormat = "MM/DD" | "DD/MM" | "YYYY-MM-DD";
