@@ -1130,52 +1130,12 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
     return liveItems;
   }, [quotes]);
 
-  // ── Collapsed (embedded only) ────────────────────────────────────────────
-  if (embedded && globeCollapsed) {
-    return (
-      <div style={{ background: 'var(--t-card)', border: '1px solid var(--t-border)', borderRadius: 'var(--t-card-radius)', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid var(--t-border)' }}>
-          <span style={{ ...MONO_STYLE, fontSize: 10, color: 'var(--t-muted)', letterSpacing: '2px', textTransform: 'uppercase' }}>
-            ── INTEL GLOBE
-          </span>
-          <button
-            type="button"
-            onClick={toggleGlobeCollapsed}
-            style={{ ...MONO_STYLE, fontSize: 11, color: 'var(--t-muted)', background: 'transparent', border: '1px solid var(--t-border)', borderRadius: 'var(--t-badge-radius)', padding: '2px 8px', cursor: 'pointer', letterSpacing: 1 }}
-          >
-            [+]
-          </button>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 0, padding: '10px 12px', overflowX: 'auto' }}>
-          {SESSION_DATA.map((session, i) => {
-            const isActive = session.status !== 'CLOSED';
-            return (
-              <React.Fragment key={session.label}>
-                {i > 0 && (
-                  <span style={{ ...MONO_STYLE, fontSize: 11, color: 'var(--t-text-muted2)', margin: '0 10px' }}>│</span>
-                )}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-                  <span style={{ ...MONO_STYLE, fontSize: 10, color: isActive ? 'var(--t-text)' : 'var(--t-muted)', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase' }}>
-                    {session.label}
-                  </span>
-                  <span style={{ ...MONO_STYLE, fontSize: 10, color: isActive ? 'var(--t-accent)' : 'var(--t-muted)', marginLeft: 6 }}>
-                    ▪ {session.status}
-                  </span>
-                </div>
-              </React.Fragment>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div
       ref={rootRef}
       style={{
         width: embedded ? '100%' : '100vw',
-        height: embedded ? '100%' : '100vh',
+        height: embedded ? 'auto' : '100vh',
         background: BLACK,
         display: 'flex',
         flexDirection: 'column',
@@ -1185,32 +1145,47 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
         position: 'relative',
       }}
     >
-      {/* ── Collapse toggle (embedded only) ─────────────────────────────────── */}
+      {/* ── Embedded header: title + collapse toggle + session bar ─────────── */}
       {embedded && (
-        <button
-          type="button"
-          onClick={toggleGlobeCollapsed}
-          style={{
-            position: 'absolute',
-            top: 12,
-            left: 12,
-            zIndex: 40,
-            ...MONO_STYLE,
-            fontSize: 11,
-            color: 'var(--t-muted)',
-            background: 'rgba(8,10,14,0.88)',
-            border: '1px solid var(--t-border)',
-            borderRadius: 'var(--t-badge-radius)',
-            padding: '3px 8px',
-            cursor: 'pointer',
-            letterSpacing: 1,
-          }}
-        >
-          [−]
-        </button>
+        <div style={{ background: 'var(--t-card)', border: '1px solid var(--t-border)', borderBottom: globeCollapsed ? undefined : '1px solid var(--t-border)', overflow: 'hidden', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid var(--t-border)' }}>
+            <span style={{ ...MONO_STYLE, fontSize: 10, color: 'var(--t-muted)', letterSpacing: '2px', textTransform: 'uppercase' }}>
+              ── INTEL GLOBE
+            </span>
+            <button
+              type="button"
+              onClick={toggleGlobeCollapsed}
+              style={{ ...MONO_STYLE, fontSize: 11, color: 'var(--t-muted)', background: 'transparent', border: '1px solid var(--t-border)', borderRadius: 'var(--t-badge-radius)', padding: '2px 8px', cursor: 'pointer', letterSpacing: 1 }}
+            >
+              {globeCollapsed ? '[+]' : '[−]'}
+            </button>
+          </div>
+          {globeCollapsed && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 0, padding: '10px 12px', overflowX: 'auto' }}>
+              {SESSION_DATA.map((session, i) => {
+                const isActive = session.status !== 'CLOSED';
+                return (
+                  <React.Fragment key={session.label}>
+                    {i > 0 && (
+                      <span style={{ ...MONO_STYLE, fontSize: 11, color: 'var(--t-text-muted2)', margin: '0 10px' }}>│</span>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                      <span style={{ ...MONO_STYLE, fontSize: 10, color: isActive ? 'var(--t-text)' : 'var(--t-muted)', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase' }}>
+                        {session.label}
+                      </span>
+                      <span style={{ ...MONO_STYLE, fontSize: 10, color: isActive ? 'var(--t-accent)' : 'var(--t-muted)', marginLeft: 6 }}>
+                        ▪ {session.status}
+                      </span>
+                    </div>
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          )}
+        </div>
       )}
       {/* ── Main area ───────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+      <div style={{ ...(embedded ? { height: 300, flexShrink: 0 } : { flex: 1 }), display: embedded && globeCollapsed ? 'none' : 'flex', overflow: 'hidden', position: 'relative' }}>
 
         {/* Sidebar */}
         {is3D && isLayerPanelOpen && (
@@ -1311,7 +1286,10 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
           {/* Three.js mount  -  hidden in 2D mode but kept alive */}
           <div
             ref={mountRef}
-            style={{ position: 'absolute', inset: 0, display: is3D ? 'block' : 'none' }}
+            style={embedded
+              ? { width: '100%', height: 300, backgroundColor: 'transparent', overflow: 'hidden', pointerEvents: 'auto', display: is3D ? 'block' : 'none' }
+              : { position: 'absolute', inset: 0, display: is3D ? 'block' : 'none' }
+            }
           />
 
           {/* 2D flat map */}
@@ -1386,7 +1364,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
       </div>
 
       {/* ── Ticker tape ─────────────────────────────────────────────────────── */}
-      <div style={{ height: 36, background: '#080808', borderTop: '1px solid #1e1e1e', overflow: 'hidden', display: 'flex', alignItems: 'center', flexShrink: 0, position: 'relative' }}>
+      <div style={{ height: 36, background: '#080808', borderTop: '1px solid #1e1e1e', overflow: 'hidden', display: embedded && globeCollapsed ? 'none' : 'flex', alignItems: 'center', flexShrink: 0, position: 'relative' }}>
         {/* Left fade */}
         <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 32, background: 'linear-gradient(90deg, #080808, transparent)', zIndex: 2, pointerEvents: 'none' }} />
         {/* Right fade */}
