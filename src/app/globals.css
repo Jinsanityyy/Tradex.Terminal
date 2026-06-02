@@ -343,46 +343,46 @@ iframe,
   --t-glow-mul:     1;
 }
 
-/* Bloomberg Amber — black terminal with amber chrome (finance classic) */
+/* Bloomberg — pure black terminal, vivid orange-amber chrome */
 [data-theme="bloomberg"] {
-  --background: 0 0% 4%;        /* #0A0A0A */
-  --foreground: 40 30% 88%;     /* #ECE3D0 — warm off-white */
-  --card: 30 11% 7%;            /* #141210 — warm near-black */
-  --card-foreground: 40 30% 88%;
-  --popover: 33 17% 9%;         /* #1a1712 */
-  --popover-foreground: 40 30% 88%;
-  --primary: 41 100% 50%;       /* #FFB000 — amber */
-  --primary-foreground: 0 0% 4%;
-  --secondary: 38 22% 10%;      /* #1F1B14 */
-  --secondary-foreground: 40 30% 88%;
-  --muted: 38 25% 13%;          /* #2A2419 */
-  --muted-foreground: 40 15% 58%;
-  --accent: 41 100% 50%;        /* #FFB000 — amber */
-  --accent-foreground: 0 0% 4%;
+  --background: 0 0% 2%;        /* #050505 — near-pure black */
+  --foreground: 38 100% 72%;    /* #FFBE4D — amber-tinted text, unmistakably Bloomberg */
+  --card: 0 0% 4%;              /* #0A0A0A */
+  --card-foreground: 38 100% 72%;
+  --popover: 0 0% 5%;           /* #0D0D0D */
+  --popover-foreground: 38 100% 72%;
+  --primary: 36 100% 52%;       /* #FF9900 — vivid orange-amber */
+  --primary-foreground: 0 0% 2%;
+  --secondary: 0 0% 6%;         /* #0F0F0F */
+  --secondary-foreground: 38 100% 72%;
+  --muted: 0 0% 8%;             /* #141414 */
+  --muted-foreground: 38 40% 50%; /* dimmed amber */
+  --accent: 36 100% 52%;        /* #FF9900 */
+  --accent-foreground: 0 0% 2%;
   --destructive: 359 100% 65%;  /* #FF4D4F */
   --destructive-foreground: 0 0% 98%;
-  --border: 38 28% 13%;
-  --input: 38 28% 13%;
-  --ring: 41 100% 50%;
-  --sidebar-bg: 0 0% 2%;        /* #060606 */
+  --border: 36 60% 18%;         /* amber-tinted border — clearly visible */
+  --input: 36 60% 18%;
+  --ring: 36 100% 52%;
+  --sidebar-bg: 0 0% 0%;        /* #000000 */
 
   --chart-green: 154 78% 43%;   /* #19C37D */
   --chart-blue: 212 100% 65%;   /* #4DA3FF */
-  --chart-amber: 41 100% 50%;   /* #FFB000 */
+  --chart-amber: 36 100% 52%;   /* #FF9900 */
   --chart-red: 359 100% 65%;    /* #FF4D4F */
   --chart-purple: 270 70% 75%;  /* #C792EA */
 
-  --t-bg:           #0A0A0A;
-  --t-card:         #141210;
-  --t-card-2:       #1F1B14;
-  --t-border:       rgba(255,176,0,0.10);
-  --t-border-sub:   rgba(255,176,0,0.06);
-  --t-text:         #ECE3D0;
-  --t-muted:        #B0A488;
-  --t-glow-green:   rgba(25,195,125,0.08);
-  --t-glow-red:     rgba(255,77,79,0.08);
-  --t-glow-amber:   rgba(255,176,0,0.12);
-  --t-glow-mul:     1;
+  --t-bg:           #050505;
+  --t-card:         #0A0A0A;
+  --t-card-2:       #0F0F0F;
+  --t-border:       rgba(255,153,0,0.20);
+  --t-border-sub:   rgba(255,153,0,0.10);
+  --t-text:         #FFBE4D;
+  --t-muted:        #996633;
+  --t-glow-green:   rgba(25,195,125,0.10);
+  --t-glow-red:     rgba(255,77,79,0.10);
+  --t-glow-amber:   rgba(255,153,0,0.18);
+  --t-glow-mul:     1.2;
 }
 
 /* Pink — dark terminal with rose/pink chrome */

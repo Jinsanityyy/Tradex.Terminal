@@ -130,14 +130,14 @@ function MultiSelect({ options, selected, onToggle, labelFn }: { options: string
 // ── Nav sections data ──────────────────────────────────────────────────────────
 
 const NAV_SECTIONS = [
-  { id: "appearance",    label: "Appearance",    icon: Palette,     iconColor: "text-purple-400",  iconBg: "bg-purple-400/10"  },
-  { id: "market",        label: "Market",        icon: BarChart3,   iconColor: "text-amber-400",   iconBg: "bg-amber-400/10"   },
-  { id: "risk",          label: "Risk",          icon: DollarSign,  iconColor: "text-emerald-400", iconBg: "bg-emerald-400/10" },
-  { id: "time",          label: "Time & Region", icon: Globe,       iconColor: "text-blue-400",    iconBg: "bg-blue-400/10"    },
-  { id: "notifications", label: "Notifications", icon: Bell,        iconColor: "text-amber-400",   iconBg: "bg-amber-400/10"   },
-  { id: "feed",          label: "Feed Filters",  icon: Filter,      iconColor: "text-zinc-400",    iconBg: "bg-zinc-400/10"    },
-  { id: "security",      label: "Security",      icon: ShieldCheck, iconColor: "text-emerald-400", iconBg: "bg-emerald-400/10" },
-  { id: "danger",        label: "Danger Zone",   icon: Trash2,      iconColor: "text-red-400",     iconBg: "bg-red-500/10"     },
+  { id: "appearance",    label: "Appearance",    icon: Palette,     danger: false },
+  { id: "market",        label: "Market",        icon: BarChart3,   danger: false },
+  { id: "risk",          label: "Risk",          icon: DollarSign,  danger: false },
+  { id: "time",          label: "Time & Region", icon: Globe,       danger: false },
+  { id: "notifications", label: "Notifications", icon: Bell,        danger: false },
+  { id: "feed",          label: "Feed Filters",  icon: Filter,      danger: false },
+  { id: "security",      label: "Security",      icon: ShieldCheck, danger: false },
+  { id: "danger",        label: "Danger Zone",   icon: Trash2,      danger: true  },
 ] as const;
 
 type SectionId = typeof NAV_SECTIONS[number]["id"];
@@ -678,29 +678,31 @@ export default function SettingsPage() {
         )}
 
         {/* Nav rows */}
-        <nav className="flex-1 px-2 pb-2">
+        <nav className="flex-1 pb-2">
           {NAV_SECTIONS.map((section) => {
             const Icon = section.icon;
             const isActive = activeSection === section.id;
-            const isDanger = section.id === "danger";
             return (
               <button
                 key={section.id}
                 onClick={() => setActiveSection(section.id)}
                 className={cn(
-                  "w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all cursor-pointer mb-0.5",
+                  "w-full flex items-center gap-3 px-4 py-[9px] text-left transition-colors cursor-pointer",
                   isActive
-                    ? "bg-[hsl(var(--secondary))]"
-                    : "hover:bg-[hsl(var(--secondary))]/60"
+                    ? "border-l-2 border-[hsl(var(--primary))] bg-white/[0.03] pl-[14px]"
+                    : "hover:bg-white/[0.03]"
                 )}
               >
-                <span className={cn("flex h-8 w-8 items-center justify-center rounded-lg shrink-0", section.iconBg)}>
-                  <Icon className={cn("h-4 w-4", section.iconColor)} />
-                </span>
-                <span className={cn("flex-1 text-sm font-medium", isDanger ? "text-red-400" : "text-[hsl(var(--foreground))]")}>
+                <Icon className={cn(
+                  "h-3 w-3 shrink-0 opacity-50",
+                  isActive ? "text-[hsl(var(--foreground))]" : section.danger ? "text-red-400" : "text-[hsl(var(--muted-foreground))]"
+                )} strokeWidth={1.5} />
+                <span className={cn(
+                  "flex-1 text-[11.5px] font-medium tracking-[0.01em]",
+                  section.danger ? "text-red-400" : isActive ? "text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))]"
+                )}>
                   {section.label}
                 </span>
-                <ChevronRight className={cn("h-3.5 w-3.5 transition-transform shrink-0", isActive ? "text-[hsl(var(--foreground))]/40 -rotate-90" : "text-[hsl(var(--muted-foreground))]/40")} />
               </button>
             );
           })}
@@ -728,10 +730,8 @@ export default function SettingsPage() {
                 Settings
               </button>
               {activeSectionMeta && (
-                <div className="flex items-center gap-2.5 md:flex hidden">
-                  <span className={cn("flex h-7 w-7 items-center justify-center rounded-lg shrink-0", activeSectionMeta.iconBg)}>
-                    <activeSectionMeta.icon className={cn("h-3.5 w-3.5", activeSectionMeta.iconColor)} />
-                  </span>
+                <div className="hidden md:flex items-center gap-2.5">
+                  <activeSectionMeta.icon className="h-3.5 w-3.5 opacity-50 text-[hsl(var(--muted-foreground))]" strokeWidth={1.5} />
                   <h2 className="text-sm font-bold text-[hsl(var(--foreground))]">{activeSectionMeta.label}</h2>
                 </div>
               )}
