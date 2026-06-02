@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { Radio, RefreshCw } from "lucide-react";
+import { Radio, RefreshCw, Tv, ExternalLink } from "lucide-react";
 
 interface Channel {
   id: string;
@@ -13,7 +13,6 @@ interface Channel {
   color: string;
 }
 
-// Channel IDs are stable — live_stream?channel= always resolves to the current live broadcast
 const CHANNELS: Channel[] = [
   {
     id: "bloomberg",
@@ -59,8 +58,44 @@ const CHANNELS: Channel[] = [
 
 const EMBED_PARAMS = "autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&fs=1";
 
-function buildEmbedUrl(channelId: string): string {
-  return `https://www.youtube-nocookie.com/embed/live_stream?channel=${channelId}&${EMBED_PARAMS}`;
+function buildEmbedUrl(videoId: string): string {
+  return `https://www.youtube.com/embed/${videoId}?${EMBED_PARAMS}`;
+}
+
+function buildFallbackUrl(channelId: string): string {
+  // Fallback: direct live_stream embed (works when channel IS live, may show "unavailable" when not)
+  return `https://www.youtube.com/embed/live_stream?channel=${channelId}&${EMBED_PARAMS}`;
+}
+
+// Fetch live video ID from our backend (with 90s cache)
+function useLiveStream(channel: Channel, retryKey: number) {
+  const [videoId, setVideoId] = useState<string | null>(null);
+  const [isLive, setIsLive] = useState<boolean | null>(null); // null = loading
+
+  useEffect(() => {
+    setIsLive(null);
+    setVideoId(null);
+
+    const params = new URLSearchParams({ channel: channel.channelId, handle: channel.handle });
+    fetch(`/api/tv/stream?${params}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { videoId: string | null; isLive: boolean } | null) => {
+        if (data) {
+          setVideoId(data.videoId);
+          setIsLive(data.isLive);
+        } else {
+          // API failed — fall back to live_stream embed
+          setVideoId(null);
+          setIsLive(null);
+        }
+      })
+      .catch(() => {
+        setVideoId(null);
+        setIsLive(null);
+      });
+  }, [channel.channelId, retryKey]);
+
+  return { videoId, isLive };
 }
 
 export function LiveTVPanel({
@@ -75,16 +110,20 @@ export function LiveTVPanel({
   const [tabVisible, setTabVisible] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  const { videoId, isLive } = useLiveStream(active, retryKey);
+
+  // Resolved embed URL: use specific video ID when available, else fallback to live_stream
+  const embedUrl = videoId ? buildEmbedUrl(videoId) : buildFallbackUrl(active.channelId);
+
+  // isLive === false → confirmed offline; null → loading / API failed (show embed anyway as fallback)
+  const confirmedOffline = isLive === false;
+
   function stopIframe() {
     const iframe = iframeRef.current;
     if (!iframe) return;
-    // Nuke the src directly — this kills audio immediately without waiting
-    // for React to re-render. The iframe element stays in the DOM briefly
-    // but is silent; React unmounts it on the next render via tabVisible.
     iframe.src = "about:blank";
   }
 
-  // Stop + unmount when browser tab is hidden
   useEffect(() => {
     const onVisibility = () => {
       if (document.hidden) stopIframe();
@@ -94,7 +133,6 @@ export function LiveTVPanel({
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
 
-  // Stop + unmount when switching mobile app bottom tabs
   useEffect(() => {
     const onMobileTabChange = (e: Event) => {
       const { active: tabId } = (e as CustomEvent<{ active: string }>).detail;
@@ -105,8 +143,6 @@ export function LiveTVPanel({
     document.addEventListener("tradex:mobile-tab-change", onMobileTabChange);
     return () => document.removeEventListener("tradex:mobile-tab-change", onMobileTabChange);
   }, []);
-
-  const embedUrl = buildEmbedUrl(active.channelId);
 
   return (
     <div className="flex h-full min-h-0 flex-col space-y-3">
@@ -146,12 +182,12 @@ export function LiveTVPanel({
                 : "border-white/8 bg-white/[0.02] text-zinc-500 hover:border-white/15 hover:text-zinc-300"
             )}
           >
-            {active.id === channel.id ? (
+            {active.id === channel.id && (
               <span className="relative flex h-1.5 w-1.5">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-500" />
               </span>
-            ) : null}
+            )}
             {channel.name}
           </button>
         ))}
@@ -161,10 +197,28 @@ export function LiveTVPanel({
         <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
           {!tabVisible ? (
             <div className="absolute inset-0 bg-black" />
+          ) : confirmedOffline ? (
+            /* Channel confirmed offline — show clean placeholder */
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0a0b0e]">
+              <Tv className="h-8 w-8 text-zinc-700" />
+              <div className="text-center">
+                <p className="text-[13px] font-semibold text-zinc-400">{active.name} is not live right now</p>
+                <p className="text-[11px] text-zinc-600 mt-1">Try another channel or check back later</p>
+              </div>
+              <a
+                href={`https://www.youtube.com/${active.handle}/live`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 rounded-md border border-white/10 px-3 py-1.5 text-[11px] font-medium text-zinc-400 hover:text-zinc-200 hover:border-white/20 transition-colors"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Open on YouTube
+              </a>
+            </div>
           ) : (
             <iframe
               ref={iframeRef}
-              key={`${active.id}-${retryKey}`}
+              key={`${active.id}-${retryKey}-${videoId ?? "fallback"}`}
               src={embedUrl}
               className="absolute inset-0 h-full w-full"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -189,20 +243,26 @@ export function LiveTVPanel({
             >
               Watch on YouTube ↗
             </a>
-            <div className="flex items-center gap-1.5">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-500" />
-              </span>
-              <span className="text-[9px] font-bold uppercase tracking-wider text-red-400">Live</span>
-            </div>
+            {isLive ? (
+              <div className="flex items-center gap-1.5">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-500" />
+                </span>
+                <span className="text-[9px] font-bold uppercase tracking-wider text-red-400">Live</span>
+              </div>
+            ) : isLive === false ? (
+              <span className="text-[9px] font-medium uppercase tracking-wider text-zinc-600">Offline</span>
+            ) : (
+              <span className="text-[9px] font-medium uppercase tracking-wider text-zinc-600 animate-pulse">Checking…</span>
+            )}
           </div>
         </div>
       </div>
 
       {showFooterNote ? (
         <p className="text-[10px] text-zinc-600">
-          Streams are embedded from YouTube. If a channel shows no stream, it may have ended — try another channel or refresh.
+          Streams are embedded from YouTube. If a channel shows no stream, it may not be live — try another channel or refresh.
         </p>
       ) : null}
     </div>
