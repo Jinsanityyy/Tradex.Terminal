@@ -37,7 +37,7 @@ function SettingRow({ label, description, children, wide }: { label: string; des
 }
 
 function AttentionDot() {
-  return <span className="h-1.5 w-1.5 rounded-[2px] bg-[#FF6B00] shrink-0" />;
+  return <span className="h-1.5 w-1.5 rounded-[2px] shrink-0" style={{ backgroundColor: "hsl(var(--primary))" }} />;
 }
 
 function SegmentedPills<T extends string>({ options, value, onChange, labels }: { options: T[]; value: T; onChange: (v: T) => void; labels?: Record<string, string> }) {
@@ -481,7 +481,7 @@ export default function SettingsPage() {
                     className={cn(
                       "rounded-[2px] px-2.5 py-1 text-[10px] font-medium transition-all border cursor-pointer",
                       draft.riskPerTrade === pct
-                        ? "border-[#FF6B00]/50 bg-[#FF6B00]/10 text-[#FF6B00]"
+                        ? "border-t-accent-40 bg-t-accent-10 t-accent"
                         : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
                     )}
                   >
@@ -499,7 +499,7 @@ export default function SettingsPage() {
                       const v = parseFloat(e.target.value);
                       if (!isNaN(v) && v > 0) update("riskPerTrade", parseFloat(v.toFixed(1)));
                     }}
-                    className="w-16 rounded-[2px] border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-2 py-1 text-right text-[10px] font-mono text-[hsl(var(--foreground))] outline-none focus:border-[#FF6B00]/50 [color-scheme:dark]"
+                    className="w-16 rounded-[2px] border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-2 py-1 text-right text-[10px] font-mono text-[hsl(var(--foreground))] outline-none focus:border-t-accent-40 [color-scheme:dark]"
                     placeholder="Custom"
                   />
                   <span className="text-[10px] text-[hsl(var(--muted-foreground))]">%</span>
@@ -508,7 +508,7 @@ export default function SettingsPage() {
             </SettingRow>
             <div className="mt-2 rounded-lg border border-[hsl(var(--border))]/50 bg-[hsl(var(--secondary))]/40 px-4 py-3 flex items-center justify-between">
               <span className="text-xs text-[hsl(var(--muted-foreground))]">Max risk at {draft.riskPerTrade}%</span>
-              <span className="text-base font-mono font-bold text-[#FF6B00]">
+              <span className="text-base font-mono font-bold t-accent">
                 ${(draft.accountBalance * draft.riskPerTrade / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
               </span>
             </div>
@@ -576,7 +576,7 @@ export default function SettingsPage() {
                 {([
                   { label: "Order Filled", desc: "On Take Trade",  fn: playOrderFilled,    color: "text-[#00C853] border-[#00C853]/30 hover:bg-[#00C853]/10" },
                   { label: "High Impact",  desc: "News / Trump",   fn: playHighImpactAlert, color: "text-red-400 border-red-500/30 hover:bg-red-500/10" },
-                  { label: "Signal Armed", desc: "EXEC Armed",     fn: playSignalArmed,     color: "text-[#FF6B00] border-[#FF6B00]/30 hover:bg-[#FF6B00]/10" },
+                  { label: "Signal Armed", desc: "EXEC Armed",     fn: playSignalArmed,     color: "t-accent border-t-accent-30 hover:bg-t-accent-10" },
                   { label: "App Open",     desc: "Login / Launch", fn: playAppOpen,         color: "text-sky-400 border-sky-500/30 hover:bg-sky-500/10" },
                 ] as const).map(({ label, desc, color, fn }) => (
                   <button
@@ -654,8 +654,8 @@ export default function SettingsPage() {
 
         {/* Unsaved banner */}
         {isDirty && (
-          <div className="mx-3 mb-3 flex items-center gap-2 rounded-[2px] border border-[#FF6B00]/20 bg-[#FF6B00]/5 px-3 py-2.5">
-            <span className="text-[10px] text-[#FF6B00] flex-1 font-medium">Unsaved changes</span>
+          <div className="mx-3 mb-3 flex items-center gap-2 rounded-[2px] border border-t-accent-20 bg-t-accent-5 px-3 py-2.5">
+            <span className="text-[10px] t-accent flex-1 font-medium">Unsaved changes</span>
             <button
               onClick={handleReset}
               className="rounded px-2 py-0.5 text-[9px] text-[hsl(var(--muted-foreground))] border border-[hsl(var(--border))] hover:bg-[hsl(var(--secondary))] transition-all cursor-pointer"

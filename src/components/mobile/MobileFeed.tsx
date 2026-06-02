@@ -187,7 +187,7 @@ export function MobileFeed() {
                     <p className="text-xs font-medium leading-snug flex-1">{e.event}</p>
                     <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 uppercase",
                       e.impact === "high" ? "bg-red-500/15 text-red-400" :
-                      e.impact === "medium" ? "bg-[#FF6B00]/15 text-[#FF6B00]" : "bg-zinc-500/15 text-zinc-400")}>
+                      e.impact === "medium" ? "bg-t-accent-15 t-accent" : "bg-zinc-500/15 text-zinc-400")}>
                       {e.impact}
                     </span>
                   </div>
@@ -265,7 +265,7 @@ export function MobileFeed() {
               <span className="text-[11px] font-mono text-zinc-500">{selectedEvent.currency} · {selectedEvent.time}</span>
               <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full uppercase",
                 selectedEvent.impact === "high" ? "bg-red-500/15 text-red-400" :
-                selectedEvent.impact === "medium" ? "bg-[#FF6B00]/15 text-[#FF6B00]" : "bg-zinc-500/15 text-zinc-400")}>
+                selectedEvent.impact === "medium" ? "bg-t-accent-15 t-accent" : "bg-zinc-500/15 text-zinc-400")}>
                 {selectedEvent.impact} impact
               </span>
             </div>
@@ -297,8 +297,8 @@ export function MobileFeed() {
                   {reasoning && (
                     <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5">
                       <div className="flex items-center gap-1.5 mb-1.5">
-                        <Target className="h-3.5 w-3.5 text-[#FF6B00]" />
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-[#FF6B00]">{symbolLabel} Analysis</span>
+                        <Target className="h-3.5 w-3.5 t-accent" />
+                        <span className="text-[10px] font-semibold uppercase tracking-wider t-accent">{symbolLabel} Analysis</span>
                       </div>
                       <p className="text-xs leading-relaxed">{reasoning}</p>
                     </div>
@@ -333,7 +333,7 @@ export function MobileFeed() {
                 <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1">Sentiment</p>
                 <p className={cn("text-sm font-bold uppercase",
                   selectedPost.sentimentClassification === "bullish" ? "text-[#00C853]" :
-                  selectedPost.sentimentClassification === "bearish" ? "text-[#FF3D3D]" : "text-[#FF6B00]")}>
+                  selectedPost.sentimentClassification === "bearish" ? "text-[#FF3D3D]" : "t-accent")}>
                   {selectedPost.sentimentClassification}
                 </p>
               </div>

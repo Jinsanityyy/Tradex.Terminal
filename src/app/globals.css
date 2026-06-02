@@ -9,24 +9,24 @@
   --card-foreground: 0 0% 91%;
   --popover: 240 7% 8%;
   --popover-foreground: 0 0% 91%;
-  --primary: 25 100% 50%;
+  --primary: 43 81% 46%;
   --primary-foreground: 0 0% 0%;
   --secondary: 240 8% 11%;
   --secondary-foreground: 0 0% 91%;
   --muted: 240 9% 15%;
   --muted-foreground: 240 5% 44%;
-  --accent: 25 100% 50%;
+  --accent: 43 81% 46%;
   --accent-foreground: 0 0% 0%;
   --destructive: 0 100% 62%;
   --destructive-foreground: 0 0% 95%;
   --border: 240 10% 13%;
   --input: 240 10% 13%;
-  --ring: 25 100% 50%;
+  --ring: 43 81% 46%;
   --radius: 2px;
 
   --chart-green: 146 100% 39%;  /* #00C853 */
   --chart-blue: 217 91% 60%;
-  --chart-amber: 25 100% 50%;   /* #FF6B00 */
+  --chart-amber: 43 81% 46%;   /* #D4A017 */
   --chart-red: 0 100% 62%;      /* #FF3D3D */
   --chart-purple: 270 70% 60%;
 
@@ -136,24 +136,24 @@ iframe,
 }
 
 /* Signal colors — Bloomberg terminal palette */
-.text-positive       { color: #00C853; }
-.text-negative       { color: #FF3D3D; }
-.text-neutral-accent { color: #FF6B00; }
+.text-positive       { color: var(--t-bullish, #00C853); }
+.text-negative       { color: var(--t-bearish, #FF3D3D); }
+.text-neutral-accent { color: hsl(var(--primary)); }
 
 .badge-bullish {
-  background: rgba(0, 200, 83, 0.08);
-  color: #00C853;
-  border: 1px solid rgba(0, 200, 83, 0.22);
+  background: color-mix(in srgb, var(--t-bullish, #00C853) 8%, transparent);
+  color: var(--t-bullish, #00C853);
+  border: 1px solid color-mix(in srgb, var(--t-bullish, #00C853) 22%, transparent);
 }
 .badge-bearish {
-  background: rgba(255, 61, 61, 0.08);
-  color: #FF3D3D;
-  border: 1px solid rgba(255, 61, 61, 0.22);
+  background: color-mix(in srgb, var(--t-bearish, #FF3D3D) 8%, transparent);
+  color: var(--t-bearish, #FF3D3D);
+  border: 1px solid color-mix(in srgb, var(--t-bearish, #FF3D3D) 22%, transparent);
 }
 .badge-neutral {
-  background: rgba(255, 107, 0, 0.08);
-  color: #FF6B00;
-  border: 1px solid rgba(255, 107, 0, 0.22);
+  background: hsl(var(--primary) / 0.08);
+  color: hsl(var(--primary));
+  border: 1px solid hsl(var(--primary) / 0.22);
 }
 
 /* Large price / metric display — IBM Plex Mono, tabular */
@@ -226,14 +226,14 @@ iframe,
   animation: pulse-live 2s ease-in-out infinite;
 }
 
-/* Orange accent pulse for LIVE dot — #FF6B00 */
+/* Theme-aware accent pulse for LIVE dot */
 @keyframes pulse-accent {
-  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255,107,0,0.4); }
-  50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(255,107,0,0); }
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
 }
 .pulse-accent {
   animation: pulse-accent 2s ease-in-out infinite;
-  background: #FF6B00;
+  background: var(--t-accent, #D4A017);
 }
 
 /* ── Brain / Agent animations ───────────────────────── */
@@ -284,45 +284,45 @@ iframe,
 
 /* ── Theme variants ─────────────────────────────────── */
 
-/* Bloomberg Terminal — clinical, data-dense, zero decorative elements */
+/* Dark terminal — gold accent (#D4A017), neutral dark surface */
 :root,
 [data-theme="dark"] {
   --background: 240 7% 5%;      /* #0D0D0F */
   --foreground: 0 0% 91%;       /* #E8E8E8 */
-  --card: 240 7% 8%;            /* #141418 */
+  --card: 0 0% 10%;             /* #1A1A1A */
   --card-foreground: 0 0% 91%;
-  --popover: 240 7% 8%;
+  --popover: 0 0% 10%;
   --popover-foreground: 0 0% 91%;
-  --primary: 25 100% 50%;       /* #FF6B00 — terminal orange */
+  --primary: 43 81% 46%;        /* #D4A017 — gold */
   --primary-foreground: 0 0% 0%;
-  --secondary: 240 8% 11%;      /* #1A1A1F */
+  --secondary: 0 0% 13%;        /* #212121 */
   --secondary-foreground: 0 0% 91%;
   --muted: 240 9% 15%;          /* #212127 */
   --muted-foreground: 240 5% 44%; /* #6B6B7A */
-  --accent: 25 100% 50%;        /* #FF6B00 */
+  --accent: 43 81% 46%;         /* #D4A017 */
   --accent-foreground: 0 0% 0%;
   --destructive: 0 100% 62%;    /* #FF3D3D */
   --destructive-foreground: 0 0% 95%;
-  --border: 240 10% 13%;        /* #1E1E24 */
-  --input: 240 10% 13%;
-  --ring: 25 100% 50%;
+  --border: 0 0% 16%;           /* #2A2A2A */
+  --input: 0 0% 16%;
+  --ring: 43 81% 46%;
   --radius: 2px;
   --chart-green: 146 100% 39%;  /* #00C853 */
   --chart-red: 0 100% 62%;      /* #FF3D3D */
   --t-bg:           #0D0D0F;
-  --t-card:         #141418;
-  --t-card-2:       #1A1A1F;
-  --t-border:       #1E1E24;
+  --t-card:         #1A1A1A;
+  --t-card-2:       #222222;
+  --t-border:       #2A2A2A;
   --t-border-sub:   rgba(255,255,255,0.04);
   --t-text:         #E8E8E8;
   --t-muted:        #6B6B7A;
-  --t-text-muted2:  #3A3A45;
-  --t-accent:       #FF6B00;
+  --t-text-muted2:  #555555;
+  --t-accent:       #D4A017;
   --t-bullish:      #00C853;
   --t-bearish:      #FF3D3D;
   --t-glow-green:   rgba(0,200,83,0.10);
   --t-glow-red:     rgba(255,61,61,0.10);
-  --t-glow-amber:   rgba(255,107,0,0.12);
+  --t-glow-amber:   rgba(212,160,23,0.12);
   --t-glow-mul:     1;
 }
 
@@ -333,19 +333,19 @@ iframe,
   --card-foreground: 210 30% 96%;
   --popover: 230 22% 9%;
   --popover-foreground: 210 30% 96%;
-  --primary: 215 90% 62%;
+  --primary: 230 60% 68%;        /* #7B8CDE */
   --primary-foreground: 230 25% 6%;
   --secondary: 230 18% 14%;
   --secondary-foreground: 210 30% 96%;
   --muted: 230 15% 22%;
   --muted-foreground: 230 12% 58%;
-  --accent: 252 68% 68%;
+  --accent: 230 60% 68%;
   --accent-foreground: 230 25% 6%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 95%;
   --border: 230 16% 16%;
   --input: 230 16% 16%;
-  --ring: 215 90% 62%;
+  --ring: 230 60% 68%;
   --sidebar-bg: 230 25% 4%;
 
   --chart-green: 142 76% 48%;   /* #30D158 */
@@ -365,14 +365,26 @@ iframe,
   --t-glow-red:     rgba(255,77,79,0.10);
   --t-glow-amber:   rgba(245,158,11,0.10);
   --t-glow-blue:    rgba(59,130,246,0.14);
+  --t-accent:      #7B8CDE;
+  --t-bullish:     #00C853;
+  --t-bearish:     #FF3D3D;
+  --t-text-muted2: #444466;
   --t-glow-mul:     1;
 }
 
 /* OLED — pure black, flat, ultra-clean, high-end terminal */
 [data-theme="oled"] {
   --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
   --card: 0 0% 4%;
+  --card-foreground: 0 0% 100%;
   --popover: 0 0% 4%;
+  --popover-foreground: 0 0% 100%;
+  --primary: 0 0% 100%;          /* #FFFFFF */
+  --primary-foreground: 0 0% 0%;
+  --accent: 0 0% 100%;
+  --accent-foreground: 0 0% 0%;
+  --ring: 0 0% 100%;
   --secondary: 0 0% 8%;
   --muted: 0 0% 14%;
   --muted-foreground: 0 0% 52%;
@@ -390,6 +402,10 @@ iframe,
   --t-glow-green:   rgba(0,200,150,0.04);  /* reduced glows for OLED */
   --t-glow-red:     rgba(255,77,79,0.04);
   --t-glow-amber:   rgba(245,158,11,0.04);
+  --t-accent:      #FFFFFF;
+  --t-bullish:     #00C853;
+  --t-bearish:     #FF3D3D;
+  --t-text-muted2: #444444;
   --t-glow-mul:     0.4;
 }
 
@@ -432,6 +448,10 @@ iframe,
   --t-glow-green:   rgba(163,190,140,0.10);
   --t-glow-red:     rgba(191,97,106,0.10);
   --t-glow-amber:   rgba(235,203,139,0.10);
+  --t-accent:      #88C0D0;
+  --t-bullish:     #A3BE8C;
+  --t-bearish:     #BF616A;
+  --t-text-muted2: #4C566A;
   --t-glow-mul:     1;
 }
 
@@ -443,7 +463,7 @@ iframe,
   --card-foreground: 38 100% 72%;
   --popover: 0 0% 5%;           /* #0D0D0D */
   --popover-foreground: 38 100% 72%;
-  --primary: 36 100% 52%;       /* #FF9900 — vivid orange-amber */
+  --primary: 25 100% 50%;       /* #FF6B00 — Bloomberg orange */
   --primary-foreground: 0 0% 2%;
   --secondary: 0 0% 6%;         /* #0F0F0F */
   --secondary-foreground: 38 100% 72%;
@@ -455,7 +475,7 @@ iframe,
   --destructive-foreground: 0 0% 98%;
   --border: 36 60% 18%;         /* amber-tinted border — clearly visible */
   --input: 36 60% 18%;
-  --ring: 36 100% 52%;
+  --ring: 25 100% 50%;
   --sidebar-bg: 0 0% 0%;        /* #000000 */
 
   --chart-green: 154 78% 43%;   /* #19C37D */
@@ -474,6 +494,10 @@ iframe,
   --t-glow-green:   rgba(25,195,125,0.10);
   --t-glow-red:     rgba(255,77,79,0.10);
   --t-glow-amber:   rgba(255,153,0,0.18);
+  --t-accent:      #FF6B00;
+  --t-bullish:     #00C853;
+  --t-bearish:     #FF3D3D;
+  --t-text-muted2: #3A3A45;
   --t-glow-mul:     1.2;
 }
 
@@ -485,7 +509,7 @@ iframe,
   --card-foreground: 340 15% 96%;
   --popover: 340 22% 10%;
   --popover-foreground: 340 15% 96%;
-  --primary: 330 85% 68%;
+  --primary: 340 100% 71%;       /* #FF6B9D */
   --primary-foreground: 340 28% 7%;
   --secondary: 340 18% 15%;
   --secondary-foreground: 340 15% 96%;
@@ -497,7 +521,7 @@ iframe,
   --destructive-foreground: 0 0% 95%;
   --border: 340 14% 17%;
   --input: 340 14% 17%;
-  --ring: 330 85% 68%;
+  --ring: 340 100% 71%;
 
   --chart-green: 142 71% 45%;
   --chart-blue: 295 65% 62%;
@@ -515,6 +539,10 @@ iframe,
   --t-glow-green:   rgba(0, 200, 150, 0.08);
   --t-glow-red:     rgba(255, 77, 79, 0.10);
   --t-glow-amber:   rgba(245, 158, 11, 0.08);
+  --t-accent:      #FF6B9D;
+  --t-bullish:     #00C853;
+  --t-bearish:     #FF3D3D;
+  --t-text-muted2: #5D3344;
   --t-glow-mul:     1;
 }
 
@@ -591,6 +619,21 @@ iframe,
 .t-border   { border-color: var(--t-border); }
 .t-text     { color: var(--t-text); }
 .t-muted    { color: var(--t-muted); }
+
+/* Theme-aware accent utilities (replaces hardcoded #FF6B00 Tailwind classes) */
+.t-accent         { color: hsl(var(--primary)); }
+.t-accent-70      { color: hsl(var(--primary) / 0.70); }
+.t-accent-80      { color: hsl(var(--primary) / 0.80); }
+.bg-t-accent-5    { background-color: hsl(var(--primary) / 0.05); }
+.bg-t-accent-8    { background-color: hsl(var(--primary) / 0.08); }
+.bg-t-accent-10   { background-color: hsl(var(--primary) / 0.10); }
+.bg-t-accent-15   { background-color: hsl(var(--primary) / 0.15); }
+.border-t-accent  { border-color: hsl(var(--primary)); }
+.border-t-accent-20 { border-color: hsl(var(--primary) / 0.20); }
+.border-t-accent-25 { border-color: hsl(var(--primary) / 0.25); }
+.border-t-accent-30 { border-color: hsl(var(--primary) / 0.30); }
+.border-t-accent-35 { border-color: hsl(var(--primary) / 0.35); }
+.border-t-accent-40 { border-color: hsl(var(--primary) / 0.40); }
 
 /* ── Layout density ─────────────────────────────────── */
 [data-density="compact"] main { padding: 0.75rem !important; }

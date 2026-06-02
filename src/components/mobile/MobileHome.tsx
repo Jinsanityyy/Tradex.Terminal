@@ -82,7 +82,7 @@ function MobilePnLWidget() {
             onClick={() => {
               document.dispatchEvent(new CustomEvent("tradex:open-more", { detail: { appId: "pnl-calendar" } }));
             }}
-            className="text-[9px] text-[#FF6B00] border border-[#FF6B00]/30 px-2.5 py-1 rounded-[2px] active:opacity-70"
+            className="text-[9px] t-accent border border-t-accent-30 px-2.5 py-1 rounded-[2px] active:opacity-70"
             style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}
           >
             OPEN →
@@ -140,7 +140,7 @@ function MobilePnLWidget() {
 
 function LiveBadge() {
   return (
-    <span className="flex items-center gap-1 text-[9px] text-[#FF6B00] uppercase tracking-wider"
+    <span className="flex items-center gap-1 text-[9px] t-accent uppercase tracking-wider"
       style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>
       <span className="w-1.5 h-1.5 rounded-[1px] pulse-accent" />
       Live
@@ -154,9 +154,9 @@ function PriceCard({ symbol, price, change, isActive }: { symbol: string; price:
   return (
     <div className={cn(
       "p-3.5 border transition-all rounded-[2px]",
-      isActive ? "bg-[#FF6B00]/8 border-[#FF6B00]/35" : "bg-[#141418] border-[#1E1E24]"
+      isActive ? "bg-t-accent-8 border-t-accent-35" : "bg-[hsl(var(--card))] border-[hsl(var(--border))]"
     )}>
-      <p className={cn("text-[10px] uppercase mb-1", isActive ? "text-[#FF6B00]/70" : "text-[#6B6B7A]")}
+      <p className={cn("text-[10px] uppercase mb-1", isActive ? "t-accent-70" : "text-[hsl(var(--muted-foreground))]")}
         style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace", letterSpacing: "1.2px" }}>
         {symbol}
       </p>
@@ -375,8 +375,8 @@ export function MobileHome() {
     saveWidgetConfig(config);
   }
 
-  const signalColor = effectiveSignalState === "ARMED" ? "text-[#00C853]" : effectiveSignalState === "PENDING" ? "text-[#FF6B00]" : "text-[#3A3A45]";
-  const signalBg = effectiveSignalState === "ARMED" ? "bg-[#00C853]/8 border-[#00C853]/25" : effectiveSignalState === "PENDING" ? "bg-[#FF6B00]/8 border-[#FF6B00]/25" : "bg-[#141418] border-[#1E1E24]";
+  const signalColor = effectiveSignalState === "ARMED" ? "text-[#00C853]" : effectiveSignalState === "PENDING" ? "t-accent" : "text-[#3A3A45]";
+  const signalBg = effectiveSignalState === "ARMED" ? "bg-[#00C853]/8 border-[#00C853]/25" : effectiveSignalState === "PENDING" ? "bg-t-accent-8 border-t-accent-25" : "bg-[hsl(var(--card))] border-[hsl(var(--border))]";
 
   const catalystImpact = catalysts[0]
     ? getCatalystImpactForSymbol(catalysts[0], activeSymbol)
@@ -420,7 +420,7 @@ export function MobileHome() {
         </div>
         <div className="flex items-center gap-2">
           {isOnCooldown && (
-            <span className="flex items-center gap-1 text-[9px] font-mono text-[#FF6B00]/80 bg-[#FF6B00]/10 border border-[#FF6B00]/20 px-2 py-0.5 rounded-[2px]">
+            <span className="flex items-center gap-1 text-[9px] font-mono t-accent-80 bg-t-accent-10 border border-t-accent-20 px-2 py-0.5 rounded-[2px]">
               <RefreshCw className="h-2.5 w-2.5" />
               {countdownLabel}
             </span>
@@ -446,10 +446,10 @@ export function MobileHome() {
           const takenAgo = h > 0 ? `${h}h ${m}m ago` : `${m}m ago`;
           const isBuy = openTrade.direction === "BUY";
           return (
-            <div className="border border-[#FF6B00]/25 bg-[#FF6B00]/5 rounded-[2px] px-4 py-3 space-y-2">
+            <div className="border border-t-accent-25 bg-t-accent-5 rounded-[2px] px-4 py-3 space-y-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[9px] text-[#FF6B00]/70 uppercase tracking-wider" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace", letterSpacing: "1.2px" }}>OPEN TRADE · {takenAgo}</p>
+                  <p className="text-[9px] t-accent-70 uppercase tracking-wider" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace", letterSpacing: "1.2px" }}>OPEN TRADE · {takenAgo}</p>
                   <p className={cn("text-[12px] font-bold mt-0.5", isBuy ? "text-[#00C853]" : "text-[#FF3D3D]")}
                     style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>
                     {openTrade.direction} {openTrade.symbolDisplay}
@@ -465,7 +465,7 @@ export function MobileHome() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setClosingTrade(openTrade)}
-                  className="flex-1 py-2 rounded-[2px] text-[11px] font-bold border border-[#FF6B00]/40 bg-[#FF6B00]/10 text-[#FF6B00] active:bg-[#FF6B00]/20"
+                  className="flex-1 py-2 rounded-[2px] text-[11px] font-bold border border-t-accent-40 bg-t-accent-10 t-accent"
                   style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}
                 >
                   CLOSE TRADE
@@ -542,7 +542,7 @@ export function MobileHome() {
                         </p>
                         <span className={cn("text-[9px] font-bold uppercase",
                           activeSession.volatilityTone === "high" ? "text-[#FF3D3D]" :
-                          activeSession.volatilityTone === "moderate" ? "text-[#FF6B00]" : "text-[#00C853]")}
+                          activeSession.volatilityTone === "moderate" ? "t-accent" : "text-[#00C853]")}
                           style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>
                           {activeSession.volatilityTone} VOL
                         </span>
@@ -578,7 +578,7 @@ export function MobileHome() {
               return entry ? (
                 <div key="entry_strip" className={cn("border rounded-[2px] px-4 py-3",
                   effectiveSignalState === "ARMED"   ? "bg-[#00C853]/5 border-[#00C853]/20" :
-                  effectiveSignalState === "PENDING" ? "bg-[#FF6B00]/5 border-[#FF6B00]/20" :
+                  effectiveSignalState === "PENDING" ? "bg-t-accent-5 border-t-accent-20" :
                   "bg-[#141418] border-[#1E1E24]")}>
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -664,7 +664,7 @@ export function MobileHome() {
                           </div>
                           <button
                             onClick={() => setClosingTrade(openTrade)}
-                            className="w-full py-2 rounded-[2px] text-[11px] font-bold border border-[#FF6B00]/40 bg-[#FF6B00]/10 text-[#FF6B00] active:bg-[#FF6B00]/20"
+                            className="w-full py-2 rounded-[2px] text-[11px] font-bold border border-t-accent-40 bg-t-accent-10 t-accent"
                             style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}
                           >
                             CLOSE TRADE
@@ -676,7 +676,7 @@ export function MobileHome() {
                       return (
                         <button
                           onClick={() => setTakingTrade(true)}
-                          className="mt-3 w-full py-2 rounded-[2px] text-[11px] font-bold border border-[#FF6B00]/40 bg-[#FF6B00]/10 text-[#FF6B00] active:bg-[#FF6B00]/20"
+                          className="mt-3 w-full py-2 rounded-[2px] text-[11px] font-bold border border-t-accent-40 bg-t-accent-10 t-accent"
                           style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}
                         >
                           + TAKE TRADE
@@ -699,7 +699,7 @@ export function MobileHome() {
                     </div>
                     <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-4",
                       catalysts[0].importance === "high" ? "bg-red-500/15 text-red-400" :
-                      catalysts[0].importance === "medium" ? "bg-[#FF6B00]/15 text-[#FF6B00]" :
+                      catalysts[0].importance === "medium" ? "bg-t-accent-15 t-accent" :
                       "bg-zinc-500/15 text-zinc-400")}>
                       {catalysts[0].importance?.toUpperCase()}
                     </span>
@@ -754,7 +754,7 @@ export function MobileHome() {
                     <SegmentedBar
                       value={activeBias.confidence}
                       total={20}
-                      activeColor={activeBias.bias === "bullish" ? "#00C853" : activeBias.bias === "bearish" ? "#FF3D3D" : "#FF6B00"}
+                      activeColor={activeBias.bias === "bullish" ? "var(--t-bullish, #00C853)" : activeBias.bias === "bearish" ? "var(--t-bearish, #FF3D3D)" : "hsl(var(--primary))"}
                     />
                   </div>
                 </section>
@@ -811,7 +811,7 @@ export function MobileHome() {
                             style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace", letterSpacing: "1.2px" }}>
                             REGIME
                           </span>
-                          <span className="text-[10px] font-semibold text-[#FF6B00]"
+                          <span className="text-[10px] font-semibold t-accent"
                             style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>
                             {narrative.regime}
                           </span>
@@ -893,7 +893,7 @@ export function MobileHome() {
                             <div className={cn("h-[6px] w-[6px]",
                               tone === "green"  ? "bg-[#00C853] shadow-[0_0_4px_rgba(0,200,83,0.8)]" :
                               tone === "red"    ? "bg-[#FF3D3D] shadow-[0_0_4px_rgba(255,61,61,0.8)]" :
-                              tone === "orange" ? "bg-[#FF6B00] shadow-[0_0_4px_rgba(255,107,0,0.6)]" :
+                              tone === "orange" ? "pulse-accent shadow-none" :
                                                  "bg-[#3A3A45]")} />
                             <span className="text-[6px] text-[#3A3A45]"
                               style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>
@@ -1066,7 +1066,7 @@ export function MobileHome() {
             <div className="flex items-center gap-2 flex-wrap">
               <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-[2px] uppercase",
                 selectedCatalyst.importance === "high" ? "bg-[#FF3D3D]/15 text-[#FF3D3D]" :
-                selectedCatalyst.importance === "medium" ? "bg-[#FF6B00]/15 text-[#FF6B00]" : "bg-zinc-500/15 text-zinc-400")}>
+                selectedCatalyst.importance === "medium" ? "bg-t-accent-15 t-accent" : "bg-zinc-500/15 text-zinc-400")}>
                 {selectedCatalyst.importance}
               </span>
             </div>

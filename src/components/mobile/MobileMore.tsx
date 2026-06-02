@@ -331,7 +331,7 @@ function AppRow({
   const tagColors: Record<TagVariant, string> = {
     green: "text-[#00C853]",
     red:   "text-[#FF3D3D]",
-    amber: "text-[#FF6B00]",
+    amber: "t-accent",
     muted: "text-zinc-600",
   };
 
@@ -340,7 +340,7 @@ function AppRow({
       onClick={onPress}
       className={cn(
         "w-full flex items-center gap-3 px-4 py-[7px] active:bg-white/[0.04] transition-colors cursor-pointer",
-        isActive && "border-l-2 border-[#FF6B00] bg-white/[0.03] !pl-[14px]"
+        isActive && "border-l-2 border-t-accent bg-white/[0.03] !pl-[14px]"
       )}
     >
       <Icon
@@ -601,7 +601,7 @@ export function MobileMore() {
                 {avatar
                   ? <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
                   : <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-[13px] font-bold text-[#FF6B00]">
+                      <span className="text-[13px] font-bold t-accent">
                         {(traderName || "T")[0].toUpperCase()}
                       </span>
                     </div>
@@ -618,7 +618,7 @@ export function MobileMore() {
                 <span className={cn(
                   "text-[8px] font-bold tracking-widest px-1.5 py-[2px] rounded-[2px] border leading-none",
                   isPaid
-                    ? "bg-[#FF6B00]/10 text-[#FF6B00] border-[#FF6B00]/20"
+                    ? "bg-t-accent-10 t-accent border-t-accent-20"
                     : subscription.isTrialing
                     ? "bg-[#00C853]/10 text-[#00C853] border-[#00C853]/20"
                     : "bg-zinc-800 text-zinc-600 border-zinc-700"

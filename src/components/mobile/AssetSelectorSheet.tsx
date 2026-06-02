@@ -110,24 +110,26 @@ export function AssetChip({ onPress, size = "md" }: AssetChipProps) {
       onClick={onPress}
       className={cn(
         "flex items-center gap-1.5 border transition-all active:scale-95",
-        "rounded-[2px] border-[#FF6B00] bg-transparent active:bg-[#FF6B00]/10",
+        "rounded-[2px] bg-transparent",
         size === "sm" ? "px-2.5 py-1" : "px-3 py-1.5"
       )}
+      style={{ borderColor: "hsl(var(--primary))" }}
     >
       <span
         className={cn(
-          "font-bold text-[#FF6B00]",
+          "font-bold",
           size === "sm" ? "text-[10px]" : "text-[11px]"
         )}
-        style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono','Courier New',monospace" }}
+        style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono','Courier New',monospace", color: "hsl(var(--primary))" }}
       >
         {getSymbolShort(selectedSymbol)}
       </span>
       <ChevronDown
         className={cn(
-          "text-[#FF6B00]/60",
+          "opacity-60",
           size === "sm" ? "h-2.5 w-2.5" : "h-3 w-3"
         )}
+        style={{ color: "hsl(var(--primary))" }}
       />
     </button>
   );

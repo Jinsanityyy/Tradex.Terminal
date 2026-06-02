@@ -383,7 +383,7 @@ export function MobileLayout() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-[1px] pulse-accent" />
-            <span className="text-[9px] text-[#FF6B00] tracking-wider uppercase" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>Live</span>
+            <span className="text-[9px] tracking-wider uppercase" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace", color: "hsl(var(--primary))" }}>Live</span>
           </div>
           {/* Profile button */}
           <button onClick={() => { setShowProfile(true); setDraft(traderName); setEditing(false); }}
@@ -391,7 +391,7 @@ export function MobileLayout() {
             {avatar
               ? <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
               : <div className="w-full h-full bg-[#141418] flex items-center justify-center">
-                  <span className="text-[10px] font-bold text-[#FF6B00]">
+                  <span className="text-[10px] font-bold" style={{ color: "hsl(var(--primary))" }}>
                     {(traderName || "T")[0].toUpperCase()}
                   </span>
                 </div>
@@ -465,20 +465,20 @@ export function MobileLayout() {
 
             {/* Upgrade section */}
             {!subscription.isPro && (
-              <div className="mb-4 rounded-[2px] border border-[#FF6B00]/20 bg-[#FF6B00]/5 p-4">
+              <div className="mb-4 rounded-[2px] border border-t-accent-20 bg-t-accent-5 p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <Crown className="h-4 w-4 text-[#FF6B00]" />
-                  <span className="text-[11px] font-bold text-[#FF6B00] uppercase tracking-widest" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>Upgrade to Pro</span>
+                  <Crown className="h-4 w-4 t-accent" />
+                  <span className="text-[11px] font-bold t-accent uppercase tracking-widest" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>Upgrade to Pro</span>
                 </div>
                 <button
                   onClick={() => navigateToUpgrade(PLANS.pro.planId || null)}
-                  className="w-full flex items-center justify-between px-4 py-3 rounded-[2px] bg-[#FF6B00]/10 border border-[#FF6B00]/30 active:opacity-70"
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-[2px] bg-t-accent-10 border border-t-accent-30 active:opacity-70"
                 >
                   <div className="text-left">
-                    <p className="text-[12px] font-bold text-[#FF6B00]" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>PRO</p>
+                    <p className="text-[12px] font-bold t-accent" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>PRO</p>
                     <p className="text-[10px] text-[#6B6B7A]">Full terminal access</p>
                   </div>
-                  <span className="text-[13px] font-bold text-[#FF6B00]" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>$39/mo</span>
+                  <span className="text-[13px] font-bold t-accent" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>$39/mo</span>
                 </button>
               </div>
             )}

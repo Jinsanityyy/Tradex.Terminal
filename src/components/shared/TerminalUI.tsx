@@ -8,7 +8,6 @@ const MONO: React.CSSProperties = {
 };
 
 // ── TerminalSectionHeader ────────────────────────────────────────────────────
-// Renders: ── LIVE PRICES ──────────────────────────
 export function TerminalSectionHeader({
   label,
   right,
@@ -21,12 +20,12 @@ export function TerminalSectionHeader({
   return (
     <div className={cn("flex items-center gap-2 mb-3", className)}>
       <span
-        className="shrink-0 text-[10px] uppercase text-[#6B6B7A] whitespace-nowrap"
-        style={{ ...MONO, letterSpacing: "2px" }}
+        className="shrink-0 text-[10px] uppercase whitespace-nowrap"
+        style={{ ...MONO, letterSpacing: "2px", color: "hsl(var(--muted-foreground))" }}
       >
         ── {label}
       </span>
-      <div className="flex-1 h-px bg-[#1E1E24]" />
+      <div className="flex-1 h-px" style={{ backgroundColor: "hsl(var(--border))" }} />
       {right && <div className="shrink-0">{right}</div>}
     </div>
   );
@@ -42,14 +41,14 @@ type TerminalBadgeVariant =
   | "armed"
   | "pending";
 
-const BADGE_STYLES: Record<TerminalBadgeVariant, string> = {
-  "default":  "border-[#1E1E24] text-[#6B6B7A]",
-  "bullish":  "border-[#00C853]/40 text-[#00C853]",
-  "bearish":  "border-[#FF3D3D]/40 text-[#FF3D3D]",
-  "no-trade": "border-[#3A3A45] text-[#3A3A45]",
-  "neutral":  "border-[#3A3A45] text-[#6B6B7A]",
-  "armed":    "border-[#00C853]/40 text-[#00C853]",
-  "pending":  "border-[#FF6B00]/40 text-[#FF6B00]",
+const BADGE_STYLES: Record<TerminalBadgeVariant, React.CSSProperties> = {
+  "default":  { borderColor: "hsl(var(--border))",                                                              color: "hsl(var(--muted-foreground))" },
+  "bullish":  { borderColor: "color-mix(in srgb, var(--t-bullish, #00C853) 40%, transparent)",                  color: "var(--t-bullish, #00C853)" },
+  "bearish":  { borderColor: "color-mix(in srgb, var(--t-bearish, #FF3D3D) 40%, transparent)",                  color: "var(--t-bearish, #FF3D3D)" },
+  "no-trade": { borderColor: "var(--t-text-muted2, #3A3A45)",                                                    color: "var(--t-text-muted2, #3A3A45)" },
+  "neutral":  { borderColor: "var(--t-text-muted2, #3A3A45)",                                                    color: "hsl(var(--muted-foreground))" },
+  "armed":    { borderColor: "color-mix(in srgb, var(--t-bullish, #00C853) 40%, transparent)",                  color: "var(--t-bullish, #00C853)" },
+  "pending":  { borderColor: "color-mix(in srgb, hsl(var(--primary)) 40%, transparent)",                        color: "hsl(var(--primary))" },
 };
 
 export function TerminalBadge({
@@ -65,10 +64,9 @@ export function TerminalBadge({
     <span
       className={cn(
         "inline-flex items-center px-1.5 py-0.5 border text-[9px] uppercase rounded-[2px]",
-        BADGE_STYLES[variant],
         className
       )}
-      style={{ ...MONO, letterSpacing: "1.2px" }}
+      style={{ ...MONO, letterSpacing: "1.2px", ...BADGE_STYLES[variant] }}
     >
       {label}
     </span>
@@ -89,20 +87,18 @@ export function TerminalDataRow({
 }) {
   return (
     <div
-      className={cn(
-        "flex items-center justify-between py-2 border-b border-[#1E1E24] last:border-0",
-        className
-      )}
+      className={cn("flex items-center justify-between py-2 last:border-0", className)}
+      style={{ borderBottom: "1px solid hsl(var(--border))" }}
     >
       <span
-        className="text-[10px] uppercase text-[#6B6B7A]"
-        style={{ ...MONO, letterSpacing: "1.2px" }}
+        className="text-[10px] uppercase"
+        style={{ ...MONO, letterSpacing: "1.2px", color: "hsl(var(--muted-foreground))" }}
       >
         {label}
       </span>
       <span
-        className={cn("text-[12px] font-bold tabular-nums", valueColor ?? "text-[#E8E8E8]")}
-        style={MONO}
+        className="text-[12px] font-bold tabular-nums"
+        style={{ ...MONO, color: valueColor ?? "hsl(var(--foreground))" }}
       >
         {value}
       </span>
@@ -111,11 +107,10 @@ export function TerminalDataRow({
 }
 
 // ── SegmentedBar ─────────────────────────────────────────────────────────────
-// Replaces progress bars with [██████░░░░] block characters
 export function SegmentedBar({
   value,
   total = 20,
-  activeColor = "#FF6B00",
+  activeColor,
   className,
 }: {
   value: number;
@@ -129,8 +124,8 @@ export function SegmentedBar({
       className={cn("text-[11px] leading-none tracking-tight", className)}
       style={MONO}
     >
-      <span style={{ color: activeColor }}>{"█".repeat(filled)}</span>
-      <span style={{ color: "#1E1E24" }}>{"░".repeat(total - filled)}</span>
+      <span style={{ color: activeColor ?? "hsl(var(--primary))" }}>{"█".repeat(filled)}</span>
+      <span style={{ color: "hsl(var(--border))" }}>{"░".repeat(total - filled)}</span>
     </span>
   );
 }
