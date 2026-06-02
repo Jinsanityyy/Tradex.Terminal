@@ -552,8 +552,12 @@ export function MobileLayout() {
 
       {/* Bottom tab bar */}
       <div
-        className="shrink-0 border-t border-[#1E1E24] bg-[#141418]"
-        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        className="shrink-0 border-t"
+        style={{
+          borderColor: "var(--t-border)",
+          backgroundColor: "var(--t-card)",
+          paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+        }}
       >
         <div className="grid grid-cols-5">
           {TABS.map(({ id, label, Icon }) => {
@@ -569,21 +573,38 @@ export function MobileLayout() {
               }}
                 className="flex flex-col items-center justify-center gap-0.5 py-3 transition-colors relative">
                 <div className="relative">
-                  <Icon className={cn("w-5 h-5 transition-colors",
-                    isActive ? "text-white" : "text-[#6B6B7A]")} strokeWidth={1.5} />
+                  <Icon
+                    className="w-5 h-5 transition-colors"
+                    strokeWidth={1.5}
+                    style={{ color: isActive ? "var(--t-text)" : "var(--t-muted)" }}
+                  />
                   {showBadge && (
-                    <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-[2px] bg-[#FF3D3D] text-[8px] font-bold text-white flex items-center justify-center px-0.5">
+                    <span
+                      className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] text-[8px] font-bold text-white flex items-center justify-center px-0.5"
+                      style={{
+                        borderRadius: "var(--t-badge-radius, 2px)",
+                        backgroundColor: "var(--t-bearish, #FF3D3D)",
+                      }}
+                    >
                       {badgeCount > 9 ? "9+" : badgeCount}
                     </span>
                   )}
                 </div>
-                <span className={cn("text-[9px] tracking-wide transition-colors",
-                  isActive ? "text-white font-semibold" : "text-[#6B6B7A] font-medium")}
-                  style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>
+                <span
+                  className="text-[9px] tracking-wide transition-colors"
+                  style={{
+                    fontFamily: "var(--t-font-label, var(--font-geist-sans), system-ui, sans-serif)",
+                    color: isActive ? "var(--t-text)" : "var(--t-muted)",
+                    fontWeight: isActive ? "600" : "400",
+                  }}
+                >
                   {label}
                 </span>
                 {isActive && (
-                  <div className="absolute bottom-0 w-6 h-0.5 bg-white" />
+                  <div
+                    className="absolute bottom-0 w-6 h-0.5"
+                    style={{ backgroundColor: "var(--t-accent, hsl(var(--primary)))" }}
+                  />
                 )}
               </button>
             );

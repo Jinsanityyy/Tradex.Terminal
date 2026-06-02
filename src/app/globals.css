@@ -324,6 +324,20 @@ iframe,
   --t-glow-red:     rgba(255,61,61,0.10);
   --t-glow-amber:   rgba(212,160,23,0.12);
   --t-glow-mul:     1;
+  /* Personality */
+  --t-card-radius:       12px;
+  --t-card-border-width: 0px;
+  --t-card-shadow:       0 2px 8px rgba(0,0,0,0.20);
+  --t-badge-radius:      9999px;
+  --t-label-size:        11px;
+  --t-label-spacing:     0.8px;
+  --t-number-weight:     700;
+  --t-label-weight:      500;
+  --t-font-number:       var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-font-label:        var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-font-body:         var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-card-padding:      16px;
+  --t-section-spacing:   0px;
 }
 
 [data-theme="midnight"] {
@@ -333,43 +347,57 @@ iframe,
   --card-foreground: 210 30% 96%;
   --popover: 230 22% 9%;
   --popover-foreground: 210 30% 96%;
-  --primary: 230 60% 68%;        /* #7B8CDE */
+  --primary: 214 100% 65%;       /* #4D9EFF — spec blue */
   --primary-foreground: 230 25% 6%;
   --secondary: 230 18% 14%;
   --secondary-foreground: 210 30% 96%;
   --muted: 230 15% 22%;
-  --muted-foreground: 230 12% 58%;
-  --accent: 230 60% 68%;
+  --muted-foreground: 226 24% 45%; /* #4A5A7A */
+  --accent: 214 100% 65%;
   --accent-foreground: 230 25% 6%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 95%;
-  --border: 230 16% 16%;
-  --input: 230 16% 16%;
-  --ring: 230 60% 68%;
+  --border: 224 33% 16%;         /* #1A2035 */
+  --input: 224 33% 16%;
+  --ring: 214 100% 65%;
   --sidebar-bg: 230 25% 4%;
 
-  --chart-green: 142 76% 48%;   /* #30D158 */
-  --chart-blue: 215 90% 62%;
+  --chart-green: 145 100% 45%;   /* #00E676 */
+  --chart-blue: 214 100% 65%;    /* #4D9EFF */
   --chart-amber: 38 100% 52%;
-  --chart-red: 3 100% 62%;      /* #FF453A */
+  --chart-red: 0 100% 66%;       /* #FF5252 */
   --chart-purple: 252 68% 68%;
 
-  --t-bg:           #0D1117;
-  --t-card:         #161B22;
-  --t-card-2:       #1C2330;
-  --t-border:       rgba(255,255,255,0.08);
-  --t-border-sub:   #21262d;
-  --t-text:         #E6EDF3;
-  --t-muted:        #8B949E;
-  --t-glow-green:   rgba(0,200,150,0.10);
-  --t-glow-red:     rgba(255,77,79,0.10);
+  --t-bg:           #080B14;
+  --t-card:         #0F1420;
+  --t-card-2:       #141B2A;
+  --t-border:       #1A2035;
+  --t-border-sub:   rgba(77,158,255,0.08);
+  --t-text:         #C8D8F0;
+  --t-muted:        #4A5A7A;
+  --t-glow-green:   rgba(0,230,118,0.10);
+  --t-glow-red:     rgba(255,82,82,0.10);
   --t-glow-amber:   rgba(245,158,11,0.10);
-  --t-glow-blue:    rgba(59,130,246,0.14);
-  --t-accent:      #7B8CDE;
-  --t-bullish:     #00C853;
-  --t-bearish:     #FF3D3D;
-  --t-text-muted2: #444466;
+  --t-glow-blue:    rgba(77,158,255,0.14);
+  --t-accent:       #4D9EFF;
+  --t-bullish:      #00E676;
+  --t-bearish:      #FF5252;
+  --t-text-muted2:  #2A3550;
   --t-glow-mul:     1;
+  /* Personality */
+  --t-card-radius:       8px;
+  --t-card-border-width: 1px;
+  --t-card-shadow:       0 1px 4px rgba(0,0,40,0.25);
+  --t-badge-radius:      6px;
+  --t-label-size:        11px;
+  --t-label-spacing:     1.0px;
+  --t-number-weight:     700;
+  --t-label-weight:      500;
+  --t-font-number:       var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-font-label:        var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-font-body:         var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-card-padding:      16px;
+  --t-section-spacing:   0px;
 }
 
 /* OLED — pure black, flat, ultra-clean, high-end terminal */
@@ -387,26 +415,43 @@ iframe,
   --ring: 0 0% 100%;
   --secondary: 0 0% 8%;
   --muted: 0 0% 14%;
-  --muted-foreground: 0 0% 52%;
-  --border: 0 0% 11%;
-  --input: 0 0% 11%;
+  --muted-foreground: 0 0% 33%;  /* #555555 */
+  --border: 0 0% 10%;            /* #1A1A1A */
+  --input: 0 0% 10%;
   --sidebar-bg: 0 0% 0%;
+
+  --chart-green: 153 100% 53%;   /* #00FF88 */
+  --chart-red: 0 100% 60%;       /* #FF3333 */
 
   --t-bg:           #000000;
   --t-card:         #0A0A0A;
   --t-card-2:       #111111;
-  --t-border:       rgba(255,255,255,0.08);
-  --t-border-sub:   rgba(255,255,255,0.06);
-  --t-text:         #F0F6FC;
-  --t-muted:        #9198A1;
-  --t-glow-green:   rgba(0,200,150,0.04);  /* reduced glows for OLED */
-  --t-glow-red:     rgba(255,77,79,0.04);
+  --t-border:       #1A1A1A;
+  --t-border-sub:   rgba(255,255,255,0.04);
+  --t-text:         #FFFFFF;
+  --t-muted:        #555555;
+  --t-glow-green:   rgba(0,255,136,0.04);  /* reduced glows for OLED */
+  --t-glow-red:     rgba(255,51,51,0.04);
   --t-glow-amber:   rgba(245,158,11,0.04);
-  --t-accent:      #FFFFFF;
-  --t-bullish:     #00C853;
-  --t-bearish:     #FF3D3D;
-  --t-text-muted2: #444444;
+  --t-accent:       #FFFFFF;
+  --t-bullish:      #00FF88;
+  --t-bearish:      #FF3333;
+  --t-text-muted2:  #333333;
   --t-glow-mul:     0.4;
+  /* Personality */
+  --t-card-radius:       0px;
+  --t-card-border-width: 1px;
+  --t-card-shadow:       none;
+  --t-badge-radius:      0px;
+  --t-label-size:        10px;
+  --t-label-spacing:     2.0px;
+  --t-number-weight:     300;
+  --t-label-weight:      400;
+  --t-font-number:       var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-font-label:        var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-font-body:         var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-card-padding:      10px;
+  --t-section-spacing:   0px;
 }
 
 /* Nord — cool arctic blue-gray (deepened for terminal contrast), frost accent */
@@ -427,7 +472,7 @@ iframe,
   --accent-foreground: 220 16% 14%;
   --destructive: 354 42% 56%;   /* #BF616A — Aurora red */
   --destructive-foreground: 0 0% 98%;
-  --border: 222 16% 26%;
+  --border: 222 16% 26%;        /* #434C5E */
   --input: 222 16% 26%;
   --ring: 193 43% 67%;
   --sidebar-bg: 220 16% 14%;    /* #1c2027 */
@@ -438,112 +483,154 @@ iframe,
   --chart-red: 354 42% 56%;     /* #BF616A */
   --chart-purple: 311 20% 63%;  /* #B48EAD */
 
-  --t-bg:           #242933;
-  --t-card:         #2E3440;
-  --t-card-2:       #3B4252;
-  --t-border:       rgba(236,239,244,0.09);
+  --t-bg:           #2E3440;
+  --t-card:         #3B4252;
+  --t-card-2:       #434C5E;
+  --t-border:       #434C5E;
   --t-border-sub:   rgba(236,239,244,0.06);
   --t-text:         #ECEFF4;
-  --t-muted:        #8B93A5;
+  --t-muted:        #9EAABF;
   --t-glow-green:   rgba(163,190,140,0.10);
   --t-glow-red:     rgba(191,97,106,0.10);
   --t-glow-amber:   rgba(235,203,139,0.10);
-  --t-accent:      #88C0D0;
-  --t-bullish:     #A3BE8C;
-  --t-bearish:     #BF616A;
-  --t-text-muted2: #4C566A;
+  --t-accent:       #88C0D0;
+  --t-bullish:      #A3BE8C;
+  --t-bearish:      #BF616A;
+  --t-text-muted2:  #4C566A;
   --t-glow-mul:     1;
+  /* Personality */
+  --t-card-radius:       6px;
+  --t-card-border-width: 1px;
+  --t-card-shadow:       0 1px 6px rgba(0,0,0,0.12);
+  --t-badge-radius:      6px;
+  --t-label-size:        11px;
+  --t-label-spacing:     0.5px;
+  --t-number-weight:     600;
+  --t-label-weight:      500;
+  --t-font-number:       var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-font-label:        var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-font-body:         var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-card-padding:      18px;
+  --t-section-spacing:   0px;
 }
 
-/* Bloomberg — pure black terminal, vivid orange-amber chrome */
+/* Bloomberg — institutional terminal, monospace everything */
 [data-theme="bloomberg"] {
-  --background: 0 0% 2%;        /* #050505 — near-pure black */
-  --foreground: 38 100% 72%;    /* #FFBE4D — amber-tinted text, unmistakably Bloomberg */
-  --card: 0 0% 4%;              /* #0A0A0A */
-  --card-foreground: 38 100% 72%;
-  --popover: 0 0% 5%;           /* #0D0D0D */
-  --popover-foreground: 38 100% 72%;
+  --background: 240 7% 6%;      /* #0D0D0F */
+  --foreground: 0 0% 91%;       /* #E8E8E8 */
+  --card: 240 5% 8%;            /* #141418 */
+  --card-foreground: 0 0% 91%;
+  --popover: 240 5% 8%;
+  --popover-foreground: 0 0% 91%;
   --primary: 25 100% 50%;       /* #FF6B00 — Bloomberg orange */
-  --primary-foreground: 0 0% 2%;
-  --secondary: 0 0% 6%;         /* #0F0F0F */
-  --secondary-foreground: 38 100% 72%;
-  --muted: 0 0% 8%;             /* #141414 */
-  --muted-foreground: 38 40% 50%; /* dimmed amber */
-  --accent: 36 100% 52%;        /* #FF9900 */
-  --accent-foreground: 0 0% 2%;
-  --destructive: 359 100% 65%;  /* #FF4D4F */
+  --primary-foreground: 0 0% 0%;
+  --secondary: 240 6% 10%;      /* #181820 */
+  --secondary-foreground: 0 0% 91%;
+  --muted: 240 5% 12%;          /* #1E1E24 */
+  --muted-foreground: 240 5% 42%; /* #6B6B7A */
+  --accent: 25 100% 50%;
+  --accent-foreground: 0 0% 0%;
+  --destructive: 0 100% 62%;    /* #FF3D3D */
   --destructive-foreground: 0 0% 98%;
-  --border: 36 60% 18%;         /* amber-tinted border — clearly visible */
-  --input: 36 60% 18%;
+  --border: 240 5% 12%;         /* #1E1E24 — same as muted */
+  --input: 240 5% 12%;
   --ring: 25 100% 50%;
-  --sidebar-bg: 0 0% 0%;        /* #000000 */
+  --sidebar-bg: 240 7% 4%;      /* #0A0A0D */
 
-  --chart-green: 154 78% 43%;   /* #19C37D */
-  --chart-blue: 212 100% 65%;   /* #4DA3FF */
-  --chart-amber: 36 100% 52%;   /* #FF9900 */
-  --chart-red: 359 100% 65%;    /* #FF4D4F */
-  --chart-purple: 270 70% 75%;  /* #C792EA */
+  --chart-green: 146 100% 39%;  /* #00C853 */
+  --chart-blue: 212 100% 65%;
+  --chart-amber: 25 100% 50%;   /* #FF6B00 */
+  --chart-red: 0 100% 62%;      /* #FF3D3D */
+  --chart-purple: 270 70% 75%;
 
-  --t-bg:           #050505;
-  --t-card:         #0A0A0A;
-  --t-card-2:       #0F0F0F;
-  --t-border:       rgba(255,153,0,0.20);
-  --t-border-sub:   rgba(255,153,0,0.10);
-  --t-text:         #FFBE4D;
-  --t-muted:        #996633;
-  --t-glow-green:   rgba(25,195,125,0.10);
-  --t-glow-red:     rgba(255,77,79,0.10);
-  --t-glow-amber:   rgba(255,153,0,0.18);
-  --t-accent:      #FF6B00;
-  --t-bullish:     #00C853;
-  --t-bearish:     #FF3D3D;
-  --t-text-muted2: #3A3A45;
-  --t-glow-mul:     1.2;
+  --t-bg:           #0D0D0F;
+  --t-card:         #141418;
+  --t-card-2:       #1A1A20;
+  --t-border:       #1E1E24;
+  --t-border-sub:   rgba(255,255,255,0.03);
+  --t-text:         #E8E8E8;
+  --t-muted:        #6B6B7A;
+  --t-glow-green:   rgba(0,200,83,0.08);
+  --t-glow-red:     rgba(255,61,61,0.08);
+  --t-glow-amber:   rgba(255,107,0,0.12);
+  --t-accent:       #FF6B00;
+  --t-bullish:      #00C853;
+  --t-bearish:      #FF3D3D;
+  --t-text-muted2:  #3A3A45;
+  --t-glow-mul:     1;
+  /* Personality — monospace everything, flat, data-dense */
+  --t-card-radius:       2px;
+  --t-card-border-width: 1px;
+  --t-card-shadow:       none;
+  --t-badge-radius:      2px;
+  --t-label-size:        10px;
+  --t-label-spacing:     1.5px;
+  --t-number-weight:     700;
+  --t-label-weight:      400;
+  --t-font-number:       var(--font-ibm-plex-mono), 'IBM Plex Mono', monospace;
+  --t-font-label:        var(--font-ibm-plex-mono), 'IBM Plex Mono', monospace;
+  --t-font-body:         var(--font-ibm-plex-mono), 'IBM Plex Mono', monospace;
+  --t-card-padding:      12px;
+  --t-section-spacing:   2.5px;
 }
 
 /* Pink — dark terminal with rose/pink chrome */
 [data-theme="pink"] {
-  --background: 340 28% 7%;
-  --foreground: 340 15% 96%;
-  --card: 340 22% 10%;
-  --card-foreground: 340 15% 96%;
-  --popover: 340 22% 10%;
-  --popover-foreground: 340 15% 96%;
-  --primary: 340 100% 71%;       /* #FF6B9D */
-  --primary-foreground: 340 28% 7%;
-  --secondary: 340 18% 15%;
-  --secondary-foreground: 340 15% 96%;
-  --muted: 340 14% 20%;
-  --muted-foreground: 340 10% 58%;
-  --accent: 295 65% 62%;
-  --accent-foreground: 340 28% 7%;
+  --background: 330 42% 7%;      /* #1A0A12 */
+  --foreground: 338 100% 94%;    /* #FFE0EE */
+  --card: 335 42% 11%;           /* #2A1020 */
+  --card-foreground: 338 100% 94%;
+  --popover: 335 42% 11%;
+  --popover-foreground: 338 100% 94%;
+  --primary: 338 100% 71%;       /* #FF6B9D */
+  --primary-foreground: 330 42% 7%;
+  --secondary: 335 38% 16%;
+  --secondary-foreground: 338 100% 94%;
+  --muted: 335 30% 20%;
+  --muted-foreground: 335 20% 56%; /* #9A6080 */
+  --accent: 338 100% 71%;
+  --accent-foreground: 330 42% 7%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 95%;
-  --border: 340 14% 17%;
-  --input: 340 14% 17%;
-  --ring: 340 100% 71%;
+  --border: 333 38% 20%;         /* #4A2040 */
+  --input: 333 38% 20%;
+  --ring: 338 100% 71%;
 
-  --chart-green: 142 71% 45%;
+  --chart-green: 144 100% 57%;   /* #80FFB0 */
   --chart-blue: 295 65% 62%;
   --chart-amber: 38 92% 50%;
-  --chart-red: 0 84% 60%;
+  --chart-red: 0 100% 71%;       /* #FF6B6B */
   --chart-purple: 330 85% 68%;
 
-  --t-bg:           #0e0709;
-  --t-card:         #180c12;
-  --t-card-2:       #1e1018;
-  --t-border:       rgba(255, 100, 160, 0.10);
-  --t-border-sub:   rgba(255, 100, 160, 0.06);
-  --t-text:         #F5E8F0;
-  --t-muted:        #9E8490;
-  --t-glow-green:   rgba(0, 200, 150, 0.08);
-  --t-glow-red:     rgba(255, 77, 79, 0.10);
+  --t-bg:           #1A0A12;
+  --t-card:         #2A1020;
+  --t-card-2:       #321828;
+  --t-border:       #4A2040;
+  --t-border-sub:   rgba(255, 107, 157, 0.08);
+  --t-text:         #FFE0EE;
+  --t-muted:        #9A6080;
+  --t-glow-green:   rgba(128, 255, 176, 0.08);
+  --t-glow-red:     rgba(255, 107, 107, 0.10);
   --t-glow-amber:   rgba(245, 158, 11, 0.08);
-  --t-accent:      #FF6B9D;
-  --t-bullish:     #00C853;
-  --t-bearish:     #FF3D3D;
-  --t-text-muted2: #5D3344;
+  --t-accent:       #FF6B9D;
+  --t-bullish:      #80FFB0;
+  --t-bearish:      #FF6B6B;
+  --t-text-muted2:  #5D2040;
   --t-glow-mul:     1;
+  /* Personality */
+  --t-card-radius:       14px;
+  --t-card-border-width: 1px;
+  --t-card-shadow:       0 2px 8px rgba(0,0,0,0.15);
+  --t-badge-radius:      9999px;
+  --t-label-size:        11px;
+  --t-label-spacing:     0.8px;
+  --t-number-weight:     700;
+  --t-label-weight:      500;
+  --t-font-number:       var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-font-label:        var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-font-body:         var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-card-padding:      16px;
+  --t-section-spacing:   0px;
 }
 
 /* Light — clean day-mode terminal */
@@ -585,6 +672,35 @@ iframe,
   --t-glow-red:     rgba(180, 40, 40, 0.06);
   --t-glow-amber:   rgba(180, 110, 0, 0.05);
   --t-glow-mul:     0.4;
+  /* Personality */
+  --t-card-radius:       12px;
+  --t-card-border-width: 1px;
+  --t-card-shadow:       0 1px 4px rgba(0,0,0,0.08);
+  --t-badge-radius:      6px;
+  --t-label-size:        11px;
+  --t-label-spacing:     0.8px;
+  --t-number-weight:     700;
+  --t-label-weight:      500;
+  --t-font-number:       var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-font-label:        var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-font-body:         var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-card-padding:      16px;
+  --t-section-spacing:   0px;
+}
+
+/* Bloomberg — monospace everything, institutional terminal */
+[data-theme="bloomberg"] body {
+  font-family: var(--font-ibm-plex-mono), 'IBM Plex Mono', monospace;
+}
+[data-theme="bloomberg"] .font-mono,
+[data-theme="bloomberg"] [class*="font-mono"] {
+  font-family: var(--font-ibm-plex-mono), 'IBM Plex Mono', monospace !important;
+}
+
+/* OLED — no shadows anywhere */
+[data-theme="oled"] * {
+  box-shadow: none !important;
+  text-shadow: none !important;
 }
 
 /* Light mode overrides for hardcoded dark utility classes */
