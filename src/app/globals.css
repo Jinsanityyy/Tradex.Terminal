@@ -332,6 +332,36 @@ iframe,
   --t-glow-mul:     0.6;
 }
 
+/* Royal Charcoal — cool charcoal with designed elevation steps
+   (#1e2023 surfaces → #47484c highlights), subtle blue-gray tint. */
+[data-theme="royalcharcoal"] {
+  --background: 220 8% 11%;     /* #191b1e  — deep charcoal base */
+  --foreground: 0 0% 95%;
+  --card: 222 8% 13%;           /* #1e2023  — primary surface */
+  --card-foreground: 0 0% 95%;
+  --popover: 222 8% 14%;        /* #212327 */
+  --popover-foreground: 0 0% 95%;
+  --secondary: 222 7% 18%;      /* #292c30  — elevated surface */
+  --secondary-foreground: 0 0% 95%;
+  --muted: 223 7% 27%;          /* #40434a */
+  --muted-foreground: 220 6% 65%;
+  --border: 222 7% 21%;         /* #31343a  — soft separators */
+  --input: 222 7% 21%;
+  --sidebar-bg: 220 8% 9%;      /* #15171a  — slightly darker than bg */
+
+  --t-bg:           #191B1E;
+  --t-card:         #1E2023;
+  --t-card-2:       #26282C;
+  --t-border:       rgba(255,255,255,0.07);
+  --t-border-sub:   rgba(255,255,255,0.05);
+  --t-text:         #E8E9EB;
+  --t-muted:        #9A9CA0;
+  --t-glow-green:   rgba(0,200,150,0.10);
+  --t-glow-red:     rgba(255,77,79,0.10);
+  --t-glow-amber:   rgba(245,158,11,0.10);
+  --t-glow-mul:     1;
+}
+
 /* Pink — dark terminal with rose/pink chrome */
 [data-theme="pink"] {
   --background: 340 28% 7%;
