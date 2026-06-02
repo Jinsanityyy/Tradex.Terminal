@@ -285,7 +285,7 @@ function NewsCard({
         {/* Summary with price highlights */}
         {item.summary && (
           <p className="text-[11px] leading-relaxed mb-3 line-clamp-3" style={{ color: "var(--t-muted)" }}>
-            <PriceHighlight text={item.summary} />
+            <PriceHighlight text={item.summary.replace(/<[^>]*>/g, " ").replace(/\s{2,}/g, " ").trim()} />
           </p>
         )}
 

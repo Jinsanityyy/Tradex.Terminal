@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useCatalysts, useEconomicCalendar, useTrumpPosts, useNews } from "@/hooks/useMarketData";
 import { cn } from "@/lib/utils";
-import { Zap, CalendarDays, AtSign, TrendingUp, TrendingDown, Target, Shield, Radio } from "lucide-react";
+import { Zap, CalendarDays, AtSign, TrendingUp, TrendingDown, Target, Shield, Radio, Tv, ExternalLink } from "lucide-react";
 import { DetailModal } from "@/components/shared/DetailModal";
 import { CatalystFeed } from "@/components/shared/CatalystFeed";
 import { NewsFeed } from "@/components/shared/NewsFeed";
@@ -16,17 +16,17 @@ import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelector
 type Tab = "live" | "catalysts" | "calendar" | "trump";
 
 const LIVE_CHANNELS = [
-  { id: "bloomberg", name: "Bloomberg", channelId: "UCIALMKvObZNtJ6AmdCLP7Lg" },
-  { id: "cnbc",      name: "CNBC",      channelId: "UCrp_UI8XtuYfpiqluWLD7Lw" },
-  { id: "reuters",   name: "Reuters",   channelId: "UChqUTb7kYRX8-EiaN3XFrSQ" },
-  { id: "aljazeera", name: "Al Jazeera",channelId: "UCNye-wNBqNL5ZzHSJdse18g" },
+  { id: "bloomberg", name: "Bloomberg",  channelId: "UCIALMKvObZNtJ6AmdCLP7Lg", handle: "@BloombergTelevision" },
+  { id: "cnbc",      name: "CNBC",       channelId: "UCrp_UI8XtuYfpiqluWLD7Lw", handle: "@CNBC" },
+  { id: "reuters",   name: "Reuters",    channelId: "UChqUTb7kYRX8-EiaN3XFrSQ", handle: "@Reuters" },
+  { id: "aljazeera", name: "Al Jazeera", channelId: "UCNye-wNBqNL5ZzHSJdse18g", handle: "@AlJazeeraEnglish" },
 ];
 
 const EMBED_PARAMS = "autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3";
 
 function buildEmbedUrl(videoId: string | null, channelId: string): string {
-  if (videoId) return `https://www.youtube-nocookie.com/embed/${videoId}?${EMBED_PARAMS}`;
-  return `https://www.youtube-nocookie.com/embed/live_stream?channel=${channelId}&${EMBED_PARAMS}`;
+  if (videoId) return `https://www.youtube.com/embed/${videoId}?${EMBED_PARAMS}`;
+  return `https://www.youtube.com/embed/live_stream?channel=${channelId}&${EMBED_PARAMS}`;
 }
 
 export function MobileFeed() {
@@ -48,21 +48,31 @@ export function MobileFeed() {
   const [selectedPost, setSelectedPost] = useState<TrumpPost | null>(null);
   const [feedTabActive, setFeedTabActive] = useState(true);
   const [videoIds, setVideoIds] = useState<Record<string, string | null>>({});
+  const [liveStatus, setLiveStatus] = useState<Record<string, boolean | null>>({});
   const [tvLoading, setTvLoading] = useState(false);
   const liveIframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Fetch actual live video IDs so we don't get "video unavailable" from stale channel embeds
+  // Fetch live video IDs from /api/tv/stream (one call per channel, 90s server cache)
   useEffect(() => {
     setTvLoading(true);
-    fetch("/api/youtube/live")
-      .then(r => r.ok ? r.json() : [])
-      .then((data: { id: string; videoId: string | null }[]) => {
-        const map: Record<string, string | null> = {};
-        data.forEach(d => { map[d.id] = d.videoId; });
-        setVideoIds(map);
-      })
-      .catch(() => {})
-      .finally(() => setTvLoading(false));
+    Promise.all(
+      LIVE_CHANNELS.map(ch =>
+        fetch(`/api/tv/stream?channel=${ch.channelId}&handle=${encodeURIComponent(ch.handle)}`)
+          .then(r => r.ok ? r.json() : null)
+          .then((data: { videoId: string | null; isLive: boolean } | null) => ({
+            id: ch.id,
+            videoId: data?.videoId ?? null,
+            isLive: data ? data.isLive : null,
+          }))
+          .catch(() => ({ id: ch.id, videoId: null, isLive: null as boolean | null }))
+      )
+    ).then(results => {
+      const vidMap: Record<string, string | null> = {};
+      const liveMap: Record<string, boolean | null> = {};
+      results.forEach(r => { vidMap[r.id] = r.videoId; liveMap[r.id] = r.isLive; });
+      setVideoIds(vidMap);
+      setLiveStatus(liveMap);
+    }).finally(() => setTvLoading(false));
   }, []);
 
   useEffect(() => {
@@ -138,27 +148,45 @@ export function MobileFeed() {
             </div>
             <div className="px-3 pt-2 pb-1">
               <div className="rounded-xl overflow-hidden border border-white/5" style={{ aspectRatio: "16/9" }}>
-                {feedTabActive && tab === "live" ? (
-                  tvLoading ? (
-                    <div className="w-full h-full bg-black flex items-center justify-center">
-                      <div className="w-5 h-5 rounded-full border-2 border-zinc-700 border-t-zinc-400 animate-spin" />
-                    </div>
-                  ) : (
-                    <iframe
-                      ref={liveIframeRef}
-                      key={`${activeChannel.id}-${videoIds[activeChannel.id] ?? "fallback"}`}
-                      src={buildEmbedUrl(videoIds[activeChannel.id] ?? null, activeChannel.channelId)}
-                      className="w-full h-full"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                      title={activeChannel.name}
-                    />
-                  )
-                ) : (
+                {!feedTabActive || tab !== "live" ? (
                   <div className="w-full h-full bg-black" />
+                ) : tvLoading ? (
+                  <div className="w-full h-full bg-black flex items-center justify-center">
+                    <div className="w-5 h-5 rounded-full border-2 border-zinc-700 border-t-zinc-400 animate-spin" />
+                  </div>
+                ) : liveStatus[activeChannel.id] === false ? (
+                  <div className="w-full h-full bg-[#0a0b0e] flex flex-col items-center justify-center gap-2">
+                    <Tv className="h-6 w-6 text-zinc-700" />
+                    <p className="text-[11px] font-semibold text-zinc-500">{activeChannel.name} is not live right now</p>
+                    <a
+                      href={`https://www.youtube.com/${activeChannel.handle}/live`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-[10px] text-zinc-500 border border-white/10 px-2.5 py-1 rounded-md"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Open on YouTube
+                    </a>
+                  </div>
+                ) : (
+                  <iframe
+                    ref={liveIframeRef}
+                    key={`${activeChannel.id}-${videoIds[activeChannel.id] ?? "fallback"}`}
+                    src={buildEmbedUrl(videoIds[activeChannel.id] ?? null, activeChannel.channelId)}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    title={activeChannel.name}
+                  />
                 )}
               </div>
             </div>
+            {catalysts.length > 0 && (
+              <div className="px-3 pb-2 mt-2">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 mb-2">Market Drivers</p>
+                <CatalystFeed catalysts={catalysts} limit={3} />
+              </div>
+            )}
             <div className="px-3 pb-4 mt-2">
               <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 mb-2">Live Headlines</p>
               <NewsFeed items={news} compact />

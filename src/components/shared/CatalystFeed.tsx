@@ -1,342 +1,410 @@
-﻿"use client";
+"use client";
 
-import React from "react";
-import { Badge } from "@/components/ui/badge";
+import React, { useState } from "react";
 import { cn, timeAgo } from "@/lib/utils";
-import { Zap, Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus, X, Target, Shield, BookOpen, ChevronRight } from "lucide-react";
+import {
+  Zap, Clock, CheckCircle2, Radio,
+  TrendingUp, TrendingDown, Minus,
+  ChevronRight, Lightbulb, X, Target, Shield,
+} from "lucide-react";
+import { createPortal } from "react-dom";
 import type { Catalyst } from "@/types";
 import { useSettings } from "@/contexts/SettingsContext";
-import { getSymbolLabel, getSymbolShort, getCatalystImpactForSymbol } from "@/lib/assetImpact";
+import { getSymbolShort, getSymbolLabel, getCatalystImpactForSymbol } from "@/lib/assetImpact";
 
-interface CatalystFeedProps {
-  catalysts: Catalyst[];
-  limit?: number;
-  compact?: boolean;
-}
+// ── Price-only highlighter (only $X,XXX and X% — no word-level noise) ─────────
+const PRICE_RE = /(\$[\d,]+(?:\.\d+)?[KMBTk]?|\b\d+\.?\d*%)/g;
 
-function ImpactBadge({ impact, label }: { impact?: "bullish" | "bearish" | "neutral"; label: string }) {
-  if (!impact) return null;
-  const Icon = impact === "bullish" ? TrendingUp : impact === "bearish" ? TrendingDown : Minus;
-  const colors = {
-    bullish: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-    bearish: "bg-red-500/15 text-red-400 border-red-500/30",
-    neutral: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
-  };
+function PriceHighlight({ text, className }: { text: string; className?: string }) {
+  const parts: { text: string; isPrice: boolean }[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  PRICE_RE.lastIndex = 0;
+  while ((m = PRICE_RE.exec(text)) !== null) {
+    if (m.index > last) parts.push({ text: text.slice(last, m.index), isPrice: false });
+    parts.push({ text: m[0], isPrice: true });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push({ text: text.slice(last), isPrice: false });
+
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold", colors[impact])}>
-      <Icon className="h-2.5 w-2.5" />
-      {label} {impact.toUpperCase()}
+    <span className={className}>
+      {parts.map((p, i) =>
+        p.isPrice
+          ? <span key={i} className="font-semibold" style={{ color: "var(--t-accent)" }}>{p.text}</span>
+          : <span key={i}>{p.text}</span>
+      )}
     </span>
   );
 }
 
-function MarketTag({ label }: { label: string }) {
-  return (
-    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-zinc-500">
-      {label}
-    </span>
-  );
-}
-
+// ── Bias badge ────────────────────────────────────────────────────────────────
 function BiasBadge({ bias }: { bias: string }) {
   const b = bias.toLowerCase();
+  const s =
+    b === "bullish" ? { color: "var(--t-bullish)", bg: "color-mix(in srgb, var(--t-bullish) 15%, transparent)", border: "color-mix(in srgb, var(--t-bullish) 30%, transparent)" } :
+    b === "bearish" ? { color: "var(--t-bearish)", bg: "color-mix(in srgb, var(--t-bearish) 15%, transparent)", border: "color-mix(in srgb, var(--t-bearish) 30%, transparent)" } :
+    b === "mixed"   ? { color: "var(--t-accent)",  bg: "color-mix(in srgb, var(--t-accent)  15%, transparent)", border: "color-mix(in srgb, var(--t-accent)  30%, transparent)" } :
+                      { color: "var(--t-muted)",   bg: "color-mix(in srgb, var(--t-muted)   10%, transparent)", border: "var(--t-border)" };
+
+  const Icon = b === "bullish" ? TrendingUp : b === "bearish" ? TrendingDown : Minus;
   return (
-    <span className={cn(
-      "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
-      b === "bullish" ? "bg-emerald-500/15 text-emerald-400" :
-      b === "bearish" ? "bg-red-500/15 text-red-400" :
-      b === "mixed"   ? "bg-amber-500/15 text-amber-400" :
-                        "bg-zinc-800 text-zinc-500"
-    )}>
-      {b === "bullish" ? <TrendingUp className="h-2.5 w-2.5" /> :
-       b === "bearish" ? <TrendingDown className="h-2.5 w-2.5" /> :
-       <Minus className="h-2.5 w-2.5" />}
-      {bias}
+    <span
+      className="inline-flex items-center gap-1 border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider shrink-0"
+      style={{ color: s.color, background: s.bg, borderColor: s.border, borderRadius: "var(--t-badge-radius)" }}
+    >
+      <Icon className="h-2.5 w-2.5" />
+      {b === "mixed" ? "MIXED" : b.toUpperCase()}
     </span>
   );
 }
 
-function AnalysisModal({ cat, onClose }: { cat: Catalyst; onClose: () => void }) {
-  const isCompleted = cat.status === "completed";
-  const isUpcoming  = cat.status === "upcoming";
-  const a = cat.analysis;
+// ── Full-detail modal ─────────────────────────────────────────────────────────
+function CatalystModal({ cat, index, onClose }: { cat: Catalyst; index: number; onClose: () => void }) {
   const { settings } = useSettings();
   const selectedSymbol = settings.selectedSymbol ?? "XAUUSD";
-  const assetLabel = getSymbolLabel(selectedSymbol);
-  const assetShort = getSymbolShort(selectedSymbol);
+  const assetShort  = getSymbolShort(selectedSymbol);
+  const assetLabel  = getSymbolLabel(selectedSymbol);
   const assetImpact = getCatalystImpactForSymbol(cat, selectedSymbol);
+  const bias = cat.sentimentTag ?? "neutral";
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
+  const bullets: string[] = cat.keyPoints?.length
+    ? cat.keyPoints
+    : cat.analysis
+    ? [cat.analysis.marketLogic, cat.analysis.conditions].filter(Boolean)
+    : [cat.marketImplication].filter(Boolean);
+
+  const accentColor =
+    bias === "bearish" ? "var(--t-bearish)" :
+    bias === "bullish" ? "var(--t-bullish)" :
+                         "var(--t-accent)";
+
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex flex-col" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
       <div
-        className="relative z-10 w-full max-w-xl max-h-[88vh] flex flex-col rounded-2xl border border-white/8 bg-[#0b0c0e] shadow-[0_32px_80px_rgba(0,0,0,0.8)] overflow-hidden"
+        className="relative z-10 mt-auto flex flex-col overflow-hidden"
+        style={{
+          background: "var(--t-card)",
+          borderRadius: "var(--t-card-radius) var(--t-card-radius) 0 0",
+          borderTop: `2px solid ${accentColor}`,
+          maxHeight: "88vh",
+        }}
         onClick={e => e.stopPropagation()}
       >
-        {/* ── Header ── */}
-        <div className="shrink-0 px-5 pt-4 pb-3 border-b border-white/5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                <Badge variant={cat.importance}>{cat.importance}</Badge>
-                <span className={cn(
-                  "text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full",
-                  cat.status === "live"      ? "bg-amber-500/15 text-amber-400" :
-                  cat.status === "completed" ? "bg-emerald-500/10 text-emerald-600" :
-                  "bg-blue-500/15 text-blue-400"
-                )}>
-                  {cat.status === "completed" ? "✓ Completed" : cat.status}
-                </span>
-                <span className="text-[10px] text-zinc-600">{timeAgo(cat.timestamp)}</span>
-              </div>
-              <h2 className="text-[13px] font-semibold text-white leading-snug">{cat.title}</h2>
+        {/* Handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="h-1 w-10 rounded-full" style={{ background: "var(--t-border)" }} />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 px-4 pb-3 pt-1" style={{ borderBottom: "1px solid var(--t-border)" }}>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className="text-[9px] font-bold uppercase tracking-[0.18em]" style={{ color: accentColor }}>
+                Driver #{index + 1}{cat.driverCategory ? ` · ${cat.driverCategory}` : ""}
+              </span>
             </div>
-            <button onClick={onClose} className="shrink-0 p-1 text-zinc-600 hover:text-zinc-300 transition-colors">
+            <h2 className="text-[13px] font-black uppercase leading-snug" style={{ color: "var(--t-text)" }}>
+              {cat.title}
+            </h2>
+          </div>
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
+            <button onClick={onClose} className="p-1 rounded-full" style={{ color: "var(--t-muted)" }}>
               <X className="h-4 w-4" />
             </button>
+            <BiasBadge bias={bias} />
           </div>
         </div>
 
-        {/* ── Body ── */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        {/* Scrollable body */}
+        <div className="overflow-y-auto flex-1 px-4 py-4 space-y-4">
 
-          {/* ══════════════════════════════════════════════════════
-              COMPLETED EVENT  -  static market context
-          ══════════════════════════════════════════════════════ */}
-          {isCompleted && (
-            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.04] overflow-hidden">
-              <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-emerald-500/15">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Completed  -  Market Context</span>
+          {/* Asset chips */}
+          <div className="flex flex-wrap gap-1.5">
+            {cat.affectedMarkets.map(m => (
+              <span key={m} className="text-[9px] font-mono px-1.5 py-0.5"
+                style={{ color: "var(--t-muted)", background: "color-mix(in srgb, var(--t-text) 5%, transparent)", borderRadius: "var(--t-badge-radius)", border: "1px solid var(--t-border)" }}>
+                {m}
+              </span>
+            ))}
+            {assetImpact.impact && (
+              <span className="text-[9px] font-bold px-1.5 py-0.5"
+                style={{
+                  color: assetImpact.impact === "bullish" ? "var(--t-bullish)" : assetImpact.impact === "bearish" ? "var(--t-bearish)" : "var(--t-muted)",
+                  background: assetImpact.impact === "bullish" ? "color-mix(in srgb, var(--t-bullish) 12%, transparent)" : assetImpact.impact === "bearish" ? "color-mix(in srgb, var(--t-bearish) 12%, transparent)" : "color-mix(in srgb, var(--t-muted) 10%, transparent)",
+                  borderRadius: "var(--t-badge-radius)",
+                  border: `1px solid ${assetImpact.impact === "bullish" ? "color-mix(in srgb, var(--t-bullish) 25%, transparent)" : assetImpact.impact === "bearish" ? "color-mix(in srgb, var(--t-bearish) 25%, transparent)" : "var(--t-border)"}`,
+                }}>
+                {assetShort} {assetImpact.impact.toUpperCase()}
+              </span>
+            )}
+          </div>
+
+          {/* Overview paragraph */}
+          <div className="rounded-lg p-3.5" style={{ background: "color-mix(in srgb, var(--t-text) 4%, transparent)", border: "1px solid var(--t-border)" }}>
+            <p className="text-[9px] font-bold uppercase tracking-widest mb-2" style={{ color: accentColor, opacity: 0.8 }}>Overview</p>
+            <p className="text-[11.5px] leading-relaxed" style={{ color: "var(--t-muted)" }}>
+              <PriceHighlight text={cat.analysis?.eventOverview || cat.marketImplication || cat.explanation} />
+            </p>
+            {cat.analysis?.whyMarketsCare && (
+              <p className="text-[11px] leading-relaxed mt-2" style={{ color: "var(--t-muted)", opacity: 0.8 }}>
+                <PriceHighlight text={cat.analysis.whyMarketsCare} />
+              </p>
+            )}
+          </div>
+
+          {/* Key bullets */}
+          {bullets.length > 0 && (
+            <div className="rounded-lg p-3.5" style={{ background: "color-mix(in srgb, var(--t-text) 4%, transparent)", border: "1px solid var(--t-border)" }}>
+              <p className="text-[9px] font-bold uppercase tracking-widest mb-2.5" style={{ color: accentColor, opacity: 0.8 }}>Key Points</p>
+              <div className="space-y-2">
+                {bullets.map((b, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <ChevronRight className="h-3 w-3 mt-0.5 shrink-0" style={{ color: accentColor }} />
+                    <span className="text-[11px] leading-snug" style={{ color: "var(--t-muted)" }}>
+                      <PriceHighlight text={b} />
+                    </span>
+                  </div>
+                ))}
               </div>
-              <div className="px-3.5 py-3">
-                <p className="text-[12px] text-zinc-200 leading-relaxed">{cat.explanation}</p>
-              </div>
-              {cat.marketImplication && (
-                <div className="px-3.5 pb-3.5 space-y-1.5">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-400/70">Market Implication</p>
-                  <p className="text-[11px] text-zinc-400 leading-relaxed">{cat.marketImplication}</p>
-                </div>
-              )}
             </div>
           )}
 
-          {isCompleted && (cat.goldImpact || cat.usdImpact) && (
-            <>
-              <div className="flex gap-2 flex-wrap">
-                <ImpactBadge impact={assetImpact.impact} label={assetShort} />
-                <ImpactBadge impact={cat.usdImpact} label="USD" />
+          {/* Asset-specific impact */}
+          {assetImpact.reasoning && (
+            <div className="rounded-lg p-3.5" style={{ background: "color-mix(in srgb, var(--t-accent) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--t-accent) 20%, transparent)" }}>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Target className="h-3 w-3" style={{ color: "var(--t-accent)" }} />
+                <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--t-accent)" }}>{assetLabel} Impact</span>
               </div>
-              {assetImpact.reasoning && (
-                <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <Target className="h-3.5 w-3.5 text-amber-400" />
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">{assetLabel} Context</span>
-                  </div>
-                  <p className="text-[11.5px] text-zinc-300 leading-relaxed">{assetImpact.reasoning}</p>
-                </div>
-              )}
-              {cat.usdReasoning && (
-                <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <Shield className="h-3.5 w-3.5 text-blue-400" />
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">USD Context</span>
-                  </div>
-                  <p className="text-[11.5px] text-zinc-300 leading-relaxed">{cat.usdReasoning}</p>
-                </div>
-              )}
-            </>
+              <p className="text-[11px] leading-relaxed" style={{ color: "var(--t-muted)" }}>{assetImpact.reasoning}</p>
+            </div>
           )}
 
-          {/* ══════════════════════════════════════════════════════
-              UPCOMING / LIVE  -  pre-event analysis (existing logic)
-          ══════════════════════════════════════════════════════ */}
-          {!isCompleted && (() => {
-            const borderCls = isUpcoming ? "border-blue-500/25" : "border-amber-500/25";
-            const bgCls     = isUpcoming ? "bg-blue-500/[0.04]" : "bg-amber-500/[0.05]";
-            const dividerCls= isUpcoming ? "border-blue-500/15" : "border-amber-500/15";
-            const iconCls   = isUpcoming ? "text-blue-400"      : "text-amber-400";
-            const Icon      = a ? BookOpen : Zap;
-            const label     = a ? "Market Impact Analysis" : "Catalyst Analysis";
-
-            const narrative = a
-              ? [a.eventOverview, a.whyMarketsCare].filter(Boolean).join("\n\n")
-              : cat.explanation;
-
-            const bullets: string[] = a
-              ? [a.conditions, a.marketLogic, ...(a.assets ?? []).slice(0, 3).map(
-                  as => `${as.name}${as.ticker ? ` (${as.ticker})` : ""}: ${as.bias.toUpperCase()}  -  ${as.context}`
-                )].filter((b): b is string => Boolean(b))
-              : [
-                  assetImpact.impact === "bullish"
-                    ? `${assetLabel} expected to benefit — watch for breakout above prior session high`
-                    : assetImpact.impact === "bearish"
-                    ? `${assetLabel} faces headwinds — sell rallies toward prior resistance`
-                    : `${assetLabel} direction uncertain — wait for price action confirmation`,
-                  cat.usdImpact === "bullish"  ? "USD strength expected  -  watch DXY for breakout above key resistance"
-                  : cat.usdImpact === "bearish" ? "USD weakness likely  -  EURUSD and GBPUSD may benefit"
-                  : null,
-                  cat.marketImplication ?? null,
-                ].filter((b): b is string => Boolean(b));
-
+          {/* Gold + USD reasoning (skip if already shown in asset impact section) */}
+          {(() => {
+            const showGold = cat.goldReasoning && cat.goldReasoning !== assetImpact.reasoning;
+            const showUsd  = cat.usdReasoning  && cat.usdReasoning  !== assetImpact.reasoning;
+            if (!showGold && !showUsd) return null;
             return (
-              <>
-                <div className={cn("rounded-xl border overflow-hidden", borderCls, bgCls)}>
-                  <div className={cn("flex items-center gap-2 px-3.5 py-2.5 border-b", dividerCls)}>
-                    <Icon className={cn("h-3.5 w-3.5", iconCls)} />
-                    <span className={cn("text-[10px] font-bold uppercase tracking-widest", iconCls)}>{label}</span>
-                    <span className={cn("ml-auto text-[9px] uppercase tracking-wider opacity-50", iconCls)}>
-                      {cat.status.charAt(0).toUpperCase() + cat.status.slice(1)}
-                    </span>
-                  </div>
-                  <div className="px-3.5 py-3">
-                    {narrative.split("\n\n").map((para, i) => (
-                      <p key={i} className={cn("text-[12px] text-zinc-200 leading-relaxed", i > 0 && "mt-2 text-zinc-400")}>{para}</p>
-                    ))}
-                  </div>
-                  {bullets.length > 0 && (
-                    <div className="px-3.5 pb-3.5 space-y-2">
-                      <p className={cn("text-[9px] font-bold uppercase tracking-widest opacity-70", iconCls)}>
-                        {isUpcoming ? "What To Watch" : "Key Context"}
-                      </p>
-                      <ul className="space-y-1.5">
-                        {bullets.slice(0, 5).map((b, i) => (
-                          <li key={i} className="flex items-start gap-2">
-                            <ChevronRight className={cn("h-3 w-3 mt-0.5 shrink-0 opacity-60", iconCls)} />
-                            <span className="text-[11px] text-zinc-400 leading-snug">{b}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-
-                {(cat.goldImpact || cat.usdImpact) && (
-                  <div className="flex gap-2 flex-wrap">
-                    <ImpactBadge impact={assetImpact.impact} label={assetShort} />
-                    <ImpactBadge impact={cat.usdImpact} label="USD" />
+              <div className="space-y-2">
+                {showGold && (
+                  <div className="rounded-lg p-3" style={{ background: "color-mix(in srgb, var(--t-text) 4%, transparent)", border: "1px solid var(--t-border)" }}>
+                    <p className="text-[9px] font-bold uppercase tracking-widest mb-1.5" style={{ color: "var(--t-muted)", opacity: 0.5 }}>Gold</p>
+                    <p className="text-[10.5px] leading-snug" style={{ color: "var(--t-muted)" }}>{cat.goldReasoning}</p>
                   </div>
                 )}
-
-                {assetImpact.reasoning && (
-                  <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <Target className="h-3.5 w-3.5 text-amber-400" />
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">{assetLabel} Context</span>
+                {showUsd && (
+                  <div className="rounded-lg p-3" style={{ background: "color-mix(in srgb, var(--t-text) 4%, transparent)", border: "1px solid var(--t-border)" }}>
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Shield className="h-3 w-3" style={{ color: "var(--t-muted)", opacity: 0.5 }} />
+                      <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--t-muted)", opacity: 0.5 }}>USD</p>
                     </div>
-                    <p className="text-[11.5px] text-zinc-300 leading-relaxed">{assetImpact.reasoning}</p>
+                    <p className="text-[10.5px] leading-snug" style={{ color: "var(--t-muted)" }}>{cat.usdReasoning}</p>
                   </div>
                 )}
-
-                {cat.usdReasoning && (
-                  <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5 space-y-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <Shield className="h-3.5 w-3.5 text-blue-400" />
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">USD Context</span>
-                    </div>
-                    <p className="text-[11.5px] text-zinc-300 leading-relaxed">{cat.usdReasoning}</p>
-                  </div>
-                )}
-
-                {a?.assets && a.assets.length > 0 && (
-                  <div>
-                    <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-600 mb-2.5">Asset Impact</p>
-                    <div className="space-y-2">
-                      {a.assets.map((asset) => (
-                        <div key={asset.ticker || asset.name} className="rounded-lg border border-white/5 bg-white/[0.025] p-3">
-                          <div className="flex items-center justify-between gap-2 mb-1.5">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] font-semibold text-zinc-300">{asset.name}</span>
-                              {asset.ticker && <span className="text-[9px] font-mono text-zinc-600 bg-white/5 px-1.5 py-0.5 rounded">{asset.ticker}</span>}
-                            </div>
-                            <BiasBadge bias={asset.bias} />
-                          </div>
-                          <p className="text-[11px] text-zinc-500 leading-relaxed">{asset.context}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
+              </div>
             );
           })()}
 
-          {/* Affected markets */}
-          {cat.affectedMarkets?.length > 0 && (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {cat.affectedMarkets.map(m => <MarketTag key={m} label={m} />)}
+          {/* Per-asset breakdown from AI */}
+          {cat.analysis?.assets && cat.analysis.assets.length > 0 && (
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-widest mb-2" style={{ color: "var(--t-muted)", opacity: 0.5 }}>Asset Breakdown</p>
+              <div className="space-y-2">
+                {cat.analysis.assets.map(a => (
+                  <div key={a.ticker || a.name} className="rounded-lg p-3 flex gap-2.5"
+                    style={{ background: "color-mix(in srgb, var(--t-text) 3%, transparent)", border: "1px solid var(--t-border)" }}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-[10px] font-semibold" style={{ color: "var(--t-text)" }}>{a.name}</span>
+                        {a.ticker && <span className="text-[8px] font-mono px-1 py-0.5 rounded" style={{ color: "var(--t-muted)", background: "color-mix(in srgb, var(--t-text) 5%, transparent)" }}>{a.ticker}</span>}
+                      </div>
+                      <p className="text-[10px] leading-snug" style={{ color: "var(--t-muted)" }}>{a.context}</p>
+                    </div>
+                    <BiasBadge bias={a.bias} />
+                  </div>
+                ))}
+              </div>
             </div>
           )}
+
+          {/* Beginner Tip */}
+          {cat.beginnerTip && (
+            <div className="rounded-lg p-3.5" style={{ background: "color-mix(in srgb, var(--t-accent) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--t-accent) 18%, transparent)" }}>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Lightbulb className="h-3 w-3" style={{ color: "var(--t-accent)" }} />
+                <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--t-accent)" }}>Beginner Tip</span>
+              </div>
+              <p className="text-[10.5px] leading-relaxed" style={{ color: "var(--t-muted)" }}>{cat.beginnerTip}</p>
+            </div>
+          )}
+
+          <div className="h-4" />
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
-function CatalystCard({ cat }: { cat: Catalyst }) {
-  const [open, setOpen] = React.useState(false);
+// ── Preview card ──────────────────────────────────────────────────────────────
+function CatalystCard({ cat, index }: { cat: Catalyst; index: number }) {
+  const [open, setOpen] = useState(false);
   const { settings } = useSettings();
   const selectedSymbol = settings.selectedSymbol ?? "XAUUSD";
-  const cardAssetShort = getSymbolShort(selectedSymbol);
-  const cardAssetImpact = getCatalystImpactForSymbol(cat, selectedSymbol);
+  const assetShort  = getSymbolShort(selectedSymbol);
+  const assetImpact = getCatalystImpactForSymbol(cat, selectedSymbol);
+  const bias = cat.sentimentTag ?? "neutral";
+  const isLive = cat.status === "live";
+
+  const accentColor =
+    isLive            ? "var(--t-accent)"   :
+    bias === "bearish"? "var(--t-bearish)"  :
+    bias === "bullish"? "var(--t-bullish)"  :
+                        "var(--t-border)";
+
+  // Preview body — first 2 sentences of explanation
+  const preview = (() => {
+    const src = cat.analysis?.eventOverview || cat.explanation || "";
+    const sentences = src.match(/[^.!?]+[.!?]+/g) ?? [src];
+    return sentences.slice(0, 2).join(" ").trim();
+  })();
+
+  const bullets: string[] = cat.keyPoints?.length
+    ? cat.keyPoints.slice(0, 3)
+    : cat.analysis
+    ? [cat.analysis.marketLogic].filter(Boolean)
+    : [];
 
   return (
     <>
       <div
         onClick={() => setOpen(true)}
-        className={cn(
-          "group rounded-lg border px-3 py-3 cursor-pointer transition-all hover:bg-white/[0.03]",
-          cat.status === "live" ? "border-amber-500/25 bg-amber-500/[0.02]" : "border-[hsl(var(--border))] bg-[hsl(var(--card))]"
-        )}
+        className="cursor-pointer active:opacity-80 transition-opacity overflow-hidden"
+        style={{
+          borderRadius: "var(--t-card-radius)",
+          border: "1px solid var(--t-border)",
+          borderLeftWidth: 3,
+          borderLeftColor: accentColor,
+          background: "var(--t-card)",
+        }}
       >
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="flex items-center gap-1.5 min-w-0">
-            {cat.status === "live" ? <Radio className="h-3 w-3 text-amber-400 shrink-0" /> :
-             cat.status === "completed" ? <CheckCircle2 className="h-3 w-3 text-zinc-700 shrink-0" /> :
-             <Clock className="h-3 w-3 text-zinc-700 shrink-0" />}
-            <h4 className="text-[12px] font-medium text-zinc-200 leading-snug">{cat.title}</h4>
-          </div>
-          <Badge variant={cat.importance} className="shrink-0">{cat.importance}</Badge>
-        </div>
-        {(cat.goldImpact || cat.usdImpact) && (
-          <div className="flex items-center gap-1.5 pl-4 mb-1.5 flex-wrap">
-            <ImpactBadge impact={cardAssetImpact.impact} label={cardAssetShort} />
-            <ImpactBadge impact={cat.usdImpact} label="USD" />
-          </div>
-        )}
-        <div className="flex items-center justify-between pl-4">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {cat.affectedMarkets.slice(0, 4).map(m => <MarketTag key={m} label={m} />)}
-          </div>
+        {/* Header */}
+        <div className="flex items-center justify-between px-3.5 pt-3 pb-2" style={{ borderBottom: "1px solid var(--t-border)" }}>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-zinc-700">{timeAgo(cat.timestamp)}</span>
-            <span className="text-[9px] text-zinc-700 group-hover:text-zinc-500 transition-colors">
-              {cat.analysis ? "tap for analysis" : "tap for overview"}
+            {isLive
+              ? <Radio className="h-3 w-3" style={{ color: "var(--t-accent)" }} />
+              : cat.status === "completed"
+              ? <CheckCircle2 className="h-3 w-3" style={{ color: "var(--t-muted)" }} />
+              : <Clock className="h-3 w-3" style={{ color: "var(--t-muted)" }} />
+            }
+            <span className="text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: isLive ? "var(--t-accent)" : "var(--t-muted)" }}>
+              Driver #{index + 1}{cat.driverCategory ? ` · ${cat.driverCategory}` : ""}
             </span>
           </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[8.5px] font-bold uppercase tracking-wider"
+              style={{ color: bias === "bearish" ? "var(--t-bearish)" : bias === "bullish" ? "var(--t-bullish)" : "var(--t-muted)" }}>
+              ● {cat.importance}
+            </span>
+            <span className="text-[8px]" style={{ color: "var(--t-muted)", opacity: 0.45 }}>{timeAgo(cat.timestamp)}</span>
+          </div>
+        </div>
+
+        <div className="px-3.5 pt-2.5 pb-3">
+          {/* Headline + badge */}
+          <div className="flex items-start gap-2 mb-2.5">
+            <h3 className="text-[12.5px] font-black uppercase leading-snug flex-1 min-w-0" style={{ color: "var(--t-text)" }}>
+              {cat.title}
+            </h3>
+            <BiasBadge bias={bias} />
+          </div>
+
+          {/* Market chips */}
+          <div className="flex flex-wrap gap-1 mb-3">
+            {cat.affectedMarkets.slice(0, 4).map(m => (
+              <span key={m} className="text-[8.5px] font-mono px-1.5 py-0.5"
+                style={{ color: "var(--t-muted)", background: "color-mix(in srgb, var(--t-text) 5%, transparent)", borderRadius: "var(--t-badge-radius)", border: "1px solid var(--t-border)" }}>
+                {m}
+              </span>
+            ))}
+            {assetImpact.impact && (
+              <span className="text-[8.5px] font-bold px-1.5 py-0.5"
+                style={{
+                  color: assetImpact.impact === "bullish" ? "var(--t-bullish)" : assetImpact.impact === "bearish" ? "var(--t-bearish)" : "var(--t-muted)",
+                  background: assetImpact.impact === "bullish" ? "color-mix(in srgb, var(--t-bullish) 12%, transparent)" : assetImpact.impact === "bearish" ? "color-mix(in srgb, var(--t-bearish) 12%, transparent)" : "color-mix(in srgb, var(--t-muted) 10%, transparent)",
+                  borderRadius: "var(--t-badge-radius)",
+                  border: `1px solid ${assetImpact.impact === "bullish" ? "color-mix(in srgb, var(--t-bullish) 25%, transparent)" : assetImpact.impact === "bearish" ? "color-mix(in srgb, var(--t-bearish) 25%, transparent)" : "var(--t-border)"}`,
+                }}>
+                {assetShort} {assetImpact.impact.toUpperCase()}
+              </span>
+            )}
+          </div>
+
+          {/* Preview paragraph */}
+          {preview && (
+            <p className="text-[11px] leading-relaxed mb-3 line-clamp-3" style={{ color: "var(--t-muted)" }}>
+              <PriceHighlight text={preview} />
+            </p>
+          )}
+
+          {/* Bullet preview */}
+          {bullets.length > 0 && (
+            <div className="rounded-lg px-3 py-2.5 mb-3 space-y-1.5"
+              style={{ background: "color-mix(in srgb, var(--t-text) 4%, transparent)", border: "1px solid var(--t-border)" }}>
+              {bullets.map((b, i) => (
+                <div key={i} className="flex items-start gap-1.5">
+                  <ChevronRight className="h-2.5 w-2.5 mt-0.5 shrink-0" style={{ color: accentColor, opacity: 0.7 }} />
+                  <span className="text-[10px] leading-snug line-clamp-2" style={{ color: "var(--t-muted)" }}>
+                    <PriceHighlight text={b} />
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Beginner tip preview */}
+          {cat.beginnerTip && (
+            <div className="rounded-lg px-3 py-2.5 flex items-start gap-2"
+              style={{ background: "color-mix(in srgb, var(--t-accent) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--t-accent) 18%, transparent)" }}>
+              <Lightbulb className="h-3 w-3 mt-0.5 shrink-0" style={{ color: "var(--t-accent)" }} />
+              <p className="text-[10px] leading-snug line-clamp-2" style={{ color: "var(--t-muted)" }}>{cat.beginnerTip}</p>
+            </div>
+          )}
+
+          {/* Tap hint */}
+          <p className="text-[9px] mt-2.5 text-right" style={{ color: "var(--t-muted)", opacity: 0.4 }}>
+            Tap for full analysis →
+          </p>
         </div>
       </div>
-      {open && <AnalysisModal cat={cat} onClose={() => setOpen(false)} />}
+
+      {open && <CatalystModal cat={cat} index={index} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-export function CatalystFeed({ catalysts, limit }: CatalystFeedProps) {
+// ── Feed ──────────────────────────────────────────────────────────────────────
+export function CatalystFeed({ catalysts, limit }: { catalysts: Catalyst[]; limit?: number }) {
   const items = limit ? catalysts.slice(0, limit) : catalysts;
 
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
-        <Zap className="h-5 w-5 text-zinc-700" />
-        <p className="text-xs text-zinc-600">No catalysts at the moment</p>
-        <p className="text-[10px] text-zinc-700">Refreshes every 3 minutes</p>
+        <Zap className="h-5 w-5" style={{ color: "var(--t-muted)" }} />
+        <p className="text-xs" style={{ color: "var(--t-muted)" }}>No catalysts at the moment</p>
+        <p className="text-[10px]" style={{ color: "var(--t-muted)", opacity: 0.5 }}>Refreshes every 3 minutes</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
-      {items.map(cat => <CatalystCard key={cat.id} cat={cat} />)}
+    <div className="space-y-3">
+      {items.map((cat, i) => (
+        <CatalystCard key={cat.id} cat={cat} index={i} />
+      ))}
     </div>
   );
 }
