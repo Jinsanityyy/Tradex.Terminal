@@ -2,7 +2,7 @@ import { getServiceClient } from "@/lib/supabase/service";
 import type { AgentRunResult } from "./schemas";
 import type { Symbol, Timeframe } from "./schemas";
 
-const CACHE_TTL_MS = 180_000; // 3 minutes — Gemini is free so we can afford fresher runs
+const CACHE_TTL_MS = 150_000; // 2.5 minutes — must be < refreshInterval (180s) so SWR always fires after cache expires
 
 function cacheId(symbol: Symbol, timeframe: Timeframe): string {
   return `${symbol}_${timeframe}`;

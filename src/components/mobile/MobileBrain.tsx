@@ -463,6 +463,38 @@ export function MobileBrain() {
 
   const isWaitState = sigState === "WAIT";
 
+  const lastAutoRefreshRef = useRef<number>(0);
+  const [autoRefreshing, setAutoRefreshing] = useState(false);
+
+  // When signal is EXPIRED and data is stale, silently trigger a fresh agent run
+  // so we don't leave the user stuck on an invalidated setup indefinitely.
+  useEffect(() => {
+    if (sigState !== "EXPIRED") return;
+    if (!data?.timestamp) return;
+    const dataAgeMs = Date.now() - new Date(data.timestamp).getTime();
+    // Only if data is > 60 s old AND it's been > 2 min since we last auto-refreshed
+    if (dataAgeMs < 60_000) return;
+    if (Date.now() - lastAutoRefreshRef.current < 120_000) return;
+
+    lastAutoRefreshRef.current = Date.now();
+    setAutoRefreshing(true);
+
+    const doRefresh = subscription.hasFullAccess
+      ? fetch("/api/agents/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ symbol, timeframe, forceRefresh: true }),
+        }).then(r => (r.ok ? (r.json() as Promise<AgentRunResult>) : Promise.reject(new Error("not ok"))))
+      : fetch(`/api/agents/run?symbol=${symbol}&timeframe=${timeframe}`).then(r =>
+          r.ok ? (r.json() as Promise<AgentRunResult>) : Promise.reject(new Error("not ok"))
+        );
+
+    mutate(doRefresh, { revalidate: false })
+      .catch(() => mutate())
+      .finally(() => setAutoRefreshing(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sigState, data?.timestamp]);
+
   const [view, setView] = useState<"brain" | "floor">("brain");
   const [drawerAgentId, setDrawerAgentId] = useState("risk");
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -563,19 +595,28 @@ export function MobileBrain() {
 
           {(isLoading || refreshing) && data ? (
             <div className="h-48 rounded-2xl bg-white/5 animate-pulse" />
-          ) : tradePlan && sigState !== "EXPIRED" ? (
-            <TradePlanCard tradePlan={tradePlan} />
-          ) : tradePlan && sigState === "EXPIRED" ? (
-            <div className="relative">
-              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-black/60 backdrop-blur-[2px]">
-                <span className="rounded-lg border border-zinc-600/40 bg-zinc-900/80 px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-zinc-400">
-                  Setup Invalidated
-                </span>
-              </div>
-              <div className="pointer-events-none opacity-30">
-                <TradePlanCard tradePlan={tradePlan} />
+          ) : sigState === "EXPIRED" ? (
+            <div className="rounded-2xl border border-zinc-700/30 bg-zinc-900/50 px-4 py-5">
+              <div className="flex items-start gap-3">
+                <div className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 bg-zinc-800/80 border border-zinc-700/40">
+                  {autoRefreshing
+                    ? <RefreshCw className="h-4 w-4 text-zinc-400 animate-spin" />
+                    : <Clock className="h-4 w-4 text-zinc-500" />}
+                </div>
+                <div>
+                  <p className="text-[12px] font-bold text-zinc-400">
+                    {autoRefreshing ? "Searching for new setup…" : "Setup Invalidated"}
+                  </p>
+                  <p className="text-[11px] text-zinc-600 mt-1 leading-snug">
+                    {autoRefreshing
+                      ? "Running fresh analysis to find the next valid opportunity."
+                      : "Price moved through the stop-loss level. Waiting for a new valid structure to form."}
+                  </p>
+                </div>
               </div>
             </div>
+          ) : tradePlan ? (
+            <TradePlanCard tradePlan={tradePlan} />
           ) : data ? (
             <StandAsideCard exec={exec} isWait={isWaitState} />
           ) : null}

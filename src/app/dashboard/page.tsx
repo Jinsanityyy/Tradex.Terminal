@@ -807,6 +807,7 @@ export default function DashboardPage() {
   });
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cooldownActiveRef = useRef(false); // synchronous guard — state updates are async
+  const lastAutoRefreshRef = useRef<number>(0);
 
   const startCooldown = useCallback(() => {
     cooldownActiveRef.current = true;
@@ -1092,6 +1093,18 @@ export default function DashboardPage() {
   })();
 
   const signalConfig = signalStateConfig(signalState);
+
+  // Auto-refresh when signal is EXPIRED and data is stale — don't leave user stuck
+  useEffect(() => {
+    if (signalState !== "EXPIRED") return;
+    if (!data?.timestamp) return;
+    const dataAgeMs = Date.now() - new Date(data.timestamp).getTime();
+    if (dataAgeMs < 60_000) return;
+    if (Date.now() - lastAutoRefreshRef.current < 120_000) return;
+    lastAutoRefreshRef.current = Date.now();
+    mutate(undefined, { revalidate: true }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signalState, data?.timestamp]);
 
   // Live-computed distance and reason (overrides stale cached values)
   const liveDistanceToEntry = (livePrice && exec?.entry)
