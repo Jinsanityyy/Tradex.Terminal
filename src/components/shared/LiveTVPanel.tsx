@@ -8,18 +8,18 @@ interface Channel {
   id: string;
   name: string;
   label: string;
-  videoId: string;
+  channelId: string;
   handle: string;
   color: string;
 }
 
-// Persistent live stream video IDs — these channels run 24/7 streams with stable IDs
+// Channel IDs are stable — live_stream?channel= always resolves to the current live broadcast
 const CHANNELS: Channel[] = [
   {
     id: "bloomberg",
     name: "Bloomberg TV",
     label: "Markets · Macro · Equities",
-    videoId: "iEpJwprxDdk",
+    channelId: "UCIALMKvObZNtJ6AmdCLP7Lg",
     handle: "@BloombergTelevision",
     color: "text-blue-400 border-blue-500/40 bg-blue-500/10",
   },
@@ -27,7 +27,7 @@ const CHANNELS: Channel[] = [
     id: "cnbc",
     name: "CNBC",
     label: "US Markets · Earnings · Fed",
-    videoId: "kbeYeyt8IW0",
+    channelId: "UCrp_UI8XtuYfpiqluWLD7Lw",
     handle: "@CNBC",
     color: "text-blue-300 border-blue-400/40 bg-blue-400/10",
   },
@@ -35,7 +35,7 @@ const CHANNELS: Channel[] = [
     id: "reuters",
     name: "Reuters",
     label: "Global News · Geopolitics",
-    videoId: "INDhdbMGeKU",
+    channelId: "UChqUTb7kYRX8-EiaN3XFrSQ",
     handle: "@Reuters",
     color: "text-orange-400 border-orange-500/40 bg-orange-500/10",
   },
@@ -43,7 +43,7 @@ const CHANNELS: Channel[] = [
     id: "al-jazeera",
     name: "Al Jazeera",
     label: "Geopolitics · Middle East · Oil",
-    videoId: "gCNeDWCI0vo",
+    channelId: "UCNye-wNBqNL5ZzHSJdse18g",
     handle: "@AlJazeeraEnglish",
     color: "text-amber-400 border-amber-500/40 bg-amber-500/10",
   },
@@ -51,7 +51,7 @@ const CHANNELS: Channel[] = [
     id: "yahoo-finance",
     name: "Yahoo Finance",
     label: "Stocks · Earnings · Economy",
-    videoId: "KQp-e_XQnDE",
+    channelId: "UCEAZeUIeJs0IjQiqTCdVSIg",
     handle: "@YahooFinance",
     color: "text-violet-400 border-violet-500/40 bg-violet-500/10",
   },
@@ -59,8 +59,8 @@ const CHANNELS: Channel[] = [
 
 const EMBED_PARAMS = "autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&fs=1";
 
-function buildEmbedUrl(videoId: string): string {
-  return `https://www.youtube-nocookie.com/embed/${videoId}?${EMBED_PARAMS}`;
+function buildEmbedUrl(channelId: string): string {
+  return `https://www.youtube-nocookie.com/embed/live_stream?channel=${channelId}&${EMBED_PARAMS}`;
 }
 
 export function LiveTVPanel({
@@ -106,7 +106,7 @@ export function LiveTVPanel({
     return () => document.removeEventListener("tradex:mobile-tab-change", onMobileTabChange);
   }, []);
 
-  const embedUrl = buildEmbedUrl(active.videoId);
+  const embedUrl = buildEmbedUrl(active.channelId);
 
   return (
     <div className="flex h-full min-h-0 flex-col space-y-3">
@@ -182,7 +182,7 @@ export function LiveTVPanel({
           <span className="text-[10px] text-zinc-500">{active.label}</span>
           <div className="ml-auto flex items-center gap-3">
             <a
-              href={`https://www.youtube.com/watch?v=${active.videoId}`}
+              href={`https://www.youtube.com/${active.handle}/live`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[9px] font-medium text-zinc-500 underline-offset-2 hover:text-zinc-300 hover:underline"
