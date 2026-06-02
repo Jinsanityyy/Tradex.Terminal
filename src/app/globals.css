@@ -301,33 +301,35 @@ iframe,
   --t-glow-mul:     0.4;
 }
 
-/* Cod Gray — neutral near-black (#171717), no color tint */
+/* Cod Gray — flat, uniform near-black (#171717), no color tint.
+   Surfaces hug #171717 so the whole UI reads as one deep flat dark (like the
+   reference swatch) instead of visibly lighter elevated panels. */
 [data-theme="codgray"] {
-  --background: 0 0% 9%;        /* #171717 */
+  --background: 0 0% 9%;        /* #171717  — the reference color */
   --foreground: 0 0% 95%;
-  --card: 0 0% 12%;             /* #1f1f1f */
+  --card: 0 0% 9%;             /* #171717  — same as bg, flat look */
   --card-foreground: 0 0% 95%;
-  --popover: 0 0% 12%;
+  --popover: 0 0% 10%;          /* #1a1a1a  — popovers a hair above bg */
   --popover-foreground: 0 0% 95%;
-  --secondary: 0 0% 16%;        /* #292929 */
+  --secondary: 0 0% 12%;        /* #1f1f1f  — subtle elevation only */
   --secondary-foreground: 0 0% 95%;
-  --muted: 0 0% 22%;
-  --muted-foreground: 0 0% 60%;
-  --border: 0 0% 18%;
-  --input: 0 0% 18%;
-  --sidebar-bg: 0 0% 7%;        /* #121212 — slightly darker than bg */
+  --muted: 0 0% 15%;            /* #262626 */
+  --muted-foreground: 0 0% 56%;
+  --border: 0 0% 13%;           /* #212121  — barely-there separators */
+  --input: 0 0% 13%;
+  --sidebar-bg: 0 0% 9%;        /* #171717  — match bg, fully flat */
 
   --t-bg:           #171717;
-  --t-card:         #1F1F1F;
-  --t-card-2:       #262626;
-  --t-border:       rgba(255,255,255,0.07);
-  --t-border-sub:   rgba(255,255,255,0.05);
+  --t-card:         #171717;
+  --t-card-2:       #1C1C1C;
+  --t-border:       rgba(255,255,255,0.05);
+  --t-border-sub:   rgba(255,255,255,0.035);
   --t-text:         #EDEDED;
   --t-muted:        #9A9A9A;
-  --t-glow-green:   rgba(0,200,150,0.08);
-  --t-glow-red:     rgba(255,77,79,0.08);
-  --t-glow-amber:   rgba(245,158,11,0.08);
-  --t-glow-mul:     0.7;
+  --t-glow-green:   rgba(0,200,150,0.06);
+  --t-glow-red:     rgba(255,77,79,0.06);
+  --t-glow-amber:   rgba(245,158,11,0.06);
+  --t-glow-mul:     0.6;
 }
 
 /* Pink — dark terminal with rose/pink chrome */
