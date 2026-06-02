@@ -32,6 +32,148 @@ function ImpactBadge({ impact, label }: { impact?: "bullish" | "bearish" | "neut
   );
 }
 
+// ── Price-only highlighter ────────────────────────────────────────────────────
+const PRICE_RE = /(\$[\d,]+(?:\.\d+)?[KMBTk]?|\b\d+\.?\d*%)/g;
+
+function PriceHighlight({ text }: { text: string }) {
+  const parts: { text: string; isPrice: boolean }[] = [];
+  let last = 0, m: RegExpExecArray | null;
+  PRICE_RE.lastIndex = 0;
+  while ((m = PRICE_RE.exec(text)) !== null) {
+    if (m.index > last) parts.push({ text: text.slice(last, m.index), isPrice: false });
+    parts.push({ text: m[0], isPrice: true });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push({ text: text.slice(last), isPrice: false });
+  return (
+    <>
+      {parts.map((p, i) =>
+        p.isPrice
+          ? <span key={i} className="font-semibold" style={{ color: "var(--t-accent)" }}>{p.text}</span>
+          : <span key={i}>{p.text}</span>
+      )}
+    </>
+  );
+}
+
+// ── Bias badge ────────────────────────────────────────────────────────────────
+function BiasBadge({ bias }: { bias: string }) {
+  const b = bias.toLowerCase();
+  const s =
+    b === "bullish" ? { color: "var(--t-bullish)", bg: "color-mix(in srgb, var(--t-bullish) 15%, transparent)", border: "color-mix(in srgb, var(--t-bullish) 30%, transparent)" } :
+    b === "bearish" ? { color: "var(--t-bearish)", bg: "color-mix(in srgb, var(--t-bearish) 15%, transparent)", border: "color-mix(in srgb, var(--t-bearish) 30%, transparent)" } :
+                      { color: "var(--t-muted)",   bg: "color-mix(in srgb, var(--t-muted)   10%, transparent)", border: "var(--t-border)" };
+  const Icon = b === "bullish" ? TrendingUp : b === "bearish" ? TrendingDown : Minus;
+  const label = b === "bullish" ? "BULLISH" : b === "bearish" ? "BEARISH" : "NEUTRAL";
+  return (
+    <span
+      className="inline-flex items-center gap-1 border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider shrink-0"
+      style={{ color: s.color, background: s.bg, borderColor: s.border, borderRadius: "var(--t-badge-radius)" }}
+    >
+      <Icon className="h-2.5 w-2.5" />{label}
+    </span>
+  );
+}
+
+// ── Policy signal card (callisto style for non-Truth-Social posts) ────────────
+function TrumpPolicyCard({ post, onClick }: { post: TrumpPost; onClick: () => void }) {
+  const bias = post.sentimentClassification ?? "neutral";
+  const accentColor =
+    bias === "bearish" ? "var(--t-bearish)" :
+    bias === "bullish" ? "var(--t-bullish)" :
+                         "var(--t-border)";
+
+  const impactLabel = post.impactScore >= 7 ? "HIGH" : post.impactScore >= 5 ? "MED" : "LOW";
+  const impactColor =
+    post.impactScore >= 7 ? "var(--t-bearish)" :
+    post.impactScore >= 5 ? "var(--t-accent)" :
+    "var(--t-muted)";
+
+  const categoryLabel = (post.policyCategory ?? "POLICY").toUpperCase();
+  const contentPreview = post.content.length > 130 ? post.content.slice(0, 130) + "…" : post.content;
+
+  const assetChip = (impact: "bullish" | "bearish" | "neutral" | undefined, label: string) => {
+    if (!impact) return null;
+    return (
+      <span key={label} className="text-[8.5px] font-bold px-1.5 py-0.5"
+        style={{
+          color: impact === "bullish" ? "var(--t-bullish)" : impact === "bearish" ? "var(--t-bearish)" : "var(--t-muted)",
+          background: impact === "bullish" ? "color-mix(in srgb, var(--t-bullish) 12%, transparent)" : impact === "bearish" ? "color-mix(in srgb, var(--t-bearish) 12%, transparent)" : "color-mix(in srgb, var(--t-muted) 10%, transparent)",
+          borderRadius: "var(--t-badge-radius)",
+          border: `1px solid ${impact === "bullish" ? "color-mix(in srgb, var(--t-bullish) 25%, transparent)" : impact === "bearish" ? "color-mix(in srgb, var(--t-bearish) 25%, transparent)" : "var(--t-border)"}`,
+        }}>
+        {label} {impact.toUpperCase()}
+      </span>
+    );
+  };
+
+  return (
+    <div
+      onClick={onClick}
+      className="cursor-pointer active:opacity-80 transition-opacity overflow-hidden"
+      style={{
+        borderRadius: "var(--t-card-radius)",
+        border: "1px solid var(--t-border)",
+        borderLeftWidth: 3,
+        borderLeftColor: accentColor,
+        background: "var(--t-card)",
+      }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-3.5 pt-3 pb-2" style={{ borderBottom: "1px solid var(--t-border)" }}>
+        <div className="flex items-center gap-2">
+          <UserCircle className="h-3 w-3" style={{ color: "var(--t-accent)", opacity: 0.7 }} />
+          <span className="text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: "var(--t-muted)" }}>
+            TRUMP POST · {categoryLabel}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: impactColor }}>● {impactLabel}</span>
+          <span className="text-[8px]" style={{ color: "var(--t-muted)", opacity: 0.45 }}>{timeAgo(post.timestamp)}</span>
+        </div>
+      </div>
+
+      <div className="px-3.5 pt-2.5 pb-3">
+        {/* Content preview + bias badge */}
+        <div className="flex items-start gap-2 mb-2.5">
+          <p className="text-[12px] font-black uppercase leading-snug flex-1 min-w-0 line-clamp-3" style={{ color: "var(--t-text)" }}>
+            &ldquo;{contentPreview}&rdquo;
+          </p>
+          <BiasBadge bias={bias} />
+        </div>
+
+        {/* Asset + source chips */}
+        <div className="flex flex-wrap gap-1 mb-3">
+          {post.affectedAssets?.slice(0, 3).map(a => (
+            <span key={a} className="text-[8.5px] font-mono px-1.5 py-0.5"
+              style={{ color: "var(--t-muted)", background: "color-mix(in srgb, var(--t-text) 5%, transparent)", borderRadius: "var(--t-badge-radius)", border: "1px solid var(--t-border)" }}>
+              {a}
+            </span>
+          ))}
+          {assetChip(post.goldImpact, "GOLD")}
+          {assetChip(post.usdImpact, "USD")}
+          <span className="text-[8.5px] font-mono px-1.5 py-0.5"
+            style={{ color: "var(--t-muted)", background: "color-mix(in srgb, var(--t-text) 5%, transparent)", borderRadius: "var(--t-badge-radius)", border: "1px solid var(--t-border)" }}>
+            {post.source}
+          </span>
+        </div>
+
+        {/* Why it matters snippet */}
+        {post.whyItMatters && (
+          <p className="text-[11px] leading-relaxed mb-3" style={{ color: "var(--t-muted)" }}>
+            <PriceHighlight text={post.whyItMatters} />
+          </p>
+        )}
+
+        {/* Tap hint */}
+        <p className="text-[9px] text-right" style={{ color: "var(--t-muted)", opacity: 0.4 }}>
+          Tap for full analysis →
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function TrumpPostDetail({ post }: { post: TrumpPost }) {
   const sentimentIcon = post.sentimentClassification === "bullish"
     ? <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
@@ -291,87 +433,9 @@ export function TrumpFeedPanel({ posts, limit, compact = false }: TrumpFeedPanel
             );
           }
 
-          // News posts keep the existing compact card
+          // Policy signal posts get the callisto-style card
           return (
-          <Card key={post.id} onClick={() => setSelected(post)} className={cn(
-            "transition-all hover:border-amber-500/30 cursor-pointer",
-            post.impactScore >= 8 && "border-amber-500/20 bg-amber-500/[0.02]"
-          )}>
-            <CardContent className="p-3">
-              {/* Header */}
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2">
-                  <UserCircle className="h-4 w-4 text-amber-400 shrink-0" />
-                  <span className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))]">{post.source}</span>
-                  <span className="text-[10px] text-[hsl(var(--muted-foreground))]">{timeAgo(post.timestamp)}</span>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <Badge variant={post.sentimentClassification}>{post.sentimentClassification}</Badge>
-                  <div className="flex items-center gap-0.5">
-                    <Flame className={cn("h-3 w-3", post.impactScore >= 7 ? "text-amber-400" : "text-[hsl(var(--muted-foreground))]")} />
-                    <span className="text-[10px] font-mono font-semibold text-[hsl(var(--foreground))]">{post.impactScore}/10</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Content */}
-              <p className="text-xs text-[hsl(var(--foreground))] leading-relaxed mb-2 font-medium">
-                &ldquo;{post.content}&rdquo;
-              </p>
-
-              {/* Gold + USD inline badges */}
-              {(post.goldImpact || post.usdImpact) && (
-                <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-                  <ImpactBadge impact={post.goldImpact} label="GOLD" />
-                  <ImpactBadge impact={post.usdImpact} label="USD" />
-                </div>
-              )}
-
-              {!compact && (
-                <>
-                  {/* Tags */}
-                  <div className="flex items-center gap-1.5 flex-wrap mb-2">
-                    <Badge variant="outline" className="text-[10px]">{post.policyCategory}</Badge>
-                    {post.tags.slice(0, 3).map((tag) => (
-                      <span key={tag} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))]">
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Why it matters */}
-                  <div className="space-y-1.5 mb-2">
-                    <div className="flex items-start gap-1.5">
-                      <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0 text-amber-400" />
-                      <div>
-                        <span className="text-[10px] uppercase tracking-wider text-amber-400 block">Why This Matters</span>
-                        <p className="text-[11px] text-[hsl(var(--muted-foreground))] leading-relaxed">{post.whyItMatters}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Reaction + Assets */}
-                  <div className="flex items-start gap-1.5 mb-2">
-                    <ArrowRight className="h-3 w-3 mt-0.5 shrink-0 text-[hsl(var(--muted-foreground))]" />
-                    <p className="text-[11px] text-[hsl(var(--muted-foreground))]">{post.potentialReaction}</p>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Affected:</span>
-                    {post.affectedAssets.slice(0, 5).map((a) => (
-                      <span key={a} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))]">
-                        {a}
-                      </span>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {compact && (
-                <p className="text-[10px] text-amber-400/70 mt-1">Click for full analysis →</p>
-              )}
-            </CardContent>
-          </Card>
+            <TrumpPolicyCard key={post.id} post={post} onClick={() => setSelected(post)} />
           );
         })}
       </div>

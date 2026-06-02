@@ -1,14 +1,14 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus, Target, Shield, BookOpen, ChevronRight, Timer, Eye } from "lucide-react";
+import { Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus, Target, Shield, ChevronRight, Timer, Eye } from "lucide-react";
 import type { EconomicEvent } from "@/types";
 import { DetailModal } from "./DetailModal";
 import { getSymbolLabel, getSymbolShort, getEventImpactForSymbol } from "@/lib/assetImpact";
 
-// ── Countdown Timer ──────────────────────────────────────────────────────────
+// ── Countdown Timer ───────────────────────────────────────────────────────────
 function useCountdown(utcTimestamp?: number) {
   const [diff, setDiff] = useState<number | null>(null);
 
@@ -16,7 +16,6 @@ function useCountdown(utcTimestamp?: number) {
     if (!utcTimestamp) return;
     const tick = () => setDiff(utcTimestamp - Date.now());
     tick();
-    // Update every second if < 5 min away, else every 30s
     const ms = (utcTimestamp - Date.now()) < 5 * 60_000 ? 1000 : 30_000;
     const id = setInterval(tick, ms);
     return () => clearInterval(id);
@@ -27,7 +26,6 @@ function useCountdown(utcTimestamp?: number) {
 
 function Countdown({ utcTimestamp, compact }: { utcTimestamp?: number; compact?: boolean }) {
   const diff = useCountdown(utcTimestamp);
-
   if (diff === null || diff <= 0) return null;
 
   const totalSeconds = Math.floor(diff / 1000);
@@ -35,20 +33,13 @@ function Countdown({ utcTimestamp, compact }: { utcTimestamp?: number; compact?:
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
 
-  const label = hours > 0
-    ? `${hours}h ${minutes}m`
-    : minutes > 0
-    ? `${minutes}m ${seconds}s`
-    : `${seconds}s`;
-
-  const urgent = diff < 30 * 60_000; // under 30 min
+  const label = hours > 0 ? `${hours}h ${minutes}m` : minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+  const urgent = diff < 30 * 60_000;
 
   return (
     <span className={cn(
       "inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold tabular-nums",
-      urgent
-        ? "bg-amber-500/15 text-amber-400 border border-amber-500/25"
-        : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+      urgent ? "bg-amber-500/15 text-amber-400 border border-amber-500/25" : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
     )}>
       <Timer className="h-2.5 w-2.5 shrink-0" />
       {label}
@@ -61,6 +52,30 @@ interface EconomicEventTableProps {
   showInterpretation?: boolean;
   compact?: boolean;
   symbol?: string;
+}
+
+// ── Price-only highlighter ────────────────────────────────────────────────────
+const PRICE_RE = /(\$[\d,]+(?:\.\d+)?[KMBTk]?|\b\d+\.?\d*%)/g;
+
+function PriceHighlight({ text }: { text: string }) {
+  const parts: { text: string; isPrice: boolean }[] = [];
+  let last = 0, m: RegExpExecArray | null;
+  PRICE_RE.lastIndex = 0;
+  while ((m = PRICE_RE.exec(text)) !== null) {
+    if (m.index > last) parts.push({ text: text.slice(last, m.index), isPrice: false });
+    parts.push({ text: m[0], isPrice: true });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push({ text: text.slice(last), isPrice: false });
+  return (
+    <>
+      {parts.map((p, i) =>
+        p.isPrice
+          ? <span key={i} className="font-semibold" style={{ color: "var(--t-accent)" }}>{p.text}</span>
+          : <span key={i}>{p.text}</span>
+      )}
+    </>
+  );
 }
 
 function ImpactBadge({ impact, label }: { impact?: "bullish" | "bearish" | "neutral"; label: string }) {
@@ -79,28 +94,25 @@ function ImpactBadge({ impact, label }: { impact?: "bullish" | "bearish" | "neut
   );
 }
 
-// Wraps ±N.N% / $N / NK patterns in a monospace span for Bloomberg-style data rendering
 function DataInline({ text }: { text: string }) {
   const parts = text.split(/([\$±]?[\d,]+\.?\d*[KkMmBb%]?(?:\s*[KkMmBb%])?)/g);
   return (
     <>
       {parts.map((part, i) =>
-        /[\d]/.test(part) ? (
-          <span key={i} className="font-data tabular-nums text-zinc-200">{part}</span>
-        ) : (
-          <span key={i}>{part}</span>
-        )
+        /[\d]/.test(part)
+          ? <span key={i} className="font-data tabular-nums text-zinc-200">{part}</span>
+          : <span key={i}>{part}</span>
       )}
     </>
   );
 }
 
+// ── Detail modal body (unchanged) ─────────────────────────────────────────────
 function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: string }) {
   const isCompleted = ev.status === "completed";
   const assetImpact = getEventImpactForSymbol(ev, symbol);
   const assetLabel = getSymbolLabel(symbol);
 
-  // Determine glow for Trade Implication box
   const tradeGlow =
     assetImpact.impact === "bullish" || ev.usdImpact === "bullish"
       ? "border-emerald-500/30 bg-emerald-500/[0.06] shadow-[0_0_18px_rgba(52,211,153,0.12)]"
@@ -109,11 +121,9 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
       : "border-[hsl(var(--primary))]/20 bg-[hsl(var(--primary))]/5";
 
   const tradeTextColor =
-    assetImpact.impact === "bullish" || ev.usdImpact === "bullish"
-      ? "text-emerald-400"
-      : assetImpact.impact === "bearish" || ev.usdImpact === "bearish"
-      ? "text-red-400"
-      : "text-[hsl(var(--primary))]";
+    assetImpact.impact === "bullish" || ev.usdImpact === "bullish" ? "text-emerald-400" :
+    assetImpact.impact === "bearish" || ev.usdImpact === "bearish" ? "text-red-400" :
+    "text-[hsl(var(--primary))]";
 
   return (
     <div className="space-y-4">
@@ -134,9 +144,9 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
       {/* Forecast / Previous / Actual */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { label: "Forecast", value: ev.forecast,       color: "text-blue-400" },
-          { label: "Previous", value: ev.previous,       color: "text-zinc-400" },
-          { label: "Actual",   value: ev.actual || " - ", color: ev.actual ? "text-[hsl(var(--primary))]" : "text-zinc-600" },
+          { label: "Forecast", value: ev.forecast,        color: "text-blue-400" },
+          { label: "Previous", value: ev.previous,        color: "text-zinc-400" },
+          { label: "Actual",   value: ev.actual || " — ", color: ev.actual ? "text-[hsl(var(--primary))]" : "text-zinc-600" },
         ].map(({ label, value, color }) => (
           <div key={label} className="rounded-lg bg-[hsl(var(--secondary))] p-3 text-center">
             <p className="text-[9px] uppercase tracking-widest text-[hsl(var(--muted-foreground))] mb-1.5">{label}</p>
@@ -145,7 +155,7 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
         ))}
       </div>
 
-      {/* ══ COMPLETED  -  static post-event analysis ══ */}
+      {/* COMPLETED — post-event analysis */}
       {isCompleted && ev.postEventSummary && (
         <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.04] overflow-hidden">
           <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-emerald-500/15">
@@ -172,7 +182,7 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
         </div>
       )}
 
-      {/* ══ UPCOMING / LIVE  -  pre-event analysis ══ */}
+      {/* UPCOMING / LIVE — pre-event analysis */}
       {!isCompleted && ev.preEventSummary && (
         <div className="rounded-xl border border-blue-500/25 bg-blue-500/[0.04] overflow-hidden">
           <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-blue-500/15">
@@ -203,7 +213,7 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
         </div>
       )}
 
-      {/* Pre-event Asset / USD context */}
+      {/* Pre-event asset / USD context */}
       {!isCompleted && (
         <>
           <div className="flex gap-2 flex-wrap">
@@ -256,112 +266,171 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
   );
 }
 
+// ── Preview card (callisto style) ─────────────────────────────────────────────
+function EventCard({
+  ev, index, symbol, onClick,
+}: {
+  ev: EconomicEvent;
+  index: number;
+  symbol: string;
+  onClick: () => void;
+}) {
+  const StatusIcon = ev.status === "completed" ? CheckCircle2 : ev.status === "live" ? Radio : Clock;
+  const rowImpact = getEventImpactForSymbol(ev, symbol);
+  const assetShort = getSymbolShort(symbol);
+
+  const accentColor =
+    ev.status === "live" ? "var(--t-accent)" :
+    ev.status === "completed" ? "var(--t-bullish)" :
+    "color-mix(in srgb, var(--t-muted) 40%, transparent)";
+
+  const statusColor =
+    ev.status === "live" ? "var(--t-accent)" :
+    ev.status === "completed" ? "var(--t-bullish)" :
+    "var(--t-muted)";
+
+  const statusLabel =
+    ev.status === "live" ? "LIVE NOW" :
+    ev.status === "completed" ? "COMPLETED" : "UPCOMING";
+
+  const impactLabel = ev.impact === "high" ? "HIGH" : "MED";
+  const impactColor = ev.impact === "high" ? "var(--t-bearish)" : "var(--t-accent)";
+
+  const tradeSnippet = ev.tradeImplication
+    ? ev.tradeImplication.split(".")[0] + "."
+    : null;
+
+  const assetChip = (impact: "bullish" | "bearish" | "neutral" | undefined, label: string) => {
+    if (!impact) return null;
+    return (
+      <span key={label} className="text-[8.5px] font-bold px-1.5 py-0.5"
+        style={{
+          color: impact === "bullish" ? "var(--t-bullish)" : impact === "bearish" ? "var(--t-bearish)" : "var(--t-muted)",
+          background: impact === "bullish" ? "color-mix(in srgb, var(--t-bullish) 12%, transparent)" : impact === "bearish" ? "color-mix(in srgb, var(--t-bearish) 12%, transparent)" : "color-mix(in srgb, var(--t-muted) 10%, transparent)",
+          borderRadius: "var(--t-badge-radius)",
+          border: `1px solid ${impact === "bullish" ? "color-mix(in srgb, var(--t-bullish) 25%, transparent)" : impact === "bearish" ? "color-mix(in srgb, var(--t-bearish) 25%, transparent)" : "var(--t-border)"}`,
+        }}>
+        {label} {impact.toUpperCase()}
+      </span>
+    );
+  };
+
+  return (
+    <div
+      onClick={onClick}
+      className="cursor-pointer active:opacity-80 transition-opacity overflow-hidden"
+      style={{
+        borderRadius: "var(--t-card-radius)",
+        border: "1px solid var(--t-border)",
+        borderLeftWidth: 3,
+        borderLeftColor: accentColor,
+        background: "var(--t-card)",
+      }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-3.5 pt-3 pb-2" style={{ borderBottom: "1px solid var(--t-border)" }}>
+        <div className="flex items-center gap-2">
+          <StatusIcon className="h-3 w-3" style={{ color: accentColor }} />
+          <span className="text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: "var(--t-muted)" }}>
+            EVENT #{index + 1} · USD DATA
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: impactColor }}>● {impactLabel}</span>
+          {ev.status === "upcoming" && <Countdown utcTimestamp={ev.utcTimestamp} compact />}
+          <span className="text-[8px]" style={{ color: "var(--t-muted)", opacity: 0.45 }}>{ev.time} PHT</span>
+        </div>
+      </div>
+
+      <div className="px-3.5 pt-2.5 pb-3">
+        {/* Event name + status badge */}
+        <div className="flex items-start gap-2 mb-2.5">
+          <h3 className="text-[12.5px] font-black uppercase leading-snug flex-1 min-w-0" style={{ color: "var(--t-text)" }}>
+            {ev.event}
+          </h3>
+          <span
+            className="inline-flex items-center gap-1 border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider shrink-0"
+            style={{
+              color: statusColor,
+              background: `color-mix(in srgb, ${statusColor} 15%, transparent)`,
+              borderColor: `color-mix(in srgb, ${statusColor} 30%, transparent)`,
+              borderRadius: "var(--t-badge-radius)",
+            }}
+          >
+            <StatusIcon className="h-2.5 w-2.5" />
+            {statusLabel}
+          </span>
+        </div>
+
+        {/* F / P / A data row */}
+        <div className="grid grid-cols-3 gap-1.5 mb-3">
+          {[
+            { label: "Forecast", value: ev.forecast, color: "#60a5fa" },
+            { label: "Previous", value: ev.previous, color: "var(--t-muted)" },
+            { label: "Actual",   value: ev.actual || "—", color: ev.actual ? "var(--t-accent)" : "var(--t-muted)" },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="rounded-lg p-2 text-center"
+              style={{ background: "color-mix(in srgb, var(--t-text) 4%, transparent)", border: "1px solid var(--t-border)" }}>
+              <p className="text-[8px] uppercase tracking-widest mb-1" style={{ color: "var(--t-muted)", opacity: 0.6 }}>{label}</p>
+              <p className="font-mono text-[11px] font-bold tabular-nums" style={{ color }}>{value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Asset impact chips */}
+        <div className="flex flex-wrap gap-1 mb-3">
+          {ev.affectedAssets.slice(0, 3).map(a => (
+            <span key={a} className="text-[8.5px] font-mono px-1.5 py-0.5"
+              style={{ color: "var(--t-muted)", background: "color-mix(in srgb, var(--t-text) 5%, transparent)", borderRadius: "var(--t-badge-radius)", border: "1px solid var(--t-border)" }}>
+              {a}
+            </span>
+          ))}
+          {assetChip(rowImpact.impact, assetShort)}
+          {assetChip(ev.usdImpact, "USD")}
+        </div>
+
+        {/* Trade implication snippet */}
+        {tradeSnippet && (
+          <p className="text-[11px] leading-relaxed mb-3" style={{ color: "var(--t-muted)" }}>
+            <PriceHighlight text={tradeSnippet} />
+          </p>
+        )}
+
+        {/* Tap hint */}
+        <p className="text-[9px] text-right" style={{ color: "var(--t-muted)", opacity: 0.4 }}>
+          Tap for full analysis →
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────────
 export function EconomicEventTable({ events, showInterpretation = false, compact = false, symbol = "XAUUSD" }: EconomicEventTableProps) {
   const [selected, setSelected] = useState<EconomicEvent | null>(null);
 
   if (events.length === 0) {
     return (
-      <div className="text-center py-6">
-        <p className="text-xs text-[hsl(var(--muted-foreground))]">No high-impact USD events found</p>
+      <div className="flex flex-col items-center justify-center py-8 gap-2 text-center"
+        style={{ borderRadius: "var(--t-card-radius)", border: "1px solid var(--t-border)" }}>
+        <Clock className="h-5 w-5" style={{ color: "var(--t-muted)" }} />
+        <p className="text-xs" style={{ color: "var(--t-muted)" }}>No high-impact USD events found</p>
       </div>
     );
   }
 
   return (
     <>
-      <div className="space-y-2">
-        {events.map((ev) => {
-          const StatusIcon = ev.status === "completed" ? CheckCircle2 : ev.status === "live" ? Radio : Clock;
-          const statusColor = ev.status === "completed" ? "text-emerald-500" : ev.status === "live" ? "text-amber-400 pulse-live" : "text-blue-400";
-
-          return (
-            <div
-              key={ev.id}
-              onClick={() => setSelected(ev)}
-              className={cn(
-                "rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden transition-colors cursor-pointer hover:bg-[hsl(var(--secondary))]",
-                ev.status === "live" && "border-amber-500/30 bg-amber-500/[0.03]"
-              )}
-            >
-              {/* Header Row */}
-              <div className="flex items-center justify-between px-3 py-2.5 border-b border-[hsl(var(--border))]/50">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <StatusIcon className={cn("h-3.5 w-3.5 shrink-0", statusColor)} />
-                  <span className="text-[10px] font-mono text-[hsl(var(--muted-foreground))] shrink-0">{ev.time} PHT</span>
-                  <span className="text-xs font-semibold text-[hsl(var(--foreground))] truncate">{ev.event}</span>
-                </div>
-                <div className="flex items-center gap-2 shrink-0 ml-2">
-                  {ev.status === "upcoming" && (
-                    <Countdown utcTimestamp={ev.utcTimestamp} compact />
-                  )}
-                  <Badge variant={ev.impact === "high" ? "high" : "medium"} className="text-[9px]">
-                    {ev.impact === "high" ? "HIGH" : "MED"}
-                  </Badge>
-                  <span className="text-[10px] font-mono text-[hsl(var(--muted-foreground))]">
-                    F: {ev.forecast} | P: {ev.previous}
-                    {ev.actual && ev.status === "completed" ? ` | A: ${ev.actual}` : ""}
-                  </span>
-                </div>
-              </div>
-
-              {/* Analysis Row */}
-              <div className={cn("px-3 py-2", compact ? "space-y-1" : "space-y-2")}>
-                {(() => {
-                  const rowImpact = getEventImpactForSymbol(ev, symbol);
-                  return (
-                    <>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <ImpactBadge impact={rowImpact.impact} label={getSymbolShort(symbol)} />
-                        <ImpactBadge impact={ev.usdImpact} label="USD" />
-                        <div className="flex items-center gap-1 ml-auto">
-                          {ev.affectedAssets.slice(0, 4).map((a) => (
-                            <span key={a} className="text-[9px] font-mono px-1 py-0.5 rounded bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))]">
-                              {a}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      {rowImpact.reasoning && !compact && (
-                        <div className="rounded-md bg-[hsl(var(--secondary))]/60 px-2.5 py-2 space-y-1">
-                          <div className="flex items-center gap-1.5">
-                            <Target className="h-3 w-3 text-amber-400" />
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">{getSymbolLabel(symbol)} Analysis</span>
-                          </div>
-                          <p className="text-[11px] text-[hsl(var(--foreground))] leading-relaxed">{rowImpact.reasoning}</p>
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-
-                {ev.usdReasoning && !compact && (
-                  <div className="rounded-md bg-[hsl(var(--secondary))]/60 px-2.5 py-2 space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <Shield className="h-3 w-3 text-blue-400" />
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">USD Analysis</span>
-                    </div>
-                    <p className="text-[11px] text-[hsl(var(--foreground))] leading-relaxed">{ev.usdReasoning}</p>
-                  </div>
-                )}
-
-                {ev.tradeImplication && (
-                  <div className={cn(
-                    "rounded-md px-2.5 py-2",
-                    compact ? "bg-transparent" : "bg-[hsl(var(--primary))]/5 border border-[hsl(var(--primary))]/10"
-                  )}>
-                    <p className={cn(
-                      "text-[11px] leading-relaxed",
-                      compact ? "text-[hsl(var(--muted-foreground))]" : "text-[hsl(var(--primary))]"
-                    )}>
-                      {compact ? ev.tradeImplication.split(".")[0] + "." : ev.tradeImplication}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+      <div className="space-y-3">
+        {events.map((ev, i) => (
+          <EventCard
+            key={ev.id}
+            ev={ev}
+            index={i}
+            symbol={symbol}
+            onClick={() => setSelected(ev)}
+          />
+        ))}
       </div>
 
       <DetailModal
