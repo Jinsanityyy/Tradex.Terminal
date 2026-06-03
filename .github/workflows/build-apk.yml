@@ -1,0 +1,84 @@
+name: Build Downloadable APK
+
+# Builds a sideloadable debug APK in the cloud (GitHub runners have the Android
+# SDK + network access) and attaches it to a GitHub Release, so a phone-only user
+# can install it directly — no PC, no Android Studio.
+#
+# Trigger it from the GitHub mobile app or website:
+#   Actions tab → "Build Downloadable APK" → Run workflow
+# Then download the .apk from the "android-apk" release on the Releases page.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - capacitor.config.ts
+      - android/**
+      - .github/workflows/build-apk.yml
+
+permissions:
+  contents: write   # needed to publish the APK to a Release
+
+jobs:
+  build-apk:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      # The app loads remotely (server.url), so the bundled web assets are never
+      # shown — but `cap sync` still needs a webDir to copy. A stub keeps the build
+      # self-contained without running a full Next.js export.
+      - name: Ensure web assets dir exists
+        run: |
+          mkdir -p out
+          if [ ! -f out/index.html ]; then
+            echo '<!doctype html><meta http-equiv="refresh" content="0; url=https://tradexterminal.online/m">' > out/index.html
+          fi
+
+      - name: Sync Capacitor config → Android (injects the new server.url)
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tradex-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Publish APK to a Release (easy phone download)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-apk
+          name: TradeX Android APK (latest)
+          body: |
+            Sideloadable debug build of the TradeX Android app.
+            Points to https://tradexterminal.online/m.
+
+            Install: download app-debug.apk on your phone → open it →
+            allow "install unknown apps" if prompted. Uninstall any older
+            Play Store build first (different signature).
+          files: android/app/build/outputs/apk/debug/app-debug.apk
