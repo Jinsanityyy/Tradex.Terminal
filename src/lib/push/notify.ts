@@ -51,20 +51,53 @@ export async function broadcast(payload: PushPayload): Promise<void> {
   try {
     const [fcmTokens, webSubs] = await Promise.all([getFcmTokens(), getWebPushSubs()]);
 
+    // Visibility: the send path used to swallow every failure, so a broken setup
+    // looked identical to a working one. Log the recipient counts + env state so
+    // production logs reveal WHY nothing arrived (no tokens / missing creds / errors).
+    if (fcmTokens.length === 0 && webSubs.length === 0) {
+      console.warn("[push] broadcast skipped — no recipients (fcm=0, web=0). Check token registration / SUPABASE_SERVICE_ROLE_KEY.");
+      return;
+    }
+    if (fcmTokens.length > 0 && !process.env.FIREBASE_NT_JSON) {
+      console.warn(`[push] ${fcmTokens.length} FCM token(s) but FIREBASE_NT_JSON is not set — mobile push will NOT send.`);
+    }
+
     const sends: Promise<unknown>[] = [];
 
     if (fcmTokens.length > 0 && process.env.FIREBASE_NT_JSON) {
-      sends.push(sendFcmToMany(fcmTokens, payload).catch(() => {}));
+      sends.push(
+        sendFcmToMany(fcmTokens, payload)
+          .then(r => {
+            console.log(`[push] FCM "${payload.title}": sent=${r.sent} failed=${r.failed} expired=${r.expired.length}`);
+            if (r.expired.length > 0) void cleanupExpiredFcm(r.expired);
+          })
+          .catch(e => console.warn("[push] FCM send error:", e?.message ?? e))
+      );
     }
 
     if (webSubs.length > 0 && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-      sends.push(sendPushToMany(webSubs, payload).catch(() => {}));
+      sends.push(
+        sendPushToMany(webSubs, payload)
+          .then(r => console.log(`[push] Web "${payload.title}": sent=${r.sent} failed=${r.failed} expired=${r.expired.length}`))
+          .catch(e => console.warn("[push] Web send error:", e?.message ?? e))
+      );
     }
 
     if (sends.length > 0) await Promise.all(sends);
-  } catch {
-    // Never crash the caller
+  } catch (e) {
+    // Never crash the caller — but do leave a trace.
+    console.warn("[push] broadcast failed:", (e as Error)?.message ?? e);
   }
+}
+
+// Prune dead FCM tokens so the recipient list stays clean and counts stay meaningful.
+async function cleanupExpiredFcm(ids: string[]): Promise<void> {
+  try {
+    const db = getServiceClient();
+    if (!db || ids.length === 0) return;
+    await db.from("fcm_tokens").delete().in("id", ids);
+    console.log(`[push] pruned ${ids.length} expired FCM token(s)`);
+  } catch { /* non-fatal */ }
 }
 
 // ── Public helpers ──────────────────────────────────────────────────────────
