@@ -36,7 +36,7 @@ const PAYPAL_BASE = "https://www.paypal.com/billing/subscriptions/subscribe";
 function buildPayPalUrl(planId: string): string {
   const successUrl = typeof window !== "undefined"
     ? `${window.location.origin}/m?subscribed=1`
-    : "https://tradex-ten.vercel.app/m?subscribed=1";
+    : "https://tradexterminal.online/m?subscribed=1";
   return `${PAYPAL_BASE}?plan_id=${planId}&redirect_url=${encodeURIComponent(successUrl)}`;
 }
 

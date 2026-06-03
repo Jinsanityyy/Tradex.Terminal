@@ -34,8 +34,8 @@ export async function POST(req: NextRequest) {
       mode: "subscription",
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://tradex-ten.vercel.app"}/dashboard?subscribed=1`,
-      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://tradex-ten.vercel.app"}/pricing`,
+      success_url: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://tradexterminal.online"}/dashboard?subscribed=1`,
+      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://tradexterminal.online"}/pricing`,
       customer_email: user?.email,
       allow_promotion_codes: true,
       subscription_data: {
