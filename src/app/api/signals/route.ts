@@ -79,10 +79,15 @@ export async function GET(req: NextRequest) {
     const now = Date.now();
     if (now - lastTrackerRunAt > TRACKER_COOLDOWN_MS) {
       lastTrackerRunAt = now;
+      // Owner viewing the full history reprocesses a 30-day window so losses that were
+      // mis-tracked against futures candles (before the spot-alignment fix) are
+      // re-evaluated against spot-aligned candles and corrected. Everyone else only
+      // triggers the light 4h pass (keeps the live widgets cheap).
+      const reprocessHours = owner ? 720 : 4;
       // Fire-and-forget  -  don't block the response.
       void Promise.all([
         trackOpenSignals(),
-        reprocessRecentLosses(4),
+        reprocessRecentLosses(reprocessHours),
         // reprocessIncorrectWins() disabled — was flipping null-direction wins to loss_sl indiscriminately
       ]).catch(err => console.warn("[api/signals] tracker run failed:", err));
     }

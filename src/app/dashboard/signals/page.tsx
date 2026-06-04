@@ -326,7 +326,7 @@ export default function SignalsPage() {
       <div>
         <h1 className="text-2xl font-bold text-white">Signal History</h1>
         <p className="text-sm text-zinc-400 mt-1">
-          Full transparency. Every agent decision is logged, tracked to outcome, and public.
+          Full transparency. Every agent decision is logged and tracked to outcome.
         </p>
       </div>
 
