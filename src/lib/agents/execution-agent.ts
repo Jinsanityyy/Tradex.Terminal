@@ -315,6 +315,25 @@ export async function runExecutionAgent(
       );
     }
 
+    // ── Momentum guard: never trade against a strong intraday move ──────────────
+    // The daily bias is drift-based (5-20d) so it lags hard intraday reversals — it
+    // kept firing shorts while gold rallied ~1.5% on the day, every one stopping out.
+    // If today's move runs strongly AGAINST the signal direction, the bias is fighting
+    // the tape: stand aside. Threshold scales with the instrument's daily ATR so it is
+    // "strong" relative to normal range, floored at 0.6%.
+    {
+      const chg = price.changePercent;
+      const strongMove = Math.max(0.6, indicators.atrProxy * 0.7);
+      const shortAgainstRally  = direction === "short" && chg >  strongMove;
+      const longAgainstSelloff = direction === "long"  && chg < -strongMove;
+      if (shortAgainstRally || longAgainstSelloff) {
+        console.log(`[exec] momentum block: ${symbol} ${timeframe} ${direction} vs ${chg.toFixed(2)}% day move (threshold ${strongMove.toFixed(2)}%)`);
+        return waitResult(start, "B",
+          `${direction.toUpperCase()} against a strong ${chg > 0 ? "+" : ""}${chg.toFixed(2)}% intraday move  -  not fighting momentum. Wait for the move to stall or reverse before fading it.`
+        );
+      }
+    }
+
     // ── Entry / SL construction ────────────────────────────────────────────────────────
     let entry: number;
     let stopLoss: number;
