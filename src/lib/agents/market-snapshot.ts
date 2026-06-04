@@ -246,8 +246,21 @@ export async function buildMarketSnapshot(
   })();
 
   const d1Drift = blendedDrift;
-  const convPct  = d1Drift != null ? (cfg.invertBias ? -d1Drift : d1Drift) : effPctChange;
-  const convRsi  = d1Rsi   != null ? (cfg.invertBias ? 100 - d1Rsi : d1Rsi) : effRsi;
+
+  // Blend the multi-day structural drift with TODAY's intraday move so the bias is
+  // not stuck looking backwards. Drift alone kept the bias BEARISH while price
+  // rallied ~1.5% on the day, so the system shorted every rally straight into its
+  // stop. ~40% weight on the live session lets a sharp reversal pull the bias while
+  // the structural drift still anchors it. Work in raw terms; invert once at the end.
+  const driftRaw   = d1Drift != null ? d1Drift : pctChange;
+  const blendedPct = 0.6 * driftRaw + 0.4 * pctChange;
+  const convPct    = cfg.invertBias ? -blendedPct : blendedPct;
+
+  // RSI likewise blends the daily reading with the live intraday RSI.
+  const rsiDailyRaw = d1Rsi != null ? d1Rsi : rsiVal;
+  const blendedRsi  = 0.6 * rsiDailyRaw + 0.4 * rsiVal;
+  const convRsi     = cfg.invertBias ? 100 - blendedRsi : blendedRsi;
+
   const convHigh = dailyStructure?.structuralHigh ?? effHigh;
   const convLow  = dailyStructure?.structuralLow  ?? effLow;
   const convMacd = convPct * 0.05;
