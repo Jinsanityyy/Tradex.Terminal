@@ -12,12 +12,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { computeStats, getRecentSignals } from "@/lib/signals/stats";
 import { trackOpenSignals, reprocessRecentLosses } from "@/lib/signals/tracker";
+import { getAuthUser } from "@/lib/supabase/auth-helper";
+import { isOwnerEmail } from "@/lib/auth/owner";
 import type { Symbol } from "@/lib/agents/schemas";
 import type { SignalStats } from "@/lib/signals/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
+
+// Owner-only gate. Signal history + mutations are restricted to the account owner.
+// Returns a NextResponse to short-circuit when access is denied, or null to proceed.
+async function requireOwner(req: NextRequest): Promise<NextResponse | null> {
+  const { user } = await getAuthUser(req);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isOwnerEmail(user.email)) {
+    return NextResponse.json(
+      { error: "Forbidden — signal history is restricted to the account owner" },
+      { status: 403 }
+    );
+  }
+  return null;
+}
 
 const VALID_SYMBOLS = new Set<string>(["XAUUSD", "EURUSD", "GBPUSD", "BTCUSD", "ALL"]);
 const VALID_PERIODS = new Set<string>(["24h", "7d", "30d", "all"]);
@@ -29,6 +45,11 @@ const TRACKER_COOLDOWN_MS = 60_000; // 60 seconds
 
 export async function GET(req: NextRequest) {
   try {
+    // Live signals (`recent`) stay public so the home/sidebar widgets keep working.
+    // The aggregate TRACK RECORD (`stats`) and the History page are owner-only.
+    const { user } = await getAuthUser(req);
+    const owner = isOwnerEmail(user?.email);
+
     const { searchParams } = new URL(req.url);
     const symbolParam = searchParams.get("symbol") ?? "ALL";
     const periodParam = searchParams.get("period") ?? "30d";
@@ -66,13 +87,13 @@ export async function GET(req: NextRequest) {
       ]).catch(err => console.warn("[api/signals] tracker run failed:", err));
     }
 
-    const [stats, recent] = await Promise.all([
-      computeStats(symbol, period),
-      getRecentSignals(limit),
-    ]);
+    const recent = await getRecentSignals(limit);
+    // Track-record aggregates are owner-only; non-owners get null stats.
+    const stats = owner ? await computeStats(symbol, period) : null;
 
     return NextResponse.json(
       {
+        owner,
         stats,
         recent: symbol === "ALL" ? recent : recent.filter(r => r.symbol === symbol),
         fetchedAt: new Date().toISOString(),
@@ -103,6 +124,9 @@ export async function GET(req: NextRequest) {
  */
 export async function PATCH(req: NextRequest) {
   try {
+    const denied = await requireOwner(req);
+    if (denied) return denied;
+
     const body = await req.json();
     const { entryPrice, symbol, fromStatus, toStatus, pnlR } = body;
     if (!entryPrice || !symbol || !fromStatus || !toStatus) {
@@ -157,8 +181,11 @@ export async function PATCH(req: NextRequest) {
  * Marks all open directional signals without a trade plan as "informational".
  * These are junk rows logged before the execution agent was fixed.
  */
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
   try {
+    const denied = await requireOwner(req);
+    if (denied) return denied;
+
     const { getServiceClient } = await import("@/lib/supabase/service");
     const db = getServiceClient();
     if (!db) return NextResponse.json({ error: "No DB client" }, { status: 500 });

@@ -10,7 +10,8 @@ import { CloseTradeModal } from "@/components/shared/CloseTradeModal";
 import { loadTradeLog, findOpenBySetup, type TakenSignal } from "@/lib/trades/trade-log";
 
 interface SignalsResponse {
-  stats: SignalStats;
+  owner: boolean;
+  stats: SignalStats | null;
   recent: SignalRecord[];
   fetchedAt: string;
 }
@@ -304,6 +305,20 @@ export default function SignalsPage() {
     const mins = avgMins % 60;
     return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`;
   })();
+
+  // Owner-only gate: the API returns `owner: false` for anyone who is not the
+  // account owner (live signals stay public; the track record / history does not).
+  if (data && data.owner === false) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-24 text-center space-y-4">
+        <div className="text-5xl">🔒</div>
+        <h1 className="text-lg font-semibold text-zinc-100">Signal history is private</h1>
+        <p className="text-sm text-zinc-400">
+          The full signal history and track record are restricted to the account owner.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
