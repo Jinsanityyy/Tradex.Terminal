@@ -106,6 +106,38 @@ async function fetchCandleMap(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Metal spot alignment
+// ─────────────────────────────────────────────────────────────────────────────
+// Signals are priced in LBMA spot (fxratesapi), but the OHLC candles used to
+// resolve them come from Yahoo GC=F — gold FUTURES, which run ~$30-40 above spot.
+// Resolving spot-priced entry/SL/TP against futures candles systematically
+// misclassifies outcomes (in a bearish market, short SLs sit "below" the elevated
+// futures bars and fire instantly → every signal reads as an SL hit). Rebase the
+// futures candles onto spot with the same constant-offset trick used in
+// market-snapshot so the signal and its resolution share one price feed.
+const METAL_SYMS = new Set(["XAUUSD", "XAGUSD", "XPTUSD"]);
+
+function rebaseMetalCandleMap(
+  candleMap: Map<string, YahooCandleBar[]>,
+  spot: Map<string, number>,
+): void {
+  for (const [key, candles] of candleMap) {
+    const sym = key.split("_")[0];
+    if (!METAL_SYMS.has(sym) || candles.length === 0) continue;
+    const s = spot.get(sym);
+    if (!s || s <= 0) continue;
+    const lastClose = candles[candles.length - 1].c;
+    if (!(lastClose > 0)) continue;
+    const offset = s - lastClose;
+    if (Math.abs(offset) < s * 0.001) continue; // already aligned (≈ spot feed)
+    candleMap.set(
+      key,
+      candles.map(c => ({ ...c, o: c.o + offset, h: c.h + offset, l: c.l + offset, c: c.c + offset })),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // OHLC-based resolution  -  scans candles chronologically, first touch wins
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -414,6 +446,9 @@ export async function trackOpenSignals(): Promise<TrackingResult> {
     fetchCandleMap(open),
   ]);
 
+  // Align futures (GC=F) candles to the spot prices the signals are priced in.
+  rebaseMetalCandleMap(candleMap, prices);
+
   const forexOpen = isForexMarketOpen();
 
   for (const signal of open) {
@@ -495,7 +530,14 @@ export async function reprocessRecentLosses(withinHours = 24): Promise<Reprocess
   result.checkedCount = losses.length;
   if (losses.length === 0) return result;
 
-  const candleMap = await fetchCandleMap(losses);
+  const uniqueSymbols = Array.from(new Set(losses.map(s => s.symbol)));
+  const [prices, candleMap] = await Promise.all([
+    fetchCurrentPrices(uniqueSymbols),
+    fetchCandleMap(losses),
+  ]);
+  // Same spot alignment as the live tracker — otherwise futures candles re-confirm
+  // the false SL hits instead of correcting them.
+  rebaseMetalCandleMap(candleMap, prices);
 
   for (const signal of losses) {
     try {
