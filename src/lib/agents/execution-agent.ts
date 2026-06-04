@@ -457,6 +457,26 @@ export async function runExecutionAgent(
       return noTradeResult(start, "Invalid setup: entry equals stop loss");
     }
 
+    // ── Timing guard: don't arm a trade when price has already drifted into the stop ──
+    // The single biggest cause of instant SL hits: the signal fires while price has
+    // already moved most of the way from entry toward the SL (e.g. a sweep entry that
+    // price has retraced back into). From there a tick of noise stops it out and TP is
+    // never reached. If current price has eaten >60% of the entry→SL distance, there is
+    // no room left — stand aside and wait for a fresh entry near the level.
+    {
+      const towardSL = isBullish ? current < entry : current > entry;
+      if (towardSL) {
+        const roomToSL = isBullish ? current - stopLoss : stopLoss - current;
+        if (roomToSL < riskDist * 0.4) {
+          const eaten = Math.max(0, Math.round(((riskDist - roomToSL) / riskDist) * 100));
+          console.log(`[exec] near-SL block: ${symbol} ${timeframe} current=${current.toFixed(2)} entry=${entry.toFixed(2)} sl=${stopLoss.toFixed(2)} eaten=${eaten}%`);
+          return waitResult(start, "B",
+            `Price has already drifted ${eaten}% toward the stop before entry  -  no room left to SL, would stop out immediately. Wait for a fresh test of ${entry.toFixed(entry > 100 ? 1 : 4)}.`
+          );
+        }
+      }
+    }
+
     const slInRange = isSLInRange(riskDist, timeframe, symbol, current);
     if (!slInRange) {
       const lim = GOLD_SL_LIMITS[timeframe] ?? GOLD_SL_LIMITS.H1;
