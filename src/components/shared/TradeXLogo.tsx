@@ -1,7 +1,6 @@
-﻿"use client";
+"use client";
 
-import React from "react";
-import Image from "next/image";
+import React, { useState } from "react";
 
 interface TradeXLogoProps {
   variant?: "wordmark" | "banner" | "icon";
@@ -28,10 +27,42 @@ const BANNER_SIZE_PX = {
   xl: 300,
 } as const;
 
+// Plain <img> (not next/image) so the logo loads the raw /logo.png directly.
+// The Next image optimizer (/_next/image) frequently fails inside the Capacitor
+// webview / on the remote-loaded mobile shell, which showed a broken-image icon
+// in the header. A raw <img> with a text fallback is robust everywhere.
+function LogoImg({ px }: { px: number }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <span
+        style={{
+          fontWeight: 800,
+          fontSize: Math.max(12, px * 0.5),
+          letterSpacing: "0.04em",
+          color: "#f5a623",
+          lineHeight: 1,
+        }}
+      >
+        TradeX
+      </span>
+    );
+  }
+  return (
+    <img
+      src="/logo.png"
+      alt="TradeX"
+      width={px}
+      height={px}
+      style={{ objectFit: "contain", borderRadius: 6 }}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 export function TradeXLogo({
   variant = "wordmark",
   size = "sm",
-  tagline = false,
   className,
 }: TradeXLogoProps) {
   const px = SIZE_PX[size];
@@ -40,14 +71,7 @@ export function TradeXLogo({
   if (variant === "icon") {
     return (
       <span className={className} style={{ display: "inline-flex", alignItems: "center" }}>
-        <Image
-          src="/logo.png"
-          alt="TradeX"
-          width={px}
-          height={px}
-          style={{ objectFit: "contain", borderRadius: 6 }}
-          priority
-        />
+        <LogoImg px={px} />
       </span>
     );
   }
@@ -59,14 +83,7 @@ export function TradeXLogo({
         className={className}
         style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
       >
-        <Image
-          src="/logo.png"
-          alt="TradeX"
-          width={px}
-          height={px}
-          style={{ objectFit: "contain", borderRadius: 6 }}
-          priority
-        />
+        <LogoImg px={px} />
       </span>
     );
   }
@@ -78,14 +95,7 @@ export function TradeXLogo({
       className={className}
       style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 0 }}
     >
-      <Image
-        src="/logo.png"
-        alt="TradeX"
-        width={bannerPx}
-        height={bannerPx}
-        style={{ objectFit: "contain" }}
-        priority
-      />
+      <LogoImg px={bannerPx} />
     </div>
   );
 }

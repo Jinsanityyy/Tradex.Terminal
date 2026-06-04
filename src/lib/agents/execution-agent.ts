@@ -298,6 +298,23 @@ export async function runExecutionAgent(
     const buf    = slBuffer(symbol);
     const minBuf = buf > 0 ? buf : Math.max(current * 0.001, 0.0001);
 
+    // ── Counter-trend quality gate ───────────────────────────────────────────
+    // The biggest source of SL-hit signals is a sweep-driven REVERSAL taken against
+    // a strong daily trend during a low-quality session. A liquidity sweep flips the
+    // direction and bypasses the structure gate, so e.g. an Asian-Low sweep can fire
+    // a LONG straight into a 73%-bearish daily bias during the Asia session — a coin
+    // flip at best. Counter-trend reversals are only high-probability in the London/NY
+    // kill zones OR when a full CHoCH+BOS structural reversal is already confirmed.
+    const counterToHtf = htfBias !== "neutral" &&
+      ((isBullish && htfBias === "bearish") || (!isBullish && htfBias === "bullish"));
+    const fullReversalConfirmed = smc.bosDetected && smc.chochDetected;
+    const weakSession = session === "Asia" || !inKillzone;
+    if (counterToHtf && htfConfidence >= 60 && weakSession && !fullReversalConfirmed) {
+      return waitResult(start, "B",
+        `Counter-trend ${direction} vs strong ${htfBias} daily bias (${htfConfidence}%) during ${session} session  -  low win-rate window. Wait for a London/NY kill zone or a confirmed CHoCH+BOS reversal.`
+      );
+    }
+
     // ── Entry / SL construction ────────────────────────────────────────────────────────
     let entry: number;
     let stopLoss: number;
