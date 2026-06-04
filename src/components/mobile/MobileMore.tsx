@@ -44,7 +44,7 @@ const ALL_APPS: AppDef[] = [
   { id: "asset-matrix",         label: "Cross-Asset",       icon: LayoutGrid,    component: AssetMatrixPage,           proOnly: true  },
   { id: "session-intelligence", label: "Trading Sessions",  icon: Clock,         component: SessionIntelPage,          proOnly: true  },
   { id: "market-intelligence",  label: "Insights",          icon: Brain,         component: MarketIntelPage,           proOnly: true  },
-  { id: "signals",              label: "Signals",           icon: Activity,      component: SignalsPage                               },
+  { id: "signals",              label: "Signal History",    icon: Activity,      component: SignalsPage                               },
   { id: "catalysts",            label: "Macro Events",      icon: AlertTriangle, component: CatalystsPage,             proOnly: true  },
   { id: "trump-monitor",        label: "Trump Monitor",     icon: BarChart2,     component: TrumpPage,                 proOnly: true  },
   { id: "news-flow",            label: "News Feed",         icon: Rss,           component: NewsFlowPage                              },
@@ -61,7 +61,7 @@ const SECTIONS = [
   { label: "MARKET",       appIds: ["market-bias", "asset-matrix", "session-intelligence"] },
   { label: "INTELLIGENCE", appIds: ["market-intelligence"] },
   { label: "MACRO",        appIds: ["catalysts", "trump-monitor", "news-flow", "economic-calendar"] },
-  { label: "TOOLS",        appIds: ["pnl-calendar", "candle-analysis", "brain", "live-tv"] },
+  { label: "TOOLS",        appIds: ["signals", "pnl-calendar", "candle-analysis", "brain", "live-tv"] },
 ];
 
 // ── Micro data ─────────────────────────────────────────────────────────────

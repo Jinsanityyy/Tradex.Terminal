@@ -49,6 +49,7 @@ const SECTIONS = [
   {
     label: "TOOLS",
     items: [
+      { id: "signals",              href: "/dashboard/signals",              label: "Signal History",   icon: Activity,      proOnly: false },
       { id: "pnl-calendar",         href: "/dashboard/pnl-calendar",         label: "P&L Tracker",      icon: DollarSign,    proOnly: true  },
       { id: "candle-analysis",      href: "/dashboard/candle-analysis",      label: "Candle Analysis",  icon: Zap,           proOnly: true  },
       { id: "brain",                href: "/dashboard/brain",                label: "Trading Floor",    icon: Brain,         proOnly: false },
