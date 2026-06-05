@@ -1,12 +1,61 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus, Target, Shield, ChevronRight, Timer, Eye } from "lucide-react";
+import { Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus, Target, Shield, ChevronRight, Timer, Eye, Zap, Loader2 } from "lucide-react";
 import type { EconomicEvent } from "@/types";
 import { DetailModal } from "./DetailModal";
 import { getSymbolLabel, getSymbolShort, getEventImpactForSymbol } from "@/lib/assetImpact";
+
+// ── AI After-Release Analysis ─────────────────────────────────────────────────
+interface AIEventAnalysis {
+  outcome: string;
+  marketReaction: string;
+  goldImpact: "bullish" | "bearish" | "neutral";
+  goldAnalysis: string;
+  usdImpact: "bullish" | "bearish" | "neutral";
+  usdAnalysis: string;
+  traderFocus: string[];
+  timeframe: string;
+}
+
+const analysisCache = new Map<string, AIEventAnalysis>();
+
+function useAfterReleaseAnalysis(ev: EconomicEvent) {
+  const [analysis, setAnalysis] = useState<AIEventAnalysis | null>(null);
+  const [loading, setLoading]   = useState(false);
+  const fetchedRef = useRef(false);
+
+  const hasActual = ev.actual && ev.actual !== "Pending..." && ev.actual !== "—" && ev.actual !== " — ";
+  const cacheKey  = `${ev.event}-${ev.actual}-${ev.date}`;
+
+  useEffect(() => {
+    if (!hasActual || ev.status !== "completed" || fetchedRef.current) return;
+    if (analysisCache.has(cacheKey)) {
+      setAnalysis(analysisCache.get(cacheKey)!);
+      return;
+    }
+    fetchedRef.current = true;
+    setLoading(true);
+
+    const summary = `Actual: ${ev.actual} | Forecast: ${ev.forecast} | Previous: ${ev.previous} | ${ev.actual !== ev.forecast ? `${parseFloat(String(ev.actual)) > parseFloat(String(ev.forecast)) ? "BEAT" : "MISS"} vs forecast` : "IN-LINE"}`;
+    const url = `/api/market/post-event?title=${encodeURIComponent(ev.event)}&summary=${encodeURIComponent(summary)}&markets=XAUUSD,DXY,USDJPY,EURUSD`;
+
+    fetch(url)
+      .then(r => r.ok ? r.json() : null)
+      .then((data: AIEventAnalysis | null) => {
+        if (data && data.outcome) {
+          analysisCache.set(cacheKey, data);
+          setAnalysis(data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [cacheKey, hasActual, ev.status, ev.actual, ev.forecast, ev.previous, ev.event]);
+
+  return { analysis, loading, hasActual: !!hasActual };
+}
 
 // ── Countdown Timer ───────────────────────────────────────────────────────────
 function useCountdown(utcTimestamp?: number) {
@@ -110,6 +159,7 @@ function DataInline({ text }: { text: string }) {
 // ── Detail modal body (unchanged) ─────────────────────────────────────────────
 function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: string }) {
   const isCompleted = ev.status === "completed";
+  const { analysis: aiAnalysis, loading: aiLoading, hasActual } = useAfterReleaseAnalysis(ev);
   const assetImpact = getEventImpactForSymbol(ev, symbol);
   const assetLabel = getSymbolLabel(symbol);
 
@@ -179,6 +229,75 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
               </ul>
             </div>
           )}
+        </div>
+      )}
+
+      {/* COMPLETED + ACTUAL — AI after-release analysis */}
+      {isCompleted && hasActual && (aiLoading || aiAnalysis) && (
+        <div className="rounded-xl border border-violet-500/25 bg-violet-500/[0.04] overflow-hidden">
+          <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-violet-500/15">
+            <Zap className="h-3.5 w-3.5 text-violet-400" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-violet-400">After Release Analysis</span>
+            <span className="ml-auto text-[9px] text-violet-400/50 uppercase tracking-wider">
+              Actual: {ev.actual}
+            </span>
+          </div>
+
+          {aiLoading ? (
+            <div className="flex items-center gap-2 px-3.5 py-4">
+              <Loader2 className="h-3.5 w-3.5 text-violet-400 animate-spin shrink-0" />
+              <span className="text-[11px] text-zinc-500">Generating market reaction analysis...</span>
+            </div>
+          ) : aiAnalysis ? (
+            <div className="px-3.5 py-3 space-y-3">
+              {/* Outcome */}
+              <p className="text-[12px] text-zinc-100 font-medium leading-relaxed">{aiAnalysis.outcome}</p>
+
+              {/* Market Reaction */}
+              {aiAnalysis.marketReaction && (
+                <p className="text-[11px] text-zinc-300 leading-relaxed">{aiAnalysis.marketReaction}</p>
+              )}
+
+              {/* Gold + USD impact */}
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: "Gold (XAU/USD)", impact: aiAnalysis.goldImpact, text: aiAnalysis.goldAnalysis },
+                  { label: "USD (DXY)",      impact: aiAnalysis.usdImpact,  text: aiAnalysis.usdAnalysis  },
+                ].map(({ label, impact, text }) => (
+                  <div key={label} className={cn("rounded-lg p-2.5", impact === "bullish" ? "bg-emerald-500/10 border border-emerald-500/20" : impact === "bearish" ? "bg-red-500/10 border border-red-500/20" : "bg-white/5 border border-white/10")}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[9px] font-semibold text-zinc-500 uppercase tracking-wider">{label}</span>
+                      <span className={cn("text-[9px] font-bold uppercase", impact === "bullish" ? "text-emerald-400" : impact === "bearish" ? "text-red-400" : "text-zinc-400")}>{impact}</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-400 leading-snug">{text}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Trader Focus */}
+              {aiAnalysis.traderFocus?.length > 0 && (
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-violet-400/70 mb-1.5">Now Watch</p>
+                  <ul className="space-y-1">
+                    {aiAnalysis.traderFocus.map((f, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <ChevronRight className="h-3 w-3 text-violet-400/60 mt-0.5 shrink-0" />
+                        <span className="text-[11px] text-zinc-400 leading-snug">{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Timeframe */}
+              {aiAnalysis.timeframe && (
+                <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] px-3 py-2">
+                  <span className="text-[9px] font-semibold uppercase tracking-wider text-zinc-600">Outlook: </span>
+                  <span className="text-[10px] text-zinc-400">{aiAnalysis.timeframe}</span>
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
       )}
 
