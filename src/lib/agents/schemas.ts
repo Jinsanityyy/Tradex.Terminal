@@ -76,6 +76,21 @@ export interface StructureData {
   inPremium: boolean;
 }
 
+export interface AndybioticData {
+  superTrend: number;       // SuperTrend level in price (factor = sensitivity×2, ATR 11)
+  superTrendDir: 1 | -1;   // -1 = bullish (price above ST), 1 = bearish (below)
+  ema200: number | null;    // EMA(200) value
+  sma13: number | null;     // SMA(13) signal gate
+  isBull: boolean;          // crossover(close, ST) AND close >= SMA13
+  isBear: boolean;          // crossunder(close, ST) AND close <= SMA13
+  isSmartBuy: boolean;      // bull AND close > EMA200 (high-conviction long)
+  isSmartSell: boolean;     // bear AND close < EMA200 (high-conviction short)
+  adx: number | null;       // ADX(15)
+  isSideways: boolean;      // ADX < 15 → ranging, signals unreliable
+  barsSinceBull: number;    // freshness: bars since last bull crossover
+  barsSinceBear: number;    // freshness: bars since last bear crossunder
+}
+
 export interface IndicatorData {
   rsi: number;           // 14-period RSI (real, from candles when available)
   macdHist: number;      // real MACD(12,26,9) histogram from candle closes
@@ -86,6 +101,7 @@ export interface IndicatorData {
   atrReal: boolean;      // true when atrProxy/atr came from real ATR (not |pctChange|)
   session: string;       // "Asia" | "London" | "New York" | "Closed"
   sessionHour: number;   // UTC hour
+  andybiotic: AndybioticData | null;  // Andybiotic Max% indicator signals (null when insufficient candle history)
 }
 
 export interface NewsSnapshot {

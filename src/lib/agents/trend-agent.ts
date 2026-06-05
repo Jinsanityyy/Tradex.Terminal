@@ -154,6 +154,22 @@ function buildReasons(
 
   reasons.push(`${phase} phase - price at ${pos52w}% of 52w range (${zone}) | ${session} session`);
 
+  // ── Andybiotic Max% signal ──────────────────────────────────────────────────
+  const andy = snapshot.indicators.andybiotic;
+  if (andy) {
+    const stDir  = andy.superTrendDir === -1 ? "BULL" : "BEAR";
+    const stFresh = andy.superTrendDir === -1
+      ? (andy.barsSinceBull < 5 ? `fresh (${andy.barsSinceBull} bars)` : `${andy.barsSinceBull} bars ago`)
+      : (andy.barsSinceBear < 5 ? `fresh (${andy.barsSinceBear} bars)` : `${andy.barsSinceBear} bars ago`);
+    const smartTag = andy.isSmartBuy ? " ✦ SMART BUY" : andy.isSmartSell ? " ✦ SMART SELL" : andy.isBull ? " ✦ BUY signal" : andy.isBear ? " ✦ SELL signal" : "";
+    const aboveEma = andy.ema200 != null ? (snapshot.price.current > andy.ema200 ? "above EMA200" : "below EMA200") : "";
+    const adxNote  = andy.isSideways ? " | ADX < 15 (RANGING — signal reliability reduced)" : ` | ADX ${andy.adx?.toFixed(1) ?? "N/A"} (trending)`;
+
+    reasons.push(
+      `Andybiotic Max%: SuperTrend ${stDir} @ ${andy.superTrend.toFixed(2)} (${stFresh})${smartTag} | Price ${aboveEma}${adxNote}`
+    );
+  }
+
   return reasons;
 }
 
@@ -211,6 +227,7 @@ DATA:
 - RSI(14) ${indicators.rsi.toFixed(1)}${indicators.rsiReal ? "" : " (estimated)"} | MACD hist ${indicators.macdHist > 0 ? "+" : ""}${indicators.macdHist.toFixed(4)}${indicators.macdReal ? "" : " (proxy)"}
 - MA stack ${maData.maStack.toUpperCase()} | EMA20 ${maData.ma20?.toFixed(2) ?? "N/A"} EMA50 ${maData.ma50?.toFixed(2) ?? "N/A"}
 - Daily ATR ${indicators.atrProxy.toFixed(2)}%${indicators.atrReal ? "" : " (proxy)"} | Session ${indicators.session}
+${indicators.andybiotic ? `- Andybiotic Max%: SuperTrend ${indicators.andybiotic.superTrendDir === -1 ? "BULL" : "BEAR"} @ ${indicators.andybiotic.superTrend.toFixed(2)} | ${indicators.andybiotic.isSmartBuy ? "SMART BUY signal" : indicators.andybiotic.isSmartSell ? "SMART SELL signal" : indicators.andybiotic.isBull ? "BUY crossover" : indicators.andybiotic.isBear ? "SELL crossover" : "no fresh signal"} | ADX ${indicators.andybiotic.adx?.toFixed(1) ?? "N/A"} ${indicators.andybiotic.isSideways ? "(RANGING)" : "(trending)"} | Price ${indicators.andybiotic.ema200 != null ? (snapshot.price.current > indicators.andybiotic.ema200 ? "ABOVE" : "BELOW") + " EMA200" : ""}` : "- Andybiotic Max%: insufficient candle history"}
 
 Write 4-5 reasons that justify the ${computed.bias.toUpperCase()} call. JSON array of strings only.`.trim();
 
@@ -308,6 +325,34 @@ export async function runTrendAgent(
     if (maData.maStack === "bearish") biasScore -= 10;
     if (momentum === "expanding") biasScore += biasScore > 0 ? 8 : -8;
     if (momentum === "contracting") biasScore *= 0.85;
+
+    // ── Andybiotic Max% scoring ──────────────────────────────────────────────
+    // SuperTrend direction is a strong, rule-based signal — weight it heavily.
+    // Smart Buy/Sell (price on correct side of EMA200) adds extra conviction.
+    // Suppress all signal weight when ADX < 15 (ranging = low-quality signals).
+    const andy = snapshot.indicators.andybiotic;
+    if (andy && !andy.isSideways) {
+      // SuperTrend direction: +15 / -15
+      if (andy.superTrendDir === -1) biasScore += 15; // bull — price above ST
+      if (andy.superTrendDir ===  1) biasScore -= 15; // bear — price below ST
+
+      // Fresh crossover on this bar: extra +8 / -8
+      if (andy.isBull && andy.barsSinceBull <= 2) biasScore += 8;
+      if (andy.isBear && andy.barsSinceBear <= 2) biasScore -= 8;
+
+      // Smart Buy / Smart Sell (EMA200 filter passes): extra +10 / -10
+      if (andy.isSmartBuy)  biasScore += 10;
+      if (andy.isSmartSell) biasScore -= 10;
+
+      // Price vs EMA200: softer directional weight
+      if (andy.ema200 != null) {
+        if (snapshot.price.current > andy.ema200) biasScore += 5;
+        else                                       biasScore -= 5;
+      }
+    } else if (andy?.isSideways) {
+      // Ranging market: dampen existing score
+      biasScore *= 0.6;
+    }
 
     const bias = resolveFinalBias(htfBias, timeframeBias, maData.maStack, biasScore);
     const confidence = Math.min(95, Math.max(20, Math.abs(biasScore)));

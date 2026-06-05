@@ -8,7 +8,7 @@
 import type { MarketSnapshot, Symbol, Timeframe, PriceZone, SnapshotCandle } from "./schemas";
 import type { CandleBar, DailyStructure } from "./candles";
 import { deriveConvictionBias } from "@/lib/api/conviction";
-import { computeMACD, computeATR, computeATRPercent } from "./indicators";
+import { computeMACD, computeATR, computeATRPercent, computeAndybiotic } from "./indicators";
 
 interface RawQuote {
   close: string;
@@ -292,7 +292,14 @@ export async function buildMarketSnapshot(
   // ── Real volatility from ATR(14) ─────────────────────────────────────────────
   // Volatility thresholds (risk-agent) are calibrated for the asset's typical DAILY
   // % move, so prefer real daily ATR%. Fall back to timeframe ATR%, then |pctChange|.
+  // ── Andybiotic Max% Indicator ────────────────────────────────────────────────
+  // Computed from the same candle series used by all other indicators.
+  // Needs ≥ 30 bars; EMA(200) only meaningful when ≥ 220 bars are available.
   const tfCandlesNorm  = tfCandles ? normalizeCandles(tfCandles) : [];
+  const andybiotic     = tfCandlesNorm.length >= 30
+    ? computeAndybiotic(tfCandlesNorm, 4)  // sensitivity = 4 (Andybiotic default)
+    : null;
+
   const tfAtrPercent   = tfCandlesNorm.length >= 15
     ? computeATRPercent(tfCandlesNorm, close, 14)
     : null;
@@ -349,6 +356,7 @@ export async function buildMarketSnapshot(
       atrReal,
       session,
       sessionHour: utcHour,
+      andybiotic,
     },
     recentNews: news.slice(0, 15).map(n => ({
       headline: n.headline,
@@ -415,6 +423,7 @@ export function buildMockSnapshot(symbol: Symbol, timeframe: Timeframe): MarketS
       atrReal:         false,
       session:         getSession(new Date().getUTCHours()),
       sessionHour:     new Date().getUTCHours(),
+      andybiotic:      null,
     },
     recentNews: [
       {
