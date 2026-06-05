@@ -1115,11 +1115,17 @@ export async function GET() {
   }
 
   try {
-    // Fetch both this week AND next week so upcoming events are always visible
-    const [thisWeek, nextWeek] = await Promise.all([
+    // Fetch this week from both CDN endpoints — take whichever has more actual values
+    const [nfsThis, cdnThis, nfsNext] = await Promise.all([
       fetchFFWeek("https://nfs.faireconomy.media/ff_calendar_thisweek.json"),
+      fetchFFWeek("https://cdn.forexfactory.com/ffcal_week_this.json"),
       fetchFFWeek("https://nfs.faireconomy.media/ff_calendar_nextweek.json"),
     ]);
+    // Merge: prefer the version with more actuals populated
+    const nfsActuals = nfsThis.filter(e => e.actual && e.actual !== "").length;
+    const cdnActuals = cdnThis.filter(e => e.actual && e.actual !== "").length;
+    const thisWeek   = cdnActuals > nfsActuals ? cdnThis : nfsThis;
+    const nextWeek   = nfsNext;
 
     const events: FFEvent[] = [...thisWeek, ...nextWeek];
 
@@ -1128,8 +1134,7 @@ export async function GET() {
     }
     const now = new Date();
 
-    // Fetch myfxbook actuals in parallel (faster than FairFX for post-release data)
-    const myfxEvents = await fetchMyfxbookActuals();
+    // Myfxbook fetch removed — requires auth. Using dual FairFX endpoints instead.
 
     // FILTER: HIGH + MEDIUM impact USD events
     const mapped: EconomicEvent[] = events
@@ -1149,12 +1154,8 @@ export async function GET() {
 
         const impact: "high" | "medium" = e.impact === "High" ? "high" : "medium";
 
-        // Actual: FairFX first → Myfxbook fallback (faster post-release updates)
-        const ffActual   = isPast && e.actual && e.actual !== "" ? e.actual : undefined;
-        const myfxActual = isPast && !ffActual
-          ? matchMyfxActual(myfxEvents, e.title, eventTime.toISOString().split("T")[0])
-          : undefined;
-        const actualValue       = ffActual ?? myfxActual;
+        // Actual from FairFX (best available CDN endpoint selected above)
+        const actualValue       = isPast && e.actual && e.actual !== "" ? e.actual : undefined;
         const actualForAnalysis = actualValue;
 
         const analysis = analyzeEvent(e.title, e.forecast, e.previous, isPast);

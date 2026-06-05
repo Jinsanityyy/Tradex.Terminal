@@ -27,11 +27,12 @@ function useAfterReleaseAnalysis(ev: EconomicEvent) {
   const [loading, setLoading]   = useState(false);
   const fetchedRef = useRef(false);
 
-  const hasActual = ev.actual && ev.actual !== "Pending..." && ev.actual !== "—" && ev.actual !== " — ";
-  const cacheKey  = `${ev.event}-${ev.actual}-${ev.date}`;
+  const hasActual = !!(ev.actual && ev.actual !== "Pending..." && ev.actual !== "—" && ev.actual !== " — " && ev.actual !== "-");
+  // Trigger for ALL completed events — with or without actual
+  const cacheKey  = `${ev.event}-${ev.actual ?? "pending"}-${ev.date}`;
 
   useEffect(() => {
-    if (!hasActual || ev.status !== "completed" || fetchedRef.current) return;
+    if (ev.status !== "completed" || fetchedRef.current) return;
     if (analysisCache.has(cacheKey)) {
       setAnalysis(analysisCache.get(cacheKey)!);
       return;
@@ -39,7 +40,10 @@ function useAfterReleaseAnalysis(ev: EconomicEvent) {
     fetchedRef.current = true;
     setLoading(true);
 
-    const summary = `Actual: ${ev.actual} | Forecast: ${ev.forecast} | Previous: ${ev.previous} | ${ev.actual !== ev.forecast ? `${parseFloat(String(ev.actual)) > parseFloat(String(ev.forecast)) ? "BEAT" : "MISS"} vs forecast` : "IN-LINE"}`;
+    const summary = hasActual
+      ? `Actual: ${ev.actual} | Forecast: ${ev.forecast} | Previous: ${ev.previous} | Result: ${(() => { try { return parseFloat(String(ev.actual)) > parseFloat(String(ev.forecast)) ? "BEAT vs forecast" : "MISSED forecast"; } catch { return "vs forecast " + ev.forecast; } })()}`
+      : `Forecast: ${ev.forecast} | Previous: ${ev.previous} | Actual not yet published — analyze based on pre-release expectations and what traders should watch now that event window has passed`;
+
     const url = `/api/market/post-event?title=${encodeURIComponent(ev.event)}&summary=${encodeURIComponent(summary)}&markets=XAUUSD,DXY,USDJPY,EURUSD`;
 
     fetch(url)
@@ -52,9 +56,9 @@ function useAfterReleaseAnalysis(ev: EconomicEvent) {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [cacheKey, hasActual, ev.status, ev.actual, ev.forecast, ev.previous, ev.event]);
+  }, [cacheKey, ev.status, ev.actual, ev.forecast, ev.previous, ev.event, hasActual]);
 
-  return { analysis, loading, hasActual: !!hasActual };
+  return { analysis, loading, hasActual };
 }
 
 // ── Countdown Timer ───────────────────────────────────────────────────────────
@@ -232,14 +236,14 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
         </div>
       )}
 
-      {/* COMPLETED + ACTUAL — AI after-release analysis */}
-      {isCompleted && hasActual && (aiLoading || aiAnalysis) && (
+      {/* COMPLETED — AI after-release analysis (triggers for all completed events) */}
+      {isCompleted && (aiLoading || aiAnalysis) && (
         <div className="rounded-xl border border-violet-500/25 bg-violet-500/[0.04] overflow-hidden">
           <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-violet-500/15">
             <Zap className="h-3.5 w-3.5 text-violet-400" />
             <span className="text-[10px] font-bold uppercase tracking-widest text-violet-400">After Release Analysis</span>
             <span className="ml-auto text-[9px] text-violet-400/50 uppercase tracking-wider">
-              Actual: {ev.actual}
+              {hasActual ? `Actual: ${ev.actual}` : "Actual pending"}
             </span>
           </div>
 
