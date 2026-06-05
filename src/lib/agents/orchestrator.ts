@@ -294,8 +294,11 @@ export async function runAgentOrchestrator(
       ? parseFloat(quote.close)
       : 0;
     const currentPrice = Number.isFinite(quoteClose) && quoteClose > 0 ? quoteClose : undefined;
-    const [timeframeCandles, dailyStructure] = await Promise.all([
+    // Always fetch M5 candles for Andybiotic Max% (indicator native timeframe = 5m).
+    // Fetch in parallel with the agent's own TF candles to avoid extra latency.
+    const [timeframeCandles, m5Candles, dailyStructure] = await Promise.all([
       getValidatedCandles(symbol, timeframe, currentPrice),
+      timeframe !== "M5" ? getValidatedCandles(symbol, "M5", currentPrice) : Promise.resolve(null),
       getDailyStructure(symbol),
     ]);
 
@@ -305,7 +308,8 @@ export async function runAgentOrchestrator(
       news,
       undefined,
       timeframeCandles ?? undefined,
-      dailyStructure ?? undefined
+      dailyStructure ?? undefined,
+      (timeframe === "M5" ? timeframeCandles : m5Candles) ?? undefined,
     );
   } else {
     // Live quote unavailable  -  all agent outputs are based on synthetic data

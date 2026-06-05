@@ -168,7 +168,8 @@ export async function buildMarketSnapshot(
   news: RawNewsItem[],
   rsi?: number,
   timeframeCandles?: CandleBar[],
-  dailyStructure?: DailyStructure
+  dailyStructure?: DailyStructure,
+  m5Candles?: CandleBar[]   // Always M5 — used exclusively for Andybiotic Max% computation
 ): Promise<MarketSnapshot> {
   const cfg = SYMBOL_CONFIG[symbol] ?? { display: symbol, apiSymbol: symbol, invertBias: false };
 
@@ -293,11 +294,13 @@ export async function buildMarketSnapshot(
   // Volatility thresholds (risk-agent) are calibrated for the asset's typical DAILY
   // % move, so prefer real daily ATR%. Fall back to timeframe ATR%, then |pctChange|.
   // ── Andybiotic Max% Indicator ────────────────────────────────────────────────
-  // Computed from the same candle series used by all other indicators.
+  // ALWAYS uses M5 candles — this matches the indicator's native 5m timeframe.
+  // Falls back to tfCandles only if M5 candles were not fetched separately.
   // Needs ≥ 30 bars; EMA(200) only meaningful when ≥ 220 bars are available.
   const tfCandlesNorm  = tfCandles ? normalizeCandles(tfCandles) : [];
-  const andybiotic     = tfCandlesNorm.length >= 30
-    ? computeAndybiotic(tfCandlesNorm, 4)  // sensitivity = 4 (Andybiotic default)
+  const m5CandlesNorm  = m5Candles ? normalizeCandles(m5Candles) : tfCandlesNorm;
+  const andybiotic     = m5CandlesNorm.length >= 30
+    ? computeAndybiotic(m5CandlesNorm, 4)  // sensitivity = 4 (Andybiotic default)
     : null;
 
   const tfAtrPercent   = tfCandlesNorm.length >= 15
