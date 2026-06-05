@@ -34,8 +34,21 @@ export async function GET() {
   const calUrl = `https://www.myfxbook.com/api/get-economic-calendar.json?session=${session}&start=${fmt(from)}&end=${fmt(to)}`;
 
   try {
-    const calRes = await fetch(calUrl, { cache: "no-store" });
-    const calData = await calRes.json() as { error: boolean; calendar?: unknown[] };
+    const calRes = await fetch(calUrl, {
+      cache: "no-store",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Referer": "https://www.myfxbook.com/forex-economic-calendar",
+        "Cookie": `SESSION=${session}`,
+      },
+    });
+    const rawText = await calRes.text();
+    // Show first 500 chars of raw response for debugging
+    if (rawText.trim().startsWith("<")) {
+      return NextResponse.json({ step: "html_response", rawPreview: rawText.slice(0, 300), url: calUrl.replace(session, "***") });
+    }
+    const calData = JSON.parse(rawText) as { error: boolean; calendar?: unknown[] };
 
     // Show first 10 USD events
     const usd = Array.isArray(calData.calendar)

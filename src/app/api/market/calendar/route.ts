@@ -64,9 +64,20 @@ async function fetchMyfxActuals(): Promise<MyfxbookEvent[]> {
     const fmt  = (d: Date) => d.toISOString().split("T")[0];
     const url  = `https://www.myfxbook.com/api/get-economic-calendar.json?session=${session}&start=${fmt(from)}&end=${fmt(to)}`;
 
-    const res  = await fetch(url, { cache: "no-store" });
+    const res  = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://www.myfxbook.com/forex-economic-calendar",
+        "Cookie": `SESSION=${session}`,
+      },
+    });
     if (!res.ok) return [];
-    const json = await res.json() as { error: boolean; calendar?: MyfxbookEvent[] };
+    const text = await res.text();
+    if (text.trim().startsWith("<")) return []; // HTML response = blocked
+    const json = JSON.parse(text) as { error: boolean; calendar?: MyfxbookEvent[] };
     if (json.error || !Array.isArray(json.calendar)) {
       myfxSession = null; // Session may have expired — force re-login next time
       return [];
