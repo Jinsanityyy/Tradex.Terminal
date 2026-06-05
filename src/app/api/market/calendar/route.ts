@@ -1039,20 +1039,13 @@ export async function GET() {
     }
     const now = new Date();
 
-    // Fetch Finnhub actuals in parallel — used as fallback when FairFX has no actual
-    const finnhubActuals = await fetchFinnhubActuals();
-
-    // FILTER: HIGH + MEDIUM impact USD events (Medium catches Flash PMIs, retail sales etc.
-    // on weeks where there are no HIGH impact events)
+    // FILTER: HIGH + MEDIUM impact USD events
     const mapped: EconomicEvent[] = events
       .filter((e) => (e.impact === "High" || e.impact === "Medium") && e.country === "USD")
       .map((e, i) => {
-        // FairFX dates are in UTC  -  parse directly
         const eventTime = new Date(e.date);
-        
-        // Use a 15-min buffer: events within 15 min after scheduled time are still "live"
         const msSinceEvent = now.getTime() - eventTime.getTime();
-        const isPast = msSinceEvent > 15 * 60 * 1000; // 15 min buffer
+        const isPast = msSinceEvent > 15 * 60 * 1000; // 15-min buffer
 
         let status: "completed" | "live" | "upcoming";
         if (isPast) {
@@ -1062,13 +1055,12 @@ export async function GET() {
           status = diffMin <= 30 ? "live" : "upcoming";
         }
 
-        // Map FairFX impact string to our Impact type
         const impact: "high" | "medium" = e.impact === "High" ? "high" : "medium";
 
-        // For completed events: use actual vs forecast for beat/miss analysis
-        const ffActual     = isPast && e.actual && e.actual !== "" ? e.actual : undefined;
-        const finnActual   = isPast ? matchFinnhubActual(finnhubActuals, e.title, eventTime.toISOString().split("T")[0]) : undefined;
-        const actualForAnalysis = ffActual ?? finnActual;
+        // Actual from FairFX (most reliable — they update within 15–60 min of release)
+        const actualValue = isPast && e.actual && e.actual !== "" ? e.actual : undefined;
+        const actualForAnalysis = actualValue;
+
         const analysis = analyzeEvent(e.title, e.forecast, e.previous, isPast);
         const post = isPast ? generatePostEvent(e.title, e.forecast, e.previous, actualForAnalysis) : null;
         const pre = !isPast ? generatePreEvent(e.title, e.forecast, e.previous) : null;
@@ -1089,16 +1081,10 @@ export async function GET() {
           impact,
           forecast: e.forecast !== "" ? e.forecast : " - ",
           previous: e.previous !== "" ? e.previous : " - ",
-          // Actual: FairFX first → Finnhub fallback → "Pending..." for very recent events
+          // FairFX actual — shown when available, "Pending..." for recently completed events
           actual: (() => {
             if (!isPast) return undefined;
             if (e.actual && e.actual !== "") return e.actual;
-            // Try Finnhub as fallback
-            const finnhubActual = matchFinnhubActual(
-              finnhubActuals, e.title, eventTime.toISOString().split("T")[0]
-            );
-            if (finnhubActual) return finnhubActual;
-            // Still nothing — show Pending for recent events
             const minsSince = msSinceEvent / 60_000;
             return minsSince < 120 ? "Pending..." : undefined;
           })(),
