@@ -19,11 +19,11 @@ const YAHOO_INTERVAL: Record<string, string> = {
 };
 
 const YAHOO_RANGE: Record<string, string> = {
-  M5: "2d",
-  M15: "5d",
-  H1: "30d",
-  H4: "60d",
-  D1: "200d",
+  M5: "5d",
+  M15: "60d",
+  H1: "180d",
+  H4: "730d",
+  D1: "1825d",
 };
 
 interface YahooMeta {

@@ -42,7 +42,7 @@ async function fromTwelveData(symbol: Symbol, tf: Timeframe): Promise<CandleBar[
   const tdSym = TD_SYMBOL[symbol];
   if (!tdSym || !process.env.TWELVEDATA_API_KEY) return null;
   try {
-    const raw = await fetchTimeSeries(tdSym, TD_INTERVAL[tf], 100);
+    const raw = await fetchTimeSeries(tdSym, TD_INTERVAL[tf], 500);
     if (!raw?.length) return null;
     return raw.slice().reverse().map(c => ({
       t: new Date(c.datetime).getTime() / 1000,
@@ -58,7 +58,7 @@ async function fromFinnhub(symbol: Symbol, tf: Timeframe): Promise<CandleBar[] |
   if (!cfg || !apiKey) return null;
   try {
     const to   = Math.floor(Date.now() / 1000);
-    const from = to - 120 * tfSecs(tf);
+    const from = to - 500 * tfSecs(tf);
     const url  = `https://finnhub.io/api/v1/${cfg.endpoint}/candle?symbol=${cfg.sym}&resolution=${FH_RES[tf]}&from=${from}&to=${to}&token=${apiKey}`;
     const res  = await fetch(url, { cache: "no-store" });
     if (!res.ok) return null;
