@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, Layers, PenLine, Search, Timer, X } from "lucide-react";
+import { ChevronDown, Code2, Layers, PenLine, Search, Timer, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { KeyLevel } from "@/app/api/market/keylevels/route";
 
@@ -423,6 +423,7 @@ export function TradingViewChart({
   const [keyLevel, setKeyLevel] = useState<KeyLevel | null>(null);
   const [keyLvlLoading, setKeyLvlLoading] = useState(false);
   const [showSideToolbar, setShowSideToolbar] = useState(false);
+  const [showIndicatorPanel, setShowIndicatorPanel] = useState(false);
 
   const filtered = query.trim()
     ? ALL_SYMBOLS.filter(
@@ -582,7 +583,7 @@ export function TradingViewChart({
           allow_symbol_change: false,
           save_image: false,
           withdateranges: false,
-          studies: [],
+          studies: ["Andybiotic Max%"],
           disabled_features: [
             "header_fullscreen_button",
             "create_volume_indicator_by_default",
@@ -874,6 +875,23 @@ export function TradingViewChart({
 
           <div className="shrink-0 mx-0.5 h-4 w-px bg-white/[0.07]" />
 
+          {/* Andybiotic Max% indicator toggle */}
+          <button
+            onClick={() => setShowIndicatorPanel(v => !v)}
+            title="Andybiotic Max% Indicator — setup guide"
+            className={cn(
+              "shrink-0 flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider transition-all",
+              showIndicatorPanel
+                ? "border-violet-500/40 bg-violet-500/15 text-violet-300"
+                : "border-white/10 bg-white/5 text-gray-500 hover:border-white/20 hover:text-gray-300"
+            )}
+          >
+            <Code2 className="h-3 w-3" />
+            Indicator
+          </button>
+
+          <div className="shrink-0 mx-0.5 h-4 w-px bg-white/[0.07]" />
+
           {/* Candle close countdown */}
           <div className={cn("shrink-0 flex items-center gap-1 rounded-md border px-2 py-0.5",
             urgent ? "border-red-500/35 bg-red-500/10" : "border-white/10 bg-white/5")}>
@@ -889,12 +907,16 @@ export function TradingViewChart({
         </div>
       </div>
 
-      {/* Chart + Key Levels side-by-side  -  panel is a sibling, never overlaps chart */}
+      {/* Chart + panels side-by-side  -  panels are siblings, never overlap chart */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <div ref={containerRef} className="flex-1 min-w-0 h-full" style={{ background: "#000000" }} />
 
         {keyLvlOpen && keyLvlSupported && (
           <KeyLevelsPanel level={keyLevel} loading={keyLvlLoading} onClose={() => setKeyLvlOpen(false)} />
+        )}
+
+        {showIndicatorPanel && (
+          <IndicatorSetupPanel onClose={() => setShowIndicatorPanel(false)} />
         )}
       </div>
     </div>
@@ -1075,6 +1097,143 @@ function KeyLevelsPanel({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ── Andybiotic Max% Indicator Setup Panel ────────────────────────────────────
+//
+// Pine Script file is saved at: pine-scripts/andybiotic-max-percent.pine
+//
+// To load in TradingView:
+//   1. Open any chart on TradingView
+//   2. Click "Pine Script Editor" at the bottom
+//   3. Select all existing code → Delete
+//   4. Paste the full contents of pine-scripts/andybiotic-max-percent.pine
+//   5. Click "Add to chart" (or press Ctrl+Enter)
+//   6. Open Settings (gear icon) to configure:
+//      - Sensitivity: 1–20 (default 4, higher = fewer signals)
+//      - OB Detection Timeframe: 1/5/15/30/60/240/D/W
+//      - Toggle overlays: Smart Trail, Trend Cloud, Order Blocks, etc.
+//      - Risk Management levels (Entry, SL, TP1–TP5)
+//   7. Save as a template (💾) to reuse across all symbols
+//
+// Key Features:
+//   - SuperTrend Buy/Sell signals (Buy / Smart Buy above EMA200)
+//   - MTF Dashboard: M1, M5, M15, M30, 1H, 4H, D1 bias table
+//   - Order Blocks: Bullish/Bearish with mitigation tracking
+//   - Supply & Demand zones (auto-detected from swing pivots)
+//   - Risk Management: Entry zone, OTE, Stop Loss, TP1–TP5
+//   - Smart Trail (Fibonacci trailing stop)
+//   - Trend Lines (auto support & resistance, 30–100 bar lookback)
+//   - Session highlights: NY, London, Tokyo, Sydney
+//   - Bar coloring: Gradient or Trend mode
+//   - ADX-based ranging detection (sideways = purple bars)
+
+const INDICATOR_STEPS = [
+  "Open TradingView → any chart",
+  'Click "Pine Script Editor" (bottom panel)',
+  "Select all → Delete existing code",
+  "Open pine-scripts/andybiotic-max-percent.pine → Copy all",
+  'Paste into editor → Click "Add to chart"',
+  "Gear icon → Settings → configure Sensitivity & features",
+  "💾 Save as template to reuse across symbols",
+];
+
+const INDICATOR_FEATURES = [
+  { label: "Signals", desc: "Buy / Smart Buy / Sell / Smart Sell" },
+  { label: "MTF Bias", desc: "M1 → D1 color-coded dashboard table" },
+  { label: "Order Blocks", desc: "Bull/Bear OBs with mitigation tracking" },
+  { label: "S&D Zones", desc: "Supply & Demand from swing pivots" },
+  { label: "Risk Mgmt", desc: "Entry, SL, OTE, TP1–TP5 with fills" },
+  { label: "Smart Trail", desc: "Fibonacci-based trailing stop line" },
+  { label: "Trend Lines", desc: "Auto support & resistance projection" },
+  { label: "Sessions", desc: "NY / London / Tokyo / Sydney overlays" },
+];
+
+function IndicatorSetupPanel({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      className="flex h-full w-[220px] shrink-0 flex-col overflow-y-auto"
+      style={{
+        background: "#050505",
+        borderLeft: "1px solid rgba(255,255,255,0.07)",
+        scrollbarWidth: "none",
+      }}
+    >
+      {/* Header */}
+      <div
+        className="flex shrink-0 items-center justify-between px-3 py-2"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+      >
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[9px] font-semibold uppercase tracking-[0.16em]" style={{ color: "rgba(139,92,246,0.8)" }}>
+            Andybiotic Max%
+          </span>
+          <span className="text-[8px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.18)" }}>
+            Pine Script Indicator
+          </span>
+        </div>
+        <button onClick={onClose} className="opacity-30 transition-opacity hover:opacity-70">
+          <X className="h-3 w-3 text-white" />
+        </button>
+      </div>
+
+      {/* File location */}
+      <div
+        className="px-3 py-2"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+      >
+        <div className="text-[8px] uppercase tracking-widest mb-1" style={{ color: "rgba(255,255,255,0.25)" }}>
+          Script file
+        </div>
+        <div
+          className="rounded px-2 py-1 font-mono text-[9px] leading-relaxed"
+          style={{ background: "rgba(139,92,246,0.08)", color: "rgba(139,92,246,0.7)", border: "1px solid rgba(139,92,246,0.15)" }}
+        >
+          pine-scripts/<br />andybiotic-max-percent.pine
+        </div>
+      </div>
+
+      {/* Setup steps */}
+      <div
+        className="px-3 py-2"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+      >
+        <div className="text-[8px] uppercase tracking-widest mb-1.5" style={{ color: "rgba(255,255,255,0.25)" }}>
+          How to load
+        </div>
+        <div className="flex flex-col gap-1">
+          {INDICATOR_STEPS.map((step, i) => (
+            <div key={i} className="flex items-start gap-1.5">
+              <span
+                className="shrink-0 mt-px flex h-3.5 w-3.5 items-center justify-center rounded-full text-[8px] font-bold tabular-nums"
+                style={{ background: "rgba(139,92,246,0.15)", color: "rgba(139,92,246,0.7)" }}
+              >
+                {i + 1}
+              </span>
+              <span className="text-[9px] leading-tight" style={{ color: "rgba(255,255,255,0.45)" }}>
+                {step}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Feature list */}
+      <div className="px-3 py-2">
+        <div className="text-[8px] uppercase tracking-widest mb-1.5" style={{ color: "rgba(255,255,255,0.25)" }}>
+          Features
+        </div>
+        <div className="flex flex-col gap-1.5">
+          {INDICATOR_FEATURES.map((f) => (
+            <div key={f.label}>
+              <div className="text-[9px] font-semibold" style={{ color: "rgba(139,92,246,0.75)" }}>{f.label}</div>
+              <div className="text-[8px] leading-tight" style={{ color: "rgba(255,255,255,0.35)" }}>{f.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
