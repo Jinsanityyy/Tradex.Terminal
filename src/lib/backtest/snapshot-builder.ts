@@ -212,6 +212,7 @@ export function buildHistoricalSnapshot(
       atrReal,
       session,
       sessionHour,
+      andybiotic: null,
     },
     recentNews: [],   // no live news in backtest
     recentCandles: recent60,
