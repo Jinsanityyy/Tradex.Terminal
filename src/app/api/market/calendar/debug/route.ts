@@ -1,12 +1,28 @@
 import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
+async function testBLS() {
+  const series = { nfp: "CES0000000001", unemployment: "LNS14000000", avgHourly: "CES0500000003" };
+  const results: Record<string, unknown> = {};
+  await Promise.all(Object.entries(series).map(async ([key, id]) => {
+    try {
+      const res = await fetch(`https://api.bls.gov/publicAPI/v1/timeseries/data/${id}?latest=true`, { cache: "no-store" });
+      const json = await res.json();
+      results[key] = { status: json.status, latest: json.Results?.series?.[0]?.data?.[0] };
+    } catch (e) { results[key] = { error: String(e) }; }
+  }));
+  return results;
+}
+
 export async function GET() {
+  // First test BLS.gov (no auth needed)
+  const blsResults = await testBLS();
+
   const email    = process.env.MYFXBOOK_EMAIL;
   const password = process.env.MYFXBOOK_PASSWORD;
 
   if (!email || !password) {
-    return NextResponse.json({ error: "No MYFXBOOK_EMAIL or MYFXBOOK_PASSWORD env vars set" });
+    return NextResponse.json({ blsResults, error: "No MYFXBOOK_EMAIL or MYFXBOOK_PASSWORD env vars set" });
   }
 
   // Step 1: Login

@@ -6,9 +6,62 @@ export const dynamic = "force-dynamic";
 let cache: { data: EconomicEvent[]; ts: number } = { data: [], ts: 0 };
 const CACHE_TTL = 30_000;
 
-// ── Myfxbook session management ───────────────────────────────────────────────
-// Free account required: register at myfxbook.com
-// Set env vars: MYFXBOOK_EMAIL and MYFXBOOK_PASSWORD
+// ── BLS.gov actual data (US Bureau of Labor Statistics — free, no API key) ───
+// Official US government source. v1 API allows anonymous requests.
+// Series IDs for key USD events:
+const BLS_SERIES: Record<string, { id: string; unit: string; multiply?: number }> = {
+  nfp:          { id: "CES0000000001", unit: "K",  multiply: 1    }, // Total Nonfarm (thousands)
+  unemployment: { id: "LNS14000000",  unit: "%",   multiply: 1    }, // Unemployment Rate
+  avgHourly:    { id: "CES0500000003",unit: "%",   multiply: 1    }, // Avg Hourly Earnings YoY
+  cpi:          { id: "CUUR0000SA0",  unit: "",    multiply: 1    }, // CPI All Urban
+};
+
+let blsCache: { data: Record<string, string>; ts: number } = { data: {}, ts: 0 };
+const BLS_CACHE_TTL = 5 * 60_000; // 5 min
+
+async function fetchBLSActuals(): Promise<Record<string, string>> {
+  if (Object.keys(blsCache.data).length > 0 && Date.now() - blsCache.ts < BLS_CACHE_TTL) {
+    return blsCache.data;
+  }
+
+  const results: Record<string, string> = {};
+
+  // Fetch each series in parallel
+  await Promise.all(Object.entries(BLS_SERIES).map(async ([key, { id, unit }]) => {
+    try {
+      const url = `https://api.bls.gov/publicAPI/v1/timeseries/data/${id}?latest=true`;
+      const res = await fetch(url, {
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) return;
+      const json = await res.json() as {
+        status: string;
+        Results?: { series: Array<{ data: Array<{ value: string; year: string; period: string }> }> };
+      };
+      if (json.status !== "REQUEST_SUCCEEDED") return;
+      const latest = json.Results?.series?.[0]?.data?.[0];
+      if (!latest) return;
+      results[key] = `${latest.value}${unit}`;
+    } catch { /* skip */ }
+  }));
+
+  if (Object.keys(results).length > 0) blsCache = { data: results, ts: Date.now() };
+  return results;
+}
+
+function matchBLSActual(blsData: Record<string, string>, title: string): string | undefined {
+  const t = title.toLowerCase();
+  if ((t.includes("non-farm") || t.includes("nonfarm")) && !t.includes("adp") && !t.includes("private"))
+    return blsData.nfp;
+  if (t.includes("unemployment rate") && !t.includes("claims"))
+    return blsData.unemployment;
+  if (t.includes("average hourly earnings") && t.includes("m/m"))
+    return blsData.avgHourly;
+  return undefined;
+}
+
+// ── Myfxbook session management (kept but disabled — Vercel IPs are blocked) ──
 let myfxSession: { id: string; ts: number } | null = null;
 const SESSION_TTL = 60 * 60_000; // 1 hour
 
@@ -986,8 +1039,11 @@ export async function GET() {
     }
     const now = new Date();
 
-    // Fetch myfxbook actuals in parallel (requires MYFXBOOK_EMAIL + MYFXBOOK_PASSWORD env vars)
-    const myfxEvents = await fetchMyfxActuals();
+    // Fetch actuals from BLS.gov (free, no auth) + myfxbook (if not blocked)
+    const [myfxEvents, blsData] = await Promise.all([
+      fetchMyfxActuals(),
+      fetchBLSActuals(),
+    ]);
 
     // FILTER: HIGH + MEDIUM impact USD events
     const mapped: EconomicEvent[] = events
@@ -1007,12 +1063,13 @@ export async function GET() {
 
         const impact: "high" | "medium" = e.impact === "High" ? "high" : "medium";
 
-        // Actual: FairFX (dual CDN) → Myfxbook fallback (if credentials configured)
+        // Actual priority: FairFX → BLS.gov (official US gov data) → Myfxbook
         const ffActual   = isPast && e.actual && e.actual !== "" ? e.actual : undefined;
-        const myfxActual = !ffActual && isPast
+        const blsActual  = !ffActual && isPast ? matchBLSActual(blsData, e.title) : undefined;
+        const myfxActual = !ffActual && !blsActual && isPast
           ? matchMyfxActual(myfxEvents, e.title, eventTime.toISOString().split("T")[0])
           : undefined;
-        const actualValue       = ffActual ?? myfxActual;
+        const actualValue       = ffActual ?? blsActual ?? myfxActual;
         const actualForAnalysis = actualValue;
 
         const analysis = analyzeEvent(e.title, e.forecast, e.previous, isPast);
