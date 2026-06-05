@@ -6,6 +6,95 @@ export const dynamic = "force-dynamic";
 let cache: { data: EconomicEvent[]; ts: number } = { data: [], ts: 0 };
 const CACHE_TTL = 30_000; // 30s — refresh fast so actuals appear quickly after release
 
+// ── Myfxbook actual data fetcher ─────────────────────────────────────────────
+// Myfxbook publishes actuals faster than FairFX. We use it as the primary
+// fallback when FairFX hasn't updated yet.
+
+interface MyfxbookEvent {
+  id: string;
+  title: string;
+  country: string;
+  date: string;       // ISO date string
+  impact: number;     // 0=low, 1=medium, 2=high, 3=holiday
+  previous: string;
+  forecast: string;
+  actual: string;     // empty when not released yet
+}
+
+let myfxCache: { data: MyfxbookEvent[]; ts: number } = { data: [], ts: 0 };
+const MYFX_CACHE_TTL = 60_000; // 1 min
+
+async function fetchMyfxbookActuals(): Promise<MyfxbookEvent[]> {
+  if (myfxCache.data.length > 0 && Date.now() - myfxCache.ts < MYFX_CACHE_TTL) {
+    return myfxCache.data;
+  }
+  try {
+    const now  = new Date();
+    const from = new Date(now); from.setDate(now.getDate() - 2);
+    const to   = new Date(now); to.setDate(now.getDate() + 1);
+    const fmt  = (d: Date) => d.toISOString().split("T")[0];
+    // Myfxbook public calendar endpoint (no auth required for public events)
+    const url  = `https://www.myfxbook.com/api/get-economic-calendar.json?session=&start=${fmt(from)}&end=${fmt(to)}`;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const res  = await fetch(url, { signal: ctrl.signal, cache: "no-store" });
+    clearTimeout(timer);
+    if (!res.ok) return [];
+    const json = await res.json() as { calendar?: MyfxbookEvent[]; error?: boolean };
+    if (json.error || !Array.isArray(json.calendar)) return [];
+    if (json.calendar.length > 0) myfxCache = { data: json.calendar, ts: Date.now() };
+    return json.calendar;
+  } catch {
+    return [];
+  }
+}
+
+/** Match a FairFX event title to the best Myfxbook event with a confirmed actual */
+function matchMyfxActual(
+  events: MyfxbookEvent[],
+  title: string,
+  eventDateISO: string
+): string | undefined {
+  const t   = title.toLowerCase();
+  const isNFP        = t.includes("non farm payrolls") || t.includes("nonfarm payrolls") || (t.includes("non-farm") && t.includes("employ"));
+  const isUnempRate  = t.includes("unemployment rate") && !t.includes("claims");
+  const isAvgHourly  = t.includes("average hourly earnings") && t.includes("m/m");
+  const isCPI        = t.includes("cpi") && !t.includes("core");
+  const isCoreCPI    = t.includes("core cpi");
+  const isPCE        = t.includes("pce") || (t.includes("core") && t.includes("personal"));
+  const isGDP        = t.includes("gdp");
+  const isRetail     = t.includes("retail sales") && !t.includes("core");
+  const isADP        = t.includes("adp");
+  const isJOLTS      = t.includes("jolts") || t.includes("job openings");
+  const isClaims     = t.includes("jobless") || t.includes("unemployment claims") || t.includes("initial claims");
+  const isPMI        = (t.includes("pmi") || t.includes("ism")) && !isNFP;
+  const isCBConf     = t.includes("consumer confidence") || t.includes("michigan");
+
+  const match = events.find(f => {
+    if (f.actual === "" || f.actual === "-" || !f.actual) return false;
+    if (f.country !== "USD" && f.country !== "US" && f.country !== "United States") return false;
+    const diff = Math.abs(new Date(f.date.slice(0,10)).getTime() - new Date(eventDateISO).getTime());
+    if (diff > 86_400_000 * 2) return false;
+    const fn = f.title.toLowerCase();
+    if (isNFP)       return (fn.includes("non farm payrolls") || fn.includes("nonfarm payroll")) && !fn.includes("adp") && !fn.includes("private") && !fn.includes("manufacturing") && !fn.includes("government");
+    if (isUnempRate) return fn.includes("unemployment rate") && !fn.includes("claims") && !fn.includes("u-6");
+    if (isAvgHourly) return fn.includes("average hourly earnings") && fn.includes("m/m");
+    if (isCoreCPI)   return fn.includes("core") && fn.includes("cpi");
+    if (isCPI)       return fn.includes("cpi") && !fn.includes("core");
+    if (isPCE)       return fn.includes("pce") || (fn.includes("core") && fn.includes("personal"));
+    if (isGDP)       return fn.includes("gdp");
+    if (isRetail)    return fn.includes("retail sales") && !fn.includes("core");
+    if (isADP)       return fn.includes("adp");
+    if (isJOLTS)     return fn.includes("jolts") || fn.includes("job openings");
+    if (isClaims)    return fn.includes("jobless") || fn.includes("initial claims") || fn.includes("unemployment claims");
+    if (isPMI)       return fn.includes("pmi") || fn.includes("ism");
+    if (isCBConf)    return fn.includes("consumer confidence") || fn.includes("michigan");
+    return false;
+  });
+
+  return match?.actual ?? undefined;
+}
+
 // ── Finnhub economic calendar (fallback for actuals when FairFX is slow) ─────
 interface FinnhubEcoEvent {
   actual:   number | null;
@@ -1039,6 +1128,9 @@ export async function GET() {
     }
     const now = new Date();
 
+    // Fetch myfxbook actuals in parallel (faster than FairFX for post-release data)
+    const myfxEvents = await fetchMyfxbookActuals();
+
     // FILTER: HIGH + MEDIUM impact USD events
     const mapped: EconomicEvent[] = events
       .filter((e) => (e.impact === "High" || e.impact === "Medium") && e.country === "USD")
@@ -1057,8 +1149,12 @@ export async function GET() {
 
         const impact: "high" | "medium" = e.impact === "High" ? "high" : "medium";
 
-        // Actual from FairFX (most reliable — they update within 15–60 min of release)
-        const actualValue = isPast && e.actual && e.actual !== "" ? e.actual : undefined;
+        // Actual: FairFX first → Myfxbook fallback (faster post-release updates)
+        const ffActual   = isPast && e.actual && e.actual !== "" ? e.actual : undefined;
+        const myfxActual = isPast && !ffActual
+          ? matchMyfxActual(myfxEvents, e.title, eventTime.toISOString().split("T")[0])
+          : undefined;
+        const actualValue       = ffActual ?? myfxActual;
         const actualForAnalysis = actualValue;
 
         const analysis = analyzeEvent(e.title, e.forecast, e.previous, isPast);
@@ -1084,7 +1180,7 @@ export async function GET() {
           // FairFX actual — shown when available, "Pending..." for recently completed events
           actual: (() => {
             if (!isPast) return undefined;
-            if (e.actual && e.actual !== "") return e.actual;
+            if (actualValue) return actualValue;            // FairFX or Myfxbook
             const minsSince = msSinceEvent / 60_000;
             return minsSince < 120 ? "Pending..." : undefined;
           })(),
