@@ -4,7 +4,7 @@ import type { EconomicEvent } from "@/types";
 export const dynamic = "force-dynamic";
 
 let cache: { data: EconomicEvent[]; ts: number } = { data: [], ts: 0 };
-const CACHE_TTL = 60_000; // 1 min  -  refresh status more frequently
+const CACHE_TTL = 30_000; // 30s — refresh fast so actuals appear quickly after release
 
 interface FFEvent {
   title: string;
@@ -488,10 +488,44 @@ function generatePostEvent(title: string, forecast: string, previous: string, ac
 } {
   const t = title.toLowerCase();
   // Use actual vs forecast for beat/miss when actual is available
-  const fcNum  = parseFloat(forecast) || null;
-  const actNum = actual && actual !== "" && actual !== "-" && actual !== " - " ? parseFloat(actual.replace(/[KkMmBb%]/g, "")) : null;
-  // For K-suffixed values (NFP), multiply if needed — FairFX returns "177K" sometimes
-  const actualStr = actual && actual !== "" && actual !== "-" && actual !== " - " ? actual : null;
+  const fcNum   = parseFloat(forecast.replace(/[KkMmBb%]/g, "")) || null;
+  const prevNum = parseFloat(previous.replace(/[KkMmBb%]/g, "")) || null;
+  const actualStr = actual && actual !== "" && actual !== "-" && actual !== " - " && actual !== "Updating..." ? actual : null;
+  const actNum    = actualStr ? parseFloat(actualStr.replace(/[KkMmBb%]/g, "")) : null;
+
+  // ── Generic actual-aware summary (used when actual is available for any event type) ──
+  // This fires before specific handlers so all events get proper beat/miss when actual exists.
+  const hasMeaningfulActual = actNum !== null && !isNaN(actNum) && fcNum !== null;
+  if (hasMeaningfulActual) {
+    const beat  = actNum > fcNum;
+    const miss  = actNum < fcNum;
+    const isNFP = t.includes("nonfarm") || t.includes("non-farm") || t.includes("payroll") || t.includes("employment change");
+    const isCPI = t.includes("cpi") || t.includes("pce") || t.includes("inflation");
+    // For jobs data: beat = more jobs = bearish gold. For inflation: beat = hotter = bearish gold.
+    // For most other data (GDP, PMI, retail): beat = stronger economy = bearish gold.
+    const goldBearOnBeat = true; // almost always true for USD data
+    const result = beat
+      ? `${title}: actual ${actualStr} beat forecast ${forecast} (prior ${previous}). Stronger-than-expected result — ${goldBearOnBeat ? "bearish for Gold, bullish for USD" : "bullish for Gold"}. ${isNFP ? "Strong jobs = Fed stays patient = rate cut timeline pushed out." : isCPI ? "Hot inflation = hawkish Fed = real yields rise = Gold under pressure." : "Economic resilience reduces rate-cut urgency."}`
+      : miss
+      ? `${title}: actual ${actualStr} missed forecast ${forecast} (prior ${previous}). Weaker-than-expected result — bullish for Gold, bearish for USD. ${isNFP ? "Soft jobs = recession concerns rise = rate-cut bets accelerate." : isCPI ? "Cooling inflation = Fed cut expectations increase = Gold supported." : "Economic weakness raises recession risk and rate-cut bets."}`
+      : `${title}: actual ${actualStr} in line with forecast ${forecast}. No significant surprise — minimal market reaction expected. Wait for the next catalyst.`;
+    const beats = beat ? [
+      `Actual ${actualStr} beat forecast ${forecast} — clear surprise to the upside`,
+      "Sell Gold on any bounce — strong data = delayed rate cuts",
+      "DXY should strengthen — look for USD longs across major pairs",
+      "Watch for Gold to test support levels after initial reaction",
+    ] : miss ? [
+      `Actual ${actualStr} missed forecast ${forecast} — clear disappointment`,
+      "Buy Gold dips — weak data = rate-cut expectations accelerating",
+      "DXY should weaken — EURUSD, GBPUSD, Gold all benefit",
+      "Watch for Gold breakout above pre-release resistance",
+    ] : [
+      "In-line print — minimal directional conviction",
+      "Wait for next major catalyst before entering",
+      "Watch DXY for any follow-through USD move",
+    ];
+    return { postEventSummary: result, postEventBullets: beats };
+  }
 
   // ── Fed Chair / Fed Speaker ──
   if (t.includes("powell") || (t.includes("fed") && (t.includes("speak") || t.includes("chair") || t.includes("press")))) {
@@ -581,8 +615,8 @@ function generatePostEvent(title: string, forecast: string, previous: string, ac
     const miss = actNum !== null && fc !== null && actNum < fc;
     const strong = beat || (!actualStr && fc !== null && pr !== null && fc > pr);
     const vsLabel = actualStr
-      ? `actual ${actualStr} vs forecast ${forecast || "N/A"}K`
-      : `forecast ${forecast || "N/A"}K vs previous ${previous || "N/A"}K`;
+      ? `actual ${actualStr} vs forecast ${forecast || "N/A"}`
+      : `forecast ${forecast || "N/A"} vs previous ${previous || "N/A"}`;
     return {
       postEventSummary: strong
         ? `Jobs data came in strong (${vsLabel}). A robust labor market signals the economy can handle higher rates for longer — bearish for Gold and bullish for USD. The initial NFP spike in Gold is often faded. Watch for Gold to roll over from pre-release levels and continue lower.`
@@ -858,8 +892,10 @@ export async function GET() {
         // Map FairFX impact string to our Impact type
         const impact: "high" | "medium" = e.impact === "High" ? "high" : "medium";
 
+        // For completed events: use actual vs forecast for beat/miss analysis when actual exists
+        const actualForAnalysis = isPast && e.actual && e.actual !== "" ? e.actual : undefined;
         const analysis = analyzeEvent(e.title, e.forecast, e.previous, isPast);
-        const post = isPast ? generatePostEvent(e.title, e.forecast, e.previous, e.actual) : null;
+        const post = isPast ? generatePostEvent(e.title, e.forecast, e.previous, actualForAnalysis) : null;
         const pre = !isPast ? generatePreEvent(e.title, e.forecast, e.previous) : null;
 
         return {
@@ -878,7 +914,15 @@ export async function GET() {
           impact,
           forecast: e.forecast !== "" ? e.forecast : " - ",
           previous: e.previous !== "" ? e.previous : " - ",
-          actual: isPast && e.actual && e.actual !== "" ? e.actual : undefined,
+          // Show actual when FairFX has it; "Updating..." for recently completed (< 60 min);
+          // blank for older events where FairFX simply didn't publish one.
+          actual: (() => {
+            if (!isPast) return undefined;
+            if (e.actual && e.actual !== "") return e.actual;
+            const minsSince = msSinceEvent / 60_000;
+            if (minsSince < 60) return "Updating...";
+            return undefined; // older event, FairFX won't have it
+          })(),
           interpretation: analysis.tradeImplication,
           affectedAssets: ["XAUUSD", "DXY", "EURUSD", ...deriveExtraAssets(e.title)],
           status,
