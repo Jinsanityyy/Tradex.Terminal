@@ -482,11 +482,16 @@ function generatePreEvent(title: string, forecast: string, previous: string): {
 }
 
 // ── Post-event narrative (completed events only) ──────────────────────────────
-function generatePostEvent(title: string, forecast: string, previous: string): {
+function generatePostEvent(title: string, forecast: string, previous: string, actual?: string): {
   postEventSummary: string;
   postEventBullets: string[];
 } {
   const t = title.toLowerCase();
+  // Use actual vs forecast for beat/miss when actual is available
+  const fcNum  = parseFloat(forecast) || null;
+  const actNum = actual && actual !== "" && actual !== "-" && actual !== " - " ? parseFloat(actual.replace(/[KkMmBb%]/g, "")) : null;
+  // For K-suffixed values (NFP), multiply if needed — FairFX returns "177K" sometimes
+  const actualStr = actual && actual !== "" && actual !== "-" && actual !== " - " ? actual : null;
 
   // ── Fed Chair / Fed Speaker ──
   if (t.includes("powell") || (t.includes("fed") && (t.includes("speak") || t.includes("chair") || t.includes("press")))) {
@@ -526,15 +531,22 @@ function generatePostEvent(title: string, forecast: string, previous: string): {
 
   // ── CPI / PCE / Inflation ──
   if (t.includes("cpi") || t.includes("pce") || t.includes("inflation")) {
-    const fc = parseFloat(forecast), pr = parseFloat(previous);
-    const hot = !isNaN(fc) && !isNaN(pr) && fc > pr;
-    const cold = !isNaN(fc) && !isNaN(pr) && fc < pr;
+    const fc  = parseFloat(forecast) || null;
+    const pr  = parseFloat(previous) || null;
+    // Beat = actual > forecast (hotter than expected = hawkish)
+    const hotBeat = actNum !== null && fc !== null && actNum > fc;
+    const coldMiss = actNum !== null && fc !== null && actNum < fc;
+    const hot  = hotBeat  || (!actualStr && fc !== null && pr !== null && fc > pr);
+    const cold = coldMiss || (!actualStr && fc !== null && pr !== null && fc < pr);
+    const vsLabel = actualStr
+      ? `actual ${actualStr} vs forecast ${forecast || "N/A"}`
+      : `${forecast || "N/A"} vs previous ${previous || "N/A"}`;
     return {
       postEventSummary: hot
-        ? `Inflation came in hotter than previous (${forecast} vs ${previous}). This reinforces the Fed's hawkish stance  -  rate cuts are pushed further out. Gold is under pressure as real yields rise. USD is likely bid. Any Gold bounce from here should be treated as a sell opportunity until the next data point shows cooling.`
+        ? `Inflation came in hotter than expected (${vsLabel}). This reinforces the Fed's hawkish stance — rate cuts are pushed further out. Gold is under pressure as real yields rise. USD is likely bid. Any Gold bounce should be treated as a sell opportunity until the next data point shows cooling.`
         : cold
-        ? `Inflation printed softer than previous (${forecast} vs ${previous}). This increases rate-cut expectations, which is bullish for Gold and bearish for USD. Watch for Gold to break above the pre-release resistance level. This is a buy-the-dips environment for Gold in the near term.`
-        : `Inflation printed in line with expectations. Markets will re-anchor around the current Fed narrative. With no major surprise, Gold may consolidate before the next catalyst. Watch for the Fed's next commentary for direction.`,
+        ? `Inflation printed softer than expected (${vsLabel}). This increases rate-cut expectations — bullish for Gold and bearish for USD. Watch for Gold to break above pre-release resistance. This is a buy-the-dips environment for Gold near-term.`
+        : `Inflation printed in line with expectations (${vsLabel}). Markets will re-anchor around the current Fed narrative. Gold may consolidate before the next catalyst.`,
       postEventBullets: hot
         ? [
             "Sell Gold rallies  -  hot CPI = no rate cuts soon",
@@ -562,12 +574,21 @@ function generatePostEvent(title: string, forecast: string, previous: string): {
 
   // ── NFP ──
   if (t.includes("nonfarm") || t.includes("non-farm") || t.includes("nfp") || t.includes("payroll")) {
-    const fc = parseFloat(forecast), pr = parseFloat(previous);
-    const strong = !isNaN(fc) && !isNaN(pr) && fc > pr;
+    const fc  = parseFloat(forecast) || null;
+    const pr  = parseFloat(previous) || null;
+    // Beat = actual > forecast (more jobs than expected = strong)
+    const beat = actNum !== null && fc !== null && actNum > fc;
+    const miss = actNum !== null && fc !== null && actNum < fc;
+    const strong = beat || (!actualStr && fc !== null && pr !== null && fc > pr);
+    const vsLabel = actualStr
+      ? `actual ${actualStr} vs forecast ${forecast || "N/A"}K`
+      : `forecast ${forecast || "N/A"}K vs previous ${previous || "N/A"}K`;
     return {
       postEventSummary: strong
-        ? `Jobs data came in strong (${forecast}K vs previous ${previous}K). A robust labor market signals the economy can handle higher rates for longer  -  this is bearish for Gold and bullish for USD. The initial NFP spike in Gold is often faded. Watch for Gold to roll over from the pre-release level and continue lower.`
-        : `Jobs data printed weaker or in line (${forecast}K vs previous ${previous}K). Softer employment raises recession concerns and boosts rate-cut expectations  -  bullish for Gold. Any sell-off in Gold on the print should be bought, especially if the number is a significant miss.`,
+        ? `Jobs data came in strong (${vsLabel}). A robust labor market signals the economy can handle higher rates for longer — bearish for Gold and bullish for USD. The initial NFP spike in Gold is often faded. Watch for Gold to roll over from pre-release levels and continue lower.`
+        : miss
+        ? `Jobs data missed expectations (${vsLabel}). A weak print raises recession concerns and boosts rate-cut expectations — bullish for Gold. Any sell-off in Gold on the print should be bought, especially if the miss is significant.`
+        : `Jobs data printed near expectations (${vsLabel}). A mixed or in-line print reduces conviction in either direction. Watch wage data and unemployment rate for the full picture.`,
       postEventBullets: strong
         ? [
             "Sell Gold on any bounce  -  strong NFP = delayed rate cuts",
@@ -576,11 +597,17 @@ function generatePostEvent(title: string, forecast: string, previous: string): {
             "Watch USDJPY: strong NFP = USDJPY rising",
             "Key risk: if jobs are strong but wages soft, Gold may recover",
           ]
-        : [
+        : miss
+        ? [
             "Buy Gold dips  -  weak jobs = rate cut bets rising",
             "First 15 min spike often retraces  -  buy the dip, not the spike",
             "DXY should weaken  -  EURUSD, Gold, GBPUSD benefit",
             "Watch Gold's next resistance level for breakout confirmation",
+          ]
+        : [
+            "Mixed signal — wait for wages and unemployment rate confirmation",
+            "No strong directional bias — trade only on clear chart setup",
+            "Watch DXY for USD direction cue",
           ],
     };
   }
@@ -832,7 +859,7 @@ export async function GET() {
         const impact: "high" | "medium" = e.impact === "High" ? "high" : "medium";
 
         const analysis = analyzeEvent(e.title, e.forecast, e.previous, isPast);
-        const post = isPast ? generatePostEvent(e.title, e.forecast, e.previous) : null;
+        const post = isPast ? generatePostEvent(e.title, e.forecast, e.previous, e.actual) : null;
         const pre = !isPast ? generatePreEvent(e.title, e.forecast, e.previous) : null;
 
         return {
