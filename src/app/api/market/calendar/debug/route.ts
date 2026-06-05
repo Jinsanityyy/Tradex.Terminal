@@ -64,7 +64,7 @@ export async function GET() {
     const rawText = await calRes.text();
     // Show first 500 chars of raw response for debugging
     if (rawText.trim().startsWith("<")) {
-      return NextResponse.json({ step: "html_response", rawPreview: rawText.slice(0, 300), url: calUrl.replace(session, "***") });
+      return NextResponse.json({ blsResults, step: "myfxbook_blocked", note: "Myfxbook blocks Vercel IPs — using BLS.gov instead", url: calUrl.replace(session, "***") });
     }
     const calData = JSON.parse(rawText) as { error: boolean; calendar?: unknown[] };
 
