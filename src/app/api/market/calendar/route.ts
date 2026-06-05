@@ -8,43 +8,64 @@ const CACHE_TTL = 30_000;
 
 // ── BLS.gov actual data (US Bureau of Labor Statistics — free, no API key) ───
 // Official US government source. v1 API allows anonymous requests.
-// Series IDs for key USD events:
-const BLS_SERIES: Record<string, { id: string; unit: string; multiply?: number }> = {
-  nfp:          { id: "CES0000000001", unit: "K",  multiply: 1    }, // Total Nonfarm (thousands)
-  unemployment: { id: "LNS14000000",  unit: "%",   multiply: 1    }, // Unemployment Rate
-  avgHourly:    { id: "CES0500000003",unit: "%",   multiply: 1    }, // Avg Hourly Earnings YoY
-  cpi:          { id: "CUUR0000SA0",  unit: "",    multiply: 1    }, // CPI All Urban
-};
+// BLS Series IDs:
+// CES0000000001 = Total Nonfarm level (calc M/M change → NFP K)
+// CES0500000003 = Avg Hourly Earnings level (calc M/M % change)
+// LNS14000000   = Unemployment Rate (direct value)
 
 let blsCache: { data: Record<string, string>; ts: number } = { data: {}, ts: 0 };
 const BLS_CACHE_TTL = 5 * 60_000; // 5 min
+
+type BLSJson = {
+  status: string;
+  Results?: { series: Array<{ data: Array<{ value: string }> }> };
+};
+
+async function blsFetch(seriesId: string, count = 2): Promise<string[]> {
+  try {
+    // Fetch last N data points (need 2 for change calculation)
+    const url = `https://api.bls.gov/publicAPI/v1/timeseries/data/${seriesId}`;
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return [];
+    const json = await res.json() as BLSJson;
+    if (json.status !== "REQUEST_SUCCEEDED") return [];
+    return (json.Results?.series?.[0]?.data ?? []).slice(0, count).map(d => d.value);
+  } catch { return []; }
+}
 
 async function fetchBLSActuals(): Promise<Record<string, string>> {
   if (Object.keys(blsCache.data).length > 0 && Date.now() - blsCache.ts < BLS_CACHE_TTL) {
     return blsCache.data;
   }
 
+  const [nfpData, avgHourlyData, unemploymentData] = await Promise.all([
+    blsFetch("CES0000000001", 2), // Total nonfarm level (thousands) — need 2 for change
+    blsFetch("CES0500000003", 2), // Avg hourly earnings level ($) — need 2 for M/M %
+    blsFetch("LNS14000000",  1),  // Unemployment rate — already the rate
+  ]);
+
   const results: Record<string, string> = {};
 
-  // Fetch each series in parallel
-  await Promise.all(Object.entries(BLS_SERIES).map(async ([key, { id, unit }]) => {
-    try {
-      const url = `https://api.bls.gov/publicAPI/v1/timeseries/data/${id}?latest=true`;
-      const res = await fetch(url, {
-        cache: "no-store",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) return;
-      const json = await res.json() as {
-        status: string;
-        Results?: { series: Array<{ data: Array<{ value: string; year: string; period: string }> }> };
-      };
-      if (json.status !== "REQUEST_SUCCEEDED") return;
-      const latest = json.Results?.series?.[0]?.data?.[0];
-      if (!latest) return;
-      results[key] = `${latest.value}${unit}`;
-    } catch { /* skip */ }
-  }));
+  // NFP change = current level - previous level (in K)
+  if (nfpData.length >= 2) {
+    const change = Math.round(parseFloat(nfpData[0]) - parseFloat(nfpData[1]));
+    results.nfp = `${change}K`;
+  }
+
+  // Avg Hourly Earnings M/M % change
+  if (avgHourlyData.length >= 2) {
+    const curr = parseFloat(avgHourlyData[0]);
+    const prev = parseFloat(avgHourlyData[1]);
+    if (prev > 0) {
+      const pct = ((curr - prev) / prev * 100).toFixed(1);
+      results.avgHourly = `${pct}%`;
+    }
+  }
+
+  // Unemployment rate — direct value
+  if (unemploymentData.length >= 1) {
+    results.unemployment = `${unemploymentData[0]}%`;
+  }
 
   if (Object.keys(results).length > 0) blsCache = { data: results, ts: Date.now() };
   return results;
