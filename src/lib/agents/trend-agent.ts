@@ -154,23 +154,24 @@ function buildReasons(
 
   reasons.push(`${phase} phase - price at ${pos52w}% of 52w range (${zone}) | ${session} session`);
 
-  // ── Andybiotic Max% signal ──────────────────────────────────────────────────
-  const andy = snapshot.indicators.andybiotic;
-  if (andy) {
-    const stDir  = andy.superTrendDir === -1 ? "BULL" : "BEAR";
-    const stFresh = andy.superTrendDir === -1
-      ? (andy.barsSinceBull < 5 ? `fresh (${andy.barsSinceBull} bars)` : `${andy.barsSinceBull} bars ago`)
-      : (andy.barsSinceBear < 5 ? `fresh (${andy.barsSinceBear} bars)` : `${andy.barsSinceBear} bars ago`);
-    const smartTag = andy.isSmartBuy ? " ✦ SMART BUY" : andy.isSmartSell ? " ✦ SMART SELL" : andy.isBull ? " ✦ BUY signal" : andy.isBear ? " ✦ SELL signal" : "";
-    const aboveEma = andy.ema200 != null ? (snapshot.price.current > andy.ema200 ? "above EMA200" : "below EMA200") : "";
-    const adxNote  = andy.isSideways ? " | ADX < 15 (RANGING — signal reliability reduced)" : ` | ADX ${andy.adx?.toFixed(1) ?? "N/A"} (trending)`;
-
-    reasons.push(
-      `Andybiotic Max%: SuperTrend ${stDir} @ ${andy.superTrend.toFixed(2)} (${stFresh})${smartTag} | Price ${aboveEma}${adxNote}`
-    );
-  }
-
   return reasons;
+}
+
+function buildAndybioticReason(snapshot: MarketSnapshot): string {
+  const andy = snapshot.indicators.andybiotic;
+  if (!andy) return "Andybiotic Max%: insufficient M5 candle history";
+
+  const stDir   = andy.superTrendDir === -1 ? "BULL" : "BEAR";
+  const fresh   = andy.superTrendDir === -1
+    ? (andy.barsSinceBull <= 2 ? `fresh crossover (${andy.barsSinceBull} bars ago)` : `${andy.barsSinceBull} bars since last BUY`)
+    : (andy.barsSinceBear <= 2 ? `fresh crossover (${andy.barsSinceBear} bars ago)` : `${andy.barsSinceBear} bars since last SELL`);
+  const signal  = andy.isSmartBuy ? "✦ SMART BUY" : andy.isSmartSell ? "✦ SMART SELL" : andy.isBull ? "BUY crossover" : andy.isBear ? "SELL crossover" : "no fresh signal";
+  const emaTag  = andy.ema200 != null ? (snapshot.price.current > andy.ema200 ? "above EMA200 ✓" : "below EMA200 ✓") : "";
+  const adxTag  = andy.isSideways
+    ? `ADX ${andy.adx?.toFixed(1) ?? "N/A"} — RANGING (signals suppressed)`
+    : `ADX ${andy.adx?.toFixed(1) ?? "N/A"} trending`;
+
+  return `Andybiotic Max% (5m): SuperTrend ${stDir} @ ${andy.superTrend.toFixed(2)} | ${signal} | ${fresh} | ${emaTag} | ${adxTag}`;
 }
 
 function resolveFinalBias(
@@ -214,7 +215,7 @@ async function narrateTrendReasons(
   maData: { ma20: number | null; ma50: number | null; ma200: number | null; maStack: string }
 ): Promise<string[] | null> {
   const { price, structure, indicators } = snapshot;
-  const sys = `You are the Trend Analysis Agent writing the rationale for a trade terminal. The directional decision has ALREADY been made deterministically. Your ONLY job is to write 4-5 concise, institutional-grade bullet reasons that justify the GIVEN bias using the supplied data. Do NOT contradict the bias. Return ONLY a JSON array of strings.`;
+  const sys = `You are the Trend Analysis Agent writing the rationale for a trade terminal. The directional decision has ALREADY been made deterministically using Andybiotic Max% (5m) as the PRIMARY signal. Your ONLY job is to write 4-5 concise, institutional-grade bullet reasons that justify the GIVEN bias. Lead with the Andybiotic SuperTrend signal. Do NOT contradict the bias. Return ONLY a JSON array of strings.`;
 
   const msg = `
 DECIDED BIAS: ${computed.bias.toUpperCase()} @ ${computed.confidence}% | Phase: ${computed.marketPhase} | Momentum: ${computed.momentumDirection}
@@ -271,100 +272,52 @@ export async function runTrendAgent(
 
     let biasScore = 0;
 
-    // ── JadeCap PRIMARY: PDH/PDL Midpoint Daily Bias (+25 pts) ────────────
-    // Derive actual PDH/PDL from prior-day candles when available.
-    // Fallback to prevClose ± dayRange * 0.40 proxy only when no candle history exists.
-    const { prevClose, dayRange, open: dayOpen } = snapshot.price;
-    let pdh: number;
-    let pdl: number;
-
-    const recentCandles = snapshot.recentCandles;
-    if (recentCandles && recentCandles.length >= 2) {
-      const todayMidnight = new Date();
-      todayMidnight.setUTCHours(0, 0, 0, 0);
-      const todayMs   = todayMidnight.getTime();
-      const prevDayMs = todayMs - 86_400_000;
-      const prevDayCandles = recentCandles.filter(
-        c => c.t * 1000 >= prevDayMs && c.t * 1000 < todayMs
-      );
-      if (prevDayCandles.length >= 1) {
-        pdh = Math.max(...prevDayCandles.map(c => c.h));
-        pdl = Math.min(...prevDayCandles.map(c => c.l));
-      } else {
-        // No prior-day candles in history  -  use proxy
-        pdh = prevClose + dayRange * 0.40;
-        pdl = prevClose - dayRange * 0.40;
-      }
-    } else {
-      // No candle history at all  -  use proxy
-      pdh = prevClose + dayRange * 0.40;
-      pdl = prevClose - dayRange * 0.40;
-    }
-
-    const pdMidpoint    = (pdh + pdl) / 2;
-    const jadeBiasScore = dayOpen > pdMidpoint ? 25 : dayOpen < pdMidpoint ? -25 : 0;
-    biasScore += jadeBiasScore;
-
-    // ── Secondary: HTF structure (weight halved  -  JadeCap PDH/PDL dominates) ─
-    biasScore += htfBias === "bullish" ? htfConfidence * 0.5 : htfBias === "bearish" ? -htfConfidence * 0.5 : 0;
-    // TF-alignment bonus. H1/H4 votes are anchored to htfBias, so on their own the
-    // "aligned" flag just echoes the htfBias term above (double-count). Award full
-    // credit only when an INDEPENDENT lower timeframe (M5/M15) confirms the
-    // direction; otherwise give half credit to avoid inflating on an htfBias echo.
-    if (timeframeBias.aligned) {
-      const dir = timeframeBias.H4;
-      const ltfConfirms = timeframeBias.M5 === dir || timeframeBias.M15 === dir;
-      const bonus = ltfConfirms ? 15 : 7;
-      biasScore += dir === "bullish" ? bonus : dir === "bearish" ? -bonus : 0;
-    }
-    if (rsi > 55) biasScore += 8;
-    if (rsi < 45) biasScore -= 8;
-    if (macdHist > 0) biasScore += 5;
-    if (macdHist < 0) biasScore -= 5;
-    if (maData.maStack === "bullish") biasScore += 10;
-    if (maData.maStack === "bearish") biasScore -= 10;
-    if (momentum === "expanding") biasScore += biasScore > 0 ? 8 : -8;
-    if (momentum === "contracting") biasScore *= 0.85;
-
-    // ── Andybiotic Max% scoring ──────────────────────────────────────────────
-    // SuperTrend direction is a strong, rule-based signal — weight it heavily.
-    // Smart Buy/Sell (price on correct side of EMA200) adds extra conviction.
-    // Suppress all signal weight when ADX < 15 (ranging = low-quality signals).
+    // ── PRIMARY: Andybiotic Max% (5m) ────────────────────────────────────────
+    // SuperTrend direction is the main signal source.
+    // ADX < 15 = ranging market → suppress score entirely.
     const andy = snapshot.indicators.andybiotic;
     if (andy && !andy.isSideways) {
-      // SuperTrend direction: +15 / -15
-      if (andy.superTrendDir === -1) biasScore += 15; // bull — price above ST
-      if (andy.superTrendDir ===  1) biasScore -= 15; // bear — price below ST
+      // SuperTrend direction — core signal: +30 / -30
+      if (andy.superTrendDir === -1) biasScore += 30; // bullish: price above ST
+      if (andy.superTrendDir ===  1) biasScore -= 30; // bearish: price below ST
 
-      // Fresh crossover on this bar: extra +8 / -8
-      if (andy.isBull && andy.barsSinceBull <= 2) biasScore += 8;
-      if (andy.isBear && andy.barsSinceBear <= 2) biasScore -= 8;
+      // Smart Buy / Smart Sell (bull/bear + EMA200 confirmed): +15 / -15
+      if (andy.isSmartBuy)  biasScore += 15;
+      if (andy.isSmartSell) biasScore -= 15;
 
-      // Smart Buy / Smart Sell (EMA200 filter passes): extra +10 / -10
-      if (andy.isSmartBuy)  biasScore += 10;
-      if (andy.isSmartSell) biasScore -= 10;
+      // Fresh crossover on this bar (≤ 2 bars ago): +10 / -10
+      if (andy.isBull && andy.barsSinceBull <= 2) biasScore += 10;
+      if (andy.isBear && andy.barsSinceBear <= 2) biasScore -= 10;
 
-      // Price vs EMA200: softer directional weight
+      // Price vs EMA200 filter: +8 / -8
       if (andy.ema200 != null) {
-        if (snapshot.price.current > andy.ema200) biasScore += 5;
-        else                                       biasScore -= 5;
+        if (snapshot.price.current > andy.ema200) biasScore += 8;
+        else                                       biasScore -= 8;
       }
     } else if (andy?.isSideways) {
-      // Ranging market: dampen existing score
-      biasScore *= 0.6;
+      // ADX < 15: ranging — no directional edge, zero score
+      biasScore = 0;
     }
 
+    // ── SECONDARY: Confluence confirmations ──────────────────────────────────
+    // These only strengthen / weaken the Andybiotic primary signal.
+    // They cannot override it — each is capped at ±10.
+    if (rsi > 55) biasScore += 6;
+    if (rsi < 45) biasScore -= 6;
+    if (macdHist > 0) biasScore += 4;
+    if (macdHist < 0) biasScore -= 4;
+    if (maData.maStack === "bullish") biasScore += 8;
+    if (maData.maStack === "bearish") biasScore -= 8;
+    if (momentum === "expanding") biasScore += biasScore > 0 ? 6 : -6;
+    if (momentum === "contracting") biasScore *= 0.85;
+
+    const recentCandles = snapshot.recentCandles;
     const bias = resolveFinalBias(htfBias, timeframeBias, maData.maStack, biasScore);
     const confidence = Math.min(95, Math.max(20, Math.abs(biasScore)));
     const reasons = buildReasons(snapshot, timeframeBias, phase, maData.maStack, maData);
 
-    // Daily bias reason  -  prepend so it appears first
-    const jadeReason = jadeBiasScore > 0
-      ? `Daily bias: BULLISH  -  open ${dayOpen.toFixed(2)} above PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`
-      : jadeBiasScore < 0
-      ? `Daily bias: BEARISH  -  open ${dayOpen.toFixed(2)} below PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`
-      : `Daily bias: NEUTRAL  -  open at PDH/PDL midpoint ${pdMidpoint.toFixed(2)}`;
-    reasons.unshift(jadeReason);
+    // Andybiotic Max% reason — always first, it's the primary signal
+    reasons.unshift(buildAndybioticReason(snapshot));
 
     // Invalidation level: prefer the most recent swing low/high from candle data.
     // For bullish bias → last significant swing low (recent candle low below PDL or yesterday's low).
