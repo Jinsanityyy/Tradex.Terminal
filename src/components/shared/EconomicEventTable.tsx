@@ -22,13 +22,63 @@ interface AIEventAnalysis {
 
 const analysisCache = new Map<string, AIEventAnalysis>();
 
+/** Deterministic fallback analysis when AI is unavailable */
+function buildFallbackAnalysis(ev: EconomicEvent): AIEventAnalysis {
+  const actNum  = parseFloat(String(ev.actual  ?? "").replace(/[K%]/g, ""));
+  const fcNum   = parseFloat(String(ev.forecast ?? "").replace(/[K%]/g, ""));
+  const hasNums = !isNaN(actNum) && !isNaN(fcNum);
+  const beat    = hasNums && actNum > fcNum;
+  const miss    = hasNums && actNum < fcNum;
+  const diff    = hasNums ? Math.abs(actNum - fcNum).toFixed(1) : "N/A";
+  const t       = ev.event.toLowerCase();
+  const isJobs  = t.includes("payroll") || t.includes("employment") || t.includes("nfp");
+  const isCPI   = t.includes("cpi") || t.includes("inflation") || t.includes("pce");
+
+  const outcome = ev.actual
+    ? `${ev.event}: actual ${ev.actual} vs forecast ${ev.forecast} (prior ${ev.previous}) — ${beat ? `beat by ${diff}` : miss ? `missed by ${diff}` : "in-line with expectations"}`
+    : `${ev.event} has been released. Forecast was ${ev.forecast} vs prior ${ev.previous}.`;
+
+  const goldImpact: "bullish" | "bearish" | "neutral" = beat ? "bearish" : miss ? "bullish" : "neutral";
+  const usdImpact:  "bullish" | "bearish" | "neutral" = beat ? "bullish" : miss ? "bearish" : "neutral";
+
+  return {
+    outcome,
+    marketReaction: beat
+      ? `Strong data beat of ${diff} — Gold faces immediate selling pressure as rate-cut expectations get pushed back. USD should strengthen across major pairs.`
+      : miss
+      ? `Data missed by ${diff} — Gold should find buying support as recession concerns rise and rate-cut bets accelerate. USD selling expected.`
+      : `In-line print — minimal directional reaction expected. Markets will look to the next catalyst for direction.`,
+    goldImpact,
+    goldAnalysis: beat
+      ? `${isJobs ? "Strong jobs beat" : isCPI ? "Hot inflation print" : "Strong data"} = Fed has no urgency to cut rates = bearish Gold near-term. Watch key support for sell entries.`
+      : miss
+      ? `${isJobs ? "Weak jobs miss" : isCPI ? "Soft inflation" : "Weak data"} = rate-cut bets rise = bullish Gold. Buy dips toward next support level.`
+      : "In-line print — Gold likely consolidates. Wait for next high-impact catalyst.",
+    usdImpact,
+    usdAnalysis: beat
+      ? "USD bid on strong data — DXY should test resistance. Look for longs on USDJPY, USDCHF."
+      : miss
+      ? "USD offered on weak data — DXY faces selling pressure. EURUSD and GBPUSD should benefit."
+      : "Mixed signal — DXY likely range-bound. Monitor next Fed speaker for direction.",
+    traderFocus: beat
+      ? [`Gold at resistance — watch for rejection and sell setup`, `DXY breakout above ${ev.event.includes("NFP") ? "key level" : "resistance"} confirms USD strength`, "Rate cut timeline now pushed further out — bullish USD theme extends"]
+      : miss
+      ? ["Buy Gold dips — first 15-min spike often retraces for better entry", "DXY rolling over — EURUSD and GBPUSD long setups building", "Watch for Gold breakout above pre-release high"]
+      : ["Wait for confirmed breakout in either direction", "No strong directional conviction — reduce position size", "Next major catalyst will set the trend"],
+    timeframe: beat
+      ? "1-3 sessions of USD strength and Gold weakness. Monitor next CPI/jobs data for reversal signals."
+      : miss
+      ? "1-3 sessions of Gold strength. Hold longs with patience — rate-cut repricing takes time."
+      : "Range-bound 1-2 sessions. Await next catalyst.",
+  };
+}
+
 function useAfterReleaseAnalysis(ev: EconomicEvent) {
   const [analysis, setAnalysis] = useState<AIEventAnalysis | null>(null);
   const [loading, setLoading]   = useState(false);
   const fetchedRef = useRef(false);
 
   const hasActual = !!(ev.actual && ev.actual !== "Pending..." && ev.actual !== "—" && ev.actual !== " — " && ev.actual !== "-");
-  // Trigger for ALL completed events — with or without actual
   const cacheKey  = `${ev.event}-${ev.actual ?? "pending"}-${ev.date}`;
 
   useEffect(() => {
@@ -42,7 +92,7 @@ function useAfterReleaseAnalysis(ev: EconomicEvent) {
 
     const summary = hasActual
       ? `Actual: ${ev.actual} | Forecast: ${ev.forecast} | Previous: ${ev.previous} | Result: ${(() => { try { return parseFloat(String(ev.actual)) > parseFloat(String(ev.forecast)) ? "BEAT vs forecast" : "MISSED forecast"; } catch { return "vs forecast " + ev.forecast; } })()}`
-      : `Forecast: ${ev.forecast} | Previous: ${ev.previous} | Actual not yet published — analyze based on pre-release expectations and what traders should watch now that event window has passed`;
+      : `Forecast: ${ev.forecast} | Previous: ${ev.previous} | Actual not yet published`;
 
     const url = `/api/market/post-event?title=${encodeURIComponent(ev.event)}&summary=${encodeURIComponent(summary)}&markets=XAUUSD,DXY,USDJPY,EURUSD`;
 
@@ -52,11 +102,21 @@ function useAfterReleaseAnalysis(ev: EconomicEvent) {
         if (data && data.outcome) {
           analysisCache.set(cacheKey, data);
           setAnalysis(data);
+        } else {
+          // AI unavailable — use deterministic fallback
+          const fallback = buildFallbackAnalysis(ev);
+          analysisCache.set(cacheKey, fallback);
+          setAnalysis(fallback);
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        // Network error — use deterministic fallback
+        const fallback = buildFallbackAnalysis(ev);
+        analysisCache.set(cacheKey, fallback);
+        setAnalysis(fallback);
+      })
       .finally(() => setLoading(false));
-  }, [cacheKey, ev.status, ev.actual, ev.forecast, ev.previous, ev.event, hasActual]);
+  }, [cacheKey, ev.status, ev.actual, ev.forecast, ev.previous, ev.event, hasActual, ev]);
 
   return { analysis, loading, hasActual };
 }
