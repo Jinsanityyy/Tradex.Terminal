@@ -159,19 +159,25 @@ function buildReasons(
 
 function buildAndybioticReason(snapshot: MarketSnapshot): string {
   const andy = snapshot.indicators.andybiotic;
-  if (!andy) return "Andybiotic Max%: insufficient M5 candle history";
+  if (!andy) return "Trend indicator: insufficient 5m candle history";
 
-  const stDir   = andy.superTrendDir === -1 ? "BULL" : "BEAR";
-  const fresh   = andy.superTrendDir === -1
-    ? (andy.barsSinceBull <= 2 ? `fresh crossover (${andy.barsSinceBull} bars ago)` : `${andy.barsSinceBull} bars since last BUY`)
-    : (andy.barsSinceBear <= 2 ? `fresh crossover (${andy.barsSinceBear} bars ago)` : `${andy.barsSinceBear} bars since last SELL`);
-  const signal  = andy.isSmartBuy ? "✦ SMART BUY" : andy.isSmartSell ? "✦ SMART SELL" : andy.isBull ? "BUY crossover" : andy.isBear ? "SELL crossover" : "no fresh signal";
-  const emaTag  = andy.ema200 != null ? (snapshot.price.current > andy.ema200 ? "above EMA200 ✓" : "below EMA200 ✓") : "";
-  const adxTag  = andy.isSideways
-    ? `ADX ${andy.adx?.toFixed(1) ?? "N/A"} — RANGING (signals suppressed)`
-    : `ADX ${andy.adx?.toFixed(1) ?? "N/A"} trending`;
+  const stDir  = andy.superTrendDir === -1 ? "bullish" : "bearish";
+  const fresh  = andy.superTrendDir === -1
+    ? (andy.barsSinceBull <= 2 ? "fresh signal" : `signal active ${andy.barsSinceBull} bars`)
+    : (andy.barsSinceBear <= 2 ? "fresh signal" : `signal active ${andy.barsSinceBear} bars`);
+  const signal = andy.isSmartBuy  ? "high-conviction long confirmed above EMA200"
+               : andy.isSmartSell ? "high-conviction short confirmed below EMA200"
+               : andy.isBull      ? "bullish crossover on 5m"
+               : andy.isBear      ? "bearish crossover on 5m"
+               : "trend continuation, no fresh crossover";
+  const emaTag = andy.ema200 != null
+    ? (snapshot.price.current > andy.ema200 ? "price above EMA200" : "price below EMA200")
+    : "";
+  const mktType = andy.isSideways
+    ? `ranging market (ADX ${andy.adx?.toFixed(1) ?? "N/A"}) — low conviction`
+    : `trending market (ADX ${andy.adx?.toFixed(1) ?? "N/A"})`;
 
-  return `Andybiotic Max% (5m): SuperTrend ${stDir} @ ${andy.superTrend.toFixed(2)} | ${signal} | ${fresh} | ${emaTag} | ${adxTag}`;
+  return `SuperTrend (5m) ${stDir} @ ${andy.superTrend.toFixed(2)} — ${signal} | ${fresh} | ${emaTag} | ${mktType}`;
 }
 
 function resolveFinalBias(
@@ -216,30 +222,30 @@ async function narrateTrendReasons(
 ): Promise<string[] | null> {
   const { price, structure, indicators } = snapshot;
   const andy = indicators.andybiotic;
-  const andyLine = andy
-    ? `Andybiotic Max% (5m): SuperTrend ${andy.superTrendDir === -1 ? "BULL" : "BEAR"} @ ${andy.superTrend.toFixed(2)} | ${andy.isSmartBuy ? "SMART BUY" : andy.isSmartSell ? "SMART SELL" : andy.isBull ? "BUY crossover" : andy.isBear ? "SELL crossover" : "no fresh signal"} | ADX ${andy.adx?.toFixed(1) ?? "N/A"} ${andy.isSideways ? "(RANGING)" : "(trending)"} | Price ${andy.ema200 != null ? (price.current > andy.ema200 ? "ABOVE" : "BELOW") + " EMA200" : ""}`
-    : "Andybiotic Max%: no data (insufficient M5 candle history)";
+  const stLine = andy
+    ? `SuperTrend (5m): ${andy.superTrendDir === -1 ? "BULLISH" : "BEARISH"} @ ${andy.superTrend.toFixed(2)} | ${andy.isSmartBuy ? "high-conviction long above EMA200" : andy.isSmartSell ? "high-conviction short below EMA200" : andy.isBull ? "bullish crossover" : andy.isBear ? "bearish crossover" : "trend continuation"} | ADX ${andy.adx?.toFixed(1) ?? "N/A"} ${andy.isSideways ? "(ranging)" : "(trending)"} | price ${andy.ema200 != null ? (price.current > andy.ema200 ? "above" : "below") + " EMA200" : ""}`
+    : "Trend indicator: insufficient 5m candle history";
 
-  const sys = `You are the Trend Analysis Agent for a trading terminal. The bias has been decided by Andybiotic Max% (5m SuperTrend). Your job: write exactly 4 bullet reasons justifying the ${computed.bias.toUpperCase()} bias using ONLY the data provided below.
+  const sys = `You are the Trend Analysis Agent for a trading terminal. The bias has been decided by a proprietary trend indicator. Your job: write exactly 4 concise institutional-grade bullet reasons justifying the ${computed.bias.toUpperCase()} bias using ONLY the data provided.
 
 STRICT RULES:
-- NEVER mention PDH, PDL, PDH/PDL midpoint, JadeCap, daily open, or previous day levels
-- ALWAYS start reason #1 with the Andybiotic Max% SuperTrend signal
-- Use only the data fields given — do not invent or assume price levels
-- Return ONLY a valid JSON array of 4 strings, nothing else`;
+- NEVER mention PDH, PDL, PDH/PDL midpoint, JadeCap, daily open, previous day levels, or any indicator name/brand
+- Reason #1 MUST be about the SuperTrend (5m) signal
+- Use only supplied data — never invent price levels
+- Return ONLY a valid JSON array of 4 strings`;
 
   const msg = `
 DECIDED BIAS: ${computed.bias.toUpperCase()} @ ${computed.confidence}% | Phase: ${computed.marketPhase} | Momentum: ${computed.momentumDirection}
 ${snapshot.symbolDisplay} (${snapshot.symbol}) ${snapshot.timeframe}
 
 DATA:
-1. ${andyLine}
+1. ${stLine}
 2. TF alignment: M5 ${computed.timeframeBias.M5} / M15 ${computed.timeframeBias.M15} / H1 ${computed.timeframeBias.H1} / H4 ${computed.timeframeBias.H4} (all aligned: ${computed.timeframeBias.aligned})
 3. RSI(14) ${indicators.rsi.toFixed(1)} | MACD hist ${indicators.macdHist > 0 ? "+" : ""}${indicators.macdHist.toFixed(4)}
 4. MA stack ${maData.maStack.toUpperCase()} | EMA20 ${maData.ma20?.toFixed(2) ?? "N/A"} | EMA50 ${maData.ma50?.toFixed(2) ?? "N/A"}
 5. ATR ${indicators.atrProxy.toFixed(2)}% | Session: ${indicators.session} | Zone: ${structure.zone}
 
-Return JSON array of 4 strings. Reason #1 MUST reference Andybiotic Max% SuperTrend.`.trim();
+Return JSON array of 4 strings. Reason #1 MUST be about the SuperTrend (5m) direction.`.trim();
 
   const response = await anthropicCreate(client, {
     model: "claude-haiku-4-5-20251001",
