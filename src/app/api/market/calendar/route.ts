@@ -622,7 +622,7 @@ function generatePostEvent(title: string, forecast: string, previous: string, ac
         ? `Jobs data came in strong (${vsLabel}). A robust labor market signals the economy can handle higher rates for longer — bearish for Gold and bullish for USD. The initial NFP spike in Gold is often faded. Watch for Gold to roll over from pre-release levels and continue lower.`
         : miss
         ? `Jobs data missed expectations (${vsLabel}). A weak print raises recession concerns and boosts rate-cut expectations — bullish for Gold. Any sell-off in Gold on the print should be bought, especially if the miss is significant.`
-        : `Jobs data printed near expectations (${vsLabel}). A mixed or in-line print reduces conviction in either direction. Watch wage data and unemployment rate for the full picture.`,
+        : `Jobs data released (${vsLabel}). Actual figure pending from data provider — refresh in a few minutes. Pre-release: forecast was weaker than prior, signaling potential labor market softening. Watch wage data and unemployment rate for the full picture.`,
       postEventBullets: strong
         ? [
             "Sell Gold on any bounce  -  strong NFP = delayed rate cuts",
@@ -914,16 +914,16 @@ export async function GET() {
           impact,
           forecast: e.forecast !== "" ? e.forecast : " - ",
           previous: e.previous !== "" ? e.previous : " - ",
-          // Show actual when FairFX has it; "Updating..." for recently completed (< 60 min);
-          // blank for older events where FairFX simply didn't publish one.
+          // Show actual when FairFX has it; "Pending..." until data provider updates.
           actual: (() => {
             if (!isPast) return undefined;
             if (e.actual && e.actual !== "") return e.actual;
-            const minsSince = msSinceEvent / 60_000;
-            if (minsSince < 60) return "Updating...";
-            return undefined; // older event, FairFX won't have it
+            return "Pending..."; // FairFX updates actuals 15–60 min after release
           })(),
-          interpretation: analysis.tradeImplication,
+          // Completed events show post-event summary in list; upcoming/live show trade setup
+          interpretation: (isPast && post?.postEventSummary)
+            ? post.postEventSummary
+            : analysis.tradeImplication,
           affectedAssets: ["XAUUSD", "DXY", "EURUSD", ...deriveExtraAssets(e.title)],
           status,
           goldImpact: analysis.goldImpact,
