@@ -44,37 +44,133 @@ async function fetchFinnhubActuals(): Promise<FinnhubEcoEvent[]> {
   }
 }
 
-/** Find Finnhub actual for a given event title and date */
+/** Strict event-type rules: each entry defines what Finnhub event name MUST contain
+ *  and what unit the forecast uses, so we never cross-match (e.g. NFP ≠ hourly earnings) */
+const EVENT_RULES: Array<{
+  titleKeywords: string[];        // ALL must be in the FairFX title
+  finnhubMustInclude: string[];   // At least ONE must be in Finnhub event name
+  finnhubMustExclude?: string[];  // NONE of these may be in Finnhub event name
+  expectedUnit?: "K" | "%" | "M" | "";  // validate unit if known
+}> = [
+  // NFP — must NOT match hourly earnings, adp, or unemployment rate
+  {
+    titleKeywords: ["non-farm", "nonfarm", "payroll"],
+    finnhubMustInclude: ["nonfarm payroll", "non-farm payroll", "payrolls"],
+    finnhubMustExclude: ["adp", "hourly", "unemployment", "average"],
+    expectedUnit: "K",
+  },
+  // ADP
+  {
+    titleKeywords: ["adp"],
+    finnhubMustInclude: ["adp"],
+    expectedUnit: "K",
+  },
+  // Average Hourly Earnings
+  {
+    titleKeywords: ["average hourly earnings"],
+    finnhubMustInclude: ["hourly earnings", "average hourly"],
+    expectedUnit: "%",
+  },
+  // Unemployment Rate (not claims)
+  {
+    titleKeywords: ["unemployment rate"],
+    finnhubMustInclude: ["unemployment rate"],
+    finnhubMustExclude: ["claims", "initial", "continuing"],
+    expectedUnit: "%",
+  },
+  // Jobless Claims / Unemployment Claims
+  {
+    titleKeywords: ["jobless", "unemployment claims", "initial claims"],
+    finnhubMustInclude: ["jobless", "initial claim", "unemployment claim"],
+    expectedUnit: "K",
+  },
+  // CPI (not core)
+  {
+    titleKeywords: ["cpi"],
+    finnhubMustInclude: ["cpi", "consumer price index"],
+    finnhubMustExclude: ["core"],
+    expectedUnit: "%",
+  },
+  // Core CPI
+  {
+    titleKeywords: ["core cpi"],
+    finnhubMustInclude: ["core cpi", "core consumer price"],
+    expectedUnit: "%",
+  },
+  // PCE / Core PCE
+  {
+    titleKeywords: ["pce"],
+    finnhubMustInclude: ["pce", "personal consumption"],
+    expectedUnit: "%",
+  },
+  // GDP
+  {
+    titleKeywords: ["gdp"],
+    finnhubMustInclude: ["gdp", "gross domestic"],
+    expectedUnit: "%",
+  },
+  // Retail Sales
+  {
+    titleKeywords: ["retail sales"],
+    finnhubMustInclude: ["retail sales"],
+    expectedUnit: "%",
+  },
+  // JOLTS
+  {
+    titleKeywords: ["jolts", "job openings"],
+    finnhubMustInclude: ["jolts", "job openings"],
+    expectedUnit: "M",
+  },
+  // ISM / PMI
+  {
+    titleKeywords: ["ism", "pmi"],
+    finnhubMustInclude: ["pmi", "ism", "purchasing"],
+    expectedUnit: "",
+  },
+];
+
+/** Find Finnhub actual for a given FairFX event title and date */
 function matchFinnhubActual(
   finnhub: FinnhubEcoEvent[],
   title: string,
-  eventDateISO: string   // "YYYY-MM-DD"
+  eventDateISO: string
 ): string | undefined {
   const t = title.toLowerCase();
+
+  // Find the matching rule for this event type
+  const rule = EVENT_RULES.find(r =>
+    r.titleKeywords.some(kw => t.includes(kw))
+  );
+  if (!rule) return undefined;
+
   const match = finnhub.find(f => {
     if (f.country !== "US" && f.country !== "us") return false;
     if (f.actual == null) return false;
-    // Date must match (±1 day buffer for timezone)
-    const fDate = f.time.slice(0, 10);
-    if (Math.abs(new Date(fDate).getTime() - new Date(eventDateISO).getTime()) > 86_400_000 * 2) return false;
+
+    // Date within ±2 days (timezone buffer)
+    const diff = Math.abs(
+      new Date(f.time.slice(0, 10)).getTime() - new Date(eventDateISO).getTime()
+    );
+    if (diff > 86_400_000 * 2) return false;
+
     const fn = f.event.toLowerCase();
-    // Fuzzy match on key terms
-    if (t.includes("nonfarm") || t.includes("non-farm") || t.includes("payroll")) {
-      return fn.includes("payroll") || fn.includes("nonfarm") || fn.includes("non-farm");
+
+    // Must include at least one required keyword
+    if (!rule.finnhubMustInclude.some(kw => fn.includes(kw))) return false;
+
+    // Must NOT include any excluded keyword
+    if (rule.finnhubMustExclude?.some(kw => fn.includes(kw))) return false;
+
+    // Unit validation — reject if unit clearly doesn't match
+    if (rule.expectedUnit !== undefined && rule.expectedUnit !== "") {
+      const u = (f.unit ?? "").toUpperCase();
+      if (rule.expectedUnit === "K" && u.includes("%")) return false;
+      if (rule.expectedUnit === "%" && u.includes("K")) return false;
     }
-    if (t.includes("unemployment rate")) return fn.includes("unemployment rate");
-    if (t.includes("average hourly earnings")) return fn.includes("hourly earnings") || fn.includes("average hourly");
-    if (t.includes("cpi")) return fn.includes("cpi") || fn.includes("consumer price");
-    if (t.includes("core cpi")) return (fn.includes("core") && fn.includes("cpi"));
-    if (t.includes("pce")) return fn.includes("pce") || fn.includes("personal consumption");
-    if (t.includes("gdp")) return fn.includes("gdp");
-    if (t.includes("retail sales")) return fn.includes("retail sales");
-    if (t.includes("jobless") || t.includes("unemployment claims")) return fn.includes("jobless") || fn.includes("claims");
-    if (t.includes("jolts")) return fn.includes("jolts") || fn.includes("job openings");
-    if (t.includes("ism") || t.includes("pmi")) return fn.includes("pmi") || fn.includes("ism");
-    if (t.includes("adp")) return fn.includes("adp");
-    return false;
+
+    return true;
   });
+
   if (!match || match.actual == null) return undefined;
   const unit = match.unit && match.unit !== "" ? match.unit : "";
   return `${match.actual}${unit}`;
