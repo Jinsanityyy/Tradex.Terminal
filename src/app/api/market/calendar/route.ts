@@ -96,6 +96,101 @@ function matchBLSActual(blsData: Record<string, string>, title: string): string 
   return undefined;
 }
 
+// ── FRED API (Federal Reserve Economic Data — free API key required) ─────────
+// Covers: GDP, PCE, Retail Sales, JOLTS, ISM, Consumer Confidence, Durable Goods, Housing
+// Register free key at: https://fred.stlouisfed.org/docs/api/api_key.html
+// Set env var: FRED_API_KEY
+
+const FRED_SERIES: Record<string, { id: string; type: "level" | "rate" | "index"; unit: string }> = {
+  gdp:            { id: "GDPC1",      type: "level",  unit: "%" },  // Real GDP → Q/Q %
+  pce:            { id: "PCEPI",      type: "level",  unit: "%" },  // PCE → M/M %
+  corePce:        { id: "PCEPILFE",   type: "level",  unit: "%" },  // Core PCE → M/M %
+  coreCpi:        { id: "CPILFESL",   type: "level",  unit: "%" },  // Core CPI → M/M %
+  retailSales:    { id: "RSXFS",      type: "level",  unit: "%" },  // Retail Sales → M/M %
+  jolts:          { id: "JTSJOL",     type: "level",  unit: "M" },  // JOLTS Job Openings (millions)
+  durableGoods:   { id: "DGORDER",    type: "level",  unit: "%" },  // Durable Goods → M/M %
+  housStarts:     { id: "HOUST",      type: "rate",   unit: "M" },  // Housing Starts (millions annualized)
+  buildPermits:   { id: "PERMIT",     type: "rate",   unit: "M" },  // Building Permits
+  michigan:       { id: "UMCSENT",    type: "index",  unit: ""  },  // Michigan Consumer Sentiment
+  ismMfg:         { id: "NAPM",       type: "index",  unit: ""  },  // ISM Manufacturing PMI
+  existingHomes:  { id: "EXHOSLUSM495S", type: "level", unit: "M" },
+  ppi:            { id: "PPIACO",     type: "level",  unit: "%" },  // PPI → M/M %
+  continuingClaims:{ id: "CCSA",      type: "rate",   unit: "K" },  // Continuing Claims
+};
+
+let fredCache: { data: Record<string, string>; ts: number } = { data: {}, ts: 0 };
+const FRED_CACHE_TTL = 5 * 60_000; // 5 min
+
+async function fredFetch(seriesId: string, limit = 2): Promise<string[]> {
+  const key = process.env.FRED_API_KEY;
+  if (!key) return [];
+  try {
+    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${key}&sort_order=desc&limit=${limit}&file_type=json`;
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return [];
+    const json = await res.json() as { observations?: Array<{ value: string }> };
+    return (json.observations ?? []).map(o => o.value).filter(v => v !== "." && v !== "");
+  } catch { return []; }
+}
+
+function calcChange(curr: string, prev: string, type: "level" | "rate" | "index", unit: string): string | undefined {
+  const c = parseFloat(curr), p = parseFloat(prev);
+  if (isNaN(c) || isNaN(p)) return undefined;
+  if (type === "level") {
+    const pct = ((c - p) / Math.abs(p) * 100).toFixed(1);
+    return `${pct}${unit}`;
+  }
+  if (type === "rate" || type === "index") {
+    const val = parseFloat(c.toFixed(unit === "K" ? 0 : 2));
+    return `${val}${unit}`;
+  }
+  return undefined;
+}
+
+async function fetchFREDActuals(): Promise<Record<string, string>> {
+  if (!process.env.FRED_API_KEY) return {};
+  if (Object.keys(fredCache.data).length > 0 && Date.now() - fredCache.ts < FRED_CACHE_TTL) {
+    return fredCache.data;
+  }
+
+  const entries = Object.entries(FRED_SERIES);
+  const fetched = await Promise.all(
+    entries.map(async ([key, { id, type, unit }]) => {
+      const data = await fredFetch(id, 2);
+      if (data.length === 0) return [key, undefined] as const;
+      if (type === "index" || type === "rate") return [key, `${parseFloat(data[0]).toFixed(1)}${unit}`] as const;
+      if (data.length >= 2) return [key, calcChange(data[0], data[1], type, unit)] as const;
+      return [key, undefined] as const;
+    })
+  );
+
+  const results: Record<string, string> = {};
+  for (const [key, val] of fetched) {
+    if (key && val) results[key] = val;
+  }
+  if (Object.keys(results).length > 0) fredCache = { data: results, ts: Date.now() };
+  return results;
+}
+
+function matchFREDActual(fredData: Record<string, string>, title: string): string | undefined {
+  const t = title.toLowerCase();
+  if (t.includes("gdp"))                                           return fredData.gdp;
+  if (t.includes("core pce") || (t.includes("core") && t.includes("personal"))) return fredData.corePce;
+  if (t.includes("pce") && !t.includes("core"))                   return fredData.pce;
+  if (t.includes("core cpi"))                                      return fredData.coreCpi;
+  if (t.includes("retail sales"))                                  return fredData.retailSales;
+  if (t.includes("jolts") || t.includes("job openings"))          return fredData.jolts;
+  if (t.includes("durable goods"))                                 return fredData.durableGoods;
+  if (t.includes("housing starts"))                                return fredData.housStarts;
+  if (t.includes("building permits"))                              return fredData.buildPermits;
+  if (t.includes("michigan") || t.includes("consumer sentiment")) return fredData.michigan;
+  if (t.includes("ism") && t.includes("manufactur"))              return fredData.ismMfg;
+  if (t.includes("existing home"))                                 return fredData.existingHomes;
+  if (t.includes("ppi") || t.includes("producer price"))          return fredData.ppi;
+  if (t.includes("continuing claims"))                             return fredData.continuingClaims;
+  return undefined;
+}
+
 // ── Myfxbook session management (kept but disabled — Vercel IPs are blocked) ──
 let myfxSession: { id: string; ts: number } | null = null;
 const SESSION_TTL = 60 * 60_000; // 1 hour
@@ -1074,10 +1169,11 @@ export async function GET() {
     }
     const now = new Date();
 
-    // Fetch actuals from BLS.gov (free, no auth) + myfxbook (if not blocked)
-    const [myfxEvents, blsData] = await Promise.all([
+    // Fetch actuals from all sources in parallel
+    const [myfxEvents, blsData, fredData] = await Promise.all([
       fetchMyfxActuals(),
       fetchBLSActuals(),
+      fetchFREDActuals(),
     ]);
 
     // FILTER: HIGH + MEDIUM impact USD events
@@ -1098,13 +1194,14 @@ export async function GET() {
 
         const impact: "high" | "medium" = e.impact === "High" ? "high" : "medium";
 
-        // Actual priority: FairFX → BLS.gov (official US gov data) → Myfxbook
+        // Actual priority: FairFX → BLS.gov → FRED → Myfxbook
         const ffActual   = isPast && e.actual && e.actual !== "" ? e.actual : undefined;
         const blsActual  = !ffActual && isPast ? matchBLSActual(blsData, e.title) : undefined;
-        const myfxActual = !ffActual && !blsActual && isPast
+        const fredActual = !ffActual && !blsActual && isPast ? matchFREDActual(fredData, e.title) : undefined;
+        const myfxActual = !ffActual && !blsActual && !fredActual && isPast
           ? matchMyfxActual(myfxEvents, e.title, eventTime.toISOString().split("T")[0])
           : undefined;
-        const actualValue       = ffActual ?? blsActual ?? myfxActual;
+        const actualValue       = ffActual ?? blsActual ?? fredActual ?? myfxActual;
         const actualForAnalysis = actualValue;
 
         const analysis = analyzeEvent(e.title, e.forecast, e.previous, isPast);
