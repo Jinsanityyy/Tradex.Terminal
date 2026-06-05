@@ -4,266 +4,105 @@ import type { EconomicEvent } from "@/types";
 export const dynamic = "force-dynamic";
 
 let cache: { data: EconomicEvent[]; ts: number } = { data: [], ts: 0 };
-const CACHE_TTL = 30_000; // 30s — refresh fast so actuals appear quickly after release
+const CACHE_TTL = 30_000;
 
-// ── Myfxbook actual data fetcher ─────────────────────────────────────────────
-// Myfxbook publishes actuals faster than FairFX. We use it as the primary
-// fallback when FairFX hasn't updated yet.
+// ── Myfxbook session management ───────────────────────────────────────────────
+// Free account required: register at myfxbook.com
+// Set env vars: MYFXBOOK_EMAIL and MYFXBOOK_PASSWORD
+let myfxSession: { id: string; ts: number } | null = null;
+const SESSION_TTL = 60 * 60_000; // 1 hour
+
+async function getMyfxSession(): Promise<string | null> {
+  const email    = process.env.MYFXBOOK_EMAIL;
+  const password = process.env.MYFXBOOK_PASSWORD;
+  if (!email || !password) return null;
+
+  // Reuse cached session if still valid
+  if (myfxSession && Date.now() - myfxSession.ts < SESSION_TTL) {
+    return myfxSession.id;
+  }
+
+  try {
+    const url = `https://www.myfxbook.com/api/login.json?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`;
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return null;
+    const json = await res.json() as { error: boolean; session?: string; message?: string };
+    if (json.error || !json.session) return null;
+    myfxSession = { id: json.session, ts: Date.now() };
+    return json.session;
+  } catch {
+    return null;
+  }
+}
 
 interface MyfxbookEvent {
   id: string;
   title: string;
   country: string;
-  date: string;       // ISO date string
-  impact: number;     // 0=low, 1=medium, 2=high, 3=holiday
+  date: string;
+  impact: number;
   previous: string;
   forecast: string;
-  actual: string;     // empty when not released yet
+  actual: string;
 }
 
 let myfxCache: { data: MyfxbookEvent[]; ts: number } = { data: [], ts: 0 };
-const MYFX_CACHE_TTL = 60_000; // 1 min
+const MYFX_TTL = 2 * 60_000; // 2 min
 
-async function fetchMyfxbookActuals(): Promise<MyfxbookEvent[]> {
-  if (myfxCache.data.length > 0 && Date.now() - myfxCache.ts < MYFX_CACHE_TTL) {
+async function fetchMyfxActuals(): Promise<MyfxbookEvent[]> {
+  if (myfxCache.data.length > 0 && Date.now() - myfxCache.ts < MYFX_TTL) {
     return myfxCache.data;
   }
+
+  const session = await getMyfxSession();
+  if (!session) return [];
+
   try {
     const now  = new Date();
-    const from = new Date(now); from.setDate(now.getDate() - 2);
+    const from = new Date(now); from.setDate(now.getDate() - 3);
     const to   = new Date(now); to.setDate(now.getDate() + 1);
     const fmt  = (d: Date) => d.toISOString().split("T")[0];
-    // Myfxbook public calendar endpoint (no auth required for public events)
-    const url  = `https://www.myfxbook.com/api/get-economic-calendar.json?session=&start=${fmt(from)}&end=${fmt(to)}`;
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 8000);
-    const res  = await fetch(url, { signal: ctrl.signal, cache: "no-store" });
-    clearTimeout(timer);
+    const url  = `https://www.myfxbook.com/api/get-economic-calendar.json?session=${session}&start=${fmt(from)}&end=${fmt(to)}`;
+
+    const res  = await fetch(url, { cache: "no-store" });
     if (!res.ok) return [];
-    const json = await res.json() as { calendar?: MyfxbookEvent[]; error?: boolean };
-    if (json.error || !Array.isArray(json.calendar)) return [];
+    const json = await res.json() as { error: boolean; calendar?: MyfxbookEvent[] };
+    if (json.error || !Array.isArray(json.calendar)) {
+      myfxSession = null; // Session may have expired — force re-login next time
+      return [];
+    }
     if (json.calendar.length > 0) myfxCache = { data: json.calendar, ts: Date.now() };
     return json.calendar;
   } catch {
-    return [];
+    return null!;
   }
 }
 
-/** Match a FairFX event title to the best Myfxbook event with a confirmed actual */
-function matchMyfxActual(
-  events: MyfxbookEvent[],
-  title: string,
-  eventDateISO: string
-): string | undefined {
-  const t   = title.toLowerCase();
-  const isNFP        = t.includes("non farm payrolls") || t.includes("nonfarm payrolls") || (t.includes("non-farm") && t.includes("employ"));
-  const isUnempRate  = t.includes("unemployment rate") && !t.includes("claims");
-  const isAvgHourly  = t.includes("average hourly earnings") && t.includes("m/m");
-  const isCPI        = t.includes("cpi") && !t.includes("core");
-  const isCoreCPI    = t.includes("core cpi");
-  const isPCE        = t.includes("pce") || (t.includes("core") && t.includes("personal"));
-  const isGDP        = t.includes("gdp");
-  const isRetail     = t.includes("retail sales") && !t.includes("core");
-  const isADP        = t.includes("adp");
-  const isJOLTS      = t.includes("jolts") || t.includes("job openings");
-  const isClaims     = t.includes("jobless") || t.includes("unemployment claims") || t.includes("initial claims");
-  const isPMI        = (t.includes("pmi") || t.includes("ism")) && !isNFP;
-  const isCBConf     = t.includes("consumer confidence") || t.includes("michigan");
-
+function matchMyfxActual(events: MyfxbookEvent[], title: string, dateISO: string): string | undefined {
+  const t = title.toLowerCase();
   const match = events.find(f => {
-    if (f.actual === "" || f.actual === "-" || !f.actual) return false;
-    if (f.country !== "USD" && f.country !== "US" && f.country !== "United States") return false;
-    const diff = Math.abs(new Date(f.date.slice(0,10)).getTime() - new Date(eventDateISO).getTime());
-    if (diff > 86_400_000 * 2) return false;
+    if (!f.actual || f.actual === "") return false;
+    if (f.country !== "USD" && f.country !== "United States") return false;
+    if (Math.abs(new Date(f.date.slice(0,10)).getTime() - new Date(dateISO).getTime()) > 86_400_000 * 2) return false;
     const fn = f.title.toLowerCase();
-    if (isNFP)       return (fn.includes("non farm payrolls") || fn.includes("nonfarm payroll")) && !fn.includes("adp") && !fn.includes("private") && !fn.includes("manufacturing") && !fn.includes("government");
-    if (isUnempRate) return fn.includes("unemployment rate") && !fn.includes("claims") && !fn.includes("u-6");
-    if (isAvgHourly) return fn.includes("average hourly earnings") && fn.includes("m/m");
-    if (isCoreCPI)   return fn.includes("core") && fn.includes("cpi");
-    if (isCPI)       return fn.includes("cpi") && !fn.includes("core");
-    if (isPCE)       return fn.includes("pce") || (fn.includes("core") && fn.includes("personal"));
-    if (isGDP)       return fn.includes("gdp");
-    if (isRetail)    return fn.includes("retail sales") && !fn.includes("core");
-    if (isADP)       return fn.includes("adp");
-    if (isJOLTS)     return fn.includes("jolts") || fn.includes("job openings");
-    if (isClaims)    return fn.includes("jobless") || fn.includes("initial claims") || fn.includes("unemployment claims");
-    if (isPMI)       return fn.includes("pmi") || fn.includes("ism");
-    if (isCBConf)    return fn.includes("consumer confidence") || fn.includes("michigan");
+    if ((t.includes("non-farm") || t.includes("nonfarm")) && t.includes("employ"))
+      return (fn.includes("non farm payrolls") || fn.includes("nonfarm payroll")) && !fn.includes("adp") && !fn.includes("private") && !fn.includes("manufacturing");
+    if (t.includes("unemployment rate") && !t.includes("claims")) return fn.includes("unemployment rate") && !fn.includes("claims") && !fn.includes("u-6");
+    if (t.includes("average hourly earnings") && t.includes("m/m")) return fn.includes("average hourly earnings") && fn.includes("m/m");
+    if (t.includes("core cpi")) return fn.includes("core") && fn.includes("cpi");
+    if (t.includes("cpi") && !t.includes("core")) return fn.includes("cpi") && !fn.includes("core");
+    if (t.includes("pce")) return fn.includes("pce") || (fn.includes("core") && fn.includes("personal"));
+    if (t.includes("gdp")) return fn.includes("gdp");
+    if (t.includes("retail sales")) return fn.includes("retail sales");
+    if (t.includes("adp")) return fn.includes("adp");
+    if (t.includes("jolts") || t.includes("job openings")) return fn.includes("jolts") || fn.includes("job openings");
+    if (t.includes("jobless") || t.includes("claims")) return fn.includes("jobless") || fn.includes("initial claims");
+    if (t.includes("ism") || t.includes("pmi")) return fn.includes("pmi") || fn.includes("ism");
     return false;
   });
-
   return match?.actual ?? undefined;
 }
 
-// ── Finnhub economic calendar (fallback for actuals when FairFX is slow) ─────
-interface FinnhubEcoEvent {
-  actual:   number | null;
-  estimate: number | null;
-  prev:     number | null;
-  country:  string;
-  event:    string;
-  time:     string; // "YYYY-MM-DD"
-  unit:     string; // "K", "%", etc.
-  impact:   string;
-}
-
-let finnhubCache: { data: FinnhubEcoEvent[]; ts: number } = { data: [], ts: 0 };
-const FINNHUB_CACHE_TTL = 5 * 60_000; // 5 min — Finnhub rate limit friendly
-
-async function fetchFinnhubActuals(): Promise<FinnhubEcoEvent[]> {
-  const key = process.env.FINNHUB_API_KEY;
-  if (!key) return [];
-  if (finnhubCache.data.length > 0 && Date.now() - finnhubCache.ts < FINNHUB_CACHE_TTL) {
-    return finnhubCache.data;
-  }
-  try {
-    const now   = new Date();
-    const from  = new Date(now); from.setDate(now.getDate() - 3);
-    const to    = new Date(now); to.setDate(now.getDate() + 1);
-    const fmt   = (d: Date) => d.toISOString().split("T")[0];
-    const url   = `https://finnhub.io/api/v1/calendar/economic?from=${fmt(from)}&to=${fmt(to)}&token=${key}`;
-    const res   = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return [];
-    const json  = await res.json() as { economicCalendar?: FinnhubEcoEvent[] };
-    const data  = json.economicCalendar ?? [];
-    if (data.length > 0) finnhubCache = { data, ts: Date.now() };
-    return data;
-  } catch {
-    return [];
-  }
-}
-
-/** Strict event-type rules: each entry defines what Finnhub event name MUST contain
- *  and what unit the forecast uses, so we never cross-match (e.g. NFP ≠ hourly earnings) */
-const EVENT_RULES: Array<{
-  titleKeywords: string[];        // ALL must be in the FairFX title
-  finnhubMustInclude: string[];   // At least ONE must be in Finnhub event name
-  finnhubMustExclude?: string[];  // NONE of these may be in Finnhub event name
-  expectedUnit?: "K" | "%" | "M" | "";  // validate unit if known
-}> = [
-  // NFP — must NOT match hourly earnings, adp, or unemployment rate
-  {
-    titleKeywords: ["non-farm", "nonfarm", "payroll"],
-    finnhubMustInclude: ["nonfarm payroll", "non-farm payroll", "payrolls"],
-    finnhubMustExclude: ["adp", "hourly", "unemployment", "average"],
-    expectedUnit: "K",
-  },
-  // ADP
-  {
-    titleKeywords: ["adp"],
-    finnhubMustInclude: ["adp"],
-    expectedUnit: "K",
-  },
-  // Average Hourly Earnings
-  {
-    titleKeywords: ["average hourly earnings"],
-    finnhubMustInclude: ["hourly earnings", "average hourly"],
-    expectedUnit: "%",
-  },
-  // Unemployment Rate (not claims)
-  {
-    titleKeywords: ["unemployment rate"],
-    finnhubMustInclude: ["unemployment rate"],
-    finnhubMustExclude: ["claims", "initial", "continuing"],
-    expectedUnit: "%",
-  },
-  // Jobless Claims / Unemployment Claims
-  {
-    titleKeywords: ["jobless", "unemployment claims", "initial claims"],
-    finnhubMustInclude: ["jobless", "initial claim", "unemployment claim"],
-    expectedUnit: "K",
-  },
-  // CPI (not core)
-  {
-    titleKeywords: ["cpi"],
-    finnhubMustInclude: ["cpi", "consumer price index"],
-    finnhubMustExclude: ["core"],
-    expectedUnit: "%",
-  },
-  // Core CPI
-  {
-    titleKeywords: ["core cpi"],
-    finnhubMustInclude: ["core cpi", "core consumer price"],
-    expectedUnit: "%",
-  },
-  // PCE / Core PCE
-  {
-    titleKeywords: ["pce"],
-    finnhubMustInclude: ["pce", "personal consumption"],
-    expectedUnit: "%",
-  },
-  // GDP
-  {
-    titleKeywords: ["gdp"],
-    finnhubMustInclude: ["gdp", "gross domestic"],
-    expectedUnit: "%",
-  },
-  // Retail Sales
-  {
-    titleKeywords: ["retail sales"],
-    finnhubMustInclude: ["retail sales"],
-    expectedUnit: "%",
-  },
-  // JOLTS
-  {
-    titleKeywords: ["jolts", "job openings"],
-    finnhubMustInclude: ["jolts", "job openings"],
-    expectedUnit: "M",
-  },
-  // ISM / PMI
-  {
-    titleKeywords: ["ism", "pmi"],
-    finnhubMustInclude: ["pmi", "ism", "purchasing"],
-    expectedUnit: "",
-  },
-];
-
-/** Find Finnhub actual for a given FairFX event title and date */
-function matchFinnhubActual(
-  finnhub: FinnhubEcoEvent[],
-  title: string,
-  eventDateISO: string
-): string | undefined {
-  const t = title.toLowerCase();
-
-  // Find the matching rule for this event type
-  const rule = EVENT_RULES.find(r =>
-    r.titleKeywords.some(kw => t.includes(kw))
-  );
-  if (!rule) return undefined;
-
-  const match = finnhub.find(f => {
-    if (f.country !== "US" && f.country !== "us") return false;
-    if (f.actual == null) return false;
-
-    // Date within ±2 days (timezone buffer)
-    const diff = Math.abs(
-      new Date(f.time.slice(0, 10)).getTime() - new Date(eventDateISO).getTime()
-    );
-    if (diff > 86_400_000 * 2) return false;
-
-    const fn = f.event.toLowerCase();
-
-    // Must include at least one required keyword
-    if (!rule.finnhubMustInclude.some(kw => fn.includes(kw))) return false;
-
-    // Must NOT include any excluded keyword
-    if (rule.finnhubMustExclude?.some(kw => fn.includes(kw))) return false;
-
-    // Unit validation — reject if unit clearly doesn't match
-    if (rule.expectedUnit !== undefined && rule.expectedUnit !== "") {
-      const u = (f.unit ?? "").toUpperCase();
-      if (rule.expectedUnit === "K" && u.includes("%")) return false;
-      if (rule.expectedUnit === "%" && u.includes("K")) return false;
-    }
-
-    return true;
-  });
-
-  if (!match || match.actual == null) return undefined;
-  const unit = match.unit && match.unit !== "" ? match.unit : "";
-  return `${match.actual}${unit}`;
-}
 
 interface FFEvent {
   title: string;
@@ -1134,7 +973,8 @@ export async function GET() {
     }
     const now = new Date();
 
-    // Myfxbook fetch removed — requires auth. Using dual FairFX endpoints instead.
+    // Fetch myfxbook actuals in parallel (requires MYFXBOOK_EMAIL + MYFXBOOK_PASSWORD env vars)
+    const myfxEvents = await fetchMyfxActuals();
 
     // FILTER: HIGH + MEDIUM impact USD events
     const mapped: EconomicEvent[] = events
@@ -1154,8 +994,12 @@ export async function GET() {
 
         const impact: "high" | "medium" = e.impact === "High" ? "high" : "medium";
 
-        // Actual from FairFX (best available CDN endpoint selected above)
-        const actualValue       = isPast && e.actual && e.actual !== "" ? e.actual : undefined;
+        // Actual: FairFX (dual CDN) → Myfxbook fallback (if credentials configured)
+        const ffActual   = isPast && e.actual && e.actual !== "" ? e.actual : undefined;
+        const myfxActual = !ffActual && isPast
+          ? matchMyfxActual(myfxEvents, e.title, eventTime.toISOString().split("T")[0])
+          : undefined;
+        const actualValue       = ffActual ?? myfxActual;
         const actualForAnalysis = actualValue;
 
         const analysis = analyzeEvent(e.title, e.forecast, e.previous, isPast);
