@@ -28,7 +28,6 @@ import {
   Zap,
 } from "lucide-react";
 import { TradingViewChart } from "@/components/shared/TradingViewChart";
-import { AndybioticChart } from "@/components/shared/AndybioticChart";
 import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { CatalystFeed } from "@/components/shared/CatalystFeed";
 import { DetailModal } from "@/components/shared/DetailModal";
@@ -780,7 +779,6 @@ export default function DashboardPage() {
   const [timeframe, setTimeframe] = useState<Timeframe>("H1");
   const [chartInterval, setChartInterval] = useState("60");
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [chartMode, setChartMode] = useState<"tv" | "andybiotic">("tv");
   const [activeOverview, setActiveOverview] = useState<OverviewKey | null>(null);
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
   const [manualTrades, setManualTrades] = useState<ManualTrade[]>([]);
@@ -1523,18 +1521,6 @@ export default function DashboardPage() {
             Brain Terminal
             <ArrowRight className="h-3 w-3" />
           </Link>
-          {/* Chart mode toggle */}
-          <button
-            type="button"
-            onClick={() => setChartMode(m => m === "tv" ? "andybiotic" : "tv")}
-            className={cn(
-              widgetActionClass,
-              chartMode === "andybiotic" && "border-violet-500/40 text-violet-300"
-            )}
-            title="Toggle between TradingView and Andybiotic Max% chart"
-          >
-            {chartMode === "tv" ? "</>Indicator" : "📺 TV Chart"}
-          </button>
           <button type="button" onClick={toggleFullscreen} className={widgetActionClass}>
             {isFullscreen ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
             {isFullscreen ? "Exit" : "Full Screen"}
@@ -1543,18 +1529,11 @@ export default function DashboardPage() {
       ),
       content: (
         <div className="h-full min-h-0 overflow-hidden">
-          {chartMode === "andybiotic" ? (
-            <AndybioticChart
-              symbol={symCfg.id}
-              heightClass="h-full"
-            />
-          ) : (
-            <TradingViewChart
-              symbol={symCfg.tv}
-              heightClass="h-full"
-              onIntervalChange={handleIntervalChange}
-            />
-          )}
+          <TradingViewChart
+            symbol={symCfg.tv}
+            heightClass="h-full"
+            onIntervalChange={handleIntervalChange}
+          />
         </div>
       ),
     },

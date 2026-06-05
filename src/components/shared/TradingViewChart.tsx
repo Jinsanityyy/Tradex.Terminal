@@ -582,10 +582,7 @@ export function TradingViewChart({
           allow_symbol_change: false,
           save_image: false,
           withdateranges: false,
-          studies: ["Andybiotic Max%"],
-          load_last_chart: true,
-          client_id: "tradex.terminal",
-          user_id: "public_user",
+          studies: [],
           disabled_features: [
             "header_fullscreen_button",
             "create_volume_indicator_by_default",
