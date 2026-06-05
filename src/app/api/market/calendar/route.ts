@@ -6,6 +6,80 @@ export const dynamic = "force-dynamic";
 let cache: { data: EconomicEvent[]; ts: number } = { data: [], ts: 0 };
 const CACHE_TTL = 30_000; // 30s — refresh fast so actuals appear quickly after release
 
+// ── Finnhub economic calendar (fallback for actuals when FairFX is slow) ─────
+interface FinnhubEcoEvent {
+  actual:   number | null;
+  estimate: number | null;
+  prev:     number | null;
+  country:  string;
+  event:    string;
+  time:     string; // "YYYY-MM-DD"
+  unit:     string; // "K", "%", etc.
+  impact:   string;
+}
+
+let finnhubCache: { data: FinnhubEcoEvent[]; ts: number } = { data: [], ts: 0 };
+const FINNHUB_CACHE_TTL = 5 * 60_000; // 5 min — Finnhub rate limit friendly
+
+async function fetchFinnhubActuals(): Promise<FinnhubEcoEvent[]> {
+  const key = process.env.FINNHUB_API_KEY;
+  if (!key) return [];
+  if (finnhubCache.data.length > 0 && Date.now() - finnhubCache.ts < FINNHUB_CACHE_TTL) {
+    return finnhubCache.data;
+  }
+  try {
+    const now   = new Date();
+    const from  = new Date(now); from.setDate(now.getDate() - 3);
+    const to    = new Date(now); to.setDate(now.getDate() + 1);
+    const fmt   = (d: Date) => d.toISOString().split("T")[0];
+    const url   = `https://finnhub.io/api/v1/calendar/economic?from=${fmt(from)}&to=${fmt(to)}&token=${key}`;
+    const res   = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return [];
+    const json  = await res.json() as { economicCalendar?: FinnhubEcoEvent[] };
+    const data  = json.economicCalendar ?? [];
+    if (data.length > 0) finnhubCache = { data, ts: Date.now() };
+    return data;
+  } catch {
+    return [];
+  }
+}
+
+/** Find Finnhub actual for a given event title and date */
+function matchFinnhubActual(
+  finnhub: FinnhubEcoEvent[],
+  title: string,
+  eventDateISO: string   // "YYYY-MM-DD"
+): string | undefined {
+  const t = title.toLowerCase();
+  const match = finnhub.find(f => {
+    if (f.country !== "US" && f.country !== "us") return false;
+    if (f.actual == null) return false;
+    // Date must match (±1 day buffer for timezone)
+    const fDate = f.time.slice(0, 10);
+    if (Math.abs(new Date(fDate).getTime() - new Date(eventDateISO).getTime()) > 86_400_000 * 2) return false;
+    const fn = f.event.toLowerCase();
+    // Fuzzy match on key terms
+    if (t.includes("nonfarm") || t.includes("non-farm") || t.includes("payroll")) {
+      return fn.includes("payroll") || fn.includes("nonfarm") || fn.includes("non-farm");
+    }
+    if (t.includes("unemployment rate")) return fn.includes("unemployment rate");
+    if (t.includes("average hourly earnings")) return fn.includes("hourly earnings") || fn.includes("average hourly");
+    if (t.includes("cpi")) return fn.includes("cpi") || fn.includes("consumer price");
+    if (t.includes("core cpi")) return (fn.includes("core") && fn.includes("cpi"));
+    if (t.includes("pce")) return fn.includes("pce") || fn.includes("personal consumption");
+    if (t.includes("gdp")) return fn.includes("gdp");
+    if (t.includes("retail sales")) return fn.includes("retail sales");
+    if (t.includes("jobless") || t.includes("unemployment claims")) return fn.includes("jobless") || fn.includes("claims");
+    if (t.includes("jolts")) return fn.includes("jolts") || fn.includes("job openings");
+    if (t.includes("ism") || t.includes("pmi")) return fn.includes("pmi") || fn.includes("ism");
+    if (t.includes("adp")) return fn.includes("adp");
+    return false;
+  });
+  if (!match || match.actual == null) return undefined;
+  const unit = match.unit && match.unit !== "" ? match.unit : "";
+  return `${match.actual}${unit}`;
+}
+
 interface FFEvent {
   title: string;
   country: string;
@@ -869,6 +943,9 @@ export async function GET() {
     }
     const now = new Date();
 
+    // Fetch Finnhub actuals in parallel — used as fallback when FairFX has no actual
+    const finnhubActuals = await fetchFinnhubActuals();
+
     // FILTER: HIGH + MEDIUM impact USD events (Medium catches Flash PMIs, retail sales etc.
     // on weeks where there are no HIGH impact events)
     const mapped: EconomicEvent[] = events
@@ -892,8 +969,10 @@ export async function GET() {
         // Map FairFX impact string to our Impact type
         const impact: "high" | "medium" = e.impact === "High" ? "high" : "medium";
 
-        // For completed events: use actual vs forecast for beat/miss analysis when actual exists
-        const actualForAnalysis = isPast && e.actual && e.actual !== "" ? e.actual : undefined;
+        // For completed events: use actual vs forecast for beat/miss analysis
+        const ffActual     = isPast && e.actual && e.actual !== "" ? e.actual : undefined;
+        const finnActual   = isPast ? matchFinnhubActual(finnhubActuals, e.title, eventTime.toISOString().split("T")[0]) : undefined;
+        const actualForAnalysis = ffActual ?? finnActual;
         const analysis = analyzeEvent(e.title, e.forecast, e.previous, isPast);
         const post = isPast ? generatePostEvent(e.title, e.forecast, e.previous, actualForAnalysis) : null;
         const pre = !isPast ? generatePreEvent(e.title, e.forecast, e.previous) : null;
@@ -914,11 +993,18 @@ export async function GET() {
           impact,
           forecast: e.forecast !== "" ? e.forecast : " - ",
           previous: e.previous !== "" ? e.previous : " - ",
-          // Show actual when FairFX has it; "Pending..." until data provider updates.
+          // Actual: FairFX first → Finnhub fallback → "Pending..." for very recent events
           actual: (() => {
             if (!isPast) return undefined;
             if (e.actual && e.actual !== "") return e.actual;
-            return "Pending..."; // FairFX updates actuals 15–60 min after release
+            // Try Finnhub as fallback
+            const finnhubActual = matchFinnhubActual(
+              finnhubActuals, e.title, eventTime.toISOString().split("T")[0]
+            );
+            if (finnhubActual) return finnhubActual;
+            // Still nothing — show Pending for recent events
+            const minsSince = msSinceEvent / 60_000;
+            return minsSince < 120 ? "Pending..." : undefined;
           })(),
           // Completed events show post-event summary in list; upcoming/live show trade setup
           interpretation: (isPast && post?.postEventSummary)
