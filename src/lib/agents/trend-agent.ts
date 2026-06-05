@@ -215,22 +215,31 @@ async function narrateTrendReasons(
   maData: { ma20: number | null; ma50: number | null; ma200: number | null; maStack: string }
 ): Promise<string[] | null> {
   const { price, structure, indicators } = snapshot;
-  const sys = `You are the Trend Analysis Agent writing the rationale for a trade terminal. The directional decision has ALREADY been made deterministically using Andybiotic Max% (5m) as the PRIMARY signal. Your ONLY job is to write 4-5 concise, institutional-grade bullet reasons that justify the GIVEN bias. Lead with the Andybiotic SuperTrend signal. Do NOT contradict the bias. Return ONLY a JSON array of strings.`;
+  const andy = indicators.andybiotic;
+  const andyLine = andy
+    ? `Andybiotic Max% (5m): SuperTrend ${andy.superTrendDir === -1 ? "BULL" : "BEAR"} @ ${andy.superTrend.toFixed(2)} | ${andy.isSmartBuy ? "SMART BUY" : andy.isSmartSell ? "SMART SELL" : andy.isBull ? "BUY crossover" : andy.isBear ? "SELL crossover" : "no fresh signal"} | ADX ${andy.adx?.toFixed(1) ?? "N/A"} ${andy.isSideways ? "(RANGING)" : "(trending)"} | Price ${andy.ema200 != null ? (price.current > andy.ema200 ? "ABOVE" : "BELOW") + " EMA200" : ""}`
+    : "Andybiotic Max%: no data (insufficient M5 candle history)";
+
+  const sys = `You are the Trend Analysis Agent for a trading terminal. The bias has been decided by Andybiotic Max% (5m SuperTrend). Your job: write exactly 4 bullet reasons justifying the ${computed.bias.toUpperCase()} bias using ONLY the data provided below.
+
+STRICT RULES:
+- NEVER mention PDH, PDL, PDH/PDL midpoint, JadeCap, daily open, or previous day levels
+- ALWAYS start reason #1 with the Andybiotic Max% SuperTrend signal
+- Use only the data fields given — do not invent or assume price levels
+- Return ONLY a valid JSON array of 4 strings, nothing else`;
 
   const msg = `
 DECIDED BIAS: ${computed.bias.toUpperCase()} @ ${computed.confidence}% | Phase: ${computed.marketPhase} | Momentum: ${computed.momentumDirection}
 ${snapshot.symbolDisplay} (${snapshot.symbol}) ${snapshot.timeframe}
 
 DATA:
-- Price ${price.current} | Change ${price.changePercent > 0 ? "+" : ""}${price.changePercent.toFixed(2)}%
-- HTF bias ${structure.htfBias.toUpperCase()} @ ${structure.htfConfidence}%
-- TF alignment: M5 ${computed.timeframeBias.M5} / M15 ${computed.timeframeBias.M15} / H1 ${computed.timeframeBias.H1} / H4 ${computed.timeframeBias.H4} (aligned: ${computed.timeframeBias.aligned})
-- RSI(14) ${indicators.rsi.toFixed(1)}${indicators.rsiReal ? "" : " (estimated)"} | MACD hist ${indicators.macdHist > 0 ? "+" : ""}${indicators.macdHist.toFixed(4)}${indicators.macdReal ? "" : " (proxy)"}
-- MA stack ${maData.maStack.toUpperCase()} | EMA20 ${maData.ma20?.toFixed(2) ?? "N/A"} EMA50 ${maData.ma50?.toFixed(2) ?? "N/A"}
-- Daily ATR ${indicators.atrProxy.toFixed(2)}%${indicators.atrReal ? "" : " (proxy)"} | Session ${indicators.session}
-${indicators.andybiotic ? `- Andybiotic Max%: SuperTrend ${indicators.andybiotic.superTrendDir === -1 ? "BULL" : "BEAR"} @ ${indicators.andybiotic.superTrend.toFixed(2)} | ${indicators.andybiotic.isSmartBuy ? "SMART BUY signal" : indicators.andybiotic.isSmartSell ? "SMART SELL signal" : indicators.andybiotic.isBull ? "BUY crossover" : indicators.andybiotic.isBear ? "SELL crossover" : "no fresh signal"} | ADX ${indicators.andybiotic.adx?.toFixed(1) ?? "N/A"} ${indicators.andybiotic.isSideways ? "(RANGING)" : "(trending)"} | Price ${indicators.andybiotic.ema200 != null ? (snapshot.price.current > indicators.andybiotic.ema200 ? "ABOVE" : "BELOW") + " EMA200" : ""}` : "- Andybiotic Max%: insufficient candle history"}
+1. ${andyLine}
+2. TF alignment: M5 ${computed.timeframeBias.M5} / M15 ${computed.timeframeBias.M15} / H1 ${computed.timeframeBias.H1} / H4 ${computed.timeframeBias.H4} (all aligned: ${computed.timeframeBias.aligned})
+3. RSI(14) ${indicators.rsi.toFixed(1)} | MACD hist ${indicators.macdHist > 0 ? "+" : ""}${indicators.macdHist.toFixed(4)}
+4. MA stack ${maData.maStack.toUpperCase()} | EMA20 ${maData.ma20?.toFixed(2) ?? "N/A"} | EMA50 ${maData.ma50?.toFixed(2) ?? "N/A"}
+5. ATR ${indicators.atrProxy.toFixed(2)}% | Session: ${indicators.session} | Zone: ${structure.zone}
 
-Write 4-5 reasons that justify the ${computed.bias.toUpperCase()} call. JSON array of strings only.`.trim();
+Return JSON array of 4 strings. Reason #1 MUST reference Andybiotic Max% SuperTrend.`.trim();
 
   const response = await anthropicCreate(client, {
     model: "claude-haiku-4-5-20251001",
