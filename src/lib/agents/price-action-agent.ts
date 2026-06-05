@@ -366,7 +366,7 @@ function detectNYSweepAndFVG(
 
     for (const tgt of targets) {
       // London High: skip ONLY when no FVG confirmation will come  -  the full loop still
-      // runs so that the FVG scan executes. Bias-alignment guard is in runJadeCapRuleBased.
+      // runs so that the FVG scan executes. Bias-alignment guard is in runSMCAnalysis.
       let swept = false;
       let extreme = 0;
 
@@ -417,7 +417,7 @@ function detectNYSweepAndFVG(
 // Rule-Based Fallback
 // ─────────────────────────────────────────────────────────────────────────────
 
-function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
+function runSMCAnalysis(snapshot: MarketSnapshot): SMCAgentOutput {
   const start = Date.now();
   const { price, structure, indicators } = snapshot;
   const { current, open, high, low, prevClose, dayRange } = price;
@@ -425,11 +425,17 @@ function runJadeCapRuleBased(snapshot: MarketSnapshot): SMCAgentOutput {
   const { htfBias, htfConfidence, equilibrium, zone } = structure;
   const timeframe = snapshot.timeframe ?? "M5";
 
-  // ── STEP 1: Daily bias ─────────────────────────────────────────────────────
-  const dailyBias: DirectionalBias = htfBias !== "neutral" ? htfBias
-    : current > prevClose ? "bullish"
-    : current < prevClose ? "bearish"
-    : "neutral";
+  // ── STEP 1: Bias — Andybiotic Max% SuperTrend as primary source ───────────
+  // Use the 5m SuperTrend direction as the primary bias signal.
+  // Falls back to htfBias only when Andybiotic data is unavailable.
+  const andy = snapshot.indicators.andybiotic;
+  const dailyBias: DirectionalBias =
+    andy && !andy.isSideways
+      ? andy.superTrendDir === -1 ? "bullish" : "bearish"
+      : htfBias !== "neutral" ? htfBias
+      : current > prevClose ? "bullish"
+      : current < prevClose ? "bearish"
+      : "neutral";
 
   // ── STEP 2: Session levels  -  real from candles, estimated fallback ────────
   const minSweep    = sweepMinDollar(snapshot.symbol, current);
@@ -653,7 +659,7 @@ export async function runPriceActionAgent(
   // that occurred on previous candles  -  rule-based scan is authoritative here.
   let ruleResult: SMCAgentOutput | null = null;
   try {
-    ruleResult = runJadeCapRuleBased(snapshot);
+    ruleResult = runSMCAnalysis(snapshot);
     // Confirmed sweep + FVG setup found  -  return immediately, no LLM needed
     if (ruleResult.liquiditySweepDetected && ruleResult.setupPresent) {
       return ruleResult;
@@ -679,7 +685,7 @@ export async function runPriceActionAgent(
   // Phase 3: Return rule-based result or fresh fallback
   if (ruleResult) return ruleResult;
   try {
-    return runJadeCapRuleBased(snapshot);
+    return runSMCAnalysis(snapshot);
   } catch (err) {
     return {
       agentId: "smc",
