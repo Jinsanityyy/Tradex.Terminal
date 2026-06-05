@@ -37,10 +37,12 @@ export async function GET() {
     const calRes = await fetch(calUrl, {
       cache: "no-store",
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept": "application/json, text/plain, */*",
-        "Referer": "https://www.myfxbook.com/forex-economic-calendar",
-        "Cookie": `SESSION=${session}`,
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "application/json, */*",
+        "Referer": "https://www.myfxbook.com/",
+        "Origin": "https://www.myfxbook.com",
+        "Cookie": `session=${session}; PHPSESSID=${session}`,
+        "X-Requested-With": "XMLHttpRequest",
       },
     });
     const rawText = await calRes.text();

@@ -62,16 +62,18 @@ async function fetchMyfxActuals(): Promise<MyfxbookEvent[]> {
     const from = new Date(now); from.setDate(now.getDate() - 3);
     const to   = new Date(now); to.setDate(now.getDate() + 1);
     const fmt  = (d: Date) => d.toISOString().split("T")[0];
+    // Try both: session as query param AND as cookie
     const url  = `https://www.myfxbook.com/api/get-economic-calendar.json?session=${session}&start=${fmt(from)}&end=${fmt(to)}`;
 
     const res  = await fetch(url, {
       cache: "no-store",
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Referer": "https://www.myfxbook.com/forex-economic-calendar",
-        "Cookie": `SESSION=${session}`,
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "application/json, */*",
+        "Referer": "https://www.myfxbook.com/",
+        "Origin": "https://www.myfxbook.com",
+        "Cookie": `session=${session}; PHPSESSID=${session}`,
+        "X-Requested-With": "XMLHttpRequest",
       },
     });
     if (!res.ok) return [];
