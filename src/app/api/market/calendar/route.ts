@@ -38,33 +38,43 @@ async function fetchBLSActuals(): Promise<Record<string, string>> {
     return blsCache.data;
   }
 
-  const [nfpData, avgHourlyData, unemploymentData] = await Promise.all([
-    blsFetch("CES0000000001", 2), // Total nonfarm level (thousands) — need 2 for change
-    blsFetch("CES0500000003", 2), // Avg hourly earnings level ($) — need 2 for M/M %
-    blsFetch("LNS14000000",  1),  // Unemployment rate — already the rate
+  const [nfpData, avgHourlyData, unemploymentData, claimsData, cpiData] = await Promise.all([
+    blsFetch("CES0000000001", 2), // Total nonfarm level → M/M change = NFP K
+    blsFetch("CES0500000003", 2), // Avg hourly earnings level → M/M %
+    blsFetch("LNS14000000",  1),  // Unemployment rate (direct %)
+    blsFetch("ICSA",         1),  // Initial jobless claims (weekly, in thousands)
+    blsFetch("CUUR0000SA0",  2),  // CPI All Urban → M/M %
   ]);
 
   const results: Record<string, string> = {};
 
-  // NFP change = current level - previous level (in K)
+  // NFP change
   if (nfpData.length >= 2) {
     const change = Math.round(parseFloat(nfpData[0]) - parseFloat(nfpData[1]));
     results.nfp = `${change}K`;
   }
 
-  // Avg Hourly Earnings M/M % change
+  // Avg Hourly Earnings M/M %
   if (avgHourlyData.length >= 2) {
     const curr = parseFloat(avgHourlyData[0]);
     const prev = parseFloat(avgHourlyData[1]);
-    if (prev > 0) {
-      const pct = ((curr - prev) / prev * 100).toFixed(1);
-      results.avgHourly = `${pct}%`;
-    }
+    if (prev > 0) results.avgHourly = `${((curr - prev) / prev * 100).toFixed(1)}%`;
   }
 
-  // Unemployment rate — direct value
-  if (unemploymentData.length >= 1) {
-    results.unemployment = `${unemploymentData[0]}%`;
+  // Unemployment Rate
+  if (unemploymentData.length >= 1) results.unemployment = `${unemploymentData[0]}%`;
+
+  // Initial Jobless Claims (BLS ICSA is in thousands)
+  if (claimsData.length >= 1) {
+    const val = Math.round(parseFloat(claimsData[0]));
+    results.claims = `${val}K`;
+  }
+
+  // CPI M/M %
+  if (cpiData.length >= 2) {
+    const curr = parseFloat(cpiData[0]);
+    const prev = parseFloat(cpiData[1]);
+    if (prev > 0) results.cpi = `${((curr - prev) / prev * 100).toFixed(1)}%`;
   }
 
   if (Object.keys(results).length > 0) blsCache = { data: results, ts: Date.now() };
@@ -79,6 +89,10 @@ function matchBLSActual(blsData: Record<string, string>, title: string): string 
     return blsData.unemployment;
   if (t.includes("average hourly earnings") && t.includes("m/m"))
     return blsData.avgHourly;
+  if (t.includes("jobless") || t.includes("unemployment claims") || t.includes("initial claims"))
+    return blsData.claims;
+  if ((t.includes("cpi") || t.includes("consumer price")) && !t.includes("core"))
+    return blsData.cpi;
   return undefined;
 }
 
@@ -1118,7 +1132,7 @@ export async function GET() {
             if (!isPast) return undefined;
             if (actualValue) return actualValue;            // FairFX or Myfxbook
             const minsSince = msSinceEvent / 60_000;
-            return minsSince < 120 ? "Pending..." : undefined;
+            return minsSince < 180 ? "Pending..." : undefined;
           })(),
           // Completed events show post-event summary in list; upcoming/live show trade setup
           interpretation: (isPast && post?.postEventSummary)
