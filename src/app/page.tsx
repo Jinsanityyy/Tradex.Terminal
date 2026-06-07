@@ -9,6 +9,22 @@ import {
 } from "lucide-react";
 import { TerminalPreview } from "@/components/landing/TerminalPreview";
 import { CinematicClientLayer } from "@/components/landing/CinematicClientLayer";
+import { WebGLBackground } from "@/components/landing/WebGLBackground";
+
+// ─── Split-char helper (server-safe) ─────────────────────────────────────────
+function Chars({ text, attr }: { text: string; attr: string }) {
+  return (
+    <>
+      {text.split("").map((ch, i) => (
+        <span key={i} data-split-char style={{ display: "inline-block", overflow: "hidden", verticalAlign: "bottom" }}>
+          <span data-split-inner {...{ [attr]: "" }} style={{ display: "inline-block" }}>
+            {ch === " " ? " " : ch}
+          </span>
+        </span>
+      ))}
+    </>
+  );
+}
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
@@ -112,72 +128,136 @@ export default function LandingPage() {
       </nav>
 
       {/* ── Hero ────────────────────────────────────────────────────────── */}
-      <section className="relative px-5 overflow-hidden" style={{ paddingTop: "clamp(5rem,12vh,8rem)", paddingBottom: "clamp(4rem,10vh,7rem)" }}>
-        {/* Grain */}
-        <div className="pointer-events-none absolute inset-0 z-[1]"
-          style={{ backgroundImage: GRAIN, opacity: 0.04, mixBlendMode: "overlay" }} />
-        {/* Vignette */}
-        <div className="pointer-events-none absolute inset-0 z-[1]"
-          style={{ background: "radial-gradient(ellipse 80% 70% at 50% 50%, transparent 40%, rgba(7,7,7,0.7) 100%)" }} />
-        {/* Glows */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden z-0">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[520px] rounded-full blur-3xl"
-            style={{ background: "radial-gradient(circle, rgba(201,168,85,0.11), transparent)" }} />
-          <div className="absolute inset-0 opacity-[0.018]"
-            style={{
-              backgroundImage: "linear-gradient(rgba(201,168,85,0.8) 1px,transparent 1px),linear-gradient(90deg,rgba(201,168,85,0.8) 1px,transparent 1px)",
-              backgroundSize: "52px 52px",
-            }} />
-        </div>
+      <section
+        className="relative overflow-hidden flex flex-col items-center justify-center px-5"
+        style={{ minHeight: "100svh" }}
+      >
+        {/* WebGL particle network */}
+        <WebGLBackground />
 
-        <div className="relative z-[2] max-w-4xl mx-auto text-center">
+        {/* Film grain */}
+        <div className="pointer-events-none absolute inset-0 z-[1]"
+          style={{ backgroundImage: GRAIN, opacity: 0.045, mixBlendMode: "overlay" }} />
+
+        {/* Radial vignette */}
+        <div className="pointer-events-none absolute inset-0 z-[1]"
+          style={{ background: "radial-gradient(ellipse 90% 75% at 50% 50%, transparent 30%, rgba(7,7,7,0.85) 100%)" }} />
+
+        {/* Gold radial glow — top centre */}
+        <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 z-[1]"
+          style={{ width: 800, height: 600, background: "radial-gradient(circle, rgba(201,168,85,0.10), transparent 70%)" }} />
+
+        {/* Subtle grid */}
+        <div className="pointer-events-none absolute inset-0 z-[1] opacity-[0.016]"
+          style={{
+            backgroundImage: "linear-gradient(rgba(201,168,85,1) 1px,transparent 1px),linear-gradient(90deg,rgba(201,168,85,1) 1px,transparent 1px)",
+            backgroundSize: "56px 56px",
+          }} />
+
+        {/* Bottom fade to bg colour */}
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-40 z-[2]"
+          style={{ background: `linear-gradient(to bottom, transparent, ${BG})` }} />
+
+        {/* ── Content ──────────────────────────────────────────────────────── */}
+        <div className="relative z-[3] w-full max-w-5xl mx-auto text-center" style={{ paddingTop: "5rem", paddingBottom: "6rem" }}>
+
           {/* Badge */}
           <div
             data-hero-badge
-            className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-[10px] font-bold tracking-[0.22em] mb-7"
+            className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-[10px] font-bold tracking-[0.22em] mb-8"
             style={{ borderColor: "rgba(201,168,85,0.22)", background: "rgba(201,168,85,0.06)", color: G }}>
             <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: G }} />
             MULTI-AGENT AI TRADING TERMINAL
           </div>
 
-          {/* Headline — two lines animate separately */}
-          <h1 className="font-black leading-[1.0] tracking-tight mb-5"
-            style={{ fontSize: "clamp(3.2rem, 10vw, 6.5rem)" }}>
-            <span data-hero-1 className="block">Your Edge.</span>
-            <span data-hero-2 className="block" style={{ color: G }}>AI&#8209;Powered.</span>
+          {/* Headline — split-char animated */}
+          <h1
+            className="font-black leading-[0.95] tracking-tight mb-6"
+            style={{ fontSize: "clamp(4rem, 12.5vw, 9.5rem)" }}
+            aria-label="Trade With Intelligence."
+          >
+            <span data-hero-1 aria-hidden className="block">
+              <Chars text="TRADE WITH" attr="data-h1-char" />
+            </span>
+            <span data-hero-2 aria-hidden className="block" style={{ color: G }}>
+              <Chars text="INTELLIGENCE." attr="data-h2-char" />
+            </span>
           </h1>
 
-          <p data-hero-stat className="text-sm font-semibold mb-4 tracking-wide" style={{ color: `${G}99` }}>
-            3,200+ active traders worldwide
+          <p data-hero-stat className="text-sm font-semibold mb-5 tracking-widest font-mono" style={{ color: `${G}88` }}>
+            ◆ 3,200+ ACTIVE TRADERS WORLDWIDE ◆
           </p>
 
-          <p data-hero-sub className="text-base md:text-lg leading-relaxed mb-9 max-w-2xl mx-auto"
-            style={{ color: "rgba(255,255,255,0.48)" }}>
-            TradeX Terminal gives serious traders 7 specialized AI agents, real-time market bias,
-            candlestick AI, session intelligence, and a hard risk gate — all in one terminal.
+          <p data-hero-sub className="text-base md:text-lg leading-relaxed mb-10 max-w-2xl mx-auto"
+            style={{ color: "rgba(255,255,255,0.45)" }}>
+            7 specialized AI agents. Real-time market bias. Hard risk gate. Candlestick AI,
+            session intelligence, and live signals — all in one terminal.
           </p>
 
-          <div data-hero-cta className="flex flex-wrap items-center justify-center gap-3 mb-6">
-            <Link href="/login"
-              className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-sm font-bold transition-all hover:brightness-110"
-              style={{ background: G, color: "#000", boxShadow: "0 0 40px rgba(201,168,85,0.3)" }}>
+          <div data-hero-cta className="flex flex-wrap items-center justify-center gap-4 mb-7">
+            <Link
+              href="/login"
+              data-magnetic
+              className="inline-flex items-center gap-2 rounded-xl px-9 py-4 text-sm font-bold"
+              style={{ background: G, color: "#000", boxShadow: "0 0 48px rgba(201,168,85,0.32)", transition: "filter .2s" }}
+              onMouseEnter={(e) => (e.currentTarget.style.filter = "brightness(1.12)")}
+              onMouseLeave={(e) => (e.currentTarget.style.filter = "")}>
               <Zap className="h-4 w-4" /> Start for Free
             </Link>
-            <Link href="/dashboard"
-              className="inline-flex items-center gap-2 rounded-xl border px-8 py-3.5 text-sm font-semibold transition-colors hover:bg-white/5"
-              style={{ borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)" }}>
+            <Link
+              href="/dashboard"
+              data-magnetic
+              className="inline-flex items-center gap-2 rounded-xl border px-9 py-4 text-sm font-semibold"
+              style={{ borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.72)", transition: "background .2s" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "")}>
               Launch Terminal <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
 
-          <p data-hero-cta className="text-xs flex flex-wrap items-center justify-center gap-x-5 gap-y-2"
-            style={{ color: "rgba(255,255,255,0.28)" }}>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}80` }} /> No credit card required</span>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}80` }} /> Free plan forever</span>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}80` }} /> Cancel anytime</span>
+          <p data-hero-cta className="text-xs flex flex-wrap items-center justify-center gap-x-6 gap-y-2"
+            style={{ color: "rgba(255,255,255,0.24)" }}>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}66` }} /> No credit card required</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}66` }} /> Free plan forever</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}66` }} /> Cancel anytime</span>
           </p>
         </div>
+
+        {/* Scroll indicator */}
+        <div data-hero-scroll className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[3] flex flex-col items-center gap-2">
+          <div className="w-px h-10 overflow-hidden" style={{ background: "rgba(201,168,85,0.15)" }}>
+            <div className="w-full h-1/2 animate-bounce" style={{ background: `linear-gradient(to bottom, ${G}, transparent)` }} />
+          </div>
+          <span className="text-[8px] tracking-[0.3em] uppercase font-bold" style={{ color: "rgba(201,168,85,0.35)" }}>scroll</span>
+        </div>
       </section>
+
+      {/* ── Marquee ticker ───────────────────────────────────────────────────── */}
+      <div
+        className="overflow-hidden py-[14px]"
+        style={{ borderTop: "1px solid rgba(201,168,85,0.07)", borderBottom: "1px solid rgba(201,168,85,0.07)", background: "#080808" }}
+        aria-hidden
+      >
+        <div data-marquee className="flex whitespace-nowrap will-change-transform">
+          {[0, 1].map((g) => (
+            <div key={g} className="flex shrink-0 gap-0">
+              {[
+                "AI TRADING TERMINAL", "MARKET BIAS ENGINE", "7 AI AGENTS",
+                "RISK GATE", "SESSION INTELLIGENCE", "CANDLE ANALYSIS AI",
+                "REAL-TIME SIGNALS", "BRAIN TERMINAL", "ASSET MATRIX",
+              ].map((label) => (
+                <span
+                  key={label}
+                  className="text-[10px] font-black tracking-[0.32em] uppercase px-7"
+                  style={{ color: "rgba(201,168,85,0.32)" }}
+                >
+                  {label} <span style={{ color: "rgba(201,168,85,0.18)", marginLeft: "1.5rem" }}>◆</span>
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* ── Stats bar ───────────────────────────────────────────────────── */}
       <div data-stats-bar style={{ borderTop: "1px solid rgba(201,168,85,0.08)", borderBottom: "1px solid rgba(201,168,85,0.08)", background: S1 }}>
