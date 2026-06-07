@@ -838,5 +838,6 @@ iframe,
 
 /* ── Landing page feature card hover ────────────────────────────────────── */
 .feature-card:hover {
-  border-color: rgba(74, 222, 128, 0.3) !important;
+  border-color: rgba(201, 168, 85, 0.28) !important;
+  box-shadow: 0 0 28px rgba(201, 168, 85, 0.06);
 }
