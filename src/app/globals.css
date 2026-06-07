@@ -841,3 +841,17 @@ iframe,
   border-color: rgba(201, 168, 85, 0.28) !important;
   box-shadow: 0 0 28px rgba(201, 168, 85, 0.06);
 }
+
+/* ── Hero CTA button hover states (CSS-only, no JS handlers needed) ──────── */
+.hero-cta-primary {
+  transition: filter 0.2s ease;
+}
+.hero-cta-primary:hover {
+  filter: brightness(1.12);
+}
+.hero-cta-secondary {
+  transition: background 0.2s ease;
+}
+.hero-cta-secondary:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
