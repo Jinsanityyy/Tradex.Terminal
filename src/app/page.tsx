@@ -337,9 +337,9 @@ export default function LandingPage() {
       <section id="features" className="relative py-32 px-5 overflow-hidden" style={{ background: S1 }}>
         {/* Scroll-driven animated chart-line background */}
         <FeaturesBG />
-        {/* Gradient overlay so cards remain readable over the animation */}
+        {/* Soft vignette — keeps edges dark without hiding the center animation */}
         <div className="pointer-events-none absolute inset-0 z-[1]"
-          style={{ background: `radial-gradient(ellipse 80% 60% at 50% 50%, transparent 30%, ${S1}dd 100%)` }} />
+          style={{ background: `radial-gradient(ellipse 100% 80% at 50% 50%, transparent 45%, ${S1}cc 100%)` }} />
         <div className="max-w-6xl mx-auto relative z-[2]">
           <div data-section-head className="text-center mb-16">
             <p className="text-[10px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: G }}>
