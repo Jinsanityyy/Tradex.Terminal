@@ -10,6 +10,7 @@ import {
 import { TerminalPreview } from "@/components/landing/TerminalPreview";
 import { CinematicClientLayer } from "@/components/landing/CinematicClientLayer";
 import { WebGLBackground } from "@/components/landing/WebGLBackground";
+import { FeaturesBG } from "@/components/landing/FeaturesBG";
 
 // ─── Split-char helper (server-safe) ─────────────────────────────────────────
 function Chars({ text }: { text: string }) {
@@ -334,7 +335,12 @@ export default function LandingPage() {
 
       {/* ── Features ──────────────────────────────────────────────────────── */}
       <section id="features" className="relative py-32 px-5 overflow-hidden" style={{ background: S1 }}>
-        <div className="max-w-6xl mx-auto">
+        {/* Scroll-driven animated chart-line background */}
+        <FeaturesBG />
+        {/* Gradient overlay so cards remain readable over the animation */}
+        <div className="pointer-events-none absolute inset-0 z-[1]"
+          style={{ background: `radial-gradient(ellipse 80% 60% at 50% 50%, transparent 30%, ${S1}dd 100%)` }} />
+        <div className="max-w-6xl mx-auto relative z-[2]">
           <div data-section-head className="text-center mb-16">
             <p className="text-[10px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: G }}>
               Intelligence Suite
