@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import {
   Zap, Brain, TrendingUp, BarChart2, Shield, Clock,
   Newspaper, Calendar, MessageSquare, BookOpen, CheckCircle2,
@@ -9,12 +8,7 @@ import {
   Award, Lock,
 } from "lucide-react";
 import { TerminalPreview } from "@/components/landing/TerminalPreview";
-
-// Loaded client-side only — never touches SSR
-const CinematicClientLayer = dynamic(
-  () => import("@/components/landing/CinematicClientLayer").then(m => ({ default: m.CinematicClientLayer })),
-  { ssr: false }
-);
+import { CinematicClientLayer } from "@/components/landing/CinematicClientLayer";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
