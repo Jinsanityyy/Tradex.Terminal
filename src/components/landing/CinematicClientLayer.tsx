@@ -162,6 +162,33 @@ export function CinematicClientLayer() {
           });
         }
 
+        // ── Feature row hover — number glow + row highlight ────────────────
+        if (hasHover) {
+          document.querySelectorAll<HTMLElement>("[data-feature-row]").forEach((row) => {
+            const num = row.querySelector<HTMLElement>("span[style*='WebkitTextStroke']");
+            row.addEventListener("mouseenter", () => {
+              gsap.to(row, { backgroundColor: "rgba(201,168,85,0.03)", duration: 0.3, overwrite: "auto" });
+              if (num) gsap.to(num, { opacity: 1, duration: 0.3, overwrite: "auto" });
+            });
+            row.addEventListener("mouseleave", () => {
+              gsap.to(row, { backgroundColor: "transparent", duration: 0.4, overwrite: "auto" });
+              if (num) gsap.to(num, { opacity: 0.35, duration: 0.4, overwrite: "auto" });
+            });
+          });
+        }
+
+        // ── Feature rows — stagger slide in ────────────────────────────────
+        gsap.utils.toArray<HTMLElement>("[data-feature-row]").forEach((row, i) => {
+          gsap.fromTo(row,
+            { opacity: 0, x: -30 },
+            {
+              opacity: 1, x: 0, duration: 0.55, ease: "power3.out",
+              delay: i * 0.04,
+              scrollTrigger: { trigger: row, start: "top 92%", once: true },
+            }
+          );
+        });
+
         // ── Section headings — clip-path wipe up ───────────────────────────
         gsap.utils.toArray<HTMLElement>("[data-section-head]").forEach((el) => {
           gsap.fromTo(el,
