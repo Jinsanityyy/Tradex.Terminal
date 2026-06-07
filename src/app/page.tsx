@@ -10,7 +10,6 @@ import {
 import { TerminalPreview } from "@/components/landing/TerminalPreview";
 import { CinematicClientLayer } from "@/components/landing/CinematicClientLayer";
 import { WebGLBackground } from "@/components/landing/WebGLBackground";
-import { FeaturesBG } from "@/components/landing/FeaturesBG";
 import { MeshWave } from "@/components/landing/MeshWave";
 
 // ─── Split-char helper (server-safe) ─────────────────────────────────────────
@@ -338,21 +337,21 @@ export default function LandingPage() {
       </section>
 
       {/* ── Features ──────────────────────────────────────────────────────── */}
-      {/* ── Features ──────────────────────────────────────────────────────── */}
       <section id="features" className="relative py-32 px-5 overflow-hidden" style={{ background: S1 }}>
 
-        {/* Animated chart-line background */}
-        <FeaturesBG />
+        {/* Subtle mesh — desktop only, masked to the very edge */}
+        <div className="hidden lg:block">
+          <MeshWave side="right" opacity={0.16} />
+        </div>
+        <div className="hidden lg:block">
+          <MeshWave side="left"  opacity={0.10} />
+        </div>
 
-        {/* 3D mesh waves — left & right */}
-        <MeshWave side="right" opacity={0.38} />
-        <MeshWave side="left"  opacity={0.22} />
-
-        {/* Edge vignette only — keep center clear */}
+        {/* Strong edge masks — solid for 22%, then fade to transparent */}
         <div className="pointer-events-none absolute inset-0 z-[1]"
-          style={{ background: `linear-gradient(to right, ${S1}ee 0%, transparent 22%, transparent 78%, ${S1}ee 100%)` }} />
+          style={{ background: `linear-gradient(to right, ${S1} 0%, ${S1} 22%, transparent 40%, transparent 60%, ${S1} 78%, ${S1} 100%)` }} />
         <div className="pointer-events-none absolute inset-0 z-[1]"
-          style={{ background: `linear-gradient(to bottom, ${S1}99 0%, transparent 12%, transparent 88%, ${S1}99 100%)` }} />
+          style={{ background: `linear-gradient(to bottom, ${S1}cc 0%, transparent 10%, transparent 90%, ${S1}cc 100%)` }} />
 
         <div className="max-w-5xl mx-auto relative z-[2]">
 
