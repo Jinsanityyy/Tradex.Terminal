@@ -255,27 +255,47 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* ── Stats bar ───────────────────────────────────────────────────── */}
-      <div data-stats-bar style={{ borderTop: "1px solid rgba(201,168,85,0.08)", borderBottom: "1px solid rgba(201,168,85,0.08)", background: S1 }}>
-        <div className="max-w-4xl mx-auto px-5 py-6 grid grid-cols-2 md:grid-cols-4">
+      {/* ── Stats bar ─────────────────────────────────────────────────── */}
+      <div
+        data-stats-bar
+        className="relative overflow-hidden"
+        style={{ borderTop: "1px solid rgba(201,168,85,0.10)", borderBottom: "1px solid rgba(201,168,85,0.10)", background: S1 }}
+      >
+        <div className="pointer-events-none absolute inset-0 opacity-[0.025]"
+          style={{ backgroundImage: GRAIN, mixBlendMode: "overlay" }} />
+        <div className="max-w-5xl mx-auto px-5 py-12 grid grid-cols-2 md:grid-cols-4 gap-6">
           {[
-            { value: "3,200+", label: "Active Traders" },
-            { value: "7",      label: "AI Agents" },
-            { value: "4",      label: "Asset Classes" },
-            { value: "24/7",   label: "Live Data" },
+            { display: "3,200+", countTo: "3200", suffix: "+", label: "Active Traders" },
+            { display: "7",      countTo: "7",    suffix: "",  label: "AI Agents" },
+            { display: "4",      countTo: "4",    suffix: "",  label: "Asset Classes" },
+            { display: "24/7",   countTo: "",     suffix: "",  label: "Live Data" },
           ].map((s, i) => (
-            <div key={s.label} className="text-center py-2"
+            <div key={s.label} className="text-center relative"
               style={{ borderRight: i < 3 ? "1px solid rgba(255,255,255,0.04)" : undefined }}>
-              <p className="text-2xl font-black font-mono" style={{ color: G }}>{s.value}</p>
-              <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.32)" }}>{s.label}</p>
+              <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full blur-2xl"
+                style={{ background: "rgba(201,168,85,0.07)" }} />
+              <p
+                data-count-to={s.countTo}
+                data-count-suffix={s.suffix}
+                className="relative text-5xl md:text-6xl font-black font-mono mb-1"
+                style={{ color: G }}
+              >
+                {s.display}
+              </p>
+              <p className="relative text-[11px] font-semibold tracking-[0.18em] uppercase" style={{ color: "rgba(255,255,255,0.3)" }}>
+                {s.label}
+              </p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* ── Social proof ────────────────────────────────────────────────── */}
-      <div style={{ background: "#0A0A0A", borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
-        <div className="max-w-5xl mx-auto px-5 py-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+      {/* ── Social proof ──────────────────────────────────────────────────── */}
+      <div
+        data-social-proof
+        style={{ background: "#0A0A0A", borderBottom: "1px solid rgba(255,255,255,0.03)" }}
+      >
+        <div className="max-w-5xl mx-auto px-5 py-5 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
           {[
             { icon: <Star className="h-3.5 w-3.5 fill-current" style={{ color: G }} />,  text: "4.9/5 from 800+ reviews" },
             { icon: <Award className="h-3.5 w-3.5" style={{ color: G }} />,              text: "#1 AI trading terminal" },
@@ -289,14 +309,21 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* ── Terminal Preview ─────────────────────────────────────────────── */}
-      <section id="preview" className="py-24 px-5" style={{ background: BG }}>
-        <div className="max-w-6xl mx-auto">
-          <div data-section-head className="text-center mb-12">
-            <p className="text-xs font-bold tracking-[0.2em] mb-3 uppercase" style={{ color: G }}>Preview</p>
-            <h2 className="text-2xl md:text-3xl font-black mb-3">See what you&apos;re getting</h2>
-            <p className="text-sm max-w-xl mx-auto" style={{ color: "rgba(255,255,255,0.4)" }}>
-              This is the actual interface — real-time signals, AI bias, and agent consensus in one view.
+      {/* ── Terminal Preview ──────────────────────────────────────────────── */}
+      <section id="preview" className="relative py-32 px-5 overflow-hidden" style={{ background: BG }}>
+        <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[400px] blur-3xl"
+          style={{ background: "radial-gradient(circle, rgba(201,168,85,0.05), transparent 70%)" }} />
+        <div className="max-w-6xl mx-auto relative">
+          <div data-section-head className="text-center mb-16">
+            <p className="text-[10px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: G }}>
+              Preview
+            </p>
+            <h2 className="font-black leading-[1.05] tracking-tight mb-4"
+              style={{ fontSize: "clamp(2.4rem, 6vw, 4.5rem)" }}>
+              See what you&apos;re getting
+            </h2>
+            <p className="text-base max-w-lg mx-auto" style={{ color: "rgba(255,255,255,0.38)" }}>
+              The actual interface — real-time signals, AI bias, and agent consensus in one terminal.
             </p>
           </div>
           <div data-preview>
@@ -305,39 +332,68 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Features ────────────────────────────────────────────────────── */}
-      <section id="features" className="py-24 px-5" style={{ background: S1 }}>
+      {/* ── Features ──────────────────────────────────────────────────────── */}
+      <section id="features" className="relative py-32 px-5 overflow-hidden" style={{ background: S1 }}>
         <div className="max-w-6xl mx-auto">
-          <div data-section-head className="text-center mb-12">
-            <p className="text-xs font-bold tracking-[0.2em] mb-3 uppercase" style={{ color: G }}>Intelligence Suite</p>
-            <h2 className="text-2xl md:text-3xl font-black">Everything you need to trade with edge</h2>
+          <div data-section-head className="text-center mb-16">
+            <p className="text-[10px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: G }}>
+              Intelligence Suite
+            </p>
+            <h2 className="font-black leading-[1.05] tracking-tight mb-4"
+              style={{ fontSize: "clamp(2.4rem, 6vw, 4.5rem)" }}>
+              Everything you need to<br className="hidden md:block" /> trade with edge
+            </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {FEATURES.map(f => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {FEATURES.map((f, idx) => (
               <div
                 key={f.title}
                 data-card
-                className="rounded-2xl p-5 transition-all duration-200 hover:scale-[1.02] cursor-default"
-                style={{ background: S2, border: "1px solid rgba(255,255,255,0.05)" }}>
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl border ${f.color}`}>{f.icon}</div>
-                  <span className="rounded-full border px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase"
-                    style={{ borderColor: "rgba(201,168,85,0.2)", background: "rgba(201,168,85,0.07)", color: G }}>Pro</span>
+                className="group rounded-2xl p-6 relative overflow-hidden cursor-default"
+                style={{ background: S2, border: "1px solid rgba(255,255,255,0.05)", transition: "border-color .3s" }}
+              >
+                {/* Card inner glow on hover (CSS-driven) */}
+                <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                  style={{ background: "radial-gradient(ellipse 60% 50% at 50% 0%, rgba(201,168,85,0.05), transparent)" }} />
+
+                <div className="relative flex items-start justify-between mb-5">
+                  <div className={`inline-flex items-center justify-center w-12 h-12 rounded-2xl border ${f.color}`}>
+                    <span className="scale-125">{f.icon}</span>
+                  </div>
+                  <span className="rounded-full border px-2.5 py-0.5 text-[9px] font-black tracking-wider uppercase"
+                    style={{ borderColor: "rgba(201,168,85,0.22)", background: "rgba(201,168,85,0.07)", color: G }}>
+                    Pro
+                  </span>
                 </div>
-                <h3 className="font-bold text-sm mb-2 text-white">{f.title}</h3>
-                <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.4)" }}>{f.desc}</p>
+
+                <div className="relative">
+                  <p className="text-[10px] font-black tracking-[0.22em] uppercase mb-1.5" style={{ color: "rgba(255,255,255,0.2)" }}>
+                    {String(idx + 1).padStart(2, "0")}
+                  </p>
+                  <h3 className="font-black text-base mb-2 text-white leading-tight">{f.title}</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.38)" }}>{f.desc}</p>
+                </div>
+
+                <div className="absolute bottom-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                  style={{ background: `linear-gradient(to right, transparent, ${G}55, transparent)` }} />
               </div>
             ))}
           </div>
 
-          <div className="mt-8 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-5"
-            style={{ background: S2, border: "1px solid rgba(255,255,255,0.05)" }}>
-            <div>
-              <p className="text-[10px] font-bold tracking-[0.2em] uppercase mb-3" style={{ color: "rgba(255,255,255,0.3)" }}>
+          {/* Free features bar */}
+          <div
+            data-card
+            className="mt-6 rounded-2xl p-7 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 relative overflow-hidden"
+            style={{ background: S2, border: "1px solid rgba(255,255,255,0.05)" }}
+          >
+            <div className="pointer-events-none absolute top-0 left-0 w-40 h-40 rounded-full blur-3xl"
+              style={{ background: "rgba(201,168,85,0.04)" }} />
+            <div className="relative">
+              <p className="text-[10px] font-black tracking-[0.22em] uppercase mb-4" style={{ color: "rgba(255,255,255,0.28)" }}>
                 Also included — free forever
               </p>
-              <div className="flex flex-wrap gap-x-6 gap-y-2">
+              <div className="flex flex-wrap gap-x-7 gap-y-2.5">
                 {[
                   { icon: <Calendar className="h-3.5 w-3.5" />,        label: "Economic Calendar" },
                   { icon: <Newspaper className="h-3.5 w-3.5" />,       label: "News Feed" },
@@ -345,58 +401,84 @@ export default function LandingPage() {
                   { icon: <MessageSquare className="h-3.5 w-3.5" />,   label: "Community Chat" },
                   { icon: <BookOpen className="h-3.5 w-3.5" />,        label: "Knowledge Base" },
                 ].map(item => (
-                  <div key={item.label} className="flex items-center gap-1.5 text-xs" style={{ color: "rgba(255,255,255,0.38)" }}>
-                    <span style={{ color: "rgba(255,255,255,0.2)" }}>{item.icon}</span> {item.label}
+                  <div key={item.label} className="flex items-center gap-2 text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>
+                    <span style={{ color: "rgba(255,255,255,0.22)" }}>{item.icon}</span> {item.label}
                   </div>
                 ))}
               </div>
             </div>
             <Link href="/login"
-              className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border px-5 py-2.5 text-sm font-semibold transition-colors hover:bg-white/5 whitespace-nowrap"
-              style={{ borderColor: "rgba(201,168,85,0.25)", color: G }}>
-              Start Free <ArrowRight className="h-3.5 w-3.5" />
+              className="relative shrink-0 inline-flex items-center gap-2 rounded-xl border px-6 py-3 text-sm font-bold transition-colors hover:bg-white/5 whitespace-nowrap"
+              style={{ borderColor: "rgba(201,168,85,0.28)", color: G }}>
+              Start Free <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </div>
       </section>
 
-      {/* ── Testimonials ────────────────────────────────────────────────── */}
-      <section className="py-24 px-5" style={{ background: BG }}>
-        <div className="max-w-5xl mx-auto">
-          <div data-section-head className="text-center mb-12">
-            <p className="text-xs font-bold tracking-[0.2em] mb-3 uppercase" style={{ color: G }}>Trader Reviews</p>
-            <h2 className="text-2xl md:text-3xl font-black">Real traders. Real results.</h2>
+      {/* ── Testimonials ──────────────────────────────────────────────────── */}
+      <section className="relative py-32 px-5 overflow-hidden" style={{ background: BG }}>
+        <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] blur-3xl"
+          style={{ background: "radial-gradient(ellipse, rgba(201,168,85,0.04), transparent 70%)" }} />
+        <div className="max-w-5xl mx-auto relative">
+          <div data-section-head className="text-center mb-16">
+            <p className="text-[10px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: G }}>
+              Trader Reviews
+            </p>
+            <h2 className="font-black leading-[1.05] tracking-tight"
+              style={{ fontSize: "clamp(2.4rem, 6vw, 4.5rem)" }}>
+              Real traders.<br className="hidden md:block" /> Real results.
+            </h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {TESTIMONIALS.map(t => (
-              <div key={t.name}
+              <div
+                key={t.name}
                 data-testimonial
-                className="rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden"
-                style={{ background: S1, border: "1px solid rgba(255,255,255,0.05)" }}>
-                <div className="absolute top-4 right-5 font-black select-none"
-                  style={{ fontSize: "5rem", lineHeight: 1, color: "rgba(201,168,85,0.07)", fontFamily: "Georgia, serif" }}>
+                className="rounded-2xl p-7 flex flex-col gap-5 relative overflow-hidden"
+                style={{ background: S1, border: "1px solid rgba(255,255,255,0.06)" }}
+              >
+                {/* Giant decorative quote */}
+                <div
+                  className="pointer-events-none absolute -top-2 right-4 select-none font-black leading-none"
+                  style={{ fontSize: "9rem", color: "rgba(201,168,85,0.06)", fontFamily: "Georgia, serif", lineHeight: 1 }}
+                >
                   &ldquo;
                 </div>
-                <div className="flex gap-0.5 relative z-10">
+
+                {/* Stars */}
+                <div className="flex gap-1 relative z-10">
                   {Array.from({ length: t.stars }).map((_, i) => (
-                    <Star key={i} className="h-3.5 w-3.5 fill-current" style={{ color: G }} />
+                    <Star key={i} className="h-4 w-4 fill-current" style={{ color: G }} />
                   ))}
                 </div>
-                <p className="text-sm leading-relaxed flex-1 relative z-10" style={{ color: "rgba(255,255,255,0.6)" }}>
-                  &ldquo;{t.quote}&rdquo;
-                </p>
-                <div className="inline-flex self-start rounded-full px-3 py-1 text-[10px] font-bold"
-                  style={{ background: "rgba(201,168,85,0.1)", color: G, border: "1px solid rgba(201,168,85,0.18)" }}>
+
+                {/* Result badge — prominent */}
+                <div
+                  className="inline-flex self-start items-center gap-2 rounded-xl px-4 py-2 text-sm font-black relative z-10"
+                  style={{ background: "rgba(201,168,85,0.1)", color: G, border: "1px solid rgba(201,168,85,0.2)" }}
+                >
                   {t.badge}
                 </div>
-                <div className="flex items-center gap-3 pt-2 relative z-10" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black shrink-0"
-                    style={{ background: "rgba(201,168,85,0.12)", color: G, border: "1px solid rgba(201,168,85,0.18)" }}>
+
+                <p className="text-sm leading-relaxed flex-1 relative z-10" style={{ color: "rgba(255,255,255,0.58)" }}>
+                  &ldquo;{t.quote}&rdquo;
+                </p>
+
+                <div
+                  className="flex items-center gap-3 pt-4 relative z-10"
+                  style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
+                >
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0"
+                    style={{ background: "rgba(201,168,85,0.12)", color: G, border: "1px solid rgba(201,168,85,0.2)" }}
+                  >
                     {t.initials}
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-white">{t.name}</p>
-                    <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>{t.role}</p>
+                    <p className="text-sm font-bold text-white">{t.name}</p>
+                    <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>{t.role}</p>
                   </div>
                 </div>
               </div>
@@ -405,141 +487,214 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Pricing ─────────────────────────────────────────────────────── */}
-      <section id="pricing" className="py-24 px-5" style={{ background: S1 }}>
+      {/* ── Pricing ───────────────────────────────────────────────────────── */}
+      <section id="pricing" className="relative py-32 px-5 overflow-hidden" style={{ background: S1 }}>
         <div className="max-w-5xl mx-auto">
-          <div data-section-head className="text-center mb-12">
-            <p className="text-xs font-bold tracking-[0.2em] mb-3 uppercase" style={{ color: G }}>Pricing</p>
-            <h2 className="text-2xl md:text-3xl font-black">Simple, transparent pricing</h2>
-            <p className="text-sm mt-3" style={{ color: "rgba(255,255,255,0.4)" }}>Start free. Upgrade when you need the edge.</p>
+          <div data-section-head className="text-center mb-16">
+            <p className="text-[10px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: G }}>
+              Pricing
+            </p>
+            <h2 className="font-black leading-[1.05] tracking-tight mb-4"
+              style={{ fontSize: "clamp(2.4rem, 6vw, 4.5rem)" }}>
+              Simple, transparent pricing
+            </h2>
+            <p className="text-base" style={{ color: "rgba(255,255,255,0.38)" }}>
+              Start free. Upgrade when you need the edge.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Free */}
-            <div data-card className="rounded-2xl p-7 flex flex-col" style={{ background: S2, border: "1px solid rgba(255,255,255,0.06)" }}>
-              <h3 className="text-lg font-bold mb-1">Free</h3>
-              <p className="text-sm mb-5" style={{ color: "rgba(255,255,255,0.35)" }}>Essential tools for every trader</p>
-              <p className="text-4xl font-black font-mono mb-7">$0<span className="text-sm font-normal ml-1" style={{ color: "rgba(255,255,255,0.3)" }}>/forever</span></p>
-              <ul className="space-y-2 mb-7 flex-1">
+            <div
+              data-card
+              className="rounded-2xl p-8 flex flex-col"
+              style={{ background: S2, border: "1px solid rgba(255,255,255,0.07)" }}
+            >
+              <p className="text-[10px] font-black tracking-[0.22em] uppercase mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>
+                Free tier
+              </p>
+              <h3 className="text-xl font-black mb-1">Free</h3>
+              <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.35)" }}>Essential tools for every trader</p>
+              <p className="font-black font-mono mb-8" style={{ fontSize: "clamp(3rem, 7vw, 4.5rem)", lineHeight: 1 }}>
+                $0
+                <span className="text-sm font-normal ml-2" style={{ color: "rgba(255,255,255,0.28)" }}>/forever</span>
+              </p>
+              <ul className="space-y-2.5 mb-8 flex-1">
                 {FREE_FEATURES.map(f => (
-                  <li key={f.label} className="flex items-start gap-2.5 text-sm">
-                    {f.locked ? <Ban className="h-4 w-4 shrink-0 mt-0.5" style={{ color: "rgba(255,255,255,0.15)" }} />
-                              : <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" style={{ color: "rgba(255,255,255,0.25)" }} />}
-                    <span style={{ color: f.locked ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.5)" }}
+                  <li key={f.label} className="flex items-start gap-3 text-sm">
+                    {f.locked
+                      ? <Ban className="h-4 w-4 shrink-0 mt-0.5" style={{ color: "rgba(255,255,255,0.14)" }} />
+                      : <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" style={{ color: "rgba(255,255,255,0.22)" }} />}
+                    <span style={{ color: f.locked ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.48)" }}
                       className={f.locked ? "line-through" : ""}>{f.label}</span>
                   </li>
                 ))}
               </ul>
               <Link href="/login"
-                className="flex items-center justify-center w-full rounded-xl border py-3 text-sm font-semibold transition-colors hover:bg-white/5"
-                style={{ borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.55)" }}>
+                className="flex items-center justify-center w-full rounded-xl border py-3.5 text-sm font-bold transition-colors hover:bg-white/5"
+                style={{ borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)" }}>
                 Get started free
               </Link>
             </div>
 
             {/* Pro Monthly */}
-            <div data-card className="rounded-2xl p-7 relative flex flex-col"
-              style={{ background: "#0D0B07", border: "1px solid rgba(201,168,85,0.28)", boxShadow: "0 0 70px rgba(201,168,85,0.07)" }}>
-              <div className="absolute -top-3.5 left-6">
-                <span className="rounded-full border px-3 py-1 text-[10px] font-bold tracking-wider uppercase"
-                  style={{ borderColor: "rgba(201,168,85,0.35)", background: BG, color: G }}>Most Popular</span>
+            <div
+              data-card
+              className="rounded-2xl p-8 relative flex flex-col"
+              style={{ background: "#0D0B07", border: "1px solid rgba(201,168,85,0.32)", boxShadow: "0 0 80px rgba(201,168,85,0.08)" }}
+            >
+              <div className="absolute -top-4 left-6">
+                <span className="rounded-full border px-3.5 py-1 text-[10px] font-black tracking-wider uppercase"
+                  style={{ borderColor: "rgba(201,168,85,0.38)", background: BG, color: G }}>
+                  Most Popular
+                </span>
               </div>
-              <h3 className="text-lg font-bold mb-1">Pro Monthly</h3>
-              <p className="text-sm mb-5" style={{ color: "rgba(255,255,255,0.4)" }}>Full AI-powered trading terminal</p>
-              <p className="text-4xl font-black font-mono mb-1" style={{ color: G }}>
-                $39<span className="text-sm font-normal ml-1" style={{ color: "rgba(255,255,255,0.35)" }}>/month</span>
+              {/* Gold top edge accent */}
+              <div className="absolute top-0 left-8 right-8 h-px"
+                style={{ background: `linear-gradient(to right, transparent, ${G}66, transparent)` }} />
+
+              <p className="text-[10px] font-black tracking-[0.22em] uppercase mb-2" style={{ color: "rgba(201,168,85,0.5)" }}>
+                Pro plan
               </p>
-              <p className="text-xs mb-7" style={{ color: "rgba(255,255,255,0.28)" }}>Billed monthly · Cancel anytime</p>
-              <ul className="space-y-2 mb-7 flex-1">
+              <h3 className="text-xl font-black mb-1">Pro Monthly</h3>
+              <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.4)" }}>Full AI-powered trading terminal</p>
+              <p className="font-black font-mono mb-1" style={{ fontSize: "clamp(3rem, 7vw, 4.5rem)", lineHeight: 1, color: G }}>
+                $39
+                <span className="text-sm font-normal ml-2" style={{ color: "rgba(255,255,255,0.32)" }}>/month</span>
+              </p>
+              <p className="text-xs mb-8" style={{ color: "rgba(255,255,255,0.26)" }}>Billed monthly · Cancel anytime</p>
+              <ul className="space-y-2.5 mb-8 flex-1">
                 {PRO_FEATURES.map(f => (
-                  <li key={f.label} className="flex items-start gap-2.5 text-sm">
+                  <li key={f.label} className="flex items-start gap-3 text-sm">
                     <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" style={{ color: G }} />
-                    <span className={f.bold ? "text-white font-semibold" : ""} style={{ color: f.bold ? undefined : "rgba(255,255,255,0.55)" }}>{f.label}</span>
+                    <span className={f.bold ? "text-white font-semibold" : ""} style={{ color: f.bold ? undefined : "rgba(255,255,255,0.52)" }}>
+                      {f.label}
+                    </span>
                   </li>
                 ))}
               </ul>
               <Link href="/pricing?billing=monthly"
-                className="flex items-center justify-center gap-2 w-full rounded-xl py-3 text-sm font-bold transition-all hover:brightness-110"
+                className="flex items-center justify-center gap-2 w-full rounded-xl py-4 text-sm font-black transition-all hover:brightness-110"
                 style={{ background: G, color: "#000" }}>
                 <Zap className="h-4 w-4" /> Subscribe with PayPal
               </Link>
-              <p className="text-center text-[10px] mt-3" style={{ color: "rgba(255,255,255,0.25)" }}>Secure checkout · Cancel anytime</p>
+              <p className="text-center text-[10px] mt-3" style={{ color: "rgba(255,255,255,0.22)" }}>Secure checkout · Cancel anytime</p>
             </div>
 
             {/* Pro Annual */}
-            <div data-card className="rounded-2xl p-7 relative flex flex-col"
-              style={{ background: "#0B0900", border: "1px solid rgba(251,191,36,0.25)", boxShadow: "0 0 70px rgba(251,191,36,0.05)" }}>
-              <div className="absolute -top-3.5 left-6">
-                <span className="rounded-full border px-3 py-1 text-[10px] font-bold tracking-wider uppercase"
-                  style={{ borderColor: "rgba(251,191,36,0.35)", background: BG, color: AM }}>Best Value</span>
+            <div
+              data-card
+              className="rounded-2xl p-8 relative flex flex-col"
+              style={{ background: "#0B0900", border: "1px solid rgba(251,191,36,0.28)", boxShadow: "0 0 80px rgba(251,191,36,0.06)" }}
+            >
+              <div className="absolute -top-4 left-6">
+                <span className="rounded-full border px-3.5 py-1 text-[10px] font-black tracking-wider uppercase"
+                  style={{ borderColor: "rgba(251,191,36,0.38)", background: BG, color: AM }}>
+                  Best Value
+                </span>
               </div>
-              <h3 className="text-lg font-bold mb-1">Pro Annual</h3>
-              <p className="text-sm mb-5" style={{ color: "rgba(255,255,255,0.4)" }}>Full AI-powered trading terminal</p>
-              <p className="text-4xl font-black font-mono mb-1" style={{ color: AM }}>
-                $399<span className="text-sm font-normal ml-1" style={{ color: "rgba(255,255,255,0.35)" }}>/year</span>
+              <div className="absolute top-0 left-8 right-8 h-px"
+                style={{ background: `linear-gradient(to right, transparent, ${AM}66, transparent)` }} />
+
+              <p className="text-[10px] font-black tracking-[0.22em] uppercase mb-2" style={{ color: "rgba(251,191,36,0.5)" }}>
+                Annual plan
               </p>
-              <div className="flex items-center gap-2 mb-7">
-                <span className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>$33.25/mo</span>
-                <span className="rounded-full px-2 py-0.5 text-[10px] font-bold"
-                  style={{ background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.25)", color: AM }}>SAVE $69</span>
+              <h3 className="text-xl font-black mb-1">Pro Annual</h3>
+              <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.4)" }}>Full AI-powered trading terminal</p>
+              <p className="font-black font-mono mb-2" style={{ fontSize: "clamp(3rem, 7vw, 4.5rem)", lineHeight: 1, color: AM }}>
+                $399
+                <span className="text-sm font-normal ml-2" style={{ color: "rgba(255,255,255,0.32)" }}>/year</span>
+              </p>
+              <div className="flex items-center gap-3 mb-8">
+                <span className="text-sm" style={{ color: "rgba(255,255,255,0.3)" }}>$33.25/mo</span>
+                <span className="rounded-full px-2.5 py-0.5 text-[10px] font-black"
+                  style={{ background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.28)", color: AM }}>
+                  SAVE $69
+                </span>
               </div>
-              <ul className="space-y-2 mb-7 flex-1">
+              <ul className="space-y-2.5 mb-8 flex-1">
                 {PRO_FEATURES.map(f => (
-                  <li key={f.label} className="flex items-start gap-2.5 text-sm">
+                  <li key={f.label} className="flex items-start gap-3 text-sm">
                     <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" />
-                    <span className={f.bold ? "text-white font-semibold" : ""} style={{ color: f.bold ? undefined : "rgba(255,255,255,0.55)" }}>{f.label}</span>
+                    <span className={f.bold ? "text-white font-semibold" : ""} style={{ color: f.bold ? undefined : "rgba(255,255,255,0.52)" }}>
+                      {f.label}
+                    </span>
                   </li>
                 ))}
               </ul>
               <Link href="/pricing?billing=annual"
-                className="flex items-center justify-center gap-2 w-full rounded-xl py-3 text-sm font-bold transition-all hover:brightness-110"
+                className="flex items-center justify-center gap-2 w-full rounded-xl py-4 text-sm font-black transition-all hover:brightness-110"
                 style={{ background: AM, color: "#000" }}>
                 <Zap className="h-4 w-4" /> Subscribe with PayPal
               </Link>
-              <p className="text-center text-[10px] mt-3" style={{ color: "rgba(255,255,255,0.25)" }}>Secure checkout · Cancel anytime</p>
+              <p className="text-center text-[10px] mt-3" style={{ color: "rgba(255,255,255,0.22)" }}>Secure checkout · Cancel anytime</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── Bottom CTA ──────────────────────────────────────────────────── */}
-      <section className="py-28 px-5 relative overflow-hidden" style={{ background: BG }}>
+      {/* ── Bottom CTA ────────────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden py-36 px-5" style={{ background: BG }}>
         <div className="pointer-events-none absolute inset-0"
-          style={{ backgroundImage: GRAIN, opacity: 0.03, mixBlendMode: "overlay" }} />
-        <div className="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] rounded-full blur-3xl"
-          style={{ background: "radial-gradient(circle, rgba(201,168,85,0.08), transparent)" }} />
-        <div data-cta-block className="relative max-w-3xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold mb-7"
+          style={{ backgroundImage: GRAIN, opacity: 0.035, mixBlendMode: "overlay" }} />
+        {/* Large radial glow */}
+        <div className="pointer-events-none absolute inset-0 flex items-end justify-center pb-0">
+          <div className="w-[900px] h-[500px] blur-3xl"
+            style={{ background: "radial-gradient(ellipse, rgba(201,168,85,0.09), transparent 70%)" }} />
+        </div>
+        {/* Horizontal accent lines */}
+        <div className="pointer-events-none absolute top-0 left-0 right-0 h-px"
+          style={{ background: `linear-gradient(to right, transparent, ${G}22, transparent)` }} />
+
+        <div data-cta-block className="relative max-w-4xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-[10px] font-black tracking-[0.22em] uppercase mb-10"
             style={{ borderColor: "rgba(201,168,85,0.2)", background: "rgba(201,168,85,0.06)", color: G }}>
             <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: G }} />
             3,200+ traders already inside
           </div>
-          <Image src="/logo-transparent.png" alt="TradeX" width={56} height={56}
-            className="mx-auto mb-6"
-            style={{ filter: "drop-shadow(0 0 24px rgba(201,168,85,0.35))" }} />
-          <h2 className="font-black mb-5" style={{ fontSize: "clamp(1.9rem, 6vw, 3.2rem)", lineHeight: 1.08 }}>
-            Ready to stop guessing and<br className="hidden md:block" /> start trading with edge?
+
+          <Image src="/logo-transparent.png" alt="TradeX" width={64} height={64}
+            className="mx-auto mb-8"
+            style={{ filter: "drop-shadow(0 0 32px rgba(201,168,85,0.45))" }} />
+
+          {/* Split-char heading */}
+          <h2
+            className="font-black leading-[0.95] tracking-tight mb-5"
+            style={{ fontSize: "clamp(3rem, 9vw, 7rem)" }}
+            aria-label="Stop guessing. Start winning."
+          >
+            <span data-cta-1 aria-hidden className="block">
+              <Chars text="STOP GUESSING." />
+            </span>
+            <span data-cta-2 aria-hidden className="block" style={{ color: G }}>
+              <Chars text="START WINNING." />
+            </span>
           </h2>
-          <p className="text-sm mb-10 max-w-lg mx-auto leading-relaxed" style={{ color: "rgba(255,255,255,0.42)" }}>
-            Join thousands of traders who use TradeX to get AI-powered clarity on Gold, Forex,
+
+          <p className="text-base mb-12 max-w-lg mx-auto leading-relaxed" style={{ color: "rgba(255,255,255,0.4)" }}>
+            Join thousands of traders using TradeX for AI-powered clarity on Gold, Forex,
             Crypto, and Indices — every session.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
+
+          <div className="flex flex-wrap items-center justify-center gap-4 mb-8">
             <Link href="/login"
-              className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-sm font-bold transition-all hover:brightness-110"
-              style={{ background: G, color: "#000", boxShadow: "0 0 40px rgba(201,168,85,0.28)" }}>
+              data-magnetic
+              className="inline-flex items-center gap-2 rounded-xl px-9 py-4 text-sm font-black hero-cta-primary"
+              style={{ background: G, color: "#000", boxShadow: "0 0 48px rgba(201,168,85,0.28)" }}>
               <Zap className="h-4 w-4" /> Start for Free
             </Link>
             <Link href="#pricing"
-              className="inline-flex items-center gap-2 rounded-xl border px-8 py-3.5 text-sm font-semibold transition-colors hover:bg-white/5"
+              data-magnetic
+              className="inline-flex items-center gap-2 rounded-xl border px-9 py-4 text-sm font-bold hero-cta-secondary"
               style={{ borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)" }}>
               View Pricing
             </Link>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs" style={{ color: "rgba(255,255,255,0.25)" }}>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}66` }} /> No credit card required</span>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}66` }} /> Free plan forever</span>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}66` }} /> Cancel anytime</span>
+
+          <div className="flex flex-wrap items-center justify-center gap-x-7 gap-y-2 text-xs" style={{ color: "rgba(255,255,255,0.24)" }}>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}55` }} /> No credit card required</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}55` }} /> Free plan forever</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}55` }} /> Cancel anytime</span>
           </div>
         </div>
       </section>

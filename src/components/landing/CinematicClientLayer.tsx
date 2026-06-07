@@ -174,6 +174,41 @@ export function CinematicClientLayer() {
           );
         });
 
+        // ── Stats count-up ──────────────────────────────────────────────────
+        document.querySelectorAll<HTMLElement>("[data-count-to]").forEach((el) => {
+          const to     = parseInt(el.dataset.countTo || "0", 10);
+          const suffix = el.dataset.countSuffix || "";
+          if (!to) return; // skip "24/7" etc
+          const obj = { val: 0 };
+          gsap.to(obj, {
+            val: to, duration: 2.2, ease: "power2.out",
+            onUpdate() { el.textContent = Math.round(obj.val).toLocaleString() + suffix; },
+            scrollTrigger: { trigger: el, start: "top 90%", once: true },
+          });
+        });
+
+        // ── Social proof fade-in ────────────────────────────────────────────
+        gsap.fromTo("[data-social-proof]",
+          { opacity: 0 },
+          { opacity: 1, duration: 0.6, ease: "power2.out",
+            scrollTrigger: { trigger: "[data-social-proof]", start: "top 92%", once: true } }
+        );
+
+        // ── Bottom CTA — split-char reveal ─────────────────────────────────
+        gsap.set("[data-cta-1] [data-split-inner]", { yPercent: 115 });
+        gsap.set("[data-cta-2] [data-split-inner]", { yPercent: 115 });
+
+        ScrollTrigger.create({
+          trigger: "[data-cta-block]",
+          start: "top 80%",
+          once: true,
+          onEnter() {
+            gsap.timeline({ defaults: { ease: "power3.out" } })
+              .to("[data-cta-1] [data-split-inner]", { yPercent: 0, duration: 0.75, stagger: 0.022 }, 0)
+              .to("[data-cta-2] [data-split-inner]", { yPercent: 0, duration: 0.75, stagger: 0.022 }, 0.18);
+          },
+        });
+
         // ── Stats bar ───────────────────────────────────────────────────────
         gsap.fromTo("[data-stats-bar]",
           { opacity: 0, y: 20 },
