@@ -12,12 +12,12 @@ import { CinematicClientLayer } from "@/components/landing/CinematicClientLayer"
 import { WebGLBackground } from "@/components/landing/WebGLBackground";
 
 // ─── Split-char helper (server-safe) ─────────────────────────────────────────
-function Chars({ text, attr }: { text: string; attr: string }) {
+function Chars({ text }: { text: string }) {
   return (
     <>
       {text.split("").map((ch, i) => (
         <span key={i} data-split-char style={{ display: "inline-block", overflow: "hidden", verticalAlign: "bottom" }}>
-          <span data-split-inner {...{ [attr]: "" }} style={{ display: "inline-block" }}>
+          <span data-split-inner style={{ display: "inline-block" }}>
             {ch === " " ? " " : ch}
           </span>
         </span>
@@ -177,10 +177,10 @@ export default function LandingPage() {
             aria-label="Trade With Intelligence."
           >
             <span data-hero-1 aria-hidden className="block">
-              <Chars text="TRADE WITH" attr="data-h1-char" />
+              <Chars text="TRADE WITH" />
             </span>
             <span data-hero-2 aria-hidden className="block" style={{ color: G }}>
-              <Chars text="INTELLIGENCE." attr="data-h2-char" />
+              <Chars text="INTELLIGENCE." />
             </span>
           </h1>
 
@@ -198,19 +198,15 @@ export default function LandingPage() {
             <Link
               href="/login"
               data-magnetic
-              className="inline-flex items-center gap-2 rounded-xl px-9 py-4 text-sm font-bold"
-              style={{ background: G, color: "#000", boxShadow: "0 0 48px rgba(201,168,85,0.32)", transition: "filter .2s" }}
-              onMouseEnter={(e) => (e.currentTarget.style.filter = "brightness(1.12)")}
-              onMouseLeave={(e) => (e.currentTarget.style.filter = "")}>
+              className="inline-flex items-center gap-2 rounded-xl px-9 py-4 text-sm font-bold hero-cta-primary"
+              style={{ background: G, color: "#000", boxShadow: "0 0 48px rgba(201,168,85,0.32)" }}>
               <Zap className="h-4 w-4" /> Start for Free
             </Link>
             <Link
               href="/dashboard"
               data-magnetic
-              className="inline-flex items-center gap-2 rounded-xl border px-9 py-4 text-sm font-semibold"
-              style={{ borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.72)", transition: "background .2s" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "")}>
+              className="inline-flex items-center gap-2 rounded-xl border px-9 py-4 text-sm font-semibold hero-cta-secondary"
+              style={{ borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.72)" }}>
               Launch Terminal <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
