@@ -3,6 +3,10 @@
     {
       "path": "/api/market/trump/cnn-sync",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/telegram-screener",
+      "schedule": "*/5 * * * *"
     }
   ],
   "headers": [
