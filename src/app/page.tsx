@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { gsap } from "gsap";
 import Image from "next/image";
 import Link from "next/link";
@@ -12,8 +13,16 @@ import {
   Award, Lock,
 } from "lucide-react";
 import { TerminalPreview } from "@/components/landing/TerminalPreview";
-import { CinematicLoader } from "@/components/landing/CinematicLoader";
-import { CustomCursor } from "@/components/landing/CustomCursor";
+
+// These components use GSAP + browser APIs — never server-render them
+const CinematicLoader = dynamic(
+  () => import("@/components/landing/CinematicLoader").then(m => m.CinematicLoader),
+  { ssr: false }
+);
+const CustomCursor = dynamic(
+  () => import("@/components/landing/CustomCursor").then(m => m.CustomCursor),
+  { ssr: false }
+);
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
