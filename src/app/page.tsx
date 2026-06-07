@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   Zap, Brain, TrendingUp, BarChart2, Shield, Clock,
   Newspaper, Calendar, MessageSquare, BookOpen, CheckCircle2,
@@ -8,6 +9,12 @@ import {
   Award, Lock,
 } from "lucide-react";
 import { TerminalPreview } from "@/components/landing/TerminalPreview";
+
+// Loaded client-side only — never touches SSR
+const CinematicClientLayer = dynamic(
+  () => import("@/components/landing/CinematicClientLayer").then(m => ({ default: m.CinematicClientLayer })),
+  { ssr: false }
+);
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
@@ -79,6 +86,8 @@ export default function LandingPage() {
       className="min-h-screen text-white overflow-x-hidden"
       style={{ background: BG, fontFamily: "var(--font-space-grotesk), system-ui, sans-serif" }}
     >
+      {/* ── Cinematic client layer (loader + cursor + scroll animations) ── */}
+      <CinematicClientLayer />
 
       {/* ── Nav ─────────────────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-50 backdrop-blur-md"
@@ -128,29 +137,33 @@ export default function LandingPage() {
         </div>
 
         <div className="relative z-[2] max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-[10px] font-bold tracking-[0.22em] mb-7"
+          {/* Badge */}
+          <div
+            data-hero-badge
+            className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-[10px] font-bold tracking-[0.22em] mb-7"
             style={{ borderColor: "rgba(201,168,85,0.22)", background: "rgba(201,168,85,0.06)", color: G }}>
             <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: G }} />
             MULTI-AGENT AI TRADING TERMINAL
           </div>
 
+          {/* Headline — two lines animate separately */}
           <h1 className="font-black leading-[1.0] tracking-tight mb-5"
             style={{ fontSize: "clamp(3.2rem, 10vw, 6.5rem)" }}>
-            Your Edge.<br />
-            <span style={{ color: G }}>AI&#8209;Powered.</span>
+            <span data-hero-1 className="block">Your Edge.</span>
+            <span data-hero-2 className="block" style={{ color: G }}>AI&#8209;Powered.</span>
           </h1>
 
-          <p className="text-sm font-semibold mb-4 tracking-wide" style={{ color: `${G}99` }}>
+          <p data-hero-stat className="text-sm font-semibold mb-4 tracking-wide" style={{ color: `${G}99` }}>
             3,200+ active traders worldwide
           </p>
 
-          <p className="text-base md:text-lg leading-relaxed mb-9 max-w-2xl mx-auto"
+          <p data-hero-sub className="text-base md:text-lg leading-relaxed mb-9 max-w-2xl mx-auto"
             style={{ color: "rgba(255,255,255,0.48)" }}>
             TradeX Terminal gives serious traders 7 specialized AI agents, real-time market bias,
             candlestick AI, session intelligence, and a hard risk gate — all in one terminal.
           </p>
 
-          <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
+          <div data-hero-cta className="flex flex-wrap items-center justify-center gap-3 mb-6">
             <Link href="/login"
               className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-sm font-bold transition-all hover:brightness-110"
               style={{ background: G, color: "#000", boxShadow: "0 0 40px rgba(201,168,85,0.3)" }}>
@@ -163,7 +176,7 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          <p className="text-xs flex flex-wrap items-center justify-center gap-x-5 gap-y-2"
+          <p data-hero-cta className="text-xs flex flex-wrap items-center justify-center gap-x-5 gap-y-2"
             style={{ color: "rgba(255,255,255,0.28)" }}>
             <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}80` }} /> No credit card required</span>
             <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}80` }} /> Free plan forever</span>
@@ -173,7 +186,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Stats bar ───────────────────────────────────────────────────── */}
-      <div style={{ borderTop: "1px solid rgba(201,168,85,0.08)", borderBottom: "1px solid rgba(201,168,85,0.08)", background: S1 }}>
+      <div data-stats-bar style={{ borderTop: "1px solid rgba(201,168,85,0.08)", borderBottom: "1px solid rgba(201,168,85,0.08)", background: S1 }}>
         <div className="max-w-4xl mx-auto px-5 py-6 grid grid-cols-2 md:grid-cols-4">
           {[
             { value: "3,200+", label: "Active Traders" },
@@ -209,29 +222,33 @@ export default function LandingPage() {
       {/* ── Terminal Preview ─────────────────────────────────────────────── */}
       <section id="preview" className="py-24 px-5" style={{ background: BG }}>
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
+          <div data-section-head className="text-center mb-12">
             <p className="text-xs font-bold tracking-[0.2em] mb-3 uppercase" style={{ color: G }}>Preview</p>
             <h2 className="text-2xl md:text-3xl font-black mb-3">See what you&apos;re getting</h2>
             <p className="text-sm max-w-xl mx-auto" style={{ color: "rgba(255,255,255,0.4)" }}>
               This is the actual interface — real-time signals, AI bias, and agent consensus in one view.
             </p>
           </div>
-          <TerminalPreview />
+          <div data-preview>
+            <TerminalPreview />
+          </div>
         </div>
       </section>
 
       {/* ── Features ────────────────────────────────────────────────────── */}
       <section id="features" className="py-24 px-5" style={{ background: S1 }}>
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
+          <div data-section-head className="text-center mb-12">
             <p className="text-xs font-bold tracking-[0.2em] mb-3 uppercase" style={{ color: G }}>Intelligence Suite</p>
             <h2 className="text-2xl md:text-3xl font-black">Everything you need to trade with edge</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {FEATURES.map(f => (
-              <div key={f.title}
-                className="feature-card rounded-2xl p-5 transition-all duration-200"
+              <div
+                key={f.title}
+                data-card
+                className="rounded-2xl p-5 transition-all duration-200 hover:scale-[1.02] cursor-default"
                 style={{ background: S2, border: "1px solid rgba(255,255,255,0.05)" }}>
                 <div className="flex items-start justify-between mb-4">
                   <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl border ${f.color}`}>{f.icon}</div>
@@ -276,13 +293,15 @@ export default function LandingPage() {
       {/* ── Testimonials ────────────────────────────────────────────────── */}
       <section className="py-24 px-5" style={{ background: BG }}>
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
+          <div data-section-head className="text-center mb-12">
             <p className="text-xs font-bold tracking-[0.2em] mb-3 uppercase" style={{ color: G }}>Trader Reviews</p>
             <h2 className="text-2xl md:text-3xl font-black">Real traders. Real results.</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {TESTIMONIALS.map(t => (
-              <div key={t.name} className="rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden"
+              <div key={t.name}
+                data-testimonial
+                className="rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden"
                 style={{ background: S1, border: "1px solid rgba(255,255,255,0.05)" }}>
                 <div className="absolute top-4 right-5 font-black select-none"
                   style={{ fontSize: "5rem", lineHeight: 1, color: "rgba(201,168,85,0.07)", fontFamily: "Georgia, serif" }}>
@@ -319,7 +338,7 @@ export default function LandingPage() {
       {/* ── Pricing ─────────────────────────────────────────────────────── */}
       <section id="pricing" className="py-24 px-5" style={{ background: S1 }}>
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
+          <div data-section-head className="text-center mb-12">
             <p className="text-xs font-bold tracking-[0.2em] mb-3 uppercase" style={{ color: G }}>Pricing</p>
             <h2 className="text-2xl md:text-3xl font-black">Simple, transparent pricing</h2>
             <p className="text-sm mt-3" style={{ color: "rgba(255,255,255,0.4)" }}>Start free. Upgrade when you need the edge.</p>
@@ -327,7 +346,7 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {/* Free */}
-            <div className="rounded-2xl p-7 flex flex-col" style={{ background: S2, border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div data-card className="rounded-2xl p-7 flex flex-col" style={{ background: S2, border: "1px solid rgba(255,255,255,0.06)" }}>
               <h3 className="text-lg font-bold mb-1">Free</h3>
               <p className="text-sm mb-5" style={{ color: "rgba(255,255,255,0.35)" }}>Essential tools for every trader</p>
               <p className="text-4xl font-black font-mono mb-7">$0<span className="text-sm font-normal ml-1" style={{ color: "rgba(255,255,255,0.3)" }}>/forever</span></p>
@@ -349,7 +368,7 @@ export default function LandingPage() {
             </div>
 
             {/* Pro Monthly */}
-            <div className="rounded-2xl p-7 relative flex flex-col"
+            <div data-card className="rounded-2xl p-7 relative flex flex-col"
               style={{ background: "#0D0B07", border: "1px solid rgba(201,168,85,0.28)", boxShadow: "0 0 70px rgba(201,168,85,0.07)" }}>
               <div className="absolute -top-3.5 left-6">
                 <span className="rounded-full border px-3 py-1 text-[10px] font-bold tracking-wider uppercase"
@@ -378,7 +397,7 @@ export default function LandingPage() {
             </div>
 
             {/* Pro Annual */}
-            <div className="rounded-2xl p-7 relative flex flex-col"
+            <div data-card className="rounded-2xl p-7 relative flex flex-col"
               style={{ background: "#0B0900", border: "1px solid rgba(251,191,36,0.25)", boxShadow: "0 0 70px rgba(251,191,36,0.05)" }}>
               <div className="absolute -top-3.5 left-6">
                 <span className="rounded-full border px-3 py-1 text-[10px] font-bold tracking-wider uppercase"
@@ -419,7 +438,7 @@ export default function LandingPage() {
           style={{ backgroundImage: GRAIN, opacity: 0.03, mixBlendMode: "overlay" }} />
         <div className="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] rounded-full blur-3xl"
           style={{ background: "radial-gradient(circle, rgba(201,168,85,0.08), transparent)" }} />
-        <div className="relative max-w-3xl mx-auto text-center">
+        <div data-cta-block className="relative max-w-3xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold mb-7"
             style={{ borderColor: "rgba(201,168,85,0.2)", background: "rgba(201,168,85,0.06)", color: G }}>
             <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: G }} />
