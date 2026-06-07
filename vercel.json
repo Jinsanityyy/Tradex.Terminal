@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/cron/telegram-screener",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 0 * * *"
     }
   ],
   "headers": [
