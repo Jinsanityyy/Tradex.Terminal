@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TradeX Terminal — Noir Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  /* ── Tokens ── */
+  :root {
+    --gold:   #C9A855;
+    --gold2:  #F0C060;
+    --black:  #070707;
+    --s1:     #0E0E0E;
+    --s2:     #141414;
+    --amber:  #F59E0B;
+    --border: rgba(201,168,85,0.14);
+    --glow:   rgba(201,168,85,0.10);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--black);
+    color: #fff;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* ── Grain ── */
+  .grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    opacity: .035;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ── Vignette ── */
+  .vignette::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background: radial-gradient(ellipse 80% 70% at 50% 50%, transparent 40%, rgba(7,7,7,.6) 100%);
+  }
+
+  /* ── Nav ── */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(7,7,7,.94);
+    border-bottom: 1px solid rgba(201,168,85,.08);
+    backdrop-filter: blur(12px);
+    height: 56px;
+    display: flex;
+    align-items: center;
+    padding: 0 2rem;
+    justify-content: space-between;
+  }
+  .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: .875rem;
+    letter-spacing: .04em;
+  }
+  .nav-logo .logo-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, var(--gold), #8B6914);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    filter: drop-shadow(0 0 8px rgba(201,168,85,.4));
+  }
+  .nav-logo span { color: var(--gold); }
+  .nav-links { display: flex; gap: 1.5rem; font-size: .75rem; color: rgba(255,255,255,.4); }
+  .nav-links a { text-decoration: none; color: inherit; transition: color .2s; }
+  .nav-links a:hover { color: #fff; }
+  .nav-cta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: .75rem;
+  }
+  .btn-login { color: rgba(255,255,255,.4); cursor: pointer; }
+  .btn-pro {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--gold);
+    color: #000;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: filter .2s;
+    font-size: .75rem;
+  }
+  .btn-pro:hover { filter: brightness(1.1); }
+
+  /* ── Hero ── */
+  .hero {
+    position: relative;
+    padding: clamp(4.5rem,12vh,7rem) 2rem clamp(3.5rem,9vh,6rem);
+    overflow: hidden;
+  }
+
+  /* Gold glow top */
+  .hero-glow-top {
+    position: absolute;
+    top: 0; left: 50%; transform: translateX(-50%);
+    width: 700px; height: 480px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(201,168,85,.09), transparent);
+    filter: blur(60px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .hero-glow-right {
+    position: absolute;
+    top: 8rem; right: 2rem;
+    width: 360px; height: 360px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(201,168,85,.04), transparent);
+    filter: blur(60px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  /* Gold grid */
+  .hero-grid {
+    position: absolute;
+    inset: 0;
+    opacity: .018;
+    background-image:
+      linear-gradient(rgba(201,168,85,.8) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(201,168,85,.8) 1px, transparent 1px);
+    background-size: 52px 52px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 3;
+    max-width: 900px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  /* Badge */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(201,168,85,.22);
+    background: rgba(201,168,85,.06);
+    color: var(--gold);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    padding: 6px 16px;
+    border-radius: 999px;
+    margin-bottom: 1.75rem;
+  }
+  .badge-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* Heading */
+  h1 {
+    font-size: clamp(3rem, 9.5vw, 6rem);
+    font-weight: 900;
+    line-height: 1.01;
+    letter-spacing: -.02em;
+    margin-bottom: 1.2rem;
+  }
+  h1 .gold { color: var(--gold); }
+
+  .hero-sub-stat {
+    font-size: .875rem;
+    font-weight: 600;
+    letter-spacing: .06em;
+    color: rgba(201,168,85,.6);
+    margin-bottom: 1rem;
+  }
+
+  .hero-desc {
+    font-size: 1.05rem;
+    line-height: 1.7;
+    color: rgba(255,255,255,.46);
+    max-width: 640px;
+    margin: 0 auto 2.2rem;
+  }
+
+  /* CTA row */
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    justify-content: center;
+    margin-bottom: 1.4rem;
+  }
+  .cta-primary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--gold);
+    color: #000;
+    font-weight: 700;
+    font-size: .875rem;
+    padding: 14px 32px;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 0 32px rgba(201,168,85,.28);
+    transition: filter .2s, transform .2s;
+    border: none;
+    text-decoration: none;
+  }
+  .cta-primary:hover { filter: brightness(1.1); transform: scale(1.02); }
+  .cta-secondary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(255,255,255,.1);
+    color: rgba(255,255,255,.7);
+    font-size: .875rem;
+    font-weight: 600;
+    padding: 14px 32px;
+    border-radius: 12px;
+    cursor: pointer;
+    background: transparent;
+    transition: background .2s;
+    text-decoration: none;
+  }
+  .cta-secondary:hover { background: rgba(255,255,255,.05); }
+
+  /* Trust */
+  .trust {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: .5rem 1.2rem;
+    font-size: .75rem;
+    color: rgba(255,255,255,.25);
+  }
+  .trust span { display: flex; align-items: center; gap: 5px; }
+  .trust .check { color: rgba(201,168,85,.5); }
+
+  /* ── Stats bar ── */
+  .stats-bar {
+    border-top: 1px solid rgba(201,168,85,.08);
+    border-bottom: 1px solid rgba(201,168,85,.08);
+    background: var(--s1);
+  }
+  .stats-inner {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 1.5rem 2rem;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .stat {
+    text-align: center;
+    padding: .5rem 0;
+    border-right: 1px solid rgba(255,255,255,.04);
+  }
+  .stat:last-child { border-right: none; }
+  .stat-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: var(--gold);
+  }
+  .stat-label { font-size: .7rem; color: rgba(255,255,255,.3); margin-top: 2px; }
+
+  /* ── Social proof ── */
+  .social-bar {
+    background: #0A0A0A;
+    border-bottom: 1px solid rgba(255,255,255,.03);
+    padding: 1rem 2rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: .5rem 2rem;
+  }
+  .proof-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: .75rem;
+    color: rgba(255,255,255,.35);
+  }
+  .proof-icon { color: var(--gold); font-size: 13px; }
+
+  /* ── Section label ── */
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+  }
+  .label-line { height: 1px; width: 64px; background: rgba(201,168,85,.18); }
+  .label-dot { width: 4px; height: 4px; border-radius: 50%; background: rgba(201,168,85,.5); }
+  .label-text {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .32em;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+
+  /* ── Sections ── */
+  section { padding: 5rem 2rem; }
+  .section-inner { max-width: 1100px; margin: 0 auto; }
+  .section-header { text-align: center; margin-bottom: 3.5rem; }
+  h2 {
+    font-size: clamp(1.6rem, 4vw, 2.6rem);
+    font-weight: 900;
+    margin-bottom: .75rem;
+  }
+  .section-desc { font-size: .875rem; color: rgba(255,255,255,.4); max-width: 500px; margin: 0 auto; }
+
+  /* ── Features grid ── */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+  @media(max-width:900px) { .features-grid { grid-template-columns: repeat(2,1fr); } }
+  @media(max-width:600px) { .features-grid { grid-template-columns: 1fr; } }
+
+  .feat-card {
+    background: var(--s2);
+    border: 1px solid rgba(255,255,255,.05);
+    border-radius: 16px;
+    padding: 1.25rem;
+    transition: border-color .2s, box-shadow .2s;
+    cursor: default;
+  }
+  .feat-card:hover {
+    border-color: rgba(201,168,85,.28);
+    box-shadow: 0 0 28px rgba(201,168,85,.06);
+  }
+  .feat-icon-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+  .feat-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+  .feat-badge {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(201,168,85,.07);
+    border: 1px solid rgba(201,168,85,.2);
+    color: var(--gold);
+  }
+  .feat-title { font-weight: 700; font-size: .875rem; margin-bottom: .5rem; }
+  .feat-desc { font-size: .75rem; color: rgba(255,255,255,.38); line-height: 1.6; }
+
+  /* ── Testimonials ── */
+  .testimonials-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+  }
+  @media(max-width:900px) { .testimonials-grid { grid-template-columns: 1fr; } }
+
+  .testi-card {
+    background: var(--s1);
+    border: 1px solid rgba(255,255,255,.05);
+    border-radius: 16px;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .testi-quote-deco {
+    position: absolute;
+    top: 12px; right: 16px;
+    font-size: 5rem;
+    line-height: 1;
+    font-family: Georgia, serif;
+    font-weight: 900;
+    color: rgba(201,168,85,.07);
+    user-select: none;
+    pointer-events: none;
+  }
+  .stars { display: flex; gap: 3px; }
+  .star { color: var(--gold); font-size: 13px; }
+  .testi-text { font-size: .875rem; color: rgba(255,255,255,.58); line-height: 1.65; position: relative; z-index: 1; flex: 1; }
+  .testi-badge {
+    display: inline-flex;
+    align-self: flex-start;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: rgba(201,168,85,.1);
+    border: 1px solid rgba(201,168,85,.18);
+    color: var(--gold);
+  }
+  .testi-author { display: flex; align-items: center; gap: .75rem; padding-top: .75rem; border-top: 1px solid rgba(255,255,255,.05); }
+  .testi-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: rgba(201,168,85,.12);
+    border: 1px solid rgba(201,168,85,.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 900;
+    color: var(--gold);
+    flex-shrink: 0;
+  }
+  .testi-name { font-size: .75rem; font-weight: 700; }
+  .testi-role { font-size: .625rem; color: rgba(255,255,255,.3); }
+
+  /* ── Pricing ── */
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+    align-items: start;
+  }
+  @media(max-width:900px) { .pricing-grid { grid-template-columns: 1fr; } }
+
+  .price-card {
+    border-radius: 16px;
+    padding: 1.75rem;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .price-card.free { background: var(--s2); border: 1px solid rgba(255,255,255,.06); }
+  .price-card.pro  {
+    background: #0D0B07;
+    border: 1px solid rgba(201,168,85,.28);
+    box-shadow: 0 0 70px rgba(201,168,85,.07);
+  }
+  .price-card.annual {
+    background: #0B0900;
+    border: 1px solid rgba(251,191,36,.25);
+    box-shadow: 0 0 70px rgba(251,191,36,.05);
+  }
+  .price-chip {
+    position: absolute;
+    top: -13px; left: 1.5rem;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 999px;
+  }
+  .chip-pro { background: var(--black); border: 1px solid rgba(201,168,85,.35); color: var(--gold); }
+  .chip-annual { background: var(--black); border: 1px solid rgba(251,191,36,.35); color: var(--amber); }
+
+  .price-name { font-size: 1.1rem; font-weight: 700; margin-bottom: .25rem; }
+  .price-tagline { font-size: .875rem; color: rgba(255,255,255,.35); margin-bottom: 1.25rem; }
+  .price-amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 2.4rem;
+    font-weight: 900;
+    margin-bottom: .25rem;
+  }
+  .price-amount .unit { font-size: .875rem; font-weight: 400; color: rgba(255,255,255,.3); margin-left: 4px; }
+  .price-note { font-size: .7rem; color: rgba(255,255,255,.25); margin-bottom: 1.75rem; }
+  .price-list { list-style: none; display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1.75rem; flex: 1; }
+  .price-list li { display: flex; align-items: flex-start; gap: 8px; font-size: .875rem; }
+  .check-icon { flex-shrink: 0; margin-top: 2px; font-size: 14px; }
+  .price-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    font-size: .875rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: filter .2s;
+  }
+  .price-btn:hover { filter: brightness(1.08); }
+  .btn-ghost { background: transparent; border: 1px solid rgba(255,255,255,.1); color: rgba(255,255,255,.5); }
+  .btn-gold  { background: var(--gold); color: #000; }
+  .btn-amber { background: var(--amber); color: #000; }
+
+  /* ── Bottom CTA ── */
+  .bottom-cta {
+    position: relative;
+    overflow: hidden;
+    text-align: center;
+  }
+  .bottom-glow {
+    position: absolute;
+    bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 700px; height: 350px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(201,168,85,.07), transparent);
+    filter: blur(60px);
+    pointer-events: none;
+  }
+  .bottom-logo {
+    width: 56px; height: 56px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--gold), #8B6914);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    margin: 0 auto 1.5rem;
+    filter: drop-shadow(0 0 20px rgba(201,168,85,.3));
+  }
+  .bottom-h2 {
+    font-size: clamp(1.8rem, 5vw, 3rem);
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: 1.25rem;
+  }
+  .bottom-desc {
+    font-size: .875rem;
+    color: rgba(255,255,255,.4);
+    max-width: 500px;
+    margin: 0 auto 2.5rem;
+    line-height: 1.7;
+  }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid rgba(201,168,85,.07);
+    padding: 2rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .footer-links { display: flex; gap: 1.5rem; font-size: .75rem; color: rgba(255,255,255,.25); }
+  .footer-links a { text-decoration: none; color: inherit; transition: color .2s; }
+  .footer-links a:hover { color: #fff; }
+  .footer-copy { font-size: .75rem; color: rgba(255,255,255,.15); }
+
+  /* ── Palette preview ── */
+  .palette-bar {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    justify-content: center;
+    padding: 1.5rem;
+    background: #050505;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    font-size: .6rem;
+    color: rgba(255,255,255,.3);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+  .swatch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    font-size: .55rem;
+  }
+  .swatch-dot { width: 28px; height: 28px; border-radius: 6px; border: 1px solid rgba(255,255,255,.08); }
+
+  /* ── Before/after comparison strip ── */
+  .compare-bar {
+    background: #050505;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+  .compare-label { font-size: .65rem; text-transform: uppercase; letter-spacing: .15em; color: rgba(255,255,255,.25); margin-bottom: .35rem; }
+  .compare-item { text-align: center; }
+  .compare-row { display: flex; align-items: center; gap: .75rem; }
+  .compare-pill {
+    font-size: .7rem;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 999px;
+  }
+  .pill-old { background: rgba(74,222,128,.15); color: #4ade80; border: 1px solid rgba(74,222,128,.25); }
+  .pill-new { background: rgba(201,168,85,.15); color: var(--gold); border: 1px solid rgba(201,168,85,.25); }
+  .arrow-icon { color: rgba(255,255,255,.2); font-size: .75rem; }
+</style>
+</head>
+<body>
+
+<!-- ── Before/After Strip ─────────────────────────────── -->
+<div class="compare-bar">
+  <span style="font-size:.65rem;text-transform:uppercase;letter-spacing:.15em;color:rgba(255,255,255,.3)">Design Preview —</span>
+  <div class="compare-item">
+    <div class="compare-label">Before</div>
+    <div class="compare-row">
+      <div class="compare-pill pill-old">Green #4ade80</div>
+    </div>
+  </div>
+  <span class="arrow-icon">→</span>
+  <div class="compare-item">
+    <div class="compare-label">After (Noir)</div>
+    <div class="compare-row">
+      <div class="compare-pill pill-new">Gold #C9A855</div>
+    </div>
+  </div>
+  <span style="font-size:.65rem;color:rgba(255,255,255,.2);margin-left:1rem">+ Film grain · Vignette · Scroll animations · Section dividers</span>
+</div>
+
+<!-- ── Palette strip ─────────────────────────────────── -->
+<div class="palette-bar">
+  <span style="margin-right:.5rem">Color palette —</span>
+  <div class="swatch"><div class="swatch-dot" style="background:#070707"></div><span>#070707</span></div>
+  <div class="swatch"><div class="swatch-dot" style="background:#0E0E0E"></div><span>#0E0E0E</span></div>
+  <div class="swatch"><div class="swatch-dot" style="background:#141414"></div><span>#141414</span></div>
+  <div class="swatch"><div class="swatch-dot" style="background:#C9A855;border-color:rgba(201,168,85,.5)"></div><span style="color:var(--gold)">#C9A855 gold</span></div>
+  <div class="swatch"><div class="swatch-dot" style="background:#F0C060;border-color:rgba(240,192,96,.5)"></div><span>#F0C060</span></div>
+  <div class="swatch"><div class="swatch-dot" style="background:#F59E0B;border-color:rgba(245,158,11,.5)"></div><span>#F59E0B amber</span></div>
+  <div class="swatch"><div class="swatch-dot" style="background:#F5F0E8;border-color:rgba(255,255,255,.2)"></div><span>#F5F0E8 cream</span></div>
+</div>
+
+<!-- ── Nav ──────────────────────────────────────────── -->
+<nav>
+  <div class="nav-logo">
+    <div class="logo-icon">T</div>
+    Trade<span>X</span>&nbsp;Terminal
+  </div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#preview">Preview</a>
+    <a href="#pricing">Pricing</a>
+  </div>
+  <div class="nav-cta">
+    <span class="btn-login">Log in</span>
+    <button class="btn-pro">⚡ Get Pro</button>
+  </div>
+</nav>
+
+<!-- ── Hero ─────────────────────────────────────────── -->
+<div class="hero grain vignette">
+  <div class="hero-glow-top"></div>
+  <div class="hero-glow-right"></div>
+  <div class="hero-grid"></div>
+
+  <div class="hero-content">
+    <div class="badge">
+      <div class="badge-dot"></div>
+      MULTI-AGENT AI TRADING TERMINAL
+    </div>
+
+    <h1>Your Edge.<br><span class="gold">AI&#8209;Powered.</span></h1>
+
+    <p class="hero-sub-stat">3,200+ active traders worldwide</p>
+
+    <p class="hero-desc">
+      TradeX Terminal gives serious traders 7 specialized AI agents,
+      real-time market bias, candlestick AI, session intelligence,
+      and a hard risk gate — all in one terminal.
+    </p>
+
+    <div class="cta-row">
+      <a href="#" class="cta-primary">⚡ Start for Free</a>
+      <a href="#" class="cta-secondary">Launch Terminal →</a>
+    </div>
+
+    <div class="trust">
+      <span><span class="check">✓</span> No credit card required</span>
+      <span><span class="check">✓</span> Free plan forever</span>
+      <span><span class="check">✓</span> Cancel anytime</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Stats bar ────────────────────────────────────── -->
+<div class="stats-bar">
+  <div class="stats-inner">
+    <div class="stat"><div class="stat-val">3,200+</div><div class="stat-label">Active Traders</div></div>
+    <div class="stat"><div class="stat-val">7</div><div class="stat-label">AI Agents</div></div>
+    <div class="stat"><div class="stat-val">4</div><div class="stat-label">Asset Classes</div></div>
+    <div class="stat"><div class="stat-val">24/7</div><div class="stat-label">Live Data</div></div>
+  </div>
+</div>
+
+<!-- ── Social proof ──────────────────────────────────── -->
+<div class="social-bar">
+  <div class="proof-item"><span class="proof-icon">★</span> 4.9/5 from 800+ reviews</div>
+  <div class="proof-item"><span class="proof-icon">🏅</span> #1 AI trading terminal</div>
+  <div class="proof-item"><span class="proof-icon">🔒</span> Bank-grade security</div>
+  <div class="proof-item"><span class="proof-icon">📱</span> Available on Android</div>
+</div>
+
+<!-- ── Features ──────────────────────────────────────── -->
+<section id="features" style="background:var(--s1)">
+  <div class="section-inner">
+    <div class="section-header">
+      <div class="section-label">
+        <div class="label-line"></div>
+        <div class="label-dot"></div>
+        <span class="label-text">Intelligence Suite</span>
+        <div class="label-dot"></div>
+        <div class="label-line"></div>
+      </div>
+      <h2>Everything you need to trade with edge</h2>
+    </div>
+
+    <div class="features-grid">
+      <!-- Card with violet top border -->
+      <div class="feat-card" style="border-top:1px solid rgba(139,92,246,.25)">
+        <div class="feat-icon-row">
+          <div class="feat-icon" style="background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.18);color:#8b5cf6">🧠</div>
+          <span class="feat-badge">Pro</span>
+        </div>
+        <div class="feat-title">Brain Terminal</div>
+        <div class="feat-desc">7 specialized AI agents run in parallel to produce a single structured trade decision.</div>
+      </div>
+      <!-- Card with gold top border -->
+      <div class="feat-card" style="border-top:1px solid rgba(201,168,85,.25)">
+        <div class="feat-icon-row">
+          <div class="feat-icon" style="background:rgba(201,168,85,.1);border:1px solid rgba(201,168,85,.18);color:var(--gold)">📈</div>
+          <span class="feat-badge">Pro</span>
+        </div>
+        <div class="feat-title">Market Bias Engine</div>
+        <div class="feat-desc">Real-time directional bias across Gold, Forex, Crypto, and Indices.</div>
+      </div>
+      <!-- Card with red top border -->
+      <div class="feat-card" style="border-top:1px solid rgba(239,68,68,.25)">
+        <div class="feat-icon-row">
+          <div class="feat-icon" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.18);color:#ef4444">🛡</div>
+          <span class="feat-badge">Pro</span>
+        </div>
+        <div class="feat-title">Risk Gate</div>
+        <div class="feat-desc">Hard rule-based gate that blocks any trade with bad RR, high volatility, or session violations.</div>
+      </div>
+      <!-- Card with amber top border -->
+      <div class="feat-card" style="border-top:1px solid rgba(245,158,11,.25)">
+        <div class="feat-icon-row">
+          <div class="feat-icon" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.18);color:var(--amber)">⏰</div>
+          <span class="feat-badge">Pro</span>
+        </div>
+        <div class="feat-title">Session Intelligence</div>
+        <div class="feat-desc">Know exactly which session is active and get session-specific bias and key levels.</div>
+      </div>
+      <!-- Card with sky top border -->
+      <div class="feat-card" style="border-top:1px solid rgba(56,189,248,.25)">
+        <div class="feat-icon-row">
+          <div class="feat-icon" style="background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.18);color:#38bdf8">🔬</div>
+          <span class="feat-badge">Pro</span>
+        </div>
+        <div class="feat-title">Market Intelligence</div>
+        <div class="feat-desc">Deep AI analysis of macro conditions, market structure, and intermarket correlations.</div>
+      </div>
+      <!-- Card with pink top border -->
+      <div class="feat-card" style="border-top:1px solid rgba(244,114,182,.25)">
+        <div class="feat-icon-row">
+          <div class="feat-icon" style="background:rgba(244,114,182,.1);border:1px solid rgba(244,114,182,.18);color:#f472b6">✨</div>
+          <span class="feat-badge">Pro</span>
+        </div>
+        <div class="feat-title">AI Market Briefing</div>
+        <div class="feat-desc">Daily AI briefing covering macro outlook, key levels, session bias — all in one read.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Testimonials ──────────────────────────────────── -->
+<section style="background:var(--black)">
+  <div class="section-inner">
+    <div class="section-header">
+      <div class="section-label">
+        <div class="label-line"></div>
+        <div class="label-dot"></div>
+        <span class="label-text">Trader Reviews</span>
+        <div class="label-dot"></div>
+        <div class="label-line"></div>
+      </div>
+      <h2>Real traders. Real results.</h2>
+    </div>
+
+    <div class="testimonials-grid">
+      <div class="testi-card">
+        <div class="testi-quote-deco">&ldquo;</div>
+        <div class="stars">★★★★★</div>
+        <p class="testi-text">"The Brain Terminal changed how I approach every trade. Instead of second-guessing myself, I now have 7 AI agents giving me clear consensus."</p>
+        <div class="testi-badge">+23% win rate</div>
+        <div class="testi-author">
+          <div class="testi-avatar">MR</div>
+          <div><div class="testi-name">Marcus R.</div><div class="testi-role">Forex trader, 4 years</div></div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-quote-deco">&ldquo;</div>
+        <div class="stars">★★★★★</div>
+        <p class="testi-text">"The Risk Gate alone is worth $39/mo. It's blocked me from so many bad trades. It's like having a strict trading coach that never lets you break your rules."</p>
+        <div class="testi-badge">−40% losing trades</div>
+        <div class="testi-author">
+          <div class="testi-avatar">JL</div>
+          <div><div class="testi-name">Jamie L.</div><div class="testi-role">Gold &amp; crypto trader</div></div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-quote-deco">&ldquo;</div>
+        <div class="stars">★★★★★</div>
+        <p class="testi-text">"The market bias engine is genuinely accurate. I check it every London open and it's been right more than my own analysis for 3 months straight."</p>
+        <div class="testi-badge">3 months consistent</div>
+        <div class="testi-author">
+          <div class="testi-avatar">AK</div>
+          <div><div class="testi-name">Aisha K.</div><div class="testi-role">Full-time day trader</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Pricing ───────────────────────────────────────── -->
+<section id="pricing" style="background:var(--s1)">
+  <div class="section-inner">
+    <div class="section-header">
+      <div class="section-label">
+        <div class="label-line"></div>
+        <div class="label-dot"></div>
+        <span class="label-text">Pricing</span>
+        <div class="label-dot"></div>
+        <div class="label-line"></div>
+      </div>
+      <h2>Simple, transparent pricing</h2>
+      <p class="section-desc" style="margin-top:.75rem">Start free. Upgrade when you need the edge.</p>
+    </div>
+
+    <div class="pricing-grid">
+      <!-- Free -->
+      <div class="price-card free">
+        <div class="price-name">Free</div>
+        <div class="price-tagline">Essential tools for every trader</div>
+        <div class="price-amount">$0<span class="unit">/forever</span></div>
+        <div class="price-note">Always free · No time limit</div>
+        <ul class="price-list">
+          <li><span class="check-icon" style="color:rgba(255,255,255,.22)">✓</span><span style="color:rgba(255,255,255,.45)">Live prices — Gold, Forex, Crypto</span></li>
+          <li><span class="check-icon" style="color:rgba(255,255,255,.22)">✓</span><span style="color:rgba(255,255,255,.45)">TradingView chart</span></li>
+          <li><span class="check-icon" style="color:rgba(255,255,255,.22)">✓</span><span style="color:rgba(255,255,255,.45)">News feed + Economic calendar</span></li>
+          <li><span class="check-icon" style="color:rgba(255,255,255,.22)">✓</span><span style="color:rgba(255,255,255,.45)">Brain Terminal — 3 AI analyses/day</span></li>
+          <li><span class="check-icon" style="color:rgba(255,255,255,.12)">✗</span><span style="color:rgba(255,255,255,.18);text-decoration:line-through">Market Bias engine</span></li>
+          <li><span class="check-icon" style="color:rgba(255,255,255,.12)">✗</span><span style="color:rgba(255,255,255,.18);text-decoration:line-through">Risk Gate</span></li>
+        </ul>
+        <button class="price-btn btn-ghost">Get started free</button>
+      </div>
+
+      <!-- Pro Monthly -->
+      <div class="price-card pro">
+        <div class="price-chip chip-pro">Most Popular</div>
+        <div class="price-name">Pro Monthly</div>
+        <div class="price-tagline">Full AI-powered trading terminal</div>
+        <div class="price-amount" style="color:var(--gold)">$39<span class="unit">/month</span></div>
+        <div class="price-note">Billed monthly · Cancel anytime</div>
+        <ul class="price-list">
+          <li><span class="check-icon" style="color:var(--gold)">✓</span><span style="color:rgba(255,255,255,.5)">Everything in Free</span></li>
+          <li><span class="check-icon" style="color:var(--gold)">✓</span><strong style="color:#fff">Brain Terminal — unlimited AI</strong></li>
+          <li><span class="check-icon" style="color:var(--gold)">✓</span><strong style="color:#fff">Market Bias engine</strong></li>
+          <li><span class="check-icon" style="color:var(--gold)">✓</span><strong style="color:#fff">Risk Gate</strong></li>
+          <li><span class="check-icon" style="color:var(--gold)">✓</span><span style="color:rgba(255,255,255,.5)">Market Intelligence</span></li>
+          <li><span class="check-icon" style="color:var(--gold)">✓</span><span style="color:rgba(255,255,255,.5)">Trump Monitor + AI Briefing</span></li>
+        </ul>
+        <button class="price-btn btn-gold">⚡ Subscribe with PayPal</button>
+      </div>
+
+      <!-- Pro Annual -->
+      <div class="price-card annual">
+        <div class="price-chip chip-annual">Best Value</div>
+        <div class="price-name">Pro Annual</div>
+        <div class="price-tagline">Full AI-powered trading terminal</div>
+        <div class="price-amount" style="color:var(--amber)">$399<span class="unit">/year</span></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:1.75rem">
+          <span style="font-size:.75rem;color:rgba(255,255,255,.3)">$33.25/mo</span>
+          <span style="font-size:9px;font-weight:700;padding:3px 8px;border-radius:999px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.25);color:var(--amber)">SAVE $69</span>
+        </div>
+        <ul class="price-list">
+          <li><span class="check-icon" style="color:#fbbf24">✓</span><span style="color:rgba(255,255,255,.5)">Everything in Free</span></li>
+          <li><span class="check-icon" style="color:#fbbf24">✓</span><strong style="color:#fff">Brain Terminal — unlimited AI</strong></li>
+          <li><span class="check-icon" style="color:#fbbf24">✓</span><strong style="color:#fff">Market Bias engine</strong></li>
+          <li><span class="check-icon" style="color:#fbbf24">✓</span><strong style="color:#fff">Risk Gate</strong></li>
+          <li><span class="check-icon" style="color:#fbbf24">✓</span><span style="color:rgba(255,255,255,.5)">All Pro features</span></li>
+          <li><span class="check-icon" style="color:#fbbf24">✓</span><span style="color:rgba(255,255,255,.5)">Best price per month</span></li>
+        </ul>
+        <button class="price-btn btn-amber">⚡ Subscribe with PayPal</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Bottom CTA ────────────────────────────────────── -->
+<section class="bottom-cta">
+  <div class="bottom-glow"></div>
+  <div class="section-inner" style="position:relative;z-index:2;text-align:center">
+    <div class="badge" style="margin-bottom:1.75rem">
+      <div class="badge-dot"></div>
+      3,200+ traders already inside
+    </div>
+    <div class="bottom-logo">T</div>
+    <h2 class="bottom-h2">Ready to stop guessing and<br>start trading with edge?</h2>
+    <p class="bottom-desc">Join thousands of traders who use TradeX to get AI-powered clarity on Gold, Forex, Crypto, and Indices — every session.</p>
+    <div class="cta-row" style="margin-bottom:2rem">
+      <a href="#" class="cta-primary">⚡ Start for Free</a>
+      <a href="#pricing" class="cta-secondary">View Pricing</a>
+    </div>
+    <div class="trust">
+      <span><span class="check">✓</span> No credit card required</span>
+      <span><span class="check">✓</span> Free plan forever</span>
+      <span><span class="check">✓</span> Cancel anytime</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ────────────────────────────────────────── -->
+<footer>
+  <div class="nav-logo">
+    <div class="logo-icon" style="width:20px;height:20px;font-size:10px">T</div>
+    <span style="font-size:.8rem;color:rgba(255,255,255,.3)">TradeX Terminal</span>
+  </div>
+  <div class="footer-links">
+    <a href="#">Privacy Policy</a>
+    <a href="#">About</a>
+    <a href="#">Login</a>
+    <a href="#">Contact</a>
+  </div>
+  <span class="footer-copy">© 2026 TradeX Terminal. All rights reserved.</span>
+</footer>
+
+</body>
+</html>
