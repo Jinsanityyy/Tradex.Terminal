@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -15,8 +14,6 @@ import {
 import { TerminalPreview } from "@/components/landing/TerminalPreview";
 import { CinematicLoader } from "@/components/landing/CinematicLoader";
 import { CustomCursor } from "@/components/landing/CustomCursor";
-
-gsap.registerPlugin(ScrollTrigger);
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
@@ -99,14 +96,18 @@ function ParallaxGlow({ className, style }: { className?: string; style?: React.
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!ref.current) return;
-    const ctx = gsap.context(() => {
-      gsap.to(ref.current, {
-        yPercent: -18,
-        ease: "none",
-        scrollTrigger: { trigger: ref.current, start: "top bottom", end: "bottom top", scrub: true },
+    let ctx: ReturnType<typeof gsap.context> | null = null;
+    import("gsap/ScrollTrigger").then(({ ScrollTrigger }) => {
+      gsap.registerPlugin(ScrollTrigger);
+      ctx = gsap.context(() => {
+        gsap.to(ref.current, {
+          yPercent: -18,
+          ease: "none",
+          scrollTrigger: { trigger: ref.current, start: "top bottom", end: "bottom top", scrub: true },
+        });
       });
     });
-    return () => ctx.revert();
+    return () => { ctx?.revert(); };
   }, []);
   return <div ref={ref} className={className} style={style} />;
 }
@@ -117,15 +118,19 @@ function Reveal({ children, delay = 0, className, style }: { children: React.Rea
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!ref.current) return;
-    gsap.fromTo(
-      ref.current,
-      { opacity: 0, y: 36 },
-      {
-        opacity: 1, y: 0, duration: 0.7, delay,
-        ease: "power3.out",
-        scrollTrigger: { trigger: ref.current, start: "top 88%", toggleActions: "play none none none" },
-      }
-    );
+    const el = ref.current;
+    import("gsap/ScrollTrigger").then(({ ScrollTrigger }) => {
+      gsap.registerPlugin(ScrollTrigger);
+      gsap.fromTo(
+        el,
+        { opacity: 0, y: 36 },
+        {
+          opacity: 1, y: 0, duration: 0.7, delay,
+          ease: "power3.out",
+          scrollTrigger: { trigger: el, start: "top 88%", toggleActions: "play none none none" },
+        }
+      );
+    });
   }, [delay]);
   return <div ref={ref} className={className} style={style}>{children}</div>;
 }
@@ -146,15 +151,18 @@ function SplitReveal({ text, className, style, tag = "h1" }: {
       .join(" ");
 
     const spans = el.querySelectorAll<HTMLElement>(".split-word");
-    gsap.fromTo(
-      spans,
-      { y: "110%", opacity: 0 },
-      {
-        y: "0%", opacity: 1, duration: 0.65, stagger: 0.06,
-        ease: "power3.out",
-        scrollTrigger: { trigger: el, start: "top 85%", toggleActions: "play none none none" },
-      }
-    );
+    import("gsap/ScrollTrigger").then(({ ScrollTrigger }) => {
+      gsap.registerPlugin(ScrollTrigger);
+      gsap.fromTo(
+        spans,
+        { y: "110%", opacity: 0 },
+        {
+          y: "0%", opacity: 1, duration: 0.65, stagger: 0.06,
+          ease: "power3.out",
+          scrollTrigger: { trigger: el, start: "top 85%", toggleActions: "play none none none" },
+        }
+      );
+    });
   }, [text]);
 
   if (tag === "p") return <p ref={ref} className={className} style={style}>{text}</p>;
@@ -175,17 +183,27 @@ export default function LandingPage() {
 
   // Lenis smooth scroll
   useEffect(() => {
-    let lenis: import("lenis").default | null = null;
-    import("lenis").then(({ default: Lenis }) => {
-      lenis = new Lenis({ lerp: 0.1, smoothWheel: true });
-      const raf = (time: number) => {
+    let lenis: { raf: (t: number) => void; destroy: () => void; on: (e: string, cb: () => void) => void } | null = null;
+    let rafId = 0;
+
+    Promise.all([
+      import("lenis"),
+      import("gsap/ScrollTrigger"),
+    ]).then(([{ default: Lenis }, { ScrollTrigger }]) => {
+      gsap.registerPlugin(ScrollTrigger);
+      lenis = new Lenis({ lerp: 0.1 }) as typeof lenis;
+      const tick = (time: number) => {
         lenis!.raf(time);
-        requestAnimationFrame(raf);
+        rafId = requestAnimationFrame(tick);
       };
-      requestAnimationFrame(raf);
-      lenis.on("scroll", ScrollTrigger.update);
+      rafId = requestAnimationFrame(tick);
+      lenis!.on("scroll", ScrollTrigger.update);
     });
-    return () => { lenis?.destroy(); };
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      lenis?.destroy();
+    };
   }, []);
 
   // Hero entrance — plays after loader completes
