@@ -136,10 +136,9 @@ export async function runRiskAgent(
     // ── Valid / Invalid decision ──────────────────────────────────────────
     // Hard blocks: session closed, truly extreme volatility (>2.5%), or RR < 1:1
     // High volatility (1.5–2.5%) is a warning only  -  adjust size, don't block
-    const isClosed    = session === "Closed";
-    const extremeVol  = volatilityScore >= 92;   // only blocks on >2.5% moves
-    const tooManyWarnings = warnings.length >= 5; // raised from 4 → 5
-    const rrTooLow    = rrEstimate !== null && rrEstimate < 1.3;  // blended-RR hard block
+    const isClosed   = session === "Closed";
+    const extremeVol = volatilityScore >= 92;   // only blocks on >2.5% moves
+    const rrTooLow   = rrEstimate !== null && rrEstimate < 1.3;  // blended-RR hard block
 
     // Kill zone enforcement  -  only trade during high-probability session windows.
     // Asian Kill Zone:  00:00–03:00 UTC = 8:00–11:00 AM PHT (Tokyo open)
@@ -191,10 +190,18 @@ export async function runRiskAgent(
       );
     }
 
-    // Kill zone is a strong warning (reduces score + counts toward warning limit)
-    // but not a standalone hard block — the execution grading already penalises
-    // off-session setups via the killzone confluence factor.
-    const valid = !isClosed && !extremeVol && !tooManyWarnings && !rrTooLow;
+    // Kill zone warnings are informational — they don't count toward the hard
+    // tooManyWarnings block because the sweep gate and execution grading already
+    // handle off-session setups. Only market-condition warnings (vol, RSI, premium,
+    // 52w extremes, RR) count toward the hard limit.
+    const killZoneWarningCount =
+      (outsideNYKillZone && !setupConfirmed ? 1 : 0) +
+      (outsideLondonKillZone && !setupConfirmed ? 1 : 0) +
+      (outsideAsianKillZone && !setupConfirmed ? 1 : 0);
+    const hardWarnings = warnings.length - killZoneWarningCount;
+    const tooManyHardWarnings = hardWarnings >= 4;
+
+    const valid = !isClosed && !extremeVol && !tooManyHardWarnings && !rrTooLow;
 
     // ── Max risk ──────────────────────────────────────────────────────────
     let maxRiskPercent = 1.0; // default 1% account risk

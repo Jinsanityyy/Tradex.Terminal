@@ -367,7 +367,14 @@ export async function runTrendAgent(
       marketPhase: phase,
       reasons,
       invalidationLevel,
-      andybioticStrong: andy != null && !andy.isSideways && (andy.isSmartBuy || andy.isSmartSell),
+      // Continuous SuperTrend + EMA200 filter — true whenever the trend is confirmed
+      // by both the SuperTrend direction and price relative to EMA200. This is the
+      // sustained state after a SmartBuy/SmartSell crossover, not just the crossover bar.
+      andybioticStrong: andy != null && !andy.isSideways && (
+        andy.isSmartBuy || andy.isSmartSell ||
+        (andy.superTrendDir === -1 && andy.ema200 != null && snapshot.price.current > andy.ema200) ||
+        (andy.superTrendDir ===  1 && andy.ema200 != null && snapshot.price.current < andy.ema200)
+      ),
       processingTime: Date.now() - start,
     };
 
