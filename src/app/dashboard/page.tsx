@@ -34,6 +34,7 @@ import { DetailModal } from "@/components/shared/DetailModal";
 import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
 import { CloseTradeModal } from "@/components/shared/CloseTradeModal";
 import { loadTradeLog, findOpenBySetup, discardTrade, type TakenSignal } from "@/lib/trades/trade-log";
+import { isCounterTrend, counterTrendNote } from "@/lib/signals/counter-trend";
 import { LiveTVPanel } from "@/components/shared/LiveTVPanel";
 import { SessionSummaryCard } from "@/components/shared/SessionSummaryCard";
 import { LotCalculatorWidget } from "@/components/shared/LotCalculatorWidget";
@@ -1127,6 +1128,11 @@ export default function DashboardPage() {
   const tradeTp1 = exec?.tp1 ?? tradePlan?.tp1 ?? null;
   const tradeRR = exec?.rrRatio ?? tradePlan?.rrRatio ?? null;
   const tradeDirection = exec?.direction ?? tradePlan?.direction ?? null;
+
+  // Counter-trend: the trade direction opposes the Trend agent's bias (e.g. a
+  // NY-sweep LONG taken while the daily trend reads bearish). Allowed during kill
+  // zones but lower win-rate — surface it so the user knows before entering.
+  const isCounterTrendSignal = isCounterTrend(tradeDirection, trend?.bias);
   const tradeTrigger = exec?.triggerCondition ?? tradePlan?.triggerCondition ?? null;
 
   // Asset bias (tech data first, fall back to master agent)
@@ -1933,6 +1939,15 @@ export default function DashboardPage() {
               {tradeDirection && tradeDirection.toLowerCase() !== "none" && signalState !== "NO_TRADE" && (
                 <p className="text-[10px] truncate" style={{ color: "var(--t-muted)" }}>
                   {tradeDirection.toUpperCase()} · {tradeTrigger && tradeTrigger.toLowerCase() !== "none" ? tradeTrigger : "–"}
+                </p>
+              )}
+              {isCounterTrendSignal && signalState !== "NO_TRADE" && (
+                <p className="mt-1 inline-flex max-w-full items-center gap-1 whitespace-nowrap rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#D4AF37] border-[#D4AF37]/30 bg-[#D4AF37]/10"
+                   title={counterTrendNote(
+                     tradeDirection as "long" | "short",
+                     trend!.bias as "bullish" | "bearish",
+                   )}>
+                  ⚠ Counter-trend
                 </p>
               )}
               {signalState === "NO_TRADE" && master?.noTradeReason && (

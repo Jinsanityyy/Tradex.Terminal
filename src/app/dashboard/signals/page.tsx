@@ -8,6 +8,7 @@ import type { Symbol } from "@/lib/agents/schemas";
 import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
 import { CloseTradeModal } from "@/components/shared/CloseTradeModal";
 import { loadTradeLog, findOpenBySetup, type TakenSignal } from "@/lib/trades/trade-log";
+import { isCounterTrend, counterTrendNote } from "@/lib/signals/counter-trend";
 
 interface SignalsResponse {
   owner: boolean;
@@ -150,6 +151,17 @@ function SignalRow({
           <span className="text-xs text-zinc-400">
             {s.confidence}% conf
           </span>
+          {s.tradePlan && isCounterTrend(s.tradePlan.direction, s.agents.trend.bias) && (
+            <span
+              className="shrink-0 whitespace-nowrap text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border text-[#D4AF37] bg-[#D4AF37]/10 border-[#D4AF37]/30"
+              title={counterTrendNote(
+                s.tradePlan.direction,
+                s.agents.trend.bias as "bullish" | "bearish",
+              )}
+            >
+              ⚠ Counter-trend
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
