@@ -279,7 +279,7 @@ function AgentCard({
   if (loading) {
     return (
       <div
-        className="flex h-full min-h-[158px] flex-col gap-2.5 border-t-2 px-3 py-3 animate-pulse"
+        className="flex h-full min-h-0 flex-col gap-2.5 border-t-2 px-3 py-3 animate-pulse"
         style={{ borderTopColor: "var(--t-border)", backgroundColor: "var(--t-card)" }}
       >
         <div className="h-2 w-20 rounded" style={{ background: "var(--t-border)" }} />
@@ -304,7 +304,7 @@ function AgentCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex h-full min-h-[158px] w-full flex-col border-t-2 text-left transition-all",
+        "flex h-full min-h-0 w-full flex-col border-t-2 text-left transition-all",
         onClick && "cursor-pointer"
       )}
       style={{
@@ -380,7 +380,7 @@ function MasterCard({
   if (loading) {
     return (
       <div
-        className="flex h-full min-h-[158px] flex-col gap-2.5 border-t-2 px-3 py-3 animate-pulse"
+        className="flex h-full min-h-0 flex-col gap-2.5 border-t-2 px-3 py-3 animate-pulse"
         style={{ borderTopColor: "var(--t-border)", backgroundColor: "var(--t-card)" }}
       >
         <div className="h-2 w-20 rounded" style={{ background: "var(--t-border)" }} />
@@ -394,7 +394,7 @@ function MasterCard({
     <button
       type="button"
       onClick={onClick}
-      className="flex h-full min-h-[158px] w-full flex-col border-t-2 text-left transition-all"
+      className="flex h-full min-h-0 w-full flex-col border-t-2 text-left transition-all"
       style={{
         borderTopColor: vars.borderTopColor,
         backgroundColor: "var(--t-card)",
