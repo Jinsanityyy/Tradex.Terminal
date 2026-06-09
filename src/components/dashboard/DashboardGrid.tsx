@@ -20,7 +20,7 @@ const MARGIN: [number, number] = [6, 6];
 const PADDING: [number, number] = [6, 6];
 const DEFAULT_VIEW_ROWS = 24;
 const MAX_GRID_ROWS = 60;
-const STORAGE_KEY = "tradex-dashboard-grid-v7";
+const STORAGE_KEY = "tradex-dashboard-grid-v8";
 const PRESET_STORAGE_KEY = "tradex-dashboard-custom-presets-v1";
 
 type BuiltInPresetId = "pro" | "minimal" | "custom";
@@ -53,7 +53,7 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "community", x: 0, y: 14, w: 13, h: 6, minW: 6, minH: 5 },
     { i: "events", x: 13, y: 14, w: 6, h: 5, minW: 4, minH: 3 },
     { i: "sessions", x: 19, y: 14, w: 5, h: 5, minW: 4, minH: 3 },
-    { i: "agents", x: 0, y: 20, w: 24, h: 12, minW: 10, minH: 4 },
+    { i: "agents", x: 0, y: 20, w: 24, h: 6, minW: 10, minH: 2 },
     { i: "economic-calendar", x: 0, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "pnl-calendar", x: 12, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "lot-calculator", x: 0, y: 40, w: 8, h: 8, minW: 6, minH: 7 },
@@ -75,7 +75,7 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "sessions", x: 16, y: 16, w: 8, h: 4, minW: 4, minH: 3 },
     { i: "community", x: 0, y: 16, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "globe", x: 12, y: 16, w: 4, h: 4, minW: 4, minH: 4 },
-    { i: "agents", x: 0, y: 20, w: 24, h: 12, minW: 10, minH: 4 },
+    { i: "agents", x: 0, y: 20, w: 24, h: 6, minW: 10, minH: 2 },
     { i: "economic-calendar", x: 0, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "pnl-calendar", x: 12, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "lot-calculator", x: 0, y: 40, w: 8, h: 8, minW: 6, minH: 7 },
@@ -98,7 +98,7 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "community", x: 0, y: 14, w: 13, h: 6, minW: 6, minH: 5 },
     { i: "events", x: 13, y: 14, w: 6, h: 5, minW: 4, minH: 3 },
     { i: "sessions", x: 19, y: 14, w: 5, h: 5, minW: 4, minH: 3 },
-    { i: "agents", x: 0, y: 20, w: 24, h: 12, minW: 10, minH: 4 },
+    { i: "agents", x: 0, y: 20, w: 24, h: 6, minW: 10, minH: 2 },
     { i: "economic-calendar", x: 0, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "pnl-calendar", x: 12, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "lot-calculator", x: 0, y: 40, w: 8, h: 8, minW: 6, minH: 7 },
