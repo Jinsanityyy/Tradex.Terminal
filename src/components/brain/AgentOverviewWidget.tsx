@@ -177,7 +177,7 @@ function AgentCard({
 
   if (loading) {
     return (
-      <div className="flex h-full min-h-[158px] flex-col gap-2.5 border-t-2 border-t-zinc-700/30 bg-[hsl(var(--card))] px-3 py-3 animate-pulse">
+      <div className="flex h-full min-h-0 flex-col gap-2.5 border-t-2 border-t-zinc-700/30 bg-[hsl(var(--card))] px-3 py-3 animate-pulse">
         <div className="h-2 w-20 rounded bg-white/6" />
         <div className="h-4 w-16 rounded bg-white/5" />
         <div className="h-[3px] w-full rounded-full bg-white/5" />
@@ -200,7 +200,7 @@ function AgentCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex h-full min-h-[158px] flex-col border-t-2 bg-[hsl(var(--card))] text-left transition-all",
+        "flex h-full min-h-0 flex-col border-t-2 bg-[hsl(var(--card))] text-left transition-all",
         cls.border,
         onClick && "hover:bg-white/[0.04] cursor-pointer"
       )}
@@ -706,7 +706,7 @@ export function AgentOverviewWidget() {
                       type="button"
                       onClick={() => openDrawer("master")}
                       className={cn(
-                        "flex h-full min-h-[158px] flex-col border-t-2 bg-[hsl(var(--card))] text-left transition-all hover:bg-white/[0.04]",
+                        "flex h-full min-h-0 flex-col border-t-2 bg-[hsl(var(--card))] text-left transition-all hover:bg-white/[0.04]",
                         cls.border
                       )}
                     >
