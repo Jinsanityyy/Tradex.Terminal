@@ -162,9 +162,11 @@ function buildAndybioticReason(snapshot: MarketSnapshot): string {
   if (!andy) return "Trend indicator: insufficient 5m candle history";
 
   const stDir  = andy.superTrendDir === -1 ? "bullish" : "bearish";
-  const fresh  = andy.superTrendDir === -1
-    ? (andy.barsSinceBull <= 2 ? "fresh signal" : `signal active ${andy.barsSinceBull} bars`)
-    : (andy.barsSinceBear <= 2 ? "fresh signal" : `signal active ${andy.barsSinceBear} bars`);
+  // barsSince* is 9999 (sentinel) when no crossover was found in the 100-bar scan
+  // window. Don't leak the raw sentinel into the UI — report it as an established trend.
+  const freshness = (bars: number) =>
+    bars <= 2 ? "fresh signal" : bars >= 100 ? "established trend (100+ bars)" : `signal active ${bars} bars`;
+  const fresh  = freshness(andy.superTrendDir === -1 ? andy.barsSinceBull : andy.barsSinceBear);
   const signal = andy.isSmartBuy  ? "high-conviction long confirmed above EMA200"
                : andy.isSmartSell ? "high-conviction short confirmed below EMA200"
                : andy.isBull      ? "bullish crossover on 5m"

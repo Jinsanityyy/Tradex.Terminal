@@ -130,6 +130,10 @@ You have read the debate. Adjudicate. Return JSON only.`.trim();
   const response = await anthropicCreate(client, {
     model: "claude-sonnet-4-6",
     max_tokens: 700,
+    // temperature 0: the final trade direction must be deterministic. A stochastic
+    // master flips bullish↔bearish on identical inputs between cache refreshes,
+    // which is what produced the "LONG on dashboard, SHORT on Brain" conflict.
+    temperature: 0,
     system: MASTER_SYSTEM,
     messages: [{ role: "user", content: msg }],
   });
@@ -318,6 +322,23 @@ export async function runMasterAgent(
       resolvedBias = "no-trade";
     }
 
+    // ── Coherence guard ──────────────────────────────────────────────────────
+    // The committee view (resolvedBias) and the trader's direction (execution.direction)
+    // must agree. The trade plan + the dashboard's armed notification are built from
+    // execution.direction, while the headline shows resolvedBias. When the trend is
+    // NEUTRAL the structural override above does not constrain the LLM, so the LLM can
+    // land bearish while the execution agent is long (or vice-versa) — producing a
+    // "SHORT headline + LONG setup armed" contradiction. If they disagree, there is no
+    // clean trade: stand aside.
+    let coherenceReason: string | undefined;
+    if (resolvedBias !== "no-trade" && execution.hasSetup && execution.direction !== "none") {
+      const execBias = execution.direction === "long" ? "bullish" : "bearish";
+      if (execBias !== resolvedBias) {
+        coherenceReason = `Committee bias (${resolvedBias}) conflicts with the execution setup (${execution.direction}) — no clean directional edge. Stand aside until they align.`;
+        resolvedBias = "no-trade";
+      }
+    }
+
     const resolvedConf = resolvedBias !== llmRaw
       ? Math.max(20, (llmResult?.confidence ?? confidence) - 20)
       : (llmResult?.confidence ?? confidence);
@@ -371,7 +392,7 @@ export async function runMasterAgent(
       invalidations,
       agentConsensus,
       noTradeReason: resolvedBias === "no-trade"
-        ? (llmResult?.noTradeReason ?? noTradeReason)
+        ? (coherenceReason ?? llmResult?.noTradeReason ?? noTradeReason)
         : undefined,
       strategyMatch,
       processingTime: Date.now() - start,

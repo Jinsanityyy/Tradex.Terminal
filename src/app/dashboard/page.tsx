@@ -1312,8 +1312,16 @@ export default function DashboardPage() {
   useEffect(() => {
     if (typeof window === "undefined" || !settings.notifications.biasChanges) return;
 
+    // Only throw an armed alert when the committee bias and the execution direction
+    // agree. The master's coherence guard already forces no-trade on a mismatch, but
+    // this is a second line of defense so a stale cached exec.direction can never fire
+    // a "LONG armed" toast under a bearish headline.
+    const biasMatchesDirection =
+      (finalBias === "bullish" && exec?.direction === "long") ||
+      (finalBias === "bearish" && exec?.direction === "short");
+
     const armedSignalKey =
-      signalState === "ARMED" && exec?.hasSetup
+      signalState === "ARMED" && exec?.hasSetup && biasMatchesDirection
         ? [
             symbol,
             timeframe,
@@ -1375,6 +1383,7 @@ export default function DashboardPage() {
     signalState,
     exec?.hasSetup,
     exec?.direction,
+    finalBias,
     symbol,
     timeframe,
     tradePlan?.entry,
