@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Brain, Clock, Crosshair, RefreshCw } from "lucide-react";
+import { Brain, Clock, RefreshCw } from "lucide-react";
 import useSWR from "swr";
 import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import { useQuotes } from "@/hooks/useMarketData";
@@ -54,7 +54,7 @@ const SYMBOLS: { id: Symbol; label: string; sub: string }[] = [
   { id: "GBPUSD", label: "GBP/USD", sub: "Pound"   },
   { id: "BTCUSD", label: "BTC/USD", sub: "Bitcoin" },
 ];
-const TIMEFRAMES: Timeframe[] = ["M15", "H1", "H4"];
+const TIMEFRAMES: Timeframe[] = ["M5", "M15", "H1", "H4"];
 const SYMBOL_TO_QUOTE: Partial<Record<Symbol, string>> = {
   XAUUSD: "XAU/USD", EURUSD: "EUR/USD", GBPUSD: "GBP/USD", BTCUSD: "BTC/USD",
 };
@@ -66,6 +66,7 @@ const fetcher = (url: string) =>
   });
 
 function timeframeMs(tf: Timeframe) {
+  if (tf === "M5")  return 5 * 60 * 1000;
   if (tf === "M15") return 15 * 60 * 1000;
   if (tf === "H1")  return 60 * 60 * 1000;
   return 4 * 60 * 60 * 1000;
@@ -213,7 +214,6 @@ export function BrainTerminal() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [drawerOpen, setDrawerOpen]     = useState(false);
   const [highlightId, setHighlightId]  = useState<string | undefined>();
-  const [sniperMode, setSniperMode]     = useState(false);
   const [showAgents, setShowAgents]     = useState(true);
   const [nowMs, setNowMs]               = useState(() => Date.now());
 
@@ -398,23 +398,6 @@ export function BrainTerminal() {
         <div className="flex flex-wrap items-center gap-2 min-w-0">
           <SymbolSelector value={symbol} onChange={(v) => { handleSymbolChange(v); setRefreshKey((k) => k + 1); }} />
           <TimeframeSelector value={timeframe} onChange={(v) => { setTimeframe(v); setRefreshKey((k) => k + 1); }} />
-          {!sniperMode ? (
-            <button
-              onClick={() => setSniperMode(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-semibold text-zinc-500 transition-all hover:text-zinc-300"
-            >
-              <Crosshair className="h-3.5 w-3.5" />
-              Sniper
-            </button>
-          ) : (
-            <button
-              onClick={() => setSniperMode(false)}
-              className="flex items-center gap-1.5 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-[11px] font-semibold text-amber-300 transition-all"
-            >
-              <Crosshair className="h-3.5 w-3.5" />
-              Sniper ON
-            </button>
-          )}
           <button
             onClick={handleRefresh}
             disabled={loading || isOnCooldown || hasHitDailyLimit}
