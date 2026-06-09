@@ -367,6 +367,7 @@ export async function runTrendAgent(
       marketPhase: phase,
       reasons,
       invalidationLevel,
+      andybioticStrong: andy != null && !andy.isSideways && (andy.isSmartBuy || andy.isSmartSell),
       processingTime: Date.now() - start,
     };
 

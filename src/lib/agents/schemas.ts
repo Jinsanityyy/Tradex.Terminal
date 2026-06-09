@@ -159,6 +159,7 @@ export interface TrendAgentOutput {
   marketPhase: MarketPhase;
   reasons: string[];
   invalidationLevel: number | null;
+  andybioticStrong?: boolean; // true when SmartBuy or SmartSell confirmed (non-sideways)
   processingTime: number;
   error?: string;
 }

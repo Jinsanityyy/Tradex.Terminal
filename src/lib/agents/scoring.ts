@@ -177,7 +177,7 @@ export function computeConsensus(
   const tfConflictPenalty = !trend.timeframeBias.aligned && (
     (signalDirectionBull && h1OrH4ConflictsBull) ||
     (signalDirectionBear && h1OrH4ConflictsBear)
-  ) ? -15 : 0;
+  ) ? -8 : 0;
 
   // Normalize to -100..+100 range (max possible score with weights = 100)
   const totalWeight = weights.trend + weights.smc + weights.news + weights.execution + weights.contrarian;
@@ -206,19 +206,22 @@ export function computeConsensus(
   // Block bearish signals in a bullish structure
   const structureBlocksShort = trendBullish && !smc.bosDetected && !structureGateBypassed && normalizedScore < 0;
 
-  // Sweep gate: allow signal when consensus is strong (≥15) even without a sweep.
+  // Sweep gate: allow signal when consensus is strong (≥12) even without a sweep.
   // A confirmed sweep is still the best setup, but strong multi-agent agreement
   // (trend + SMC + news all aligned) can produce a valid directional signal.
-  const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None" && Math.abs(normalizedScore) < 14;
+  // Andybiotic SmartBuy/SmartSell (EMA200-confirmed) bypasses this gate entirely —
+  // the indicator already encodes high-conviction directional bias without needing
+  // a session sweep to validate it.
+  const andybioticBypassesSweepGate = trend.andybioticStrong === true && trend.bias !== "neutral";
+  const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None" && Math.abs(normalizedScore) < 12 && !andybioticBypassesSweepGate;
 
   // ── Final Bias Decision ───────────────────────────────────────────────────
-  // Neutral band narrowed from ±20 → ±14. The raw score is already heavily damped
-  // by the contrarian penalty, SMC echo-halving, news freshness decay and trend
-  // TF-alignment halving, so a ±20 band rejected the bulk of genuinely directional
-  // setups as "neutral". ±14 lets real multi-agent agreement through while still
-  // filtering coin-flip conditions.
-  const BULL_THRESHOLD = 14;
-  const BEAR_THRESHOLD = -14;
+  // Neutral band: ±12. With Andybiotic as primary signal, the dampening factors
+  // (SMC echo-halving, news freshness decay, TF-alignment halving) are already
+  // softened — ±12 lets genuine Andybiotic-led directional setups through while
+  // still filtering coin-flip low-conviction conditions.
+  const BULL_THRESHOLD = 12;
+  const BEAR_THRESHOLD = -12;
 
   let finalBias: FinalBias;
   let noTradeReason: string | undefined;
@@ -234,14 +237,14 @@ export function computeConsensus(
     noTradeReason = `Structure gate: Trend is BULLISH (strong) — require CHoCH + BOS confirmation to downside before going short.`;
   } else if (noFibZone) {
     finalBias     = "no-trade";
-    noTradeReason = `Sweep gate: No confirmed session sweep. Best setups form during Asian (8AM–11AM PHT), London (4PM–7PM PHT), or NY (9:30PM–11:30PM PHT) kill zones.`;
+    noTradeReason = `Sweep gate: No confirmed session sweep and Andybiotic SmartBuy/SmartSell not active. Best setups form during Asian (8AM–11AM PHT), London (4PM–7PM PHT), or NY (9:30PM–11:30PM PHT) kill zones.`;
   } else if (normalizedScore >= BULL_THRESHOLD) {
     finalBias = "bullish";
   } else if (normalizedScore <= BEAR_THRESHOLD) {
     finalBias = "bearish";
   } else {
     finalBias     = "no-trade";
-    noTradeReason = `Consensus ${normalizedScore.toFixed(1)} within neutral band (±${BULL_THRESHOLD}). Insufficient directional agreement across agents.`;
+    noTradeReason = `Consensus ${normalizedScore.toFixed(1)} within neutral band (±${BULL_THRESHOLD}). Insufficient directional agreement across agents — no Andybiotic SmartBuy/SmartSell confirmed.`;
   }
 
   // ── Confidence from consensus strength ────────────────────────────────────
