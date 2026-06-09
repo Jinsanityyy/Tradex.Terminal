@@ -19,8 +19,7 @@ export async function POST(req: NextRequest) {
 
     const { error } = await db
       .from("profiles")
-      .update({ avatar_url: avatarUrl })
-      .eq("id", user.id);
+      .upsert({ id: user.id, avatar_url: avatarUrl }, { onConflict: "id" });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

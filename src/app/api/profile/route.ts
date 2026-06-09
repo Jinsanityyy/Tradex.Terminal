@@ -37,8 +37,7 @@ export async function POST(req: NextRequest) {
     const db = getServiceClient() ?? supabase;
     const { error } = await db
       .from("profiles")
-      .update({ display_name })
-      .eq("id", user.id);
+      .upsert({ id: user.id, display_name }, { onConflict: "id" });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
