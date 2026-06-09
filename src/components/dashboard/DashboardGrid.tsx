@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import GridLayout, { getCompactor, type Layout, type LayoutItem } from "react-grid-layout";
-import { Check, ChevronDown, Plus, RotateCcw, Save } from "lucide-react";
+import { Check, ChevronDown, Plus, RotateCcw, Save, X } from "lucide-react";
 import { WidgetCard } from "./WidgetCard";
 import { SessionTimerBar } from "@/components/layout/TopStatusBar";
 
@@ -488,6 +488,33 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     const savedCustomPresets = loadCustomPresets();
     setCustomPresets(savedCustomPresets);
 
+    // Async cloud merge — runs after initial render so the UI is never blocked.
+    // Cloud wins on conflict (same preset id) so changes on other devices sync in.
+    fetch("/api/dashboard/presets")
+      .then((r) => r.json())
+      .then(({ presets: cloudPresets }: { presets?: CustomPreset[] }) => {
+        if (!Array.isArray(cloudPresets) || cloudPresets.length === 0) return;
+        const localMap = new Map(savedCustomPresets.map((p) => [p.id, p]));
+        let changed = false;
+        const merged = [...savedCustomPresets];
+        for (const cp of cloudPresets) {
+          const idx = merged.findIndex((p) => p.id === cp.id);
+          if (idx >= 0) {
+            merged[idx] = cp; // cloud wins
+          } else {
+            merged.push(cp); // new preset from another device
+          }
+          if (!localMap.has(cp.id) || JSON.stringify(localMap.get(cp.id)) !== JSON.stringify(cp)) {
+            changed = true;
+          }
+        }
+        if (changed) {
+          setCustomPresets(merged);
+          saveCustomPresets(merged);
+        }
+      })
+      .catch(() => { /* offline or unauthenticated — localStorage is fine */ });
+
     const saved = loadGridState();
     const resolvedPreset = resolvePreset(saved?.preset ?? DEFAULT_PRESET, savedCustomPresets);
 
@@ -844,6 +871,31 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     setShowSaveMenu(false);
   }, [customPresets, widgetIds]);
 
+  // ── Cloud preset sync (fire-and-forget, localStorage is the offline fallback) ─
+  const syncPresetToCloud = useCallback(async (preset: CustomPreset) => {
+    try {
+      await fetch("/api/dashboard/presets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preset }),
+      });
+    } catch { /* silently ignore — localStorage still has it */ }
+  }, []);
+
+  const deletePresetFromCloud = useCallback(async (id: string) => {
+    try {
+      await fetch(`/api/dashboard/presets?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    } catch { /* silently ignore */ }
+  }, []);
+
+  const handleDeletePreset = useCallback((id: string) => {
+    const nextCustomPresets = customPresets.filter((p) => p.id !== id);
+    setCustomPresets(nextCustomPresets);
+    saveCustomPresets(nextCustomPresets);
+    deletePresetFromCloud(id);
+    if (selectedPreset === id) applyPreset(DEFAULT_PRESET);
+  }, [applyPreset, customPresets, deletePresetFromCloud, selectedPreset]);
+
   const markSaved = useCallback(() => {
     setHasUnsavedChanges(false);
     setSaveLabel("saved");
@@ -900,6 +952,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
 
     setCustomPresets(nextCustomPresets);
     saveCustomPresets(nextCustomPresets);
+    syncPresetToCloud(nextPreset);
     setSelectedPreset(presetId);
     saveGridState({
       preset: presetId,
@@ -910,7 +963,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     });
     markSaved();
     setShowSaveMenu(false);
-  }, [activeCustomPreset, collapsed, customPresets, hidden, layout, markSaved, prevHeights, selectedPreset]);
+  }, [activeCustomPreset, collapsed, customPresets, hidden, layout, markSaved, prevHeights, selectedPreset, syncPresetToCloud]);
 
   const handleUpdateCurrentPreset = useCallback(() => {
     if (!activeCustomPreset) return;
@@ -929,6 +982,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
 
     setCustomPresets(nextCustomPresets);
     saveCustomPresets(nextCustomPresets);
+    syncPresetToCloud(nextPreset);
     saveGridState({
       preset: activeCustomPreset.id,
       layout: syncLayoutWithCollapsedState(layout, collapsed, selectedPreset, customPresets),
@@ -938,7 +992,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
     });
     markSaved();
     setShowSaveMenu(false);
-  }, [activeCustomPreset, collapsed, customPresets, hidden, layout, markSaved, prevHeights]);
+  }, [activeCustomPreset, collapsed, customPresets, hidden, layout, markSaved, prevHeights, syncPresetToCloud]);
 
   if (!mounted) return null;
 
@@ -950,18 +1004,31 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
       >
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
           {presetOptions.map((preset) => (
-            <button
-              key={preset.id}
-              type="button"
-              onClick={() => applyPreset(preset.id)}
-              className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[9px] transition-colors ${
-                selectedPreset === preset.id
-                  ? "border-white/15 bg-white/[0.06] text-zinc-100"
-                  : "border-white/[0.08] text-zinc-500 hover:border-white/15 hover:text-zinc-200"
-              }`}
-            >
-              {preset.label}
-            </button>
+            <div key={preset.id} className="group relative inline-flex">
+              <button
+                type="button"
+                onClick={() => applyPreset(preset.id)}
+                className={`inline-flex items-center gap-1 rounded border py-0.5 text-[9px] transition-colors ${
+                  preset.isCustom ? "pl-2 pr-5" : "px-2"
+                } ${
+                  selectedPreset === preset.id
+                    ? "border-white/15 bg-white/[0.06] text-zinc-100"
+                    : "border-white/[0.08] text-zinc-500 hover:border-white/15 hover:text-zinc-200"
+                }`}
+              >
+                {preset.label}
+              </button>
+              {preset.isCustom && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); handleDeletePreset(preset.id); }}
+                  title="Delete preset"
+                  className="absolute right-0.5 top-1/2 -translate-y-1/2 flex h-3.5 w-3.5 items-center justify-center rounded text-zinc-600 opacity-0 transition-opacity group-hover:opacity-100 hover:!text-red-400"
+                >
+                  <X className="h-2 w-2" />
+                </button>
+              )}
+            </div>
           ))}
         </div>
 
