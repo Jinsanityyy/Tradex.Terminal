@@ -14,6 +14,7 @@ const EARTH_NIGHT_URL = 'https://unpkg.com/three-globe/example/img/earth-night.j
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LayerKey = 'conflict' | 'centralBanks' | 'economicEvents' | 'goldRegions';
+type ImpactFilter = 'ALL' | 'HIGH' | 'MED' | 'LOW';
 
 interface MarkerData {
   name: string;
@@ -22,6 +23,7 @@ interface MarkerData {
   desc: string;
   impact: { xauusd: string; eurusd: string; gbpusd: string };
   layer: LayerKey;
+  impactLevel: 'HIGH' | 'MED' | 'LOW';
 }
 
 interface LiveMarker {
@@ -32,6 +34,7 @@ interface LiveMarker {
   lon: number;
   desc: string;
   impact: { xauusd: string; eurusd: string; gbpusd: string };
+  impactLevel?: 'HIGH' | 'MED' | 'LOW';
   eventTime?: string;
   actual?: string;
   estimate?: string;
@@ -58,29 +61,29 @@ const LAYER_CONFIG: Record<LayerKey, { label: string; color: string; hexColor: n
 // ─── Marker data ──────────────────────────────────────────────────────────────
 const MARKERS: MarkerData[] = [
   // Conflict
-  { layer: 'conflict', name: 'Middle East',    lat: 32,   lon: 35,    desc: 'Active conflicts across Gaza, Lebanon and regional theaters',    impact: { xauusd: '+2.4%', eurusd: '-0.3%', gbpusd: '-0.2%' } },
-  { layer: 'conflict', name: 'Eastern Europe', lat: 49,   lon: 32,    desc: 'Russia-Ukraine war  -  energy and grain supply disruption',        impact: { xauusd: '+1.8%', eurusd: '-1.2%', gbpusd: '-0.8%' } },
-  { layer: 'conflict', name: 'Sudan',          lat: 15,   lon: 30,    desc: 'Civil war disrupting African supply chains and gold mining',      impact: { xauusd: '+0.6%', eurusd: '-0.1%', gbpusd: '-0.1%' } },
-  { layer: 'conflict', name: 'Yemen',          lat: 15,   lon: 48,    desc: 'Houthi attacks on Red Sea shipping lanes',                       impact: { xauusd: '+1.2%', eurusd: '-0.2%', gbpusd: '-0.3%' } },
-  { layer: 'conflict', name: 'West Africa',    lat: 12,   lon: -2,    desc: 'Sahel coup belt  -  political instability region',                 impact: { xauusd: '+0.4%', eurusd:  '0.0%', gbpusd:  '0.0%' } },
+  { layer: 'conflict', impactLevel: 'HIGH', name: 'Middle East',    lat: 32,   lon: 35,    desc: 'Active conflicts across Gaza, Lebanon and regional theaters',    impact: { xauusd: '+2.4%', eurusd: '-0.3%', gbpusd: '-0.2%' } },
+  { layer: 'conflict', impactLevel: 'HIGH', name: 'Eastern Europe', lat: 49,   lon: 32,    desc: 'Russia-Ukraine war  -  energy and grain supply disruption',        impact: { xauusd: '+1.8%', eurusd: '-1.2%', gbpusd: '-0.8%' } },
+  { layer: 'conflict', impactLevel: 'LOW',  name: 'Sudan',          lat: 15,   lon: 30,    desc: 'Civil war disrupting African supply chains and gold mining',      impact: { xauusd: '+0.6%', eurusd: '-0.1%', gbpusd: '-0.1%' } },
+  { layer: 'conflict', impactLevel: 'MED',  name: 'Yemen',          lat: 15,   lon: 48,    desc: 'Houthi attacks on Red Sea shipping lanes',                       impact: { xauusd: '+1.2%', eurusd: '-0.2%', gbpusd: '-0.3%' } },
+  { layer: 'conflict', impactLevel: 'LOW',  name: 'West Africa',    lat: 12,   lon: -2,    desc: 'Sahel coup belt  -  political instability region',                 impact: { xauusd: '+0.4%', eurusd:  '0.0%', gbpusd:  '0.0%' } },
   // Central Banks
-  { layer: 'centralBanks', name: 'Federal Reserve', lat: 38.9, lon: -77.0,  desc: 'FOMC rate decisions  -  primary USD monetary policy anchor',   impact: { xauusd: '±2.0%', eurusd: '±1.5%', gbpusd: '±1.2%' } },
-  { layer: 'centralBanks', name: 'Bank of England',  lat: 51.5, lon: -0.1,  desc: 'MPC rate decisions  -  GBP monetary policy',                  impact: { xauusd: '±0.8%', eurusd: '±0.5%', gbpusd: '±1.8%' } },
-  { layer: 'centralBanks', name: 'ECB Frankfurt',    lat: 50.1, lon:  8.7,  desc: 'Governing council decisions  -  EUR monetary policy',         impact: { xauusd: '±1.0%', eurusd: '±2.0%', gbpusd: '±0.6%' } },
-  { layer: 'centralBanks', name: 'PBOC Beijing',     lat: 39.9, lon: 116.4, desc: 'CNY policy and major driver of global gold demand',          impact: { xauusd: '±1.5%', eurusd: '±0.3%', gbpusd: '±0.2%' } },
-  { layer: 'centralBanks', name: 'Bank of Japan',    lat: 35.7, lon: 139.7, desc: 'YCC policy  -  global carry trade and risk dynamics',          impact: { xauusd: '±0.9%', eurusd: '±0.4%', gbpusd: '±0.3%' } },
+  { layer: 'centralBanks', impactLevel: 'HIGH', name: 'Federal Reserve', lat: 38.9, lon: -77.0,  desc: 'FOMC rate decisions  -  primary USD monetary policy anchor',   impact: { xauusd: '±2.0%', eurusd: '±1.5%', gbpusd: '±1.2%' } },
+  { layer: 'centralBanks', impactLevel: 'HIGH', name: 'Bank of England',  lat: 51.5, lon: -0.1,  desc: 'MPC rate decisions  -  GBP monetary policy',                  impact: { xauusd: '±0.8%', eurusd: '±0.5%', gbpusd: '±1.8%' } },
+  { layer: 'centralBanks', impactLevel: 'HIGH', name: 'ECB Frankfurt',    lat: 50.1, lon:  8.7,  desc: 'Governing council decisions  -  EUR monetary policy',         impact: { xauusd: '±1.0%', eurusd: '±2.0%', gbpusd: '±0.6%' } },
+  { layer: 'centralBanks', impactLevel: 'HIGH', name: 'PBOC Beijing',     lat: 39.9, lon: 116.4, desc: 'CNY policy and major driver of global gold demand',          impact: { xauusd: '±1.5%', eurusd: '±0.3%', gbpusd: '±0.2%' } },
+  { layer: 'centralBanks', impactLevel: 'HIGH', name: 'Bank of Japan',    lat: 35.7, lon: 139.7, desc: 'YCC policy  -  global carry trade and risk dynamics',          impact: { xauusd: '±0.9%', eurusd: '±0.4%', gbpusd: '±0.3%' } },
   // Economic Events
-  { layer: 'economicEvents', name: 'US NFP',           lat: 40.7, lon: -74.0, desc: 'Non-Farm Payrolls  -  largest USD and gold catalyst',              impact: { xauusd: '±1.8%', eurusd: '±1.2%', gbpusd: '±1.0%' } },
-  { layer: 'economicEvents', name: 'ECB Rate Decision', lat: 50.1, lon:  8.9, desc: 'European Central Bank policy statement and press conference',    impact: { xauusd: '±0.9%', eurusd: '±2.2%', gbpusd: '±0.5%' } },
-  { layer: 'economicEvents', name: 'UK CPI',            lat: 51.4, lon: -0.2, desc: 'UK inflation data  -  drives BOE rate expectations',              impact: { xauusd: '±0.5%', eurusd: '±0.3%', gbpusd: '±1.6%' } },
-  { layer: 'economicEvents', name: 'US Core PCE',       lat: 38.8, lon: -77.3, desc: "Fed's preferred inflation gauge  -  key for rate path",           impact: { xauusd: '±1.5%', eurusd: '±1.0%', gbpusd: '±0.8%' } },
+  { layer: 'economicEvents', impactLevel: 'HIGH', name: 'US NFP',           lat: 40.7, lon: -74.0, desc: 'Non-Farm Payrolls  -  largest USD and gold catalyst',              impact: { xauusd: '±1.8%', eurusd: '±1.2%', gbpusd: '±1.0%' } },
+  { layer: 'economicEvents', impactLevel: 'HIGH', name: 'ECB Rate Decision', lat: 50.1, lon:  8.9, desc: 'European Central Bank policy statement and press conference',    impact: { xauusd: '±0.9%', eurusd: '±2.2%', gbpusd: '±0.5%' } },
+  { layer: 'economicEvents', impactLevel: 'MED',  name: 'UK CPI',            lat: 51.4, lon: -0.2, desc: 'UK inflation data  -  drives BOE rate expectations',              impact: { xauusd: '±0.5%', eurusd: '±0.3%', gbpusd: '±1.6%' } },
+  { layer: 'economicEvents', impactLevel: 'HIGH', name: 'US Core PCE',       lat: 38.8, lon: -77.3, desc: "Fed's preferred inflation gauge  -  key for rate path",           impact: { xauusd: '±1.5%', eurusd: '±1.0%', gbpusd: '±0.8%' } },
   // Gold Regions
-  { layer: 'goldRegions', name: 'South Africa',      lat: -29.0, lon:  25.0, desc: "World's historically largest gold producer  -  Witwatersrand belt", impact: { xauusd: '+0.5%', eurusd: '0.0%', gbpusd: '0.0%' } },
-  { layer: 'goldRegions', name: 'Australia',         lat: -25.0, lon: 133.0, desc: '2nd largest gold reserves  -  Kalgoorlie and Pilbara regions',      impact: { xauusd: '+0.8%', eurusd: '0.0%', gbpusd: '0.0%' } },
-  { layer: 'goldRegions', name: 'Ghana',             lat:   7.9, lon:  -1.0, desc: "Africa's top current gold producer",                             impact: { xauusd: '+0.3%', eurusd: '0.0%', gbpusd: '0.0%' } },
-  { layer: 'goldRegions', name: 'Russia',            lat:  62.0, lon:  94.0, desc: 'Major gold producer  -  sanctions impacting supply routes',         impact: { xauusd: '+1.2%', eurusd: '-0.2%', gbpusd: '-0.1%' } },
-  { layer: 'goldRegions', name: 'Brazil',            lat: -10.0, lon: -55.0, desc: 'Growing Amazon basin gold production region',                     impact: { xauusd: '+0.4%', eurusd:  '0.0%', gbpusd:  '0.0%' } },
-  { layer: 'goldRegions', name: 'Papua New Guinea',  lat:  -6.0, lon: 147.0, desc: 'Pacific gold and copper mining hub  -  Ok Tedi, Lihir',             impact: { xauusd: '+0.3%', eurusd:  '0.0%', gbpusd:  '0.0%' } },
+  { layer: 'goldRegions', impactLevel: 'LOW', name: 'South Africa',      lat: -29.0, lon:  25.0, desc: "World's historically largest gold producer  -  Witwatersrand belt", impact: { xauusd: '+0.5%', eurusd: '0.0%', gbpusd: '0.0%' } },
+  { layer: 'goldRegions', impactLevel: 'LOW', name: 'Australia',         lat: -25.0, lon: 133.0, desc: '2nd largest gold reserves  -  Kalgoorlie and Pilbara regions',      impact: { xauusd: '+0.8%', eurusd: '0.0%', gbpusd: '0.0%' } },
+  { layer: 'goldRegions', impactLevel: 'LOW', name: 'Ghana',             lat:   7.9, lon:  -1.0, desc: "Africa's top current gold producer",                             impact: { xauusd: '+0.3%', eurusd: '0.0%', gbpusd: '0.0%' } },
+  { layer: 'goldRegions', impactLevel: 'MED', name: 'Russia',            lat:  62.0, lon:  94.0, desc: 'Major gold producer  -  sanctions impacting supply routes',         impact: { xauusd: '+1.2%', eurusd: '-0.2%', gbpusd: '-0.1%' } },
+  { layer: 'goldRegions', impactLevel: 'LOW', name: 'Brazil',            lat: -10.0, lon: -55.0, desc: 'Growing Amazon basin gold production region',                     impact: { xauusd: '+0.4%', eurusd:  '0.0%', gbpusd:  '0.0%' } },
+  { layer: 'goldRegions', impactLevel: 'LOW', name: 'Papua New Guinea',  lat:  -6.0, lon: 147.0, desc: 'Pacific gold and copper mining hub  -  Ok Tedi, Lihir',             impact: { xauusd: '+0.3%', eurusd:  '0.0%', gbpusd:  '0.0%' } },
 ];
 
 // ─── Ticker ───────────────────────────────────────────────────────────────────
@@ -189,6 +192,55 @@ const HOTSPOT_SIZE: Record<LayerKey, number> = {
   goldRegions: 46,
 };
 
+// ─── Financial centers + arc connections ─────────────────────────────────────
+const FINANCIAL_CENTERS = [
+  { lat: 40.7,  lon: -74.0,  color: 0xD4AF37 }, // New York
+  { lat: 51.5,  lon:  -0.1,  color: 0x00C853 }, // London
+  { lat: 50.1,  lon:   8.7,  color: 0x27ae60 }, // Frankfurt
+  { lat: 35.7,  lon: 139.7,  color: 0x4a9eff }, // Tokyo
+  { lat: 22.3,  lon: 114.2,  color: 0xff6b35 }, // Hong Kong
+  { lat: -33.9, lon: 151.2,  color: 0xa855f7 }, // Sydney
+];
+const ARC_PAIRS: [number, number][] = [[0,1],[1,2],[1,3],[3,4],[4,5],[0,3],[0,5]];
+
+// ─── Heatmap regions (forex proxy for 2D map) ─────────────────────────────────
+const HEATMAP_REGIONS = [
+  { symbol: 'EURUSD', invert: false, lon1: -5,  lon2: 35,  lat1: 36, lat2: 70 },
+  { symbol: 'GBPUSD', invert: false, lon1: -8,  lon2:  3,  lat1: 50, lat2: 59 },
+  { symbol: 'USDJPY', invert: true,  lon1: 129, lon2: 146, lat1: 30, lat2: 46 },
+  { symbol: 'AUDUSD', invert: false, lon1: 113, lon2: 154, lat1:-44, lat2:-10 },
+  { symbol: 'USDCAD', invert: true,  lon1:-141, lon2: -52, lat1: 48, lat2: 84 },
+  { symbol: 'NZDUSD', invert: false, lon1: 166, lon2: 178, lat1:-47, lat2:-34 },
+];
+
+// ─── Live session clock hook ───────────────────────────────────────────────────
+type SessionInfo = { key: string; city: string; color: string; time: string; open: boolean; countdown: string };
+
+function useSessionClock(): SessionInfo[] {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return useMemo(() => {
+    const utcMin = now.getUTCHours() * 60 + now.getUTCMinutes();
+    const inRange = (s: number, e: number) => e > s ? (utcMin >= s && utcMin < e) : (utcMin >= s || utcMin < e);
+    const minsTo = (t: number) => t > utcMin ? t - utcMin : 1440 - utcMin + t;
+    const fmt = (m: number) => { const h = Math.floor(m / 60); const mm = m % 60; return h > 0 ? `${h}h${mm.toString().padStart(2, '0')}m` : `${m}m`; };
+    const local = (off: number) => { const d = new Date(now.getTime() + off * 3600000); return `${d.getUTCHours().toString().padStart(2,'0')}:${d.getUTCMinutes().toString().padStart(2,'0')}`; };
+    const defs = [
+      { key: 'SYD', city: 'SYDNEY',   color: '#a855f7', off: 10,  s: 22*60,    e: 6*60     },
+      { key: 'TKY', city: 'TOKYO',    color: '#f87171', off:  9,  s: 0,         e: 8*60     },
+      { key: 'LDN', city: 'LONDON',   color: '#00C853', off:  1,  s: 8*60,      e: 16*60+30 },
+      { key: 'NY',  city: 'NEW YORK', color: '#D4AF37', off: -4,  s: 13*60+30,  e: 20*60    },
+    ];
+    return defs.map(d => {
+      const open = inRange(d.s, d.e);
+      return { key: d.key, city: d.city, color: d.color, time: local(d.off), open, countdown: open ? fmt(minsTo(d.e)) : fmt(minsTo(d.s)) };
+    });
+  }, [now]);
+}
+
 // ─── 2D Flat Map View ─────────────────────────────────────────────────────────
 function FlatMapView({
   markers,
@@ -203,6 +255,9 @@ function FlatMapView({
   onSwitchTo3D,
   onToggleFullscreen,
   isFullscreen,
+  quotes,
+  impactFilter,
+  onImpactFilterChange,
 }: {
   markers: LiveMarker[];
   activeLayers: Record<LayerKey, boolean>;
@@ -216,13 +271,17 @@ function FlatMapView({
   onSwitchTo3D: () => void;
   onToggleFullscreen: () => void;
   isFullscreen: boolean;
+  quotes: { symbol: string; price: number; changePercent: number }[];
+  impactFilter: ImpactFilter;
+  onImpactFilterChange: (f: ImpactFilter) => void;
 }) {
   const [mapScale, setMapScale] = useState(1);
   const [imgLoaded, setImgLoaded] = useState(false);
 
+  const quoteMap = useMemo(() => new Map(quotes.map(q => [q.symbol, q])), [quotes]);
   const visibleMarkers = useMemo(
-    () => markers.filter((marker) => activeLayers[marker.layer]),
-    [activeLayers, markers]
+    () => markers.filter((marker) => activeLayers[marker.layer] && (impactFilter === 'ALL' || marker.impactLevel === impactFilter)),
+    [activeLayers, markers, impactFilter]
   );
 
   const relatedMarkers = useMemo(() => {
@@ -293,6 +352,27 @@ function FlatMapView({
               strokeWidth={lon === 0 ? 1.5 : 0.5}
             />
           ))}
+          {/* Country heatmap — forex performance overlay */}
+          {HEATMAP_REGIONS.map(r => {
+            const q = quoteMap.get(r.symbol);
+            const chg = q?.changePercent ?? 0;
+            const color = r.invert
+              ? (chg < 0 ? '#00C853' : chg > 0 ? '#ff4444' : '#D4AF37')
+              : (chg > 0 ? '#00C853' : chg < 0 ? '#ff4444' : '#D4AF37');
+            const x = ((r.lon1 + 180) / 360) * 100;
+            const y = ((90 - r.lat2) / 180) * 100;
+            const w = ((r.lon2 - r.lon1) / 360) * 100;
+            const h = ((r.lat2 - r.lat1) / 180) * 100;
+            const fillOpacity = Math.min(0.3, 0.07 + Math.abs(chg) * 0.025);
+            return (
+              <g key={r.symbol}>
+                <rect x={`${x}%`} y={`${y}%`} width={`${w}%`} height={`${h}%`} fill={color} fillOpacity={fillOpacity} stroke={color} strokeOpacity={0.4} strokeWidth={0.5} rx={1} />
+                <text x={`${x + w / 2}%`} y={`${y + h / 2}%`} textAnchor="middle" dominantBaseline="middle" fill={color} fillOpacity={0.75} fontSize={7} fontFamily="IBM Plex Mono, monospace" fontWeight={700}>
+                  {r.symbol.slice(0, 3)}/{r.symbol.slice(3)}{q ? ` ${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%` : ''}
+                </text>
+              </g>
+            );
+          })}
         </svg>
 
         {MAP_LABELS.map((label) => {
@@ -385,22 +465,52 @@ function FlatMapView({
         })}
       </div>
 
-      {/* Top-left: 2D label + node count + layers toggle */}
-      <div style={{ position: 'absolute', left: 18, top: 16, zIndex: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ padding: '4px 8px', borderRadius: 999, border: '1px solid #20242b', background: 'rgba(8,10,14,0.84)', fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: '#f04e45', textTransform: 'uppercase' }}>
-          2D Tactical View
+      {/* Top-left: 2D label + node count + layers toggle + impact filter chips */}
+      <div style={{ position: 'absolute', left: 18, top: 16, zIndex: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ padding: '4px 8px', borderRadius: 999, border: '1px solid #20242b', background: 'rgba(8,10,14,0.84)', fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: '#f04e45', textTransform: 'uppercase' }}>
+            2D Tactical View
+          </div>
+          <div style={{ fontSize: 10, color: '#6f7379', letterSpacing: 1 }}>
+            {visibleMarkers.length} active nodes
+          </div>
+          <button
+            type="button"
+            onClick={onTogglePanel}
+            style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid #20242b', background: 'rgba(8,10,14,0.84)', color: '#8f949c', cursor: 'pointer', fontSize: 14, lineHeight: 1 }}
+            title={isPanelOpen ? 'Hide layers panel' : 'Show layers panel'}
+          >
+            {isPanelOpen ? '←' : '→'}
+          </button>
         </div>
-        <div style={{ fontSize: 10, color: '#6f7379', letterSpacing: 1 }}>
-          {visibleMarkers.length} active nodes
+        {/* Impact filter chips */}
+        <div style={{ display: 'flex', gap: 5 }}>
+          {(['ALL', 'HIGH', 'MED', 'LOW'] as ImpactFilter[]).map(f => {
+            const active = impactFilter === f;
+            const chipColor = f === 'HIGH' ? '#ff544a' : f === 'MED' ? '#D4AF37' : f === 'LOW' ? '#4a9eff' : '#8f949c';
+            return (
+              <button
+                key={f}
+                type="button"
+                onClick={() => onImpactFilterChange(f)}
+                style={{
+                  padding: '3px 8px',
+                  borderRadius: 4,
+                  border: `1px solid ${active ? chipColor : '#20242b'}`,
+                  background: active ? `${chipColor}22` : 'rgba(8,10,14,0.84)',
+                  color: active ? chipColor : '#5a5e65',
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: 1,
+                  cursor: 'pointer',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {f}
+              </button>
+            );
+          })}
         </div>
-        <button
-          type="button"
-          onClick={onTogglePanel}
-          style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid #20242b', background: 'rgba(8,10,14,0.84)', color: '#8f949c', cursor: 'pointer', fontSize: 14, lineHeight: 1 }}
-          title={isPanelOpen ? 'Hide layers panel' : 'Show layers panel'}
-        >
-          {isPanelOpen ? '←' : '→'}
-        </button>
       </div>
 
       {/* Top-right: 2D/3D switch + fullscreen */}
@@ -642,13 +752,6 @@ function FlatMapView({
   );
 }
 
-// ─── Session Bar (collapsed state) ───────────────────────────────────────────
-const SESSION_DATA = [
-  { label: 'ASIA', status: 'MODERATE VOL' },
-  { label: 'LONDON', status: 'CLOSED' },
-  { label: 'NY', status: 'PRE-MARKET' },
-];
-
 const MONO_STYLE: React.CSSProperties = {
   fontFamily: "var(--font-ibm-plex-mono), 'IBM Plex Mono', 'Courier New', monospace",
 };
@@ -675,7 +778,9 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLayerPanelOpen, setIsLayerPanelOpen] = useState(false);
   const [globeCollapsed, setGlobeCollapsed] = useState(false);
+  const [impactFilter, setImpactFilter] = useState<ImpactFilter>('ALL');
   const { quotes } = useQuotes(15_000);
+  const sessionStatus = useSessionClock();
 
   // Persist collapse state
   useEffect(() => {
@@ -904,6 +1009,46 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
       markerMeshes.current.push({ mesh: dot, data: marker, ring });
     });
 
+    // ── Financial center dots ─────────────────────────────────────────────────
+    FINANCIAL_CENTERS.forEach(fc => {
+      const pos = latLonToVec3(fc.lat, fc.lon, GLOBE_RADIUS + 0.06);
+      const dot = new THREE.Mesh(
+        new THREE.SphereGeometry(0.038, 12, 12),
+        new THREE.MeshBasicMaterial({ color: fc.color })
+      );
+      dot.position.copy(pos);
+      scene.add(dot);
+      const haloMat = new THREE.MeshBasicMaterial({ color: fc.color, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
+      const halo = new THREE.Mesh(new THREE.RingGeometry(0.056, 0.082, 24), haloMat);
+      halo.position.copy(pos);
+      halo.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), pos.clone().normalize());
+      scene.add(halo);
+    });
+
+    // ── Arc connections + travelling particles ────────────────────────────────
+    type ArcParticle = { pts: THREE.Points; curve: THREE.QuadraticBezierCurve3; t: number; speed: number };
+    const arcParticles: ArcParticle[] = [];
+
+    ARC_PAIRS.forEach(([ai, bi]) => {
+      const a = FINANCIAL_CENTERS[ai];
+      const b = FINANCIAL_CENTERS[bi];
+      const pA = latLonToVec3(a.lat, a.lon, GLOBE_RADIUS + 0.06);
+      const pB = latLonToVec3(b.lat, b.lon, GLOBE_RADIUS + 0.06);
+      const mid = pA.clone().add(pB).normalize().multiplyScalar(GLOBE_RADIUS + 0.85);
+      const curve = new THREE.QuadraticBezierCurve3(pA, mid, pB);
+      const linePts = curve.getPoints(64);
+      const lineGeo = new THREE.BufferGeometry().setFromPoints(linePts);
+      const lineMat = new THREE.LineBasicMaterial({ color: 0xD4AF37, transparent: true, opacity: 0.14 });
+      scene.add(new THREE.Line(lineGeo, lineMat));
+
+      const particleGeo = new THREE.BufferGeometry();
+      particleGeo.setAttribute('position', new THREE.Float32BufferAttribute([pA.x, pA.y, pA.z], 3));
+      const particleMat = new THREE.PointsMaterial({ color: 0xD4AF37, size: 0.055, sizeAttenuation: true, transparent: true, opacity: 0.9 });
+      const pts = new THREE.Points(particleGeo, particleMat);
+      scene.add(pts);
+      arcParticles.push({ pts, curve, t: Math.random(), speed: 0.0028 + Math.random() * 0.0022 });
+    });
+
     // ── Resize ────────────────────────────────────────────────────────────────
     const onResize = () => {
       syncRendererSize();
@@ -1038,11 +1183,21 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
       frameRef.current = requestAnimationFrame(animate);
       t += 0.016;
       controls.update();
-      markerMeshes.current.forEach(({ ring }, i) => {
-        const phase = t * 1.2 + i * 1.1;
+      // Impact-aware ring pulse: HIGH markers pulse faster, LOW slower
+      markerMeshes.current.forEach(({ ring, data }, i) => {
+        const speedMult = data.impactLevel === 'HIGH' ? 2.2 : data.impactLevel === 'MED' ? 1.4 : 0.7;
+        const phase = t * 1.2 * speedMult + i * 1.1;
         const expand = (Math.sin(phase) + 1) / 2;
         ring.scale.setScalar(1 + 0.9 * expand);
         (ring.material as THREE.MeshBasicMaterial).opacity = 0.5 * (1 - expand);
+      });
+      // Advance arc particles
+      arcParticles.forEach(p => {
+        p.t = (p.t + p.speed) % 1;
+        const pos = p.curve.getPoint(p.t);
+        const attr = p.pts.geometry.attributes.position as THREE.BufferAttribute;
+        attr.setXYZ(0, pos.x, pos.y, pos.z);
+        attr.needsUpdate = true;
       });
       renderer.render(scene, camera);
     };
@@ -1067,13 +1222,16 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
     };
   }, []);
 
-  // Sync layer visibility
+  // Sync layer + impact filter visibility
   useEffect(() => {
-    (Object.keys(activeLayers) as LayerKey[]).forEach(key => {
-      const g = groupRefs.current[key];
-      if (g) g.visible = activeLayers[key];
+    markerMeshes.current.forEach(({ mesh, ring, data }) => {
+      const layerOn = activeLayers[data.layer];
+      const impactOn = impactFilter === 'ALL' || data.impactLevel === impactFilter;
+      const visible = layerOn && impactOn;
+      mesh.visible = visible;
+      ring.visible = visible;
     });
-  }, [activeLayers]);
+  }, [activeLayers, impactFilter]);
 
   // Sync autoRotate when mode switches back to 3D
   useEffect(() => {
@@ -1167,24 +1325,23 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
           </div>
           {globeCollapsed && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 0, padding: '10px 12px', overflowX: 'auto' }}>
-              {SESSION_DATA.map((session, i) => {
-                const isActive = session.status !== 'CLOSED';
-                return (
-                  <React.Fragment key={session.label}>
-                    {i > 0 && (
-                      <span style={{ ...MONO_STYLE, fontSize: 11, color: 'var(--t-text-muted2)', margin: '0 10px' }}>│</span>
-                    )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-                      <span style={{ ...MONO_STYLE, fontSize: 10, color: isActive ? 'var(--t-text)' : 'var(--t-muted)', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase' }}>
-                        {session.label}
-                      </span>
-                      <span style={{ ...MONO_STYLE, fontSize: 10, color: isActive ? 'var(--t-accent)' : 'var(--t-muted)', marginLeft: 6 }}>
-                        ▪ {session.status}
-                      </span>
-                    </div>
-                  </React.Fragment>
-                );
-              })}
+              {sessionStatus.map((s, i) => (
+                <React.Fragment key={s.key}>
+                  {i > 0 && <span style={{ ...MONO_STYLE, fontSize: 11, color: 'var(--t-text-muted2)', margin: '0 10px' }}>│</span>}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
+                    <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: s.open ? s.color : '#3a3a3a', boxShadow: s.open ? `0 0 5px ${s.color}` : 'none', flexShrink: 0 }} />
+                    <span style={{ ...MONO_STYLE, fontSize: 10, color: s.open ? '#e8e8e8' : 'var(--t-muted)', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase' }}>
+                      {s.city}
+                    </span>
+                    <span style={{ ...MONO_STYLE, fontSize: 10, color: s.open ? s.color : 'var(--t-muted)' }}>
+                      {s.time}
+                    </span>
+                    <span style={{ ...MONO_STYLE, fontSize: 9, color: '#4b5563' }}>
+                      {s.open ? `−${s.countdown}` : `+${s.countdown}`}
+                    </span>
+                  </div>
+                </React.Fragment>
+              ))}
             </div>
           )}
         </div>
@@ -1226,7 +1383,37 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
                 );
               })}
             </div>
-            <div style={{ padding: '14px 16px', borderTop: '1px solid #1e1e1e' }}>
+            <div style={{ padding: '12px 16px', borderTop: '1px solid #1e1e1e' }}>
+              <div style={{ fontSize: 10, color: '#444', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>Impact Filter</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                {(['ALL', 'HIGH', 'MED', 'LOW'] as ImpactFilter[]).map(f => {
+                  const active = impactFilter === f;
+                  const chipColor = f === 'HIGH' ? '#ff544a' : f === 'MED' ? '#D4AF37' : f === 'LOW' ? '#4a9eff' : '#8f949c';
+                  return (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setImpactFilter(f)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: 4,
+                        border: `1px solid ${active ? chipColor : '#2a2a2a'}`,
+                        background: active ? `${chipColor}1e` : 'transparent',
+                        color: active ? chipColor : '#444',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: 1,
+                        cursor: 'pointer',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {f}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div style={{ padding: '12px 16px', borderTop: '1px solid #1e1e1e' }}>
               <div style={{ fontSize: 10, color: '#444', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 }}>Legend</div>
               {(Object.keys(LAYER_CONFIG) as LayerKey[]).map(key => {
                 const cfg = LAYER_CONFIG[key];
@@ -1310,6 +1497,9 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
               onSwitchTo3D={() => setIs3D(true)}
               onToggleFullscreen={toggleFullscreen}
               isFullscreen={isFullscreen}
+              quotes={quotes}
+              impactFilter={impactFilter}
+              onImpactFilterChange={setImpactFilter}
             />
           )}
 
@@ -1318,13 +1508,14 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
             const td   = tooltip.data!;
             const lcfg = LAYER_CONFIG[td.layer];
             const containerW = mountRef.current?.clientWidth ?? 900;
-            const containerH = mountRef.current?.clientHeight ?? 600;
+            const tooltipQuoteMap = new Map(quotes.map(q => [q.symbol, q]));
+            const pairToSymbol: Record<string, string> = { xauusd: 'XAUUSD', eurusd: 'EURUSD', gbpusd: 'GBPUSD' };
             return (
               <div style={{
                 position: 'absolute',
                 left: Math.min(tooltip.x + 14, containerW - 244),
                 top:  Math.max(tooltip.y - 70, 8),
-                width: 232,
+                width: 240,
                 background: '#0f0f0f',
                 border: `1px solid ${lcfg.color}30`,
                 borderLeft: `3px solid ${lcfg.color}`,
@@ -1337,25 +1528,53 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
                   <div style={{ width: 7, height: 7, borderRadius: '50%', background: lcfg.color, boxShadow: `0 0 6px ${lcfg.color}` }} />
                   <span style={{ fontSize: 12, fontWeight: 600, color: '#f0f0f0' }}>{td.name}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 9, color: td.impactLevel === 'HIGH' ? '#ff544a' : td.impactLevel === 'MED' ? GOLD : '#4a9eff', fontWeight: 700, letterSpacing: 1 }}>{td.impactLevel}</span>
                 </div>
                 <div style={{ fontSize: 9, color: lcfg.color, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>{lcfg.label}</div>
                 <div style={{ fontSize: 10, color: '#999', lineHeight: 1.55, marginBottom: 8 }}>{td.desc}</div>
                 <div style={{ borderTop: '1px solid #1c1c1c', paddingTop: 7 }}>
-                  <div style={{ fontSize: 9, color: '#444', letterSpacing: 1, marginBottom: 5 }}>MARKET IMPACT</div>
-                  {(['xauusd', 'eurusd', 'gbpusd'] as const).map(p => (
-                    <div key={p} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                      <span style={{ fontSize: 9, color: '#555', fontFamily: 'IBM Plex Mono, monospace' }}>
-                        {p === 'xauusd' ? 'XAU/USD' : p === 'eurusd' ? 'EUR/USD' : 'GBP/USD'}
-                      </span>
-                      <span style={{ fontSize: 9, fontFamily: 'IBM Plex Mono, monospace', fontWeight: 600, color: td.impact[p].startsWith('+') ? GREEN : td.impact[p].startsWith('-') ? '#ff4444' : GOLD }}>
-                        {td.impact[p]}
-                      </span>
-                    </div>
-                  ))}
+                  <div style={{ fontSize: 9, color: '#444', letterSpacing: 1, marginBottom: 5 }}>MARKET IMPACT · LIVE</div>
+                  {(['xauusd', 'eurusd', 'gbpusd'] as const).map(p => {
+                    const sym = pairToSymbol[p];
+                    const liveQ = tooltipQuoteMap.get(sym);
+                    const livePrice = liveQ ? formatTickerPrice(sym, liveQ.price) : null;
+                    return (
+                      <div key={p} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <span style={{ fontSize: 9, color: '#555', fontFamily: 'IBM Plex Mono, monospace' }}>
+                          {p === 'xauusd' ? 'XAU/USD' : p === 'eurusd' ? 'EUR/USD' : 'GBP/USD'}
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {livePrice && (
+                            <span style={{ fontSize: 9, fontFamily: 'IBM Plex Mono, monospace', color: '#888' }}>{livePrice}</span>
+                          )}
+                          <span style={{ fontSize: 9, fontFamily: 'IBM Plex Mono, monospace', fontWeight: 600, color: td.impact[p].startsWith('+') ? GREEN : td.impact[p].startsWith('-') ? '#ff4444' : GOLD }}>
+                            {td.impact[p]}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
           })()}
+
+          {/* Session bar overlay — bottom of 3D canvas (non-embedded only) */}
+          {is3D && !embedded && (
+            <div style={{ position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 20, display: 'flex', alignItems: 'center', gap: 18, borderRadius: 999, border: '1px solid #1c1f26', background: 'rgba(6,8,12,0.88)', padding: '7px 18px', backdropFilter: 'blur(6px)', pointerEvents: 'none' }}>
+              {sessionStatus.map((s, i) => (
+                <React.Fragment key={s.key}>
+                  {i > 0 && <span style={{ width: 1, height: 12, background: '#25282e', display: 'inline-block' }} />}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: s.open ? s.color : '#333', boxShadow: s.open ? `0 0 5px ${s.color}` : 'none', flexShrink: 0 }} />
+                    <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, color: s.open ? '#d4d8de' : '#555', fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>{s.key}</span>
+                    <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, color: s.open ? s.color : '#444' }}>{s.time}</span>
+                    <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 8, color: '#3a3d42' }}>{s.open ? `−${s.countdown}` : `+${s.countdown}`}</span>
+                  </div>
+                </React.Fragment>
+              ))}
+            </div>
+          )}
 
           {/* 3D hint */}
           {is3D && (
