@@ -346,6 +346,21 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
     return () => window.clearInterval(t);
   }, []);
 
+  // Live "computing" jitter — monitor bars drift every few seconds so the desks
+  // visibly process data between real SWR refreshes. Confidence/status stay real.
+  useEffect(() => {
+    const t = window.setInterval(() => {
+      setAgentStates(prev => {
+        const next: Record<string, AgentLiveState> = {};
+        for (const [id, s] of Object.entries(prev)) {
+          next[id] = { ...s, bars: s.bars.map(b => Math.max(1, Math.min(8, b + Math.round(rnd(-1.4, 1.4))))) };
+        }
+        return next;
+      });
+    }, 2_800);
+    return () => window.clearInterval(t);
+  }, []);
+
   // Sync real agent data when SWR result arrives
   useEffect(() => {
     if (!runData) return;
@@ -389,7 +404,7 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
       {/* ── Command tier: MASTER + readout ── */}
       <div className={styles.commandTier}>
         <button type="button" className={styles.masterPod} onClick={() => { setMasterSelected(true); onAgentClick?.("master"); }}>
-          <div className={styles.masterBody}>
+          <div className={`${styles.masterBody} ${styles.animV1}`}>
             <div className={styles.masterSpriteWrap}>
               <SeatedOperator look={MASTER_LOOK} />
             </div>
@@ -488,24 +503,26 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
         </div>
 
         <div className={styles.floorRow}>
-          {AGENTS_ROW_A.map(agent => (
+          {AGENTS_ROW_A.map((agent, i) => (
             <AgentPod
               key={agent.id}
               agent={agent}
               live={mounted ? agentStates[agent.id] : undefined}
               selected={selectedId === agent.id}
+              variant={i % 4}
               onClick={() => handleClick(agent)}
             />
           ))}
         </div>
 
         <div className={styles.floorRow}>
-          {AGENTS_ROW_B.map(agent => (
+          {AGENTS_ROW_B.map((agent, i) => (
             <AgentPod
               key={agent.id}
               agent={agent}
               live={mounted ? agentStates[agent.id] : undefined}
               selected={selectedId === agent.id}
+              variant={(i + 2) % 4}
               onClick={() => handleClick(agent)}
             />
           ))}
@@ -520,20 +537,27 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
 // ─── Agent Pod ────────────────────────────────────────────────────────────────
 
 function AgentPod({
-  agent, live, selected, onClick,
+  agent, live, selected, variant, onClick,
 }: {
   agent: AgentDef;
   live: AgentLiveState | undefined;
   selected: boolean;
+  variant: number;
   onClick: () => void;
 }) {
   const status = live?.status ?? agent.baseStatus;
   const ok = status === "TRADE-OK";
   const alert = status === "ALERT";
+  const animClass = styles[`animV${variant % 4}`] ?? "";
 
   const inner = (
     <>
       <div className={styles.stationBody}>
+        {live && agent.real && live.signal !== "—" && (
+          <span className={`${styles.sigBubble} ${live.signal === "L" ? styles.sigBubbleL : styles.sigBubbleS}`} aria-hidden="true">
+            {live.signal === "L" ? "▲" : "▼"}
+          </span>
+        )}
         <div className={styles.spriteWrap}>
           <SeatedOperator look={agent.look} />
         </div>
@@ -575,7 +599,7 @@ function AgentPod({
   // Non-real agents are decorative — not interactive
   if (!agent.real) {
     return (
-      <div className={styles.agentPod} aria-hidden="true">
+      <div className={`${styles.agentPod} ${animClass}`} aria-hidden="true">
         {inner}
       </div>
     );
@@ -584,7 +608,7 @@ function AgentPod({
   return (
     <button
       type="button"
-      className={`${styles.agentPod} ${selected ? styles.podSelected : ""}`}
+      className={`${styles.agentPod} ${animClass} ${selected ? styles.podSelected : ""}`}
       onClick={onClick}
       aria-pressed={selected}
     >
