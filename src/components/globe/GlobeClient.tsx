@@ -768,18 +768,16 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
     renderer.domElement.style.display = 'block';
-    // Allow the page to scroll vertically through the canvas on mobile.
-    if (embedded) renderer.domElement.style.touchAction = 'pan-y';
+    // touch-action: none on the canvas tells the browser not to handle scroll
+    // through this element, so OrbitControls can call preventDefault on touch
+    // events and rotate the globe. Page scrolling still works because the canvas
+    // is a fixed-height element — touches outside the canvas scroll normally.
+    renderer.domElement.style.touchAction = 'none';
     el.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Controls
-    // When embedded in a scrollable page, bind OrbitControls to a detached div
-    // so it never registers any pointer/touch listeners on the canvas. This
-    // prevents OrbitControls from consuming scroll gestures on mobile while
-    // still allowing autoRotate to run via controls.update() in the animation loop.
-    const controlsTarget = embedded ? document.createElement('div') : renderer.domElement;
-    const controls = new OrbitControls(camera, controlsTarget);
+    // Controls — always bind to the real canvas so touch events reach OrbitControls
+    const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping  = true;
     controls.dampingFactor  = 0.05;
     controls.rotateSpeed    = 0.5;
@@ -1292,7 +1290,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
           <div
             ref={mountRef}
             style={embedded
-              ? { width: '100%', height: 300, backgroundColor: 'transparent', overflow: 'hidden', pointerEvents: 'auto', display: is3D ? 'block' : 'none', touchAction: 'pan-y' }
+              ? { width: '100%', height: 300, backgroundColor: 'transparent', overflow: 'hidden', pointerEvents: 'auto', display: is3D ? 'block' : 'none' }
               : { position: 'absolute', inset: 0, display: is3D ? 'block' : 'none' }
             }
           />
