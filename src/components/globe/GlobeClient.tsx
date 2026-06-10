@@ -1244,15 +1244,13 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
         )}
         {/* Globe / Map area */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', minWidth: 0, minHeight: 0 }}>
-          {/* Floating controls — only in 3D mode */}
-          {is3D && (
+          {/* Floating controls — only in 3D mode, hidden when embedded */}
+          {is3D && !embedded && (
             <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 30, display: 'flex', gap: 8, alignItems: 'center' }}>
-              {!embedded && (
-                <div style={{ display: 'flex', background: 'rgba(10,12,16,0.88)', border: '1px solid #252525', borderRadius: 6, overflow: 'hidden', backdropFilter: 'blur(8px)' }}>
-                  <button onClick={() => setIs3D(false)} style={{ padding: '5px 11px', fontSize: 11, fontWeight: 700, letterSpacing: 1, border: 'none', cursor: 'pointer', background: 'transparent', color: '#555' }}>2D</button>
-                  <button onClick={() => setIs3D(true)} style={{ padding: '5px 11px', fontSize: 11, fontWeight: 700, letterSpacing: 1, border: 'none', cursor: 'pointer', background: GOLD, color: BLACK }}>3D</button>
-                </div>
-              )}
+              <div style={{ display: 'flex', background: 'rgba(10,12,16,0.88)', border: '1px solid #252525', borderRadius: 6, overflow: 'hidden', backdropFilter: 'blur(8px)' }}>
+                <button onClick={() => setIs3D(false)} style={{ padding: '5px 11px', fontSize: 11, fontWeight: 700, letterSpacing: 1, border: 'none', cursor: 'pointer', background: 'transparent', color: '#555' }}>2D</button>
+                <button onClick={() => setIs3D(true)} style={{ padding: '5px 11px', fontSize: 11, fontWeight: 700, letterSpacing: 1, border: 'none', cursor: 'pointer', background: GOLD, color: BLACK }}>3D</button>
+              </div>
               <button
                 onClick={toggleFullscreen}
                 title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
@@ -1263,8 +1261,8 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
             </div>
           )}
 
-          {/* Floating top-left: show layers button (only when 3D sidebar is hidden) */}
-          {is3D && !isLayerPanelOpen && (
+          {/* Floating top-left: show layers button (only when 3D sidebar is hidden, hidden when embedded) */}
+          {is3D && !isLayerPanelOpen && !embedded && (
             <button
               type="button"
               onClick={toggleLayerPanel}
