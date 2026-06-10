@@ -783,6 +783,13 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
     controls.autoRotateSpeed = 0.4;
     controls.enablePan       = false;
     controls.target.set(0, 0, 0);
+    // When embedded in a scrollable page (mobile), disable touch rotation so
+    // vertical scroll gestures pass through to the page instead of rotating the globe.
+    if (embedded) {
+      controls.enableRotate = false;
+      controls.enableZoom   = false;
+      renderer.domElement.style.touchAction = 'pan-y';
+    }
     controlsRef.current = controls;
 
     // Lights
