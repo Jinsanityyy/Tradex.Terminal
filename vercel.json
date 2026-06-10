@@ -1,4 +1,9 @@
 {
+  "git": {
+    "deploymentEnabled": {
+      "claude/agent-audit-gold-trading-gum3j3": false
+    }
+  },
   "crons": [
     {
       "path": "/api/market/trump/cnn-sync",
