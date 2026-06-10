@@ -12,7 +12,7 @@ import type {
   TrendAgentOutput, SMCAgentOutput, NewsAgentOutput,
   RiskAgentOutput, ExecutionAgentOutput, ContrarianAgentOutput,
 } from "./schemas";
-import { DEFAULT_WEIGHTS } from "./schemas";
+import { weightsForSymbol } from "./schemas";
 import { buildMarketSnapshot, buildMockSnapshot } from "./market-snapshot";
 import { getValidatedCandles, getDailyStructure } from "./candles";
 import { runTrendAgent }     from "./trend-agent";
@@ -272,10 +272,14 @@ Generate the debate. Each agent argues their position and, if they disagree with
 export async function runAgentOrchestrator(
   symbol: Symbol,
   timeframe: Timeframe,
-  weights: ScoringWeights = DEFAULT_WEIGHTS,
+  weights?: ScoringWeights,
   forceRefresh = false
 ): Promise<AgentRunResult> {
   const start = Date.now();
+
+  // Symbol-aware scoring profile: XAUUSD uses the gold-optimized weights
+  // (price-action + macro emphasized) unless the caller passed explicit weights.
+  const effectiveWeights = weights ?? weightsForSymbol(symbol);
 
   // ── Cache check (Supabase-backed, survives serverless restarts) ──────────
   if (!forceRefresh) {
@@ -361,7 +365,7 @@ export async function runAgentOrchestrator(
   const [debate, master] = await Promise.all([
     debatePromise,
     runMasterAgent(
-      snapshot, trend, smc, newsAgent, risk, execution, contrarian, weights, apiKey
+      snapshot, trend, smc, newsAgent, risk, execution, contrarian, effectiveWeights, apiKey
     ),
   ]);
 

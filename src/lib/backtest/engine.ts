@@ -18,7 +18,7 @@ import type {
   RiskAgentOutput, ExecutionAgentOutput, ContrarianAgentOutput,
   MasterDecisionOutput,
 } from "@/lib/agents/schemas";
-import { DEFAULT_WEIGHTS } from "@/lib/agents/schemas";
+import { weightsForSymbol } from "@/lib/agents/schemas";
 import { runTrendAgent }      from "@/lib/agents/trend-agent";
 import { runPriceActionAgent } from "@/lib/agents/price-action-agent";
 import { runNewsAgent }        from "@/lib/agents/news-agent";
@@ -197,7 +197,9 @@ export async function runBacktest(
         runContrarianAgent(snapshot, trend, smc),
       ]) as [ExecutionAgentOutput, ContrarianAgentOutput];
 
-      master = await runMasterAgent(snapshot, trend, smc, news, risk, exec, contr, DEFAULT_WEIGHTS);
+      // Same symbol-aware weights as the live orchestrator so backtest results
+      // reflect production scoring (XAUUSD uses the gold-optimized profile).
+      master = await runMasterAgent(snapshot, trend, smc, news, risk, exec, contr, weightsForSymbol(snapshot.symbol));
     } catch {
       skippedBars++;
       continue;

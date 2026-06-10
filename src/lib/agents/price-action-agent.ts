@@ -118,13 +118,19 @@ async function runLLMAnalysis(
   const inNYSession = (sessionHourKZ > 13 || (sessionHourKZ === 13 && sessionMinute >= 30))
                    && (sessionHourKZ < 15  || (sessionHourKZ === 15 && sessionMinute <  30));
 
-  // Estimated session levels from day range
-  const asianHigh  = parseFloat((equilibrium + dayRange * 0.18).toFixed(4));
-  const asianLow   = parseFloat((equilibrium - dayRange * 0.18).toFixed(4));
-  const londonHigh = parseFloat((equilibrium + dayRange * 0.27).toFixed(4));
-  const londonLow  = parseFloat((equilibrium - dayRange * 0.27).toFixed(4));
-  const pdh        = parseFloat((prevClose + dayRange * 0.40).toFixed(4));
-  const pdl        = parseFloat((prevClose - dayRange * 0.40).toFixed(4));
+  // Session levels: REAL from candle history when available. The proxy estimates
+  // below let the LLM "detect" sweeps against levels that never traded — the wick
+  // analysis must run against actual Asian/London/PDH-PDL prices.
+  const candlesForLevels = snapshot.recentCandles as CandleSlim[] | undefined;
+  const realLevels = candlesForLevels && candlesForLevels.length >= 10
+    ? computeActualSessionLevels(candlesForLevels)
+    : null;
+  const asianHigh  = realLevels?.asianHigh  ?? parseFloat((equilibrium + dayRange * 0.18).toFixed(4));
+  const asianLow   = realLevels?.asianLow   ?? parseFloat((equilibrium - dayRange * 0.18).toFixed(4));
+  const londonHigh = realLevels?.londonHigh ?? parseFloat((equilibrium + dayRange * 0.27).toFixed(4));
+  const londonLow  = realLevels?.londonLow  ?? parseFloat((equilibrium - dayRange * 0.27).toFixed(4));
+  const pdh        = realLevels?.pdh        ?? parseFloat((prevClose + dayRange * 0.40).toFixed(4));
+  const pdl        = realLevels?.pdl        ?? parseFloat((prevClose - dayRange * 0.40).toFixed(4));
 
   const wickHighTarget = high > londonHigh ? "PAST London High"
     : high > asianHigh ? "PAST Asian High"
@@ -156,10 +162,10 @@ DAILY BIAS (Step 1):
 - Day range: ${dayRange.toFixed(4)} | Equilibrium: ${equilibrium.toFixed(4)} | Zone: ${zone}
 - 52-week position: ${pos52w.toFixed(1)}%
 
-ESTIMATED SESSION LEVELS (Step 2):
+SESSION LEVELS (Step 2  -  ${realLevels ? "from actual candle history" : "ESTIMATED from day range, treat sweeps with caution"}):
 - Asian High/Low: ${asianHigh} / ${asianLow}
 - London High/Low: ${londonHigh} / ${londonLow}
-- PDH/PDL (est.): ${pdh} / ${pdl}
+- PDH/PDL: ${pdh} / ${pdl}
 
 WICK ANALYSIS (Step 3  -  Sweep Detection):
 - Upper wick extends: ${wickHighTarget}
@@ -268,7 +274,11 @@ function fvgMinGap(symbol: string, price: number): number {
 type CandleSlim = { t: number; o: number; h: number; l: number; c: number };
 
 function computeActualSessionLevels(candles: CandleSlim[]) {
-  const todayMidnight = new Date();
+  // "Today" is anchored to the latest candle, not the wall clock, so the same
+  // code works on live data AND in backtests replaying historical candles
+  // (wall-clock anchoring made every historical day's session levels empty).
+  const lastTs = candles[candles.length - 1]?.t ?? Math.floor(Date.now() / 1000);
+  const todayMidnight = new Date(lastTs * 1000);
   todayMidnight.setUTCHours(0, 0, 0, 0);
   const todayMs   = todayMidnight.getTime();
   const prevDayMs = todayMs - 86_400_000;
@@ -336,8 +346,17 @@ function detectNYSweepAndFVG(
   //   London Kill Zone: 08:00–11:00 UTC (H4 at 08:00, H1 at 07:00 overlaps)
   //   NY Kill Zone:     13:30–15:30 UTC (H4 at 12:00, H1 at 13:00)
   // The inKillZone overlap check gates which candles are valid sweep candidates.
+  // Sweep candidates must be from TODAY: the session levels are today's Asian/London
+  // ranges (and yesterday's PDH/PDL), so a candle from a previous day cannot sweep
+  // them. Without this gate, H1/H4 candle history (60 candles = up to 10 days) let
+  // stale candles register as fresh sweeps of levels that didn't exist yet.
+  // Anchored to the latest candle (not wall clock) so backtests replay correctly.
+  const lastTs = candles[candles.length - 1]?.t ?? Math.floor(Date.now() / 1000);
+  const todayStart = new Date(lastTs * 1000);
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const todayStartSec = todayStart.getTime() / 1000;
   const nyC = candles
-    .filter(c => { const h = toHour(c.t); return h < 18; })
+    .filter(c => c.t >= todayStartSec && toHour(c.t) < 18)
     .slice(-60);
 
   if (nyC.length < 3) return null;

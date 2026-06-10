@@ -405,6 +405,26 @@ export const DEFAULT_WEIGHTS: ScoringWeights = {
   riskGate: 0.10,
 };
 
+// Gold-optimized profile. XAUUSD is the most macro-sensitive instrument in the
+// system (real yields, DXY, geopolitical safe-haven flows) and the kill-zone
+// liquidity-sweep model was calibrated for it, so the price-action and news
+// agents carry more of the vote. Execution is reduced because its direction is
+// largely derived from the SMC output  -  counting it at full weight double-counts
+// the same signal. Trend stays close to default: the 5m SuperTrend whipsaws on
+// gold news candles, so it should confirm rather than lead.
+export const GOLD_WEIGHTS: ScoringWeights = {
+  trend: 0.22,
+  smc: 0.34,
+  news: 0.22,
+  execution: 0.08,
+  contrarian: 0.10,
+  riskGate: 0.10,
+};
+
+export function weightsForSymbol(symbol: string): ScoringWeights {
+  return symbol === "XAUUSD" ? GOLD_WEIGHTS : DEFAULT_WEIGHTS;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Strategy Catalog  -  named setups the system recognizes
 // ─────────────────────────────────────────────────────────────────────────────

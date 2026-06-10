@@ -330,7 +330,12 @@ export async function runTrendAgent(
 
     const recentCandles = snapshot.recentCandles;
     const bias = resolveFinalBias(htfBias, timeframeBias, maData.maStack, biasScore);
-    const confidence = Math.min(95, Math.max(20, Math.abs(biasScore)));
+    // A bias vetoed to neutral (conflicting TF votes) must not report the raw
+    // |biasScore| as conviction — "NEUTRAL @ 70%" reads as a strong signal and
+    // skews the consensus math. Cap neutral confidence at 40.
+    const confidence = bias === "neutral"
+      ? Math.min(40, Math.max(20, Math.abs(biasScore)))
+      : Math.min(95, Math.max(20, Math.abs(biasScore)));
     const reasons = buildReasons(snapshot, timeframeBias, phase, maData.maStack, maData);
 
     // Andybiotic Max% reason — always first, it's the primary signal
