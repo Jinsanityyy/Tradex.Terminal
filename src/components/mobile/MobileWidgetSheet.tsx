@@ -33,11 +33,13 @@ export interface WidgetConfig {
   visible: boolean;
 }
 
+// Decision data first: signal, setup, and agent consensus must be above the fold
+// on a phone — the globe is a showcase widget and renders after them.
 export const DEFAULT_WIDGET_CONFIG: WidgetConfig[] = [
-  { id: "globe",          visible: true  },
   { id: "signal_session", visible: true  },
   { id: "entry_strip",    visible: true  },
   { id: "agents",         visible: true  },
+  { id: "globe",          visible: true  },
   { id: "live_prices",    visible: true  },
   { id: "asset_bias",     visible: false },
   { id: "mtf_bias",       visible: false },
@@ -53,7 +55,9 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig[] = [
   { id: "institutional",  visible: false },
 ];
 
-const STORAGE_KEY = "tradex-mobile-widgets-v3";
+// v4: decision-first default order (signal/setup above globe) — bumping the key
+// applies the new order once for users still on the old saved layout.
+const STORAGE_KEY = "tradex-mobile-widgets-v4";
 
 export function loadWidgetConfig(): WidgetConfig[] {
   if (typeof window === "undefined") return DEFAULT_WIDGET_CONFIG;

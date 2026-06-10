@@ -138,6 +138,26 @@ function MobilePnLWidget() {
   );
 }
 
+// Kill-zone status for the Session card. The whole signal engine trades the three
+// kill zones (Asia 00:00–03:00, London 08:00–11:00, NY 13:30–15:30 UTC), so the
+// dashboard shows whether one is live and when the next one opens.
+function killZoneStatus(): { text: string; active: boolean } {
+  const now = new Date();
+  const mins = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const zones = [
+    { name: "ASIA KZ",   start: 0,   end: 180 },
+    { name: "LONDON KZ", start: 480, end: 660 },
+    { name: "NY KZ",     start: 810, end: 930 },
+  ];
+  const fmt = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`);
+  const active = zones.find(z => mins >= z.start && mins < z.end);
+  if (active) return { text: `${active.name} LIVE · ${fmt(active.end - mins)} left`, active: true };
+  const next = zones.find(z => z.start > mins);
+  return next
+    ? { text: `${next.name} in ${fmt(next.start - mins)}`, active: false }
+    : { text: `ASIA KZ in ${fmt(1440 - mins)}`, active: false };
+}
+
 function LiveBadge() {
   return (
     <span className="flex items-center gap-1 text-[9px] t-accent uppercase tracking-wider"
@@ -277,6 +297,7 @@ export function MobileHome() {
       localStorage.setItem(lastSetupKey, JSON.stringify({
         entry: liveEntry, stopLoss: liveStopLoss, tp1: liveTp1,
         rrRatio: liveRrRatio, direction: liveDirection, trigger: liveTrigger,
+        savedAt: Date.now(),
       }));
     } catch {}
   }, [liveEntry, liveStopLoss, liveTp1, liveRrRatio, liveDirection, liveTrigger, lastSetupKey]);
@@ -307,6 +328,21 @@ export function MobileHome() {
     !lastSignalWin && !lastSignalLoss &&
     (direction === "long" ? livePrice <= stopLoss : livePrice >= stopLoss)
   );
+
+  // Age of the displayed setup when it's NOT the live one — "LAST SETUP" without a
+  // timestamp reads as current and gets confused with the fresh WAIT/NO_TRADE reason.
+  const lastSetupAge: string | null = (() => {
+    if (liveEntry) return null; // live setup — not stale
+    const ts: number | null = typeof cachedSetup?.savedAt === "number"
+      ? cachedSetup.savedAt
+      : recentTrade ? new Date(recentTrade.takenAt).getTime() : null;
+    if (!ts) return null;
+    const m = Math.floor((Date.now() - ts) / 60000);
+    if (m < 1) return "just now";
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    return h < 48 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`;
+  })();
 
   const hitBadge: { label: string; className: string } | null =
     lastSignalWin        ? { label: "TP1 HIT ✅",     className: "bg-[#00C853]/15 text-[#00C853]" } :
@@ -435,6 +471,31 @@ export function MobileHome() {
         </div>
       </div>
 
+      {/* Live price of the selected asset — always above the fold */}
+      {(() => {
+        const q = liveQuotes.find(qq => qq.symbol === activeSymbol);
+        if (!q || !q.price) return null;
+        const chg = q.changePercent ?? 0;
+        const up = chg > 0;
+        const down = chg < 0;
+        return (
+          <div className="flex items-baseline gap-2.5 px-4 pb-1">
+            <span className="text-[24px] font-bold text-[#E8E8E8] tabular-nums leading-none"
+              style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>
+              {q.price.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: q.price > 100 ? 2 : 4,
+              })}
+            </span>
+            <span className={cn("text-[12px] font-semibold tabular-nums",
+              up ? "text-[#00C853]" : down ? "text-[#FF3D3D]" : "text-[#6B6B7A]")}
+              style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>
+              {up ? "▲" : down ? "▼" : ""}{Math.abs(chg).toFixed(2)}%
+            </span>
+          </div>
+        );
+      })()}
+
       <div className="px-4 py-4 space-y-4">
         {/* ── Persistent open trade banner (shows regardless of signal state) ── */}
         {(() => {
@@ -515,6 +576,14 @@ export function MobileHome() {
                         {master.noTradeReason}
                       </p>
                     )}
+                    {signalState !== "NO_TRADE" &&
+                      (effectiveSignalState === "WAIT" || effectiveSignalState === "EXPIRED") &&
+                      exec?.signalStateReason && (
+                      <p className="text-[9px] text-[#6B6B7A] mt-1 leading-tight line-clamp-3"
+                        style={{ fontFamily: "var(--font-dm-sans),system-ui,sans-serif" }}>
+                        {exec.signalStateReason}
+                      </p>
+                    )}
                   </div>
 
                   {/* Active Session */}
@@ -570,6 +639,17 @@ export function MobileHome() {
                         </p>
                       </>
                     )}
+                    {/* Kill-zone status — setups form inside these windows */}
+                    {!(isWeekend && !isCrypto) && (() => {
+                      const kz = killZoneStatus();
+                      return (
+                        <p className={cn("text-[9px] mt-1.5 font-semibold",
+                          kz.active ? "text-[#00C853]" : "text-[#6B6B7A]")}
+                          style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>
+                          {kz.text}
+                        </p>
+                      );
+                    })()}
                   </div>
                 </div>
               );
@@ -586,7 +666,7 @@ export function MobileHome() {
                         label={
                           effectiveSignalState === "ARMED" ? "ARMED" :
                           effectiveSignalState === "PENDING" ? "PENDING" :
-                          "LAST SETUP"
+                          lastSetupAge ? `LAST SETUP · ${lastSetupAge}` : "LAST SETUP"
                         }
                         variant={
                           effectiveSignalState === "ARMED" ? "armed" :
@@ -629,7 +709,11 @@ export function MobileHome() {
                       valueColor="text-[#E8E8E8]"
                     />
                   </div>
-                  {exec?.signalStateReason && (
+                  {/* Only narrate the reason when the displayed setup is the LIVE one.
+                      On a stale LAST SETUP card, the fresh WAIT/EXPIRED reason refers to a
+                      DIFFERENT evaluation (different entry) and reads as contradictory —
+                      that reason now lives in the Signal card instead. */}
+                  {liveEntry !== null && exec?.signalStateReason && (
                     <p className="text-[10px] text-[#6B6B7A] mt-2 leading-tight"
                       style={{ fontFamily: "var(--font-dm-sans),system-ui,sans-serif" }}>
                       {exec.signalStateReason}
