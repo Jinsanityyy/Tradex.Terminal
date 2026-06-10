@@ -542,13 +542,17 @@ function runSMCAnalysis(snapshot: MarketSnapshot): SMCAgentOutput {
   // session level and aligns with the daily bias is itself a valid stop-run reversal
   // setup. FVG presence still upgrades quality/grade downstream; it is no longer a gate.
   const sweepAlignsDailyBias = liquiditySweepDetected && sweepBias === dailyBias;
-  const setupPresent = liquiditySweepDetected && !isLowConfidenceSweep && (fvgDetected || sweepAlignsDailyBias);
-  const bias: DirectionalBias = liquiditySweepDetected ? sweepBias : dailyBias;
+  // bias always reflects HTF structure — a counter-trend sweep (e.g. PDL bounce inside
+  // a bearish market) is a pullback, not a reversal. Only a sweep that CONFIRMS the
+  // daily direction upgrades the setup.
+  const bias: DirectionalBias = dailyBias;
+  const setupPresent = sweepAlignsDailyBias && !isLowConfidenceSweep && (fvgDetected || sweepAlignsDailyBias);
 
-
-  const bosDetected   = liquiditySweepDetected && bias === dailyBias;
-  const chochDetected = fvgDetected;
-  const confidence = liquiditySweepDetected ? Math.min(95, 50 + sweepModifier) : 40;
+  const bosDetected   = sweepAlignsDailyBias;
+  // CHoCH requires the sweep to confirm the daily direction — a counter-trend FVG is
+  // not a change of character, it's a temporary liquidity grab / retracement.
+  const chochDetected = fvgDetected && sweepAlignsDailyBias;
+  const confidence = sweepAlignsDailyBias ? Math.min(95, 50 + sweepModifier) : 40;
 
   const slBuffer   = minSweep * 0.5;
 
@@ -583,8 +587,10 @@ function runSMCAnalysis(snapshot: MarketSnapshot): SMCAgentOutput {
   const reasons: string[] = [];
 
   if (liquiditySweepDetected && sweepLevel !== null) {
+    const counterTrend = sweepBias !== dailyBias;
     reasons.push(
-      `${sweepLabel} liquidity sweep confirmed in NY session  -  wick past ${sweepLevel.toFixed(4)}, closed back inside`
+      `${sweepLabel} liquidity sweep confirmed in NY session  -  wick past ${sweepLevel.toFixed(4)}, closed back inside` +
+      (counterTrend ? `  (counter-trend pullback  -  ${sweepBias} bounce within ${dailyBias} structure)` : "")
     );
   } else {
     reasons.push(
@@ -603,7 +609,7 @@ function runSMCAnalysis(snapshot: MarketSnapshot): SMCAgentOutput {
   }
 
   reasons.push(
-    `Daily bias: ${dailyBias.toUpperCase()} (HTF ${htfConfidence}% conviction)  -  price action direction ${liquiditySweepDetected && bias === dailyBias ? "ALIGNS ✓" : "does not align"} with daily bias`
+    `Daily bias: ${dailyBias.toUpperCase()} (HTF ${htfConfidence}% conviction)  -  sweep ${sweepAlignsDailyBias ? "ALIGNS ✓" : liquiditySweepDetected ? "COUNTER-TREND ✗  -  pullback only, no setup" : "does not align"}`
   );
   reasons.push(
     `Session: ${session} | Active trading window: ${inNYSession ? "OPEN" : "CLOSED"}`
