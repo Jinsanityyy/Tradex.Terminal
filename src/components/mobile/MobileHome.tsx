@@ -918,6 +918,7 @@ export function MobileHome() {
                     data={agentData ?? undefined}
                     isLoading={agentLoading && !agentData}
                     visibleAgents={new Set(["trend", "smc", "news", "risk", "contrarian", "execution", "master"])}
+                    containerClassName="w-full"
                   />
                   )}
                 </section>

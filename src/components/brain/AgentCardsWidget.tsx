@@ -461,10 +461,12 @@ export function AgentCardsWidget({
   data,
   isLoading,
   visibleAgents,
+  containerClassName = "absolute inset-0 overflow-y-auto",
 }: {
   data: AgentRunResult | undefined;
   isLoading: boolean;
   visibleAgents: Set<AgentId>;
+  containerClassName?: string;
 }) {
   const [drawerOpen, setDrawerOpen]   = useState(false);
   const [drawerAgent, setDrawerAgent] = useState<string | undefined>();
@@ -549,7 +551,7 @@ export function AgentCardsWidget({
   const noAgents = row1.length === 0 && row2.length === 0;
 
   return (
-    <div className="absolute inset-0 overflow-y-auto">
+    <div className={containerClassName}>
       {noAgents ? (
         <div className="flex h-full items-center justify-center p-6 text-center">
           <div>
