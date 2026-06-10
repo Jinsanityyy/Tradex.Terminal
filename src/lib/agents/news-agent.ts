@@ -118,6 +118,10 @@ const BEARISH_INDICES = [
   "risk off", "recession", "rate hike", "fed hawkish", "earnings miss",
   "tariff escalation", "trade war", "banking crisis", "inflation surge",
   "hard landing", "layoffs", "unemployment rise", "market crash",
+  // Geopolitical risk-off — same reasoning as BEARISH_USDJPY safe-haven flows
+  "geopolitical", "war", "conflict", "military", "iran", "russia", "nuclear",
+  "attack", "missile", "invasion", "escalation", "strikes launched",
+  "stocks slide", "stocks fall", "stocks drop", "asian stocks",
 ];
 
 // Crypto alts (ETHUSD, SOLUSD, XRPUSD, etc.): closely correlated with BTC macro sentiment
