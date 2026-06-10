@@ -772,7 +772,12 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
     rendererRef.current = renderer;
 
     // Controls
-    const controls = new OrbitControls(camera, renderer.domElement);
+    // When embedded in a scrollable page, bind OrbitControls to a detached div
+    // so it never registers any pointer/touch listeners on the canvas. This
+    // prevents OrbitControls from consuming scroll gestures on mobile while
+    // still allowing autoRotate to run via controls.update() in the animation loop.
+    const controlsTarget = embedded ? document.createElement('div') : renderer.domElement;
+    const controls = new OrbitControls(camera, controlsTarget);
     controls.enableDamping  = true;
     controls.dampingFactor  = 0.05;
     controls.rotateSpeed    = 0.5;
@@ -783,13 +788,6 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
     controls.autoRotateSpeed = 0.4;
     controls.enablePan       = false;
     controls.target.set(0, 0, 0);
-    // When embedded in a scrollable page (mobile), disable touch rotation so
-    // vertical scroll gestures pass through to the page instead of rotating the globe.
-    if (embedded) {
-      controls.enableRotate = false;
-      controls.enableZoom   = false;
-      renderer.domElement.style.touchAction = 'pan-y';
-    }
     controlsRef.current = controls;
 
     // Lights
