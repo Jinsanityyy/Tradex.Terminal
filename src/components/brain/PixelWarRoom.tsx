@@ -77,6 +77,9 @@ const AGENTS_ROW_A: AgentDef[] = [
     detail: "Micro trigger is still dirty. Wait for a cleaner reaction.",
     look: { skin: "Gold", hairStyle: "Messy", hairColor: "Black", shirtColor: "Gray", pantsColor: "Black", shoesColor: "Black", seatFrame: 2 },
   },
+];
+
+const AGENTS_ROW_B: AgentDef[] = [
   {
     id: "news", label: "NEWS", drawerId: "news", baseStatus: "TRADE-OK", real: true,
     role: "Catalyst Watch",
@@ -84,21 +87,10 @@ const AGENTS_ROW_A: AgentDef[] = [
     look: { skin: "Dove", hairStyle: "Plain", hairColor: "White", shirtColor: "Teal", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2 },
   },
   {
-    id: "quant", label: "", drawerId: "trend", baseStatus: "NO-TRADE", real: false,
-    look: { skin: "Comet", hairStyle: "Loose", hairColor: "Blonde", shirtColor: "Lavender", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2, bodyType: "Woman" },
-  },
-  {
     id: "exec", label: "EXEC", drawerId: "execution", baseStatus: "TRADE-OK", real: true,
     role: "Entry Pilot",
     detail: "Wait until the trigger desk confirms the entry lane.",
     look: { skin: "Coffee", hairStyle: "Buzzcut", hairColor: "Black", shirtColor: "Navy", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2 },
-  },
-];
-
-const AGENTS_ROW_B: AgentDef[] = [
-  {
-    id: "flow", label: "", drawerId: "execution", baseStatus: "NO-TRADE", real: false,
-    look: { skin: "Green", hairStyle: "Mohawk", hairColor: "Orange", shirtColor: "Orange", pantsColor: "Black", shoesColor: "Black", seatFrame: 2, bodyType: "Man" },
   },
   {
     id: "cntr", label: "CNTR", drawerId: "contrarian", baseStatus: "TRADE-OK", real: true,
@@ -106,22 +98,39 @@ const AGENTS_ROW_B: AgentDef[] = [
     detail: "Crowding risk is low enough for a controlled fade if needed.",
     look: { skin: "Sienna", hairStyle: "Curly Short", hairColor: "Chestnut", shirtColor: "Purple", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2 },
   },
-  {
-    id: "arbi", label: "", drawerId: "smc", baseStatus: "NO-TRADE", real: false,
-    look: { skin: "Gray", hairStyle: "Curly Short", hairColor: "Platinum", shirtColor: "Sky", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 2, bodyType: "Woman" },
-  },
-  {
-    id: "algo", label: "", drawerId: "trend", baseStatus: "TRADE-OK", real: false,
-    look: { skin: "Comet", hairStyle: "Buzzcut", hairColor: "Red", shirtColor: "Leather", pantsColor: "Black", shoesColor: "Black", seatFrame: 2, bodyType: "Man" },
-  },
-  {
-    id: "delta", label: "", drawerId: "risk", baseStatus: "NO-TRADE", real: false,
-    look: { skin: "Green", hairStyle: "Loose", hairColor: "Brown", shirtColor: "Pink", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2, bodyType: "Woman" },
-  },
-  {
-    id: "sent", label: "", drawerId: "news", baseStatus: "NO-TRADE", real: false,
-    look: { skin: "Gray", hairStyle: "Mohawk", hairColor: "White", shirtColor: "Walnut", pantsColor: "Black", shoesColor: "Black", seatFrame: 2, bodyType: "Man" },
-  },
+];
+
+// ─── Roaming extras ───────────────────────────────────────────────────────────
+// The non-agent staff don't get desks — only the 7 real agents work stations.
+// These six roll around the floor on their office chairs instead: glide one way,
+// pause facing the room, glide back. Paths/durations are all distinct so the
+// movement never syncs up. The sprite kit has no walk cycle (sitting frames
+// only), so the chair-roll IS the locomotion — very trading-floor.
+type Wanderer = {
+  id: string;
+  look: OperatorLook;
+  left: string;   // base position within the aisle
+  dist: number;   // roam distance in px
+  dur: number;    // seconds per round trip
+  delay: number;  // stagger
+};
+
+const WANDERERS_TOP: Wanderer[] = [
+  { id: "quant", left: "4%",  dist: 150, dur: 19, delay: 0,
+    look: { skin: "Comet", hairStyle: "Loose", hairColor: "Blonde", shirtColor: "Lavender", pantsColor: "Gray", shoesColor: "Black", seatFrame: 3, bodyType: "Woman" } },
+  { id: "flow", left: "42%", dist: 120, dur: 14, delay: 4,
+    look: { skin: "Green", hairStyle: "Mohawk", hairColor: "Orange", shirtColor: "Orange", pantsColor: "Black", shoesColor: "Black", seatFrame: 3, bodyType: "Man" } },
+  { id: "arbi", left: "68%", dist: 90,  dur: 23, delay: 9,
+    look: { skin: "Gray", hairStyle: "Curly Short", hairColor: "Platinum", shirtColor: "Sky", pantsColor: "Blue Gray", shoesColor: "Black", seatFrame: 3, bodyType: "Woman" } },
+];
+
+const WANDERERS_BOTTOM: Wanderer[] = [
+  { id: "algo", left: "10%", dist: 135, dur: 16, delay: 2,
+    look: { skin: "Comet", hairStyle: "Buzzcut", hairColor: "Red", shirtColor: "Leather", pantsColor: "Black", shoesColor: "Black", seatFrame: 3, bodyType: "Man" } },
+  { id: "delta", left: "50%", dist: 100, dur: 21, delay: 7,
+    look: { skin: "Green", hairStyle: "Loose", hairColor: "Brown", shirtColor: "Pink", pantsColor: "Gray", shoesColor: "Black", seatFrame: 3, bodyType: "Woman" } },
+  { id: "sent", left: "76%", dist: 80,  dur: 13, delay: 11,
+    look: { skin: "Gray", hairStyle: "Mohawk", hairColor: "White", shirtColor: "Walnut", pantsColor: "Black", shoesColor: "Black", seatFrame: 3, bodyType: "Man" } },
 ];
 
 const ALL_AGENTS = [...AGENTS_ROW_A, ...AGENTS_ROW_B];
@@ -192,6 +201,23 @@ function SeatedOperator({ look, className }: { look: OperatorLook; className?: s
       {layers.map((url, i) => (
         <span key={i} className={styles.seatedLayer} style={layerStyle(url, look.seatFrame, scale)} />
       ))}
+    </div>
+  );
+}
+
+function RoamingOperator({ w }: { w: Wanderer }) {
+  return (
+    <div
+      className={styles.roamer}
+      style={{
+        left: w.left,
+        "--roam-dist": `${w.dist}px`,
+        "--roam-dur": `${w.dur}s`,
+        "--roam-delay": `${w.delay}s`,
+      } as CSSProperties}
+      aria-hidden="true"
+    >
+      <SeatedOperator look={w.look} />
     </div>
   );
 }
@@ -502,6 +528,11 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
           <span className={styles.floorSlash}>///</span>
         </div>
 
+        {/* Back aisle — staff rolling behind the first desk row */}
+        <div className={styles.roamAisle}>
+          {WANDERERS_TOP.map(w => <RoamingOperator key={w.id} w={w} />)}
+        </div>
+
         <div className={styles.floorRow}>
           {AGENTS_ROW_A.map((agent, i) => (
             <AgentPod
@@ -526,6 +557,11 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
               onClick={() => handleClick(agent)}
             />
           ))}
+        </div>
+
+        {/* Front aisle — foreground corridor */}
+        <div className={styles.roamAisle}>
+          {WANDERERS_BOTTOM.map(w => <RoamingOperator key={w.id} w={w} />)}
         </div>
       </div>
 

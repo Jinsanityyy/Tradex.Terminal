@@ -777,6 +777,50 @@
   50%      { filter: brightness(1.4); }
 }
 
+/* ─── Roaming staff ──────────────────────────────────────────────────────────
+   Non-agent staff roll around the floor on their office chairs: glide one way
+   (right-facing frame), pause facing the room (front frame), glide back
+   (left-facing frame). X-motion eases per segment so the chair accelerates and
+   coasts; the 1px roamBob is the wheels bumping over the floor grid. */
+.roamAisle {
+  position: relative;
+  height: 62px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.roamer {
+  position: absolute;
+  bottom: -4px;
+  width: 64px;
+  height: 64px;
+  animation: roamX var(--roam-dur, 18s) ease-in-out var(--roam-delay, 0s) infinite;
+  will-change: transform;
+}
+
+.roamer .seatedLayer {
+  animation:
+    roamFace var(--roam-dur, 18s) step-end var(--roam-delay, 0s) infinite,
+    roamBob 0.5s steps(2, end) infinite;
+}
+
+@keyframes roamX {
+  0%        { transform: translateX(0); }
+  42%       { transform: translateX(var(--roam-dist, 120px)); }
+  54%       { transform: translateX(var(--roam-dist, 120px)); }
+  96%, 100% { transform: translateX(0); }
+}
+@keyframes roamFace {
+  0%, 41%   { background-position-y: -192px; } /* rolling right */
+  43%, 53%  { background-position-y: -128px; } /* pause — face the room */
+  55%, 95%  { background-position-y: -64px; }  /* rolling left */
+  97%, 100% { background-position-y: -128px; }
+}
+@keyframes roamBob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(1px); }
+}
+
 /* Tap feedback */
 .agentPod:active { transform: translateY(0) scale(0.95); }
 .masterPod:active { transform: translateY(0) scale(0.96); }
@@ -789,7 +833,9 @@
   .monitorScreen,
   .statusLed,
   .sigBubble,
-  .monitorBezel {
+  .monitorBezel,
+  .roamer,
+  .roamer .seatedLayer {
     animation: none !important;
   }
   .sigBubble { opacity: 1; }
