@@ -206,6 +206,68 @@ function clockFor(tz: string, now: Date): string {
   }
 }
 
+// ─── Pixel world map (GLOBAL OVERLAYS) ────────────────────────────────────────
+// Coarse 40×14 land bitmask rendered as 1×1 SVG rects — stylized, crisp pixels.
+
+const WORLD_MAP = [
+  "                                        ",
+  "  ## ####         ######  ########  #   ",
+  " ##########      #####################  ",
+  "  ########        ###################   ",
+  "   ######          ######  #########    ",
+  "    ####           ######   ### ###     ",
+  "     ##    #      #######     # ##      ",
+  "          ###    ########    ###        ",
+  "         #####   ########     #         ",
+  "         ######   #######        ##     ",
+  "          #####    #####         ####   ",
+  "           ###      ###          ####   ",
+  "           ##        #            ##    ",
+  "                                        ",
+];
+
+const MAP_CITIES = [
+  { id: "NYC", col: 9,  row: 4, session: "New York" },
+  { id: "LDN", col: 20, row: 3, session: "London" },
+  { id: "MNL", col: 33, row: 6, session: "Asia" },
+] as const;
+
+function PixelWorldMap({ activeSession }: { activeSession: string }) {
+  return (
+    <svg
+      viewBox="0 0 40 14"
+      className={styles.worldMap}
+      preserveAspectRatio="xMidYMid meet"
+      shapeRendering="crispEdges"
+      aria-hidden="true"
+    >
+      {WORLD_MAP.flatMap((rowStr, y) =>
+        rowStr.split("").map((ch, x) =>
+          ch === "#" ? <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} className={styles.mapLand} /> : null
+        )
+      )}
+      {MAP_CITIES.map(c => {
+        const active = c.session === activeSession;
+        return (
+          <g key={c.id}>
+            {active && <circle cx={c.col + 0.5} cy={c.row + 0.5} r={1.6} className={styles.mapPing} />}
+            <rect
+              x={c.col} y={c.row} width={1} height={1}
+              className={active ? styles.mapCityActive : styles.mapCity}
+            />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+const USER_LOOK: OperatorLook = {
+  skin: "Ivory", hairStyle: "Messy", hairColor: "Chestnut",
+  shirtColor: "Navy", pantsColor: "Black", shoesColor: "Black",
+  seatFrame: 2,
+};
+
 // ─── Per-agent overview ───────────────────────────────────────────────────────
 
 type AgentOverview = { label: string; role: string; state: string; detail: string; confidence: number; tone: "ok"|"warn"|"bad"|"dim" };
@@ -513,30 +575,95 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
 
       {/* ── Floor tier ── */}
       <div className={styles.floorTier}>
-        {/* Back wall — server rack, LED ticker board, world clocks */}
-        <div className={styles.backWall} aria-hidden="true">
+        {/* Ceiling — industrial light bars over the room */}
+        <div className={styles.ceiling} aria-hidden="true">
+          <span className={styles.ceilLight} />
+          <span className={styles.ceilLight} />
+          <span className={styles.ceilLight} />
+        </div>
+
+        {/* Command wall — overview tiles, live trade alert, global overlays map */}
+        <div className={styles.cmdBoard} aria-hidden="true">
           <div className={styles.serverRack}>
             <span className={styles.rackSlot} />
             <span className={styles.rackSlot} />
             <span className={styles.rackSlot} />
             <span className={styles.rackSlot} />
           </div>
-          <div className={styles.wallBoard}>
-            <div className={styles.wallBoardTitle}>
-              <span>TRADEX CAPITAL</span>
+
+          <div className={styles.cmdLeft}>
+            <div className={styles.cmdHeader}>
+              <span>COMMAND OVERVIEW</span>
               <span className={styles.wallBoardLive}>● LIVE</span>
             </div>
-            <div className={styles.wallBoardTicker}>
-              <span className={styles.wallBoardScroll}>{tickerText}{tickerText}</span>
+            <div className={styles.cmdTiles}>
+              <div className={styles.cmdTile}>
+                <div className={styles.cmdTileTitle}>CONSENSUS</div>
+                <div className={styles.cmdBars}>
+                  {(runData?.agents.master.agentConsensus?.slice(0, 6).map(a => a.weightedScore) ?? [4, -2, 6, 3, -1, 5]).map((v, i) => (
+                    <span
+                      key={i}
+                      className={v >= 0 ? styles.cmdBarUp : styles.cmdBarDown}
+                      style={{ height: `${Math.max(3, Math.min(14, 3 + Math.abs(v) * 0.8))}px` }}
+                    />
+                  ))}
+                </div>
+                <div className={styles.cmdTileValue}>
+                  {runData
+                    ? `${runData.agents.master.finalBias === "bullish" ? "LONG" : runData.agents.master.finalBias === "bearish" ? "SHORT" : "NO-TRADE"} · ${runData.agents.master.confidence}%`
+                    : "SYNCING…"}
+                </div>
+              </div>
+
+              <div className={styles.cmdTile}>
+                <div className={styles.cmdTileTitle}>RISK EXPOSURE</div>
+                <div className={styles.cmdGauge}>
+                  {[0, 1, 2, 3, 4].map(i => {
+                    const gradeIdx = runData ? "ABCDF".indexOf(runData.agents.risk.grade) : 2;
+                    return <span key={i} className={`${styles.gaugeSeg} ${i <= gradeIdx ? styles.gaugeSegOn : ""}`} />;
+                  })}
+                </div>
+                <div className={styles.cmdTileValue}>
+                  {runData ? `GRADE ${runData.agents.risk.grade} · MAX ${runData.agents.risk.maxRiskPercent}%` : "—"}
+                </div>
+              </div>
+
+              <div className={styles.cmdTile}>
+                <div className={styles.cmdTileTitle}>BOT STATUS</div>
+                <div className={styles.cmdStatusList}>
+                  <span className={styles.statOk}>{Object.values(agentStates).filter(s => s.status === "TRADE-OK").length} ACTIVE</span>
+                  <span className={styles.statWarn}>{Object.values(agentStates).filter(s => s.status === "NO-TRADE").length} WAITING</span>
+                  <span className={styles.statDanger}>{Object.values(agentStates).filter(s => s.status === "ALERT").length} ALERT</span>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.cmdAlert}>
+              <span className={styles.cmdAlertTitle}>LIVE TRADE ALERT: ENTRY PILOT</span>
+              <p className={styles.cmdAlertBody}>
+                {runData
+                  ? `[${runData.agents.execution.signalState}] ${runData.agents.execution.signalStateReason ?? runData.agents.master.noTradeReason ?? "Standing by — monitoring for setup."}`
+                  : "Standing by — command link syncing…"}
+              </p>
             </div>
           </div>
-          <div className={styles.wallClocks}>
-            {([["MNL", "Asia/Manila"], ["LDN", "Europe/London"], ["NYC", "America/New_York"]] as const).map(([city, tz]) => (
-              <div key={city} className={styles.clockRow}>
-                <span className={styles.clockCity}>{city}</span>
-                <span className={styles.clockTime}>{mounted ? clockFor(tz, clockNow) : "--:--"}</span>
-              </div>
-            ))}
+
+          <div className={styles.cmdRight}>
+            <div className={styles.cmdHeader}><span>GLOBAL OVERLAYS</span></div>
+            <PixelWorldMap
+              activeSession={
+                runData?.snapshot?.indicators?.session
+                  ?? (clockNow.getUTCHours() < 8 ? "Asia" : clockNow.getUTCHours() < 13 ? "London" : clockNow.getUTCHours() < 21 ? "New York" : "Closed")
+              }
+            />
+            <div className={styles.mapClocks}>
+              {([["MNL", "Asia/Manila"], ["LDN", "Europe/London"], ["NYC", "America/New_York"]] as const).map(([city, tz]) => (
+                <div key={city} className={styles.clockRow}>
+                  <span className={styles.clockCity}>{city}</span>
+                  <span className={styles.clockTime}>{mounted ? clockFor(tz, clockNow) : "--:--"}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -559,6 +686,12 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
           ))}
         </div>
 
+        <div className={styles.teamLabel} aria-hidden="true">
+          <span className={styles.teamLine} />
+          EXECUTION TEAM
+          <span className={styles.teamLine} />
+        </div>
+
         <div className={styles.floorRow}>
           {AGENTS_ROW_B.map((agent, i) => (
             <AgentPod
@@ -572,9 +705,22 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
           ))}
         </div>
 
-        {/* Floor furniture — foreground props so the room reads as a real office */}
+        <div className={styles.teamLabel} aria-hidden="true">
+          <span className={styles.teamLine} />
+          RESEARCH TEAM
+          <span className={styles.teamLine} />
+        </div>
+
+        {/* Floor furniture + system log + user desk */}
         <div className={styles.floorProps} aria-hidden="true">
           <div className={styles.propGroup}>
+            <div className={styles.sysLog}>
+              SYSTEM LOG
+              <span className={styles.sysDot} />
+              <span className={styles.sysDot} />
+              <span className={styles.sysDot} />
+              <span className={styles.sysDot} />
+            </div>
             <div className={styles.plant}>
               <span className={styles.plantLeaves} />
               <span className={styles.plantPot} />
@@ -591,6 +737,16 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
             <div className={styles.plant}>
               <span className={styles.plantLeaves} />
               <span className={styles.plantPot} />
+            </div>
+            <div className={styles.userDesk}>
+              <div className={styles.userDeskSprite}>
+                <SeatedOperator look={USER_LOOK} />
+              </div>
+              <div className={styles.userDeskBase} />
+              <div className={styles.userPanel}>
+                <span className={styles.userPanelTitle}>USER PROFILE</span>
+                <span className={styles.userPanelSub}>OPERATOR · <span className={styles.statOk}>ACTIVE</span></span>
+              </div>
             </div>
           </div>
         </div>

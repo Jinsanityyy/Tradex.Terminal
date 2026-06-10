@@ -783,16 +783,307 @@
    clocks. Foreground props (plants, water cooler, coffee machine) anchor the
    bottom so the desks sit inside a room instead of floating in space. */
 
-.backWall {
+/* Ceiling light bars */
+.ceiling {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start;
+  height: 14px;
+  margin: -8px -12px 0;
+  background: linear-gradient(180deg, #060402, #110c06);
+  border-bottom: 1px solid #241a0c;
+}
+.ceilLight {
+  width: 17%;
+  height: 5px;
+  margin-top: 2px;
+  background: linear-gradient(180deg, #3a2c14 0%, #8a6a2a 40%, #ffc73a 100%);
+  border: 1px solid #241a0c;
+  box-shadow: 0 4px 10px rgba(255,199,58,0.28), 0 12px 26px rgba(255,199,58,0.10);
+}
+
+/* Command wall */
+.cmdBoard {
   display: flex;
   gap: 6px;
   align-items: stretch;
-  margin: -8px -12px 4px;
-  padding: 6px 10px;
+  margin: 0 -12px 4px;
+  padding: 8px 10px;
   background:
     linear-gradient(180deg, #110c06 0%, #1c1309 62%, #2c1d0d 96%, #3a2812 100%);
   border-bottom: 2px solid #3a2812;
   box-shadow: inset 0 -6px 14px rgba(0,0,0,0.55);
+}
+
+.cmdLeft {
+  flex: 1.4;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 5px;
+  background: #0a1410;
+  border: 1px solid #1d3a2a;
+  box-shadow: inset 0 0 12px rgba(0,0,0,0.8), 0 0 14px rgba(61,255,160,0.05);
+}
+.cmdRight {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 5px;
+  background: #0a1410;
+  border: 1px solid #1d3a2a;
+  box-shadow: inset 0 0 12px rgba(0,0,0,0.8), 0 0 14px rgba(61,255,160,0.05);
+}
+
+.cmdHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 6.5px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #d8e8d4;
+  border-bottom: 1px solid #1d3a2a;
+  padding-bottom: 3px;
+}
+
+.cmdTiles {
+  display: flex;
+  gap: 4px;
+}
+.cmdTile {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 3px 4px;
+  background: #061008;
+  border: 1px solid #1d3a2a;
+}
+.cmdTileTitle {
+  font-size: 5px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.cmdTileValue {
+  font-size: 6px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Consensus mini bars */
+.cmdBars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+}
+.cmdBarUp, .cmdBarDown { flex: 1; min-height: 2px; }
+.cmdBarUp   { background: rgba(61,255,160,0.85); }
+.cmdBarDown { background: rgba(255,95,61,0.85); }
+
+/* Risk gauge segments */
+.cmdGauge {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  height: 14px;
+}
+.gaugeSeg {
+  flex: 1;
+  height: 5px;
+  background: #14201a;
+  border: 1px solid #1d3a2a;
+}
+.gaugeSeg:nth-child(1).gaugeSegOn { background: var(--good); }
+.gaugeSeg:nth-child(2).gaugeSegOn { background: #9adb4a; }
+.gaugeSeg:nth-child(3).gaugeSegOn { background: var(--amber); }
+.gaugeSeg:nth-child(4).gaugeSegOn { background: #ff8a3d; }
+.gaugeSeg:nth-child(5).gaugeSegOn { background: var(--bad); }
+
+/* Bot status counts */
+.cmdStatusList {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 6px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  height: 14px;
+  justify-content: center;
+}
+
+/* Live trade alert strip */
+.cmdAlert {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px 5px;
+  background: #1a0606;
+  border: 1px solid #6a1e10;
+  box-shadow: inset 0 0 8px rgba(255,95,61,0.08);
+}
+.cmdAlertTitle {
+  font-size: 5.5px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: var(--bad);
+  text-transform: uppercase;
+  animation: ledBeat 2.2s steps(2, end) infinite;
+}
+.cmdAlertBody {
+  margin: 0;
+  font-size: 6.5px;
+  line-height: 1.5;
+  color: #d8c8b8;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* World map */
+.worldMap {
+  width: 100%;
+  height: auto;
+  background: #061008;
+  border: 1px solid #1d3a2a;
+}
+.mapLand { fill: #8a7a2e; }
+.mapCity { fill: var(--amber); }
+.mapCityActive { fill: var(--good); }
+.mapPing {
+  fill: rgba(61,255,160,0.25);
+  stroke: var(--good);
+  stroke-width: 0.2;
+  animation: ledBeat 1.8s steps(2, end) infinite;
+}
+
+.mapClocks {
+  display: flex;
+  gap: 4px;
+  justify-content: space-between;
+}
+.mapClocks .clockRow {
+  flex: 1;
+  flex-direction: column;
+  gap: 0;
+  align-items: center;
+  padding: 2px;
+  background: #061008;
+  border: 1px solid #1d3a2a;
+}
+
+/* Team zone labels */
+.teamLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 2px 0 6px;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--wood-edge);
+}
+.teamLine {
+  flex: 0 1 60px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--wood-edge));
+}
+.teamLine:last-child {
+  background: linear-gradient(90deg, var(--wood-edge), transparent);
+}
+
+/* System log chip */
+.sysLog {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 5px;
+  font-size: 6px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  background: #080604;
+  border: 1px solid var(--border);
+  align-self: flex-end;
+}
+.sysDot {
+  width: 2px;
+  height: 2px;
+  background: var(--good);
+  animation: ledBeat 1.4s steps(2, end) infinite;
+}
+.sysDot:nth-child(2) { animation-delay: 0.3s; }
+.sysDot:nth-child(3) { animation-delay: 0.6s; }
+.sysDot:nth-child(4) { animation-delay: 0.9s; }
+
+/* User profile desk */
+.userDesk {
+  position: relative;
+  width: 64px;
+  height: 70px;
+}
+.userDeskSprite {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 64px;
+  height: 56px;
+  overflow: hidden;
+}
+.userDeskBase {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 56px;
+  height: 7px;
+  background: linear-gradient(180deg, var(--wood-top) 0%, var(--wood-front) 100%);
+  border: 1px solid var(--wood-dark);
+  border-top: 2px solid var(--wood-edge);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.85);
+}
+.userPanel {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 2px 5px;
+  background: #0c0a06;
+  border: 1px solid var(--wood-edge);
+  box-shadow: 0 0 8px rgba(196,136,42,0.25);
+  white-space: nowrap;
+  z-index: 3;
+}
+.userPanelTitle {
+  font-size: 5.5px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: var(--wood-edge);
+}
+.userPanelSub {
+  font-size: 5px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
 }
 
 /* Server rack */
@@ -827,55 +1118,13 @@
 .rackSlot:nth-child(3)::after { background: var(--bad);   animation-delay: 0.9s; }
 .rackSlot:nth-child(4)::after { animation-delay: 1.2s; }
 
-/* Wall LED ticker board */
-.wallBoard {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 3px;
-  padding: 4px 6px;
-  background: #070503;
-  border: 1px solid #3a2812;
-  box-shadow: inset 0 0 10px rgba(0,0,0,0.85), 0 0 12px rgba(255,170,40,0.07);
-}
-.wallBoardTitle {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 6px;
-  font-weight: 800;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  color: #8a6a2a;
-}
 .wallBoardLive {
   color: var(--good);
   letter-spacing: 0.1em;
   animation: ledBeat 2s steps(2, end) infinite;
 }
-.wallBoardTicker { overflow: hidden; white-space: nowrap; }
-.wallBoardScroll {
-  display: inline-block;
-  white-space: nowrap;
-  font-size: 8px;
-  letter-spacing: 0.12em;
-  color: #ffb83d;
-  text-shadow: 0 0 4px rgba(255,184,61,0.5);
-  animation: tickerMove 45s linear infinite;
-}
 
 /* World clocks */
-.wallClocks {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  padding: 3px 5px;
-  background: #0c0a06;
-  border: 1px solid #2a1e0e;
-}
 .clockRow {
   display: flex;
   align-items: center;
@@ -1011,7 +1260,10 @@
   .monitorBezel,
   .rackSlot::after,
   .wallBoardLive,
-  .wallBoardScroll,
+  .cmdAlertTitle,
+  .mapPing,
+  .sysDot,
+  .ceilLight,
   .plantLeaves,
   .coolerBottle,
   .coffeeMachine::after,
@@ -1047,7 +1299,12 @@
 
   /* Floor rows: wrap to 3 per row (3 × 70px + 2 × 10px = 230px < any phone) */
   .floorTier  { padding: 6px 12px 10px; }
-  .backWall   { margin-top: -6px; }
+  .ceiling    { margin-top: -6px; }
+  /* Command wall stacks on phones: overview on top, map below */
+  .cmdBoard   { flex-wrap: wrap; }
+  .serverRack { display: none; }
+  .cmdLeft    { flex: 1 1 100%; }
+  .cmdRight   { flex: 1 1 100%; }
   .floorRow {
     flex-wrap: wrap;
     max-width: 248px;  /* forces 3-per-row: 3×70 + 2×10 = 230 fits; 4×70 = 310 wraps */
