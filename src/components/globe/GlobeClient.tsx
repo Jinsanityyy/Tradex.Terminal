@@ -768,9 +768,8 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
     renderer.domElement.style.display = 'block';
-    // Promote canvas to its own GPU compositor layer so it moves correctly
-    // with the scroll container on mobile instead of visually lagging behind.
-    if (embedded) renderer.domElement.style.transform = 'translateZ(0)';
+    // Allow the page to scroll vertically through the canvas on mobile.
+    if (embedded) renderer.domElement.style.touchAction = 'pan-y';
     el.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -1295,7 +1294,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
           <div
             ref={mountRef}
             style={embedded
-              ? { width: '100%', height: 300, backgroundColor: 'transparent', overflow: 'hidden', pointerEvents: 'auto', display: is3D ? 'block' : 'none', transform: 'translateZ(0)' }
+              ? { width: '100%', height: 300, backgroundColor: 'transparent', overflow: 'hidden', pointerEvents: 'auto', display: is3D ? 'block' : 'none', touchAction: 'pan-y' }
               : { position: 'absolute', inset: 0, display: is3D ? 'block' : 'none' }
             }
           />

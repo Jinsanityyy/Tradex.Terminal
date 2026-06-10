@@ -927,7 +927,7 @@ export function MobileHome() {
             case "globe":
               return (
                 <section key="globe">
-                  <div className="rounded-[2px] overflow-hidden border border-[#1E1E24]" style={{ height: 340, willChange: 'transform' }}>
+                  <div className="rounded-[2px] overflow-hidden border border-[#1E1E24]" style={{ height: 340 }}>
                     <GlobeClient embedded />
                   </div>
                 </section>
