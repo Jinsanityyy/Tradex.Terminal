@@ -777,48 +777,223 @@
   50%      { filter: brightness(1.4); }
 }
 
-/* ─── Roaming staff ──────────────────────────────────────────────────────────
-   Non-agent staff roll around the floor on their office chairs: glide one way
-   (right-facing frame), pause facing the room (front frame), glide back
-   (left-facing frame). X-motion eases per segment so the chair accelerates and
-   coasts; the 1px roamBob is the wheels bumping over the floor grid. */
-.roamAisle {
+/* ─── Room dressing ──────────────────────────────────────────────────────────
+   The floor used to be a bare grid. The back wall carries the office: a server
+   rack with blinking LEDs, a big amber LED ticker board, and three world
+   clocks. Foreground props (plants, water cooler, coffee machine) anchor the
+   bottom so the desks sit inside a room instead of floating in space. */
+
+.backWall {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+  margin: -8px -12px 4px;
+  padding: 6px 10px;
+  background:
+    linear-gradient(180deg, #110c06 0%, #1c1309 62%, #2c1d0d 96%, #3a2812 100%);
+  border-bottom: 2px solid #3a2812;
+  box-shadow: inset 0 -6px 14px rgba(0,0,0,0.55);
+}
+
+/* Server rack */
+.serverRack {
+  width: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 3px 2px;
+  background: #0c0a06;
+  border: 1px solid #2a1e0e;
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.8);
+}
+.rackSlot {
   position: relative;
-  height: 62px;
-  overflow: hidden;
+  height: 6px;
+  background: #16110a;
+  border: 1px solid #241a0c;
+}
+.rackSlot::after {
+  content: "";
+  position: absolute;
+  right: 1px;
+  top: 1px;
+  width: 2px;
+  height: 2px;
+  background: var(--good);
+  animation: ledBeat 1.6s steps(2, end) infinite;
+}
+.rackSlot:nth-child(2)::after { background: var(--amber); animation-delay: 0.4s; }
+.rackSlot:nth-child(3)::after { background: var(--bad);   animation-delay: 0.9s; }
+.rackSlot:nth-child(4)::after { animation-delay: 1.2s; }
+
+/* Wall LED ticker board */
+.wallBoard {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px 6px;
+  background: #070503;
+  border: 1px solid #3a2812;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.85), 0 0 12px rgba(255,170,40,0.07);
+}
+.wallBoardTitle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 6px;
+  font-weight: 800;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #8a6a2a;
+}
+.wallBoardLive {
+  color: var(--good);
+  letter-spacing: 0.1em;
+  animation: ledBeat 2s steps(2, end) infinite;
+}
+.wallBoardTicker { overflow: hidden; white-space: nowrap; }
+.wallBoardScroll {
+  display: inline-block;
+  white-space: nowrap;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  color: #ffb83d;
+  text-shadow: 0 0 4px rgba(255,184,61,0.5);
+  animation: tickerMove 45s linear infinite;
+}
+
+/* World clocks */
+.wallClocks {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 3px 5px;
+  background: #0c0a06;
+  border: 1px solid #2a1e0e;
+}
+.clockRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+}
+.clockCity { font-size: 5.5px; font-weight: 700; letter-spacing: 0.12em; color: var(--muted); }
+.clockTime { font-size: 7px; font-weight: 700; color: var(--slate); font-variant-numeric: tabular-nums; }
+
+/* Foreground furniture */
+.floorProps {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 2px 6px 0;
+  margin-top: 4px;
   pointer-events: none;
 }
+.propGroup {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
 
-.roamer {
+/* Potted plant — box-shadow pixel leaves with a slow sway */
+.plant {
+  position: relative;
+  width: 18px;
+  height: 28px;
+  filter: drop-shadow(1px 2px 0 rgba(0,0,0,0.6));
+}
+.plantPot {
   position: absolute;
-  bottom: -4px;
-  width: 64px;
-  height: 64px;
-  animation: roamX var(--roam-dur, 18s) ease-in-out var(--roam-delay, 0s) infinite;
-  will-change: transform;
+  bottom: 0;
+  left: 4px;
+  width: 10px;
+  height: 8px;
+  background: linear-gradient(180deg, #8b5a22, #5a3812);
+  border: 1px solid #2a1a06;
+}
+.plantLeaves {
+  position: absolute;
+  bottom: 7px;
+  left: 8px;
+  width: 2px;
+  height: 2px;
+  background: #2f8d3a;
+  box-shadow:
+    -4px -2px 0 #237030,  0 -4px 0 #2f8d3a,   4px -2px 0 #1d6028,
+    -6px -6px 0 #2f8d3a, -2px -8px 0 #3da04a, 2px -6px 0 #237030,
+     6px -6px 0 #2f8d3a,  0 -10px 0 #2f8d3a,  4px -10px 0 #1d6028,
+    -4px -12px 0 #237030;
+  animation: operatorBob 3.4s steps(2, end) infinite;
 }
 
-.roamer .seatedLayer {
-  animation:
-    roamFace var(--roam-dur, 18s) step-end var(--roam-delay, 0s) infinite,
-    roamBob 0.5s steps(2, end) infinite;
+/* Water cooler — bottle glints every few seconds */
+.waterCooler {
+  position: relative;
+  width: 12px;
+  height: 26px;
+  filter: drop-shadow(1px 2px 0 rgba(0,0,0,0.6));
+}
+.coolerBody {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 12px;
+  height: 16px;
+  background: linear-gradient(180deg, #d8d8d0, #9a9a90);
+  border: 1px solid #3a3a30;
+}
+.coolerBottle {
+  position: absolute;
+  top: 0;
+  left: 2px;
+  width: 8px;
+  height: 9px;
+  background: #7ec8e8;
+  border: 1px solid #3a7a9a;
+  animation: coolerBubble 4s steps(2, end) infinite;
+}
+@keyframes coolerBubble {
+  0%, 100% { box-shadow: inset -2px -2px 0 rgba(255,255,255,0.35); }
+  50%      { box-shadow: inset -2px -4px 0 rgba(255,255,255,0.5); }
 }
 
-@keyframes roamX {
-  0%        { transform: translateX(0); }
-  42%       { transform: translateX(var(--roam-dist, 120px)); }
-  54%       { transform: translateX(var(--roam-dist, 120px)); }
-  96%, 100% { transform: translateX(0); }
+/* Coffee machine — brew light + rising steam */
+.coffeeMachine {
+  position: relative;
+  width: 16px;
+  height: 18px;
+  background: linear-gradient(180deg, #3a3a3a, #222);
+  border: 1px solid #111;
+  filter: drop-shadow(1px 2px 0 rgba(0,0,0,0.6));
 }
-@keyframes roamFace {
-  0%, 41%   { background-position-y: -192px; } /* rolling right */
-  43%, 53%  { background-position-y: -128px; } /* pause — face the room */
-  55%, 95%  { background-position-y: -64px; }  /* rolling left */
-  97%, 100% { background-position-y: -128px; }
+.coffeeMachine::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  bottom: 3px;
+  width: 4px;
+  height: 3px;
+  background: var(--amber);
+  animation: ledBeat 2.8s steps(2, end) infinite;
 }
-@keyframes roamBob {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(1px); }
+.coffeeSteam {
+  position: absolute;
+  top: -6px;
+  left: 7px;
+  width: 2px;
+  height: 2px;
+  background: rgba(255,255,255,0.5);
+  animation: steamRise 2.2s steps(3, end) infinite;
+}
+@keyframes steamRise {
+  0%   { transform: translateY(0);    opacity: 0.6; }
+  60%  { transform: translateY(-4px); opacity: 0.35; }
+  100% { transform: translateY(-7px); opacity: 0; }
 }
 
 /* Tap feedback */
@@ -834,8 +1009,13 @@
   .statusLed,
   .sigBubble,
   .monitorBezel,
-  .roamer,
-  .roamer .seatedLayer {
+  .rackSlot::after,
+  .wallBoardLive,
+  .wallBoardScroll,
+  .plantLeaves,
+  .coolerBottle,
+  .coffeeMachine::after,
+  .coffeeSteam {
     animation: none !important;
   }
   .sigBubble { opacity: 1; }
@@ -867,6 +1047,7 @@
 
   /* Floor rows: wrap to 3 per row (3 × 70px + 2 × 10px = 230px < any phone) */
   .floorTier  { padding: 6px 12px 10px; }
+  .backWall   { margin-top: -6px; }
   .floorRow {
     flex-wrap: wrap;
     max-width: 248px;  /* forces 3-per-row: 3×70 + 2×10 = 230 fits; 4×70 = 310 wraps */
