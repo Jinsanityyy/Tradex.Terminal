@@ -107,7 +107,8 @@ export function MobileLayout() {
     const dx = e.changedTouches[0].clientX - swipeTouchStartX.current;
     const dy = e.changedTouches[0].clientY - swipeTouchStartY.current;
     if (Math.abs(dx) < Math.abs(dy) * 1.2 || Math.abs(dx) < 60) return;
-    if (!drawerOpen && dx > 0) openDrawer();
+    // Only open drawer when swipe originates within 44px of the left edge
+    if (!drawerOpen && dx > 0 && swipeTouchStartX.current <= 44) openDrawer();
     if (drawerOpen && dx < 0) closeDrawer();
   }
 
