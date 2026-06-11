@@ -237,14 +237,14 @@ export function computeConsensus(
     noTradeReason = `Structure gate: Trend is BULLISH (strong) — require CHoCH + BOS confirmation to downside before going short.`;
   } else if (noFibZone) {
     finalBias     = "no-trade";
-    noTradeReason = `Sweep gate: No confirmed session sweep and Andybiotic SmartBuy/SmartSell not active. Best setups form during Asian (8AM–11AM PHT), London (4PM–7PM PHT), or NY (9:30PM–11:30PM PHT) kill zones.`;
+    noTradeReason = `Sweep gate: No confirmed liquidity sweep and no high-conviction trend break with structure alignment. Best setups form during Asian (8AM–11AM PHT), London (4PM–7PM PHT), or NY (9:30PM–11:30PM PHT) kill zones.`;
   } else if (normalizedScore >= BULL_THRESHOLD) {
     finalBias = "bullish";
   } else if (normalizedScore <= BEAR_THRESHOLD) {
     finalBias = "bearish";
   } else {
     finalBias     = "no-trade";
-    noTradeReason = `Consensus ${normalizedScore.toFixed(1)} within neutral band (±${BULL_THRESHOLD}). Insufficient directional agreement across agents — no Andybiotic SmartBuy/SmartSell confirmed.`;
+    noTradeReason = `Consensus ${normalizedScore.toFixed(1)} within neutral band (±${BULL_THRESHOLD}). Insufficient directional agreement across agents — no high-conviction momentum shift confirmed.`;
   }
 
   // ── Confidence from consensus strength ────────────────────────────────────
