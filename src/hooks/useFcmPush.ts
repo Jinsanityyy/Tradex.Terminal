@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
-import { storeFcmToken, postFcmToken } from "@/lib/push/client";
+import { storeFcmToken, postFcmToken, storeFcmRegError } from "@/lib/push/client";
 
 export function useFcmPush() {
   useEffect(() => {
@@ -22,6 +22,7 @@ export function useFcmPush() {
         }),
         PushNotifications.addListener("registrationError", (err) => {
           console.warn("[FCM] Registration error:", err);
+          storeFcmRegError(err);
         }),
         PushNotifications.addListener("pushNotificationReceived", (notification) => {
           const title =

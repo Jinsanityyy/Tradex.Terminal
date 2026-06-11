@@ -11,9 +11,22 @@
  */
 
 const TOKEN_KEY = "tradex_fcm_token";
+const REG_ERROR_KEY = "tradex_fcm_reg_error";
 
 export function storeFcmToken(token: string): void {
-  try { localStorage.setItem(TOKEN_KEY, token); } catch {}
+  try {
+    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.removeItem(REG_ERROR_KEY);
+  } catch {}
+}
+
+/** Persist the native registration error so the UI can show WHY there's no token. */
+export function storeFcmRegError(err: unknown): void {
+  try { localStorage.setItem(REG_ERROR_KEY, typeof err === "string" ? err : JSON.stringify(err)); } catch {}
+}
+
+export function getStoredFcmRegError(): string | null {
+  try { return localStorage.getItem(REG_ERROR_KEY); } catch { return null; }
 }
 
 export function getStoredFcmToken(): string | null {

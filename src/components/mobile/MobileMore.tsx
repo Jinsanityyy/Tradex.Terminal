@@ -15,7 +15,7 @@ import { TradingKnowledgeContent } from "@/components/shared/TradingKnowledgeSid
 import { CandleAnalysis } from "@/components/shared/CandleAnalysis";
 import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "sonner";
-import { ensureFcmTokenSaved, fetchRegisteredDeviceCount } from "@/lib/push/client";
+import { ensureFcmTokenSaved, fetchRegisteredDeviceCount, getStoredFcmRegError } from "@/lib/push/client";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 
@@ -534,7 +534,20 @@ export function MobileMore() {
       const isNativeApp = typeof window !== "undefined" &&
         typeof (window as any).Capacitor !== "undefined" &&
         (window as any).Capacitor.isNativePlatform?.() === true;
-      if (isNativeApp) await ensureFcmTokenSaved();
+      if (isNativeApp) {
+        const synced = await ensureFcmTokenSaved();
+        if (synced === "no-token") {
+          // The native layer never delivered a token — report the captured
+          // registration error (the actual root cause) instead of the generic
+          // "no registered devices" from the server.
+          const regErr = getStoredFcmRegError();
+          toast.error(regErr
+            ? `Device never registered — native error: ${regErr.slice(0, 140)}`
+            : "Device never registered — no push token from Google Play Services. If this persists after re-enabling Alerts, the app build is missing Firebase support (rebuild required).");
+          setPushTestBusy(false);
+          return;
+        }
+      }
 
       const res = await fetch("/api/push/test", { method: "POST" });
       const j = await res.json().catch(() => ({}));
