@@ -39,10 +39,13 @@ export async function POST(req: NextRequest) {
     const db = getServiceClient();
     if (!db) return NextResponse.json({ error: "DB unavailable" }, { status: 503 });
 
-    await db.from("fcm_tokens").upsert(
+    const { error } = await db.from("fcm_tokens").upsert(
       { user_id: user.id, token, updated_at: new Date().toISOString() },
       { onConflict: "token" }
     );
+    // Surface DB failures — silently returning ok here hid a missing table for
+    // weeks ("registered" tokens that never existed).
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {

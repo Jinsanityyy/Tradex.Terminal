@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     const db = getServiceClient();
     if (!db) return NextResponse.json({ error: "DB unavailable" }, { status: 503 });
 
-    await db.from("push_subscriptions").upsert(
+    const { error } = await db.from("push_subscriptions").upsert(
       {
         user_id: user.id,
         endpoint: subscription.endpoint,
@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
       },
       { onConflict: "endpoint" }
     );
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
