@@ -236,12 +236,7 @@ export function MobileHome() {
   const { sessions } = useSessions();
   const { mtfData, mtfLoading } = useMTFBias(activeSymbol);
   const { posts: trumpPosts } = useTrumpPosts();
-  const {
-    isWin: lastSignalWin,
-    isLoss: lastSignalLoss,
-    entry: lastSignalEntry,
-    stopLoss: lastSignalSL,
-  } = useLastSignal(activeSymbol);
+  const { recent: recentSignals } = useLastSignal(activeSymbol);
   const [generating, setGenerating] = useState(false);
   const [selectedCatalyst, setSelectedCatalyst] = useState<Catalyst | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -326,23 +321,22 @@ export function MobileHome() {
   // Use liveQuotes (same source as ticker) for consistency — avoids stale WS reads
   const livePrice: number | null = liveQuotes.find(q => q.symbol === activeSymbol)?.price ?? null;
 
-  // The resolved outcome from history only applies to the setup we are actually
-  // displaying. Without this check a NEW setup (different entry) inherits the
-  // previous signal's badge — e.g. a fresh armed short at 4114 showing "SL HIT"
-  // from the older 4179 short that already resolved.
-  const outcomeMatchesDisplayed = !!(
-    entry && lastSignalEntry &&
-    Math.abs(entry - lastSignalEntry) / lastSignalEntry < 0.001 &&
-    (!stopLoss || !lastSignalSL || Math.abs(stopLoss - lastSignalSL) / lastSignalSL < 0.002)
-  );
-  const showWin  = lastSignalWin  && outcomeMatchesDisplayed;
-  const showLoss = lastSignalLoss && outcomeMatchesDisplayed;
+  // Match the DISPLAYED setup to its own tracked signal record (any status) so
+  // the card always carries THIS setup's state — tracking, TP/SL hit, expired —
+  // and never inherits the previous signal's outcome.
+  const matchedStatus: string | null = entry
+    ? recentSignals.find(s =>
+        s.entry_price > 0 &&
+        Math.abs(entry - s.entry_price) / s.entry_price < 0.001 &&
+        (!stopLoss || !s.stop_loss || Math.abs(stopLoss - s.stop_loss) / s.stop_loss < 0.002)
+      )?.status ?? null
+    : null;
+  const showWin = matchedStatus === "win_tp1" || matchedStatus === "win_tp2";
 
-  // True when the cached last-setup SL was breached by live price before the trade
-  // was ever entered (no DB record exists, so useLastSignal returns nothing).
+  // True when the displayed setup's SL was breached by live price but the setup
+  // was never tracked (no DB record at all — tracker can't resolve it).
   const slBreachedBeforeEntry = !!(
-    stopLoss && livePrice && direction &&
-    !showWin && !showLoss &&
+    stopLoss && livePrice && direction && !matchedStatus &&
     (direction === "long" ? livePrice <= stopLoss : livePrice >= stopLoss)
   );
 
@@ -361,10 +355,14 @@ export function MobileHome() {
     return h < 48 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`;
   })();
 
-  const hitBadge: { label: string; className: string } | null =
-    showWin               ? { label: "TP1 HIT ✅",     className: "bg-[#00C853]/15 text-[#00C853]" } :
-    showLoss              ? { label: "SL HIT ❌",       className: "bg-red-500/15 text-red-400" } :
-    slBreachedBeforeEntry ? { label: "SL BREACHED ❌", className: "bg-red-500/15 text-red-400" } :
+  const hitBadge: { label: string; variant: "bullish" | "bearish" | "pending" | "default" } | null =
+    matchedStatus === "win_tp2"     ? { label: "TP2 HIT ✅",     variant: "bullish" } :
+    matchedStatus === "win_tp1"     ? { label: "TP1 HIT ✅",     variant: "bullish" } :
+    matchedStatus === "loss_sl"     ? { label: "SL HIT ❌",       variant: "bearish" } :
+    matchedStatus === "open"        ? { label: "TRACKING",       variant: "pending" } :
+    matchedStatus === "expired"     ? { label: "EXPIRED",        variant: "default" } :
+    matchedStatus === "invalidated" ? { label: "INVALIDATED",    variant: "default" } :
+    slBreachedBeforeEntry           ? { label: "SL BREACHED ❌", variant: "bearish" } :
     null;
 
   // Active session
@@ -701,7 +699,7 @@ export function MobileHome() {
                     {hitBadge && effectiveSignalState !== "ARMED" && effectiveSignalState !== "PENDING" && (
                       <TerminalBadge
                         label={hitBadge.label.replace(" ✅","").replace(" ❌","")}
-                        variant={hitBadge.label.includes("HIT ✅") ? "bullish" : "bearish"}
+                        variant={hitBadge.variant}
                       />
                     )}
                   </div>

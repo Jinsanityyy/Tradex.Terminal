@@ -502,6 +502,31 @@ export function MobileMore() {
   const { subscription } = useSubscription();
   const push  = usePushStatus();
   const micro = useMicroData();
+  const [pushTestBusy, setPushTestBusy] = useState(false);
+
+  // One-tap push diagnosis: sends a real test notification to THIS user's
+  // devices via /api/push/test and surfaces the exact failure (missing env,
+  // no registered device, stale token) instead of failing silently.
+  async function runPushTest() {
+    setPushTestBusy(true);
+    try {
+      const res = await fetch("/api/push/test", { method: "POST" });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(j?.error ?? `Test failed (${res.status})`);
+      } else if (j.ok) {
+        toast.success(`Sent — ${j.summary}. Check your notification tray.`);
+      } else {
+        const firstErr =
+          (j.fcm as Array<{ ok: boolean; error?: string }> | undefined)?.find(r => !r.ok)?.error ??
+          (j.web as Array<{ ok: boolean; error?: string }> | undefined)?.find(r => !r.ok)?.error;
+        toast.error(j.note ?? (firstErr ? `Send failed: ${String(firstErr).slice(0, 120)}` : `Nothing delivered — ${j.summary ?? "unknown"}`));
+      }
+    } catch {
+      toast.error("Test failed — network error");
+    }
+    setPushTestBusy(false);
+  }
 
   useEffect(() => {
     setTraderName(localStorage.getItem("tradex_trader_name") || "");
@@ -715,6 +740,24 @@ export function MobileMore() {
                 )} />
               </div>
             </button>
+
+            {/* Push test row — only when alerts are enabled */}
+            {push.status === "subscribed" && (
+              <button
+                onClick={runPushTest}
+                disabled={pushTestBusy}
+                className="w-full flex items-center gap-3 px-4 py-[7px] active:bg-white/[0.04] transition-colors cursor-pointer disabled:opacity-40"
+              >
+                {pushTestBusy
+                  ? <Loader2 className="h-3 w-3 text-zinc-400 opacity-50 animate-spin shrink-0" strokeWidth={1.5} />
+                  : <Bell className="h-3 w-3 text-zinc-500 opacity-50 shrink-0" strokeWidth={1.5} />
+                }
+                <span className="flex-1 text-[11.5px] font-medium text-zinc-200 text-left leading-none tracking-[0.01em]">
+                  Send test alert
+                </span>
+                <span className="text-[9px] text-zinc-600 shrink-0">diagnose delivery</span>
+              </button>
+            )}
 
             {/* Knowledge + Settings */}
             {(["knowledge", "settings"] as const).map(id => {

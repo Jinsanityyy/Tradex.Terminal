@@ -376,5 +376,8 @@ export function useLastSignal(symbol: string) {
     // newer, unrelated setup).
     entry:    last?.entry_price ?? null,
     stopLoss: last?.stop_loss ?? null,
+    // Full recent list (any status) so the UI can match the DISPLAYED setup to
+    // its own tracked record and show open/expired states too.
+    recent: data?.recent ?? [],
   };
 }
