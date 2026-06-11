@@ -4,6 +4,27 @@ import { getServiceClient } from "@/lib/supabase/service";
 
 export const dynamic = "force-dynamic";
 
+// How many devices are registered for the current user — lets the client
+// verify that enabling alerts actually produced a server-side token.
+export async function GET(req: NextRequest) {
+  try {
+    const { user } = await getAuthUser(req);
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const db = getServiceClient();
+    if (!db) return NextResponse.json({ error: "DB unavailable" }, { status: 503 });
+
+    const { count } = await db
+      .from("fcm_tokens")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+
+    return NextResponse.json({ count: count ?? 0 });
+  } catch (err: unknown) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+  }
+}
+
 // Save FCM token for this user/device
 export async function POST(req: NextRequest) {
   try {

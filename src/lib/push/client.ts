@@ -1,0 +1,61 @@
+"use client";
+
+/**
+ * Client-side FCM token persistence helpers.
+ *
+ * The native registration event is one-shot and used to be fire-and-forget: if
+ * the POST to /api/push/fcm-token failed once (cold-start auth race, flaky
+ * network), the token was never saved and push stayed silently dead while the
+ * Alerts toggle looked enabled. These helpers stash the token locally and
+ * retry the save, so any later user action (toggle, test button) can re-sync.
+ */
+
+const TOKEN_KEY = "tradex_fcm_token";
+
+export function storeFcmToken(token: string): void {
+  try { localStorage.setItem(TOKEN_KEY, token); } catch {}
+}
+
+export function getStoredFcmToken(): string | null {
+  try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
+}
+
+/** POST the token to the server with retries (handles cold-start auth races). */
+export async function postFcmToken(token: string, attempts = 3): Promise<boolean> {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch("/api/push/fcm-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      if (res.ok) return true;
+    } catch {}
+    if (i < attempts - 1) await new Promise(r => setTimeout(r, 1500 * (i + 1)));
+  }
+  return false;
+}
+
+/** How many devices the server has registered for the current user. */
+export async function fetchRegisteredDeviceCount(): Promise<number | null> {
+  try {
+    const res = await fetch("/api/push/fcm-token");
+    if (!res.ok) return null;
+    const j = await res.json();
+    return typeof j.count === "number" ? j.count : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Ensure the locally-known token exists server-side. Returns:
+ *  - "saved"     token (re)posted successfully
+ *  - "no-token"  no registration event has ever delivered a token on this device
+ *  - "failed"    we have a token but the server save failed
+ */
+export async function ensureFcmTokenSaved(): Promise<"saved" | "no-token" | "failed"> {
+  const token = getStoredFcmToken();
+  if (!token) return "no-token";
+  return (await postFcmToken(token)) ? "saved" : "failed";
+}

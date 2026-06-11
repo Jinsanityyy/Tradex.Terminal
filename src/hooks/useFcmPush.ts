@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
+import { storeFcmToken, postFcmToken } from "@/lib/push/client";
 
 export function useFcmPush() {
   useEffect(() => {
@@ -14,13 +15,10 @@ export function useFcmPush() {
     import("@capacitor/push-notifications").then(async ({ PushNotifications }) => {
       listenerHandles = await Promise.all([
         PushNotifications.addListener("registration", async (token) => {
-          try {
-            await fetch("/api/push/fcm-token", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ token: token.value }),
-            });
-          } catch {}
+          // Stash locally FIRST so the Alerts toggle / test button can re-sync
+          // the token later even if this save fails (cold-start auth race).
+          storeFcmToken(token.value);
+          await postFcmToken(token.value);
         }),
         PushNotifications.addListener("registrationError", (err) => {
           console.warn("[FCM] Registration error:", err);

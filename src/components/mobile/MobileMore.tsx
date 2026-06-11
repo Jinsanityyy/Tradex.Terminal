@@ -15,6 +15,7 @@ import { TradingKnowledgeContent } from "@/components/shared/TradingKnowledgeSid
 import { CandleAnalysis } from "@/components/shared/CandleAnalysis";
 import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "sonner";
+import { ensureFcmTokenSaved, fetchRegisteredDeviceCount } from "@/lib/push/client";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 
@@ -444,7 +445,24 @@ function usePushStatus() {
             }).catch(() => {});
             await PN.register();
             setStatus("subscribed");
-            toast.success("Push notifications enabled");
+            // register() resolves BEFORE the registration event delivers the
+            // token, and permission ≠ registered — alerts used to look enabled
+            // while the server had zero devices. Wait for the token, push it to
+            // the server, and report the real end-to-end state.
+            await new Promise(r => setTimeout(r, 3000));
+            const synced = await ensureFcmTokenSaved();
+            if (synced === "saved") {
+              toast.success("Push enabled — device registered");
+            } else {
+              const count = await fetchRegisteredDeviceCount();
+              if (count && count > 0) {
+                toast.success("Push enabled — device registered");
+              } else if (synced === "no-token") {
+                toast.error("No push token from Google Play Services yet — restart the app, then tap 'Send test alert'");
+              } else {
+                toast.error("Device token could not be saved — tap 'Send test alert' to retry");
+              }
+            }
           }
         }
         setBusy(false);
@@ -510,6 +528,14 @@ export function MobileMore() {
   async function runPushTest() {
     setPushTestBusy(true);
     try {
+      // Self-heal first: re-sync the locally-stored FCM token to the server
+      // (idempotent upsert). Fixes the "no registered devices" state caused by
+      // a registration POST that failed silently in the past.
+      const isNativeApp = typeof window !== "undefined" &&
+        typeof (window as any).Capacitor !== "undefined" &&
+        (window as any).Capacitor.isNativePlatform?.() === true;
+      if (isNativeApp) await ensureFcmTokenSaved();
+
       const res = await fetch("/api/push/test", { method: "POST" });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
