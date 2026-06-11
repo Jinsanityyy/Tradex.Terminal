@@ -371,5 +371,10 @@ export function useLastSignal(symbol: string) {
     status: last?.status ?? null,
     isWin:  last?.status === "win_tp1" || last?.status === "win_tp2",
     isLoss: last?.status === "loss_sl",
+    // Levels of the resolved signal so callers can verify the outcome belongs
+    // to the setup they are displaying (and not stamp an old SL HIT onto a
+    // newer, unrelated setup).
+    entry:    last?.entry_price ?? null,
+    stopLoss: last?.stop_loss ?? null,
   };
 }

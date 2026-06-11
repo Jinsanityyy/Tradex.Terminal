@@ -236,7 +236,12 @@ export function MobileHome() {
   const { sessions } = useSessions();
   const { mtfData, mtfLoading } = useMTFBias(activeSymbol);
   const { posts: trumpPosts } = useTrumpPosts();
-  const { isWin: lastSignalWin, isLoss: lastSignalLoss } = useLastSignal(activeSymbol);
+  const {
+    isWin: lastSignalWin,
+    isLoss: lastSignalLoss,
+    entry: lastSignalEntry,
+    stopLoss: lastSignalSL,
+  } = useLastSignal(activeSymbol);
   const [generating, setGenerating] = useState(false);
   const [selectedCatalyst, setSelectedCatalyst] = useState<Catalyst | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -321,11 +326,23 @@ export function MobileHome() {
   // Use liveQuotes (same source as ticker) for consistency — avoids stale WS reads
   const livePrice: number | null = liveQuotes.find(q => q.symbol === activeSymbol)?.price ?? null;
 
+  // The resolved outcome from history only applies to the setup we are actually
+  // displaying. Without this check a NEW setup (different entry) inherits the
+  // previous signal's badge — e.g. a fresh armed short at 4114 showing "SL HIT"
+  // from the older 4179 short that already resolved.
+  const outcomeMatchesDisplayed = !!(
+    entry && lastSignalEntry &&
+    Math.abs(entry - lastSignalEntry) / lastSignalEntry < 0.001 &&
+    (!stopLoss || !lastSignalSL || Math.abs(stopLoss - lastSignalSL) / lastSignalSL < 0.002)
+  );
+  const showWin  = lastSignalWin  && outcomeMatchesDisplayed;
+  const showLoss = lastSignalLoss && outcomeMatchesDisplayed;
+
   // True when the cached last-setup SL was breached by live price before the trade
   // was ever entered (no DB record exists, so useLastSignal returns nothing).
   const slBreachedBeforeEntry = !!(
     stopLoss && livePrice && direction &&
-    !lastSignalWin && !lastSignalLoss &&
+    !showWin && !showLoss &&
     (direction === "long" ? livePrice <= stopLoss : livePrice >= stopLoss)
   );
 
@@ -345,8 +362,8 @@ export function MobileHome() {
   })();
 
   const hitBadge: { label: string; className: string } | null =
-    lastSignalWin        ? { label: "TP1 HIT ✅",     className: "bg-[#00C853]/15 text-[#00C853]" } :
-    lastSignalLoss       ? { label: "SL HIT ❌",       className: "bg-red-500/15 text-red-400" } :
+    showWin               ? { label: "TP1 HIT ✅",     className: "bg-[#00C853]/15 text-[#00C853]" } :
+    showLoss              ? { label: "SL HIT ❌",       className: "bg-red-500/15 text-red-400" } :
     slBreachedBeforeEntry ? { label: "SL BREACHED ❌", className: "bg-red-500/15 text-red-400" } :
     null;
 
@@ -701,7 +718,7 @@ export function MobileHome() {
                     <TerminalDataRow
                       label="TP1"
                       value={tp1 ? (tp1 > 100 ? tp1.toFixed(2) : tp1.toFixed(4)) : "—"}
-                      valueColor={lastSignalWin ? "text-[#00C853] animate-pulse" : "text-[#00C853]"}
+                      valueColor={showWin ? "text-[#00C853] animate-pulse" : "text-[#00C853]"}
                     />
                     <TerminalDataRow
                       label="R:R"
