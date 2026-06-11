@@ -13,4 +13,8 @@ ext {
     androidxJunitVersion = '1.3.0'
     androidxEspressoCoreVersion = '3.7.0'
     cordovaAndroidVersion = '14.0.1'
+    // Required by TradeXMessagingService: the push plugin keeps
+    // firebase-messaging as `implementation`, so the app module needs its own
+    // compile-classpath dependency to extend MessagingService/RemoteMessage.
+    firebaseMessagingVersion = '24.1.2'
 }
