@@ -33,8 +33,15 @@ export function getStoredFcmToken(): string | null {
   try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
 }
 
+const SAVE_ERROR_KEY = "tradex_fcm_save_error";
+
+export function getStoredFcmSaveError(): string | null {
+  try { return localStorage.getItem(SAVE_ERROR_KEY); } catch { return null; }
+}
+
 /** POST the token to the server with retries (handles cold-start auth races). */
 export async function postFcmToken(token: string, attempts = 3): Promise<boolean> {
+  let lastErr = "";
   for (let i = 0; i < attempts; i++) {
     try {
       const res = await fetch("/api/push/fcm-token", {
@@ -42,10 +49,19 @@ export async function postFcmToken(token: string, attempts = 3): Promise<boolean
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
       });
-      if (res.ok) return true;
-    } catch {}
+      if (res.ok) {
+        try { localStorage.removeItem(SAVE_ERROR_KEY); } catch {}
+        return true;
+      }
+      const j = await res.json().catch(() => ({}));
+      lastErr = j?.error ? `${res.status}: ${j.error}` : `HTTP ${res.status}`;
+    } catch (e) {
+      lastErr = `network: ${(e as Error)?.message ?? "unknown"}`;
+    }
     if (i < attempts - 1) await new Promise(r => setTimeout(r, 1500 * (i + 1)));
   }
+  // Keep the exact server/DB error so the UI can show WHY the save failed
+  try { localStorage.setItem(SAVE_ERROR_KEY, lastErr); } catch {}
   return false;
 }
 

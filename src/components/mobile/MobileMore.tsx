@@ -15,7 +15,7 @@ import { TradingKnowledgeContent } from "@/components/shared/TradingKnowledgeSid
 import { CandleAnalysis } from "@/components/shared/CandleAnalysis";
 import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "sonner";
-import { ensureFcmTokenSaved, fetchRegisteredDeviceCount, getStoredFcmRegError } from "@/lib/push/client";
+import { ensureFcmTokenSaved, fetchRegisteredDeviceCount, getStoredFcmRegError, getStoredFcmSaveError } from "@/lib/push/client";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 
@@ -536,6 +536,16 @@ export function MobileMore() {
         (window as any).Capacitor.isNativePlatform?.() === true;
       if (isNativeApp) {
         const synced = await ensureFcmTokenSaved();
+        if (synced === "failed") {
+          // The device HAS a token but the server refused to save it — show the
+          // exact server/DB error (e.g. missing table or unique constraint).
+          const saveErr = getStoredFcmSaveError();
+          toast.error(saveErr
+            ? `Token save failed — ${saveErr.slice(0, 160)}`
+            : "Token save failed — server rejected the registration");
+          setPushTestBusy(false);
+          return;
+        }
         if (synced === "no-token") {
           // The native layer never delivered a token — report the captured
           // registration error (the actual root cause) instead of the generic
