@@ -8,7 +8,7 @@
  */
 
 import { getServiceClient } from "@/lib/supabase/service";
-import { sendFcmToMany } from "@/lib/push/fcm";
+import { sendFcmToMany, findFirebaseCredEnv } from "@/lib/push/fcm";
 import { sendPushToMany } from "@/lib/push/sender";
 import type { PushPayload } from "@/lib/push/sender";
 import type { SignalRecord, SignalStatus } from "@/lib/signals/types";
@@ -58,13 +58,17 @@ export async function broadcast(payload: PushPayload): Promise<void> {
       console.warn("[push] broadcast skipped — no recipients (fcm=0, web=0). Check token registration / SUPABASE_SERVICE_ROLE_KEY.");
       return;
     }
-    if (fcmTokens.length > 0 && !process.env.FIREBASE_NT_JSON) {
-      console.warn(`[push] ${fcmTokens.length} FCM token(s) but FIREBASE_NT_JSON is not set — mobile push will NOT send.`);
+    // Same flexible env detection as the sender — gating on the exact name
+    // FIREBASE_NT_JSON would silently skip real alerts when the credential
+    // lives under a different FIREBASE*JSON variable.
+    const hasFirebaseCred = Boolean(findFirebaseCredEnv());
+    if (fcmTokens.length > 0 && !hasFirebaseCred) {
+      console.warn(`[push] ${fcmTokens.length} FCM token(s) but no FIREBASE*JSON env var is set — mobile push will NOT send.`);
     }
 
     const sends: Promise<unknown>[] = [];
 
-    if (fcmTokens.length > 0 && process.env.FIREBASE_NT_JSON) {
+    if (fcmTokens.length > 0 && hasFirebaseCred) {
       sends.push(
         sendFcmToMany(fcmTokens, payload)
           .then(r => {
