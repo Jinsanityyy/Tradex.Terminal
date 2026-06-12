@@ -20,6 +20,7 @@ const LIVE_CHANNELS = [
   { id: "cnbc",      name: "CNBC",       channelId: "UCrp_UI8XtuYfpiqluWLD7Lw", handle: "@CNBC" },
   { id: "reuters",   name: "Reuters",    channelId: "UChqUTb7kYRX8-EiaN3XFrSQ", handle: "@Reuters" },
   { id: "aljazeera", name: "Al Jazeera", channelId: "UCNye-wNBqNL5ZzHSJdse18g", handle: "@AlJazeeraEnglish" },
+  { id: "skynews",   name: "Sky News",   channelId: "UCoMdktPbSTixAyNGwb-UYkQ", handle: "@SkyNews" },
 ];
 
 const EMBED_PARAMS = "autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3";

@@ -13,6 +13,7 @@ interface StreamInfo {
 const PERMANENT_LIVE: Record<string, string> = {
   "UCIALMKvObZNtJ6AmdCLP7Lg": "iEpJwprxDdk", // Bloomberg Business News Live
   "UCNye-wNBqNL5ZzHSJdse18g": "gCNeDWCI0vo", // Al Jazeera English 24/7
+  "UCoMdktPbSTixAyNGwb-UYkQ": "9Auq9mYxFEE", // Sky News 24/7 (long-stable stream ID)
 };
 
 // In-process cache: channelId → { data, ts }

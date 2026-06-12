@@ -47,6 +47,14 @@ const CHANNELS: Channel[] = [
     color: "text-amber-400 border-amber-500/40 bg-amber-500/10",
   },
   {
+    id: "sky-news",
+    name: "Sky News",
+    label: "World News · 24/7 Live",
+    channelId: "UCoMdktPbSTixAyNGwb-UYkQ",
+    handle: "@SkyNews",
+    color: "text-sky-400 border-sky-500/40 bg-sky-500/10",
+  },
+  {
     id: "yahoo-finance",
     name: "Yahoo Finance",
     label: "Stocks · Earnings · Economy",
