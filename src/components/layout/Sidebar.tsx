@@ -149,9 +149,9 @@ function getNavTag(id: string, micro: MicroData): { tag?: string; variant?: TagV
   switch (id) {
     case "market-bias":
       if (!micro.direction) return {};
-      return micro.direction === "bullish" ? { tag: "BULL",    variant: "green" }
-           : micro.direction === "bearish" ? { tag: "BEAR",    variant: "red"   }
-           :                                 { tag: "NEUTRAL", variant: "muted" };
+      return micro.direction === "bullish" ? { tag: "BULL",     variant: "green" }
+           : micro.direction === "bearish" ? { tag: "BEAR",     variant: "red"   }
+           :                                 { tag: "NO-TRADE", variant: "amber" };
     case "session-intelligence":
       return micro.session ? { tag: micro.session, variant: "green" } : { tag: "CLOSED", variant: "muted" };
     case "signals":

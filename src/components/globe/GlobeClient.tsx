@@ -757,7 +757,7 @@ const MONO_STYLE: React.CSSProperties = {
 };
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function GlobeClient({ embedded = false }: { embedded?: boolean }) {
+export default function GlobeClient({ embedded = false, fillContainer = false }: { embedded?: boolean; fillContainer?: boolean }) {
   const mountRef     = useRef<HTMLDivElement>(null);
   const rootRef      = useRef<HTMLDivElement>(null);
   const rendererRef  = useRef<THREE.WebGLRenderer | null>(null);
@@ -1297,9 +1297,13 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
     <div
       ref={rootRef}
       style={{
-        width: embedded ? '100%' : '100vw',
-        height: embedded ? '100%' : '100vh',
-        minHeight: embedded ? 300 : undefined,
+        ...(embedded && fillContainer
+          ? { position: 'absolute' as const, inset: 0 }
+          : {
+              width: embedded ? '100%' : '100vw',
+              height: embedded ? '100%' : '100vh',
+              minHeight: embedded ? 300 : undefined,
+            }),
         background: BLACK,
         display: 'flex',
         flexDirection: 'column',

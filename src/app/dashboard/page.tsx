@@ -1561,8 +1561,8 @@ export default function DashboardPage() {
         </Link>
       ),
       content: (
-        <div className="h-full min-h-0 overflow-hidden bg-black">
-          <EmbeddedGlobeClient embedded />
+        <div className="relative h-full min-h-0 overflow-hidden bg-black">
+          <EmbeddedGlobeClient embedded fillContainer />
         </div>
       ),
     },
