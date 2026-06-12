@@ -239,6 +239,7 @@ const MAP_CITIES = [
 
 function PixelWorldMap({ activeSession }: { activeSession: string }) {
   return (
+    <div className={styles.holoFrame}>
     <svg
       viewBox="0 0 40 14"
       className={styles.worldMap}
@@ -264,6 +265,7 @@ function PixelWorldMap({ activeSession }: { activeSession: string }) {
         );
       })}
     </svg>
+    </div>
   );
 }
 
@@ -775,6 +777,11 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
             </div>
           </div>
           <div className={styles.propGroup}>
+            <div className={styles.holoProjector}>
+              <span className={styles.holoCone} />
+              <span className={styles.holoOrb} />
+              <span className={styles.holoBase} />
+            </div>
             <div className={styles.printer}>
               <span className={styles.printerPaper} />
             </div>

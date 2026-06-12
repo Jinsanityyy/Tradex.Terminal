@@ -585,10 +585,10 @@ export function MobileHome() {
                         {direction.toUpperCase()} · {trigger && trigger.toLowerCase() !== "none" ? trigger : "—"}
                       </p>
                     )}
-                    {signalState === "NO_TRADE" && master?.noTradeReason && (
-                      <p className="text-[9px] text-[#6B6B7A] mt-1 leading-tight line-clamp-2"
+                    {signalState === "NO_TRADE" && (master?.noTradeReason ?? exec?.signalStateReason) && (
+                      <p className="text-[9px] text-[#6B6B7A] mt-1 leading-tight line-clamp-3"
                         style={{ fontFamily: "var(--font-dm-sans),system-ui,sans-serif" }}>
-                        {master.noTradeReason}
+                        {master?.noTradeReason ?? exec?.signalStateReason}
                       </p>
                     )}
                     {signalState !== "NO_TRADE" &&
@@ -689,10 +689,13 @@ export function MobileHome() {
                           "default"
                         }
                       />
-                      {finalBias && finalBias !== "no-trade" && (
+                      {/* Direction of the DISPLAYED setup — not the current master
+                          bias, which can flip while an old setup is on the card
+                          (a 6h-old short was wearing a BULLISH badge). */}
+                      {direction && direction !== "none" && (
                         <TerminalBadge
-                          label={finalBias.toUpperCase()}
-                          variant={finalBias === "bullish" ? "bullish" : finalBias === "bearish" ? "bearish" : "neutral"}
+                          label={direction === "long" ? "BULLISH" : "BEARISH"}
+                          variant={direction === "long" ? "bullish" : "bearish"}
                         />
                       )}
                     </div>
