@@ -163,3 +163,62 @@ export async function notifyOutcome(
     tag:      `sltp-${signal.id}`,
   });
 }
+
+// ── High-impact news ─────────────────────────────────────────────────────────
+// Fired from the orchestrator after the news agent classifies fresh headlines.
+// Only HIGH-impact catalysts go out, max 2 per run, deduped for 6 hours so the
+// same story doesn't re-alert on every agent refresh.
+
+const NEWS_SEEN = new Map<string, number>();
+const NEWS_TTL  = 6 * 60 * 60 * 1000;
+
+function newsAlreadyNotified(fp: string): boolean {
+  const ts = NEWS_SEEN.get(fp);
+  if (!ts) return false;
+  if (Date.now() - ts > NEWS_TTL) { NEWS_SEEN.delete(fp); return false; }
+  return true;
+}
+
+export async function notifyHighImpactNews(
+  catalysts: Array<{ headline: string; impact: string }>
+): Promise<void> {
+  const high = catalysts.filter(c => c.impact === "high");
+  let sent = 0;
+  for (const c of high) {
+    if (sent >= 2) break; // never burst more than 2 headlines per run
+    const fp = c.headline.trim().toLowerCase().slice(0, 80);
+    if (newsAlreadyNotified(fp)) continue;
+    NEWS_SEEN.set(fp, Date.now());
+    sent++;
+    await broadcast({
+      title:    "📰 High-Impact News",
+      body:     c.headline.slice(0, 150),
+      url:      "/dashboard",
+      severity: "high",
+      type:     "news",
+      tag:      `news-${fp.slice(0, 40).replace(/[^a-z0-9]/g, "")}`,
+    });
+  }
+}
+
+// ── Trump posts ──────────────────────────────────────────────────────────────
+// Fired from the cnn-sync cron for NEWLY inserted posts only (the route diffs
+// against the DB, so each post can alert at most once). Gated on market
+// relevance — impactScore ≥ 7 — so casual posts don't spam every device.
+
+export async function notifyTrumpPost(post: {
+  content: string;
+  category: string;
+  impactScore: number;
+  postId: string;
+}): Promise<void> {
+  if (post.impactScore < 7) return;
+  await broadcast({
+    title:    `🦅 Trump — ${post.category} (impact ${post.impactScore}/10)`,
+    body:     post.content.slice(0, 150),
+    url:      "/dashboard",
+    severity: "high",
+    type:     "trump",
+    tag:      `trump-${post.postId}`,
+  });
+}

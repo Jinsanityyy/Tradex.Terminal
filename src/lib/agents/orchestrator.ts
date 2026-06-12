@@ -23,6 +23,7 @@ import { runExecutionAgent } from "./execution-agent";
 import { runContrarianAgent } from "./contrarian-agent";
 import { runMasterAgent }    from "./master-agent";
 import { logSignal }         from "@/lib/signals/logger";
+import { notifyHighImpactNews } from "@/lib/push/notify";
 import { llmAvailable }      from "./llm-provider";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -336,6 +337,12 @@ export async function runAgentOrchestrator(
     runNewsAgent(snapshot, apiKey),
     runPriceActionAgent(snapshot, apiKey),
   ]);
+
+  // High-impact headlines push to all devices (deduped 6h inside notify) —
+  // fire-and-forget so it never delays the agent pipeline.
+  if (newsAgent.catalysts.length > 0) {
+    void notifyHighImpactNews(newsAgent.catalysts).catch(() => {});
+  }
 
   // ── Phase 2a: Execution + Contrarian  -  depend on trend + smc ────────────
   const [execution, contrarian] = await Promise.all([

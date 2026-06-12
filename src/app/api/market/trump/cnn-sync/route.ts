@@ -15,7 +15,8 @@
  */
 
 import { getServiceClient } from "@/lib/supabase/service";
-import { stripHtml } from "@/lib/trump/classify";
+import { stripHtml, classifyPost, deriveImpactScore } from "@/lib/trump/classify";
+import { notifyTrumpPost } from "@/lib/push/notify";
 
 const CNN_ARCHIVE_URL = "https://ix.cnn.io/data/truth-social/truth_archive.json";
 const FETCH_LIMIT     = 20; // only inspect newest N posts per run
@@ -108,5 +109,18 @@ export async function GET() {
   }
 
   console.log(`[cnn-sync] inserted ${newPosts.length} new post(s):`, newPosts.map(p => p.id));
-  return jsonRes({ inserted: newPosts.length, ids: newPosts.map(p => p.id) });
+
+  // Push alert for market-relevant new posts (max 3 per sync). The DB diff above
+  // guarantees each post alerts at most once.
+  let alerted = 0;
+  for (const p of newPosts) {
+    if (alerted >= 3) break;
+    const impactScore = deriveImpactScore(p.content);
+    if (impactScore < 7) continue;
+    const { category } = classifyPost(p.content);
+    alerted++;
+    void notifyTrumpPost({ content: p.content, category, impactScore, postId: p.id }).catch(() => {});
+  }
+
+  return jsonRes({ inserted: newPosts.length, ids: newPosts.map(p => p.id), pushed: alerted });
 }
