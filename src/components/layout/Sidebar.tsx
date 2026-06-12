@@ -88,22 +88,41 @@ function useMicroData(): MicroData {
     return () => clearInterval(id);
   }, []);
 
-  // Market direction from the actual bias API (XAU/USD = first asset = Gold)
+  // Market direction from the 7-agent MASTER bias — the same engine that powers
+  // the dashboard/agents, so the sidebar can never contradict the agent verdict
+  // (the old /api/market/bias source could read BULL while the agents said BEAR).
   useEffect(() => {
-    fetch("/api/market/bias")
+    fetch("/api/agents/run?symbol=XAUUSD&timeframe=H1")
       .then(r => r.ok ? r.json() : null)
       .then(json => {
-        if (!json) return;
-        const biasData = Array.isArray(json) ? json : (json.data ?? []);
-        const gold = biasData.find((b: { asset: string; bias: string }) =>
-          b.asset?.includes("XAU") || b.asset?.includes("Gold")
-        ) ?? biasData[0];
-        if (!gold) return;
-        const dir: BiasDir =
-          gold.bias === "bullish" ? "bullish" :
-          gold.bias === "bearish" ? "bearish" : "neutral";
-        setData(d => ({ ...d, direction: dir }));
-      }).catch(() => {});
+        const fb = json?.agents?.master?.finalBias as string | undefined;
+        if (fb === "bullish" || fb === "bearish") {
+          setData(d => ({ ...d, direction: fb }));
+          return;
+        }
+        if (fb === "no-trade") {
+          setData(d => ({ ...d, direction: "neutral" }));
+          return;
+        }
+        throw new Error("no agent bias");
+      })
+      .catch(() => {
+        // Fallback: technical bias API (only when the agent engine is unreachable)
+        fetch("/api/market/bias")
+          .then(r => r.ok ? r.json() : null)
+          .then(json => {
+            if (!json) return;
+            const biasData = Array.isArray(json) ? json : (json.data ?? []);
+            const gold = biasData.find((b: { asset: string; bias: string }) =>
+              b.asset?.includes("XAU") || b.asset?.includes("Gold")
+            ) ?? biasData[0];
+            if (!gold) return;
+            const dir: BiasDir =
+              gold.bias === "bullish" ? "bullish" :
+              gold.bias === "bearish" ? "bearish" : "neutral";
+            setData(d => ({ ...d, direction: dir }));
+          }).catch(() => {});
+      });
   }, []);
 
   // Open signal count from signals API

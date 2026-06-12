@@ -47,25 +47,20 @@ export async function GET(req: NextRequest) {
 
       const html = await res.text();
 
-      // Extract video ID from ytInitialData or canonical URL embedded in the page
-      let videoId: string | null = null;
+      // Only trust the CANONICAL watch URL. When a channel is actually live,
+      // /live redirects to that stream's watch page and the canonical link
+      // points at it. Grabbing the first "videoId" anywhere in the HTML (the
+      // old behavior) returned the latest UPLOAD when the channel was offline
+      // — which is how a 1-hour episode ended up playing under a LIVE badge.
+      const mCanon = html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})"/);
+      const videoId: string | null = mCanon?.[1] ?? null;
 
-      // Pattern 1: "videoId":"xxxxxxxxxxx" (11-char YouTube ID)
-      const m1 = html.match(/"videoId"\s*:\s*"([a-zA-Z0-9_-]{11})"/);
-      if (m1) videoId = m1[1];
-
-      // Pattern 2: canonical link or og:url  ?v=VIDEOID or /embed/VIDEOID
-      if (!videoId) {
-        const m2 = html.match(/[?&/](?:v=|embed\/)([a-zA-Z0-9_-]{11})/);
-        if (m2) videoId = m2[1];
-      }
-
-      // Determine live status: look for clear signals in the page
-      const isLive =
+      // The page is the live video's own watch page, so these flags refer to
+      // THIS video — require an explicit live-now signal.
+      const isLive = videoId !== null && (
         html.includes('"isLiveNow":true') ||
-        html.includes('"style":"LIVE"') ||
-        html.includes('"badge":{"metadataBadgeRenderer":{"style":"BADGE_STYLE_TYPE_LIVE_NOW"') ||
-        (html.includes('"liveBroadcastDetails"') && html.includes('"startTimestamp"') && !html.includes('"endTimestamp"'));
+        (html.includes('"liveBroadcastDetails"') && html.includes('"startTimestamp"') && !html.includes('"endTimestamp"'))
+      );
 
       if (videoId && isLive) {
         const data: StreamInfo = { videoId, isLive: true };
