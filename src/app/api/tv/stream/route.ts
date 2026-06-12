@@ -5,6 +5,16 @@ interface StreamInfo {
   isLive: boolean;
 }
 
+// Permanent 24/7 streams — these channels broadcast continuously on a stable
+// video ID (Bloomberg's was verified live while the scrape strategies were
+// being bot-blocked). Used as the last resort so a YouTube block on Vercel's
+// egress IPs never blanks the player for channels that are practically
+// always live.
+const PERMANENT_LIVE: Record<string, string> = {
+  "UCIALMKvObZNtJ6AmdCLP7Lg": "iEpJwprxDdk", // Bloomberg Business News Live
+  "UCNye-wNBqNL5ZzHSJdse18g": "gCNeDWCI0vo", // Al Jazeera English 24/7
+};
+
 // In-process cache: channelId → { data, ts }
 const CACHE = new Map<string, { data: StreamInfo; ts: number }>();
 const TTL = 90_000; // 90 seconds
@@ -117,8 +127,13 @@ export async function GET(req: NextRequest) {
         });
       }
 
-      // Channel page loaded but no active live stream
-      const data: StreamInfo = { videoId: null, isLive: false };
+      // Channel page loaded but no active live stream detected. For 24/7
+      // channels this is usually a consent-page misread, not a real outage —
+      // fall back to the known permanent stream when we have one.
+      const permanent = PERMANENT_LIVE[channelId];
+      const data: StreamInfo = permanent
+        ? { videoId: permanent, isLive: true }
+        : { videoId: null, isLive: false };
       CACHE.set(channelId, { data, ts: Date.now() });
       return NextResponse.json(data, {
         headers: { "Cache-Control": "public, s-maxage=60" },
@@ -128,6 +143,11 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // All fetches failed — return no-data (don't cache failures)
+  // All fetches failed — use the permanent stream when known (don't cache,
+  // so the real resolvers get retried next time)
+  const permanent = PERMANENT_LIVE[channelId];
+  if (permanent) {
+    return NextResponse.json({ videoId: permanent, isLive: true });
+  }
   return NextResponse.json({ videoId: null, isLive: false });
 }
