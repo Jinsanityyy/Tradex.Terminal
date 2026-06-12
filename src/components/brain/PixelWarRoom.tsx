@@ -673,42 +673,38 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
           <span className={styles.floorSlash}>///</span>
         </div>
 
-        <div className={styles.floorRow}>
-          {AGENTS_ROW_A.map((agent, i) => (
-            <AgentPod
-              key={agent.id}
-              agent={agent}
-              live={mounted ? agentStates[agent.id] : undefined}
-              selected={selectedId === agent.id}
-              variant={i % 4}
-              onClick={() => handleClick(agent)}
-            />
-          ))}
+        {/* Execution zone — taped-off floor area */}
+        <div className={styles.zone}>
+          <span className={styles.zoneTag}>EXECUTION TEAM</span>
+          <div className={styles.floorRow}>
+            {AGENTS_ROW_A.map((agent, i) => (
+              <AgentPod
+                key={agent.id}
+                agent={agent}
+                live={mounted ? agentStates[agent.id] : undefined}
+                selected={selectedId === agent.id}
+                variant={i % 4}
+                onClick={() => handleClick(agent)}
+              />
+            ))}
+          </div>
         </div>
 
-        <div className={styles.teamLabel} aria-hidden="true">
-          <span className={styles.teamLine} />
-          EXECUTION TEAM
-          <span className={styles.teamLine} />
-        </div>
-
-        <div className={styles.floorRow}>
-          {AGENTS_ROW_B.map((agent, i) => (
-            <AgentPod
-              key={agent.id}
-              agent={agent}
-              live={mounted ? agentStates[agent.id] : undefined}
-              selected={selectedId === agent.id}
-              variant={(i + 2) % 4}
-              onClick={() => handleClick(agent)}
-            />
-          ))}
-        </div>
-
-        <div className={styles.teamLabel} aria-hidden="true">
-          <span className={styles.teamLine} />
-          RESEARCH TEAM
-          <span className={styles.teamLine} />
+        {/* Research zone */}
+        <div className={styles.zone}>
+          <span className={styles.zoneTag}>RESEARCH TEAM</span>
+          <div className={styles.floorRow}>
+            {AGENTS_ROW_B.map((agent, i) => (
+              <AgentPod
+                key={agent.id}
+                agent={agent}
+                live={mounted ? agentStates[agent.id] : undefined}
+                selected={selectedId === agent.id}
+                variant={(i + 2) % 4}
+                onClick={() => handleClick(agent)}
+              />
+            ))}
+          </div>
         </div>
 
         {/* Floor furniture + system log + user desk */}
@@ -721,6 +717,11 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
               <span className={styles.sysDot} />
               <span className={styles.sysDot} />
             </div>
+            <div className={styles.fileCabinet}>
+              <span className={styles.cabinetDrawer} />
+              <span className={styles.cabinetDrawer} />
+              <span className={styles.cabinetDrawer} />
+            </div>
             <div className={styles.plant}>
               <span className={styles.plantLeaves} />
               <span className={styles.plantPot} />
@@ -731,6 +732,10 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
             </div>
           </div>
           <div className={styles.propGroup}>
+            <div className={styles.printer}>
+              <span className={styles.printerPaper} />
+            </div>
+            <div className={styles.trashBin} />
             <div className={styles.coffeeMachine}>
               <span className={styles.coffeeSteam} />
             </div>
