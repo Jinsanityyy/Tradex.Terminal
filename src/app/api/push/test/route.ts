@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/supabase/auth-helper";
 import { getServiceClient } from "@/lib/supabase/service";
-import { sendFcmToToken } from "@/lib/push/fcm";
+import { sendFcmToToken, findFirebaseCredEnv } from "@/lib/push/fcm";
 import { sendPushToSubscription } from "@/lib/push/sender";
 
 export const dynamic = "force-dynamic";
@@ -24,8 +24,10 @@ export const dynamic = "force-dynamic";
  */
 
 function envReport() {
+  const firebaseCred = findFirebaseCredEnv();
   return {
-    firebaseAdmin:   Boolean(process.env.FIREBASE_NT_JSON),
+    firebaseAdmin:   Boolean(firebaseCred),
+    firebaseEnvName: firebaseCred?.name ?? null,
     supabaseService: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY),
     vapid:           Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY),
     appUrl:          process.env.NEXT_PUBLIC_APP_URL ?? null,

@@ -2,11 +2,33 @@ import admin from "firebase-admin";
 
 let initialized = false;
 
+/**
+ * The Firebase service-account JSON env var. Accepts FIREBASE_NT_JSON or any
+ * FIREBASE*JSON-named variable — the Vercel UI truncates long names, so the
+ * var people set (e.g. FIREBASE_SERVICE_ACCOUNT_JSON) can silently differ
+ * from the exact name the code expects.
+ */
+export function findFirebaseCredEnv(): { name: string; value: string } | null {
+  if (process.env.FIREBASE_NT_JSON) {
+    return { name: "FIREBASE_NT_JSON", value: process.env.FIREBASE_NT_JSON };
+  }
+  const key = Object.keys(process.env).find(
+    k => k.toUpperCase().startsWith("FIREBASE") && k.toUpperCase().includes("JSON") && process.env[k]
+  );
+  return key ? { name: key, value: process.env[key]! } : null;
+}
+
 function getApp() {
   if (initialized) return admin.app();
-  const serviceAccount = process.env.FIREBASE_NT_JSON;
-  if (!serviceAccount) throw new Error("FIREBASE_NT_JSON not set");
-  const credential = admin.credential.cert(JSON.parse(serviceAccount));
+  const cred = findFirebaseCredEnv();
+  if (!cred) throw new Error("FIREBASE_NT_JSON not set");
+  let parsed: object;
+  try {
+    parsed = JSON.parse(cred.value);
+  } catch {
+    throw new Error(`${cred.name} is not valid JSON — paste the full service-account file contents`);
+  }
+  const credential = admin.credential.cert(parsed as admin.ServiceAccount);
   admin.initializeApp({ credential });
   initialized = true;
   return admin.app();
