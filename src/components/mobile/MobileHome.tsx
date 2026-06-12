@@ -311,11 +311,27 @@ export function MobileHome() {
   // Most recent trade (open OR closed) — for Last Setup fallback when analysis has no setup
   const recentTrade = tradeLog.find(t => t.symbol === activeSymbol);
 
-  const entry     = liveEntry    ?? cachedSetup?.entry    ?? recentTrade?.entry    ?? null;
-  const stopLoss  = liveStopLoss ?? cachedSetup?.stopLoss ?? recentTrade?.stopLoss ?? null;
-  const tp1       = liveTp1      ?? cachedSetup?.tp1      ?? recentTrade?.tp1      ?? null;
-  const rrRatio   = liveRrRatio  ?? cachedSetup?.rrRatio  ?? recentTrade?.rrRatio  ?? null;
-  const direction = liveDirection ?? cachedSetup?.direction ?? (recentTrade ? (recentTrade.direction === "BUY" ? "long" : "short") : null);
+  // Newest signal from the server-side history — this is what the push
+  // notifications announce, so the Last Setup card must prefer it over this
+  // device's localStorage cache (which only updates when the user's OWN
+  // refresh produced a setup and goes stale the moment a signal is logged
+  // from any other run).
+  const dbSetup = recentSignals[0]?.tradePlan
+    ? {
+        entry:     recentSignals[0].tradePlan.entry,
+        stopLoss:  recentSignals[0].tradePlan.stopLoss,
+        tp1:       recentSignals[0].tradePlan.tp1,
+        rrRatio:   recentSignals[0].tradePlan.rrRatio,
+        direction: recentSignals[0].tradePlan.direction,
+        savedAt:   new Date(recentSignals[0].timestamp).getTime(),
+      }
+    : null;
+
+  const entry     = liveEntry    ?? dbSetup?.entry    ?? cachedSetup?.entry    ?? recentTrade?.entry    ?? null;
+  const stopLoss  = liveStopLoss ?? dbSetup?.stopLoss ?? cachedSetup?.stopLoss ?? recentTrade?.stopLoss ?? null;
+  const tp1       = liveTp1      ?? dbSetup?.tp1      ?? cachedSetup?.tp1      ?? recentTrade?.tp1      ?? null;
+  const rrRatio   = liveRrRatio  ?? dbSetup?.rrRatio  ?? cachedSetup?.rrRatio  ?? recentTrade?.rrRatio  ?? null;
+  const direction = liveDirection ?? dbSetup?.direction ?? cachedSetup?.direction ?? (recentTrade ? (recentTrade.direction === "BUY" ? "long" : "short") : null);
   const trigger   = liveTrigger  ?? cachedSetup?.trigger  ?? null;
 
   // Use liveQuotes (same source as ticker) for consistency — avoids stale WS reads
@@ -326,9 +342,9 @@ export function MobileHome() {
   // and never inherits the previous signal's outcome.
   const matchedStatus: string | null = entry
     ? recentSignals.find(s =>
-        s.entry_price > 0 &&
-        Math.abs(entry - s.entry_price) / s.entry_price < 0.001 &&
-        (!stopLoss || !s.stop_loss || Math.abs(stopLoss - s.stop_loss) / s.stop_loss < 0.002)
+        s.tradePlan && s.tradePlan.entry > 0 &&
+        Math.abs(entry - s.tradePlan.entry) / s.tradePlan.entry < 0.001 &&
+        (!stopLoss || !s.tradePlan.stopLoss || Math.abs(stopLoss - s.tradePlan.stopLoss) / s.tradePlan.stopLoss < 0.002)
       )?.status ?? null
     : null;
   const showWin = matchedStatus === "win_tp1" || matchedStatus === "win_tp2";
@@ -344,7 +360,9 @@ export function MobileHome() {
   // timestamp reads as current and gets confused with the fresh WAIT/NO_TRADE reason.
   const lastSetupAge: string | null = (() => {
     if (liveEntry) return null; // live setup — not stale
-    const ts: number | null = typeof cachedSetup?.savedAt === "number"
+    const ts: number | null = dbSetup
+      ? dbSetup.savedAt
+      : typeof cachedSetup?.savedAt === "number"
       ? cachedSetup.savedAt
       : recentTrade ? new Date(recentTrade.takenAt).getTime() : null;
     if (!ts) return null;

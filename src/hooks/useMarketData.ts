@@ -357,27 +357,30 @@ export function useAgentResult(symbol: Symbol, timeframe: Timeframe = "H1", refr
 }
 
 // ── Last resolved signal for a symbol ──────────────────────────────────────
+export type RecentSignal = {
+  status: string;
+  timestamp: string;
+  timeframe: string;
+  tradePlan: {
+    direction: "long" | "short";
+    entry: number;
+    stopLoss: number;
+    tp1: number;
+    tp2: number | null;
+    rrRatio: number;
+  } | null;
+};
+
 export function useLastSignal(symbol: string) {
-  const { data } = useSWR<{ recent: Array<{ status: string; entry_price: number; stop_loss: number; take_profit: number }> }>(
-    symbol ? `/api/signals?symbol=${symbol}&limit=10` : null,
+  // NOTE: /api/signals returns mapped SignalRecord objects (camelCase with a
+  // nested tradePlan) — not raw snake_case rows. Reading entry_price here
+  // silently broke all setup/outcome matching.
+  const { data } = useSWR<{ recent: RecentSignal[] }>(
+    symbol ? `/api/signals?symbol=${symbol}&limit=25` : null,
     fetcher,
     { refreshInterval: 60_000, revalidateOnFocus: true, dedupingInterval: 30_000 }
   );
-  // Find the most recent signal that was actually resolved — skip open/pending ones
-  const last = data?.recent?.find(s =>
-    s.status === "win_tp1" || s.status === "win_tp2" || s.status === "loss_sl"
-  ) ?? null;
-  return {
-    status: last?.status ?? null,
-    isWin:  last?.status === "win_tp1" || last?.status === "win_tp2",
-    isLoss: last?.status === "loss_sl",
-    // Levels of the resolved signal so callers can verify the outcome belongs
-    // to the setup they are displaying (and not stamp an old SL HIT onto a
-    // newer, unrelated setup).
-    entry:    last?.entry_price ?? null,
-    stopLoss: last?.stop_loss ?? null,
-    // Full recent list (any status) so the UI can match the DISPLAYED setup to
-    // its own tracked record and show open/expired states too.
-    recent: data?.recent ?? [],
-  };
+  // Newest-first list of signals that actually carried a trade plan
+  const recent = (data?.recent ?? []).filter(s => s.tradePlan);
+  return { recent };
 }
