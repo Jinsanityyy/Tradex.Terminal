@@ -808,6 +808,28 @@ export function MobileMore() {
               </button>
             )}
 
+            {/* Background delivery test — server sends after 10s so the user can
+                close the app and verify the system-tray path */}
+            {push.status === "subscribed" && (
+              <button
+                onClick={() => {
+                  fetch("/api/push/test", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ delaySeconds: 10 }),
+                  }).catch(() => {});
+                  toast.success("Test scheduled — CLOSE the app NOW. Notification arrives in ~10s.", { duration: 6000 });
+                }}
+                className="w-full flex items-center gap-3 px-4 py-[7px] active:bg-white/[0.04] transition-colors cursor-pointer"
+              >
+                <Bell className="h-3 w-3 text-zinc-500 opacity-50 shrink-0" strokeWidth={1.5} />
+                <span className="flex-1 text-[11.5px] font-medium text-zinc-200 text-left leading-none tracking-[0.01em]">
+                  Test with app closed
+                </span>
+                <span className="text-[9px] text-zinc-600 shrink-0">sends in 10s</span>
+              </button>
+            )}
+
             {/* Knowledge + Settings */}
             {(["knowledge", "settings"] as const).map(id => {
               const app = ALL_APPS.find(a => a.id === id)!;

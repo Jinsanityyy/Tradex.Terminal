@@ -5,6 +5,8 @@ import { sendFcmToToken, findFirebaseCredEnv } from "@/lib/push/fcm";
 import { sendPushToSubscription } from "@/lib/push/sender";
 
 export const dynamic = "force-dynamic";
+// Delayed tests hold the function open while the user closes the app
+export const maxDuration = 55;
 
 /**
  * Push notification diagnostics.
@@ -67,6 +69,13 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const { user } = await getAuthUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Optional delay (max 30s) so the user can close the app first and verify
+  // that background/tray delivery works — a foreground test only proves the
+  // in-app path.
+  const body = await req.json().catch(() => ({} as Record<string, unknown>));
+  const delaySeconds = Math.min(30, Math.max(0, Number((body as { delaySeconds?: number })?.delaySeconds) || 0));
+  if (delaySeconds > 0) await new Promise(r => setTimeout(r, delaySeconds * 1000));
 
   const db = getServiceClient();
   if (!db) return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY not configured" }, { status: 503 });
