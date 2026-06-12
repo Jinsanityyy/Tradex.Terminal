@@ -1298,7 +1298,8 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
       ref={rootRef}
       style={{
         width: embedded ? '100%' : '100vw',
-        height: embedded ? 'auto' : '100vh',
+        height: embedded ? '100%' : '100vh',
+        minHeight: embedded ? 300 : undefined,
         background: BLACK,
         display: 'flex',
         flexDirection: 'column',
@@ -1477,7 +1478,7 @@ export default function GlobeClient({ embedded = false }: { embedded?: boolean }
           <div
             ref={mountRef}
             style={embedded
-              ? { width: '100%', height: 300, backgroundColor: 'transparent', overflow: 'hidden', pointerEvents: 'auto', display: is3D ? 'block' : 'none' }
+              ? { width: '100%', flex: 1, minHeight: 300, backgroundColor: 'transparent', overflow: 'hidden', pointerEvents: 'auto', display: is3D ? 'block' : 'none' }
               : { position: 'absolute', inset: 0, display: is3D ? 'block' : 'none' }
             }
           />
