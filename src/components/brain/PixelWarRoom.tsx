@@ -448,6 +448,17 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
   }, [runData]);
 
   const tickerText = buildTicker(quotes);
+
+  // Active session drives the room ambience (NY bright, Asia dim/cool, Closed dark)
+  const utcH = clockNow.getUTCHours();
+  const activeSessionName = runData?.snapshot?.indicators?.session
+    ?? (utcH < 8 ? "Asia" : utcH < 13 ? "London" : utcH < 21 ? "New York" : "Closed");
+  const sessionFloorClass =
+    activeSessionName === "New York" ? styles.floorNY :
+    activeSessionName === "London"   ? styles.floorLondon :
+    activeSessionName === "Asia"     ? styles.floorAsia :
+    styles.floorClosed;
+
   const selectedAgent = REAL_AGENTS.find(a => a.id === selectedId) ?? REAL_AGENTS[0]!;
   const selectedLive = agentStates[selectedAgent.id];
   const agentOverview = getAgentOverview(selectedAgent.id, runData);
@@ -574,7 +585,7 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
       </div>
 
       {/* ── Floor tier ── */}
-      <div className={styles.floorTier}>
+      <div className={`${styles.floorTier} ${sessionFloorClass}`}>
         {/* Ceiling — industrial light bars over the room */}
         <div className={styles.ceiling} aria-hidden="true">
           <span className={styles.ceilLight} />
@@ -650,12 +661,7 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
 
           <div className={styles.cmdRight}>
             <div className={styles.cmdHeader}><span>GLOBAL OVERLAYS</span></div>
-            <PixelWorldMap
-              activeSession={
-                runData?.snapshot?.indicators?.session
-                  ?? (clockNow.getUTCHours() < 8 ? "Asia" : clockNow.getUTCHours() < 13 ? "London" : clockNow.getUTCHours() < 21 ? "New York" : "Closed")
-              }
-            />
+            <PixelWorldMap activeSession={activeSessionName} />
             <div className={styles.mapClocks}>
               {([["MNL", "Asia/Manila"], ["LDN", "Europe/London"], ["NYC", "America/New_York"]] as const).map(([city, tz]) => (
                 <div key={city} className={styles.clockRow}>
@@ -671,6 +677,35 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
           <span className={styles.floorSlash}>///</span>
           TRADING FLOOR
           <span className={styles.floorSlash}>///</span>
+        </div>
+
+        {/* Side wall dressing — chart frames, extinguisher, AC vents */}
+        <div className={styles.sideDecor} aria-hidden="true">
+          <div className={styles.sideCol}>
+            <div className={styles.wallFrame}>
+              <span className={styles.frameBarUp} />
+              <span className={styles.frameBarDown} />
+              <span className={styles.frameBarUp} />
+              <span className={styles.frameBarUp} />
+            </div>
+            <div className={styles.extinguisher} />
+            <div className={styles.wallVent} />
+          </div>
+          <div className={`${styles.sideCol} ${styles.sideColRight}`}>
+            <div className={styles.wallVent} />
+            <div className={styles.wallFrame}>
+              <span className={styles.frameBarDown} />
+              <span className={styles.frameBarUp} />
+              <span className={styles.frameBarDown} />
+              <span className={styles.frameBarDown} />
+            </div>
+            <div className={styles.wallFrame}>
+              <span className={styles.frameBarUp} />
+              <span className={styles.frameBarUp} />
+              <span className={styles.frameBarDown} />
+              <span className={styles.frameBarUp} />
+            </div>
+          </div>
         </div>
 
         {/* Execution zone — taped-off floor area */}
@@ -781,6 +816,11 @@ function AgentPod({
   const inner = (
     <>
       <div className={styles.stationBody}>
+        {live && agent.real && live.signal !== "—" && (
+          <span className={`${styles.sigBadge} ${live.signal === "L" ? styles.sigL : styles.sigS}`} aria-hidden="true">
+            {live.signal}
+          </span>
+        )}
         {live && agent.real && live.signal !== "—" && (
           <span className={`${styles.sigBubble} ${live.signal === "L" ? styles.sigBubbleL : styles.sigBubbleS}`} aria-hidden="true">
             {live.signal === "L" ? "▲" : "▼"}
