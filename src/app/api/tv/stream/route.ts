@@ -29,6 +29,27 @@ export async function GET(req: NextRequest) {
     `https://www.youtube.com/channel/${channelId}/live`,
   ];
 
+  // ── Strategy 0: YouTube Data API (official; immune to consent walls and
+  // datacenter bot-blocking — scraping YouTube from Vercel is inherently
+  // flaky). Used when YOUTUBE_API_KEY is configured.
+  const apiKey = process.env.YOUTUBE_API_KEY;
+  if (apiKey) {
+    try {
+      const res = await fetch(
+        `https://www.googleapis.com/youtube/v3/search?part=id&channelId=${channelId}&eventType=live&type=video&maxResults=1&key=${apiKey}`,
+        { signal: AbortSignal.timeout(5000) }
+      );
+      if (res.ok) {
+        const j = await res.json() as { items?: Array<{ id?: { videoId?: string } }> };
+        const vid = j.items?.[0]?.id?.videoId ?? null;
+        const data: StreamInfo = { videoId: vid, isLive: vid !== null };
+        CACHE.set(channelId, { data, ts: Date.now() });
+        return NextResponse.json(data, { headers: { "Cache-Control": "public, s-maxage=60" } });
+      }
+      // non-OK (quota/key issue) — fall through to the scrape strategies
+    } catch { /* fall through */ }
+  }
+
   // ── Strategy 1: oEmbed (most reliable from a datacenter — no consent walls).
   // /live for a LIVE channel resolves to the stream's watch page and oEmbed
   // returns its embed html; for an offline channel /live lands on the channel
