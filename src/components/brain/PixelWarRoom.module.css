@@ -39,7 +39,7 @@
     0 0 40px rgba(180,120,50,0.06),
     inset 0 1px 0 rgba(255,255,255,0.02);
   color: var(--text);
-  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  font-family: var(--font-pixel, 'JetBrains Mono'), 'JetBrains Mono', 'Courier New', monospace;
   overflow: hidden;
 }
 
@@ -528,7 +528,7 @@
   top: 0;
   left: 0;
   padding: 1px 3px;
-  font-size: 5px;
+  font-size: 7px;
   font-weight: 800;
   letter-spacing: 0.08em;
   display: grid;
@@ -703,9 +703,26 @@
   z-index: 2;
 }
 
+/* Segmented confidence meter — one block per 10% */
+.confMeter {
+  display: flex;
+  gap: 1px;
+  margin-top: 2px;
+  justify-content: center;
+}
+.confSeg {
+  width: 4px;
+  height: 4px;
+  background: #17110a;
+  border: 1px solid #261b0d;
+}
+.confSegOk  { background: var(--good);  border-color: var(--good-dim); }
+.confSegBad { background: var(--bad);   border-color: var(--bad-dim); }
+.confSegMid { background: var(--amber); border-color: #6a5418; }
+
 /* Confidence label below pod */
 .confLabel {
-  font-size: 6px;
+  font-size: 8px;
   color: var(--muted);
   letter-spacing: 0.10em;
   text-align: center;
@@ -1003,7 +1020,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 6.5px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.22em;
   text-transform: uppercase;
@@ -1027,7 +1044,7 @@
   border: 1px solid #1d3a2a;
 }
 .cmdTileTitle {
-  font-size: 5px;
+  font-size: 7px;
   font-weight: 800;
   letter-spacing: 0.16em;
   color: var(--muted);
@@ -1036,7 +1053,7 @@
   overflow: hidden;
 }
 .cmdTileValue {
-  font-size: 6px;
+  font-size: 8px;
   font-weight: 700;
   color: var(--text);
   white-space: nowrap;
@@ -1078,7 +1095,7 @@
   display: flex;
   flex-direction: column;
   gap: 1px;
-  font-size: 6px;
+  font-size: 8px;
   font-weight: 800;
   letter-spacing: 0.08em;
   height: 14px;
@@ -1096,7 +1113,7 @@
   box-shadow: inset 0 0 8px rgba(255,95,61,0.08);
 }
 .cmdAlertTitle {
-  font-size: 5.5px;
+  font-size: 8px;
   font-weight: 800;
   letter-spacing: 0.16em;
   color: var(--bad);
@@ -1105,7 +1122,7 @@
 }
 .cmdAlertBody {
   margin: 0;
-  font-size: 6.5px;
+  font-size: 9px;
   line-height: 1.5;
   color: #d8c8b8;
   display: -webkit-box;
@@ -1160,10 +1177,10 @@
 }
 .zoneTag {
   position: absolute;
-  top: -6px;
+  top: -7px;
   left: 8px;
   padding: 1px 5px;
-  font-size: 6px;
+  font-size: 8px;
   font-weight: 800;
   letter-spacing: 0.22em;
   text-transform: uppercase;
@@ -1178,7 +1195,7 @@
   align-items: center;
   gap: 3px;
   padding: 3px 5px;
-  font-size: 6px;
+  font-size: 8px;
   font-weight: 700;
   letter-spacing: 0.14em;
   color: var(--muted);
@@ -1254,13 +1271,13 @@
   z-index: 3;
 }
 .userPanelTitle {
-  font-size: 5.5px;
+  font-size: 8px;
   font-weight: 800;
   letter-spacing: 0.18em;
   color: var(--wood-edge);
 }
 .userPanelSub {
-  font-size: 5px;
+  font-size: 7px;
   letter-spacing: 0.12em;
   color: var(--muted);
 }
@@ -1310,8 +1327,8 @@
   justify-content: space-between;
   gap: 5px;
 }
-.clockCity { font-size: 5.5px; font-weight: 700; letter-spacing: 0.12em; color: var(--muted); }
-.clockTime { font-size: 7px; font-weight: 700; color: var(--slate); font-variant-numeric: tabular-nums; }
+.clockCity { font-size: 8px; font-weight: 700; letter-spacing: 0.12em; color: var(--muted); }
+.clockTime { font-size: 10px; font-weight: 700; color: var(--slate); font-variant-numeric: tabular-nums; }
 
 /* Foreground furniture */
 .floorProps {

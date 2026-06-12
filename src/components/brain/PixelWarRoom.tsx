@@ -1,6 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import { VT323 } from "next/font/google";
 import { useState, useEffect, useRef } from "react";
 import useSWR from "swr";
 import styles from "./PixelWarRoom.module.css";
@@ -8,6 +9,10 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { useQuotes } from "@/hooks/useMarketData";
 import type { AgentRunResult, DirectionalBias, RiskGrade, SignalState } from "@/lib/agents/schemas";
 import type { AssetSnapshot } from "@/types";
+
+// Retro terminal font for every label/data point — loaded once, exposed as a
+// CSS variable so the stylesheet can fall back to monospace if it fails.
+const pixelFont = VT323({ weight: "400", subsets: ["latin"], variable: "--font-pixel" });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -472,7 +477,7 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
   };
 
   return (
-    <div className={styles.warRoom}>
+    <div className={`${styles.warRoom} ${pixelFont.variable}`}>
 
       {/* ── Header bar ── */}
       <div className={styles.topBar}>
@@ -653,7 +658,7 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
               <span className={styles.cmdAlertTitle}>LIVE TRADE ALERT: ENTRY PILOT</span>
               <p className={styles.cmdAlertBody}>
                 {runData
-                  ? `[${runData.agents.execution.signalState}] ${runData.agents.execution.signalStateReason ?? runData.agents.master.noTradeReason ?? "Standing by — monitoring for setup."}`
+                  ? (runData.agents.execution.signalStateReason ?? runData.agents.master.noTradeReason ?? "Standing by — monitoring price structure.")
                   : "Standing by — command link syncing…"}
               </p>
             </div>
@@ -663,7 +668,7 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
             <div className={styles.cmdHeader}><span>GLOBAL OVERLAYS</span></div>
             <PixelWorldMap activeSession={activeSessionName} />
             <div className={styles.mapClocks}>
-              {([["MNL", "Asia/Manila"], ["LDN", "Europe/London"], ["NYC", "America/New_York"]] as const).map(([city, tz]) => (
+              {([["NYC", "America/New_York"], ["LDN", "Europe/London"], ["MNL", "Asia/Manila"]] as const).map(([city, tz]) => (
                 <div key={city} className={styles.clockRow}>
                   <span className={styles.clockCity}>{city}</span>
                   <span className={styles.clockTime}>{mounted ? clockFor(tz, clockNow) : "--:--"}</span>
@@ -864,6 +869,20 @@ function AgentPod({
         <div className={styles.stationKeyboard} />
       </div>
 
+      {live && agent.real && (
+        <div className={styles.confMeter} aria-hidden="true">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <span
+              key={i}
+              className={`${styles.confSeg} ${
+                i < Math.round(live.confidence / 10)
+                  ? (alert ? styles.confSegBad : ok ? styles.confSegOk : styles.confSegMid)
+                  : ""
+              }`}
+            />
+          ))}
+        </div>
+      )}
       <div className={styles.confLabel}>
         {live && agent.real ? `${live.confidence}%` : ""}
       </div>
