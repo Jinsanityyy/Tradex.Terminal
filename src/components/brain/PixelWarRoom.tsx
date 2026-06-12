@@ -679,6 +679,9 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
           <span className={styles.floorSlash}>///</span>
         </div>
 
+        {/* The room: side walls + floor content, front baseboard at the bottom */}
+        <div className={styles.roomBox}>
+
         {/* Side wall dressing — chart frames, extinguisher, AC vents */}
         <div className={styles.sideDecor} aria-hidden="true">
           <div className={styles.sideCol}>
@@ -790,6 +793,9 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
             </div>
           </div>
         </div>
+
+        <div className={styles.roomFloorEdge} />
+        </div>
       </div>
 
 
@@ -818,7 +824,7 @@ function AgentPod({
       <div className={styles.stationBody}>
         {live && agent.real && live.signal !== "—" && (
           <span className={`${styles.sigBadge} ${live.signal === "L" ? styles.sigL : styles.sigS}`} aria-hidden="true">
-            {live.signal}
+            {live.signal === "L" ? "LONG" : "SHORT"}
           </span>
         )}
         {live && agent.real && live.signal !== "—" && (
