@@ -1352,7 +1352,9 @@ export default function GlobeClient({ embedded = false, fillContainer = false }:
         </div>
       )}
       {/* ── Main area ───────────────────────────────────────────────────────── */}
-      <div style={{ ...(embedded ? { height: 300, flexShrink: 0 } : { flex: 1 }), display: embedded && globeCollapsed ? 'none' : 'flex', overflow: 'hidden', position: 'relative' }}>
+      {/* fillContainer (desktop widget): stretch between header and ticker.
+          Plain embedded (mobile, auto-height parents): keep the fixed 300px. */}
+      <div style={{ ...(embedded ? (fillContainer ? { flex: 1, minHeight: 0 } : { height: 300, flexShrink: 0 }) : { flex: 1 }), display: embedded && globeCollapsed ? 'none' : 'flex', overflow: 'hidden', position: 'relative' }}>
 
         {/* Sidebar */}
         {is3D && isLayerPanelOpen && (
