@@ -140,8 +140,9 @@ export default function LandingPage() {
           <WebGLBackground />
         </div>
 
-        {/* 3D mesh wave — mouse-parallax layer (near) */}
-        <div data-parallax data-depth="22" className="absolute inset-0 pointer-events-none">
+        {/* 3D mesh wave — mouse-parallax layer (near); quieter on phones so it
+            reads as ambient depth instead of a competing half-screen panel */}
+        <div data-parallax data-depth="22" className="absolute inset-0 pointer-events-none opacity-50 md:opacity-100">
           <MeshWave side="right" opacity={0.28} />
         </div>
 

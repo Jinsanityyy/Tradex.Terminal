@@ -109,14 +109,20 @@ export function MeshWave({ side = "right", opacity = 0.45 }: Props) {
     };
   }, [side, opacity]);
 
+  // Soft mask on the inner edge — the canvas is a rectangular strip, and its
+  // raw boundary read as a hard vertical seam splitting the hero (worst on
+  // mobile where the strip covers a third of the viewport).
+  const fadeTo = side === "right" ? "to left" : "to right";
   return (
     <div
       ref={mountRef}
       className="absolute top-0 bottom-0 pointer-events-none"
       style={{
-        width: 480,
-        [side]: side === "right" ? -140 : -140,
+        width: "min(480px, 85vw)",
+        [side]: -140,
         zIndex: 0,
+        maskImage: `linear-gradient(${fadeTo}, black 45%, transparent 98%)`,
+        WebkitMaskImage: `linear-gradient(${fadeTo}, black 45%, transparent 98%)`,
       }}
       aria-hidden
     />
