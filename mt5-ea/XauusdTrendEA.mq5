@@ -70,10 +70,23 @@ input double   InpTrailAtrMult      = 2.0;         // Trailing distance = ATR * 
 
 input group "=== Filters ==="
 input double   InpMaxSpreadPoints   = 50.0;        // Max spread (points) to allow entry; 0 = ignore
-input bool     InpUseSessionFilter  = false;       // Restrict trading hours (server time)
-input int      InpSessionStartHour  = 8;           // Session start hour (0-23)
-input int      InpSessionEndHour    = 22;          // Session end hour (0-23)
+input bool     InpUseSessionFilter  = true;        // Restrict trading hours (server time)
+input int      InpSessionStartHour  = 8;           // Session start hour (0-23) - London open
+input int      InpSessionEndHour    = 20;          // Session end hour (0-23) - before US close
 input int      InpMaxSlippagePoints = 30;          // Max deviation/slippage (points)
+input int      InpMinBarsBetweenTrades = 3;        // Min bars to wait after closing before re-entry
+
+input group "=== Capital Protection (read the README!) ==="
+input bool     InpUseDailyLossLimit = true;        // Stop trading after a daily loss cap
+input double   InpDailyLossPercent  = 4.0;         // Daily loss limit (% of day-start equity)
+input bool     InpUseMaxDrawdown    = true;        // Halt EA on equity drawdown from peak
+input double   InpMaxDrawdownPercent = 15.0;       // Max equity drawdown from peak (%)
+input bool     InpCloseOnDrawdown   = true;        // Close all EA trades when DD halt fires
+input int      InpMaxTradesPerDay   = 5;           // Max new trades per day (0 = unlimited)
+input bool     InpFridayClose       = true;        // Close all & stop before the weekend
+input int      InpFridayCloseHour   = 21;          // Friday hour (server) to flatten/stop
+input bool     InpAvoidMondayOpen   = true;        // Skip first hour after weekend gap
+input int      InpMondayOpenHour    = 0;           // Server hour the trading week opens
 
 //+------------------------------------------------------------------+
 //| Globals                                                          |
@@ -86,6 +99,16 @@ int      hRsi     = INVALID_HANDLE;
 int      hAtr     = INVALID_HANDLE;
 
 datetime lastBarTime = 0;
+
+// --- Capital-protection / state tracking ---
+datetime currentDay      = 0;      // server date of the running session day
+double   dayStartEquity  = 0.0;    // equity at the start of the trading day
+int      tradesToday     = 0;      // new EA trades opened today
+double   equityPeak      = 0.0;    // running peak equity for drawdown calc
+bool     ddHalted        = false;  // true once max-drawdown halt has fired
+bool     dailyLossHit    = false;  // true once daily loss cap is reached
+datetime lastCloseBar    = 0;      // bar time of the most recent EA position close
+int      prevEaPositions = 0;      // EA position count on the previous tick
 
 //+------------------------------------------------------------------+
 //| Expert initialization                                            |
@@ -136,6 +159,11 @@ int OnInit()
    trade.SetTypeFillingBySymbol(_Symbol);
    trade.SetAsyncMode(false);
 
+   // Initialise capital-protection state.
+   dayStartEquity = AccountInfoDouble(ACCOUNT_EQUITY);
+   equityPeak     = dayStartEquity;
+   currentDay     = DayStart(TimeCurrent());
+
    Print("XauusdTrendEA initialised on ", _Symbol, " ", EnumToString((ENUM_TIMEFRAMES)_Period));
    return(INIT_SUCCEEDED);
   }
@@ -158,15 +186,48 @@ void OnDeinit(const int reason)
 //+------------------------------------------------------------------+
 void OnTick()
   {
+   // Roll daily counters and update the equity peak first.
+   UpdateDailyState();
+   UpdateEquityPeak();
+   TrackPositionCloses();
+
    // Manage open positions every tick for responsive trailing/BE.
    ManageOpenPositions();
+
+   // --- Hard capital-protection halts ---
+   if(InpUseMaxDrawdown && CheckMaxDrawdown())
+      return;                                  // EA halted for the session
+
+   if(InpFridayClose && IsWeekendFlattenTime())
+     {
+      CloseAllEaPositions("Friday close");
+      return;
+     }
+
+   if(InpUseDailyLossLimit && CheckDailyLossLimit())
+      return;                                  // no new trades until next day
 
    // New-bar gate for entry evaluation.
    if(InpTradeOnNewBarOnly && !IsNewBar())
       return;
 
+   // --- Soft entry filters ---
    if(InpUseSessionFilter && !WithinSession())
       return;
+
+   if(InpAvoidMondayOpen && IsMondayOpenWindow())
+      return;
+
+   if(InpMaxTradesPerDay > 0 && tradesToday >= InpMaxTradesPerDay)
+      return;
+
+   // Cooldown after a recent close to avoid immediate re-entry on the same swing.
+   if(InpMinBarsBetweenTrades > 0 && lastCloseBar > 0)
+     {
+      int barsSince = iBarShift(_Symbol, _Period, lastCloseBar, false);
+      if(barsSince < InpMinBarsBetweenTrades)
+         return;
+     }
 
    // Respect the position cap.
    if(CountEaPositions() >= InpMaxOpenPositions)
@@ -182,10 +243,14 @@ void OnTick()
       return;
      }
 
+   bool opened;
    if(signal > 0)
-      OpenTrade(ORDER_TYPE_BUY);
+      opened = OpenTrade(ORDER_TYPE_BUY);
    else
-      OpenTrade(ORDER_TYPE_SELL);
+      opened = OpenTrade(ORDER_TYPE_SELL);
+
+   if(opened)
+      tradesToday++;
   }
 
 //+------------------------------------------------------------------+
@@ -250,13 +315,13 @@ int GetSignal()
 //+------------------------------------------------------------------+
 //| Open a trade with ATR-based SL/TP and risk-based sizing          |
 //+------------------------------------------------------------------+
-void OpenTrade(const ENUM_ORDER_TYPE type)
+bool OpenTrade(const ENUM_ORDER_TYPE type)
   {
    double atr = GetAtr();
    if(atr <= 0.0)
      {
       Print("Entry skipped: invalid ATR.");
-      return;
+      return(false);
      }
 
    symInfo.RefreshRates();
@@ -284,14 +349,14 @@ void OpenTrade(const ENUM_ORDER_TYPE type)
    if(!StopsRespectMinDistance(type, price, sl, tp))
      {
       Print("Entry skipped: SL/TP closer than broker minimum stop level.");
-      return;
+      return(false);
      }
 
    double lots = CalculateLotSize(slDist);
    if(lots <= 0.0)
      {
       Print("Entry skipped: computed lot size is zero.");
-      return;
+      return(false);
      }
 
    bool ok;
@@ -301,10 +366,14 @@ void OpenTrade(const ENUM_ORDER_TYPE type)
       ok = trade.Sell(lots, _Symbol, 0.0, sl, tp, InpTradeComment);
 
    if(!ok)
+     {
       PrintFormat("Order failed: retcode=%d (%s)", trade.ResultRetcode(), trade.ResultRetcodeDescription());
-   else
-      PrintFormat("%s %.2f lots @ %.2f  SL=%.2f TP=%.2f  ATR=%.2f",
-                  (type == ORDER_TYPE_BUY ? "BUY" : "SELL"), lots, price, sl, tp, atr);
+      return(false);
+     }
+
+   PrintFormat("%s %.2f lots @ %.2f  SL=%.2f TP=%.2f  ATR=%.2f",
+               (type == ORDER_TYPE_BUY ? "BUY" : "SELL"), lots, price, sl, tp, atr);
+   return(true);
   }
 
 //+------------------------------------------------------------------+
@@ -530,5 +599,141 @@ bool WithinSession()
 
    // Overnight session wrapping past midnight.
    return(h >= InpSessionStartHour || h < InpSessionEndHour);
+  }
+
+//+------------------------------------------------------------------+
+//| Midnight (00:00) of a given time, server tz                      |
+//+------------------------------------------------------------------+
+datetime DayStart(const datetime t)
+  {
+   return(t - (t % 86400));
+  }
+
+//+------------------------------------------------------------------+
+//| Roll daily counters when the server date changes                 |
+//+------------------------------------------------------------------+
+void UpdateDailyState()
+  {
+   datetime today = DayStart(TimeCurrent());
+   if(today != currentDay)
+     {
+      currentDay     = today;
+      dayStartEquity = AccountInfoDouble(ACCOUNT_EQUITY);
+      tradesToday    = 0;
+      dailyLossHit   = false;
+      // Drawdown halt is intentionally sticky across days until the EA is
+      // restarted: a deep equity loss deserves manual review.
+     }
+  }
+
+//+------------------------------------------------------------------+
+//| Track the running equity peak for drawdown measurement           |
+//+------------------------------------------------------------------+
+void UpdateEquityPeak()
+  {
+   double eq = AccountInfoDouble(ACCOUNT_EQUITY);
+   if(eq > equityPeak)
+      equityPeak = eq;
+  }
+
+//+------------------------------------------------------------------+
+//| Detect EA position closes to drive the re-entry cooldown         |
+//+------------------------------------------------------------------+
+void TrackPositionCloses()
+  {
+   int now = CountEaPositions();
+   if(now < prevEaPositions)
+      lastCloseBar = iTime(_Symbol, _Period, 0);
+   prevEaPositions = now;
+  }
+
+//+------------------------------------------------------------------+
+//| Daily loss limit: blocks new entries once breached               |
+//+------------------------------------------------------------------+
+bool CheckDailyLossLimit()
+  {
+   if(dailyLossHit)
+      return(true);
+   if(dayStartEquity <= 0.0)
+      return(false);
+
+   double eq    = AccountInfoDouble(ACCOUNT_EQUITY);
+   double lossP = (dayStartEquity - eq) / dayStartEquity * 100.0;
+   if(lossP >= InpDailyLossPercent)
+     {
+      dailyLossHit = true;
+      PrintFormat("Daily loss limit hit (%.2f%% >= %.2f%%). No new trades today.",
+                  lossP, InpDailyLossPercent);
+      return(true);
+     }
+   return(false);
+  }
+
+//+------------------------------------------------------------------+
+//| Max drawdown halt: stops the EA (and optionally flattens)        |
+//+------------------------------------------------------------------+
+bool CheckMaxDrawdown()
+  {
+   if(ddHalted)
+      return(true);
+   if(equityPeak <= 0.0)
+      return(false);
+
+   double eq = AccountInfoDouble(ACCOUNT_EQUITY);
+   double dd = (equityPeak - eq) / equityPeak * 100.0;
+   if(dd >= InpMaxDrawdownPercent)
+     {
+      ddHalted = true;
+      PrintFormat("MAX DRAWDOWN HALT: %.2f%% >= %.2f%%. EA stopped for the session.",
+                  dd, InpMaxDrawdownPercent);
+      if(InpCloseOnDrawdown)
+         CloseAllEaPositions("Max drawdown halt");
+      return(true);
+     }
+   return(false);
+  }
+
+//+------------------------------------------------------------------+
+//| Is it Friday at/after the configured flatten hour?               |
+//+------------------------------------------------------------------+
+bool IsWeekendFlattenTime()
+  {
+   MqlDateTime now;
+   TimeToStruct(TimeCurrent(), now);
+   return(now.day_of_week == 5 && now.hour >= InpFridayCloseHour);
+  }
+
+//+------------------------------------------------------------------+
+//| Skip the first hour after the weekend gap (Sunday/Monday open)   |
+//+------------------------------------------------------------------+
+bool IsMondayOpenWindow()
+  {
+   MqlDateTime now;
+   TimeToStruct(TimeCurrent(), now);
+   // Many gold feeds open Sunday evening (server day_of_week 0) or Monday.
+   bool weekOpenDay = (now.day_of_week == 1 || now.day_of_week == 0);
+   return(weekOpenDay && now.hour == InpMondayOpenHour);
+  }
+
+//+------------------------------------------------------------------+
+//| Close every EA-owned position on this symbol                     |
+//+------------------------------------------------------------------+
+void CloseAllEaPositions(const string reason)
+  {
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+     {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket == 0)
+         continue;
+      if(!position.SelectByTicket(ticket))
+         continue;
+      if(position.Symbol() != _Symbol || position.Magic() != InpMagicNumber)
+         continue;
+      if(!trade.PositionClose(ticket))
+         PrintFormat("Close failed (ticket %I64u): %d - %s",
+                     ticket, trade.ResultRetcode(), reason);
+      else
+         PrintFormat("Closed ticket %I64u (%s)", ticket, reason);
+     }
   }
 //+------------------------------------------------------------------+
