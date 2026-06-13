@@ -18,8 +18,15 @@ export function CinematicLoader({ onComplete }: Props) {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
+    // Hard timeout: if the timeline stalls on a weak device, let the page in.
+    const watchdog = setTimeout(() => {
+      setVisible(false);
+      onComplete();
+    }, 6000);
+
     const tl = gsap.timeline({
       onComplete: () => {
+        clearTimeout(watchdog);
         setVisible(false);
         onComplete();
       },

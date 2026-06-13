@@ -22,6 +22,20 @@ export function CinematicClientLayer() {
   const heroRevealedRef = useRef(false);
   const handleLoaderComplete = useCallback(() => setLoaderDone(true), []);
 
+  // Watchdog: if the loader never completes (slow phone, chunk hiccup),
+  // force the page through after 7s so the site is never unreachable.
+  useEffect(() => {
+    const t = setTimeout(() => setLoaderDone(true), 7000);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Watchdog: bars must never outlive the reveal by more than 4s
+  useEffect(() => {
+    if (!loaderDone) return;
+    const t = setTimeout(() => setBarsGone(true), 4000);
+    return () => clearTimeout(t);
+  }, [loaderDone]);
+
   // Safety net: force-reveal after 5 s if GSAP never fires
   useEffect(() => {
     if (!loaderDone) return;
@@ -139,17 +153,30 @@ export function CinematicClientLayer() {
           }
         }
 
-        // ── Dolly-zoom exit: hero content recedes, background pushes in ────
-        gsap.to("[data-hero-content]", {
-          scale: 0.93, autoAlpha: 0.2, filter: "blur(6px)", ease: "none",
-          scrollTrigger: { trigger: "[data-hero-root]", start: "top top", end: "bottom 30%", scrub: true },
-        });
-        gsap.to("[data-parallax]", {
-          scale: 1.12, ease: "none",
-          scrollTrigger: { trigger: "[data-hero-root]", start: "top top", end: "bottom 30%", scrub: true },
-        });
+        // ── Dolly-zoom exit ────────────────────────────────────────────────
+        // Full version (blur + background canvas scale) is desktop-only: scrub-
+        // animating filter/scale over two full-screen WebGL canvases can freeze
+        // or crash mobile browser tabs. Touch devices get a cheap opacity fade.
+        try {
+          if (window.matchMedia("(hover: hover)").matches) {
+            gsap.to("[data-hero-content]", {
+              scale: 0.93, autoAlpha: 0.2, filter: "blur(6px)", ease: "none",
+              scrollTrigger: { trigger: "[data-hero-root]", start: "top top", end: "bottom 30%", scrub: true },
+            });
+            gsap.to("[data-parallax]", {
+              scale: 1.12, ease: "none",
+              scrollTrigger: { trigger: "[data-hero-root]", start: "top top", end: "bottom 30%", scrub: true },
+            });
+          } else {
+            gsap.to("[data-hero-content]", {
+              autoAlpha: 0.25, ease: "none",
+              scrollTrigger: { trigger: "[data-hero-root]", start: "top top", end: "bottom 30%", scrub: true },
+            });
+          }
+        } catch { /* non-fatal — hero stays static */ }
 
         // ── MEET THE DESK — pinned film-credits sequence ───────────────────
+        try {
         const slides = gsap.utils.toArray<HTMLElement>("[data-credit-slide]");
         if (slides.length) {
           gsap.set(slides, { autoAlpha: 0, yPercent: 14 });
@@ -173,6 +200,7 @@ export function CinematicClientLayer() {
             }
           });
         }
+        } catch { /* non-fatal — credits section degrades to its static first card */ }
 
         // ── Marquee (infinite horizontal scroll) ───────────────────────────
         gsap.to("[data-marquee]", {
