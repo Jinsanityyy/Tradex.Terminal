@@ -11,6 +11,7 @@ import { TerminalPreview } from "@/components/landing/TerminalPreview";
 import { CinematicClientLayer } from "@/components/landing/CinematicClientLayer";
 import { WebGLBackground } from "@/components/landing/WebGLBackground";
 import { MeshWave } from "@/components/landing/MeshWave";
+import { AgentCredits } from "@/components/landing/AgentCredits";
 
 // ─── Split-char helper (server-safe) ─────────────────────────────────────────
 function Chars({ text }: { text: string }) {
@@ -130,14 +131,19 @@ export default function LandingPage() {
 
       {/* ── Hero ────────────────────────────────────────────────────────── */}
       <section
+        data-hero-root
         className="relative overflow-hidden flex flex-col items-center justify-center px-5"
         style={{ minHeight: "100svh" }}
       >
-        {/* WebGL particle network */}
-        <WebGLBackground />
+        {/* WebGL particle network — mouse-parallax layer (far) */}
+        <div data-parallax data-depth="10" className="absolute inset-0">
+          <WebGLBackground />
+        </div>
 
-        {/* 3D mesh wave — right side, like the reference */}
-        <MeshWave side="right" opacity={0.28} />
+        {/* 3D mesh wave — mouse-parallax layer (near) */}
+        <div data-parallax data-depth="22" className="absolute inset-0 pointer-events-none">
+          <MeshWave side="right" opacity={0.28} />
+        </div>
 
         {/* Film grain */}
         <div className="pointer-events-none absolute inset-0 z-[1]"
@@ -163,7 +169,7 @@ export default function LandingPage() {
           style={{ background: `linear-gradient(to bottom, transparent, ${BG})` }} />
 
         {/* ── Content ──────────────────────────────────────────────────────── */}
-        <div className="relative z-[3] w-full max-w-5xl mx-auto text-center" style={{ paddingTop: "5rem", paddingBottom: "6rem" }}>
+        <div data-hero-content className="relative z-[3] w-full max-w-5xl mx-auto text-center" style={{ paddingTop: "5rem", paddingBottom: "6rem" }}>
 
           {/* Badge */}
           <div
@@ -176,7 +182,7 @@ export default function LandingPage() {
 
           {/* Headline — split-char animated */}
           <h1
-            className="font-black leading-[0.95] tracking-tight mb-6"
+            className="relative font-black leading-[0.95] tracking-tight mb-6 overflow-hidden"
             style={{ fontSize: "clamp(4rem, 12.5vw, 9.5rem)" }}
             aria-label="Trade With Intelligence."
           >
@@ -186,6 +192,17 @@ export default function LandingPage() {
             <span data-hero-2 aria-hidden className="block" style={{ color: G }}>
               <Chars text="INTELLIGENCE." />
             </span>
+            {/* Cinematic light sweep — driven by GSAP after the reveal */}
+            <span
+              aria-hidden
+              data-hero-shine
+              className="pointer-events-none absolute inset-0 z-[1]"
+              style={{
+                background: "linear-gradient(115deg, transparent 40%, rgba(255,236,180,0.22) 50%, transparent 60%)",
+                mixBlendMode: "screen",
+                transform: "translateX(-130%)",
+              }}
+            />
           </h1>
 
           <p data-hero-stat className="text-sm font-semibold mb-5 tracking-widest font-mono" style={{ color: `${G}88` }}>
@@ -258,6 +275,9 @@ export default function LandingPage() {
           ))}
         </div>
       </div>
+
+      {/* ── MEET THE DESK — pinned film-credits scene ───────────────────── */}
+      <AgentCredits />
 
       {/* ── Stats bar ─────────────────────────────────────────────────── */}
       <div

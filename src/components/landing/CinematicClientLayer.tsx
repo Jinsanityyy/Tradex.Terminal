@@ -18,6 +18,7 @@ function revealHeroFallback() {
 
 export function CinematicClientLayer() {
   const [loaderDone, setLoaderDone] = useState(false);
+  const [barsGone, setBarsGone] = useState(false);
   const heroRevealedRef = useRef(false);
   const handleLoaderComplete = useCallback(() => setLoaderDone(true), []);
 
@@ -29,6 +30,7 @@ export function CinematicClientLayer() {
         revealHeroFallback();
         heroRevealedRef.current = true;
       }
+      setBarsGone(true);
     }, 5000);
     return () => clearTimeout(t);
   }, [loaderDone]);
@@ -43,7 +45,7 @@ export function CinematicClientLayer() {
 
         // Respect prefers-reduced-motion
         const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        if (reduced) { revealHeroFallback(); heroRevealedRef.current = true; return; }
+        if (reduced) { revealHeroFallback(); heroRevealedRef.current = true; setBarsGone(true); return; }
 
         // ── Pre-hide hero elements ──────────────────────────────────────────
         gsap.set("[data-hero-1] [data-split-inner]", { yPercent: 115 });
@@ -86,7 +88,7 @@ export function CinematicClientLayer() {
         heroRevealedRef.current = true;
 
         const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        if (reduced) { revealHeroFallback(); return; }
+        if (reduced) { revealHeroFallback(); setBarsGone(true); return; }
 
         // ── Hero reveal timeline ────────────────────────────────────────────
         const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
@@ -108,6 +110,69 @@ export function CinematicClientLayer() {
         tl.to("[data-hero-sub]",    { opacity: 1, y: 0, duration: 0.65 }, 0.56);
         tl.to("[data-hero-cta]",    { opacity: 1, y: 0, duration: 0.6 }, 0.7);
         tl.to("[data-hero-scroll]", { opacity: 1, duration: 0.5 }, 0.85);
+
+        // ── Letterbox bars retract as the title lands ──────────────────────
+        tl.to("[data-letterbox]", {
+          scaleY: 0, duration: 1.05, ease: "power3.inOut",
+          onComplete: () => setBarsGone(true),
+        }, 0.25);
+
+        // ── Light sweep across the headline — once on landing, then ambient ─
+        gsap.fromTo("[data-hero-shine]",
+          { xPercent: -130 },
+          { xPercent: 130, duration: 1.5, ease: "power2.inOut", delay: 1.25, repeat: -1, repeatDelay: 6 }
+        );
+
+        // ── Mouse parallax on hero layers (desktop only) ───────────────────
+        if (window.matchMedia("(hover: hover)").matches) {
+          const layers = gsap.utils.toArray<HTMLElement>("[data-parallax]").map((el) => ({
+            depth: Number(el.dataset.depth ?? 12),
+            qx: gsap.quickTo(el, "x", { duration: 0.9, ease: "power3.out" }),
+            qy: gsap.quickTo(el, "y", { duration: 0.9, ease: "power3.out" }),
+          }));
+          if (layers.length) {
+            window.addEventListener("mousemove", (e) => {
+              const nx = e.clientX / window.innerWidth  - 0.5;
+              const ny = e.clientY / window.innerHeight - 0.5;
+              layers.forEach(l => { l.qx(-nx * l.depth); l.qy(-ny * l.depth); });
+            }, { passive: true });
+          }
+        }
+
+        // ── Dolly-zoom exit: hero content recedes, background pushes in ────
+        gsap.to("[data-hero-content]", {
+          scale: 0.93, autoAlpha: 0.2, filter: "blur(6px)", ease: "none",
+          scrollTrigger: { trigger: "[data-hero-root]", start: "top top", end: "bottom 30%", scrub: true },
+        });
+        gsap.to("[data-parallax]", {
+          scale: 1.12, ease: "none",
+          scrollTrigger: { trigger: "[data-hero-root]", start: "top top", end: "bottom 30%", scrub: true },
+        });
+
+        // ── MEET THE DESK — pinned film-credits sequence ───────────────────
+        const slides = gsap.utils.toArray<HTMLElement>("[data-credit-slide]");
+        if (slides.length) {
+          gsap.set(slides, { autoAlpha: 0, yPercent: 14 });
+          const ticks = gsap.utils.toArray<HTMLElement>("[data-credit-tick]");
+          const credits = gsap.timeline({
+            scrollTrigger: {
+              trigger: "[data-credits]",
+              start: "top top",
+              end: `+=${slides.length * 85}%`,
+              pin: true,
+              scrub: 0.6,
+              anticipatePin: 1,
+            },
+          });
+          slides.forEach((slide, i) => {
+            credits.to(slide, { autoAlpha: 1, yPercent: 0, duration: 0.7, ease: "power2.out" });
+            if (ticks[i]) credits.to(ticks[i], { backgroundColor: "rgba(201,168,85,0.95)", boxShadow: "0 0 8px rgba(201,168,85,0.6)", duration: 0.18 }, "<");
+            credits.to({}, { duration: 0.45 }); // hold the card on screen
+            if (i < slides.length - 1) {
+              credits.to(slide, { autoAlpha: 0, yPercent: -12, duration: 0.55, ease: "power2.in" });
+            }
+          });
+        }
 
         // ── Marquee (infinite horizontal scroll) ───────────────────────────
         gsap.to("[data-marquee]", {
