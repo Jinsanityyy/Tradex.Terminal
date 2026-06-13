@@ -25,6 +25,8 @@ export async function middleware(req: NextRequest) {
 
   // Pages that don't require a verified email (and don't trigger mobile redirect)
   const isPublicPage =
+    pathname === "/" ||
+    pathname === "/pricing" ||
     pathname === "/login" ||
     pathname === "/verify-email" ||
     pathname === "/reset-password" ||
