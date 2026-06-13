@@ -19,18 +19,28 @@ import { getSessionScore } from "./market-snapshot";
 // Volatility Score
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Crypto runs 2.5-3% daily ATR on a NORMAL day — judging it on the gold scale
+// scored every BTC session as "extreme" and the risk gate permanently blocked
+// crypto trades. Thresholds scale per instrument class.
+const CRYPTO_VOL_SYMS = new Set(["BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD", "BNBUSD", "ADAUSD", "DOTUSD", "LNKUSD"]);
+
+export function volScale(symbol: string): number {
+  return CRYPTO_VOL_SYMS.has(symbol) ? 2.5 : 1;
+}
+
 function computeVolatilityScore(snapshot: MarketSnapshot): number {
   const { atrProxy } = snapshot.indicators;
+  const k = volScale(snapshot.symbol);
 
-  // Calibrated for XAUUSD (gold moves 0.5–2% daily on normal days)
-  // Low: < 0.3% | Moderate: 0.3–1.0% | High: 1.0–2.0% | Extreme: > 2.5%
-  if (atrProxy > 2.5) return 92;  // truly extreme  -  news shock / circuit breaker
-  if (atrProxy > 2.0) return 82;  // very high  -  war/fed decision day
-  if (atrProxy > 1.5) return 70;  // elevated  -  active gold session (normal range)
-  if (atrProxy > 1.0) return 55;  // moderate-high
-  if (atrProxy > 0.5) return 38;  // moderate
-  if (atrProxy > 0.3) return 22;  // low-moderate
-  return 12;                       // low / quiet session
+  // Base calibration: XAUUSD (gold moves 0.5–2% daily on normal days);
+  // crypto thresholds are 2.5× wider via volScale.
+  if (atrProxy > 2.5 * k) return 92;  // truly extreme  -  news shock / circuit breaker
+  if (atrProxy > 2.0 * k) return 82;  // very high  -  war/fed decision day
+  if (atrProxy > 1.5 * k) return 70;  // elevated  -  active session (normal range)
+  if (atrProxy > 1.0 * k) return 55;  // moderate-high
+  if (atrProxy > 0.5 * k) return 38;  // moderate
+  if (atrProxy > 0.3 * k) return 22;  // low-moderate
+  return 12;                           // low / quiet session
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,15 +95,17 @@ export async function runRiskAgent(
     const rrEstimate      = executionRR ?? null;
     const warnings: string[] = [];
 
-    // ── Volatility checks ─────────────────────────────────────────────────
-    if (atrProxy > 2.5) {
-      warnings.push(`Extreme volatility: ${Math.abs(changePercent).toFixed(2)}% move  -  news/macro shock, avoid new positions`);
-    } else if (atrProxy > 2.0) {
-      warnings.push(`Very high volatility: ${Math.abs(changePercent).toFixed(2)}% move  -  widen stops 50%, reduce size to 0.5%`);
-    } else if (atrProxy > 1.5) {
-      warnings.push(`Elevated volatility: ${Math.abs(changePercent).toFixed(2)}% move  -  active gold session, use standard stops`);
-    } else if (atrProxy > 1.0) {
-      warnings.push(`Moderate-high volatility: ${Math.abs(changePercent).toFixed(2)}%  -  normal range, standard parameters`);
+    // ── Volatility checks (thresholds scale per instrument class; report the
+    //    ATR that actually triggered the warning, not the day change) ────────
+    const volK = volScale(snapshot.symbol);
+    if (atrProxy > 2.5 * volK) {
+      warnings.push(`Extreme volatility: ${atrProxy.toFixed(2)}% daily range  -  news/macro shock, avoid new positions`);
+    } else if (atrProxy > 2.0 * volK) {
+      warnings.push(`Very high volatility: ${atrProxy.toFixed(2)}% daily range  -  widen stops 50%, reduce size to 0.5%`);
+    } else if (atrProxy > 1.5 * volK) {
+      warnings.push(`Elevated volatility: ${atrProxy.toFixed(2)}% daily range  -  active session, use standard stops`);
+    } else if (atrProxy > 1.0 * volK) {
+      warnings.push(`Moderate-high volatility: ${atrProxy.toFixed(2)}% daily range  -  normal range, standard parameters`);
     }
 
     // ── Session checks ────────────────────────────────────────────────────
