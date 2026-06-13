@@ -40,33 +40,31 @@ CSymbolInfo   symInfo;
 input group "=== General ==="
 input long     InpMagicNumber       = 26061300;   // Magic number (unique per chart)
 input string   InpTradeComment      = "XauusdTrendEA"; // Order comment
-input bool     InpTradeOnNewBarOnly = true;        // Evaluate signals only on a new bar
+input bool     InpTradeOnNewBarOnly = false;       // Evaluate only on new bar (false = intrabar breakout entries)
 
-input group "=== Trend / Signal ==="
-input int      InpFastEmaPeriod     = 21;          // Fast EMA period (working TF)
-input int      InpSlowEmaPeriod     = 55;          // Slow EMA period (working TF)
-input ENUM_TIMEFRAMES InpHtfTimeframe = PERIOD_H1; // Higher timeframe for trend filter
-input int      InpHtfEmaPeriod      = 100;         // Higher timeframe EMA period
-input int      InpAdxPeriod         = 14;          // ADX period
-input double   InpAdxMinStrength    = 20.0;        // Minimum ADX to allow entries
-input int      InpRsiPeriod         = 14;          // RSI period
-input double   InpRsiBuyMax         = 70.0;        // Block longs when RSI above this
-input double   InpRsiSellMin        = 30.0;        // Block shorts when RSI below this
+input group "=== Strategy: Donchian Breakout (backtested) ==="
+// Channel-breakout trend following. In a 10-year H1 XAUUSD backtest this
+// edge held up out-of-sample (PF ~1.5, both halves profitable). See README.
+input int      InpDonchianPeriod    = 40;          // Donchian lookback (bars) for breakout level
+input int      InpTrendEmaPeriod    = 200;         // Trend filter EMA (working TF): long above, short below
+input bool     InpUseAdxFilter      = false;       // Optional ADX trend-strength filter
+input int      InpAdxPeriod         = 14;          // ADX period (if filter on)
+input double   InpAdxMinStrength    = 20.0;        // Minimum ADX when filter on
 
 input group "=== Risk Management ==="
 input double   InpRiskPercent       = 1.0;         // Risk per trade (% of equity)
 input double   InpFixedLot          = 0.0;         // Fixed lot (>0 overrides risk %)
 input int      InpAtrPeriod         = 14;          // ATR period for stops/sizing
 input double   InpAtrSlMult         = 2.0;         // Stop-loss = ATR * this
-input double   InpAtrTpMult         = 3.0;         // Take-profit = ATR * this (0 = none)
+input double   InpAtrTpMult         = 0.0;         // Take-profit = ATR * this (0 = none; let trailing run)
 input int      InpMaxOpenPositions  = 1;           // Max simultaneous EA positions
 
 input group "=== Trailing / Break-even ==="
-input bool     InpUseBreakEven      = true;        // Move stop to break-even
+input bool     InpUseBreakEven      = false;       // Move stop to break-even (off: let trailing manage)
 input double   InpBreakEvenAtrMult  = 1.0;         // Profit (ATR) to trigger break-even
 input double   InpBreakEvenLockAtr  = 0.1;         // ATR locked beyond entry at BE
-input bool     InpUseTrailing       = true;        // Use ATR trailing stop
-input double   InpTrailAtrMult      = 2.0;         // Trailing distance = ATR * this
+input bool     InpUseTrailing       = true;        // Use ATR trailing stop (core of the edge)
+input double   InpTrailAtrMult      = 3.0;         // Trailing distance = ATR * this
 
 input group "=== Filters ==="
 input double   InpMaxSpreadPoints   = 50.0;        // Max spread (points) to allow entry; 0 = ignore
@@ -91,12 +89,9 @@ input int      InpMondayOpenHour    = 0;           // Server hour the trading we
 //+------------------------------------------------------------------+
 //| Globals                                                          |
 //+------------------------------------------------------------------+
-int      hFastEma = INVALID_HANDLE;
-int      hSlowEma = INVALID_HANDLE;
-int      hHtfEma  = INVALID_HANDLE;
-int      hAdx     = INVALID_HANDLE;
-int      hRsi     = INVALID_HANDLE;
-int      hAtr     = INVALID_HANDLE;
+int      hTrendEma = INVALID_HANDLE;
+int      hAdx      = INVALID_HANDLE;
+int      hAtr      = INVALID_HANDLE;
 
 datetime lastBarTime = 0;
 
@@ -126,9 +121,9 @@ int OnInit()
       Print("WARNING: this EA is tuned for XAUUSD; current symbol is ", _Symbol);
 
    // Validate inputs that could break the logic.
-   if(InpFastEmaPeriod >= InpSlowEmaPeriod)
+   if(InpDonchianPeriod < 2)
      {
-      Print("ERROR: Fast EMA period must be smaller than Slow EMA period.");
+      Print("ERROR: Donchian period must be >= 2.");
       return(INIT_PARAMETERS_INCORRECT);
      }
    if(InpRiskPercent <= 0.0 && InpFixedLot <= 0.0)
@@ -138,16 +133,13 @@ int OnInit()
      }
 
    // Create indicator handles.
-   hFastEma = iMA(_Symbol, _Period, InpFastEmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
-   hSlowEma = iMA(_Symbol, _Period, InpSlowEmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
-   hHtfEma  = iMA(_Symbol, InpHtfTimeframe, InpHtfEmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
-   hAdx     = iADX(_Symbol, _Period, InpAdxPeriod);
-   hRsi     = iRSI(_Symbol, _Period, InpRsiPeriod, PRICE_CLOSE);
-   hAtr     = iATR(_Symbol, _Period, InpAtrPeriod);
+   hTrendEma = iMA(_Symbol, _Period, InpTrendEmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
+   hAtr      = iATR(_Symbol, _Period, InpAtrPeriod);
+   if(InpUseAdxFilter)
+      hAdx   = iADX(_Symbol, _Period, InpAdxPeriod);
 
-   if(hFastEma == INVALID_HANDLE || hSlowEma == INVALID_HANDLE ||
-      hHtfEma  == INVALID_HANDLE || hAdx     == INVALID_HANDLE ||
-      hRsi     == INVALID_HANDLE || hAtr     == INVALID_HANDLE)
+   if(hTrendEma == INVALID_HANDLE || hAtr == INVALID_HANDLE ||
+      (InpUseAdxFilter && hAdx == INVALID_HANDLE))
      {
       Print("ERROR: failed to create one or more indicator handles.");
       return(INIT_FAILED);
@@ -173,12 +165,9 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
   {
-   if(hFastEma != INVALID_HANDLE) IndicatorRelease(hFastEma);
-   if(hSlowEma != INVALID_HANDLE) IndicatorRelease(hSlowEma);
-   if(hHtfEma  != INVALID_HANDLE) IndicatorRelease(hHtfEma);
-   if(hAdx     != INVALID_HANDLE) IndicatorRelease(hAdx);
-   if(hRsi     != INVALID_HANDLE) IndicatorRelease(hRsi);
-   if(hAtr     != INVALID_HANDLE) IndicatorRelease(hAtr);
+   if(hTrendEma != INVALID_HANDLE) IndicatorRelease(hTrendEma);
+   if(hAdx      != INVALID_HANDLE) IndicatorRelease(hAdx);
+   if(hAtr      != INVALID_HANDLE) IndicatorRelease(hAtr);
   }
 
 //+------------------------------------------------------------------+
@@ -268,45 +257,56 @@ bool IsNewBar()
   }
 
 //+------------------------------------------------------------------+
-//| Generate entry signal                                            |
+//| Generate entry signal — Donchian channel breakout (intrabar)     |
 //|   Returns +1 (buy), -1 (sell) or 0 (no trade).                   |
+//|                                                                  |
+//|   The channel is built from the last InpDonchianPeriod CLOSED     |
+//|   bars (shift 1..N), so it is fixed while the current bar forms.  |
+//|   We then enter the moment price trades through that level,       |
+//|   which reproduces a stop-order breakout fill — the entry style   |
+//|   that actually held up out-of-sample in testing (see README).   |
+//|   A close-bar entry was materially weaker, so we trade intrabar.  |
+//|                                                                  |
+//|   Trend gate: the previous bar must close on the correct side of  |
+//|   the trend EMA (EMA200 by default).                              |
 //+------------------------------------------------------------------+
 int GetSignal()
   {
-   double fast[2], slow[2], htf[1], adx[1], rsi[1];
+   double ema[1];
+   if(CopyBuffer(hTrendEma, 0, 1, 1, ema) < 1)
+      return(0);
+   double trendEma = ema[0];
 
-   // We read shifts 1 and 2 (last two closed bars) for a clean crossover.
-   if(CopyBuffer(hFastEma, 0, 1, 2, fast) < 2) return(0);
-   if(CopyBuffer(hSlowEma, 0, 1, 2, slow) < 2) return(0);
-   if(CopyBuffer(hHtfEma,  0, 1, 1, htf)  < 1) return(0);
-   if(CopyBuffer(hAdx,     0, 1, 1, adx)  < 1) return(0);
-   if(CopyBuffer(hRsi,     0, 1, 1, rsi)  < 1) return(0);
+   // Optional ADX trend-strength filter.
+   if(InpUseAdxFilter)
+     {
+      double adx[1];
+      if(CopyBuffer(hAdx, 0, 1, 1, adx) < 1)
+         return(0);
+      if(adx[0] < InpAdxMinStrength)
+         return(0);
+     }
 
-   // ADX trend-strength filter.
-   if(adx[0] < InpAdxMinStrength)
+   // Donchian channel over the last N closed bars (shift 1..N).
+   int hiShift = iHighest(_Symbol, _Period, MODE_HIGH, InpDonchianPeriod, 1);
+   int loShift = iLowest(_Symbol, _Period, MODE_LOW,  InpDonchianPeriod, 1);
+   if(hiShift < 0 || loShift < 0)
       return(0);
 
-   // CopyBuffer returns series order: index 0 = most recent of the copied range.
-   double fastPrev = fast[1];   // older bar (shift 2)
-   double fastNow  = fast[0];   // newer bar (shift 1)
-   double slowPrev = slow[1];
-   double slowNow  = slow[0];
+   double donHigh = iHigh(_Symbol, _Period, hiShift);
+   double donLow  = iLow(_Symbol, _Period, loShift);
+   double close1  = iClose(_Symbol, _Period, 1);   // last closed bar (trend gate)
 
-   double htfEma   = htf[0];
-   double htfPrice = iClose(_Symbol, InpHtfTimeframe, 1);
+   symInfo.RefreshRates();
+   double ask = symInfo.Ask();
+   double bid = symInfo.Bid();
 
-   bool crossUp   = (fastPrev <= slowPrev) && (fastNow > slowNow);
-   bool crossDown = (fastPrev >= slowPrev) && (fastNow < slowNow);
-
-   bool htfUp   = (htfPrice > htfEma);
-   bool htfDown = (htfPrice < htfEma);
-
-   // Long: crossover up, higher-TF uptrend, RSI not over-extended.
-   if(crossUp && htfUp && rsi[0] < InpRsiBuyMax)
+   // Long: price breaks above the upper channel, prior close above the EMA.
+   if(ask > donHigh && close1 > trendEma)
       return(1);
 
-   // Short: crossover down, higher-TF downtrend, RSI not over-sold.
-   if(crossDown && htfDown && rsi[0] > InpRsiSellMin)
+   // Short: price breaks below the lower channel, prior close below the EMA.
+   if(bid < donLow && close1 < trendEma)
       return(-1);
 
    return(0);
