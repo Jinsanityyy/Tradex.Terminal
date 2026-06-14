@@ -208,7 +208,7 @@ function NewsCard({
     sentimentTag: item.sentiment,
   }, selectedSymbol);
 
-  const bias = item.sentiment ?? "neutral";
+  const bias = assetImpact.impact;
   const accentColor =
     bias === "bearish" ? "var(--t-bearish)" :
     bias === "bullish" ? "var(--t-bullish)" :
