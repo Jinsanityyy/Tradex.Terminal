@@ -66,7 +66,7 @@ function CatalystModal({ cat, index, onClose }: { cat: Catalyst; index: number; 
   const assetShort  = getSymbolShort(selectedSymbol);
   const assetLabel  = getSymbolLabel(selectedSymbol);
   const assetImpact = getCatalystImpactForSymbol(cat, selectedSymbol);
-  const bias = cat.sentimentTag ?? "neutral";
+  const bias = assetImpact.impact;
 
   const bullets: string[] = cat.keyPoints?.length
     ? cat.keyPoints
@@ -256,7 +256,7 @@ function CatalystCard({ cat, index }: { cat: Catalyst; index: number }) {
   const selectedSymbol = settings.selectedSymbol ?? "XAUUSD";
   const assetShort  = getSymbolShort(selectedSymbol);
   const assetImpact = getCatalystImpactForSymbol(cat, selectedSymbol);
-  const bias = cat.sentimentTag ?? "neutral";
+  const bias = assetImpact.impact;
   const isLive = cat.status === "live";
 
   const accentColor =
