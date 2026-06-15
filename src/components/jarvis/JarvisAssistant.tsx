@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Mic, MicOff, X, Send } from "lucide-react";
+import { Mic, MicOff, X } from "lucide-react";
 import { useSettings } from "@/contexts/SettingsContext";
 import { playJarvisActivate, playJarvisResponse } from "@/lib/sounds";
 
@@ -85,7 +85,6 @@ export function JarvisAssistant() {
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
   const [msgCounter, setMsgCounter] = useState(0);
 
   const { settings } = useSettings();
@@ -117,7 +116,6 @@ export function JarvisAssistant() {
   const recognitionRef  = useRef<SpeechRecognitionInstance | null>(null);
   const typeTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef  = useRef<HTMLDivElement>(null);
-  const inputRef        = useRef<HTMLInputElement>(null);
   const greetedRef      = useRef(false);
 
   // Inject CSS once
@@ -190,7 +188,6 @@ export function JarvisAssistant() {
       ...prev,
       { id: userId, role: "user", text: trimmed, displayed: trimmed },
     ]);
-    setInput("");
     setPhase("thinking");
 
     try {
@@ -262,7 +259,6 @@ export function JarvisAssistant() {
   const handleOpen = useCallback(() => {
     playJarvisActivate();
     setOpen(true);
-    setTimeout(() => inputRef.current?.focus(), 350);
     if (!greetedRef.current) {
       greetedRef.current = true;
       setTimeout(() => sendMessage("hello vega"), 500);
@@ -560,77 +556,49 @@ export function JarvisAssistant() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* ── Input ── */}
+            {/* ── Voice-only input ── */}
             <div style={{
-              padding: "10px 14px 32px",
+              padding: "14px 14px 32px",
               borderTop: "1px solid rgba(0,212,255,0.09)",
               flexShrink: 0,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 8,
             }}>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && !busy && sendMessage(input)}
-                  placeholder="Ask Vega anything…"
-                  disabled={busy}
-                  style={{
-                    flex: 1,
-                    padding: "10px 14px",
-                    borderRadius: 12,
-                    background: "rgba(0,212,255,0.055)",
-                    border: `1px solid ${busy ? "rgba(0,212,255,0.1)" : C.dimBorder}`,
-                    color: C.text,
-                    fontFamily: "var(--font-dm-sans, system-ui, sans-serif)",
-                    fontSize: 13,
-                    outline: "none",
-                    opacity: busy ? 0.45 : 1,
-                    transition: "border-color 0.2s",
-                  }}
-                />
-
-                {/* Send */}
-                <button
-                  onClick={() => !busy && sendMessage(input)}
-                  disabled={!input.trim() || busy}
-                  style={{
-                    width: 40, height: 40, flexShrink: 0,
-                    borderRadius: 11,
-                    background: input.trim() && !busy ? C.dim : "rgba(0,212,255,0.04)",
-                    border: `1px solid ${input.trim() && !busy ? C.dimBorder : "rgba(0,212,255,0.1)"}`,
-                    color: C.primary,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    cursor: input.trim() && !busy ? "pointer" : "default",
-                    opacity: input.trim() && !busy ? 1 : 0.35,
-                    transition: "all 0.2s",
-                    WebkitTapHighlightColor: "transparent",
-                  }}
-                >
-                  <Send size={15} />
-                </button>
-
-                {/* Mic */}
-                <button
-                  onClick={phase === "listening" ? stopListening : startListening}
-                  disabled={phase === "thinking" || phase === "responding"}
-                  style={{
-                    width: 40, height: 40, flexShrink: 0,
-                    borderRadius: 11,
-                    background: phase === "listening" ? "rgba(255,76,76,0.14)" : "rgba(0,212,255,0.06)",
-                    border: `1px solid ${phase === "listening" ? "rgba(255,76,76,0.38)" : "rgba(0,212,255,0.16)"}`,
-                    color: phase === "listening" ? "#FF4C4C" : C.primary,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    cursor: (phase === "thinking" || phase === "responding") ? "default" : "pointer",
-                    opacity: (phase === "thinking" || phase === "responding") ? 0.3 : 1,
-                    animation: phase === "listening" ? "jv-pulse 1s ease-in-out infinite" : "none",
-                    transition: "all 0.2s",
-                    WebkitTapHighlightColor: "transparent",
-                  }}
-                >
-                  {phase === "listening" ? <MicOff size={15} /> : <Mic size={15} />}
-                </button>
-              </div>
+              <button
+                onClick={phase === "listening" ? stopListening : startListening}
+                disabled={phase === "thinking" || phase === "responding"}
+                aria-label={phase === "listening" ? "Stop listening" : "Speak to Vega"}
+                style={{
+                  width: 64, height: 64,
+                  borderRadius: "50%",
+                  background: phase === "listening"
+                    ? "radial-gradient(circle at 38% 38%, rgba(255,76,76,.28), rgba(2,8,18,.92))"
+                    : "radial-gradient(circle at 38% 38%, rgba(0,212,255,.22), rgba(2,8,18,.92))",
+                  border: `2px solid ${phase === "listening" ? "rgba(255,76,76,.65)" : C.dimBorder}`,
+                  color: phase === "listening" ? "#FF4C4C" : C.primary,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: (phase === "thinking" || phase === "responding") ? "default" : "pointer",
+                  opacity: (phase === "thinking" || phase === "responding") ? 0.3 : 1,
+                  animation: phase === "listening" ? "jv-pulse 1s ease-in-out infinite" : "none",
+                  transition: "all 0.25s",
+                  WebkitTapHighlightColor: "transparent",
+                  flexShrink: 0,
+                }}
+              >
+                {phase === "listening" ? <MicOff size={22} /> : <Mic size={22} />}
+              </button>
+              <span style={{
+                fontFamily: "var(--font-jetbrains-mono, monospace)",
+                fontSize: 9, letterSpacing: "0.18em",
+                color: phase === "listening" ? "rgba(255,76,76,0.7)" : C.muted,
+              }}>
+                {phase === "listening"  ? "TAP TO STOP"  :
+                 phase === "thinking"   ? "ANALYZING…"   :
+                 phase === "responding" ? "RESPONDING…"  :
+                 "TAP TO SPEAK"}
+              </span>
             </div>
           </div>
         </div>
