@@ -14,7 +14,7 @@ function detectIntent(msg: string): Intent {
   const m = msg.toLowerCase();
   if (/\b(hello|hey|hi|wake|vega|good\s*(morning|evening|afternoon)|startup|online)\b/.test(m))
     return "greeting";
-  if (/\b(news|catalyst|driver|happening|event|geopolit|headline|reuters|bloomberg)\b/.test(m))
+  if (/\b(news|catalyst|driver|happening|event|geopolit|headline|reuters|bloomberg|trump|tariff|fed|war|iran|china)\b/.test(m))
     return "news";
   if (/\b(signal|open trade|position|armed|my trade|active setup)\b/.test(m))
     return "signals";
@@ -135,6 +135,17 @@ export async function POST(req: NextRequest) {
       }
     } catch {
       contextParts.push("Signal data temporarily unavailable.");
+    }
+  }
+
+  // Always have SOME market context to fall back on. If the LLM is unavailable
+  // or rate-limited (e.g. Gemini free-tier 429), Vega can still answer with the
+  // latest cached read instead of a dead-end "busy" message.
+  if (contextParts.length === 0) {
+    const cached = await getAgentCache(symbol as Symbol, timeframe as Timeframe);
+    if (cached) {
+      const { finalBias, confidence } = cached.agents.master;
+      contextParts.push(`${symbol} ${timeframe} latest read — Bias: ${finalBias.toUpperCase()}, Confidence: ${confidence}%, Price: ${cached.snapshot.price.current}.`);
     }
   }
 
