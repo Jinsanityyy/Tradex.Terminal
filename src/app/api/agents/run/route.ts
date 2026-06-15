@@ -10,7 +10,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Symbol, Timeframe } from "@/lib/agents/schemas";
 import { runAgentOrchestrator } from "@/lib/agents/orchestrator";
-import { logSignal } from "@/lib/signals/logger";
 import { getAuthUser } from "@/lib/supabase/auth-helper";
 import { getAgentCache } from "@/lib/agents/agent-cache-store";
 
@@ -42,11 +41,6 @@ export async function GET(req: NextRequest) {
 
   try {
     const result = await runAgentOrchestrator(validated.symbol, validated.timeframe);
-    // Log directional signals on GET too  -  dedup in logger (1-min bucket + ignoreDuplicates)
-    // prevents spamming from auto-refreshes; only new signals per minute are persisted.
-    if (result.agents.master.finalBias !== "no-trade" && result.agents.master.tradePlan) {
-      logSignal(result).catch(() => {});
-    }
     return NextResponse.json(result);
   } catch (error) {
     console.error("Agent run error:", error);
@@ -115,7 +109,6 @@ export async function POST(req: NextRequest) {
       wantsForceRefresh
     );
 
-    logSignal(result).catch(() => {});
     return NextResponse.json(result);
   } catch (error) {
     console.error("Agent run POST error:", error);
