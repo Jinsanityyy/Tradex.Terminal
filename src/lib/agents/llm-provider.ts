@@ -27,6 +27,7 @@ export interface LLMParams {
   system?: string;
   messages: LLMMessage[];
   temperature?: number;
+  jsonMode?: boolean; // default true; set false for conversational (non-JSON) responses
 }
 
 export interface LLMResult {
@@ -68,16 +69,13 @@ async function geminiCreate(params: LLMParams, timeoutMs: number): Promise<LLMRe
     parts: [{ text: m.content }],
   }));
 
+  const useJson = params.jsonMode !== false;
   const body: Record<string, unknown> = {
     contents,
     generationConfig: {
       maxOutputTokens: params.max_tokens,
       temperature: params.temperature ?? 0.5,
-      // Every caller in this codebase parses JSON, so ask Gemini for clean JSON.
-      responseMimeType: "application/json",
-      // Gemini 2.5/3.x Flash are "thinking" models — without this they spend the
-      // whole token budget on hidden reasoning and truncate the JSON (MAX_TOKENS).
-      // Disabling thinking keeps the small per-agent budgets (300-1200) usable.
+      ...(useJson ? { responseMimeType: "application/json" } : {}),
       thinkingConfig: { thinkingBudget: 0 },
     },
   };

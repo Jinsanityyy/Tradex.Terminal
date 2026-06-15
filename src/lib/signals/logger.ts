@@ -27,10 +27,12 @@ function isForexMarketOpen(): boolean {
  */
 function buildId(result: AgentRunResult): string {
   const isNoTrade = result.agents.master.finalBias === "no-trade";
-  // No-trade signals: bucket into 30-min windows to avoid spamming identical INFO rows
   const bucket = isNoTrade ? 30 : 1;
   const slot = Math.floor(new Date(result.timestamp).getTime() / (60_000 * bucket));
-  return `${slot}_${result.symbol}_${result.timeframe}`;
+  const direction = result.agents.master.tradePlan?.direction ?? "none";
+  return isNoTrade
+    ? `${slot}_${result.symbol}_${result.timeframe}`
+    : `${slot}_${result.symbol}_${result.timeframe}_${direction}`;
 }
 
 // 15-minute cooldown per symbol+direction+entry  -  prevents the cron from
@@ -53,13 +55,15 @@ async function isDuplicateArmedSignal(result: AgentRunResult): Promise<boolean> 
     return openSignals.some(s => {
       if (s.symbol !== result.symbol) return false;
       if (!s.tradePlan) return false;
-      if (s.tradePlan.direction !== plan.direction) return false;
       const age = now - new Date(s.timestamp).getTime();
       if (age >= ARMED_COOLDOWN_MS) return false;
-      // Only suppress if entry price is within 0.03% (~1.5 pips on XAU)
-      // Anything further apart is a genuinely different setup and must be logged.
       const entryDiff = Math.abs(s.tradePlan.entry - plan.entry) / plan.entry;
-      return entryDiff < 0.0003;
+      // Suppress same-direction near-identical entries (cache-hit / cron repeat)
+      if (s.tradePlan.direction === plan.direction && entryDiff < 0.0003) return true;
+      // Suppress conflicting opposite-direction signal at nearly the same entry —
+      // two signals pointing different ways at the same price is a contradiction.
+      if (s.tradePlan.direction !== plan.direction && entryDiff < 0.0003) return true;
+      return false;
     });
   } catch {
     return false;
