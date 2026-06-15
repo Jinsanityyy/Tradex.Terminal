@@ -304,8 +304,8 @@ export function JarvisAssistant() {
           aria-label="Open Vega"
           style={{
             position: "fixed",
-            top: "calc(env(safe-area-inset-top, 0px) + 10px)",
-            right: 14,
+            bottom: "calc(env(safe-area-inset-bottom, 20px) + 72px)",
+            right: 16,
             zIndex: 95,
             width: 42,
             height: 42,
