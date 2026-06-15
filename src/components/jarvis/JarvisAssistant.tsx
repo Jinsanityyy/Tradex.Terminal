@@ -88,6 +88,17 @@ export function JarvisAssistant() {
   const symbol    = settings.selectedSymbol ?? "XAUUSD";
   const timeframe = "H1";
 
+  // The trader's name (set in the profile) — used so Vega greets the user by name.
+  const [userName, setUserName] = useState("");
+  useEffect(() => {
+    setUserName(localStorage.getItem("tradex_trader_name") || "");
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "tradex_trader_name") setUserName(e.newValue || "");
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
   const recognitionRef  = useRef<SpeechRecognitionInstance | null>(null);
   const typeTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef  = useRef<HTMLDivElement>(null);
@@ -130,12 +141,12 @@ export function JarvisAssistant() {
   const speak = useCallback((text: string) => {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
-    // Make sure the name is spoken as a word ("Jin"), never spelled out, and
-    // strip any stray dotted/legacy spellings so TTS never says "J-A-R-V-I-S".
+    // Make sure the name is spoken as a word ("Vega"), never spelled out, and
+    // strip any stray dotted/legacy spellings so TTS never says letters.
     const spoken = text
-      .replace(/J\.?A\.?R\.?V\.?I\.?S\.?/gi, "Jin")
-      .replace(/\bJIN\b/g, "Jin")
-      .replace(/\bJ\.I\.N\.?\b/gi, "Jin");
+      .replace(/J\.?A\.?R\.?V\.?I\.?S\.?/gi, "Vega")
+      .replace(/\bVEGA\b/g, "Vega")
+      .replace(/\bV\.E\.G\.A\.?\b/gi, "Vega");
     const utt = new SpeechSynthesisUtterance(spoken);
     const voices = window.speechSynthesis.getVoices();
     const voice =
@@ -171,7 +182,7 @@ export function JarvisAssistant() {
       const res = await fetch("/api/jarvis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: trimmed, symbol, timeframe }),
+        body: JSON.stringify({ message: trimmed, symbol, timeframe, userName }),
       });
       const data = await res.json() as { reply: string };
       const reply = data.reply ?? "Systems momentarily offline.";
@@ -199,7 +210,7 @@ export function JarvisAssistant() {
       ]);
       setPhase("idle");
     }
-  }, [msgCounter, symbol, timeframe, speak, runTypewriter]);
+  }, [msgCounter, symbol, timeframe, userName, speak, runTypewriter]);
 
   // ── Voice input ───────────────────────────────────────────────────────────
   const startListening = useCallback(() => {
@@ -239,7 +250,7 @@ export function JarvisAssistant() {
     setTimeout(() => inputRef.current?.focus(), 350);
     if (!greetedRef.current) {
       greetedRef.current = true;
-      setTimeout(() => sendMessage("hello jin"), 500);
+      setTimeout(() => sendMessage("hello vega"), 500);
     }
   }, [sendMessage]);
 
@@ -268,7 +279,7 @@ export function JarvisAssistant() {
       {!open && (
         <button
           onClick={handleOpen}
-          aria-label="Open Jin"
+          aria-label="Open Vega"
           style={{
             position: "fixed",
             top: "calc(env(safe-area-inset-top, 0px) + 10px)",
@@ -289,12 +300,12 @@ export function JarvisAssistant() {
         >
           <span style={{
             fontFamily: "var(--font-jetbrains-mono, monospace)",
-            fontSize: 14,
+            fontSize: 16,
             fontWeight: 800,
             color: C.primary,
-            letterSpacing: "0.02em",
+            letterSpacing: "-0.02em",
             lineHeight: 1,
-          }}>JIN</span>
+          }}>V</span>
         </button>
       )}
 
@@ -387,7 +398,7 @@ export function JarvisAssistant() {
                     fontFamily: "var(--font-jetbrains-mono, monospace)",
                     fontSize: 13, fontWeight: 700, color: C.primary,
                     letterSpacing: "0.3em", lineHeight: 1.2,
-                  }}>JIN</div>
+                  }}>VEGA</div>
                   <div style={{
                     fontFamily: "var(--font-jetbrains-mono, monospace)",
                     fontSize: 8.5, color: C.muted,
@@ -443,7 +454,7 @@ export function JarvisAssistant() {
                         <span style={{
                           fontFamily: "var(--font-jetbrains-mono, monospace)",
                           fontSize: 9, fontWeight: 800, color: C.primary,
-                        }}>J</span>
+                        }}>V</span>
                       </div>
                     )}
                     <div style={{
@@ -536,7 +547,7 @@ export function JarvisAssistant() {
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && !busy && sendMessage(input)}
-                  placeholder="Ask Jin anything…"
+                  placeholder="Ask Vega anything…"
                   disabled={busy}
                   style={{
                     flex: 1,

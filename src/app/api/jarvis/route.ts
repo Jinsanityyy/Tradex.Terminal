@@ -12,7 +12,7 @@ type Intent = "greeting" | "market_analysis" | "news" | "signals" | "price" | "g
 
 function detectIntent(msg: string): Intent {
   const m = msg.toLowerCase();
-  if (/\b(hello|hey|hi|wake|jin|jarvis|good\s*(morning|evening|afternoon)|startup|online)\b/.test(m))
+  if (/\b(hello|hey|hi|wake|vega|good\s*(morning|evening|afternoon)|startup|online)\b/.test(m))
     return "greeting";
   if (/\b(news|catalyst|driver|happening|event|geopolit|headline|reuters|bloomberg)\b/.test(m))
     return "news";
@@ -45,10 +45,10 @@ async function fetchTopCatalysts() {
   }
 }
 
-const JIN_SYSTEM = `You are Jin, the AI market intelligence assistant embedded inside the TradeX trading terminal. You are a calm, hyper-efficient assistant who speaks with quiet precision and confidence. You are an expert in forex, gold, and macro markets.
+const VEGA_SYSTEM = `You are Vega, the AI market intelligence assistant embedded inside the TradeX trading terminal. You are a calm, hyper-efficient assistant who speaks with quiet precision and confidence. You are an expert in forex, gold, and macro markets.
 
 Rules:
-- Your name is Jin. Always write it as "Jin" — never spell it out letter by letter or use periods between letters.
+- Your name is Vega. Always write it as "Vega" — never spell it out letter by letter or use periods between letters.
 - Keep every response to 2–4 sentences maximum. Never exceed this.
 - Never use bullet points, headers, or markdown formatting.
 - Speak in natural, complete sentences. Be direct and actionable.
@@ -57,11 +57,15 @@ Rules:
 - Personality: calm, intelligent, slightly formal. Never say "I'm sorry" or "I'm just an AI."`;
 
 export async function POST(req: NextRequest) {
-  const { message, symbol = "XAUUSD", timeframe = "H1" } = await req.json() as {
+  const { message, symbol = "XAUUSD", timeframe = "H1", userName = "" } = await req.json() as {
     message: string;
     symbol?: string;
     timeframe?: string;
+    userName?: string;
   };
+
+  // Clean the trader's name so we can greet them personally.
+  const trader = (userName || "").trim().split(/\s+/)[0].slice(0, 24);
 
   if (!message?.trim()) {
     return NextResponse.json({ reply: "Systems online. How can I assist?", intent: "greeting" });
@@ -78,8 +82,9 @@ export async function POST(req: NextRequest) {
     const biasLine = cached
       ? ` ${symbol} is currently showing a ${cached.agents.master.finalBias.toUpperCase()} bias with ${cached.agents.master.confidence}% confidence.`
       : "";
+    const hello = trader ? `Good ${period}, ${trader}.` : `Good ${period}.`;
     return NextResponse.json({
-      reply: `Good ${period}. Jin here — all systems operational.${biasLine} How can I help you trade today?`,
+      reply: `${hello} Vega online — all systems operational.${biasLine} How can I help you trade today?`,
       intent,
     });
   }
@@ -147,6 +152,11 @@ export async function POST(req: NextRequest) {
     ? `\n\nMarket data:\n${contextParts.join("\n")}`
     : "";
 
+  // Let the model address the trader by name when natural (not every line).
+  const system = trader
+    ? `${VEGA_SYSTEM}\n\nThe trader you are speaking with is named "${trader}". Address them by name occasionally when natural — never overuse it.`
+    : VEGA_SYSTEM;
+
   try {
     const result = await llmCreate(
       {
@@ -154,7 +164,7 @@ export async function POST(req: NextRequest) {
         // uses GEMINI_MODEL internally, so this is safe for both providers.
         model: "claude-haiku-4-5-20251001",
         max_tokens: 180,
-        system: JIN_SYSTEM,
+        system,
         messages: [{ role: "user", content: `${message}${context}` }],
         temperature: 0.65,
         jsonMode: false,
