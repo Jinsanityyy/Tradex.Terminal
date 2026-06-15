@@ -265,7 +265,7 @@ export function JarvisAssistant() {
           aria-label="Open J.A.R.V.I.S."
           style={{
             position: "fixed",
-            bottom: 88,
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 68px)",
             right: 16,
             zIndex: 90,
             width: 50,
