@@ -5,17 +5,30 @@ interface StreamInfo {
   isLive: boolean;
 }
 
-// Permanent 24/7 streams — these channels broadcast continuously on a stable
-// video ID (Bloomberg's was verified live while the scrape strategies were
-// being bot-blocked). Used as the last resort so a YouTube block on Vercel's
-// egress IPs never blanks the player for channels that are practically
-// always live.
-const PERMANENT_LIVE: Record<string, string> = {
-  "UCIALMKvObZNtJ6AmdCLP7Lg": "iEpJwprxDdk", // Bloomberg Business News Live
-  "UCNye-wNBqNL5ZzHSJdse18g": "gCNeDWCI0vo", // Al Jazeera English 24/7
-  "UCoMdktPbSTixAyNGwb-UYkQ": "9Auq9mYxFEE", // Sky News 24/7 (long-stable stream ID)
-  "UChqUTb7kYRX8-EiaN3XFrSQ": "o5-d08Y-Vys", // Reuters live stream
-};
+// Channels that broadcast 24/7. When every resolver strategy is blocked
+// (YouTube bot-blocks Vercel's egress IPs), we DON'T fall back to a hard-coded
+// video ID — those rot the moment the channel rotates its stream, and the
+// player then shows "this live stream recording is not available".
+//
+// Instead we tell the client to embed the SELF-RESOLVING channel stream
+// (youtube.com/embed/live_stream?channel=ID), which always plays the channel's
+// current live broadcast and never goes stale.
+const ALWAYS_LIVE = new Set<string>([
+  "UCIALMKvObZNtJ6AmdCLP7Lg", // Bloomberg Business News Live
+  "UCrp_UI8XtuYfpiqluWLD7Lw", // CNBC
+  "UCNye-wNBqNL5ZzHSJdse18g", // Al Jazeera English 24/7
+  "UCoMdktPbSTixAyNGwb-UYkQ", // Sky News 24/7
+  "UChqUTb7kYRX8-EiaN3XFrSQ", // Reuters
+  "UCEAZeUIeJs0IjQiqTCdVSIg", // Yahoo Finance
+]);
+
+// videoId: null + isLive: true is the signal the client uses to embed the
+// self-resolving channel stream instead of a specific (stale) video id.
+function alwaysLiveFallback(channelId: string): StreamInfo {
+  return ALWAYS_LIVE.has(channelId)
+    ? { videoId: null, isLive: true }
+    : { videoId: null, isLive: false };
+}
 
 // In-process cache: channelId → { data, ts }
 const CACHE = new Map<string, { data: StreamInfo; ts: number }>();
@@ -131,11 +144,8 @@ export async function GET(req: NextRequest) {
 
       // Channel page loaded but no active live stream detected. For 24/7
       // channels this is usually a consent-page misread, not a real outage —
-      // fall back to the known permanent stream when we have one.
-      const permanent = PERMANENT_LIVE[channelId];
-      const data: StreamInfo = permanent
-        ? { videoId: permanent, isLive: true }
-        : { videoId: null, isLive: false };
+      // fall back to the self-resolving channel embed when we know it's 24/7.
+      const data = alwaysLiveFallback(channelId);
       CACHE.set(channelId, { data, ts: Date.now() });
       return NextResponse.json(data, {
         headers: { "Cache-Control": "public, s-maxage=60" },
@@ -145,11 +155,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // All fetches failed — use the permanent stream when known (don't cache,
-  // so the real resolvers get retried next time)
-  const permanent = PERMANENT_LIVE[channelId];
-  if (permanent) {
-    return NextResponse.json({ videoId: permanent, isLive: true });
-  }
-  return NextResponse.json({ videoId: null, isLive: false });
+  // All fetches failed — use the self-resolving channel embed for 24/7
+  // channels (don't cache, so the real resolvers get retried next time).
+  return NextResponse.json(alwaysLiveFallback(channelId));
 }

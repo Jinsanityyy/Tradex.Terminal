@@ -1480,13 +1480,14 @@ export default function GlobeClient({ embedded = false, fillContainer = false }:
             </button>
           )}
 
-          {/* Three.js mount  -  hidden in 2D mode but kept alive */}
+          {/* Three.js mount  -  hidden in 2D mode but kept alive.
+              Both modes fill the (position:relative) parent via absolute inset:0
+              so the canvas buffer always matches the container exactly — the old
+              embedded `flex:1` path could leave the buffer mis-sized, rendering
+              the globe off-center. */}
           <div
             ref={mountRef}
-            style={embedded
-              ? { width: '100%', flex: 1, minHeight: 300, backgroundColor: 'transparent', overflow: 'hidden', pointerEvents: 'auto', display: is3D ? 'block' : 'none' }
-              : { position: 'absolute', inset: 0, display: is3D ? 'block' : 'none' }
-            }
+            style={{ position: 'absolute', inset: 0, backgroundColor: 'transparent', overflow: 'hidden', pointerEvents: 'auto', display: is3D ? 'block' : 'none' }}
           />
 
           {/* 2D flat map */}
