@@ -86,7 +86,7 @@ export function JarvisAssistant() {
 
   const { settings } = useSettings();
   const symbol    = settings.selectedSymbol ?? "XAUUSD";
-  const timeframe = (settings as Record<string, string>).selectedTimeframe ?? "H1";
+  const timeframe = "H1";
 
   const recognitionRef  = useRef<SpeechRecognitionInstance | null>(null);
   const typeTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
