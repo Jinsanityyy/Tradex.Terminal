@@ -1239,25 +1239,37 @@ export default function GlobeClient({ embedded = false, fillContainer = false }:
   }, [is3D]);
 
   useEffect(() => {
-    const firstFrame = window.requestAnimationFrame(() => {
+    const firstFrame = window.requestAnimationFrame(() => syncRendererSize());
+    const secondFrame = window.requestAnimationFrame(() => syncRendererSize());
+
+    // Dashboard widgets get their FINAL size a beat after mount (grid layout
+    // restore / reflow), which is why the globe only rendered correctly after a
+    // manual collapse→expand. Poll-and-sync until the measured box is stable for
+    // two consecutive ticks (or 4s elapses), so it self-corrects without the
+    // manual toggle.
+    let last = "";
+    let stable = 0;
+    const settle = window.setInterval(() => {
+      const el = mountRef.current;
+      if (!el) return;
+      const dims = `${el.clientWidth}x${el.clientHeight}`;
       syncRendererSize();
-    });
-    const secondFrame = window.requestAnimationFrame(() => {
-      syncRendererSize();
-    });
-    // Catch the FINAL settled layout — dashboard widgets resize/reflow a beat
-    // after mount, and an early sync leaves the canvas buffer sized to the
-    // transient box, which renders the globe off-center until the next resize.
-    const lateSyncs = [120, 350, 700].map((ms) =>
-      window.setTimeout(() => syncRendererSize(), ms)
-    );
+      if (dims === last && el.clientWidth > 0) {
+        if (++stable >= 2) window.clearInterval(settle);
+      } else {
+        stable = 0;
+        last = dims;
+      }
+    }, 200);
+    const settleStop = window.setTimeout(() => window.clearInterval(settle), 4000);
 
     return () => {
       window.cancelAnimationFrame(firstFrame);
       window.cancelAnimationFrame(secondFrame);
-      lateSyncs.forEach((t) => window.clearTimeout(t));
+      window.clearInterval(settle);
+      window.clearTimeout(settleStop);
     };
-  }, [is3D, isLayerPanelOpen, isFullscreen, syncRendererSize]);
+  }, [is3D, isLayerPanelOpen, isFullscreen, globeCollapsed, syncRendererSize]);
 
   const toggleLayer = useCallback((key: LayerKey) => {
     setActiveLayers(prev => ({ ...prev, [key]: !prev[key] }));
