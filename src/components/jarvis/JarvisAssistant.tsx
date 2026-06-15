@@ -17,7 +17,7 @@ interface SpeechRecognitionInstance extends EventTarget {
   stop(): void;
   abort(): void;
   onresult: ((e: SpeechRecognitionEvent) => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((e: Event) => void) | null;
   onend: (() => void) | null;
 }
 declare global {
@@ -154,25 +154,36 @@ export function JarvisAssistant() {
   const speak = useCallback((text: string) => {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
-    // Make sure the name is spoken as a word ("Vega"), never spelled out, and
-    // strip any stray dotted/legacy spellings so TTS never says letters.
     const spoken = text
       .replace(/J\.?A\.?R\.?V\.?I\.?S\.?/gi, "Vega")
       .replace(/\bVEGA\b/g, "Vega")
       .replace(/\bV\.E\.G\.A\.?\b/gi, "Vega");
-    const utt = new SpeechSynthesisUtterance(spoken);
+
+    const doSpeak = (voices: SpeechSynthesisVoice[]) => {
+      const utt = new SpeechSynthesisUtterance(spoken);
+      const voice =
+        voices.find(v => /Daniel|Moira|Samantha/.test(v.name) && v.lang.startsWith("en")) ??
+        voices.find(v => /UK|GB|British/.test(v.name)) ??
+        voices.find(v => v.lang === "en-US" && !v.localService) ??
+        voices.find(v => v.lang.startsWith("en")) ??
+        null;
+      if (voice) utt.voice = voice;
+      utt.rate   = 0.97;
+      utt.pitch  = 0.88;
+      utt.volume = 0.88;
+      window.speechSynthesis.speak(utt);
+    };
+
     const voices = window.speechSynthesis.getVoices();
-    const voice =
-      voices.find(v => /Daniel|Moira|Samantha/.test(v.name) && v.lang.startsWith("en")) ??
-      voices.find(v => /UK|GB|British/.test(v.name)) ??
-      voices.find(v => v.lang === "en-US" && !v.localService) ??
-      voices.find(v => v.lang.startsWith("en")) ??
-      null;
-    if (voice) utt.voice = voice;
-    utt.rate  = 0.97;
-    utt.pitch = 0.88;
-    utt.volume = 0.88;
-    window.speechSynthesis.speak(utt);
+    if (voices.length > 0) {
+      doSpeak(voices);
+    } else {
+      // Android loads voices asynchronously — wait for the event then retry.
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.onvoiceschanged = null;
+        doSpeak(window.speechSynthesis.getVoices());
+      };
+    }
   }, []);
 
   // ── Send ──────────────────────────────────────────────────────────────────
@@ -225,12 +236,16 @@ export function JarvisAssistant() {
   }, [msgCounter, symbol, timeframe, userName, speak, runTypewriter]);
 
   // ── Voice input ───────────────────────────────────────────────────────────
+  const vegaMsg = useCallback((text: string) => {
+    setMessages(prev => [...prev, { id: Date.now(), role: "jarvis" as const, text, displayed: text }]);
+  }, []);
+
   const startListening = useCallback(() => {
     const SR = typeof window !== "undefined"
       ? (window.SpeechRecognition || window.webkitSpeechRecognition)
       : null;
     if (!SR) {
-      alert("Voice input not supported in this browser.");
+      vegaMsg("Voice input isn't supported in this browser. Try opening TradeX in Chrome on Android.");
       return;
     }
     window.speechSynthesis?.cancel();
@@ -243,12 +258,30 @@ export function JarvisAssistant() {
       setPhase("thinking");
       sendMessage(t);
     };
-    rec.onerror = () => setPhase("idle");
-    rec.onend   = () => { if (phase === "listening") setPhase("idle"); };
+    rec.onerror = (e: Event) => {
+      setPhase("idle");
+      const errType = (e as unknown as { error?: string }).error ?? "";
+      if (!errType || errType === "aborted") return;
+      const msg =
+        errType === "not-allowed"
+          ? "Microphone access was blocked. Grant microphone permission in your browser or app settings, then try again."
+          : errType === "no-speech"
+          ? "No speech detected — tap the mic and speak clearly."
+          : errType === "network"
+          ? "Network error during voice recognition. Check your connection."
+          : "Voice recognition failed. Tap the mic and try again.";
+      vegaMsg(msg);
+    };
+    rec.onend = () => setPhase(p => p === "listening" ? "idle" : p);
     recognitionRef.current = rec;
-    rec.start();
-    setPhase("listening");
-  }, [phase, sendMessage]);
+    try {
+      rec.start();
+      setPhase("listening");
+    } catch {
+      setPhase("idle");
+      vegaMsg("Could not start voice input. Make sure microphone permission is granted.");
+    }
+  }, [sendMessage, vegaMsg]);
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
@@ -258,6 +291,14 @@ export function JarvisAssistant() {
   // ── Open panel ────────────────────────────────────────────────────────────
   const handleOpen = useCallback(() => {
     playJarvisActivate();
+    // Fire a silent utterance NOW while we're still in a user-gesture context.
+    // Android Chrome blocks speechSynthesis.speak() from async callbacks, so
+    // we "unlock" it here and subsequent speak() calls from fetch responses work.
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      const silent = new SpeechSynthesisUtterance(" ");
+      silent.volume = 0;
+      window.speechSynthesis.speak(silent);
+    }
     setOpen(true);
     if (!greetedRef.current) {
       greetedRef.current = true;
