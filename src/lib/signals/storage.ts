@@ -185,11 +185,18 @@ export async function saveSignal(record: SignalRecord): Promise<SignalRecord | n
   }
 
   const row = recordToRow(record);
-  const { error } = await db.from("signals").upsert(row, { onConflict: "id", ignoreDuplicates: true });
+  const { data, error } = await db
+    .from("signals")
+    .upsert(row, { onConflict: "id", ignoreDuplicates: true })
+    .select("id");
   if (error) {
     console.warn("[signals/storage] upsert failed:", error.message);
     return null;
   }
+  // ignoreDuplicates: true → ON CONFLICT DO NOTHING → RETURNING returns 0 rows when
+  // the row already existed. Return null so callers (logger) know NOT to fire push
+  // notifications for a signal that was already sent.
+  if (!data || data.length === 0) return null;
   return record;
 }
 
