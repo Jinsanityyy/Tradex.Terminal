@@ -30,6 +30,7 @@ const dmSans = DM_Sans({
 import { SWRProvider } from "@/components/providers/SWRProvider";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { AudioUnlocker } from "@/components/providers/AudioUnlocker";
+import { JarvisAssistant } from "@/components/jarvis/JarvisAssistant";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -78,6 +79,7 @@ export default function RootLayout({
         <SettingsProvider>
           <SWRProvider>{children}</SWRProvider>
           <AudioUnlocker />
+          <JarvisAssistant />
         </SettingsProvider>
         <Toaster theme="dark" position="top-center" richColors />
       </body>
