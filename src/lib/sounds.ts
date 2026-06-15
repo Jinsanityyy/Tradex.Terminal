@@ -169,14 +169,14 @@ export function playNotificationPing(): void {
   beep(1108, 0.18, 0.10, "sine", 0.14);
 }
 
-/** Rising three-note sequence — J.A.R.V.I.S. activating. */
+/** Rising three-note sequence — Jin activating. */
 export function playJarvisActivate(): void {
   beep(440, 0.08, 0.10, "sine", 0.00);
   beep(660, 0.08, 0.12, "sine", 0.09);
   beep(880, 0.18, 0.14, "sine", 0.18);
 }
 
-/** Soft double-chime — J.A.R.V.I.S. response ready. */
+/** Soft double-chime — Jin response ready. */
 export function playJarvisResponse(): void {
   beep(1046, 0.14, 0.09, "sine", 0.00);
   beep(1318, 0.20, 0.11, "sine", 0.11);

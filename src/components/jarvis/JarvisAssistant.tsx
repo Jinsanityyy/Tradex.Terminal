@@ -130,7 +130,13 @@ export function JarvisAssistant() {
   const speak = useCallback((text: string) => {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
-    const utt = new SpeechSynthesisUtterance(text);
+    // Make sure the name is spoken as a word ("Jin"), never spelled out, and
+    // strip any stray dotted/legacy spellings so TTS never says "J-A-R-V-I-S".
+    const spoken = text
+      .replace(/J\.?A\.?R\.?V\.?I\.?S\.?/gi, "Jin")
+      .replace(/\bJIN\b/g, "Jin")
+      .replace(/\bJ\.I\.N\.?\b/gi, "Jin");
+    const utt = new SpeechSynthesisUtterance(spoken);
     const voices = window.speechSynthesis.getVoices();
     const voice =
       voices.find(v => /Daniel|Moira|Samantha/.test(v.name) && v.lang.startsWith("en")) ??
@@ -187,8 +193,8 @@ export function JarvisAssistant() {
         {
           id: jarvisId,
           role: "jarvis",
-          text: "Connection to J.A.R.V.I.S. servers interrupted. Please try again.",
-          displayed: "Connection to J.A.R.V.I.S. servers interrupted. Please try again.",
+          text: "Connection interrupted. Please try again.",
+          displayed: "Connection interrupted. Please try again.",
         },
       ]);
       setPhase("idle");
@@ -233,7 +239,7 @@ export function JarvisAssistant() {
     setTimeout(() => inputRef.current?.focus(), 350);
     if (!greetedRef.current) {
       greetedRef.current = true;
-      setTimeout(() => sendMessage("hello jarvis"), 500);
+      setTimeout(() => sendMessage("hello jin"), 500);
     }
   }, [sendMessage]);
 
@@ -262,14 +268,14 @@ export function JarvisAssistant() {
       {!open && (
         <button
           onClick={handleOpen}
-          aria-label="Open J.A.R.V.I.S."
+          aria-label="Open Jin"
           style={{
             position: "fixed",
-            bottom: "calc(env(safe-area-inset-bottom, 0px) + 68px)",
-            right: 16,
-            zIndex: 90,
-            width: 50,
-            height: 50,
+            top: "calc(env(safe-area-inset-top, 0px) + 10px)",
+            right: 14,
+            zIndex: 95,
+            width: 42,
+            height: 42,
             borderRadius: "50%",
             background: "radial-gradient(circle at 38% 38%, rgba(0,212,255,.22), rgba(2,8,18,.92))",
             border: "1.5px solid rgba(0,212,255,.55)",
@@ -283,12 +289,12 @@ export function JarvisAssistant() {
         >
           <span style={{
             fontFamily: "var(--font-jetbrains-mono, monospace)",
-            fontSize: 17,
+            fontSize: 14,
             fontWeight: 800,
             color: C.primary,
-            letterSpacing: "-0.04em",
+            letterSpacing: "0.02em",
             lineHeight: 1,
-          }}>J</span>
+          }}>JIN</span>
         </button>
       )}
 
@@ -379,9 +385,9 @@ export function JarvisAssistant() {
                 <div>
                   <div style={{
                     fontFamily: "var(--font-jetbrains-mono, monospace)",
-                    fontSize: 11, fontWeight: 700, color: C.primary,
-                    letterSpacing: "0.22em", lineHeight: 1.2,
-                  }}>J.A.R.V.I.S.</div>
+                    fontSize: 13, fontWeight: 700, color: C.primary,
+                    letterSpacing: "0.3em", lineHeight: 1.2,
+                  }}>JIN</div>
                   <div style={{
                     fontFamily: "var(--font-jetbrains-mono, monospace)",
                     fontSize: 8.5, color: C.muted,
@@ -530,7 +536,7 @@ export function JarvisAssistant() {
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && !busy && sendMessage(input)}
-                  placeholder="Ask J.A.R.V.I.S. anything…"
+                  placeholder="Ask Jin anything…"
                   disabled={busy}
                   style={{
                     flex: 1,

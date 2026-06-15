@@ -12,7 +12,7 @@ type Intent = "greeting" | "market_analysis" | "news" | "signals" | "price" | "g
 
 function detectIntent(msg: string): Intent {
   const m = msg.toLowerCase();
-  if (/\b(hello|hey|hi|wake|jarvis|good\s*(morning|evening|afternoon)|startup|online)\b/.test(m))
+  if (/\b(hello|hey|hi|wake|jin|jarvis|good\s*(morning|evening|afternoon)|startup|online)\b/.test(m))
     return "greeting";
   if (/\b(news|catalyst|driver|happening|event|geopolit|headline|reuters|bloomberg)\b/.test(m))
     return "news";
@@ -45,9 +45,10 @@ async function fetchTopCatalysts() {
   }
 }
 
-const JARVIS_SYSTEM = `You are J.A.R.V.I.S. (Just A Rather Very Intelligent System), embedded inside the TradeX trading terminal. You are a calm, hyper-efficient AI market intelligence assistant. You speak with quiet precision and confidence. You are an expert in forex, gold, and macro markets.
+const JIN_SYSTEM = `You are Jin, the AI market intelligence assistant embedded inside the TradeX trading terminal. You are a calm, hyper-efficient assistant who speaks with quiet precision and confidence. You are an expert in forex, gold, and macro markets.
 
 Rules:
+- Your name is Jin. Always write it as "Jin" — never spell it out letter by letter or use periods between letters.
 - Keep every response to 2–4 sentences maximum. Never exceed this.
 - Never use bullet points, headers, or markdown formatting.
 - Speak in natural, complete sentences. Be direct and actionable.
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
       ? ` ${symbol} is currently showing a ${cached.agents.master.finalBias.toUpperCase()} bias with ${cached.agents.master.confidence}% confidence.`
       : "";
     return NextResponse.json({
-      reply: `Good ${period}. J.A.R.V.I.S. online — all systems operational.${biasLine} What do you need?`,
+      reply: `Good ${period}. Jin here — all systems operational.${biasLine} How can I help you trade today?`,
       intent,
     });
   }
@@ -149,21 +150,32 @@ export async function POST(req: NextRequest) {
   try {
     const result = await llmCreate(
       {
-        model: "gemini-2.0-flash",
+        // Valid Anthropic id (matches the other agents). Gemini ignores this and
+        // uses GEMINI_MODEL internally, so this is safe for both providers.
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 180,
-        system: JARVIS_SYSTEM,
+        system: JIN_SYSTEM,
         messages: [{ role: "user", content: `${message}${context}` }],
         temperature: 0.65,
         jsonMode: false,
       },
-      14_000
+      18_000
     );
 
-    const reply = result.content[0]?.text?.trim() ?? "Analysis systems momentarily offline.";
-    return NextResponse.json({ reply, intent });
-  } catch {
+    const reply = result.content[0]?.text?.trim();
+    // If the model returns nothing, fall back to the raw data we gathered rather
+    // than a generic "offline" message — the user still gets useful information.
     return NextResponse.json({
-      reply: "J.A.R.V.I.S. intelligence core is temporarily offline. Please try again in a moment.",
+      reply: reply || (contextParts.length > 0 ? contextParts.join(" ") : "I'm here. Ask me about the market, news, or your signals."),
+      intent,
+    });
+  } catch (err) {
+    console.warn("[jin] LLM synthesis failed:", err);
+    // Degrade gracefully: serve the raw gathered data instead of an error wall.
+    return NextResponse.json({
+      reply: contextParts.length > 0
+        ? contextParts.join(" ")
+        : "My analysis core is busy right now — give me a moment and try again.",
       intent,
     });
   }
