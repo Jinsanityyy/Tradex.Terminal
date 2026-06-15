@@ -1245,10 +1245,17 @@ export default function GlobeClient({ embedded = false, fillContainer = false }:
     const secondFrame = window.requestAnimationFrame(() => {
       syncRendererSize();
     });
+    // Catch the FINAL settled layout — dashboard widgets resize/reflow a beat
+    // after mount, and an early sync leaves the canvas buffer sized to the
+    // transient box, which renders the globe off-center until the next resize.
+    const lateSyncs = [120, 350, 700].map((ms) =>
+      window.setTimeout(() => syncRendererSize(), ms)
+    );
 
     return () => {
       window.cancelAnimationFrame(firstFrame);
       window.cancelAnimationFrame(secondFrame);
+      lateSyncs.forEach((t) => window.clearTimeout(t));
     };
   }, [is3D, isLayerPanelOpen, isFullscreen, syncRendererSize]);
 
@@ -1480,14 +1487,11 @@ export default function GlobeClient({ embedded = false, fillContainer = false }:
             </button>
           )}
 
-          {/* Three.js mount  -  hidden in 2D mode but kept alive.
-              Embedded keeps the in-flow flex sizing (it supplies the height the
-              widget needs); we center the canvas itself instead so the sphere
-              sits in the middle even when the buffer aspect differs. */}
+          {/* Three.js mount  -  hidden in 2D mode but kept alive */}
           <div
             ref={mountRef}
             style={embedded
-              ? { width: '100%', flex: 1, minHeight: 300, backgroundColor: 'transparent', overflow: 'hidden', pointerEvents: 'auto', display: is3D ? 'flex' : 'none', alignItems: 'center', justifyContent: 'center' }
+              ? { width: '100%', flex: 1, minHeight: 300, backgroundColor: 'transparent', overflow: 'hidden', pointerEvents: 'auto', display: is3D ? 'block' : 'none' }
               : { position: 'absolute', inset: 0, display: is3D ? 'block' : 'none' }
             }
           />
