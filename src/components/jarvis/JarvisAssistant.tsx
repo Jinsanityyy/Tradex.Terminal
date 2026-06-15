@@ -59,6 +59,10 @@ const STYLES = `
   from{transform:translateY(100%);opacity:0}
   to{transform:translateY(0);opacity:1}
 }
+@keyframes jv-right {
+  from{transform:translateX(100%);opacity:0}
+  to{transform:translateX(0);opacity:1}
+}
 @keyframes jv-bar {
   0%,100%{height:3px}
   50%{height:22px}
@@ -97,6 +101,17 @@ export function JarvisAssistant() {
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  // Desktop vs mobile — on desktop Vega opens from the left-sidebar nav item and
+  // the panel docks to the right edge; on mobile a top-right orb opens a bottom sheet.
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const update = () => setIsDesktop(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
   }, []);
 
   const recognitionRef  = useRef<SpeechRecognitionInstance | null>(null);
@@ -254,6 +269,13 @@ export function JarvisAssistant() {
     }
   }, [sendMessage]);
 
+  // Allow other parts of the app (e.g. the desktop sidebar nav item) to open Vega.
+  useEffect(() => {
+    const openFromEvent = () => handleOpen();
+    window.addEventListener("vega:open", openFromEvent);
+    return () => window.removeEventListener("vega:open", openFromEvent);
+  }, [handleOpen]);
+
   // ── Close ─────────────────────────────────────────────────────────────────
   const handleClose = useCallback(() => {
     setOpen(false);
@@ -275,8 +297,8 @@ export function JarvisAssistant() {
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <>
-      {/* ── Floating orb ── */}
-      {!open && (
+      {/* ── Floating orb (mobile only — desktop opens from the sidebar nav) ── */}
+      {!open && !isDesktop && (
         <button
           onClick={handleOpen}
           aria-label="Open Vega"
@@ -316,7 +338,7 @@ export function JarvisAssistant() {
             position: "fixed",
             inset: "0 0 0 0",
             display: "flex",
-            flexDirection: "column",
+            flexDirection: isDesktop ? "row" : "column",
             justifyContent: "flex-end",
             zIndex: 200,
             pointerEvents: "none",
@@ -334,24 +356,28 @@ export function JarvisAssistant() {
             }}
           />
 
-          {/* Sheet */}
+          {/* Sheet — bottom sheet on mobile, right-docked panel on desktop */}
           <div
             style={{
               position: "relative",
-              width: "100%",
-              maxWidth: 560,
-              margin: "0 auto",
-              height: "78vh",
+              width: isDesktop ? 420 : "100%",
+              maxWidth: isDesktop ? 420 : 560,
+              margin: isDesktop ? 0 : "0 auto",
+              height: isDesktop ? "100%" : "78vh",
               background: C.bg,
-              borderTop: `1.5px solid ${C.dimBorder}`,
-              borderLeft:  `1px solid rgba(0,212,255,0.08)`,
-              borderRight: `1px solid rgba(0,212,255,0.08)`,
-              borderRadius: "18px 18px 0 0",
+              borderTop:  isDesktop ? "none" : `1.5px solid ${C.dimBorder}`,
+              borderLeft: `1.5px solid ${C.dimBorder}`,
+              borderRight: isDesktop ? "none" : `1px solid rgba(0,212,255,0.08)`,
+              borderRadius: isDesktop ? "0" : "18px 18px 0 0",
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
-              animation: "jv-up 0.32s cubic-bezier(0.32,0.72,0,1) both",
-              boxShadow: "0 -8px 60px rgba(0,212,255,0.08), 0 -2px 0 rgba(0,212,255,0.15)",
+              animation: isDesktop
+                ? "jv-right 0.32s cubic-bezier(0.32,0.72,0,1) both"
+                : "jv-up 0.32s cubic-bezier(0.32,0.72,0,1) both",
+              boxShadow: isDesktop
+                ? "-8px 0 60px rgba(0,212,255,0.08), -2px 0 0 rgba(0,212,255,0.15)"
+                : "0 -8px 60px rgba(0,212,255,0.08), 0 -2px 0 rgba(0,212,255,0.15)",
               pointerEvents: "all",
             }}
           >
