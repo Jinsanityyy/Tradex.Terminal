@@ -20,12 +20,18 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextUrl = searchParams.get("next") ?? "/dashboard";
-  const [mode, setMode] = useState<Mode>("login");
+  const [mode, setMode] = useState<Mode>(
+    searchParams.get("error") === "link_expired" ? "forgot" : "login"
+  );
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    searchParams.get("error") === "link_expired"
+      ? "Your reset link expired or was already used. Enter your email to get a new one."
+      : ""
+  );
   const [success, setSuccess] = useState("");
   const [mfaCode, setMfaCode] = useState("");
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
@@ -65,10 +71,19 @@ export default function LoginPage() {
         sessionStorage.setItem("tradex_boot", email.split("@")[0].toUpperCase());
         window.location.href = nextUrl;
       } else if (mode === "forgot") {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+        // POST to server-side endpoint that uses admin.generateLink (no PKCE).
+        // This ensures the reset link works even when opened in a different
+        // browser than the one that requested it (e.g. Android system browser
+        // vs. Capacitor WebView where the PKCE verifier lives).
+        const res = await fetch("/api/auth/reset-password-request", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
         });
-        if (error) throw error;
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error ?? "Failed to send reset link.");
+        }
         setSuccess("Password reset link sent! Check your email.");
       } else if (mode === "login") {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
