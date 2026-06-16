@@ -128,7 +128,6 @@ export function JarvisAssistant() {
   const recognitionRef  = useRef<SpeechRecognitionInstance | null>(null);
   const typeTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef  = useRef<HTMLDivElement>(null);
-  const greetedRef      = useRef(false);
 
   // Inject CSS once
   useEffect(() => {
@@ -339,10 +338,6 @@ export function JarvisAssistant() {
     const ctx = getAudioCtx();
     if (ctx) ctx.resume().catch(() => {});
     setOpen(true);
-    if (!greetedRef.current) {
-      greetedRef.current = true;
-      setTimeout(() => sendMessage("hello vega"), 500);
-    }
   }, [sendMessage]);
 
   // Allow other parts of the app (e.g. the desktop sidebar nav item) to open Vega.
