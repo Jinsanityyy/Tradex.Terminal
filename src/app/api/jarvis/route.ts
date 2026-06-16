@@ -25,20 +25,21 @@ function detectIntent(msg: string): Intent {
   return "general";
 }
 
-async function fetchTopCatalysts() {
+// Fetch recent Trump posts from Supabase for trump-specific questions
+async function fetchTrumpPosts(limit = 3) {
   try {
     const db = getServiceClient();
     if (!db) return [];
     const { data } = await db
-      .from("catalysts")
-      .select("title, sentiment_tag, driver_category, market_implication")
-      .order("created_at", { ascending: false })
-      .limit(4);
+      .from("trump_posts")
+      .select("content, category, impact_score, posted_at")
+      .order("posted_at", { ascending: false })
+      .limit(limit);
     return (data ?? []) as Array<{
-      title: string;
-      sentiment_tag?: string;
-      driver_category?: string;
-      market_implication?: string;
+      content: string;
+      category?: string;
+      impact_score?: number;
+      posted_at?: string;
     }>;
   } catch {
     return [];
@@ -110,13 +111,44 @@ export async function POST(req: NextRequest) {
   }
 
   if (intent === "news") {
-    const cats = await fetchTopCatalysts();
-    if (cats.length > 0) {
-      contextParts.push(
-        `Active market drivers: ${cats.map(c => `${c.title} [${c.sentiment_tag ?? "neutral"}${c.driver_category ? `, ${c.driver_category}` : ""}]`).join(" | ")}`
-      );
-    } else {
-      contextParts.push("No active market catalysts at this time.");
+    const cached = await getAgentCache(symbol as Symbol, timeframe as Timeframe);
+    const isTrump = /trump/i.test(message);
+
+    // Primary source: news agent in the last agent run (always populated when agents ran)
+    if (cached?.agents?.news) {
+      const n = cached.agents.news;
+      const parts: string[] = [];
+
+      if (n.dominantCatalyst) parts.push(`Dominant catalyst: ${n.dominantCatalyst}.`);
+      if (n.regime) parts.push(`Current macro regime: ${n.regime}.`);
+      parts.push(`News impact: ${n.impact.toUpperCase()} (risk score ${n.riskScore}/100, confidence ${n.confidence}%).`);
+
+      const highCats = n.catalysts?.filter(c => c.impact === "high" || c.impact === "medium").slice(0, 4) ?? [];
+      if (highCats.length > 0) {
+        parts.push(`Key catalysts: ${highCats.map(c => `${c.headline} [${c.direction}, ${c.impact} impact]`).join(" | ")}.`);
+      }
+
+      if (n.biasChangers?.length > 0) {
+        parts.push(`Watch for: ${n.biasChangers.slice(0, 2).join("; ")}.`);
+      }
+
+      contextParts.push(parts.join(" "));
+    }
+
+    // Trump-specific: pull recent posts from DB
+    if (isTrump) {
+      const posts = await fetchTrumpPosts(3);
+      if (posts.length > 0) {
+        contextParts.push(
+          `Recent Trump posts: ${posts.map(p => `"${p.content.slice(0, 120)}" [impact ${p.impact_score ?? "??"}/10, ${p.category ?? "general"}]`).join(" | ")}.`
+        );
+      } else {
+        contextParts.push("No recent Trump posts found in the database.");
+      }
+    }
+
+    if (contextParts.length === 0) {
+      contextParts.push("No news data available — agent cache may be warming up. Try asking in a moment.");
     }
   }
 
