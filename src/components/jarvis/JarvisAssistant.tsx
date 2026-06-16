@@ -81,6 +81,18 @@ const STYLES = `
 
 let stylesInjected = false;
 
+// Module-level AudioContext so it survives component remounts.
+// Unlocked once on user gesture (handleOpen) and reused for all TTS playback.
+let _audioCtx: AudioContext | null = null;
+function getAudioCtx(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  const AudioContextClass =
+    window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextClass) return null;
+  if (!_audioCtx) _audioCtx = new AudioContextClass();
+  return _audioCtx;
+}
+
 export function JarvisAssistant() {
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -151,16 +163,50 @@ export function JarvisAssistant() {
   }, []);
 
   // ── TTS ───────────────────────────────────────────────────────────────────
-  const speak = useCallback((text: string) => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const spoken = text
+  // Primary: fetch audio from /api/tts and play via AudioContext (unlocked on
+  // user gesture in handleOpen). This bypasses Android WebView's async
+  // speechSynthesis restrictions.
+  // Fallback: Web Speech API for desktop browsers.
+  const speak = useCallback(async (text: string) => {
+    if (typeof window === "undefined") return;
+
+    window.speechSynthesis?.cancel();
+
+    const cleaned = text
       .replace(/J\.?A\.?R\.?V\.?I\.?S\.?/gi, "Vega")
       .replace(/\bVEGA\b/g, "Vega")
       .replace(/\bV\.E\.G\.A\.?\b/gi, "Vega");
 
+    // Speak first 2 sentences (≤ 200 chars) — enough for voice UX
+    const sentences = cleaned.match(/[^.!?]+[.!?]+/g) ?? [cleaned];
+    const shortText = sentences.slice(0, 2).join(" ").slice(0, 200).trim();
+
+    // ── Primary: AudioContext + /api/tts ──────────────────────────────────
+    const ctx = getAudioCtx();
+    if (ctx) {
+      try {
+        // Resume in case the context was suspended (e.g. after backgrounding)
+        if (ctx.state === "suspended") await ctx.resume();
+
+        const res = await fetch(`/api/tts?text=${encodeURIComponent(shortText)}`);
+        if (res.ok) {
+          const buf = await res.arrayBuffer();
+          const audioBuffer = await ctx.decodeAudioData(buf);
+          const source = ctx.createBufferSource();
+          source.buffer = audioBuffer;
+          source.connect(ctx.destination);
+          source.start(0);
+          return; // done
+        }
+      } catch {
+        // fall through to Web Speech API
+      }
+    }
+
+    // ── Fallback: Web Speech API (desktop) ───────────────────────────────
+    if (!window.speechSynthesis) return;
     const doSpeak = (voices: SpeechSynthesisVoice[]) => {
-      const utt = new SpeechSynthesisUtterance(spoken);
+      const utt = new SpeechSynthesisUtterance(cleaned);
       const voice =
         voices.find(v => /Daniel|Moira|Samantha/.test(v.name) && v.lang.startsWith("en")) ??
         voices.find(v => /UK|GB|British/.test(v.name)) ??
@@ -168,17 +214,13 @@ export function JarvisAssistant() {
         voices.find(v => v.lang.startsWith("en")) ??
         null;
       if (voice) utt.voice = voice;
-      utt.rate   = 0.97;
-      utt.pitch  = 0.88;
-      utt.volume = 0.88;
+      utt.rate = 0.97; utt.pitch = 0.88; utt.volume = 0.88;
       window.speechSynthesis.speak(utt);
     };
-
     const voices = window.speechSynthesis.getVoices();
     if (voices.length > 0) {
       doSpeak(voices);
     } else {
-      // Android loads voices asynchronously — wait for the event then retry.
       window.speechSynthesis.onvoiceschanged = () => {
         window.speechSynthesis.onvoiceschanged = null;
         doSpeak(window.speechSynthesis.getVoices());
@@ -291,14 +333,11 @@ export function JarvisAssistant() {
   // ── Open panel ────────────────────────────────────────────────────────────
   const handleOpen = useCallback(() => {
     playJarvisActivate();
-    // Fire a silent utterance NOW while we're still in a user-gesture context.
-    // Android Chrome blocks speechSynthesis.speak() from async callbacks, so
-    // we "unlock" it here and subsequent speak() calls from fetch responses work.
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      const silent = new SpeechSynthesisUtterance(" ");
-      silent.volume = 0;
-      window.speechSynthesis.speak(silent);
-    }
+    // Unlock AudioContext on the user-gesture tick so that subsequent
+    // AudioBufferSourceNode.start() calls (from async fetch in speak()) work
+    // without triggering the autoplay policy on Android WebView.
+    const ctx = getAudioCtx();
+    if (ctx) ctx.resume().catch(() => {});
     setOpen(true);
     if (!greetedRef.current) {
       greetedRef.current = true;
