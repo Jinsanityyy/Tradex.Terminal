@@ -71,21 +71,21 @@ export default function LoginPage() {
         sessionStorage.setItem("tradex_boot", email.split("@")[0].toUpperCase());
         window.location.href = nextUrl;
       } else if (mode === "forgot") {
-        // Use signInWithOtp instead of resetPasswordForEmail.
-        // resetPasswordForEmail stores a PKCE verifier in the WebView's
-        // localStorage — when the link opens in the system browser on Android
-        // the verifier is gone and the exchange fails.
-        // signInWithOtp sends an OTP-based magic link (no PKCE verifier needed)
-        // that works in any browser. The link redirects to /reset-password.
-        const { error } = await supabase.auth.signInWithOtp({
-          email,
-          options: {
-            shouldCreateUser: false,
-            emailRedirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
-          },
+        // Send a password-recovery email (type=recovery) — this uses Supabase's
+        // "Reset Password" template, not the generic "Magic Link" one.
+        //
+        // IMPORTANT (Supabase dashboard): the "Reset Password" email template must
+        // link to the token_hash callback so the link works in ANY browser/device:
+        //   {{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password
+        // The callback verifies the token_hash server-side via verifyOtp, which
+        // does NOT need the PKCE code_verifier stored in the requesting browser.
+        // That is what makes the link open correctly from the Gmail in-app
+        // browser on mobile (where the original PKCE verifier is unavailable).
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
         });
         if (error) throw error;
-        setSuccess("Check your email — we sent you a link to reset your password.");
+        setSuccess("Check your email — we sent you a password reset link.");
       } else if (mode === "login") {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
