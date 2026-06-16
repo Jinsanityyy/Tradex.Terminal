@@ -71,20 +71,21 @@ export default function LoginPage() {
         sessionStorage.setItem("tradex_boot", email.split("@")[0].toUpperCase());
         window.location.href = nextUrl;
       } else if (mode === "forgot") {
-        // POST to server-side endpoint that uses admin.generateLink (no PKCE).
-        // This ensures the reset link works even when opened in a different
-        // browser than the one that requested it (e.g. Android system browser
-        // vs. Capacitor WebView where the PKCE verifier lives).
-        const res = await fetch("/api/auth/reset-password-request", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
+        // Use signInWithOtp instead of resetPasswordForEmail.
+        // resetPasswordForEmail stores a PKCE verifier in the WebView's
+        // localStorage — when the link opens in the system browser on Android
+        // the verifier is gone and the exchange fails.
+        // signInWithOtp sends an OTP-based magic link (no PKCE verifier needed)
+        // that works in any browser. The link redirects to /reset-password.
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            shouldCreateUser: false,
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+          },
         });
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body.error ?? "Failed to send reset link.");
-        }
-        setSuccess("Password reset link sent! Check your email.");
+        if (error) throw error;
+        setSuccess("Check your email — we sent you a link to reset your password.");
       } else if (mode === "login") {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
