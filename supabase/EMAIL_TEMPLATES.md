@@ -1,61 +1,35 @@
-# Supabase Auth Email Templates
+# Supabase Auth Email Templates — reference
 
-These templates **must** be configured in the Supabase Dashboard
-(**Authentication → Email Templates**). They make every auth link use a
-`token_hash` that points at our own `/auth/callback` route, which verifies the
-token server-side via `verifyOtp`. This path does **not** require the PKCE
-`code_verifier` stored in the browser that requested the link — so links open
-correctly even when the email is tapped from the Gmail in-app browser on a
-phone (a different browser context than where the request was made).
+The **"Reset password"** template in the Supabase Dashboard
+(**Authentication → Emails → Reset password**) is already branded and correct —
+do **not** replace it. The password-reset flow uses `resetPasswordForEmail`
+(see `src/app/login/page.tsx`), which sends *this* template.
 
-If a template instead uses the default `{{ .ConfirmationURL }}`, the link comes
-back as `?code=...` (PKCE) and fails cross-browser with
-`/login?error=link_expired`.
+The only thing that matters for cross-device reliability is the **link inside
+the button**. It should point at our own `/auth/callback` route using
+`token_hash`, so the link is verified server-side via `verifyOtp` and does
+**not** depend on the PKCE `code_verifier` stored in the browser that requested
+the reset (that verifier is missing when the link opens in the Gmail in-app
+browser on mobile).
 
----
-
-## Reset Password
-
-Set the action link to:
+## Correct button link
 
 ```
 {{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password
 ```
 
-Example body:
+If the button instead uses the default `{{ .ConfirmationURL }}`, the link comes
+back as `?code=...` (PKCE) and fails cross-browser with
+`/login?error=link_expired`. In that case, change only that one `href` — keep
+the rest of the template as-is.
 
-```html
-<h2>Reset your password</h2>
-<p>Follow this link to choose a new password:</p>
-<p>
-  <a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password">
-    Reset Password
-  </a>
-</p>
-```
+## Why the regression happened
 
-## Magic Link (used for passwordless sign-in, if enabled)
+The flow was switched from `resetPasswordForEmail` to `signInWithOtp`.
+`signInWithOtp` sends Supabase's generic **"Magic Link"** template
+("Follow this link to login"), not the branded "Reset password" one, and still
+relies on PKCE. Reverting to `resetPasswordForEmail` restores the branded email
+and the recovery flow.
 
-```
-{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=magiclink&next=/dashboard
-```
-
-## Confirm signup
-
-```
-{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=signup&next=/dashboard
-```
-
----
-
-### Why not `resetPasswordForEmail` default flow?
-
-`resetPasswordForEmail` / `signInWithOtp` on a PKCE browser client store a
-`code_verifier` in the requesting browser's `localStorage`. The default email
-template returns a `?code=` link that can only be exchanged by that same
-browser. On mobile the link opens in the mail app's in-app browser, where the
-verifier is absent — so the exchange fails. The `token_hash` callback above
-avoids PKCE entirely and is the supported cross-device pattern.
-
-Make sure `${SITE_URL}/auth/callback` is in **Authentication → URL
-Configuration → Redirect URLs**.
+Make sure `${SITE_URL}/auth/callback` is listed under
+**Authentication → URL Configuration → Redirect URLs**.
