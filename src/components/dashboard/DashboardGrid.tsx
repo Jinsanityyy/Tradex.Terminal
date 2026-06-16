@@ -1121,7 +1121,7 @@ export function DashboardGrid({ widgets }: { widgets: WidgetDef[] }) {
                   onClick={handleUpdateCurrentPreset}
                   className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[10px] text-zinc-300 transition-colors hover:bg-white/[0.05] hover:text-zinc-100"
                 >
-                  <span>Update "{activeCustomPreset.label}"</span>
+                  <span>Update &ldquo;{activeCustomPreset.label}&rdquo;</span>
                   <Check className="h-3 w-3 shrink-0 text-zinc-500" />
                 </button>
               ) : null}

@@ -297,7 +297,7 @@ export default function LoginPage() {
                 }}
               >
                 <p className="text-gray-300 italic leading-relaxed mb-3" style={{ fontSize: "0.85rem" }}>
-                  "TradeX is the first tool that actually gives me context before I enter  -  not just more indicators."
+                  &ldquo;TradeX is the first tool that actually gives me context before I enter  -  not just more indicators.&rdquo;
                 </p>
                 <div className="flex items-center gap-2.5">
                   <div
