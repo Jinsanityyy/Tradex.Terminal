@@ -400,7 +400,7 @@ export function JarvisAssistant() {
               width: isDesktop ? 420 : "100%",
               maxWidth: isDesktop ? 420 : 560,
               margin: isDesktop ? 0 : "0 auto",
-              height: isDesktop ? "100%" : "78vh",
+              height: isDesktop ? "100%" : "calc(82vh - env(safe-area-inset-bottom, 0px))",
               background: C.bg,
               borderTop:  isDesktop ? "none" : `1.5px solid ${C.dimBorder}`,
               borderLeft: `1.5px solid ${C.dimBorder}`,
@@ -599,7 +599,8 @@ export function JarvisAssistant() {
 
             {/* ── Voice-only input ── */}
             <div style={{
-              padding: "14px 14px 32px",
+              padding: "14px 14px 0",
+              paddingBottom: "max(48px, calc(env(safe-area-inset-bottom, 20px) + 24px))",
               borderTop: "1px solid rgba(0,212,255,0.09)",
               flexShrink: 0,
               display: "flex",
