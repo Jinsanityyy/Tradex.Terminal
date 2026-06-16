@@ -17,7 +17,7 @@ interface SpeechRecognitionInstance extends EventTarget {
   stop(): void;
   abort(): void;
   onresult: ((e: SpeechRecognitionEvent) => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((e: Event) => void) | null;
   onend: (() => void) | null;
 }
 declare global {
@@ -81,6 +81,18 @@ const STYLES = `
 
 let stylesInjected = false;
 
+// Module-level AudioContext so it survives component remounts.
+// Unlocked once on user gesture (handleOpen) and reused for all TTS playback.
+let _audioCtx: AudioContext | null = null;
+function getAudioCtx(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  const AudioContextClass =
+    window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextClass) return null;
+  if (!_audioCtx) _audioCtx = new AudioContextClass();
+  return _audioCtx;
+}
+
 export function JarvisAssistant() {
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -116,7 +128,6 @@ export function JarvisAssistant() {
   const recognitionRef  = useRef<SpeechRecognitionInstance | null>(null);
   const typeTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef  = useRef<HTMLDivElement>(null);
-  const greetedRef      = useRef(false);
 
   // Inject CSS once
   useEffect(() => {
@@ -151,28 +162,69 @@ export function JarvisAssistant() {
   }, []);
 
   // ── TTS ───────────────────────────────────────────────────────────────────
-  const speak = useCallback((text: string) => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    // Make sure the name is spoken as a word ("Vega"), never spelled out, and
-    // strip any stray dotted/legacy spellings so TTS never says letters.
-    const spoken = text
+  // Primary: fetch audio from /api/tts and play via AudioContext (unlocked on
+  // user gesture in handleOpen). This bypasses Android WebView's async
+  // speechSynthesis restrictions.
+  // Fallback: Web Speech API for desktop browsers.
+  const speak = useCallback(async (text: string) => {
+    if (typeof window === "undefined") return;
+
+    window.speechSynthesis?.cancel();
+
+    const cleaned = text
       .replace(/J\.?A\.?R\.?V\.?I\.?S\.?/gi, "Vega")
       .replace(/\bVEGA\b/g, "Vega")
       .replace(/\bV\.E\.G\.A\.?\b/gi, "Vega");
-    const utt = new SpeechSynthesisUtterance(spoken);
+
+    // Speak first 2 sentences (≤ 200 chars) — enough for voice UX
+    const sentences = cleaned.match(/[^.!?]+[.!?]+/g) ?? [cleaned];
+    const shortText = sentences.slice(0, 2).join(" ").slice(0, 200).trim();
+
+    // ── Primary: AudioContext + /api/tts ──────────────────────────────────
+    const ctx = getAudioCtx();
+    if (ctx) {
+      try {
+        // Resume in case the context was suspended (e.g. after backgrounding)
+        if (ctx.state === "suspended") await ctx.resume();
+
+        const res = await fetch(`/api/tts?text=${encodeURIComponent(shortText)}`);
+        if (res.ok) {
+          const buf = await res.arrayBuffer();
+          const audioBuffer = await ctx.decodeAudioData(buf);
+          const source = ctx.createBufferSource();
+          source.buffer = audioBuffer;
+          source.connect(ctx.destination);
+          source.start(0);
+          return; // done
+        }
+      } catch {
+        // fall through to Web Speech API
+      }
+    }
+
+    // ── Fallback: Web Speech API (desktop) ───────────────────────────────
+    if (!window.speechSynthesis) return;
+    const doSpeak = (voices: SpeechSynthesisVoice[]) => {
+      const utt = new SpeechSynthesisUtterance(cleaned);
+      const voice =
+        voices.find(v => /Daniel|Moira|Samantha/.test(v.name) && v.lang.startsWith("en")) ??
+        voices.find(v => /UK|GB|British/.test(v.name)) ??
+        voices.find(v => v.lang === "en-US" && !v.localService) ??
+        voices.find(v => v.lang.startsWith("en")) ??
+        null;
+      if (voice) utt.voice = voice;
+      utt.rate = 0.97; utt.pitch = 0.88; utt.volume = 0.88;
+      window.speechSynthesis.speak(utt);
+    };
     const voices = window.speechSynthesis.getVoices();
-    const voice =
-      voices.find(v => /Daniel|Moira|Samantha/.test(v.name) && v.lang.startsWith("en")) ??
-      voices.find(v => /UK|GB|British/.test(v.name)) ??
-      voices.find(v => v.lang === "en-US" && !v.localService) ??
-      voices.find(v => v.lang.startsWith("en")) ??
-      null;
-    if (voice) utt.voice = voice;
-    utt.rate  = 0.97;
-    utt.pitch = 0.88;
-    utt.volume = 0.88;
-    window.speechSynthesis.speak(utt);
+    if (voices.length > 0) {
+      doSpeak(voices);
+    } else {
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.onvoiceschanged = null;
+        doSpeak(window.speechSynthesis.getVoices());
+      };
+    }
   }, []);
 
   // ── Send ──────────────────────────────────────────────────────────────────
@@ -225,12 +277,16 @@ export function JarvisAssistant() {
   }, [msgCounter, symbol, timeframe, userName, speak, runTypewriter]);
 
   // ── Voice input ───────────────────────────────────────────────────────────
+  const vegaMsg = useCallback((text: string) => {
+    setMessages(prev => [...prev, { id: Date.now(), role: "jarvis" as const, text, displayed: text }]);
+  }, []);
+
   const startListening = useCallback(() => {
     const SR = typeof window !== "undefined"
       ? (window.SpeechRecognition || window.webkitSpeechRecognition)
       : null;
     if (!SR) {
-      alert("Voice input not supported in this browser.");
+      vegaMsg("Voice input isn't supported in this browser. Try opening TradeX in Chrome on Android.");
       return;
     }
     window.speechSynthesis?.cancel();
@@ -243,12 +299,30 @@ export function JarvisAssistant() {
       setPhase("thinking");
       sendMessage(t);
     };
-    rec.onerror = () => setPhase("idle");
-    rec.onend   = () => { if (phase === "listening") setPhase("idle"); };
+    rec.onerror = (e: Event) => {
+      setPhase("idle");
+      const errType = (e as unknown as { error?: string }).error ?? "";
+      if (!errType || errType === "aborted") return;
+      const msg =
+        errType === "not-allowed"
+          ? "Microphone access was blocked. Grant microphone permission in your browser or app settings, then try again."
+          : errType === "no-speech"
+          ? "No speech detected — tap the mic and speak clearly."
+          : errType === "network"
+          ? "Network error during voice recognition. Check your connection."
+          : "Voice recognition failed. Tap the mic and try again.";
+      vegaMsg(msg);
+    };
+    rec.onend = () => setPhase(p => p === "listening" ? "idle" : p);
     recognitionRef.current = rec;
-    rec.start();
-    setPhase("listening");
-  }, [phase, sendMessage]);
+    try {
+      rec.start();
+      setPhase("listening");
+    } catch {
+      setPhase("idle");
+      vegaMsg("Could not start voice input. Make sure microphone permission is granted.");
+    }
+  }, [sendMessage, vegaMsg]);
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
@@ -258,11 +332,12 @@ export function JarvisAssistant() {
   // ── Open panel ────────────────────────────────────────────────────────────
   const handleOpen = useCallback(() => {
     playJarvisActivate();
+    // Unlock AudioContext on the user-gesture tick so that subsequent
+    // AudioBufferSourceNode.start() calls (from async fetch in speak()) work
+    // without triggering the autoplay policy on Android WebView.
+    const ctx = getAudioCtx();
+    if (ctx) ctx.resume().catch(() => {});
     setOpen(true);
-    if (!greetedRef.current) {
-      greetedRef.current = true;
-      setTimeout(() => sendMessage("hello vega"), 500);
-    }
   }, [sendMessage]);
 
   // Allow other parts of the app (e.g. the desktop sidebar nav item) to open Vega.
@@ -359,7 +434,7 @@ export function JarvisAssistant() {
               width: isDesktop ? 420 : "100%",
               maxWidth: isDesktop ? 420 : 560,
               margin: isDesktop ? 0 : "0 auto",
-              height: isDesktop ? "100%" : "78vh",
+              height: isDesktop ? "100%" : "calc(82vh - env(safe-area-inset-bottom, 0px))",
               background: C.bg,
               borderTop:  isDesktop ? "none" : `1.5px solid ${C.dimBorder}`,
               borderLeft: `1.5px solid ${C.dimBorder}`,
@@ -558,7 +633,8 @@ export function JarvisAssistant() {
 
             {/* ── Voice-only input ── */}
             <div style={{
-              padding: "14px 14px 32px",
+              padding: "14px 14px 0",
+              paddingBottom: "max(48px, calc(env(safe-area-inset-bottom, 20px) + 24px))",
               borderTop: "1px solid rgba(0,212,255,0.09)",
               flexShrink: 0,
               display: "flex",

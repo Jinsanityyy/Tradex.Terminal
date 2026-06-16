@@ -33,7 +33,11 @@ export default function ResetPasswordPage() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (!mounted) return;
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
+      if (
+        event === "PASSWORD_RECOVERY" ||
+        event === "SIGNED_IN" ||
+        event === "INITIAL_SESSION"
+      ) {
         checkMfa();
       }
     });
