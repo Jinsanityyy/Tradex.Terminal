@@ -699,7 +699,9 @@ export function MobileHome() {
                         label={
                           effectiveSignalState === "ARMED" ? "ARMED" :
                           effectiveSignalState === "PENDING" ? "PENDING" :
-                          lastSetupAge ? `LAST SETUP · ${lastSetupAge}` : "LAST SETUP"
+                          (matchedStatus === "win_tp1" || matchedStatus === "win_tp2" || matchedStatus === "loss_sl" || matchedStatus === "expired" || matchedStatus === "invalidated")
+                            ? (lastSetupAge ? `LAST TRADE · ${lastSetupAge}` : "LAST TRADE")
+                            : (lastSetupAge ? `LAST SETUP · ${lastSetupAge}` : "LAST SETUP")
                         }
                         variant={
                           effectiveSignalState === "ARMED" ? "armed" :
