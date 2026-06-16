@@ -681,9 +681,9 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
         </div>
 
         <div className={styles.floorLabel}>
-          <span className={styles.floorSlash}>///</span>
+          <span className={styles.floorSlash}>{"///"}</span>
           TRADING FLOOR
-          <span className={styles.floorSlash}>///</span>
+          <span className={styles.floorSlash}>{"///"}</span>
         </div>
 
         {/* The room: side walls + floor content, front baseboard at the bottom */}
