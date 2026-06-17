@@ -15,8 +15,8 @@ interface StreamInfo {
 // current live broadcast and never goes stale.
 const ALWAYS_LIVE = new Set<string>([
   "UCIALMKvObZNtJ6AmdCLP7Lg", // Bloomberg Business News Live
-  "UCrp_UI8XtuYfpiqluWLD7Lw", // CNBC
-  "UCNye-wNBqNL5ZzHSJdse18g", // Al Jazeera English 24/7
+  "UCvJJ_dzjViJCoLf5uKUTwoA", // CNBC
+  "UCNye-wNBqNL5ZzHSJj3l8Bg", // Al Jazeera English 24/7
   "UCoMdktPbSTixAyNGwb-UYkQ", // Sky News 24/7
   "UChqUTb7kYRX8-EiaN3XFrSQ", // Reuters
   "UCEAZeUIeJs0IjQiqTCdVSIg", // Yahoo Finance

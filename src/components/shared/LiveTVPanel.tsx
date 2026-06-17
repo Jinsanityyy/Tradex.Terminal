@@ -26,7 +26,7 @@ const CHANNELS: Channel[] = [
     id: "cnbc",
     name: "CNBC",
     label: "US Markets · Earnings · Fed",
-    channelId: "UCrp_UI8XtuYfpiqluWLD7Lw",
+    channelId: "UCvJJ_dzjViJCoLf5uKUTwoA",
     handle: "@CNBC",
     color: "text-blue-300 border-blue-400/40 bg-blue-400/10",
   },
@@ -42,7 +42,7 @@ const CHANNELS: Channel[] = [
     id: "al-jazeera",
     name: "Al Jazeera",
     label: "Geopolitics · Middle East · Oil",
-    channelId: "UCNye-wNBqNL5ZzHSJdse18g",
+    channelId: "UCNye-wNBqNL5ZzHSJj3l8Bg",
     handle: "@AlJazeeraEnglish",
     color: "text-amber-400 border-amber-500/40 bg-amber-500/10",
   },
@@ -67,35 +67,36 @@ const CHANNELS: Channel[] = [
 const EMBED_PARAMS = "autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&fs=1";
 
 function buildEmbedUrl(videoId: string): string {
+  // Embed the exact live video ID resolved by the YouTube Data API — reliable, the API
+  // confirms the video is currently live and embeddable.
   return `https://www.youtube.com/embed/${videoId}?${EMBED_PARAMS}`;
 }
 
 function buildFallbackUrl(channelId: string): string {
-  // Fallback: direct live_stream embed (works when channel IS live, may show "unavailable" when not)
+  // Last-resort embed used only when the API can't resolve a video ID (e.g. no key /
+  // quota / network). YouTube resolves the channel's current live video server-side.
   return `https://www.youtube.com/embed/live_stream?channel=${channelId}&${EMBED_PARAMS}`;
 }
 
-// Fetch live video ID from our backend (with 90s cache)
+// Resolve the channel's current live video via our backend (YouTube Data API + cache).
 function useLiveStream(channel: Channel, retryKey: number) {
   const [videoId, setVideoId] = useState<string | null>(null);
-  const [isLive, setIsLive] = useState<boolean | null>(null); // null = loading
+  const [isLive, setIsLive] = useState<boolean | null>(null); // null = loading / unknown
 
   useEffect(() => {
-    setIsLive(null);
     setVideoId(null);
+    setIsLive(null);
 
     const params = new URLSearchParams({ channel: channel.channelId, handle: channel.handle });
+    // After a manual refresh, bypass the server cache to re-resolve immediately.
+    if (retryKey > 0) params.set("fresh", "1");
+
     fetch(`/api/tv/stream?${params}`)
-      .then(r => r.ok ? r.json() : null)
-      .then((data: { videoId: string | null; isLive: boolean } | null) => {
-        if (data) {
-          setVideoId(data.videoId);
-          setIsLive(data.isLive);
-        } else {
-          // API failed — fall back to live_stream embed
-          setVideoId(null);
-          setIsLive(null);
-        }
+      .then(r => (r.ok ? r.json() : null))
+      .then((data: { videoId: string | null; isLive: boolean | null } | null) => {
+        // Unknown/error → leave null so the embed still shows (fail open).
+        setVideoId(data?.videoId ?? null);
+        setIsLive(data ? data.isLive : null);
       })
       .catch(() => {
         setVideoId(null);
@@ -120,10 +121,11 @@ export function LiveTVPanel({
 
   const { videoId, isLive } = useLiveStream(active, retryKey);
 
-  // Resolved embed URL: use specific video ID when available, else fallback to live_stream
+  // Prefer the API-resolved live video ID (reliable). If unavailable (no key / quota /
+  // network), fall back to the channel live_stream embed as a best effort.
   const embedUrl = videoId ? buildEmbedUrl(videoId) : buildFallbackUrl(active.channelId);
 
-  // isLive === false → confirmed offline; null → loading / API failed (show embed anyway as fallback)
+  // isLive === false → confirmed offline; null → loading / unknown (show embed anyway).
   const confirmedOffline = isLive === false;
 
   function stopIframe() {

@@ -17,9 +17,9 @@ type Tab = "live" | "catalysts" | "calendar" | "trump";
 
 const LIVE_CHANNELS = [
   { id: "bloomberg", name: "Bloomberg",  channelId: "UCIALMKvObZNtJ6AmdCLP7Lg", handle: "@BloombergTelevision" },
-  { id: "cnbc",      name: "CNBC",       channelId: "UCrp_UI8XtuYfpiqluWLD7Lw", handle: "@CNBC" },
+  { id: "cnbc",      name: "CNBC",       channelId: "UCvJJ_dzjViJCoLf5uKUTwoA", handle: "@CNBC" },
   { id: "reuters",   name: "Reuters",    channelId: "UChqUTb7kYRX8-EiaN3XFrSQ", handle: "@Reuters" },
-  { id: "aljazeera", name: "Al Jazeera", channelId: "UCNye-wNBqNL5ZzHSJdse18g", handle: "@AlJazeeraEnglish" },
+  { id: "aljazeera", name: "Al Jazeera", channelId: "UCNye-wNBqNL5ZzHSJj3l8Bg", handle: "@AlJazeeraEnglish" },
   { id: "skynews",   name: "Sky News",   channelId: "UCoMdktPbSTixAyNGwb-UYkQ", handle: "@SkyNews" },
 ];
 
