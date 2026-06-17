@@ -1,30 +1,21 @@
 ﻿"use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CatalystFeed } from "@/components/shared/CatalystFeed";
 import { NewsFeed } from "@/components/shared/NewsFeed";
 import { LiveNewsTicker } from "@/components/shared/LiveNewsTicker";
 import { EconomicEventTable } from "@/components/shared/EconomicEventTable";
+import { LiveTVPanel } from "@/components/shared/LiveTVPanel";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useEconomicCalendar, useCatalysts, useNews } from "@/hooks/useMarketData";
-import { Zap, Radio, CheckCircle2, Clock, CalendarDays, Wifi, WifiOff, Newspaper, Tv, RotateCcw, ExternalLink } from "lucide-react";
-
-const LIVE_CHANNELS = [
-  { id: "bloomberg",    name: "Bloomberg TV",  embedUrl: "https://www.youtube.com/embed/iEpJwprxDdk?autoplay=1",      watchUrl: "https://www.youtube.com/watch?v=iEpJwprxDdk" },
-  { id: "cnbc",         name: "CNBC",          embedUrl: "https://www.youtube.com/embed/kbeYeyt8IW0?autoplay=1",      watchUrl: "https://www.youtube.com/watch?v=kbeYeyt8IW0" },
-  { id: "reuters",      name: "Reuters",       embedUrl: "https://www.youtube.com/embed/INDhdbMGeKU?autoplay=1",      watchUrl: "https://www.youtube.com/@Reuters/live" },
-  { id: "aljazeera",    name: "Al Jazeera",    embedUrl: "https://www.youtube.com/embed/gCNeDWCI0vo?autoplay=1",      watchUrl: "https://www.youtube.com/watch?v=gCNeDWCI0vo" },
-  { id: "yahoofinance", name: "Yahoo Finance", embedUrl: "https://www.youtube.com/embed/KQp-e_XQnDE?autoplay=1",      watchUrl: "https://www.youtube.com/watch?v=KQp-e_XQnDE" },
-];
+import { Zap, Radio, CheckCircle2, Clock, CalendarDays, Wifi, WifiOff, Newspaper, Tv } from "lucide-react";
 
 export default function CatalystsPage() {
   const { events: economicEvents } = useEconomicCalendar();
   const { catalysts, isLive: isCatalystsLive } = useCatalysts();
   const { news, isLive: isNewsLive } = useNews(60_000);
-  const [activeChannel, setActiveChannel] = useState(LIVE_CHANNELS[0]);
-  const [streamKey, setStreamKey] = useState(0);
 
   const liveCatalysts = catalysts.filter(c => c.status === "live");
   const completedCatalysts = catalysts.filter(c => c.status === "completed");
@@ -118,58 +109,9 @@ export default function CatalystsPage() {
 
         <TabsContent value="news">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {/* Compact video panel */}
-            <div className="rounded-xl border border-white/8 overflow-hidden bg-black flex flex-col">
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-white/6 bg-[#0a0b0e] shrink-0">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-500" />
-                </span>
-                <span className="text-[9px] font-bold text-red-400 uppercase tracking-wider">Live TV</span>
-                <div className="flex gap-1 ml-2 flex-1 flex-wrap">
-                  {LIVE_CHANNELS.map(ch => (
-                    <button
-                      key={ch.id}
-                      onClick={() => { setActiveChannel(ch); setStreamKey(k => k + 1); }}
-                      className={`px-2.5 py-0.5 rounded text-[10px] font-semibold transition-all border ${
-                        activeChannel.id === ch.id
-                          ? "bg-red-500/15 border-red-500/30 text-red-300"
-                          : "border-transparent text-zinc-500 hover:text-zinc-300 hover:border-white/10"
-                      }`}
-                    >
-                      {ch.name}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  onClick={() => setStreamKey(k => k + 1)}
-                  title="Reload stream"
-                  className="ml-auto text-zinc-600 hover:text-zinc-300 transition-colors"
-                >
-                  <RotateCcw className="h-3 w-3" />
-                </button>
-              </div>
-              <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-                <iframe
-                  key={`${activeChannel.id}-${streamKey}`}
-                  src={activeChannel.embedUrl}
-                  className="absolute inset-0 w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  title={activeChannel.name}
-                />
-                {/* Fallback: always-visible "Watch on YouTube" button */}
-                <a
-                  href={activeChannel.watchUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold transition-opacity hover:opacity-100 opacity-70"
-                  style={{ background: "rgba(0,0,0,0.75)", color: "#fff", backdropFilter: "blur(4px)", border: "1px solid rgba(255,255,255,0.12)" }}
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  Watch on YouTube
-                </a>
-              </div>
+            {/* Live TV — shared, API-resolved component (no more stale hard-coded video IDs) */}
+            <div className="rounded-xl border border-white/8 overflow-hidden bg-black p-3">
+              <LiveTVPanel showHeader={false} showFooterNote={false} />
             </div>
 
             {/* Live headlines beside the video */}
