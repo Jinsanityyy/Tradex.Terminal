@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { isOwnerEmail } from "@/lib/auth/owner";
 
 export type Plan = "free" | "pro" | "elite";
 
@@ -42,6 +43,25 @@ export function useSubscription() {
         if (!supabase) { setLoading(false); return; }
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) { setLoading(false); return; }
+
+        // App owner(s) always have full Elite access — independent of the
+        // subscriptions table (no row / no payment required).
+        if (isOwnerEmail(user.email)) {
+          setSubscription({
+            plan: "elite",
+            status: "active",
+            current_period_end: null,
+            trial_ends_at: null,
+            isActive: true,
+            isPro: true,
+            isElite: true,
+            isTrialing: false,
+            trialDaysLeft: 0,
+            hasFullAccess: true,
+          });
+          setLoading(false);
+          return;
+        }
 
         const { data } = await supabase
           .from("subscriptions")

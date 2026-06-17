@@ -8,7 +8,12 @@
  * This is the server-side source of truth — never trust a client claim.
  */
 
-const OWNER_EMAILS: string[] = (process.env.OWNER_EMAILS ?? "kimbasit18@gmail.com")
+// Server reads OWNER_EMAILS; the client bundle only sees NEXT_PUBLIC_* vars, so
+// fall back to that (and finally the hardcoded default) so isOwnerEmail() works
+// in both contexts — e.g. the client useSubscription hook grants owners access.
+const OWNER_EMAILS: string[] = (
+  process.env.OWNER_EMAILS ?? process.env.NEXT_PUBLIC_OWNER_EMAILS ?? "kimbasit18@gmail.com"
+)
   .split(",")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
