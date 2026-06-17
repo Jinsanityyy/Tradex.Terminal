@@ -368,21 +368,25 @@ export function JarvisAssistant() {
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <>
-      {/* ── Floating orb (mobile only — desktop opens from the sidebar nav) ── */}
-      {!open && !isDesktop && (
+      {/* ── Floating orb (both desktop & mobile) ──
+          Desktop: bottom-right of the viewport. Mobile: bottom-right but raised
+          to clear the bottom tab bar. Opens the assistant; the panel then docks
+          to the right edge on desktop / as a bottom sheet on mobile. */}
+      {!open && (
         <button
           onClick={handleOpen}
           aria-label="Open Vega"
           style={{
             position: "fixed",
-            bottom: "calc(env(safe-area-inset-bottom, 20px) + 72px)",
-            right: 16,
+            bottom: isDesktop ? 24 : "calc(env(safe-area-inset-bottom, 20px) + 72px)",
+            right: isDesktop ? 24 : 16,
             zIndex: 95,
-            width: 42,
-            height: 42,
+            width: isDesktop ? 52 : 42,
+            height: isDesktop ? 52 : 42,
             borderRadius: "50%",
             background: "radial-gradient(circle at 38% 38%, rgba(0,212,255,.22), rgba(2,8,18,.92))",
             border: "1.5px solid rgba(0,212,255,.55)",
+            boxShadow: isDesktop ? "0 6px 24px rgba(0,212,255,.18), 0 2px 8px rgba(0,0,0,.5)" : undefined,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -393,7 +397,7 @@ export function JarvisAssistant() {
         >
           <span style={{
             fontFamily: "var(--font-jetbrains-mono, monospace)",
-            fontSize: 16,
+            fontSize: isDesktop ? 20 : 16,
             fontWeight: 800,
             color: C.primary,
             letterSpacing: "-0.02em",

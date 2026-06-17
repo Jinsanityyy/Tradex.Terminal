@@ -10,7 +10,7 @@ import {
   DollarSign, Tv, Settings2,
   Crown, Zap, BarChart2,
   ChevronLeft, ChevronRight, Menu, X, GraduationCap, LayoutDashboard,
-  ChevronDown, CheckCircle2, LogOut, Camera, Sparkles,
+  ChevronDown, CheckCircle2, LogOut, Camera,
 } from "lucide-react";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -35,7 +35,7 @@ const SECTIONS = [
     label: "INTELLIGENCE",
     items: [
       { id: "market-intelligence",  href: "/dashboard/market-intelligence",  label: "Insights",         icon: Brain,         proOnly: true  },
-      { id: "vega",                 href: "#vega",                           label: "Vega AI",          icon: Sparkles,      proOnly: false, action: "vega" },
+      // Vega AI lives as a floating orb (bottom-right), not a sidebar item — see JarvisAssistant.
     ],
   },
   {
@@ -583,21 +583,6 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
                 const active = isActive(item.href);
                 const locked = item.proOnly && !subscription.hasFullAccess;
                 const { tag, variant } = getNavTag(item.id, micro);
-
-                // Vega AI — opens the assistant panel instead of navigating.
-                if ("action" in item && item.action === "vega") {
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => window.dispatchEvent(new Event("vega:open"))}
-                      className="w-full flex items-center gap-3 px-4 py-[7px] hover:bg-[rgba(0,212,255,0.06)] transition-colors text-[#7fd9ee]"
-                    >
-                      <Icon className="h-3 w-3 shrink-0 opacity-80 text-[#00D4FF]" strokeWidth={1.5} />
-                      <span className="flex-1 text-[11.5px] font-medium text-left tracking-[0.01em]">{item.label}</span>
-                      <span className="text-[9px] font-mono uppercase tracking-wide text-[#00D4FF]">AI</span>
-                    </button>
-                  );
-                }
 
                 return (
                   <Link
