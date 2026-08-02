@@ -16,6 +16,7 @@ import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useQuotes } from "@/hooks/useMarketData";
 import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelectorSheet";
+import { AgentReadDisclaimer } from "@/components/shared/AgentReadDisclaimer";
 
 const TIMEFRAMES: Timeframe[] = ["M5", "M15", "H1", "H4"];
 
@@ -81,11 +82,11 @@ function AgentBar({ label, bias, conf }: { label: string; bias: string; conf: nu
 // ── Signal State Banner ────────────────────────────────────────────────────────────────────────────
 
 const SIG_CFG: Record<SignalState, { label: string; dot: string; pulse: boolean; bg: string; border: string; text: string; sub: string }> = {
-  ARMED:    { label: "ENTER NOW", dot: "bg-emerald-400", pulse: true,  bg: "bg-emerald-500/12", border: "border-emerald-500/35", text: "text-emerald-300", sub: "text-emerald-300/60" },
-  PENDING:  { label: "PENDING",   dot: "bg-amber-400",   pulse: true,  bg: "bg-amber-500/10",   border: "border-amber-500/30",   text: "text-amber-300",   sub: "text-amber-300/60"   },
-  EXPIRED:  { label: "EXPIRED",   dot: "bg-zinc-500",    pulse: false, bg: "bg-zinc-800/50",    border: "border-zinc-600/25",    text: "text-zinc-400",    sub: "text-zinc-600"       },
-  WAIT:     { label: "WAIT",      dot: "bg-orange-400",  pulse: true,  bg: "bg-orange-500/10",  border: "border-orange-500/30",  text: "text-orange-300",  sub: "text-orange-300/60"  },
-  NO_TRADE: { label: "NO TRADE",  dot: "bg-zinc-600",    pulse: false, bg: "bg-zinc-900/60",    border: "border-zinc-700/20",    text: "text-zinc-500",    sub: "text-zinc-600"       },
+  ARMED:    { label: "AT LEVEL",     dot: "bg-emerald-400", pulse: true,  bg: "bg-emerald-500/12", border: "border-emerald-500/35", text: "text-emerald-300", sub: "text-emerald-300/60" },
+  PENDING:  { label: "APPROACHING",  dot: "bg-amber-400",   pulse: true,  bg: "bg-amber-500/10",   border: "border-amber-500/30",   text: "text-amber-300",   sub: "text-amber-300/60"   },
+  EXPIRED:  { label: "LEVEL PASSED", dot: "bg-zinc-500",    pulse: false, bg: "bg-zinc-800/50",    border: "border-zinc-600/25",    text: "text-zinc-400",    sub: "text-zinc-600"       },
+  WAIT:     { label: "FORMING",      dot: "bg-orange-400",  pulse: true,  bg: "bg-orange-500/10",  border: "border-orange-500/30",  text: "text-orange-300",  sub: "text-orange-300/60"  },
+  NO_TRADE: { label: "NO READ",      dot: "bg-zinc-600",    pulse: false, bg: "bg-zinc-900/60",    border: "border-zinc-700/20",    text: "text-zinc-500",    sub: "text-zinc-600"       },
 };
 
 function SignalBanner({
@@ -604,7 +605,7 @@ export function MobileBrain() {
 
           {data && (
             <div className="bg-[hsl(var(--card))] rounded-2xl border border-white/5 p-4">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-3">Agent Consensus</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-3">Agent Agreement</p>
               <AgentBar label="Trend"        bias={trend?.bias ?? "neutral"}      conf={trend?.confidence ?? 0} />
               <AgentBar label="Price Action" bias={smc?.bias ?? "neutral"}        conf={smc?.confidence ?? 0} />
               <AgentBar label="News"         bias={news?.impact ?? "neutral"}     conf={news?.confidence ?? 0} />
@@ -613,7 +614,7 @@ export function MobileBrain() {
               {master && (
                 <div className="mt-3 pt-3 border-t border-white/5">
                   <div className="flex justify-between items-center">
-                    <span className="text-[10px] text-zinc-500">Consensus Score</span>
+                    <span className="text-[10px] text-zinc-500">Sentiment Balance</span>
                     <span className={cn("text-[12px] font-black font-mono", master.consensusScore < 0 ? "text-red-400" : "text-emerald-400")}>
                       {master.consensusScore > 0 ? "+" : ""}{master.consensusScore.toFixed(1)}
                     </span>
@@ -706,6 +707,8 @@ export function MobileBrain() {
               <p className="text-[12px] text-zinc-600">Tap Refresh to run agent analysis</p>
             </div>
           )}
+
+          {data && <AgentReadDisclaimer className="px-1 pt-1" />}
 
         </div>
       )}

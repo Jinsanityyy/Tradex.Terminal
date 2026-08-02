@@ -9,6 +9,8 @@ import {
   Newspaper, FlipHorizontal2, CheckCircle, XCircle,
 } from "lucide-react";
 import type { AgentRunResult } from "@/lib/agents/schemas";
+import { AgentReadDisclaimer } from "@/components/shared/AgentReadDisclaimer";
+import { signalStateLabel } from "@/components/shared/agent-read-labels";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -526,7 +528,7 @@ function ExecutionAgentDetail({ data }: { data: AgentRunResult }) {
 
       {!a.hasSetup ? (
         <div className="p-4 rounded-xl bg-zinc-900 border border-white/8">
-          <p className="text-zinc-500 text-sm font-semibold">No actionable setup found</p>
+          <p className="text-zinc-500 text-sm font-semibold">No clear structure identified</p>
           <p className="text-[10px] text-zinc-600 mt-1">{a.signalStateReason || "Wait for structure to develop."}</p>
         </div>
       ) : (
@@ -536,9 +538,9 @@ function ExecutionAgentDetail({ data }: { data: AgentRunResult }) {
             a.direction === "long" ? "bg-emerald-500/8 border-emerald-500/20" : "bg-red-500/8 border-red-500/20"
           )}>
             <p className={cn("text-base font-black tracking-widest uppercase", a.direction === "long" ? "text-emerald-400" : "text-red-400")}>
-              {a.direction === "long" ? "LONG SETUP" : "SHORT SETUP"}
+              {a.direction === "long" ? "BULLISH STRUCTURE" : "BEARISH STRUCTURE"}
             </p>
-            <p className="text-[10px] text-zinc-500 mt-0.5">{a.signalState}  -  {a.signalStateReason}</p>
+            <p className="text-[10px] text-zinc-500 mt-0.5">{signalStateLabel(a.signalState)}  -  {a.signalStateReason}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -649,8 +651,8 @@ function MasterAgentDetail({ data }: { data: AgentRunResult }) {
   return (
     <div className="space-y-5">
       <PixelRow tags={[
-        { k: "FINAL",    v: a.finalBias.toUpperCase() },
-        { k: "SCORE",    v: `${a.consensusScore > 0 ? "+" : ""}${a.consensusScore.toFixed(1)}` },
+        { k: "READ",     v: a.finalBias === "no-trade" ? "NO CLEAR BIAS" : a.finalBias.toUpperCase() },
+        { k: "BALANCE",  v: `${a.consensusScore > 0 ? "+" : ""}${a.consensusScore.toFixed(1)}` },
         { k: "CONF",     v: `${a.confidence}%` },
         { k: "STRATEGY", v: a.strategyMatch ?? " - " },
         { k: "SUPPORTS", v: `${a.supports.length}` },
@@ -661,7 +663,7 @@ function MasterAgentDetail({ data }: { data: AgentRunResult }) {
         <ConvictionGauge value={a.confidence} />
         <div className="flex-1 space-y-2">
           <div className="flex justify-between items-center">
-            <span className="text-[10px] text-zinc-500">Consensus Score</span>
+            <span className="text-[10px] text-zinc-500">Sentiment Balance</span>
             <span className={cn("text-[11px] font-mono font-bold",
               a.consensusScore > 0 ? "text-emerald-400" : a.consensusScore < 0 ? "text-red-400" : "text-zinc-400"
             )}>
@@ -790,7 +792,7 @@ const AGENT_CONFIG: Record<string, {
     View: ContrarianAgentDetail,
   },
   master: {
-    label: "Master Consensus",
+    label: "Market Read",
     icon:  <Brain className="h-4 w-4" />,
     getBias: d => d.agents.master.finalBias,
     getConf: d => d.agents.master.confidence,
@@ -952,6 +954,11 @@ export function BrainOverviewDrawer({ open, onClose, data, highlightAgentId }: B
           <div className="flex-1 overflow-y-auto px-5 py-5">
             <cfg.View data={data} />
             <div className="h-4" />
+          </div>
+
+          {/* Persistent disclaimer — travels with every agent read */}
+          <div className="shrink-0 border-t border-white/6 px-5 py-2.5">
+            <AgentReadDisclaimer variant="compact" />
           </div>
 
         </div>

@@ -20,9 +20,9 @@ const SEVERITY_COLOR: Record<string, string> = {
 const TYPE_CFG = {
   news:   { icon: <Newspaper className="h-3 w-3" />, label: "NEWS",      base: "#ef4444", baseRgb: "239,68,68"  },
   trump:  { icon: <Radio      className="h-3 w-3" />, label: "POLITICAL", base: "#f59e0b", baseRgb: "245,158,11" },
-  agent:  { icon: <Zap        className="h-3 w-3" />, label: "SIGNAL",    base: "#22c55e", baseRgb: "34,197,94"  },
+  agent:  { icon: <Zap        className="h-3 w-3" />, label: "MARKET READ", base: "#22c55e", baseRgb: "34,197,94"  },
   chat:   { icon: <MessageSquare className="h-3 w-3" />, label: "MESSAGE", base: "#a78bfa", baseRgb: "167,139,250" },
-  signal: { icon: <TrendingUp className="h-3 w-3" />, label: "SIGNAL",    base: "#38bdf8", baseRgb: "56,189,248" },
+  signal: { icon: <TrendingUp className="h-3 w-3" />, label: "MARKET READ", base: "#38bdf8", baseRgb: "56,189,248" },
 } as const;
 
 function getCfg(type: string) {
