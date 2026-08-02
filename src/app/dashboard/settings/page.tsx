@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Palette, BarChart3, Globe, Bell, Filter, RotateCcw, Save, CheckCircle2, ShieldCheck, ShieldOff, Smartphone, Loader2, AlertCircle, DollarSign, Trash2, ChevronRight, ChevronLeft, Settings2 } from "lucide-react";
+import { Palette, BarChart3, Globe, Bell, Filter, RotateCcw, Save, CheckCircle2, ShieldCheck, ShieldOff, Smartphone, Loader2, AlertCircle, DollarSign, Trash2, ChevronRight, ChevronLeft, Settings2, KeyRound } from "lucide-react";
+import { LicenseRedeemCard } from "@/components/shared/LicenseRedeemCard";
 import {
   useSettings, DEFAULTS,
   Settings, Theme, Density, TimeZone, DateFormat, RefreshInterval, ImpactThreshold,
@@ -130,6 +131,7 @@ function MultiSelect({ options, selected, onToggle, labelFn }: { options: string
 // ── Nav sections data ──────────────────────────────────────────────────────────
 
 const NAV_SECTIONS = [
+  { id: "plan",          label: "Plan & License", icon: KeyRound,   danger: false },
   { id: "appearance",    label: "Appearance",    icon: Palette,     danger: false },
   { id: "market",        label: "Market",        icon: BarChart3,   danger: false },
   { id: "risk",          label: "Risk",          icon: DollarSign,  danger: false },
@@ -407,6 +409,13 @@ export default function SettingsPage() {
 
   function renderContent(id: SectionId) {
     switch (id) {
+      case "plan":
+        return (
+          <div className="py-4">
+            <LicenseRedeemCard />
+          </div>
+        );
+
       case "appearance":
         return (
           <>

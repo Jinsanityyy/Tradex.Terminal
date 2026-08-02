@@ -1,4 +1,5 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
+import { requirePro } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +84,9 @@ async function callGemini(prompt: string): Promise<string> {
 }
 
 export async function POST(req: NextRequest) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   try {
     const body: CandleAnalysisRequest = await req.json();
     const { symbol, timeframe, candle, context } = body;
@@ -155,7 +159,10 @@ Explain why this candle moved. Return JSON only.`;
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   const apiKey = (process.env.GOOGLE_AI_API_KEY ?? "").trim();
   if (!apiKey) {
     return NextResponse.json({ ok: false, error: "GOOGLE_AI_API_KEY is not set in environment variables" });

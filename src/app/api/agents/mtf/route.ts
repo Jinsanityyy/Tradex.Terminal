@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requirePro } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -571,8 +572,11 @@ const NEUTRAL: TFAnalysis = {
   score: 0,
 };
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
+export async function GET(req: Request) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
+  const { searchParams } = new URL(req.url);
   const symbol = (searchParams.get("symbol") ?? "XAUUSD").toUpperCase();
   const cacheHit = cache.get(symbol);
 

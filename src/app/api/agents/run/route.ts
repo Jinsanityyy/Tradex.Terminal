@@ -12,6 +12,7 @@ import type { Symbol, Timeframe } from "@/lib/agents/schemas";
 import { runAgentOrchestrator } from "@/lib/agents/orchestrator";
 import { getAuthUser } from "@/lib/supabase/auth-helper";
 import { getAgentCache } from "@/lib/agents/agent-cache-store";
+import { requirePro } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 55; // Vercel Pro: 60s max  -  keep 5s buffer for cleanup
@@ -30,6 +31,9 @@ function validateParams(symbol: unknown, timeframe: unknown): { symbol: Symbol; 
 }
 
 export async function GET(req: NextRequest) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   const { searchParams } = new URL(req.url);
   const symbol    = searchParams.get("symbol")    ?? "XAUUSD";
   const timeframe = searchParams.get("timeframe") ?? "H1";
@@ -61,6 +65,9 @@ async function serveCachedOrDeny(symbol: Symbol, timeframe: Timeframe) {
 }
 
 export async function POST(req: NextRequest) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   let body: { symbol?: unknown; timeframe?: unknown; forceRefresh?: boolean };
 
   try {

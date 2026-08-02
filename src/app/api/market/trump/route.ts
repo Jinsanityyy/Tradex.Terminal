@@ -5,6 +5,7 @@ import { llmCreate, llmAvailable } from "@/lib/agents/llm-provider";
 
 // HTTP/1.1 GET via node:https  -  handles gzip/deflate decompression + redirects
 import * as zlib from "node:zlib";
+import { requirePro } from "@/lib/auth/entitlement";
 
 function httpsGet(url: string, redirects = 5): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -440,6 +441,9 @@ async function fetchFinnhubTrump(): Promise<Omit<TrumpPost, "goldImpact" | "gold
 }
 
 export async function GET(req: Request) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   const { searchParams } = new URL(req.url);
   const forceRefresh = searchParams.get("refresh") === "1";
 

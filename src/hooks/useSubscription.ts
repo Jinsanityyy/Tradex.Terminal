@@ -69,51 +69,30 @@ export function useSubscription() {
           .eq("user_id", user.id)
           .maybeSingle();
 
+        // No free trial: access comes from a paid plan only (or owner, above).
+        // The trial fields are kept on the interface so existing UI compiles,
+        // but they are always inert.
         if (data) {
-          const plan        = (data.plan ?? "free") as Plan;
-          const isActive    = data.status === "active";
-          const now         = new Date();
-          const trialEnd    = data.trial_ends_at ? new Date(data.trial_ends_at) : null;
-          const isTrialing  = !!trialEnd && now < trialEnd && plan === "free";
-          const trialDaysLeft = isTrialing
-            ? Math.max(0, Math.ceil((trialEnd!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
-            : 0;
-          const isPro       = isActive && (plan === "pro" || plan === "elite");
-          const isElite     = isActive && plan === "elite";
-          const hasFullAccess = isPro || isTrialing;
+          const plan     = (data.plan ?? "free") as Plan;
+          const isActive = data.status === "active";
+          const isPro    = isActive && (plan === "pro" || plan === "elite");
+          const isElite  = isActive && plan === "elite";
 
           setSubscription({
             plan,
             status: data.status,
             current_period_end: data.current_period_end,
-            trial_ends_at: data.trial_ends_at,
+            trial_ends_at: null,
             isActive,
             isPro,
             isElite,
-            isTrialing,
-            trialDaysLeft,
-            hasFullAccess,
+            isTrialing: false,
+            trialDaysLeft: 0,
+            hasFullAccess: isPro,
           });
         } else {
-          const createdAt = user.created_at ? new Date(user.created_at) : new Date();
-          const trialEnd  = new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1000);
-          const now = new Date();
-          const isTrialing = now < trialEnd;
-          const trialDaysLeft = isTrialing
-            ? Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
-            : 0;
-          setSubscription({
-            plan: "free",
-            status: "active",
-            current_period_end: null,
-            trial_ends_at: trialEnd.toISOString(),
-            isActive: true,
-            isPro: false,
-            isElite: false,
-            isTrialing,
-            trialDaysLeft,
-            hasFullAccess: isTrialing,
-          });
+          // No row yet (trigger not fired, or row deleted) — free, not trialing.
+          setSubscription(DEFAULT);
         }
       } catch {}
       finally { setLoading(false); }

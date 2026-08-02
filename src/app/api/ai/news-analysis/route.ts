@@ -1,7 +1,14 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { llmCreate, llmAvailable } from "@/lib/agents/llm-provider";
+import { requirePro } from "@/lib/auth/entitlement";
+
+// Auth-gated: must never be statically prerendered or cached.
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   const { title, explanation, affectedMarkets, importance, forecast, previous, actual, status, source } = await req.json();
 
   // Detect event type for analysis framing

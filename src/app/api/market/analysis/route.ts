@@ -1,5 +1,6 @@
 ﻿import { NextResponse } from "next/server";
 import type { MarketNarrative, TradeContext, Sentiment } from "@/types";
+import { requirePro } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -210,7 +211,10 @@ function analyzeMarket(quotes: Record<string, QuoteData>, news: NewsData[]): Ana
   };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   if (cache && Date.now() - cache.ts < CACHE_TTL) {
     return NextResponse.json({ ...cache.data, cached: true });
   }
@@ -248,7 +252,10 @@ export async function GET() {
 }
 
 // POST endpoint for manual "Generate Analysis"  -  forces fresh data
-export async function POST() {
+export async function POST(req: Request) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   try {
     // Clear cache to force fresh analysis
     cache = null;
