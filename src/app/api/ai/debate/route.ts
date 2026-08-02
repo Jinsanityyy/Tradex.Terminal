@@ -1,5 +1,6 @@
 ﻿import { NextResponse } from "next/server";
 import { llmCreate, llmAvailable } from "@/lib/agents/llm-provider";
+import { requirePro } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +84,9 @@ async function runAgent(
 // ── Route ──────────────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   try {
     if (!llmAvailable()) {
       return NextResponse.json(

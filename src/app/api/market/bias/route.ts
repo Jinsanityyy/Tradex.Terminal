@@ -2,6 +2,7 @@
 import type { BiasData } from "@/types";
 import { TRACKED_ASSETS } from "@/lib/api/market-data";
 import { deriveConvictionBias } from "@/lib/api/conviction";
+import { requirePro } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -163,7 +164,10 @@ function deriveKeyLevels(price: number, high52w: number, low52w: number): { supp
   return { support: parseFloat(support.toFixed(4)), resistance: parseFloat(resistance.toFixed(4)) };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   if (cache.data.length > 0 && Date.now() - cache.ts < CACHE_TTL) {
     return NextResponse.json({ data: cache.data, timestamp: cache.ts, cached: true });
   }

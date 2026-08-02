@@ -2,6 +2,7 @@
 import { deriveConvictionBias } from "@/lib/api/conviction";
 import { getAIAnalysisCache, getLastAIUpdateTs } from "@/lib/api/ai-analysis-cache";
 import type { AssetAIAnalysis } from "@/types";
+import { requirePro } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -747,7 +748,10 @@ function calculateSMCLevels(
 
 // ── Route ─────────────────────────────────────────────────────────────────────
 
-export async function GET() {
+export async function GET(req: Request) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   // Serve cached response only if:
   //   1. Cache is warm (data exists + within TTL), AND
   //   2. The AI analysis has NOT been updated since we last computed

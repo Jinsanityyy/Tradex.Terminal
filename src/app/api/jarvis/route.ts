@@ -4,6 +4,7 @@ import { getAgentCache } from "@/lib/agents/agent-cache-store";
 import { getOpenSignals } from "@/lib/signals/storage";
 import { getServiceClient } from "@/lib/supabase/service";
 import type { Symbol, Timeframe } from "@/lib/agents/schemas";
+import { requirePro } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -58,6 +59,9 @@ Rules:
 - Personality: calm, intelligent, slightly formal. Never say "I'm sorry" or "I'm just an AI."`;
 
 export async function POST(req: NextRequest) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   const { message, symbol = "XAUUSD", timeframe = "H1", userName = "" } = await req.json() as {
     message: string;
     symbol?: string;

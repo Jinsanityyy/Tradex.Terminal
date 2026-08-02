@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requirePro } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -327,6 +328,9 @@ function calcConfluence(
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 export async function GET(req: Request) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   const url    = new URL(req.url);
   const asset  = url.searchParams.get("asset") ?? "XAUUSD";
   const cfg    = ASSET_CONFIGS[asset] ?? ASSET_CONFIGS.XAUUSD;

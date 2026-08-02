@@ -35,9 +35,16 @@ const PRO_FEATURES = [
   "Force-refresh signals",
 ];
 
+import { LicenseRedeemCard } from "@/components/shared/LicenseRedeemCard";
+
+// When set, Gumroad becomes the checkout. Falls back to the Paddle flow when empty.
+const GUMROAD_URL = process.env.NEXT_PUBLIC_GUMROAD_PRODUCT_URL ?? "";
+
 function PricingContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  // Set by the middleware when a free user is bounced off a Pro route.
+  const locked = searchParams.get("locked") === "pro";
   const [billing, setBilling] = useState<"monthly" | "annual">(
     searchParams.get("billing") === "annual" ? "annual" : "monthly"
   );
@@ -107,6 +114,14 @@ function PricingContent() {
             TradeX Pro gives you 7 AI agents, market bias, session intelligence, and every tool serious traders need.
           </p>
         </div>
+
+        {/* Bounced off a Pro route */}
+        {locked && (
+          <div className="flex items-center gap-2 rounded-xl border border-[#5fc77a]/30 bg-[#5fc77a]/10 px-4 py-3 text-sm text-[#5fc77a] mb-6 max-w-md mx-auto">
+            <Lock className="h-4 w-4 shrink-0" />
+            That feature is part of TradeX Pro.
+          </div>
+        )}
 
         {/* Cancelled notice */}
         {cancelled && (
@@ -207,27 +222,53 @@ function PricingContent() {
               </div>
             )}
 
-            <button
-              onClick={handleSubscribe}
-              disabled={loading}
-              className="flex items-center justify-center gap-2 w-full rounded-xl bg-[#5fc77a] py-3 text-sm font-bold text-[#0a0e1a] hover:bg-[#4db366] active:opacity-80 disabled:opacity-50 transition-all"
-            >
-              {loading ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Redirecting to checkout…</>
-              ) : (
-                <><Zap className="h-4 w-4" /> Subscribe Now</>
-              )}
-            </button>
-            <p className="text-[10px] text-zinc-500 text-center mt-3">
-              Secure checkout via Paddle · Cancel anytime
-            </p>
+            {GUMROAD_URL ? (
+              <>
+                <a
+                  href={GUMROAD_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full rounded-xl bg-[#5fc77a] py-3 text-sm font-bold text-[#0a0e1a] hover:bg-[#4db366] active:opacity-80 transition-all"
+                >
+                  <Zap className="h-4 w-4" /> Buy on Gumroad
+                </a>
+                <p className="text-[10px] text-zinc-500 text-center mt-3">
+                  Secure checkout via Gumroad · License key sent to your email
+                </p>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={handleSubscribe}
+                  disabled={loading}
+                  className="flex items-center justify-center gap-2 w-full rounded-xl bg-[#5fc77a] py-3 text-sm font-bold text-[#0a0e1a] hover:bg-[#4db366] active:opacity-80 disabled:opacity-50 transition-all"
+                >
+                  {loading ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Redirecting to checkout…</>
+                  ) : (
+                    <><Zap className="h-4 w-4" /> Subscribe Now</>
+                  )}
+                </button>
+                <p className="text-[10px] text-zinc-500 text-center mt-3">
+                  Secure checkout via Paddle · Cancel anytime
+                </p>
+              </>
+            )}
           </div>
+        </div>
+
+        {/* Already purchased — redeem inline so a fresh buyer never has to hunt
+            for Settings straight after checkout. */}
+        <div className="mt-8 max-w-md mx-auto">
+          <LicenseRedeemCard />
         </div>
 
         {/* Footer note */}
         <div className="flex items-center justify-center gap-2 mt-8 text-xs text-zinc-600">
           <Lock className="h-3 w-3" />
-          Payment processed securely by Paddle. TradeX never stores your payment credentials.
+          {GUMROAD_URL
+            ? "Payment processed securely by Gumroad. TradeX never stores your payment credentials."
+            : "Payment processed securely by Paddle. TradeX never stores your payment credentials."}
         </div>
       </div>
     </div>

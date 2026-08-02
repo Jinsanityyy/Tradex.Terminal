@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchTimeSeries } from "@/lib/api/twelvedata";
 import { fetchYahooCandles } from "@/lib/api/yahoo-finance";
 import type { Symbol, Timeframe } from "@/lib/agents/schemas";
+import { requirePro } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -81,6 +82,9 @@ async function fromYahoo(symbol: Symbol, tf: Timeframe): Promise<CandleBar[] | n
 }
 
 export async function GET(req: NextRequest) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   const { searchParams } = new URL(req.url);
   const symbol    = (searchParams.get("symbol")    ?? "XAUUSD") as Symbol;
   const timeframe = (searchParams.get("timeframe") ?? "H1")     as Timeframe;

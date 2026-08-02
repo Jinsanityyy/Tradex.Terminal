@@ -6,6 +6,7 @@ import {
   refreshAccessToken,
   normalizeCtraderDeals,
 } from "@/lib/ctrader/service";
+import { requirePro } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,9 @@ const CLIENT_SECRET = process.env.CTRADER_CLIENT_SECRET ?? "";
  * 5. Store open positions as JSON in `exchange_connections.open_positions`
  */
 export async function POST(req: NextRequest) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   try {
     const { user, supabase } = await getAuthUser(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

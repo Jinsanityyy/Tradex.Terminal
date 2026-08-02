@@ -1,5 +1,6 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { llmCreate, llmAvailable } from "@/lib/agents/llm-provider";
+import { requirePro } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,9 @@ export interface PostEventAnalysis {
 }
 
 export async function GET(req: NextRequest) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   const { searchParams } = new URL(req.url);
   const title   = searchParams.get("title")   ?? "";
   const summary = searchParams.get("summary") ?? "";

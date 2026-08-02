@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requirePro } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +78,9 @@ async function googleTranslateTTS(text: string): Promise<ArrayBuffer | null> {
 }
 
 export async function GET(req: NextRequest) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   const text = (req.nextUrl.searchParams.get("text") ?? "").trim().slice(0, 200);
   if (!text) return new NextResponse(null, { status: 400 });
 

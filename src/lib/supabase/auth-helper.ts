@@ -1,4 +1,3 @@
-import type { NextRequest } from "next/server";
 import { createClient } from "./server";
 import type { User, SupabaseClient } from "@supabase/supabase-js";
 
@@ -9,7 +8,7 @@ import type { User, SupabaseClient } from "@supabase/supabase-js";
  *
  * Returns { user, supabase } or { user: null } if not authenticated.
  */
-export async function getAuthUser(req: NextRequest): Promise<{ user: User | null; supabase: Awaited<ReturnType<typeof createClient>> }> {
+export async function getAuthUser(req: Request): Promise<{ user: User | null; supabase: Awaited<ReturnType<typeof createClient>> }> {
   const supabase = await createClient();
 
   // Try cookie-based auth first

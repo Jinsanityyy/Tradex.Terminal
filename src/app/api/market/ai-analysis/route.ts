@@ -2,6 +2,7 @@
 import { llmCreate, llmAvailable } from "@/lib/agents/llm-provider";
 import type { AssetAIAnalysis } from "@/types";
 import { setAIAnalysisCache } from "@/lib/api/ai-analysis-cache";
+import { requirePro } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -226,7 +227,10 @@ function fallbackAnalysis(htfBias: string, confidence: number, smcContext: strin
 }
 
 // ── Route handler ─────────────────────────────────────────────────────────────
-export async function GET() {
+export async function GET(req: Request) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   // Serve cache if fresh
   if (cache && Date.now() - cache.ts < CACHE_TTL) {
     return NextResponse.json({ data: cache.data, timestamp: cache.ts, cached: true });
@@ -339,7 +343,10 @@ export async function GET() {
 }
 
 // ── Force refresh (POST) ──────────────────────────────────────────────────────
-export async function POST() {
+export async function POST(req: Request) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   cache = null; // bust cache
-  return GET();
+  return GET(req);
 }

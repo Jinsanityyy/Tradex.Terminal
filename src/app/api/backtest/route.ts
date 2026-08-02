@@ -16,6 +16,10 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Symbol, Timeframe } from "@/lib/agents/schemas";
 import { runBacktest } from "@/lib/backtest/engine";
 import type { BacktestCandle } from "@/lib/backtest/engine";
+import { requirePro } from "@/lib/auth/entitlement";
+
+// Auth-gated: must never be statically prerendered or cached.
+export const dynamic = "force-dynamic";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Yahoo Finance symbol + interval map
@@ -138,6 +142,9 @@ function aggregateH4(candles: BacktestCandle[]): BacktestCandle[] {
 export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   const { searchParams } = req.nextUrl;
 
   const symbolParam    = (searchParams.get("symbol")    ?? "XAUUSD").toUpperCase() as Symbol;

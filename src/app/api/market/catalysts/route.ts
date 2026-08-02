@@ -1,6 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 import type { Catalyst } from "@/types";
 import { llmCreate, llmAvailable } from "@/lib/agents/llm-provider";
+import { requirePro } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -260,7 +261,10 @@ const FALLBACK_CATALYSTS: Catalyst[] = [
   },
 ];
 
-export async function GET() {
+export async function GET(req: Request) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   if (cache.data.length > 0 && Date.now() - cache.ts < CACHE_TTL) {
     return NextResponse.json({ data: cache.data, timestamp: cache.ts, cached: true });
   }
