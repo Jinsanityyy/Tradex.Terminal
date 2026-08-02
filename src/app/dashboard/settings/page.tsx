@@ -45,18 +45,19 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 }
 
 function Pills<T extends string>({
-  options, value, onChange, labels,
+  options, value, onChange, labels, compact,
 }: {
-  options: T[]; value: T; onChange: (v: T) => void; labels?: Record<string, string>;
+  options: T[]; value: T; onChange: (v: T) => void; labels?: Record<string, string>; compact?: boolean;
 }) {
   return (
-    <div className="flex flex-wrap gap-1 justify-end">
+    <div className="flex flex-wrap gap-1">
       {options.map((o) => (
         <button
           key={o}
           onClick={() => onChange(o)}
           className={cn(
-            "rounded-md px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider transition-all border whitespace-nowrap",
+            "rounded-md border whitespace-nowrap transition-all font-medium uppercase tracking-wider",
+            compact ? "px-2 py-0.5 text-[9px]" : "px-2.5 py-1 text-[10px]",
             value === o
               ? "border-[hsl(var(--primary))]/50 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
               : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
@@ -214,7 +215,10 @@ function MFASection() {
               <div className="flex items-center gap-2">
                 <Smartphone className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
                 <p className="text-xs font-medium text-[hsl(var(--foreground))]">Authenticator App</p>
-                <span className="text-[10px] text-[hsl(var(--muted-foreground))] bg-[hsl(var(--secondary))] border border-[hsl(var(--border))] px-2 py-0.5 rounded-full">Not enabled</span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-full">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  Not enabled
+                </span>
               </div>
               <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5 ml-6">Use Google Authenticator or Authy for login verification.</p>
             </div>
@@ -356,9 +360,10 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-5 max-w-3xl">
+    <div className="max-w-3xl">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="sticky top-0 z-40 bg-[hsl(var(--background))]/90 backdrop-blur-md border-b border-[hsl(var(--border))]/40 py-3 mb-5">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-lg font-bold text-[hsl(var(--foreground))]">Settings</h1>
           <p className="text-xs text-[hsl(var(--muted-foreground))]">Customize your terminal experience</p>
@@ -400,7 +405,9 @@ export default function SettingsPage() {
           </button>
         </div>
       </div>
+      </div>
 
+      <div className="space-y-5">
       {/* Appearance */}
       <Card>
         <CardHeader className="pb-2">
@@ -409,12 +416,13 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <SettingRow label="Theme" description="Terminal color scheme  -  previewed live, saved on click Save">
+          <SettingRow block label="Theme" description="Terminal color scheme  -  previewed live, saved on click Save">
             <Pills<Theme>
               options={["dark", "midnight", "oled", "pink", "light"]}
               value={draft.theme}
               onChange={(v) => update("theme", v)}
               labels={{ dark: "Dark", midnight: "Midnight", oled: "OLED", pink: "Pink", light: "Light" }}
+              compact
             />
           </SettingRow>
           <SettingRow label="Layout Density" description="Compact shows more data, expanded improves readability">
@@ -540,11 +548,12 @@ export default function SettingsPage() {
               onChange={(v) => update("timeZone", v)}
             />
           </SettingRow>
-          <SettingRow label="Date Format" description="How dates are displayed">
+          <SettingRow block label="Date Format" description="How dates are displayed">
             <Pills<DateFormat>
               options={["MM/DD", "DD/MM", "YYYY-MM-DD"]}
               value={draft.dateFormat}
               onChange={(v) => update("dateFormat", v)}
+              compact
             />
           </SettingRow>
         </CardContent>
@@ -588,8 +597,27 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <SettingRow label="News Categories" description="Filter which news categories appear in feeds">
-            <MultiSelect options={ALL_CATEGORIES} selected={draft.feedCategories} onToggle={toggleCategory} />
+          <SettingRow block label="News Categories" description="Filter which news categories appear in feeds">
+            <div className="grid grid-cols-3 gap-1.5">
+              {ALL_CATEGORIES.map((cat) => {
+                const active = draft.feedCategories.includes(cat);
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => toggleCategory(cat)}
+                    className={cn(
+                      "flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[10px] font-medium transition-all border truncate",
+                      active
+                        ? "border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
+                        : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
+                    )}
+                  >
+                    {active && <CheckCircle2 className="h-2.5 w-2.5 shrink-0" />}
+                    <span className="truncate">{cat}</span>
+                  </button>
+                );
+              })}
+            </div>
           </SettingRow>
           <SettingRow label="Auto-refresh Interval" description="How often data feeds update">
             <Pills<RefreshInterval>
@@ -629,6 +657,7 @@ export default function SettingsPage() {
         <p className="text-[10px] text-[hsl(var(--muted-foreground))]">
           TradeX Terminal v0.1.0  -  Settings saved to your browser
         </p>
+      </div>
       </div>
     </div>
   );
