@@ -9,8 +9,8 @@
 export const PLANS = {
   pro: {
     name: "Pro",
-    monthlyPrice: 39,
-    annualPrice: 399,
+    monthlyPrice: 19.99,
+
     planId: process.env.NEXT_PUBLIC_PAYPAL_PRO_PLAN_ID ?? "",
     annualPlanId: process.env.NEXT_PUBLIC_PAYPAL_PRO_ANNUAL_PLAN_ID ?? "",
     description: "Full access to the TradeX terminal",

@@ -39,9 +39,9 @@ function PricingContent() {
   const router = useRouter();
   // Set by the middleware when a free user is bounced off a Pro route.
   const locked = searchParams.get("locked") === "pro";
-  const [billing, setBilling] = useState<"monthly" | "annual">(
-    searchParams.get("billing") === "annual" ? "annual" : "monthly"
-  );
+  // Single published price: monthly. An annual tier exists nowhere until the
+  // owner decides what it costs — never advertise an unconfirmed price.
+  const billing = "monthly" as const;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const cancelled = searchParams.get("cancelled") === "1";
@@ -134,57 +134,16 @@ function PricingContent() {
           </div>
         )}
 
-        {/* Billing toggle */}
-        <div className="flex justify-center mb-8">
-          <div className="flex rounded-xl border border-white/10 p-1 bg-white/5">
-            <button
-              onClick={() => setBilling("monthly")}
-              className={cn(
-                "rounded-lg px-5 py-2 text-sm font-semibold transition-all",
-                billing === "monthly"
-                  ? "bg-[#1a2035] text-white shadow-sm"
-                  : "text-zinc-400 hover:text-white"
-              )}
-            >
-              Monthly
-            </button>
-            <button
-              onClick={() => setBilling("annual")}
-              className={cn(
-                "flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold transition-all",
-                billing === "annual"
-                  ? "bg-[#1a2035] text-white shadow-sm"
-                  : "text-zinc-400 hover:text-white"
-              )}
-            >
-              Annual
-              <span className="rounded-full bg-[#5fc77a]/20 px-2 py-0.5 text-[10px] font-bold text-[#5fc77a]">
-                SAVE 15%
-              </span>
-            </button>
-          </div>
-        </div>
-
-        {/* Card — single product. There is no free tier: the terminal is the
-            paid product, so advertising a "$0 forever" column would promise
-            access that no longer exists. */}
+        {/* Card — single product, single price. There is no free tier, and no
+            annual option is published until the owner settles its price. */}
         <div className="max-w-md mx-auto">
 
           <div className="rounded-2xl border border-[#5fc77a]/30 bg-[#5fc77a]/[0.04] p-6 relative shadow-[0_0_40px_rgba(95,199,122,0.07)]">
             <h2 className="text-lg font-bold mb-1">TradeX Pro</h2>
             <p className="text-sm text-zinc-400 mb-4">Full access to the terminal</p>
-            {billing === "monthly" ? (
-              <p className="text-3xl font-bold font-mono text-[#5fc77a] mb-6">
-                $39 <span className="text-sm text-zinc-400 font-normal">/month</span>
-              </p>
-            ) : (
-              <div className="mb-6">
-                <p className="text-3xl font-bold font-mono text-[#5fc77a]">
-                  $399 <span className="text-sm text-zinc-400 font-normal">/year</span>
-                </p>
-                <p className="text-xs text-zinc-500 mt-0.5">$33.25/mo · save $69</p>
-              </div>
-            )}
+            <p className="text-3xl font-bold font-mono text-[#5fc77a] mb-6">
+              $19.99 <span className="text-sm text-zinc-400 font-normal">/month</span>
+            </p>
             <ul className="space-y-2 mb-6">
               {PRO_FEATURES.map(f => (
                 <li key={f} className="flex items-start gap-2 text-sm text-zinc-300">

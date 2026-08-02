@@ -16,8 +16,8 @@ export const PLANS = {
   },
   pro: {
     name: "Pro",
-    monthlyPrice: 39,
-    annualPrice: 399,
+    monthlyPrice: 19.99,
+
     priceId: process.env.STRIPE_PRO_PRICE_ID,
     annualPriceId: process.env.STRIPE_PRO_ANNUAL_PRICE_ID,
     description: "Full terminal for serious traders",

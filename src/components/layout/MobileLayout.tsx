@@ -28,15 +28,6 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
-const PAYPAL_BASE = "https://www.paypal.com/billing/subscriptions/subscribe";
-
-function buildPayPalUrl(planId: string): string {
-  const successUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/m?subscribed=1`
-    : "https://tradexterminal.online/m?subscribed=1";
-  return `${PAYPAL_BASE}?plan_id=${planId}&redirect_url=${encodeURIComponent(successUrl)}`;
-}
-
 function isNativeApp(): boolean {
   if (typeof window === "undefined") return false;
   if ((window as any).Capacitor?.isNativePlatform?.()) return true;
@@ -44,16 +35,14 @@ function isNativeApp(): boolean {
   return false;
 }
 
-function navigateToUpgrade(planId: string | null | undefined) {
-  if (!planId) {
-    window.location.href = "/pricing";
-    return;
-  }
-  const url = buildPayPalUrl(planId);
+// All upgrades funnel through /pricing (Gumroad checkout + license redemption).
+// The old path deep-linked straight into a PayPal subscribe page, bypassing the
+// Gumroad purchase flow entirely.
+function navigateToUpgrade(_planId?: string | null) {
   if (isNativeApp()) {
-    window.open(url, "_system");
+    window.open(`${window.location.origin}/pricing`, "_system");
   } else {
-    window.location.href = url;
+    window.location.href = "/pricing";
   }
 }
 

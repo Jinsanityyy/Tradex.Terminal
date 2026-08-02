@@ -42,38 +42,37 @@ const GRAIN = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'
 
 const PRO_FEATURES: { label: string; bold?: boolean }[] = [
 
-  { label: "Brain Terminal — unlimited AI analyses", bold: true },
-  { label: "Market Bias engine", bold: true },
+  { label: "Trading Floor — the 7-agent market read", bold: true },
+  { label: "Market Direction engine", bold: true },
   { label: "Risk Gate", bold: true },
-  { label: "Market Intelligence" },
-  { label: "Asset Matrix" },
-  { label: "Session Intelligence" },
-  { label: "AI Catalysts feed" },
+  { label: "Insights & Market Intelligence" },
+  { label: "Cross-Asset matrix" },
+  { label: "Trading Sessions intelligence" },
+  { label: "Macro Events feed" },
   { label: "Trump Monitor" },
-  { label: "Candle Analysis (AI)" },
-  { label: "AI Market Briefing" },
-  { label: "Force-refresh signals" },
+  { label: "Candle Analysis" },
+  { label: "Read History — every read tracked to outcome" },
+  { label: "P&L Tracker & trading journal" },
 ];
 
+// Landing CTAs go straight to checkout when Gumroad is configured; /pricing
+// (which also hosts the license-redeem form) is the fallback.
+const BUY_URL = process.env.NEXT_PUBLIC_GUMROAD_PRODUCT_URL || "/pricing";
+
 const FEATURES = [
-  { icon: <Brain className="h-5 w-5" />,        color: "text-violet-400 bg-violet-500/10 border-violet-500/20",  title: "Brain Terminal",       desc: "7 specialized AI agents — Trend, Price Action, News, Risk Gate, Execution, Contrarian, and Master — run in parallel to produce a single structured trade decision." },
-  { icon: <TrendingUp className="h-5 w-5" />,    color: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20", title: "Market Bias Engine",   desc: "Real-time directional bias across Gold, Forex, Crypto, and Indices. Know which way the market is leaning before you enter." },
-  { icon: <BarChart2 className="h-5 w-5" />,     color: "text-purple-400 bg-purple-500/10 border-purple-500/20", title: "Candle Analysis AI",   desc: "AI-powered candlestick pattern detection with confluence scoring. Instantly identify high-probability setups across any timeframe." },
+  { icon: <Brain className="h-5 w-5" />,        color: "text-violet-400 bg-violet-500/10 border-violet-500/20",  title: "Trading Floor",        desc: "7 specialized AI agents — Trend, Price Action, News, Risk Gate, Execution, Contrarian, and Master — run in parallel to produce a single structured market read." },
+  { icon: <TrendingUp className="h-5 w-5" />,    color: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20", title: "Market Direction",     desc: "Real-time directional read across Gold, Forex, Crypto, and Indices. See which way the market is leaning and why." },
+  { icon: <BarChart2 className="h-5 w-5" />,     color: "text-purple-400 bg-purple-500/10 border-purple-500/20", title: "Candle Analysis",      desc: "AI-powered candlestick pattern detection with confluence scoring. Instantly identify high-probability structure across any timeframe." },
   { icon: <Shield className="h-5 w-5" />,        color: "text-red-400 bg-red-500/10 border-red-500/20",          title: "Risk Gate",             desc: "Hard rule-based gate that blocks any trade with bad RR, high volatility, or session violations. No bypass. No exceptions." },
   { icon: <Clock className="h-5 w-5" />,         color: "text-amber-400 bg-amber-500/10 border-amber-500/20",    title: "Session Intelligence",  desc: "Know exactly which trading session is active — London, New York, Tokyo — and get session-specific bias and key levels." },
-  { icon: <Newspaper className="h-5 w-5" />,     color: "text-orange-400 bg-orange-500/10 border-orange-500/20", title: "AI Catalysts Feed",    desc: "Market-moving catalysts detected and scored in real-time. Never miss a news event that could flip your trade." },
+  { icon: <Newspaper className="h-5 w-5" />,     color: "text-orange-400 bg-orange-500/10 border-orange-500/20", title: "Macro Events Feed",    desc: "Market-moving catalysts detected and scored in real-time. Never miss a news event that could flip the read." },
   { icon: <BrainCircuit className="h-5 w-5" />,  color: "text-sky-400 bg-sky-500/10 border-sky-500/20",          title: "Market Intelligence",  desc: "Deep AI analysis of macro conditions, market structure, and intermarket correlations across all asset classes." },
   { icon: <LayoutGrid className="h-5 w-5" />,    color: "text-blue-400 bg-blue-500/10 border-blue-500/20",       title: "Asset Matrix",          desc: "Side-by-side comparison of asset performance, momentum, and bias. Spot the strongest and weakest assets at a glance." },
   { icon: <Sparkles className="h-5 w-5" />,      color: "text-pink-400 bg-pink-500/10 border-pink-500/20",       title: "AI Market Briefing",   desc: "Daily AI-generated briefing covering macro outlook, key levels, session bias, and trade context — all in one read." },
   { icon: <AtSign className="h-5 w-5" />,        color: "text-red-400 bg-red-500/10 border-red-500/20",          title: "Trump Monitor",         desc: "Real-time tracking of Trump's Truth Social posts and statements that move markets. Stay ahead of politically-driven volatility." },
-  { icon: <DollarSign className="h-5 w-5" />,    color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20", title: "PnL Calendar",       desc: "Visual calendar of your trading performance. Track wins, losses, and patterns in your daily trading history." },
+  { icon: <DollarSign className="h-5 w-5" />,    color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20", title: "P&L Tracker",        desc: "Visual calendar of your trading performance. Track wins, losses, and patterns in your daily trading history." },
 ];
 
-const TESTIMONIALS = [
-  { stars: 5, quote: "The Brain Terminal changed how I approach every trade. Instead of second-guessing myself, I now have 7 AI agents giving me clear consensus. My win rate improved significantly in the first month.", name: "Marcus R.", role: "Forex trader, 4 years", badge: "+23% win rate", initials: "MR" },
-  { stars: 5, quote: "The Risk Gate alone is worth $39/mo. It's blocked me from so many bad trades I would've taken. It's like having a strict trading coach that never lets you break your own rules.", name: "Jamie L.", role: "Gold & crypto trader", badge: "−40% losing trades", initials: "JL" },
-  { stars: 5, quote: "I was skeptical at first — another AI tool? But the market bias engine is genuinely accurate. I check it every London open and it's been right more than my own analysis for 3 months straight.", name: "Aisha K.", role: "Full-time day trader", badge: "3 months consistent", initials: "AK" },
-];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -192,36 +191,36 @@ export default function LandingPage() {
           </h1>
 
           <p data-hero-stat className="text-sm font-semibold mb-5 tracking-widest font-mono" style={{ color: `${G}88` }}>
-            ◆ 3,200+ ACTIVE TRADERS WORLDWIDE ◆
+            ◆ SEVEN AGENTS · ONE MARKET READ ◆
           </p>
 
           <p data-hero-sub className="text-base md:text-lg leading-relaxed mb-10 max-w-2xl mx-auto"
             style={{ color: "rgba(255,255,255,0.45)" }}>
-            7 specialized AI agents. Real-time market bias. Hard risk gate. Candlestick AI,
-            session intelligence, and live signals — all in one terminal.
+            7 specialized AI agents. Real-time market direction. Hard risk gate. Candle
+            analysis, session intelligence, and a live market read — all in one terminal.
           </p>
 
           <div data-hero-cta className="flex flex-wrap items-center justify-center gap-4 mb-7">
-            <Link
-              href="/login"
+            <a
+              href={BUY_URL}
               data-magnetic
               className="inline-flex items-center gap-2 rounded-xl px-9 py-4 text-sm font-bold hero-cta-primary"
               style={{ background: G, color: "#000", boxShadow: "0 0 48px rgba(201,168,85,0.32)" }}>
-              <Zap className="h-4 w-4" /> Start for Free
-            </Link>
-            <Link
-              href="/dashboard"
+              <Zap className="h-4 w-4" /> Get TradeX Pro
+            </a>
+            <a
+              href="#preview"
               data-magnetic
               className="inline-flex items-center gap-2 rounded-xl border px-9 py-4 text-sm font-semibold hero-cta-secondary"
               style={{ borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.72)" }}>
-              Launch Terminal <ArrowRight className="h-4 w-4" />
-            </Link>
+              See the terminal <ArrowRight className="h-4 w-4" />
+            </a>
           </div>
 
           <p data-hero-cta className="text-xs flex flex-wrap items-center justify-center gap-x-6 gap-y-2"
             style={{ color: "rgba(255,255,255,0.24)" }}>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}66` }} /> No credit card required</span>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}66` }} /> Free plan forever</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}66` }} /> Secure checkout via Gumroad</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}66` }} /> License key delivered instantly</span>
             <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}66` }} /> Cancel anytime</span>
           </p>
         </div>
@@ -245,9 +244,9 @@ export default function LandingPage() {
           {[0, 1].map((g) => (
             <div key={g} className="flex shrink-0 gap-0">
               {[
-                "AI TRADING TERMINAL", "MARKET BIAS ENGINE", "7 AI AGENTS",
-                "RISK GATE", "SESSION INTELLIGENCE", "CANDLE ANALYSIS AI",
-                "REAL-TIME SIGNALS", "BRAIN TERMINAL", "ASSET MATRIX",
+                "AI TRADING TERMINAL", "MARKET DIRECTION", "7 AI AGENTS",
+                "RISK GATE", "SESSION INTELLIGENCE", "CANDLE ANALYSIS",
+                "LIVE MARKET READS", "TRADING FLOOR", "CROSS-ASSET MATRIX",
               ].map((label) => (
                 <span
                   key={label}
@@ -275,8 +274,8 @@ export default function LandingPage() {
           style={{ backgroundImage: GRAIN, mixBlendMode: "overlay" }} />
         <div className="max-w-5xl mx-auto px-5 py-12 grid grid-cols-2 md:grid-cols-4 gap-6">
           {[
-            { display: "3,200+", countTo: "3200", suffix: "+", label: "Active Traders" },
             { display: "7",      countTo: "7",    suffix: "",  label: "AI Agents" },
+            { display: "40+",    countTo: "40",   suffix: "+", label: "Markets Tracked" },
             { display: "4",      countTo: "4",    suffix: "",  label: "Asset Classes" },
             { display: "24/7",   countTo: "",     suffix: "",  label: "Live Data" },
           ].map((s, i) => (
@@ -307,9 +306,9 @@ export default function LandingPage() {
       >
         <div className="max-w-5xl mx-auto px-5 py-5 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
           {[
-            { icon: <Star className="h-3.5 w-3.5 fill-current" style={{ color: G }} />,  text: "4.9/5 from 800+ reviews" },
-            { icon: <Award className="h-3.5 w-3.5" style={{ color: G }} />,              text: "#1 AI trading terminal" },
-            { icon: <Lock className="h-3.5 w-3.5" style={{ color: G }} />,               text: "Bank-grade security" },
+            { icon: <Star className="h-3.5 w-3.5 fill-current" style={{ color: G }} />,  text: "Every read logged & tracked to outcome" },
+            { icon: <Award className="h-3.5 w-3.5" style={{ color: G }} />,              text: "7-agent multi-model pipeline" },
+            { icon: <Lock className="h-3.5 w-3.5" style={{ color: G }} />,               text: "Secure checkout via Gumroad" },
             { icon: <Smartphone className="h-3.5 w-3.5" style={{ color: G }} />,         text: "Available on Android" },
           ].map(item => (
             <div key={item.text} className="flex items-center gap-2 text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>
@@ -333,7 +332,7 @@ export default function LandingPage() {
               See what you&apos;re getting
             </h2>
             <p className="text-base max-w-lg mx-auto" style={{ color: "rgba(255,255,255,0.38)" }}>
-              The actual interface — real-time signals, AI bias, and agent consensus in one terminal.
+              The actual interface — live prices, market reads, and agent agreement in one terminal.
             </p>
           </div>
           <div data-preview>
@@ -443,7 +442,7 @@ export default function LandingPage() {
               style={{ background: "rgba(201,168,85,0.04)" }} />
             <div className="relative">
               <p className="text-[10px] font-black tracking-[0.22em] uppercase mb-4" style={{ color: "rgba(255,255,255,0.28)" }}>
-                Also included — free forever
+                Also included with Pro
               </p>
               <div className="flex flex-wrap gap-x-7 gap-y-2.5">
                 {[
@@ -458,11 +457,11 @@ export default function LandingPage() {
                 ))}
               </div>
             </div>
-            <Link href="/login"
+            <a href={BUY_URL}
               className="relative shrink-0 inline-flex items-center gap-2 rounded-xl border px-6 py-3 text-sm font-bold transition-colors hover:bg-white/5 whitespace-nowrap"
               style={{ borderColor: "rgba(201,168,85,0.28)", color: G }}>
-              Start Free <ArrowRight className="h-4 w-4" />
-            </Link>
+              Get TradeX Pro <ArrowRight className="h-4 w-4" />
+            </a>
           </div>
 
         </div>
@@ -479,11 +478,11 @@ export default function LandingPage() {
               Simple, transparent pricing
             </h2>
             <p className="text-base" style={{ color: "rgba(255,255,255,0.38)" }}>
-              Start free. Upgrade when you need the edge.
+              One plan. The full terminal.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+          <div className="max-w-md mx-auto">
 
             {/* Pro Monthly */}
             <div
@@ -494,7 +493,7 @@ export default function LandingPage() {
               <div className="absolute -top-4 left-6">
                 <span className="rounded-full border px-3.5 py-1 text-[10px] font-black tracking-wider uppercase"
                   style={{ borderColor: "rgba(201,168,85,0.38)", background: BG, color: G }}>
-                  Most Popular
+                  Full Access
                 </span>
               </div>
               {/* Gold top edge accent */}
@@ -504,10 +503,10 @@ export default function LandingPage() {
               <p className="text-[10px] font-black tracking-[0.22em] uppercase mb-2" style={{ color: "rgba(201,168,85,0.5)" }}>
                 Pro plan
               </p>
-              <h3 className="text-xl font-black mb-1">Pro Monthly</h3>
-              <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.4)" }}>Full AI-powered trading terminal</p>
+              <h3 className="text-xl font-black mb-1">TradeX Pro</h3>
+              <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.4)" }}>Full access to the terminal</p>
               <p className="font-black font-mono mb-1" style={{ fontSize: "clamp(3rem, 7vw, 4.5rem)", lineHeight: 1, color: G }}>
-                $39
+                $19.99
                 <span className="text-sm font-normal ml-2" style={{ color: "rgba(255,255,255,0.32)" }}>/month</span>
               </p>
               <p className="text-xs mb-8" style={{ color: "rgba(255,255,255,0.26)" }}>Billed monthly · Cancel anytime</p>
@@ -521,62 +520,14 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/pricing?billing=monthly"
+              <a href={BUY_URL}
                 className="flex items-center justify-center gap-2 w-full rounded-xl py-4 text-sm font-black transition-all hover:brightness-110"
                 style={{ background: G, color: "#000" }}>
-                <Zap className="h-4 w-4" /> Subscribe with PayPal
-              </Link>
-              <p className="text-center text-[10px] mt-3" style={{ color: "rgba(255,255,255,0.22)" }}>Secure checkout · Cancel anytime</p>
+                <Zap className="h-4 w-4" /> Get TradeX Pro
+              </a>
+              <p className="text-center text-[10px] mt-3" style={{ color: "rgba(255,255,255,0.22)" }}>Secure checkout via Gumroad · License key sent to your email</p>
             </div>
 
-            {/* Pro Annual */}
-            <div
-              data-card
-              className="rounded-2xl p-8 relative flex flex-col"
-              style={{ background: "#0B0900", border: "1px solid rgba(251,191,36,0.28)", boxShadow: "0 0 80px rgba(251,191,36,0.06)" }}
-            >
-              <div className="absolute -top-4 left-6">
-                <span className="rounded-full border px-3.5 py-1 text-[10px] font-black tracking-wider uppercase"
-                  style={{ borderColor: "rgba(251,191,36,0.38)", background: BG, color: AM }}>
-                  Best Value
-                </span>
-              </div>
-              <div className="absolute top-0 left-8 right-8 h-px"
-                style={{ background: `linear-gradient(to right, transparent, ${AM}66, transparent)` }} />
-
-              <p className="text-[10px] font-black tracking-[0.22em] uppercase mb-2" style={{ color: "rgba(251,191,36,0.5)" }}>
-                Annual plan
-              </p>
-              <h3 className="text-xl font-black mb-1">Pro Annual</h3>
-              <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.4)" }}>Full AI-powered trading terminal</p>
-              <p className="font-black font-mono mb-2" style={{ fontSize: "clamp(3rem, 7vw, 4.5rem)", lineHeight: 1, color: AM }}>
-                $399
-                <span className="text-sm font-normal ml-2" style={{ color: "rgba(255,255,255,0.32)" }}>/year</span>
-              </p>
-              <div className="flex items-center gap-3 mb-8">
-                <span className="text-sm" style={{ color: "rgba(255,255,255,0.3)" }}>$33.25/mo</span>
-                <span className="rounded-full px-2.5 py-0.5 text-[10px] font-black"
-                  style={{ background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.28)", color: AM }}>
-                  SAVE $69
-                </span>
-              </div>
-              <ul className="space-y-2.5 mb-8 flex-1">
-                {PRO_FEATURES.map(f => (
-                  <li key={f.label} className="flex items-start gap-3 text-sm">
-                    <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" />
-                    <span className={f.bold ? "text-white font-semibold" : ""} style={{ color: f.bold ? undefined : "rgba(255,255,255,0.52)" }}>
-                      {f.label}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <Link href="/pricing?billing=annual"
-                className="flex items-center justify-center gap-2 w-full rounded-xl py-4 text-sm font-black transition-all hover:brightness-110"
-                style={{ background: AM, color: "#000" }}>
-                <Zap className="h-4 w-4" /> Subscribe with PayPal
-              </Link>
-              <p className="text-center text-[10px] mt-3" style={{ color: "rgba(255,255,255,0.22)" }}>Secure checkout · Cancel anytime</p>
-            </div>
           </div>
         </div>
       </section>
@@ -598,7 +549,7 @@ export default function LandingPage() {
           <div className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-[10px] font-black tracking-[0.22em] uppercase mb-10"
             style={{ borderColor: "rgba(201,168,85,0.2)", background: "rgba(201,168,85,0.06)", color: G }}>
             <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: G }} />
-            3,200+ traders already inside
+            Seven agents on the desk · 24/7
           </div>
 
           <Image src="/logo-transparent.png" alt="TradeX" width={64} height={64}
@@ -620,17 +571,17 @@ export default function LandingPage() {
           </h2>
 
           <p className="text-base mb-12 max-w-lg mx-auto leading-relaxed" style={{ color: "rgba(255,255,255,0.4)" }}>
-            Join thousands of traders using TradeX for AI-powered clarity on Gold, Forex,
-            Crypto, and Indices — every session.
+            One purchase. Seven agents reading Gold, Forex, Crypto, and Indices —
+            every session, in one terminal.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-4 mb-8">
-            <Link href="/login"
+            <a href={BUY_URL}
               data-magnetic
               className="inline-flex items-center gap-2 rounded-xl px-9 py-4 text-sm font-black hero-cta-primary"
               style={{ background: G, color: "#000", boxShadow: "0 0 48px rgba(201,168,85,0.28)" }}>
-              <Zap className="h-4 w-4" /> Start for Free
-            </Link>
+              <Zap className="h-4 w-4" /> Get TradeX Pro
+            </a>
             <Link href="#pricing"
               data-magnetic
               className="inline-flex items-center gap-2 rounded-xl border px-9 py-4 text-sm font-bold hero-cta-secondary"
@@ -640,8 +591,8 @@ export default function LandingPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-x-7 gap-y-2 text-xs" style={{ color: "rgba(255,255,255,0.24)" }}>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}55` }} /> No credit card required</span>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}55` }} /> Free plan forever</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}55` }} /> Secure checkout via Gumroad</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}55` }} /> License key delivered instantly</span>
             <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}55` }} /> Cancel anytime</span>
           </div>
         </div>
