@@ -542,9 +542,9 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
             /* ── Master consensus (API loaded, no specific agent overview) ── */
             (() => {
               const m = runData.agents.master;
-              const bias = m.finalBias === "bullish" ? "LONG" : m.finalBias === "bearish" ? "SHORT" : "NO-TRADE";
+              const bias = m.finalBias === "bullish" ? "BULLISH" : m.finalBias === "bearish" ? "BEARISH" : "NO CLEAR BIAS";
               const tone = m.finalBias === "bullish" ? styles.statOk : m.finalBias === "bearish" ? styles.statDanger : styles.statWarn;
-              const detail = m.supports?.[0] ?? m.noTradeReason ?? m.strategyMatch ?? "Awaiting consensus...";
+              const detail = m.supports?.[0] ?? m.noTradeReason ?? m.strategyMatch ?? "Awaiting agent agreement...";
               const score = `${m.consensusScore >= 0 ? "+" : ""}${m.consensusScore.toFixed(1)}`;
               const agreeing = m.agentConsensus?.filter(a => m.finalBias === "bullish" ? a.weightedScore > 0 : m.finalBias === "bearish" ? a.weightedScore < 0 : Math.abs(a.weightedScore) < 20).length ?? 0;
               return (
@@ -555,7 +555,7 @@ export function PixelWarRoom({ onAgentClick }: { onAgentClick?: (agentId: string
                   <div className={styles.agentOverviewDetail}>{detail}</div>
                   <div className={styles.statsRow}>
                     <div className={styles.statCell}><span className={styles.statLabel}>CONF</span><span className={styles.statValue}>{m.confidence}%</span></div>
-                    <div className={styles.statCell}><span className={styles.statLabel}>SCORE</span><span className={styles.statValue}>{score}</span></div>
+                    <div className={styles.statCell}><span className={styles.statLabel}>BALANCE</span><span className={styles.statValue}>{score}</span></div>
                     <div className={styles.statCell}><span className={styles.statLabel}>AGREE</span><span className={styles.statValue}>{agreeing}/6</span></div>
                   </div>
                   <div className={styles.confBarWrap}>

@@ -43,6 +43,7 @@ import { MTFBiasPanel } from "@/components/shared/MTFBiasPanel";
 import { KeyLevelsCard } from "@/components/shared/KeyLevelsCard";
 import { InstitutionalConfluence } from "@/components/shared/InstitutionalConfluence";
 import { AgentCardsWidget, AgentCardsFilterButton, ALL_AGENT_IDS } from "@/components/brain/AgentCardsWidget";
+import { signalStateLabel } from "@/components/shared/agent-read-labels";
 import type { AgentId } from "@/components/brain/AgentCardsWidget";
 import { useSettings } from "@/contexts/SettingsContext";
 import {
@@ -177,6 +178,9 @@ function biasBadgeClass(bias?: string) {
 
 function formatBiasLabel(bias?: string) {
   if (!bias) return "NEUTRAL";
+  // "no-trade" is the engine's internal value; surface it descriptively so the
+  // read never reads as an instruction to trade or not trade.
+  if (bias === "no-trade") return "NO CLEAR BIAS";
   return bias.replace(/-/g, " ").toUpperCase();
 }
 
@@ -191,25 +195,25 @@ function signalStateConfig(state?: string) {
       return {
         badge: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
         dot: "bg-emerald-400",
-        label: "Armed",
+        label: "At Level",
       };
     case "PENDING":
       return {
         badge: "border-amber-500/30 bg-amber-500/10 text-amber-300",
         dot: "bg-amber-400",
-        label: "Pending",
+        label: "Approaching",
       };
     case "EXPIRED":
       return {
         badge: "border-[hsl(var(--border))] bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))]",
         dot: "bg-zinc-500",
-        label: "Expired",
+        label: "Level Passed",
       };
     default:
       return {
         badge: "border-[hsl(var(--border))] bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))]",
         dot: "bg-zinc-500",
-        label: "No Trade",
+        label: "No Read",
       };
   }
 }
@@ -439,11 +443,11 @@ type OverviewKey = "signal" | "snapshot" | "consensus" | "risk";
 function overviewTitle(key: OverviewKey | null) {
   switch (key) {
     case "signal":
-      return "Trade Signal Overview";
+      return "Market Read Overview";
     case "snapshot":
       return "Market Snapshot Overview";
     case "consensus":
-      return "Agent Consensus Overview";
+      return "Agent Agreement Overview";
     case "risk":
       return "Risk and Session Overview";
     default:
@@ -1189,11 +1193,11 @@ export default function DashboardPage() {
   }> = [
     {
       id: "master",
-      label: "Master Consensus",
+      label: "Market Read",
       bias: formatBiasLabel(finalBias),
       confidence: master?.confidence ?? 0,
       detail: master?.strategyMatch ?? signalReason,
-      detail2: master ? `${master.consensusScore > 0 ? "+" : ""}${master.consensusScore.toFixed(1)} consensus` : undefined,
+      detail2: master ? `${master.consensusScore > 0 ? "+" : ""}${master.consensusScore.toFixed(1)} sentiment balance` : undefined,
       accent:
         finalBias === "bullish" ? "bull" : finalBias === "bearish" ? "bear" : "neutral" as const,
     },
@@ -1308,7 +1312,7 @@ export default function DashboardPage() {
     (exec?.direction && exec.direction !== "none" ? exec.direction.toUpperCase() : "--");
   const confidenceLabel = master ? `${master.confidence}%` : "--";
   const topSummaryMetrics = [
-    { label: "Signal", value: signalConfig.label.toUpperCase(), tone: biasColor(finalBias) },
+    { label: "Market Read", value: signalConfig.label.toUpperCase(), tone: biasColor(finalBias) },
     { label: "Bias", value: formatBiasLabel(finalBias), tone: biasColor(finalBias) },
     { label: "Direction", value: directionLabel, tone: biasColor(finalBias) },
     { label: "Confidence", value: confidenceLabel, mono: true },
@@ -1362,11 +1366,11 @@ export default function DashboardPage() {
       const notif: Notif = {
         id: crypto.randomUUID(),
         type: "agent",
-        title: `${symCfg.short} ${timeframe} Execution Armed`,
+        title: `${symCfg.short} ${timeframe} — Price At Level`,
         body:
           exec?.direction && exec.direction !== "none"
-            ? `${exec.direction.toUpperCase()} setup armed. ${entryTrigger}`
-            : `Execution setup armed. ${entryTrigger}`,
+            ? `${exec.direction === "long" ? "Bullish" : "Bearish"} read. ${entryTrigger}`
+            : `Agent read updated. ${entryTrigger}`,
         timestamp: Date.now(),
       };
 
@@ -1907,7 +1911,7 @@ export default function DashboardPage() {
     },
     {
       id: "signal-session",
-      title: "Signal & Session",
+      title: "Market Read & Session",
       content: (
         <div className="h-full min-h-0 overflow-y-auto p-3">
           <div className="grid grid-cols-2 gap-3 h-full">
@@ -1928,17 +1932,17 @@ export default function DashboardPage() {
                   : "var(--t-border)",
               }}
             >
-              <p className="text-[9px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>Signal</p>
+              <p className="text-[9px] uppercase tracking-widest" style={{ color: "var(--t-muted)" }}>Market Read</p>
               <p className="text-[15px] font-bold uppercase" style={{
                 color: signalState === "ARMED" ? "var(--t-bullish)"
                      : signalState === "PENDING" ? "var(--t-accent)"
                      : "var(--t-muted)",
               }}>
-                {(signalState ?? "NO_TRADE").replace("_", " ")}
+                {signalStateLabel(signalState)}
               </p>
               {tradeDirection && tradeDirection.toLowerCase() !== "none" && signalState !== "NO_TRADE" && (
                 <p className="text-[10px] truncate" style={{ color: "var(--t-muted)" }}>
-                  {tradeDirection.toUpperCase()} · {tradeTrigger && tradeTrigger.toLowerCase() !== "none" ? tradeTrigger : "–"}
+                  {tradeDirection === "long" ? "BULLISH" : "BEARISH"} · {tradeTrigger && tradeTrigger.toLowerCase() !== "none" ? tradeTrigger : "–"}
                 </p>
               )}
               {isCounterTrendSignal && signalState !== "NO_TRADE" && (

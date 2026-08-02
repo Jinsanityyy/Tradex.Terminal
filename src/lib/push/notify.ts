@@ -113,13 +113,13 @@ export async function notifyNewSignal(signal: SignalRecord): Promise<void> {
   if (signalAlreadyNotified(fp)) return;
   markSignalNotified(fp);
 
-  const dir  = signal.tradePlan.direction === "long" ? "🟢 BUY" : "🔴 SELL";
+  const read = signal.tradePlan.direction === "long" ? "🟢 Bullish" : "🔴 Bearish";
   const rr   = signal.tradePlan.rrRatio?.toFixed(1) ?? "?";
   const sym  = signal.symbolDisplay ?? signal.symbol;
 
   await broadcast({
-    title: `📊 New Signal: ${sym}`,
-    body:  `${dir} | Entry: ${signal.tradePlan.entry} | RR: ${rr}R | TF: ${signal.timeframe}`,
+    title: `📊 Market Read: ${sym}`,
+    body:  `${read} | Level in focus: ${signal.tradePlan.entry} | R:R ${rr}R | TF: ${signal.timeframe} — informational only, not trading advice`,
     url:   "/dashboard/signals",
     severity: "high",
     type:  "signal",
@@ -129,12 +129,12 @@ export async function notifyNewSignal(signal: SignalRecord): Promise<void> {
 
 export async function notifyEntryZone(signal: SignalRecord): Promise<void> {
   if (!signal.tradePlan) return;
-  const dir = signal.tradePlan.direction === "long" ? "🟢 BUY" : "🔴 SELL";
-  const sym = signal.symbolDisplay ?? signal.symbol;
+  const read = signal.tradePlan.direction === "long" ? "🟢 Bullish" : "🔴 Bearish";
+  const sym  = signal.symbolDisplay ?? signal.symbol;
 
   await broadcast({
-    title:    `⚠️ Entry Zone: ${sym}`,
-    body:     `${dir} entry at ${signal.tradePlan.entry} — price is approaching now!`,
+    title:    `⚠️ Level in Focus: ${sym}`,
+    body:     `${read} read — price is approaching ${signal.tradePlan.entry}. Informational only, not trading advice.`,
     url:      "/dashboard/signals",
     severity: "high",
     type:     "signal",
@@ -156,7 +156,7 @@ export async function notifyOutcome(
 
   await broadcast({
     title:    `${isWin ? "🏆 TP Hit" : "🛑 SL Hit"}: ${sym}`,
-    body:     `${which} triggered on ${signal.timeframe} ${signal.finalBias} signal`,
+    body:     `${which} reached on the ${signal.timeframe} ${signal.finalBias} read`,
     url:      "/dashboard/signals",
     severity: isWin ? "medium" : "high",
     type:     "signal",

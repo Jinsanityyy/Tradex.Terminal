@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import type { SignalRecord, SignalStats, SignalStatus } from "@/lib/signals/types";
 import type { Symbol } from "@/lib/agents/schemas";
 import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
+import { AgentReadDisclaimer } from "@/components/shared/AgentReadDisclaimer";
 import { CloseTradeModal } from "@/components/shared/CloseTradeModal";
 import { loadTradeLog, findOpenBySetup, type TakenSignal } from "@/lib/trades/trade-log";
 import { isCounterTrend, counterTrendNote } from "@/lib/signals/counter-trend";
@@ -146,7 +147,7 @@ function SignalRow({
             {s.timeframe}
           </span>
           <span className={cn("text-sm font-bold uppercase tracking-wider", biasColor(s.finalBias))}>
-            {s.finalBias.replace("-", " ")}
+            {s.finalBias === "no-trade" ? "no clear bias" : s.finalBias}
           </span>
           <span className="text-xs text-zinc-400">
             {s.confidence}% conf
@@ -336,10 +337,11 @@ export default function SignalsPage() {
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Signal History</h1>
+        <h1 className="text-2xl font-bold text-white">Market Read History</h1>
         <p className="text-sm text-zinc-400 mt-1">
-          Full transparency. Every agent decision is logged and tracked to outcome.
+          Full transparency. Every agent read is logged and tracked to outcome.
         </p>
+        <AgentReadDisclaimer className="mt-2" />
       </div>
 
       {/* ── Filters ──────────────────────────────────────────────────────── */}

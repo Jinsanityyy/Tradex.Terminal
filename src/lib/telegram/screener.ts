@@ -108,9 +108,9 @@ function cap(s: string): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function formatMessage(signal: SignalRecord, aligned: number, details: AgentDetail[]): string {
-  const dir  = signal.finalBias === "bullish" ? "🟢 BUY" : "🔴 SELL";
   const sym  = signal.symbolDisplay ?? signal.symbol;
   const bias = signal.finalBias === "bullish" ? "Bullish" : "Bearish";
+  const dot  = signal.finalBias === "bullish" ? "🟢" : "🔴";
   const bar  = "━━━━━━━━━━━━━━━━━━";
 
   const agentLines = details
@@ -118,27 +118,31 @@ function formatMessage(signal: SignalRecord, aligned: number, details: AgentDeta
     .join("\n");
 
   const lines: string[] = [
-    `<b>${dir} SIGNAL — ${sym}</b>`,
+    `<b>${dot} Market Read: ${bias} — ${sym}</b>`,
     bar,
-    `📊 Master Score: ${signal.confidence}/100`,
-    `🤝 Consensus: ${aligned}/7 Agents`,
+    `📊 Conviction: ${signal.confidence}/100`,
+    `🤝 Agent Agreement: ${aligned}/7 ${bias.toLowerCase()}`,
     `⏰ Timeframe: ${signal.timeframe}`,
-    `📈 Bias: ${bias}`,
   ];
 
   if (signal.strategyMatch) {
-    lines.push(`📐 Setup: ${signal.strategyMatch}`);
+    lines.push(`📐 Pattern: ${signal.strategyMatch}`);
   }
 
+  // Levels are context for the read (where the agents were looking), not an
+  // order ticket — labelled as reference levels rather than an entry command.
   if (signal.tradePlan) {
     const p = signal.tradePlan;
-    lines.push(`💰 Entry: ${p.entry} | SL: ${p.stopLoss} | TP1: ${p.tp1}${p.tp2 ? ` | TP2: ${p.tp2}` : ""} | RR: ${p.rrRatio.toFixed(1)}R`);
+    lines.push(`📍 Levels in focus: ${p.entry} | Invalidation: ${p.stopLoss} | Targets: ${p.tp1}${p.tp2 ? ` / ${p.tp2}` : ""} | R:R ${p.rrRatio.toFixed(1)}R`);
   }
 
   lines.push(
     bar,
-    "🔍 Agents Aligned:",
+    "🔍 Agent Breakdown:",
     agentLines,
+    bar,
+    "ℹ️ For informational purposes only. Not trading advice.",
+    "Reflects rule-based logic, not a live AI model.",
     bar,
     "⚡️ Powered by TradeX Terminal",
     "tradexterminal.online",

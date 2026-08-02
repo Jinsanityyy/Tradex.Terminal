@@ -26,6 +26,8 @@ const GlobeClient = dynamic(() => import("@/components/globe/GlobeClient"), { ss
 import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { InstitutionalConfluence } from "@/components/shared/InstitutionalConfluence";
 import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
+import { AgentReadDisclaimer } from "@/components/shared/AgentReadDisclaimer";
+import { signalStateLabel } from "@/components/shared/agent-read-labels";
 import { CloseTradeModal } from "@/components/shared/CloseTradeModal";
 import { loadTradeLog, findOpenBySetup, discardTrade, type TakenSignal } from "@/lib/trades/trade-log";
 import { playSignalArmed } from "@/lib/sounds";
@@ -585,11 +587,11 @@ export function MobileHome() {
                   <div className={cn("rounded-[2px] p-3.5 border", signalBg)}>
                     <p className="text-[9px] text-[#6B6B7A] uppercase mb-1"
                       style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace", letterSpacing: "1.2px" }}>
-                      Signal
+                      Market Read
                     </p>
                     <div className="mb-1">
                       <TerminalBadge
-                        label={effectiveSignalState.replace("_", " ")}
+                        label={signalStateLabel(effectiveSignalState).toUpperCase()}
                         variant={
                           effectiveSignalState === "ARMED" ? "armed" :
                           effectiveSignalState === "PENDING" ? "pending" :
@@ -600,7 +602,7 @@ export function MobileHome() {
                     {direction && direction.toLowerCase() !== "none" && effectiveSignalState !== "NO_TRADE" && (
                       <p className="text-[9px] text-[#6B6B7A] mt-1 truncate"
                         style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>
-                        {direction.toUpperCase()} · {trigger && trigger.toLowerCase() !== "none" ? trigger : "—"}
+                        {direction === "long" ? "BULLISH" : "BEARISH"} · {trigger && trigger.toLowerCase() !== "none" ? trigger : "—"}
                       </p>
                     )}
                     {signalState === "NO_TRADE" && (master?.noTradeReason ?? exec?.signalStateReason) && (
@@ -697,8 +699,8 @@ export function MobileHome() {
                     <div className="flex items-center gap-2">
                       <TerminalBadge
                         label={
-                          effectiveSignalState === "ARMED" ? "ARMED" :
-                          effectiveSignalState === "PENDING" ? "PENDING" :
+                          effectiveSignalState === "ARMED" ? "AT LEVEL" :
+                          effectiveSignalState === "PENDING" ? "APPROACHING" :
                           (matchedStatus === "win_tp1" || matchedStatus === "win_tp2" || matchedStatus === "loss_sl" || matchedStatus === "expired" || matchedStatus === "invalidated")
                             ? (lastSetupAge ? `LAST TRADE · ${lastSetupAge}` : "LAST TRADE")
                             : (lastSetupAge ? `LAST SETUP · ${lastSetupAge}` : "LAST SETUP")
@@ -1094,6 +1096,8 @@ export function MobileHome() {
               return null;
           }
         })}
+
+        <AgentReadDisclaimer className="px-1 pb-2" />
       </div>
 
       {/* Bias Detail Modal */}

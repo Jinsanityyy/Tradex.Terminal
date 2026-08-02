@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { SlidersHorizontal } from "lucide-react";
 import type { AgentRunResult } from "@/lib/agents/schemas";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
+import { AgentReadDisclaimer } from "@/components/shared/AgentReadDisclaimer";
 import { useThemePersonality } from "@/lib/themePersonality";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -59,6 +60,9 @@ const TONE_VARS: Record<Tone, { borderTopColor: string; color: string; barBg: st
 
 function fmt(s: string | undefined): string {
   if (!s) return "NEUTRAL";
+  // Engine value stays "no-trade"; the label reads as an absence of a read
+  // rather than an instruction about trading.
+  if (s === "no-trade") return "NO CLEAR BIAS";
   return s.replace(/[-_]/g, " ").toUpperCase();
 }
 
@@ -205,7 +209,7 @@ function ConsensusGauge({ score, tone }: { score: number; tone: Tone }) {
   return (
     <div className="border-t pt-1.5" style={{ borderColor: "var(--t-border)" }}>
       <div className="mb-1 flex items-center justify-between">
-        <span className="font-mono text-[7.5px] uppercase tracking-widest" style={{ color: "var(--t-text-muted2)" }}>Consensus</span>
+        <span className="font-mono text-[7.5px] uppercase tracking-widest" style={{ color: "var(--t-text-muted2)" }}>Agreement</span>
         <span
           className="font-mono text-[10px] font-black"
           style={{ color: score === 0 ? "var(--t-muted)" : vars.color }}
@@ -372,8 +376,8 @@ function MasterCard({
   const filledCount = Math.round(master.confidence / (100 / segments));
 
   const masterInsight = finalBias !== "no-trade"
-    ? (master.strategyMatch ?? `${finalBias.toUpperCase()} signal confirmed`)
-    : (master.noTradeReason ?? "Insufficient consensus to trade");
+    ? (master.strategyMatch ?? `${finalBias.toUpperCase()} read across the committee`)
+    : (master.noTradeReason ?? "Agents do not agree on a direction");
 
   const rawScore = master.consensusScore;
 
@@ -685,6 +689,8 @@ export function AgentCardsWidget({
               ))}
             </div>
           )}
+
+          <AgentReadDisclaimer className="px-1 pt-2" variant="compact" />
         </div>
       )}
 

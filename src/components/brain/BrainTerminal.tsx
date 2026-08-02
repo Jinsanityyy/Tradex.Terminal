@@ -10,6 +10,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
 import { useSubscription } from "@/hooks/useSubscription";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
+import { AgentReadDisclaimer } from "@/components/shared/AgentReadDisclaimer";
 import { PixelWarRoom } from "./PixelWarRoom";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -43,6 +44,9 @@ const TONE_CLS: Record<Tone, { border: string; text: string; bar: string }> = {
 
 function fmt(s: string | undefined): string {
   if (!s) return "NEUTRAL";
+  // Engine value stays "no-trade"; the label reads as an absence of a read
+  // rather than an instruction about trading.
+  if (s === "no-trade") return "NO CLEAR BIAS";
   return s.replace(/[-_]/g, " ").toUpperCase();
 }
 
@@ -371,9 +375,9 @@ export function BrainTerminal() {
   const masterCls  = TONE_CLS[masterTone];
 
   const masterLabel =
-    finalBias === "bullish" ? `LONG ${data?.symbolDisplay ?? symbol}` :
-    finalBias === "bearish" ? `SHORT ${data?.symbolDisplay ?? symbol}` :
-    "NO TRADE";
+    finalBias === "bullish" ? `${data?.symbolDisplay ?? symbol} — BULLISH READ` :
+    finalBias === "bearish" ? `${data?.symbolDisplay ?? symbol} — BEARISH READ` :
+    "NO CLEAR BIAS";
 
   return (
     <div className="w-full min-w-0 space-y-3 pb-4">
@@ -451,7 +455,7 @@ export function BrainTerminal() {
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-600">Master Consensus</span>
+                <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-600">Market Read</span>
                 {data.cached && (
                   <span className="text-[8px] px-1.5 py-0.5 rounded bg-white/6 text-zinc-600 font-mono border border-white/6">CACHED</span>
                 )}
@@ -463,7 +467,7 @@ export function BrainTerminal() {
                 {masterLabel}
               </span>
               <p className="text-[10px] text-zinc-500 mt-0.5 truncate">
-                {master?.strategyMatch ?? master?.noTradeReason ?? "Awaiting agent consensus"}
+                {master?.strategyMatch ?? master?.noTradeReason ?? "Awaiting agent agreement"}
               </p>
             </div>
             <div className="flex items-center gap-6 shrink-0">
@@ -472,7 +476,7 @@ export function BrainTerminal() {
                 <div className={cn("text-[24px] font-black leading-tight", masterCls.text)}>{master?.confidence ?? 0}%</div>
               </div>
               <div className="text-right">
-                <div className="text-[9px] text-zinc-600 uppercase tracking-wider">Consensus</div>
+                <div className="text-[9px] text-zinc-600 uppercase tracking-wider">Agreement</div>
                 <div className={cn(
                   "text-[15px] font-bold font-mono",
                   master && master.consensusScore > 0 ? "text-emerald-400" :
@@ -594,8 +598,8 @@ export function BrainTerminal() {
             {(() => {
               const masterConf    = master?.confidence ?? 0;
               const masterInsight = finalBias !== "no-trade"
-                ? (master?.strategyMatch ?? `${finalBias.toUpperCase()} signal confirmed`)
-                : (master?.noTradeReason ?? "Insufficient consensus to trade");
+                ? (master?.strategyMatch ?? `${finalBias.toUpperCase()} read across the committee`)
+                : (master?.noTradeReason ?? "Agents do not agree on a direction");
               const rawScore      = master?.consensusScore;
               const consensusLabel = rawScore != null
                 ? (rawScore > 0 ? `+${rawScore.toFixed(0)}` : rawScore.toFixed(0))
@@ -631,7 +635,7 @@ export function BrainTerminal() {
                   <p className="flex-1 text-[10px] leading-snug text-zinc-400 line-clamp-2">{masterInsight}</p>
 
                   <div className="flex items-center justify-between border-t border-white/5 pt-1.5">
-                    <span className="text-[9px] text-zinc-700 uppercase tracking-wider">Consensus</span>
+                    <span className="text-[9px] text-zinc-700 uppercase tracking-wider">Agreement</span>
                     <span className={cn("font-mono text-[12px] font-black", cls.text)}>{consensusLabel}</span>
                   </div>
 
@@ -669,6 +673,8 @@ export function BrainTerminal() {
             ) : null}
             <span className="ml-auto font-mono">{new Date(data.timestamp).toLocaleTimeString()}</span>
           </div>
+
+          <AgentReadDisclaimer className="pt-1" />
         </>
       ) : null}
 
