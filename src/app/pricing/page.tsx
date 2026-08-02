@@ -26,7 +26,7 @@ const PRO_FEATURES = [
   "News feed and economic calendar",
   "Live TV market broadcast",
   "Telegram and push alerts",
-  "Community chat and knowledge base",
+  "Trading knowledge base",
 ];
 
 import { LicenseRedeemCard } from "@/components/shared/LicenseRedeemCard";

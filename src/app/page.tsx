@@ -4,7 +4,7 @@ import {
   Zap, Brain, TrendingUp, BarChart2, Shield, Clock,
   Newspaper, Calendar, MessageSquare, BookOpen, CheckCircle2,
   ArrowRight, Smartphone, DollarSign, LayoutGrid, Tv,
-  BrainCircuit, AtSign, Sparkles, Star, Ban,
+  BrainCircuit, AtSign, Sparkles, Star,
   Award, Lock,
 } from "lucide-react";
 import { TerminalPreview } from "@/components/landing/TerminalPreview";
@@ -40,23 +40,8 @@ const GRAIN = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
-const FREE_FEATURES: { label: string; locked?: boolean }[] = [
-  { label: "Live prices — Gold, Forex, Crypto, Indices" },
-  { label: "TradingView chart" },
-  { label: "News feed" },
-  { label: "Economic calendar" },
-  { label: "Live TV — market broadcast" },
-  { label: "Trading signals (view)" },
-  { label: "Community chat" },
-  { label: "Trading knowledge base" },
-  { label: "Brain Terminal — 3 AI analyses/day" },
-  { label: "PnL Calendar" },
-  { label: "Market Bias engine", locked: true },
-  { label: "Risk Gate", locked: true },
-];
-
 const PRO_FEATURES: { label: string; bold?: boolean }[] = [
-  { label: "Everything in Free" },
+
   { label: "Brain Terminal — unlimited AI analyses", bold: true },
   { label: "Market Bias engine", bold: true },
   { label: "Risk Gate", bold: true },
@@ -465,7 +450,6 @@ export default function LandingPage() {
                   { icon: <Calendar className="h-3.5 w-3.5" />,        label: "Economic Calendar" },
                   { icon: <Newspaper className="h-3.5 w-3.5" />,       label: "News Feed" },
                   { icon: <Tv className="h-3.5 w-3.5" />,              label: "Live TV" },
-                  { icon: <MessageSquare className="h-3.5 w-3.5" />,   label: "Community Chat" },
                   { icon: <BookOpen className="h-3.5 w-3.5" />,        label: "Knowledge Base" },
                 ].map(item => (
                   <div key={item.label} className="flex items-center gap-2 text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>
@@ -499,39 +483,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Free */}
-            <div
-              data-card
-              className="rounded-2xl p-8 flex flex-col"
-              style={{ background: S2, border: "1px solid rgba(255,255,255,0.07)" }}
-            >
-              <p className="text-[10px] font-black tracking-[0.22em] uppercase mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>
-                Free tier
-              </p>
-              <h3 className="text-xl font-black mb-1">Free</h3>
-              <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.35)" }}>Essential tools for every trader</p>
-              <p className="font-black font-mono mb-8" style={{ fontSize: "clamp(3rem, 7vw, 4.5rem)", lineHeight: 1 }}>
-                $0
-                <span className="text-sm font-normal ml-2" style={{ color: "rgba(255,255,255,0.28)" }}>/forever</span>
-              </p>
-              <ul className="space-y-2.5 mb-8 flex-1">
-                {FREE_FEATURES.map(f => (
-                  <li key={f.label} className="flex items-start gap-3 text-sm">
-                    {f.locked
-                      ? <Ban className="h-4 w-4 shrink-0 mt-0.5" style={{ color: "rgba(255,255,255,0.14)" }} />
-                      : <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" style={{ color: "rgba(255,255,255,0.22)" }} />}
-                    <span style={{ color: f.locked ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.48)" }}
-                      className={f.locked ? "line-through" : ""}>{f.label}</span>
-                  </li>
-                ))}
-              </ul>
-              <Link href="/login"
-                className="flex items-center justify-center w-full rounded-xl border py-3.5 text-sm font-bold transition-colors hover:bg-white/5"
-                style={{ borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)" }}>
-                Get started free
-              </Link>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
 
             {/* Pro Monthly */}
             <div

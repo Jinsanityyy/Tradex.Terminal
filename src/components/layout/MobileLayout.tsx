@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { LayoutDashboard, TrendingUp, Zap, BarChart3, Users, Menu, Camera, LogOut, X, Crown } from "lucide-react";
+import { LayoutDashboard, TrendingUp, Zap, BarChart3, Menu, Camera, LogOut, X, Crown } from "lucide-react";
 import { PLANS } from "@/lib/plans";
 import { useSubscription } from "@/hooks/useSubscription";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
@@ -11,9 +11,7 @@ import { MobileChart } from "@/components/mobile/MobileChart";
 import { MobileFeed } from "@/components/mobile/MobileFeed";
 import { MobileBrain } from "@/components/mobile/MobileBrain";
 import { MobileMore } from "@/components/mobile/MobileMore";
-import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { createClient } from "@/lib/supabase/client";
-import { toast } from "sonner";
 import { NotificationToast } from "@/components/shared/NotificationToast";
 import { LoginTransitionOverlay } from "@/components/shared/LoginTransitionOverlay";
 import { useFcmPush } from "@/hooks/useFcmPush";
@@ -26,7 +24,6 @@ const TABS = [
   { id: "chart",     label: "Chart", Icon: TrendingUp },
   { id: "feed",      label: "Feed",  Icon: Zap },
   { id: "brain",     label: "Brain", Icon: BarChart3 },
-  { id: "community", label: "Chat",  Icon: Users },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -75,17 +72,14 @@ export function MobileLayout() {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [avatar, setAvatar] = useState<string | null>(null);
-  const [unreadChat, setUnreadChat] = useState(0);
   const [unreadFeed, setUnreadFeed] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMounted, setDrawerMounted] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const activeRef = useRef(active);
-  const traderNameRef = useRef(traderName);
   const swipeTouchStartX = useRef<number>(0);
   const swipeTouchStartY = useRef<number>(0);
   activeRef.current = active;
-  traderNameRef.current = traderName;
 
   function openDrawer() {
     setDrawerMounted(true);
@@ -168,66 +162,6 @@ export function MobileLayout() {
         }
       })
       .catch(() => {});
-
-    // Listen for new chat messages — badge + @mention notification
-    // Single source: realtime only (no polling to avoid double-counting)
-    let myUserId: string | null = null;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-
-    supabase.auth.getUser().then(({ data }) => {
-      myUserId = data.user?.id ?? null;
-
-      channel = supabase
-        .channel("badge-listener", { config: { broadcast: { self: false } } })
-        .on(
-          "postgres_changes",
-          { event: "INSERT", schema: "public", table: "messages" },
-          (payload) => {
-            const msg = payload.new as {
-              id: string;
-              user_id: string;
-              display_name: string | null;
-              content: string;
-              recipient_id: string | null;
-            };
-            // Ignore DMs and own messages
-            if (msg.recipient_id) return;
-            if (msg.user_id === myUserId) return;
-
-            // Always increment badge when chat tab is not active
-            if (activeRef.current !== "community") {
-              setUnreadChat(n => n + 1);
-            }
-
-            // @mention detection — check if message tags the current user
-            const myName = traderNameRef.current.replace(/\s+/g, "").toLowerCase();
-            const isMentioned = myName.length > 0 &&
-              msg.content.toLowerCase().includes(`@${myName}`);
-
-            if (isMentioned) {
-              const sender = msg.display_name ?? "Someone";
-              toast(`🔔 ${sender} mentioned you`, {
-                description: msg.content.slice(0, 80),
-                duration: 6000,
-              });
-              if (typeof Notification !== "undefined" &&
-                  Notification.permission === "granted" &&
-                  document.hidden) {
-                if (navigator.serviceWorker?.controller) {
-                  navigator.serviceWorker.ready.then(reg => reg.showNotification(`🔔 ${sender} mentioned you`, { body: msg.content.slice(0, 80), icon: "/logo.png" })).catch(() => {});
-                } else {
-                  try { new Notification(`🔔 ${sender} mentioned you`, { body: msg.content.slice(0, 80), icon: "/logo.png" }); } catch {}
-                }
-              }
-            }
-          }
-        )
-        .subscribe();
-    });
-
-    return () => {
-      if (channel) supabase.removeChannel(channel);
-    };
   }, []);
 
   // Feed badge  -  poll for new HIGH catalysts
@@ -358,7 +292,7 @@ export function MobileLayout() {
     );
   }
 
-  const NO_SCROLL_TABS = new Set(["chart", "community", "feed", "brain"]);
+  const NO_SCROLL_TABS = new Set(["chart", "feed", "brain"]);
 
   return (
     <div
@@ -515,7 +449,6 @@ export function MobileLayout() {
               {id === "chart"     && <MobileChart />}
               {id === "feed"      && <MobileFeed />}
               {id === "brain"     && <MobileBrain />}
-              {id === "community" && <CommunityPanel />}
             </div>
           );
         })}
@@ -560,16 +493,14 @@ export function MobileLayout() {
           paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
         }}
       >
-        <div className="grid grid-cols-5">
+        <div className="grid grid-cols-4">
           {TABS.map(({ id, label, Icon }) => {
             const isActive = active === id;
-            const showBadge = (id === "community" && unreadChat > 0 && active !== "community") ||
-                              (id === "feed" && unreadFeed > 0 && active !== "feed");
-            const badgeCount = id === "community" ? unreadChat : unreadFeed;
+            const showBadge = id === "feed" && unreadFeed > 0 && active !== "feed";
+            const badgeCount = unreadFeed;
             return (
               <button key={id} onClick={() => {
                 switchTab(id);
-                if (id === "community") setUnreadChat(0);
                 if (id === "feed") setUnreadFeed(0);
               }}
                 className="flex flex-col items-center justify-center gap-0.5 py-3 transition-colors relative">

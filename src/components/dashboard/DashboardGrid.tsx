@@ -50,7 +50,6 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "trump", x: 19, y: 0, w: 5, h: 4, minW: 4, minH: 3 },
     { i: "mtf", x: 19, y: 4, w: 5, h: 4, minW: 4, minH: 3 },
     { i: "catalysts", x: 13, y: 7, w: 11, h: 7, minW: 6, minH: 4 },
-    { i: "community", x: 0, y: 14, w: 13, h: 6, minW: 6, minH: 5 },
     { i: "events", x: 13, y: 14, w: 6, h: 5, minW: 4, minH: 3 },
     { i: "sessions", x: 19, y: 14, w: 5, h: 5, minW: 4, minH: 3 },
     { i: "agents", x: 0, y: 20, w: 24, h: 6, minW: 10, minH: 2 },
@@ -73,7 +72,6 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "catalysts", x: 16, y: 4, w: 8, h: 7, minW: 6, minH: 4 },
     { i: "events", x: 16, y: 11, w: 8, h: 5, minW: 4, minH: 3 },
     { i: "sessions", x: 16, y: 16, w: 8, h: 4, minW: 4, minH: 3 },
-    { i: "community", x: 0, y: 16, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "globe", x: 12, y: 16, w: 4, h: 4, minW: 4, minH: 4 },
     { i: "agents", x: 0, y: 20, w: 24, h: 6, minW: 10, minH: 2 },
     { i: "economic-calendar", x: 0, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
@@ -95,7 +93,6 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "trump", x: 19, y: 0, w: 5, h: 4, minW: 4, minH: 3 },
     { i: "mtf", x: 19, y: 4, w: 5, h: 4, minW: 4, minH: 3 },
     { i: "catalysts", x: 13, y: 7, w: 11, h: 7, minW: 6, minH: 4 },
-    { i: "community", x: 0, y: 14, w: 13, h: 6, minW: 6, minH: 5 },
     { i: "events", x: 13, y: 14, w: 6, h: 5, minW: 4, minH: 3 },
     { i: "sessions", x: 19, y: 14, w: 5, h: 5, minW: 4, minH: 3 },
     { i: "agents", x: 0, y: 20, w: 24, h: 6, minW: 10, minH: 2 },
@@ -118,7 +115,6 @@ const PRESET_HIDDEN: Record<BuiltInPresetId, Record<string, boolean>> = {
   },
   minimal: {
     ...OPTIONAL_WIDGET_DEFAULTS,
-    community: true,
     globe: true,
   },
   custom: {

@@ -23,7 +23,6 @@ import { AgentCardsWidget } from "@/components/brain/AgentCardsWidget";
 import { LiveTVPanel } from "@/components/shared/LiveTVPanel";
 import dynamic from "next/dynamic";
 const GlobeClient = dynamic(() => import("@/components/globe/GlobeClient"), { ssr: false });
-import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { InstitutionalConfluence } from "@/components/shared/InstitutionalConfluence";
 import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
 import { AgentReadDisclaimer } from "@/components/shared/AgentReadDisclaimer";
@@ -1063,14 +1062,6 @@ export function MobileHome() {
                 <section key="live_tv">
                   <TerminalSectionHeader label="LIVE FEED" />
                   <LiveTVPanel showHeader={false} showFooterNote={false} />
-                </section>
-              );
-
-            case "community":
-              return (
-                <section key="community">
-                  <TerminalSectionHeader label="COMMUNITY" />
-                  <CommunityPanel />
                 </section>
               );
 

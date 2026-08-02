@@ -35,7 +35,6 @@ const SECTIONS = [
     label: "INTELLIGENCE",
     items: [
       { id: "market-intelligence",  href: "/dashboard/market-intelligence",  label: "Insights",         icon: Brain,         proOnly: true  },
-      // Vega AI lives as a floating orb (bottom-right), not a sidebar item — see JarvisAssistant.
     ],
   },
   {
@@ -745,18 +744,6 @@ export function Sidebar({ onOpenKnowledge }: SidebarProps) {
                       key="knowledge"
                       onClick={() => { setMobileMenuOpen(false); onOpenKnowledge?.(); }}
                       className="flex flex-col items-center gap-2.5 rounded-xl border border-violet-500/30 bg-violet-500/5 px-2 py-4 text-violet-400 transition-all hover:bg-violet-500/10"
-                    >
-                      <Icon className="h-5 w-5" />
-                      <span className="text-[10px] font-semibold text-center leading-tight">{item.label}</span>
-                    </button>
-                  );
-                }
-                if (item.id === "vega") {
-                  return (
-                    <button
-                      key="vega"
-                      onClick={() => { setMobileMenuOpen(false); window.dispatchEvent(new Event("vega:open")); }}
-                      className="flex flex-col items-center gap-2.5 rounded-xl border border-[#00D4FF]/30 bg-[#00D4FF]/5 px-2 py-4 text-[#00D4FF] transition-all hover:bg-[#00D4FF]/10"
                     >
                       <Icon className="h-5 w-5" />
                       <span className="text-[10px] font-semibold text-center leading-tight">{item.label}</span>

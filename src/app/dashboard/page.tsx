@@ -28,7 +28,6 @@ import {
   Zap,
 } from "lucide-react";
 import { TradingViewChart } from "@/components/shared/TradingViewChart";
-import { CommunityPanel } from "@/components/shared/CommunityPanel";
 import { CatalystFeed } from "@/components/shared/CatalystFeed";
 import { DetailModal } from "@/components/shared/DetailModal";
 import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
@@ -1581,15 +1580,6 @@ export default function DashboardPage() {
       content: (
         <div className="h-full min-h-0 overflow-hidden p-3">
           <LiveTVPanel showHeader={false} showFooterNote={false} />
-        </div>
-      ),
-    },
-    {
-      id: "community",
-      title: "Desk chat",
-      content: (
-        <div className="h-full min-h-0 overflow-hidden">
-          <CommunityPanel />
         </div>
       ),
     },
