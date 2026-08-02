@@ -141,9 +141,10 @@ function PricingContent() {
           <div className="rounded-2xl border border-[#5fc77a]/30 bg-[#5fc77a]/[0.04] p-6 relative shadow-[0_0_40px_rgba(95,199,122,0.07)]">
             <h2 className="text-lg font-bold mb-1">TradeX Pro</h2>
             <p className="text-sm text-zinc-400 mb-4">Full access to the terminal</p>
-            <p className="text-3xl font-bold font-mono text-[#5fc77a] mb-6">
+            <p className="text-3xl font-bold font-mono text-[#5fc77a] mb-1">
               $19.99 <span className="text-sm text-zinc-400 font-normal">/month</span>
             </p>
+            <p className="text-xs text-zinc-500 mb-6">or $199 billed yearly — save $40</p>
             <ul className="space-y-2 mb-6">
               {PRO_FEATURES.map(f => (
                 <li key={f} className="flex items-start gap-2 text-sm text-zinc-300">

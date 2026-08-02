@@ -10,6 +10,7 @@ export const PLANS = {
   pro: {
     name: "Pro",
     monthlyPrice: 19.99,
+    annualPrice: 199,
 
     planId: process.env.NEXT_PUBLIC_PAYPAL_PRO_PLAN_ID ?? "",
     annualPlanId: process.env.NEXT_PUBLIC_PAYPAL_PRO_ANNUAL_PLAN_ID ?? "",

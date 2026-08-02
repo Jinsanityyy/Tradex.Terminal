@@ -509,7 +509,7 @@ export default function LandingPage() {
                 $19.99
                 <span className="text-sm font-normal ml-2" style={{ color: "rgba(255,255,255,0.32)" }}>/month</span>
               </p>
-              <p className="text-xs mb-8" style={{ color: "rgba(255,255,255,0.26)" }}>Billed monthly · Cancel anytime</p>
+              <p className="text-xs mb-8" style={{ color: "rgba(255,255,255,0.26)" }}>Billed monthly · or $199/year (save $40) · Cancel anytime</p>
               <ul className="space-y-2.5 mb-8 flex-1">
                 {PRO_FEATURES.map(f => (
                   <li key={f.label} className="flex items-start gap-3 text-sm">
