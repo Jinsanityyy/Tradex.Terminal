@@ -42,9 +42,22 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://tradexterminal.online";
+const SITE_DESC =
+  "A multi-agent market read for Gold, Forex, Crypto and Indices. Seven agents analyse trend, price action, news, risk and positioning, then show you the context behind the move.";
+
 export const metadata: Metadata = {
-  title: "TradeX Terminal",
-  description: "Real-time trading terminal. Gold, forex, crypto  -  live prices, bias analysis, economic calendar and trade context.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "TradeX Terminal",
+    template: "%s · TradeX Terminal",
+  },
+  description: SITE_DESC,
+  applicationName: "TradeX Terminal",
+  keywords: [
+    "trading terminal", "gold analysis", "XAUUSD", "forex", "market bias",
+    "trading dashboard", "market analysis", "economic calendar",
+  ],
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -58,6 +71,22 @@ export const metadata: Metadata = {
     apple: [
       { url: "/logo.png", sizes: "180x180", type: "image/png" },
     ],
+  },
+  // Without these, every link shared to X / Facebook / Discord / Telegram
+  // renders as a bare URL with no title, blurb or image.
+  openGraph: {
+    type: "website",
+    siteName: "TradeX Terminal",
+    title: "TradeX Terminal",
+    description: SITE_DESC,
+    url: SITE_URL,
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "TradeX Terminal" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TradeX Terminal",
+    description: SITE_DESC,
+    images: ["/opengraph-image"],
   },
 };
 

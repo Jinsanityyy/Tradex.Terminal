@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 // ── Widget registry ───────────────────────────────────────────────────────────
 
 export const WIDGET_DEFS = [
-  { id: "signal_session",  label: "Signal & Session",  desc: "Trade signal state + current market session" },
+  { id: "signal_session",  label: "Market Read & Session",  desc: "Where price sits vs the flagged level + current session" },
   { id: "entry_strip",     label: "Trade Setup",       desc: "Entry, SL, TP, R:R when a setup is active" },
   { id: "top_catalyst",    label: "Top Catalyst",      desc: "Latest high-impact market-moving event" },
   { id: "live_prices",     label: "Live Prices",       desc: "Real-time prices for your tracked assets (set in Settings)" },

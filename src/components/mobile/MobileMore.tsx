@@ -49,7 +49,7 @@ const ALL_APPS: AppDef[] = [
   { id: "asset-matrix",         label: "Cross-Asset",       icon: LayoutGrid,    component: AssetMatrixPage,           proOnly: true  },
   { id: "session-intelligence", label: "Trading Sessions",  icon: Clock,         component: SessionIntelPage,          proOnly: true  },
   { id: "market-intelligence",  label: "Insights",          icon: Brain,         component: MarketIntelPage,           proOnly: true  },
-  { id: "signals",              label: "Signal History",    icon: Activity,      component: SignalsPage                               },
+  { id: "signals",              label: "Read History",      icon: Activity,      component: SignalsPage                               },
   { id: "catalysts",            label: "Macro Events",      icon: AlertTriangle, component: CatalystsPage,             proOnly: true  },
   { id: "trump-monitor",        label: "Trump Monitor",     icon: BarChart2,     component: TrumpPage,                 proOnly: true  },
   { id: "news-flow",            label: "News Feed",         icon: Rss,           component: NewsFlowPage                              },

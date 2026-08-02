@@ -121,9 +121,16 @@ export async function middleware(req: NextRequest) {
   // No purchase, no app. Signed-in users land on /pricing (where they can also
   // redeem a key); everyone else is sent to sign in first.
   if (needsPlanCheck && !planAllowsPro) {
-    const url = new URL(signedIn ? "/pricing" : "/login", req.url);
-    url.searchParams.set("from", pathname);
-    if (signedIn) url.searchParams.set("locked", "pro");
+    if (signedIn) {
+      const url = new URL("/pricing", req.url);
+      url.searchParams.set("locked", "pro");
+      url.searchParams.set("from", pathname);
+      return NextResponse.redirect(url);
+    }
+    // The login page reads `next`, not `from` — sending `from` here meant the
+    // requested page was silently dropped and everyone landed on /dashboard.
+    const url = new URL("/login", req.url);
+    url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
 

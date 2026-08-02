@@ -112,7 +112,7 @@ function NoSweepAlert() {
 function StatPills() {
   const stats = [
     { icon: <Shield className="h-3.5 w-3.5" />, label: "Risk Gate", value: "Hard override  -  no bypass", color: "border-red-500/30 text-red-400" },
-    { icon: <Zap className="h-3.5 w-3.5" />, label: "Signal States", value: "ARMED / PENDING / EXPIRED", color: "border-violet-500/30 text-violet-400" },
+    { icon: <Zap className="h-3.5 w-3.5" />, label: "Read States", value: "AT LEVEL / APPROACHING / PASSED", color: "border-violet-500/30 text-violet-400" },
     { icon: <Clock className="h-3.5 w-3.5" />, label: "NY Window", value: "13:00 – 18:00 UTC only", color: "border-sky-500/30 text-sky-400" },
   ];
 
@@ -214,10 +214,20 @@ export function HeroSection() {
         >
           Seven specialized agents  -  Trend, Price Action, News, Risk Gate, Execution,
           Contrarian, and Master  -  run sequentially and in parallel to produce a single,
-          structured trade decision.{" "}
+          structured market read.{" "}
           <span className="text-slate-300">
             No sweep detected in the NY session window = the entire pipeline short-circuits.
           </span>
+        </motion.p>
+
+        {/* Informational framing, stated up front rather than buried in Terms. */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6, duration: 0.4 }}
+          className="font-mono text-[11px] text-slate-600 max-w-2xl mt-3 leading-relaxed"
+        >
+          Market context, not trade recommendations. Rule-based analysis, not a live AI model.
         </motion.p>
 
         {/* CTA row */}
