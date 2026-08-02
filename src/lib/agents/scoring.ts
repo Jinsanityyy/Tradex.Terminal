@@ -179,8 +179,13 @@ export function computeConsensus(
     (signalDirectionBear && h1OrH4ConflictsBear)
   ) ? -8 : 0;
 
-  // Normalize to -100..+100 range (max possible score with weights = 100)
-  const totalWeight = weights.trend + weights.smc + weights.news + weights.execution + weights.contrarian;
+  // Normalize to -100..+100 against the weights ACTUALLY used this run.
+  // The SMC weight is dynamic (+0.08 with a confirmed setup, ×0.5 when it
+  // merely echoes trend), but the divisor used to be the static config sum —
+  // so scores ran ~8% hot in the setup case and ~18% cold in the echo case,
+  // enough to flip a read across the neutral band. Summing item.weight keeps
+  // numerator and denominator on the same scale by construction.
+  const totalWeight = items.reduce((acc, item) => acc + item.weight, 0);
   const normalizedScore = clamp(Math.round(((rawSum + riskGradeModifier + tfConflictPenalty) / (totalWeight * 100)) * 100 * 100) / 100, -100, 100);
 
   // ── Risk Gate ─────────────────────────────────────────────────────────────
@@ -206,22 +211,26 @@ export function computeConsensus(
   // Block bearish signals in a bullish structure
   const structureBlocksShort = trendBullish && !smc.bosDetected && !structureGateBypassed && normalizedScore < 0;
 
-  // Sweep gate: allow signal when consensus is strong (≥12) even without a sweep.
-  // A confirmed sweep is still the best setup, but strong multi-agent agreement
-  // (trend + SMC + news all aligned) can produce a valid directional signal.
-  // Andybiotic SmartBuy/SmartSell (EMA200-confirmed) bypasses this gate entirely —
-  // the indicator already encodes high-conviction directional bias without needing
-  // a session sweep to validate it.
+  // ── Decision thresholds ───────────────────────────────────────────────────
+  // The neutral band was ±12, calibrated against the mis-normalized scale
+  // above. On the corrected scale, actionable runs (setup present — the only
+  // state that produces a trade plan) score ×(0.96/1.04) ≈ 0.92 of their old
+  // value, so the band is rescaled to ±11 to keep the decision boundary where
+  // it was. Proper recalibration needs signal-history outcomes; this only
+  // preserves existing behavior under the corrected math.
+  const BULL_THRESHOLD = 11;
+  const BEAR_THRESHOLD = -11;
+
+  // Sweep gate: allow signal when consensus clears the neutral band even
+  // without a sweep. A confirmed sweep is still the best setup, but strong
+  // multi-agent agreement (trend + SMC + news aligned) can produce a valid
+  // directional read. Andybiotic SmartBuy/SmartSell (EMA200-confirmed)
+  // bypasses this gate entirely — the indicator already encodes
+  // high-conviction directional bias without needing a session sweep.
   const andybioticBypassesSweepGate = trend.andybioticStrong === true && trend.bias !== "neutral";
-  const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None" && Math.abs(normalizedScore) < 12 && !andybioticBypassesSweepGate;
+  const noFibZone = !smc.liquiditySweepDetected && smc.setupType === "None" && Math.abs(normalizedScore) < BULL_THRESHOLD && !andybioticBypassesSweepGate;
 
   // ── Final Bias Decision ───────────────────────────────────────────────────
-  // Neutral band: ±12. With Andybiotic as primary signal, the dampening factors
-  // (SMC echo-halving, news freshness decay, TF-alignment halving) are already
-  // softened — ±12 lets genuine Andybiotic-led directional setups through while
-  // still filtering coin-flip low-conviction conditions.
-  const BULL_THRESHOLD = 12;
-  const BEAR_THRESHOLD = -12;
 
   let finalBias: FinalBias;
   let noTradeReason: string | undefined;
@@ -248,8 +257,14 @@ export function computeConsensus(
   }
 
   // ── Confidence from consensus strength ────────────────────────────────────
+  // The old curve (40 + raw×0.6) could never go below 40, so the 25 floor was
+  // dead code and even a near-zero consensus displayed 40%+ conviction.
+  // Re-anchored to a true floor of 25, slope chosen so the strong-read
+  // boundary is unchanged: conf 75 required raw ≈58.3 on the old scale, which
+  // is ≈53.8 on the corrected scale, and 25 + 53.8×0.93 ≈ 75. Weak reads now
+  // look weak; high-conviction cutoffs stay where they were.
   const rawConfidence = Math.abs(normalizedScore);
-  const confidence = clamp(Math.round(40 + rawConfidence * 0.6), 25, 98);
+  const confidence = clamp(Math.round(25 + rawConfidence * 0.93), 25, 98);
 
   return {
     consensusScore: normalizedScore,

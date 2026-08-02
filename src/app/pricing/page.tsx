@@ -25,7 +25,7 @@ const PRO_FEATURES = [
   "TradingView charts",
   "News feed and economic calendar",
   "Live TV market broadcast",
-  "Telegram and push alerts",
+  "Push alerts",
   "Trading knowledge base",
 ];
 

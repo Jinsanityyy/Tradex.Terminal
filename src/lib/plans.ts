@@ -28,7 +28,7 @@ export const PLANS = {
       "P&L Tracker and trading journal",
       "Live prices, charts, news and calendar",
       "Live TV market broadcast",
-      "Telegram and push alerts",
+      "Push alerts",
     ],
     limits: [],
   },
