@@ -471,6 +471,13 @@ export function TradingViewChart({
   }, []);
 
   useEffect(() => {
+    // The rebuild effect constructs the widget from latestSymbolRef, not from
+    // activeSymbol — the internal picker (selectSymbol) sets the ref before
+    // triggering the rebuild, but this prop-sync path didn't. Result: picking
+    // an asset OUTSIDE the chart (sidebar selector, agent symbol switch)
+    // rebuilt the widget with the stale ref and the chart stayed on the old
+    // symbol. Keep ref and state in lockstep here.
+    latestSymbolRef.current = initialSymbol;
     setActiveSymbol(initialSymbol);
   }, [initialSymbol]);
 
