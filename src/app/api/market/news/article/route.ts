@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requirePro } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +8,9 @@ const cache = new Map<string, { paragraphs: string[]; ts: number }>();
 const CACHE_TTL = 10 * 60 * 1000;
 
 export async function GET(req: NextRequest) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   const url = req.nextUrl.searchParams.get("url");
   if (!url || !url.startsWith("http")) {
     return NextResponse.json({ error: "invalid url" }, { status: 400 });

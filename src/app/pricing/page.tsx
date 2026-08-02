@@ -35,6 +35,8 @@ const PRO_FEATURES = [
   "Force-refresh signals",
 ];
 
+import { LicenseRedeemCard } from "@/components/shared/LicenseRedeemCard";
+
 // When set, Gumroad becomes the checkout. Falls back to the Paddle flow when empty.
 const GUMROAD_URL = process.env.NEXT_PUBLIC_GUMROAD_PRODUCT_URL ?? "";
 
@@ -255,12 +257,10 @@ function PricingContent() {
           </div>
         </div>
 
-        {/* Already purchased */}
-        <div className="text-center mt-6 text-xs text-zinc-500">
-          Already bought TradeX?{" "}
-          <Link href="/dashboard/settings" className="text-[#5fc77a] hover:underline font-semibold">
-            Activate your license key
-          </Link>
+        {/* Already purchased — redeem inline so a fresh buyer never has to hunt
+            for Settings straight after checkout. */}
+        <div className="mt-8 max-w-md mx-auto">
+          <LicenseRedeemCard />
         </div>
 
         {/* Footer note */}

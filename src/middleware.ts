@@ -10,27 +10,30 @@ function isMobile(req: NextRequest) {
 }
 
 /**
- * Routes that require a paid plan. Anything not listed is free-tier.
- * Prefix match, so /dashboard/brain/anything is covered by /dashboard/brain.
+ * TradeX is a paid product with no free tier: if you have not purchased, you
+ * do not get in. So the app area is deny-by-default — every /dashboard and /m
+ * route requires an active plan unless it is explicitly exempt below.
  *
- * This mirrors PLAN_ACCESS in useSubscription.ts, but unlike that (client-only,
- * and previously never enforced) this actually blocks the navigation.
+ * Exempt routes are account management only, never product surface. Settings
+ * has to stay reachable or a fresh buyer would have nowhere to paste the
+ * license key they just received.
  */
-const PRO_ROUTES = [
-  "/dashboard/brain",                 // "Trading Floor" — the 7-agent terminal
-  "/dashboard/market-bias",
-  "/dashboard/market-intelligence",
-  "/dashboard/asset-matrix",
-  "/dashboard/session-intelligence",
-  "/dashboard/catalysts",
-  "/dashboard/trump-monitor",
-  "/dashboard/pnl-calendar",
-  "/dashboard/ai-briefing",
-  "/dashboard/candle-analysis",
+const APP_PREFIXES = ["/dashboard", "/m"];
+
+const ENTITLEMENT_EXEMPT = [
+  "/dashboard/settings",   // password, MFA, delete account, license redemption
 ];
 
-function isProRoute(pathname: string): boolean {
-  return PRO_ROUTES.some((r) => pathname === r || pathname.startsWith(r + "/"));
+function isAppRoute(pathname: string): boolean {
+  return APP_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
+}
+
+function isExempt(pathname: string): boolean {
+  return ENTITLEMENT_EXEMPT.some((r) => pathname === r || pathname.startsWith(r + "/"));
+}
+
+function needsEntitlement(pathname: string): boolean {
+  return isAppRoute(pathname) && !isExempt(pathname);
 }
 
 export async function middleware(req: NextRequest) {
@@ -71,7 +74,7 @@ export async function middleware(req: NextRequest) {
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const needsPlanCheck = !isStatic && !isPublicPage && isProRoute(pathname);
+  const needsPlanCheck = !isStatic && !isPublicPage && needsEntitlement(pathname);
 
   if (supabaseUrl && supabaseKey) {
     const supabase = createServerClient(supabaseUrl, supabaseKey, {
@@ -115,7 +118,8 @@ export async function middleware(req: NextRequest) {
   }
 
   // ── Paid-plan gate ─────────────────────────────────────────────────────────
-  // Free users hitting a Pro route land on /pricing instead of the feature.
+  // No purchase, no app. Signed-in users land on /pricing (where they can also
+  // redeem a key); everyone else is sent to sign in first.
   if (needsPlanCheck && !planAllowsPro) {
     const url = new URL(signedIn ? "/pricing" : "/login", req.url);
     url.searchParams.set("from", pathname);

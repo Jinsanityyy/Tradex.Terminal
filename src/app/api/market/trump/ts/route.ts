@@ -1,4 +1,5 @@
-﻿/**
+import { requirePro } from "@/lib/auth/entitlement";
+/**
  * Truth Social provider proxy  -  /api/market/trump/ts
  *
  * Provider selection via TRUTH_SOCIAL_PROVIDER env var:
@@ -386,7 +387,10 @@ async function fetchViaCnn(): Promise<Response> {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 
-export async function GET() {
+export async function GET(req: Request) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   console.log(`[ts] provider="${PROVIDER}" username="${USERNAME}"`);
 
   if (PROVIDER === "cnn")            return fetchViaCnn();

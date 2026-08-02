@@ -1,3 +1,7 @@
+import { requirePro } from "@/lib/auth/entitlement";
+
+// Auth-gated: must never be statically prerendered or cached.
+export const dynamic = "force-dynamic";
 /**
  * /api/market/trump/avatar
  * Proxies Trump's Truth Social profile image directly from our domain.
@@ -36,7 +40,10 @@ async function resolveAvatarUrl(): Promise<string> {
   return "";
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   const avatarUrl = await resolveAvatarUrl();
 
   if (!avatarUrl) {

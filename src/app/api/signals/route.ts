@@ -16,6 +16,7 @@ import { getAuthUser } from "@/lib/supabase/auth-helper";
 import { isOwnerEmail } from "@/lib/auth/owner";
 import type { Symbol } from "@/lib/agents/schemas";
 import type { SignalStats } from "@/lib/signals/types";
+import { requirePro } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -44,6 +45,9 @@ let lastTrackerRunAt = 0;
 const TRACKER_COOLDOWN_MS = 60_000; // 60 seconds
 
 export async function GET(req: NextRequest) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   try {
     // Live signals (`recent`) stay public so the home/sidebar widgets keep working.
     // The aggregate TRACK RECORD (`stats`) and the History page are owner-only.
@@ -128,6 +132,9 @@ export async function GET(req: NextRequest) {
  * Used to fix false SL hits where OHLC reprocess failed.
  */
 export async function PATCH(req: NextRequest) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   try {
     const denied = await requireOwner(req);
     if (denied) return denied;
@@ -187,6 +194,9 @@ export async function PATCH(req: NextRequest) {
  * These are junk rows logged before the execution agent was fixed.
  */
 export async function DELETE(req: NextRequest) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   try {
     const denied = await requireOwner(req);
     if (denied) return denied;

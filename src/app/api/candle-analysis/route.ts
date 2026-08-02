@@ -1,5 +1,6 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { requirePro } from "@/lib/auth/entitlement";
+import { forwardAuth } from "@/lib/auth/forward";
 
 export const dynamic = "force-dynamic";
 
@@ -103,7 +104,12 @@ export async function POST(req: NextRequest) {
     let newsHeadlines: string[] = [];
     try {
       const origin  = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-      const newsRes = await fetch(`${origin}/api/market/news`, { cache: "no-store" });
+      // News is gated now — forward the caller's session or this silently
+      // degrades to "no headlines" for paying users.
+      const newsRes = await fetch(`${origin}/api/market/news`, {
+        cache: "no-store",
+        headers: forwardAuth(req),
+      });
       if (newsRes.ok) {
         const nd = await newsRes.json();
         newsHeadlines = (nd.data ?? []).slice(0, 8).map((n: any) => n.headline as string);

@@ -3,10 +3,14 @@ import { getAuthUser } from "@/lib/supabase/auth-helper";
 import { decrypt } from "@/lib/exchanges/encrypt";
 import { syncExchange } from "@/lib/exchanges";
 import type { ExchangeCredentials } from "@/lib/exchanges/types";
+import { requirePro } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   try {
     const { user, supabase } = await getAuthUser(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

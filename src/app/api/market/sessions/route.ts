@@ -1,5 +1,6 @@
 ﻿import { NextResponse } from "next/server";
 import type { SessionSummary } from "@/types";
+import { requirePro } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -260,7 +261,10 @@ function generateCarriesForward(
   return pieces.join("; ") + ".";
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   if (cache.data.length > 0 && Date.now() - cache.ts < CACHE_TTL) {
     return NextResponse.json({ data: cache.data, timestamp: cache.ts, cached: true });
   }

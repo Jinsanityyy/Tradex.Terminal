@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requirePro } from "@/lib/auth/entitlement";
+
+// Auth-gated: must never be statically prerendered or cached.
+export const dynamic = "force-dynamic";
 
 interface StreamInfo {
   videoId: string | null;
@@ -35,6 +39,9 @@ const CACHE = new Map<string, { data: StreamInfo; ts: number }>();
 const TTL = 90_000; // 90 seconds
 
 export async function GET(req: NextRequest) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   const channelId = req.nextUrl.searchParams.get("channel");
   const handle    = req.nextUrl.searchParams.get("handle") ?? "";
 

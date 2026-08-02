@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requirePro } from "@/lib/auth/entitlement";
 export const dynamic = "force-dynamic";
 
 async function testBLS() {
@@ -14,7 +15,10 @@ async function testBLS() {
   return results;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const gate = await requirePro(req);
+  if (!gate.ok) return gate.response;
+
   // First test BLS.gov (no auth needed)
   const blsResults = await testBLS();
 
