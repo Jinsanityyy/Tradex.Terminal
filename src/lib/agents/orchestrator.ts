@@ -42,7 +42,17 @@ const SYMBOL_TO_API: Partial<Record<Symbol, string>> = {
   BTCUSD: "BTC/USD",
 };
 
-async function fetchMarketData(symbol: Symbol): Promise<{
+async function fetchMarketData(
+  symbol: Symbol,
+  /**
+   * Caller's credentials. /api/market/news is entitlement-gated, so a plain
+   * server-side fetch arrives anonymous and 401s — the catch below would then
+   * silently drop that news source for paying users. Finnhub is fetched
+   * directly and is unaffected, so the failure mode is degraded headlines
+   * rather than none.
+   */
+  authHeaders?: HeadersInit
+): Promise<{
   quote: Record<string, string | { high: string; low: string }> | null;
   news: Array<{ headline: string; summary: string; datetime: number }>;
   rsi?: number;
@@ -87,6 +97,7 @@ async function fetchMarketData(symbol: Symbol): Promise<{
         try {
           const res = await fetch(`${baseUrl}/api/market/news`, {
             signal: ctrl.signal, cache: "no-store",
+            headers: authHeaders,
           });
           clearTimeout(timer);
           if (!res.ok) return [];
@@ -274,7 +285,9 @@ export async function runAgentOrchestrator(
   symbol: Symbol,
   timeframe: Timeframe,
   weights?: ScoringWeights,
-  forceRefresh = false
+  forceRefresh = false,
+  /** Forwarded to the gated internal news endpoint — see fetchMarketData. */
+  authHeaders?: HeadersInit
 ): Promise<AgentRunResult> {
   const start = Date.now();
 
@@ -289,7 +302,7 @@ export async function runAgentOrchestrator(
   }
 
   // ── Fetch market data ────────────────────────────────────────────────────
-  const { quote, news } = await fetchMarketData(symbol);
+  const { quote, news } = await fetchMarketData(symbol, authHeaders);
 
   // ── Build normalized snapshot ────────────────────────────────────────────
   let snapshot;
