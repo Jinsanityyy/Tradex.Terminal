@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 // ── Widget registry ───────────────────────────────────────────────────────────
 
 export const WIDGET_DEFS = [
-  { id: "signal_session",  label: "Signal & Session",  desc: "Trade signal state + current market session" },
+  { id: "signal_session",  label: "Market Read & Session",  desc: "Where price sits vs the flagged level + current session" },
   { id: "entry_strip",     label: "Trade Setup",       desc: "Entry, SL, TP, R:R when a setup is active" },
   { id: "top_catalyst",    label: "Top Catalyst",      desc: "Latest high-impact market-moving event" },
   { id: "live_prices",     label: "Live Prices",       desc: "Real-time prices for your tracked assets (set in Settings)" },
@@ -20,7 +20,6 @@ export const WIDGET_DEFS = [
   { id: "agents",          label: "7-Agent Overview",  desc: "All 7 AI agents — trend, SMC, news, risk & more" },
   { id: "globe",           label: "TradeX Globe",      desc: "Interactive 3D globe with live market markers" },
   { id: "live_tv",         label: "Live TV",           desc: "Bloomberg, CNBC & Fox Business live streams" },
-  { id: "community",       label: "Community",         desc: "Live trader chat room" },
   { id: "lot_calculator",  label: "Lot Calculator",    desc: "Position size & risk calculator" },
   { id: "pnl_calendar",   label: "PnL Calendar",      desc: "Monthly performance stats & trade history" },
   { id: "institutional",   label: "Institutional Flow",desc: "Retail sentiment, CME open interest & CBOE options flow" },
@@ -49,7 +48,6 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig[] = [
   { id: "more_catalysts", visible: false },
   { id: "trump_feed",     visible: false },
   { id: "live_tv",        visible: false },
-  { id: "community",      visible: false },
   { id: "lot_calculator", visible: false },
   { id: "pnl_calendar",  visible: false },
   { id: "institutional",  visible: false },

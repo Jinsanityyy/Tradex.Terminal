@@ -175,10 +175,12 @@ export function useWebSocketPrices(symbols: string[]): WSPriceState {
     // Always connect Binance for crypto (no key needed, port 443)
     connectBinance();
 
-    // Try to get Finnhub key from server (keeps key out of bundle)
-    // Falls back to NEXT_PUBLIC_ env var if token endpoint fails (e.g. Capacitor auth)
-    fetch("/api/ws/token")
-      .then(r => r.ok ? r.json() : Promise.reject())
+    // Finnhub key comes from the server so it never ships in the bundle.
+    // There is deliberately no NEXT_PUBLIC_ fallback: that fallback is what
+    // put the key in the bundle in the first place, and /api/ws/token accepts
+    // a Bearer token, so Capacitor can authenticate the same way.
+    fetch("/api/ws/token", { credentials: "include" })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(String(r.status))))
       .then(({ token }: { token: string }) => {
         if (mountedRef.current && token) {
           tokenRef.current = token;
@@ -186,11 +188,10 @@ export function useWebSocketPrices(symbols: string[]): WSPriceState {
         }
       })
       .catch(() => {
-        // Fallback: use NEXT_PUBLIC_ key directly (acceptable for Capacitor where auth cookie isn't sent)
-        const pubKey = process.env.NEXT_PUBLIC_FINNHUB_API_KEY;
-        if (pubKey && mountedRef.current) {
-          tokenRef.current = pubKey;
-          connectFinnhub(pubKey);
+        // No key, no Finnhub feed. Binance (crypto) is already connected above
+        // and needs no key, so the app degrades rather than breaking.
+        if (mountedRef.current) {
+          console.warn("[ws] Finnhub token unavailable — live FX/metals feed disabled");
         }
       });
 

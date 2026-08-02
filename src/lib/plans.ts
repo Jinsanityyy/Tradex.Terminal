@@ -1,46 +1,34 @@
+/**
+ * TradeX is a single paid product. There is no free tier — an account with no
+ * active plan can reach sign-in, pricing and settings, and nothing else.
+ *
+ * The `free` entry that used to live here described a tier that no longer
+ * exists and contradicted the pricing page, so it has been removed rather than
+ * left as a second, wrong source of truth.
+ */
 export const PLANS = {
-  free: {
-    name: "Free",
-    price: 0,
-    planId: null,
-    description: "Live prices and essential market tools",
-    features: [
-      "Live prices — Gold, Forex, Crypto, Indices",
-      "TradingView chart",
-      "News feed",
-      "Economic calendar",
-      "Trading signals (view)",
-      "Community chat",
-      "Trading knowledge base",
-    ],
-    limits: [
-      "No AI analysis",
-      "No Market Bias",
-      "No Brain Terminal",
-      "No Trump Monitor",
-      "No PnL Calendar",
-    ],
-  },
   pro: {
     name: "Pro",
     monthlyPrice: 39,
     annualPrice: 399,
     planId: process.env.NEXT_PUBLIC_PAYPAL_PRO_PLAN_ID ?? "",
     annualPlanId: process.env.NEXT_PUBLIC_PAYPAL_PRO_ANNUAL_PLAN_ID ?? "",
-    description: "Full AI-powered terminal for serious traders",
+    description: "Full access to the TradeX terminal",
     features: [
-      "Everything in Free",
-      "Brain Terminal — 7 AI agents",
-      "Market Bias engine",
-      "Market Intelligence",
-      "Asset Matrix",
-      "Session Intelligence",
-      "AI Catalysts feed",
+      "Trading Floor: the 7-agent market read",
+      "Market Direction engine",
+      "Risk Gate",
+      "Insights and Market Intelligence",
+      "Cross-Asset matrix",
+      "Trading Sessions intelligence",
+      "Macro Events feed",
       "Trump Monitor",
-      "PnL Calendar",
-      "Candle Analysis (AI)",
-      "AI Market Briefing",
-      "Force-refresh signals",
+      "Candle Analysis",
+      "Market Read history and outcome tracking",
+      "P&L Tracker and trading journal",
+      "Live prices, charts, news and calendar",
+      "Live TV market broadcast",
+      "Push alerts",
     ],
     limits: [],
   },

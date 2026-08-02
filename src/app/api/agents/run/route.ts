@@ -10,9 +10,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Symbol, Timeframe } from "@/lib/agents/schemas";
 import { runAgentOrchestrator } from "@/lib/agents/orchestrator";
-import { getAuthUser } from "@/lib/supabase/auth-helper";
-import { getAgentCache } from "@/lib/agents/agent-cache-store";
 import { requirePro } from "@/lib/auth/entitlement";
+import { forwardAuth } from "@/lib/auth/forward";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 55; // Vercel Pro: 60s max  -  keep 5s buffer for cleanup
@@ -44,7 +43,13 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const result = await runAgentOrchestrator(validated.symbol, validated.timeframe);
+    const result = await runAgentOrchestrator(
+      validated.symbol,
+      validated.timeframe,
+      undefined,
+      false,
+      forwardAuth(req)
+    );
     return NextResponse.json(result);
   } catch (error) {
     console.error("Agent run error:", error);
@@ -53,15 +58,6 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-async function serveCachedOrDeny(symbol: Symbol, timeframe: Timeframe) {
-  const cached = await getAgentCache(symbol, timeframe);
-  if (cached) return NextResponse.json(cached);
-  return NextResponse.json(
-    { error: "free_tier_no_cache", message: "Upgrade to Pro to run fresh analysis." },
-    { status: 402 }
-  );
 }
 
 export async function POST(req: NextRequest) {
@@ -81,39 +77,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: validated.error }, { status: 400 });
   }
 
+  // No second subscription check here: requirePro above already established
+  // that the caller is entitled. The old block re-queried the table and gated
+  // force-refresh on `plan === "pro"` alone, which locked out elite accounts
+  // and the owner (who has no subscriptions row at all), and it still keyed
+  // off the trial that no longer exists.
   const wantsForceRefresh = body.forceRefresh === true;
-
-  // ── Subscription gate: only pro/elite/trial users may force a fresh run ──
-  if (wantsForceRefresh) {
-    try {
-      const { user, supabase } = await getAuthUser(req);
-      if (!user) return serveCachedOrDeny(validated.symbol, validated.timeframe);
-
-      const { data: sub } = await supabase
-        .from("subscriptions")
-        .select("plan, status, trial_ends_at")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      const isTrialing = sub?.trial_ends_at
-        ? new Date() < new Date(sub.trial_ends_at) && sub?.plan === "free"
-        : false;
-      const isPaid = sub?.status === "active" && sub?.plan === "pro";
-
-      if (!isPaid && !isTrialing) {
-        return serveCachedOrDeny(validated.symbol, validated.timeframe);
-      }
-    } catch {
-      return serveCachedOrDeny(validated.symbol, validated.timeframe);
-    }
-  }
 
   try {
     const result = await runAgentOrchestrator(
       validated.symbol,
       validated.timeframe,
       undefined,
-      wantsForceRefresh
+      wantsForceRefresh,
+      forwardAuth(req)
     );
 
     return NextResponse.json(result);

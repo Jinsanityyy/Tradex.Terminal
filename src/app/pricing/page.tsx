@@ -7,32 +7,26 @@ import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import { cn } from "@/lib/utils";
 
-const FREE_FEATURES = [
-  "Live prices — Gold, Forex, Crypto, Indices",
-  "TradingView chart",
-  "News feed",
-  "Economic calendar",
-  "Live TV — market broadcast",
-  "Trading signals (view)",
-  "Community chat",
-  "Trading knowledge base",
-  "Brain Terminal — 3 AI analyses/day",
-  "PnL Calendar",
-];
-
+// One product, one list. TradeX has no free tier, so there is nothing to
+// compare against and no "everything in Free" to inherit.
 const PRO_FEATURES = [
-  "Everything in Free",
-  "Brain Terminal — unlimited AI analyses",
-  "Market Bias engine",
+  "Trading Floor: the 7-agent market read",
+  "Market Direction engine",
   "Risk Gate",
-  "Market Intelligence",
-  "Asset Matrix",
-  "Session Intelligence",
-  "AI Catalysts feed",
+  "Insights and Market Intelligence",
+  "Cross-Asset matrix",
+  "Trading Sessions intelligence",
+  "Macro Events feed",
   "Trump Monitor",
-  "Candle Analysis (AI)",
-  "AI Market Briefing",
-  "Force-refresh signals",
+  "Candle Analysis",
+  "Market Read history and outcome tracking",
+  "P&L Tracker and trading journal",
+  "Live prices: Gold, Forex, Crypto, Indices",
+  "TradingView charts",
+  "News feed and economic calendar",
+  "Live TV market broadcast",
+  "Push alerts",
+  "Trading knowledge base",
 ];
 
 import { LicenseRedeemCard } from "@/components/shared/LicenseRedeemCard";
@@ -115,11 +109,20 @@ function PricingContent() {
           </p>
         </div>
 
-        {/* Bounced off a Pro route */}
+        {/* Bounced off the app. Two very different people land here: someone
+            who has not bought yet, and someone who just bought and has a key
+            in their inbox. Speak to both. */}
         {locked && (
-          <div className="flex items-center gap-2 rounded-xl border border-[#5fc77a]/30 bg-[#5fc77a]/10 px-4 py-3 text-sm text-[#5fc77a] mb-6 max-w-md mx-auto">
-            <Lock className="h-4 w-4 shrink-0" />
-            That feature is part of TradeX Pro.
+          <div className="rounded-xl border border-[#5fc77a]/30 bg-[#5fc77a]/10 px-4 py-3 mb-6 max-w-md mx-auto">
+            <div className="flex items-start gap-2 text-sm text-[#5fc77a]">
+              <Lock className="h-4 w-4 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">TradeX is a paid terminal.</p>
+                <p className="mt-1 text-[13px] text-[#5fc77a]/80">
+                  Already purchased on Gumroad? Activate your license key below to unlock everything.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -162,38 +165,14 @@ function PricingContent() {
           </div>
         </div>
 
-        {/* Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-2xl mx-auto">
+        {/* Card — single product. There is no free tier: the terminal is the
+            paid product, so advertising a "$0 forever" column would promise
+            access that no longer exists. */}
+        <div className="max-w-md mx-auto">
 
-          {/* Free */}
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-            <h2 className="text-lg font-bold mb-1">Free</h2>
-            <p className="text-sm text-zinc-400 mb-4">Live prices and essential tools</p>
-            <p className="text-3xl font-bold font-mono mb-6">
-              $0 <span className="text-sm text-zinc-400 font-normal">/forever</span>
-            </p>
-            <ul className="space-y-2 mb-6">
-              {FREE_FEATURES.map(f => (
-                <li key={f} className="flex items-start gap-2 text-sm text-zinc-300">
-                  <CheckCircle2 className="h-4 w-4 text-zinc-500 mt-0.5 shrink-0" />
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <div className="rounded-xl border border-white/10 py-2.5 text-center text-sm text-zinc-400">
-              Current plan
-            </div>
-          </div>
-
-          {/* Pro */}
           <div className="rounded-2xl border border-[#5fc77a]/30 bg-[#5fc77a]/[0.04] p-6 relative shadow-[0_0_40px_rgba(95,199,122,0.07)]">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-              <span className="rounded-full border border-[#5fc77a]/40 bg-[#0a0e1a] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#5fc77a]">
-                Recommended
-              </span>
-            </div>
-            <h2 className="text-lg font-bold mb-1">Pro</h2>
-            <p className="text-sm text-zinc-400 mb-4">Full AI-powered trading terminal</p>
+            <h2 className="text-lg font-bold mb-1">TradeX Pro</h2>
+            <p className="text-sm text-zinc-400 mb-4">Full access to the terminal</p>
             {billing === "monthly" ? (
               <p className="text-3xl font-bold font-mono text-[#5fc77a] mb-6">
                 $39 <span className="text-sm text-zinc-400 font-normal">/month</span>

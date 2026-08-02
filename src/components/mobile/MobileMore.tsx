@@ -6,7 +6,7 @@ import {
   AlertTriangle, Calendar, Activity, Rss,
   DollarSign, Tv, BookOpen, Settings2,
   ChevronLeft, Bell, BellOff, Loader2, Crown,
-  Zap, BarChart2, Sparkles,
+  Zap, BarChart2,
 } from "lucide-react";
 import { MobileBrain } from "@/components/mobile/MobileBrain";
 import { MobileFeatureGate } from "@/components/mobile/MobileFeatureGate";
@@ -40,16 +40,13 @@ interface AppDef {
   proOnly?: boolean;
 }
 
-// Vega opens as a full-screen overlay — it doesn't render a page component.
-// The VegaProxy is never mounted; onPress dispatches vega:open instead.
-const VegaProxy: React.ComponentType = () => null;
 
 const ALL_APPS: AppDef[] = [
   { id: "market-bias",          label: "Market Direction",  icon: TrendingUp,    component: MarketBiasPage,            proOnly: true  },
   { id: "asset-matrix",         label: "Cross-Asset",       icon: LayoutGrid,    component: AssetMatrixPage,           proOnly: true  },
   { id: "session-intelligence", label: "Trading Sessions",  icon: Clock,         component: SessionIntelPage,          proOnly: true  },
   { id: "market-intelligence",  label: "Insights",          icon: Brain,         component: MarketIntelPage,           proOnly: true  },
-  { id: "signals",              label: "Signal History",    icon: Activity,      component: SignalsPage                               },
+  { id: "signals",              label: "Read History",      icon: Activity,      component: SignalsPage                               },
   { id: "catalysts",            label: "Macro Events",      icon: AlertTriangle, component: CatalystsPage,             proOnly: true  },
   { id: "trump-monitor",        label: "Trump Monitor",     icon: BarChart2,     component: TrumpPage,                 proOnly: true  },
   { id: "news-flow",            label: "News Feed",         icon: Rss,           component: NewsFlowPage                              },
@@ -60,12 +57,11 @@ const ALL_APPS: AppDef[] = [
   { id: "live-tv",              label: "Live Feed",         icon: Tv,            component: LiveTVPage                                },
   { id: "knowledge",            label: "Knowledge Base",    icon: BookOpen,      component: TradingKnowledgeContent                   },
   { id: "settings",             label: "Settings",          icon: Settings2,     component: SettingsPage                              },
-  { id: "vega",                 label: "Vega AI",           icon: Sparkles,      component: VegaProxy                                 },
 ];
 
 const SECTIONS = [
   { label: "MARKET",       appIds: ["market-bias", "asset-matrix", "session-intelligence"] },
-  { label: "INTELLIGENCE", appIds: ["vega", "market-intelligence"] },
+  { label: "INTELLIGENCE", appIds: ["market-intelligence"] },
   { label: "MACRO",        appIds: ["catalysts", "trump-monitor", "news-flow", "economic-calendar"] },
   { label: "TOOLS",        appIds: ["signals", "pnl-calendar", "candle-analysis", "brain", "live-tv"] },
 ];
@@ -145,8 +141,6 @@ function getAppTag(
       return micro.openSignals > 0
         ? { tag: `${micro.openSignals} OPEN`, variant: "green" }
         : { tag: "NONE", variant: "muted" };
-    case "vega":
-      return { tag: "AI", variant: "green" };
     case "news-flow":
       return { tag: "LIVE", variant: "green" };
     case "trump-monitor":
@@ -750,10 +744,6 @@ export function MobileMore() {
                       variant={variant}
                       isActive={app.id === highlightId}
                       onPress={() => {
-                        if (app.id === "vega") {
-                          window.dispatchEvent(new Event("vega:open"));
-                          return;
-                        }
                         setHighlightId(app.id);
                         setActiveAppId(app.id);
                       }}
