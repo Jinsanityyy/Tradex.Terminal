@@ -21,16 +21,20 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const nextUrl = searchParams.get("next") ?? "/dashboard";
   const [mode, setMode] = useState<Mode>(
-    searchParams.get("error") === "link_expired" ? "forgot" : "login"
+    searchParams.get("error") === "link_expired" ? "forgot" :
+    searchParams.get("mode") === "signup" ? "signup" : "login"
   );
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [licenseKey, setLicenseKey] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState(
     searchParams.get("error") === "link_expired"
       ? "Your reset link expired or was already used. Enter your email to get a new one."
+      : searchParams.get("error") === "license_required"
+      ? "Continue with Google requires a valid Gumroad license key — enter it below first."
       : ""
   );
   const [success, setSuccess] = useState("");
@@ -128,6 +132,61 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  /**
+   * OAuth hands account creation to Google/Supabase — there's no gating it
+   * before the redirect the way /api/gumroad/signup gates email/password
+   * signup. On the signup tab, a license key is verified first and stashed
+   * server-side (short-lived cookie); /auth/callback finishes the binding
+   * once we're back with a session, or unwinds the account if it can't.
+   * On the login tab, no key is needed — an existing account is assumed.
+   */
+  async function handleGoogle() {
+    setError("");
+    setSuccess("");
+
+    if (mode === "signup") {
+      if (!licenseKey.trim()) {
+        setError("Enter your Gumroad license key first.");
+        return;
+      }
+      setGoogleLoading(true);
+      try {
+        const res = await fetch("/api/gumroad/verify-key", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ licenseKey: licenseKey.trim() }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error ?? "Could not verify that license key.");
+          setGoogleLoading(false);
+          return;
+        }
+      } catch {
+        setError("Network error. Please try again.");
+        setGoogleLoading(false);
+        return;
+      }
+    }
+
+    setGoogleLoading(true);
+    const supabase = createClient();
+    if (!supabase) {
+      setError("Authentication is not configured. Please contact support.");
+      setGoogleLoading(false);
+      return;
+    }
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextUrl)}` },
+    });
+    if (error) {
+      setError(error.message);
+      setGoogleLoading(false);
+    }
+    // On success the browser navigates away to Google — nothing left to do here.
   }
 
   const titles: Record<Mode, string> = {
@@ -538,6 +597,26 @@ export default function LoginPage() {
                     <span className="text-gray-600 uppercase tracking-widest" style={{ fontSize: "10px" }}>or</span>
                     <div className="flex-1 h-px bg-white/[0.06]" />
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={handleGoogle}
+                    disabled={googleLoading}
+                    className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 text-sm font-semibold text-gray-200 hover:bg-white/[0.06] disabled:opacity-50 disabled:cursor-not-allowed transition-all mb-5"
+                  >
+                    {googleLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
+                        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.6 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.3-.1-2.7-.4-3.5z"/>
+                        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.9 19 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.6 6.1 29.6 4 24 4 16.1 4 9.3 8.4 6.3 14.7z"/>
+                        <path fill="#4CAF50" d="M24 44c5.4 0 10.4-2.1 14.1-5.4l-6.5-5.5C29.6 34.9 26.9 36 24 36c-5.3 0-9.7-3.1-11.3-7.5l-6.5 5C9.2 39.6 16 44 24 44z"/>
+                        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.5 5.5C40.9 36.4 44 30.8 44 24c0-1.3-.1-2.7-.4-3.5z"/>
+                      </svg>
+                    )}
+                    {mode === "signup" ? "Continue with Google" : "Sign in with Google"}
+                  </button>
+
                   <p className="text-center text-sm text-gray-500">
                     {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
                     <button
