@@ -25,6 +25,7 @@ export default function LoginPage() {
   );
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
+  const [licenseKey, setLicenseKey] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(
@@ -103,18 +104,24 @@ export default function LoginPage() {
           window.location.href = nextUrl;
         }
       } else {
-        // Sign out any existing session first — prevents a logged-in confirmed
-        // user's session from leaking into the verify-email page and bypassing verification
+        // No free tier, so no free account either — the account only gets
+        // created once the license key verifies against Gumroad. See
+        // /api/gumroad/signup.
         await supabase.auth.signOut();
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-          },
+        const res = await fetch("/api/gumroad/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, licenseKey }),
         });
-        if (error) throw error;
-        window.location.href = `/verify-email?email=${encodeURIComponent(email)}`;
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Could not activate your license.");
+
+        // Account was created pre-confirmed (the purchase already proves the
+        // email) — sign straight in rather than sending a verification email.
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) throw signInError;
+        sessionStorage.setItem("tradex_boot", email.split("@")[0].toUpperCase());
+        window.location.href = nextUrl;
       }
     } catch (err: any) {
       setError(err.message ?? "Something went wrong.");
@@ -131,7 +138,7 @@ export default function LoginPage() {
   };
   const subtitles: Record<Mode, string> = {
     login: "Sign in to your trading terminal",
-    signup: "Start your free trial  -  no card required",
+    signup: "Requires a TradeX Pro purchase on Gumroad",
     forgot: "Enter your email and we'll send a reset link",
     mfa: "Enter the 6-digit code from your authenticator app",
   };
@@ -412,6 +419,29 @@ export default function LoginPage() {
                   </div>
                 )}
 
+                {/* License key — signup only. No purchase, no account. */}
+                {mode === "signup" && (
+                  <div>
+                    <label className="block font-bold text-gray-500 mb-2 uppercase tracking-widest" style={{ fontSize: "10px" }}>
+                      Gumroad License Key
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      autoComplete="off"
+                      spellCheck={false}
+                      value={licenseKey}
+                      onChange={(e) => setLicenseKey(e.target.value)}
+                      placeholder="XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX"
+                      style={{ colorScheme: "dark" }}
+                      className="login-input w-full rounded-xl border border-white/[0.07] bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-gray-700 font-mono transition-all"
+                    />
+                    <p className="mt-1.5 text-gray-600" style={{ fontSize: "11px" }}>
+                      From your Gumroad receipt email. No key, no account.
+                    </p>
+                  </div>
+                )}
+
                 {/* Email */}
                 {mode !== "mfa" && (
                   <div>
@@ -517,7 +547,7 @@ export default function LoginPage() {
                       onMouseEnter={e => (e.currentTarget.style.color = "#10b981")}
                       onMouseLeave={e => (e.currentTarget.style.color = "#6ee7b7")}
                     >
-                      {mode === "login" ? "Sign up free" : "Sign in"}
+                      {mode === "login" ? "Activate a license" : "Sign in"}
                     </button>
                   </p>
                 </>
