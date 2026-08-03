@@ -122,7 +122,15 @@ export async function POST(req: NextRequest) {
   });
 
   if (createError || !created?.user) {
-    const isDuplicate = /already registered|already exists/i.test(createError?.message ?? "");
+    // Supabase's actual wording varies ("already been registered", code
+    // "email_exists", status 422/400) — match broadly rather than one phrase.
+    const isDuplicate =
+      createError?.status === 422 ||
+      createError?.code === "email_exists" ||
+      /already|exists|registered/i.test(createError?.message ?? "");
+    if (!isDuplicate) {
+      console.error("[gumroad/signup] createUser failed:", createError?.status, createError?.code, createError?.message);
+    }
     await logAttempt({
       license_key: licenseKey, email: result.purchase.email, result: "rejected",
       reason: isDuplicate ? "email_taken" : (createError?.message ?? "create_user_failed"),
@@ -130,7 +138,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error: isDuplicate
-          ? "An account with that email already exists. Try signing in instead."
+          ? "An account with that email already exists. Try signing in instead — if you're not Pro yet, activate your license from Settings."
           : "Could not create your account. Please try again.",
       },
       { status: isDuplicate ? 409 : 500 }
