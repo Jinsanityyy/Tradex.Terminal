@@ -43,18 +43,25 @@ const OPTIONAL_WIDGET_DEFAULTS: Record<string, boolean> = {
 };
 
 const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
+  // "Bloomberg" arrangement — chart, globe, live TV, trump monitor, top
+  // catalysts, upcoming events, sessions, institutional flow, and PNL
+  // calendar visible by default (see PRESET_HIDDEN.pro below for what's
+  // hidden). Positions for hidden widgets are kept as fallback slots for
+  // when a user re-enables them from the widget picker.
   pro: [
-    { i: "chart", x: 0, y: 0, w: 13, h: 14, minW: 8, minH: 14 },
-    { i: "globe", x: 13, y: 0, w: 6, h: 7, minW: 4, minH: 5 },
-    { i: "live-tv", x: 13, y: 7, w: 11, h: 8, minW: 8, minH: 6 },
-    { i: "trump", x: 19, y: 0, w: 5, h: 4, minW: 4, minH: 3 },
+    { i: "globe", x: 0, y: 0, w: 10, h: 10, minW: 4, minH: 5 },
+    { i: "live-tv", x: 10, y: 0, w: 8, h: 10, minW: 8, minH: 6 },
+    { i: "trump", x: 18, y: 0, w: 6, h: 5, minW: 4, minH: 3 },
+    { i: "catalysts", x: 18, y: 5, w: 6, h: 5, minW: 6, minH: 4 },
+    { i: "chart", x: 0, y: 10, w: 10, h: 14, minW: 8, minH: 14 },
+    { i: "events", x: 10, y: 10, w: 8, h: 7, minW: 4, minH: 3 },
+    { i: "sessions", x: 18, y: 10, w: 6, h: 7, minW: 4, minH: 3 },
+    { i: "institutional", x: 10, y: 17, w: 8, h: 7, minW: 8, minH: 6 },
+    { i: "pnl-calendar", x: 18, y: 17, w: 6, h: 7, minW: 6, minH: 4 },
+    // Hidden by default — fallback slots only.
     { i: "mtf", x: 19, y: 4, w: 5, h: 4, minW: 4, minH: 3 },
-    { i: "catalysts", x: 13, y: 7, w: 11, h: 7, minW: 6, minH: 4 },
-    { i: "events", x: 13, y: 14, w: 6, h: 5, minW: 4, minH: 3 },
-    { i: "sessions", x: 19, y: 14, w: 5, h: 5, minW: 4, minH: 3 },
-    { i: "agents", x: 0, y: 20, w: 24, h: 6, minW: 10, minH: 2 },
+    { i: "agents", x: 0, y: 24, w: 24, h: 6, minW: 10, minH: 2 },
     { i: "economic-calendar", x: 0, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
-    { i: "pnl-calendar", x: 12, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "lot-calculator", x: 0, y: 40, w: 8, h: 8, minW: 6, minH: 7 },
     { i: "signal-session", x: 0, y: 48, w: 8, h: 5, minW: 6, minH: 4 },
     { i: "entry-strip", x: 8, y: 48, w: 8, h: 5, minW: 6, minH: 4 },
@@ -62,7 +69,6 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "key-levels", x: 0, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
     { i: "ai-analysis", x: 8, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
     { i: "more-catalysts", x: 16, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
-    { i: "institutional", x: 0, y: 59, w: 12, h: 8, minW: 8, minH: 6 },
   ],
   minimal: [
     { i: "chart", x: 0, y: 0, w: 16, h: 16, minW: 10, minH: 14 },
@@ -112,6 +118,11 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
 const PRESET_HIDDEN: Record<BuiltInPresetId, Record<string, boolean>> = {
   pro: {
     ...OPTIONAL_WIDGET_DEFAULTS,
+    "live-tv": false,
+    "pnl-calendar": false,
+    "institutional": false,
+    "mtf": true,
+    "agents": true,
   },
   minimal: {
     ...OPTIONAL_WIDGET_DEFAULTS,
