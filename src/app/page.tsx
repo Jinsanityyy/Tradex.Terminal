@@ -526,6 +526,9 @@ export default function LandingPage() {
                 <Zap className="h-4 w-4" /> Get TradeX Pro
               </a>
               <p className="text-center text-[10px] mt-3" style={{ color: "rgba(255,255,255,0.22)" }}>Secure checkout via Gumroad · License key sent to your email</p>
+              <Link href="/pricing" className="block text-center text-xs mt-4 font-semibold hover:underline" style={{ color: G }}>
+                Already purchased on Gumroad? Activate your license →
+              </Link>
             </div>
 
           </div>
