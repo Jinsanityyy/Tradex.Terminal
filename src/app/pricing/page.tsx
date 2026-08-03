@@ -45,11 +45,18 @@ function PricingContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const cancelled = searchParams.get("cancelled") === "1";
+  // Anonymous visitors have never been "in" a dashboard — sending them to
+  // /dashboard just bounces them to /login, which reads as a broken link.
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setSignedIn(!!user));
+  }, []);
 
   async function handleSubscribe() {
     setLoading(true);
@@ -86,15 +93,23 @@ function PricingContent() {
     <div className="min-h-screen bg-[#0a0e1a] text-white px-4 py-12">
       <div className="max-w-4xl mx-auto">
 
-        {/* Back to Dashboard */}
+        {/* Back link — dashboard if signed in, otherwise home/login */}
         <div className="mb-8">
           <Link
-            href="/dashboard"
+            href={signedIn ? "/dashboard" : "/"}
             className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
+            {signedIn ? "Back to Dashboard" : "Back to Home"}
           </Link>
+          {signedIn === false && (
+            <Link
+              href="/login?next=/pricing"
+              className="ml-4 text-sm text-zinc-400 hover:text-white transition-colors"
+            >
+              Already have an account? Log in
+            </Link>
+          )}
         </div>
 
         {/* Header */}
