@@ -58,13 +58,28 @@ export function deriveSentiment(text: string): "bullish" | "bearish" | "neutral"
   return b > s ? "bullish" : s > b ? "bearish" : "neutral";
 }
 
+// Substring matching scored "war" inside "warn" (and would score "fed" inside
+// "federal", "defeated", "fed up"), so terms match on word boundaries instead.
+function mentions(text: string, term: string): boolean {
+  return new RegExp(`\\b${term}\\b`, "i").test(text);
+}
+
+// Alerts fire at 7 (see cnn-sync), so from a base of 5 one STRONG term clears
+// the bar on its own, while MODERATE terms need a second one — they carry real
+// weight in market news but show up just as often in posts that move nothing.
+const STRONG = [
+  "tariff", "war", "sanction", "nuclear", "shut down", "executive order", "deal",
+  "attack", "military", "rate cut", "rate hike",
+  "fed", "federal reserve", "powell", "inflation", "interest rate", "opec", "gold",
+];
+const MODERATE = ["china", "russia", "iran", "israel", "oil", "dollar", "trade"];
+const WEAK = ["threaten", "warn", "demand", "urge", "announce", "plan", "propose"];
+
 export function deriveImpactScore(text: string): number {
-  const lower = text.toLowerCase();
   let score = 5;
-  const hi = ["tariff", "war", "sanction", "nuclear", "shut down", "executive order", "deal", "attack", "military", "rate cut", "rate hike"];
-  const med = ["threaten", "warn", "demand", "urge", "announce", "plan", "propose"];
-  score += hi.filter(w => lower.includes(w)).length * 1.5;
-  score += med.filter(w => lower.includes(w)).length * 0.5;
+  score += STRONG.filter(w => mentions(text, w)).length * 1.5;
+  score += MODERATE.filter(w => mentions(text, w)).length * 1.0;
+  score += WEAK.filter(w => mentions(text, w)).length * 0.5;
   return Math.min(10, Math.round(score));
 }
 
