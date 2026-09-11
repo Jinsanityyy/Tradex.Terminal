@@ -4,9 +4,10 @@
 // On web/browser, all functions are no-ops or return safe defaults.
 // Product IDs must match what you create in Google Play Console.
 
+// Prices live in Play Console, not here — these are only the subscription ids.
 export const RC_PRODUCTS = {
-  pro_monthly: "tradex_pro_monthly",  // $39/mo
-  pro_annual:  "tradex_pro_annual",   // $399/yr
+  pro_monthly: "tradex_pro_monthly",
+  pro_annual:  "tradex_pro_annual",
 } as const;
 
 export const RC_ENTITLEMENT = "pro";
@@ -38,6 +39,14 @@ export type RCOffering = {
   annual: any | null;
 };
 
+// Play reports a subscription as "<subscriptionId>:<basePlanId>" (our products
+// arrive as `tradex_pro_monthly:monthly`), so an equality check against the bare
+// subscription id finds nothing and every package reads as unavailable.
+function isProduct(pkg: { product?: { identifier?: string } }, productId: string): boolean {
+  const id = pkg.product?.identifier ?? "";
+  return id === productId || id.startsWith(`${productId}:`);
+}
+
 export async function getOfferings(): Promise<RCOffering> {
   if (!isNative()) return { monthly: null, annual: null };
   try {
@@ -45,8 +54,8 @@ export async function getOfferings(): Promise<RCOffering> {
     const result = await Purchases.getOfferings();
     const pkgs = (result as any).offerings?.current?.availablePackages ?? [];
     return {
-      monthly: pkgs.find((p: any) => p.product?.identifier === RC_PRODUCTS.pro_monthly) ?? null,
-      annual:  pkgs.find((p: any) => p.product?.identifier === RC_PRODUCTS.pro_annual)  ?? null,
+      monthly: pkgs.find((p: any) => isProduct(p, RC_PRODUCTS.pro_monthly)) ?? null,
+      annual:  pkgs.find((p: any) => isProduct(p, RC_PRODUCTS.pro_annual))  ?? null,
     };
   } catch {
     return { monthly: null, annual: null };
