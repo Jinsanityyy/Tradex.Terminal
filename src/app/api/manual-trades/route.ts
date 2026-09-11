@@ -1,6 +1,6 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/supabase/auth-helper";
-import { requirePro } from "@/lib/auth/entitlement";
+import { requireUser } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,7 @@ export interface ManualTradeRow {
 
 // GET /api/manual-trades  -  fetch all manual trades for the user
 export async function GET(req: NextRequest) {
-  const gate = await requirePro(req);
+  const gate = await requireUser(req);
   if (!gate.ok) return gate.response;
 
   try {
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/manual-trades  -  log a new manual trade
 export async function POST(req: NextRequest) {
-  const gate = await requirePro(req);
+  const gate = await requireUser(req);
   if (!gate.ok) return gate.response;
 
   try {
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
 
 // DELETE /api/manual-trades?id=<uuid>  -  delete a manual trade
 export async function DELETE(req: NextRequest) {
-  const gate = await requirePro(req);
+  const gate = await requireUser(req);
   if (!gate.ok) return gate.response;
 
   try {

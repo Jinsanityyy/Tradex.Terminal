@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/supabase/auth-helper";
-import { requirePro } from "@/lib/auth/entitlement";
+import { requireUser } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/journal?date=2025-12-15  OR  ?month=2025-12
 export async function GET(req: NextRequest) {
-  const gate = await requirePro(req);
+  const gate = await requireUser(req);
   if (!gate.ok) return gate.response;
 
   const { user, supabase } = await getAuthUser(req);
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/journal  { date, note, screenshot_urls }
 export async function POST(req: NextRequest) {
-  const gate = await requirePro(req);
+  const gate = await requireUser(req);
   if (!gate.ok) return gate.response;
 
   const { user, supabase } = await getAuthUser(req);

@@ -2,7 +2,7 @@
 import { TRACKED_ASSETS, twelveQuoteToSnapshot } from "@/lib/api/market-data";
 import { fetchFinnhubQuoteMap } from "@/lib/api/finnhub-market";
 import type { AssetSnapshot } from "@/types";
-import { requirePro } from "@/lib/auth/entitlement";
+import { requireUser } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -272,7 +272,7 @@ async function fetchTwelveData(symbols: string[], apiKey: string): Promise<Recor
 }
 
 export async function GET(req: Request) {
-  const gate = await requirePro(req);
+  const gate = await requireUser(req);
   if (!gate.ok) return gate.response;
 
   const now = Date.now();

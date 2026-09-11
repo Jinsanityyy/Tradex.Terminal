@@ -20,8 +20,16 @@ function isMobile(req: NextRequest) {
  */
 const APP_PREFIXES = ["/dashboard", "/m"];
 
+// The free tier: the habit (own trades, own numbers) and the public reference
+// data. What Pro sells is the edge — live signals, the agent read, and Trump
+// alerts as they land — so none of that is listed here.
 const ENTITLEMENT_EXEMPT = [
-  "/dashboard/settings",   // password, MFA, delete account, license redemption
+  "/dashboard/settings",         // password, MFA, delete account, license redemption
+  "/dashboard/pnl-calendar",     // their own trades and P&L
+  "/dashboard/economic-calendar",
+  "/dashboard/news-flow",
+  "/dashboard/learn",
+  "/dashboard/live-tv",
 ];
 
 function isAppRoute(pathname: string): boolean {

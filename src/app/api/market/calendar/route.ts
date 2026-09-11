@@ -1,6 +1,6 @@
 ﻿import { NextResponse } from "next/server";
 import type { EconomicEvent } from "@/types";
-import { requirePro } from "@/lib/auth/entitlement";
+import { requireUser } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -1146,7 +1146,7 @@ async function fetchFFWeek(url: string): Promise<FFEvent[]> {
 }
 
 export async function GET(req: Request) {
-  const gate = await requirePro(req);
+  const gate = await requireUser(req);
   if (!gate.ok) return gate.response;
 
   if (cache.data.length > 0 && Date.now() - cache.ts < CACHE_TTL) {
