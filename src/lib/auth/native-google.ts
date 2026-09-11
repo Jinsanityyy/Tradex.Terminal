@@ -14,20 +14,44 @@
 
 const WEB_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "";
 
+type CapacitorGlobal = {
+  isNativePlatform?: () => boolean;
+  isPluginAvailable?: (name: string) => boolean;
+};
+
+function capacitor(): CapacitorGlobal | undefined {
+  if (typeof window === "undefined") return undefined;
+  return (window as unknown as { Capacitor?: CapacitorGlobal }).Capacitor;
+}
+
 /** True inside the Capacitor Android shell (not a mobile browser, not a TWA). */
 export function isCapacitorNative(): boolean {
-  if (typeof window === "undefined") return false;
-  const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
-  return Boolean(cap?.isNativePlatform?.());
+  return Boolean(capacitor()?.isNativePlatform?.());
 }
 
 /**
- * Whether the native path is usable at all. Without a web client ID the plugin
- * has nothing to ask Google for, so callers fall back to the browser flow
- * rather than failing — that keeps a misconfigured build no worse than before.
+ * Whether the native path is usable at all.
+ *
+ * The plugin check is not optional: this page is served from the web, so it
+ * also loads inside APKs built before the plugin existed. Those installs
+ * answer every call with "not implemented on android", and assuming the plugin
+ * was there turned a working browser fallback into a dead end for everyone who
+ * had not updated yet.
+ *
+ * Without a web client ID the plugin has nothing to ask Google for either, so
+ * both cases fall back to the browser flow rather than failing.
  */
 export function canUseNativeGoogle(): boolean {
-  return isCapacitorNative() && WEB_CLIENT_ID.length > 0;
+  if (!isCapacitorNative() || WEB_CLIENT_ID.length === 0) return false;
+  const cap = capacitor();
+  // Older Capacitor runtimes have no isPluginAvailable; assume present and let
+  // the caller's catch handle it.
+  return cap?.isPluginAvailable ? cap.isPluginAvailable("SocialLogin") : true;
+}
+
+/** A plugin the installed APK does not carry — fall back, do not fail. */
+export function isPluginMissingError(message: string): boolean {
+  return /not implemented|not available|unimplemented|UNIMPLEMENTED/i.test(message);
 }
 
 let initialized: Promise<typeof import("@capgo/capacitor-social-login")> | null = null;
