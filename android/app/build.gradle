@@ -4,7 +4,11 @@ android {
     namespace = "com.tradex.terminal"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.tradex.terminal"
+        // Must stay the Play listing's package. The published app began as a
+        // PWABuilder TWA under this id, and an applicationId is permanent —
+        // shipping com.tradex.terminal would be a second, unrelated listing.
+        // The internal namespace stays com.tradex.terminal, which Android allows.
+        applicationId "online.tradexterminal.twa"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 14
