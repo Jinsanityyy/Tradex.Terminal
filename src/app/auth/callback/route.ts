@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase/service";
+import { isOwnerEmail } from "@/lib/auth/owner";
 import { verifyGumroadLicense } from "@/lib/gumroad/verify";
 import { PENDING_LICENSE_COOKIE } from "@/lib/gumroad/pending-license-cookie";
 
@@ -117,7 +118,12 @@ export async function GET(request: NextRequest) {
       const { data: sub } = db
         ? await db.from("subscriptions").select("plan, status").eq("user_id", user.id).maybeSingle()
         : { data: null };
-      const alreadyEntitled = sub?.status === "active" && (sub?.plan === "pro" || sub?.plan === "elite");
+      // Mirrors the middleware's entitlement check, owner allowlist included —
+      // without it the owner's first Google sign-in is deleted as an
+      // unlicensed signup, and there is no second sign-in to recover from.
+      const alreadyEntitled =
+        isOwnerEmail(user.email) ||
+        (sub?.status === "active" && (sub?.plan === "pro" || sub?.plan === "elite"));
 
       if (!alreadyEntitled) {
         const bound = pendingLicenseKey ? await bindPendingLicense(user.id, pendingLicenseKey) : false;
