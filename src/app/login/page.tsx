@@ -7,7 +7,7 @@ import { Eye, EyeOff, Loader2, AlertCircle, ArrowLeft, Smartphone } from "lucide
 import Link from "next/link";
 import { TradingChartBg } from "@/components/shared/TradingChartBg";
 import { AmbientParticles } from "@/components/shared/AmbientParticles";
-import { canUseNativeGoogle, getNativeGoogleIdToken, isPluginMissingError } from "@/lib/auth/native-google";
+import { canUseNativeGoogle, getNativeGoogleIdToken, isPluginMissingError, isUserCancellation } from "@/lib/auth/native-google";
 
 type Mode = "login" | "signup" | "forgot" | "mfa";
 
@@ -200,8 +200,12 @@ export default function LoginPage() {
         // An APK older than the plugin still loads this page. Let it take the
         // browser route below rather than dead-ending on "not implemented".
         if (!isPluginMissingError(message)) {
-          // Backing out of the chooser is not a failure worth shouting about.
-          if (!/cancel|canceled|cancelled|dismiss/i.test(message)) {
+          console.error("[google] native sign-in failed:", err);
+          // Only an actual dismissal is silent. Matching "cancel" loosely
+          // swallowed real refusals too — a rejected signing certificate comes
+          // back worded like a cancellation, so picking an account appeared to
+          // do nothing at all.
+          if (!isUserCancellation(message)) {
             setError(message || "Google sign-in failed. Please try again.");
           }
           setGoogleLoading(false);

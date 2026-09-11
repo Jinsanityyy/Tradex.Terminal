@@ -49,6 +49,20 @@ export function canUseNativeGoogle(): boolean {
   return cap?.isPluginAvailable ? cap.isPluginAvailable("SocialLogin") : true;
 }
 
+/**
+ * A dismissal by the person, as opposed to a refusal by Google.
+ *
+ * Deliberately narrow. Credential Manager reports a rejected signing
+ * certificate in cancellation-like wording, so anything looser hides the one
+ * error that explains why picking an account does nothing.
+ */
+export function isUserCancellation(message: string): boolean {
+  return (
+    /GetCredentialCancellationException/i.test(message) ||
+    /activity is cancell?ed by the user/i.test(message)
+  );
+}
+
 /** A plugin the installed APK does not carry — fall back, do not fail. */
 export function isPluginMissingError(message: string): boolean {
   return /not implemented|not available|unimplemented|UNIMPLEMENTED/i.test(message);
