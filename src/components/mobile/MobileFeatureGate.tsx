@@ -28,38 +28,33 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
   const [subError, setSubError] = useState<string | null>(null);
   const isNative = isNativeAndroid();
 
+  // Two checkouts, because Play requires its own billing for anything bought
+  // inside the app, while the browser has no Play to bill through.
   async function handleSubscribe() {
     setSubLoading(true);
     setSubError(null);
+
+    if (!isNative) {
+      window.location.href = process.env.NEXT_PUBLIC_GUMROAD_PRODUCT_URL || "/pricing";
+      return;
+    }
+
     try {
-      const res = await fetch("/api/paddle/create-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ billing }),
-      });
+      const { purchasePro } = await import("@/lib/billing/revenuecat");
+      const result = await purchasePro(billing);
 
-      if (res.status === 401) {
-        window.location.href = "/login?next=/m";
+      if (result.success) {
+        // Entitlement lands via the RevenueCat webhook, so wait before re-reading.
+        await handleRefresh();
         return;
       }
-
-      const data = await res.json();
-      if (!res.ok || !data.checkoutUrl) {
-        setSubError(data.error ?? "Failed to start checkout. Try again.");
-        setSubLoading(false);
-        return;
-      }
-
-      if (isNative) {
-        window.open(data.checkoutUrl, "_system");
-        setSubLoading(false);
-      } else {
-        window.location.href = data.checkoutUrl;
+      if (result.error !== "cancelled") {
+        setSubError(result.error ?? "Purchase failed. Please try again.");
       }
     } catch {
       setSubError("Something went wrong. Please try again.");
-      setSubLoading(false);
     }
+    setSubLoading(false);
   }
 
   if (loading) {
