@@ -24,6 +24,7 @@ const APP_PREFIXES = ["/dashboard", "/m"];
 // data. What Pro sells is the edge — live signals, the agent read, and Trump
 // alerts as they land — so none of that is listed here.
 const ENTITLEMENT_EXEMPT = [
+  "/m",                          // the phone app: gated per tab, not at the door
   "/dashboard/settings",         // password, MFA, delete account, license redemption
   "/dashboard/pnl-calendar",     // their own trades and P&L
   "/dashboard/economic-calendar",

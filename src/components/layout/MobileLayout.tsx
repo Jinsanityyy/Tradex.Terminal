@@ -10,6 +10,7 @@ import { MobileHome } from "@/components/mobile/MobileHome";
 import { MobileChart } from "@/components/mobile/MobileChart";
 import { MobileFeed } from "@/components/mobile/MobileFeed";
 import { MobileBrain } from "@/components/mobile/MobileBrain";
+import { MobileFeatureGate } from "@/components/mobile/MobileFeatureGate";
 import { MobileMore } from "@/components/mobile/MobileMore";
 import { createClient } from "@/lib/supabase/client";
 import { NotificationToast } from "@/components/shared/NotificationToast";
@@ -443,7 +444,11 @@ export function MobileLayout() {
               {id === "home"      && <MobileHome />}
               {id === "chart"     && <MobileChart />}
               {id === "feed"      && <MobileFeed />}
-              {id === "brain"     && <MobileBrain />}
+              {id === "brain"     && (
+                <MobileFeatureGate featureName="The Trading Floor">
+                  <MobileBrain />
+                </MobileFeatureGate>
+              )}
             </div>
           );
         })}
