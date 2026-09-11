@@ -25,6 +25,13 @@ function isNative(): boolean {
 export async function initRevenueCat(userId: string): Promise<boolean> {
   if (!isNative()) return false;
   if (initialized) return true;
+  if (!process.env.NEXT_PUBLIC_REVENUECAT_GOOGLE_KEY) {
+    // Configuring with an empty key fails silently and every offering lookup
+    // comes back empty, which reads as "no products for sale" rather than as
+    // the missing setting it is.
+    console.error("RevenueCat: NEXT_PUBLIC_REVENUECAT_GOOGLE_KEY is not set");
+    return false;
+  }
   try {
     const { Purchases, LOG_LEVEL } = await import("@revenuecat/purchases-capacitor");
     await Purchases.setLogLevel({ level: LOG_LEVEL.ERROR });
@@ -91,19 +98,42 @@ export async function getOfferings(): Promise<RCOffering> {
   }
 }
 
-export async function purchasePro(billing: "monthly" | "annual"): Promise<{ success: boolean; error?: string }> {
-  if (!(await ensureConfigured())) return { success: false, error: "not_native" };
+export type PurchaseFailure =
+  | "not_configured"
+  | "no_products"
+  | "cancelled"
+  | "failed";
+
+/** What to put in front of the buyer. Raw codes told them nothing. */
+export function purchaseErrorMessage(error: string | undefined): string | null {
+  switch (error) {
+    case "cancelled":
+      return null;
+    case "not_configured":
+      return "Purchases aren't set up in this build yet.";
+    case "no_products":
+      // Play Billing only serves an app it distributed and signed, so a
+      // sideloaded build sees an empty catalogue however well configured it is.
+      return "Google Play billing isn't available here. Install TradeX from the Play Store to subscribe.";
+    default:
+      return "Purchase failed. Please try again.";
+  }
+}
+
+export async function purchasePro(billing: "monthly" | "annual"): Promise<{ success: boolean; error?: PurchaseFailure }> {
+  if (!(await ensureConfigured())) return { success: false, error: "not_configured" };
   try {
     const { Purchases } = await import("@revenuecat/purchases-capacitor");
     const offerings = await getOfferings();
     const pkg = billing === "annual" ? offerings.annual : offerings.monthly;
-    if (!pkg) return { success: false, error: "package_not_found" };
+    if (!pkg) return { success: false, error: "no_products" };
 
     await Purchases.purchasePackage({ aPackage: pkg });
     return { success: true };
   } catch (e: any) {
     if (e?.userCancelled) return { success: false, error: "cancelled" };
-    return { success: false, error: e?.message ?? "purchase_failed" };
+    console.error("RevenueCat purchase failed", e);
+    return { success: false, error: "failed" };
   }
 }
 

@@ -48,7 +48,7 @@ export function PaywallGate({ children }: PaywallGateProps) {
     }
 
     try {
-      const { purchasePro } = await import("@/lib/billing/revenuecat");
+      const { purchasePro, purchaseErrorMessage } = await import("@/lib/billing/revenuecat");
       const result = await purchasePro(term);
 
       if (result.success) {
@@ -56,9 +56,7 @@ export function PaywallGate({ children }: PaywallGateProps) {
         await handleRefresh();
         return;
       }
-      if (result.error !== "cancelled") {
-        setSubError(result.error ?? "Purchase failed. Please try again.");
-      }
+      setSubError(purchaseErrorMessage(result.error));
     } catch {
       setSubError("Something went wrong. Please try again.");
     }
