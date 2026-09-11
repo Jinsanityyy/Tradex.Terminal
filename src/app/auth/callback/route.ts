@@ -52,12 +52,6 @@ async function bindPendingLicense(userId: string, licenseKey: string): Promise<b
   return !error;
 }
 
-/** True when this session's first-ever sign-in is the one happening right now. */
-function isBrandNewSignIn(user: { created_at: string; last_sign_in_at?: string | null }): boolean {
-  if (!user.last_sign_in_at) return true;
-  return Math.abs(new Date(user.last_sign_in_at).getTime() - new Date(user.created_at).getTime()) < 5000;
-}
-
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
 
@@ -125,19 +119,11 @@ export async function GET(request: NextRequest) {
         isOwnerEmail(user.email) ||
         (sub?.status === "active" && (sub?.plan === "pro" || sub?.plan === "elite"));
 
-      if (!alreadyEntitled) {
-        const bound = pendingLicenseKey ? await bindPendingLicense(user.id, pendingLicenseKey) : false;
-
-        if (!bound && isBrandNewSignIn(user)) {
-          // No valid key for a brand-new signup — don't leave a free account
-          // behind just because Google, not us, created it.
-          const admin = getServiceClient();
-          if (admin) await admin.auth.admin.deleteUser(user.id).catch(() => {});
-          await supabase.auth.signOut();
-          const res = NextResponse.redirect(`${origin}/login?error=license_required&mode=signup`);
-          res.cookies.delete(PENDING_LICENSE_COOKIE);
-          return res;
-        }
+      // A signup without a licence is a free account, not a rejected one. Still
+      // bind a key when one is waiting, so a Gumroad buyer lands on pro rather
+      // than having to redeem again after signing in.
+      if (!alreadyEntitled && pendingLicenseKey) {
+        await bindPendingLicense(user.id, pendingLicenseKey);
       }
     }
   }

@@ -33,8 +33,6 @@ export default function LoginPage() {
   const [error, setError] = useState(
     searchParams.get("error") === "link_expired"
       ? "Your reset link expired or was already used. Enter your email to get a new one."
-      : searchParams.get("error") === "license_required"
-      ? "Continue with Google requires a valid Gumroad license key — enter it below first."
       : ""
   );
   const [success, setSuccess] = useState("");
@@ -135,22 +133,16 @@ export default function LoginPage() {
   }
 
   /**
-   * OAuth hands account creation to Google/Supabase — there's no gating it
-   * before the redirect the way /api/gumroad/signup gates email/password
-   * signup. On the signup tab, a license key is verified first and stashed
-   * server-side (short-lived cookie); /auth/callback finishes the binding
-   * once we're back with a session, or unwinds the account if it can't.
-   * On the login tab, no key is needed — an existing account is assumed.
+   * Signing up without a key creates a free account. When one is supplied it
+   * is verified and stashed server-side (short-lived cookie) before the
+   * redirect, and /auth/callback binds it once we're back with a session — so
+   * a buyer lands on pro instead of having to redeem again afterwards.
    */
   async function handleGoogle() {
     setError("");
     setSuccess("");
 
-    if (mode === "signup") {
-      if (!licenseKey.trim()) {
-        setError("Enter your Gumroad license key first.");
-        return;
-      }
+    if (mode === "signup" && licenseKey.trim()) {
       setGoogleLoading(true);
       try {
         const res = await fetch("/api/gumroad/verify-key", {
