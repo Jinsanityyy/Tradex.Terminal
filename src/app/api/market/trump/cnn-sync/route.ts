@@ -155,7 +155,7 @@ export async function GET(req: Request) {
 
   if (newPosts.length === 0) {
     console.log("[cnn-sync] no new posts");
-    return jsonRes({ inserted: 0, message: "No new posts since last sync" });
+    return jsonRes({ inserted: 0, message: "No new posts since last sync", source });
   }
 
   // 4. Insert  -  Supabase Realtime broadcasts each INSERT automatically
