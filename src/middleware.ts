@@ -132,24 +132,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/verify-email", req.url));
   }
 
-  // ── Paid-plan gate ─────────────────────────────────────────────────────────
-  // No purchase, no app. Signed-in users land on /pricing (where they can also
-  // redeem a key); everyone else is sent to sign in first.
-  if (needsPlanCheck && !planAllowsPro) {
-    if (signedIn) {
-      const url = new URL("/pricing", req.url);
-      url.searchParams.set("locked", "pro");
-      url.searchParams.set("from", pathname);
-      return NextResponse.redirect(url);
-    }
-    // The login page reads `next`, not `from` — sending `from` here meant the
-    // requested page was silently dropped and everyone landed on /dashboard.
-    const url = new URL("/login", req.url);
-    url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
-  }
-
   // ── Mobile redirect ────────────────────────────────────────────────────────
+  // Runs BEFORE the plan gate on purpose. A phone signing in lands on the login
+  // page's default next (/dashboard), which is a desktop route and not exempt —
+  // so gating first bounced every free phone user to /pricing and they never
+  // reached the line that would have sent them to /m.
   // Public pages (including /verify-email) are exempt — avoids redirect loops.
   if (!isStatic && !isPublicPage) {
     const mobile = isMobile(req);
@@ -161,6 +148,30 @@ export async function middleware(req: NextRequest) {
     if (!mobile && onMobileRoute) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
+  }
+
+  // ── Paid-plan gate ─────────────────────────────────────────────────────────
+  // Signed-in users land on /pricing (where they can also redeem a key);
+  // everyone else is sent to sign in first.
+  if (needsPlanCheck && !planAllowsPro) {
+    if (signedIn) {
+      // /dashboard is the one gated route users are actively sent to — it is
+      // where "Back to Dashboard" on /pricing points. Bouncing it to /pricing
+      // made that button loop back on itself and read as broken, so send a free
+      // account to the exempt surface it actually owns instead.
+      if (pathname === "/dashboard") {
+        return NextResponse.redirect(new URL("/dashboard/pnl-calendar", req.url));
+      }
+      const url = new URL("/pricing", req.url);
+      url.searchParams.set("locked", "pro");
+      url.searchParams.set("from", pathname);
+      return NextResponse.redirect(url);
+    }
+    // The login page reads `next`, not `from` — sending `from` here meant the
+    // requested page was silently dropped and everyone landed on /dashboard.
+    const url = new URL("/login", req.url);
+    url.searchParams.set("next", pathname);
+    return NextResponse.redirect(url);
   }
 
   return response;
