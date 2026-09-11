@@ -10,6 +10,11 @@ node_modules
 # production
 /build
 
+# android signing — losing these means never being able to update the app
+*.keystore
+*.jks
+keystore.properties
+
 # env files (secrets — never commit)
 .env
 .env.local
