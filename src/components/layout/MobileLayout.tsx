@@ -293,7 +293,13 @@ export function MobileLayout() {
       <NotificationToast />
 
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 pt-10 pb-2 bg-[#0D0D0F] border-b border-[#1E1E24] shrink-0">
+      <div
+        className="flex items-center justify-between px-4 pt-10 pb-2 bg-[#0D0D0F] border-b border-[#1E1E24] shrink-0"
+        // pt-10 alone assumed a ~24px status bar; punch-hole/notch devices report
+        // a taller inset and clipped the row. The max() keeps the original 40px
+        // wherever the inset is small, so only tall-inset devices grow.
+        style={{ paddingTop: "max(2.5rem, calc(env(safe-area-inset-top, 0px) + 0.75rem))" }}
+      >
         <div className="flex items-center gap-3">
           {/* Hamburger — opens features drawer */}
           <button
