@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Lock, Zap, ArrowRight, Loader2, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { useSubscription, canAccess } from "@/hooks/useSubscription";
+import { useProPricing } from "@/hooks/useProPricing";
 import { cn } from "@/lib/utils";
 
 interface PaywallGateProps {
@@ -20,13 +21,6 @@ const PAGE_NAMES: Record<string, string> = {
   "/dashboard/asset-matrix":         "Asset Matrix",
 };
 
-function isNativeAndroid(): boolean {
-  if (typeof window === "undefined") return false;
-  if ((window as any).Capacitor?.isNativePlatform?.()) return true;
-  if (window.matchMedia?.("(display-mode: standalone)").matches) return true;
-  return false;
-}
-
 
 export function PaywallGate({ children }: PaywallGateProps) {
   const pathname = usePathname();
@@ -36,40 +30,39 @@ export function PaywallGate({ children }: PaywallGateProps) {
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
   const [subLoading, setSubLoading] = useState(false);
   const [subError, setSubError] = useState<string | null>(null);
-  const isNative = isNativeAndroid();
+  const pricing = useProPricing();
+  const isNative = pricing.isNative;
+  const hasAnnual = !pricing.loading && pricing.annual !== null;
+  const term = hasAnnual ? billing : "monthly";
+  const price = term === "annual" ? pricing.annual : pricing.monthly;
 
+  // Two checkouts, because Play requires its own billing for anything bought
+  // inside the app, while the browser has no Play to bill through.
   async function handleSubscribe() {
     setSubLoading(true);
     setSubError(null);
+
+    if (!isNative) {
+      window.location.href = process.env.NEXT_PUBLIC_GUMROAD_PRODUCT_URL || "/pricing";
+      return;
+    }
+
     try {
-      const res = await fetch("/api/paddle/create-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ billing }),
-      });
+      const { purchasePro } = await import("@/lib/billing/revenuecat");
+      const result = await purchasePro(term);
 
-      if (res.status === 401) {
-        window.location.href = "/login?next=/m";
+      if (result.success) {
+        // Entitlement lands via the RevenueCat webhook, so wait before re-reading.
+        await handleRefresh();
         return;
       }
-
-      const data = await res.json();
-      if (!res.ok || !data.checkoutUrl) {
-        setSubError(data.error ?? "Failed to start checkout. Try again.");
-        setSubLoading(false);
-        return;
-      }
-
-      if (isNative) {
-        window.open(data.checkoutUrl, "_system");
-        setSubLoading(false);
-      } else {
-        window.location.href = data.checkoutUrl;
+      if (result.error !== "cancelled") {
+        setSubError(result.error ?? "Purchase failed. Please try again.");
       }
     } catch {
       setSubError("Something went wrong. Please try again.");
-      setSubLoading(false);
     }
+    setSubLoading(false);
   }
 
   if (loading) {
@@ -120,7 +113,8 @@ export function PaywallGate({ children }: PaywallGateProps) {
           Upgrade to TradeX Pro to unlock {name} and get the full trading edge.
         </p>
 
-        {/* Billing toggle */}
+        {/* Billing toggle — hidden when monthly is the only term on offer */}
+        {hasAnnual && (
         <div className="flex rounded-xl border border-white/10 p-1 mb-4 bg-[hsl(var(--secondary))]">
           <button
             onClick={() => setBilling("monthly")}
@@ -143,25 +137,18 @@ export function PaywallGate({ children }: PaywallGateProps) {
             )}
           >
             Annual
-            <span className="ml-1.5 rounded-full bg-[hsl(142,71%,45%)]/20 px-1.5 py-0.5 text-[9px] text-[hsl(142,71%,45%)] font-bold">
-              SAVE 15%
-            </span>
           </button>
         </div>
+        )}
 
         {/* Price */}
         <div className="rounded-xl bg-[hsl(var(--secondary))] px-4 py-4 mb-5">
-          {billing === "monthly" ? (
-            <>
-              <p className="text-3xl font-bold font-mono text-[hsl(142,71%,45%)]">$39</p>
-              <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">per month</p>
-            </>
-          ) : (
-            <>
-              <p className="text-3xl font-bold font-mono text-[hsl(142,71%,45%)]">$399</p>
-              <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">per year · $33.25/mo · save $69</p>
-            </>
-          )}
+          <p className="text-3xl font-bold font-mono text-[hsl(142,71%,45%)]">
+            {pricing.loading ? "…" : price ?? "—"}
+          </p>
+          <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
+            {term === "annual" ? "per year" : "per month"}
+          </p>
         </div>
 
         {/* CTA */}
@@ -185,7 +172,7 @@ export function PaywallGate({ children }: PaywallGateProps) {
         {isNative ? (
           <>
             <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-3 leading-relaxed">
-              Paddle checkout opens in your browser. Return here after payment.
+              Billed through Google Play. Manage or cancel any time in the Play Store.
             </p>
             <div className="flex items-center gap-3 my-3">
               <div className="flex-1 h-px bg-white/5" />

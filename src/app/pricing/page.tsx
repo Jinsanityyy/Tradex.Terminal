@@ -30,6 +30,7 @@ const PRO_FEATURES = [
 ];
 
 import { LicenseRedeemCard } from "@/components/shared/LicenseRedeemCard";
+import { GUMROAD_MONTHLY_PRICE } from "@/hooks/useProPricing";
 
 // When set, Gumroad becomes the checkout. Falls back to the Paddle flow when empty.
 const GUMROAD_URL = process.env.NEXT_PUBLIC_GUMROAD_PRODUCT_URL ?? "";
@@ -69,20 +70,12 @@ function PricingContent() {
         return;
       }
 
-      const res = await fetch("/api/paddle/create-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ billing }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.checkoutUrl) {
-        setError(data.error ?? "Failed to start checkout. Please try again.");
+      if (!GUMROAD_URL) {
+        setError("Checkout is not available right now. Please contact support.");
         setLoading(false);
         return;
       }
-
-      window.location.href = data.checkoutUrl;
+      window.location.href = GUMROAD_URL;
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
@@ -156,10 +149,9 @@ function PricingContent() {
           <div className="rounded-2xl border border-[#5fc77a]/30 bg-[#5fc77a]/[0.04] p-6 relative shadow-[0_0_40px_rgba(95,199,122,0.07)]">
             <h2 className="text-lg font-bold mb-1">TradeX Pro</h2>
             <p className="text-sm text-zinc-400 mb-4">Full access to the terminal</p>
-            <p className="text-3xl font-bold font-mono text-[#5fc77a] mb-1">
-              $19.99 <span className="text-sm text-zinc-400 font-normal">/month</span>
+            <p className="text-3xl font-bold font-mono text-[#5fc77a] mb-6">
+              {GUMROAD_MONTHLY_PRICE} <span className="text-sm text-zinc-400 font-normal">/month</span>
             </p>
-            <p className="text-xs text-zinc-500 mb-6">or $199 billed yearly — save $40</p>
             <ul className="space-y-2 mb-6">
               {PRO_FEATURES.map(f => (
                 <li key={f} className="flex items-start gap-2 text-sm text-zinc-300">

@@ -3,20 +3,12 @@
 import React, { useState } from "react";
 import { Lock, Zap, RefreshCw, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useProPricing } from "@/hooks/useProPricing";
 import { cn } from "@/lib/utils";
 
 interface MobileFeatureGateProps {
   children: React.ReactNode;
   featureName: string;
-}
-
-function isNativeAndroid(): boolean {
-  if (typeof window === "undefined") return false;
-  // Capacitor native app
-  if ((window as any).Capacitor?.isNativePlatform?.()) return true;
-  // TWA or installed PWA running in standalone mode (not a regular browser tab)
-  if (window.matchMedia?.("(display-mode: standalone)").matches) return true;
-  return false;
 }
 
 export function MobileFeatureGate({ children, featureName }: MobileFeatureGateProps) {
@@ -26,7 +18,12 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
   const [billing, setBilling] = useState<"monthly" | "annual">("annual");
   const [subLoading, setSubLoading] = useState(false);
   const [subError, setSubError] = useState<string | null>(null);
-  const isNative = isNativeAndroid();
+  const pricing = useProPricing();
+  const isNative = pricing.isNative;
+  // Only offer a term we can actually charge for.
+  const hasAnnual = !pricing.loading && pricing.annual !== null;
+  const term = hasAnnual ? billing : "monthly";
+  const price = term === "annual" ? pricing.annual : pricing.monthly;
 
   // Two checkouts, because Play requires its own billing for anything bought
   // inside the app, while the browser has no Play to bill through.
@@ -41,7 +38,7 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
 
     try {
       const { purchasePro } = await import("@/lib/billing/revenuecat");
-      const result = await purchasePro(billing);
+      const result = await purchasePro(term);
 
       if (result.success) {
         // Entitlement lands via the RevenueCat webhook, so wait before re-reading.
@@ -94,7 +91,8 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
           Upgrade to unlock all AI-powered analysis tools.
         </p>
 
-        {/* Billing toggle */}
+        {/* Billing toggle — hidden when monthly is the only term on offer */}
+        {hasAnnual && (
         <div className="flex rounded-lg border border-white/10 p-0.5 mb-3 bg-zinc-900/80">
           <button
             onClick={() => setBilling("monthly")}
@@ -112,17 +110,18 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
               billing === "annual" ? "bg-zinc-800 text-white shadow-sm" : "text-zinc-500"
             )}
           >
-            Annual <span className="text-[9px] text-[hsl(142,71%,45%)] ml-0.5">−15%</span>
+            Annual
           </button>
         </div>
+        )}
 
         {/* Price */}
         <div className="rounded-xl bg-zinc-900/80 px-4 py-3 mb-4">
           <p className="text-2xl font-bold font-mono text-[hsl(142,71%,45%)]">
-            {billing === "monthly" ? "$39" : "$399"}
+            {pricing.loading ? "…" : price ?? "—"}
           </p>
           <p className="text-[10px] text-zinc-500 mt-0.5">
-            {billing === "monthly" ? "per month" : "per year · $33.25/mo"}
+            {term === "annual" ? "per year" : "per month"}
           </p>
         </div>
 
@@ -133,7 +132,7 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
         >
           {subLoading
             ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Starting checkout…</>
-            : <><Zap className="h-3.5 w-3.5" /> Get Pro — {billing === "monthly" ? "$39/mo" : "$399/yr"}</>
+            : <><Zap className="h-3.5 w-3.5" /> Get Pro{price ? ` — ${price}` : ""}</>
           }
         </button>
 
@@ -146,7 +145,7 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
         {isNative && (
           <>
             <p className="text-[9px] text-zinc-600 mb-2 leading-relaxed">
-              Paddle checkout opens in your browser. Return here after payment.
+              Billed through Google Play. Manage or cancel any time in the Play Store.
             </p>
             <button
               onClick={handleRefresh}
