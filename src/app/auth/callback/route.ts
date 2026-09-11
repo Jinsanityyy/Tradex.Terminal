@@ -41,16 +41,18 @@ async function bindPendingLicense(userId: string, licenseKey: string): Promise<b
     { onConflict: "user_id" }
   );
   if (!error) {
-    await db.from("gumroad_redemptions").insert({
-      user_id: userId, license_key: licenseKey, sale_id: result.purchase.saleId,
-      email: result.purchase.email, result: "activated", reason: "google_oauth",
-    }).catch(() => {});
+    try {
+      await db.from("gumroad_redemptions").insert({
+        user_id: userId, license_key: licenseKey, sale_id: result.purchase.saleId,
+        email: result.purchase.email, result: "activated", reason: "google_oauth",
+      });
+    } catch {}
   }
   return !error;
 }
 
 /** True when this session's first-ever sign-in is the one happening right now. */
-function isBrandNewSignIn(user: { created_at: string; last_sign_in_at: string | null }): boolean {
+function isBrandNewSignIn(user: { created_at: string; last_sign_in_at?: string | null }): boolean {
   if (!user.last_sign_in_at) return true;
   return Math.abs(new Date(user.last_sign_in_at).getTime() - new Date(user.created_at).getTime()) < 5000;
 }
