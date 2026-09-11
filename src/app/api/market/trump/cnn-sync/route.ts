@@ -1,14 +1,19 @@
 ﻿/**
  * /api/market/trump/cnn-sync
  *
- * Vercel Cron job  -  runs every 5 minutes (configured in vercel.json).
- * Fetches CNN's live Truth Social archive, diffs against Supabase,
- * and inserts any new posts. Supabase Realtime then broadcasts inserts
- * to all connected dashboard clients automatically.
+ * Scheduled sync. Fetches the newest Truth Social posts, diffs against
+ * Supabase, inserts what is new, and pushes an alert for market-relevant
+ * ones. Supabase Realtime broadcasts the inserts to connected clients.
+ *
+ * Safe to call as often as the scheduler allows: the diff in step 3 means a
+ * run with nothing new does no writes and sends no alerts. Vercel's own cron
+ * is capped at one run a day on Hobby, so the schedule lives in an external
+ * scheduler that calls this URL instead.
  *
  * Requires:
  *   SUPABASE_SERVICE_ROLE_KEY   -  bypass RLS for inserts
- *   CRON_SECRET                 -  shared secret set in Vercel env + vercel.json header
+ *   CRON_SECRET                 -  when set, callers must send
+ *                                  `Authorization: Bearer <CRON_SECRET>`
  *
  * Can also be called manually: GET /api/market/trump/cnn-sync
  * (pass Authorization: Bearer <CRON_SECRET> header)
@@ -39,33 +44,88 @@ function jsonRes(body: object, status = 200) {
   });
 }
 
-export async function GET() {
+// Left open when CRON_SECRET is unset so an unconfigured deploy keeps syncing
+// rather than silently going quiet.
+function authorized(req: Request): boolean {
+  const secret = process.env.CRON_SECRET ?? "";
+  if (!secret) return true;
+  return req.headers.get("authorization") === `Bearer ${secret}`;
+}
+
+async function fetchFromCnn(): Promise<CnnPost[]> {
+  const res = await fetch(CNN_ARCHIVE_URL, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(10_000),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  return Array.isArray(data) ? data.slice(0, FETCH_LIMIT) : [];
+}
+
+// Truth Social is a Mastodon fork, so its status objects already carry the
+// same field names the CNN archive uses — no normalisation needed.
+async function fetchFromTruthSocial(): Promise<CnnPost[]> {
+  const accountId = process.env.TRUTH_SOCIAL_ACCOUNT_ID ?? "107780257626128497";
+  const res = await fetch(
+    `https://truthsocial.com/api/v1/accounts/${accountId}/statuses?limit=${FETCH_LIMIT}&exclude_replies=true&exclude_reblogs=true`,
+    {
+      headers: {
+        "Accept": "application/json, text/plain, */*",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Referer": "https://truthsocial.com/@realDonaldTrump",
+      },
+      signal: AbortSignal.timeout(12_000),
+      cache: "no-store",
+    }
+  );
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  return Array.isArray(data) ? data.slice(0, FETCH_LIMIT) : [];
+}
+
+export async function GET(req: Request) {
+  if (!authorized(req)) return jsonRes({ error: "Unauthorized" }, 401);
+
   const sb = getServiceClient();
   if (!sb) {
     console.error("[cnn-sync] SUPABASE_SERVICE_ROLE_KEY not set");
     return jsonRes({ error: "Supabase service client not configured. Set SUPABASE_SERVICE_ROLE_KEY." }, 503);
   }
 
-  // 1. Fetch CNN archive
-  let raw: CnnPost[];
-  try {
-    const res = await fetch(CNN_ARCHIVE_URL, {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(10_000),
-      // No cache  -  always want the freshest list
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error(`CNN HTTP ${res.status}`);
-    const data = await res.json();
-    raw = Array.isArray(data) ? data.slice(0, FETCH_LIMIT) : [];
-  } catch (err) {
-    console.error("[cnn-sync] fetch error:", err);
-    return jsonRes({ error: `CNN archive fetch failed: ${String(err)}` }, 500);
+  // 1. Fetch posts — CNN's archive is an undocumented endpoint that can vanish
+  // without notice, so fall through to Truth Social's own API when it does.
+  const sources = [
+    { name: "cnn", fetch: fetchFromCnn },
+    { name: "truthsocial", fetch: fetchFromTruthSocial },
+  ];
+
+  let raw: CnnPost[] = [];
+  let source = "";
+  const failures: string[] = [];
+
+  for (const s of sources) {
+    try {
+      const posts = await s.fetch();
+      if (posts.length > 0) {
+        raw = posts;
+        source = s.name;
+        break;
+      }
+      failures.push(`${s.name}: returned 0 items`);
+    } catch (err) {
+      failures.push(`${s.name}: ${String(err)}`);
+    }
   }
 
+  // Non-200 on total failure so the external scheduler's own failure alerts
+  // fire — otherwise the sync dies silently and nobody finds out.
   if (raw.length === 0) {
-    return jsonRes({ inserted: 0, message: "CNN archive returned 0 items" });
+    console.error("[cnn-sync] every source failed:", failures);
+    return jsonRes({ error: "All Trump post sources failed", failures }, 503);
   }
+
+  if (source !== "cnn") console.warn(`[cnn-sync] CNN unavailable, served from ${source}:`, failures);
 
   // 2. Get IDs we already have
   const incomingIds = raw.map(p => p.id);
@@ -122,5 +182,5 @@ export async function GET() {
     void notifyTrumpPost({ content: p.content, category, impactScore, postId: p.id }).catch(() => {});
   }
 
-  return jsonRes({ inserted: newPosts.length, ids: newPosts.map(p => p.id), pushed: alerted });
+  return jsonRes({ inserted: newPosts.length, ids: newPosts.map(p => p.id), pushed: alerted, source });
 }
