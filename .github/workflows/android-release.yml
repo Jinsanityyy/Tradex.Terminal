@@ -1,6 +1,9 @@
 name: Android Release
 
 on:
+  # Lets a release be cut without faking a commit under android/ — which is
+  # otherwise the only way to reach the path filter below.
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
