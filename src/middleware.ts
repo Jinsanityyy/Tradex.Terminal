@@ -47,6 +47,12 @@ function needsEntitlement(pathname: string): boolean {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // The PKCE exchange owns the auth cookies for this one request. Refreshing the
+  // session here rewrites them onto req.cookies before the route handler reads
+  // them, taking the code verifier with it — which fails the exchange with
+  // "code verifier not found in storage" and makes Google sign-in impossible.
+  if (pathname === "/auth/callback") return NextResponse.next();
+
   // ── Classify the path ──────────────────────────────────────────────────────
   const isStatic =
     pathname.startsWith("/_next") ||
