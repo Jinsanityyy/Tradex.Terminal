@@ -22,8 +22,9 @@ function isNative(): boolean {
   return !!(window as any).Capacitor?.isNativePlatform?.();
 }
 
-export async function initRevenueCat(userId: string): Promise<void> {
-  if (!isNative() || initialized) return;
+export async function initRevenueCat(userId: string): Promise<boolean> {
+  if (!isNative()) return false;
+  if (initialized) return true;
   try {
     const { Purchases, LOG_LEVEL } = await import("@revenuecat/purchases-capacitor");
     await Purchases.setLogLevel({ level: LOG_LEVEL.ERROR });
@@ -32,9 +33,34 @@ export async function initRevenueCat(userId: string): Promise<void> {
       appUserID: userId,
     });
     initialized = true;
+    return true;
   } catch (e) {
     console.error("RevenueCat init failed", e);
+    return false;
   }
+}
+
+/**
+ * Configure on first use rather than relying on someone remembering to call
+ * initRevenueCat at startup — nobody ever did, so every offering lookup threw
+ * and the paywall showed no price and refused to sell.
+ *
+ * The app user id has to be the Supabase user id: that is what the RevenueCat
+ * webhook looks up to grant the entitlement, so an anonymous id would take the
+ * payment and never unlock anything.
+ */
+async function ensureConfigured(): Promise<boolean> {
+  if (!isNative()) return false;
+  if (initialized) return true;
+
+  const { createClient } = await import("@/lib/supabase/client");
+  const supabase = createClient();
+  if (!supabase) return false;
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  return initRevenueCat(user.id);
 }
 
 export type RCOffering = {
@@ -51,7 +77,7 @@ function isProduct(pkg: { product?: { identifier?: string } }, productId: string
 }
 
 export async function getOfferings(): Promise<RCOffering> {
-  if (!isNative()) return { monthly: null, annual: null };
+  if (!(await ensureConfigured())) return { monthly: null, annual: null };
   try {
     const { Purchases } = await import("@revenuecat/purchases-capacitor");
     const result = await Purchases.getOfferings();
@@ -66,7 +92,7 @@ export async function getOfferings(): Promise<RCOffering> {
 }
 
 export async function purchasePro(billing: "monthly" | "annual"): Promise<{ success: boolean; error?: string }> {
-  if (!isNative()) return { success: false, error: "not_native" };
+  if (!(await ensureConfigured())) return { success: false, error: "not_native" };
   try {
     const { Purchases } = await import("@revenuecat/purchases-capacitor");
     const offerings = await getOfferings();
@@ -82,7 +108,7 @@ export async function purchasePro(billing: "monthly" | "annual"): Promise<{ succ
 }
 
 export async function restorePurchases(): Promise<boolean> {
-  if (!isNative()) return false;
+  if (!(await ensureConfigured())) return false;
   try {
     const { Purchases } = await import("@revenuecat/purchases-capacitor");
     const { customerInfo } = await Purchases.restorePurchases();
@@ -93,7 +119,7 @@ export async function restorePurchases(): Promise<boolean> {
 }
 
 export async function checkNativeEntitlement(): Promise<boolean> {
-  if (!isNative()) return false;
+  if (!(await ensureConfigured())) return false;
   try {
     const { Purchases } = await import("@revenuecat/purchases-capacitor");
     const { customerInfo } = await Purchases.getCustomerInfo();

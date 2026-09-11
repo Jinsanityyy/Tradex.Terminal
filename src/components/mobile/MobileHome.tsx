@@ -3,7 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useQuotes, useMarketBias, useKeyLevels, useCatalysts, useMarketAnalysis, useAgentResult, useSessions, useMTFBias, useTrumpPosts, useLastSignal } from "@/hooks/useMarketData";
 import { useWebSocketPrices } from "@/hooks/useWebSocketPrices";
-import { TrendingUp, TrendingDown, Minus, Target, Zap, RefreshCw, Sparkles, ChevronDown, ChevronUp, Brain, BarChart2, Settings2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Target, Zap, RefreshCw, Sparkles, ChevronDown, ChevronUp, Brain, BarChart2, Settings2, Lock } from "lucide-react";
 import { TerminalSectionHeader, TerminalBadge, TerminalDataRow, SegmentedBar } from "@/components/shared/TerminalUI";
 import { cn } from "@/lib/utils";
 import { DetailModal } from "@/components/shared/DetailModal";
@@ -229,11 +229,14 @@ export function MobileHome() {
     });
   }, [quotes, wsPrices]);
 
+  const { subscription } = useSubscription();
+  const isPro = subscription.isPro;
+
   const { biasData } = useMarketBias();
   const { levels } = useKeyLevels();
   const { catalysts } = useCatalysts();
   const { narrative, sentiment, generateFresh } = useMarketAnalysis();
-  const { result: agentData, isLoading: agentLoading, error: agentError, refresh: refreshAgent } = useAgentResult(activeSymbol, "H1");
+  const { result: agentData, isLoading: agentLoading, error: agentError, refresh: refreshAgent } = useAgentResult(activeSymbol, "H1", 300_000, isPro);
   const { sessions } = useSessions();
   const { mtfData, mtfLoading } = useMTFBias(activeSymbol);
   const { posts: trumpPosts } = useTrumpPosts();
@@ -401,8 +404,7 @@ export function MobileHome() {
       ? { bias: master.finalBias as string, confidence: master.confidence }
       : null;
 
-  const { subscription } = useSubscription();
-  const { isOnCooldown, countdownLabel, markRefreshed, dailyLeft, hasHitDailyLimit } = useRefreshCooldown(subscription.isPro);
+  const { isOnCooldown, countdownLabel, markRefreshed, dailyLeft, hasHitDailyLimit } = useRefreshCooldown(isPro);
 
   const divRef = useRef<HTMLDivElement>(null);
 
@@ -1028,7 +1030,20 @@ export function MobileHome() {
                     )}
                     <div className="flex-1 h-px bg-[#1E1E24]" />
                   </div>
-                  {agentError && !agentData ? (
+                  {!isPro ? (
+                    <button
+                      onClick={() => window.dispatchEvent(new CustomEvent("tradex:open-brain"))}
+                      className="flex w-full flex-col items-center justify-center gap-2 rounded-[2px] border border-[hsl(142,71%,45%)]/20 bg-[hsl(142,71%,45%)]/[0.03] py-8 active:opacity-70"
+                    >
+                      <Lock className="h-4 w-4 text-[hsl(142,71%,45%)]" />
+                      <p className="text-[11px] text-zinc-400">
+                        The 7-agent read is part of Pro
+                      </p>
+                      <span className="text-[10px] font-semibold text-[hsl(142,71%,45%)]">
+                        See what it unlocks
+                      </span>
+                    </button>
+                  ) : agentError && !agentData ? (
                     <div className="flex flex-col items-center justify-center py-10 gap-2">
                       <p className="text-[11px] text-zinc-500">Analysis unavailable</p>
                       <button onClick={() => refreshAgent().catch(() => {})}

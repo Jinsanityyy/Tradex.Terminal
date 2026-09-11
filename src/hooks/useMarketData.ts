@@ -316,9 +316,12 @@ export function useInstitutionalData(asset = "XAUUSD", refreshInterval = 10 * 60
 }
 
 // ── Single Agent Run (for Market Bias page) ─────────────
-export function useAgentResult(symbol: Symbol, timeframe: Timeframe = "H1", refreshInterval = 300_000) {
+// `enabled` exists because /api/agents/run is Pro-only: a free account polled it
+// every five minutes, collected a 403, and rendered the failure as "Analysis
+// unavailable" — a locked feature reading as a broken one.
+export function useAgentResult(symbol: Symbol, timeframe: Timeframe = "H1", refreshInterval = 300_000, enabled = true) {
   const { data, error, isLoading, mutate: revalidate } = useSWR<AgentRunResult>(
-    `/api/agents/run?symbol=${symbol}&timeframe=${timeframe}`,
+    enabled ? `/api/agents/run?symbol=${symbol}&timeframe=${timeframe}` : null,
     fetcher,
     {
       refreshInterval,

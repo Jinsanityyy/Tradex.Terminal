@@ -237,6 +237,14 @@ export function MobileLayout() {
     document.dispatchEvent(new CustomEvent("tradex:mobile-tab-change", { detail: { active: id } }));
   }, [active]);
 
+  // The Pro teasers on Home need somewhere to send a tap. Brain is where the
+  // paywall — and the list of what Pro buys — actually lives.
+  useEffect(() => {
+    const toBrain = () => switchTab("brain");
+    window.addEventListener("tradex:open-brain", toBrain);
+    return () => window.removeEventListener("tradex:open-brain", toBrain);
+  }, [switchTab]);
+
   useEffect(() => {
     const handler = (e: Event) => {
       const appId = (e as CustomEvent<{ appId?: string }>).detail?.appId;
