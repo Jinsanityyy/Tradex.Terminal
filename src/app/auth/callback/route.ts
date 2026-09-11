@@ -3,54 +3,8 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase/service";
 import { isOwnerEmail } from "@/lib/auth/owner";
-import { verifyGumroadLicense } from "@/lib/gumroad/verify";
 import { PENDING_LICENSE_COOKIE } from "@/lib/gumroad/pending-license-cookie";
-
-/**
- * Binds a pre-verified license key (see /api/gumroad/verify-key) to a user
- * that just landed here via Google OAuth. Re-verifies against Gumroad rather
- * than trusting the earlier check, since time has passed and the key could
- * have been bound or refunded in between.
- */
-async function bindPendingLicense(userId: string, licenseKey: string): Promise<boolean> {
-  const db = getServiceClient();
-  if (!db) return false;
-
-  const { data: existing } = await db
-    .from("subscriptions")
-    .select("user_id")
-    .eq("gumroad_license_key", licenseKey)
-    .maybeSingle();
-  if (existing && existing.user_id !== userId) return false;
-
-  const result = await verifyGumroadLicense(licenseKey);
-  if (!result.ok) return false;
-
-  const { error } = await db.from("subscriptions").upsert(
-    {
-      user_id:             userId,
-      plan:                "pro",
-      status:              "active",
-      source:              "gumroad",
-      gumroad_license_key: licenseKey,
-      gumroad_sale_id:     result.purchase.saleId,
-      gumroad_product_id:  result.purchase.productId,
-      gumroad_email:       result.purchase.email,
-      trial_ends_at:       null,
-      updated_at:          new Date().toISOString(),
-    },
-    { onConflict: "user_id" }
-  );
-  if (!error) {
-    try {
-      await db.from("gumroad_redemptions").insert({
-        user_id: userId, license_key: licenseKey, sale_id: result.purchase.saleId,
-        email: result.purchase.email, result: "activated", reason: "google_oauth",
-      });
-    } catch {}
-  }
-  return !error;
-}
+import { bindPendingLicense } from "@/lib/gumroad/bind-pending-license";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);

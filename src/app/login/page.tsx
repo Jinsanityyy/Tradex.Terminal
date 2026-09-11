@@ -7,6 +7,7 @@ import { Eye, EyeOff, Loader2, AlertCircle, ArrowLeft, Smartphone } from "lucide
 import Link from "next/link";
 import { TradingChartBg } from "@/components/shared/TradingChartBg";
 import { AmbientParticles } from "@/components/shared/AmbientParticles";
+import { canUseNativeGoogle, getNativeGoogleIdToken } from "@/lib/auth/native-google";
 
 type Mode = "login" | "signup" | "forgot" | "mfa";
 
@@ -170,6 +171,39 @@ export default function LoginPage() {
       setGoogleLoading(false);
       return;
     }
+
+    // Inside the Android app, ask Android for the id_token instead of
+    // redirecting: Google rejects OAuth served in an embedded WebView, so the
+    // redirect below 400s there and the account chooser never opens.
+    if (canUseNativeGoogle()) {
+      try {
+        const idToken = await getNativeGoogleIdToken();
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: "google",
+          token: idToken,
+        });
+        if (error) throw error;
+        if (data.session) {
+          // /auth/callback is not in this flow, so its one remaining job —
+          // binding a pending Gumroad key — has to be asked for explicitly.
+          try {
+            await fetch("/api/auth/native-signin", { method: "POST" });
+          } catch {}
+          window.location.href = nextUrl;
+          return;
+        }
+        setError("Google sign-in did not return a session. Please try again.");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        // Backing out of the chooser is not a failure worth shouting about.
+        if (!/cancel|canceled|cancelled|dismiss/i.test(message)) {
+          setError(message || "Google sign-in failed. Please try again.");
+        }
+      }
+      setGoogleLoading(false);
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextUrl)}` },
