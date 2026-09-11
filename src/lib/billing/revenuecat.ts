@@ -10,7 +10,10 @@ export const RC_PRODUCTS = {
   pro_annual:  "tradex_pro_annual",
 } as const;
 
-export const RC_ENTITLEMENT = "pro";
+// Must match the entitlement identifier in RevenueCat exactly — the lookup is
+// a case-sensitive key access, so "pro" silently misses an entitlement named
+// "Pro" and a paying customer stays locked out.
+export const RC_ENTITLEMENT = "Pro";
 
 let initialized = false;
 
