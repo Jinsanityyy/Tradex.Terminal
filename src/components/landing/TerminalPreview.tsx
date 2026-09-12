@@ -14,16 +14,6 @@ const TABS = [
   { id: "candle", label: "Candle Analysis",    file: "/candle-analysis.png",    sidebar: "candle"    },
 ];
 
-const ROUTES: Record<string, string> = {
-  dash:   "",
-  bias:   "market-bias",
-  cal:    "economic-calendar",
-  trump:  "trump-monitor",
-  pnlcal: "pnl-calendar",
-  pnlana: "pnl-calendar",
-  candle: "candle-analysis",
-};
-
 export function TerminalPreview() {
   const [active, setActive] = useState(0);
 
@@ -36,7 +26,6 @@ export function TerminalPreview() {
   const next = () => setActive(p => (p + 1) % TABS.length);
 
   const tab = TABS[active];
-  const route = ROUTES[tab.id];
 
   return (
     <div className="relative mx-auto max-w-5xl">
@@ -59,66 +48,45 @@ export function TerminalPreview() {
       <div className="relative">
         {/* Left arrow */}
         <button onClick={prev}
-          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-5 z-10 flex items-center justify-center w-9 h-9 rounded-full transition-all active:scale-95"
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-9 h-9 rounded-full transition-all active:scale-95"
           style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}>
           <ChevronLeft className="h-5 w-5 text-zinc-300" />
         </button>
         {/* Right arrow */}
         <button onClick={next}
-          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-5 z-10 flex items-center justify-center w-9 h-9 rounded-full transition-all active:scale-95"
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-9 h-9 rounded-full transition-all active:scale-95"
           style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}>
           <ChevronRight className="h-5 w-5 text-zinc-300" />
         </button>
 
-        {/* MacBook bezel */}
-        <div className="rounded-2xl p-3 shadow-2xl"
-          style={{ background: "linear-gradient(180deg,#2a2a2a,#1a1a1a)", boxShadow: "0 40px 80px rgba(0,0,0,0.7),0 0 0 1px rgba(255,255,255,0.08)" }}>
-          <div className="rounded-xl overflow-hidden" style={{ background: "#0d1117" }}>
-            {/* Title bar */}
-            <div className="flex items-center gap-2 px-4 py-2.5"
-              style={{ background: "#111418", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-full" style={{ background: "#ff5f57" }} />
-                <div className="w-3 h-3 rounded-full" style={{ background: "#febc2e" }} />
-                <div className="w-3 h-3 rounded-full" style={{ background: "#28c840" }} />
+        {/*
+          No device bezel and no fake browser chrome. A drawn-on MacBook and a
+          mock URL bar are the tell of a pasted-in mockup — and they shrink the
+          only thing worth looking at. The screenshot gets the whole frame.
+        */}
+        <div
+          className="overflow-hidden rounded-xl"
+          style={{ border: "1px solid rgba(255,255,255,0.10)", background: "#07090C", boxShadow: "0 30px 70px rgba(0,0,0,0.55)" }}
+        >
+          {/* contain, not cover: a cropped dashboard shows a corner of the
+              product and reads as a stock image. */}
+          <div className="relative w-full" style={{ aspectRatio: "16 / 10" }}>
+            {TABS.map((t, i) => (
+              <div key={t.id}
+                className="absolute inset-0 transition-opacity duration-500"
+                style={{ opacity: active === i ? 1 : 0 }}>
+                <Image
+                  src={t.file}
+                  alt={`TradeX Terminal — ${t.label}`}
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 1024px"
+                  style={{ objectFit: "contain", objectPosition: "center" }}
+                  priority={i === 0}
+                />
               </div>
-              <div className="flex-1 flex items-center justify-center">
-                <div className="rounded px-3 py-0.5 text-[10px] font-mono text-zinc-500"
-                  style={{ background: "rgba(255,255,255,0.04)" }}>
-                  tradexterminal.online/dashboard{route ? `/${route}` : ""}
-                </div>
-              </div>
-              <div className="hidden md:flex items-center gap-2 font-mono text-[9px]">
-                <span className="px-2 py-0.5 rounded" style={{ background: "rgba(74,222,128,0.1)", color: "#4ade80" }}>● LDN OPEN</span>
-                <span className="px-2 py-0.5 rounded text-zinc-500" style={{ background: "rgba(255,255,255,0.04)" }}>XAU/USD</span>
-              </div>
-            </div>
-
-            {/* Screenshot — exact image from user */}
-            <div className="relative w-full" style={{ aspectRatio: "16/9" }}>
-              {TABS.map((t, i) => (
-                <div key={t.id}
-                  className="absolute inset-0 transition-opacity duration-500"
-                  style={{ opacity: active === i ? 1 : 0 }}>
-                  <Image
-                    src={t.file}
-                    alt={t.label}
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 1024px"
-                    style={{ objectFit: "cover", objectPosition: "top left" }}
-                    priority={i === 0}
-                  />
-                </div>
-              ))}
-            </div>
+            ))}
           </div>
         </div>
-
-        {/* MacBook base */}
-        <div className="mt-0 mx-auto h-5 rounded-b-xl"
-          style={{ background: "linear-gradient(180deg,#2a2a2a,#1e1e1e)", width: "85%" }} />
-        <div className="mx-auto h-2 rounded-b-2xl"
-          style={{ background: "#1a1a1a", width: "60%" }} />
       </div>
 
       {/* Dot indicators */}

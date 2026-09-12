@@ -156,10 +156,11 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl">
           <div className="mb-12 text-center">
             <h2 className="mb-3 font-black tracking-tight" style={{ fontSize: "clamp(1.9rem, 4.5vw, 3rem)" }}>
-              The whole desk, on your phone.
+              This is the actual terminal.
             </h2>
             <p className="mx-auto max-w-xl text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
-              Prices, catalysts, calendar, the agent read and your own P&amp;L — one screen, no tab-hopping.
+              Not a rendering. Prices, catalysts, calendar, the agent read and your own P&amp;L —
+              running in a browser, and on the phone in your hand.
             </p>
           </div>
           <TerminalPreview />
