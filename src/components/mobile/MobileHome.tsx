@@ -198,18 +198,17 @@ function PriceCard({ symbol, price, change, isActive }: { symbol: string; price:
 const DEFAULT_ASSETS = ["XAUUSD", "BTCUSD", "EURUSD", "USDJPY", "USOIL", "GBPUSD"];
 
 /**
- * Widgets with no free data behind them. Every one reads a Pro-only endpoint
- * and has nothing to show without a plan, so a free account is not given the
- * empty shell. Trump Impact, the agent read and Institutional Confluence are
- * deliberately not in here — those are what Pro sells, so they stay visible as
- * teasers.
+ * Widgets with no free data behind them, so a free account is not given the
+ * empty shell.
+ *
+ * The line is what a request costs us, not what looks valuable: bias, MTF and
+ * the market narrative are rule-based and free, while these two run the AI.
+ * Trump Impact, the agent read and Institutional Confluence are deliberately
+ * not in here — those are what Pro sells, so they stay visible as teasers.
  */
 const PRO_ONLY_WIDGETS = new Set([
-  "entry_strip",   // entry / stop / target from the agent run
-  "asset_bias",    // technical bias
-  "mtf_bias",      // multi-timeframe bias
-  "key_levels",    // key levels
-  "ai_analysis",   // the written market read
+  "entry_strip",   // entry / stop / target, straight off the agent run
+  "key_levels",    // AI-derived
 ]);
 
 /**

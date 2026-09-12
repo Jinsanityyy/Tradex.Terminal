@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requirePro } from "@/lib/auth/entitlement";
+import { requireUser } from "@/lib/auth/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -573,7 +573,7 @@ const NEUTRAL: TFAnalysis = {
 };
 
 export async function GET(req: Request) {
-  const gate = await requirePro(req);
+  const gate = await requireUser(req);
   if (!gate.ok) return gate.response;
 
   const { searchParams } = new URL(req.url);
