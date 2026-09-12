@@ -353,14 +353,12 @@ async function fetchRSS(url: string, sourceName: string, prefix: string, limit =
   }
 }
 
-// ── Source: Reuters ───────────────────────────────────────────────────────────
+// ── Source: Reuters, via Google News ─────────────────────────────────────────
+// feeds.reuters.com was retired by Reuters and answers nothing, so this asked a
+// dead host on every request. Google News still indexes Reuters, so the wire
+// copy is reachable through a site-scoped query instead.
 function fetchReutersTrump(): Promise<RawPost[]> {
-  return fetchRSS(
-    "https://feeds.reuters.com/reuters/businessNews",
-    "Reuters",
-    "rt",
-    8,
-  );
+  return googleNews("Trump+site:reuters.com+when:3d", "Reuters", "rt");
 }
 
 // ── Source: CNBC ──────────────────────────────────────────────────────────────
@@ -373,14 +371,32 @@ function fetchCNBCTrump(): Promise<RawPost[]> {
   );
 }
 
-// ── Source: Google News RSS (broad fallback) ──────────────────────────────────
-function fetchGoogleNewsTrump(): Promise<RawPost[]> {
+function googleNews(query: string, sourceName: string, prefix: string, limit = 8): Promise<RawPost[]> {
   return fetchRSS(
-    "https://news.google.com/rss/search?q=Trump+tariff+policy&hl=en-US&gl=US&ceid=US:en",
-    "Google News",
-    "gn",
-    8,
+    `https://news.google.com/rss/search?q=${query}&hl=en-US&gl=US&ceid=US:en`,
+    sourceName,
+    prefix,
+    limit,
   );
+}
+
+// ── Source: Google News, several angles ──────────────────────────────────────
+// One query was the only source actually searching for Trump — the others are
+// general business feeds we filter, which legitimately carry nothing about him
+// on a quiet day. When that single query returned nothing the tab went empty.
+// These cover the beats that actually move gold and the dollar.
+const GOOGLE_QUERIES = [
+  "Trump+tariff+when:3d",
+  "Trump+Federal+Reserve+OR+Powell+when:3d",
+  "Trump+China+trade+when:3d",
+  "Trump+oil+OR+OPEC+when:3d",
+];
+
+async function fetchGoogleNewsTrump(): Promise<RawPost[]> {
+  const batches = await Promise.all(
+    GOOGLE_QUERIES.map((q, i) => googleNews(q, "Google News", `gn${i}`, 5))
+  );
+  return batches.flat();
 }
 
 // ── Source 2: Finnhub news filtered for Trump ────────────────────────────────
