@@ -70,15 +70,17 @@ async function ensureConfigured(): Promise<boolean> {
   return initRevenueCat(user.id);
 }
 
+import type { PurchasesPackage } from "@revenuecat/purchases-capacitor";
+
 export type RCOffering = {
-  monthly: any | null;
-  annual: any | null;
+  monthly: PurchasesPackage | null;
+  annual: PurchasesPackage | null;
 };
 
 // Play reports a subscription as "<subscriptionId>:<basePlanId>" (our products
 // arrive as `tradex_pro_monthly:monthly`), so an equality check against the bare
 // subscription id finds nothing and every package reads as unavailable.
-function isProduct(pkg: { product?: { identifier?: string } }, productId: string): boolean {
+function isProduct(pkg: PurchasesPackage, productId: string): boolean {
   const id = pkg.product?.identifier ?? "";
   return id === productId || id.startsWith(`${productId}:`);
 }
@@ -87,11 +89,15 @@ export async function getOfferings(): Promise<RCOffering> {
   if (!(await ensureConfigured())) return { monthly: null, annual: null };
   try {
     const { Purchases } = await import("@revenuecat/purchases-capacitor");
-    const result = await Purchases.getOfferings();
-    const pkgs = (result as any).offerings?.current?.availablePackages ?? [];
+    // getOfferings resolves to { all, current } — there is no `offerings`
+    // wrapper. Reading one through `as any` silently yielded undefined, so the
+    // package list was always empty and every price read as unavailable no
+    // matter how correctly Play and RevenueCat were configured.
+    const { current } = await Purchases.getOfferings();
+    const pkgs = current?.availablePackages ?? [];
     return {
-      monthly: pkgs.find((p: any) => isProduct(p, RC_PRODUCTS.pro_monthly)) ?? null,
-      annual:  pkgs.find((p: any) => isProduct(p, RC_PRODUCTS.pro_annual))  ?? null,
+      monthly: pkgs.find((p) => isProduct(p, RC_PRODUCTS.pro_monthly)) ?? null,
+      annual:  pkgs.find((p) => isProduct(p, RC_PRODUCTS.pro_annual))  ?? null,
     };
   } catch {
     return { monthly: null, annual: null };
