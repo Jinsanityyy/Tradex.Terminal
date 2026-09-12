@@ -10,7 +10,6 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
 import { useSubscription } from "@/hooks/useSubscription";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
-import { AgentReadDisclaimer } from "@/components/shared/AgentReadDisclaimer";
 import { PixelWarRoom } from "./PixelWarRoom";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -674,7 +673,6 @@ export function BrainTerminal() {
             <span className="ml-auto font-mono">{new Date(data.timestamp).toLocaleTimeString()}</span>
           </div>
 
-          <AgentReadDisclaimer className="pt-1" />
         </>
       ) : null}
 

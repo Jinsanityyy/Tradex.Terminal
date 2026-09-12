@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import type { SignalRecord, SignalStats, SignalStatus } from "@/lib/signals/types";
 import type { Symbol } from "@/lib/agents/schemas";
 import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
-import { AgentReadDisclaimer } from "@/components/shared/AgentReadDisclaimer";
 import { CloseTradeModal } from "@/components/shared/CloseTradeModal";
 import { loadTradeLog, findOpenBySetup, type TakenSignal } from "@/lib/trades/trade-log";
 import { isCounterTrend, counterTrendNote } from "@/lib/signals/counter-trend";
@@ -341,7 +340,6 @@ export default function SignalsPage() {
         <p className="text-sm text-zinc-400 mt-1">
           Full transparency. Every agent read is logged and tracked to outcome.
         </p>
-        <AgentReadDisclaimer className="mt-2" />
       </div>
 
       {/* ── Filters ──────────────────────────────────────────────────────── */}

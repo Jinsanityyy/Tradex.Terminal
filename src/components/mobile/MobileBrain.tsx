@@ -16,7 +16,6 @@ import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useQuotes } from "@/hooks/useMarketData";
 import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelectorSheet";
-import { AgentReadDisclaimer } from "@/components/shared/AgentReadDisclaimer";
 
 const TIMEFRAMES: Timeframe[] = ["M5", "M15", "H1", "H4"];
 
@@ -708,7 +707,6 @@ export function MobileBrain() {
             </div>
           )}
 
-          {data && <AgentReadDisclaimer className="px-1 pt-1" />}
 
         </div>
       )}

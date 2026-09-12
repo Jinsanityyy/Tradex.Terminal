@@ -11,7 +11,6 @@ import { cn } from "@/lib/utils";
 import { SlidersHorizontal } from "lucide-react";
 import type { AgentRunResult } from "@/lib/agents/schemas";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
-import { AgentReadDisclaimer } from "@/components/shared/AgentReadDisclaimer";
 import { useThemePersonality } from "@/lib/themePersonality";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -690,7 +689,6 @@ export function AgentCardsWidget({
             </div>
           )}
 
-          <AgentReadDisclaimer className="px-1 pt-2" variant="compact" />
         </div>
       )}
 

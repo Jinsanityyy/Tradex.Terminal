@@ -9,7 +9,6 @@ import {
   Newspaper, FlipHorizontal2, CheckCircle, XCircle,
 } from "lucide-react";
 import type { AgentRunResult } from "@/lib/agents/schemas";
-import { AgentReadDisclaimer } from "@/components/shared/AgentReadDisclaimer";
 import { signalStateLabel } from "@/components/shared/agent-read-labels";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -958,7 +957,6 @@ export function BrainOverviewDrawer({ open, onClose, data, highlightAgentId }: B
 
           {/* Persistent disclaimer — travels with every agent read */}
           <div className="shrink-0 border-t border-white/6 px-5 py-2.5">
-            <AgentReadDisclaimer variant="compact" />
           </div>
 
         </div>
