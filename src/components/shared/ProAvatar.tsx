@@ -7,11 +7,16 @@ import { cn } from "@/lib/utils";
  * The avatar, wearing its rank.
  *
  * Pro buys more than unlocked features — it should be visible. A Pro account
- * gets an ornate gilt frame; everyone else keeps the plain ring, so the frame
- * stays a signal rather than decoration.
+ * gets a gold bezel; everyone else keeps the plain ring, so it stays a signal
+ * rather than decoration.
  *
- * Drawn as inline SVG rather than shipped as artwork: it is sharp at 28px in a
- * header and at 64px in the profile sheet, costs no request, and is ours.
+ * Deliberately restrained. An ornate winged-and-crowned frame belongs to a
+ * game, not to a terminal in mono type, and at 30px its detail is only noise.
+ * Two hairlines and four index marks read as an instrument — which is what
+ * this product is.
+ *
+ * Inline SVG rather than shipped artwork: sharp at 30px and at 72px, no
+ * request, and ours.
  */
 
 let gradientSeq = 0;
@@ -39,7 +44,7 @@ export function ProAvatar({
   const uid = React.useMemo(() => `pro-av-${++gradientSeq}`, []);
 
   // The frame's flourishes need room, so the photo is inset when it is shown.
-  const inset = isPro ? "14%" : "0";
+  const inset = isPro ? "6%" : "0";
 
   return (
     <div className={cn("relative shrink-0", className)} style={{ width: size, height: size }}>
@@ -72,53 +77,35 @@ export function ProAvatar({
           aria-hidden="true"
         >
           <defs>
-            <linearGradient id={`${uid}-gold`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor="#FBECC0" />
-              <stop offset="35%"  stopColor="#E8C877" />
-              <stop offset="70%"  stopColor="#B4862B" />
-              <stop offset="100%" stopColor="#7A5716" />
+            <linearGradient id={`${uid}-gold`} x1="0" y1="0" x2="0.35" y2="1">
+              <stop offset="0%"   stopColor="#F3E3B4" />
+              <stop offset="45%"  stopColor="#C9A24B" />
+              <stop offset="100%" stopColor="#8A6A22" />
             </linearGradient>
           </defs>
 
-          <g fill={`url(#${uid}-gold)`} stroke="none">
-            {/* Ring */}
-            <circle
-              cx="50" cy="50" r="43"
-              fill="none"
-              stroke={`url(#${uid}-gold)`}
-              strokeWidth="2.4"
-            />
-            <circle
-              cx="50" cy="50" r="39.5"
-              fill="none"
-              stroke="#7A5716"
-              strokeOpacity="0.55"
-              strokeWidth="0.7"
-            />
+          {/* Bezel: two hairlines, the way a watch or an instrument reads
+              expensive — restraint, not ornament. */}
+          <circle
+            cx="50" cy="50" r="48"
+            fill="none"
+            stroke={`url(#${uid}-gold)`}
+            strokeWidth="2"
+          />
+          <circle
+            cx="50" cy="50" r="44"
+            fill="none"
+            stroke={`url(#${uid}-gold)`}
+            strokeWidth="0.6"
+            strokeOpacity="0.55"
+          />
 
-            {/* Wings — drawn once, mirrored for the other side */}
-            <g>
-              <path d="M14 56 C6 60 3 68 5 76 C10 70 15 67 21 66 C17 63 15 60 14 56 Z" />
-              <path d="M19 64 C12 69 9 76 11 84 C16 78 21 75 27 74 C23 71 20 68 19 64 Z" opacity="0.9" />
-              <path d="M25 71 C19 76 17 82 19 89 C23 84 28 81 33 80 C29 77 26 74 25 71 Z" opacity="0.75" />
-            </g>
-            <g transform="translate(100,0) scale(-1,1)">
-              <path d="M14 56 C6 60 3 68 5 76 C10 70 15 67 21 66 C17 63 15 60 14 56 Z" />
-              <path d="M19 64 C12 69 9 76 11 84 C16 78 21 75 27 74 C23 71 20 68 19 64 Z" opacity="0.9" />
-              <path d="M25 71 C19 76 17 82 19 89 C23 84 28 81 33 80 C29 77 26 74 25 71 Z" opacity="0.75" />
-            </g>
-
-            {/* Crown */}
-            <path d="M50 1 L54.5 8 L61 4.5 L59 13 L50 16 L41 13 L39 4.5 L45.5 8 Z" />
-            <circle cx="50" cy="8.5" r="1.9" fill="#FFF6DC" />
-
-            {/* Bottom gem */}
-            <path d="M50 84 L55 91 L50 99 L45 91 Z" />
-            <path d="M50 87.5 L52.4 91 L50 95 L47.6 91 Z" fill="#FFF6DC" opacity="0.85" />
-
-            {/* Side studs */}
-            <circle cx="7"  cy="50" r="2.2" />
-            <circle cx="93" cy="50" r="2.2" />
+          {/* Index marks at the quarters — the terminal's own geometry. */}
+          <g stroke={`url(#${uid}-gold)`} strokeWidth="2.4" strokeLinecap="butt">
+            <line x1="50" y1="0.5" x2="50" y2="6" />
+            <line x1="50" y1="94"  x2="50" y2="99.5" />
+            <line x1="0.5" y1="50" x2="6"  y2="50" />
+            <line x1="94"  y1="50" x2="99.5" y2="50" />
           </g>
         </svg>
       )}
