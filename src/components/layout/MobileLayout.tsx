@@ -64,6 +64,9 @@ export function MobileLayout() {
   const [avatar, setAvatar] = useState<string | null>(null);
   const [unreadFeed, setUnreadFeed] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Widened while a feature page is open inside the drawer — see the dispatch
+  // in MobileMore. The menu itself stays a drawer so it can be swiped away.
+  const [drawerFullWidth, setDrawerFullWidth] = useState(false);
   const [drawerMounted, setDrawerMounted] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const activeRef = useRef(active);
@@ -236,6 +239,14 @@ export function MobileLayout() {
     }
     document.dispatchEvent(new CustomEvent("tradex:mobile-tab-change", { detail: { active: id } }));
   }, [active]);
+
+  useEffect(() => {
+    const onMorePage = (e: Event) => {
+      setDrawerFullWidth((e as CustomEvent<{ open: boolean }>).detail.open);
+    };
+    document.addEventListener("tradex:more-page", onMorePage);
+    return () => document.removeEventListener("tradex:more-page", onMorePage);
+  }, []);
 
   // The Pro teasers on Home need somewhere to send a tap. Brain is where the
   // paywall — and the list of what Pro buys — actually lives.
@@ -481,7 +492,8 @@ export function MobileLayout() {
         {/* Drawer panel */}
         <div
           className={cn(
-            "absolute top-0 left-0 bottom-0 z-50 w-[88%] bg-[hsl(var(--background))] shadow-2xl transition-transform duration-300 ease-out flex flex-col",
+            "absolute top-0 left-0 bottom-0 z-50 bg-[hsl(var(--background))] shadow-2xl transition-transform duration-300 ease-out flex flex-col",
+            drawerFullWidth ? "w-full" : "w-[88%]",
             drawerOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >

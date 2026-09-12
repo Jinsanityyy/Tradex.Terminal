@@ -513,6 +513,15 @@ function usePushStatus() {
 
 export function MobileMore() {
   const [activeAppId,  setActiveAppId]  = useState<string | null>(null);
+
+  // The menu lives in a drawer that deliberately leaves a sliver of the page
+  // behind it. That reads as a menu, but it squeezes a full feature page into
+  // 88% of the screen — so tell the layout when one is open and let it widen.
+  useEffect(() => {
+    document.dispatchEvent(
+      new CustomEvent("tradex:more-page", { detail: { open: activeAppId !== null } })
+    );
+  }, [activeAppId]);
   const [highlightId,  setHighlightId]  = useState<string | null>(null);
   const [sheetOpen,    setSheetOpen]    = useState(false);
   const [isTabActive, setIsTabActive] = useState(true);
