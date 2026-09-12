@@ -23,7 +23,7 @@ export default function PricingSuccessPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-black flex items-center justify-center px-4">
       <div className="text-center max-w-md">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#5fc77a]/15 border border-[#5fc77a]/30 mb-6">
           <CheckCircle2 className="h-8 w-8 text-[#5fc77a]" />

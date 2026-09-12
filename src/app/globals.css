@@ -287,9 +287,12 @@ iframe,
 /* Dark terminal — gold accent (#D4A017), neutral dark surface */
 :root,
 [data-theme="dark"] {
-  --background: 240 7% 5%;      /* #0D0D0F */
+  /* True black, so an OLED panel switches those pixels off: deeper contrast,
+     less battery. The gold primary stays — the monochrome "oled" theme below
+     is still there for anyone who wants the accent gone too. */
+  --background: 0 0% 0%;        /* #000000 */
   --foreground: 0 0% 91%;       /* #E8E8E8 */
-  --card: 0 0% 10%;             /* #1A1A1A */
+  --card: 0 0% 5%;              /* #0D0D0D — just off black, so cards read */
   --card-foreground: 0 0% 91%;
   --popover: 0 0% 10%;
   --popover-foreground: 0 0% 91%;

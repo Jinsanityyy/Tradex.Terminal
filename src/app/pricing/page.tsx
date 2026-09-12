@@ -83,7 +83,7 @@ function PricingContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0e1a] text-white px-4 py-12">
+    <div className="min-h-screen bg-black text-white px-4 py-12">
       <div className="max-w-4xl mx-auto">
 
         {/* Back link — dashboard if signed in, otherwise home/login */}
@@ -224,7 +224,7 @@ function PricingContent() {
 export default function PricingPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />
       </div>
     }>
