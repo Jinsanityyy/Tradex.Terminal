@@ -50,7 +50,7 @@ export default function TermsPage() {
               <li>Subscription fees are charged in advance for each billing period.</li>
               <li>You may cancel your subscription at any time through your account settings. Cancellation takes effect at the end of the current billing period.</li>
               <li>We reserve the right to change subscription pricing with advance notice. Continued use after a price change constitutes acceptance of the new price.</li>
-              <li>Payments are processed securely by Paddle. We do not store your payment credentials.</li>
+              <li>Payments are processed securely by Google Play (in the Android app) or Gumroad (on the web). We do not store your payment credentials.</li>
             </ul>
           </section>
 

@@ -192,7 +192,7 @@ export function PaywallGate({ children }: PaywallGateProps) {
           </>
         ) : (
           <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-4">
-            Cancel anytime · Secure checkout via Paddle
+            Cancel anytime · Secure checkout via Gumroad
           </p>
         )}
       </div>

@@ -6,35 +6,13 @@ import { cn } from "@/lib/utils";
 import { useSubscription } from "@/hooks/useSubscription";
 import { createClient } from "@/lib/supabase/client";
 
-function isNativeApp(): boolean {
-  if (typeof window === "undefined") return false;
-  if ((window as any).Capacitor?.isNativePlatform?.()) return true;
-  if (window.matchMedia?.("(display-mode: standalone)").matches) return true;
-  return false;
-}
-
 async function navigateToUpgrade() {
-  try {
-    const res = await fetch("/api/paddle/create-checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ billing: "monthly" }),
-    });
-    if (res.status === 401) {
-      window.location.href = "/login?next=/pricing";
-      return;
-    }
-    const data = await res.json();
-    if (data.checkoutUrl) {
-      if (isNativeApp()) {
-        window.open(data.checkoutUrl, "_system");
-      } else {
-        window.location.href = data.checkoutUrl;
-      }
-      return;
-    }
-  } catch {}
-  window.location.href = "/pricing";
+  // Was posting to /api/paddle/create-checkout, a route that no longer exists,
+  // so this button could not start a purchase at all. startProCheckout is the
+  // same path every other upgrade entry point takes.
+  const { startProCheckout } = await import("@/lib/billing/checkout");
+  const result = await startProCheckout("monthly");
+  if (result.ok) window.location.reload();
 }
 
 function storageKey(userId: string | null): string {

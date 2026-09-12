@@ -12,6 +12,8 @@ import { MobileFeed } from "@/components/mobile/MobileFeed";
 import { MobileBrain } from "@/components/mobile/MobileBrain";
 import { MobileFeatureGate } from "@/components/mobile/MobileFeatureGate";
 import { MobileMore } from "@/components/mobile/MobileMore";
+import { useProPricing } from "@/hooks/useProPricing";
+import { startProCheckout } from "@/lib/billing/checkout";
 import { createClient } from "@/lib/supabase/client";
 import { NotificationToast } from "@/components/shared/NotificationToast";
 import { LoginTransitionOverlay } from "@/components/shared/LoginTransitionOverlay";
@@ -36,16 +38,10 @@ function isNativeApp(): boolean {
   return false;
 }
 
-// All upgrades funnel through /pricing (Gumroad checkout + license redemption).
-// The old path deep-linked straight into a PayPal subscribe page, bypassing the
-// Gumroad purchase flow entirely.
-function navigateToUpgrade(_planId?: string | null) {
-  if (isNativeApp()) {
-    window.open(`${window.location.origin}/pricing`, "_system");
-  } else {
-    window.location.href = "/pricing";
-  }
-}
+// Upgrades go through startProCheckout — Play billing in the app, Gumroad in
+// the browser. This used to open /pricing in the system browser even on
+// Android, which both skipped the Play purchase sheet and steered an in-app
+// purchase to an outside checkout, something Play does not permit.
 
 export function MobileLayout() {
   useFcmPush();
@@ -63,6 +59,16 @@ export function MobileLayout() {
   const [draft, setDraft] = useState("");
   const [avatar, setAvatar] = useState<string | null>(null);
   const [unreadFeed, setUnreadFeed] = useState(0);
+  const pricing = useProPricing();
+  const [upgradeError, setUpgradeError] = useState<string | null>(null);
+
+  async function handleUpgrade() {
+    setUpgradeError(null);
+    const r = await startProCheckout("monthly");
+    if (r.ok) window.location.reload();
+    else if (r.message) setUpgradeError(r.message);
+  }
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Widened while a feature page is open inside the drawer — see the dispatch
   // in MobileMore. The menu itself stays a drawer so it can be swiped away.
@@ -421,15 +427,20 @@ export function MobileLayout() {
                   <span className="text-[11px] font-bold t-accent uppercase tracking-widest" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>Upgrade to Pro</span>
                 </div>
                 <button
-                  onClick={() => navigateToUpgrade(PLANS.pro.planId || null)}
+                  onClick={handleUpgrade}
                   className="w-full flex items-center justify-between px-4 py-3 rounded-[2px] bg-t-accent-10 border border-t-accent-30 active:opacity-70"
                 >
                   <div className="text-left">
                     <p className="text-[12px] font-bold t-accent" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>PRO</p>
                     <p className="text-[10px] text-[#6B6B7A]">Full terminal access</p>
                   </div>
-                  <span className="text-[13px] font-bold t-accent" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>$39/mo</span>
+                  <span className="text-[13px] font-bold t-accent" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>
+                    {pricing.loading ? "…" : pricing.monthly ?? "—"}
+                  </span>
                 </button>
+                {upgradeError && (
+                  <p className="mt-2 text-[10px] text-red-400">{upgradeError}</p>
+                )}
               </div>
             )}
 

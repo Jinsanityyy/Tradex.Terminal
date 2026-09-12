@@ -23,7 +23,7 @@ export default function PrivacyPage() {
               <li><strong className="text-white">Profile information:</strong> Display name and avatar photo that you choose to set.</li>
               <li><strong className="text-white">Usage data:</strong> Pages visited, features used, and interaction patterns to improve the app.</li>
               <li><strong className="text-white">Trading journal entries:</strong> Trade notes, PnL records, and journal data you manually enter.</li>
-              <li><strong className="text-white">Payment information:</strong> Subscription status only. We do not store credit card numbers. Payments are processed securely by Paddle.</li>
+              <li><strong className="text-white">Payment information:</strong> Subscription status only. We do not store credit card numbers. Payments are processed securely by Google Play (in the Android app) or Gumroad (on the web).</li>
               <li><strong className="text-white">Device information:</strong> Browser type, operating system, and device type for compatibility purposes.</li>
             </ul>
           </section>
