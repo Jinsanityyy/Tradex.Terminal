@@ -1,624 +1,263 @@
-import Image from "next/image";
 import Link from "next/link";
-import {
-  Zap, Brain, TrendingUp, BarChart2, Shield, Clock,
-  Newspaper, Calendar, MessageSquare, BookOpen, CheckCircle2,
-  ArrowRight, Smartphone, DollarSign, LayoutGrid, Tv,
-  BrainCircuit, AtSign, Sparkles, Star,
-  Award, Lock,
-} from "lucide-react";
+import Image from "next/image";
+import { ArrowRight, Check, Zap, Lock } from "lucide-react";
 import { TerminalPreview } from "@/components/landing/TerminalPreview";
-import { CinematicClientLayer } from "@/components/landing/CinematicClientLayer";
-import { WebGLBackground } from "@/components/landing/WebGLBackground";
-import { MeshWave } from "@/components/landing/MeshWave";
-import { AgentCredits } from "@/components/landing/AgentCredits";
+import { GUMROAD_MONTHLY_PRICE } from "@/hooks/useProPricing";
 
-// ─── Split-char helper (server-safe) ─────────────────────────────────────────
-function Chars({ text }: { text: string }) {
-  return (
-    <>
-      {text.split("").map((ch, i) => (
-        <span key={i} data-split-char style={{ display: "inline-block", overflow: "hidden", verticalAlign: "bottom" }}>
-          <span data-split-inner style={{ display: "inline-block" }}>
-            {ch === " " ? " " : ch}
-          </span>
-        </span>
-      ))}
-    </>
-  );
-}
-
-// ─── Design tokens ────────────────────────────────────────────────────────────
+/**
+ * The landing page has one job: get the visitor into the product, on whichever
+ * surface they are already holding. Phone → Google Play. Desktop → the browser.
+ *
+ * The previous version sold a Gumroad subscription and never linked the Play
+ * listing at all, which is where most of the traffic can actually convert. It
+ * also predated the free tier, so it asked strangers for money before they had
+ * seen anything work.
+ */
 
 const G  = "#C9A855";
 const BG = "#070707";
 const S1 = "#0E0E0E";
-const S2 = "#141414";
-const AM = "#F59E0B";
+
+const PLAY_URL =
+  process.env.NEXT_PUBLIC_PLAY_STORE_URL ||
+  "https://play.google.com/store/apps/details?id=online.tradexterminal.twa";
 
 const GRAIN = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`;
 
-// ─── Data ────────────────────────────────────────────────────────────────────
+const MONO = { fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" };
 
-const PRO_FEATURES: { label: string; bold?: boolean }[] = [
+/** Google's own badge is a brand asset with usage rules; this is our own mark. */
+function PlayGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M3.6 2.1c-.3.3-.5.8-.5 1.4v17c0 .6.2 1.1.5 1.4l.1.1 9.5-9.5v-.2L3.7 2.8l-.1-.1Zm12.2 6.3L5.9 2.7l7.6 7.6 2.3-1.9Zm3 1.7-2.4-1.4-2.5 2.4 2.5 2.5 2.4-1.4c.7-.4.7-1.7 0-2.1ZM5.9 21.3l9.9-5.7-2.3-2-7.6 7.7Z" />
+    </svg>
+  );
+}
 
-  { label: "Trading Floor — the 7-agent market read", bold: true },
-  { label: "Market Direction engine", bold: true },
-  { label: "Risk Gate", bold: true },
-  { label: "Insights & Market Intelligence" },
-  { label: "Cross-Asset matrix" },
-  { label: "Trading Sessions intelligence" },
-  { label: "Macro Events feed" },
-  { label: "Trump Monitor" },
-  { label: "Candle Analysis" },
-  { label: "Read History — every read tracked to outcome" },
-  { label: "P&L Tracker & trading journal" },
+const FREE = [
+  "Live prices — gold, forex, crypto, indices",
+  "TradingView charts",
+  "Economic calendar with live countdowns",
+  "Macro catalysts and news feed",
+  "Technical bias and multi-timeframe read",
+  "Trading journal and P&L tracker",
+  "Live market TV",
 ];
 
-// Landing CTAs go straight to checkout when Gumroad is configured; /pricing
-// (which also hosts the license-redeem form) is the fallback.
-const BUY_URL = process.env.NEXT_PUBLIC_GUMROAD_PRODUCT_URL || "/pricing";
-
-const FEATURES = [
-  { icon: <Brain className="h-5 w-5" />,        color: "text-violet-400 bg-violet-500/10 border-violet-500/20",  title: "Trading Floor",        desc: "7 specialized AI agents — Trend, Price Action, News, Risk Gate, Execution, Contrarian, and Master — run in parallel to produce a single structured market read." },
-  { icon: <TrendingUp className="h-5 w-5" />,    color: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20", title: "Market Direction",     desc: "Real-time directional read across Gold, Forex, Crypto, and Indices. See which way the market is leaning and why." },
-  { icon: <BarChart2 className="h-5 w-5" />,     color: "text-purple-400 bg-purple-500/10 border-purple-500/20", title: "Candle Analysis",      desc: "AI-powered candlestick pattern detection with confluence scoring. Instantly identify high-probability structure across any timeframe." },
-  { icon: <Shield className="h-5 w-5" />,        color: "text-red-400 bg-red-500/10 border-red-500/20",          title: "Risk Gate",             desc: "Hard rule-based gate that blocks any trade with bad RR, high volatility, or session violations. No bypass. No exceptions." },
-  { icon: <Clock className="h-5 w-5" />,         color: "text-amber-400 bg-amber-500/10 border-amber-500/20",    title: "Session Intelligence",  desc: "Know exactly which trading session is active — London, New York, Tokyo — and get session-specific bias and key levels." },
-  { icon: <Newspaper className="h-5 w-5" />,     color: "text-orange-400 bg-orange-500/10 border-orange-500/20", title: "Macro Events Feed",    desc: "Market-moving catalysts detected and scored in real-time. Never miss a news event that could flip the read." },
-  { icon: <BrainCircuit className="h-5 w-5" />,  color: "text-sky-400 bg-sky-500/10 border-sky-500/20",          title: "Market Intelligence",  desc: "Deep AI analysis of macro conditions, market structure, and intermarket correlations across all asset classes." },
-  { icon: <LayoutGrid className="h-5 w-5" />,    color: "text-blue-400 bg-blue-500/10 border-blue-500/20",       title: "Asset Matrix",          desc: "Side-by-side comparison of asset performance, momentum, and bias. Spot the strongest and weakest assets at a glance." },
-  { icon: <Sparkles className="h-5 w-5" />,      color: "text-pink-400 bg-pink-500/10 border-pink-500/20",       title: "AI Market Briefing",   desc: "Daily AI-generated briefing covering macro outlook, key levels, session bias, and trade context — all in one read." },
-  { icon: <AtSign className="h-5 w-5" />,        color: "text-red-400 bg-red-500/10 border-red-500/20",          title: "Trump Monitor",         desc: "Real-time tracking of Trump's Truth Social posts and statements that move markets. Stay ahead of politically-driven volatility." },
-  { icon: <DollarSign className="h-5 w-5" />,    color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20", title: "P&L Tracker",        desc: "Visual calendar of your trading performance. Track wins, losses, and patterns in your daily trading history." },
+const PRO = [
+  "Seven-agent market read on every setup",
+  "Trump and macro alerts within minutes",
+  "Entry, stop and target levels",
+  "Signal history with tracked outcomes",
+  "Candle analysis and confluence scoring",
+  "Institutional positioning — CFTC, CME, CBOE",
 ];
 
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
+function Cta({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={compact ? "flex flex-wrap gap-3" : "flex flex-wrap items-center justify-center gap-3"}>
+      <a
+        href={PLAY_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-2.5 rounded-xl px-7 py-4 text-sm font-bold transition-transform hover:scale-[1.02]"
+        style={{ background: G, color: "#000", boxShadow: "0 0 40px rgba(201,168,85,0.25)" }}
+      >
+        <PlayGlyph className="h-5 w-5" />
+        Get it on Google Play
+      </a>
+      <Link
+        href="/login"
+        className="inline-flex items-center gap-2 rounded-xl border px-7 py-4 text-sm font-semibold transition-colors hover:text-white"
+        style={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(255,255,255,0.75)" }}
+      >
+        Open in your browser <ArrowRight className="h-4 w-4" />
+      </Link>
+    </div>
+  );
+}
 
 export default function LandingPage() {
   return (
-    <div
-      className="min-h-screen text-white overflow-x-hidden"
-      style={{ background: BG, fontFamily: "var(--font-space-grotesk), system-ui, sans-serif" }}
-    >
-      {/* ── Cinematic client layer (loader + cursor + scroll animations) ── */}
-      <CinematicClientLayer />
-
+    <div className="min-h-screen text-white" style={{ background: BG }}>
       {/* ── Nav ─────────────────────────────────────────────────────────── */}
-      <nav className="sticky top-0 z-50 backdrop-blur-md"
-        style={{ background: "rgba(7,7,7,0.94)", borderBottom: "1px solid rgba(201,168,85,0.08)" }}>
-        <div className="max-w-6xl mx-auto px-5 h-14 flex items-center justify-between">
+      <nav className="sticky top-0 z-50 border-b backdrop-blur"
+        style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(7,7,7,0.82)" }}>
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3.5">
           <div className="flex items-center gap-2.5">
-            <Image src="/logo-transparent.png" alt="TradeX" width={28} height={28}
-              style={{ filter: "drop-shadow(0 0 8px rgba(201,168,85,0.4))" }} />
-            <span className="font-bold text-sm tracking-wide">
-              TradeX <span style={{ color: G }}>Terminal</span>
-            </span>
+            <Image src="/icon-192.png" alt="" width={26} height={26} className="rounded-[6px]" />
+            <span className="text-[13px] font-bold tracking-wide">TradeX Terminal</span>
           </div>
-          <div className="hidden md:flex items-center gap-6 text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-            <a href="#features" className="hover:text-white transition-colors">Features</a>
-            <a href="#preview" className="hover:text-white transition-colors">Preview</a>
-            <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link href="/login" className="text-xs font-medium px-3 py-1.5 transition-colors hover:text-white"
-              style={{ color: "rgba(255,255,255,0.4)" }}>Log in</Link>
-            <Link href="/pricing"
-              className="inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-bold transition-all hover:brightness-110"
+          <div className="flex items-center gap-5 text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>
+            <Link href="/pricing" className="hidden sm:block transition-colors hover:text-white">Pricing</Link>
+            <Link href="/login" className="transition-colors hover:text-white">Sign in</Link>
+            <a href={PLAY_URL} target="_blank" rel="noopener noreferrer"
+              className="rounded-lg px-3.5 py-2 text-[11px] font-bold"
               style={{ background: G, color: "#000" }}>
-              <Zap className="h-3 w-3" /> Get Pro
-            </Link>
+              Get the app
+            </a>
           </div>
         </div>
       </nav>
 
       {/* ── Hero ────────────────────────────────────────────────────────── */}
-      <section
-        data-hero-root
-        className="relative overflow-hidden flex flex-col items-center justify-center px-5"
-        style={{ minHeight: "100svh" }}
-      >
-        {/* WebGL particle network — mouse-parallax layer (far) */}
-        <div data-parallax data-depth="10" className="absolute inset-0">
-          <WebGLBackground />
-        </div>
+      <section className="relative overflow-hidden px-5 pt-20 pb-24 md:pt-28 md:pb-32">
+        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.035]"
+          style={{ backgroundImage: GRAIN }} />
+        <div aria-hidden className="pointer-events-none absolute left-1/2 top-0 h-[420px] w-[820px] -translate-x-1/2"
+          style={{ background: `radial-gradient(ellipse at center, ${G}1F 0%, transparent 70%)` }} />
 
-        {/* 3D mesh wave — mouse-parallax layer (near); quieter on phones so it
-            reads as ambient depth instead of a competing half-screen panel */}
-        <div data-parallax data-depth="22" className="absolute inset-0 pointer-events-none opacity-50 md:opacity-100">
-          <MeshWave side="right" opacity={0.28} />
-        </div>
+        <div className="relative mx-auto max-w-4xl text-center">
+          <p className="mb-6 text-[11px] font-semibold tracking-[0.25em]" style={{ ...MONO, color: `${G}AA` }}>
+            GOLD · FOREX · MACRO
+          </p>
 
-        {/* Film grain */}
-        <div className="pointer-events-none absolute inset-0 z-[1]"
-          style={{ backgroundImage: GRAIN, opacity: 0.045, mixBlendMode: "overlay" }} />
-
-        {/* Radial vignette */}
-        <div className="pointer-events-none absolute inset-0 z-[1]"
-          style={{ background: "radial-gradient(ellipse 90% 75% at 50% 50%, transparent 30%, rgba(7,7,7,0.85) 100%)" }} />
-
-        {/* Gold radial glow — top centre */}
-        <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 z-[1]"
-          style={{ width: 800, height: 600, background: "radial-gradient(circle, rgba(201,168,85,0.10), transparent 70%)" }} />
-
-        {/* Subtle grid */}
-        <div className="pointer-events-none absolute inset-0 z-[1] opacity-[0.016]"
-          style={{
-            backgroundImage: "linear-gradient(rgba(201,168,85,1) 1px,transparent 1px),linear-gradient(90deg,rgba(201,168,85,1) 1px,transparent 1px)",
-            backgroundSize: "56px 56px",
-          }} />
-
-        {/* Bottom fade to bg colour */}
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-40 z-[2]"
-          style={{ background: `linear-gradient(to bottom, transparent, ${BG})` }} />
-
-        {/* ── Content ──────────────────────────────────────────────────────── */}
-        <div data-hero-content className="relative z-[3] w-full max-w-5xl mx-auto text-center" style={{ paddingTop: "5rem", paddingBottom: "6rem" }}>
-
-          {/* Badge */}
-          <div
-            data-hero-badge
-            className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-[10px] font-bold tracking-[0.22em] mb-8"
-            style={{ borderColor: "rgba(201,168,85,0.22)", background: "rgba(201,168,85,0.06)", color: G }}>
-            <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: G }} />
-            MULTI-AGENT AI TRADING TERMINAL
-          </div>
-
-          {/* Headline — split-char animated */}
-          <h1
-            className="relative font-black leading-[0.95] tracking-tight mb-6 overflow-hidden"
-            style={{ fontSize: "clamp(4rem, 12.5vw, 9.5rem)" }}
-            aria-label="Trade With Intelligence."
-          >
-            <span data-hero-1 aria-hidden className="block">
-              <Chars text="TRADE WITH" />
-            </span>
-            <span data-hero-2 aria-hidden className="block" style={{ color: G }}>
-              <Chars text="INTELLIGENCE." />
-            </span>
-            {/* Cinematic light sweep — driven by GSAP after the reveal */}
-            <span
-              aria-hidden
-              data-hero-shine
-              className="pointer-events-none absolute inset-0 z-[1]"
-              style={{
-                background: "linear-gradient(115deg, transparent 40%, rgba(255,236,180,0.22) 50%, transparent 60%)",
-                mixBlendMode: "screen",
-                transform: "translateX(-130%)",
-              }}
-            />
+          <h1 className="mb-6 font-black leading-[0.98] tracking-tight"
+            style={{ fontSize: "clamp(2.6rem, 7.5vw, 5.2rem)" }}>
+            When the news moves gold,
+            <br />
+            <span style={{ color: G }}>you&rsquo;ll know first.</span>
           </h1>
 
-          <p data-hero-stat className="text-sm font-semibold mb-5 tracking-widest font-mono" style={{ color: `${G}88` }}>
-            ◆ SEVEN AGENTS · ONE MARKET READ ◆
+          <p className="mx-auto mb-9 max-w-2xl text-base leading-relaxed md:text-lg"
+            style={{ color: "rgba(255,255,255,0.5)" }}>
+            Trump posts, Fed decisions and macro headlines — scored for market impact and
+            pushed to your phone within minutes, with a seven-agent read on what it means
+            for XAU/USD.
           </p>
 
-          <p data-hero-sub className="text-base md:text-lg leading-relaxed mb-10 max-w-2xl mx-auto"
-            style={{ color: "rgba(255,255,255,0.45)" }}>
-            7 specialized AI agents. Real-time market direction. Hard risk gate. Candle
-            analysis, session intelligence, and a live market read — all in one terminal.
+          <Cta />
+
+          <p className="mt-6 text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>
+            Free to start · No card required · Works in any browser
           </p>
-
-          <div data-hero-cta className="flex flex-wrap items-center justify-center gap-4 mb-7">
-            <a
-              href={BUY_URL}
-              data-magnetic
-              className="inline-flex items-center gap-2 rounded-xl px-9 py-4 text-sm font-bold hero-cta-primary"
-              style={{ background: G, color: "#000", boxShadow: "0 0 48px rgba(201,168,85,0.32)" }}>
-              <Zap className="h-4 w-4" /> Get TradeX Pro
-            </a>
-            <a
-              href="#preview"
-              data-magnetic
-              className="inline-flex items-center gap-2 rounded-xl border px-9 py-4 text-sm font-semibold hero-cta-secondary"
-              style={{ borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.72)" }}>
-              See the terminal <ArrowRight className="h-4 w-4" />
-            </a>
-          </div>
-
-          <p data-hero-cta className="text-xs flex flex-wrap items-center justify-center gap-x-6 gap-y-2"
-            style={{ color: "rgba(255,255,255,0.24)" }}>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}66` }} /> Secure checkout via Gumroad</span>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}66` }} /> License key delivered instantly</span>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}66` }} /> Cancel anytime</span>
-          </p>
-        </div>
-
-        {/* Scroll indicator */}
-        <div data-hero-scroll className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[3] flex flex-col items-center gap-2">
-          <div className="w-px h-10 overflow-hidden" style={{ background: "rgba(201,168,85,0.15)" }}>
-            <div className="w-full h-1/2 animate-bounce" style={{ background: `linear-gradient(to bottom, ${G}, transparent)` }} />
-          </div>
-          <span className="text-[8px] tracking-[0.3em] uppercase font-bold" style={{ color: "rgba(201,168,85,0.35)" }}>scroll</span>
         </div>
       </section>
 
-      {/* ── Marquee ticker ───────────────────────────────────────────────────── */}
-      <div
-        className="overflow-hidden py-[14px]"
-        style={{ borderTop: "1px solid rgba(201,168,85,0.07)", borderBottom: "1px solid rgba(201,168,85,0.07)", background: "#080808" }}
-        aria-hidden
-      >
-        <div data-marquee className="flex whitespace-nowrap will-change-transform">
-          {[0, 1].map((g) => (
-            <div key={g} className="flex shrink-0 gap-0">
-              {[
-                "AI TRADING TERMINAL", "MARKET DIRECTION", "7 AI AGENTS",
-                "RISK GATE", "SESSION INTELLIGENCE", "CANDLE ANALYSIS",
-                "LIVE MARKET READS", "TRADING FLOOR", "CROSS-ASSET MATRIX",
-              ].map((label) => (
-                <span
-                  key={label}
-                  className="text-[10px] font-black tracking-[0.32em] uppercase px-7"
-                  style={{ color: "rgba(201,168,85,0.32)" }}
-                >
-                  {label} <span style={{ color: "rgba(201,168,85,0.18)", marginLeft: "1.5rem" }}>◆</span>
-                </span>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── MEET THE DESK — pinned film-credits scene ───────────────────── */}
-      <AgentCredits />
-
-      {/* ── Stats bar ─────────────────────────────────────────────────── */}
-      <div
-        data-stats-bar
-        className="relative overflow-hidden"
-        style={{ borderTop: "1px solid rgba(201,168,85,0.10)", borderBottom: "1px solid rgba(201,168,85,0.10)", background: S1 }}
-      >
-        <div className="pointer-events-none absolute inset-0 opacity-[0.025]"
-          style={{ backgroundImage: GRAIN, mixBlendMode: "overlay" }} />
-        <div className="max-w-5xl mx-auto px-5 py-12 grid grid-cols-2 md:grid-cols-4 gap-6">
+      {/* ── What makes it different ─────────────────────────────────────── */}
+      <section className="border-y px-5 py-16" style={{ borderColor: "rgba(255,255,255,0.06)", background: S1 }}>
+        <div className="mx-auto grid max-w-5xl gap-10 md:grid-cols-3">
           {[
-            { display: "7",      countTo: "7",    suffix: "",  label: "AI Agents" },
-            { display: "40+",    countTo: "40",   suffix: "+", label: "Markets Tracked" },
-            { display: "4",      countTo: "4",    suffix: "",  label: "Asset Classes" },
-            { display: "24/7",   countTo: "",     suffix: "",  label: "Live Data" },
-          ].map((s, i) => (
-            <div key={s.label} className="text-center relative"
-              style={{ borderRight: i < 3 ? "1px solid rgba(255,255,255,0.04)" : undefined }}>
-              <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full blur-2xl"
-                style={{ background: "rgba(201,168,85,0.07)" }} />
-              <p
-                data-count-to={s.countTo}
-                data-count-suffix={s.suffix}
-                className="relative text-5xl md:text-6xl font-black font-mono mb-1"
-                style={{ color: G }}
-              >
-                {s.display}
-              </p>
-              <p className="relative text-[11px] font-semibold tracking-[0.18em] uppercase" style={{ color: "rgba(255,255,255,0.3)" }}>
-                {s.label}
-              </p>
+            { k: "MINUTES, NOT HOURS", v: "A market-moving headline reaches your phone while the move is still forming — not in tomorrow's recap." },
+            { k: "SEVEN AGENTS, ONE READ", v: "Trend, price action, news, risk, execution and a contrarian check all argue it out. You get the conclusion and the disagreement." },
+            { k: "A TERMINAL, NOT A FEED", v: "Density over decoration. Everything that matters on one screen, the way a desk actually works." },
+          ].map(({ k, v }) => (
+            <div key={k}>
+              <p className="mb-2.5 text-[11px] font-bold tracking-[0.18em]" style={{ ...MONO, color: G }}>{k}</p>
+              <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.5)" }}>{v}</p>
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* ── Social proof ──────────────────────────────────────────────────── */}
-      <div
-        data-social-proof
-        style={{ background: "#0A0A0A", borderBottom: "1px solid rgba(255,255,255,0.03)" }}
-      >
-        <div className="max-w-5xl mx-auto px-5 py-5 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-          {[
-            { icon: <Star className="h-3.5 w-3.5 fill-current" style={{ color: G }} />,  text: "Every read logged & tracked to outcome" },
-            { icon: <Award className="h-3.5 w-3.5" style={{ color: G }} />,              text: "7-agent multi-model pipeline" },
-            { icon: <Lock className="h-3.5 w-3.5" style={{ color: G }} />,               text: "Secure checkout via Gumroad" },
-            { icon: <Smartphone className="h-3.5 w-3.5" style={{ color: G }} />,         text: "Available on Android" },
-          ].map(item => (
-            <div key={item.text} className="flex items-center gap-2 text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>
-              {item.icon} <span>{item.text}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Terminal Preview ──────────────────────────────────────────────── */}
-      <section id="preview" className="relative py-32 px-5 overflow-hidden" style={{ background: BG }}>
-        <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[400px] blur-3xl"
-          style={{ background: "radial-gradient(circle, rgba(201,168,85,0.05), transparent 70%)" }} />
-        <div className="max-w-6xl mx-auto relative">
-          <div data-section-head className="text-center mb-16">
-            <p className="text-[10px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: G }}>
-              Preview
-            </p>
-            <h2 className="font-black leading-[1.05] tracking-tight mb-4"
-              style={{ fontSize: "clamp(2.4rem, 6vw, 4.5rem)" }}>
-              See what you&apos;re getting
+      {/* ── See it ──────────────────────────────────────────────────────── */}
+      <section className="px-5 py-24" style={{ background: BG }}>
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-12 text-center">
+            <h2 className="mb-3 font-black tracking-tight" style={{ fontSize: "clamp(1.9rem, 4.5vw, 3rem)" }}>
+              The whole desk, on your phone.
             </h2>
-            <p className="text-base max-w-lg mx-auto" style={{ color: "rgba(255,255,255,0.38)" }}>
-              The actual interface — live prices, market reads, and agent agreement in one terminal.
+            <p className="mx-auto max-w-xl text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
+              Prices, catalysts, calendar, the agent read and your own P&amp;L — one screen, no tab-hopping.
             </p>
           </div>
-          <div data-preview>
-            <TerminalPreview />
-          </div>
+          <TerminalPreview />
         </div>
       </section>
 
-      {/* ── Features ──────────────────────────────────────────────────────── */}
-      <section id="features" className="relative py-32 px-5 overflow-hidden" style={{ background: S1 }}>
-
-        {/* Subtle mesh — desktop only, masked to the very edge */}
-        <div className="hidden lg:block">
-          <MeshWave side="right" opacity={0.16} />
-        </div>
-        <div className="hidden lg:block">
-          <MeshWave side="left"  opacity={0.10} />
-        </div>
-
-        {/* Strong edge masks — solid for 22%, then fade to transparent */}
-        <div className="pointer-events-none absolute inset-0 z-[1]"
-          style={{ background: `linear-gradient(to right, ${S1} 0%, ${S1} 22%, transparent 40%, transparent 60%, ${S1} 78%, ${S1} 100%)` }} />
-        <div className="pointer-events-none absolute inset-0 z-[1]"
-          style={{ background: `linear-gradient(to bottom, ${S1}cc 0%, transparent 10%, transparent 90%, ${S1}cc 100%)` }} />
-
-        <div className="max-w-5xl mx-auto relative z-[2]">
-
-          {/* ── Section header ── */}
-          <div data-section-head className="mb-20">
-            <p className="text-[10px] font-black tracking-[0.3em] uppercase mb-5" style={{ color: G }}>
-              Intelligence Suite
-            </p>
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-              <h2 className="font-black leading-[1.0] tracking-tight"
-                style={{ fontSize: "clamp(2.8rem, 7vw, 5.5rem)", maxWidth: "18ch" }}>
-                Everything you need to<br/>
-                <span style={{ color: G }}>trade with edge.</span>
-              </h2>
-              <p className="text-sm max-w-xs mb-1 shrink-0" style={{ color: "rgba(255,255,255,0.4)", lineHeight: 1.7 }}>
-                11 specialized tools powered by AI agents, real-time data, and hard trading rules.
-              </p>
-            </div>
-          </div>
-
-          {/* ── Numbered feature rows ── */}
-          <div className="space-y-0">
-            {FEATURES.map((f, idx) => (
-              <div
-                key={f.title}
-                data-feature-row
-                className="group relative grid grid-cols-[4rem_1fr_auto] md:grid-cols-[6rem_1fr_auto] items-center gap-5 md:gap-8 py-7 cursor-default"
-                style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", transition: "background 0.3s" }}
-              >
-                {/* Hover background line */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-300"
-                  style={{ background: "linear-gradient(to right, rgba(201,168,85,0.04), transparent 60%)" }} />
-
-                {/* Number — outline gold */}
-                <span
-                  className="font-black font-mono leading-none select-none transition-all duration-300 group-hover:opacity-100"
-                  style={{
-                    fontSize: "clamp(2rem, 5vw, 3.5rem)",
-                    WebkitTextStroke: `1px ${G}`,
-                    color: "transparent",
-                    opacity: 0.35,
-                  }}
-                >
-                  {String(idx + 1).padStart(2, "0")}
-                </span>
-
-                {/* Title + description */}
-                <div className="relative min-w-0">
-                  <h3
-                    className="font-black leading-tight mb-1 transition-colors duration-300 group-hover:text-white"
-                    style={{ fontSize: "clamp(1rem, 2.5vw, 1.25rem)", color: "rgba(255,255,255,0.82)" }}
-                  >
-                    {f.title}
-                  </h3>
-                  <p className="text-xs leading-relaxed hidden md:block" style={{ color: "rgba(255,255,255,0.36)" }}>
-                    {f.desc}
-                  </p>
-                </div>
-
-                {/* Icon */}
-                <div
-                  className={`inline-flex items-center justify-center w-11 h-11 md:w-12 md:h-12 rounded-xl border shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg ${f.color}`}
-                >
-                  {f.icon}
-                </div>
-
-                {/* Animated left border on hover */}
-                <div
-                  className="absolute left-0 top-0 bottom-0 w-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  style={{ background: `linear-gradient(to bottom, transparent, ${G}, transparent)` }}
-                />
-              </div>
-            ))}
-          </div>
-
-          {/* ── Free features footer ── */}
-          <div
-            data-card
-            className="mt-14 rounded-2xl p-7 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 relative overflow-hidden"
-            style={{ background: S2, border: "1px solid rgba(255,255,255,0.06)" }}
-          >
-            <div className="pointer-events-none absolute top-0 left-0 w-48 h-48 rounded-full blur-3xl"
-              style={{ background: "rgba(201,168,85,0.04)" }} />
-            <div className="relative">
-              <p className="text-[10px] font-black tracking-[0.22em] uppercase mb-4" style={{ color: "rgba(255,255,255,0.28)" }}>
-                Also included with Pro
-              </p>
-              <div className="flex flex-wrap gap-x-7 gap-y-2.5">
-                {[
-                  { icon: <Calendar className="h-3.5 w-3.5" />,        label: "Economic Calendar" },
-                  { icon: <Newspaper className="h-3.5 w-3.5" />,       label: "News Feed" },
-                  { icon: <Tv className="h-3.5 w-3.5" />,              label: "Live TV" },
-                  { icon: <BookOpen className="h-3.5 w-3.5" />,        label: "Knowledge Base" },
-                ].map(item => (
-                  <div key={item.label} className="flex items-center gap-2 text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>
-                    <span style={{ color: "rgba(255,255,255,0.22)" }}>{item.icon}</span> {item.label}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <a href={BUY_URL}
-              className="relative shrink-0 inline-flex items-center gap-2 rounded-xl border px-6 py-3 text-sm font-bold transition-colors hover:bg-white/5 whitespace-nowrap"
-              style={{ borderColor: "rgba(201,168,85,0.28)", color: G }}>
-              Get TradeX Pro <ArrowRight className="h-4 w-4" />
-            </a>
-          </div>
-
-        </div>
-      </section>
-
-      <section id="pricing" className="relative py-32 px-5 overflow-hidden" style={{ background: S1 }}>
-        <div className="max-w-5xl mx-auto">
-          <div data-section-head className="text-center mb-16">
-            <p className="text-[10px] font-black tracking-[0.28em] uppercase mb-4" style={{ color: G }}>
-              Pricing
-            </p>
-            <h2 className="font-black leading-[1.05] tracking-tight mb-4"
-              style={{ fontSize: "clamp(2.4rem, 6vw, 4.5rem)" }}>
-              Simple, transparent pricing
+      {/* ── Free vs Pro ─────────────────────────────────────────────────── */}
+      <section id="pricing" className="border-t px-5 py-24"
+        style={{ borderColor: "rgba(255,255,255,0.06)", background: S1 }}>
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-12 text-center">
+            <h2 className="mb-3 font-black tracking-tight" style={{ fontSize: "clamp(1.9rem, 4.5vw, 3rem)" }}>
+              Start free. Pay when it pays.
             </h2>
-            <p className="text-base" style={{ color: "rgba(255,255,255,0.38)" }}>
-              One plan. The full terminal.
+            <p className="mx-auto max-w-xl text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
+              The data is free, and it stays free. What costs money is the AI that reads it for you.
             </p>
           </div>
 
-          <div className="max-w-md mx-auto">
-
-            {/* Pro Monthly */}
-            <div
-              data-card
-              className="rounded-2xl p-8 relative flex flex-col"
-              style={{ background: "#0D0B07", border: "1px solid rgba(201,168,85,0.32)", boxShadow: "0 0 80px rgba(201,168,85,0.08)" }}
-            >
-              <div className="absolute -top-4 left-6">
-                <span className="rounded-full border px-3.5 py-1 text-[10px] font-black tracking-wider uppercase"
-                  style={{ borderColor: "rgba(201,168,85,0.38)", background: BG, color: G }}>
-                  Full Access
-                </span>
-              </div>
-              {/* Gold top edge accent */}
-              <div className="absolute top-0 left-8 right-8 h-px"
-                style={{ background: `linear-gradient(to right, transparent, ${G}66, transparent)` }} />
-
-              <p className="text-[10px] font-black tracking-[0.22em] uppercase mb-2" style={{ color: "rgba(201,168,85,0.5)" }}>
-                Pro plan
+          <div className="grid gap-5 md:grid-cols-2">
+            {/* Free */}
+            <div className="rounded-2xl border p-7" style={{ borderColor: "rgba(255,255,255,0.09)" }}>
+              <p className="mb-1 text-[11px] font-bold tracking-[0.18em]" style={{ ...MONO, color: "rgba(255,255,255,0.5)" }}>
+                FREE
               </p>
-              <h3 className="text-xl font-black mb-1">TradeX Pro</h3>
-              <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.4)" }}>Full access to the terminal</p>
-              <p className="font-black font-mono mb-1" style={{ fontSize: "clamp(3rem, 7vw, 4.5rem)", lineHeight: 1, color: G }}>
-                $19.99
-                <span className="text-sm font-normal ml-2" style={{ color: "rgba(255,255,255,0.32)" }}>/month</span>
-              </p>
-              <p className="text-xs mb-8" style={{ color: "rgba(255,255,255,0.26)" }}>Billed monthly · or $199/year (save $40) · Cancel anytime</p>
-              <ul className="space-y-2.5 mb-8 flex-1">
-                {PRO_FEATURES.map(f => (
-                  <li key={f.label} className="flex items-start gap-3 text-sm">
-                    <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" style={{ color: G }} />
-                    <span className={f.bold ? "text-white font-semibold" : ""} style={{ color: f.bold ? undefined : "rgba(255,255,255,0.52)" }}>
-                      {f.label}
-                    </span>
+              <p className="mb-6 text-3xl font-black">$0<span className="text-sm font-normal" style={{ color: "rgba(255,255,255,0.4)" }}> forever</span></p>
+              <ul className="space-y-3">
+                {FREE.map((f) => (
+                  <li key={f} className="flex gap-2.5 text-sm" style={{ color: "rgba(255,255,255,0.72)" }}>
+                    <Check className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "rgba(255,255,255,0.35)" }} />
+                    {f}
                   </li>
                 ))}
               </ul>
-              <a href={BUY_URL}
-                className="flex items-center justify-center gap-2 w-full rounded-xl py-4 text-sm font-black transition-all hover:brightness-110"
-                style={{ background: G, color: "#000" }}>
-                <Zap className="h-4 w-4" /> Get TradeX Pro
-              </a>
-              <p className="text-center text-[10px] mt-3" style={{ color: "rgba(255,255,255,0.22)" }}>Secure checkout via Gumroad · License key sent to your email</p>
-              <Link href="/pricing" className="block text-center text-xs mt-4 font-semibold hover:underline" style={{ color: G }}>
-                Already purchased on Gumroad? Activate your license →
-              </Link>
             </div>
 
+            {/* Pro */}
+            <div className="relative rounded-2xl border p-7"
+              style={{ borderColor: `${G}44`, background: `${G}08`, boxShadow: `0 0 60px ${G}12` }}>
+              <span className="absolute -top-2.5 left-7 rounded-full px-2.5 py-0.5 text-[9px] font-bold tracking-widest"
+                style={{ ...MONO, background: G, color: "#000" }}>
+                PRO
+              </span>
+              <p className="mb-1 mt-2 text-[11px] font-bold tracking-[0.18em]" style={{ ...MONO, color: G }}>
+                EVERYTHING IN FREE, PLUS
+              </p>
+              <p className="mb-6 text-3xl font-black" style={{ color: G }}>
+                {GUMROAD_MONTHLY_PRICE}
+                <span className="text-sm font-normal" style={{ color: "rgba(255,255,255,0.4)" }}> /month</span>
+              </p>
+              <ul className="mb-7 space-y-3">
+                {PRO.map((f) => (
+                  <li key={f} className="flex gap-2.5 text-sm" style={{ color: "rgba(255,255,255,0.85)" }}>
+                    <Zap className="mt-0.5 h-4 w-4 shrink-0" style={{ color: G }} />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Cta compact />
+              <p className="mt-4 flex items-center gap-1.5 text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
+                <Lock className="h-3 w-3" />
+                Cancel any time — in the Play Store or from Settings.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ── Bottom CTA ────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden py-36 px-5" style={{ background: BG }}>
-        <div className="pointer-events-none absolute inset-0"
-          style={{ backgroundImage: GRAIN, opacity: 0.035, mixBlendMode: "overlay" }} />
-        {/* Large radial glow */}
-        <div className="pointer-events-none absolute inset-0 flex items-end justify-center pb-0">
-          <div className="w-[900px] h-[500px] blur-3xl"
-            style={{ background: "radial-gradient(ellipse, rgba(201,168,85,0.09), transparent 70%)" }} />
-        </div>
-        {/* Horizontal accent lines */}
-        <div className="pointer-events-none absolute top-0 left-0 right-0 h-px"
-          style={{ background: `linear-gradient(to right, transparent, ${G}22, transparent)` }} />
-
-        <div data-cta-block className="relative max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-[10px] font-black tracking-[0.22em] uppercase mb-10"
-            style={{ borderColor: "rgba(201,168,85,0.2)", background: "rgba(201,168,85,0.06)", color: G }}>
-            <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: G }} />
-            Seven agents on the desk · 24/7
-          </div>
-
-          <Image src="/logo-transparent.png" alt="TradeX" width={64} height={64}
-            className="mx-auto mb-8"
-            style={{ filter: "drop-shadow(0 0 32px rgba(201,168,85,0.45))" }} />
-
-          {/* Split-char heading */}
-          <h2
-            className="font-black leading-[0.95] tracking-tight mb-5"
-            style={{ fontSize: "clamp(3rem, 9vw, 7rem)" }}
-            aria-label="Stop guessing. Start winning."
-          >
-            <span data-cta-1 aria-hidden className="block">
-              <Chars text="STOP GUESSING." />
-            </span>
-            <span data-cta-2 aria-hidden className="block" style={{ color: G }}>
-              <Chars text="START WINNING." />
-            </span>
+      {/* ── Close ───────────────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden px-5 py-28 text-center" style={{ background: BG }}>
+        <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 h-[300px] w-[700px] -translate-x-1/2 -translate-y-1/2"
+          style={{ background: `radial-gradient(ellipse at center, ${G}18 0%, transparent 70%)` }} />
+        <div className="relative mx-auto max-w-2xl">
+          <h2 className="mb-5 font-black leading-tight tracking-tight" style={{ fontSize: "clamp(1.9rem, 5vw, 3.2rem)" }}>
+            The next headline is already coming.
           </h2>
-
-          <p className="text-base mb-12 max-w-lg mx-auto leading-relaxed" style={{ color: "rgba(255,255,255,0.4)" }}>
-            One purchase. Seven agents reading Gold, Forex, Crypto, and Indices —
-            every session, in one terminal.
+          <p className="mb-9 text-sm md:text-base" style={{ color: "rgba(255,255,255,0.45)" }}>
+            Be on the right side of it.
           </p>
-
-          <div className="flex flex-wrap items-center justify-center gap-4 mb-8">
-            <a href={BUY_URL}
-              data-magnetic
-              className="inline-flex items-center gap-2 rounded-xl px-9 py-4 text-sm font-black hero-cta-primary"
-              style={{ background: G, color: "#000", boxShadow: "0 0 48px rgba(201,168,85,0.28)" }}>
-              <Zap className="h-4 w-4" /> Get TradeX Pro
-            </a>
-            <Link href="#pricing"
-              data-magnetic
-              className="inline-flex items-center gap-2 rounded-xl border px-9 py-4 text-sm font-bold hero-cta-secondary"
-              style={{ borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)" }}>
-              View Pricing
-            </Link>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-x-7 gap-y-2 text-xs" style={{ color: "rgba(255,255,255,0.24)" }}>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}55` }} /> Secure checkout via Gumroad</span>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}55` }} /> License key delivered instantly</span>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" style={{ color: `${G}55` }} /> Cancel anytime</span>
-          </div>
+          <Cta />
         </div>
       </section>
 
       {/* ── Footer ──────────────────────────────────────────────────────── */}
-      <footer style={{ borderTop: "1px solid rgba(201,168,85,0.07)" }} className="py-8 px-5">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Image src="/logo-transparent.png" alt="TradeX" width={20} height={20}
-              style={{ filter: "drop-shadow(0 0 5px rgba(201,168,85,0.3))" }} />
-            <span className="text-sm" style={{ color: "rgba(255,255,255,0.3)" }}>TradeX Terminal</span>
+      <footer className="border-t px-5 py-10" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 text-xs sm:flex-row"
+          style={{ color: "rgba(255,255,255,0.35)" }}>
+          <p>© {new Date().getFullYear()} TradeX Terminal</p>
+          <div className="flex flex-wrap items-center justify-center gap-5">
+            <Link href="/about" className="transition-colors hover:text-white">About</Link>
+            <Link href="/pricing" className="transition-colors hover:text-white">Pricing</Link>
+            <Link href="/privacy" className="transition-colors hover:text-white">Privacy</Link>
+            <Link href="/terms" className="transition-colors hover:text-white">Terms</Link>
+            <Link href="/refund" className="transition-colors hover:text-white">Refunds</Link>
+            <a href="mailto:tradex.edgefx@gmail.com" className="transition-colors hover:text-white">Contact</a>
           </div>
-          <div className="flex items-center gap-6 text-xs" style={{ color: "rgba(255,255,255,0.25)" }}>
-            <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
-            <Link href="/about" className="hover:text-white transition-colors">About</Link>
-            <Link href="/login" className="hover:text-white transition-colors">Login</Link>
-            <a href="mailto:tradex.edgefx@gmail.com" className="hover:text-white transition-colors">Contact</a>
-          </div>
-          <p className="text-xs" style={{ color: "rgba(255,255,255,0.15)" }}>© 2026 TradeX Terminal. All rights reserved.</p>
         </div>
       </footer>
-
     </div>
   );
 }
