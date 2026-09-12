@@ -1,0 +1,97 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { useEconomicCalendar } from "@/hooks/useMarketData";
+import { cn } from "@/lib/utils";
+
+const MONO = { fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" };
+
+/** "2h 15m", "45m", "12s" — the shape a trader scans for, not a date. */
+function countdown(msAway: number): string {
+  const total = Math.floor(msAway / 1000);
+  if (total <= 0) return "now";
+  const d = Math.floor(total / 86400);
+  const h = Math.floor((total % 86400) / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m`;
+  return `${total}s`;
+}
+
+/**
+ * The next releases, with how long until each one.
+ *
+ * A time on its own is not what a trader needs — the question is always "how
+ * long have I got". The countdown re-renders on its own clock so the row stays
+ * true without waiting for the next data refresh.
+ */
+export function EconCalendarWidget() {
+  const { events } = useEconomicCalendar();
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Sorted by when it actually happens. The API's own order is not
+  // chronological, and the formatted clock string cannot be sorted across
+  // midnight — which is why 22:00 was listing above 20:15.
+  const upcoming = events
+    .filter((e) => e.status !== "completed" && typeof e.utcTimestamp === "number")
+    .sort((a, b) => (a.utcTimestamp ?? 0) - (b.utcTimestamp ?? 0))
+    .slice(0, 5);
+
+  if (upcoming.length === 0) {
+    return (
+      <div className="rounded-[2px] border border-[#1E1E24] bg-[#141418] px-3 py-4">
+        <p className="text-[11px] text-[#6B6B7A] text-center">No releases scheduled</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-[2px] border border-[#1E1E24] bg-[#141418] divide-y divide-[#1E1E24]">
+      {upcoming.map((e) => {
+        const away = (e.utcTimestamp ?? 0) - now;
+        const imminent = away <= 30 * 60 * 1000;   // inside half an hour
+        const soon     = away <= 2 * 60 * 60 * 1000;
+
+        return (
+          <div key={e.id} className="flex items-center gap-3 px-3 py-2.5">
+            <div className="w-[52px] shrink-0">
+              <p className="text-[11px] text-zinc-300 leading-none" style={MONO}>{e.time}</p>
+              <p
+                className={cn(
+                  "text-[9px] leading-none mt-1",
+                  imminent ? "text-red-400" : soon ? "t-accent" : "text-[#6B6B7A]"
+                )}
+                style={MONO}
+              >
+                {countdown(away)}
+              </p>
+            </div>
+
+            <span className="text-[10px] font-bold t-accent w-[28px] shrink-0" style={MONO}>
+              {e.currency}
+            </span>
+
+            <p className="flex-1 min-w-0 text-[11px] text-zinc-300 truncate">{e.event}</p>
+
+            <span
+              className={cn(
+                "shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded-[2px] uppercase",
+                e.impact === "high"   ? "bg-red-500/15 text-red-400" :
+                e.impact === "medium" ? "bg-t-accent-15 t-accent" :
+                                        "bg-zinc-500/15 text-zinc-400"
+              )}
+            >
+              {e.impact}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

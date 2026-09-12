@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { useQuotes, useMarketBias, useKeyLevels, useCatalysts, useMarketAnalysis, useAgentResult, useSessions, useMTFBias, useTrumpPosts, useLastSignal, useEconomicCalendar } from "@/hooks/useMarketData";
+import { useQuotes, useMarketBias, useKeyLevels, useCatalysts, useMarketAnalysis, useAgentResult, useSessions, useMTFBias, useTrumpPosts, useLastSignal } from "@/hooks/useMarketData";
 import { useWebSocketPrices } from "@/hooks/useWebSocketPrices";
 import { TrendingUp, TrendingDown, Minus, Target, Zap, RefreshCw, Sparkles, ChevronDown, ChevronUp, Brain, BarChart2, Settings2, Lock } from "lucide-react";
 import { TerminalSectionHeader, TerminalBadge, TerminalDataRow, SegmentedBar } from "@/components/shared/TerminalUI";
 import { cn } from "@/lib/utils";
+import { EconCalendarWidget } from "@/components/mobile/EconCalendarWidget";
 import { DetailModal } from "@/components/shared/DetailModal";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { mutate } from "swr";
@@ -25,7 +26,6 @@ import dynamic from "next/dynamic";
 const GlobeClient = dynamic(() => import("@/components/globe/GlobeClient"), { ssr: false });
 import { InstitutionalConfluence } from "@/components/shared/InstitutionalConfluence";
 import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
-import { AgentReadDisclaimer } from "@/components/shared/AgentReadDisclaimer";
 import { signalStateLabel } from "@/components/shared/agent-read-labels";
 import { CloseTradeModal } from "@/components/shared/CloseTradeModal";
 import { loadTradeLog, findOpenBySetup, discardTrade, type TakenSignal } from "@/lib/trades/trade-log";
@@ -275,7 +275,6 @@ export function MobileHome() {
   const { narrative, sentiment, generateFresh } = useMarketAnalysis();
   const { result: agentData, isLoading: agentLoading, error: agentError, refresh: refreshAgent } = useAgentResult(activeSymbol, "H1", 300_000, isPro);
   const { sessions } = useSessions();
-  const { events: econEvents } = useEconomicCalendar();
   const { mtfData, mtfLoading } = useMTFBias(activeSymbol);
   const { posts: trumpPosts } = useTrumpPosts(120_000, isPro);
   const { recent: recentSignals } = useLastSignal(activeSymbol);
@@ -1025,53 +1024,13 @@ export function MobileHome() {
                 </section>
               ) : null;
 
-            case "econ_calendar": {
-              // Only what has not happened yet, highest impact first — the
-              // calendar page is there for the full grid.
-              const upcoming = econEvents
-                .filter((e) => e.status !== "completed")
-                .slice(0, 4);
+            case "econ_calendar":
               return (
                 <section key="econ_calendar">
                   <TerminalSectionHeader label="ECONOMIC CALENDAR" />
-                  {upcoming.length === 0 ? (
-                    <div className="rounded-[2px] border border-[#1E1E24] bg-[#141418] px-3 py-4">
-                      <p className="text-[11px] text-[#6B6B7A] text-center">
-                        No releases scheduled
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="rounded-[2px] border border-[#1E1E24] bg-[#141418] divide-y divide-[#1E1E24]">
-                      {upcoming.map((e) => (
-                        <div key={e.id} className="flex items-center gap-3 px-3 py-2.5">
-                          <span
-                            className="text-[10px] text-[#6B6B7A] w-[42px] shrink-0"
-                            style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}
-                          >
-                            {e.time}
-                          </span>
-                          <span
-                            className="text-[10px] font-bold t-accent w-[28px] shrink-0"
-                            style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}
-                          >
-                            {e.currency}
-                          </span>
-                          <p className="flex-1 min-w-0 text-[11px] text-zinc-300 truncate">{e.event}</p>
-                          <span className={cn(
-                            "shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded-[2px] uppercase",
-                            e.impact === "high"   ? "bg-red-500/15 text-red-400" :
-                            e.impact === "medium" ? "bg-t-accent-15 t-accent" :
-                                                    "bg-zinc-500/15 text-zinc-400"
-                          )}>
-                            {e.impact}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <EconCalendarWidget />
                 </section>
               );
-            }
 
             case "trump_feed":
               return (
@@ -1188,7 +1147,6 @@ export function MobileHome() {
           }
         })}
 
-        <AgentReadDisclaimer className="px-1 pb-2" />
       </div>
 
       {/* Bias Detail Modal */}
