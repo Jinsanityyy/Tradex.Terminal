@@ -12,6 +12,7 @@ import { MobileFeed } from "@/components/mobile/MobileFeed";
 import { MobileBrain } from "@/components/mobile/MobileBrain";
 import { MobileFeatureGate } from "@/components/mobile/MobileFeatureGate";
 import { MobileMore } from "@/components/mobile/MobileMore";
+import { ProAvatar } from "@/components/shared/ProAvatar";
 import { useProPricing } from "@/hooks/useProPricing";
 import { startProCheckout } from "@/lib/billing/checkout";
 import { createClient } from "@/lib/supabase/client";
@@ -343,15 +344,13 @@ export function MobileLayout() {
           </div>
           {/* Profile button */}
           <button onClick={() => { setShowProfile(true); setDraft(traderName); setEditing(false); }}
-            className="flex items-center justify-center w-7 h-7 rounded-[2px] overflow-hidden border border-[#1E1E24]">
-            {avatar
-              ? <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
-              : <div className="w-full h-full bg-[#141418] flex items-center justify-center">
-                  <span className="text-[10px] font-bold" style={{ color: "hsl(var(--primary))" }}>
-                    {(traderName || "T")[0].toUpperCase()}
-                  </span>
-                </div>
-            }
+            className="flex items-center justify-center">
+            <ProAvatar
+              src={avatar}
+              fallback={(traderName || "T")[0].toUpperCase()}
+              isPro={subscription.isPro}
+              size={30}
+            />
           </button>
         </div>
       </div>
@@ -371,19 +370,17 @@ export function MobileLayout() {
 
             {/* Avatar */}
             <div className="flex items-center gap-4 mb-5">
-              <button onClick={() => fileRef.current?.click()}
-                className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white/10">
-                {avatar
-                  ? <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
-                  : <div className="w-full h-full bg-[hsl(var(--secondary))] flex items-center justify-center">
-                      <span className="text-2xl font-bold text-[hsl(var(--primary))]">
-                        {(traderName || "T")[0].toUpperCase()}
-                      </span>
-                    </div>
-                }
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                  <Camera className="h-4 w-4 text-white" />
-                </div>
+              <button onClick={() => fileRef.current?.click()} className="relative">
+                <ProAvatar
+                  src={avatar}
+                  fallback={(traderName || "T")[0].toUpperCase()}
+                  isPro={subscription.isPro}
+                  size={72}
+                >
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                    <Camera className="h-4 w-4 text-white" />
+                  </div>
+                </ProAvatar>
               </button>
               <div>
                 <p className="text-[13px] font-semibold text-white">{traderName || "Set your name"}</p>

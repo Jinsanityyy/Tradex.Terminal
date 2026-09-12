@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { MobileBrain } from "@/components/mobile/MobileBrain";
 import { MobileFeatureGate } from "@/components/mobile/MobileFeatureGate";
+import { ProAvatar } from "@/components/shared/ProAvatar";
 import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelectorSheet";
 import { TradingKnowledgeContent } from "@/components/shared/TradingKnowledgeSidebar";
 import { CandleAnalysis } from "@/components/shared/CandleAnalysis";
@@ -680,17 +681,13 @@ export function MobileMore() {
         >
           <div className="flex items-center min-h-[48px]">
             {/* Avatar — 48×48 tap zone, 32×32 visual */}
-            <div className="shrink-0 flex items-center justify-center w-[44px] h-[48px] -ml-2 mr-1">
-              <div className="w-8 h-8 rounded-full overflow-hidden border border-white/[0.08] bg-zinc-900">
-                {avatar
-                  ? <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
-                  : <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-[13px] font-bold t-accent">
-                        {(traderName || "T")[0].toUpperCase()}
-                      </span>
-                    </div>
-                }
-              </div>
+            <div className="shrink-0 flex items-center justify-center w-[48px] h-[48px] -ml-2 mr-1">
+              <ProAvatar
+                src={avatar}
+                fallback={(traderName || "T")[0].toUpperCase()}
+                isPro={subscription.isPro}
+                size={40}
+              />
             </div>
 
             {/* Name + tier */}
