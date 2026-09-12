@@ -86,6 +86,17 @@ async function fetchFromTruthSocial(): Promise<CnnPost[]> {
 
 export async function GET(req: Request) {
   if (!authorized(req)) return jsonRes({ error: "Unauthorized" }, 401);
+  try {
+    return await sync();
+  } catch (err) {
+    // An uncaught throw here becomes an opaque 500 in the scheduler's email,
+    // which says a run failed but never why. Name the cause instead.
+    console.error("[cnn-sync] unhandled:", err);
+    return jsonRes({ error: "Sync threw", detail: String(err) }, 500);
+  }
+}
+
+async function sync() {
 
   const sb = getServiceClient();
   if (!sb) {
@@ -175,11 +186,16 @@ export async function GET(req: Request) {
   let alerted = 0;
   for (const p of newPosts) {
     if (alerted >= 3) break;
-    const impactScore = deriveImpactScore(p.content);
-    if (impactScore < 7) continue;
-    const { category } = classifyPost(p.content);
-    alerted++;
-    void notifyTrumpPost({ content: p.content, category, impactScore, postId: p.id }).catch(() => {});
+    try {
+      const impactScore = deriveImpactScore(p.content);
+      if (impactScore < 7) continue;
+      const { category } = classifyPost(p.content);
+      alerted++;
+      void notifyTrumpPost({ content: p.content, category, impactScore, postId: p.id }).catch(() => {});
+    } catch (err) {
+      // Scoring one post is not worth failing a sync that already inserted.
+      console.error("[cnn-sync] scoring failed for", p.id, err);
+    }
   }
 
   return jsonRes({ inserted: newPosts.length, ids: newPosts.map(p => p.id), pushed: alerted, source });
