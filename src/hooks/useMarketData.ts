@@ -86,13 +86,16 @@ export function useEconomicCalendar(refreshInterval = 300_000) {
 }
 
 // ── Trump Posts ─────────────────────────────────────────
-export function useTrumpPosts(refreshInterval = 120_000) {
+// `enabled` for the same reason as useAgentResult: /api/market/trump is
+// Pro-only, so a free account polled it for a 403 and rendered the empty result
+// as "No posts matching this filter" — a lock reading as a dead feed.
+export function useTrumpPosts(refreshInterval = 120_000, enabled = true) {
   const { data, error, isLoading } = useSWR<{
     data: TrumpPost[];
     timestamp: number;
     feedSource?: string;
     sources?: string[];
-  }>("/api/market/trump", fetcher, {
+  }>(enabled ? "/api/market/trump" : null, fetcher, {
     refreshInterval,
     revalidateOnFocus: false,
     dedupingInterval: 60_000,

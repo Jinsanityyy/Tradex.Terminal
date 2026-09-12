@@ -197,6 +197,29 @@ function PriceCard({ symbol, price, change, isActive }: { symbol: string; price:
 
 const DEFAULT_ASSETS = ["XAUUSD", "BTCUSD", "EURUSD", "USDJPY", "USOIL", "GBPUSD"];
 
+/**
+ * What a Pro block looks like to a free account.
+ *
+ * These blocks used to render their own failure — "Analysis unavailable",
+ * "No posts matching this filter", "sources offline" — because the widget ran
+ * and its Pro-only endpoint returned 403. A locked feature that looks broken
+ * costs a sale twice: it does not sell Pro, and it makes the app look faulty.
+ */
+function ProTeaser({ label }: { label: string }) {
+  return (
+    <button
+      onClick={() => window.dispatchEvent(new CustomEvent("tradex:open-brain"))}
+      className="flex w-full flex-col items-center justify-center gap-2 rounded-[2px] border border-[hsl(142,71%,45%)]/20 bg-[hsl(142,71%,45%)]/[0.03] py-8 active:opacity-70"
+    >
+      <Lock className="h-4 w-4 text-[hsl(142,71%,45%)]" />
+      <p className="text-[11px] text-zinc-400">{label}</p>
+      <span className="text-[10px] font-semibold text-[hsl(142,71%,45%)]">
+        See what it unlocks
+      </span>
+    </button>
+  );
+}
+
 export function MobileHome() {
   const { settings } = useSettings();
   const activeSymbol = isAgentSupported(settings.selectedSymbol ?? "XAUUSD")
@@ -239,7 +262,7 @@ export function MobileHome() {
   const { result: agentData, isLoading: agentLoading, error: agentError, refresh: refreshAgent } = useAgentResult(activeSymbol, "H1", 300_000, isPro);
   const { sessions } = useSessions();
   const { mtfData, mtfLoading } = useMTFBias(activeSymbol);
-  const { posts: trumpPosts } = useTrumpPosts();
+  const { posts: trumpPosts } = useTrumpPosts(120_000, isPro);
   const { recent: recentSignals } = useLastSignal(activeSymbol);
   const [generating, setGenerating] = useState(false);
   const [selectedCatalyst, setSelectedCatalyst] = useState<Catalyst | null>(null);
@@ -985,7 +1008,9 @@ export function MobileHome() {
               return (
                 <section key="trump_feed">
                   <TerminalSectionHeader label="TRUMP IMPACT" />
-                  <TrumpFeedPanel posts={trumpPosts} compact />
+                  {isPro
+                    ? <TrumpFeedPanel posts={trumpPosts} compact />
+                    : <ProTeaser label="Trump alerts within minutes are part of Pro" />}
                 </section>
               );
 
@@ -1031,18 +1056,7 @@ export function MobileHome() {
                     <div className="flex-1 h-px bg-[#1E1E24]" />
                   </div>
                   {!isPro ? (
-                    <button
-                      onClick={() => window.dispatchEvent(new CustomEvent("tradex:open-brain"))}
-                      className="flex w-full flex-col items-center justify-center gap-2 rounded-[2px] border border-[hsl(142,71%,45%)]/20 bg-[hsl(142,71%,45%)]/[0.03] py-8 active:opacity-70"
-                    >
-                      <Lock className="h-4 w-4 text-[hsl(142,71%,45%)]" />
-                      <p className="text-[11px] text-zinc-400">
-                        The 7-agent read is part of Pro
-                      </p>
-                      <span className="text-[10px] font-semibold text-[hsl(142,71%,45%)]">
-                        See what it unlocks
-                      </span>
-                    </button>
+                    <ProTeaser label="The 7-agent read is part of Pro" />
                   ) : agentError && !agentData ? (
                     <div className="flex flex-col items-center justify-center py-10 gap-2">
                       <p className="text-[11px] text-zinc-500">Analysis unavailable</p>
@@ -1094,7 +1108,9 @@ export function MobileHome() {
             case "institutional":
               return (
                 <section key="institutional">
-                  <InstitutionalConfluence />
+                  {isPro
+                    ? <InstitutionalConfluence />
+                    : <ProTeaser label="Institutional positioning is part of Pro" />}
                 </section>
               );
 
