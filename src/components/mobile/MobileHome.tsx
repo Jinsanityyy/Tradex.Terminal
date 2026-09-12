@@ -335,10 +335,23 @@ export function MobileHome() {
   useEffect(() => {
     if (!liveEntry || !liveStopLoss || !liveTp1) return;
     try {
+      const prev = JSON.parse(localStorage.getItem(lastSetupKey) ?? "null");
+      // savedAt is when this setup FIRST appeared, not when we last wrote it.
+      // The effect also runs on mount, so re-stamping unconditionally made a
+      // months-old plan — still sitting in the cached agent result — read as
+      // minutes old. A stale entry labelled fresh is the one thing a setup card
+      // must never do.
+      const unchanged =
+        prev &&
+        prev.entry === liveEntry &&
+        prev.stopLoss === liveStopLoss &&
+        prev.tp1 === liveTp1 &&
+        prev.direction === liveDirection;
+
       localStorage.setItem(lastSetupKey, JSON.stringify({
         entry: liveEntry, stopLoss: liveStopLoss, tp1: liveTp1,
         rrRatio: liveRrRatio, direction: liveDirection, trigger: liveTrigger,
-        savedAt: Date.now(),
+        savedAt: unchanged && typeof prev.savedAt === "number" ? prev.savedAt : Date.now(),
       }));
     } catch {}
   }, [liveEntry, liveStopLoss, liveTp1, liveRrRatio, liveDirection, liveTrigger, lastSetupKey]);
@@ -346,6 +359,20 @@ export function MobileHome() {
   const cachedSetup = (() => {
     try { return JSON.parse(localStorage.getItem(lastSetupKey) ?? "null"); } catch { return null; }
   })();
+
+  // Use liveQuotes (same source as ticker) for consistency — avoids stale WS reads
+  const livePrice: number | null = liveQuotes.find(q => q.symbol === activeSymbol)?.price ?? null;
+
+  /**
+   * A setup priced in a market that no longer exists is not a "last setup" —
+   * it is noise, and showing it next to a live price invites someone to act on
+   * it. Gold sat at 3310 when one of these was written; it trades near 4348
+   * now. Anything that far from spot is dropped rather than displayed.
+   */
+  function isNearSpot(setupEntry: unknown): boolean {
+    if (typeof setupEntry !== "number" || !livePrice) return false;
+    return Math.abs(setupEntry - livePrice) / livePrice <= 0.05;
+  }
 
   // Open trade for active symbol
   const openTrade = tradeLog.find(t => t.status === "open" && t.symbol === activeSymbol);
@@ -368,15 +395,15 @@ export function MobileHome() {
       }
     : null;
 
-  const entry     = liveEntry    ?? dbSetup?.entry    ?? cachedSetup?.entry    ?? recentTrade?.entry    ?? null;
-  const stopLoss  = liveStopLoss ?? dbSetup?.stopLoss ?? cachedSetup?.stopLoss ?? recentTrade?.stopLoss ?? null;
-  const tp1       = liveTp1      ?? dbSetup?.tp1      ?? cachedSetup?.tp1      ?? recentTrade?.tp1      ?? null;
-  const rrRatio   = liveRrRatio  ?? dbSetup?.rrRatio  ?? cachedSetup?.rrRatio  ?? recentTrade?.rrRatio  ?? null;
-  const direction = liveDirection ?? dbSetup?.direction ?? cachedSetup?.direction ?? (recentTrade ? (recentTrade.direction === "BUY" ? "long" : "short") : null);
-  const trigger   = liveTrigger  ?? cachedSetup?.trigger  ?? null;
+  const usableDb     = dbSetup     && isNearSpot(dbSetup.entry)     ? dbSetup     : null;
+  const usableCached = cachedSetup && isNearSpot(cachedSetup.entry) ? cachedSetup : null;
 
-  // Use liveQuotes (same source as ticker) for consistency — avoids stale WS reads
-  const livePrice: number | null = liveQuotes.find(q => q.symbol === activeSymbol)?.price ?? null;
+  const entry     = liveEntry    ?? usableDb?.entry    ?? usableCached?.entry    ?? recentTrade?.entry    ?? null;
+  const stopLoss  = liveStopLoss ?? usableDb?.stopLoss ?? usableCached?.stopLoss ?? recentTrade?.stopLoss ?? null;
+  const tp1       = liveTp1      ?? usableDb?.tp1      ?? usableCached?.tp1      ?? recentTrade?.tp1      ?? null;
+  const rrRatio   = liveRrRatio  ?? usableDb?.rrRatio  ?? usableCached?.rrRatio  ?? recentTrade?.rrRatio  ?? null;
+  const direction = liveDirection ?? usableDb?.direction ?? usableCached?.direction ?? (recentTrade ? (recentTrade.direction === "BUY" ? "long" : "short") : null);
+  const trigger   = liveTrigger  ?? cachedSetup?.trigger  ?? null;
 
   // Match the DISPLAYED setup to its own tracked signal record (any status) so
   // the card always carries THIS setup's state — tracking, TP/SL hit, expired —
@@ -401,10 +428,10 @@ export function MobileHome() {
   // timestamp reads as current and gets confused with the fresh WAIT/NO_TRADE reason.
   const lastSetupAge: string | null = (() => {
     if (liveEntry) return null; // live setup — not stale
-    const ts: number | null = dbSetup
-      ? dbSetup.savedAt
-      : typeof cachedSetup?.savedAt === "number"
-      ? cachedSetup.savedAt
+    const ts: number | null = usableDb
+      ? usableDb.savedAt
+      : typeof usableCached?.savedAt === "number"
+      ? usableCached.savedAt
       : recentTrade ? new Date(recentTrade.takenAt).getTime() : null;
     if (!ts) return null;
     const m = Math.floor((Date.now() - ts) / 60000);
