@@ -198,6 +198,21 @@ function PriceCard({ symbol, price, change, isActive }: { symbol: string; price:
 const DEFAULT_ASSETS = ["XAUUSD", "BTCUSD", "EURUSD", "USDJPY", "USOIL", "GBPUSD"];
 
 /**
+ * Widgets with no free data behind them. Every one reads a Pro-only endpoint
+ * and has nothing to show without a plan, so a free account is not given the
+ * empty shell. Trump Impact, the agent read and Institutional Confluence are
+ * deliberately not in here — those are what Pro sells, so they stay visible as
+ * teasers.
+ */
+const PRO_ONLY_WIDGETS = new Set([
+  "entry_strip",   // entry / stop / target from the agent run
+  "asset_bias",    // technical bias
+  "mtf_bias",      // multi-timeframe bias
+  "key_levels",    // key levels
+  "ai_analysis",   // the written market read
+]);
+
+/**
  * What a Pro block looks like to a free account.
  *
  * These blocks used to render their own failure — "Analysis unavailable",
@@ -602,7 +617,7 @@ export function MobileHome() {
           );
         })()}
 
-        {widgetConfig.filter((w: WidgetConfig) => w.visible).map((w: WidgetConfig) => {
+        {widgetConfig.filter((w: WidgetConfig) => w.visible && (isPro || !PRO_ONLY_WIDGETS.has(w.id))).map((w: WidgetConfig) => {
           switch (w.id) {
             case "signal_session":
               return (
@@ -614,28 +629,34 @@ export function MobileHome() {
                       Market Read
                     </p>
                     <div className="mb-1">
-                      <TerminalBadge
-                        label={signalStateLabel(effectiveSignalState).toUpperCase()}
-                        variant={
-                          effectiveSignalState === "ARMED" ? "armed" :
-                          effectiveSignalState === "PENDING" ? "pending" :
-                          "no-trade"
-                        }
-                      />
+                      {isPro ? (
+                        <TerminalBadge
+                          label={signalStateLabel(effectiveSignalState).toUpperCase()}
+                          variant={
+                            effectiveSignalState === "ARMED" ? "armed" :
+                            effectiveSignalState === "PENDING" ? "pending" :
+                            "no-trade"
+                          }
+                        />
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[hsl(142,71%,45%)]">
+                          <Lock className="h-3 w-3" /> PRO
+                        </span>
+                      )}
                     </div>
-                    {direction && direction.toLowerCase() !== "none" && effectiveSignalState !== "NO_TRADE" && (
+                    {isPro && direction && direction.toLowerCase() !== "none" && effectiveSignalState !== "NO_TRADE" && (
                       <p className="text-[9px] text-[#6B6B7A] mt-1 truncate"
                         style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>
                         {direction === "long" ? "BULLISH" : "BEARISH"} · {trigger && trigger.toLowerCase() !== "none" ? trigger : "—"}
                       </p>
                     )}
-                    {signalState === "NO_TRADE" && (master?.noTradeReason ?? exec?.signalStateReason) && (
+                    {isPro && signalState === "NO_TRADE" && (master?.noTradeReason ?? exec?.signalStateReason) && (
                       <p className="text-[9px] text-[#6B6B7A] mt-1 leading-tight line-clamp-3"
                         style={{ fontFamily: "var(--font-dm-sans),system-ui,sans-serif" }}>
                         {master?.noTradeReason ?? exec?.signalStateReason}
                       </p>
                     )}
-                    {signalState !== "NO_TRADE" &&
+                    {isPro && signalState !== "NO_TRADE" &&
                       (effectiveSignalState === "WAIT" || effectiveSignalState === "EXPIRED") &&
                       exec?.signalStateReason && (
                       <p className="text-[9px] text-[#6B6B7A] mt-1 leading-tight line-clamp-3"
