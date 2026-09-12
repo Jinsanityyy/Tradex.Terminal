@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { LayoutDashboard, TrendingUp, Zap, BarChart3, Menu, Camera, LogOut, X, Crown } from "lucide-react";
+import { Menu, Camera, LogOut, X, Crown } from "lucide-react";
 import { PLANS } from "@/lib/plans";
 import { useSubscription } from "@/hooks/useSubscription";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
@@ -13,6 +13,7 @@ import { MobileBrain } from "@/components/mobile/MobileBrain";
 import { MobileFeatureGate } from "@/components/mobile/MobileFeatureGate";
 import { MobileMore } from "@/components/mobile/MobileMore";
 import { ProAvatar } from "@/components/shared/ProAvatar";
+import { HomeIcon, ChartIcon, FeedIcon, BrainIcon } from "@/components/mobile/NavIcons";
 import { useProPricing } from "@/hooks/useProPricing";
 import { startProCheckout } from "@/lib/billing/checkout";
 import { createClient } from "@/lib/supabase/client";
@@ -24,10 +25,10 @@ import { TrialExpiryBanner } from "@/components/shared/TrialExpiryBanner";
 const TRADER_NAME_KEY = "tradex_trader_name";
 
 const TABS = [
-  { id: "home",      label: "Home",  Icon: LayoutDashboard },
-  { id: "chart",     label: "Chart", Icon: TrendingUp },
-  { id: "feed",      label: "Feed",  Icon: Zap },
-  { id: "brain",     label: "Brain", Icon: BarChart3 },
+  { id: "home",      label: "Home",  Icon: HomeIcon },
+  { id: "chart",     label: "Chart", Icon: ChartIcon },
+  { id: "feed",      label: "Feed",  Icon: FeedIcon },
+  { id: "brain",     label: "Brain", Icon: BrainIcon },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -522,51 +523,54 @@ export function MobileLayout() {
           paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
         }}
       >
-        <div className="grid grid-cols-4">
+        <div className="grid grid-cols-4 px-2 pt-2">
           {TABS.map(({ id, label, Icon }) => {
             const isActive = active === id;
             const showBadge = id === "feed" && unreadFeed > 0 && active !== "feed";
-            const badgeCount = unreadFeed;
             return (
-              <button key={id} onClick={() => {
-                switchTab(id);
-                if (id === "feed") setUnreadFeed(0);
-              }}
-                className="flex flex-col items-center justify-center gap-0.5 py-3 transition-colors relative">
-                <div className="relative">
+              <button
+                key={id}
+                aria-label={label}
+                aria-current={isActive ? "page" : undefined}
+                onClick={() => {
+                  switchTab(id);
+                  if (id === "feed") setUnreadFeed(0);
+                }}
+                className="flex items-center justify-center py-1.5"
+              >
+                {/* The lozenge carries the active state, so the icon never has
+                    to shout. Labels are gone: four tabs is under the number a
+                    person has to read. */}
+                <span
+                  className="relative flex items-center justify-center w-14 h-9 rounded-[12px] transition-colors duration-150"
+                  style={{
+                    backgroundColor: isActive
+                      ? "color-mix(in srgb, var(--t-accent, hsl(var(--primary))) 14%, transparent)"
+                      : "transparent",
+                  }}
+                >
                   <Icon
-                    className="w-5 h-5 transition-colors"
-                    strokeWidth={1.5}
-                    style={{ color: isActive ? "var(--t-text)" : "var(--t-muted)" }}
+                    className="w-[22px] h-[22px] transition-colors duration-150"
+                    style={{
+                      color: isActive
+                        ? "var(--t-accent, hsl(var(--primary)))"
+                        : "var(--t-muted)",
+                    } as React.CSSProperties}
                   />
                   {showBadge && (
                     <span
-                      className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] text-[8px] font-bold text-white flex items-center justify-center px-0.5"
+                      className="absolute top-0.5 right-2 min-w-[16px] h-[16px] rounded-full text-[9px] font-bold text-white flex items-center justify-center px-1 ring-2"
                       style={{
-                        borderRadius: "var(--t-badge-radius, 2px)",
                         backgroundColor: "var(--t-bearish, #FF3D3D)",
+                        // Cut the badge out of the bar rather than letting it
+                        // sit on top of the icon.
+                        ["--tw-ring-color" as string]: "var(--t-card)",
                       }}
                     >
-                      {badgeCount > 9 ? "9+" : badgeCount}
+                      {unreadFeed > 9 ? "9+" : unreadFeed}
                     </span>
                   )}
-                </div>
-                <span
-                  className="text-[9px] tracking-wide transition-colors"
-                  style={{
-                    fontFamily: "var(--t-font-label, var(--font-geist-sans), system-ui, sans-serif)",
-                    color: isActive ? "var(--t-text)" : "var(--t-muted)",
-                    fontWeight: isActive ? "600" : "400",
-                  }}
-                >
-                  {label}
                 </span>
-                {isActive && (
-                  <div
-                    className="absolute bottom-0 w-6 h-0.5"
-                    style={{ backgroundColor: "var(--t-accent, hsl(var(--primary)))" }}
-                  />
-                )}
               </button>
             );
           })}
