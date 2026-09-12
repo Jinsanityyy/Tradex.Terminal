@@ -29,6 +29,9 @@ const ENTITLEMENT_EXEMPT = [
   "/dashboard/pnl-calendar",     // their own trades and P&L
   "/dashboard/economic-calendar",
   "/dashboard/news-flow",
+  "/dashboard/asset-matrix",        // live quotes, already free
+  "/dashboard/session-intelligence",
+  "/dashboard/catalysts",           // public macro news, not the edge
   "/dashboard/learn",
   "/dashboard/live-tv",
 ];

@@ -43,11 +43,11 @@ interface AppDef {
 
 const ALL_APPS: AppDef[] = [
   { id: "market-bias",          label: "Market Direction",  icon: TrendingUp,    component: MarketBiasPage,            proOnly: true  },
-  { id: "asset-matrix",         label: "Cross-Asset",       icon: LayoutGrid,    component: AssetMatrixPage,           proOnly: true  },
-  { id: "session-intelligence", label: "Trading Sessions",  icon: Clock,         component: SessionIntelPage,          proOnly: true  },
+  { id: "asset-matrix",         label: "Cross-Asset",       icon: LayoutGrid,    component: AssetMatrixPage                           },
+  { id: "session-intelligence", label: "Trading Sessions",  icon: Clock,         component: SessionIntelPage                          },
   { id: "market-intelligence",  label: "Insights",          icon: Brain,         component: MarketIntelPage,           proOnly: true  },
   { id: "signals",              label: "Read History",      icon: Activity,      component: SignalsPage,               proOnly: true  },
-  { id: "catalysts",            label: "Macro Events",      icon: AlertTriangle, component: CatalystsPage,             proOnly: true  },
+  { id: "catalysts",            label: "Macro Events",      icon: AlertTriangle, component: CatalystsPage                             },
   { id: "trump-monitor",        label: "Trump Monitor",     icon: BarChart2,     component: TrumpPage,                 proOnly: true  },
   { id: "news-flow",            label: "News Feed",         icon: Rss,           component: NewsFlowPage                              },
   { id: "economic-calendar",    label: "Calendar",          icon: Calendar,      component: CalendarPage                              },
