@@ -7,25 +7,44 @@ import { cn } from "@/lib/utils";
  * The avatar, wearing its rank.
  *
  * Pro buys more than unlocked features — it should be visible. A Pro account
- * gets a gold bezel; everyone else keeps the plain ring, so it stays a signal
- * rather than decoration.
+ * gets a precision-milled metal bezel; everyone else keeps a plain ring, so it
+ * reads as a signal rather than decoration.
  *
- * Deliberately restrained. An ornate winged-and-crowned frame belongs to a
- * game, not to a terminal in mono type, and at 30px its detail is only noise.
- * Two hairlines and four index marks read as an instrument — which is what
- * this product is.
- *
- * Inline SVG rather than shipped artwork: sharp at 30px and at 72px, no
- * request, and ours.
+ * The sheen is a conic gradient, not artwork: it renders as a continuous
+ * brushed-metal sweep at any diameter, needs no request, and never blurs. The
+ * bevels are layered box-shadows — a light catch at the top, shadow at the
+ * bottom — which is what sells a chamfered edge at 36px, where real detail
+ * would only turn to noise.
  */
 
-let gradientSeq = 0;
+const SIZES = { sm: 36, md: 48, lg: 64 } as const;
+export type ProAvatarSize = keyof typeof SIZES | number;
+
+// Deep gold through champagne brass, swept so the highlight lands off-axis the
+// way a milled edge catches light.
+const BEZEL =
+  "conic-gradient(from 212deg at 50% 50%," +
+  " #997D33 0deg, #E6CA65 38deg, #F7ECC6 66deg, #C9A951 104deg," +
+  " #6E5722 150deg, #997D33 196deg, #E6CA65 232deg, #F7ECC6 262deg," +
+  " #997D33 304deg, #6E5722 336deg, #997D33 360deg)";
+
+const OUTER_SHADOW = [
+  "0 1px 2px rgba(0,0,0,0.65)",          // seat it against the surface
+  "0 0 0 0.5px rgba(26,24,19,0.9)",      // dark chamfer line
+  "0 0 12px rgba(230,202,101,0.2)",      // ambient warmth
+].join(", ");
+
+const INNER_BEVEL = [
+  "inset 0 1px 0 rgba(255,255,255,0.28)", // light catch, top
+  "inset 0 -1px 0 rgba(0,0,0,0.55)",      // shadow, bottom
+].join(", ");
 
 export function ProAvatar({
   src,
   fallback,
   isPro,
-  size,
+  size = "md",
+  showBadge = false,
   className,
   children,
 }: {
@@ -33,81 +52,69 @@ export function ProAvatar({
   /** Shown when there is no photo — usually the first letter of the name. */
   fallback: string;
   isPro: boolean;
-  /** Rendered box in px; the photo sits inside the frame. */
-  size: number;
+  size?: ProAvatarSize;
+  /** Small PRO pill overlapping the bottom-right. Off by default: most places
+   *  already label the tier beside the name, and two labels is one too many. */
+  showBadge?: boolean;
   className?: string;
   /** Overlay inside the photo circle, e.g. the camera hint. */
   children?: React.ReactNode;
 }) {
-  // Gradient ids must be unique per instance or the first one on the page wins
-  // and later frames render flat.
-  const uid = React.useMemo(() => `pro-av-${++gradientSeq}`, []);
+  const px = typeof size === "number" ? size : SIZES[size];
+  const ring = px >= 56 ? 2.5 : 2;
 
-  // The frame's flourishes need room, so the photo is inset when it is shown.
-  const inset = isPro ? "6%" : "0";
-
-  return (
-    <div className={cn("relative shrink-0", className)} style={{ width: size, height: size }}>
-      <div
-        className={cn(
-          "absolute rounded-full overflow-hidden",
-          isPro ? "ring-1 ring-[#E8C877]/50" : "border border-white/10 bg-zinc-900"
-        )}
-        style={{ inset }}
+  const photo = src ? (
+    <img src={src} alt="" className="w-full h-full object-cover" />
+  ) : (
+    <div className="w-full h-full flex items-center justify-center bg-[#1A1813]">
+      <span
+        className="font-bold leading-none"
+        style={{ fontSize: px * 0.4, color: isPro ? "#E6CA65" : "hsl(var(--primary))" }}
       >
-        {src ? (
-          <img src={src} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full bg-[hsl(var(--secondary))] flex items-center justify-center">
-            <span
-              className="font-bold"
-              style={{ fontSize: size * 0.38, color: isPro ? "#E8C877" : "hsl(var(--primary))" }}
-            >
-              {fallback}
-            </span>
-          </div>
-        )}
+        {fallback}
+      </span>
+    </div>
+  );
+
+  if (!isPro) {
+    return (
+      <div
+        className={cn("relative shrink-0 rounded-full overflow-hidden border border-white/10", className)}
+        style={{ width: px, height: px }}
+      >
+        {photo}
         {children}
       </div>
+    );
+  }
 
-      {isPro && (
-        <svg
-          viewBox="0 0 100 100"
-          className="absolute inset-0 w-full h-full pointer-events-none"
-          aria-hidden="true"
+  return (
+    <div className={cn("relative shrink-0", className)} style={{ width: px, height: px }}>
+      <div
+        className="w-full h-full rounded-full"
+        style={{ background: BEZEL, padding: ring, boxShadow: OUTER_SHADOW }}
+      >
+        <div
+          className="relative w-full h-full rounded-full overflow-hidden bg-[#1A1813]"
+          style={{ boxShadow: INNER_BEVEL }}
         >
-          <defs>
-            <linearGradient id={`${uid}-gold`} x1="0" y1="0" x2="0.35" y2="1">
-              <stop offset="0%"   stopColor="#F3E3B4" />
-              <stop offset="45%"  stopColor="#C9A24B" />
-              <stop offset="100%" stopColor="#8A6A22" />
-            </linearGradient>
-          </defs>
+          {photo}
+          {children}
+        </div>
+      </div>
 
-          {/* Bezel: two hairlines, the way a watch or an instrument reads
-              expensive — restraint, not ornament. */}
-          <circle
-            cx="50" cy="50" r="48"
-            fill="none"
-            stroke={`url(#${uid}-gold)`}
-            strokeWidth="2"
-          />
-          <circle
-            cx="50" cy="50" r="44"
-            fill="none"
-            stroke={`url(#${uid}-gold)`}
-            strokeWidth="0.6"
-            strokeOpacity="0.55"
-          />
-
-          {/* Index marks at the quarters — the terminal's own geometry. */}
-          <g stroke={`url(#${uid}-gold)`} strokeWidth="2.4" strokeLinecap="butt">
-            <line x1="50" y1="0.5" x2="50" y2="6" />
-            <line x1="50" y1="94"  x2="50" y2="99.5" />
-            <line x1="0.5" y1="50" x2="6"  y2="50" />
-            <line x1="94"  y1="50" x2="99.5" y2="50" />
-          </g>
-        </svg>
+      {showBadge && (
+        <span
+          className="absolute -bottom-[3px] -right-[3px] rounded-full px-1.5 py-[1px] text-[9px] font-mono uppercase tracking-widest leading-none"
+          style={{
+            background: "#1A1813",
+            color: "#E6CA65",
+            border: "1px solid #997D33",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.7)",
+          }}
+        >
+          Pro
+        </span>
       )}
     </div>
   );

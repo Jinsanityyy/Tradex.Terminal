@@ -375,7 +375,8 @@ export function MobileLayout() {
                   src={avatar}
                   fallback={(traderName || "T")[0].toUpperCase()}
                   isPro={subscription.isPro}
-                  size={72}
+                  size="lg"
+                  showBadge
                 >
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                     <Camera className="h-4 w-4 text-white" />

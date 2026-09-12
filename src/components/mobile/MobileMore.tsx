@@ -686,7 +686,7 @@ export function MobileMore() {
                 src={avatar}
                 fallback={(traderName || "T")[0].toUpperCase()}
                 isPro={subscription.isPro}
-                size={40}
+                size={38}
               />
             </div>
 
