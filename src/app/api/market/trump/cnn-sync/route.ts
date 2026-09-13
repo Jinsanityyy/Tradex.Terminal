@@ -84,6 +84,63 @@ async function fetchFromTruthSocial(): Promise<CnnPost[]> {
   return Array.isArray(data) ? data.slice(0, FETCH_LIMIT) : [];
 }
 
+/**
+ * Google News RSS — the source that actually answers from a server.
+ *
+ * The two above are both unreliable from Vercel: Truth Social blocks datacenter
+ * IPs, and ix.cnn.io is an undocumented CNN endpoint of the same kind as
+ * feeds.reuters.com, which is already dead. With both failing there was nothing
+ * to insert, so the job reported failure on every run.
+ *
+ * This carries headlines rather than the posts themselves, which is a fair
+ * trade for a job whose only consumer is the impact alert: what matters is that
+ * something market-moving involving Trump happened, and when.
+ */
+async function fetchFromGoogleNews(): Promise<CnnPost[]> {
+  const url =
+    "https://news.google.com/rss/search?q=Trump+when:1d&hl=en-US&gl=US&ceid=US:en";
+
+  const res = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; Feedfetcher-Google/1.0)" },
+    signal: AbortSignal.timeout(10_000),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const xml = await res.text();
+
+  const posts: CnnPost[] = [];
+  for (const m of xml.matchAll(/<item>([\s\S]*?)<\/item>/g)) {
+    if (posts.length >= FETCH_LIMIT) break;
+    const block = m[1];
+    const pick = (tag: string) => {
+      const hit = block.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`));
+      return hit ? hit[1].replace(/<!\[CDATA\[|\]\]>/g, "").trim() : "";
+    };
+
+    const title = pick("title");
+    const link  = pick("link");
+    const date  = pick("pubDate");
+    if (!title || !link) continue;
+
+    // The id has to be stable across runs or the diff in step 3 re-inserts the
+    // same story every five minutes and alerts on it again.
+    let h = 0;
+    for (let i = 0; i < link.length; i++) h = (h * 31 + link.charCodeAt(i)) | 0;
+
+    posts.push({
+      id: `gn-${Math.abs(h).toString(36)}`,
+      created_at: date ? new Date(date).toISOString() : new Date().toISOString(),
+      content: title,
+      url: link,
+      media: [],
+      replies_count: 0,
+      reblogs_count: 0,
+      favourites_count: 0,
+    });
+  }
+  return posts;
+}
+
 export async function GET(req: Request) {
   if (!authorized(req)) return jsonRes({ error: "Unauthorized" }, 401);
   try {
@@ -109,6 +166,7 @@ async function sync() {
   const sources = [
     { name: "cnn", fetch: fetchFromCnn },
     { name: "truthsocial", fetch: fetchFromTruthSocial },
+    { name: "googlenews", fetch: fetchFromGoogleNews },
   ];
 
   let raw: CnnPost[] = [];
