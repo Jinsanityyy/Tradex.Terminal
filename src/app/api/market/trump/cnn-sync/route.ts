@@ -55,7 +55,11 @@ function authorized(req: Request): boolean {
 async function fetchFromCnn(): Promise<CnnPost[]> {
   const res = await fetch(CNN_ARCHIVE_URL, {
     headers: { Accept: "application/json" },
-    signal: AbortSignal.timeout(10_000),
+    // Short, because this runs on a platform with a 10s function budget and
+    // there are two more sources behind it. A source that has not answered in
+    // four seconds is not answering; letting it hold the budget killed the
+    // whole run before any fallback got a turn.
+    signal: AbortSignal.timeout(4_000),
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -75,7 +79,7 @@ async function fetchFromTruthSocial(): Promise<CnnPost[]> {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Referer": "https://truthsocial.com/@realDonaldTrump",
       },
-      signal: AbortSignal.timeout(12_000),
+      signal: AbortSignal.timeout(4_000),
       cache: "no-store",
     }
   );
@@ -102,7 +106,7 @@ async function fetchFromGoogleNews(): Promise<CnnPost[]> {
 
   const res = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; Feedfetcher-Google/1.0)" },
-    signal: AbortSignal.timeout(10_000),
+    signal: AbortSignal.timeout(6_000),
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
