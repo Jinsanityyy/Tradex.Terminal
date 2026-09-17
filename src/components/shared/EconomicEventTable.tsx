@@ -22,54 +22,134 @@ interface AIEventAnalysis {
 
 const analysisCache = new Map<string, AIEventAnalysis>();
 
+/** Values the upstream feeds use to mean "no print yet" */
+const NO_ACTUAL = new Set(["", "-", "—", "–", "n/a", "na", "pending...", "pending", "updating...", "tbd"]);
+
+function toNum(raw?: string | null): number | null {
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  if (NO_ACTUAL.has(s.toLowerCase())) return null;
+  // strips %, K/M/B/T suffixes, thousands separators and any leading currency symbol
+  const n = parseFloat(s.replace(/,/g, "").replace(/[^\d.+-]/g, ""));
+  return isNaN(n) ? null : n;
+}
+
+/** Indicators where a HIGHER print means a WEAKER economy (so the beat/miss logic flips) */
+const INVERTED_RE   = /jobless claims|initial claims|continuing claims|unemployment rate|misery|delinquen/i;
+/** Central-bank rate decisions — no "beat/miss", it's hawkish vs dovish */
+const RATE_DECISION_RE = /federal funds rate|interest rate decision|fed interest rate|rate decision|bank rate|refi rate|deposit facility rate|cash rate|fomc.*rate/i;
+
 /** Deterministic fallback analysis when AI is unavailable */
 function buildFallbackAnalysis(ev: EconomicEvent): AIEventAnalysis {
-  const actNum  = parseFloat(String(ev.actual  ?? "").replace(/[K%]/g, ""));
-  const fcNum   = parseFloat(String(ev.forecast ?? "").replace(/[K%]/g, ""));
-  const hasNums = !isNaN(actNum) && !isNaN(fcNum);
-  const beat    = hasNums && actNum > fcNum;
-  const miss    = hasNums && actNum < fcNum;
-  const diff    = hasNums ? Math.abs(actNum - fcNum).toFixed(1) : "N/A";
-  const t       = ev.event.toLowerCase();
-  const isJobs  = t.includes("payroll") || t.includes("employment") || t.includes("nfp");
-  const isCPI   = t.includes("cpi") || t.includes("inflation") || t.includes("pce");
+  const actNum = toNum(ev.actual);
+  const fcNum  = toNum(ev.forecast);
+  const prNum  = toNum(ev.previous);
 
-  const outcome = ev.actual
-    ? `${ev.event}: actual ${ev.actual} vs forecast ${ev.forecast} (prior ${ev.previous}) — ${beat ? `beat by ${diff}` : miss ? `missed by ${diff}` : "in-line with expectations"}`
-    : `${ev.event} has been released. Forecast was ${ev.forecast} vs prior ${ev.previous}.`;
+  const title    = ev.event;
+  const t        = title.toLowerCase();
+  const isRate   = RATE_DECISION_RE.test(t);
+  const inverted = INVERTED_RE.test(t);
+  const isJobs   = t.includes("payroll") || t.includes("employment") || t.includes("nfp");
+  const isCPI    = t.includes("cpi") || t.includes("inflation") || t.includes("pce") || t.includes("ppi");
 
-  const goldImpact: "bullish" | "bearish" | "neutral" = beat ? "bearish" : miss ? "bullish" : "neutral";
-  const usdImpact:  "bullish" | "bearish" | "neutral" = beat ? "bullish" : miss ? "bearish" : "neutral";
+  const fc = ev.forecast && !NO_ACTUAL.has(String(ev.forecast).trim().toLowerCase()) ? ev.forecast : null;
+  const pr = ev.previous && !NO_ACTUAL.has(String(ev.previous).trim().toLowerCase()) ? ev.previous : null;
+
+  // ── No published actual ─────────────────────────────────────────────────────
+  // This is NOT an in-line print. We simply do not know the result yet, so the
+  // analysis has to be framed around price action rather than a fake surprise.
+  if (actNum === null) {
+    const expectation = isRate && fcNum !== null && prNum !== null
+      ? fcNum > prNum
+        ? `Consensus looked for a hike to ${fc} from ${pr}.`
+        : fcNum < prNum
+        ? `Consensus looked for a cut to ${fc} from ${pr}.`
+        : `Consensus looked for a hold at ${fc}.`
+      : fc && pr
+      ? `Consensus was ${fc} against a prior ${pr}.`
+      : fc
+      ? `Consensus was ${fc}.`
+      : "";
+
+    return {
+      outcome: `${title} has passed its scheduled release time, but the confirmed print has not reached our data feed yet. ${expectation}`.trim(),
+      marketReaction: isRate
+        ? "Read the decision off the tape rather than the headline number: the rate itself is usually pre-priced, so the move comes from the statement language and the projected path. Gold selling off with DXY bid means the market heard hawkish; Gold rallying with DXY offered means dovish."
+        : "Until the number lands, let price do the talking. Compare Gold and DXY against where they traded 15 minutes before the release — that spread is the market's own verdict on whether the print came in hot or soft.",
+      goldImpact: "neutral",
+      goldAnalysis: "No confirmed print, so there is no data-driven bias to trade. Wait for the actual to publish or for a clean 15-minute close in one direction before committing.",
+      usdImpact: "neutral",
+      usdAnalysis: "DXY direction is unconfirmed without the actual. Treat the first spike as noise and wait for the retest.",
+      traderFocus: [
+        "Actual not published yet — do not trade a surprise that has not been confirmed",
+        `Compare Gold and DXY now vs 15 minutes before ${title} — the spread is the real signal`,
+        isRate
+          ? "Statement language and the dot plot matter more than the rate itself"
+          : "Refresh shortly; the print usually reaches the feed within a few hours",
+      ],
+      timeframe: "Bias pending. Reassess the moment the actual prints or a direction confirms on the 15-minute chart.",
+    };
+  }
+
+  // ── Actual published — compute the surprise ─────────────────────────────────
+  const above = fcNum !== null && actNum > fcNum;
+  const below = fcNum !== null && actNum < fcNum;
+  const diffN = fcNum !== null ? Math.abs(actNum - fcNum) : 0;
+  const diff  = diffN >= 10 ? diffN.toFixed(0) : diffN.toFixed(Math.abs(actNum) < 10 ? 2 : 1);
+
+  // "hot" = the print argues for tighter policy (higher rates) = bearish Gold.
+  // For inverted indicators a higher number means weaker data, so the sign flips.
+  const hot  = inverted ? below : above;
+  const cold = inverted ? above : below;
+
+  const goldImpact: "bullish" | "bearish" | "neutral" = hot ? "bearish" : cold ? "bullish" : "neutral";
+  const usdImpact:  "bullish" | "bearish" | "neutral" = hot ? "bullish" : cold ? "bearish" : "neutral";
+
+  const verdict = fcNum === null
+    ? `printed ${ev.actual}`
+    : above
+    ? `${isRate ? "came in above the expected path by" : "beat by"} ${diff}`
+    : below
+    ? `${isRate ? "came in below the expected path by" : "missed by"} ${diff}`
+    : "landed exactly in line with expectations";
+
+  const outcome = `${title}: actual ${ev.actual}${fc ? ` vs forecast ${fc}` : ""}${pr ? ` (prior ${pr})` : ""} — ${verdict}`;
+
+  const label = isRate ? (hot ? "Hawkish surprise" : "Dovish surprise")
+    : isJobs ? (hot ? "Strong jobs beat" : "Weak jobs miss")
+    : isCPI  ? (hot ? "Hot inflation print" : "Soft inflation print")
+    : inverted ? (hot ? "Labour market held up better than expected" : "Labour market weaker than expected")
+    : (hot ? "Strong data" : "Weak data");
 
   return {
     outcome,
-    marketReaction: beat
-      ? `Strong data beat of ${diff} — Gold faces immediate selling pressure as rate-cut expectations get pushed back. USD should strengthen across major pairs.`
-      : miss
-      ? `Data missed by ${diff} — Gold should find buying support as recession concerns rise and rate-cut bets accelerate. USD selling expected.`
-      : `In-line print — minimal directional reaction expected. Markets will look to the next catalyst for direction.`,
+    marketReaction: hot
+      ? `${label} of ${diff} — Gold faces immediate selling pressure as rate-cut expectations get pushed back. USD should strengthen across the majors.`
+      : cold
+      ? `${label} of ${diff} — Gold should find buying support as rate-cut bets accelerate. USD selling expected.`
+      : `${title} landed on forecast. With no surprise to reprice, expect a muted reaction and a fast fade of any spike.`,
     goldImpact,
-    goldAnalysis: beat
-      ? `${isJobs ? "Strong jobs beat" : isCPI ? "Hot inflation print" : "Strong data"} = Fed has no urgency to cut rates = bearish Gold near-term. Watch key support for sell entries.`
-      : miss
-      ? `${isJobs ? "Weak jobs miss" : isCPI ? "Soft inflation" : "Weak data"} = rate-cut bets rise = bullish Gold. Buy dips toward next support level.`
-      : "In-line print — Gold likely consolidates. Wait for next high-impact catalyst.",
+    goldAnalysis: hot
+      ? `${label} = the Fed has no urgency to cut = bearish Gold near-term. Watch the first pullback into resistance for a sell entry.`
+      : cold
+      ? `${label} = rate-cut bets rise = bullish Gold. Buy the dip toward the nearest support rather than chasing the spike.`
+      : "On-forecast print — Gold likely consolidates inside its pre-release range. Wait for the next high-impact catalyst.",
     usdImpact,
-    usdAnalysis: beat
-      ? "USD bid on strong data — DXY should test resistance. Look for longs on USDJPY, USDCHF."
-      : miss
-      ? "USD offered on weak data — DXY faces selling pressure. EURUSD and GBPUSD should benefit."
-      : "Mixed signal — DXY likely range-bound. Monitor next Fed speaker for direction.",
-    traderFocus: beat
-      ? [`Gold at resistance — watch for rejection and sell setup`, `DXY breakout above ${ev.event.includes("NFP") ? "key level" : "resistance"} confirms USD strength`, "Rate cut timeline now pushed further out — bullish USD theme extends"]
-      : miss
-      ? ["Buy Gold dips — first 15-min spike often retraces for better entry", "DXY rolling over — EURUSD and GBPUSD long setups building", "Watch for Gold breakout above pre-release high"]
-      : ["Wait for confirmed breakout in either direction", "No strong directional conviction — reduce position size", "Next major catalyst will set the trend"],
-    timeframe: beat
-      ? "1-3 sessions of USD strength and Gold weakness. Monitor next CPI/jobs data for reversal signals."
-      : miss
+    usdAnalysis: hot
+      ? "USD bid — DXY should press resistance. Look for continuation longs on USDJPY and USDCHF."
+      : cold
+      ? "USD offered — DXY faces selling pressure. EURUSD and GBPUSD are the cleaner longs."
+      : "No repricing to trade — DXY likely range-bound. Monitor the next Fed speaker for direction.",
+    traderFocus: hot
+      ? ["Gold into resistance — watch for rejection and a sell setup", "DXY holding its breakout confirms the USD strength theme", "Rate-cut timeline pushed further out — the hawkish theme extends"]
+      : cold
+      ? ["Buy Gold dips — the first 15-minute spike often retraces for a better entry", "DXY rolling over — EURUSD and GBPUSD long setups building", "Watch for Gold to break above its pre-release high"]
+      : ["On-forecast print — wait for a confirmed breakout in either direction", "No directional edge from this release — reduce size", "The next major catalyst will set the trend"],
+    timeframe: hot
+      ? "1-3 sessions of USD strength and Gold weakness. Monitor the next CPI/jobs print for reversal signals."
+      : cold
       ? "1-3 sessions of Gold strength. Hold longs with patience — rate-cut repricing takes time."
-      : "Range-bound 1-2 sessions. Await next catalyst.",
+      : "Range-bound for 1-2 sessions. Await the next catalyst.",
   };
 }
 
@@ -78,7 +158,7 @@ function useAfterReleaseAnalysis(ev: EconomicEvent) {
   const [loading, setLoading]   = useState(false);
   const fetchedRef = useRef(false);
 
-  const hasActual = !!(ev.actual && ev.actual !== "Pending..." && ev.actual !== "—" && ev.actual !== " — " && ev.actual !== "-");
+  const hasActual = toNum(ev.actual) !== null;
   const cacheKey  = `${ev.event}-${ev.actual ?? "pending"}-${ev.date}`;
 
   useEffect(() => {
@@ -91,8 +171,12 @@ function useAfterReleaseAnalysis(ev: EconomicEvent) {
     setLoading(true);
 
     const summary = hasActual
-      ? `Actual: ${ev.actual} | Forecast: ${ev.forecast} | Previous: ${ev.previous} | Result: ${(() => { try { return parseFloat(String(ev.actual)) > parseFloat(String(ev.forecast)) ? "BEAT vs forecast" : "MISSED forecast"; } catch { return "vs forecast " + ev.forecast; } })()}`
-      : `Forecast: ${ev.forecast} | Previous: ${ev.previous} | Actual not yet published`;
+      ? `Actual: ${ev.actual} | Forecast: ${ev.forecast} | Previous: ${ev.previous} | Result: ${(() => {
+          const a = toNum(ev.actual), f = toNum(ev.forecast);
+          if (a === null || f === null) return `actual ${ev.actual}, forecast ${ev.forecast}`;
+          return a > f ? "ABOVE forecast" : a < f ? "BELOW forecast" : "IN LINE with forecast";
+        })()}`
+      : `Forecast: ${ev.forecast} | Previous: ${ev.previous} | ACTUAL NOT PUBLISHED YET — the release time has passed but no confirmed figure is available. Do NOT invent, guess or assume a result, and do NOT describe the print as in-line, a beat or a miss. Frame the analysis around what to watch in price action instead.`;
 
     const url = `/api/market/post-event?title=${encodeURIComponent(ev.event)}&summary=${encodeURIComponent(summary)}&markets=XAUUSD,DXY,USDJPY,EURUSD`;
 

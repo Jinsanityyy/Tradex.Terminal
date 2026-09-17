@@ -33,13 +33,32 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "AI not configured" }, { status: 503 });
   }
 
+  // When the release time has passed but no confirmed figure reached the feed, the
+  // model must not invent one  -  and must never call an unknown result "in line".
+  const actualMissing = /ACTUAL NOT PUBLISHED|not yet published/i.test(summary);
+
+  const pendingRules = actualMissing
+    ? `
+CRITICAL  -  THE ACTUAL FIGURE IS NOT AVAILABLE:
+The scheduled release time has passed but no confirmed print has reached the data feed. You do NOT know the result.
+- NEVER state or imply a result. Do not say the print was in line, a beat, a miss, hawkish or dovish.
+- NEVER invent a number, a quote, or statement language.
+- Set "outcome" to state plainly that the confirmed figure has not published yet, then give the consensus expectation.
+- Set BOTH "goldImpact" and "usdImpact" to "neutral"  -  there is no confirmed data to take a side on.
+- Frame "marketReaction", "goldAnalysis" and "usdAnalysis" around PRICE ACTION: what Gold and DXY doing now, relative to where they traded just before the release, implies about the print.
+- "statementHighlights" and "traderFocus" must be things to WATCH FOR, not things that happened.
+`
+    : `
+The actual figure IS available in the context above. Analyse the real surprise against forecast. Only describe the print as in line when the actual genuinely equals the forecast.
+`;
+
   const prompt = `You are a senior institutional macro analyst writing POST-EVENT analysis for traders. This event has ALREADY HAPPENED.
 
 Event: "${title}"
-News Context: "${summary?.slice(0, 500) || "No additional context"}"
+News Context: "${summary?.slice(0, 700) || "No additional context"}"
 Affected Markets: ${markets || "XAUUSD, DXY, US10Y"}
-
-Write SPECIFIC post-event analysis  -  not a generic explanation of what this event type means. Analyze what actually occurred, what was said, and how markets should react.
+${pendingRules}
+Write SPECIFIC post-event analysis  -  not a generic explanation of what this event type means. Analyze what actually occurred, what was said, and how markets should react. Never fabricate data you were not given.
 
 Return ONLY valid JSON (no markdown):
 {

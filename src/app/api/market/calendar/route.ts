@@ -102,7 +102,7 @@ function matchBLSActual(blsData: Record<string, string>, title: string): string 
 // Register free key at: https://fred.stlouisfed.org/docs/api/api_key.html
 // Set env var: FRED_API_KEY
 
-const FRED_SERIES: Record<string, { id: string; type: "level" | "rate" | "index"; unit: string }> = {
+const FRED_SERIES: Record<string, { id: string; type: "level" | "rate" | "index"; unit: string; decimals?: number }> = {
   gdp:            { id: "GDPC1",      type: "level",  unit: "%" },  // Real GDP → Q/Q %
   pce:            { id: "PCEPI",      type: "level",  unit: "%" },  // PCE → M/M %
   corePce:        { id: "PCEPILFE",   type: "level",  unit: "%" },  // Core PCE → M/M %
@@ -117,6 +117,7 @@ const FRED_SERIES: Record<string, { id: string; type: "level" | "rate" | "index"
   existingHomes:  { id: "EXHOSLUSM495S", type: "level", unit: "M" },
   ppi:            { id: "PPIACO",     type: "level",  unit: "%" },  // PPI → M/M %
   continuingClaims:{ id: "CCSA",      type: "rate",   unit: "K" },  // Continuing Claims
+  fedFunds:       { id: "DFEDTARU",  type: "rate",   unit: "%", decimals: 2 },  // Fed funds target, upper bound
 };
 
 let fredCache: { data: Record<string, string>; ts: number } = { data: {}, ts: 0 };
@@ -156,10 +157,10 @@ async function fetchFREDActuals(): Promise<Record<string, string>> {
 
   const entries = Object.entries(FRED_SERIES);
   const fetched = await Promise.all(
-    entries.map(async ([key, { id, type, unit }]) => {
+    entries.map(async ([key, { id, type, unit, decimals }]) => {
       const data = await fredFetch(id, 2);
       if (data.length === 0) return [key, undefined] as const;
-      if (type === "index" || type === "rate") return [key, `${parseFloat(data[0]).toFixed(1)}${unit}`] as const;
+      if (type === "index" || type === "rate") return [key, `${parseFloat(data[0]).toFixed(decimals ?? 1)}${unit}`] as const;
       if (data.length >= 2) return [key, calcChange(data[0], data[1], type, unit)] as const;
       return [key, undefined] as const;
     })
@@ -175,6 +176,9 @@ async function fetchFREDActuals(): Promise<Record<string, string>> {
 
 function matchFREDActual(fredData: Record<string, string>, title: string): string | undefined {
   const t = title.toLowerCase();
+  // Rate decisions first: these titles carry no forecastable "level", only the target rate.
+  // Statements and press conferences deliberately fall through  -  they have no numeric actual.
+  if (/federal funds rate|fed interest rate|interest rate decision|fomc rate decision/.test(t)) return fredData.fedFunds;
   if (t.includes("gdp"))                                           return fredData.gdp;
   if (t.includes("core pce") || (t.includes("core") && t.includes("personal"))) return fredData.corePce;
   if (t.includes("pce") && !t.includes("core"))                   return fredData.pce;
@@ -783,34 +787,41 @@ function generatePostEvent(title: string, forecast: string, previous: string, ac
 } {
   const t = title.toLowerCase();
   // Use actual vs forecast for beat/miss when actual is available
-  const fcNum   = parseFloat(forecast.replace(/[KkMmBb%]/g, "")) || null;
-  const prevNum = parseFloat(previous.replace(/[KkMmBb%]/g, "")) || null;
-  const actualStr = actual && actual !== "" && actual !== "-" && actual !== " - " && actual !== "Updating..." ? actual : null;
+  const num = (raw: string): number | null => {
+    const n = parseFloat(raw.replace(/,/g, "").replace(/[KkMmBb%]/g, ""));
+    return isNaN(n) ? null : n;
+  };
+  const fcNum   = num(forecast);
+  const prevNum = num(previous);
+  const BLANK   = ["", "-", " - ", "\u2014", " \u2014 ", "Updating...", "Pending...", "N/A"];
+  const actualStr = actual && !BLANK.includes(actual.trim()) && !BLANK.includes(actual) ? actual : null;
   const actNum    = actualStr ? parseFloat(actualStr.replace(/[KkMmBb%]/g, "")) : null;
 
   // ── Generic actual-aware summary (used when actual is available for any event type) ──
   // This fires before specific handlers so all events get proper beat/miss when actual exists.
   const hasMeaningfulActual = actNum !== null && !isNaN(actNum) && fcNum !== null;
   if (hasMeaningfulActual) {
-    const beat  = actNum > fcNum;
-    const miss  = actNum < fcNum;
     const isNFP = t.includes("nonfarm") || t.includes("non-farm") || t.includes("payroll") || t.includes("employment change");
     const isCPI = t.includes("cpi") || t.includes("pce") || t.includes("inflation");
-    // For jobs data: beat = more jobs = bearish gold. For inflation: beat = hotter = bearish gold.
-    // For most other data (GDP, PMI, retail): beat = stronger economy = bearish gold.
-    const goldBearOnBeat = true; // almost always true for USD data
+    // Claims and the unemployment rate run the other way: a HIGHER print is WEAKER data,
+    // so "above forecast" there is bullish Gold, not bearish.
+    const inverted = /jobless claims|initial claims|continuing claims|unemployment rate/.test(t);
+    const above = actNum > fcNum;
+    const below = actNum < fcNum;
+    const beat  = inverted ? below : above;   // beat == stronger economy
+    const miss  = inverted ? above : below;
     const result = beat
-      ? `${title}: actual ${actualStr} beat forecast ${forecast} (prior ${previous}). Stronger-than-expected result — ${goldBearOnBeat ? "bearish for Gold, bullish for USD" : "bullish for Gold"}. ${isNFP ? "Strong jobs = Fed stays patient = rate cut timeline pushed out." : isCPI ? "Hot inflation = hawkish Fed = real yields rise = Gold under pressure." : "Economic resilience reduces rate-cut urgency."}`
+      ? `${title}: actual ${actualStr} vs forecast ${forecast} (prior ${previous}). Stronger-than-expected result — bearish for Gold, bullish for USD. ${isNFP ? "Strong jobs = Fed stays patient = rate cut timeline pushed out." : isCPI ? "Hot inflation = hawkish Fed = real yields rise = Gold under pressure." : "Economic resilience reduces rate-cut urgency."}`
       : miss
-      ? `${title}: actual ${actualStr} missed forecast ${forecast} (prior ${previous}). Weaker-than-expected result — bullish for Gold, bearish for USD. ${isNFP ? "Soft jobs = recession concerns rise = rate-cut bets accelerate." : isCPI ? "Cooling inflation = Fed cut expectations increase = Gold supported." : "Economic weakness raises recession risk and rate-cut bets."}`
+      ? `${title}: actual ${actualStr} vs forecast ${forecast} (prior ${previous}). Weaker-than-expected result — bullish for Gold, bearish for USD. ${isNFP ? "Soft jobs = recession concerns rise = rate-cut bets accelerate." : isCPI ? "Cooling inflation = Fed cut expectations increase = Gold supported." : "Economic weakness raises recession risk and rate-cut bets."}`
       : `${title}: actual ${actualStr} in line with forecast ${forecast}. No significant surprise — minimal market reaction expected. Wait for the next catalyst.`;
     const beats = beat ? [
-      `Actual ${actualStr} beat forecast ${forecast} — clear surprise to the upside`,
+      `Actual ${actualStr} vs forecast ${forecast} — a clear surprise in the stronger direction`,
       "Sell Gold on any bounce — strong data = delayed rate cuts",
       "DXY should strengthen — look for USD longs across major pairs",
       "Watch for Gold to test support levels after initial reaction",
     ] : miss ? [
-      `Actual ${actualStr} missed forecast ${forecast} — clear disappointment`,
+      `Actual ${actualStr} vs forecast ${forecast} — a clear disappointment`,
       "Buy Gold dips — weak data = rate-cut expectations accelerating",
       "DXY should weaken — EURUSD, GBPUSD, Gold all benefit",
       "Watch for Gold breakout above pre-release resistance",
