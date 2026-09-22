@@ -17,6 +17,13 @@ const config: CapacitorConfig = {
     allowMixedContent: false,
     backgroundColor: "#0a0e1a",
   },
+  ios: {
+    backgroundColor: "#0a0e1a",
+    // The web app draws its own dark chrome; without this the WKWebView
+    // overscroll bounce exposes a white gutter at the top and bottom.
+    scrollEnabled: true,
+    contentInset: "never",
+  },
   plugins: {
     StatusBar: {
       style: "DARK",
@@ -26,6 +33,10 @@ const config: CapacitorConfig = {
     // Google is the only provider we use. The others each drag in an SDK —
     // Facebook's in particular is a data-collection disclosure on Play we have
     // no reason to make — so they are compiled out of the Android build.
+    // Google is the only provider we use on Android. On iOS, App Store Review
+    // Guideline 4.8 requires Sign in with Apple alongside any third-party social
+    // login, so apple has to be compiled in there before a store submission.
+    // It is off until the Apple Service ID and key exist  -  see ios/README.md.
     SocialLogin: {
       providers: { google: true, facebook: false, apple: false, twitter: false },
     },

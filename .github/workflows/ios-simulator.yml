@@ -1,0 +1,122 @@
+name: Build iOS (Simulator)
+
+# Builds the iOS app for the Simulator, boots an iPhone, installs it, and
+# captures screenshots — so the app can be seen running in a real iOS
+# environment without a Mac and without an Apple Developer account.
+#
+# Simulator builds need no code signing, which is why this works for $0. What it
+# CANNOT cover: push notifications (APNs needs a real device), StoreKit / in-app
+# purchase, and native Google Sign-In (needs an iOS OAuth client). Those require
+# the paid Apple Developer Program and a physical device.
+#
+# Run it: Actions tab → "Build iOS (Simulator)" → Run workflow.
+# Then download the "ios-simulator-screenshots" artifact.
+#
+# NOTE: macOS runners bill at 10x the rate of Linux ones, so this is manual-only
+# on purpose — no push trigger.
+
+on:
+  workflow_dispatch:
+    inputs:
+      device:
+        description: Simulator device to boot
+        default: iPhone 16 Pro
+        required: false
+
+jobs:
+  simulator:
+    name: Build and boot on Simulator
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The app loads its UI from server.url (see capacitor.config.ts), so the
+      # bundled webDir is only a placeholder. Capacitor still requires the
+      # directory to exist before `cap sync`.
+      - name: Stage placeholder web assets
+        run: |
+          mkdir -p out
+          [ -f out/index.html ] || echo '<!doctype html><title>TradeX</title>' > out/index.html
+
+      - name: Sync Capacitor iOS
+        run: npx cap sync ios
+
+      - name: Boot simulator
+        id: sim
+        run: |
+          DEVICE="${{ github.event.inputs.device || 'iPhone 16 Pro' }}"
+          UDID=$(xcrun simctl list devices available \
+            | grep -m1 "$DEVICE (" | grep -oE '[0-9A-F-]{36}')
+          if [ -z "$UDID" ]; then
+            echo "::warning::'$DEVICE' not available, falling back to the newest iPhone"
+            UDID=$(xcrun simctl list devices available \
+              | grep -oE 'iPhone.*\([0-9A-F-]{36}\)' | tail -1 | grep -oE '[0-9A-F-]{36}')
+          fi
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+
+      - name: Build for simulator
+        run: |
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Install and launch
+        run: |
+          APP=$(find build/Build/Products/Debug-iphonesimulator -maxdepth 1 -name '*.app' | head -1)
+          echo "Installing $APP"
+          xcrun simctl install "${{ steps.sim.outputs.udid }}" "$APP"
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" online.tradexterminal.app
+
+      # The UI is fetched over the network on launch, so give it time to paint
+      # before each capture rather than shooting a blank WKWebView.
+      - name: Capture screenshots
+        run: |
+          mkdir -p screenshots
+          for i in 1 2 3; do
+            sleep 12
+            xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot "screenshots/launch-$i.png"
+          done
+
+      - name: Collect simulator log
+        if: always()
+        run: |
+          xcrun simctl spawn "${{ steps.sim.outputs.udid }}" log show \
+            --last 5m --predicate 'process == "App"' > screenshots/app.log 2>&1 || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-simulator-screenshots
+          path: screenshots/
+          retention-days: 14
+
+      - name: Package the .app
+        if: success()
+        run: |
+          APP=$(find build/Build/Products/Debug-iphonesimulator -maxdepth 1 -name '*.app' | head -1)
+          ditto -c -k --sequesterRsrc --keepParent "$APP" TradeX-simulator.zip
+
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: ios-simulator-app
+          path: TradeX-simulator.zip
+          retention-days: 14
