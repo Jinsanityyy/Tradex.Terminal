@@ -164,6 +164,42 @@ export async function notifyOutcome(
   });
 }
 
+/**
+ * Coalesced outcome alert.
+ *
+ * When several signals on the same symbol resolve inside one tracker run, one
+ * push per signal reads as spam  -  and worse, a mixed batch shows "TP Hit" and
+ * "SL Hit" for the same symbol at the same second, which looks broken. A single
+ * summary is sent instead.
+ */
+export async function notifyOutcomeBatch(
+  symbolDisplay: string,
+  outcomes: Array<{ signal: SignalRecord; status: SignalStatus }>
+): Promise<void> {
+  const resolved = outcomes.filter(o => ["win_tp1", "win_tp2", "loss_sl"].includes(o.status));
+  if (resolved.length === 0) return;
+  if (resolved.length === 1) {
+    await notifyOutcome(resolved[0].signal, resolved[0].status);
+    return;
+  }
+
+  const wins   = resolved.filter(o => o.status.startsWith("win_")).length;
+  const losses = resolved.length - wins;
+  const parts  = [
+    wins   > 0 ? `${wins} TP \u2705`  : null,
+    losses > 0 ? `${losses} SL \u274c` : null,
+  ].filter(Boolean).join(" \u00b7 ");
+
+  await broadcast({
+    title:    `\ud83d\udcc8 ${resolved.length} reads closed: ${symbolDisplay}`,
+    body:     `${parts} \u2014 open the signal log for the full breakdown.`,
+    url:      "/dashboard/signals",
+    severity: losses > wins ? "high" : "medium",
+    type:     "signal",
+    tag:      `sltp-batch-${symbolDisplay}-${Math.floor(Date.now() / 60_000)}`,
+  });
+}
+
 // ── High-impact news ─────────────────────────────────────────────────────────
 // Fired from the orchestrator after the news agent classifies fresh headlines.
 // Only HIGH-impact catalysts go out, max 2 per run, deduped for 6 hours so the

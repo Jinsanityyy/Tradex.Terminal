@@ -35,15 +35,28 @@ function buildId(result: AgentRunResult): string {
     : `${slot}_${result.symbol}_${result.timeframe}_${direction}`;
 }
 
-// 15-minute cooldown per symbol+direction+entry  -  prevents the cron from
-// logging the exact same setup every 5 min. A different entry (> 0.03% away)
-// is treated as a new setup and logged immediately regardless of age.
+// 15-minute cooldown per symbol+timeframe+direction.
+//
+// This used to allow a new signal through whenever the entry moved more than
+// 0.03% away. On gold at ~$3,700 that threshold is $1.11  -  a distance the
+// market covers in seconds  -  so effectively every cron tick minted a fresh
+// "new setup". Those all stayed open in parallel and later resolved in the same
+// tracker run, firing one push each (the TP/SL alert storm).
+//
+// The cooldown is now the rule, not the exception: inside the window a
+// same-direction setup on the same symbol+timeframe is simply a repeat, however
+// far the entry has drifted.
 const ARMED_COOLDOWN_MS = 15 * 60 * 1000;
 
+// Two signals pointing opposite ways at the same price is a contradiction, not
+// two trades. Widened from 0.03% for the same reason as above.
+const CONTRADICTION_ENTRY_PCT = 0.0025; // 0.25%
+
 /**
- * Returns true if a same-direction armed signal for this symbol was already
- * logged within the last 60 minutes. This stops near-identical BOS/OB/FVG
- * setups from flooding history every time the cron ticks and price shifts slightly.
+ * Returns true when this armed signal is a repeat of one that is already open.
+ *
+ * Scoped to symbol + timeframe so an H1 and an H4 read can legitimately coexist;
+ * only the same chart is deduplicated.
  */
 async function isDuplicateArmedSignal(result: AgentRunResult): Promise<boolean> {
   const plan = result.agents.master.tradePlan;
@@ -54,16 +67,15 @@ async function isDuplicateArmedSignal(result: AgentRunResult): Promise<boolean> 
     const now = Date.now();
     return openSignals.some(s => {
       if (s.symbol !== result.symbol) return false;
+      if (s.timeframe !== result.timeframe) return false;
       if (!s.tradePlan) return false;
       const age = now - new Date(s.timestamp).getTime();
       if (age >= ARMED_COOLDOWN_MS) return false;
+      // Same direction inside the cooldown is a repeat regardless of entry drift.
+      if (s.tradePlan.direction === plan.direction) return true;
+      // Opposite direction at effectively the same price is a contradiction.
       const entryDiff = Math.abs(s.tradePlan.entry - plan.entry) / plan.entry;
-      // Suppress same-direction near-identical entries (cache-hit / cron repeat)
-      if (s.tradePlan.direction === plan.direction && entryDiff < 0.0003) return true;
-      // Suppress conflicting opposite-direction signal at nearly the same entry —
-      // two signals pointing different ways at the same price is a contradiction.
-      if (s.tradePlan.direction !== plan.direction && entryDiff < 0.0003) return true;
-      return false;
+      return entryDiff < CONTRADICTION_ENTRY_PCT;
     });
   } catch {
     return false;
@@ -87,20 +99,26 @@ function extractTradePlan(result: AgentRunResult): SignalTradePlan | null {
 }
 
 /**
- * When a new directional signal fires, mark any open signals in the opposite
- * direction for the same symbol as invalidated (bias has flipped).
+ * Exactly one armed setup stays live per symbol + timeframe.
+ *
+ * When a new directional signal fires, every other open setup on that same chart
+ * is superseded  -  an opposite direction means the bias flipped, and a
+ * same-direction one older than the cooldown has been replaced by a fresher
+ * read. Previously only opposing signals were cleared, so same-direction setups
+ * piled up and each one fired its own outcome alert when price finally moved.
  */
-async function invalidateOpposingSignals(result: AgentRunResult): Promise<void> {
+async function invalidateSupersededSignals(result: AgentRunResult, keepId: string): Promise<void> {
   const plan = result.agents.master.tradePlan;
   if (!plan) return;
   try {
     const open = await getOpenSignals();
-    const opposing = open.filter(s =>
+    const superseded = open.filter(s =>
+      s.id !== keepId &&
       s.symbol === result.symbol &&
-      s.tradePlan !== null &&
-      s.tradePlan.direction !== plan.direction
+      s.timeframe === result.timeframe &&
+      s.tradePlan !== null
     );
-    await Promise.all(opposing.map(s =>
+    await Promise.all(superseded.map(s =>
       updateSignal(s.id, {
         status: "invalidated",
         outcome: {
@@ -201,7 +219,7 @@ export async function logSignal(result: AgentRunResult): Promise<SignalRecord | 
     const saved = await saveSignal(record);
 
     if (saved && record.tradePlan) {
-      await invalidateOpposingSignals(result);
+      await invalidateSupersededSignals(result, saved.id);
       void notifyNewSignal(saved).catch(() => {});
     }
 

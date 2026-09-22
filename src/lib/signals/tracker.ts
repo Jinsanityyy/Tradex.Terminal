@@ -15,7 +15,7 @@ import type { SignalRecord, SignalOutcome, SignalStatus } from "./types";
 import type { Timeframe } from "@/lib/agents/schemas";
 import { getOpenSignals, getSignals, updateSignal } from "./storage";
 import { fetchYahooCandles, type YahooCandleBar } from "@/lib/api/yahoo-finance";
-import { notifyOutcome, notifyEntryZone } from "@/lib/push/notify";
+import { notifyOutcome, notifyOutcomeBatch, notifyEntryZone } from "@/lib/push/notify";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Market-hours guard
@@ -451,6 +451,11 @@ export async function trackOpenSignals(): Promise<TrackingResult> {
 
   const forexOpen = isForexMarketOpen();
 
+  // Outcome alerts are collected and sent after the loop, grouped by symbol.
+  // A single run can resolve several signals at once; firing one push each turns
+  // that into an alert storm.
+  const resolvedBySymbol = new Map<string, Array<{ signal: SignalRecord; status: SignalStatus }>>();
+
   for (const signal of open) {
     // Skip forex/metals during weekend closure — stale Yahoo prices cause false TP/SL hits
     if (!ALWAYS_OPEN_SYMBOLS.has(signal.symbol) && !forexOpen) continue;
@@ -499,7 +504,18 @@ export async function trackOpenSignals(): Promise<TrackingResult> {
         status: resolution.status,
         pnlR: resolution.outcome.pnlR,
       });
-      void notifyOutcome(updated, resolution.status).catch(() => {});
+      const key = updated.symbolDisplay ?? updated.symbol;
+      const group = resolvedBySymbol.get(key);
+      if (group) group.push({ signal: updated, status: resolution.status });
+      else resolvedBySymbol.set(key, [{ signal: updated, status: resolution.status }]);
+    }
+  }
+
+  for (const [symbolDisplay, group] of resolvedBySymbol) {
+    if (group.length === 1) {
+      void notifyOutcome(group[0].signal, group[0].status).catch(() => {});
+    } else {
+      void notifyOutcomeBatch(symbolDisplay, group).catch(() => {});
     }
   }
 
