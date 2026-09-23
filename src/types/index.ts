@@ -142,6 +142,8 @@ export interface EconomicEvent {
   preEventSummary?: string;    // Narrative for upcoming/live events
   preEventBullets?: string[];  // "What to watch" checklist for upcoming/live events
   utcTimestamp?: number;       // Unix ms  -  used for countdown timer
+  /** Archive rows: 'fred' ones were backfilled (no forecast; monthly ones dated by reference month). */
+  source?: "feed" | "fred";
 }
 
 // Extended news item with optional URL/image from live feeds
