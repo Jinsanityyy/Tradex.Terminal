@@ -405,23 +405,56 @@ function analyzeEvent(
     };
   }
 
-  // ── Unemployment / Jobless Claims ──
-  if (t.includes("unemployment") || t.includes("jobless") || t.includes("employment change")) {
+  // ── Jobless Claims / Unemployment Rate ──
+  // Inverted: a HIGHER number is WEAKER labour data, which pulls rate cuts
+  // forward, so it is bullish Gold and bearish USD. (Employment Change, below,
+  // is the other way round.)
+  if ((t.includes("claims") || t.includes("jobless") || t.includes("unemployment")) && !t.includes("employment change")) {
+    const what = t.includes("rate") ? "unemployment rate" : "jobless claims";
     if (beating) {
       return {
-        goldImpact: "bearish",
-        goldReasoning: "Rising jobless claims = weak economy = Fed cuts sooner = actually bullish gold. But forecast suggests stability.",
+        goldImpact: "bullish",
+        goldReasoning: `Forecast ${forecast} vs prior ${previous}: ${what} expected to rise = labour market cooling = rate-cut bets build = supportive for Gold.`,
         usdImpact: "bearish",
-        usdReasoning: "Higher unemployment = economic weakness = USD sell pressure.",
-        tradeImplication: "Watch claims trend, not single print. Sustained rise above 250K = gold buy signal.",
+        usdReasoning: `Rising ${what} signals labour weakness, which pressures the Dollar through rate-cut expectations.`,
+        tradeImplication: `A print at or above ${forecast} leans Gold-positive; a big upside surprise (well above forecast) is the stronger buy signal. One week of claims is noisy: the trend over 3-4 weeks matters more.`,
+      };
+    }
+    if (missing) {
+      return {
+        goldImpact: "bearish",
+        goldReasoning: `Forecast ${forecast} vs prior ${previous}: ${what} expected to fall = labour market still tight = Fed stays patient = headwind for Gold.`,
+        usdImpact: "bullish",
+        usdReasoning: `Falling ${what} signals a resilient labour market, supporting the Dollar.`,
+        tradeImplication: `A print at or below ${forecast} leans Gold-negative; sell rallies rather than chase. A surprise jump instead would flip the read to Gold-positive.`,
       };
     }
     return {
       goldImpact: "neutral",
-      goldReasoning: "Higher unemployment = bullish gold (safe haven + rate cut bets). Lower unemployment = bearish gold.",
+      goldReasoning: `Higher ${what} = bullish Gold (rate-cut bets). Lower = bearish Gold.`,
       usdImpact: "neutral",
-      usdReasoning: "Labor weakness pressures USD. Labor strength supports it.",
-      tradeImplication: "If claims spike: buy gold. If claims drop: sell gold on USD strength.",
+      usdReasoning: "Labour weakness pressures the USD; labour strength supports it.",
+      tradeImplication: `Forecast is flat on the prior: trade the surprise. Above ${forecast || "forecast"} = buy Gold dips; below = sell Gold rallies.`,
+    };
+  }
+
+  // ── Employment Change (ADP etc.): higher = stronger jobs ──
+  if (t.includes("employment change") || t.includes("employment")) {
+    if (beating || missing) {
+      return {
+        goldImpact: beating ? "bearish" : "bullish",
+        goldReasoning: `Forecast ${forecast} vs prior ${previous}: ${beating ? "more hiring = economy resilient = less need for cuts = bearish Gold" : "less hiring = labour cooling = rate-cut bets = bullish Gold"}.`,
+        usdImpact: beating ? "bullish" : "bearish",
+        usdReasoning: beating ? "Stronger hiring supports the Dollar." : "Weaker hiring weighs on the Dollar.",
+        tradeImplication: "A preview of NFP rather than a replacement: trade the deviation, then let NFP confirm.",
+      };
+    }
+    return {
+      goldImpact: "neutral",
+      goldReasoning: "Strong hiring = bearish Gold. Weak hiring = bullish Gold.",
+      usdImpact: "neutral",
+      usdReasoning: "Hiring strength supports USD; weakness pressures it.",
+      tradeImplication: "Trade the deviation from forecast; NFP has the final say.",
     };
   }
 
