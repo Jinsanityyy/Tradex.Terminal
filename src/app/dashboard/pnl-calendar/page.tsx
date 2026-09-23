@@ -12,6 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DailyPnL, MonthlyPnL } from "@/app/api/pnl/route";
 import type { DayTrade } from "@/app/api/pnl/trades/route";
+import { withTz, todayLocal, localDate, browserTimeZone } from "@/lib/trades/local-date";
 import { AnalyticsView } from "./AnalyticsView";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -161,7 +162,7 @@ function DayJournalModal({
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/pnl/trades?date=${date}`, { headers: await getAuthHeaders() });
+        const res = await fetch(withTz(`/api/pnl/trades?date=${date}`), { headers: await getAuthHeaders() });
         const json = await res.json();
         if (!cancelled) setDayTrades(Array.isArray(json.data) ? json.data : []);
       } catch {
@@ -284,9 +285,7 @@ function DayJournalModal({
                   <div className="space-y-1.5">
                     {dayTrades.map(t => {
                       const side = t.side === "buy" ? "long" : t.side === "sell" ? "short" : t.side;
-                      const time = !t.closedAt ? null
-                        : /^\d{2}:\d{2}/.test(t.closedAt) ? t.closedAt.slice(0, 5)
-                        : new Date(t.closedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                      const time = t.closeTime;
                       return (
                         <div key={`${t.source}-${t.id}`}
                           className={cn(
@@ -449,7 +448,7 @@ function ManualTradeModal({
   onClose: () => void;
   onSaved: (trade: ManualTrade) => void;
 }) {
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayLocal();
   const [date, setDate] = useState(today);
   const [symbol, setSymbol] = useState("XAUUSD");
   const [direction, setDirection] = useState<"long" | "short">("long");
@@ -1024,6 +1023,7 @@ export default function PnLCalendarPage() {
   const [syncing, setSyncing] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
   const [mt5Token, setMt5Token] = useState<Mt5Setup | null>(null);
+  const [removing, setRemoving] = useState<Connection | null>(null);
   const [showAddTrade, setShowAddTrade] = useState(false);
   const [now] = useState(new Date());
   const [viewYear, setViewYear] = useState(now.getFullYear());
@@ -1037,6 +1037,8 @@ export default function PnLCalendarPage() {
   const [manualTrades, setManualTrades] = useState<ManualTrade[]>([]);
   // Newest trades from every source (EA, exchanges, manual) for the side list.
   const [recentTrades, setRecentTrades] = useState<DayTrade[]>([]);
+  // Every trade of the last two years, from every source, for the Analytics tab.
+  const [analyticsTrades, setAnalyticsTrades] = useState<DayTrade[] | null>(null);
 
   function addManualTrade(trade: ManualTrade) {
     setManualTrades(prev => [trade, ...prev]);
@@ -1112,10 +1114,10 @@ export default function PnLCalendarPage() {
       const authHeaders = await getAuthHeaders();
       const qs = selectedConn !== "all" ? `?connectionId=${selectedConn}` : "";
       const [pnlRes, connRes, manualRes, recentRes] = await Promise.all([
-        fetch(`/api/pnl${qs}`, { headers: authHeaders }),
+        fetch(withTz(`/api/pnl${qs}`), { headers: authHeaders }),
         fetch("/api/exchanges/list", { headers: authHeaders }),
         fetch("/api/manual-trades", { headers: authHeaders }),
-        fetch("/api/pnl/trades?limit=50", { headers: authHeaders }),
+        fetch(withTz("/api/pnl/trades?limit=50"), { headers: authHeaders }),
       ]);
       const pnlData    = await pnlRes.json();
       const connData   = await connRes.json();
@@ -1144,7 +1146,7 @@ export default function PnLCalendarPage() {
   // fresh on its own while an MT5 connection exists and the tab is visible.
   const loadDataRef = useRef(loadData);
   loadDataRef.current = loadData;
-  const hasMt5 = connections.some(c => c.exchange === "mt5");
+  const hasMt5 = connections.some(c => c.exchange === "mt5" && c.is_active !== false);
   useEffect(() => {
     if (!hasMt5) return;
     const id = setInterval(() => {
@@ -1152,6 +1154,25 @@ export default function PnLCalendarPage() {
     }, 10_000);
     return () => clearInterval(id);
   }, [hasMt5]);
+
+  // Analytics covers every source, not just hand-logged trades. Refetched when
+  // the tab opens and whenever the trade count moves (e.g. the EA adds one).
+  const tradeCount = daily.reduce((n, d) => n + d.trades, 0);
+  useEffect(() => {
+    if (activeTab !== "analytics") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const from = localDate(Date.now() - 2 * 365 * 86_400_000, browserTimeZone());
+        const res = await fetch(withTz(`/api/pnl/trades?from=${from}`), { headers: await getAuthHeaders() });
+        const json = await res.json();
+        if (!cancelled) setAnalyticsTrades(Array.isArray(json.data) ? json.data : []);
+      } catch {
+        if (!cancelled) setAnalyticsTrades(prev => prev ?? []);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeTab, tradeCount]);
 
   async function rotateMt5Token(id: string) {
     if (!confirm("Issue a new token? The EA stops sending until you paste the new one into its inputs.")) return;
@@ -1221,11 +1242,14 @@ export default function PnLCalendarPage() {
     }
   }
 
-  async function deleteConnection(id: string) {
-    if (!confirm("Remove this exchange connection?")) return;
-    setConnections(prev => prev.filter(c => c.id !== id));
+  /** keepTrades: disconnect but keep its journal. Otherwise the trades go too. */
+  async function removeConnection(id: string, keepTrades: boolean) {
+    setRemoving(null);
     const authHeaders = await getAuthHeaders();
-    await fetch(`/api/exchanges/${id}`, { method: "DELETE", headers: authHeaders });
+    const res = await fetch(`/api/exchanges/${id}${keepTrades ? "?keepTrades=1" : ""}`, { method: "DELETE", headers: authHeaders });
+    if (!res.ok) { toast.error("Couldn't remove the connection"); return; }
+    if (!keepTrades) setConnections(prev => prev.filter(c => c.id !== id));
+    toast.success(keepTrades ? "Disconnected. Its trades stay in your journal." : "Connection and its trades deleted");
     await loadData();
   }
 
@@ -1280,12 +1304,40 @@ export default function PnLCalendarPage() {
     else setViewMonth(m => m + 1);
   }
 
-  const todayStr = now.toISOString().split("T")[0];
+  // Local: in Manila the UTC date is still yesterday until 08:00.
+  const todayStr = todayLocal();
 
   // ── Main View ───────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
       {showConnect && <ConnectModal onClose={() => setShowConnect(false)} onConnected={handleConnected} />}
+      {removing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-2xl p-5 space-y-4">
+            <div>
+              <h2 className="text-sm font-bold text-[hsl(var(--foreground))]">
+                Remove {EXCHANGE_META[removing.exchange]?.name ?? removing.exchange} · {removing.label}?
+              </h2>
+              <p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))] leading-relaxed">
+                Disconnecting stops new trades from syncing and clears its keys or token. The trades it already journaled stay on your calendar.
+              </p>
+            </div>
+            {removing.is_active !== false && (
+              <button onClick={() => removeConnection(removing.id, true)}
+                className="w-full rounded-lg bg-[hsl(var(--primary))]/15 border border-[hsl(var(--primary))]/30 py-2.5 text-sm font-semibold text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/25 transition-all">
+                Disconnect, keep my trades
+              </button>
+            )}
+            <button onClick={() => removeConnection(removing.id, false)}
+              className="w-full rounded-lg border border-red-500/30 bg-red-500/10 py-2.5 text-sm font-semibold text-red-400 hover:bg-red-500/20 transition-all">
+              Delete connection and all its trades
+            </button>
+            <button onClick={() => setRemoving(null)} className="w-full py-1.5 text-[11px] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
       {mt5Token && <Mt5TokenModal setup={mt5Token} onClose={() => { setMt5Token(null); loadData(); }} />}
       {showAddTrade && (
         <ManualTradeModal
@@ -1368,7 +1420,25 @@ export default function PnLCalendarPage() {
 
       {/* ── Analytics Tab ── */}
       {activeTab === "analytics" && (
-        <AnalyticsView trades={manualTrades} daily={daily} />
+        analyticsTrades === null ? (
+          <div className="flex items-center justify-center gap-2 py-20 text-xs text-[hsl(var(--muted-foreground))]">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading every trade…
+          </div>
+        ) : (
+          <AnalyticsView
+            trades={analyticsTrades.map(t => ({
+              id: `${t.source}-${t.id}`,
+              date: t.date,
+              symbol: t.symbol,
+              direction: t.side === "short" || t.side === "sell" ? "short" as const : "long" as const,
+              pnl: t.pnl,
+              fees: t.fee,
+              open_time: t.openTime,
+              close_time: t.closeTime,
+            }))}
+            daily={daily}
+          />
+        )
       )}
 
       {activeTab === "calendar" && <>
@@ -1407,7 +1477,7 @@ export default function PnLCalendarPage() {
           if (!m) return null;
           const isMt5 = c.exchange === "mt5";
           return (
-            <div key={c.id} className={cn("flex items-center gap-2 rounded-lg border px-2.5 py-1.5", m.bg)}>
+            <div key={c.id} className={cn("flex items-center gap-2 rounded-lg border px-2.5 py-1.5", m.bg, c.is_active === false && "opacity-50")}>
               <span className={cn("text-[10px] font-bold", m.color)}>{m.name}</span>
               <span className="text-[10px] text-[hsl(var(--muted-foreground))]">{c.label}</span>
               {isMt5 && c.mt5_account && (
@@ -1420,13 +1490,16 @@ export default function PnLCalendarPage() {
               ) : isMt5 && (
                 <span className="text-[9px] text-amber-400/80">waiting for EA</span>
               )}
-              {isMt5 && (
+              {c.is_active === false && (
+                <span className="text-[9px] font-semibold uppercase text-zinc-500">disconnected</span>
+              )}
+              {isMt5 && c.is_active !== false && (
                 <button onClick={() => rotateMt5Token(c.id)} title="Issue a new EA token"
                   className="text-[hsl(var(--muted-foreground))]/40 hover:text-emerald-400 transition-colors">
                   <KeyRound className="h-2.5 w-2.5" />
                 </button>
               )}
-              <button onClick={() => deleteConnection(c.id)} className="ml-1 text-[hsl(var(--muted-foreground))]/40 hover:text-red-400 transition-colors">
+              <button onClick={() => setRemoving(c)} title="Disconnect or delete" className="ml-1 text-[hsl(var(--muted-foreground))]/40 hover:text-red-400 transition-colors">
                 <Trash2 className="h-2.5 w-2.5" />
               </button>
             </div>
@@ -1668,11 +1741,8 @@ export default function PnLCalendarPage() {
             </CardHeader>
             <CardContent>
               {(() => {
-                const last14 = Array.from({ length: 14 }, (_, i) => {
-                  const d = new Date(now);
-                  d.setDate(d.getDate() - (13 - i));
-                  return d.toISOString().split("T")[0];
-                });
+                const tz = browserTimeZone();
+                const last14 = Array.from({ length: 14 }, (_, i) => localDate(Date.now() - (13 - i) * 86_400_000, tz));
                 const vals = last14.map(d => dailyMap.get(d)?.pnl ?? 0);
                 const maxAbs = Math.max(...vals.map(Math.abs), 1);
 
@@ -1766,9 +1836,7 @@ export default function PnLCalendarPage() {
                 <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                   {recentTrades.map(t => {
                     const side = t.side === "buy" ? "long" : t.side === "sell" ? "short" : t.side;
-                    const when = t.source === "manual" || !t.closedAt
-                      ? t.date
-                      : new Date(t.closedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+                    const when = t.closeTime ? `${t.date} · ${t.closeTime}` : t.date;
                     return (
                       <div
                         key={`${t.source}-${t.id}`}

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { withTz } from "@/lib/trades/local-date";
 import {
   TrendingUp, Brain, Clock, LayoutGrid,
   AlertTriangle, Calendar, Activity, Rss,
@@ -161,7 +162,7 @@ function PnlWidget({ micro }: { micro: MicroData }) {
 
   // Daily P&L + 7-day win rate from user's actual trade log
   useEffect(() => {
-    fetch("/api/pnl")
+    fetch(withTz("/api/pnl"))
       .then(r => r.ok ? r.json() : null)
       .then(json => {
         if (!json) return;
@@ -194,14 +195,14 @@ function PnlWidget({ micro }: { micro: MicroData }) {
       .catch(() => {});
   }, []);
 
-  // Avg R:R from per-trade P&L (avgWin / |avgLoss|)
+  // Avg win / avg loss over the last 200 trades from every source (EA, exchanges, manual)
   useEffect(() => {
-    fetch("/api/manual-trades")
+    fetch(withTz("/api/pnl/trades?limit=200"))
       .then(r => r.ok ? r.json() : null)
       .then(json => {
         if (!json) return;
         type TradeRow = { pnl: number };
-        const trades = (Array.isArray(json) ? json : (json.trades ?? [])) as TradeRow[];
+        const trades = (json.data ?? []) as TradeRow[];
         const wins   = trades.filter(t => t.pnl > 0).map(t => t.pnl);
         const losses = trades.filter(t => t.pnl < 0).map(t => Math.abs(t.pnl));
         if (wins.length < 2 || losses.length < 2) return;
@@ -299,16 +300,16 @@ function PnlWidget({ micro }: { micro: MicroData }) {
           {/* ┘ Avg R:R */}
           <div className="flex flex-col gap-[4px] px-3 py-[9px]">
             <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
-              Avg R:R
+              Win/Loss
             </span>
             <span className={cn(
               "text-[13px] font-bold leading-none tabular-nums",
               avgRR !== null ? "text-zinc-100" : "text-zinc-700"
             )}>
-              {avgRR !== null ? `1 : ${avgRR}` : "—"}
+              {avgRR !== null ? `${avgRR}×` : "—"}
             </span>
             <span className="text-[8px] font-mono leading-none text-zinc-700/50">
-              {avgRR !== null ? "REWARD RATIO" : "NO DATA"}
+              {avgRR !== null ? "AVG W ÷ L" : "NO DATA"}
             </span>
           </div>
 

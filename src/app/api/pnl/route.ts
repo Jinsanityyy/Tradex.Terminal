@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/supabase/auth-helper";
 import { requireUser } from "@/lib/auth/entitlement";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { localDate, resolveTimeZone } from "@/lib/trades/local-date";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +40,8 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const connectionId = searchParams.get("connectionId");
+    // Days are the trader's days: ?tz=Asia/Manila puts a 07:00 close on that date.
+    const tz = resolveTimeZone(searchParams.get("tz"));
 
     const { data: connections } = await supabase
       .from("exchange_connections")
@@ -46,22 +50,34 @@ export async function GET(req: NextRequest) {
       .eq("is_active", true);
 
     const since = new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000).toISOString();
-    let query = supabase
-      .from("trades")
-      .select("pnl, fee, closed_at, connection_id, exchange")
-      .eq("user_id", user.id)
-      .gte("closed_at", since)
-      .order("closed_at", { ascending: true });
+    type TradeRow = { pnl: number; fee: number; closed_at: string; connection_id: string; exchange: string };
+    type ManualRow = { pnl: number; fees: number; date: string };
 
-    if (connectionId) query = query.eq("connection_id", connectionId);
-
-    const [{ data: trades }, { data: manualTrades }] = await Promise.all([
-      query,
-      supabase
-        .from("manual_trades")
-        .select("pnl, fees, date")
-        .eq("user_id", user.id)
-        .gte("date", since.split("T")[0]),
+    // Paged: a plain select stops at 1000 rows and would silently drop trades.
+    const [trades, manualTrades] = await Promise.all([
+      fetchAllRows<TradeRow>((from, to) => {
+        let q = supabase
+          .from("trades")
+          .select("pnl, fee, closed_at, connection_id, exchange")
+          .eq("user_id", user.id)
+          .gte("closed_at", since)
+          .order("closed_at", { ascending: true })
+          .order("id", { ascending: true });
+        if (connectionId) q = q.eq("connection_id", connectionId);
+        return q.range(from, to);
+      }),
+      // Manual trades belong to no connection, so a per-connection view leaves them out.
+      connectionId
+        ? Promise.resolve([] as ManualRow[])
+        : fetchAllRows<ManualRow>((from, to) =>
+            supabase
+              .from("manual_trades")
+              .select("pnl, fees, date")
+              .eq("user_id", user.id)
+              .gte("date", since.split("T")[0])
+              .order("date", { ascending: true })
+              .order("id", { ascending: true })
+              .range(from, to)),
     ]);
 
     const dailyMap = new Map<string, DailyPnL>();
@@ -92,13 +108,12 @@ export async function GET(req: NextRequest) {
       if (pnl > 0) mo.wins += 1;
     }
 
-    for (const t of (trades ?? [])) {
-      const date = new Date(t.closed_at).toISOString().split("T")[0];
-      upsertDay(date, t.pnl ?? 0, t.fee ?? 0, t.exchange);
+    for (const t of trades) {
+      upsertDay(localDate(t.closed_at, tz), Number(t.pnl) || 0, Number(t.fee) || 0, t.exchange);
     }
 
-    for (const t of (manualTrades ?? [])) {
-      upsertDay(t.date, t.pnl ?? 0, t.fees ?? 0, "manual");
+    for (const t of manualTrades) {
+      upsertDay(t.date, Number(t.pnl) || 0, Number(t.fees) || 0, "manual");
     }
 
     return NextResponse.json({

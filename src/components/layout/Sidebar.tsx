@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { withTz, localDate, browserTimeZone } from "@/lib/trades/local-date";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -21,14 +22,16 @@ import { createClient } from "@/lib/supabase/client";
 const SIDEBAR_HIDDEN_STORAGE_KEY = "tradex-sidebar-hidden-v1";
 
 // ── Nav sections ──────────────────────────────────────────────────────────────
+// proOnly must match ENTITLEMENT_EXEMPT in src/middleware.ts: a route the
+// middleware lets free accounts into is shown unlocked here, and vice versa.
 
 const SECTIONS = [
   {
     label: "MARKET",
     items: [
       { id: "market-bias",          href: "/dashboard/market-bias",          label: "Market Direction", icon: TrendingUp,    proOnly: true  },
-      { id: "asset-matrix",         href: "/dashboard/asset-matrix",         label: "Cross-Asset",      icon: LayoutGrid,    proOnly: true  },
-      { id: "session-intelligence", href: "/dashboard/session-intelligence", label: "Trading Sessions", icon: Clock,         proOnly: true  },
+      { id: "asset-matrix",         href: "/dashboard/asset-matrix",         label: "Cross-Asset",      icon: LayoutGrid,    proOnly: false },
+      { id: "session-intelligence", href: "/dashboard/session-intelligence", label: "Trading Sessions", icon: Clock,         proOnly: false },
     ],
   },
   {
@@ -40,7 +43,7 @@ const SECTIONS = [
   {
     label: "MACRO",
     items: [
-      { id: "catalysts",            href: "/dashboard/catalysts",            label: "Macro Events",     icon: AlertTriangle, proOnly: true  },
+      { id: "catalysts",            href: "/dashboard/catalysts",            label: "Macro Events",     icon: AlertTriangle, proOnly: false },
       { id: "trump-monitor",        href: "/dashboard/trump-monitor",        label: "Trump Monitor",    icon: BarChart2,     proOnly: true  },
       { id: "news-flow",            href: "/dashboard/news-flow",            label: "News Feed",        icon: Rss,           proOnly: false },
       { id: "economic-calendar",    href: "/dashboard/economic-calendar",    label: "Calendar",         icon: Calendar,      proOnly: false },
@@ -50,7 +53,7 @@ const SECTIONS = [
     label: "TOOLS",
     items: [
       { id: "signals",              href: "/dashboard/signals",              label: "Read History",     icon: Activity,      proOnly: true  },
-      { id: "pnl-calendar",         href: "/dashboard/pnl-calendar",         label: "P&L Tracker",      icon: DollarSign,    proOnly: true  },
+      { id: "pnl-calendar",         href: "/dashboard/pnl-calendar",         label: "P&L Tracker",      icon: DollarSign,    proOnly: false },
       { id: "candle-analysis",      href: "/dashboard/candle-analysis",      label: "Candle Analysis",  icon: Zap,           proOnly: true  },
       { id: "brain",                href: "/dashboard/brain",                label: "Trading Floor",    icon: Brain,         proOnly: true  },
       { id: "live-tv",              href: "/dashboard/live-tv",              label: "Live Feed",        icon: Tv,            proOnly: false },
@@ -239,6 +242,8 @@ function SidebarAssetSelector() {
 function SidebarPnlWidget() {
   const [dailyPnl, setDailyPnl] = useState<number | null>(null);
   const [winRate,  setWinRate]  = useState<number | null>(null);
+  // Avg win / avg loss over 7 days. Not R: that needs each trade's stop.
+  const [payoff,   setPayoff]   = useState<number | null>(null);
   const [session,  setSession]  = useState<string | null>(null);
 
   useEffect(() => {
@@ -257,12 +262,11 @@ function SidebarPnlWidget() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/pnl").then(r => r.ok ? r.json() : null).then(json => {
+    fetch(withTz("/api/pnl")).then(r => r.ok ? r.json() : null).then(json => {
       if (!json) return;
-      const now = new Date();
-      const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
-      const cutoff = new Date(now.getTime() - 7 * 86_400_000);
-      const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth()+1).padStart(2,"0")}-${String(cutoff.getDate()).padStart(2,"0")}`;
+      const tz = browserTimeZone();
+      const today = localDate(Date.now(), tz);
+      const cutoffStr = localDate(Date.now() - 7 * 86_400_000, tz);
       type DayRow = { date: string; pnl: number; trades: number; wins: number };
       const daily = (json.daily ?? []) as DayRow[];
       setDailyPnl(daily.find((d: DayRow) => d.date === today)?.pnl ?? null);
@@ -270,6 +274,15 @@ function SidebarPnlWidget() {
       const tot  = week.reduce((s: number, d: DayRow) => s + d.trades, 0);
       const wins = week.reduce((s: number, d: DayRow) => s + d.wins, 0);
       if (tot >= 1) setWinRate(Math.round((wins / tot) * 100));
+
+      fetch(withTz(`/api/pnl/trades?from=${cutoffStr}`)).then(r => r.ok ? r.json() : null).then(tj => {
+        const pnls = ((tj?.data ?? []) as Array<{ pnl: number }>).map(t => t.pnl);
+        const wins = pnls.filter(p => p > 0), losses = pnls.filter(p => p < 0);
+        if (!wins.length || !losses.length) return;
+        const avgWin  = wins.reduce((a, b) => a + b, 0) / wins.length;
+        const avgLoss = Math.abs(losses.reduce((a, b) => a + b, 0) / losses.length);
+        setPayoff(avgWin / avgLoss);
+      }).catch(() => {});
     }).catch(() => {});
   }, []);
 
@@ -290,7 +303,7 @@ function SidebarPnlWidget() {
             { label: "Daily P&L",  value: pnlVal,                         sub: "TODAY",    cls: pnlClass,  br: true,  bb: true  },
             { label: "Session",    value: session ?? "CLOSED",             sub: hasSession ? "ACTIVE" : "—", cls: hasSession ? "text-zinc-100" : "text-zinc-600", br: false, bb: true  },
             { label: "Win Rate",   value: winRate !== null ? `${winRate}%` : "—", sub: "7D", cls: winRate !== null ? "text-zinc-100" : "text-zinc-700", br: true,  bb: false },
-            { label: "Avg R:R",    value: "—",                            sub: "NO DATA",  cls: "text-zinc-700", br: false, bb: false },
+            { label: "Win/Loss",   value: payoff !== null ? `${payoff.toFixed(2)}×` : "—", sub: payoff !== null ? "AVG W ÷ L" : "NO DATA", cls: payoff === null ? "text-zinc-700" : payoff >= 1 ? "text-zinc-100" : "text-red-400", br: false, bb: false },
           ].map(({ label, value, sub, cls, br, bb }) => (
             <div key={label} className={cn("flex flex-col gap-[3px] px-3 py-[7px]", br && "border-r border-white/[0.05]", bb && "border-b border-white/[0.05]")}>
               <span className="text-[7.5px] font-semibold uppercase tracking-[0.14em] text-zinc-600">{label}</span>

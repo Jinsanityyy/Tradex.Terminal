@@ -41,10 +41,12 @@ function fmtD(n: number): string {
   return n < 0 ? `-${s}` : `+${s}`;
 }
 
-// Mode-aware value formatter — base = totalVolume (grossProfit + grossLoss)
+// Mode-aware value formatter — base = the account size the trader entered, so
+// "%" means percent of the account, the way every broker and prop firm reports it.
 function fmtV(n: number, mode: PnlMode, base: number): string {
   if (mode === "percent") {
-    if (base === 0 || n === 0) return "0.00%";
+    if (base === 0) return "—";   // no account size entered yet
+    if (n === 0) return "0.00%";
     const pct = (n / base) * 100;
     return (pct >= 0 ? "+" : "-") + Math.abs(pct).toFixed(2) + "%";
   }
@@ -54,7 +56,8 @@ function fmtV(n: number, mode: PnlMode, base: number): string {
 // Compact cell formatter for the monthly grid
 function fmtCell(n: number, mode: PnlMode, base: number): string {
   if (mode === "percent") {
-    if (base === 0 || n === 0) return "0%";
+    if (base === 0) return "—";
+    if (n === 0) return "0%";
     const pct = (n / base) * 100;
     return (pct >= 0 ? "+" : "-") + Math.abs(pct).toFixed(1) + "%";
   }
@@ -110,7 +113,9 @@ type Stats = {
   grossProfit: number; grossLoss: number; netPnl: number; profitFactor: number;
   avgWin: number; avgLoss: number; bestDay: number; worstDay: number; worstTrade: number; streak: number;
   equityCurve: Array<{ date: string; balance: number }>;
-  maxDDPct: number;
+  maxDDAmt: number;
+  /** Max drawdown as % of peak equity; null until an account size is known. */
+  maxDDPct: number | null;
   bySymbol: Array<[string, SymStat]>;
   dowArr: DowEntry[];
   byMonth: Array<[string, SymStat]>;
@@ -134,6 +139,17 @@ export function AnalyticsView({
   daily: DailyPnL[];
 }) {
   const [pnlMode, setPnlMode] = useState<PnlMode>("currency");
+  // Starting account size for % mode. A per-browser preference, so localStorage.
+  const [accountSize, setAccountSize] = useState<number>(() => {
+    try { return Number(localStorage.getItem("tradex_account_size")) || 0; } catch { return 0; }
+  });
+  const [sizeDraft, setSizeDraft] = useState("");
+  function saveAccountSize() {
+    const n = Number(sizeDraft.replace(/[$,\s]/g, ""));
+    if (!(n > 0)) return;
+    setAccountSize(n);
+    try { localStorage.setItem("tradex_account_size", String(n)); } catch { /* private mode */ }
+  }
 
   const stats: Stats = useMemo((): Stats => {
     try {
@@ -194,12 +210,18 @@ export function AnalyticsView({
     });
 
     // Max drawdown
-    let peak = 0, maxDDPct = 0, tradeRunning = 0;
+    // Measured against equity (account size + running P&L), never against
+    // profit alone: +$10 then -$50 is a small drawdown on a $10k account, not 600%.
+    let peak = 0, maxDDAmt = 0, maxDDPct: number | null = accountSize > 0 ? 0 : null, tradeRunning = 0;
     sorted.forEach(t => {
       tradeRunning += t.pnl;
       if (tradeRunning > peak) peak = tradeRunning;
-      const ddPct = peak > 0 ? ((peak - tradeRunning) / peak) * 100 : 0;
-      if (ddPct > maxDDPct) maxDDPct = ddPct;
+      const dd = peak - tradeRunning;
+      if (dd > maxDDAmt) maxDDAmt = dd;
+      if (maxDDPct !== null) {
+        const pct = (dd / (accountSize + peak)) * 100;
+        if (pct > maxDDPct) maxDDPct = pct;
+      }
     });
 
     // By symbol
@@ -258,14 +280,14 @@ export function AnalyticsView({
       totalTrades, wins, losses, winRate,
       grossProfit, grossLoss, netPnl, profitFactor,
       avgWin, avgLoss, bestDay, worstDay, worstTrade, streak,
-      equityCurve, maxDDPct,
+      equityCurve, maxDDAmt, maxDDPct,
       bySymbol, dowArr, byMonth,
       expectancy, rrRatio, sharpeRatio, tradingDays, totalVolume,
       monthlyGrid, monthlyYTD, gridYears,
       avgHoldMins,
     };
     } catch { return null; }
-  }, [trades]);
+  }, [trades, accountSize]);
 
   if (!stats) {
     return (
@@ -281,9 +303,9 @@ export function AnalyticsView({
     totalTrades, wins, losses, winRate,
     grossProfit, grossLoss, netPnl, profitFactor,
     avgWin, avgLoss, bestDay, worstDay, worstTrade, streak,
-    equityCurve, maxDDPct,
+    equityCurve, maxDDAmt, maxDDPct,
     bySymbol, dowArr,
-    expectancy, rrRatio, sharpeRatio, tradingDays, totalVolume,
+    expectancy, rrRatio, sharpeRatio, tradingDays,
     monthlyGrid, monthlyYTD, gridYears,
     avgHoldMins,
   } = stats;
@@ -294,7 +316,7 @@ export function AnalyticsView({
   }
 
   const dowMax = Math.max(...dowArr.map((d: DowEntry) => Math.abs(d.pnl)), 1);
-  const base   = totalVolume; // denominator for % mode
+  const base   = accountSize; // denominator for % mode
 
   return (
     <div className="space-y-5">
@@ -325,6 +347,29 @@ export function AnalyticsView({
           </button>
         </div>
       </div>
+
+      {/* % needs a real denominator: ask for the account size instead of guessing one */}
+      {pnlMode === "percent" && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/8 bg-white/3 px-4 py-3">
+          <p className="text-[11px] text-zinc-400">
+            {accountSize > 0
+              ? <>Percentages are of a <span className="font-mono text-zinc-200">${accountSize.toLocaleString()}</span> account.</>
+              : "Enter your starting account size to see returns in %."}
+          </p>
+          <form className="flex items-center gap-2" onSubmit={e => { e.preventDefault(); saveAccountSize(); }}>
+            <input
+              inputMode="decimal"
+              value={sizeDraft}
+              onChange={e => setSizeDraft(e.target.value)}
+              placeholder={accountSize > 0 ? "Change size" : "e.g. 10000"}
+              className="w-28 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] font-mono text-zinc-200 outline-none focus:border-white/25"
+            />
+            <button type="submit" className="rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 text-[10px] font-semibold text-zinc-200 hover:bg-white/15">
+              Save
+            </button>
+          </form>
+        </div>
+      )}
 
       {/* ── Primary KPI chips ────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -361,10 +406,12 @@ export function AnalyticsView({
           },
           {
             label: "Max Drawdown",
-            value: maxDDPct > 0 ? `-${maxDDPct.toFixed(2)}%` : "0.00%",
-            accent: maxDDPct >= 40 ? "text-red-400" : maxDDPct > 0 ? "text-orange-400" : "text-zinc-500",
+            value: maxDDPct !== null
+              ? (maxDDPct > 0 ? `-${maxDDPct.toFixed(2)}%` : "0.00%")
+              : (maxDDAmt > 0 ? `-$${maxDDAmt.toFixed(2)}` : "$0.00"),
+            accent: (maxDDPct ?? 0) >= 20 ? "text-red-400" : maxDDAmt > 0 ? "text-orange-400" : "text-zinc-500",
             icon: Activity,
-            badge: maxDDPct >= 40 ? "HIGH RISK" : undefined,
+            badge: (maxDDPct ?? 0) >= 20 ? "HIGH RISK" : undefined,
           },
         ].map(({ label, value, accent, icon: Icon, badge }) => (
           <div key={label} className="rounded-xl border border-white/8 bg-white/3 px-4 py-3">
@@ -402,7 +449,7 @@ export function AnalyticsView({
         <div className="rounded-xl border border-white/8 bg-white/3 px-4 py-3">
           <div className="flex items-center gap-1.5 mb-1.5">
             <ArrowRightLeft className="h-3 w-3 text-zinc-500" />
-            <p className="text-[9px] uppercase tracking-widest text-zinc-500">Risk-to-Reward</p>
+            <p className="text-[9px] uppercase tracking-widest text-zinc-500">Payoff Ratio</p>
           </div>
           <p className={cn(
             "text-base font-bold font-mono",
@@ -412,7 +459,7 @@ export function AnalyticsView({
               ? "text-yellow-500"
               : "text-red-500"
           )}>
-            {rrRatio >= 99 ? "∞ R" : `${rrRatio.toFixed(2)} R`}
+            {rrRatio >= 99 ? "∞" : `${rrRatio.toFixed(2)}×`}
           </p>
           <p className="text-[9px] text-zinc-600 mt-0.5 font-normal">avg win / avg loss</p>
         </div>

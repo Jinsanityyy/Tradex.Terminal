@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { withTz, localDate, browserTimeZone } from "@/lib/trades/local-date";
 import { useQuotes, useMarketBias, useKeyLevels, useCatalysts, useMarketAnalysis, useAgentResult, useSessions, useMTFBias, useTrumpPosts, useLastSignal } from "@/hooks/useMarketData";
 import { useWebSocketPrices } from "@/hooks/useWebSocketPrices";
 import { TrendingUp, TrendingDown, Minus, Target, Zap, RefreshCw, Sparkles, ChevronDown, ChevronUp, Brain, BarChart2, Settings2, Lock } from "lucide-react";
@@ -39,7 +40,7 @@ const pnlFetcher = (url: string) => fetch(url).then(r => r.json());
 
 function MobilePnLWidget() {
   const { data } = useSWR<{ daily: DailyPnL[]; monthly: MonthlyPnL[] }>(
-    "/api/pnl",
+    withTz("/api/pnl"),
     pnlFetcher,
     { refreshInterval: 300_000 }
   );
@@ -53,11 +54,9 @@ function MobilePnLWidget() {
     : 0;
 
   // Last 14 days bars
-  const last14 = Array.from({ length: 14 }, (_, i) => {
-    const d = new Date(now);
-    d.setDate(d.getDate() - (13 - i));
-    return d.toISOString().split("T")[0];
-  });
+  // Local days, to match how /api/pnl buckets them (?tz=).
+  const tz = browserTimeZone();
+  const last14 = Array.from({ length: 14 }, (_, i) => localDate(now.getTime() - (13 - i) * 86_400_000, tz));
   const dailyMap = new Map<string, number>(
     (data?.daily ?? []).map((d: DailyPnL): [string, number] => [d.date, d.pnl])
   );
