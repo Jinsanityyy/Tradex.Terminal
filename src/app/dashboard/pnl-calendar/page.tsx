@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DailyPnL, MonthlyPnL } from "@/app/api/pnl/route";
+import type { DayTrade } from "@/app/api/pnl/trades/route";
 import { AnalyticsView } from "./AnalyticsView";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -116,6 +117,25 @@ function compressImageToBase64(file: File, maxWidth = 900, quality = 0.65): Prom
 
 // ── Day Journal Modal ──────────────────────────────────────────────────────────
 
+/** Where a trade came from, so an EA fill never reads like a hand-typed one. */
+function SourceBadge({ source }: { source: string }) {
+  const meta =
+    source === "mt5"    ? { name: "MT5 EA", cls: "text-emerald-400 bg-emerald-400/10 border-emerald-400/30" } :
+    source === "manual" ? { name: "Manual", cls: "text-zinc-400 bg-zinc-400/10 border-zinc-400/25" } :
+    EXCHANGE_META[source as ExchangeKey]
+      ? { name: EXCHANGE_META[source as ExchangeKey].name, cls: `${EXCHANGE_META[source as ExchangeKey].color} ${EXCHANGE_META[source as ExchangeKey].bg}` }
+      : { name: source, cls: "text-zinc-400 bg-zinc-400/10 border-zinc-400/25" };
+  return (
+    <span className={cn("shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide", meta.cls)}>
+      {meta.name}
+    </span>
+  );
+}
+
+function formatMoney(n: number): string {
+  return `${n >= 0 ? "+" : "-"}$${Math.abs(n).toFixed(2)}`;
+}
+
 function DayJournalModal({
   date,
   pnlData,
@@ -135,6 +155,21 @@ function DayJournalModal({
   const [uploading, setUploading] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [dayTrades, setDayTrades] = useState<DayTrade[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/pnl/trades?date=${date}`, { headers: await getAuthHeaders() });
+        const json = await res.json();
+        if (!cancelled) setDayTrades(Array.isArray(json.data) ? json.data : []);
+      } catch {
+        if (!cancelled) setDayTrades([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [date]);
 
   const dateLabel = new Date(date + "T12:00:00").toLocaleDateString("en-US", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
@@ -215,10 +250,10 @@ function DayJournalModal({
             {hasPnl ? (
               <div className="grid grid-cols-4 gap-2">
                 {[
-                  { label: "P&L", value: `${pnlData.pnl >= 0 ? "+" : ""}$${pnlData.pnl.toFixed(2)}`, color: pnlData.pnl >= 0 ? "text-emerald-400" : "text-red-400" },
+                  { label: "P&L", value: formatMoney(pnlData.pnl), color: pnlData.pnl >= 0 ? "text-emerald-400" : "text-red-400" },
                   { label: "Trades", value: String(pnlData.trades), color: "text-[hsl(var(--foreground))]" },
                   { label: "Wins", value: String(pnlData.wins), color: "text-emerald-400" },
-                  { label: "Fees", value: `-$${pnlData.fees.toFixed(2)}`, color: "text-red-400/70" },
+                  { label: "Fees", value: pnlData.fees > 0 ? `-$${pnlData.fees.toFixed(2)}` : "$0.00", color: "text-red-400/70" },
                 ].map(({ label, value, color }) => (
                   <div key={label} className="rounded-lg bg-[hsl(var(--secondary))] p-2.5 text-center">
                     <p className="text-[9px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1">{label}</p>
@@ -229,6 +264,57 @@ function DayJournalModal({
             ) : (
               <div className="rounded-lg bg-[hsl(var(--secondary))]/50 border border-[hsl(var(--border))]/50 p-3 text-center">
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">No trade data for this day  -  you can still add journal notes.</p>
+              </div>
+            )}
+
+            {/* Trades: each one tagged with where it came from */}
+            {hasPnl && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Activity className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Trades</p>
+                </div>
+                {dayTrades === null ? (
+                  <div className="flex items-center gap-2 px-1 py-2 text-[11px] text-[hsl(var(--muted-foreground))]">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading trades…
+                  </div>
+                ) : dayTrades.length === 0 ? (
+                  <p className="px-1 py-2 text-[11px] text-[hsl(var(--muted-foreground))]">Couldn&apos;t load this day&apos;s trades.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {dayTrades.map(t => {
+                      const side = t.side === "buy" ? "long" : t.side === "sell" ? "short" : t.side;
+                      const time = !t.closedAt ? null
+                        : /^\d{2}:\d{2}/.test(t.closedAt) ? t.closedAt.slice(0, 5)
+                        : new Date(t.closedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                      return (
+                        <div key={`${t.source}-${t.id}`}
+                          className={cn(
+                            "flex items-center gap-2.5 rounded-lg border px-3 py-2",
+                            t.pnl >= 0 ? "border-emerald-500/15 bg-emerald-500/[0.04]" : "border-red-500/15 bg-red-500/[0.04]",
+                          )}>
+                          <SourceBadge source={t.source} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 text-[11px]">
+                              <span className="font-semibold text-zinc-200">{t.symbol}</span>
+                              <span className={cn("text-[9px] font-bold uppercase", side === "long" ? "text-emerald-500/80" : "text-red-500/80")}>{side}</span>
+                              {time && <span className="text-[10px] text-zinc-500">· closed {time}</span>}
+                            </div>
+                            {t.sourceDetail && (
+                              <p className="truncate text-[10px] text-zinc-600">{t.sourceDetail}</p>
+                            )}
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className={cn("text-[12px] font-bold font-mono tabular-nums", t.pnl >= 0 ? "text-emerald-400" : "text-red-400")}>
+                              {formatMoney(t.pnl)}
+                            </p>
+                            {t.fee > 0 && <p className="text-[9px] font-mono text-zinc-500">fee ${t.fee.toFixed(2)}</p>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
