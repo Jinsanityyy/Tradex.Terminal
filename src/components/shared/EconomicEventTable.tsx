@@ -351,7 +351,11 @@ export function releaseLabel(ev: Pick<EconomicEvent, "date" | "source" | "event"
   if (!ev.date) return null;
   const d = new Date(`${ev.date}T12:00:00Z`);
   if (ev.source === "fred" && !RATE_TITLE_RE.test(ev.event)) {
-    return `${d.toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" })} report`;
+    // FRED dates monthly data by the month it covers; it is published the
+    // following month (NFP on the first Friday, CPI mid-month).
+    const month = (x: Date) => x.toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+    const next = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 15));
+    return `${month(d)} data · released ${month(next)}`;
   }
   return `${d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })} · ${daysAgo(ev.date)}`;
 }
@@ -430,7 +434,9 @@ function ReleaseHistory({ ev }: { ev: EconomicEvent }) {
               const fc = toNum(r.forecast);
               return (
                 <tr key={`${r.date}-${i}`} className="border-t border-white/5">
-                  <td className="px-2.5 py-1.5 text-zinc-400">{releaseLabel(r)?.split(" · ")[0] ?? r.date}</td>
+                  <td className="px-2.5 py-1.5 text-zinc-400">
+                    {(() => { const l = releaseLabel(r); return !l ? r.date : l.includes("released") ? l : l.split(" · ")[0]; })()}
+                  </td>
                   <td className="px-2.5 py-1.5 text-right font-mono text-zinc-100">{r.actual}</td>
                   <td className="px-2.5 py-1.5 text-right font-mono text-zinc-500">{fc !== null ? r.forecast : "—"}</td>
                   <td className={cn("px-2.5 py-1.5 text-right font-mono",
@@ -446,7 +452,7 @@ function ReleaseHistory({ ev }: { ev: EconomicEvent }) {
         </table>
       </div>
       {rows.some(r => r.source === "fred") && (
-        <p className="text-[9px] text-zinc-600">Older releases come from FRED, which publishes the print but not the consensus forecast.</p>
+        <p className="text-[9px] text-zinc-500">Older releases come from FRED: the latest revised figure, without the consensus forecast. New releases are recorded as first printed, with their forecast.</p>
       )}
     </div>
   );
@@ -932,7 +938,7 @@ export function ArchiveTable({ events, symbol = "XAUUSD" }: { events: EconomicEv
       </div>
       {events.some(e => e.source === "fred") && (
         <p className="mt-2 text-[10px] text-zinc-500">
-          Change is against the previous print. Older releases come from FRED, which publishes the print but not the consensus forecast; monthly data is dated by the month it covers.
+          Change is against the previous print. Older releases come from FRED, which shows the latest revised figure (not always the first print traders saw) and no consensus forecast; monthly data is labelled by the month it covers and the month it was released.
         </p>
       )}
 
