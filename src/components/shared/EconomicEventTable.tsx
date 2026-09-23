@@ -758,7 +758,7 @@ function EventCard({
         <div className="flex items-center gap-2">
           <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: impactColor }}>● {impactLabel}</span>
           {ev.status === "upcoming" && <Countdown utcTimestamp={ev.utcTimestamp} compact />}
-          <span className="text-[8px]" style={{ color: "var(--t-muted)", opacity: 0.45 }}>{ev.time} PHT</span>
+          <span className="text-[10px] font-mono" style={{ color: "var(--t-muted)" }}>{ev.time} PHT</span>
         </div>
       </div>
 
@@ -791,7 +791,7 @@ function EventCard({
           ].map(({ label, value, color }) => (
             <div key={label} className="rounded-lg p-2 text-center"
               style={{ background: "color-mix(in srgb, var(--t-text) 4%, transparent)", border: "1px solid var(--t-border)" }}>
-              <p className="text-[8px] uppercase tracking-widest mb-1" style={{ color: "var(--t-muted)", opacity: 0.6 }}>{label}</p>
+              <p className="text-[9px] uppercase tracking-widest mb-1" style={{ color: "var(--t-muted)" }}>{label}</p>
               <p className="font-mono text-[11px] font-bold tabular-nums" style={{ color }}>{value}</p>
             </div>
           ))}
@@ -817,7 +817,7 @@ function EventCard({
         )}
 
         {/* Tap hint */}
-        <p className="text-[9px] text-right" style={{ color: "var(--t-muted)", opacity: 0.4 }}>
+        <p className="text-[10px] text-right" style={{ color: "var(--t-muted)", opacity: 0.8 }}>
           Tap for full analysis →
         </p>
       </div>
@@ -858,6 +858,85 @@ export function EconomicEventTable({ events, showInterpretation = false, compact
         onClose={() => setSelected(null)}
         title={selected?.event}
       >
+        {selected && <EventDetail ev={selected} symbol={symbol} />}
+      </DetailModal>
+    </>
+  );
+}
+
+/**
+ * Archive search results as a dense, terminal-style table: one row per
+ * release, newest first, with the move against the prior print and the
+ * Gold read. A row opens the same full analysis as the cards.
+ */
+export function ArchiveTable({ events, symbol = "XAUUSD" }: { events: EconomicEvent[]; symbol?: string }) {
+  const [selected, setSelected] = useState<EconomicEvent | null>(null);
+
+  const READ: Record<"bullish" | "bearish" | "neutral", string> = {
+    bullish: "text-emerald-400",
+    bearish: "text-red-400",
+    neutral: "text-zinc-400",
+  };
+
+  return (
+    <>
+      <div className="overflow-x-auto rounded-lg border border-white/8">
+        <table className="w-full min-w-[720px] text-[12px]">
+          <thead>
+            <tr className="bg-white/[0.04] text-[10px] uppercase tracking-wider text-zinc-400">
+              <th className="px-3 py-2 text-left font-semibold">Released</th>
+              <th className="px-3 py-2 text-left font-semibold">Event</th>
+              <th className="px-3 py-2 text-right font-semibold">Actual</th>
+              <th className="px-3 py-2 text-right font-semibold">Previous</th>
+              <th className="px-3 py-2 text-right font-semibold">Forecast</th>
+              <th className="px-3 py-2 text-right font-semibold">Change</th>
+              <th className="px-3 py-2 text-right font-semibold">Gold</th>
+              <th className="w-6" />
+            </tr>
+          </thead>
+          <tbody>
+            {events.map(ev => {
+              const a = toNum(ev.actual), p = toNum(ev.previous), f = toNum(ev.forecast);
+              const isRate = RATE_TITLE_RE.test(ev.event);
+              const unit = String(ev.actual ?? "").replace(/[-\d.,\s+]/g, "");
+              const c = a !== null && p !== null ? a - p : null;
+              const change = c === null ? "—"
+                : isRate ? (c === 0 ? "hold" : `${c > 0 ? "+" : ""}${Math.round(c * 100)}bp`)
+                : `${c > 0 ? "+" : ""}${Math.abs(c) >= 10 || unit === "K" ? c.toFixed(0) : c.toFixed(2).replace(/\.?0+$/, "")}${unit}`;
+              const gold = a !== null ? buildFallbackAnalysis(ev).goldImpact : null;
+              const label = releaseLabel(ev);
+              return (
+                <tr key={ev.id} onClick={() => setSelected(ev)}
+                  className="cursor-pointer border-t border-white/5 transition-colors hover:bg-white/[0.04]">
+                  <td className="whitespace-nowrap px-3 py-2">
+                    <p className="text-zinc-200">{label?.split(" · ")[0] ?? ev.date}</p>
+                    <p className="text-[10px] text-zinc-500">
+                      {[label?.split(" · ")[1], ev.time && ev.time !== "--:--" ? `${ev.time} PHT` : null].filter(Boolean).join(" · ")}
+                    </p>
+                  </td>
+                  <td className="px-3 py-2 font-semibold text-zinc-100">{ev.event}</td>
+                  <td className="px-3 py-2 text-right font-mono font-semibold text-zinc-50">{ev.actual ?? "—"}</td>
+                  <td className="px-3 py-2 text-right font-mono text-zinc-400">{p !== null ? ev.previous : "—"}</td>
+                  <td className="px-3 py-2 text-right font-mono text-zinc-400">{f !== null ? ev.forecast : "—"}</td>
+                  <td className={cn("px-3 py-2 text-right font-mono",
+                    c === null || c === 0 ? "text-zinc-400" : c > 0 ? "text-emerald-400" : "text-red-400")}>{change}</td>
+                  <td className={cn("px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wide", gold ? READ[gold] : "text-zinc-500")}>
+                    {gold ?? "—"}
+                  </td>
+                  <td className="pr-3 text-zinc-500"><ChevronRight className="h-3.5 w-3.5" /></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {events.some(e => e.source === "fred") && (
+        <p className="mt-2 text-[10px] text-zinc-500">
+          Change is against the previous print. Older releases come from FRED, which publishes the print but not the consensus forecast; monthly data is dated by the month it covers.
+        </p>
+      )}
+
+      <DetailModal open={!!selected} onClose={() => setSelected(null)} title={selected?.event}>
         {selected && <EventDetail ev={selected} symbol={symbol} />}
       </DetailModal>
     </>
