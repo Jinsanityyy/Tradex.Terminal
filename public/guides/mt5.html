@@ -341,6 +341,31 @@
     .copy code { white-space: normal; word-break: break-all; }
   }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; scroll-behavior: auto !important; } }
+
+  /* ── Print / PDF ──────────────────────────────────────────── */
+  @page { size: A4; margin: 0; }
+  @media print {
+    html, body { background: var(--bg); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    * { animation: none !important; }
+    .topbar { position: static; }
+    .topbar-cta, .toc, .flow-arrow .line { display: none; }
+    .hero-inner { padding: 40px 36px 36px; grid-template-columns: 1fr; gap: 28px; }
+    .hero::before, .hero::after { display: none; }
+    .wrap { display: block; padding: 28px 36px 8px; }
+    section { margin-bottom: 28px; }
+    .step { grid-template-columns: 1fr 1fr; gap: 20px; padding: 22px; break-inside: avoid; }
+    .step .note, .step ol.do li { font-size: 13px; }
+    .need, .issue, .done, details, .checks > div { break-inside: avoid; }
+    .issue { grid-template-columns: 1fr 1.2fr; }
+    #step-1 { break-before: page; padding-top: 28px; }
+    #fix, #faq { break-before: page; padding-top: 28px; }
+    details summary::after { display: none; }
+    summary { padding: 11px 0 6px; font-size: 15px; }
+    details p { padding-bottom: 11px; font-size: 13.5px; }
+    footer { padding: 18px 20px 24px; border-top: 0; }
+    footer .btn { margin-bottom: 10px; }
+    footer { break-inside: avoid; }
+  }
 </style>
 </head>
 <body>
