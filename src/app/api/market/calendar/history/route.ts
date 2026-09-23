@@ -64,6 +64,10 @@ export async function GET(req: NextRequest) {
   const { data, error } = await query;
   if (error) {
     console.error("[calendar-history]", error.message);
+    // Table not created yet (20260923_economic_events_archive.sql): say so, not "failed".
+    if (/relation .*economic_events.* does not exist|Could not find the table/i.test(error.message)) {
+      return NextResponse.json({ error: "archive not set up" }, { status: 503 });
+    }
     return NextResponse.json({ error: "query failed" }, { status: 500 });
   }
 

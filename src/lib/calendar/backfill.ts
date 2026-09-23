@@ -9,6 +9,7 @@
  */
 
 import { getServiceClient } from "@/lib/supabase/service";
+import { FOMC_DECISION_DATES } from "@/lib/calendar/fomc-dates";
 
 type Series = {
   /** FRED series id */
@@ -20,12 +21,14 @@ type Series = {
   impact: "high" | "medium";
   /** true when the observation IS the value (a rate); false when it is a level to diff */
   asLevel: boolean;
+  /** Emit one row per FOMC decision instead of one per change in the series. */
+  fomc?: boolean;
 };
 
 // Only series whose observation maps cleanly onto a calendar line. Level series
 // that need a month-over-month diff are included with asLevel = false.
 const SERIES: Series[] = [
-  { id: "DFEDTARU", title: "Federal Funds Rate",        unit: "%", decimals: 2, impact: "high",   asLevel: true  },
+  { id: "DFEDTARU", title: "Federal Funds Rate",        unit: "%", decimals: 2, impact: "high",   asLevel: true, fomc: true },
   { id: "UNRATE",   title: "Unemployment Rate",         unit: "%", decimals: 1, impact: "high",   asLevel: true  },
   { id: "UMCSENT",  title: "Michigan Consumer Sentiment", unit: "", decimals: 1, impact: "medium", asLevel: true  },
   { id: "CPIAUCSL", title: "CPI m/m",                   unit: "%", decimals: 1, impact: "high",   asLevel: false },
@@ -56,8 +59,28 @@ async function fetchSeries(id: string, start: string): Promise<Obs[]> {
 }
 
 /**
- * A daily series like DFEDTARU repeats the same rate every day. Only the days
- * the value actually CHANGED are real events  -  those are the FOMC decisions.
+ * One row per FOMC decision, holds included: most meetings leave the rate
+ * where it was, so "days the series changed" missed them. A new target takes
+ * effect the day after the statement, hence "before" is the value on the
+ * meeting day and "after" the first value on a later day.
+ */
+export function fomcDecisions(obs: Obs[], sinceISO: string): Array<{ date: string; before: number; after: number }> {
+  const today = new Date().toISOString().slice(0, 10);
+  const out: Array<{ date: string; before: number; after: number }> = [];
+  for (const date of FOMC_DECISION_DATES) {
+    if (date < sinceISO || date >= today) continue;
+    const before = [...obs].reverse().find(o => o.date <= date);
+    const after = obs.find(o => o.date > date);
+    if (!before || !after) continue;   // FRED hasn't published the effective day yet
+    const b = parseFloat(before.value), a = parseFloat(after.value);
+    if (!isNaN(a) && !isNaN(b)) out.push({ date, before: b, after: a });
+  }
+  return out;
+}
+
+/**
+ * A daily series repeats the same value every day; only the days it CHANGED
+ * are events. (Monthly series change every print, so this keeps all of them.)
  */
 function changesOnly(obs: Obs[]): Obs[] {
   const out: Obs[] = [];
@@ -87,7 +110,14 @@ export async function backfillFromFred(sinceISO: string): Promise<BackfillResult
 
     const rows: Record<string, unknown>[] = [];
 
-    if (s.asLevel) {
+    if (s.fomc) {
+      for (const d of fomcDecisions(obs, sinceISO)) {
+        const fmt = (n: number) => `${n.toFixed(s.decimals)}${s.unit}`;
+        const r = row(s, d.date, fmt(d.after), fmt(d.before));
+        r.utc_timestamp = new Date(`${d.date}T18:00:00Z`).getTime();   // 2:00 pm ET statement
+        rows.push(r);
+      }
+    } else if (s.asLevel) {
       // Daily rate series repeat their value; only transitions are events.
       // Monthly ones (UNRATE, UMCSENT) change every print, so this is a no-op there.
       for (const o of changesOnly(obs)) {
@@ -112,6 +142,12 @@ export async function backfillFromFred(sinceISO: string): Promise<BackfillResult
 
     if (rows.length === 0) continue;
 
+    // Earlier backfills filed rate changes on their effective day; replace those
+    // with the per-meeting rows so each decision appears once, on its own date.
+    if (s.fomc) {
+      await db.from("economic_events").delete().eq("event", s.title).eq("source", "fred").gte("event_date", sinceISO);
+    }
+
     // Chunked: a decade of monthly series across nine ids is a lot for one call.
     for (let i = 0; i < rows.length; i += 500) {
       const { error } = await db
@@ -126,7 +162,7 @@ export async function backfillFromFred(sinceISO: string): Promise<BackfillResult
   return result;
 }
 
-function row(s: Series, date: string, actual: string, previous: string | null) {
+function row(s: Series, date: string, actual: string, previous: string | null): Record<string, unknown> {
   return {
     event:         s.title,
     event_date:    date,
