@@ -327,7 +327,9 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
     <div className="space-y-4">
       {/* Time + status */}
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="font-data text-[11px] tabular-nums text-[hsl(var(--muted-foreground))]">{ev.time} PHT</span>
+        <span className="font-data text-[11px] tabular-nums text-[hsl(var(--muted-foreground))]">
+          {ev.date && ev.id.startsWith("hist-") ? `${ev.date} · ` : ""}{ev.time} PHT
+        </span>
         <Badge variant={ev.impact === "high" ? "high" : "medium"} className="text-[9px]">
           {ev.impact === "high" ? "HIGH IMPACT" : "MEDIUM IMPACT"}
         </Badge>
@@ -521,7 +523,7 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
         <div className="space-y-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Affected Assets</p>
           <div className="flex flex-wrap gap-1.5">
-            {ev.affectedAssets.map((a) => (
+            {(ev.affectedAssets ?? []).map((a) => (
               <span key={a} className="font-data text-[10px] font-semibold tracking-wide px-2 py-0.5 rounded border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] text-zinc-300">
                 {a}
               </span>
@@ -599,7 +601,9 @@ function EventCard({
         <div className="flex items-center gap-2">
           <StatusIcon className="h-3 w-3" style={{ color: accentColor }} />
           <span className="text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: "var(--t-muted)" }}>
-            EVENT #{index + 1} · USD DATA
+            {ev.id.startsWith("hist-") && ev.date
+              ? <>{new Date(`${ev.date}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} · USD DATA</>
+              : <>EVENT #{index + 1} · USD DATA</>}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -646,7 +650,7 @@ function EventCard({
 
         {/* Asset impact chips */}
         <div className="flex flex-wrap gap-1 mb-3">
-          {ev.affectedAssets.slice(0, 3).map(a => (
+          {(ev.affectedAssets ?? []).slice(0, 3).map(a => (
             <span key={a} className="text-[8.5px] font-mono px-1.5 py-0.5"
               style={{ color: "var(--t-muted)", background: "color-mix(in srgb, var(--t-text) 5%, transparent)", borderRadius: "var(--t-badge-radius)", border: "1px solid var(--t-border)" }}>
               {a}
