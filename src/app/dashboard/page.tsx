@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { withTz } from "@/lib/trades/local-date";
 import useSWR from "swr";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -945,7 +946,7 @@ export default function DashboardPage() {
   const { levels } = useKeyLevels();
   const { mtfData, mtfLoading } = useMTFBias(symbol);
   const { data: pnlSnapshot, isLoading: pnlLoading } = useSWR<PnLData>(
-    "/api/pnl",
+    withTz("/api/pnl"),
     (url: string) => jsonFetcher<PnLData>(url),
     { revalidateOnFocus: false, dedupingInterval: 300_000 }
   );

@@ -1,10 +1,8 @@
 /**
- * TradeX is a single paid product. There is no free tier — an account with no
- * active plan can reach sign-in, pricing and settings, and nothing else.
- *
- * The `free` entry that used to live here described a tier that no longer
- * exists and contradicted the pricing page, so it has been removed rather than
- * left as a second, wrong source of truth.
+ * TradeX sells one plan, Pro. Accounts without it still get the free surfaces
+ * listed in ENTITLEMENT_EXEMPT (src/middleware.ts): their own P&L journal,
+ * the economic calendar, news, Cross-Asset, Trading Sessions and Macro Events.
+ * Everything else, and auto-sync of exchanges and MT5, needs Pro.
  */
 export const PLANS = {
   pro: {
