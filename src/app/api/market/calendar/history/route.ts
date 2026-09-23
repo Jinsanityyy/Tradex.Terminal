@@ -74,6 +74,11 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     data: (data ?? []).map(r => ({
       id:           `hist-${r.event}-${r.event_date}`,
+      // Same shape as the live feed: PH time, and the assets the table lists.
+      time:         r.utc_timestamp
+        ? new Date(Number(r.utc_timestamp)).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Manila" })
+        : "--:--",
+      affectedAssets: ["XAUUSD", "DXY", "EURUSD"],
       event:        r.event,
       date:         r.event_date,
       utcTimestamp: r.utc_timestamp ?? undefined,

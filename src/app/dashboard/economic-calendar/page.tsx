@@ -38,7 +38,11 @@ export default function EconomicCalendarPage() {
     setSearchErr(null);
     try {
       const res = await fetch(`/api/market/calendar/history?q=${encodeURIComponent(term)}&limit=60`);
-      if (!res.ok) throw new Error(res.status === 503 ? "Archive not available yet" : "Search failed");
+      if (!res.ok) throw new Error(
+        res.status === 503 ? "Archive not available yet"
+        : res.status === 401 ? "Sign in again to search the archive"
+        : "Search failed",
+      );
       const json = await res.json();
       setHistory(Array.isArray(json.data) ? json.data : []);
     } catch (e) {
