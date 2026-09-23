@@ -15,7 +15,7 @@
 //+------------------------------------------------------------------+
 #property copyright   "TradeX"
 #property link        "https://tradexterminal.online"
-#property version     "1.02"
+#property version     "1.03"
 #property description "Sends every closed trade to your TradeX P&L calendar as it happens."
 
 input string InpToken        = "";                                               // TradeX token (tdx_mt5_...)
@@ -25,6 +25,7 @@ input int    InpRetrySeconds = 15;                                              
 
 #define BATCH_SIZE   100
 #define HTTP_TIMEOUT 10000
+#define HEARTBEAT_SECONDS 300
 
 string   g_queue[];        // deal JSON objects waiting to be sent
 ulong    g_queued[];       // their tickets, to avoid queueing a deal twice
@@ -91,6 +92,9 @@ void OnTimer()
    // Keep trying until TradeX has heard from us once, so fixing the
    // WebRequest allow-list or the network takes effect without a restart.
    if(!g_connected && ArraySize(g_queue) == 0)
+      Ping();
+   // Heartbeat, so TradeX can show the EA as live between trades.
+   else if(ArraySize(g_queue) == 0 && TimeLocal() - g_lastSent >= HEARTBEAT_SECONDS)
       Ping();
 
    Flush();

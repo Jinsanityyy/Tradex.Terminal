@@ -22,6 +22,11 @@ export default function EconomicCalendarPage() {
   // The live feed only carries this week and next, so reviewing a past release
   // means querying the archive rather than filtering what is already on screen.
   const [query, setQuery]       = useState("");
+  // ?q=FOMC (from the command bar) opens straight into an archive search.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q) setQuery(q.slice(0, 60));
+  }, []);
   const [history, setHistory]   = useState<EconomicEvent[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchErr, setSearchErr] = useState<string | null>(null);

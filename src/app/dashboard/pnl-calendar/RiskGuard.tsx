@@ -46,12 +46,22 @@ const int = (n: number) => String(Math.round(n));
  * The trader's limits for today and, in prop mode, the challenge. Refetches
  * whenever the calendar's trade count moves, so an EA fill updates it live.
  */
-export function RiskGuard({ tradeCount, onStatus }: { tradeCount: number; onStatus?: (s: GuardStatus | null) => void }) {
+export function RiskGuard({ tradeCount, onStatus, openEditor, onEditorOpened }: {
+  tradeCount: number;
+  onStatus?: (s: GuardStatus | null) => void;
+  /** Open the limits editor (command bar "RISK"). */
+  openEditor?: boolean;
+  onEditorOpened?: () => void;
+}) {
   const [rules, setRules] = useState<TradingRules | null>(null);
   const [needsMigration, setNeedsMigration] = useState(false);
   const [trades, setTrades] = useState<GuardTrade[]>([]);
   const [editing, setEditing] = useState(false);
   const lastLevel = useRef<Level | null>(null);
+
+  useEffect(() => {
+    if (openEditor && rules) { setEditing(true); onEditorOpened?.(); }
+  }, [openEditor, rules, onEditorOpened]);
 
   useEffect(() => {
     (async () => {
