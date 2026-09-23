@@ -92,10 +92,19 @@ function buildFallbackAnalysis(ev: EconomicEvent): AIEventAnalysis {
   }
 
   // ── Actual published — compute the surprise ─────────────────────────────────
-  const above = fcNum !== null && actNum > fcNum;
-  const below = fcNum !== null && actNum < fcNum;
-  const diffN = fcNum !== null ? Math.abs(actNum - fcNum) : 0;
-  const diff  = diffN >= 10 ? diffN.toFixed(0) : diffN.toFixed(Math.abs(actNum) < 10 ? 2 : 1);
+  // Measured against the forecast. Archived releases (FRED) carry no forecast,
+  // so they are read against the previous print instead: for a rate that is
+  // the hike / cut / hold itself, for data it is the change on the prior month.
+  const vsPrior = fcNum === null && prNum !== null;
+  const ref   = fcNum ?? prNum;
+  const above = ref !== null && actNum > ref;
+  const below = ref !== null && actNum < ref;
+  const diffN = ref !== null ? Math.abs(actNum - ref) : 0;
+  // Keep the print's own unit on the gap ("141K", "0.2%"), so it reads as data.
+  const unit  = String(ev.actual ?? "").replace(/[-\d.,\s+]/g, "");
+  const diff  = isRate && vsPrior
+    ? `${Math.round(diffN * 100)}bp`
+    : `${diffN >= 10 ? diffN.toFixed(0) : diffN.toFixed(Math.abs(actNum) < 10 ? 2 : 1)}${unit}`;
 
   // "hot" = the print argues for tighter policy (higher rates) = bearish Gold.
   // For inverted indicators a higher number means weaker data, so the sign flips.
@@ -105,7 +114,11 @@ function buildFallbackAnalysis(ev: EconomicEvent): AIEventAnalysis {
   const goldImpact: "bullish" | "bearish" | "neutral" = hot ? "bearish" : cold ? "bullish" : "neutral";
   const usdImpact:  "bullish" | "bearish" | "neutral" = hot ? "bullish" : cold ? "bearish" : "neutral";
 
-  const verdict = fcNum === null
+  const verdict = vsPrior
+    ? isRate
+      ? above ? `a ${diff} hike from ${pr}` : below ? `a ${diff} cut from ${pr}` : `held at ${ev.actual}`
+      : above ? `up ${diff} on the prior ${pr}` : below ? `down ${diff} on the prior ${pr}` : `unchanged from the prior`
+    : fcNum === null
     ? `printed ${ev.actual}`
     : above
     ? `${isRate ? "came in above the expected path by" : "beat by"} ${diff}`
@@ -115,7 +128,10 @@ function buildFallbackAnalysis(ev: EconomicEvent): AIEventAnalysis {
 
   const outcome = `${title}: actual ${ev.actual}${fc ? ` vs forecast ${fc}` : ""}${pr ? ` (prior ${pr})` : ""} — ${verdict}`;
 
-  const label = isRate ? (hot ? "Hawkish surprise" : "Dovish surprise")
+  const label = isRate && vsPrior ? (hot ? "Rate hike" : "Rate cut")
+    : vsPrior ? (hot ? (isCPI ? "Hotter inflation than last month" : isJobs ? "Stronger jobs than last month" : "Stronger than the prior print")
+                     : (isCPI ? "Cooler inflation than last month" : isJobs ? "Weaker jobs than last month" : "Weaker than the prior print"))
+    : isRate ? (hot ? "Hawkish surprise" : "Dovish surprise")
     : isJobs ? (hot ? "Strong jobs beat" : "Weak jobs miss")
     : isCPI  ? (hot ? "Hot inflation print" : "Soft inflation print")
     : inverted ? (hot ? "Labour market held up better than expected" : "Labour market weaker than expected")
@@ -127,6 +143,10 @@ function buildFallbackAnalysis(ev: EconomicEvent): AIEventAnalysis {
       ? `${label} of ${diff} — Gold faces immediate selling pressure as rate-cut expectations get pushed back. USD should strengthen across the majors.`
       : cold
       ? `${label} of ${diff} — Gold should find buying support as rate-cut bets accelerate. USD selling expected.`
+      : isRate && vsPrior
+      ? `The Fed held at ${ev.actual}. With the rate unchanged, the move came from the statement and the projected path: hawkish language pressures Gold, dovish language lifts it.`
+      : vsPrior
+      ? `${title} was unchanged from the prior print, so the release on its own gave the market little to reprice.`
       : `${title} landed on forecast. With no surprise to reprice, expect a muted reaction and a fast fade of any spike.`,
     goldImpact,
     goldAnalysis: hot
@@ -173,6 +193,10 @@ function useAfterReleaseAnalysis(ev: EconomicEvent) {
     const summary = hasActual
       ? `Actual: ${ev.actual} | Forecast: ${ev.forecast} | Previous: ${ev.previous} | Result: ${(() => {
           const a = toNum(ev.actual), f = toNum(ev.forecast);
+          const pv = toNum(ev.previous);
+          if (a !== null && f === null && pv !== null) {
+            return `no consensus forecast on record; versus the PREVIOUS print the actual is ${a > pv ? "HIGHER" : a < pv ? "LOWER" : "UNCHANGED"}. Read the surprise against the previous value (for a rate decision this is a hike, cut or hold), do not call it in line with forecast`;
+          }
           if (a === null || f === null) return `actual ${ev.actual}, forecast ${ev.forecast}`;
           return a > f ? "ABOVE forecast" : a < f ? "BELOW forecast" : "IN LINE with forecast";
         })()}`
@@ -305,6 +329,129 @@ function DataInline({ text }: { text: string }) {
 }
 
 // ── Detail modal body (unchanged) ─────────────────────────────────────────────
+// ── When a release happened, and what came before it ─────────────────────────
+
+const RATE_TITLE_RE = /federal funds rate|interest rate|rate decision|bank rate|cash rate/i;
+
+function daysAgo(date: string): string {
+  const d = Math.round((Date.now() - Date.parse(`${date}T12:00:00Z`)) / 86_400_000);
+  if (d <= 0) return d === 0 ? "today" : `in ${-d} day${d === -1 ? "" : "s"}`;
+  if (d === 1) return "yesterday";
+  if (d < 45) return `${d} days ago`;
+  const m = Math.round(d / 30.4);
+  return m < 18 ? `${m} months ago` : `${(d / 365).toFixed(1)} years ago`;
+}
+
+/**
+ * "Wed, Sep 16, 2026 · 7 days ago" for a dated release. Archived monthly data
+ * from FRED is dated by the month it measures, not the day it was published,
+ * so it reads "Aug 2026 report" rather than pretending to a release date.
+ */
+export function releaseLabel(ev: Pick<EconomicEvent, "date" | "source" | "event">): string | null {
+  if (!ev.date) return null;
+  const d = new Date(`${ev.date}T12:00:00Z`);
+  if (ev.source === "fred" && !RATE_TITLE_RE.test(ev.event)) {
+    return `${d.toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" })} report`;
+  }
+  return `${d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })} · ${daysAgo(ev.date)}`;
+}
+
+/**
+ * The last releases of the same event, newest first, so a trader can see the
+ * trend going into the next print: direction, streaks and the recent average.
+ */
+function ReleaseHistory({ ev }: { ev: EconomicEvent }) {
+  const [rows, setRows] = useState<EconomicEvent[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/market/calendar/history?q=${encodeURIComponent(ev.event)}&exact=1&limit=12`)
+      .then(r => (r.ok ? r.json() : { data: [] }))
+      .then(j => {
+        if (cancelled) return;
+        const list = ((j.data ?? []) as EconomicEvent[])
+          .filter(r => toNum(r.actual) !== null)
+          .filter(r => r.date !== ev.date || ev.status !== "completed" || r.actual !== ev.actual)
+          .slice(0, 8);
+        setRows(list);
+      })
+      .catch(() => { if (!cancelled) setRows([]); });
+    return () => { cancelled = true; };
+  }, [ev.event, ev.date, ev.status, ev.actual]);
+
+  if (rows === null) {
+    return (
+      <div className="flex items-center gap-2 text-[11px] text-[hsl(var(--muted-foreground))]">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading past releases…
+      </div>
+    );
+  }
+  if (rows.length === 0) return null;
+
+  const isRate = RATE_TITLE_RE.test(ev.event);
+  const nums = rows.map(r => toNum(r.actual)!);
+  const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
+  const unit = String(rows[0].actual ?? "").replace(/[-\d.,\s+]/g, "");
+  const fmt = (n: number) =>
+    `${Math.abs(n) >= 100 || unit === "K" ? n.toFixed(0) : n.toFixed(2).replace(/\.?0+$/, "")}${unit}`;
+
+  // Change of each release against the one before it (rows are newest first).
+  const change = (i: number) => (i + 1 < rows.length ? nums[i] - nums[i + 1] : null);
+  let summary: string;
+  if (isRate) {
+    const moves = rows.map((_, i) => change(i)).filter((c): c is number => c !== null);
+    const hikes = moves.filter(c => c > 0).length, cuts = moves.filter(c => c < 0).length;
+    summary = `Last ${moves.length} decisions: ${cuts} cut${cuts === 1 ? "" : "s"}, ${hikes} hike${hikes === 1 ? "" : "s"}, ${moves.length - hikes - cuts} hold${moves.length - hikes - cuts === 1 ? "" : "s"}. Now at ${rows[0].actual}.`;
+  } else {
+    let streak = 0;
+    const dir = Math.sign(change(0) ?? 0);
+    for (let i = 0; dir !== 0 && change(i) !== null && Math.sign(change(i)!) === dir; i++) streak++;
+    summary = `Average of the last ${nums.length}: ${fmt(avg)}.` +
+      (streak >= 2 ? ` ${dir > 0 ? "Rising" : "Falling"} ${streak} releases in a row.` : "");
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Release history</p>
+      <p className="text-[11px] text-zinc-300">{summary}</p>
+      <div className="overflow-hidden rounded-lg border border-white/8">
+        <table className="w-full text-[11px]">
+          <thead>
+            <tr className="bg-white/[0.03] text-[9px] uppercase tracking-wider text-zinc-500">
+              <th className="px-2.5 py-1.5 text-left font-semibold">Released</th>
+              <th className="px-2.5 py-1.5 text-right font-semibold">Actual</th>
+              <th className="px-2.5 py-1.5 text-right font-semibold">Forecast</th>
+              <th className="px-2.5 py-1.5 text-right font-semibold">{isRate ? "Move" : "Change"}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => {
+              const c = change(i);
+              const fc = toNum(r.forecast);
+              return (
+                <tr key={`${r.date}-${i}`} className="border-t border-white/5">
+                  <td className="px-2.5 py-1.5 text-zinc-400">{releaseLabel(r)?.split(" · ")[0] ?? r.date}</td>
+                  <td className="px-2.5 py-1.5 text-right font-mono text-zinc-100">{r.actual}</td>
+                  <td className="px-2.5 py-1.5 text-right font-mono text-zinc-500">{fc !== null ? r.forecast : "—"}</td>
+                  <td className={cn("px-2.5 py-1.5 text-right font-mono",
+                    c === null || c === 0 ? "text-zinc-500" : c > 0 ? "text-emerald-400" : "text-red-400")}>
+                    {c === null ? "—"
+                      : isRate ? (c === 0 ? "hold" : `${c > 0 ? "+" : ""}${Math.round(c * 100)}bp`)
+                      : `${c > 0 ? "+" : ""}${fmt(c)}`}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {rows.some(r => r.source === "fred") && (
+        <p className="text-[9px] text-zinc-600">Older releases come from FRED, which publishes the print but not the consensus forecast.</p>
+      )}
+    </div>
+  );
+}
+
 function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: string }) {
   const isCompleted = ev.status === "completed";
   const { analysis: aiAnalysis, loading: aiLoading, hasActual } = useAfterReleaseAnalysis(ev);
@@ -328,7 +475,7 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
       {/* Time + status */}
       <div className="flex items-center gap-3 flex-wrap">
         <span className="font-data text-[11px] tabular-nums text-[hsl(var(--muted-foreground))]">
-          {ev.date && ev.id.startsWith("hist-") ? `${ev.date} · ` : ""}{ev.time} PHT
+          {releaseLabel(ev) ? `${releaseLabel(ev)} · ` : ""}{ev.time} PHT
         </span>
         <Badge variant={ev.impact === "high" ? "high" : "medium"} className="text-[9px]">
           {ev.impact === "high" ? "HIGH IMPACT" : "MEDIUM IMPACT"}
@@ -519,6 +666,8 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
       )}
 
       {/* Affected assets */}
+      <ReleaseHistory ev={ev} />
+
       {ev.affectedAssets?.length > 0 && (
         <div className="space-y-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Affected Assets</p>
@@ -601,15 +750,15 @@ function EventCard({
         <div className="flex items-center gap-2">
           <StatusIcon className="h-3 w-3" style={{ color: accentColor }} />
           <span className="text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: "var(--t-muted)" }}>
-            {ev.id.startsWith("hist-") && ev.date
-              ? <>{new Date(`${ev.date}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} · USD DATA</>
+            {ev.id.startsWith("hist-") && releaseLabel(ev)
+              ? <>{releaseLabel(ev)} · USD DATA</>
               : <>EVENT #{index + 1} · USD DATA</>}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: impactColor }}>● {impactLabel}</span>
           {ev.status === "upcoming" && <Countdown utcTimestamp={ev.utcTimestamp} compact />}
-          <span className="text-[8px]" style={{ color: "var(--t-muted)", opacity: 0.45 }}>{ev.time} PHT</span>
+          <span className="text-[10px] font-mono" style={{ color: "var(--t-muted)" }}>{ev.time} PHT</span>
         </div>
       </div>
 
@@ -642,7 +791,7 @@ function EventCard({
           ].map(({ label, value, color }) => (
             <div key={label} className="rounded-lg p-2 text-center"
               style={{ background: "color-mix(in srgb, var(--t-text) 4%, transparent)", border: "1px solid var(--t-border)" }}>
-              <p className="text-[8px] uppercase tracking-widest mb-1" style={{ color: "var(--t-muted)", opacity: 0.6 }}>{label}</p>
+              <p className="text-[9px] uppercase tracking-widest mb-1" style={{ color: "var(--t-muted)" }}>{label}</p>
               <p className="font-mono text-[11px] font-bold tabular-nums" style={{ color }}>{value}</p>
             </div>
           ))}
@@ -668,7 +817,7 @@ function EventCard({
         )}
 
         {/* Tap hint */}
-        <p className="text-[9px] text-right" style={{ color: "var(--t-muted)", opacity: 0.4 }}>
+        <p className="text-[10px] text-right" style={{ color: "var(--t-muted)", opacity: 0.8 }}>
           Tap for full analysis →
         </p>
       </div>
@@ -709,6 +858,85 @@ export function EconomicEventTable({ events, showInterpretation = false, compact
         onClose={() => setSelected(null)}
         title={selected?.event}
       >
+        {selected && <EventDetail ev={selected} symbol={symbol} />}
+      </DetailModal>
+    </>
+  );
+}
+
+/**
+ * Archive search results as a dense, terminal-style table: one row per
+ * release, newest first, with the move against the prior print and the
+ * Gold read. A row opens the same full analysis as the cards.
+ */
+export function ArchiveTable({ events, symbol = "XAUUSD" }: { events: EconomicEvent[]; symbol?: string }) {
+  const [selected, setSelected] = useState<EconomicEvent | null>(null);
+
+  const READ: Record<"bullish" | "bearish" | "neutral", string> = {
+    bullish: "text-emerald-400",
+    bearish: "text-red-400",
+    neutral: "text-zinc-400",
+  };
+
+  return (
+    <>
+      <div className="overflow-x-auto rounded-lg border border-white/8">
+        <table className="w-full min-w-[720px] text-[12px]">
+          <thead>
+            <tr className="bg-white/[0.04] text-[10px] uppercase tracking-wider text-zinc-400">
+              <th className="px-3 py-2 text-left font-semibold">Released</th>
+              <th className="px-3 py-2 text-left font-semibold">Event</th>
+              <th className="px-3 py-2 text-right font-semibold">Actual</th>
+              <th className="px-3 py-2 text-right font-semibold">Previous</th>
+              <th className="px-3 py-2 text-right font-semibold">Forecast</th>
+              <th className="px-3 py-2 text-right font-semibold">Change</th>
+              <th className="px-3 py-2 text-right font-semibold">Gold</th>
+              <th className="w-6" />
+            </tr>
+          </thead>
+          <tbody>
+            {events.map(ev => {
+              const a = toNum(ev.actual), p = toNum(ev.previous), f = toNum(ev.forecast);
+              const isRate = RATE_TITLE_RE.test(ev.event);
+              const unit = String(ev.actual ?? "").replace(/[-\d.,\s+]/g, "");
+              const c = a !== null && p !== null ? a - p : null;
+              const change = c === null ? "—"
+                : isRate ? (c === 0 ? "hold" : `${c > 0 ? "+" : ""}${Math.round(c * 100)}bp`)
+                : `${c > 0 ? "+" : ""}${Math.abs(c) >= 10 || unit === "K" ? c.toFixed(0) : c.toFixed(2).replace(/\.?0+$/, "")}${unit}`;
+              const gold = a !== null ? buildFallbackAnalysis(ev).goldImpact : null;
+              const label = releaseLabel(ev);
+              return (
+                <tr key={ev.id} onClick={() => setSelected(ev)}
+                  className="cursor-pointer border-t border-white/5 transition-colors hover:bg-white/[0.04]">
+                  <td className="whitespace-nowrap px-3 py-2">
+                    <p className="text-zinc-200">{label?.split(" · ")[0] ?? ev.date}</p>
+                    <p className="text-[10px] text-zinc-500">
+                      {[label?.split(" · ")[1], ev.time && ev.time !== "--:--" ? `${ev.time} PHT` : null].filter(Boolean).join(" · ")}
+                    </p>
+                  </td>
+                  <td className="px-3 py-2 font-semibold text-zinc-100">{ev.event}</td>
+                  <td className="px-3 py-2 text-right font-mono font-semibold text-zinc-50">{ev.actual ?? "—"}</td>
+                  <td className="px-3 py-2 text-right font-mono text-zinc-400">{p !== null ? ev.previous : "—"}</td>
+                  <td className="px-3 py-2 text-right font-mono text-zinc-400">{f !== null ? ev.forecast : "—"}</td>
+                  <td className={cn("px-3 py-2 text-right font-mono",
+                    c === null || c === 0 ? "text-zinc-400" : c > 0 ? "text-emerald-400" : "text-red-400")}>{change}</td>
+                  <td className={cn("px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wide", gold ? READ[gold] : "text-zinc-500")}>
+                    {gold ?? "—"}
+                  </td>
+                  <td className="pr-3 text-zinc-500"><ChevronRight className="h-3.5 w-3.5" /></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {events.some(e => e.source === "fred") && (
+        <p className="mt-2 text-[10px] text-zinc-500">
+          Change is against the previous print. Older releases come from FRED, which publishes the print but not the consensus forecast; monthly data is dated by the month it covers.
+        </p>
+      )}
+
+      <DetailModal open={!!selected} onClose={() => setSelected(null)} title={selected?.event}>
         {selected && <EventDetail ev={selected} symbol={symbol} />}
       </DetailModal>
     </>

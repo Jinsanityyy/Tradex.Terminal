@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { EconomicEventTable } from "@/components/shared/EconomicEventTable";
+import { EconomicEventTable, ArchiveTable } from "@/components/shared/EconomicEventTable";
 import { useEconomicCalendar } from "@/hooks/useMarketData";
 import { useSettings } from "@/contexts/SettingsContext";
 import { getSymbolLabel, getEventImpactForSymbol } from "@/lib/assetImpact";
@@ -165,7 +165,7 @@ export default function EconomicCalendarPage() {
                   from published data for major releases.
                 </p>
               ) : history && history.length > 0 ? (
-                <EconomicEventTable events={history} showInterpretation symbol={selectedSymbol} />
+                <ArchiveTable events={history} symbol={selectedSymbol} />
               ) : null}
             </CardContent>
           </Card>

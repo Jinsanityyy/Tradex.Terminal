@@ -11,6 +11,7 @@
  *   to     ISO date, inclusive
  *   impact "high" to drop the medium-impact noise
  *   limit  1-200, default 50
+ *   exact  "1" to match the title exactly (case-insensitive) instead of fuzzily
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -51,7 +52,10 @@ export async function GET(req: NextRequest) {
     .order("event_date", { ascending: false })
     .limit(limit);
 
-  if (q) {
+  // exact=1: every release of one event title (the popup's release history).
+  if (q && sp.get("exact") === "1") {
+    query = query.ilike("event", q.replace(/[%_]/g, ""));
+  } else if (q) {
     const terms = ALIASES[q] ?? [q];
     // PostgREST `or` takes a comma-joined filter list; commas inside a term
     // would split it, so they are stripped rather than escaped.
