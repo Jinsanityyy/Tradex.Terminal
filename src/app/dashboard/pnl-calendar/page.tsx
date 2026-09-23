@@ -14,6 +14,8 @@ import type { DailyPnL, MonthlyPnL } from "@/app/api/pnl/route";
 import type { DayTrade } from "@/app/api/pnl/trades/route";
 import { withTz, todayLocal, localDate, browserTimeZone } from "@/lib/trades/local-date";
 import { AnalyticsView } from "./AnalyticsView";
+import { RiskGuard } from "./RiskGuard";
+import type { GuardStatus } from "@/lib/trades/risk-guard";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { syncAllClosedTrades } from "@/lib/trades/trade-log";
@@ -1169,6 +1171,7 @@ export default function PnLCalendarPage() {
   const [showConnect, setShowConnect] = useState(false);
   const [mt5Token, setMt5Token] = useState<Mt5Setup | null>(null);
   const [removing, setRemoving] = useState<Connection | null>(null);
+  const [guard, setGuard] = useState<GuardStatus | null>(null);
   const [showAddTrade, setShowAddTrade] = useState(false);
   const [now] = useState(new Date());
   const [viewYear, setViewYear] = useState(now.getFullYear());
@@ -1655,6 +1658,16 @@ export default function PnLCalendarPage() {
         })}
       </div>
 
+      {guard?.level === "breach" && (
+        <div className="flex items-start gap-3 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+          <div>
+            <p className="text-xs font-bold text-red-300">Stop trading for today</p>
+            <p className="text-[11px] text-red-300/80">{guard.reasons.join(" ")}</p>
+          </div>
+        </div>
+      )}
+
       {/* ── Calendar + Right Panel ── */}
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4">
 
@@ -1822,6 +1835,9 @@ export default function PnLCalendarPage() {
 
         {/* ── Right Panel ── */}
         <div className="space-y-4">
+          {/* Risk Guard: daily limits and prop challenge */}
+          <RiskGuard tradeCount={tradeCount} onStatus={setGuard} />
+
           {/* Monthly Performance */}
           <Card>
             <CardHeader className="pb-2">

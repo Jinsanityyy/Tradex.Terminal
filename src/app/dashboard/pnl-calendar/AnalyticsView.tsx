@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { getAuthHeaders } from "@/lib/supabase/auth-headers";
 import { cn } from "@/lib/utils";
 import {
   TrendingUp, TrendingDown, Activity, Trophy,
@@ -150,6 +151,18 @@ export function AnalyticsView({
     try { return Number(localStorage.getItem("tradex_account_size")) || 0; } catch { return 0; }
   });
   const [sizeDraft, setSizeDraft] = useState("");
+  // Nothing saved in this browser: use the account size from Risk Guard, if set.
+  useEffect(() => {
+    if (accountSize > 0) return;
+    (async () => {
+      try {
+        const res = await fetch("/api/rules", { headers: await getAuthHeaders() });
+        const size = Number((await res.json())?.rules?.account_size);
+        if (size > 0) setAccountSize(size);
+      } catch { /* optional */ }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   function saveAccountSize() {
     const n = Number(sizeDraft.replace(/[$,\s]/g, ""));
     if (!(n > 0)) return;
