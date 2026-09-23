@@ -1035,6 +1035,8 @@ export default function PnLCalendarPage() {
 
   // Manual trades  -  synced with Supabase (cross-device via user account)
   const [manualTrades, setManualTrades] = useState<ManualTrade[]>([]);
+  // Newest trades from every source (EA, exchanges, manual) for the side list.
+  const [recentTrades, setRecentTrades] = useState<DayTrade[]>([]);
 
   function addManualTrade(trade: ManualTrade) {
     setManualTrades(prev => [trade, ...prev]);
@@ -1109,14 +1111,17 @@ export default function PnLCalendarPage() {
     try {
       const authHeaders = await getAuthHeaders();
       const qs = selectedConn !== "all" ? `?connectionId=${selectedConn}` : "";
-      const [pnlRes, connRes, manualRes] = await Promise.all([
+      const [pnlRes, connRes, manualRes, recentRes] = await Promise.all([
         fetch(`/api/pnl${qs}`, { headers: authHeaders }),
         fetch("/api/exchanges/list", { headers: authHeaders }),
         fetch("/api/manual-trades", { headers: authHeaders }),
+        fetch("/api/pnl/trades?limit=50", { headers: authHeaders }),
       ]);
       const pnlData    = await pnlRes.json();
       const connData   = await connRes.json();
       const manualData = await manualRes.json();
+      const recentData = await recentRes.json().catch(() => ({}));
+      if (Array.isArray(recentData.data)) setRecentTrades(recentData.data);
       if (Array.isArray(connData.data)) setConnections(connData.data);
       setDaily(pnlData.daily ?? []);
       setMonthly(pnlData.monthly ?? []);
@@ -1648,7 +1653,7 @@ export default function PnLCalendarPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] text-[hsl(var(--muted-foreground))]">Fees</span>
-                  <span className="text-[11px] font-mono text-red-400/70">-{monthStats.fees.toFixed(2)}</span>
+                  <span className="text-[11px] font-mono text-red-400/70">{monthStats.fees > 0 ? `-${monthStats.fees.toFixed(2)}` : "0.00"}</span>
                 </div>
               </div>
             </CardContent>
@@ -1724,16 +1729,16 @@ export default function PnLCalendarPage() {
             </CardContent>
           </Card>
 
-          {/* Manual Trades */}
+          {/* Trades: every source, newest first */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center justify-between text-xs">
                 <span className="flex items-center gap-2">
                   <DollarSign className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />
-                  Manual Trades
-                  {manualTrades.length > 0 && (
+                  Trades
+                  {recentTrades.length > 0 && (
                     <span className="ml-1 rounded-full bg-[hsl(var(--primary))]/20 px-1.5 py-0.5 text-[9px] font-bold text-[hsl(var(--primary))]">
-                      {manualTrades.length}
+                      {recentTrades.length}
                     </span>
                   )}
                 </span>
@@ -1746,10 +1751,10 @@ export default function PnLCalendarPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {manualTrades.length === 0 ? (
+              {recentTrades.length === 0 ? (
                 <div className="text-center py-4">
                   <DollarSign className="h-5 w-5 mx-auto mb-2 text-[hsl(var(--muted-foreground))]/30" />
-                  <p className="text-[11px] text-[hsl(var(--muted-foreground))]">No manual trades yet.</p>
+                  <p className="text-[11px] text-[hsl(var(--muted-foreground))]">No trades yet.</p>
                   <button
                     onClick={() => setShowAddTrade(true)}
                     className="mt-2 text-[11px] text-[hsl(var(--primary))] hover:underline"
@@ -1758,41 +1763,53 @@ export default function PnLCalendarPage() {
                   </button>
                 </div>
               ) : (
-                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                  {[...manualTrades]
-                    .sort((a, b) => b.date.localeCompare(a.date))
-                    .map(t => (
+                <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                  {recentTrades.map(t => {
+                    const side = t.side === "buy" ? "long" : t.side === "sell" ? "short" : t.side;
+                    const when = t.source === "manual" || !t.closedAt
+                      ? t.date
+                      : new Date(t.closedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+                    return (
                       <div
-                        key={t.id}
+                        key={`${t.source}-${t.id}`}
+                        onClick={() => setJournalDate(t.date)}
+                        title="Open this day's journal"
                         className={cn(
-                          "flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-[11px] group",
+                          "flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-[11px] group cursor-pointer",
                           t.pnl >= 0
-                            ? "border-emerald-500/15 bg-emerald-500/[0.04]"
-                            : "border-red-500/15 bg-red-500/[0.04]"
+                            ? "border-emerald-500/15 bg-emerald-500/[0.04] hover:bg-emerald-500/[0.08]"
+                            : "border-red-500/15 bg-red-500/[0.04] hover:bg-red-500/[0.08]"
                         )}
                       >
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className={cn("font-bold tabular-nums", t.pnl >= 0 ? "text-emerald-400" : "text-red-400")}>
-                              {t.pnl >= 0 ? "+" : ""}${Math.abs(t.pnl).toFixed(2)}
+                              {formatMoney(t.pnl)}
                             </span>
                             <span className="text-zinc-600">·</span>
                             <span className="font-semibold text-zinc-300">{t.symbol}</span>
-                            <span className={cn("text-[9px] font-bold uppercase", t.direction === "long" ? "text-emerald-500/70" : "text-red-500/70")}>
-                              {t.direction}
+                            <span className={cn("text-[9px] font-bold uppercase", side === "long" ? "text-emerald-500/70" : "text-red-500/70")}>
+                              {side}
                             </span>
                           </div>
-                          <div className="text-[10px] text-zinc-600 mt-0.5">{t.date}</div>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <SourceBadge source={t.source} />
+                            <span className="text-[10px] text-zinc-600 truncate">{when}</span>
+                          </div>
                         </div>
-                        <button
-                          onClick={() => deleteManualTrade(t.id)}
-                          className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-zinc-600 hover:text-red-400"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
+                        {/* Only hand-logged trades can be deleted; synced ones would just come back. */}
+                        {t.source === "manual" && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); deleteManualTrade(t.id); }}
+                            title="Delete this manual trade"
+                            className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-zinc-600 hover:text-red-400"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        )}
                       </div>
-                    ))
-                  }
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
