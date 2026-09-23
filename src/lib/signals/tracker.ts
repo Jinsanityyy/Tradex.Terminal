@@ -117,10 +117,22 @@ async function fetchCandleMap(
 // market-snapshot so the signal and its resolution share one price feed.
 const METAL_SYMS = new Set(["XAUUSD", "XAGUSD", "XPTUSD"]);
 
+/**
+ * Aligns futures candles (GC=F) to the spot prices signals are priced in, and
+ * reports the offset it had to apply per series.
+ *
+ * The offset used to be skipped whenever it was under 0.1% of price. On gold at
+ * ~4284 that tolerance is 4.28 points, while a tight H1 stop is around 5 points
+ *  -  so a series could sit almost a full stop-width out of alignment and still
+ * be treated as "already aligned", which is enough to report an SL touch on a
+ * bar that never reached it. Alignment is now unconditional, and the caller uses
+ * the returned offset to decide whether OHLC resolution can be trusted at all.
+ */
 function rebaseMetalCandleMap(
   candleMap: Map<string, YahooCandleBar[]>,
   spot: Map<string, number>,
-): void {
+): Map<string, number> {
+  const offsets = new Map<string, number>();
   for (const [key, candles] of candleMap) {
     const sym = key.split("_")[0];
     if (!METAL_SYMS.has(sym) || candles.length === 0) continue;
@@ -129,12 +141,14 @@ function rebaseMetalCandleMap(
     const lastClose = candles[candles.length - 1].c;
     if (!(lastClose > 0)) continue;
     const offset = s - lastClose;
-    if (Math.abs(offset) < s * 0.001) continue; // already aligned (≈ spot feed)
+    offsets.set(key, offset);
+    if (offset === 0) continue;
     candleMap.set(
       key,
       candles.map(c => ({ ...c, o: c.o + offset, h: c.h + offset, l: c.l + offset, c: c.c + offset })),
     );
   }
+  return offsets;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -146,9 +160,16 @@ const TF_SECONDS: Record<string, number> = { M5: 300, M15: 900, H1: 3600, H4: 14
 function resolveFromOHLC(
   signal: SignalRecord,
   allCandles: YahooCandleBar[],
+  rebaseOffset = 0,
 ): Resolution | null {
   const plan = signal.tradePlan;
   if (!plan) return null;
+
+  // A single additive offset cannot capture how the futures/spot basis drifted
+  // across the window. When the correction is as wide as the stop itself, the
+  // shifted highs and lows cannot settle which side was touched first  -  let the
+  // live-price snapshot resolve it instead of guessing from distorted bars.
+  if (Math.abs(rebaseOffset) >= Math.abs(plan.entry - plan.stopLoss)) return null;
 
   const signalSec = new Date(signal.timestamp).getTime() / 1000;
   // Only evaluate candles that STARTED after signal creation.
@@ -447,7 +468,7 @@ export async function trackOpenSignals(): Promise<TrackingResult> {
   ]);
 
   // Align futures (GC=F) candles to the spot prices the signals are priced in.
-  rebaseMetalCandleMap(candleMap, prices);
+  const rebaseOffsets = rebaseMetalCandleMap(candleMap, prices);
 
   const forexOpen = isForexMarketOpen();
 
@@ -475,9 +496,12 @@ export async function trackOpenSignals(): Promise<TrackingResult> {
       }
     }
 
-    const candles = candleMap.get(`${signal.symbol}_${signal.timeframe}`) ?? [];
+    const candleKey = `${signal.symbol}_${signal.timeframe}`;
+    const candles = candleMap.get(candleKey) ?? [];
     // OHLC-based resolution is authoritative; fall back to snapshot-based
-    const resolution = resolveFromOHLC(signal, candles) ?? resolveSignal(signal, price);
+    const resolution =
+      resolveFromOHLC(signal, candles, rebaseOffsets.get(candleKey) ?? 0) ??
+      resolveSignal(signal, price);
 
     // Entry zone alert: notify once when price comes within 0.3% of entry
     if (!resolution && signal.tradePlan && !signal.entryZoneNotified) {
@@ -553,7 +577,7 @@ export async function reprocessRecentLosses(withinHours = 24): Promise<Reprocess
   ]);
   // Same spot alignment as the live tracker — otherwise futures candles re-confirm
   // the false SL hits instead of correcting them.
-  rebaseMetalCandleMap(candleMap, prices);
+  const rebaseOffsets = rebaseMetalCandleMap(candleMap, prices);
 
   for (const signal of losses) {
     try {

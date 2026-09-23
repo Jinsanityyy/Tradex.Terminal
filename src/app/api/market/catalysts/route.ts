@@ -29,12 +29,50 @@ function classifyImportance(headline: string, summary: string): "high" | "medium
   return "low";
 }
 
+// Direction words are matched on word boundaries, and "strong" is deliberately
+// absent. The old list did bare substring checks, so "stronger dollar"  -  which
+// is bearish for gold  -  scored as a bullish token, while "loses" was missing
+// from the bearish list entirely. "Gold loses shine as rate hike bets foster a
+// stronger dollar" therefore came out BULLISH.
+const BULL_RE = /\b(surges?|surged|rall(?:y|ies|ied)|gains?|gained|rises?|rose|jumps?|jumped|boosts?|soars?|soared|climbs?|advances?|beats?|record highs?|upgrades?|recovers?|recovery|deal|agreement|peace)\b/;
+const BEAR_RE = /\b(drops?|dropped|falls?|fell|declines?|crashe?s?|crashed|plunges?|threatens?|threats?|wars?|sanctions?|fears?|weakens?|weaker|misses?|missed|slumps?|concerns?|downgrades?|bans?|blocks?|loses?|lost|slides?|sinks?|tumbles?|retreats?|selloffs?|pressured?)\b/;
+
+// Hawkish and dovish are policy DIRECTIONS, not good or bad news, and they move
+// gold and USD opposite ways. Reading them off a generic sentiment score is a
+// category error  -  it is what inverted the headline above.
+const HAWKISH_RE = /\b(rate hikes?|hike bets?|higher[- ]for[- ]longer|hawkish|tighten(?:ing|s|ed)?|stronger dollar|dollar strength|firmer dollar|dollar rally|no (?:rate )?cuts?|fewer cuts?|yields? (?:rise|rises|rising|surge|jump|climb|higher))\b/;
+const DOVISH_RE  = /\b(rate cuts?|cut bets?|dovish|eas(?:e|es|ing)|weaker dollar|dollar weakness|softer dollar|yields? (?:fall|falls|falling|drop|dip|decline|lower))\b/;
+
+// An explicit statement about gold's own direction outranks every indirect cue.
+const GOLD_DOWN_RE = /\bgold\b[^.!?]{0,60}?\b(?:loses? shine|loses?|lost|falls?|fell|drops?|slips?|sinks?|slides?|retreats?|tumbles?|weakens?|pressured?|lower)\b|\b(?:weighs? on|pressures?|drags? on|dents?) gold\b/;
+const GOLD_UP_RE   = /\bgold\b[^.!?]{0,60}?\b(?:rises?|rose|gains?|climbs?|jumps?|surges?|rall(?:y|ies)|soars?|advances?|shines?|higher|supported)\b|\b(?:supports?|boosts?|lifts?|underpins?) gold\b/;
+
+// A negated cut is hawkish, but it still contains the phrase "rate cuts", so it
+// trips the dovish pattern too and cancels out. These have to win outright.
+const HAWKISH_OVERRIDE_RE = /\b(?:no (?:rate )?cuts?|fewer cuts?|rules? out (?:a )?(?:rate )?cuts?|no urgency to cut|delay(?:ed|s)? (?:rate )?cuts?|pushe?s? back (?:on )?(?:rate )?cuts?|cuts? off the table)\b/;
+
+/** Policy stance read straight from the text, or null when the headline is silent. */
+function derivePolicyStance(h: string): "hawkish" | "dovish" | null {
+  if (HAWKISH_OVERRIDE_RE.test(h)) return "hawkish";
+  const hawk = HAWKISH_RE.test(h);
+  const dove = DOVISH_RE.test(h);
+  if (hawk === dove) return null;   // both or neither  -  no clean read
+  return hawk ? "hawkish" : "dovish";
+}
+
+/** Gold's direction when the headline states it outright, else null. */
+function deriveGoldDirection(h: string): "bullish" | "bearish" | null {
+  const down = GOLD_DOWN_RE.test(h);
+  const up   = GOLD_UP_RE.test(h);
+  if (down === up) return null;
+  return down ? "bearish" : "bullish";
+}
+
+/** Broad risk sentiment  -  drives crypto and equities, NOT gold or USD. */
 function deriveSentiment(headline: string): "bullish" | "bearish" | "neutral" {
   const h = headline.toLowerCase();
-  const bull = ["surge", "rally", "gain", "rise", "jump", "boost", "soar", "deal", "agree", "peace", "beat", "strong", "record", "support"];
-  const bear = ["drop", "fall", "decline", "crash", "plunge", "threat", "war", "sanction", "fear", "risk", "weak", "miss", "slump", "concern", "downgrade", "ban", "block"];
-  const b = bull.filter(w => h.includes(w)).length;
-  const s = bear.filter(w => h.includes(w)).length;
+  const b = BULL_RE.test(h) ? 1 : 0;
+  const s = BEAR_RE.test(h) ? 1 : 0;
   return b > s ? "bullish" : s > b ? "bearish" : "neutral";
 }
 
@@ -71,7 +109,11 @@ function generateMarketImplication(headline: string, sentiment: "bullish" | "bea
       : `Trade optimism: equities supported, risk currencies bid. Potential relief rally in ${marketStr}.`;
   }
   if (h.includes("fed") || h.includes("rate cut") || h.includes("rate hike")) {
-    return sentiment === "bullish"
+    const stated = deriveGoldDirection(h);
+    const dovish = stated === "bullish" ? true
+      : stated === "bearish" ? false
+      : (derivePolicyStance(h) ?? (sentiment === "bullish" ? "dovish" : "hawkish")) === "dovish";
+    return dovish
       ? `Dovish signal: USD weakens, gold/equities supported. Yields dip  -  watch ${marketStr} for rate-sensitive moves.`
       : `Hawkish repricing: USD bid, gold pressured, yields rise. ${marketStr} vulnerable to tightening expectations.`;
   }
@@ -102,8 +144,27 @@ type GoldUSD = {
 function deriveGoldUSDFallback(headline: string, sentiment: "bullish" | "bearish" | "neutral"): GoldUSD {
   const h = headline.toLowerCase();
 
-  if (h.includes("fed") || h.includes("rate cut") || h.includes("rate hike") || h.includes("powell") || h.includes("fomc")) {
-    return sentiment === "bearish"
+  // A headline that spells out which way gold moved is the strongest signal
+  // there is; no category rule below should be allowed to contradict it.
+  const stated = deriveGoldDirection(h);
+  if (stated && !/\b(fed|fomc|powell|rate cut|rate hike|monetary policy)\b/.test(h)) {
+    const stance = derivePolicyStance(h);
+    const usd: "bullish" | "bearish" | "neutral" =
+      stance === "hawkish" ? "bullish" : stance === "dovish" ? "bearish" : stated === "bearish" ? "bullish" : "bearish";
+    return stated === "bearish"
+      ? { goldImpact: "bearish", goldReasoning: "The headline states gold moving lower  -  treat the reported direction as the read and look for continuation rather than fading it.", usdImpact: usd, usdReasoning: "Gold weakness usually pairs with dollar strength; confirm on DXY before sizing." }
+      : { goldImpact: "bullish", goldReasoning: "The headline states gold moving higher  -  treat the reported direction as the read and look for continuation rather than fading it.", usdImpact: usd, usdReasoning: "Gold strength usually pairs with dollar weakness; confirm on DXY before sizing." };
+  }
+
+  if (h.includes("fed") || h.includes("rate cut") || h.includes("rate hike") || h.includes("powell") || h.includes("fomc") || h.includes("monetary policy")) {
+    // Order matters: what the headline says about gold beats the policy wording,
+    // and the policy wording beats generic risk sentiment. Sentiment is the last
+    // resort because "good news" and "hawkish" are unrelated ideas.
+    const stated = deriveGoldDirection(h);
+    const stance = stated === "bearish" ? "hawkish"
+      : stated === "bullish" ? "dovish"
+      : derivePolicyStance(h) ?? (sentiment === "bearish" ? "hawkish" : "dovish");
+    return stance === "hawkish"
       ? { goldImpact: "bearish", goldReasoning: "Hawkish Fed tone raises real yields, reducing gold's non-yielding appeal and pressuring spot prices.", usdImpact: "bullish", usdReasoning: "Higher-for-longer rate expectations attract capital flows into USD, strengthening the dollar's yield advantage." }
       : { goldImpact: "bullish", goldReasoning: "Dovish Fed signals lower real yields ahead, making gold more attractive as a non-yielding safe-haven asset.", usdImpact: "bearish", usdReasoning: "Rate cut expectations erode USD yield advantage, weakening the dollar against major currency pairs." };
   }
