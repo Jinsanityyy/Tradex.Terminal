@@ -23,6 +23,9 @@ on:
         default: ""
         required: false
 
+permissions:
+  contents: write   # needed to publish the simulator build to a Release
+
 jobs:
   simulator:
     name: Build and boot on Simulator
@@ -134,11 +137,38 @@ jobs:
           path: screenshots/
           retention-days: 14
 
+      # Appetize needs a zip with App.app at its root. `ditto --keepParent` does
+      # exactly that; --sequesterRsrc is left off so no __MACOSX sibling lands
+      # next to the bundle.
       - name: Package the .app
         if: success()
         run: |
           APP=$(find build/Build/Products/Debug-iphonesimulator -maxdepth 1 -name '*.app' | head -1)
-          ditto -c -k --sequesterRsrc --keepParent "$APP" TradeX-simulator.zip
+          ditto -c -k --keepParent "$APP" TradeX-simulator.zip
+          echo "Zip contents (App.app must be at the root):"
+          unzip -l TradeX-simulator.zip | head -5
+
+      # Published as a Release asset, not just an artifact: an artifact download
+      # arrives wrapped in a SECOND zip, so uploading it straight to Appetize
+      # fails with "No .app folder found". A Release asset downloads as the raw
+      # file, ready to upload as-is.
+      - name: Publish to a Release (ready for Appetize)
+        if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ios-simulator
+          name: iOS Simulator build
+          body: |
+            Interactive testing without a Mac:
+
+            1. Download TradeX-simulator.zip below  -  do NOT unzip it.
+            2. Go to appetize.io -> Apps -> Upload App.
+            3. Pick the zip as downloaded.
+
+            Sign in with email and password. Google Sign-In and in-app purchase
+            do not work on a simulator  -  both need a paid Apple Developer
+            account and a real device.
+          files: TradeX-simulator.zip
 
       - uses: actions/upload-artifact@v4
         if: success()
