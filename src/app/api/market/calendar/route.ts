@@ -1,6 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 import type { EconomicEvent } from "@/types";
 import { requireUser } from "@/lib/auth/entitlement";
+import { archiveEvents } from "@/lib/calendar/archive";
 
 export const dynamic = "force-dynamic";
 
@@ -1270,6 +1271,10 @@ export async function GET(req: Request) {
 
     if (final.length > 0) {
       cache = { data: final, ts: Date.now() };
+      // Mirror into the archive so these stay reviewable after they scroll out
+      // of the feed's two-week window. Deliberately not awaited: the calendar
+      // must render even when the database is unreachable.
+      void archiveEvents(final).catch(() => {});
     }
 
     return NextResponse.json({ data: final, timestamp: Date.now(), count: final.length });

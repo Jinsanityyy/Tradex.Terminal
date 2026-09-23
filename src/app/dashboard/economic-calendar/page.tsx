@@ -1,14 +1,15 @@
 ﻿"use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EconomicEventTable } from "@/components/shared/EconomicEventTable";
 import { useEconomicCalendar } from "@/hooks/useMarketData";
 import { useSettings } from "@/contexts/SettingsContext";
 import { getSymbolLabel, getEventImpactForSymbol } from "@/lib/assetImpact";
-import { CalendarDays, AlertCircle, Clock, Target, Wifi, WifiOff, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
+import { CalendarDays, AlertCircle, Clock, Target, Wifi, WifiOff, TrendingUp, TrendingDown, Loader2, Search, History, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { EconomicEvent } from "@/types";
 
 export default function EconomicCalendarPage() {
   const { events, isLive, isLoading } = useEconomicCalendar();
@@ -16,6 +17,40 @@ export default function EconomicCalendarPage() {
   const selectedSymbol = settings.selectedSymbol ?? "XAUUSD";
   const assetLabel = getSymbolLabel(selectedSymbol);
   const [selectedDate, setSelectedDate] = useState<string>("all");
+
+  // ── Archive search ──────────────────────────────────────────────────────────
+  // The live feed only carries this week and next, so reviewing a past release
+  // means querying the archive rather than filtering what is already on screen.
+  const [query, setQuery]       = useState("");
+  const [history, setHistory]   = useState<EconomicEvent[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [searchErr, setSearchErr] = useState<string | null>(null);
+
+  const runSearch = useCallback(async (q: string) => {
+    const term = q.trim();
+    if (!term) { setHistory(null); setSearchErr(null); return; }
+    setSearching(true);
+    setSearchErr(null);
+    try {
+      const res = await fetch(`/api/market/calendar/history?q=${encodeURIComponent(term)}&limit=60`);
+      if (!res.ok) throw new Error(res.status === 503 ? "Archive not available yet" : "Search failed");
+      const json = await res.json();
+      setHistory(Array.isArray(json.data) ? json.data : []);
+    } catch (e) {
+      setSearchErr(e instanceof Error ? e.message : "Search failed");
+      setHistory([]);
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  // Debounced so typing "fomc" fires one request, not four.
+  useEffect(() => {
+    const t = setTimeout(() => void runSearch(query), 350);
+    return () => clearTimeout(t);
+  }, [query, runSearch]);
+
+  const isSearching = query.trim().length > 0;
 
   // Get unique dates from events
   const availableDates = useMemo(() => {
@@ -75,6 +110,57 @@ export default function EconomicCalendarPage() {
             {isLive ? "LIVE" : "LOADING"}
           </Badge>
         </div>
+      </div>
+
+      {/* Archive search  -  past releases and their outcomes */}
+      <div className="space-y-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search past releases — try FOMC, CPI, NFP, jobs"
+            className="w-full rounded-lg border border-white/8 bg-white/[0.03] py-2 pl-9 pr-9 text-[12px] text-[hsl(var(--foreground))] placeholder:text-zinc-600 focus:border-[hsl(var(--primary))]/40 focus:outline-none"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-zinc-500 hover:text-zinc-300"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        {isSearching && (
+          <Card className="gradient-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-xs">
+                <History className="h-3.5 w-3.5 text-violet-400" />
+                Archive
+                {searching && <Loader2 className="h-3 w-3 animate-spin text-zinc-500" />}
+                {!searching && history && (
+                  <span className="text-[10px] font-normal text-zinc-500">
+                    {history.length} {history.length === 1 ? "release" : "releases"}
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {searchErr ? (
+                <p className="py-3 text-[11px] text-amber-400/80">{searchErr}</p>
+              ) : !searching && history && history.length === 0 ? (
+                <p className="py-3 text-[11px] text-zinc-500">
+                  Nothing archived for “{query.trim()}” yet. The archive fills as events pass, and is seeded
+                  from published data for major releases.
+                </p>
+              ) : history && history.length > 0 ? (
+                <EconomicEventTable events={history} showInterpretation symbol={selectedSymbol} />
+              ) : null}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Date filter tabs */}
