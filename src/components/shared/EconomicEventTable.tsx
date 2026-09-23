@@ -875,8 +875,25 @@ export function EconomicEventTable({ events, showInterpretation = false, compact
  * release, newest first, with the move against the prior print and the
  * Gold read. A row opens the same full analysis as the cards.
  */
-export function ArchiveTable({ events, symbol = "XAUUSD" }: { events: EconomicEvent[]; symbol?: string }) {
+/** "-0.0%" is zero; older archive rows were rounded into a negative sign. */
+const noNegZero = (v: string) => v.replace(/^-(0(?:\.0+)?)(?=\D*$)/, "$1");
+
+export function ArchiveTable({ events: raw, symbol = "XAUUSD" }: { events: EconomicEvent[]; symbol?: string }) {
   const [selected, setSelected] = useState<EconomicEvent | null>(null);
+
+  // Rows archived without a "previous" (older backfills) take it from the
+  // release before them of the same event, so every print can be read.
+  const events = React.useMemo(() => {
+    const byEvent = new Map<string, EconomicEvent[]>();
+    for (const e of raw) byEvent.set(e.event, [...(byEvent.get(e.event) ?? []), e]);
+    for (const list of byEvent.values()) list.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    return raw.map(e => {
+      if (toNum(e.previous) !== null) return e;
+      const list = byEvent.get(e.event)!;
+      const older = list[list.indexOf(e) + 1];
+      return older && toNum(older.actual) !== null ? { ...e, previous: older.actual! } : e;
+    });
+  }, [raw]);
 
   const READ: Record<"bullish" | "bearish" | "neutral", string> = {
     bullish: "text-emerald-400",
@@ -921,8 +938,8 @@ export function ArchiveTable({ events, symbol = "XAUUSD" }: { events: EconomicEv
                     </p>
                   </td>
                   <td className="px-3 py-2 font-semibold text-zinc-100">{ev.event}</td>
-                  <td className="px-3 py-2 text-right font-mono font-semibold text-zinc-50">{ev.actual ?? "—"}</td>
-                  <td className="px-3 py-2 text-right font-mono text-zinc-400">{p !== null ? ev.previous : "—"}</td>
+                  <td className="px-3 py-2 text-right font-mono font-semibold text-zinc-50">{ev.actual ? noNegZero(ev.actual) : "—"}</td>
+                  <td className="px-3 py-2 text-right font-mono text-zinc-400">{p !== null ? noNegZero(ev.previous) : "—"}</td>
                   <td className="px-3 py-2 text-right font-mono text-zinc-400">{f !== null ? ev.forecast : "—"}</td>
                   <td className={cn("px-3 py-2 text-right font-mono",
                     c === null || c === 0 ? "text-zinc-400" : c > 0 ? "text-emerald-400" : "text-red-400")}>{change}</td>
