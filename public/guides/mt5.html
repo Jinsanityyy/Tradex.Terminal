@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Connect MT5 to TradeX — Setup Guide</title>
+<meta name="description" content="Journal every MT5 trade in TradeX automatically. A 5-minute, step-by-step setup." />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #07090d;
+    --bg-2:      #0c1016;
+    --card:      #10151d;
+    --card-2:    #151b25;
+    --line:      #1f2733;
+    --line-2:    #2a3442;
+    --text:      #e8ecf2;
+    --text-2:    #a3adbd;
+    --text-3:    #6b7686;
+    --gold:      #d9a521;
+    --gold-soft: rgba(217,165,33,.12);
+    --green:     #10b981;
+    --green-2:   #34d399;
+    --green-soft:rgba(16,185,129,.12);
+    --red:       #f87171;
+    --red-soft:  rgba(248,113,113,.10);
+    --amber:     #fbbf24;
+    --radius:    16px;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  html { scroll-behavior: smooth; scroll-padding-top: 88px; }
+  body {
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--gold); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, .mono { font-family: var(--mono); }
+  strong { color: #fff; font-weight: 600; }
+
+  /* ── Top bar ─────────────────────────────────────────────── */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(7,9,13,.82);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--line);
+  }
+  .topbar-inner {
+    max-width: 1120px; margin: 0 auto; padding: 14px 20px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; color: #fff; font-weight: 800; letter-spacing: .14em; font-size: 14px; }
+  .brand img { width: 26px; height: 26px; }
+  .brand span { color: var(--gold); }
+  .topbar-cta {
+    font-size: 13px; font-weight: 600; color: #0b0b0b; background: var(--gold);
+    padding: 8px 14px; border-radius: 10px; white-space: nowrap;
+  }
+  .topbar-cta:hover { text-decoration: none; filter: brightness(1.08); }
+
+  /* ── Hero ─────────────────────────────────────────────────── */
+  .hero {
+    position: relative; overflow: hidden;
+    border-bottom: 1px solid var(--line);
+  }
+  .hero::before {
+    content: ""; position: absolute; inset: -40% -10% auto auto; width: 720px; height: 720px;
+    background: radial-gradient(closest-side, rgba(16,185,129,.16), transparent 70%);
+    pointer-events: none;
+  }
+  .hero::after {
+    content: ""; position: absolute; inset: auto auto -50% -15%; width: 620px; height: 620px;
+    background: radial-gradient(closest-side, rgba(217,165,33,.12), transparent 70%);
+    pointer-events: none;
+  }
+  .hero-inner {
+    position: relative; z-index: 1;
+    max-width: 1120px; margin: 0 auto; padding: 72px 20px 64px;
+    display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center;
+  }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 12px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--green-2); background: var(--green-soft); border: 1px solid rgba(16,185,129,.3);
+    padding: 5px 12px; border-radius: 999px; margin-bottom: 20px;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green-2); box-shadow: 0 0 0 0 rgba(52,211,153,.6); animation: pulse 2s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(52,211,153,.55); } 70% { box-shadow: 0 0 0 8px rgba(52,211,153,0); } 100% { box-shadow: 0 0 0 0 rgba(52,211,153,0); } }
+  h1 { font-size: clamp(34px, 5vw, 52px); line-height: 1.08; letter-spacing: -.025em; font-weight: 800; color: #fff; }
+  h1 em { font-style: normal; background: linear-gradient(90deg, var(--gold), #f2d27a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { margin-top: 18px; font-size: 18px; color: var(--text-2); max-width: 540px; }
+  .hero-meta { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2);
+    background: var(--card); border: 1px solid var(--line); padding: 8px 12px; border-radius: 10px;
+  }
+  .chip svg { width: 15px; height: 15px; color: var(--gold); }
+
+  /* Flow visual */
+  .flow {
+    background: linear-gradient(180deg, var(--card), var(--bg-2));
+    border: 1px solid var(--line); border-radius: 20px; padding: 22px;
+    box-shadow: 0 30px 80px -30px rgba(0,0,0,.8);
+  }
+  .flow-row { display: flex; align-items: center; gap: 12px; }
+  .flow-node {
+    flex: 1; border: 1px solid var(--line-2); background: var(--bg-2); border-radius: 14px; padding: 14px;
+  }
+  .flow-node .k { font-size: 11px; color: var(--text-3); letter-spacing: .12em; text-transform: uppercase; font-family: var(--mono); }
+  .flow-node .v { font-weight: 700; color: #fff; margin-top: 2px; font-size: 15px; }
+  .flow-arrow { color: var(--green-2); font-family: var(--mono); font-size: 13px; text-align: center; }
+  .flow-arrow .line { height: 2px; width: 40px; background: linear-gradient(90deg, transparent, var(--green-2), transparent); margin: 4px auto; background-size: 200% 100%; animation: flowline 1.6s linear infinite; }
+  @keyframes flowline { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+  .toast {
+    margin-top: 16px; display: flex; gap: 12px; align-items: center;
+    background: rgba(16,185,129,.08); border: 1px solid rgba(16,185,129,.3); border-radius: 12px; padding: 12px 14px;
+  }
+  .toast .ic { width: 28px; height: 28px; border-radius: 8px; background: var(--green-soft); display: grid; place-items: center; color: var(--green-2); flex-shrink: 0; }
+  .toast b { color: #fff; font-size: 14px; display: block; }
+  .toast small { color: var(--text-2); font-size: 12px; }
+  .trade-row {
+    margin-top: 10px; display: flex; align-items: center; gap: 10px; font-size: 13px;
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px;
+  }
+  .badge {
+    font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    padding: 3px 7px; border-radius: 6px; border: 1px solid;
+  }
+  .badge.mt5 { color: var(--green-2); background: var(--green-soft); border-color: rgba(52,211,153,.35); }
+  .trade-row .sym { font-weight: 700; color: #fff; }
+  .trade-row .side { color: var(--green-2); font-size: 10px; font-weight: 700; }
+  .trade-row .pnl { margin-left: auto; font-family: var(--mono); font-weight: 600; color: var(--green-2); }
+
+  /* ── Layout ───────────────────────────────────────────────── */
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 56px 20px 40px; display: grid; grid-template-columns: 220px 1fr; gap: 48px; }
+  .toc { position: sticky; top: 88px; align-self: start; }
+  .toc p { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--text-3); font-family: var(--mono); margin-bottom: 12px; }
+  .toc ol { list-style: none; border-left: 1px solid var(--line); }
+  .toc a {
+    display: flex; gap: 10px; align-items: center; padding: 7px 0 7px 16px; margin-left: -1px;
+    color: var(--text-3); font-size: 14px; border-left: 2px solid transparent; transition: color .15s, border-color .15s;
+  }
+  .toc a:hover { color: var(--text); text-decoration: none; }
+  .toc a.active { color: #fff; border-left-color: var(--gold); }
+  .toc .n { font-family: var(--mono); font-size: 11px; color: var(--text-3); width: 16px; }
+  .toc a.active .n { color: var(--gold); }
+
+  main { min-width: 0; }
+  section { margin-bottom: 64px; }
+  .sec-kicker { font-family: var(--mono); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+  h2 { font-size: 28px; letter-spacing: -.02em; line-height: 1.2; color: #fff; font-weight: 800; }
+  .sec-lead { color: var(--text-2); margin-top: 8px; max-width: 680px; }
+
+  /* Needs */
+  .needs { margin-top: 24px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .need { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
+  .need .ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--gold-soft); color: var(--gold); margin-bottom: 14px; }
+  .need .ic svg { width: 20px; height: 20px; }
+  .need h3 { font-size: 16px; color: #fff; }
+  .need p { font-size: 14px; color: var(--text-2); margin-top: 4px; }
+
+  /* Steps */
+  .step {
+    position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 20px;
+    padding: 28px; margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start;
+  }
+  .step > * { min-width: 0; }   /* let long URLs/paths wrap instead of widening the page */
+  .step-num {
+    display: inline-flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 12px;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); margin-bottom: 10px;
+  }
+  .step-num b {
+    width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--gold), #b8860b); color: #0b0b0b; font-size: 14px; font-weight: 800;
+  }
+  .step h3 { font-size: 21px; color: #fff; letter-spacing: -.01em; line-height: 1.3; }
+  .step .where { font-size: 13px; color: var(--text-3); margin-top: 4px; }
+  .step ol.do { margin-top: 16px; padding-left: 0; list-style: none; counter-reset: s; }
+  .step ol.do li { counter-increment: s; position: relative; padding-left: 30px; margin-bottom: 10px; color: var(--text-2); font-size: 15px; }
+  .step ol.do li::before {
+    content: counter(s); position: absolute; left: 0; top: 2px; width: 20px; height: 20px; border-radius: 6px;
+    background: var(--card-2); border: 1px solid var(--line-2); color: var(--text-2);
+    font-size: 11px; font-weight: 700; display: grid; place-items: center; font-family: var(--mono);
+  }
+  kbd {
+    font-family: var(--mono); font-size: 12px; color: #fff; background: var(--card-2);
+    border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: 6px; padding: 1px 6px; white-space: nowrap;
+  }
+  .path { font-weight: 600; color: #fff; }
+  .path i { font-style: normal; color: var(--text-3); padding: 0 4px; }
+
+  .copy {
+    margin-top: 12px; display: flex; align-items: center; gap: 8px;
+    background: var(--bg); border: 1px solid var(--line-2); border-radius: 12px; padding: 6px 6px 6px 14px;
+  }
+  .copy code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--green-2); font-size: 14px; }
+  .copy button {
+    font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+    color: var(--text); background: var(--card-2); border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 12px;
+    display: inline-flex; align-items: center; gap: 6px; transition: background .15s, color .15s, border-color .15s;
+  }
+  .copy button:hover { background: var(--line); }
+  .copy button.done { color: var(--green-2); border-color: rgba(52,211,153,.4); }
+  .copy button svg { width: 14px; height: 14px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; margin-top: 16px;
+    font-weight: 700; font-size: 15px; color: #0b0b0b; background: linear-gradient(135deg, #34d399, #10b981);
+    padding: 12px 18px; border-radius: 12px; box-shadow: 0 10px 30px -10px rgba(16,185,129,.6);
+  }
+  .btn:hover { text-decoration: none; filter: brightness(1.06); }
+  .btn svg { width: 17px; height: 17px; }
+  .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line-2); box-shadow: none; }
+
+  .note {
+    margin-top: 16px; display: flex; gap: 10px; font-size: 14px; color: var(--text-2);
+    background: var(--gold-soft); border: 1px solid rgba(217,165,33,.28); border-radius: 12px; padding: 12px 14px;
+  }
+  .note svg { width: 18px; height: 18px; color: var(--gold); flex-shrink: 0; margin-top: 2px; }
+  .note.good { background: var(--green-soft); border-color: rgba(16,185,129,.3); }
+  .note.good svg { color: var(--green-2); }
+
+  /* ── Mock windows (recreations of what users will see) ──── */
+  .mock {
+    background: #1c1f24; border: 1px solid #2d3238; border-radius: 12px; overflow: hidden;
+    box-shadow: 0 24px 60px -24px rgba(0,0,0,.9); font-size: 13px; color: #d7dbe0;
+    font-family: "Segoe UI", Inter, system-ui, sans-serif;
+  }
+  .mock-title { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; background: #24282e; border-bottom: 1px solid #2d3238; font-size: 12px; color: #e6e9ec; }
+  .mock-title .x { color: #8a9099; letter-spacing: 8px; }
+  .mock-tabs { display: flex; gap: 14px; padding: 8px 12px 0; font-size: 12px; color: #9aa1aa; border-bottom: 1px solid #2d3238; flex-wrap: wrap; }
+  .mock-tabs span { padding-bottom: 6px; }
+  .mock-tabs .on { color: #fff; border-bottom: 2px solid #3b82f6; }
+  .mock-body { padding: 14px; }
+  .mock-check { display: flex; align-items: center; gap: 8px; margin: 7px 0; color: #c9ced4; }
+  .box { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #5b626b; flex-shrink: 0; }
+  .box.on { background: #3b82f6; border-color: #3b82f6; position: relative; }
+  .box.on::after { content: ""; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+  .hl { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 4px; box-shadow: 0 0 0 6px rgba(217,165,33,.12); }
+  .mock-list { margin: 8px 0 0 22px; border: 1px solid #3a4048; background: #16191d; border-radius: 4px; padding: 6px 8px; font-family: var(--mono); font-size: 12px; color: #fff; }
+  .mock-list .add { color: #8a9099; }
+  .mock-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 12px; border-top: 1px solid #2d3238; background: #202328; }
+  .mbtn { border: 1px solid #4a5059; border-radius: 5px; padding: 3px 16px; font-size: 12px; color: #e6e9ec; }
+  .mbtn.pri { border-color: #9aa1aa; }
+  .mock table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .mock th { text-align: left; font-weight: 500; color: #9aa1aa; padding: 6px 8px; border-bottom: 1px solid #2d3238; }
+  .mock td { padding: 6px 8px; border-bottom: 1px solid #262a30; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 0; }
+  .mock td:first-child { width: 52%; }
+  .mock .ab { color: #e0a24a; font-size: 10px; margin-right: 6px; font-weight: 700; }
+  .mock .num { color: #5ea1ff; font-size: 10px; margin-right: 6px; font-weight: 700; }
+  .mock .token { color: var(--green-2); font-family: var(--mono); }
+  .tree { font-size: 12px; line-height: 1.9; }
+  .tree .f { display: flex; align-items: center; gap: 7px; color: #c9ced4; }
+  .tree .f svg { width: 14px; height: 14px; color: #e0b04a; }
+  .tree .in { padding-left: 18px; }
+  .tree .file { color: var(--green-2); }
+  .tree .file svg { color: var(--green-2); }
+  .compile-log { font-family: var(--mono); font-size: 12px; background: #16191d; border-top: 1px solid #2d3238; padding: 10px 12px; color: #9aa1aa; }
+  .compile-log b { color: var(--green-2); font-weight: 600; }
+  .chart {
+    position: relative; height: 180px; background: #fff; border-radius: 0 0 12px 12px; overflow: hidden;
+    font-family: "Segoe UI", Arial, sans-serif;
+  }
+  .chart .status { position: absolute; left: 10px; top: 8px; font-size: 12px; color: #111; line-height: 1.45; }
+  .chart .status b { font-weight: 600; color: #111; }
+  .chart .smile { position: absolute; right: 10px; top: 8px; display: flex; align-items: center; gap: 6px; font-size: 11px; color: #444; }
+  .chart .smile i { width: 18px; height: 18px; border-radius: 50%; background: #2f80ed; display: grid; place-items: center; color: #fff; font-style: normal; font-size: 11px; }
+  .chart svg.candles { position: absolute; inset: 70px 0 0 0; width: 100%; height: 110px; }
+  .tradex-ui { background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 14px; padding: 16px; font-size: 13px; }
+  .tradex-ui .row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .tradex-ui .lbl { font-size: 10px; letter-spacing: .14em; color: var(--text-3); text-transform: uppercase; font-family: var(--mono); margin-bottom: 5px; }
+  .tradex-ui .field { flex: 1; background: var(--card-2); border: 1px solid var(--line-2); border-radius: 9px; padding: 8px 10px; font-family: var(--mono); font-size: 12px; color: var(--text-2); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .tradex-ui .ico { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--text-2); }
+  .tradex-ui .ico svg { width: 15px; height: 15px; }
+  .tradex-ui .live { display: flex; gap: 10px; align-items: center; margin-top: 12px; background: var(--green-soft); border: 1px solid rgba(16,185,129,.35); border-radius: 10px; padding: 10px 12px; }
+  .tradex-ui .live b { color: var(--green-2); font-size: 13px; }
+  .tradex-ui .live small { display: block; color: var(--text-2); font-size: 11px; }
+  .ex-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 12px; }
+  .ex-grid span { text-align: center; border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 0; font-size: 11px; font-weight: 700; color: var(--text-3); }
+  .ex-grid span.on { color: var(--green-2); border-color: rgba(52,211,153,.5); background: var(--green-soft); }
+
+  /* ── Done / Troubleshooting / FAQ ─────────────────────────── */
+  .done {
+    border-radius: 20px; padding: 32px; margin-top: 18px;
+    background: radial-gradient(120% 140% at 100% 0%, rgba(16,185,129,.18), transparent 60%), var(--card);
+    border: 1px solid rgba(16,185,129,.3);
+  }
+  .done h3 { font-size: 22px; color: #fff; }
+  .done p { color: var(--text-2); margin-top: 6px; max-width: 640px; }
+  .checks { margin-top: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .checks div { background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px; padding: 14px; font-size: 14px; color: var(--text-2); }
+  .checks b { display: flex; align-items: center; gap: 8px; color: #fff; margin-bottom: 4px; font-size: 14px; }
+  .checks svg { width: 16px; height: 16px; color: var(--green-2); }
+
+  .issues { margin-top: 20px; display: grid; gap: 12px; }
+  .issue { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; display: grid; grid-template-columns: 1fr 1.2fr; gap: 20px; }
+  .issue .see { font-family: var(--mono); font-size: 13px; color: var(--red); background: var(--red-soft); border: 1px solid rgba(248,113,113,.25); border-radius: 10px; padding: 10px 12px; line-height: 1.5; }
+  .issue .see small { display: block; font-family: Inter, sans-serif; color: var(--text-3); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 4px; }
+  .issue .fix small { display: block; color: var(--green-2); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 4px; font-family: var(--mono); }
+  .issue .fix { font-size: 14px; color: var(--text-2); }
+
+  .faq { margin-top: 20px; border-top: 1px solid var(--line); }
+  details { border-bottom: 1px solid var(--line); }
+  summary {
+    list-style: none; cursor: pointer; padding: 18px 0; font-weight: 600; color: #fff; font-size: 16px;
+    display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; font-family: var(--mono); color: var(--gold); font-size: 20px; transition: transform .2s; }
+  details[open] summary::after { transform: rotate(45deg); }
+  details p { color: var(--text-2); padding: 0 0 18px; max-width: 720px; font-size: 15px; }
+
+  footer { border-top: 1px solid var(--line); padding: 32px 20px 48px; text-align: center; color: var(--text-3); font-size: 13px; }
+  footer .btn { margin: 0 6px 20px; }
+
+  /* ── Responsive ───────────────────────────────────────────── */
+  @media (max-width: 960px) {
+    .hero-inner { grid-template-columns: 1fr; padding-top: 48px; }
+    .wrap { grid-template-columns: 1fr; }
+    .toc { display: none; }
+    .step { grid-template-columns: 1fr; }
+    .issue { grid-template-columns: 1fr; gap: 12px; }
+  }
+  @media (max-width: 640px) {
+    body { font-size: 15px; }
+    .needs, .checks { grid-template-columns: 1fr; }
+    .step, .done { padding: 20px; }
+    .flow-row { flex-direction: column; align-items: stretch; }
+    .flow-arrow .line { width: 2px; height: 22px; background: linear-gradient(180deg, transparent, var(--green-2), transparent); }
+    .topbar-cta { display: none; }
+    .copy code { white-space: normal; word-break: break-all; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; scroll-behavior: auto !important; } }
+
+  /* ── Print / PDF ──────────────────────────────────────────── */
+  @page { size: A4; margin: 0; }
+  @media print {
+    html, body { background: var(--bg); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    * { animation: none !important; }
+    .topbar { position: static; }
+    .topbar-cta, .toc, .flow-arrow .line { display: none; }
+    .hero-inner { padding: 40px 36px 36px; grid-template-columns: 1fr; gap: 28px; }
+    .hero::before, .hero::after { display: none; }
+    .wrap { display: block; padding: 28px 36px 8px; }
+    section { margin-bottom: 28px; }
+    .step { grid-template-columns: 1fr 1fr; gap: 20px; padding: 22px; break-inside: avoid; }
+    .step .note, .step ol.do li { font-size: 13px; }
+    .need, .issue, .done, details, .checks > div { break-inside: avoid; }
+    .issue { grid-template-columns: 1fr 1.2fr; }
+    #step-1 { break-before: page; padding-top: 28px; }
+    #fix, #faq { break-before: page; padding-top: 28px; }
+    details summary::after { display: none; }
+    summary { padding: 11px 0 6px; font-size: 15px; }
+    details p { padding-bottom: 11px; font-size: 13.5px; }
+    footer { padding: 18px 20px 24px; border-top: 0; }
+    footer .btn { margin-bottom: 10px; }
+    footer { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></symbol>
+</svg>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/" aria-label="TradeX home"><img src="/logo-transparent.png" alt="" /><b style="font-weight:800">TRADE<span>X</span></b></a>
+    <a class="topbar-cta" href="/dashboard/pnl-calendar">Open PnL Calendar →</a>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="eyebrow"><span class="dot"></span>MT5 live journaling</div>
+      <h1>Every MT5 trade, <em>journaled automatically.</em></h1>
+      <p class="lead">Connect MetaTrader 5 once. From then on, every trade you close shows up on your TradeX PnL Calendar within seconds. No exporting, no typing.</p>
+      <div class="hero-meta">
+        <span class="chip"><svg><use href="#i-clock"/></svg>About 5 minutes, once</span>
+        <span class="chip"><svg><use href="#i-shield"/></svg>Read-only: never places trades</span>
+        <span class="chip"><svg><use href="#i-eye"/></svg>No MT5 password needed</span>
+      </div>
+    </div>
+
+    <div class="flow" aria-hidden="true">
+      <div class="flow-row">
+        <div class="flow-node"><div class="k">You close</div><div class="v">XAUUSD · 0.10</div></div>
+        <div class="flow-arrow">EA<div class="line"></div>~2s</div>
+        <div class="flow-node"><div class="k">TradeX</div><div class="v">PnL Calendar</div></div>
+      </div>
+      <div class="toast">
+        <div class="ic"><svg width="16" height="16"><use href="#i-check"/></svg></div>
+        <div><b>1 new trade journaled from MT5</b><small>Added to today on your calendar</small></div>
+      </div>
+      <div class="trade-row">
+        <span class="badge mt5">MT5 EA</span>
+        <span class="sym">XAUUSD</span><span class="side">LONG</span>
+        <span class="pnl">+$184.20</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <nav class="toc" aria-label="Guide sections">
+    <p>On this page</p>
+    <ol>
+      <li><a href="#before"><span class="n">00</span>Before you start</a></li>
+      <li><a href="#step-1"><span class="n">01</span>Get your token</a></li>
+      <li><a href="#step-2"><span class="n">02</span>Install the EA</a></li>
+      <li><a href="#step-3"><span class="n">03</span>Compile it</a></li>
+      <li><a href="#step-4"><span class="n">04</span>Allow TradeX</a></li>
+      <li><a href="#step-5"><span class="n">05</span>Attach to a chart</a></li>
+      <li><a href="#step-6"><span class="n">06</span>Test it</a></li>
+      <li><a href="#fix"><span class="n">?</span>Troubleshooting</a></li>
+      <li><a href="#faq"><span class="n">?</span>FAQ</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <!-- ── Before ─────────────────────────────────────────── -->
+    <section id="before">
+      <div class="sec-kicker">Before you start</div>
+      <h2>What you need</h2>
+      <p class="sec-lead">Just three things. You don't need an API key, a broker login or any other software.</p>
+      <div class="needs">
+        <div class="need">
+          <div class="ic"><svg><use href="#i-star"/></svg></div>
+          <h3>TradeX Pro</h3>
+          <p>MT5 connections are part of the Pro plan.</p>
+        </div>
+        <div class="need">
+          <div class="ic"><svg><use href="#i-monitor"/></svg></div>
+          <h3>MT5 on a computer</h3>
+          <p>Windows, Mac or a VPS. The MT5 phone app can't run Expert Advisors.</p>
+        </div>
+        <div class="need">
+          <div class="ic"><svg><use href="#i-zap"/></svg></div>
+          <h3>5 minutes</h3>
+          <p>You set it up once. After that it runs in the background.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Step 1 ─────────────────────────────────────────── -->
+    <section id="step-1">
+      <div class="step">
+        <div>
+          <div class="step-num"><b>1</b>In TradeX</div>
+          <h3>Create your MT5 connection and copy your token</h3>
+          <p class="where">Your token links your MT5 terminal to your TradeX account.</p>
+          <ol class="do">
+            <li>Open <span class="path">PnL Calendar</span> and click <span class="path">Add Exchange</span>.</li>
+            <li>Choose <span class="path">MT5</span>, give it a name (e.g. <em>"My FTMO account"</em>) and click <span class="path">Create MT5 connection</span>.</li>
+            <li>Click the <strong>copy</strong> icon next to <span class="path">Token</span> and paste it somewhere safe, like Notepad.</li>
+          </ol>
+          <div class="note">
+            <svg><use href="#i-info"/></svg>
+            <div>Your token is shown <strong>only once</strong>. Keep this window open until you finish. Lost it? Click the <strong>key icon</strong> on your MT5 chip in TradeX to get a new one.</div>
+          </div>
+          <a class="btn ghost" href="/dashboard/pnl-calendar">Open PnL Calendar →</a>
+        </div>
+        <div class="tradex-ui" aria-hidden="true">
+          <div class="ex-grid"><span>B</span><span>By</span><span>OK</span><span>CT</span><span class="on">MT5</span></div>
+          <div class="lbl">Token</div>
+          <div class="row">
+            <div class="field">••••••••••••••••••••••••••</div>
+            <div class="ico"><svg><use href="#i-eye"/></svg></div>
+            <div class="ico hl"><svg><use href="#i-copy"/></svg></div>
+          </div>
+          <div class="lbl">Webhook URL</div>
+          <div class="row"><div class="field">https://tradexterminal.online/api/mt5/webhook</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Step 2 ─────────────────────────────────────────── -->
+    <section id="step-2">
+      <div class="step">
+        <div>
+          <div class="step-num"><b>2</b>On your computer</div>
+          <h3>Download the EA and put it in your Experts folder</h3>
+          <ol class="do">
+            <li>Download <strong>TradexJournal.mq5</strong> with the button below.</li>
+            <li>In MT5, click <span class="path">File <i>›</i> Open Data Folder</span>.</li>
+            <li>Open <span class="path">MQL5</span>, then <span class="path">Experts</span>, and paste the file there.</li>
+          </ol>
+          <a class="btn" href="/mt5/TradexJournal.mq5" download><svg><use href="#i-download"/></svg>Download TradexJournal.mq5</a>
+          <div class="note">
+            <svg><use href="#i-info"/></svg>
+            <div>It has to be the <strong>Experts</strong> folder. If you put it anywhere else, the EA won't show up in MT5.</div>
+          </div>
+        </div>
+        <div class="mock" aria-hidden="true">
+          <div class="mock-title"><span>MQL5</span><span class="x">– ▢ ✕</span></div>
+          <div class="mock-body tree">
+            <div class="f"><svg><use href="#i-folder"/></svg>MQL5</div>
+            <div class="in">
+              <div class="f hl" style="display:inline-flex;padding-right:6px"><svg><use href="#i-folder"/></svg>Experts</div>
+              <div class="in"><div class="f file"><svg><use href="#i-file"/></svg>TradexJournal.mq5</div></div>
+              <div class="f"><svg><use href="#i-folder"/></svg>Files</div>
+              <div class="f"><svg><use href="#i-folder"/></svg>Include</div>
+              <div class="f"><svg><use href="#i-folder"/></svg>Indicators</div>
+              <div class="f"><svg><use href="#i-folder"/></svg>Scripts</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Step 3 ─────────────────────────────────────────── -->
+    <section id="step-3">
+      <div class="step">
+        <div>
+          <div class="step-num"><b>3</b>In MetaEditor</div>
+          <h3>Compile the EA</h3>
+          <p class="where">This turns the file into something MT5 can run. It takes about a second.</p>
+          <ol class="do">
+            <li>In MT5, press <kbd>F4</kbd> to open MetaEditor.</li>
+            <li>On the left, open <span class="path">Experts</span> and double-click <strong>TradexJournal</strong>. Don't see it? Right-click <span class="path">Experts</span> and choose <strong>Refresh</strong>.</li>
+            <li>Press <kbd>F7</kbd>, or click <strong>Compile</strong>.</li>
+          </ol>
+          <div class="note good">
+            <svg><use href="#i-check"/></svg>
+            <div>At the bottom you should see <strong>0 errors, 0 warnings</strong>. That's all MetaEditor is needed for, so you can close it.</div>
+          </div>
+        </div>
+        <div class="mock" aria-hidden="true">
+          <div class="mock-title"><span>MetaEditor — TradexJournal.mq5</span><span class="x">– ▢ ✕</span></div>
+          <div class="mock-body" style="font-family:var(--mono);font-size:12px;color:#7c8591;line-height:1.8">
+            <div><span style="color:#5ea1ff">#property</span> <span style="color:#f87171">version</span> <span style="color:#34d399">"1.01"</span></div>
+            <div><span style="color:#5ea1ff">input string</span> <span style="color:#f87171">InpToken</span> = <span style="color:#34d399">""</span>;</div>
+            <div><span style="color:#5ea1ff">input int</span> <span style="color:#f87171">InpBackfillDays</span> = <span style="color:#34d399">30</span>;</div>
+          </div>
+          <div class="compile-log">
+            TradexJournal.mq5<br />code generated<br /><span class="hl" style="display:inline-block"><b>0 errors, 0 warnings</b>, 235 ms elapsed</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Step 4 ─────────────────────────────────────────── -->
+    <section id="step-4">
+      <div class="step">
+        <div>
+          <div class="step-num"><b>4</b>In MT5</div>
+          <h3>Allow MT5 to talk to TradeX</h3>
+          <p class="where">MT5 blocks internet access for EAs until you approve a website. This is the step people miss most often.</p>
+          <ol class="do">
+            <li>Press <kbd>Ctrl</kbd> + <kbd>O</kbd> (or <span class="path">Tools <i>›</i> Options</span>) and open the <span class="path">Expert Advisors</span> tab.</li>
+            <li>Tick <strong>Allow algorithmic trading</strong>.</li>
+            <li>Tick <strong>Allow WebRequest for listed URL</strong>.</li>
+            <li>Double-click <em>"add new URL"</em>, paste the address below and press <kbd>Enter</kbd>. Then click <strong>OK</strong>.</li>
+          </ol>
+          <div class="copy">
+            <code id="url-site">https://tradexterminal.online</code>
+            <button type="button" data-copy="url-site"><svg><use href="#i-copy"/></svg><span>Copy</span></button>
+          </div>
+          <div class="note">
+            <svg><use href="#i-info"/></svg>
+            <div>Press <kbd>Enter</kbd> after pasting the URL. If you click OK while the line is still being edited, MT5 may not save it.</div>
+          </div>
+        </div>
+        <div class="mock" aria-hidden="true">
+          <div class="mock-title"><span>Options</span><span class="x">– ▢ ✕</span></div>
+          <div class="mock-tabs"><span>Server</span><span>Charts</span><span>Trade</span><span class="on">Expert Advisors</span><span>Events</span></div>
+          <div class="mock-body">
+            <div class="mock-check"><span class="box on hl"></span>Allow algorithmic trading</div>
+            <div class="mock-check" style="opacity:.55;margin-left:22px"><span class="box on"></span>Disable when the account has been changed</div>
+            <div class="mock-check" style="opacity:.55;margin-left:22px"><span class="box"></span>Disable via external Python API</div>
+            <div class="mock-check"><span class="box on hl"></span>Allow WebRequest for listed URL:</div>
+            <div class="mock-list hl"><span class="add">+ </span>https://tradexterminal.online</div>
+          </div>
+          <div class="mock-foot"><span class="mbtn pri">OK</span><span class="mbtn">Cancel</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Step 5 ─────────────────────────────────────────── -->
+    <section id="step-5">
+      <div class="step">
+        <div>
+          <div class="step-num"><b>5</b>In MT5</div>
+          <h3>Attach the EA to one chart and paste your token</h3>
+          <ol class="do">
+            <li>Press <kbd>Ctrl</kbd> + <kbd>N</kbd> to open the <span class="path">Navigator</span>, then expand <span class="path">Expert Advisors</span>.</li>
+            <li>Drag <strong>TradexJournal</strong> onto <strong>any one chart</strong>. The symbol doesn't matter.</li>
+            <li>In the <span class="path">Inputs</span> tab, double-click the empty value next to <strong>TradeX token</strong>, paste your token and press <kbd>Enter</kbd>.</li>
+            <li>In the <span class="path">Common</span> tab, tick <strong>Allow Algo Trading</strong>. Click <strong>OK</strong>.</li>
+            <li>Make sure the <strong>Algo Trading</strong> button in the MT5 toolbar is green.</li>
+          </ol>
+          <div class="note good">
+            <svg><use href="#i-check"/></svg>
+            <div><strong>One chart covers the whole account.</strong> Manual trades, phone trades and trades from other EAs are all journaled too. Don't attach it twice.</div>
+          </div>
+          <div class="note">
+            <svg><use href="#i-info"/></svg>
+            <div>Your token starts with <code style="color:#fff">tdx_mt5_</code>. It's long, so the box only shows the end of it, which is normal. Leave the other inputs as they are.</div>
+          </div>
+        </div>
+        <div class="mock" aria-hidden="true">
+          <div class="mock-title"><span>TradexJournal 1.01 (XAUUSD,M15)</span><span class="x">– ▢ ✕</span></div>
+          <div class="mock-tabs"><span>Common</span><span class="on">Inputs</span></div>
+          <div class="mock-body" style="padding:10px">
+            <table>
+              <tr><th>Variable</th><th>Value</th></tr>
+              <tr class="hl"><td><span class="ab">ab</span>TradeX token (tdx_mt5_...)</td><td class="token">tdx_mt5_3f9a…c41e</td></tr>
+              <tr><td><span class="ab">ab</span>TradeX webhook URL</td><td>https://tradexterminal.online/api/mt5/webhook</td></tr>
+              <tr><td><span class="num">01</span>Resend closed trades from the last N days</td><td>30</td></tr>
+              <tr><td><span class="num">01</span>Retry interval while TradeX is unreachable</td><td>15</td></tr>
+            </table>
+          </div>
+          <div class="mock-foot"><span class="mbtn pri">OK</span><span class="mbtn">Cancel</span><span class="mbtn">Reset</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Step 6 ─────────────────────────────────────────── -->
+    <section id="step-6">
+      <div class="step">
+        <div>
+          <div class="step-num"><b>6</b>Check it's working</div>
+          <h3>Look for "connected", then close a test trade</h3>
+          <ol class="do">
+            <li>The top-left of the chart should read <strong>TradeX Journal: connected</strong>.</li>
+            <li>In TradeX, the setup window turns green: <strong>EA connected</strong>.</li>
+            <li>On a <strong>demo account</strong>, open a 0.01-lot trade and close it.</li>
+            <li>Within about 10 seconds you'll see <strong>"1 new trade journaled from MT5"</strong>, and the trade appears on today's date.</li>
+          </ol>
+          <div class="note good">
+            <svg><use href="#i-check"/></svg>
+            <div>Click any day on the calendar to see its trades. Trades from MT5 carry an <span class="badge mt5">MT5 EA</span> badge, so you can always tell them apart from ones you logged by hand.</div>
+          </div>
+        </div>
+        <div>
+          <div class="mock" aria-hidden="true">
+            <div class="mock-title"><span>XAUUSD, M15: Gold vs US Dollar</span><span class="x">– ▢ ✕</span></div>
+            <div class="chart">
+              <div class="status hl" style="background:#fff;padding:2px 4px"><b>TradeX Journal: connected</b><br />Last contact: 17:14:58<br />Waiting to send: 0</div>
+              <div class="smile"><i>☺</i>TradexJournal</div>
+              <svg class="candles" viewBox="0 0 400 110" preserveAspectRatio="none">
+                <g stroke="#111" stroke-width="1.2">
+                  <line x1="30" y1="30" x2="30" y2="90"/><rect x="24" y="45" width="12" height="30" fill="#fff"/>
+                  <line x1="60" y1="20" x2="60" y2="80"/><rect x="54" y="30" width="12" height="35" fill="#111"/>
+                  <line x1="90" y1="40" x2="90" y2="100"/><rect x="84" y="55" width="12" height="30" fill="#fff"/>
+                  <line x1="120" y1="25" x2="120" y2="85"/><rect x="114" y="35" width="12" height="25" fill="#111"/>
+                  <line x1="150" y1="15" x2="150" y2="70"/><rect x="144" y="22" width="12" height="30" fill="#fff"/>
+                  <line x1="180" y1="10" x2="180" y2="60"/><rect x="174" y="18" width="12" height="22" fill="#fff"/>
+                  <line x1="210" y1="20" x2="210" y2="80"/><rect x="204" y="28" width="12" height="38" fill="#111"/>
+                  <line x1="240" y1="35" x2="240" y2="95"/><rect x="234" y="50" width="12" height="30" fill="#111"/>
+                  <line x1="270" y1="30" x2="270" y2="85"/><rect x="264" y="40" width="12" height="30" fill="#fff"/>
+                  <line x1="300" y1="15" x2="300" y2="65"/><rect x="294" y="22" width="12" height="28" fill="#fff"/>
+                  <line x1="330" y1="5" x2="330" y2="55"/><rect x="324" y="12" width="12" height="25" fill="#fff"/>
+                  <line x1="360" y1="15" x2="360" y2="75"/><rect x="354" y="25" width="12" height="35" fill="#111"/>
+                </g>
+              </svg>
+            </div>
+          </div>
+          <div class="tradex-ui" style="margin-top:14px" aria-hidden="true">
+            <div class="live">
+              <svg width="18" height="18" style="color:var(--green-2)"><use href="#i-check"/></svg>
+              <div><b>EA connected · 5012345 @ Broker-Live</b><small>Close a small trade on a demo account: it lands on the calendar within seconds.</small></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="done">
+        <h3>You're all set 🎉</h3>
+        <p>From now on your journal fills itself. Here's how it behaves day to day:</p>
+        <div class="checks">
+          <div><b><svg><use href="#i-zap"/></svg>Real time</b>Closed trades arrive in seconds, including partial closes.</div>
+          <div><b><svg><use href="#i-clock"/></svg>Catches up</b>MT5 was closed? Trades from the last 30 days are sent the next time it starts, without duplicates.</div>
+          <div><b><svg><use href="#i-shield"/></svg>Read-only</b>The EA only reads your history. It never opens, changes or closes a position.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Troubleshooting ────────────────────────────────── -->
+    <section id="fix">
+      <div class="sec-kicker">Troubleshooting</div>
+      <h2>Seeing a message? Here's the fix.</h2>
+      <p class="sec-lead">The EA writes its status in the top-left corner of the chart. Find your message below.</p>
+      <div class="issues">
+        <div class="issue">
+          <div class="see"><small>Alert when attaching</small>TradeX Journal: paste the token from TradeX…</div>
+          <div class="fix"><small>Fix</small>The token box is empty or has the wrong text in it. Copy the token again with the <strong>copy icon</strong> in TradeX (not by selecting the dots), then paste it into <strong>Inputs › TradeX token</strong>. It must start with <code style="color:#fff">tdx_mt5_</code>.</div>
+        </div>
+        <div class="issue">
+          <div class="see"><small>On the chart</small>error: add https://tradexterminal.online/… to Tools &gt; Options &gt; Expert Advisors &gt; Allow WebRequest</div>
+          <div class="fix"><small>Fix</small>MT5 is blocking the connection. Redo <a href="#step-4">step 4</a> and remember to press <kbd>Enter</kbd> after pasting the URL. The EA retries every 15 seconds, so it connects by itself once that's fixed.</div>
+        </div>
+        <div class="issue">
+          <div class="see"><small>On the chart</small>error: token rejected. Generate a new one in TradeX…</div>
+          <div class="fix"><small>Fix</small>The token is wrong or was replaced. In TradeX, click the <strong>key icon</strong> on your MT5 chip to get a new token, then paste it into the EA's Inputs.</div>
+        </div>
+        <div class="issue">
+          <div class="see"><small>Nothing on the chart</small>No status text, or a grey / sad face icon at the top right</div>
+          <div class="fix"><small>Fix</small>Algo trading is off. Turn on the <strong>Algo Trading</strong> button in the toolbar and tick <strong>Allow Algo Trading</strong> in the EA's <strong>Common</strong> tab.</div>
+        </div>
+        <div class="issue">
+          <div class="see"><small>In the Navigator</small>TradexJournal isn't listed under Expert Advisors</div>
+          <div class="fix"><small>Fix</small>The file isn't in <span class="path">MQL5 <i>›</i> Experts</span>, or it wasn't compiled. Move it there, compile with <kbd>F7</kbd>, then right-click <strong>Expert Advisors › Refresh</strong>.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── FAQ ────────────────────────────────────────────── -->
+    <section id="faq">
+      <div class="sec-kicker">FAQ</div>
+      <h2>Good questions</h2>
+      <div class="faq">
+        <details>
+          <summary>Is it safe? Can it place trades on my account?</summary>
+          <p>No. The EA contains no trading code at all. It only reads your deal history and sends closed trades (symbol, direction, profit, swap, commission and close time) to your TradeX account. It never sees your MT5 password.</p>
+        </details>
+        <details>
+          <summary>Does MT5 need to stay open?</summary>
+          <p>Yes, trades are sent while MT5 is running. If you close it, nothing is lost: on the next start the EA resends your closed trades from the last 30 days, and TradeX skips any it already has. For always-on journaling, run MT5 on a VPS.</p>
+        </details>
+        <details>
+          <summary>Will trades from my phone or other EAs be journaled?</summary>
+          <p>Yes. The EA watches the whole account, so trades placed from the MT5 mobile app, other EAs or copy-trading are journaled too, as long as MT5 with the EA is running on your computer.</p>
+        </details>
+        <details>
+          <summary>I have more than one MT5 account. What do I do?</summary>
+          <p>Create one MT5 connection per account in TradeX. Each gets its own token. Attach the EA once in each terminal (or each account's chart) with that account's token, and use the calendar's filter to view accounts separately or together.</p>
+        </details>
+        <details>
+          <summary>Does it work with prop firms (FTMO, The5ers, etc.)?</summary>
+          <p>Yes, for any account that runs in the MT5 desktop terminal. The EA doesn't trade, so it doesn't conflict with prop firm rules about EAs. Check your firm's terms if you're unsure.</p>
+        </details>
+        <details>
+          <summary>What if I switch computers or reinstall MT5?</summary>
+          <p>Repeat steps 2 to 5 on the new computer. You can reuse the same token if you still have it. If not, get a new one with the key icon. Your journaled trades stay in TradeX either way.</p>
+        </details>
+        <details>
+          <summary>How do I stop it?</summary>
+          <p>Remove the EA from the chart (right-click the chart › Expert list › Remove). To disconnect completely, delete the MT5 chip in TradeX. Note that deleting the connection also removes the trades it journaled.</p>
+        </details>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer>
+  <a class="btn" href="/mt5/TradexJournal.mq5" download><svg><use href="#i-download"/></svg>Download the EA</a>
+  <a class="btn ghost" href="/dashboard/pnl-calendar">Open PnL Calendar →</a>
+  <p>TradeX Terminal · MT5 live journaling guide</p>
+</footer>
+
+<script>
+  // Copy buttons
+  document.querySelectorAll("[data-copy]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var text = document.getElementById(btn.dataset.copy).textContent.trim();
+      var label = btn.querySelector("span");
+      var done = function () {
+        btn.classList.add("done"); label.textContent = "Copied";
+        setTimeout(function () { btn.classList.remove("done"); label.textContent = "Copy"; }, 1800);
+      };
+      if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, function () {});
+    });
+  });
+
+  // Highlight the section you're reading in the side nav
+  var links = Array.prototype.slice.call(document.querySelectorAll(".toc a"));
+  if ("IntersectionObserver" in window && links.length) {
+    var byId = {};
+    links.forEach(function (a) { byId[a.getAttribute("href").slice(1)] = a; });
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        links.forEach(function (a) { a.classList.remove("active"); });
+        var a = byId[e.target.id]; if (a) a.classList.add("active");
+      });
+    }, { rootMargin: "-40% 0px -55% 0px" });
+    document.querySelectorAll("main section[id]").forEach(function (s) { io.observe(s); });
+  }
+</script>
+</body>
+</html>
