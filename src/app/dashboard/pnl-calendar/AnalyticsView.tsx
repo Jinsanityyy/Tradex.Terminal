@@ -19,7 +19,13 @@ interface ManualTrade {
   notes?: string | null;
   open_time?: string | null;   // HH:MM
   close_time?: string | null;  // HH:MM
+  // The trader's review and the R-multiple, when known
+  setup?: string | null;
+  tags?: string[];
+  r?: number | null;
 }
+
+type ReviewStat = { trades: number; wins: number; pnl: number; rSum: number; rCount: number };
 
 interface DailyPnL {
   date: string;
@@ -289,6 +295,33 @@ export function AnalyticsView({
     } catch { return null; }
   }, [trades, accountSize]);
 
+  // What the trader's own review says: which setups pay and which habits cost.
+  const review = useMemo(() => {
+    const add = (m: Map<string, ReviewStat>, key: string, t: ManualTrade) => {
+      const s = m.get(key) ?? { trades: 0, wins: 0, pnl: 0, rSum: 0, rCount: 0 };
+      s.trades++; if (t.pnl > 0) s.wins++; s.pnl += t.pnl;
+      if (typeof t.r === "number") { s.rSum += t.r; s.rCount++; }
+      m.set(key, s);
+    };
+    const bySetup = new Map<string, ReviewStat>();
+    const byTag = new Map<string, ReviewStat>();
+    let rSum = 0, rCount = 0, reviewed = 0;
+    for (const t of trades) {
+      if (t.setup) add(bySetup, t.setup, t);
+      for (const tag of t.tags ?? []) add(byTag, tag, t);
+      if (t.setup || (t.tags?.length ?? 0) > 0) reviewed++;
+      if (typeof t.r === "number") { rSum += t.r; rCount++; }
+    }
+    const sort = (m: Map<string, ReviewStat>) => [...m.entries()].sort((a, b) => b[1].pnl - a[1].pnl);
+    return {
+      bySetup: sort(bySetup),
+      byTag: sort(byTag),
+      avgR: rCount > 0 ? rSum / rCount : null,
+      rCount,
+      reviewed,
+    };
+  }, [trades]);
+
   if (!stats) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -554,6 +587,50 @@ export function AnalyticsView({
           )}
         </CardContent>
       </Card>
+
+      {/* ── Your review: setups and habits ─────────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {([
+          ["By Setup", review.bySetup, "Tag trades with a setup in the day journal to see which ones pay."],
+          ["By Behavior", review.byTag, "Tag trades (FOMO, Followed plan…) to see what your habits cost or earn."],
+        ] as const).map(([title, rows, empty]) => (
+          <Card key={title}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2">
+                  <Target className="h-3.5 w-3.5 text-[hsl(var(--primary))]" /> {title}
+                </span>
+                {title === "By Setup" && (
+                  <span className="text-[10px] font-mono font-normal text-zinc-500">
+                    {review.avgR !== null
+                      ? <>avg <span className={review.avgR >= 0 ? "text-emerald-400" : "text-red-400"}>{review.avgR >= 0 ? "+" : ""}{review.avgR.toFixed(2)}R</span> · {review.rCount} with stop</>
+                      : `${review.reviewed}/${trades.length} reviewed`}
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1.5">
+              {rows.length === 0 && <p className="text-[11px] text-zinc-600 py-2">{empty}</p>}
+              {rows.map(([name, st]) => {
+                const wr = (st.wins / st.trades) * 100;
+                return (
+                  <div key={name} className="flex items-center gap-3 rounded-lg border border-white/6 bg-white/2 px-3 py-2">
+                    <span className="min-w-0 flex-1 truncate text-xs font-semibold text-zinc-200">{name}</span>
+                    <span className="text-[10px] text-zinc-500">{st.trades}T</span>
+                    <span className={cn("w-12 text-right text-[10px]", wr >= 50 ? "text-emerald-500" : "text-red-500")}>{wr.toFixed(0)}% WR</span>
+                    <span className="w-14 text-right text-[10px] font-mono text-zinc-400">
+                      {st.rCount > 0 ? `${(st.rSum / st.rCount) >= 0 ? "+" : ""}${(st.rSum / st.rCount).toFixed(2)}R` : "—"}
+                    </span>
+                    <span className={cn("w-20 text-right text-xs font-bold font-mono", st.pnl >= 0 ? "text-emerald-400" : "text-red-400")}>
+                      {fmtV(st.pnl, pnlMode, base)}
+                    </span>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
       {/* ── Breakdowns ───────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

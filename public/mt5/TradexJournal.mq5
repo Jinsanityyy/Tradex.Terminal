@@ -15,7 +15,7 @@
 //+------------------------------------------------------------------+
 #property copyright   "TradeX"
 #property link        "https://tradexterminal.online"
-#property version     "1.01"
+#property version     "1.02"
 #property description "Sends every closed trade to your TradeX P&L calendar as it happens."
 
 input string InpToken        = "";                                               // TradeX token (tdx_mt5_...)
@@ -34,6 +34,17 @@ bool     g_connected = false;
 string   g_status   = "starting";
 datetime g_lastSent = 0;
 string   g_lastError = "";
+
+// How the position being closed was opened (see ReadEntry).
+struct EntryInfo
+  {
+   datetime time;        // first entry
+   double   price;       // volume-weighted entry price
+   double   volume;
+   double   commission;
+   double   sl;          // stop placed with the first entry order
+   double   tp;
+  };
 
 //+------------------------------------------------------------------+
 int OnInit()
@@ -180,20 +191,47 @@ bool QueueDeal(ulong ticket, bool fromHistory)
    double commission = HistoryDealGetDouble(ticket, DEAL_COMMISSION);
    double fee        = HistoryDealGetDouble(ticket, DEAL_FEE);
    datetime time     = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
+   double closePrice = HistoryDealGetDouble(ticket, DEAL_PRICE);
+   double closeSl    = HistoryDealGetDouble(ticket, DEAL_SL);
+   double closeTp    = HistoryDealGetDouble(ticket, DEAL_TP);
+
+   // A sell deal closes a long position, a buy deal closes a short one.
+   bool   isLong = (type == DEAL_TYPE_SELL);
+   string side   = isLong ? "long" : "short";
+
+   // Everything about how the position was opened. Reselects history, so it
+   // comes after every read of the closing deal above.
+   EntryInfo entry;
+   ReadEntry(positionId, entry);
 
    // Brokers often charge part of the commission on entry. Attribute it to
    // this close in proportion to the volume closed, so partial closes add up.
-   commission += EntryCommission(positionId, volume);
+   if(entry.volume > 0)
+      commission += entry.commission * MathMin(volume / entry.volume, 1.0);
 
-   // A sell deal closes a long position, a buy deal closes a short one.
-   string side = (type == DEAL_TYPE_SELL) ? "long" : "short";
+   // Initial stop: as placed with the entry order; failing that, where it sat at the close.
+   double sl = entry.sl > 0 ? entry.sl : closeSl;
+   double tp = entry.tp > 0 ? entry.tp : closeTp;
+   double risk = RiskAtStop(symbol, isLong, volume, entry.price, sl);
+
+   int digits = (int)SymbolInfoInteger(symbol, SYMBOL_DIGITS);
+   if(digits <= 0) digits = 5;
+   long offset = ServerUtcOffset();
 
    string json = StringFormat(
-      "{\"ticket\":\"%I64u\",\"symbol\":\"%s\",\"side\":\"%s\",\"profit\":%s,\"swap\":%s,\"commission\":%s,\"fee\":%s,\"close_time\":%I64d}",
+      "{\"ticket\":\"%I64u\",\"symbol\":\"%s\",\"side\":\"%s\",\"profit\":%s,\"swap\":%s,\"commission\":%s,\"fee\":%s,\"close_time\":%I64d",
       ticket, Escape(symbol), side,
       DoubleToString(profit, 2), DoubleToString(swap, 2),
       DoubleToString(commission, 2), DoubleToString(fee, 2),
-      (long)time - ServerUtcOffset());
+      (long)time - offset);
+   json += ",\"volume\":" + DoubleToString(volume, 2);
+   json += ",\"close_price\":" + DoubleToString(closePrice, digits);
+   if(entry.time > 0)  json += ",\"open_time\":" + IntegerToString((long)entry.time - offset);
+   if(entry.price > 0) json += ",\"open_price\":" + DoubleToString(entry.price, digits);
+   if(sl > 0)          json += ",\"sl\":" + DoubleToString(sl, digits);
+   if(tp > 0)          json += ",\"tp\":" + DoubleToString(tp, digits);
+   if(risk > 0)        json += ",\"risk\":" + DoubleToString(risk, 2);
+   json += "}";
 
    int n = ArraySize(g_queue);
    ArrayResize(g_queue, n + 1);
@@ -207,23 +245,48 @@ bool QueueDeal(ulong ticket, bool fromHistory)
   }
 
 //+------------------------------------------------------------------+
-double EntryCommission(long positionId, double closedVolume)
+void ReadEntry(long positionId, EntryInfo &e)
   {
+   e.time = 0; e.price = 0; e.volume = 0; e.commission = 0; e.sl = 0; e.tp = 0;
    if(positionId <= 0 || !HistorySelectByPosition(positionId))
-      return 0;
-   double commission = 0, volume = 0;
+      return;
+   double notional = 0;
    int total = HistoryDealsTotal();
    for(int i = 0; i < total; i++)
      {
       ulong t = HistoryDealGetTicket(i);
       if(HistoryDealGetInteger(t, DEAL_ENTRY) != DEAL_ENTRY_IN)
          continue;
-      commission += HistoryDealGetDouble(t, DEAL_COMMISSION);
-      volume     += HistoryDealGetDouble(t, DEAL_VOLUME);
+      double v = HistoryDealGetDouble(t, DEAL_VOLUME);
+      datetime tm = (datetime)HistoryDealGetInteger(t, DEAL_TIME);
+      if(e.time == 0 || tm < e.time)
+        {
+         e.time = tm;
+         e.sl = HistoryDealGetDouble(t, DEAL_SL);
+         e.tp = HistoryDealGetDouble(t, DEAL_TP);
+        }
+      notional     += HistoryDealGetDouble(t, DEAL_PRICE) * v;
+      e.volume     += v;
+      e.commission += HistoryDealGetDouble(t, DEAL_COMMISSION);
      }
-   if(volume <= 0)
+   if(e.volume > 0)
+      e.price = notional / e.volume;
+  }
+
+//+------------------------------------------------------------------+
+//| Money lost had the stop been hit, for the volume closed. 0 when   |
+//| there is no stop, or it sits on the profit side (break-even+).    |
+//+------------------------------------------------------------------+
+double RiskAtStop(string symbol, bool isLong, double volume, double entryPrice, double sl)
+  {
+   if(sl <= 0 || entryPrice <= 0 || volume <= 0)
       return 0;
-   return commission * MathMin(closedVolume / volume, 1.0);
+   if(isLong ? sl >= entryPrice : sl <= entryPrice)
+      return 0;
+   double pl = 0;
+   if(!OrderCalcProfit(isLong ? ORDER_TYPE_BUY : ORDER_TYPE_SELL, symbol, volume, entryPrice, sl, pl))
+      return 0;
+   return MathAbs(pl);
   }
 
 //+------------------------------------------------------------------+
