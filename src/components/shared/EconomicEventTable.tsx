@@ -35,7 +35,7 @@ function toNum(raw?: string | null): number | null {
 }
 
 /** Indicators where a HIGHER print means a WEAKER economy (so the beat/miss logic flips) */
-const INVERTED_RE   = /jobless claims|initial claims|continuing claims|unemployment rate|misery|delinquen/i;
+const INVERTED_RE   = /jobless claims|initial claims|continuing claims|unemployment claims|unemployment rate|misery|delinquen/i;
 /** Central-bank rate decisions — no "beat/miss", it's hawkish vs dovish */
 const RATE_DECISION_RE = /federal funds rate|interest rate decision|fed interest rate|rate decision|bank rate|refi rate|deposit facility rate|cash rate|fomc.*rate/i;
 
@@ -350,7 +350,8 @@ function daysAgo(date: string): string {
 export function releaseLabel(ev: Pick<EconomicEvent, "date" | "source" | "event">): string | null {
   if (!ev.date) return null;
   const d = new Date(`${ev.date}T12:00:00Z`);
-  if (ev.source === "fred" && !RATE_TITLE_RE.test(ev.event)) {
+  // Weekly claims are stored on their release day, so they get a real date.
+  if (ev.source === "fred" && !RATE_TITLE_RE.test(ev.event) && !/claims/i.test(ev.event)) {
     // FRED dates monthly data by the month it covers; it is published the
     // following month (NFP on the first Friday, CPI mid-month).
     const month = (x: Date) => x.toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
@@ -369,7 +370,10 @@ function ReleaseHistory({ ev }: { ev: EconomicEvent }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/market/calendar/history?q=${encodeURIComponent(ev.event)}&exact=1&limit=12`)
+    // Never leave the popup spinning: give up after 8s and show nothing.
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    fetch(`/api/market/calendar/history?q=${encodeURIComponent(ev.event)}&exact=1&limit=12`, { signal: ctrl.signal })
       .then(r => (r.ok ? r.json() : { data: [] }))
       .then(j => {
         if (cancelled) return;
@@ -379,8 +383,9 @@ function ReleaseHistory({ ev }: { ev: EconomicEvent }) {
           .slice(0, 8);
         setRows(list);
       })
-      .catch(() => { if (!cancelled) setRows([]); });
-    return () => { cancelled = true; };
+      .catch(() => { if (!cancelled) setRows([]); })
+      .finally(() => clearTimeout(timer));
+    return () => { cancelled = true; clearTimeout(timer); ctrl.abort(); };
   }, [ev.event, ev.date, ev.status, ev.actual]);
 
   if (rows === null) {
@@ -390,7 +395,13 @@ function ReleaseHistory({ ev }: { ev: EconomicEvent }) {
       </div>
     );
   }
-  if (rows.length === 0) return null;
+  if (rows.length === 0) {
+    return (
+      <p className="text-[11px] text-[hsl(var(--muted-foreground))]">
+        No past releases of {ev.event} on record yet. They are added as they happen.
+      </p>
+    );
+  }
 
   const isRate = RATE_TITLE_RE.test(ev.event);
   const nums = rows.map(r => toNum(r.actual)!);
@@ -610,7 +621,7 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
           <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-blue-500/15">
             <Eye className="h-3.5 w-3.5 text-blue-400" />
             <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">Pre-Event Analysis</span>
-            <span className="ml-auto text-[9px] text-blue-400/50 uppercase tracking-wider">
+            <span className="ml-auto text-[9px] text-blue-300/90 uppercase tracking-wider">
               {ev.status === "live" ? "Event Starting" : "Upcoming"}
             </span>
           </div>
@@ -619,12 +630,12 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
           </div>
           {ev.preEventBullets && ev.preEventBullets.length > 0 && (
             <div className="px-3.5 pb-3.5 space-y-2">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-blue-400/70">What To Watch</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-blue-400">What To Watch</p>
               <ul className="space-y-1.5">
                 {ev.preEventBullets.map((b, i) => (
                   <li key={i} className="flex items-start gap-2">
-                    <ChevronRight className="h-3 w-3 text-blue-400/60 mt-0.5 shrink-0" />
-                    <span className="text-[11px] text-[hsl(var(--muted-foreground))] leading-snug">
+                    <ChevronRight className="h-3 w-3 text-blue-400 mt-0.5 shrink-0" />
+                    <span className="text-[12px] text-zinc-200 leading-snug">
                       <DataInline text={b} />
                     </span>
                   </li>
@@ -638,7 +649,9 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
       {/* Pre-event asset / USD context */}
       {!isCompleted && (
         <>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Before the release this is a conditional read, not an outcome. */}
+            <span className="text-[10px] uppercase tracking-wider text-zinc-400">Bias if the forecast is met</span>
             <ImpactBadge impact={assetImpact.impact} label={getSymbolShort(symbol)} />
             <ImpactBadge impact={ev.usdImpact} label="USD" />
           </div>

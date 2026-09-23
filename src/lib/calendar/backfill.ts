@@ -23,6 +23,10 @@ type Series = {
   asLevel: boolean;
   /** Emit one row per FOMC decision instead of one per change in the series. */
   fomc?: boolean;
+  /** Divide the observation by this before formatting (ICSA is in persons; shown in K). */
+  scale?: number;
+  /** Days from the observation date to the release (ICSA: week ending Sat, out Thursday). */
+  releaseLagDays?: number;
 };
 
 // Only series whose observation maps cleanly onto a calendar line. Level series
@@ -30,6 +34,7 @@ type Series = {
 const SERIES: Series[] = [
   { id: "DFEDTARU", title: "Federal Funds Rate",        unit: "%", decimals: 2, impact: "high",   asLevel: true, fomc: true },
   { id: "UNRATE",   title: "Unemployment Rate",         unit: "%", decimals: 1, impact: "high",   asLevel: true  },
+  { id: "ICSA",     title: "Unemployment Claims",       unit: "K", decimals: 0, impact: "medium", asLevel: true, scale: 1000, releaseLagDays: 5 },
   { id: "UMCSENT",  title: "Michigan Consumer Sentiment", unit: "", decimals: 1, impact: "medium", asLevel: true  },
   { id: "CPIAUCSL", title: "CPI m/m",                   unit: "%", decimals: 1, impact: "high",   asLevel: false },
   { id: "CPILFESL", title: "Core CPI m/m",              unit: "%", decimals: 1, impact: "high",   asLevel: false },
@@ -78,20 +83,6 @@ export function fomcDecisions(obs: Obs[], sinceISO: string): Array<{ date: strin
   return out;
 }
 
-/**
- * A daily series repeats the same value every day; only the days it CHANGED
- * are events. (Monthly series change every print, so this keeps all of them.)
- */
-function changesOnly(obs: Obs[]): Obs[] {
-  const out: Obs[] = [];
-  let prev: string | null = null;
-  for (const o of obs) {
-    if (o.value !== prev) out.push(o);
-    prev = o.value;
-  }
-  return out;
-}
-
 export interface BackfillResult {
   written: number;
   perSeries: Record<string, number>;
@@ -120,11 +111,20 @@ export async function backfillFromFred(sinceISO: string): Promise<BackfillResult
     } else if (s.asLevel) {
       // Daily rate series repeat their value; only transitions are events.
       // Monthly ones (UNRATE, UMCSENT) change every print, so this is a no-op there.
-      for (const o of changesOnly(obs)) {
-        const n = parseFloat(o.value);
-        if (isNaN(n)) continue;
-        rows.push(row(s, o.date, `${n.toFixed(s.decimals)}${s.unit}`, null));
-      }
+      // Every observation is a release (monthly UNRATE, weekly ICSA): keep an
+      // unchanged print too; "held at 4.1%" is still a release. Only the daily
+      // fed funds series needed collapsing, and it takes the FOMC path above.
+      const list = obs;
+      const fmt = (v: string) => {
+        const n = parseFloat(v) / (s.scale ?? 1);
+        return isNaN(n) ? null : `${n.toFixed(s.decimals)}${s.unit}`;
+      };
+      list.forEach((o, i) => {
+        const actual = fmt(o.value);
+        if (actual === null) return;
+        const date = s.releaseLagDays ? shiftISO(o.date, s.releaseLagDays) : o.date;
+        rows.push(row(s, date, actual, i > 0 ? fmt(list[i - 1].value) : null));
+      });
     } else {
       // The print for month i: payrolls as a change in thousands, the rest as
       // a % change on the month before. "Previous" is the same for month i-1,
@@ -183,4 +183,10 @@ function row(s: Series, date: string, actual: string, previous: string | null): 
     source:        "fred",
     updated_at:    new Date().toISOString(),
   };
+}
+
+function shiftISO(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
 }
