@@ -137,6 +137,172 @@ function formatMoney(n: number): string {
   return `${n >= 0 ? "+" : "-"}$${Math.abs(n).toFixed(2)}`;
 }
 
+/** Behaviour tags, split so the review reads as "what went right / wrong". */
+const GOOD_TAGS = ["Followed plan", "A+ setup", "Patient entry", "Cut loss fast", "Let winner run"];
+const BAD_TAGS  = ["FOMO", "Revenge", "Early exit", "Moved SL", "No stop", "Overleveraged", "Chased price", "Against bias"];
+const DEFAULT_SETUPS = ["London breakout", "NY open", "Order block", "Liquidity sweep", "Trend pullback", "Range fade", "News trade"];
+
+function formatHold(mins: number): string {
+  if (mins < 60) return `${mins}m`;
+  if (mins < 1440) return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+  return `${Math.floor(mins / 1440)}d ${Math.floor((mins % 1440) / 60)}h`;
+}
+
+/**
+ * One trade in the day journal: the facts on the first lines, and on click a
+ * review (setup, behaviour tags, note) that feeds Analytics "By Setup / Tag".
+ */
+function TradeReviewRow({ trade: t, setupSuggestions, onSaved }: {
+  trade: DayTrade;
+  setupSuggestions: string[];
+  onSaved: (t: DayTrade) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [setup, setSetup] = useState(t.setup ?? "");
+  const [tags, setTags] = useState<string[]>(t.tags);
+  const [note, setNote] = useState(t.reviewNote ?? "");
+  const [risk, setRisk] = useState(t.source === "manual" && t.risk ? String(t.risk) : "");
+  const [custom, setCustom] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const side = t.side === "buy" ? "long" : t.side === "sell" ? "short" : t.side;
+  const toggle = (tag: string) => setTags(prev => prev.includes(tag) ? prev.filter(x => x !== tag) : [...prev, tag]);
+  const listId = `setups-${t.source}-${t.id}`;
+
+  async function save() {
+    setSaving(true);
+    try {
+      const body: Record<string, unknown> = { source: t.source, id: t.id, setup, tags, reviewNote: note };
+      if (t.source === "manual") body.risk = risk ? Number(risk) : null;
+      const res = await fetch("/api/pnl/trades", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Couldn't save the review");
+      const newRisk = t.source === "manual" ? (Number(risk) > 0 ? Number(risk) : null) : t.risk;
+      onSaved({
+        ...t,
+        setup: setup.trim() || null,
+        tags,
+        reviewNote: note.trim() || null,
+        risk: newRisk,
+        r: newRisk ? Math.round((t.pnl / newRisk) * 100) / 100 : null,
+      });
+      toast.success("Trade review saved");
+      setOpen(false);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className={cn(
+      "rounded-lg border",
+      t.pnl >= 0 ? "border-emerald-500/15 bg-emerald-500/[0.04]" : "border-red-500/15 bg-red-500/[0.04]",
+    )}>
+      <button type="button" onClick={() => setOpen(o => !o)} className="flex w-full items-center gap-2.5 px-3 py-2 text-left">
+        <SourceBadge source={t.source} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-1.5 text-[11px]">
+            <span className="font-semibold text-zinc-200">{t.symbol}</span>
+            <span className={cn("text-[9px] font-bold uppercase", side === "long" ? "text-emerald-500/80" : "text-red-500/80")}>{side}</span>
+            {t.volume !== null && <span className="text-[10px] font-mono text-zinc-500">{t.volume} lot</span>}
+            {t.closeTime && <span className="text-[10px] text-zinc-500">· closed {t.closeTime}</span>}
+            {t.holdMins !== null && <span className="text-[10px] text-zinc-500">· held {formatHold(t.holdMins)}</span>}
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-1">
+            {t.setup && <span className="rounded bg-sky-400/10 px-1.5 py-px text-[9px] font-semibold text-sky-300">{t.setup}</span>}
+            {t.tags.map(tag => (
+              <span key={tag} className={cn("rounded px-1.5 py-px text-[9px] font-semibold",
+                BAD_TAGS.includes(tag) ? "bg-red-400/10 text-red-300" : "bg-emerald-400/10 text-emerald-300")}>{tag}</span>
+            ))}
+            {!t.setup && t.tags.length === 0 && (
+              <span className="text-[9px] text-zinc-600">{t.sourceDetail ? `${t.sourceDetail} · ` : ""}click to review</span>
+            )}
+          </div>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className={cn("text-[12px] font-bold font-mono tabular-nums", t.pnl >= 0 ? "text-emerald-400" : "text-red-400")}>
+            {formatMoney(t.pnl)}
+          </p>
+          {t.r !== null
+            ? <p className={cn("text-[10px] font-mono font-semibold", t.r >= 0 ? "text-emerald-300/80" : "text-red-300/80")}>{t.r >= 0 ? "+" : ""}{t.r.toFixed(2)}R</p>
+            : t.fee > 0 && <p className="text-[9px] font-mono text-zinc-500">fee ${t.fee.toFixed(2)}</p>}
+        </div>
+      </button>
+
+      {open && (
+        <div className="space-y-3 border-t border-white/5 px-3 py-3">
+          {(t.openPrice || t.sl || t.tp || t.risk) && (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[
+                ["Entry", t.openPrice], ["Exit", t.closePrice], ["Stop", t.sl], ["Target", t.tp],
+              ].map(([label, v]) => (
+                <div key={label as string} className="rounded-md bg-white/[0.03] px-2 py-1.5">
+                  <p className="text-[8px] uppercase tracking-wider text-zinc-500">{label}</p>
+                  <p className="text-[11px] font-mono text-zinc-200">{v ?? "—"}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div>
+            <p className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-zinc-500">Setup</p>
+            <input list={listId} value={setup} onChange={e => setSetup(e.target.value)} placeholder="e.g. London breakout"
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] text-zinc-200 outline-none focus:border-white/25" />
+            <datalist id={listId}>{setupSuggestions.map(sug => <option key={sug} value={sug} />)}</datalist>
+          </div>
+
+          <div>
+            <p className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-zinc-500">How did you trade it?</p>
+            <div className="flex flex-wrap gap-1">
+              {[...GOOD_TAGS, ...BAD_TAGS, ...tags.filter(x => !GOOD_TAGS.includes(x) && !BAD_TAGS.includes(x))].map(tag => {
+                const on = tags.includes(tag);
+                const bad = BAD_TAGS.includes(tag);
+                return (
+                  <button key={tag} type="button" onClick={() => toggle(tag)}
+                    className={cn("rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors",
+                      on ? (bad ? "border-red-400/50 bg-red-400/15 text-red-300" : "border-emerald-400/50 bg-emerald-400/15 text-emerald-300")
+                         : "border-white/10 text-zinc-400 hover:border-white/25")}>
+                    {tag}
+                  </button>
+                );
+              })}
+              <form onSubmit={e => { e.preventDefault(); const c = custom.trim(); if (c && !tags.includes(c)) setTags([...tags, c]); setCustom(""); }}>
+                <input value={custom} onChange={e => setCustom(e.target.value)} placeholder="+ own tag"
+                  className="w-24 rounded-full border border-dashed border-white/15 bg-transparent px-2 py-0.5 text-[10px] text-zinc-300 outline-none focus:border-white/30" />
+              </form>
+            </div>
+          </div>
+
+          {t.source === "manual" && (
+            <div>
+              <p className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-zinc-500">Risked ($ at your stop), for R</p>
+              <input inputMode="decimal" value={risk} onChange={e => setRisk(e.target.value)} placeholder="e.g. 50"
+                className="w-32 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] font-mono text-zinc-200 outline-none focus:border-white/25" />
+            </div>
+          )}
+
+          <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} placeholder="Why did you take it? What would you do differently?"
+            className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] text-zinc-200 outline-none focus:border-white/25" />
+
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setOpen(false)} className="px-2 text-[11px] text-zinc-500 hover:text-zinc-300">Cancel</button>
+            <button type="button" onClick={save} disabled={saving}
+              className="flex items-center gap-1.5 rounded-lg border border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/15 px-3 py-1.5 text-[11px] font-semibold text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/25 disabled:opacity-50">
+              {saving && <Loader2 className="h-3 w-3 animate-spin" />} Save review
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DayJournalModal({
   date,
   pnlData,
@@ -283,35 +449,14 @@ function DayJournalModal({
                   <p className="px-1 py-2 text-[11px] text-[hsl(var(--muted-foreground))]">Couldn&apos;t load this day&apos;s trades.</p>
                 ) : (
                   <div className="space-y-1.5">
-                    {dayTrades.map(t => {
-                      const side = t.side === "buy" ? "long" : t.side === "sell" ? "short" : t.side;
-                      const time = t.closeTime;
-                      return (
-                        <div key={`${t.source}-${t.id}`}
-                          className={cn(
-                            "flex items-center gap-2.5 rounded-lg border px-3 py-2",
-                            t.pnl >= 0 ? "border-emerald-500/15 bg-emerald-500/[0.04]" : "border-red-500/15 bg-red-500/[0.04]",
-                          )}>
-                          <SourceBadge source={t.source} />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 text-[11px]">
-                              <span className="font-semibold text-zinc-200">{t.symbol}</span>
-                              <span className={cn("text-[9px] font-bold uppercase", side === "long" ? "text-emerald-500/80" : "text-red-500/80")}>{side}</span>
-                              {time && <span className="text-[10px] text-zinc-500">· closed {time}</span>}
-                            </div>
-                            {t.sourceDetail && (
-                              <p className="truncate text-[10px] text-zinc-600">{t.sourceDetail}</p>
-                            )}
-                          </div>
-                          <div className="shrink-0 text-right">
-                            <p className={cn("text-[12px] font-bold font-mono tabular-nums", t.pnl >= 0 ? "text-emerald-400" : "text-red-400")}>
-                              {formatMoney(t.pnl)}
-                            </p>
-                            {t.fee > 0 && <p className="text-[9px] font-mono text-zinc-500">fee ${t.fee.toFixed(2)}</p>}
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {dayTrades.map(t => (
+                      <TradeReviewRow
+                        key={`${t.source}-${t.id}`}
+                        trade={t}
+                        setupSuggestions={[...new Set([...dayTrades.map(x => x.setup).filter((x): x is string => !!x), ...DEFAULT_SETUPS])]}
+                        onSaved={updated => setDayTrades(prev => prev?.map(x => x.source === updated.source && x.id === updated.id ? updated : x) ?? prev)}
+                      />
+                    ))}
                   </div>
                 )}
               </div>
@@ -1435,6 +1580,9 @@ export default function PnLCalendarPage() {
               fees: t.fee,
               open_time: t.openTime,
               close_time: t.closeTime,
+              setup: t.setup,
+              tags: t.tags,
+              r: t.r,
             }))}
             daily={daily}
           />

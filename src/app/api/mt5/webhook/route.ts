@@ -6,6 +6,7 @@ import {
   extractToken,
   hashWebhookToken,
   normalizeDeal,
+  withoutDetails,
   type Mt5TradeRow,
 } from "@/lib/mt5/webhook";
 
@@ -77,10 +78,17 @@ export async function POST(req: NextRequest) {
   }
 
   if (rows.length > 0) {
-    const { error } = await db.from("trades").upsert(
-      rows.map((r) => ({ ...r, user_id: conn.user_id, connection_id: conn.id, exchange: "mt5" })),
-      { onConflict: "connection_id,trade_id", ignoreDuplicates: true },
-    );
+    const payload = rows.map((r) => ({ ...r, user_id: conn.user_id, connection_id: conn.id, exchange: "mt5" }));
+    // Merge, not ignore: a resend from a newer EA fills in details on trades we
+    // already have. Only the columns sent are written, so the trader's own
+    // setup/tags/notes on the row are left alone.
+    const upsert = (p: typeof payload) =>
+      db.from("trades").upsert(p, { onConflict: "connection_id,trade_id" });
+    let { error } = await upsert(payload);
+    // Database without the detail columns yet: keep journaling the essentials.
+    if (error && /column .* does not exist|Could not find the '.*' column/i.test(error.message)) {
+      ({ error } = await upsert(payload.map(withoutDetails)));
+    }
     if (error) {
       console.error("[mt5/webhook] upsert failed:", error.message);
       // 5xx so the EA keeps the deals queued and retries.

@@ -39,7 +39,19 @@ export interface Mt5Deal {
   commission: number;
   fee: number;
   close_time: number;
+  // EA v1.02+. All optional: older EAs don't send them.
+  open_time?: number;
+  open_price?: number;
+  close_price?: number;
+  volume?: number;
+  sl?: number;
+  tp?: number;
+  /** Money lost had the initial stop been hit (positive). */
+  risk?: number;
 }
+
+/** Columns that only exist after 20260924_trade_details_and_tags.sql. */
+export const DETAIL_COLUMNS = ["opened_at", "open_price", "close_price", "volume", "sl", "tp", "risk"] as const;
 
 export interface Mt5TradeRow {
   trade_id: string;
@@ -48,6 +60,13 @@ export interface Mt5TradeRow {
   pnl: number;
   fee: number;
   closed_at: string;
+  opened_at?: string;
+  open_price?: number;
+  close_price?: number;
+  volume?: number;
+  sl?: number;
+  tp?: number;
+  risk?: number;
 }
 
 function num(v: unknown): number | null {
@@ -85,7 +104,7 @@ export function normalizeDeal(raw: unknown): Mt5TradeRow | string {
     return `deal ${ticket}: close_time must be UTC unix seconds`;
   }
 
-  return {
+  const row: Mt5TradeRow = {
     trade_id: ticket,
     symbol,
     side: d.side,
@@ -93,6 +112,28 @@ export function normalizeDeal(raw: unknown): Mt5TradeRow | string {
     fee: round2(Math.abs(commission) + Math.abs(fee)),
     closed_at: new Date(closeTime * 1000).toISOString(),
   };
+
+  // Details are best-effort: a bad one is dropped, never a reason to lose the trade.
+  const openTime = num(d.open_time);
+  if (openTime !== null && openTime >= 946684800 && openTime <= closeTime) {
+    row.opened_at = new Date(openTime * 1000).toISOString();
+  }
+  const positive = (v: unknown) => { const n = num(v); return n !== null && n > 0 ? n : undefined; };
+  const openPrice = positive(d.open_price);  if (openPrice)  row.open_price = openPrice;
+  const closePrice = positive(d.close_price); if (closePrice) row.close_price = closePrice;
+  const volume = positive(d.volume);         if (volume)     row.volume = volume;
+  const sl = positive(d.sl);                 if (sl)         row.sl = sl;
+  const tp = positive(d.tp);                 if (tp)         row.tp = tp;
+  const risk = positive(d.risk);             if (risk)       row.risk = round2(risk);
+
+  return row;
+}
+
+/** The row without the detail columns, for databases that predate them. */
+export function withoutDetails<T extends Record<string, unknown>>(row: T): T {
+  const copy = { ...row };
+  for (const c of DETAIL_COLUMNS) delete copy[c];
+  return copy;
 }
 
 function round2(n: number): number {
