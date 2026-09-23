@@ -724,6 +724,10 @@ function Mt5SetupPanel({ setup, onDone }: { setup: Mt5Setup; onDone: () => void 
         <p className="text-[10px] text-amber-400/90">
           The token is shown only once. Lost it? Use the key button on the MT5 chip to issue a new one.
         </p>
+        <a href="/guides/mt5.html" target="_blank" rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-400 hover:underline">
+          <BookOpen className="h-3 w-3" /> Step-by-step guide with pictures →
+        </a>
       </div>
 
       <ol className="space-y-2.5">
@@ -1518,11 +1522,25 @@ export default function PnLCalendarPage() {
                           )}>
                             {day}
                           </span>
-                          {hasJournal && (
-                            <span title="Has journal entry">
-                              <BookOpen className="h-2.5 w-2.5 text-[hsl(var(--primary))]/60" />
-                            </span>
-                          )}
+                          <div className="flex items-center gap-1">
+                            {/* Which feeds this day's trades came from */}
+                            {hasTrades && data!.sources?.map(src => (
+                              <span key={src} title={src === "mt5" ? "Journaled by the MT5 EA" : src === "manual" ? "Logged manually" : `Synced from ${EXCHANGE_META[src as ExchangeKey]?.name ?? src}`}
+                                className={cn(
+                                  "rounded px-1 py-px text-[8px] font-bold uppercase leading-tight border",
+                                  src === "mt5" ? "text-emerald-400 bg-emerald-400/10 border-emerald-400/30"
+                                    : src === "manual" ? "text-zinc-400 bg-zinc-400/10 border-zinc-400/25"
+                                    : cn(EXCHANGE_META[src as ExchangeKey]?.color, EXCHANGE_META[src as ExchangeKey]?.bg),
+                                )}>
+                                {src === "mt5" ? "MT5" : src === "manual" ? "Manual" : EXCHANGE_META[src as ExchangeKey]?.logo ?? src}
+                              </span>
+                            ))}
+                            {hasJournal && (
+                              <span title="Has journal entry">
+                                <BookOpen className="h-2.5 w-2.5 text-[hsl(var(--primary))]/60" />
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         {/* PnL + trade stats */}
