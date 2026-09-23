@@ -15,7 +15,7 @@
 //+------------------------------------------------------------------+
 #property copyright   "TradeX"
 #property link        "https://tradexterminal.online"
-#property version     "1.00"
+#property version     "1.01"
 #property description "Sends every closed trade to your TradeX P&L calendar as it happens."
 
 input string InpToken        = "";                                               // TradeX token (tdx_mt5_...)
@@ -29,6 +29,8 @@ input int    InpRetrySeconds = 15;                                              
 string   g_queue[];        // deal JSON objects waiting to be sent
 ulong    g_queued[];       // their tickets, to avoid queueing a deal twice
 ulong    g_unresolved[];   // deal tickets not yet visible in history
+string   g_token    = "";   // InpToken without stray whitespace from pasting
+bool     g_connected = false;
 string   g_status   = "starting";
 datetime g_lastSent = 0;
 string   g_lastError = "";
@@ -36,7 +38,10 @@ string   g_lastError = "";
 //+------------------------------------------------------------------+
 int OnInit()
   {
-   if(StringFind(InpToken, "tdx_mt5_") != 0)
+   g_token = InpToken;
+   StringTrimLeft(g_token);
+   StringTrimRight(g_token);
+   if(StringFind(g_token, "tdx_mt5_") != 0)
      {
       Alert("TradeX Journal: paste the token from TradeX > P&L Calendar > Connect > MT5 into the EA inputs.");
       return INIT_PARAMETERS_INCORRECT;
@@ -49,8 +54,7 @@ int OnInit()
 
    EventSetTimer(MathMax(InpRetrySeconds, 5));
 
-   if(Post("{\"type\":\"ping\"," + AccountJson() + "}"))
-      g_status = "connected";
+   Ping();
 
    Backfill();
    Flush();
@@ -73,8 +77,19 @@ void OnTimer()
       if(QueueDeal(g_unresolved[i], true))
          RemoveAt(g_unresolved, i);
 
+   // Keep trying until TradeX has heard from us once, so fixing the
+   // WebRequest allow-list or the network takes effect without a restart.
+   if(!g_connected && ArraySize(g_queue) == 0)
+      Ping();
+
    Flush();
    ShowStatus();
+  }
+
+//+------------------------------------------------------------------+
+void Ping()
+  {
+   Post("{\"type\":\"ping\"," + AccountJson() + "}");
   }
 
 //+------------------------------------------------------------------+
@@ -246,7 +261,7 @@ bool Post(string body)
    int len = StringToCharArray(body, data, 0, WHOLE_ARRAY, CP_UTF8);
    ArrayResize(data, len - 1);   // drop the trailing NUL
 
-   string headers = "Content-Type: application/json\r\nAuthorization: Bearer " + InpToken + "\r\n";
+   string headers = "Content-Type: application/json\r\nAuthorization: Bearer " + g_token + "\r\n";
    ResetLastError();
    int code = WebRequest("POST", InpWebhookUrl, headers, HTTP_TIMEOUT, data, result, resultHeaders);
 
@@ -273,6 +288,7 @@ bool Post(string body)
    if(g_lastError != "")
       Print("TradeX Journal: reconnected.");
    g_lastError = "";
+   g_connected = true;
    g_status    = "connected";
    g_lastSent  = TimeLocal();
    return true;
