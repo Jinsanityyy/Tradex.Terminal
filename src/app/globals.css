@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Two font families app-wide (see src/app/layout.tsx). Older names alias to them. */
+html {
+  --font-geist-mono: var(--font-ibm-plex-mono);
+  --font-jetbrains-mono: var(--font-ibm-plex-mono);
+  --font-dm-sans: var(--font-geist-sans);
+  --font-space-grotesk: var(--font-geist-sans);
+}
+
 :root {
   --background: 240 7% 5%;
   --foreground: 0 0% 91%;
@@ -51,10 +59,11 @@ body {
   min-height: 100dvh;
 }
 
-/* Mono for numbers, prices, codes */
+/* One mono for numbers, prices, codes; columns of figures line up. */
 .font-mono, code, kbd, samp, pre,
 [class*="tabular"], [class*="font-mono"] {
   font-family: var(--font-geist-mono), 'Courier New', monospace !important;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Scrollbar */

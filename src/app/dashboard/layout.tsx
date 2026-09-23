@@ -7,6 +7,8 @@ import { NotificationToast } from "@/components/shared/NotificationToast";
 import { LoginTransitionOverlay } from "@/components/shared/LoginTransitionOverlay";
 import { TradingKnowledgeSidebar } from "@/components/shared/TradingKnowledgeSidebar";
 import { playAppOpen } from "@/lib/sounds";
+import { CommandPalette } from "@/components/layout/CommandPalette";
+import { StatusBar } from "@/components/layout/StatusBar";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -54,9 +56,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           ) : (
             <main className="flex-1 overflow-y-auto p-3 pb-20 md:p-4 md:pb-4">{children}</main>
           )}
+          <StatusBar />
         </div>
       </div>
       <TradingKnowledgeSidebar open={knowledgeOpen} onClose={() => setKnowledgeOpen(false)} />
+      <CommandPalette />
     </>
   );
 }

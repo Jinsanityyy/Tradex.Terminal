@@ -941,8 +941,12 @@ function Mt5TokenModal({ setup, onClose }: { setup: Mt5Setup; onClose: () => voi
 
 // ── Connect Exchange Modal ─────────────────────────────────────────────────────
 
-function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnected: (conn: Connection) => void }) {
-  const [exchange, setExchange] = useState<ExchangeKey>("binance");
+function ConnectModal({ onClose, onConnected, initialExchange = "binance" }: {
+  onClose: () => void;
+  onConnected: (conn: Connection) => void;
+  initialExchange?: ExchangeKey;
+}) {
+  const [exchange, setExchange] = useState<ExchangeKey>(initialExchange);
   const [label, setLabel] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [apiSecret, setApiSecret] = useState("");
@@ -1173,6 +1177,19 @@ export default function PnLCalendarPage() {
   const [removing, setRemoving] = useState<Connection | null>(null);
   const [guard, setGuard] = useState<GuardStatus | null>(null);
   const [showAddTrade, setShowAddTrade] = useState(false);
+  const [connectPreset, setConnectPreset] = useState<ExchangeKey | undefined>(undefined);
+  const [openRules, setOpenRules] = useState(false);
+
+  // Deep links from the command bar: ?action=log|connect-mt5|rules, ?tab=analytics
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const action = p.get("action");
+    if (action === "log") setShowAddTrade(true);
+    if (action === "connect-mt5") { setConnectPreset("mt5"); setShowConnect(true); }
+    if (action === "rules") setOpenRules(true);
+    if (p.get("tab") === "analytics") setActiveTab("analytics");
+    if (action || p.get("tab")) window.history.replaceState(null, "", window.location.pathname);
+  }, []);
   const [now] = useState(new Date());
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth()); // 0-indexed
@@ -1458,7 +1475,7 @@ export default function PnLCalendarPage() {
   // ── Main View ───────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
-      {showConnect && <ConnectModal onClose={() => setShowConnect(false)} onConnected={handleConnected} />}
+      {showConnect && <ConnectModal initialExchange={connectPreset} onClose={() => { setShowConnect(false); setConnectPreset(undefined); }} onConnected={handleConnected} />}
       {removing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-sm rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-2xl p-5 space-y-4">
@@ -1836,7 +1853,7 @@ export default function PnLCalendarPage() {
         {/* ── Right Panel ── */}
         <div className="space-y-4">
           {/* Risk Guard: daily limits and prop challenge */}
-          <RiskGuard tradeCount={tradeCount} onStatus={setGuard} />
+          <RiskGuard tradeCount={tradeCount} onStatus={setGuard} openEditor={openRules} onEditorOpened={() => setOpenRules(false)} />
 
           {/* Monthly Performance */}
           <Card>

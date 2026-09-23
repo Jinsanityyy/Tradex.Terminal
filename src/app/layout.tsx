@@ -1,20 +1,10 @@
 ﻿import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
-import { JetBrains_Mono, Space_Grotesk, IBM_Plex_Mono, DM_Sans } from "next/font/google";
+import { IBM_Plex_Mono } from "next/font/google";
 
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains-mono",
-  display: "swap",
-});
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-space-grotesk",
-  display: "swap",
-});
-
+// Two families, terminal-style: Geist Sans for words, IBM Plex Mono for every
+// number, price and code. The old font variables (geist-mono, jetbrains-mono,
+// dm-sans, space-grotesk) are aliased to these two in globals.css.
 const ibmPlexMono = IBM_Plex_Mono({
   subsets: ["latin"],
   weight: ["400", "500", "700"],
@@ -22,11 +12,6 @@ const ibmPlexMono = IBM_Plex_Mono({
   display: "swap",
 });
 
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  variable: "--font-dm-sans",
-  display: "swap",
-});
 import { SWRProvider } from "@/components/providers/SWRProvider";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { AudioUnlocker } from "@/components/providers/AudioUnlocker";
@@ -95,7 +80,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`dark ${GeistSans.variable} ${GeistMono.variable} ${jetbrainsMono.variable} ${spaceGrotesk.variable} ${ibmPlexMono.variable} ${dmSans.variable}`}>
+    <html lang="en" className={`dark ${GeistSans.variable} ${ibmPlexMono.variable}`}>
       <head>
         <link rel="icon" type="image/png" href="/logo.png" />
         <link rel="apple-touch-icon" href="/logo.png" />
