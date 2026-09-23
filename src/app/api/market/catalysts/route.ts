@@ -2,6 +2,7 @@
 import type { Catalyst } from "@/types";
 import { llmCreate, llmAvailable } from "@/lib/agents/llm-provider";
 import { requireUser } from "@/lib/auth/entitlement";
+import { deriveSentiment, resolveStance, deriveGoldDirection, derivePolicyStance } from "@/lib/news/sentiment";
 
 export const dynamic = "force-dynamic";
 
@@ -27,53 +28,6 @@ function classifyImportance(headline: string, summary: string): "high" | "medium
   if (HIGH_IMPACT.some(k => text.includes(k))) return "high";
   if (MEDIUM_IMPACT.some(k => text.includes(k))) return "medium";
   return "low";
-}
-
-// Direction words are matched on word boundaries, and "strong" is deliberately
-// absent. The old list did bare substring checks, so "stronger dollar"  -  which
-// is bearish for gold  -  scored as a bullish token, while "loses" was missing
-// from the bearish list entirely. "Gold loses shine as rate hike bets foster a
-// stronger dollar" therefore came out BULLISH.
-const BULL_RE = /\b(surges?|surged|rall(?:y|ies|ied)|gains?|gained|rises?|rose|jumps?|jumped|boosts?|soars?|soared|climbs?|advances?|beats?|record highs?|upgrades?|recovers?|recovery|deal|agreement|peace)\b/;
-const BEAR_RE = /\b(drops?|dropped|falls?|fell|declines?|crashe?s?|crashed|plunges?|threatens?|threats?|wars?|sanctions?|fears?|weakens?|weaker|misses?|missed|slumps?|concerns?|downgrades?|bans?|blocks?|loses?|lost|slides?|sinks?|tumbles?|retreats?|selloffs?|pressured?)\b/;
-
-// Hawkish and dovish are policy DIRECTIONS, not good or bad news, and they move
-// gold and USD opposite ways. Reading them off a generic sentiment score is a
-// category error  -  it is what inverted the headline above.
-const HAWKISH_RE = /\b(rate hikes?|hike bets?|higher[- ]for[- ]longer|hawkish|tighten(?:ing|s|ed)?|stronger dollar|dollar strength|firmer dollar|dollar rally|no (?:rate )?cuts?|fewer cuts?|yields? (?:rise|rises|rising|surge|jump|climb|higher))\b/;
-const DOVISH_RE  = /\b(rate cuts?|cut bets?|dovish|eas(?:e|es|ing)|weaker dollar|dollar weakness|softer dollar|yields? (?:fall|falls|falling|drop|dip|decline|lower))\b/;
-
-// An explicit statement about gold's own direction outranks every indirect cue.
-const GOLD_DOWN_RE = /\bgold\b[^.!?]{0,60}?\b(?:loses? shine|loses?|lost|falls?|fell|drops?|slips?|sinks?|slides?|retreats?|tumbles?|weakens?|pressured?|lower)\b|\b(?:weighs? on|pressures?|drags? on|dents?) gold\b/;
-const GOLD_UP_RE   = /\bgold\b[^.!?]{0,60}?\b(?:rises?|rose|gains?|climbs?|jumps?|surges?|rall(?:y|ies)|soars?|advances?|shines?|higher|supported)\b|\b(?:supports?|boosts?|lifts?|underpins?) gold\b/;
-
-// A negated cut is hawkish, but it still contains the phrase "rate cuts", so it
-// trips the dovish pattern too and cancels out. These have to win outright.
-const HAWKISH_OVERRIDE_RE = /\b(?:no (?:rate )?cuts?|fewer cuts?|rules? out (?:a )?(?:rate )?cuts?|no urgency to cut|delay(?:ed|s)? (?:rate )?cuts?|pushe?s? back (?:on )?(?:rate )?cuts?|cuts? off the table)\b/;
-
-/** Policy stance read straight from the text, or null when the headline is silent. */
-function derivePolicyStance(h: string): "hawkish" | "dovish" | null {
-  if (HAWKISH_OVERRIDE_RE.test(h)) return "hawkish";
-  const hawk = HAWKISH_RE.test(h);
-  const dove = DOVISH_RE.test(h);
-  if (hawk === dove) return null;   // both or neither  -  no clean read
-  return hawk ? "hawkish" : "dovish";
-}
-
-/** Gold's direction when the headline states it outright, else null. */
-function deriveGoldDirection(h: string): "bullish" | "bearish" | null {
-  const down = GOLD_DOWN_RE.test(h);
-  const up   = GOLD_UP_RE.test(h);
-  if (down === up) return null;
-  return down ? "bearish" : "bullish";
-}
-
-/** Broad risk sentiment  -  drives crypto and equities, NOT gold or USD. */
-function deriveSentiment(headline: string): "bullish" | "bearish" | "neutral" {
-  const h = headline.toLowerCase();
-  const b = BULL_RE.test(h) ? 1 : 0;
-  const s = BEAR_RE.test(h) ? 1 : 0;
-  return b > s ? "bullish" : s > b ? "bearish" : "neutral";
 }
 
 function extractAffectedMarkets(headline: string, summary: string): string[] {

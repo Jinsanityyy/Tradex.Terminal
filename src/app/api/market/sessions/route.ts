@@ -1,6 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 import type { SessionSummary } from "@/types";
 import { requireUser } from "@/lib/auth/entitlement";
+import { deriveSentiment } from "@/lib/news/sentiment";
 
 export const dynamic = "force-dynamic";
 
@@ -73,15 +74,6 @@ async function fetchRecentNews(): Promise<{ headline: string; sentiment: string;
   } catch {
     return [];
   }
-}
-
-function deriveSentiment(h: string): string {
-  const text = h.toLowerCase();
-  const bull = ["rally", "rise", "gain", "surge", "deal", "peace", "boost"];
-  const bear = ["drop", "fall", "crash", "threat", "war", "fear", "loss"];
-  const b = bull.filter(w => text.includes(w)).length;
-  const s = bear.filter(w => text.includes(w)).length;
-  return b > s ? "bullish" : s > b ? "bearish" : "neutral";
 }
 
 function extractAssets(h: string): string[] {

@@ -1,6 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 import type { NewsItem } from "@/types";
 import { requireUser } from "@/lib/auth/entitlement";
+import { deriveSentiment, resolveStance, deriveGoldDirection, derivePolicyStance } from "@/lib/news/sentiment";
 
 export const dynamic = "force-dynamic";
 
@@ -288,15 +289,6 @@ function categorize(headline: string): string {
   return "general";
 }
 
-function deriveSentiment(headline: string): "bullish" | "bearish" | "neutral" {
-  const h = headline.toLowerCase();
-  const bull = ["surge", "rally", "gain", "rise", "jump", "boost", "soar", "bull", "positive", "beat", "strong", "record", "upgrade"];
-  const bear = ["drop", "fall", "decline", "crash", "plunge", "loss", "bear", "negative", "miss", "weak", "slump", "fear", "risk", "concern", "warning", "downgrade"];
-  const b = bull.filter(w => h.includes(w)).length;
-  const s = bear.filter(w => h.includes(w)).length;
-  return b > s ? "bullish" : s > b ? "bearish" : "neutral";
-}
-
 function deriveImpact(headline: string): number {
   const h = headline.toLowerCase();
   const high = ["fed", "tariff", "cpi", "gdp", "trump", "war", "crash", "crisis", "emergency", "recession", "rate cut", "rate hike", "inflation"];
@@ -312,9 +304,25 @@ function deriveGoldUSD(headline: string, category: string, sentiment: Bias): {
 } {
   const h = headline.toLowerCase();
 
+  // A headline that spells out which way gold moved beats every category rule
+  // below it; nothing here should be allowed to contradict the reported move.
+  const stated = deriveGoldDirection(headline);
+  if (stated && category !== "central-banks") {
+    const stance = derivePolicyStance(headline);
+    const usd: Bias = stance === "hawkish" ? "bullish"
+      : stance === "dovish" ? "bearish"
+      : stated === "bearish" ? "bullish" : "bearish";
+    return stated === "bearish"
+      ? { goldImpact: "bearish", goldReasoning: "The headline reports gold moving lower  -  trade the stated direction rather than fading it, and confirm at the nearest level.", usdImpact: usd, usdReasoning: "Gold weakness usually pairs with dollar strength; check DXY before sizing." }
+      : { goldImpact: "bullish", goldReasoning: "The headline reports gold moving higher  -  trade the stated direction rather than fading it, and confirm at the nearest level.", usdImpact: usd, usdReasoning: "Gold strength usually pairs with dollar weakness; check DXY before sizing." };
+  }
+
   // Fed / central bank
   if (category === "central-banks") {
-    if (sentiment === "bearish") { // hawkish
+    // Stance comes from the text, not from whether the news reads as good.
+    // "Gold loses shine as rate hike bets foster a stronger dollar" is hawkish
+    // however the risk score lands.
+    if (resolveStance(headline, sentiment) === "hawkish") {
       return {
         goldImpact: "bearish",
         goldReasoning: "Hawkish central bank tone raises real yields, increasing the opportunity cost of holding gold.",
