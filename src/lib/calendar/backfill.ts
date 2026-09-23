@@ -126,17 +126,23 @@ export async function backfillFromFred(sinceISO: string): Promise<BackfillResult
         rows.push(row(s, o.date, `${n.toFixed(s.decimals)}${s.unit}`, null));
       }
     } else {
+      // The print for month i: payrolls as a change in thousands, the rest as
+      // a % change on the month before. "Previous" is the same for month i-1,
+      // so every row can be read against the one before it.
+      const printFor = (i: number): string | null => {
+        if (i < 1) return null;
+        const curr = parseFloat(obs[i].value), prev = parseFloat(obs[i - 1].value);
+        if (isNaN(curr) || isNaN(prev) || prev === 0) return null;
+        if (s.unit === "K") return `${Math.round(curr - prev)}K`;
+        const pct = ((curr - prev) / Math.abs(prev)) * 100;
+        // No "-0.0%": a change that rounds to zero is zero.
+        const shown = Number(pct.toFixed(s.decimals)) === 0 ? 0 : pct;
+        return `${shown.toFixed(s.decimals)}${s.unit}`;
+      };
       for (let i = 1; i < obs.length; i++) {
-        const curr = parseFloat(obs[i].value);
-        const prev = parseFloat(obs[i - 1].value);
-        if (isNaN(curr) || isNaN(prev) || prev === 0) continue;
-        const actual = s.unit === "K"
-          ? `${Math.round(curr - prev)}K`                       // payrolls: change in thousands
-          : `${(((curr - prev) / Math.abs(prev)) * 100).toFixed(s.decimals)}${s.unit}`;
-        const priorStr = s.unit === "K" && i >= 2
-          ? `${Math.round(prev - parseFloat(obs[i - 2].value))}K`
-          : null;
-        rows.push(row(s, obs[i].date, actual, priorStr));
+        const actual = printFor(i);
+        if (actual === null) continue;
+        rows.push(row(s, obs[i].date, actual, printFor(i - 1)));
       }
     }
 
