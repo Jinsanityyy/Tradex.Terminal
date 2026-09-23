@@ -181,5 +181,7 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon|.*\\.png|.*\\.svg|.*\\.ico|.*\\.json|.*\\.js\\.map|sw\\.js|workbox-.*).*)"],
+  // .mq5: the MT5 EA download lives under /mt5, which the "/m" mobile-route
+  // check would otherwise bounce to /dashboard.
+  matcher: ["/((?!_next/static|_next/image|favicon|.*\\.png|.*\\.svg|.*\\.ico|.*\\.json|.*\\.js\\.map|.*\\.mq5|sw\\.js|workbox-.*).*)"],
 };

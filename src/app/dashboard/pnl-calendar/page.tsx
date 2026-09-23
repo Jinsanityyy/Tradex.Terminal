@@ -7,7 +7,7 @@ import {
   TrendingUp, TrendingDown, Trophy, Activity, Loader2,
   X, Eye, EyeOff, CheckCircle2, AlertCircle, BookOpen,
   ImagePlus, FileText, Save, Maximize2, Pencil, DollarSign,
-  BarChart2, Target, Zap,
+  BarChart2, Target, Zap, Copy, Download, KeyRound,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DailyPnL, MonthlyPnL } from "@/app/api/pnl/route";
@@ -32,10 +32,11 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 
 interface Connection {
   id: string;
-  exchange: "binance" | "bybit" | "okx" | "ctrader";
+  exchange: ExchangeKey;
   label: string;
   is_active?: boolean;
   last_synced_at?: string;
+  mt5_account?: string | null;
 }
 
 interface JournalEntry {
@@ -56,14 +57,21 @@ interface ManualTrade {
   close_time?: string | null;  // HH:MM
 }
 
-type ExchangeKey = "binance" | "bybit" | "okx" | "ctrader";
+type ExchangeKey = "binance" | "bybit" | "okx" | "ctrader" | "mt5";
 
 const EXCHANGE_META: Record<ExchangeKey, { name: string; color: string; bg: string; logo: string }> = {
   binance:  { name: "Binance",  color: "text-amber-400",  bg: "bg-amber-400/10 border-amber-400/30",   logo: "B"  },
   bybit:    { name: "Bybit",    color: "text-orange-400", bg: "bg-orange-400/10 border-orange-400/30",  logo: "By" },
   okx:      { name: "OKX",      color: "text-blue-400",   bg: "bg-blue-400/10 border-blue-400/30",     logo: "OK" },
   ctrader:  { name: "cTrader",  color: "text-sky-400",    bg: "bg-sky-400/10 border-sky-400/30",        logo: "CT" },
+  mt5:      { name: "MT5",      color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/30", logo: "MT5" },
 };
+
+interface Mt5Setup {
+  connectionId: string;
+  token: string;
+  webhookUrl: string;
+}
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const DAYS   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
@@ -562,6 +570,139 @@ function ManualTradeModal({
   );
 }
 
+// ── MT5 EA setup ───────────────────────────────────────────────────────────────
+
+function CopyField({ label, value, secret }: { label: string; value: string; secret?: boolean }) {
+  const [shown, setShown] = useState(!secret);
+  return (
+    <div>
+      <p className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1">{label}</p>
+      <div className="flex items-center gap-1.5">
+        <code className="flex-1 min-w-0 truncate rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-2.5 py-1.5 text-[11px] font-mono text-[hsl(var(--foreground))]">
+          {shown ? value : "•".repeat(28)}
+        </code>
+        {secret && (
+          <button onClick={() => setShown(!shown)} className="p-1.5 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]" aria-label={shown ? "Hide" : "Show"}>
+            {shown ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+          </button>
+        )}
+        <button
+          onClick={() => navigator.clipboard.writeText(value).then(() => toast.success(`${label} copied`), () => toast.error("Copy failed"))}
+          className="p-1.5 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]" aria-label={`Copy ${label}`}>
+          <Copy className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Token + install steps for the TradexJournal EA, with a live check that turns
+ * green as soon as the EA's first request reaches us.
+ */
+function Mt5SetupPanel({ setup, onDone }: { setup: Mt5Setup; onDone: () => void }) {
+  const [startedAt] = useState(() => Date.now());
+  const [account, setAccount] = useState<string | null>(null);
+  const [live, setLive] = useState(false);
+  const origin = useMemo(() => {
+    try { return new URL(setup.webhookUrl).origin; } catch { return setup.webhookUrl; }
+  }, [setup.webhookUrl]);
+
+  useEffect(() => {
+    if (live) return;
+    let stopped = false;
+    const check = async () => {
+      try {
+        const res = await fetch("/api/exchanges/list", { headers: await getAuthHeaders() });
+        const { data } = await res.json();
+        const conn = (data as Connection[] | undefined)?.find(c => c.id === setup.connectionId);
+        // A few seconds of slack for clock skew between browser and server.
+        if (!stopped && conn?.last_synced_at && new Date(conn.last_synced_at).getTime() >= startedAt - 5000) {
+          setLive(true);
+          setAccount(conn.mt5_account ?? null);
+        }
+      } catch { /* keep polling */ }
+    };
+    const id = setInterval(check, 3000);
+    return () => { stopped = true; clearInterval(id); };
+  }, [live, setup.connectionId, startedAt]);
+
+  const step = "flex gap-2.5 text-[11px] text-[hsl(var(--muted-foreground))] leading-relaxed";
+  const num = "flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[9px] font-bold text-emerald-400 mt-0.5";
+
+  return (
+    <div className="p-5 space-y-4">
+      <div className="space-y-2.5">
+        <CopyField label="Token" value={setup.token} secret />
+        <CopyField label="Webhook URL" value={setup.webhookUrl} />
+        <p className="text-[10px] text-amber-400/90">
+          The token is shown only once. Lost it? Use the key button on the MT5 chip to issue a new one.
+        </p>
+      </div>
+
+      <ol className="space-y-2.5">
+        <li className={step}><span className={num}>1</span>
+          <span>
+            <a href="/mt5/TradexJournal.mq5" download className="inline-flex items-center gap-1 font-semibold text-emerald-400 hover:underline">
+              <Download className="h-3 w-3" /> Download TradexJournal.mq5
+            </a>{" "}
+            and put it in <strong className="text-zinc-300">File → Open Data Folder → MQL5 → Experts</strong>. Open it in MetaEditor and press <strong className="text-zinc-300">F7</strong> to compile.
+          </span>
+        </li>
+        <li className={step}><span className={num}>2</span>
+          <span>
+            In MT5: <strong className="text-zinc-300">Tools → Options → Expert Advisors</strong>, tick <em>Allow WebRequest for listed URL</em> and add{" "}
+            <code className="text-zinc-300">{origin}</code>
+          </span>
+        </li>
+        <li className={step}><span className={num}>3</span>
+          <span>
+            Drag <strong className="text-zinc-300">TradexJournal</strong> onto any one chart, paste the token (and webhook URL) into Inputs, and turn on <strong className="text-zinc-300">Algo Trading</strong>. One chart covers the whole account.
+          </span>
+        </li>
+      </ol>
+
+      <div className={cn(
+        "flex items-center gap-2.5 rounded-lg border px-3 py-2.5",
+        live ? "border-emerald-500/30 bg-emerald-500/10" : "border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/50",
+      )}>
+        {live
+          ? <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+          : <Loader2 className="h-4 w-4 animate-spin text-[hsl(var(--muted-foreground))] shrink-0" />}
+        <div>
+          <p className={cn("text-[11px] font-semibold", live ? "text-emerald-400" : "text-[hsl(var(--foreground))]")}>
+            {live ? `EA connected${account ? `  -  ${account}` : ""}` : "Waiting for the EA…"}
+          </p>
+          <p className="text-[10px] text-[hsl(var(--muted-foreground))]">
+            {live
+              ? "Close a small trade on a demo account: it lands on the calendar within seconds."
+              : "This turns green as soon as the EA starts in MT5."}
+          </p>
+        </div>
+      </div>
+
+      <button onClick={onDone}
+        className="w-full rounded-lg bg-[hsl(var(--primary))]/15 border border-[hsl(var(--primary))]/30 py-2.5 text-sm font-semibold text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/25 transition-all">
+        Done
+      </button>
+    </div>
+  );
+}
+
+function Mt5TokenModal({ setup, onClose }: { setup: Mt5Setup; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[hsl(var(--border))]">
+          <h2 className="text-sm font-bold text-[hsl(var(--foreground))]">New MT5 token</h2>
+          <button onClick={onClose}><X className="h-4 w-4 text-[hsl(var(--muted-foreground))]" /></button>
+        </div>
+        <Mt5SetupPanel setup={setup} onDone={onClose} />
+      </div>
+    </div>
+  );
+}
+
 // ── Connect Exchange Modal ─────────────────────────────────────────────────────
 
 function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnected: (conn: Connection) => void }) {
@@ -574,8 +715,31 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
   const [showSecret, setShowSecret] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [mt5Setup, setMt5Setup] = useState<Mt5Setup | null>(null);
 
   const meta = EXCHANGE_META[exchange];
+
+  async function handleMt5() {
+    setError("");
+    if (!label.trim()) { setError("Enter a label for this connection"); return; }
+    setLoading(true);
+    try {
+      const authHeaders = await getAuthHeaders();
+      const res = await fetch("/api/mt5/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ label: label.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not create the MT5 connection");
+      setMt5Setup({ connectionId: data.data.id, token: data.token, webhookUrl: data.webhookUrl });
+      onConnected({ id: data.data.id, exchange: "mt5", label: label.trim(), is_active: true });
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function handleOAuth() {
     if (!label.trim()) { setError("Enter a label for this connection first"); return; }
@@ -616,14 +780,15 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="w-full max-w-md rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-[hsl(var(--border))]">
-          <h2 className="text-sm font-bold text-[hsl(var(--foreground))]">Connect Exchange</h2>
+          <h2 className="text-sm font-bold text-[hsl(var(--foreground))]">{mt5Setup ? "Set up the MT5 EA" : "Connect Exchange"}</h2>
           <button onClick={onClose}><X className="h-4 w-4 text-[hsl(var(--muted-foreground))]" /></button>
         </div>
 
+        {mt5Setup ? <Mt5SetupPanel setup={mt5Setup} onDone={onClose} /> : (
         <div className="p-5 space-y-4">
           <div>
             <p className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-2">Exchange</p>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-5 gap-2">
               {(Object.keys(EXCHANGE_META) as ExchangeKey[]).map((ex) => {
                 const m = EXCHANGE_META[ex];
                 return (
@@ -649,7 +814,16 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
               className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 py-2 text-sm text-[hsl(var(--foreground))] placeholder-[hsl(var(--muted-foreground))] outline-none focus:border-[hsl(var(--primary))]/50" />
           </div>
 
-          {exchange !== "ctrader" ? (
+          {exchange === "mt5" ? (
+            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4">
+              <p className="text-[11px] font-bold text-emerald-400 mb-1.5">Live journaling via the TradeX EA</p>
+              <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-relaxed">
+                A small Expert Advisor in your MT5 terminal sends each trade here the moment it closes.
+                It <strong className="text-zinc-300">never places or closes orders</strong>, and your MT5 password is never shared.
+                MT5 has to be running for trades to arrive; anything closed while it was off is sent on the next start.
+              </p>
+            </div>
+          ) : exchange !== "ctrader" ? (
             <>
               <div>
                 <label className="block text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-1.5">API Key (Read-Only)</label>
@@ -707,7 +881,7 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
             </div>
           )}
 
-          {exchange !== "ctrader" && (
+          {exchange !== "ctrader" && exchange !== "mt5" && (
             <div className="flex items-start gap-2 rounded-lg bg-[hsl(var(--secondary))]/50 p-2.5">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
               <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-relaxed">
@@ -723,7 +897,13 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
             </div>
           )}
 
-          {exchange === "ctrader" ? (
+          {exchange === "mt5" ? (
+            <button onClick={handleMt5} disabled={loading}
+              className="w-full rounded-lg bg-emerald-500/10 border border-emerald-500/30 py-2.5 text-sm font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {loading ? "Creating…" : "Create MT5 connection →"}
+            </button>
+          ) : exchange === "ctrader" ? (
             <button onClick={handleOAuth}
               className="w-full rounded-lg bg-sky-500/10 border border-sky-500/30 py-2.5 text-sm font-semibold text-sky-400 hover:bg-sky-500/20 transition-all flex items-center justify-center gap-2">
               Connect cTrader Account →
@@ -736,6 +916,7 @@ function ConnectModal({ onClose, onConnected }: { onClose: () => void; onConnect
             </button>
           )}
         </div>
+        )}
       </div>
     </div>
   );
@@ -752,6 +933,7 @@ export default function PnLCalendarPage() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
+  const [mt5Token, setMt5Token] = useState<Mt5Setup | null>(null);
   const [showAddTrade, setShowAddTrade] = useState(false);
   const [now] = useState(new Date());
   const [viewYear, setViewYear] = useState(now.getFullYear());
@@ -829,8 +1011,11 @@ export default function PnLCalendarPage() {
     return weeks;
   }, [calDays, dailyMap, viewYear, viewMonth]);
 
-  async function loadData() {
-    setLoading(true);
+  const tradeCountRef = useRef<number | null>(null);
+
+  /** `silent` is the background refresh: no spinner, and a toast when trades arrive. */
+  async function loadData({ silent = false }: { silent?: boolean } = {}) {
+    if (!silent) setLoading(true);
     try {
       const authHeaders = await getAuthHeaders();
       const qs = selectedConn !== "all" ? `?connectionId=${selectedConn}` : "";
@@ -846,10 +1031,47 @@ export default function PnLCalendarPage() {
       setDaily(pnlData.daily ?? []);
       setMonthly(pnlData.monthly ?? []);
       if (Array.isArray(manualData)) setManualTrades(manualData);
+
+      const count = (pnlData.daily as DailyPnL[] | undefined ?? []).reduce((n, d) => n + d.trades, 0);
+      if (silent && tradeCountRef.current !== null && count > tradeCountRef.current) {
+        const added = count - tradeCountRef.current;
+        toast.success(`${added} new trade${added > 1 ? "s" : ""} journaled from MT5`);
+      }
+      tradeCountRef.current = count;
     } catch (err: any) {
-      toast.error("Failed to load data: " + (err.message ?? "unknown error"));
+      if (!silent) toast.error("Failed to load data: " + (err.message ?? "unknown error"));
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
+    }
+  }
+
+  // MT5 trades are pushed by the EA, not pulled by Sync, so keep the calendar
+  // fresh on its own while an MT5 connection exists and the tab is visible.
+  const loadDataRef = useRef(loadData);
+  loadDataRef.current = loadData;
+  const hasMt5 = connections.some(c => c.exchange === "mt5");
+  useEffect(() => {
+    if (!hasMt5) return;
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") loadDataRef.current({ silent: true });
+    }, 10_000);
+    return () => clearInterval(id);
+  }, [hasMt5]);
+
+  async function rotateMt5Token(id: string) {
+    if (!confirm("Issue a new token? The EA stops sending until you paste the new one into its inputs.")) return;
+    try {
+      const authHeaders = await getAuthHeaders();
+      const res = await fetch("/api/mt5/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ connectionId: id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not issue a new token");
+      setMt5Token({ connectionId: id, token: data.token, webhookUrl: data.webhookUrl });
+    } catch (e: any) {
+      toast.error(e.message);
     }
   }
 
@@ -969,6 +1191,7 @@ export default function PnLCalendarPage() {
   return (
     <div className="space-y-4">
       {showConnect && <ConnectModal onClose={() => setShowConnect(false)} onConnected={handleConnected} />}
+      {mt5Token && <Mt5TokenModal setup={mt5Token} onClose={() => { setMt5Token(null); loadData(); }} />}
       {showAddTrade && (
         <ManualTradeModal
           onClose={() => setShowAddTrade(false)}
@@ -1086,14 +1309,27 @@ export default function PnLCalendarPage() {
       <div className="flex items-center gap-2 flex-wrap">
         {connections.map(c => {
           const m = EXCHANGE_META[c.exchange];
+          if (!m) return null;
+          const isMt5 = c.exchange === "mt5";
           return (
             <div key={c.id} className={cn("flex items-center gap-2 rounded-lg border px-2.5 py-1.5", m.bg)}>
               <span className={cn("text-[10px] font-bold", m.color)}>{m.name}</span>
               <span className="text-[10px] text-[hsl(var(--muted-foreground))]">{c.label}</span>
-              {c.last_synced_at && (
-                <span className="text-[9px] text-[hsl(var(--muted-foreground))]/60">
-                  {new Date(c.last_synced_at).toLocaleDateString()}
+              {isMt5 && c.mt5_account && (
+                <span className="text-[9px] text-[hsl(var(--muted-foreground))]/60">{c.mt5_account}</span>
+              )}
+              {c.last_synced_at ? (
+                <span className="text-[9px] text-[hsl(var(--muted-foreground))]/60" title={new Date(c.last_synced_at).toLocaleString()}>
+                  {isMt5 ? `last seen ${new Date(c.last_synced_at).toLocaleString()}` : new Date(c.last_synced_at).toLocaleDateString()}
                 </span>
+              ) : isMt5 && (
+                <span className="text-[9px] text-amber-400/80">waiting for EA</span>
+              )}
+              {isMt5 && (
+                <button onClick={() => rotateMt5Token(c.id)} title="Issue a new EA token"
+                  className="text-[hsl(var(--muted-foreground))]/40 hover:text-emerald-400 transition-colors">
+                  <KeyRound className="h-2.5 w-2.5" />
+                </button>
               )}
               <button onClick={() => deleteConnection(c.id)} className="ml-1 text-[hsl(var(--muted-foreground))]/40 hover:text-red-400 transition-colors">
                 <Trash2 className="h-2.5 w-2.5" />
