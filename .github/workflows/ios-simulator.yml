@@ -34,7 +34,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -54,6 +54,8 @@ jobs:
       - name: Boot simulator
         id: sim
         run: |
+          echo "Available iPhone simulators on this runner:"
+          xcrun simctl list devices available | grep -E 'iPhone' || true
           DEVICE="${{ github.event.inputs.device || 'iPhone 16 Pro' }}"
           UDID=$(xcrun simctl list devices available \
             | grep -m1 "$DEVICE (" | grep -oE '[0-9A-F-]{36}')
