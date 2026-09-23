@@ -19,8 +19,8 @@ on:
   workflow_dispatch:
     inputs:
       device:
-        description: Simulator device to boot
-        default: iPhone 16 Pro
+        description: Simulator device (leave empty to auto-pick the newest iPhone)
+        default: ""
         required: false
 
 jobs:
@@ -51,19 +51,43 @@ jobs:
       - name: Sync Capacitor iOS
         run: npx cap sync ios
 
+      # No device is hardcoded. Runner images swap their simulator set with every
+      # Xcode bump (the iPhone 16 Pro this originally named was already gone),
+      # so the newest available iPhone is picked at run time instead.
+      #
+      # Every grep here is guarded: GitHub runs `bash -e`, and a grep that
+      # matches nothing exits 1, which kills the step before any fallback below
+      # it can run.
       - name: Boot simulator
         id: sim
         run: |
+          LIST=$(xcrun simctl list devices available)
           echo "Available iPhone simulators on this runner:"
-          xcrun simctl list devices available | grep -E 'iPhone' || true
-          DEVICE="${{ github.event.inputs.device || 'iPhone 16 Pro' }}"
-          UDID=$(xcrun simctl list devices available \
-            | grep -m1 "$DEVICE (" | grep -oE '[0-9A-F-]{36}')
-          if [ -z "$UDID" ]; then
-            echo "::warning::'$DEVICE' not available, falling back to the newest iPhone"
-            UDID=$(xcrun simctl list devices available \
-              | grep -oE 'iPhone.*\([0-9A-F-]{36}\)' | tail -1 | grep -oE '[0-9A-F-]{36}')
+          echo "$LIST" | grep -E 'iPhone' || true
+
+          DEVICE="${{ github.event.inputs.device }}"
+          UDID=""
+          if [ -n "$DEVICE" ]; then
+            UDID=$(echo "$LIST" | grep -m1 -F "$DEVICE (" | grep -oE '[0-9A-F-]{36}' || true)
+            [ -z "$UDID" ] && echo "::warning::'$DEVICE' is not on this runner  -  picking automatically"
           fi
+
+          # Prefer a Pro, then any iPhone at all.
+          if [ -z "$UDID" ]; then
+            UDID=$(echo "$LIST" | grep -m1 -E '^[[:space:]]*iPhone [0-9]+ Pro \(' \
+              | grep -oE '[0-9A-F-]{36}' || true)
+          fi
+          if [ -z "$UDID" ]; then
+            UDID=$(echo "$LIST" | grep -m1 -E '^[[:space:]]*iPhone ' \
+              | grep -oE '[0-9A-F-]{36}' || true)
+          fi
+          if [ -z "$UDID" ]; then
+            echo "::error::No iPhone simulator available on this runner"
+            exit 1
+          fi
+
+          NAME=$(echo "$LIST" | grep -m1 "$UDID" | sed -E 's/^[[:space:]]*([^(]*) \(.*/\1/')
+          echo "Booting: $NAME ($UDID)"
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
           xcrun simctl boot "$UDID" || true
           xcrun simctl bootstatus "$UDID" -b
