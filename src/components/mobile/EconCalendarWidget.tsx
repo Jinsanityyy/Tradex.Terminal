@@ -3,6 +3,21 @@
 import React, { useEffect, useState } from "react";
 import { useEconomicCalendar } from "@/hooks/useMarketData";
 import { cn } from "@/lib/utils";
+import { ChevronRight } from "lucide-react";
+
+/**
+ * Opens the full Economic Calendar from the home screen.
+ *
+ * MobileLayout listens for this, switches to the More tab, then re-dispatches
+ * tradex:open-app for MobileMore to resolve  -  the same relay the PNL shortcut
+ * uses. The full page is where the archive search lives, so the widget has to
+ * be a way in rather than a dead end.
+ */
+function openCalendar() {
+  document.dispatchEvent(
+    new CustomEvent("tradex:open-more", { detail: { appId: "economic-calendar" } })
+  );
+}
 
 const MONO = { fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" };
 
@@ -45,9 +60,14 @@ export function EconCalendarWidget() {
 
   if (upcoming.length === 0) {
     return (
-      <div className="rounded-[2px] border border-[#1E1E24] bg-[#141418] px-3 py-4">
-        <p className="text-[11px] text-[#6B6B7A] text-center">No releases scheduled</p>
-      </div>
+      <button
+        onClick={openCalendar}
+        className="w-full rounded-[2px] border border-[#1E1E24] bg-[#141418] px-3 py-4 text-left active:bg-[#1A1A20]"
+      >
+        <p className="text-[11px] text-[#6B6B7A] text-center">
+          No releases scheduled &middot; tap to search past events
+        </p>
+      </button>
     );
   }
 
@@ -59,7 +79,11 @@ export function EconCalendarWidget() {
         const soon     = away <= 2 * 60 * 60 * 1000;
 
         return (
-          <div key={e.id} className="flex items-center gap-3 px-3 py-2.5">
+          <button
+            key={e.id}
+            onClick={openCalendar}
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-left active:bg-[#1A1A20]"
+          >
             <div className="w-[52px] shrink-0">
               <p className="text-[11px] text-zinc-300 leading-none" style={MONO}>{e.time}</p>
               <p
@@ -89,9 +113,18 @@ export function EconCalendarWidget() {
             >
               {e.impact}
             </span>
-          </div>
+
+            <ChevronRight className="h-3 w-3 shrink-0 text-[#3A3A44]" />
+          </button>
         );
       })}
+
+      <button
+        onClick={openCalendar}
+        className="w-full px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-[#6B6B7A] active:bg-[#1A1A20]"
+      >
+        Full calendar &amp; past releases
+      </button>
     </div>
   );
 }
