@@ -80,6 +80,24 @@ export function tradeStats(trades: V2Trade[]) {
   };
 }
 
+/**
+ * The same trades after trading costs: spread, commission and slippage taken
+ * together as one price amount per round trip, charged in R against each
+ * trade's own risk. A tight stop pays proportionally more.
+ */
+export function withCost(trades: V2Trade[], cost: number): V2Trade[] {
+  if (!cost) return trades;
+  return trades.map(t => {
+    const risk = Math.abs(t.entry - t.stopLoss);
+    return risk > 0 ? { ...t, r: Math.round((t.r - cost / risk) * 100) / 100 } : t;
+  });
+}
+
+/** Average stop distance in price, for reading a cost against the risk. */
+export function avgRisk(trades: V2Trade[]): number {
+  return trades.length ? trades.reduce((a, t) => a + Math.abs(t.entry - t.stopLoss), 0) / trades.length : 0;
+}
+
 const WINDOW = 1000;          // history handed to the analyzer (≈ 3.5 trading days)
 const WARMUP = 700;           // enough for the H1 EMA50 bias and the previous day
 const MAX_HOLD = 288;         // one day of 5-minute bars

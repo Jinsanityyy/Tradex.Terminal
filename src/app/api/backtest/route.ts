@@ -15,7 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Symbol, Timeframe } from "@/lib/agents/schemas";
 import { runBacktest, type BacktestReport } from "@/lib/backtest/engine";
-import { runBacktestV2, tradeStats, type V2Report } from "@/lib/backtest/engine-v2";
+import { avgRisk, runBacktestV2, tradeStats, withCost, type V2Report, type V2Trade } from "@/lib/backtest/engine-v2";
 import { loadM5History } from "@/lib/backtest/history";
 import { runCrt } from "@/lib/backtest/crt";
 import { NY_PM_KZ } from "@/lib/agents/core-v2";
@@ -339,6 +339,35 @@ function formatClassic(r: BacktestReport): string {
  */
 const IN_SAMPLE_FROM = "2026-07-16";
 
+/**
+ * Round-trip trading cost in price (spread + commission + slippage) used by
+ * the studies. Gold: about $0.20 spread, $0.07 commission and a little
+ * slippage per ounce at a typical retail broker. Others: 1.5 pips.
+ */
+function tradingCost(symbol: string, price: number): number {
+  if (symbol === "XAUUSD") return 0.30;
+  if (symbol === "XAGUSD") return 0.03;
+  if (symbol.endsWith("JPY")) return 0.015;
+  if (symbol === "BTCUSD" || symbol === "ETHUSD") return price * 0.0005;
+  return 0.00015;
+}
+
+const fmtPrice = (x: number) => (x >= 10 ? x.toFixed(2) : x.toFixed(5));
+
+/** Out-of-sample and in-sample lines, before costs, after costs and at double costs. */
+function costLines(trades: V2Trade[], cost: number, cell: (tr: V2Trade[]) => string): string[] {
+  const oos = trades.filter(t => t.fillAt.slice(0, 10) < IN_SAMPLE_FROM);
+  const ins = trades.filter(t => t.fillAt.slice(0, 10) >= IN_SAMPLE_FROM);
+  return [
+    `  out-of-sample  ${cell(oos)}`,
+    `    after costs  ${cell(withCost(oos, cost))}`,
+    `    2× costs     ${cell(withCost(oos, cost * 2))}`,
+    `  in-sample      ${cell(ins)}`,
+    `    after costs  ${cell(withCost(ins, cost))}`,
+    `  avg stop ${fmtPrice(avgRisk(trades))} → cost is ${avgRisk(trades) > 0 ? (cost / avgRisk(trades)).toFixed(2) : "–"}R per trade`,
+  ];
+}
+
 async function silverBulletStudy(symbol: string, months: number): Promise<NextResponse> {
   const hist = await loadM5History(symbol, months);
   const head = [
@@ -364,21 +393,22 @@ async function silverBulletStudy(symbol: string, months: number): Promise<NextRe
     ["D  Entry at FVG midpoint", p => ({ ...p, sbEntry: "mid" })],
   ];
   const cut = IN_SAMPLE_FROM;
-  const cell = (x: ReturnType<typeof tradeStats>) =>
-    `${String(x.trades).padStart(4)} tr · ${x.winRate.toFixed(1).padStart(5)}% · ${(x.netR >= 0 ? "+" : "") + x.netR.toFixed(1)}R · PF ${x.profitFactor.toFixed(2)} · DD ${x.maxDrawdownR.toFixed(1)}R`;
+  const cost = tradingCost(symbol, hist.candles[hist.candles.length - 1].c);
+  const cell = (tr: V2Trade[]) => {
+    const x = tradeStats(tr);
+    return `${String(x.trades).padStart(4)} tr · ${x.winRate.toFixed(1).padStart(5)}% · ${(x.netR >= 0 ? "+" : "") + x.netR.toFixed(1)}R · ${(x.avgR >= 0 ? "+" : "") + x.avgR.toFixed(3)}R/tr · PF ${x.profitFactor.toFixed(2)} · DD ${x.maxDrawdownR.toFixed(1)}R`;
+  };
 
   const lines = [
     ...head, "",
     `OUT-OF-SAMPLE = before ${cut} (never looked at when the variants were chosen)`,
     `IN-SAMPLE     = ${cut} onward (the 60 days reviewed before)`,
-    "Break-even win rate at 2R is 33.3%. No commission or slippage.",
+    `Break-even win rate at 2R is 33.3% before costs. Costs = ${fmtPrice(cost)} per trade round trip (spread + commission + slippage).`,
     "",
   ];
   for (const [name, tweak] of variants) {
     const r = runBacktestV2(symbol, hist.candles, tweak, { analyze: analyzeSilverBullet, fillWindow: 12 });
-    const oos = r.allTrades.filter(t => t.fillAt.slice(0, 10) < cut);
-    const ins = r.allTrades.filter(t => t.fillAt.slice(0, 10) >= cut);
-    lines.push(name, `  out-of-sample  ${cell(tradeStats(oos))}`, `  in-sample      ${cell(tradeStats(ins))}`, "");
+    lines.push(name, ...costLines(r.allTrades, cost, cell), "");
   }
   return new NextResponse(lines.join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
 }
@@ -413,7 +443,8 @@ async function crtStudy(symbol: string, months: number): Promise<NextResponse> {
     ["D  A + reward at least 1R", { buffer, minOneR: true }],
   ];
   const cut = IN_SAMPLE_FROM;
-  const cell = (tr: ReturnType<typeof runCrt>) => {
+  const cost = tradingCost(symbol, hist.candles[hist.candles.length - 1].c);
+  const cell = (tr: V2Trade[]) => {
     const x = tradeStats(tr);
     const wins = tr.filter(t => t.r > 0);
     const avgWin = wins.length ? wins.reduce((a, t) => a + t.r, 0) / wins.length : 0;
@@ -422,17 +453,12 @@ async function crtStudy(symbol: string, months: number): Promise<NextResponse> {
   const lines = [
     ...head, "",
     `OUT-OF-SAMPLE = before ${cut} · IN-SAMPLE = ${cut} onward`,
-    "Entry at the sweep candle's close, stop beyond its wick, target the range's other end. No commission or slippage.",
+    "Entry at the sweep candle's close, stop beyond its wick, target the range's other end.",
+    `Costs = ${fmtPrice(cost)} per trade round trip (spread + commission + slippage).`,
     "",
   ];
   for (const [name, opt] of variants) {
-    const all = runCrt(hist.candles, opt);
-    lines.push(
-      name,
-      `  out-of-sample  ${cell(all.filter(t => t.fillAt.slice(0, 10) < cut))}`,
-      `  in-sample      ${cell(all.filter(t => t.fillAt.slice(0, 10) >= cut))}`,
-      "",
-    );
+    lines.push(name, ...costLines(runCrt(hist.candles, opt), cost, cell), "");
   }
   return text(lines);
 }
