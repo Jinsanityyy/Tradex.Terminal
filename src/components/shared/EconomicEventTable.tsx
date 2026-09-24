@@ -622,6 +622,54 @@ function MarketReaction({ ev, symbol }: { ev: EconomicEvent; symbol: string }) {
   );
 }
 
+// ── Where to watch (speeches) ─────────────────────────────────────────────────
+// Official pages first: they carry the event itself. The White House YouTube
+// "live" tab can land on its 24/7 highlights stream, so whitehouse.gov/live and
+// the channel's streams list are used instead. Other speakers are found with a
+// YouTube search filtered to live broadcasts (or, afterwards, to replays).
+function watchLinks(ev: EconomicEvent): { label: string; url: string }[] {
+  const t = ev.event.toLowerCase();
+  const after = ev.status === "completed";
+  const name = ev.event.replace(/\b(speaks|speech|testifies|testimony|remarks)\b/gi, "").replace(/\s+/g, " ").trim();
+  const day = ev.utcTimestamp ? new Date(ev.utcTimestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
+  const yt = (q: string, live: boolean) =>
+    `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}${live ? "&sp=EgJAAQ%253D%253D" : ""}`;
+  const links: { label: string; url: string }[] = [];
+  if (t.includes("trump") || t.includes("president")) {
+    links.push({ label: "White House live", url: "https://www.whitehouse.gov/live/" });
+    links.push({ label: "White House on YouTube", url: "https://www.youtube.com/@WhiteHouse/streams" });
+  } else if (/fomc|powell|fed |federal reserve/.test(t)) {
+    links.push({ label: "Fed live broadcast", url: "https://www.federalreserve.gov/live-broadcast.htm" });
+    links.push({ label: "Fed on YouTube", url: "https://www.youtube.com/@federalreserve/streams" });
+  }
+  links.push(after
+    ? { label: "Find the replay", url: yt(`${name} ${day}`, false) }
+    : { label: "Search live on YouTube", url: yt(name, true) });
+  return links;
+}
+
+function WatchLinks({ ev }: { ev: EconomicEvent }) {
+  const after = ev.status === "completed";
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
+        {after ? "Watch replay" : ev.status === "live" ? "Watch live now" : "Watch live"}
+      </span>
+      {watchLinks(ev).map(l => (
+        <a
+          key={l.url}
+          href={l.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3 text-[11px] font-semibold text-[hsl(var(--foreground))] hover:border-[hsl(var(--primary)_/_0.5)]"
+        >
+          <Radio className="h-3 w-3 text-red-400" /> {l.label}
+        </a>
+      ))}
+    </div>
+  );
+}
+
 // ── What was said (speeches) ──────────────────────────────────────────────────
 const TONE_STYLE: Record<string, string> = {
   hawkish: "text-red-400 border-red-500/30 bg-red-500/10",
@@ -752,6 +800,8 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
         ))}
       </div>
 
+      {/* Minutes and written statements have nothing to watch. */}
+      {SPEECH_RE.test(ev.event) && !/minutes|statement/i.test(ev.event) && <WatchLinks ev={ev} />}
       {isCompleted && SPEECH_RE.test(ev.event) && <SpeechRecap ev={ev} />}
       {isCompleted && <MarketReaction ev={ev} symbol={symbol} />}
 
