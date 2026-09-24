@@ -62,7 +62,10 @@ export function ProAvatar({
   const circle = (
     <div
       className="relative w-full h-full rounded-full overflow-hidden"
-      style={{ boxShadow: "0 0 0 1px hsl(var(--border))" }}
+      // outline, not box-shadow: the true-black themes (OLED, Phosphor,
+      // Nebula) strip every box-shadow, which erased this edge and the seal's
+      // cut-out on the default theme.
+      style={{ outline: "1px solid hsl(var(--border))" }}
     >
       {photo}
       {children}
@@ -95,7 +98,7 @@ export function ProAvatar({
           right: -1,
           bottom: -1,
           background: SEAL_FILL,
-          boxShadow: `0 0 0 ${cut}px hsl(var(--background))`,
+          outline: `${cut}px solid hsl(var(--background))`,
         }}
       >
         <svg width={check} height={check} viewBox="0 0 12 12" fill="none" aria-hidden="true">

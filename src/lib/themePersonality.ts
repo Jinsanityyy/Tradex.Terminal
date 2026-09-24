@@ -52,6 +52,23 @@ export const THEME_PERSONALITIES: Record<Theme, ThemePersonality> = {
     fontFamily: "sans",
     density: "compact",
   },
+  // Phosphor and Nebula are OLED with an accent colour, and behave like it.
+  phosphor: {
+    sectionHeaderStyle: "minimal",
+    progressBarStyle: "smooth",
+    badgeStyle: "outline",
+    dividerStyle: "line",
+    fontFamily: "sans",
+    density: "compact",
+  },
+  nebula: {
+    sectionHeaderStyle: "minimal",
+    progressBarStyle: "smooth",
+    badgeStyle: "outline",
+    dividerStyle: "line",
+    fontFamily: "sans",
+    density: "compact",
+  },
   nord: {
     sectionHeaderStyle: "normal",
     progressBarStyle: "smooth",

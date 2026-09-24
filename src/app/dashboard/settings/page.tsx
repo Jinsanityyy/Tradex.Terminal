@@ -421,10 +421,10 @@ export default function SettingsPage() {
           <>
             <SettingRow wide label="Theme" description="Terminal color scheme — previewed live, saved on click Save">
               <SegmentedPills<Theme>
-                options={["dark", "midnight", "oled", "nord", "bloomberg", "pink", "light"]}
+                options={["dark", "midnight", "oled", "phosphor", "nebula", "nord", "bloomberg", "pink", "light"]}
                 value={draft.theme}
                 onChange={(v) => update("theme", v)}
-                labels={{ dark: "Dark", midnight: "Midnight", oled: "OLED", nord: "Nord", bloomberg: "Bloomberg", pink: "Pink", light: "Light" }}
+                labels={{ dark: "Dark", midnight: "Midnight", oled: "OLED", phosphor: "Phosphor", nebula: "Nebula", nord: "Nord", bloomberg: "Bloomberg", pink: "Pink", light: "Light" }}
               />
             </SettingRow>
             <SettingRow label="Layout Density" description="Compact shows more data, expanded improves readability">

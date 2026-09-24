@@ -473,6 +473,116 @@ iframe,
   --t-section-spacing:   0px;
 }
 
+/* Phosphor: Green-cyan terminal glow on true black. The accent sits close to the bullish green by design; up/down keep their own colours. */
+[data-theme="phosphor"] {
+  --background: 0 0% 0%;
+  --foreground: 152 39% 93.5%;
+  --card: 150 10% 3.9%;
+  --card-foreground: 152 39% 93.5%;
+  --popover: 150 10% 3.9%;
+  --popover-foreground: 152 39% 93.5%;
+  --primary: 166 73% 60%;          /* #FFFFFF */
+  --primary-foreground: 0 0% 0%;
+  --accent: 166 73% 60%;
+  --accent-foreground: 0 0% 0%;
+  --ring: 166 73% 60%;
+  --secondary: 166 12% 8%;
+  --muted: 166 10% 14%;
+  --muted-foreground: 155 12% 49.2%;
+  --text-secondary: 155 12% 49.2%;  /* #555555 */
+  --border: 154 19% 14.5%;            /* #1A1A1A */
+  --input: 166 10% 10%;
+  --sidebar-bg: 0 0% 0%;
+
+  --chart-green: 153 100% 53%;   /* #00FF88 */
+  --chart-red: 0 100% 60%;       /* #FF3333 */
+
+  --t-bg:           #000000;
+  --t-card:         #090B0A;
+  --t-card-2:       #0F1412;
+  --t-border:       #1E2C26;
+  --t-border-sub:   rgba(79,227,193,0.05);
+  --t-text:         #E8F5EF;
+  --t-muted:        #6F8C80;
+  --t-glow-green:   rgba(0,255,136,0.04);  /* reduced glows for OLED */
+  --t-glow-red:     rgba(255,51,51,0.04);
+  --t-glow-amber:   rgba(245,158,11,0.04);
+  --t-accent:       #4FE3C1;
+  --t-bullish:      #00FF88;
+  --t-bearish:      #FF3333;
+  --t-text-muted2:  #6F8C80;
+  --t-glow-mul:     0.4;
+  /* Personality */
+  --t-card-radius:       0px;
+  --t-card-border-width: 1px;
+  --t-card-shadow:       none;
+  --t-badge-radius:      0px;
+  --t-label-size:        10px;
+  --t-label-spacing:     2.0px;
+  --t-number-weight:     300;
+  --t-label-weight:      400;
+  --t-font-number:       var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-font-label:        var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-font-body:         var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-card-padding:      10px;
+  --t-section-spacing:   0px;
+}
+
+/* Nebula: Soft violet on true black: the accent furthest from both price colours, so it never reads as a signal. */
+[data-theme="nebula"] {
+  --background: 0 0% 0%;
+  --foreground: 254 62% 95.9%;
+  --card: 240 9% 4.3%;
+  --card-foreground: 254 62% 95.9%;
+  --popover: 240 9% 4.3%;
+  --popover-foreground: 254 62% 95.9%;
+  --primary: 254 92% 76.3%;          /* #FFFFFF */
+  --primary-foreground: 0 0% 0%;
+  --accent: 254 92% 76.3%;
+  --accent-foreground: 0 0% 0%;
+  --ring: 254 92% 76.3%;
+  --secondary: 254 12% 8%;
+  --muted: 254 10% 14%;
+  --muted-foreground: 253 13% 57.3%;
+  --text-secondary: 253 13% 57.3%;  /* #555555 */
+  --border: 258 19% 17.8%;            /* #1A1A1A */
+  --input: 254 10% 10%;
+  --sidebar-bg: 0 0% 0%;
+
+  --chart-green: 153 100% 53%;   /* #00FF88 */
+  --chart-red: 0 100% 60%;       /* #FF3333 */
+
+  --t-bg:           #000000;
+  --t-card:         #0A0A0C;
+  --t-card-2:       #121118;
+  --t-border:       #2A2536;
+  --t-border-sub:   rgba(164,139,250,0.05);
+  --t-text:         #F1EEFB;
+  --t-muted:        #8A84A0;
+  --t-glow-green:   rgba(0,255,136,0.04);  /* reduced glows for OLED */
+  --t-glow-red:     rgba(255,51,51,0.04);
+  --t-glow-amber:   rgba(245,158,11,0.04);
+  --t-accent:       #A48BFA;
+  --t-bullish:      #00FF88;
+  --t-bearish:      #FF3333;
+  --t-text-muted2:  #8A84A0;
+  --t-glow-mul:     0.4;
+  /* Personality */
+  --t-card-radius:       0px;
+  --t-card-border-width: 1px;
+  --t-card-shadow:       none;
+  --t-badge-radius:      0px;
+  --t-label-size:        10px;
+  --t-label-spacing:     2.0px;
+  --t-number-weight:     300;
+  --t-label-weight:      400;
+  --t-font-number:       var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-font-label:        var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-font-body:         var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --t-card-padding:      10px;
+  --t-section-spacing:   0px;
+}
+
 /* Nord — cool arctic blue-gray (deepened for terminal contrast), frost accent */
 [data-theme="nord"] {
   --background: 220 16% 17%;    /* #242933 — deepened Polar Night */
@@ -721,7 +831,9 @@ iframe,
 }
 
 /* OLED — no shadows anywhere */
-[data-theme="oled"] * {
+[data-theme="oled"] *,
+[data-theme="phosphor"] *,
+[data-theme="nebula"] * {
   box-shadow: none !important;
   text-shadow: none !important;
 }
