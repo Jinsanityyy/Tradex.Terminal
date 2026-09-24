@@ -72,6 +72,12 @@ export interface V2Params {
   equalLevels?: boolean;
   /** Break of structure = close through the last 5m swing before the sweep (TJR MSS) instead of the 6-candle range */
   mssPivot?: boolean;
+  /** Silver Bullet: which windows trade (default both) */
+  sbWindows?: "both" | "am" | "pm";
+  /** Silver Bullet: only trade FVGs in the direction of the H1 EMA bias */
+  sbBias?: boolean;
+  /** Silver Bullet: limit at the FVG's near edge (default) or its midpoint */
+  sbEntry?: "edge" | "mid";
 }
 
 /** How far each level got through the model today — for the backtest funnel. */

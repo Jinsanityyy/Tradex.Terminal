@@ -65,7 +65,9 @@ export function analyzeSilverBullet(candles: V2Candle[], p: V2Params): V2Result 
   const diag: V2Result["diag"] = [];
   let note = "Waiting for a Silver Bullet window (10–11 AM or 2–3 PM New York)";
 
-  for (const w of WINDOWS) {
+  const bias = h1Bias(candles) ?? "neutral";
+  const windows = WINDOWS.filter(w => !p.sbWindows || p.sbWindows === "both" || (p.sbWindows === "am") === (w.name === "SB AM"));
+  for (const w of windows) {
     let found = false;
     let stage: V2Result["diag"][number]["stage"] = "no FVG in window";
     for (let j = todayStart; j + 2 < n && !found; j++) {
@@ -74,13 +76,16 @@ export function analyzeSilverBullet(candles: V2Candle[], p: V2Params): V2Result 
       for (const long of [true, false]) {
         const gap = long ? candles[j + 2].l - candles[j].h : candles[j].l - candles[j + 2].h;
         if (!(gap > p.minFvgGap)) continue;
+        if (p.sbBias && bias !== (long ? "bullish" : "bearish")) continue;
         // A low must have been swept (for a bullish FVG) before the FVG began.
         const prior = sweeps.find(x => x.l.high === !long && x.at <= j);
         if (!prior) { stage = "FVG without prior sweep"; continue; }
 
         // First valid FVG of the window: this one decides the window either way.
         found = true;
-        const entry = long ? candles[j + 2].l : candles[j + 2].h;           // near edge
+        const edge = long ? candles[j + 2].l : candles[j + 2].h;
+        const far  = long ? candles[j].h : candles[j].l;
+        const entry = p.sbEntry === "mid" ? (edge + far) / 2 : edge;
         const stopLoss = long ? candles[j].l - p.slBuffer * 0.5 : candles[j].h + p.slBuffer * 0.5;
         const risk = Math.abs(entry - stopLoss);
         if (risk < p.minRisk * 0.5 || risk > p.maxRisk) { stage = "stop out of range"; break; }
@@ -112,5 +117,5 @@ export function analyzeSilverBullet(candles: V2Candle[], p: V2Params): V2Result 
   }
 
   if (!latest && sweeps.length === 0) note = "No Asia, London or 9 AM level swept yet today";
-  return { ...base, bias: h1Bias(candles) ?? "neutral", biasSource: "H1 EMA", setup: latest, note: latest ? "" : note, diag };
+  return { ...base, bias, biasSource: "H1 EMA", setup: latest, note: latest ? "" : note, diag };
 }

@@ -59,6 +59,25 @@ export interface V2Report {
    */
   funnel: { days: number; noBias: number; stages: Record<string, number> };
   recentTrades: V2Trade[];
+  /** Every trade, oldest first */
+  allTrades: V2Trade[];
+}
+
+/** Headline numbers for any subset of trades (e.g. in-sample vs out-of-sample). */
+export function tradeStats(trades: V2Trade[]) {
+  let net = 0, peak = 0, dd = 0, win = 0, loss = 0, wins = 0;
+  for (const t of trades) {
+    net += t.r; peak = Math.max(peak, net); dd = Math.max(dd, peak - net);
+    if (t.r > 0) { win += t.r; wins++; } else loss += -t.r;
+  }
+  return {
+    trades: trades.length,
+    winRate: trades.length ? Math.round((wins / trades.length) * 1000) / 10 : 0,
+    netR: Math.round(net * 100) / 100,
+    avgR: trades.length ? Math.round((net / trades.length) * 1000) / 1000 : 0,
+    profitFactor: loss > 0 ? Math.round((win / loss) * 100) / 100 : win > 0 ? 99 : 0,
+    maxDrawdownR: Math.round(dd * 100) / 100,
+  };
 }
 
 const WINDOW = 1000;          // history handed to the analyzer (≈ 3.5 trading days)
@@ -184,5 +203,6 @@ function summarize(symbol: string, candles: V2Candle[], trades: V2Trade[], setup
     longestLosingStreak: worst,
     byKillZone, byLevel, byDirection, byMonth,
     recentTrades: trades.slice(-30),
+    allTrades: trades,
   };
 }

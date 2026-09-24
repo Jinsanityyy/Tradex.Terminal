@@ -15,7 +15,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Symbol, Timeframe } from "@/lib/agents/schemas";
 import { runBacktest, type BacktestReport } from "@/lib/backtest/engine";
-import { runBacktestV2, type V2Report } from "@/lib/backtest/engine-v2";
+import { runBacktestV2, tradeStats, type V2Report } from "@/lib/backtest/engine-v2";
+import { loadM5History } from "@/lib/backtest/history";
 import { NY_PM_KZ } from "@/lib/agents/core-v2";
 import { analyzeSilverBullet } from "@/lib/agents/silver-bullet";
 import type { BacktestCandle } from "@/lib/backtest/engine";
@@ -168,6 +169,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: `No Yahoo Finance mapping for: ${symbolParam}` }, { status: 400 });
   }
 
+  // ?study=silver-bullet&months=12 — the Silver Bullet on up to a year of
+  // TwelveData spot bars, split at the start of the 60 days already reviewed.
+  if (searchParams.get("study") === "silver-bullet") {
+    return silverBulletStudy(symbolParam, Math.min(24, Math.max(3, Number(searchParams.get("months")) || 12)));
+  }
+
   // ?core=v2 runs the Session Liquidity core on 5-minute bars — the same
   // function the live app uses when AGENT_CORE=v2. ?format=text returns a short
   // plain-text summary that reads on a phone.
@@ -318,4 +325,55 @@ function formatClassic(r: BacktestReport): string {
     "Note: the live classic core also uses a 5m Supertrend, daily-candle bias and an LLM",
     "that this replay cannot reproduce, so these numbers only approximate it.",
   ].join("\n");
+}
+
+/**
+ * The variants were fixed before this data was looked at; the 60 days they
+ * were suggested by (from IN_SAMPLE_FROM) are reported separately, so the
+ * out-of-sample column is the honest test.
+ */
+const IN_SAMPLE_FROM = "2026-07-16";
+
+async function silverBulletStudy(symbol: string, months: number): Promise<NextResponse> {
+  const hist = await loadM5History(symbol, months);
+  const head = [
+    `Silver Bullet study — ${symbol} 5m (TwelveData spot), ${months} months requested`,
+    hist.candles.length
+      ? `History: ${new Date(hist.candles[0].t * 1000).toISOString().slice(0, 10)} → ${new Date(hist.candles[hist.candles.length - 1].t * 1000).toISOString().slice(0, 10)} · ${hist.candles.length} bars · ${hist.chunksLoaded}/${hist.chunksTotal} chunks`
+      : "History: none loaded yet",
+  ];
+  if (hist.error) head.push(`Data source said: ${hist.error}`);
+  if (!hist.complete && !hist.error) {
+    head.push("", "Still loading the history (the free data plan allows 8 requests a minute).", "Refresh this page in about a minute; each refresh loads the next part.");
+    return new NextResponse(head.join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+  }
+  if (hist.candles.length < 2000) {
+    head.push("", "Not enough history to run the study.");
+    return new NextResponse(head.join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+  }
+
+  const variants: [string, Parameters<typeof runBacktestV2>[2]][] = [
+    ["A  Original (both windows, FVG edge)", p => p],
+    ["B  PM window only (2–3 PM ET)", p => ({ ...p, sbWindows: "pm" })],
+    ["C  With H1 bias filter", p => ({ ...p, sbBias: true })],
+    ["D  Entry at FVG midpoint", p => ({ ...p, sbEntry: "mid" })],
+  ];
+  const cut = IN_SAMPLE_FROM;
+  const cell = (x: ReturnType<typeof tradeStats>) =>
+    `${String(x.trades).padStart(4)} tr · ${x.winRate.toFixed(1).padStart(5)}% · ${(x.netR >= 0 ? "+" : "") + x.netR.toFixed(1)}R · PF ${x.profitFactor.toFixed(2)} · DD ${x.maxDrawdownR.toFixed(1)}R`;
+
+  const lines = [
+    ...head, "",
+    `OUT-OF-SAMPLE = before ${cut} (never looked at when the variants were chosen)`,
+    `IN-SAMPLE     = ${cut} onward (the 60 days reviewed before)`,
+    "Break-even win rate at 2R is 33.3%. No commission or slippage.",
+    "",
+  ];
+  for (const [name, tweak] of variants) {
+    const r = runBacktestV2(symbol, hist.candles, tweak, { analyze: analyzeSilverBullet, fillWindow: 12 });
+    const oos = r.allTrades.filter(t => t.fillAt.slice(0, 10) < cut);
+    const ins = r.allTrades.filter(t => t.fillAt.slice(0, 10) >= cut);
+    lines.push(name, `  out-of-sample  ${cell(tradeStats(oos))}`, `  in-sample      ${cell(tradeStats(ins))}`, "");
+  }
+  return new NextResponse(lines.join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
 }
