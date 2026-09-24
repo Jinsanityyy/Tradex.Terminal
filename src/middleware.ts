@@ -48,6 +48,14 @@ function needsEntitlement(pathname: string): boolean {
   return isAppRoute(pathname) && !isExempt(pathname);
 }
 
+const AUTH_TIMEOUT_MS = 4000;
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), ms); });
+  return Promise.race([p.catch(() => null), timeout]).finally(() => clearTimeout(timer));
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
@@ -94,7 +102,10 @@ export async function middleware(req: NextRequest) {
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const needsPlanCheck = !isStatic && !isPublicPage && needsEntitlement(pathname);
 
-  if (supabaseUrl && supabaseKey) {
+  // API routes authenticate themselves (getAuthUser), and none of the gates
+  // below apply to static paths — so refreshing the session here only doubled
+  // the auth round trips on every fetch the app makes.
+  if (supabaseUrl && supabaseKey && !isStatic) {
     const supabase = createServerClient(supabaseUrl, supabaseKey, {
       cookies: {
         getAll() { return req.cookies.getAll(); },
@@ -108,7 +119,17 @@ export async function middleware(req: NextRequest) {
       },
     });
 
-    const { data: { user } } = await supabase.auth.getUser();
+    // A hung Supabase used to hang every page with it until Vercel killed the
+    // function (504 on /m, /login, everything). Cap the wait instead: public and
+    // exempt pages render without a session, gated ones get a plain 503.
+    const auth = await withTimeout(supabase.auth.getUser(), AUTH_TIMEOUT_MS);
+    if (!auth && needsPlanCheck) {
+      return new NextResponse("TradeX is temporarily unavailable. Please try again in a minute.", {
+        status: 503,
+        headers: { "Retry-After": "60", "Content-Type": "text/plain; charset=utf-8" },
+      });
+    }
+    const user = auth?.data.user ?? null;
     // A signed-in user with no email_confirmed_at has not verified their email yet
     emailConfirmed = !user || !!user.email_confirmed_at;
     signedIn = !!user;
