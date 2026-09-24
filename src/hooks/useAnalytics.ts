@@ -57,7 +57,13 @@ const PAGE_TITLES: Record<string, string> = {
   "/m":                              "Mobile App",
 };
 
+// Off unless NEXT_PUBLIC_ANALYTICS_ENABLED=1. Switching tracking on for the
+// phone app exhausted the Supabase Nano IO budget within hours and took the
+// database down, so it stays dark until it writes somewhere cheaper.
+const ANALYTICS_ENABLED = process.env.NEXT_PUBLIC_ANALYTICS_ENABLED === "1";
+
 async function track(type: string, payload: Record<string, unknown>) {
+  if (!ANALYTICS_ENABLED) return;
   try {
     await fetch("/api/analytics/track", {
       method: "POST",
@@ -92,7 +98,7 @@ export function useAnalytics() {
 
   // ── Start session once on mount ────────────────────────────────────
   useEffect(() => {
-    if (sessionStarted.current) return;
+    if (!ANALYTICS_ENABLED || sessionStarted.current) return;
     sessionStarted.current = true;
     sessionStart.current = Date.now();
 
@@ -121,6 +127,7 @@ export function useAnalytics() {
 
   // ── Track page view on route change ───────────────────────────────
   useEffect(() => {
+    if (!ANALYTICS_ENABLED) return;
     const token = getSessionToken();
     const title = PAGE_TITLES[pathname] ?? pathname.split("/").pop() ?? "Unknown";
 
@@ -180,7 +187,7 @@ export function useAnalytics() {
  * this there is no way to tell whether anyone opens Chart, Feed or Brain.
  */
 export function trackMobileTab(tab: string) {
-  if (typeof window === "undefined") return;
+  if (!ANALYTICS_ENABLED || typeof window === "undefined") return;
   void track("pageview_start", {
     sessionToken: getSessionToken(),
     page:         `/m/${tab}`,

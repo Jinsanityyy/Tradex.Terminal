@@ -13,6 +13,11 @@ export const dynamic = "force-dynamic";
 // type = "event"           payload: { sessionToken, page, eventType, eventName, properties }
 
 export async function POST(req: NextRequest) {
+  // Kill switch, checked before auth so a disabled tracker costs the database
+  // nothing — including from phones still running the old bundle.
+  if (process.env.NEXT_PUBLIC_ANALYTICS_ENABLED !== "1") {
+    return NextResponse.json({ ok: true, disabled: true });
+  }
   try {
     const { user, supabase } = await getAuthUser(req);
     const body = await req.json();
