@@ -88,6 +88,12 @@ function fmt(n: number): string {
   const s = abs >= 1000 ? `$${(abs / 1000).toFixed(1)}k` : `$${abs.toFixed(2)}`;
   return n < 0 ? `-${s}` : `+${s}`;
 }
+/** Fits a ~50px phone cell: no cents, no currency sign, "+1.2k" at most. */
+function fmtCompact(n: number): string {
+  const abs = Math.abs(n);
+  const s = abs >= 1000 ? `${(abs / 1000).toFixed(1)}k` : `${Math.round(abs)}`;
+  return n < 0 ? `-${s}` : `+${s}`;
+}
 function fmtFull(n: number): string {
   return (n >= 0 ? "+" : "") + n.toFixed(2);
 }
@@ -1728,13 +1734,13 @@ export default function PnLCalendarPage() {
           </div>
 
           <CardContent className="p-0 overflow-x-auto">
-            <div className="min-w-[560px]">
+            <div className="sm:min-w-[560px]">
             {/* Day headers */}
-            <div className="grid grid-cols-8 border-b border-[hsl(var(--border))]">
+            <div className="grid grid-cols-7 sm:grid-cols-8 border-b border-[hsl(var(--border))]">
               {DAYS.map(d => (
-                <div key={d} className="px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">{d}</div>
+                <div key={d} className="px-0.5 sm:px-2 py-2 text-center text-[11px] font-semibold uppercase sm:tracking-wider text-[hsl(var(--muted-foreground))]">{d}</div>
               ))}
-              <div className="px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Week</div>
+              <div className="hidden sm:block px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Week</div>
             </div>
 
             {/* Weeks */}
@@ -1743,9 +1749,9 @@ export default function PnLCalendarPage() {
               const weekTotal = weeklyTotals[wi] ?? 0;
 
               return (
-                <div key={wi} className="grid grid-cols-8 border-b border-[hsl(var(--border))]/50 last:border-0" style={{ minHeight: 100 }}>
+                <div key={wi} className="grid grid-cols-7 sm:grid-cols-8 border-b border-[hsl(var(--border))]/50 last:border-0">
                   {weekDays.map((day, di) => {
-                    if (!day) return <div key={di} className="border-r border-[hsl(var(--border))]/30 bg-[hsl(var(--secondary))]/20" />;
+                    if (!day) return <div key={di} className="border-r border-[hsl(var(--border))]/30 bg-[hsl(var(--secondary))]/20 min-h-[58px] sm:min-h-[100px]" />;
 
                     const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                     const data = dailyMap.get(dateStr);
@@ -1760,7 +1766,7 @@ export default function PnLCalendarPage() {
                         key={di}
                         onClick={() => !isFuture && setJournalDate(dateStr)}
                         className={cn(
-                          "border-r border-[hsl(var(--border))]/30 p-2 flex flex-col transition-all relative",
+                          "border-r border-[hsl(var(--border))]/30 p-1 sm:p-2 min-h-[58px] sm:min-h-[100px] flex flex-col transition-all relative",
                           !isFuture && "cursor-pointer hover:bg-[hsl(var(--secondary))]/60 group",
                           isToday && "ring-1 ring-inset ring-[hsl(var(--primary))]/50",
                           hasTrades && pnl > 0 && "bg-emerald-500/[0.08]",
@@ -1783,7 +1789,7 @@ export default function PnLCalendarPage() {
                             {hasTrades && data!.sources?.map(src => (
                               <span key={src} title={src === "mt5" ? "Journaled by the MT5 EA" : src === "manual" ? "Logged manually" : `Synced from ${EXCHANGE_META[src as ExchangeKey]?.name ?? src}`}
                                 className={cn(
-                                  "rounded px-1 py-px text-[8px] font-bold uppercase leading-tight border",
+                                  "hidden sm:inline rounded px-1 py-px text-[8px] font-bold uppercase leading-tight border",
                                   src === "mt5" ? "text-emerald-400 bg-emerald-400/10 border-emerald-400/30"
                                     : src === "manual" ? "text-zinc-400 bg-zinc-400/10 border-zinc-400/25"
                                     : cn(EXCHANGE_META[src as ExchangeKey]?.color, EXCHANGE_META[src as ExchangeKey]?.bg),
@@ -1803,12 +1809,18 @@ export default function PnLCalendarPage() {
                         {hasTrades && (
                           <div className="mt-auto">
                             <span className={cn(
-                              "text-[12px] font-bold font-mono block",
+                              "hidden sm:block text-[12px] font-bold font-mono",
                               pnl >= 0 ? "text-emerald-400" : "text-red-400"
                             )}>
                               {fmt(pnl)}
                             </span>
-                            <span className="text-[9px] text-[hsl(var(--muted-foreground))]">
+                            <span className={cn(
+                              "sm:hidden block text-[11px] font-bold font-mono leading-tight tracking-tight",
+                              pnl >= 0 ? "text-emerald-400" : "text-red-400"
+                            )}>
+                              {fmtCompact(pnl)}
+                            </span>
+                            <span className="hidden sm:inline text-[9px] text-[hsl(var(--muted-foreground))]">
                               {data!.trades}T · {data!.wins}W
                             </span>
                           </div>
@@ -1826,9 +1838,9 @@ export default function PnLCalendarPage() {
                     );
                   })}
 
-                  {/* Weekly total */}
+                  {/* Weekly total — its own column from sm up */}
                   <div className={cn(
-                    "p-2 flex flex-col justify-center items-center",
+                    "hidden sm:flex p-2 flex-col justify-center items-center",
                     weekTotal > 0 && "bg-emerald-500/5",
                     weekTotal < 0 && "bg-red-500/5",
                   )}>
@@ -1843,6 +1855,18 @@ export default function PnLCalendarPage() {
                       <span className="text-[10px] text-[hsl(var(--muted-foreground))]/30"> - </span>
                     )}
                   </div>
+                  {/* …and on a phone, a slim row under the week so it is not lost */}
+                  {weekTotal !== 0 && (
+                    <div className={cn(
+                      "sm:hidden col-span-7 flex items-center justify-end gap-2 px-2 py-1 border-t border-[hsl(var(--border))]/30",
+                      weekTotal > 0 ? "bg-emerald-500/5" : "bg-red-500/5",
+                    )}>
+                      <span className="text-[11px] uppercase text-[hsl(var(--muted-foreground))]">Week</span>
+                      <span className={cn("text-[13px] font-bold font-mono", weekTotal >= 0 ? "text-emerald-400" : "text-red-400")}>
+                        {fmt(weekTotal)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               );
             })}

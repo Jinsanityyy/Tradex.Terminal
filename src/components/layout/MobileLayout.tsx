@@ -368,11 +368,16 @@ export function MobileLayout() {
       >
         <div className="flex items-center gap-3">
           {/* Hamburger — opens features drawer */}
+          {/* The main menu was a 28px target. The hit area is 44px now; the
+              negative margin keeps the visible box where it was. */}
           <button
             onClick={openDrawer}
-            className="flex items-center justify-center w-7 h-7 rounded-[2px] border border-[hsl(var(--border))] active:bg-[hsl(var(--foreground)_/_0.05)]"
+            aria-label="Open menu"
+            className="-m-2 flex items-center justify-center w-11 h-11 group"
           >
-            <Menu className="h-4 w-4 text-[hsl(var(--text-secondary))]" />
+            <span className="flex items-center justify-center w-8 h-8 rounded-[2px] border border-[hsl(var(--border))] group-active:bg-[hsl(var(--foreground)_/_0.05)]">
+              <Menu className="h-4 w-4 text-[hsl(var(--text-secondary))]" />
+            </span>
           </button>
           <TradeXLogo variant="wordmark" size="xs" />
         </div>
