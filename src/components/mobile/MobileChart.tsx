@@ -42,7 +42,7 @@ class ChartErrorBoundary extends Component<
           <p className="text-xs text-[hsl(var(--muted-foreground))]">Chart failed to load</p>
           <button
             onClick={() => { this.setState({ hasError: false }); this.props.onReset(); }}
-            className="flex items-center gap-1.5 text-[10px] text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30 px-3 py-1.5 rounded-lg"
+            className="flex items-center gap-1.5 text-[11px] text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30 px-3 py-1.5 rounded-lg"
           >
             <RefreshCw className="w-3 h-3" /> Retry
           </button>
@@ -88,7 +88,7 @@ export function MobileChart() {
               key={s.value}
               onClick={() => handleSymbol(s.value)}
               className={cn(
-                "shrink-0 text-[10px] font-semibold px-2.5 py-[3px] rounded-t-lg rounded-b border-x border-t transition-all",
+                "shrink-0 text-[11px] font-semibold px-2.5 py-[3px] rounded-t-lg rounded-b border-x border-t transition-all",
                 isActive
                   ? "border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
                   : "border-white/8 border-transparent text-zinc-400 hover:text-zinc-200"

@@ -119,7 +119,7 @@ export function MobileFeed() {
         <div className="flex overflow-x-auto flex-1">
           {tabs.map(({ id, label, Icon }) => (
             <button key={id} onClick={() => setTab(id)}
-              className={cn("flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider border-b-2 transition-all -mb-px shrink-0",
+              className={cn("flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider border-b-2 transition-all -mb-px shrink-0",
                 tab === id ? "border-[hsl(var(--primary))] text-[hsl(var(--primary))]" : "border-transparent text-zinc-500")}>
               <Icon className="w-3 h-3" />{label}
             </button>
@@ -139,7 +139,7 @@ export function MobileFeed() {
             <div className="flex gap-1.5 px-3 py-2 overflow-x-auto border-b border-white/5">
               {LIVE_CHANNELS.map(ch => (
                 <button key={ch.id} onClick={() => setActiveChannel(ch)}
-                  className={cn("shrink-0 px-3 py-1 text-[10px] font-semibold rounded-lg border transition-all",
+                  className={cn("shrink-0 px-3 py-1 text-[11px] font-semibold rounded-lg border transition-all",
                     activeChannel.id === ch.id
                       ? "border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
                       : "border-white/8 text-zinc-500")}>
@@ -163,7 +163,7 @@ export function MobileFeed() {
                       href={`https://www.youtube.com/${activeChannel.handle}/live`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-[10px] text-zinc-500 border border-white/10 px-2.5 py-1 rounded-md"
+                      className="flex items-center gap-1.5 text-[11px] text-zinc-500 border border-white/10 px-2.5 py-1 rounded-md"
                     >
                       <ExternalLink className="h-3 w-3" />
                       Open on YouTube
@@ -184,12 +184,12 @@ export function MobileFeed() {
             </div>
             {catalysts.length > 0 && (
               <div className="px-3 pb-2 mt-2">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 mb-2">Market Drivers</p>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-600 mb-2">Market Drivers</p>
                 <CatalystFeed catalysts={catalysts} limit={3} />
               </div>
             )}
             <div className="px-3 pb-4 mt-2">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 mb-2">Live Headlines</p>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-600 mb-2">Live Headlines</p>
               <NewsFeed items={news} compact />
             </div>
           </div>
@@ -214,13 +214,13 @@ export function MobileFeed() {
                   className="bg-[hsl(var(--card))] rounded-xl p-3.5 border border-white/5 cursor-pointer active:bg-[hsl(var(--secondary))]">
                   <div className="flex items-start justify-between gap-2 mb-1.5">
                     <p className="text-xs font-medium leading-snug flex-1">{e.event}</p>
-                    <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 uppercase",
+                    <span className={cn("text-[11px] font-bold px-1.5 py-0.5 rounded shrink-0 uppercase",
                       e.impact === "high" ? "bg-red-500/15 text-red-400" :
                       e.impact === "medium" ? "bg-t-accent-15 t-accent" : "bg-zinc-500/15 text-zinc-400")}>
                       {e.impact}
                     </span>
                   </div>
-                  <div className="flex gap-3 text-[9px] text-zinc-600 mb-1.5">
+                  <div className="flex gap-3 text-[11px] text-zinc-600 mb-1.5">
                     <span>{e.currency}</span>
                     {e.time && <span>{e.time}</span>}
                     {e.actual != null && <span className="text-[#00C853]">A: {e.actual}</span>}
@@ -231,13 +231,13 @@ export function MobileFeed() {
                       const { impact, reasoning } = getEventImpactForSymbol(e, selectedSymbol);
                       return (
                         <>
-                          <span className={cn("text-[9px] px-1.5 py-0.5 rounded-[2px] font-semibold",
+                          <span className={cn("text-[11px] px-1.5 py-0.5 rounded-[2px] font-semibold",
                             impact === "bullish" ? "bg-[#00C853]/15 text-[#00C853]" :
                             impact === "bearish" ? "bg-[#FF3D3D]/15 text-[#FF3D3D]" : "bg-zinc-500/15 text-zinc-400")}>
                             {symbolShort} {impact.toUpperCase()}
                           </span>
                           {reasoning && (
-                            <p className="w-full text-[10px] text-zinc-600 mt-1.5 leading-relaxed border-t border-white/5 pt-1.5">{reasoning}</p>
+                            <p className="w-full text-[11px] text-zinc-600 mt-1.5 leading-relaxed border-t border-white/5 pt-1.5">{reasoning}</p>
                           )}
                         </>
                       );
@@ -260,25 +260,25 @@ export function MobileFeed() {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex gap-1.5">
                       {p.affectedAssets?.slice(0, 3).map((a: string) => (
-                        <span key={a} className="text-[9px] text-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 px-1.5 py-0.5 rounded">{a}</span>
+                        <span key={a} className="text-[11px] text-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 px-1.5 py-0.5 rounded">{a}</span>
                       ))}
                     </div>
                     <div className="flex items-center gap-1.5">
                       {(() => {
                         const { impact } = getImpactForSymbol({ goldImpact: p.goldImpact, usdImpact: p.usdImpact, sentimentTag: p.sentimentClassification }, selectedSymbol);
                         return (
-                          <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-[2px] uppercase",
+                          <span className={cn("text-[11px] font-bold px-1.5 py-0.5 rounded-[2px] uppercase",
                             impact === "bullish" ? "bg-[#00C853]/15 text-[#00C853]" :
                             impact === "bearish" ? "bg-[#FF3D3D]/15 text-[#FF3D3D]" : "bg-zinc-500/15 text-zinc-400")}>
                             {symbolShort} {impact.toUpperCase()}
                           </span>
                         );
                       })()}
-                      <span className="text-[9px] font-mono text-zinc-600">{p.impactScore}/10</span>
+                      <span className="text-[11px] font-mono text-zinc-600">{p.impactScore}/10</span>
                     </div>
                   </div>
                   {p.whyItMatters && (
-                    <p className="text-[10px] text-zinc-600 mt-2 pt-2 border-t border-white/5 leading-relaxed">{p.whyItMatters}</p>
+                    <p className="text-[11px] text-zinc-600 mt-2 pt-2 border-t border-white/5 leading-relaxed">{p.whyItMatters}</p>
                   )}
                 </div>
               ))}
@@ -292,7 +292,7 @@ export function MobileFeed() {
           <div className="space-y-4">
             <div className="flex gap-3 flex-wrap items-center">
               <span className="text-[11px] font-mono text-zinc-500">{selectedEvent.currency} · {selectedEvent.time}</span>
-              <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full uppercase",
+              <span className={cn("text-[11px] font-bold px-2 py-0.5 rounded-full uppercase",
                 selectedEvent.impact === "high" ? "bg-red-500/15 text-red-400" :
                 selectedEvent.impact === "medium" ? "bg-t-accent-15 t-accent" : "bg-zinc-500/15 text-zinc-400")}>
                 {selectedEvent.impact} impact
@@ -305,7 +305,7 @@ export function MobileFeed() {
                 { label: "Actual",   value: selectedEvent.actual || " - ", color: selectedEvent.actual ? "text-[hsl(var(--primary))]" : "text-zinc-600" },
               ].map(({ label, value, color }) => (
                 <div key={label} className="rounded-lg bg-[hsl(var(--secondary))] p-3 text-center">
-                  <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1">{label}</p>
+                  <p className="text-[11px] uppercase tracking-wider text-zinc-600 mb-1">{label}</p>
                   <p className={cn("text-sm font-bold font-mono", color)}>{value}</p>
                 </div>
               ))}
@@ -315,7 +315,7 @@ export function MobileFeed() {
               return (
                 <>
                   <div className="flex gap-2 flex-wrap">
-                    <span className={cn("inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold",
+                    <span className={cn("inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-semibold",
                       impact === "bullish" ? "bg-[#00C853]/15 text-[#00C853] border-[#00C853]/30" :
                       impact === "bearish" ? "bg-[#FF3D3D]/15 text-[#FF3D3D] border-[#FF3D3D]/30" :
                       "bg-zinc-500/15 text-zinc-400 border-zinc-500/30")}>
@@ -327,14 +327,14 @@ export function MobileFeed() {
                     <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5">
                       <div className="flex items-center gap-1.5 mb-1.5">
                         <Target className="h-3.5 w-3.5 t-accent" />
-                        <span className="text-[10px] font-semibold uppercase tracking-wider t-accent">{symbolLabel} Analysis</span>
+                        <span className="text-[11px] font-semibold uppercase tracking-wider t-accent">{symbolLabel} Analysis</span>
                       </div>
                       <p className="text-xs leading-relaxed">{reasoning}</p>
                     </div>
                   )}
                   {reasoning && (
                     <div className="rounded-lg border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary))]/5 p-3.5">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--primary))]/70 mb-1">Trading Recommendation</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--primary))]/70 mb-1">Trading Recommendation</p>
                       <p className="text-xs text-zinc-200 leading-relaxed">{reasoning}</p>
                     </div>
                   )}
@@ -351,15 +351,15 @@ export function MobileFeed() {
           <div className="space-y-4">
             <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5">
               <p className="text-xs leading-relaxed">{selectedPost.content}</p>
-              <p className="text-[9px] text-zinc-600 mt-2">{selectedPost.timestamp}</p>
+              <p className="text-[11px] text-zinc-600 mt-2">{selectedPost.timestamp}</p>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 text-center">
-                <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1">Impact</p>
+                <p className="text-[11px] uppercase tracking-wider text-zinc-600 mb-1">Impact</p>
                 <p className="text-lg font-bold font-mono">{selectedPost.impactScore}/10</p>
               </div>
               <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 text-center">
-                <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1">Sentiment</p>
+                <p className="text-[11px] uppercase tracking-wider text-zinc-600 mb-1">Sentiment</p>
                 <p className={cn("text-sm font-bold uppercase",
                   selectedPost.sentimentClassification === "bullish" ? "text-[#00C853]" :
                   selectedPost.sentimentClassification === "bearish" ? "text-[#FF3D3D]" : "t-accent")}>
@@ -369,22 +369,22 @@ export function MobileFeed() {
             </div>
             {selectedPost.whyItMatters && (
               <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--primary))] mb-1.5">Why It Matters</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--primary))] mb-1.5">Why It Matters</p>
                 <p className="text-xs leading-relaxed">{selectedPost.whyItMatters}</p>
               </div>
             )}
             {selectedPost.potentialReaction && (
               <div className="rounded-lg border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary))]/5 p-3.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--primary))]/70 mb-1.5">Potential Market Reaction</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--primary))]/70 mb-1.5">Potential Market Reaction</p>
                 <p className="text-xs text-zinc-200 leading-relaxed">{selectedPost.potentialReaction}</p>
               </div>
             )}
             {selectedPost.affectedAssets?.length > 0 && (
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-2">Affected Assets</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-600 mb-2">Affected Assets</p>
                 <div className="flex flex-wrap gap-1.5">
                   {selectedPost.affectedAssets.map((a: string) => (
-                    <span key={a} className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-[hsl(var(--secondary))] text-zinc-400">{a}</span>
+                    <span key={a} className="text-[11px] font-mono px-2 py-0.5 rounded-lg bg-[hsl(var(--secondary))] text-zinc-400">{a}</span>
                   ))}
                 </div>
               </div>

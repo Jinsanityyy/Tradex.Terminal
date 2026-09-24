@@ -60,7 +60,7 @@ export function AssetSelectorSheet({ open, onClose }: AssetSelectorSheetProps) {
                 >
                   <div
                     className={cn(
-                      "w-11 h-11 rounded-xl flex items-center justify-center text-[12px] font-bold font-mono shrink-0",
+                      "w-11 h-11 rounded-xl flex items-center justify-center text-[13px] font-bold font-mono shrink-0",
                       isSelected
                         ? "bg-[hsl(var(--primary))]/20 text-[hsl(var(--primary))]"
                         : "bg-white/8 text-zinc-300"
@@ -118,7 +118,7 @@ export function AssetChip({ onPress, size = "md" }: AssetChipProps) {
       <span
         className={cn(
           "font-bold",
-          size === "sm" ? "text-[10px]" : "text-[11px]"
+          size === "sm" ? "text-[11px]" : "text-[11px]"
         )}
         style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono','Courier New',monospace", color: "hsl(var(--primary))" }}
       >

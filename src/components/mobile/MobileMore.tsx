@@ -231,10 +231,10 @@ function PnlWidget({ micro }: { micro: MicroData }) {
       >
         {/* Header strip */}
         <div className="flex items-center justify-between px-3 py-[6px] border-b border-white/[0.05]">
-          <span className="text-[8px] font-bold tracking-[0.18em] text-zinc-700 uppercase">
+          <span className="text-[11px] font-bold tracking-[0.18em] text-zinc-700 uppercase">
             Performance
           </span>
-          <span className="text-[8px] font-mono tracking-[0.06em] text-zinc-700">
+          <span className="text-[11px] font-mono tracking-[0.06em] text-zinc-700">
             7 DAY
           </span>
         </div>
@@ -244,20 +244,20 @@ function PnlWidget({ micro }: { micro: MicroData }) {
 
           {/* ┌ Daily P&L */}
           <div className="flex flex-col gap-[4px] px-3 py-[9px] border-b border-r border-white/[0.05]">
-            <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
               Daily P&L
             </span>
             <span className={cn("text-[13px] font-bold leading-none tabular-nums", pnlClass)}>
               {pnlValue}
             </span>
-            <span className="text-[8px] font-mono leading-none text-zinc-700/50">
+            <span className="text-[11px] font-mono leading-none text-zinc-700/50">
               TODAY
             </span>
           </div>
 
           {/* ┐ Session */}
           <div className="flex flex-col gap-[4px] px-3 py-[9px] border-b border-white/[0.05]">
-            <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
               Session
             </span>
             {/* dot + value — inline-flex keeps them on one baseline */}
@@ -274,7 +274,7 @@ function PnlWidget({ micro }: { micro: MicroData }) {
               </span>
             </div>
             <span className={cn(
-              "text-[8px] font-mono leading-none",
+              "text-[11px] font-mono leading-none",
               hasSession ? "text-[#00C853]/50" : "text-zinc-700/50"
             )}>
               {hasSession ? "ACTIVE" : "—"}
@@ -283,7 +283,7 @@ function PnlWidget({ micro }: { micro: MicroData }) {
 
           {/* └ Win Rate */}
           <div className="flex flex-col gap-[4px] px-3 py-[9px] border-r border-white/[0.05]">
-            <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
               Win Rate ({winRateLabel})
             </span>
             <span className={cn(
@@ -292,14 +292,14 @@ function PnlWidget({ micro }: { micro: MicroData }) {
             )}>
               {winRate7d !== null ? `${winRate7d}%` : "—"}
             </span>
-            <span className="text-[8px] font-mono leading-none text-zinc-700/50">
+            <span className="text-[11px] font-mono leading-none text-zinc-700/50">
               {winRate7d !== null ? winRateLabel : "NO DATA"}
             </span>
           </div>
 
           {/* ┘ Avg R:R */}
           <div className="flex flex-col gap-[4px] px-3 py-[9px]">
-            <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
               Win/Loss
             </span>
             <span className={cn(
@@ -308,7 +308,7 @@ function PnlWidget({ micro }: { micro: MicroData }) {
             )}>
               {avgRR !== null ? `${avgRR}×` : "—"}
             </span>
-            <span className="text-[8px] font-mono leading-none text-zinc-700/50">
+            <span className="text-[11px] font-mono leading-none text-zinc-700/50">
               {avgRR !== null ? "AVG W ÷ L" : "NO DATA"}
             </span>
           </div>
@@ -367,7 +367,7 @@ function AppRow({
           </span>
         ) : tag ? (
           <span className={cn(
-            "text-[9px] font-mono uppercase tracking-wide",
+            "text-[11px] font-mono uppercase tracking-wide",
             tagColors[variant ?? "muted"]
           )}>
             {tag}
@@ -641,7 +641,7 @@ export function MobileMore() {
               <span className="text-[11px] font-normal uppercase tracking-wide">Menu</span>
             </button>
             <span className="text-[11px] text-zinc-600 mx-1">/</span>
-            <span className="text-[12px] font-medium text-zinc-200">{activeApp.label}</span>
+            <span className="text-[13px] font-medium text-zinc-200">{activeApp.label}</span>
             <div className="ml-auto">
               <AssetChip size="sm" onPress={() => setSheetOpen(true)} />
             </div>
@@ -698,7 +698,7 @@ export function MobileMore() {
                   {traderName || "Trader"}
                 </p>
                 <span className={cn(
-                  "text-[8px] font-bold tracking-widest px-1.5 py-[2px] rounded-[2px] border leading-none",
+                  "text-[11px] font-bold tracking-widest px-1.5 py-[2px] rounded-[2px] border leading-none",
                   isPaid
                     ? "bg-t-accent-10 t-accent border-t-accent-20"
                     : subscription.isTrialing
@@ -709,7 +709,7 @@ export function MobileMore() {
                   {planLabel}
                 </span>
               </div>
-              <p className="text-[10px] text-zinc-500 mt-[4px] uppercase tracking-wider leading-none">
+              <p className="text-[11px] text-zinc-500 mt-[4px] uppercase tracking-wider leading-none">
                 Tradex Terminal
               </p>
             </div>
@@ -733,7 +733,7 @@ export function MobileMore() {
               <div key={section.label}>
                 {/* Section divider */}
                 <div className="flex items-center gap-2.5 px-4 pt-3 pb-1">
-                  <span className="text-[8px] font-semibold tracking-[0.12em] text-zinc-500/60 shrink-0">
+                  <span className="text-[11px] font-semibold tracking-[0.12em] text-zinc-500/60 shrink-0">
                     {section.label}
                   </span>
                   <div className="flex-1 h-px bg-white/[0.05]" />
@@ -764,7 +764,7 @@ export function MobileMore() {
           {/* ── Account section ─────────────────────────────────────────── */}
           <div>
             <div className="flex items-center gap-2.5 px-4 pt-3 pb-1">
-              <span className="text-[8px] font-semibold tracking-[0.12em] text-zinc-500/60 shrink-0">
+              <span className="text-[11px] font-semibold tracking-[0.12em] text-zinc-500/60 shrink-0">
                 ACCOUNT
               </span>
               <div className="flex-1 h-px bg-white/[0.05]" />
@@ -815,7 +815,7 @@ export function MobileMore() {
                 <span className="flex-1 text-[11.5px] font-medium text-zinc-200 text-left leading-none tracking-[0.01em]">
                   Send test alert
                 </span>
-                <span className="text-[9px] text-zinc-600 shrink-0">diagnose delivery</span>
+                <span className="text-[11px] text-zinc-600 shrink-0">diagnose delivery</span>
               </button>
             )}
 
@@ -837,7 +837,7 @@ export function MobileMore() {
                 <span className="flex-1 text-[11.5px] font-medium text-zinc-200 text-left leading-none tracking-[0.01em]">
                   Test with app closed
                 </span>
-                <span className="text-[9px] text-zinc-600 shrink-0">sends in 10s</span>
+                <span className="text-[11px] text-zinc-600 shrink-0">sends in 10s</span>
               </button>
             )}
 

@@ -332,7 +332,7 @@ export function MobileLayout() {
         </div>
         <div className="text-center space-y-1">
           <p className="text-[13px] font-bold tracking-[0.25em] uppercase text-zinc-300">TradeX Terminal</p>
-          <p className="text-[10px] text-zinc-600 tracking-widest uppercase">Loading your workspace…</p>
+          <p className="text-[11px] text-zinc-600 tracking-widest uppercase">Loading your workspace…</p>
         </div>
         <div className="flex gap-1.5">
           {[0, 1, 2].map(i => (
@@ -360,7 +360,7 @@ export function MobileLayout() {
 
       {/* Top bar */}
       <div
-        className="flex items-center justify-between px-4 pt-10 pb-2 bg-[#0D0D0F] border-b border-[#1E1E24] shrink-0"
+        className="flex items-center justify-between px-4 pt-10 pb-2 bg-[#0D0D0F] border-b border-[hsl(var(--border))] shrink-0"
         // pt-10 alone assumed a ~24px status bar; punch-hole/notch devices report
         // a taller inset and clipped the row. The max() keeps the original 40px
         // wherever the inset is small, so only tall-inset devices grow.
@@ -370,16 +370,16 @@ export function MobileLayout() {
           {/* Hamburger — opens features drawer */}
           <button
             onClick={openDrawer}
-            className="flex items-center justify-center w-7 h-7 rounded-[2px] border border-[#1E1E24] active:bg-white/5"
+            className="flex items-center justify-center w-7 h-7 rounded-[2px] border border-[hsl(var(--border))] active:bg-white/5"
           >
-            <Menu className="h-4 w-4 text-[#6B6B7A]" />
+            <Menu className="h-4 w-4 text-[hsl(var(--text-secondary))]" />
           </button>
           <TradeXLogo variant="wordmark" size="xs" />
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-[1px] pulse-accent" />
-            <span className="text-[9px] tracking-wider uppercase" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace", color: "hsl(var(--primary))" }}>Live</span>
+            <span className="text-[11px] tracking-wider uppercase" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace", color: "hsl(var(--primary))" }}>Live</span>
           </div>
           {/* Profile button */}
           <button onClick={() => { setShowProfile(true); setDraft(traderName); setEditing(false); }}
@@ -398,10 +398,10 @@ export function MobileLayout() {
       {showProfile && (
         <div className="absolute inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.8)" }}
           onClick={() => setShowProfile(false)}>
-          <div className="w-full max-w-sm rounded-[2px] bg-[#141418] border border-[#1E1E24] p-5"
+          <div className="w-full max-w-sm rounded-[2px] bg-[hsl(var(--card))] border border-[hsl(var(--border))] p-5"
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
-              <span className="text-[14px] font-semibold">Profile</span>
+              <span className="text-[15px] font-semibold">Profile</span>
               <button onClick={() => setShowProfile(false)}>
                 <X className="h-5 w-5 text-zinc-500" />
               </button>
@@ -435,7 +435,7 @@ export function MobileLayout() {
 
             {/* Name edit */}
             <div className="mb-4">
-              <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-2">Trader Name</p>
+              <p className="text-[11px] text-zinc-600 uppercase tracking-wider mb-2">Trader Name</p>
               {editing ? (
                 <div className="flex gap-2">
                   <input autoFocus value={draft} onChange={e => setDraft(e.target.value)}
@@ -443,7 +443,7 @@ export function MobileLayout() {
                     maxLength={20} placeholder="Your name..."
                     className="flex-1 rounded-xl bg-[hsl(var(--secondary))] border border-[hsl(var(--primary))]/30 px-3 py-2 text-[13px] text-white outline-none" />
                   <button onClick={saveName}
-                    className="px-4 py-2 rounded-xl bg-[hsl(var(--primary))]/20 border border-[hsl(var(--primary))]/30 text-[12px] text-[hsl(var(--primary))] font-semibold">
+                    className="px-4 py-2 rounded-xl bg-[hsl(var(--primary))]/20 border border-[hsl(var(--primary))]/30 text-[13px] text-[hsl(var(--primary))] font-semibold">
                     Save
                   </button>
                 </div>
@@ -468,15 +468,15 @@ export function MobileLayout() {
                   className="w-full flex items-center justify-between px-4 py-3 rounded-[2px] bg-t-accent-10 border border-t-accent-30 active:opacity-70"
                 >
                   <div className="text-left">
-                    <p className="text-[12px] font-bold t-accent" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>PRO</p>
-                    <p className="text-[10px] text-[#6B6B7A]">Full terminal access</p>
+                    <p className="text-[13px] font-bold t-accent" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>PRO</p>
+                    <p className="text-[11px] text-[hsl(var(--text-secondary))]">Full terminal access</p>
                   </div>
                   <span className="text-[13px] font-bold t-accent" style={{ fontFamily: "var(--font-ibm-plex-mono),'IBM Plex Mono',monospace" }}>
                     {pricing.loading ? "…" : pricing.monthly ?? "—"}
                   </span>
                 </button>
                 {upgradeError && (
-                  <p className="mt-2 text-[10px] text-red-400">{upgradeError}</p>
+                  <p className="mt-2 text-[11px] text-red-400">{upgradeError}</p>
                 )}
               </div>
             )}
@@ -597,7 +597,7 @@ export function MobileLayout() {
                   />
                   {showBadge && (
                     <span
-                      className="absolute top-0.5 right-2 min-w-[16px] h-[16px] rounded-full text-[9px] font-bold text-white flex items-center justify-center px-1 ring-2"
+                      className="absolute top-0.5 right-2 min-w-[16px] h-[16px] rounded-full text-[11px] font-bold text-white flex items-center justify-center px-1 ring-2"
                       style={{
                         backgroundColor: "var(--t-bearish, #FF3D3D)",
                         // Cut the badge out of the bar rather than letting it

@@ -54,7 +54,7 @@ function StatRow({ label, value, color, sub }: { label: string; value: string; c
       <span className="text-[11px] text-zinc-500 shrink-0">{label}</span>
       <div className="text-right min-w-0">
         <span className={cn("text-[11px] font-mono font-semibold", color ?? "text-zinc-200")}>{value}</span>
-        {sub && <p className="text-[9px] text-zinc-600 mt-0.5 leading-tight">{sub}</p>}
+        {sub && <p className="text-[11px] text-zinc-600 mt-0.5 leading-tight">{sub}</p>}
       </div>
     </div>
   );
@@ -64,15 +64,15 @@ function AgentBar({ label, bias, conf }: { label: string; bias: string; conf: nu
   const barColor = bias === "bullish" ? "#10b981" : bias === "bearish" ? "#f87171" : "#3f3f46";
   return (
     <div className="flex items-center gap-2 py-1.5">
-      <span className="text-[10px] text-zinc-500 w-20 shrink-0">{label}</span>
+      <span className="text-[11px] text-zinc-500 w-20 shrink-0">{label}</span>
       <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
         <div className="h-full rounded-full transition-all" style={{ width: `${conf}%`, backgroundColor: barColor }} />
       </div>
       <div className="w-16 text-right shrink-0 flex items-center justify-end gap-1">
-        <span className={cn("text-[10px] font-bold", biasColor(bias))}>
+        <span className={cn("text-[11px] font-bold", biasColor(bias))}>
           {bias === "bullish" ? "▲" : bias === "bearish" ? "▼" : "–"}
         </span>
-        <span className="text-[10px] font-mono text-zinc-500">{conf}%</span>
+        <span className="text-[11px] font-mono text-zinc-500">{conf}%</span>
       </div>
     </div>
   );
@@ -120,21 +120,21 @@ function SignalBanner({
       <div className="mt-2 flex flex-wrap items-center gap-3">
         {confluenceCount != null && (
           <span className="flex items-baseline gap-0.5">
-            <span className={cn("text-[10px]", c.sub)}>Confluence</span>
+            <span className={cn("text-[11px]", c.sub)}>Confluence</span>
             <span className={cn("text-[15px] font-black font-mono tabular-nums leading-none mx-0.5", c.text)}>
               {confluenceCount}
             </span>
-            <span className={cn("text-[10px]", c.sub)}>/10</span>
+            <span className={cn("text-[11px]", c.sub)}>/10</span>
           </span>
         )}
         {distanceToEntry != null && state !== "NO_TRADE" && state !== "WAIT" && (
-          <span className="font-mono text-[10px] text-zinc-600">
+          <span className="font-mono text-[11px] text-zinc-600">
             {distanceToEntry.toFixed(2)}% from entry
           </span>
         )}
       </div>
       {reason && (
-        <p className={cn("mt-2 text-[10px] leading-snug", c.sub)}>{reason}</p>
+        <p className={cn("mt-2 text-[11px] leading-snug", c.sub)}>{reason}</p>
       )}
     </div>
   );
@@ -176,26 +176,26 @@ function TradePlanCard({ tradePlan }: { tradePlan: NonNullable<AgentRunResult["a
         {/* Key metrics row */}
         <div className="grid grid-cols-3 gap-3 mb-3">
           <div className="bg-black/20 rounded-xl border border-white/6 px-3 py-2.5 text-center">
-            <p className="text-[9px] uppercase tracking-wider text-zinc-500">R:R</p>
-            <p className={cn("text-[14px] font-black font-mono mt-0.5",
+            <p className="text-[11px] uppercase tracking-wider text-zinc-500">R:R</p>
+            <p className={cn("text-[15px] font-black font-mono mt-0.5",
               (tradePlan.rrRatio ?? 0) >= 3 ? "text-emerald-400" : "text-amber-400")}>
               1:{tradePlan.rrRatio?.toFixed(1)}
             </p>
           </div>
           <div className="bg-black/20 rounded-xl border border-white/6 px-3 py-2.5 text-center">
-            <p className="text-[9px] uppercase tracking-wider text-zinc-500">Conf</p>
-            <p className="text-[14px] font-black font-mono mt-0.5 text-zinc-200">
+            <p className="text-[11px] uppercase tracking-wider text-zinc-500">Conf</p>
+            <p className="text-[15px] font-black font-mono mt-0.5 text-zinc-200">
               {tradePlan.confluenceCount != null
                 ? <>
                     {tradePlan.confluenceCount}
-                    <span className="text-[10px] text-zinc-500">/10</span>
+                    <span className="text-[11px] text-zinc-500">/10</span>
                   </>
                 : " - "}
             </p>
           </div>
           <div className="bg-black/20 rounded-xl border border-white/6 px-3 py-2.5 text-center">
-            <p className="text-[9px] uppercase tracking-wider text-zinc-500">Risk</p>
-            <p className="text-[14px] font-black font-mono mt-0.5 text-zinc-200">{tradePlan.maxRiskPercent}%</p>
+            <p className="text-[11px] uppercase tracking-wider text-zinc-500">Risk</p>
+            <p className="text-[15px] font-black font-mono mt-0.5 text-zinc-200">{tradePlan.maxRiskPercent}%</p>
           </div>
         </div>
 
@@ -204,7 +204,7 @@ function TradePlanCard({ tradePlan }: { tradePlan: NonNullable<AgentRunResult["a
           <div className="bg-black/15 rounded-xl border border-white/5 px-3 py-2.5">
             <div className="flex items-center gap-1.5 mb-1">
               <Target className="h-3 w-3 text-zinc-500" />
-              <span className="text-[9px] uppercase tracking-wider text-zinc-500">Entry</span>
+              <span className="text-[11px] uppercase tracking-wider text-zinc-500">Entry</span>
             </div>
             <p className={cn("text-[15px] font-black font-mono", dirColor)}>
               {tradePlan.entry.toFixed(p)}
@@ -213,12 +213,12 @@ function TradePlanCard({ tradePlan }: { tradePlan: NonNullable<AgentRunResult["a
           <div className="bg-black/15 rounded-xl border border-red-500/10 px-3 py-2.5">
             <div className="flex items-center gap-1.5 mb-1">
               <Shield className="h-3 w-3 text-red-500/60" />
-              <span className="text-[9px] uppercase tracking-wider text-zinc-500">Stop Loss</span>
+              <span className="text-[11px] uppercase tracking-wider text-zinc-500">Stop Loss</span>
             </div>
             <p className="text-[15px] font-black font-mono text-red-400">
               {tradePlan.stopLoss.toFixed(p)}
             </p>
-            <p className="text-[9px] text-zinc-600 mt-0.5">−{riskPts.toFixed(p > 2 ? 1 : 0)} pts</p>
+            <p className="text-[11px] text-zinc-600 mt-0.5">−{riskPts.toFixed(p > 2 ? 1 : 0)} pts</p>
           </div>
         </div>
 
@@ -227,8 +227,8 @@ function TradePlanCard({ tradePlan }: { tradePlan: NonNullable<AgentRunResult["a
           {tpRows.map(tp => (
             <div key={tp.label} className="bg-black/15 rounded-xl border border-emerald-500/10 px-3 py-2.5">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[9px] uppercase tracking-wider text-zinc-500">{tp.label}</span>
-                <span className="text-[9px] font-mono text-zinc-600">+{tp.r}R</span>
+                <span className="text-[11px] uppercase tracking-wider text-zinc-500">{tp.label}</span>
+                <span className="text-[11px] font-mono text-zinc-600">+{tp.r}R</span>
               </div>
               <p className={cn("text-[13px] font-black font-mono", tp.color)}>
                 {tp.value.toFixed(p)}
@@ -241,20 +241,20 @@ function TradePlanCard({ tradePlan }: { tradePlan: NonNullable<AgentRunResult["a
       {/* Confluence chips */}
       {tradePlan.confluenceFactors && tradePlan.confluenceFactors.length > 0 && (
         <div className="px-4 pb-3 border-t border-white/[0.04] pt-3">
-          <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-2">Confluence factors</p>
+          <p className="text-[11px] uppercase tracking-wider text-zinc-600 mb-2">Confluence factors</p>
           <div className="flex flex-wrap gap-1.5">
             {(showAllConfluence
               ? tradePlan.confluenceFactors
               : tradePlan.confluenceFactors.slice(0, CONFLUENCE_LIMIT)
             ).map(f => (
-              <span key={f} className="text-[9px] px-2 py-0.5 rounded-full border border-emerald-500/20 bg-emerald-500/8 text-emerald-400">
+              <span key={f} className="text-[11px] px-2 py-0.5 rounded-full border border-emerald-500/20 bg-emerald-500/8 text-emerald-400">
                 ✓ {f}
               </span>
             ))}
             {tradePlan.confluenceFactors.length > CONFLUENCE_LIMIT && (
               <button
                 onClick={() => setShowAllConfluence(v => !v)}
-                className="text-[9px] px-2 py-0.5 rounded-full border border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:text-zinc-200 transition-colors"
+                className="text-[11px] px-2 py-0.5 rounded-full border border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:text-zinc-200 transition-colors"
               >
                 {showAllConfluence
                   ? "show less"
@@ -268,7 +268,7 @@ function TradePlanCard({ tradePlan }: { tradePlan: NonNullable<AgentRunResult["a
       {/* Expandable details */}
       <button
         onClick={() => setShowDetails((v: boolean) => !v)}
-        className="w-full flex items-center justify-between px-4 py-2.5 border-t border-white/5 text-[10px] text-zinc-500 active:bg-white/3"
+        className="w-full flex items-center justify-between px-4 py-2.5 border-t border-white/5 text-[11px] text-zinc-500 active:bg-white/3"
       >
         <span className="uppercase tracking-wider font-semibold">Trigger & Management</span>
         {showDetails ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
@@ -277,12 +277,12 @@ function TradePlanCard({ tradePlan }: { tradePlan: NonNullable<AgentRunResult["a
       {showDetails && (
         <div className="px-4 pb-4 space-y-3 border-t border-white/5">
           <div className="pt-3">
-            <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1.5">Trigger Condition</p>
+            <p className="text-[11px] uppercase tracking-wider text-zinc-600 mb-1.5">Trigger Condition</p>
             <p className="text-[11px] text-zinc-400 leading-relaxed">{tradePlan.triggerCondition}</p>
           </div>
           {tradePlan.managementNotes.length > 0 && (
             <div>
-              <p className="text-[9px] uppercase tracking-wider text-zinc-600 mb-1.5">Trade Management</p>
+              <p className="text-[11px] uppercase tracking-wider text-zinc-600 mb-1.5">Trade Management</p>
               <div className="space-y-2">
                 {tradePlan.managementNotes.map((note, i) => (
                   <div key={i} className="flex items-start gap-2">
@@ -320,7 +320,7 @@ function StandAsideCard({ exec, isWait }: {
             : <Shield className="h-4 w-4 text-zinc-500" />}
         </div>
         <div>
-          <p className={cn("text-[12px] font-bold", isWait ? "text-orange-300" : "text-zinc-400")}>
+          <p className={cn("text-[13px] font-bold", isWait ? "text-orange-300" : "text-zinc-400")}>
             {isWait ? "Monitoring  -  Suboptimal Setup" : "No Valid Setup"}
           </p>
           <p className="text-[11px] text-zinc-600 mt-1 leading-snug">
@@ -330,7 +330,7 @@ function StandAsideCard({ exec, isWait }: {
           </p>
           {exec?.grade && (
             <div className="mt-2 flex items-center gap-2">
-              <span className="text-[10px] text-zinc-600">Current grade:</span>
+              <span className="text-[11px] text-zinc-600">Current grade:</span>
               <GradeBadge grade={exec.grade} />
             </div>
           )}
@@ -509,7 +509,7 @@ export function MobileBrain() {
           ].map(({ id, label, icon: Icon }) => (
             <button key={id} onClick={() => setView(id)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider border-b-2 transition-all -mb-px",
+                "flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider border-b-2 transition-all -mb-px",
                 view === id
                   ? "border-[hsl(var(--primary))] text-[hsl(var(--primary))]"
                   : "border-transparent text-zinc-500"
@@ -533,23 +533,23 @@ export function MobileBrain() {
         <div className="overflow-y-auto overflow-x-hidden flex-1 px-4 py-4 space-y-4 pb-24 min-w-0">
 
           <div className="flex items-center gap-1">
-            <span className="text-[10px] font-bold text-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/25 px-2.5 py-1 rounded-lg mr-1">
+            <span className="text-[11px] font-bold text-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/25 px-2.5 py-1 rounded-lg mr-1">
               {getSymbolShort(symbol)}
             </span>
             {TIMEFRAMES.map(tf => (
               <button key={tf} onClick={() => setTimeframe(tf)}
                 className={cn(
-                  "px-2.5 py-1 rounded text-[10px] font-mono transition-all",
+                  "px-2.5 py-1 rounded text-[11px] font-mono transition-all",
                   timeframe === tf ? "bg-white/10 text-white" : "text-zinc-600"
                 )}>
                 {tf}
               </button>
             ))}
             {data && nowMs - new Date(data.timestamp).getTime() > 180_000 && !(isLoading || refreshing) && (
-              <span className="ml-1 rounded bg-amber-500/10 px-1.5 py-0.5 font-mono text-[9px] border border-amber-500/20 text-amber-500">STALE</span>
+              <span className="ml-1 rounded bg-amber-500/10 px-1.5 py-0.5 font-mono text-[11px] border border-amber-500/20 text-amber-500">STALE</span>
             )}
             <button onClick={handleRefresh} disabled={isLoading || refreshing || isOnCooldown || !subscription.hasFullAccess}
-              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-[10px] text-zinc-500 disabled:opacity-60">
+              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-[11px] text-zinc-500 disabled:opacity-60">
               <RefreshCw className={cn("h-3 w-3", (isLoading || refreshing) && "animate-spin")} />
               {(isLoading || refreshing) ? "Running…" : isOnCooldown ? countdownLabel : !subscription.hasFullAccess ? "Pro" : "Refresh"}
             </button>
@@ -585,7 +585,7 @@ export function MobileBrain() {
                     : <Clock className="h-4 w-4 text-zinc-500" />}
                 </div>
                 <div>
-                  <p className="text-[12px] font-bold text-zinc-400">
+                  <p className="text-[13px] font-bold text-zinc-400">
                     {autoRefreshing ? "Searching for new setup…" : "Setup Invalidated"}
                   </p>
                   <p className="text-[11px] text-zinc-600 mt-1 leading-snug">
@@ -604,7 +604,7 @@ export function MobileBrain() {
 
           {data && (
             <div className="bg-[hsl(var(--card))] rounded-2xl border border-white/5 p-4">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-3">Agent Agreement</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-3">Agent Agreement</p>
               <AgentBar label="Trend"        bias={trend?.bias ?? "neutral"}      conf={trend?.confidence ?? 0} />
               <AgentBar label="Price Action" bias={smc?.bias ?? "neutral"}        conf={smc?.confidence ?? 0} />
               <AgentBar label="News"         bias={news?.impact ?? "neutral"}     conf={news?.confidence ?? 0} />
@@ -613,8 +613,8 @@ export function MobileBrain() {
               {master && (
                 <div className="mt-3 pt-3 border-t border-white/5">
                   <div className="flex justify-between items-center">
-                    <span className="text-[10px] text-zinc-500">Sentiment Balance</span>
-                    <span className={cn("text-[12px] font-black font-mono", master.consensusScore < 0 ? "text-red-400" : "text-emerald-400")}>
+                    <span className="text-[11px] text-zinc-500">Sentiment Balance</span>
+                    <span className={cn("text-[13px] font-black font-mono", master.consensusScore < 0 ? "text-red-400" : "text-emerald-400")}>
                       {master.consensusScore > 0 ? "+" : ""}{master.consensusScore.toFixed(1)}
                     </span>
                   </div>
@@ -640,7 +640,7 @@ export function MobileBrain() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Shield className="h-3.5 w-3.5 text-zinc-500" />
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Risk Gate</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Risk Gate</span>
                 </div>
                 <span className={cn("text-[11px] font-bold px-2 py-0.5 rounded border",
                   risk.valid
@@ -655,7 +655,7 @@ export function MobileBrain() {
               <StatRow label="Session"    value={`${risk.sessionScore}/100`}
                 color={risk.sessionScore > 70 ? "text-emerald-400" : "text-zinc-200"} />
               {!risk.valid && risk.warnings?.[0] && (
-                <div className="mt-2 flex items-start gap-2 text-[10px] text-red-400/70">
+                <div className="mt-2 flex items-start gap-2 text-[11px] text-red-400/70">
                   <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
                   <p className="leading-snug">{risk.warnings[0]}</p>
                 </div>
@@ -665,7 +665,7 @@ export function MobileBrain() {
 
           {(news || contrarian) && (
             <div className="bg-[hsl(var(--card))] rounded-2xl border border-white/5 p-4 space-y-0">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-3">Market Context</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-3">Market Context</p>
               {news && (
                 <>
                   <StatRow label="News Impact"   value={news.impact.toUpperCase()}          color={biasColor(news.impact)} />
@@ -690,7 +690,7 @@ export function MobileBrain() {
           {debateToShow && debateToShow.length > 0 && (
             <div className="bg-[hsl(var(--card))] rounded-2xl border border-white/5 p-4">
               {debateIsCached && (
-                <p className="text-[10px] text-amber-400/80 mb-2 leading-tight">
+                <p className="text-[11px] text-amber-400/80 mb-2 leading-tight">
                   Showing last debate · as of {debateAsOf} (latest run had none — rate-limited or no challenge)
                 </p>
               )}
@@ -703,7 +703,7 @@ export function MobileBrain() {
               <div className="h-12 w-12 rounded-full border border-white/10 bg-white/3 flex items-center justify-center">
                 <RefreshCw className="h-5 w-5 text-zinc-600" />
               </div>
-              <p className="text-[12px] text-zinc-600">Tap Refresh to run agent analysis</p>
+              <p className="text-[13px] text-zinc-600">Tap Refresh to run agent analysis</p>
             </div>
           )}
 

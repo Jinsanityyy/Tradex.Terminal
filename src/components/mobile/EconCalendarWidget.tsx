@@ -62,9 +62,9 @@ export function EconCalendarWidget() {
     return (
       <button
         onClick={openCalendar}
-        className="w-full rounded-[2px] border border-[#1E1E24] bg-[#141418] px-3 py-4 text-left active:bg-[#1A1A20]"
+        className="w-full rounded-[2px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-4 text-left active:bg-[hsl(var(--muted))]"
       >
-        <p className="text-[11px] text-[#6B6B7A] text-center">
+        <p className="text-[11px] text-[hsl(var(--text-secondary))] text-center">
           No releases scheduled &middot; tap to search past events
         </p>
       </button>
@@ -72,7 +72,7 @@ export function EconCalendarWidget() {
   }
 
   return (
-    <div className="rounded-[2px] border border-[#1E1E24] bg-[#141418] divide-y divide-[#1E1E24]">
+    <div className="rounded-[2px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] divide-y divide-[hsl(var(--border))]">
       {upcoming.map((e) => {
         const away = (e.utcTimestamp ?? 0) - now;
         const imminent = away <= 30 * 60 * 1000;   // inside half an hour
@@ -82,14 +82,14 @@ export function EconCalendarWidget() {
           <button
             key={e.id}
             onClick={openCalendar}
-            className="w-full flex items-center gap-3 px-3 py-2.5 text-left active:bg-[#1A1A20]"
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-left active:bg-[hsl(var(--muted))]"
           >
             <div className="w-[52px] shrink-0">
               <p className="text-[11px] text-zinc-300 leading-none" style={MONO}>{e.time}</p>
               <p
                 className={cn(
-                  "text-[9px] leading-none mt-1",
-                  imminent ? "text-red-400" : soon ? "t-accent" : "text-[#6B6B7A]"
+                  "text-[11px] leading-none mt-1",
+                  imminent ? "text-red-400" : soon ? "t-accent" : "text-[hsl(var(--text-secondary))]"
                 )}
                 style={MONO}
               >
@@ -97,7 +97,7 @@ export function EconCalendarWidget() {
               </p>
             </div>
 
-            <span className="text-[10px] font-bold t-accent w-[28px] shrink-0" style={MONO}>
+            <span className="text-[11px] font-bold t-accent w-[28px] shrink-0" style={MONO}>
               {e.currency}
             </span>
 
@@ -105,7 +105,7 @@ export function EconCalendarWidget() {
 
             <span
               className={cn(
-                "shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded-[2px] uppercase",
+                "shrink-0 text-[11px] font-bold px-1.5 py-0.5 rounded-[2px] uppercase",
                 e.impact === "high"   ? "bg-red-500/15 text-red-400" :
                 e.impact === "medium" ? "bg-t-accent-15 t-accent" :
                                         "bg-zinc-500/15 text-zinc-400"
@@ -114,14 +114,14 @@ export function EconCalendarWidget() {
               {e.impact}
             </span>
 
-            <ChevronRight className="h-3 w-3 shrink-0 text-[#3A3A44]" />
+            <ChevronRight className="h-3 w-3 shrink-0 text-[hsl(var(--text-secondary))]" />
           </button>
         );
       })}
 
       <button
         onClick={openCalendar}
-        className="w-full px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-[#6B6B7A] active:bg-[#1A1A20]"
+        className="w-full px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--text-secondary))] active:bg-[hsl(var(--muted))]"
       >
         Full calendar &amp; past releases
       </button>

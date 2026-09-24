@@ -78,7 +78,7 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
         </div>
 
         <div className="flex items-center justify-center mb-3">
-          <span className="inline-flex items-center gap-1 rounded-full border border-[hsl(142,71%,45%)]/30 bg-[hsl(142,71%,45%)]/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[hsl(142,71%,45%)]">
+          <span className="inline-flex items-center gap-1 rounded-full border border-[hsl(142,71%,45%)]/30 bg-[hsl(142,71%,45%)]/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[hsl(142,71%,45%)]">
             <Zap className="h-2.5 w-2.5" />
             Pro Feature
           </span>
@@ -118,7 +118,7 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
           <p className="text-2xl font-bold font-mono text-[hsl(142,71%,45%)]">
             {pricing.loading ? "…" : price ?? "—"}
           </p>
-          <p className="text-[10px] text-zinc-500 mt-0.5">
+          <p className="text-[11px] text-zinc-500 mt-0.5">
             {term === "annual" ? "per year" : "per month"}
           </p>
         </div>
@@ -135,14 +135,14 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
         </button>
 
         {subError && (
-          <p className="flex items-center gap-1 text-[10px] text-red-400 mb-2 justify-center">
+          <p className="flex items-center gap-1 text-[11px] text-red-400 mb-2 justify-center">
             <AlertCircle className="h-3 w-3" />{subError}
           </p>
         )}
 
         {isNative && (
           <>
-            <p className="text-[9px] text-zinc-600 mb-2 leading-relaxed">
+            <p className="text-[11px] text-zinc-600 mb-2 leading-relaxed">
               Billed through Google Play. Manage or cancel any time in the Play Store.
             </p>
             <button

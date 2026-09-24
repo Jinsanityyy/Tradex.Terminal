@@ -134,11 +134,11 @@ export function MobileWidgetSheet({ open, onClose, config, onChange }: MobileWid
         <div className="flex items-center justify-between px-5 pb-3 border-b border-white/5 shrink-0">
           <div>
             <p className="text-[13px] font-bold text-zinc-100">Dashboard Widgets</p>
-            <p className="text-[10px] text-zinc-500 mt-0.5">Toggle and reorder your Home screen</p>
+            <p className="text-[11px] text-zinc-500 mt-0.5">Toggle and reorder your Home screen</p>
           </div>
           <button
             onClick={() => onChange([...DEFAULT_WIDGET_CONFIG])}
-            className="text-[10px] text-zinc-500 border border-white/10 px-2.5 py-1 rounded-lg active:text-zinc-300"
+            className="text-[11px] text-zinc-500 border border-white/10 px-2.5 py-1 rounded-lg active:text-zinc-300"
           >
             Reset
           </button>
@@ -177,8 +177,8 @@ export function MobileWidgetSheet({ open, onClose, config, onChange }: MobileWid
 
                 {/* Label + description */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-[12px] font-semibold text-zinc-200">{def.label}</p>
-                  <p className="text-[10px] text-zinc-600 mt-0.5 leading-tight">{def.desc}</p>
+                  <p className="text-[13px] font-semibold text-zinc-200">{def.label}</p>
+                  <p className="text-[11px] text-zinc-600 mt-0.5 leading-tight">{def.desc}</p>
                 </div>
 
                 {/* Toggle switch */}
