@@ -375,6 +375,7 @@ export type RecentSignal = {
     tp2: number | null;
     rrRatio: number;
   } | null;
+  outcome?: { resolvedAt: string; priceAtResolution: number } | null;
 };
 
 export function useLastSignal(symbol: string) {

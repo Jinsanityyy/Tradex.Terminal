@@ -2,7 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { closeTrade, loadTradeLog, type TakenSignal } from "@/lib/trades/trade-log";
+import {
+  closeTrade, loadTradeLog, syncAllClosedTrades, syncClosedTradeToServer, type TakenSignal,
+} from "@/lib/trades/trade-log";
+import type { RecentSignal } from "@/hooks/useMarketData";
 import { hitFromCandles, hitFromPrice, timeframeFor, type CandleBar, type TradeHit } from "@/lib/trades/auto-resolve";
 
 // Candles cost a TwelveData credit and an entitlement check per symbol; ticks
@@ -15,12 +18,37 @@ function fmtPrice(n: number): string {
 }
 
 /**
- * Closes open taken trades by themselves when price reaches TP1 or the stop.
- * `prices` is the live quote per symbol; `onResolved` reloads the caller's log.
+ * The tracked signal a trade was taken from: same side, same entry and stop.
+ * Its outcome is what the TP/SL badge on the setup card shows, so when it has
+ * one the trade takes it — the card and the trade log can never disagree.
+ */
+function signalHit(t: TakenSignal, signals: RecentSignal[]): TradeHit | null {
+  const takenMs = new Date(t.takenAt).getTime();
+  for (const s of signals) {
+    const p = s.tradePlan;
+    if (!p || p.entry <= 0 || p.stopLoss <= 0) continue;
+    if ((p.direction === "long") !== (t.direction === "BUY")) continue;
+    if (Math.abs(p.entry - t.entry) / p.entry >= 0.001) continue;
+    if (Math.abs(p.stopLoss - t.stopLoss) / p.stopLoss >= 0.002) continue;
+    const at = s.outcome?.resolvedAt ?? new Date().toISOString();
+    // Resolved before the trade existed: that outcome belongs to someone else's entry.
+    if (new Date(at).getTime() < takenMs) continue;
+    if (s.status === "win_tp1" || s.status === "win_tp2") return { kind: "tp1", price: t.tp1, at };
+    if (s.status === "loss_sl") return { kind: "sl", price: t.stopLoss, at };
+  }
+  return null;
+}
+
+/**
+ * Closes open taken trades by themselves when price reaches TP1 or the stop,
+ * and logs them to the P&L calendar.
+ * `prices` is the live quote per symbol; `signals` the tracked signals for the
+ * symbol on screen; `onResolved` reloads the caller's log.
  */
 export function useTradeAutoResolve(
   prices: Record<string, number | undefined>,
   onResolved: () => void,
+  signals: RecentSignal[] = [],
 ) {
   const inFlight = useRef(new Set<string>());
   // Until the first candle pass has run, the price on screen says nothing about
@@ -32,7 +60,7 @@ export function useTradeAutoResolve(
   const onResolvedRef = useRef(onResolved);
   onResolvedRef.current = onResolved;
 
-  function resolve(t: TakenSignal, hit: TradeHit, source: "live" | "candles") {
+  function resolve(t: TakenSignal, hit: TradeHit, source: "live" | "candles" | "signal") {
     if (inFlight.current.has(t.id)) return;
     // Re-read: another tab or the other check may have closed it already.
     const current = loadTradeLog().find(x => x.id === t.id);
@@ -40,7 +68,7 @@ export function useTradeAutoResolve(
     inFlight.current.add(t.id);
 
     const label = hit.kind === "tp1" ? "TP1 hit" : "SL hit";
-    const when = source === "candles" ? ` at ${new Date(hit.at).toLocaleString()}` : "";
+    const when = source !== "live" ? ` at ${new Date(hit.at).toLocaleString()}` : "";
     const closed = closeTrade(
       t.id,
       hit.price,
@@ -52,9 +80,25 @@ export function useTradeAutoResolve(
       const msg = `${label} · ${t.direction} ${t.symbolDisplay} @ ${fmtPrice(hit.price)} · ${pnl >= 0 ? "+" : "-"}$${Math.abs(pnl).toFixed(2)}`;
       if (hit.kind === "tp1") toast.success(msg); else toast.error(msg);
       onResolvedRef.current();
+      void syncClosedTradeToServer(closed).then(ok => {
+        if (!ok) toast.warning("Couldn't reach the PnL calendar — it will be logged next time the app opens");
+      });
     }
     inFlight.current.delete(t.id);
   }
+
+  // The tracker's verdict, whenever a signal's status actually changes (the
+  // list itself is a new array on every render).
+  const signalKey = signals.map(s => `${s.timestamp}:${s.status}`).join("|");
+  useEffect(() => {
+    if (signals.length === 0) return;
+    for (const t of loadTradeLog()) {
+      if (t.status !== "open") continue;
+      const hit = signalHit(t, signals);
+      if (hit) resolve(t, hit, "signal");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signalKey]);
 
   // Live ticks.
   useEffect(() => {
@@ -102,9 +146,15 @@ export function useTradeAutoResolve(
       }
     }
 
+    // Closes whose calendar write failed (offline, database down) go out now.
+    void syncAllClosedTrades();
     void check().finally(() => { caughtUp.current = true; });
     const id = setInterval(check, CANDLE_CHECK_MS);
-    const onVisible = () => { if (document.visibilityState === "visible") void check(); };
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      void syncAllClosedTrades();
+      void check();
+    };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;

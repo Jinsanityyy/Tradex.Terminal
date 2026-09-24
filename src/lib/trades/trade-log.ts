@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { browserTimeZone, localDate, localTime } from "./local-date";
 
 export interface TakenSignal {
   id: string;
@@ -23,10 +24,17 @@ export interface TakenSignal {
   pnlR?: number;
   result?: "win" | "loss" | "be";
   notes?: string;
+  /** Closed by a build that logs each close exactly once; safe to retry the log. */
+  syncPending?: boolean;
 }
 
 const KEY = "tradex-taken-signals-v1";
+
+/** Fired after a trade closes, so every view holding the log can reload it. */
+export const TRADES_CHANGED_EVENT = "tradex:trades-changed";
 const SYNCED_KEY = "tradex-synced-trade-ids";
+/** Trade ids with a calendar POST in flight. */
+const syncing = new Set<string>();
 
 function pointValue(symbol: string): number {
   if (symbol === "BTCUSD" || symbol === "ETHUSD") return 1;
@@ -44,9 +52,22 @@ function markSynced(id: string): void {
   localStorage.setItem(SYNCED_KEY, JSON.stringify([...ids]));
 }
 
-export async function syncClosedTradeToServer(trade: TakenSignal): Promise<void> {
-  if (typeof window === "undefined" || trade.status !== "closed") return;
-  if (getSyncedIds().has(trade.id)) return;
+function fmtLevel(n: number): string {
+  return n > 100 ? n.toFixed(2) : n.toFixed(4);
+}
+
+/**
+ * Logs a closed trade to the P&L calendar, once. Returns whether it is on the
+ * server (already, or now). This is the only path that writes it: the close
+ * dialog used to POST its own copy as well, so every hand-closed trade was
+ * counted twice.
+ */
+export async function syncClosedTradeToServer(trade: TakenSignal): Promise<boolean> {
+  if (typeof window === "undefined" || trade.status !== "closed") return false;
+  if (getSyncedIds().has(trade.id)) return true;
+  // The close itself and the on-open retry can race for the same trade.
+  if (syncing.has(trade.id)) return false;
+  syncing.add(trade.id);
   try {
     const supabase = createClient();
     const authHeader: Record<string, string> = {};
@@ -55,31 +76,45 @@ export async function syncClosedTradeToServer(trade: TakenSignal): Promise<void>
       if (session?.access_token) authHeader.Authorization = `Bearer ${session.access_token}`;
     }
     const closedAt = trade.closedAt ?? new Date().toISOString();
+    // The calendar is kept in the trader's own days: a UTC date filed every
+    // trade closed before 8am in Manila under the day before.
+    const tz = browserTimeZone();
+    const r = trade.pnlR;
+    const summary =
+      `Signal trade · ${trade.direction} ${trade.symbolDisplay} @ ${fmtLevel(trade.entry)} → ${fmtLevel(trade.exitPrice ?? trade.entry)}` +
+      (r != null ? ` · ${r >= 0 ? "+" : ""}${r}R` : "");
     const res = await fetch("/api/manual-trades", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeader },
       body: JSON.stringify({
-        date: closedAt.slice(0, 10),
+        date: localDate(closedAt, tz),
         symbol: trade.symbol,
         direction: trade.direction === "BUY" ? "long" : "short",
         pnl: trade.pnlDollar ?? 0,
         fees: 0,
-        notes: trade.notes
-          ? trade.notes
-          : `${trade.direction} ${trade.lotSize} lots | Entry: ${trade.entry} → Exit: ${trade.exitPrice}`,
-        open_time: trade.takenAt.slice(11, 16),
-        close_time: closedAt.slice(11, 16),
+        notes: trade.notes ? `${summary} · ${trade.notes}` : summary,
+        open_time: localTime(trade.takenAt, tz),
+        close_time: localTime(closedAt, tz),
       }),
     });
-    if (res.ok) markSynced(trade.id);
+    if (res.ok) {
+      markSynced(trade.id);
+      window.dispatchEvent(new Event(TRADES_CHANGED_EVENT));
+    }
+    return res.ok;
   } catch {
-    // fire-and-forget
+    return false;
+  } finally {
+    syncing.delete(trade.id);
   }
 }
 
 export async function syncAllClosedTrades(): Promise<void> {
   if (typeof window === "undefined") return;
-  const closed = loadTradeLog().filter(t => t.status === "closed");
+  // Only closes from this build: older ones may already be on the calendar
+  // through the close dialog's own (now removed) copy, and retrying those
+  // would add them a second time.
+  const closed = loadTradeLog().filter(t => t.status === "closed" && t.syncPending);
   await Promise.all(closed.map(syncClosedTradeToServer));
 }
 
@@ -158,16 +193,13 @@ export function closeTrade(
     pnlR,
     result,
     notes: notes?.trim() || t.notes,
+    syncPending: true,
   };
   trades[idx] = closed;
   save(trades);
-  syncClosedTradeToServer(closed).catch(() => {});
   if (typeof window !== "undefined") window.dispatchEvent(new Event(TRADES_CHANGED_EVENT));
   return closed;
 }
-
-/** Fired after a trade closes, so every view holding the log can reload it. */
-export const TRADES_CHANGED_EVENT = "tradex:trades-changed";
 
 export function discardTrade(id: string): void {
   const trades = loadTradeLog();

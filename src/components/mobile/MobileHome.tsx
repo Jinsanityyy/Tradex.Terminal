@@ -78,11 +78,17 @@ import { useSubscription } from "@/hooks/useSubscription";
 const pnlFetcher = (url: string) => fetch(url).then(r => r.json());
 
 function MobilePnLWidget() {
-  const { data } = useSWR<{ daily: DailyPnL[]; monthly: MonthlyPnL[] }>(
+  const { data, mutate } = useSWR<{ daily: DailyPnL[]; monthly: MonthlyPnL[] }>(
     withTz("/api/pnl"),
     pnlFetcher,
     { refreshInterval: 300_000 }
   );
+  // A trade closing (by hand or at TP/SL) lands here now, not 5 minutes later.
+  useEffect(() => {
+    const reload = () => { void mutate(); };
+    window.addEventListener(TRADES_CHANGED_EVENT, reload);
+    return () => window.removeEventListener(TRADES_CHANGED_EVENT, reload);
+  }, [mutate]);
 
   const now = new Date();
   const thisMonth = data?.monthly?.find(
@@ -340,7 +346,7 @@ export function MobileHome() {
     () => Object.fromEntries(liveQuotes.map(q => [q.symbol, q.price])) as Record<string, number | undefined>,
     [liveQuotes],
   );
-  useTradeAutoResolve(quotePrices, () => setTradeLog(loadTradeLog()));
+  useTradeAutoResolve(quotePrices, () => setTradeLog(loadTradeLog()), recentSignals);
 
   const symbolBiasLabel = getSymbolLabel(activeSymbol);
   const symbolBiasShort = getSymbolShort(activeSymbol);

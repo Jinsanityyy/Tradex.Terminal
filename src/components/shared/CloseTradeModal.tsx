@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { X, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { closeTrade, calcPnLDollar, type TakenSignal } from "@/lib/trades/trade-log";
+import { closeTrade, calcPnLDollar, syncClosedTradeToServer, type TakenSignal } from "@/lib/trades/trade-log";
 
 interface Props {
   trade: TakenSignal;
@@ -14,17 +14,6 @@ interface Props {
 
 function fmt(n: number): string {
   return n > 100 ? n.toFixed(2) : n.toFixed(4);
-}
-
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  try {
-    const { createClient } = await import("@/lib/supabase/client");
-    const supabase = createClient();
-    if (!supabase) return {};
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) return { Authorization: `Bearer ${session.access_token}` };
-  } catch {}
-  return {};
 }
 
 export function CloseTradeModal({ trade, onClose, onClosed }: Props) {
@@ -50,27 +39,14 @@ export function CloseTradeModal({ trade, onClose, onClosed }: Props) {
       const closed = closeTrade(trade.id, exitPrice, notes);
       if (!closed) { toast.error("Trade not found"); return; }
 
-      // Auto-log to PnL calendar
-      const date = new Date().toISOString().split("T")[0];
-      const headers = await getAuthHeaders();
-      const res = await fetch("/api/manual-trades", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...headers },
-        body: JSON.stringify({
-          date,
-          symbol: trade.symbol,
-          direction: trade.direction === "BUY" ? "long" : "short",
-          pnl: parseFloat(closed.pnlDollar!.toFixed(2)),
-          fees: 0,
-          notes: `Signal trade · ${trade.direction} ${trade.symbolDisplay} @ ${fmt(trade.entry)} → ${fmt(exitPrice)} · ${closed.pnlR! >= 0 ? "+" : ""}${closed.pnlR}R${notes ? ` · ${notes}` : ""}`,
-        }),
-      });
+      // Log to the PnL calendar (once — closeTrade no longer does it itself).
+      const logged = await syncClosedTradeToServer(closed);
 
-      if (res.ok) {
+      if (logged) {
         toast.success(`Trade closed: ${closed.pnlDollar! >= 0 ? "+" : "-"}$${Math.abs(closed.pnlDollar!).toFixed(2)} logged to PnL calendar`);
       } else {
         toast.success(`Trade closed: ${closed.pnlDollar! >= 0 ? "+" : "-"}$${Math.abs(closed.pnlDollar!).toFixed(2)}`);
-        toast.warning("Couldn't auto-log to calendar — add manually");
+        toast.warning("Couldn't reach the PnL calendar — it will be logged automatically next time the app opens");
       }
 
       onClosed(closed);
