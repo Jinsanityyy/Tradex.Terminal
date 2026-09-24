@@ -85,7 +85,7 @@ export function EconCalendarWidget() {
             className="w-full flex items-center gap-3 px-3 py-2.5 text-left active:bg-[hsl(var(--muted))]"
           >
             <div className="w-[52px] shrink-0">
-              <p className="text-[11px] text-zinc-300 leading-none" style={MONO}>{e.time}</p>
+              <p className="text-[11px] text-[hsl(var(--foreground))] leading-none" style={MONO}>{e.time}</p>
               <p
                 className={cn(
                   "text-[11px] leading-none mt-1",
@@ -101,14 +101,14 @@ export function EconCalendarWidget() {
               {e.currency}
             </span>
 
-            <p className="flex-1 min-w-0 text-[11px] text-zinc-300 truncate">{e.event}</p>
+            <p className="flex-1 min-w-0 text-[11px] text-[hsl(var(--foreground))] truncate">{e.event}</p>
 
             <span
               className={cn(
                 "shrink-0 text-[11px] font-bold px-1.5 py-0.5 rounded-[2px] uppercase",
                 e.impact === "high"   ? "bg-red-500/15 text-red-400" :
                 e.impact === "medium" ? "bg-t-accent-15 t-accent" :
-                                        "bg-zinc-500/15 text-zinc-400"
+                                        "bg-[hsl(var(--text-secondary)_/_0.15)] text-[hsl(var(--text-secondary))]"
               )}
             >
               {e.impact}

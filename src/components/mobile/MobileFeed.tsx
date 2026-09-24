@@ -115,12 +115,12 @@ export function MobileFeed() {
     <AssetSelectorSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
     <div className="flex flex-col h-full">
       {/* Tabs + asset chip */}
-      <div className="flex shrink-0 items-center border-b border-white/5 px-2 pt-1">
+      <div className="flex shrink-0 items-center border-b border-[hsl(var(--border))] px-2 pt-1">
         <div className="flex overflow-x-auto flex-1">
           {tabs.map(({ id, label, Icon }) => (
             <button key={id} onClick={() => setTab(id)}
               className={cn("flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider border-b-2 transition-all -mb-px shrink-0",
-                tab === id ? "border-[hsl(var(--primary))] text-[hsl(var(--primary))]" : "border-transparent text-zinc-500")}>
+                tab === id ? "border-[hsl(var(--primary))] text-[hsl(var(--primary))]" : "border-transparent text-[hsl(var(--text-secondary))]")}>
               <Icon className="w-3 h-3" />{label}
             </button>
           ))}
@@ -136,34 +136,34 @@ export function MobileFeed() {
         {tab === "live" && (
           <div className="flex flex-col">
             <LiveNewsTicker items={news} isLive={isNewsLive} />
-            <div className="flex gap-1.5 px-3 py-2 overflow-x-auto border-b border-white/5">
+            <div className="flex gap-1.5 px-3 py-2 overflow-x-auto border-b border-[hsl(var(--border))]">
               {LIVE_CHANNELS.map(ch => (
                 <button key={ch.id} onClick={() => setActiveChannel(ch)}
                   className={cn("shrink-0 px-3 py-1 text-[11px] font-semibold rounded-lg border transition-all",
                     activeChannel.id === ch.id
                       ? "border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
-                      : "border-white/8 text-zinc-500")}>
+                      : "border-[hsl(var(--border))] text-[hsl(var(--text-secondary))]")}>
                   {ch.name}
                 </button>
               ))}
             </div>
             <div className="px-3 pt-2 pb-1">
-              <div className="rounded-xl overflow-hidden border border-white/5" style={{ aspectRatio: "16/9" }}>
+              <div className="rounded-xl overflow-hidden border border-[hsl(var(--border))]" style={{ aspectRatio: "16/9" }}>
                 {!feedTabActive || tab !== "live" ? (
                   <div className="w-full h-full bg-black" />
                 ) : tvLoading ? (
                   <div className="w-full h-full bg-black flex items-center justify-center">
-                    <div className="w-5 h-5 rounded-full border-2 border-zinc-700 border-t-zinc-400 animate-spin" />
+                    <div className="w-5 h-5 rounded-full border-2 border-[hsl(var(--border))] border-t-zinc-400 animate-spin" />
                   </div>
                 ) : liveStatus[activeChannel.id] === false ? (
                   <div className="w-full h-full bg-[#0a0b0e] flex flex-col items-center justify-center gap-2">
-                    <Tv className="h-6 w-6 text-zinc-700" />
-                    <p className="text-[11px] font-semibold text-zinc-500">{activeChannel.name} is not live right now</p>
+                    <Tv className="h-6 w-6 text-[hsl(var(--text-secondary))]" />
+                    <p className="text-[11px] font-semibold text-[hsl(var(--text-secondary))]">{activeChannel.name} is not live right now</p>
                     <a
                       href={`https://www.youtube.com/${activeChannel.handle}/live`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-[11px] text-zinc-500 border border-white/10 px-2.5 py-1 rounded-md"
+                      className="flex items-center gap-1.5 text-[11px] text-[hsl(var(--text-secondary))] border border-[hsl(var(--border))] px-2.5 py-1 rounded-md"
                     >
                       <ExternalLink className="h-3 w-3" />
                       Open on YouTube
@@ -184,12 +184,12 @@ export function MobileFeed() {
             </div>
             {catalysts.length > 0 && (
               <div className="px-3 pb-2 mt-2">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-600 mb-2">Market Drivers</p>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--text-secondary))] mb-2">Market Drivers</p>
                 <CatalystFeed catalysts={catalysts} limit={3} />
               </div>
             )}
             <div className="px-3 pb-4 mt-2">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-600 mb-2">Live Headlines</p>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--text-secondary))] mb-2">Live Headlines</p>
               <NewsFeed items={news} compact />
             </div>
           </div>
@@ -199,7 +199,7 @@ export function MobileFeed() {
         {tab === "catalysts" && (
           <div className="px-3 py-3">
             {catalysts.length === 0
-              ? <p className="text-xs text-zinc-600 text-center py-8">No catalysts available</p>
+              ? <p className="text-xs text-[hsl(var(--text-secondary))] text-center py-8">No catalysts available</p>
               : <CatalystFeed catalysts={catalysts} />}
           </div>
         )}
@@ -208,19 +208,19 @@ export function MobileFeed() {
         {tab === "calendar" && (
           <div className="px-3 py-3 space-y-2">
             {events.length === 0
-              ? <p className="text-xs text-zinc-600 text-center py-8">No events available</p>
+              ? <p className="text-xs text-[hsl(var(--text-secondary))] text-center py-8">No events available</p>
               : events.map((e, i) => (
                 <div key={i} onClick={() => setSelectedEvent(e)}
-                  className="bg-[hsl(var(--card))] rounded-xl p-3.5 border border-white/5 cursor-pointer active:bg-[hsl(var(--secondary))]">
+                  className="bg-[hsl(var(--card))] rounded-xl p-3.5 border border-[hsl(var(--border))] cursor-pointer active:bg-[hsl(var(--secondary))]">
                   <div className="flex items-start justify-between gap-2 mb-1.5">
                     <p className="text-xs font-medium leading-snug flex-1">{e.event}</p>
                     <span className={cn("text-[11px] font-bold px-1.5 py-0.5 rounded shrink-0 uppercase",
                       e.impact === "high" ? "bg-red-500/15 text-red-400" :
-                      e.impact === "medium" ? "bg-t-accent-15 t-accent" : "bg-zinc-500/15 text-zinc-400")}>
+                      e.impact === "medium" ? "bg-t-accent-15 t-accent" : "bg-[hsl(var(--text-secondary)_/_0.15)] text-[hsl(var(--text-secondary))]")}>
                       {e.impact}
                     </span>
                   </div>
-                  <div className="flex gap-3 text-[11px] text-zinc-600 mb-1.5">
+                  <div className="flex gap-3 text-[11px] text-[hsl(var(--text-secondary))] mb-1.5">
                     <span>{e.currency}</span>
                     {e.time && <span>{e.time}</span>}
                     {e.actual != null && <span className="text-[#00C853]">A: {e.actual}</span>}
@@ -233,11 +233,11 @@ export function MobileFeed() {
                         <>
                           <span className={cn("text-[11px] px-1.5 py-0.5 rounded-[2px] font-semibold",
                             impact === "bullish" ? "bg-[#00C853]/15 text-[#00C853]" :
-                            impact === "bearish" ? "bg-[#FF3D3D]/15 text-[#FF3D3D]" : "bg-zinc-500/15 text-zinc-400")}>
+                            impact === "bearish" ? "bg-[#FF3D3D]/15 text-[#FF3D3D]" : "bg-[hsl(var(--text-secondary)_/_0.15)] text-[hsl(var(--text-secondary))]")}>
                             {symbolShort} {impact.toUpperCase()}
                           </span>
                           {reasoning && (
-                            <p className="w-full text-[11px] text-zinc-600 mt-1.5 leading-relaxed border-t border-white/5 pt-1.5">{reasoning}</p>
+                            <p className="w-full text-[11px] text-[hsl(var(--text-secondary))] mt-1.5 leading-relaxed border-t border-[hsl(var(--border))] pt-1.5">{reasoning}</p>
                           )}
                         </>
                       );
@@ -252,10 +252,10 @@ export function MobileFeed() {
         {tab === "trump" && (
           <div className="px-3 py-3 space-y-2">
             {posts.length === 0
-              ? <p className="text-xs text-zinc-600 text-center py-8">No posts available</p>
+              ? <p className="text-xs text-[hsl(var(--text-secondary))] text-center py-8">No posts available</p>
               : posts.map((p, i) => (
                 <div key={i} onClick={() => setSelectedPost(p)}
-                  className="bg-[hsl(var(--card))] rounded-xl p-3.5 border border-white/5 cursor-pointer active:bg-[hsl(var(--secondary))]">
+                  className="bg-[hsl(var(--card))] rounded-xl p-3.5 border border-[hsl(var(--border))] cursor-pointer active:bg-[hsl(var(--secondary))]">
                   <p className="text-xs leading-relaxed mb-2">{p.content}</p>
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex gap-1.5">
@@ -269,16 +269,16 @@ export function MobileFeed() {
                         return (
                           <span className={cn("text-[11px] font-bold px-1.5 py-0.5 rounded-[2px] uppercase",
                             impact === "bullish" ? "bg-[#00C853]/15 text-[#00C853]" :
-                            impact === "bearish" ? "bg-[#FF3D3D]/15 text-[#FF3D3D]" : "bg-zinc-500/15 text-zinc-400")}>
+                            impact === "bearish" ? "bg-[#FF3D3D]/15 text-[#FF3D3D]" : "bg-[hsl(var(--text-secondary)_/_0.15)] text-[hsl(var(--text-secondary))]")}>
                             {symbolShort} {impact.toUpperCase()}
                           </span>
                         );
                       })()}
-                      <span className="text-[11px] font-mono text-zinc-600">{p.impactScore}/10</span>
+                      <span className="text-[11px] font-mono text-[hsl(var(--text-secondary))]">{p.impactScore}/10</span>
                     </div>
                   </div>
                   {p.whyItMatters && (
-                    <p className="text-[11px] text-zinc-600 mt-2 pt-2 border-t border-white/5 leading-relaxed">{p.whyItMatters}</p>
+                    <p className="text-[11px] text-[hsl(var(--text-secondary))] mt-2 pt-2 border-t border-[hsl(var(--border))] leading-relaxed">{p.whyItMatters}</p>
                   )}
                 </div>
               ))}
@@ -291,21 +291,21 @@ export function MobileFeed() {
         {selectedEvent && (
           <div className="space-y-4">
             <div className="flex gap-3 flex-wrap items-center">
-              <span className="text-[11px] font-mono text-zinc-500">{selectedEvent.currency} · {selectedEvent.time}</span>
+              <span className="text-[11px] font-mono text-[hsl(var(--text-secondary))]">{selectedEvent.currency} · {selectedEvent.time}</span>
               <span className={cn("text-[11px] font-bold px-2 py-0.5 rounded-full uppercase",
                 selectedEvent.impact === "high" ? "bg-red-500/15 text-red-400" :
-                selectedEvent.impact === "medium" ? "bg-t-accent-15 t-accent" : "bg-zinc-500/15 text-zinc-400")}>
+                selectedEvent.impact === "medium" ? "bg-t-accent-15 t-accent" : "bg-[hsl(var(--text-secondary)_/_0.15)] text-[hsl(var(--text-secondary))]")}>
                 {selectedEvent.impact} impact
               </span>
             </div>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { label: "Forecast", value: selectedEvent.forecast, color: "text-blue-400" },
-                { label: "Previous", value: selectedEvent.previous, color: "text-zinc-400" },
-                { label: "Actual",   value: selectedEvent.actual || " - ", color: selectedEvent.actual ? "text-[hsl(var(--primary))]" : "text-zinc-600" },
+                { label: "Previous", value: selectedEvent.previous, color: "text-[hsl(var(--text-secondary))]" },
+                { label: "Actual",   value: selectedEvent.actual || " - ", color: selectedEvent.actual ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--text-secondary))]" },
               ].map(({ label, value, color }) => (
                 <div key={label} className="rounded-lg bg-[hsl(var(--secondary))] p-3 text-center">
-                  <p className="text-[11px] uppercase tracking-wider text-zinc-600 mb-1">{label}</p>
+                  <p className="text-[11px] uppercase tracking-wider text-[hsl(var(--text-secondary))] mb-1">{label}</p>
                   <p className={cn("text-sm font-bold font-mono", color)}>{value}</p>
                 </div>
               ))}
@@ -318,7 +318,7 @@ export function MobileFeed() {
                     <span className={cn("inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-semibold",
                       impact === "bullish" ? "bg-[#00C853]/15 text-[#00C853] border-[#00C853]/30" :
                       impact === "bearish" ? "bg-[#FF3D3D]/15 text-[#FF3D3D] border-[#FF3D3D]/30" :
-                      "bg-zinc-500/15 text-zinc-400 border-zinc-500/30")}>
+                      "bg-[hsl(var(--text-secondary)_/_0.15)] text-[hsl(var(--text-secondary))] border-[hsl(var(--border))]")}>
                       {impact === "bullish" ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
                       {symbolShort} {impact.toUpperCase()}
                     </span>
@@ -335,7 +335,7 @@ export function MobileFeed() {
                   {reasoning && (
                     <div className="rounded-lg border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary))]/5 p-3.5">
                       <p className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--primary))]/70 mb-1">Trading Recommendation</p>
-                      <p className="text-xs text-zinc-200 leading-relaxed">{reasoning}</p>
+                      <p className="text-xs text-[hsl(var(--foreground))] leading-relaxed">{reasoning}</p>
                     </div>
                   )}
                 </>
@@ -351,15 +351,15 @@ export function MobileFeed() {
           <div className="space-y-4">
             <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5">
               <p className="text-xs leading-relaxed">{selectedPost.content}</p>
-              <p className="text-[11px] text-zinc-600 mt-2">{selectedPost.timestamp}</p>
+              <p className="text-[11px] text-[hsl(var(--text-secondary))] mt-2">{selectedPost.timestamp}</p>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 text-center">
-                <p className="text-[11px] uppercase tracking-wider text-zinc-600 mb-1">Impact</p>
+                <p className="text-[11px] uppercase tracking-wider text-[hsl(var(--text-secondary))] mb-1">Impact</p>
                 <p className="text-lg font-bold font-mono">{selectedPost.impactScore}/10</p>
               </div>
               <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 text-center">
-                <p className="text-[11px] uppercase tracking-wider text-zinc-600 mb-1">Sentiment</p>
+                <p className="text-[11px] uppercase tracking-wider text-[hsl(var(--text-secondary))] mb-1">Sentiment</p>
                 <p className={cn("text-sm font-bold uppercase",
                   selectedPost.sentimentClassification === "bullish" ? "text-[#00C853]" :
                   selectedPost.sentimentClassification === "bearish" ? "text-[#FF3D3D]" : "t-accent")}>
@@ -376,15 +376,15 @@ export function MobileFeed() {
             {selectedPost.potentialReaction && (
               <div className="rounded-lg border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary))]/5 p-3.5">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--primary))]/70 mb-1.5">Potential Market Reaction</p>
-                <p className="text-xs text-zinc-200 leading-relaxed">{selectedPost.potentialReaction}</p>
+                <p className="text-xs text-[hsl(var(--foreground))] leading-relaxed">{selectedPost.potentialReaction}</p>
               </div>
             )}
             {selectedPost.affectedAssets?.length > 0 && (
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-600 mb-2">Affected Assets</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--text-secondary))] mb-2">Affected Assets</p>
                 <div className="flex flex-wrap gap-1.5">
                   {selectedPost.affectedAssets.map((a: string) => (
-                    <span key={a} className="text-[11px] font-mono px-2 py-0.5 rounded-lg bg-[hsl(var(--secondary))] text-zinc-400">{a}</span>
+                    <span key={a} className="text-[11px] font-mono px-2 py-0.5 rounded-lg bg-[hsl(var(--secondary))] text-[hsl(var(--text-secondary))]">{a}</span>
                   ))}
                 </div>
               </div>

@@ -121,24 +121,24 @@ export function MobileWidgetSheet({ open, onClose, config, onChange }: MobileWid
     <div className="fixed inset-0 z-[200] flex flex-col justify-end" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
-        className="relative rounded-t-2xl border-t border-white/8 bg-[hsl(var(--card))] max-h-[85vh] flex flex-col"
+        className="relative rounded-t-2xl border-t border-[hsl(var(--border))] bg-[hsl(var(--card))] max-h-[85vh] flex flex-col"
         style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}
         onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
         {/* Pull handle */}
         <div className="flex justify-center pt-3 pb-2 shrink-0">
-          <div className="h-1 w-10 rounded-full bg-zinc-700" />
+          <div className="h-1 w-10 rounded-full bg-[hsl(var(--muted))]" />
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pb-3 border-b border-white/5 shrink-0">
+        <div className="flex items-center justify-between px-5 pb-3 border-b border-[hsl(var(--border))] shrink-0">
           <div>
-            <p className="text-[13px] font-bold text-zinc-100">Dashboard Widgets</p>
-            <p className="text-[11px] text-zinc-500 mt-0.5">Toggle and reorder your Home screen</p>
+            <p className="text-[13px] font-bold text-[hsl(var(--foreground))]">Dashboard Widgets</p>
+            <p className="text-[11px] text-[hsl(var(--text-secondary))] mt-0.5">Toggle and reorder your Home screen</p>
           </div>
           <button
             onClick={() => onChange([...DEFAULT_WIDGET_CONFIG])}
-            className="text-[11px] text-zinc-500 border border-white/10 px-2.5 py-1 rounded-lg active:text-zinc-300"
+            className="text-[11px] text-[hsl(var(--text-secondary))] border border-[hsl(var(--border))] px-2.5 py-1 rounded-lg active:text-[hsl(var(--foreground))]"
           >
             Reset
           </button>
@@ -155,21 +155,21 @@ export function MobileWidgetSheet({ open, onClose, config, onChange }: MobileWid
                 className={cn(
                   "flex items-center gap-3 px-3 py-3 rounded-xl border transition-all",
                   w.visible
-                    ? "bg-white/5 border-white/8"
-                    : "bg-transparent border-white/3 opacity-40"
+                    ? "bg-[hsl(var(--foreground)_/_0.05)] border-[hsl(var(--border))]"
+                    : "bg-transparent border-[hsl(var(--border))] opacity-40"
                 )}
               >
                 {/* Reorder arrows */}
                 <div className="flex flex-col gap-0.5 shrink-0">
                   <button
                     onClick={() => move(i, -1)} disabled={i === 0}
-                    className="p-0.5 text-zinc-600 disabled:opacity-20 active:text-zinc-300"
+                    className="p-0.5 text-[hsl(var(--text-secondary))] disabled:opacity-20 active:text-[hsl(var(--foreground))]"
                   >
                     <ChevronUp className="h-3.5 w-3.5" />
                   </button>
                   <button
                     onClick={() => move(i, 1)} disabled={i === config.length - 1}
-                    className="p-0.5 text-zinc-600 disabled:opacity-20 active:text-zinc-300"
+                    className="p-0.5 text-[hsl(var(--text-secondary))] disabled:opacity-20 active:text-[hsl(var(--foreground))]"
                   >
                     <ChevronDown className="h-3.5 w-3.5" />
                   </button>
@@ -177,8 +177,8 @@ export function MobileWidgetSheet({ open, onClose, config, onChange }: MobileWid
 
                 {/* Label + description */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-zinc-200">{def.label}</p>
-                  <p className="text-[11px] text-zinc-600 mt-0.5 leading-tight">{def.desc}</p>
+                  <p className="text-[13px] font-semibold text-[hsl(var(--foreground))]">{def.label}</p>
+                  <p className="text-[11px] text-[hsl(var(--text-secondary))] mt-0.5 leading-tight">{def.desc}</p>
                 </div>
 
                 {/* Toggle switch */}
@@ -186,7 +186,7 @@ export function MobileWidgetSheet({ open, onClose, config, onChange }: MobileWid
                   onClick={() => toggle(w.id)}
                   className={cn(
                     "w-10 h-6 rounded-full transition-all relative shrink-0",
-                    w.visible ? "bg-[hsl(var(--primary))]" : "bg-zinc-700"
+                    w.visible ? "bg-[hsl(var(--primary))]" : "bg-[hsl(var(--muted))]"
                   )}
                 >
                   <span className={cn(
@@ -200,7 +200,7 @@ export function MobileWidgetSheet({ open, onClose, config, onChange }: MobileWid
         </div>
 
         {/* Done */}
-        <div className="px-4 pt-3 border-t border-white/5 shrink-0">
+        <div className="px-4 pt-3 border-t border-[hsl(var(--border))] shrink-0">
           <button
             onClick={onClose}
             className="w-full py-3 rounded-2xl bg-[hsl(var(--primary))]/12 border border-[hsl(var(--primary))]/30 text-[13px] font-semibold text-[hsl(var(--primary))] active:opacity-75"

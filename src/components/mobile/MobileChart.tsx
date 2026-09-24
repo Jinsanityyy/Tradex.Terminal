@@ -91,7 +91,7 @@ export function MobileChart() {
                 "shrink-0 text-[11px] font-semibold px-2.5 py-[3px] rounded-t-lg rounded-b border-x border-t transition-all",
                 isActive
                   ? "border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
-                  : "border-white/8 border-transparent text-zinc-400 hover:text-zinc-200"
+                  : "border-[hsl(var(--border))] border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--foreground))]"
               )}
               style={isActive ? { borderBottom: "2px solid hsl(142,71%,45%)" } : { borderBottom: "1px solid transparent" }}
             >

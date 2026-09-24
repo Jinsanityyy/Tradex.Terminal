@@ -217,7 +217,7 @@ function PnlWidget({ micro }: { micro: MicroData }) {
   const pnlValue = dailyPnl !== null
     ? `${pnlPos ? "+" : ""}$${Math.abs(dailyPnl).toFixed(2)}`
     : "—";
-  const pnlClass = dailyPnl === null ? "text-zinc-700"
+  const pnlClass = dailyPnl === null ? "text-[hsl(var(--text-secondary))]"
     : pnlPos ? "text-[#00C853]" : "text-[#FF3D3D]";
 
   const hasSession = !!micro.session;
@@ -226,15 +226,15 @@ function PnlWidget({ micro }: { micro: MicroData }) {
     // mx-4 = 16px each side, matches menu-row px-4 so card edges align with list content
     <div className="mx-4 pb-4 mt-2">
       <div
-        className="rounded-lg border border-white/[0.06] overflow-hidden"
+        className="rounded-lg border border-[hsl(var(--border))] overflow-hidden"
         style={{ background: "rgba(255,255,255,0.022)" }}
       >
         {/* Header strip */}
-        <div className="flex items-center justify-between px-3 py-[6px] border-b border-white/[0.05]">
-          <span className="text-[11px] font-bold tracking-[0.18em] text-zinc-700 uppercase">
+        <div className="flex items-center justify-between px-3 py-[6px] border-b border-[hsl(var(--border))]">
+          <span className="text-[11px] font-bold tracking-[0.18em] text-[hsl(var(--text-secondary))] uppercase">
             Performance
           </span>
-          <span className="text-[11px] font-mono tracking-[0.06em] text-zinc-700">
+          <span className="text-[11px] font-mono tracking-[0.06em] text-[hsl(var(--text-secondary))]">
             7 DAY
           </span>
         </div>
@@ -243,72 +243,72 @@ function PnlWidget({ micro }: { micro: MicroData }) {
         <div className="grid grid-cols-2">
 
           {/* ┌ Daily P&L */}
-          <div className="flex flex-col gap-[4px] px-3 py-[9px] border-b border-r border-white/[0.05]">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
+          <div className="flex flex-col gap-[4px] px-3 py-[9px] border-b border-r border-[hsl(var(--border))]">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[hsl(var(--text-secondary))] leading-none">
               Daily P&L
             </span>
             <span className={cn("text-[13px] font-bold leading-none tabular-nums", pnlClass)}>
               {pnlValue}
             </span>
-            <span className="text-[11px] font-mono leading-none text-zinc-700/50">
+            <span className="text-[11px] font-mono leading-none text-[hsl(var(--text-secondary)_/_0.5)]">
               TODAY
             </span>
           </div>
 
           {/* ┐ Session */}
-          <div className="flex flex-col gap-[4px] px-3 py-[9px] border-b border-white/[0.05]">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
+          <div className="flex flex-col gap-[4px] px-3 py-[9px] border-b border-[hsl(var(--border))]">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[hsl(var(--text-secondary))] leading-none">
               Session
             </span>
             {/* dot + value — inline-flex keeps them on one baseline */}
             <div className="inline-flex items-center gap-[5px]">
               <div className={cn(
                 "w-[5px] h-[5px] rounded-full shrink-0 mt-[1px]",
-                hasSession ? "bg-[#00C853]" : "bg-zinc-700"
+                hasSession ? "bg-[#00C853]" : "bg-[hsl(var(--muted))]"
               )} />
               <span className={cn(
                 "text-[13px] font-bold leading-none",
-                hasSession ? "text-zinc-100" : "text-zinc-600"
+                hasSession ? "text-[hsl(var(--foreground))]" : "text-[hsl(var(--text-secondary))]"
               )}>
                 {micro.session ?? "CLOSED"}
               </span>
             </div>
             <span className={cn(
               "text-[11px] font-mono leading-none",
-              hasSession ? "text-[#00C853]/50" : "text-zinc-700/50"
+              hasSession ? "text-[#00C853]/50" : "text-[hsl(var(--text-secondary)_/_0.5)]"
             )}>
               {hasSession ? "ACTIVE" : "—"}
             </span>
           </div>
 
           {/* └ Win Rate */}
-          <div className="flex flex-col gap-[4px] px-3 py-[9px] border-r border-white/[0.05]">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
+          <div className="flex flex-col gap-[4px] px-3 py-[9px] border-r border-[hsl(var(--border))]">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[hsl(var(--text-secondary))] leading-none">
               Win Rate ({winRateLabel})
             </span>
             <span className={cn(
               "text-[13px] font-bold leading-none tabular-nums",
-              winRate7d !== null ? "text-zinc-100" : "text-zinc-700"
+              winRate7d !== null ? "text-[hsl(var(--foreground))]" : "text-[hsl(var(--text-secondary))]"
             )}>
               {winRate7d !== null ? `${winRate7d}%` : "—"}
             </span>
-            <span className="text-[11px] font-mono leading-none text-zinc-700/50">
+            <span className="text-[11px] font-mono leading-none text-[hsl(var(--text-secondary)_/_0.5)]">
               {winRate7d !== null ? winRateLabel : "NO DATA"}
             </span>
           </div>
 
           {/* ┘ Avg R:R */}
           <div className="flex flex-col gap-[4px] px-3 py-[9px]">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-600 leading-none">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[hsl(var(--text-secondary))] leading-none">
               Win/Loss
             </span>
             <span className={cn(
               "text-[13px] font-bold leading-none tabular-nums",
-              avgRR !== null ? "text-zinc-100" : "text-zinc-700"
+              avgRR !== null ? "text-[hsl(var(--foreground))]" : "text-[hsl(var(--text-secondary))]"
             )}>
               {avgRR !== null ? `${avgRR}×` : "—"}
             </span>
-            <span className="text-[11px] font-mono leading-none text-zinc-700/50">
+            <span className="text-[11px] font-mono leading-none text-[hsl(var(--text-secondary)_/_0.5)]">
               {avgRR !== null ? "AVG W ÷ L" : "NO DATA"}
             </span>
           </div>
@@ -336,33 +336,33 @@ function AppRow({
     green: "text-[#00C853]",
     red:   "text-[#FF3D3D]",
     amber: "t-accent",
-    muted: "text-zinc-600",
+    muted: "text-[hsl(var(--text-secondary))]",
   };
 
   return (
     <button
       onClick={onPress}
       className={cn(
-        "w-full flex items-center gap-3 px-4 py-[7px] active:bg-white/[0.04] transition-colors cursor-pointer",
-        isActive && "border-l-2 border-t-accent bg-white/[0.03] !pl-[14px]"
+        "w-full flex items-center gap-3 px-4 py-[7px] active:bg-[hsl(var(--foreground)_/_0.04)] transition-colors cursor-pointer",
+        isActive && "border-l-2 border-t-accent bg-[hsl(var(--foreground)_/_0.03)] !pl-[14px]"
       )}
     >
       <Icon
         className={cn(
           "h-3 w-3 shrink-0",
-          isLocked ? "text-zinc-700 opacity-40" : "text-zinc-400 opacity-50"
+          isLocked ? "text-[hsl(var(--text-secondary))] opacity-40" : "text-[hsl(var(--text-secondary))] opacity-50"
         )}
         strokeWidth={1.5}
       />
       <span className={cn(
         "flex-1 text-[11.5px] text-left leading-none tracking-[0.01em]",
-        isLocked ? "text-zinc-600 font-normal" : "text-zinc-200 font-medium"
+        isLocked ? "text-[hsl(var(--text-secondary))] font-normal" : "text-[hsl(var(--foreground))] font-medium"
       )}>
         {app.label}
       </span>
       <div className="w-[52px] flex justify-end shrink-0">
         {isLocked ? (
-          <span className="text-[8.5px] font-mono uppercase tracking-widest text-zinc-600">
+          <span className="text-[8.5px] font-mono uppercase tracking-widest text-[hsl(var(--text-secondary))]">
             PRO
           </span>
         ) : tag ? (
@@ -632,16 +632,16 @@ export function MobileMore() {
           style={{ paddingTop: "max(2.5rem, env(safe-area-inset-top))" }}
         >
           {/* Back bar */}
-          <div className="flex items-center gap-2 px-3 pb-2.5 border-b border-white/[0.06] shrink-0">
+          <div className="flex items-center gap-2 px-3 pb-2.5 border-b border-[hsl(var(--border))] shrink-0">
             <button
               onClick={() => setActiveAppId(null)}
-              className="flex items-center gap-1.5 text-zinc-500 active:text-zinc-200 py-1 cursor-pointer transition-colors"
+              className="flex items-center gap-1.5 text-[hsl(var(--text-secondary))] active:text-[hsl(var(--foreground))] py-1 cursor-pointer transition-colors"
             >
               <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
               <span className="text-[11px] font-normal uppercase tracking-wide">Menu</span>
             </button>
-            <span className="text-[11px] text-zinc-600 mx-1">/</span>
-            <span className="text-[13px] font-medium text-zinc-200">{activeApp.label}</span>
+            <span className="text-[11px] text-[hsl(var(--text-secondary))] mx-1">/</span>
+            <span className="text-[13px] font-medium text-[hsl(var(--foreground))]">{activeApp.label}</span>
             <div className="ml-auto">
               <AssetChip size="sm" onPress={() => setSheetOpen(true)} />
             </div>
@@ -677,7 +677,7 @@ export function MobileMore() {
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div
-          className="px-4 pb-3 border-b border-white/[0.06] shrink-0"
+          className="px-4 pb-3 border-b border-[hsl(var(--border))] shrink-0"
           style={{ paddingTop: "max(2.75rem, env(safe-area-inset-top))" }}
         >
           <div className="flex items-center min-h-[48px]">
@@ -694,7 +694,7 @@ export function MobileMore() {
             {/* Name + tier */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <p className="text-[13px] font-semibold text-zinc-100 truncate leading-none">
+                <p className="text-[13px] font-semibold text-[hsl(var(--foreground))] truncate leading-none">
                   {traderName || "Trader"}
                 </p>
                 <span className={cn(
@@ -703,13 +703,13 @@ export function MobileMore() {
                     ? "bg-t-accent-10 t-accent border-t-accent-20"
                     : subscription.isTrialing
                     ? "bg-[#00C853]/10 text-[#00C853] border-[#00C853]/20"
-                    : "bg-zinc-800 text-zinc-600 border-zinc-700"
+                    : "bg-[hsl(var(--muted))] text-[hsl(var(--text-secondary))] border-[hsl(var(--border))]"
                 )}>
                   {isPaid && <Crown className="inline h-2 w-2 mr-0.5 -mt-px" />}
                   {planLabel}
                 </span>
               </div>
-              <p className="text-[11px] text-zinc-500 mt-[4px] uppercase tracking-wider leading-none">
+              <p className="text-[11px] text-[hsl(var(--text-secondary))] mt-[4px] uppercase tracking-wider leading-none">
                 Tradex Terminal
               </p>
             </div>
@@ -733,10 +733,10 @@ export function MobileMore() {
               <div key={section.label}>
                 {/* Section divider */}
                 <div className="flex items-center gap-2.5 px-4 pt-3 pb-1">
-                  <span className="text-[11px] font-semibold tracking-[0.12em] text-zinc-500/60 shrink-0">
+                  <span className="text-[11px] font-semibold tracking-[0.12em] text-[hsl(var(--text-secondary)_/_0.6)] shrink-0">
                     {section.label}
                   </span>
-                  <div className="flex-1 h-px bg-white/[0.05]" />
+                  <div className="flex-1 h-px bg-[hsl(var(--foreground)_/_0.05)]" />
                 </div>
 
                 {apps.map(app => {
@@ -764,10 +764,10 @@ export function MobileMore() {
           {/* ── Account section ─────────────────────────────────────────── */}
           <div>
             <div className="flex items-center gap-2.5 px-4 pt-3 pb-1">
-              <span className="text-[11px] font-semibold tracking-[0.12em] text-zinc-500/60 shrink-0">
+              <span className="text-[11px] font-semibold tracking-[0.12em] text-[hsl(var(--text-secondary)_/_0.6)] shrink-0">
                 ACCOUNT
               </span>
-              <div className="flex-1 h-px bg-white/[0.05]" />
+              <div className="flex-1 h-px bg-[hsl(var(--foreground)_/_0.05)]" />
             </div>
 
             {/* Push notifications row */}
@@ -778,21 +778,21 @@ export function MobileMore() {
                   : undefined
               }
               disabled={push.busy || push.status === "denied" || push.status === "unsupported"}
-              className="w-full flex items-center gap-3 px-4 py-[7px] active:bg-white/[0.04] transition-colors cursor-pointer disabled:opacity-40"
+              className="w-full flex items-center gap-3 px-4 py-[7px] active:bg-[hsl(var(--foreground)_/_0.04)] transition-colors cursor-pointer disabled:opacity-40"
             >
               {push.busy
-                ? <Loader2 className="h-3 w-3 text-zinc-400 opacity-50 animate-spin shrink-0" strokeWidth={1.5} />
+                ? <Loader2 className="h-3 w-3 text-[hsl(var(--text-secondary))] opacity-50 animate-spin shrink-0" strokeWidth={1.5} />
                 : push.status === "subscribed"
                 ? <Bell    className="h-3 w-3 text-[#00C853] opacity-60 shrink-0" strokeWidth={1.5} />
-                : <BellOff className="h-3 w-3 text-zinc-500 opacity-50 shrink-0" strokeWidth={1.5} />
+                : <BellOff className="h-3 w-3 text-[hsl(var(--text-secondary))] opacity-50 shrink-0" strokeWidth={1.5} />
               }
-              <span className="flex-1 text-[11.5px] font-medium text-zinc-200 text-left leading-none tracking-[0.01em]">
+              <span className="flex-1 text-[11.5px] font-medium text-[hsl(var(--foreground))] text-left leading-none tracking-[0.01em]">
                 Alerts
               </span>
               {/* Toggle pill */}
               <div className={cn(
                 "w-9 h-[20px] rounded-full transition-colors shrink-0 relative",
-                push.status === "subscribed" ? "bg-[#00C853]/80" : "bg-zinc-800"
+                push.status === "subscribed" ? "bg-[#00C853]/80" : "bg-[hsl(var(--muted))]"
               )}>
                 <div className={cn(
                   "absolute top-[2px] w-4 h-4 bg-white rounded-full shadow transition-transform",
@@ -806,16 +806,16 @@ export function MobileMore() {
               <button
                 onClick={runPushTest}
                 disabled={pushTestBusy}
-                className="w-full flex items-center gap-3 px-4 py-[7px] active:bg-white/[0.04] transition-colors cursor-pointer disabled:opacity-40"
+                className="w-full flex items-center gap-3 px-4 py-[7px] active:bg-[hsl(var(--foreground)_/_0.04)] transition-colors cursor-pointer disabled:opacity-40"
               >
                 {pushTestBusy
-                  ? <Loader2 className="h-3 w-3 text-zinc-400 opacity-50 animate-spin shrink-0" strokeWidth={1.5} />
-                  : <Bell className="h-3 w-3 text-zinc-500 opacity-50 shrink-0" strokeWidth={1.5} />
+                  ? <Loader2 className="h-3 w-3 text-[hsl(var(--text-secondary))] opacity-50 animate-spin shrink-0" strokeWidth={1.5} />
+                  : <Bell className="h-3 w-3 text-[hsl(var(--text-secondary))] opacity-50 shrink-0" strokeWidth={1.5} />
                 }
-                <span className="flex-1 text-[11.5px] font-medium text-zinc-200 text-left leading-none tracking-[0.01em]">
+                <span className="flex-1 text-[11.5px] font-medium text-[hsl(var(--foreground))] text-left leading-none tracking-[0.01em]">
                   Send test alert
                 </span>
-                <span className="text-[11px] text-zinc-600 shrink-0">diagnose delivery</span>
+                <span className="text-[11px] text-[hsl(var(--text-secondary))] shrink-0">diagnose delivery</span>
               </button>
             )}
 
@@ -831,13 +831,13 @@ export function MobileMore() {
                   }).catch(() => {});
                   toast.success("Test scheduled — CLOSE the app NOW. Notification arrives in ~10s.", { duration: 6000 });
                 }}
-                className="w-full flex items-center gap-3 px-4 py-[7px] active:bg-white/[0.04] transition-colors cursor-pointer"
+                className="w-full flex items-center gap-3 px-4 py-[7px] active:bg-[hsl(var(--foreground)_/_0.04)] transition-colors cursor-pointer"
               >
-                <Bell className="h-3 w-3 text-zinc-500 opacity-50 shrink-0" strokeWidth={1.5} />
-                <span className="flex-1 text-[11.5px] font-medium text-zinc-200 text-left leading-none tracking-[0.01em]">
+                <Bell className="h-3 w-3 text-[hsl(var(--text-secondary))] opacity-50 shrink-0" strokeWidth={1.5} />
+                <span className="flex-1 text-[11.5px] font-medium text-[hsl(var(--foreground))] text-left leading-none tracking-[0.01em]">
                   Test with app closed
                 </span>
-                <span className="text-[11px] text-zinc-600 shrink-0">sends in 10s</span>
+                <span className="text-[11px] text-[hsl(var(--text-secondary))] shrink-0">sends in 10s</span>
               </button>
             )}
 

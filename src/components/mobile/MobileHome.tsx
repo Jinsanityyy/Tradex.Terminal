@@ -103,7 +103,7 @@ function MobilePnLWidget() {
 
   return (
     <section key="pnl_calendar">
-      <div className="bg-[hsl(var(--card))] rounded-xl border border-white/5 overflow-hidden">
+      <div className="bg-[hsl(var(--card))] rounded-xl border border-[hsl(var(--border))] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[hsl(var(--border))]">
           <div>
@@ -153,7 +153,7 @@ function MobilePnLWidget() {
 
         {/* 14-day mini bar chart */}
         <div className="px-4 pb-3 pt-2">
-          <p className="text-[11px] text-zinc-700 mb-1.5">Last 14 days</p>
+          <p className="text-[11px] text-[hsl(var(--text-secondary))] mb-1.5">Last 14 days</p>
           <div className="flex items-end gap-0.5 h-8">
             {vals.map((v, i) => {
               const pct = Math.abs(v) / maxAbs;
@@ -164,7 +164,7 @@ function MobilePnLWidget() {
                         className={cn("w-full rounded-sm min-h-[2px]", v > 0 ? "bg-emerald-500/70" : "bg-red-500/60")}
                         style={{ height: `${Math.max(pct * 100, 8)}%` }}
                       />
-                    : <div className="w-full h-px bg-white/10" />
+                    : <div className="w-full h-px bg-[hsl(var(--foreground)_/_0.1)]" />
                   }
                 </div>
               );
@@ -263,7 +263,7 @@ function ProTeaser({ label }: { label: string }) {
       className="flex w-full flex-col items-center justify-center gap-2 rounded-[2px] border border-[hsl(142,71%,45%)]/20 bg-[hsl(142,71%,45%)]/[0.03] py-8 active:opacity-70"
     >
       <Lock className="h-4 w-4 text-[hsl(142,71%,45%)]" />
-      <p className="text-[11px] text-zinc-400">{label}</p>
+      <p className="text-[11px] text-[hsl(var(--text-secondary))]">{label}</p>
       <span className="text-[11px] font-semibold text-[hsl(142,71%,45%)]">
         See what it unlocks
       </span>
@@ -577,7 +577,7 @@ export function MobileHome() {
         <div className="flex items-center justify-center py-3 transition-all"
           style={{ height: refreshing ? 48 : Math.min(pullDistance * 0.5, 48) }}>
           {isOnCooldown
-            ? <span className="text-[11px] text-zinc-500">{countdownLabel}</span>
+            ? <span className="text-[11px] text-[hsl(var(--text-secondary))]">{countdownLabel}</span>
             : <RefreshCw className={cn("h-4 w-4 text-[hsl(var(--primary))]", refreshing ? "animate-spin" : pullDistance >= THRESHOLD ? "text-emerald-400" : "")} />
           }
         </div>
@@ -586,9 +586,9 @@ export function MobileHome() {
       {/* Header row */}
       <div className="flex items-center justify-between px-4 pt-3 pb-1">
         <div className="flex items-center gap-2">
-          <span className="text-[13px] font-bold text-zinc-200">{symbolBiasLabel}</span>
+          <span className="text-[13px] font-bold text-[hsl(var(--foreground))]">{symbolBiasLabel}</span>
           {lastUpdated && (
-            <span className="text-[11px] text-zinc-600">· updated {lastUpdated}</span>
+            <span className="text-[11px] text-[hsl(var(--text-secondary))]">· updated {lastUpdated}</span>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -600,7 +600,7 @@ export function MobileHome() {
           )}
           <button
             onClick={() => setWidgetSheetOpen(true)}
-            className="p-1.5 rounded-lg text-zinc-600 active:text-zinc-300 active:bg-white/5"
+            className="p-1.5 rounded-lg text-[hsl(var(--text-secondary))] active:text-[hsl(var(--foreground))] active:bg-[hsl(var(--foreground)_/_0.05)]"
           >
             <Settings2 className="h-4 w-4" />
           </button>
@@ -941,23 +941,23 @@ export function MobileHome() {
             case "top_catalyst":
               return (catalysts[0] && catalystImpact) ? (
                 <div key="top_catalyst" onClick={() => setSelectedCatalyst(catalysts[0])}
-                  className="bg-[hsl(var(--card))] rounded-xl px-4 py-3 border border-white/5 active:bg-[hsl(var(--secondary))] cursor-pointer">
+                  className="bg-[hsl(var(--card))] rounded-xl px-4 py-3 border border-[hsl(var(--border))] active:bg-[hsl(var(--secondary))] cursor-pointer">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex-1">
-                      <p className="text-[11px] text-zinc-600 uppercase tracking-wider mb-1">Top Catalyst</p>
-                      <p className="text-xs text-zinc-200 leading-snug">{catalysts[0].title}</p>
+                      <p className="text-[11px] text-[hsl(var(--text-secondary))] uppercase tracking-wider mb-1">Top Catalyst</p>
+                      <p className="text-xs text-[hsl(var(--foreground))] leading-snug">{catalysts[0].title}</p>
                     </div>
                     <span className={cn("text-[11px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-4",
                       catalysts[0].importance === "high" ? "bg-red-500/15 text-red-400" :
                       catalysts[0].importance === "medium" ? "bg-t-accent-15 t-accent" :
-                      "bg-zinc-500/15 text-zinc-400")}>
+                      "bg-[hsl(var(--text-secondary)_/_0.15)] text-[hsl(var(--text-secondary))]")}>
                       {catalysts[0].importance?.toUpperCase()}
                     </span>
                   </div>
                   <span className={cn("text-[11px] font-semibold px-1.5 py-0.5 rounded-[2px]",
                     catalystImpact.impact === "bullish" ? "bg-[#00C853]/15 text-[#00C853]" :
                     catalystImpact.impact === "bearish" ? "bg-red-500/15 text-red-400" :
-                    "bg-zinc-500/15 text-zinc-400")}>
+                    "bg-[hsl(var(--text-secondary)_/_0.15)] text-[hsl(var(--text-secondary))]")}>
                     {symbolBiasShort} {catalystImpact.impact.toUpperCase()}
                   </span>
                 </div>
@@ -1169,7 +1169,7 @@ export function MobileHome() {
                     <ProTeaser label="The 7-agent read is part of Pro" />
                   ) : agentError && !agentData ? (
                     <div className="flex flex-col items-center justify-center py-10 gap-2">
-                      <p className="text-[11px] text-zinc-500">Analysis unavailable</p>
+                      <p className="text-[11px] text-[hsl(var(--text-secondary))]">Analysis unavailable</p>
                       <button onClick={() => refreshAgent().catch(() => {})}
                         className="text-[11px] text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30 px-3 py-1.5 rounded-lg active:opacity-70">
                         Retry
@@ -1243,7 +1243,7 @@ export function MobileHome() {
               activeBias.bias === "bearish" ? "bg-[#FF3D3D]/8 border-[#FF3D3D]/20" :
               "bg-[hsl(var(--card))] border-[hsl(var(--border))]")}>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-bold text-zinc-100">{symbolBiasShort}</span>
+                <span className="text-sm font-bold text-[hsl(var(--foreground))]">{symbolBiasShort}</span>
                 <span className={cn("text-[11px] font-bold px-3 py-1 rounded-[2px]",
                   activeBias.bias === "bullish" ? "bg-[#00C853]/20 text-[#00C853]" :
                   activeBias.bias === "bearish" ? "bg-[#FF3D3D]/20 text-[#FF3D3D]" :
@@ -1251,14 +1251,14 @@ export function MobileHome() {
                   {activeBias.bias?.toUpperCase()}
                 </span>
               </div>
-              <div className="flex justify-between text-[11px] text-zinc-500 mb-2">
-                <span>Conviction</span><span className="font-mono font-bold text-zinc-300">{activeBias.confidence}%</span>
+              <div className="flex justify-between text-[11px] text-[hsl(var(--text-secondary))] mb-2">
+                <span>Conviction</span><span className="font-mono font-bold text-[hsl(var(--foreground))]">{activeBias.confidence}%</span>
               </div>
               <div className="h-2 rounded-full bg-black/30">
                 <div className={cn("h-full transition-all", activeBias.bias === "bullish" ? "bg-[#00C853]" : activeBias.bias === "bearish" ? "bg-[#FF3D3D]" : "bg-[hsl(var(--text-secondary))]")}
                   style={{ width: `${activeBias.confidence}%` }} />
               </div>
-              <p className="text-[11px] text-zinc-600 mt-2">
+              <p className="text-[11px] text-[hsl(var(--text-secondary))] mt-2">
                 {activeBias.confidence >= 70 ? "High conviction — strong directional alignment across factors." :
                  activeBias.confidence >= 50 ? "Moderate conviction — majority of factors align but some uncertainty remains." :
                  "Low conviction — mixed signals, trade with reduced size or wait for confirmation."}
@@ -1273,7 +1273,7 @@ export function MobileHome() {
                   {(techBias?.supportingFactors ?? master?.supports ?? []).map((f: string, i: number) => (
                     <div key={i} className="flex items-start gap-2">
                       <span className="text-[#00C853] shrink-0 mt-0.5 text-[11px]">✓</span>
-                      <p className="text-[11px] text-zinc-300 leading-snug">{f}</p>
+                      <p className="text-[11px] text-[hsl(var(--foreground))] leading-snug">{f}</p>
                     </div>
                   ))}
                 </div>
@@ -1288,7 +1288,7 @@ export function MobileHome() {
                   {(techBias?.invalidationFactors ?? master?.invalidations ?? []).map((f: string, i: number) => (
                     <div key={i} className="flex items-start gap-2">
                       <span className="text-red-500 shrink-0 mt-0.5 text-[11px]">✕</span>
-                      <p className="text-[11px] text-zinc-300 leading-snug">{f}</p>
+                      <p className="text-[11px] text-[hsl(var(--foreground))] leading-snug">{f}</p>
                     </div>
                   ))}
                 </div>
@@ -1299,11 +1299,11 @@ export function MobileHome() {
             {techBias?.keyLevels && (
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 text-center">
-                  <p className="text-[11px] uppercase tracking-wider text-zinc-600 mb-1">Support</p>
+                  <p className="text-[11px] uppercase tracking-wider text-[hsl(var(--text-secondary))] mb-1">Support</p>
                   <p className="text-sm font-bold font-mono text-[#00C853]">{techBias.keyLevels.support}</p>
                 </div>
                 <div className="rounded-lg bg-[hsl(var(--secondary))] p-3 text-center">
-                  <p className="text-[11px] uppercase tracking-wider text-zinc-600 mb-1">Resistance</p>
+                  <p className="text-[11px] uppercase tracking-wider text-[hsl(var(--text-secondary))] mb-1">Resistance</p>
                   <p className="text-sm font-bold font-mono text-red-400">{techBias.keyLevels.resistance}</p>
                 </div>
               </div>
@@ -1312,8 +1312,8 @@ export function MobileHome() {
             {/* Session behavior */}
             {techBias?.sessionBehavior && (
               <div className="rounded-lg bg-[hsl(var(--secondary))] p-3.5">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">Session Behavior</p>
-                <p className="text-[11px] text-zinc-300 leading-relaxed">{techBias.sessionBehavior}</p>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--text-secondary))] mb-1.5">Session Behavior</p>
+                <p className="text-[11px] text-[hsl(var(--foreground))] leading-relaxed">{techBias.sessionBehavior}</p>
               </div>
             )}
           </div>
@@ -1326,7 +1326,7 @@ export function MobileHome() {
             <div className="flex items-center gap-2 flex-wrap">
               <span className={cn("text-[11px] font-bold px-2 py-0.5 rounded-[2px] uppercase",
                 selectedCatalyst.importance === "high" ? "bg-[#FF3D3D]/15 text-[#FF3D3D]" :
-                selectedCatalyst.importance === "medium" ? "bg-t-accent-15 t-accent" : "bg-zinc-500/15 text-zinc-400")}>
+                selectedCatalyst.importance === "medium" ? "bg-t-accent-15 t-accent" : "bg-[hsl(var(--text-secondary)_/_0.15)] text-[hsl(var(--text-secondary))]")}>
                 {selectedCatalyst.importance}
               </span>
             </div>
@@ -1337,7 +1337,7 @@ export function MobileHome() {
             {selectedCatalyst.affectedMarkets?.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {selectedCatalyst.affectedMarkets.map((m: string) => (
-                  <span key={m} className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[hsl(var(--secondary))] text-zinc-400">{m}</span>
+                  <span key={m} className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[hsl(var(--secondary))] text-[hsl(var(--text-secondary))]">{m}</span>
                 ))}
               </div>
             )}

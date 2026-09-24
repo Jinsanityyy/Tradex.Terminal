@@ -17,7 +17,7 @@ import { MobileFeatureGate } from "@/components/mobile/MobileFeatureGate";
 // a dynamic import there would cost a blank frame on first paint.
 const TabFallback = () => (
   <div className="flex h-full items-center justify-center">
-    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/15 border-t-white/50" />
+    <div className="h-5 w-5 animate-spin rounded-full border-2 border-[hsl(var(--border))] border-t-white/50" />
   </div>
 );
 
@@ -331,8 +331,8 @@ export function MobileLayout() {
           <TradeXLogo variant="icon" size="xl" className="relative z-10" />
         </div>
         <div className="text-center space-y-1">
-          <p className="text-[13px] font-bold tracking-[0.25em] uppercase text-zinc-300">TradeX Terminal</p>
-          <p className="text-[11px] text-zinc-600 tracking-widest uppercase">Loading your workspace…</p>
+          <p className="text-[13px] font-bold tracking-[0.25em] uppercase text-[hsl(var(--foreground))]">TradeX Terminal</p>
+          <p className="text-[11px] text-[hsl(var(--text-secondary))] tracking-widest uppercase">Loading your workspace…</p>
         </div>
         <div className="flex gap-1.5">
           {[0, 1, 2].map(i => (
@@ -360,7 +360,7 @@ export function MobileLayout() {
 
       {/* Top bar */}
       <div
-        className="flex items-center justify-between px-4 pt-10 pb-2 bg-[#0D0D0F] border-b border-[hsl(var(--border))] shrink-0"
+        className="flex items-center justify-between px-4 pt-10 pb-2 bg-[hsl(var(--background))] border-b border-[hsl(var(--border))] shrink-0"
         // pt-10 alone assumed a ~24px status bar; punch-hole/notch devices report
         // a taller inset and clipped the row. The max() keeps the original 40px
         // wherever the inset is small, so only tall-inset devices grow.
@@ -370,7 +370,7 @@ export function MobileLayout() {
           {/* Hamburger — opens features drawer */}
           <button
             onClick={openDrawer}
-            className="flex items-center justify-center w-7 h-7 rounded-[2px] border border-[hsl(var(--border))] active:bg-white/5"
+            className="flex items-center justify-center w-7 h-7 rounded-[2px] border border-[hsl(var(--border))] active:bg-[hsl(var(--foreground)_/_0.05)]"
           >
             <Menu className="h-4 w-4 text-[hsl(var(--text-secondary))]" />
           </button>
@@ -403,7 +403,7 @@ export function MobileLayout() {
             <div className="flex items-center justify-between mb-5">
               <span className="text-[15px] font-semibold">Profile</span>
               <button onClick={() => setShowProfile(false)}>
-                <X className="h-5 w-5 text-zinc-500" />
+                <X className="h-5 w-5 text-[hsl(var(--text-secondary))]" />
               </button>
             </div>
 
@@ -418,12 +418,12 @@ export function MobileLayout() {
                   showBadge
                 >
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                    <Camera className="h-4 w-4 text-white" />
+                    <Camera className="h-4 w-4 text-[#fff]" />
                   </div>
                 </ProAvatar>
               </button>
               <div>
-                <p className="text-[13px] font-semibold text-white">{traderName || "Set your name"}</p>
+                <p className="text-[13px] font-semibold text-[hsl(var(--foreground))]">{traderName || "Set your name"}</p>
                 <button onClick={() => fileRef.current?.click()}
                   className="text-[11px] text-[hsl(var(--primary))] mt-0.5">
                   {avatar ? "Change photo" : "Add photo"}
@@ -435,13 +435,13 @@ export function MobileLayout() {
 
             {/* Name edit */}
             <div className="mb-4">
-              <p className="text-[11px] text-zinc-600 uppercase tracking-wider mb-2">Trader Name</p>
+              <p className="text-[11px] text-[hsl(var(--text-secondary))] uppercase tracking-wider mb-2">Trader Name</p>
               {editing ? (
                 <div className="flex gap-2">
                   <input autoFocus value={draft} onChange={e => setDraft(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && saveName()}
                     maxLength={20} placeholder="Your name..."
-                    className="flex-1 rounded-xl bg-[hsl(var(--secondary))] border border-[hsl(var(--primary))]/30 px-3 py-2 text-[13px] text-white outline-none" />
+                    className="flex-1 rounded-xl bg-[hsl(var(--secondary))] border border-[hsl(var(--primary))]/30 px-3 py-2 text-[13px] text-[hsl(var(--foreground))] outline-none" />
                   <button onClick={saveName}
                     className="px-4 py-2 rounded-xl bg-[hsl(var(--primary))]/20 border border-[hsl(var(--primary))]/30 text-[13px] text-[hsl(var(--primary))] font-semibold">
                     Save
@@ -449,7 +449,7 @@ export function MobileLayout() {
                 </div>
               ) : (
                 <button onClick={() => { setDraft(traderName); setEditing(true); }}
-                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-[hsl(var(--secondary))] text-[13px] text-white">
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-[hsl(var(--secondary))] text-[13px] text-[hsl(var(--foreground))]">
                   <span>{traderName || "Tap to set name"}</span>
                   <span className="text-[11px] text-[hsl(var(--primary))]">Edit</span>
                 </button>
@@ -597,7 +597,7 @@ export function MobileLayout() {
                   />
                   {showBadge && (
                     <span
-                      className="absolute top-0.5 right-2 min-w-[16px] h-[16px] rounded-full text-[11px] font-bold text-white flex items-center justify-center px-1 ring-2"
+                      className="absolute top-0.5 right-2 min-w-[16px] h-[16px] rounded-full text-[11px] font-bold text-[#fff] flex items-center justify-center px-1 ring-2"
                       style={{
                         backgroundColor: "var(--t-bearish, #FF3D3D)",
                         // Cut the badge out of the bar rather than letting it

@@ -31,17 +31,17 @@ export function AssetSelectorSheet({ open, onClose }: AssetSelectorSheetProps) {
     >
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
-        className="relative rounded-t-2xl border-t border-white/8 bg-[hsl(var(--card))]"
+        className="relative rounded-t-2xl border-t border-[hsl(var(--border))] bg-[hsl(var(--card))]"
         style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Pull handle */}
         <div className="flex justify-center pt-3 pb-4">
-          <div className="h-1 w-10 rounded-full bg-zinc-700" />
+          <div className="h-1 w-10 rounded-full bg-[hsl(var(--muted))]" />
         </div>
 
         <div className="px-5 pb-2">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-500 mb-4">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--text-secondary))] mb-4">
             Active Asset
           </p>
           <div className="space-y-2.5">
@@ -55,7 +55,7 @@ export function AssetSelectorSheet({ open, onClose }: AssetSelectorSheetProps) {
                     "w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all active:scale-[0.98]",
                     isSelected
                       ? "bg-[hsl(var(--primary))]/12 border border-[hsl(var(--primary))]/35"
-                      : "bg-white/5 border border-white/5 active:bg-white/10"
+                      : "bg-[hsl(var(--foreground)_/_0.05)] border border-[hsl(var(--border))] active:bg-[hsl(var(--foreground)_/_0.1)]"
                   )}
                 >
                   <div
@@ -63,7 +63,7 @@ export function AssetSelectorSheet({ open, onClose }: AssetSelectorSheetProps) {
                       "w-11 h-11 rounded-xl flex items-center justify-center text-[13px] font-bold font-mono shrink-0",
                       isSelected
                         ? "bg-[hsl(var(--primary))]/20 text-[hsl(var(--primary))]"
-                        : "bg-white/8 text-zinc-300"
+                        : "bg-[hsl(var(--foreground)_/_0.08)] text-[hsl(var(--foreground))]"
                     )}
                   >
                     {sym.slice(0, 3)}
@@ -72,12 +72,12 @@ export function AssetSelectorSheet({ open, onClose }: AssetSelectorSheetProps) {
                     <p
                       className={cn(
                         "text-[15px] font-semibold leading-tight",
-                        isSelected ? "text-[hsl(var(--primary))]" : "text-zinc-200"
+                        isSelected ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--foreground))]"
                       )}
                     >
                       {getSymbolLabel(sym)}
                     </p>
-                    <p className="text-[11px] text-zinc-500 font-mono mt-0.5">
+                    <p className="text-[11px] text-[hsl(var(--text-secondary))] font-mono mt-0.5">
                       {getSymbolShort(sym)}
                     </p>
                   </div>

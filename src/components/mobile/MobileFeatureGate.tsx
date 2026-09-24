@@ -55,7 +55,7 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
   if (loading) {
     return (
       <div className="flex items-center justify-center flex-1 min-h-[40vh]">
-        <Loader2 className="h-5 w-5 animate-spin text-zinc-600" />
+        <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--text-secondary))]" />
       </div>
     );
   }
@@ -84,19 +84,19 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
           </span>
         </div>
 
-        <h3 className="text-sm font-bold text-white mb-1.5">{featureName} requires Pro</h3>
-        <p className="text-xs text-zinc-500 mb-5 leading-relaxed">
+        <h3 className="text-sm font-bold text-[hsl(var(--foreground))] mb-1.5">{featureName} requires Pro</h3>
+        <p className="text-xs text-[hsl(var(--text-secondary))] mb-5 leading-relaxed">
           Upgrade to unlock all AI-powered analysis tools.
         </p>
 
         {/* Billing toggle — hidden when monthly is the only term on offer */}
         {hasAnnual && (
-        <div className="flex rounded-lg border border-white/10 p-0.5 mb-3 bg-zinc-900/80">
+        <div className="flex rounded-lg border border-[hsl(var(--border))] p-0.5 mb-3 bg-[hsl(var(--card)_/_0.8)]">
           <button
             onClick={() => setBilling("monthly")}
             className={cn(
               "flex-1 rounded-md py-1.5 text-[11px] font-semibold transition-all",
-              billing === "monthly" ? "bg-zinc-800 text-white shadow-sm" : "text-zinc-500"
+              billing === "monthly" ? "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] shadow-sm" : "text-[hsl(var(--text-secondary))]"
             )}
           >
             Monthly
@@ -105,7 +105,7 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
             onClick={() => setBilling("annual")}
             className={cn(
               "flex-1 rounded-md py-1.5 text-[11px] font-semibold transition-all",
-              billing === "annual" ? "bg-zinc-800 text-white shadow-sm" : "text-zinc-500"
+              billing === "annual" ? "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] shadow-sm" : "text-[hsl(var(--text-secondary))]"
             )}
           >
             Annual
@@ -114,11 +114,11 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
         )}
 
         {/* Price */}
-        <div className="rounded-xl bg-zinc-900/80 px-4 py-3 mb-4">
+        <div className="rounded-xl bg-[hsl(var(--card)_/_0.8)] px-4 py-3 mb-4">
           <p className="text-2xl font-bold font-mono text-[hsl(142,71%,45%)]">
             {pricing.loading ? "…" : price ?? "—"}
           </p>
-          <p className="text-[11px] text-zinc-500 mt-0.5">
+          <p className="text-[11px] text-[hsl(var(--text-secondary))] mt-0.5">
             {term === "annual" ? "per year" : "per month"}
           </p>
         </div>
@@ -142,13 +142,13 @@ export function MobileFeatureGate({ children, featureName }: MobileFeatureGatePr
 
         {isNative && (
           <>
-            <p className="text-[11px] text-zinc-600 mb-2 leading-relaxed">
+            <p className="text-[11px] text-[hsl(var(--text-secondary))] mb-2 leading-relaxed">
               Billed through Google Play. Manage or cancel any time in the Play Store.
             </p>
             <button
               onClick={handleRefresh}
               disabled={refreshing || refreshed}
-              className="flex items-center justify-center gap-1.5 w-full py-2 text-[11px] text-zinc-500 active:opacity-70 disabled:opacity-40 transition-all"
+              className="flex items-center justify-center gap-1.5 w-full py-2 text-[11px] text-[hsl(var(--text-secondary))] active:opacity-70 disabled:opacity-40 transition-all"
             >
               {refreshed
                 ? <><CheckCircle2 className="h-3 w-3 text-[hsl(142,71%,45%)]" /> Checking access…</>
