@@ -33,7 +33,8 @@ import { CatalystFeed } from "@/components/shared/CatalystFeed";
 import { DetailModal } from "@/components/shared/DetailModal";
 import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
 import { CloseTradeModal } from "@/components/shared/CloseTradeModal";
-import { loadTradeLog, findOpenBySetup, discardTrade, type TakenSignal } from "@/lib/trades/trade-log";
+import { loadTradeLog, findOpenBySetup, discardTrade, TRADES_CHANGED_EVENT, type TakenSignal } from "@/lib/trades/trade-log";
+import { useTradeAutoResolve } from "@/hooks/useTradeAutoResolve";
 import { isCounterTrend, counterTrendNote } from "@/lib/signals/counter-trend";
 import { LiveTVPanel } from "@/components/shared/LiveTVPanel";
 import { SessionSummaryCard } from "@/components/shared/SessionSummaryCard";
@@ -919,6 +920,10 @@ export default function DashboardPage() {
   useEffect(() => { setTradeLog(loadTradeLog()); }, []);
 
   const refreshTradeLog = useCallback(() => setTradeLog(loadTradeLog()), []);
+  useEffect(() => {
+    window.addEventListener(TRADES_CHANGED_EVENT, refreshTradeLog);
+    return () => window.removeEventListener(TRADES_CHANGED_EVENT, refreshTradeLog);
+  }, [refreshTradeLog]);
 
   const toggleFullscreen = useCallback(async () => {
     try {
@@ -933,6 +938,12 @@ export default function DashboardPage() {
   }, []);
 
   const { quotes } = useQuotes();
+  // Close taken trades by themselves when price reaches TP1 or the stop.
+  const quotePrices = useMemo(
+    () => Object.fromEntries(quotes.map(q => [q.symbol, q.price])) as Record<string, number | undefined>,
+    [quotes],
+  );
+  useTradeAutoResolve(quotePrices, refreshTradeLog);
   const { events } = useEconomicCalendar();
   const { catalysts } = useCatalysts();
   const { sessions } = useSessions();

@@ -67,7 +67,8 @@ function LazyMount({ minHeight, children }: { minHeight: number; children: React
 import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
 import { signalStateLabel } from "@/components/shared/agent-read-labels";
 import { CloseTradeModal } from "@/components/shared/CloseTradeModal";
-import { loadTradeLog, findOpenBySetup, discardTrade, type TakenSignal } from "@/lib/trades/trade-log";
+import { loadTradeLog, findOpenBySetup, discardTrade, TRADES_CHANGED_EVENT, type TakenSignal } from "@/lib/trades/trade-log";
+import { useTradeAutoResolve } from "@/hooks/useTradeAutoResolve";
 import { playSignalArmed } from "@/lib/sounds";
 import useSWR from "swr";
 import type { DailyPnL, MonthlyPnL } from "@/app/api/pnl/route";
@@ -327,7 +328,19 @@ export function MobileHome() {
   const [closingTrade, setClosingTrade] = useState<TakenSignal | null>(null);
   const containerRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLElement>;
 
-  useEffect(() => { setTradeLog(loadTradeLog()); }, []);
+  useEffect(() => {
+    const reload = () => setTradeLog(loadTradeLog());
+    reload();
+    window.addEventListener(TRADES_CHANGED_EVENT, reload);
+    return () => window.removeEventListener(TRADES_CHANGED_EVENT, reload);
+  }, []);
+
+  // Close taken trades by themselves when price reaches TP1 or the stop.
+  const quotePrices = useMemo(
+    () => Object.fromEntries(liveQuotes.map(q => [q.symbol, q.price])) as Record<string, number | undefined>,
+    [liveQuotes],
+  );
+  useTradeAutoResolve(quotePrices, () => setTradeLog(loadTradeLog()));
 
   const symbolBiasLabel = getSymbolLabel(activeSymbol);
   const symbolBiasShort = getSymbolShort(activeSymbol);

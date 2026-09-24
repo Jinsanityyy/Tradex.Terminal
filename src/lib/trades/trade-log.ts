@@ -134,7 +134,9 @@ export function takeTrade(params: Omit<TakenSignal, "id" | "status" | "takenAt">
 export function closeTrade(
   id: string,
   exitPrice: number,
-  notes?: string
+  notes?: string,
+  /** When the exit actually happened — an auto-detected TP/SL hit can be hours old. */
+  closedAt?: string,
 ): TakenSignal | null {
   const trades = loadTradeLog();
   const idx = trades.findIndex(t => t.id === id);
@@ -151,7 +153,7 @@ export function closeTrade(
     ...t,
     status: "closed",
     exitPrice,
-    closedAt: new Date().toISOString(),
+    closedAt: closedAt ?? new Date().toISOString(),
     pnlDollar,
     pnlR,
     result,
@@ -160,8 +162,12 @@ export function closeTrade(
   trades[idx] = closed;
   save(trades);
   syncClosedTradeToServer(closed).catch(() => {});
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(TRADES_CHANGED_EVENT));
   return closed;
 }
+
+/** Fired after a trade closes, so every view holding the log can reload it. */
+export const TRADES_CHANGED_EVENT = "tradex:trades-changed";
 
 export function discardTrade(id: string): void {
   const trades = loadTradeLog();
