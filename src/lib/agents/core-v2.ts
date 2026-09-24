@@ -51,7 +51,16 @@ export interface V2Params {
   bosWindow: number;
   /** Candles after the FVG completes in which the limit must fill */
   fillWindow: number;
+  /** Candles (from the first touch) within which price must close back inside the level; 1 = same candle */
+  closeBackBars: number;
+  /** Kill zones in minutes since 18:00 ET: [start, end) */
+  killZones: { london: readonly [number, number]; ny: readonly [number, number] };
 }
+
+/** How far each level got through the model today — for the backtest funnel. */
+export type V2Stage =
+  | "untouched" | "outside kill zone" | "closed through" | "wick too shallow"
+  | "no BOS" | "no FVG" | "stop out of range" | "setup";
 
 export interface V2Setup {
   id: string;
@@ -86,15 +95,20 @@ export interface V2Result {
   setup: V2Setup | null;
   /** Why there is no setup, when there is none */
   note: string;
+  /** Per level on the bias side: how far it got */
+  diag: { level: V2LevelName; stage: V2Stage }[];
 }
 
 // ── Instrument parameters ─────────────────────────────────────────────────────
+
+/** London 02:00–05:00 ET, New York 08:30–11:30 ET (minutes since 18:00 ET) */
+export const KILL_ZONES = { london: [480, 660], ny: [870, 1050] } as const;
 
 const METALS = new Set(["XAUUSD", "XAGUSD", "XPTUSD"]);
 const CRYPTO = new Set(["BTCUSD", "ETHUSD"]);
 
 export function v2ParamsFor(symbol: string, price: number): V2Params {
-  const base = { tp1R: 2, tp2R: 3, bosWindow: 12, fillWindow: 24 };
+  const base = { tp1R: 2, tp2R: 3, bosWindow: 12, fillWindow: 24, closeBackBars: 1, killZones: KILL_ZONES };
   if (symbol === "XAUUSD") {
     return { ...base, minSweep: 1, minFvgGap: 0.5, slBuffer: 1, minRisk: 2, maxRisk: 12 };
   }
@@ -132,7 +146,7 @@ function etOffsetMin(ts: number): number {
 }
 
 /** Trading day starts 18:00 ET: shift by 6h so it lines up with a calendar day. */
-function tradingDay(ts: number): number {
+export function tradingDay(ts: number): number {
   return Math.floor((ts + etOffsetMin(ts) * 60 + 6 * 3600) / 86_400);
 }
 
@@ -144,13 +158,10 @@ function tradingMinute(ts: number): number {
 
 const ASIA_END    = 480;   // 02:00 ET
 const LONDON_END  = 780;   // 07:00 ET
-const LONDON_KZ   = [480, 660] as const;   // 02:00–05:00 ET
-const NY_KZ       = [870, 1050] as const;  // 08:30–11:30 ET
-
-function killZoneOf(ts: number): V2KillZone | null {
+function killZoneOf(ts: number, kz: V2Params["killZones"]): V2KillZone | null {
   const m = tradingMinute(ts);
-  if (m >= LONDON_KZ[0] && m < LONDON_KZ[1]) return "London";
-  if (m >= NY_KZ[0] && m < NY_KZ[1]) return "New York";
+  if (m >= kz.london[0] && m < kz.london[1]) return "London";
+  if (m >= kz.ny[0] && m < kz.ny[1]) return "New York";
   return null;
 }
 
@@ -196,7 +207,7 @@ function emptyLevels(): Record<V2LevelName, number | null> {
 export function analyzeSessionLiquidity(candles: V2Candle[], p: V2Params): V2Result {
   const levels = emptyLevels();
   const none = (bias: V2Bias, biasSource: V2Result["biasSource"], note: string): V2Result =>
-    ({ bias, biasSource, levels, setup: null, note });
+    ({ bias, biasSource, levels, setup: null, note, diag: [] });
 
   if (candles.length < 50) return none("neutral", "none", "Not enough 5-minute history");
 
@@ -257,48 +268,56 @@ export function analyzeSessionLiquidity(candles: V2Candle[], p: V2Params): V2Res
   let latest: V2Setup | null = null;
   let note = `Waiting for a ${long ? "low" : "high"} to be swept in a kill zone`;
 
+  const diag: V2Result["diag"] = [];
   for (const tgt of targets) {
-    // A level holds liquidity until the first candle trades through it, so only
-    // that candle can be the sweep. If it closes beyond the level, or lands
-    // outside a kill zone, the liquidity is gone and the level is done for today.
+    // A level holds liquidity until the first candle trades through it, so the
+    // sweep starts there. Price then has closeBackBars candles to close back
+    // inside; if it does not, or the first touch lands outside a kill zone, the
+    // liquidity is gone and the level is done for today.
     let s = -1;
     for (let i = todayStart; i < n; i++) {
       if (tradingMinute(candles[i].t) < tgt.usableFrom) continue;
       if (long ? candles[i].l < tgt.price : candles[i].h > tgt.price) { s = i; break; }
     }
-    if (s < 6) continue;
-    const sc = candles[s];
-    const kz = killZoneOf(sc.t);
-    if (!kz) continue;
-    const swept = long
-      ? sc.l < tgt.price - p.minSweep && sc.c > tgt.price
-      : sc.h > tgt.price + p.minSweep && sc.c < tgt.price;
-    if (!swept) continue;
+    if (s < 6) { diag.push({ level: tgt.name, stage: "untouched" }); continue; }
+    const kz = killZoneOf(candles[s].t, p.killZones);
+    if (!kz) { diag.push({ level: tgt.name, stage: "outside kill zone" }); continue; }
 
-    const setup = buildSetup(candles, s, long, tgt.name, tgt.price, kz, p);
-    if (setup === "no-bos") { note = `${tgt.name} swept, no break of structure yet`; continue; }
-    if (setup === "no-fvg") { note = `${tgt.name} swept with a break of structure, but no imbalance to enter from`; continue; }
-    if (setup === "bad-risk") { note = `${tgt.name} setup found, but the stop would be outside the allowed range`; continue; }
+    let r = -1;
+    let extreme = long ? Infinity : -Infinity;
+    for (let i = s; i < n && i < s + p.closeBackBars; i++) {
+      extreme = long ? Math.min(extreme, candles[i].l) : Math.max(extreme, candles[i].h);
+      if (long ? candles[i].c > tgt.price : candles[i].c < tgt.price) { r = i; break; }
+    }
+    if (r < 0) { diag.push({ level: tgt.name, stage: "closed through" }); continue; }
+    if (long ? extreme >= tgt.price - p.minSweep : extreme <= tgt.price + p.minSweep) {
+      diag.push({ level: tgt.name, stage: "wick too shallow" }); continue;
+    }
+
+    const setup = buildSetup(candles, s, r, extreme, long, tgt.name, tgt.price, kz, p);
+    if (setup === "no-bos") { note = `${tgt.name} swept, no break of structure yet`; diag.push({ level: tgt.name, stage: "no BOS" }); continue; }
+    if (setup === "no-fvg") { note = `${tgt.name} swept with a break of structure, but no imbalance to enter from`; diag.push({ level: tgt.name, stage: "no FVG" }); continue; }
+    if (setup === "bad-risk") { note = `${tgt.name} setup found, but the stop would be outside the allowed range`; diag.push({ level: tgt.name, stage: "stop out of range" }); continue; }
+    diag.push({ level: tgt.name, stage: "setup" });
     if (!latest || setup.readyTs >= latest.readyTs) latest = setup;
   }
 
-  return { bias, biasSource, levels, setup: latest, note: latest ? "" : note };
+  return { bias, biasSource, levels, setup: latest, note: latest ? "" : note, diag };
 }
 
 function buildSetup(
-  candles: V2Candle[], s: number, long: boolean,
+  candles: V2Candle[], s: number, r: number, extreme: number, long: boolean,
   level: V2LevelName, levelPrice: number, killZone: V2KillZone, p: V2Params,
 ): V2Setup | "no-bos" | "no-fvg" | "bad-risk" {
   const n = candles.length;
   const sc = candles[s];
-  const extreme = long ? sc.l : sc.h;
 
   // Swing that led into the sweep: its break is the BOS.
   let ref = long ? -Infinity : Infinity;
   for (let i = s - 6; i < s; i++) ref = long ? Math.max(ref, candles[i].h) : Math.min(ref, candles[i].l);
 
   let k = -1;
-  for (let i = s + 1; i < n && i <= s + p.bosWindow; i++) {
+  for (let i = r + 1; i < n && i <= r + p.bosWindow; i++) {
     const c = candles[i];
     if (long ? c.l < extreme : c.h > extreme) break;            // swept again: idea failed
     const range = c.h - c.l;

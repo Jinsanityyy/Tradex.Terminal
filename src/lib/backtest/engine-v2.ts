@@ -13,7 +13,7 @@
  *     trade tracker does). A trade still open after a day is closed at market.
  */
 
-import { analyzeSessionLiquidity, v2ParamsFor, type V2Candle, type V2Setup } from "@/lib/agents/core-v2";
+import { analyzeSessionLiquidity, tradingDay, v2ParamsFor, type V2Candle, type V2Params, type V2Setup } from "@/lib/agents/core-v2";
 
 export interface V2Trade {
   id: string;
@@ -53,6 +53,11 @@ export interface V2Report {
   byLevel: Record<string, Bucket>;
   byDirection: Record<string, Bucket>;
   byMonth: Record<string, Bucket>;
+  /**
+   * Where the model stops, counted once per trading day at its close: days
+   * with no bias, and for each level on the bias side how far it got.
+   */
+  funnel: { days: number; noBias: number; stages: Record<string, number> };
   recentTrades: V2Trade[];
 }
 
@@ -88,15 +93,29 @@ function simulate(candles: V2Candle[], from: number, s: V2Setup, fillWindow: num
   return { filled: true, fillIdx, closeIdx: last, result: "timeout", r };
 }
 
-export function runBacktestV2(symbol: string, candles: V2Candle[]): V2Report {
+export function runBacktestV2(
+  symbol: string,
+  candles: V2Candle[],
+  tweak: (p: V2Params) => V2Params = p => p,
+): V2Report {
   const trades: V2Trade[] = [];
   const seen = new Set<string>();
   let setups = 0, missed = 0;
+  const funnel = { days: 0, noBias: 0, stages: {} as Record<string, number> };
 
   for (let i = WARMUP; i < candles.length; i++) {
     const window = candles.slice(Math.max(0, i - WINDOW + 1), i + 1);
-    const params = v2ParamsFor(symbol, candles[i].c);
+    const params = tweak(v2ParamsFor(symbol, candles[i].c));
     const res = analyzeSessionLiquidity(window, params);
+
+    // Last bar of a trading day: record how far each level got.
+    const dayEnds = i === candles.length - 1 || tradingDay(candles[i + 1].t) !== tradingDay(candles[i].t);
+    if (dayEnds) {
+      funnel.days++;
+      if (res.bias === "neutral") funnel.noBias++;
+      for (const d of res.diag) funnel.stages[d.stage] = (funnel.stages[d.stage] ?? 0) + 1;
+    }
+
     const s = res.setup;
     if (!s || seen.has(s.id)) continue;
     seen.add(s.id);
@@ -115,10 +134,10 @@ export function runBacktestV2(symbol: string, candles: V2Candle[]): V2Report {
     });
   }
 
-  return summarize(symbol, candles, trades, setups, missed);
+  return { ...summarize(symbol, candles, trades, setups, missed), funnel };
 }
 
-function summarize(symbol: string, candles: V2Candle[], trades: V2Trade[], setups: number, missed: number): V2Report {
+function summarize(symbol: string, candles: V2Candle[], trades: V2Trade[], setups: number, missed: number): Omit<V2Report, "funnel"> {
   const add = (map: Record<string, Bucket>, key: string, t: V2Trade) => {
     const b = (map[key] ??= { trades: 0, wins: 0, netR: 0 });
     b.trades++; if (t.r > 0) b.wins++; b.netR = parseFloat((b.netR + t.r).toFixed(2));

@@ -358,7 +358,7 @@ export async function runAgentOrchestrator(
     const m5 = await extendedM5Promise;
     v2 = m5
       ? analyzeSessionLiquidity(m5, v2ParamsFor(symbol, snapshot.price.current))
-      : { bias: "neutral", biasSource: "none", levels: { "Asia High": null, "Asia Low": null, "London High": null, "London Low": null, PDH: null, PDL: null }, setup: null, note: "5-minute history unavailable" };
+      : { bias: "neutral", biasSource: "none", levels: { "Asia High": null, "Asia Low": null, "London High": null, "London Low": null, PDH: null, PDL: null }, setup: null, note: "5-minute history unavailable", diag: [] };
   }
   const v2Started = Date.now();
   const [trend, newsAgent, smc] = await Promise.all([

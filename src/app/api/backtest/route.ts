@@ -180,10 +180,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: `Insufficient candle data: got ${m5.length} bars (need ≥ 1000).` }, { status: 422 });
     }
     const report = runBacktestV2(symbolParam, m5);
+    // Same model with looser rules, to show which rule is doing the filtering:
+    // twice the stop range, half the sweep depth, three candles to close back
+    // inside, and kill zones an hour wider on each side.
+    const relaxed = runBacktestV2(symbolParam, m5, p => ({
+      ...p,
+      maxRisk: p.maxRisk * 2,
+      minSweep: p.minSweep * 0.5,
+      closeBackBars: 3,
+      killZones: { london: [p.killZones.london[0] - 60, p.killZones.london[1] + 60], ny: [p.killZones.ny[0] - 90, p.killZones.ny[1] + 30] },
+    }));
     if (searchParams.get("format") === "text") {
-      return new NextResponse(formatV2(report), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+      const text = [formatV2(report, "STRICT (as designed)"), "", "─".repeat(52), "", formatV2(relaxed, "RELAXED (looser rules, for comparison)")].join("\n");
+      return new NextResponse(text, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
     }
-    return NextResponse.json({ ok: true, core: "v2", fetchedBars: m5.length, report });
+    return NextResponse.json({ ok: true, core: "v2", fetchedBars: m5.length, report, relaxed });
   }
 
   const interval = YAHOO_INTERVAL[timeframeParam];
@@ -221,7 +232,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-function formatV2(r: V2Report): string {
+function formatV2(r: V2Report, label: string): string {
   const line = (k: string, v: string) => `${k.padEnd(18)} ${v}`;
   const rows = (title: string, m: V2Report["byKillZone"]) => [
     "", title,
@@ -229,7 +240,7 @@ function formatV2(r: V2Report): string {
       line(`  ${k}`, `${b.trades} trades · ${b.trades ? Math.round((b.wins / b.trades) * 100) : 0}% win · ${b.netR >= 0 ? "+" : ""}${b.netR}R`)),
   ];
   return [
-    `Session Liquidity core (v2) — ${r.symbol} 5m`,
+    `Session Liquidity core (v2) — ${r.symbol} 5m — ${label}`,
     line("Period", `${r.startDate.slice(0, 10)} → ${r.endDate.slice(0, 10)}`),
     line("Setups", `${r.setups} (${r.missed} never filled)`),
     line("Trades", `${r.trades}  (${r.wins}W / ${r.losses}L / ${r.timeouts} timeout)`),
@@ -241,6 +252,11 @@ function formatV2(r: V2Report): string {
     ...rows("By level swept", r.byLevel),
     ...rows("By direction", r.byDirection),
     ...rows("By month", r.byMonth),
+    "",
+    `Funnel — ${r.funnel.days} trading days, ${r.funnel.noBias} with no H1 bias`,
+    ...Object.entries(r.funnel.stages)
+      .sort((a, b) => b[1] - a[1])
+      .map(([k, v]) => line(`  ${k}`, String(v))),
     "",
     "Yahoo Finance 5-minute bars (gold = COMEX futures). No commission or slippage included.",
   ].join("\n");
