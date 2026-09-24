@@ -17,6 +17,7 @@ import type { Symbol, Timeframe } from "@/lib/agents/schemas";
 import { runBacktest, type BacktestReport } from "@/lib/backtest/engine";
 import { runBacktestV2, type V2Report } from "@/lib/backtest/engine-v2";
 import { NY_PM_KZ } from "@/lib/agents/core-v2";
+import { analyzeSilverBullet } from "@/lib/agents/silver-bullet";
 import type { BacktestCandle } from "@/lib/backtest/engine";
 import { requirePro } from "@/lib/auth/entitlement";
 
@@ -199,16 +200,35 @@ export async function GET(req: NextRequest) {
       swingLevels: true,
       killZones: { ...p.killZones, nyPm: NY_PM_KZ },
     }));
+    // JadeCap Silver Bullet, per its public rules: 10–11 AM / 2–3 PM ET, prior
+    // sweep of Asia/London/9 AM levels, first FVG in the window, stop behind
+    // candle 1, 2R. The limit waits up to an hour.
+    const silverBullet = runBacktestV2(symbolParam, m5, p => p, { analyze: analyzeSilverBullet, fillWindow: 12 });
+    // TJR: H1 swing-structure bias; PDH/PDL, previous week, Asia/London/NY AM
+    // and equal highs/lows; sweep closing back within three candles; MSS
+    // through the last 5m swing; FVG midpoint; stop beyond the sweep; 2R.
+    const tjr = runBacktestV2(symbolParam, m5, p => ({
+      ...p,
+      biasMode: "structure",
+      weekLevels: true,
+      equalLevels: true,
+      nyAmLevels: true,
+      mssPivot: true,
+      closeBackBars: 3,
+      minSweep: p.minSweep * 0.5,
+      killZones: { ...p.killZones, nyPm: NY_PM_KZ },
+    }), { window: 2100 });
     if (searchParams.get("format") === "text") {
       const rule = ["", "─".repeat(52), ""];
       const text = [
-        formatV2(report, "STRICT (as designed)"), ...rule,
-        formatV2(relaxed, "RELAXED (looser rules, for comparison)"), ...rule,
-        formatV2(extended, "EXTENDED (+ NY AM range, NY PM kill zone, intraday swings)"),
+        formatV2(silverBullet, "JADECAP SILVER BULLET (public rules)"), ...rule,
+        formatV2(tjr, "TJR (sweep → MSS → FVG, H1 structure bias)"), ...rule,
+        formatV2(extended, "SESSION LIQUIDITY v2 — EXTENDED"), ...rule,
+        `v2 strict: ${report.trades} trades, ${report.netR >= 0 ? "+" : ""}${report.netR}R  ·  v2 relaxed: ${relaxed.trades} trades, ${relaxed.netR >= 0 ? "+" : ""}${relaxed.netR}R`,
       ].join("\n");
       return new NextResponse(text, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
     }
-    return NextResponse.json({ ok: true, core: "v2", fetchedBars: m5.length, report, relaxed, extended });
+    return NextResponse.json({ ok: true, core: "v2", fetchedBars: m5.length, report, relaxed, extended, silverBullet, tjr });
   }
 
   const interval = YAHOO_INTERVAL[timeframeParam];
@@ -267,7 +287,7 @@ function formatV2(r: V2Report, label: string): string {
     ...rows("By direction", r.byDirection),
     ...rows("By month", r.byMonth),
     "",
-    `Funnel — ${r.funnel.days} trading days, ${r.funnel.noBias} with no H1 bias`,
+    `Funnel — ${r.funnel.days} trading days, ${r.funnel.noBias} with no H1 bias (Silver Bullet ignores bias)`,
     ...Object.entries(r.funnel.stages)
       .sort((a, b) => b[1] - a[1])
       .map(([k, v]) => line(`  ${k}`, String(v))),

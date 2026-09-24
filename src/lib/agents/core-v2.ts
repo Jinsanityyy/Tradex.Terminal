@@ -34,10 +34,11 @@ export type V2Direction = "long" | "short";
 export type V2Bias = "bullish" | "bearish" | "neutral";
 export type V2LevelName =
   | "Asia High" | "Asia Low" | "London High" | "London Low" | "PDH" | "PDL"
-  | "NY AM High" | "NY AM Low" | "Swing High" | "Swing Low";
-export type V2KillZone = "London" | "New York" | "NY PM";
+  | "NY AM High" | "NY AM Low" | "Swing High" | "Swing Low"
+  | "9AM High" | "9AM Low" | "PWH" | "PWL" | "EQH" | "EQL";
+export type V2KillZone = "London" | "New York" | "NY PM" | "SB AM" | "SB PM";
 /** Levels with one price per day (swings are many and are not listed) */
-export type V2SessionLevel = Exclude<V2LevelName, "Swing High" | "Swing Low">;
+export type V2SessionLevel = Exclude<V2LevelName, "Swing High" | "Swing Low" | "EQH" | "EQL">;
 /** pending: limit not filled yet · active: filled, running · done: hit TP1 or SL · expired: never filled */
 export type V2State = "pending" | "active" | "done" | "expired";
 
@@ -63,12 +64,21 @@ export interface V2Params {
   nyAmLevels?: boolean;
   /** Also treat today's intraday swing highs/lows (7-candle pivots) as levels */
   swingLevels?: boolean;
+  /** Bias from H1 EMAs (default) or H1 swing structure: higher highs and higher lows (TJR) */
+  biasMode?: "ema" | "structure";
+  /** Also treat the previous week's high/low as levels */
+  weekLevels?: boolean;
+  /** Also treat equal highs/lows (two 5m swings within minFvgGap) as levels */
+  equalLevels?: boolean;
+  /** Break of structure = close through the last 5m swing before the sweep (TJR MSS) instead of the 6-candle range */
+  mssPivot?: boolean;
 }
 
 /** How far each level got through the model today — for the backtest funnel. */
 export type V2Stage =
   | "untouched" | "outside kill zone" | "closed through" | "wick too shallow"
-  | "no BOS" | "no FVG" | "stop out of range" | "setup";
+  | "no BOS" | "no FVG" | "stop out of range" | "setup"
+  | "no FVG in window" | "FVG without prior sweep";
 
 export interface V2Setup {
   id: string;
@@ -97,14 +107,14 @@ export interface V2Setup {
 
 export interface V2Result {
   bias: V2Bias;
-  biasSource: "H1 EMA" | "previous day" | "none";
+  biasSource: "H1 EMA" | "H1 structure" | "previous day" | "none";
   levels: Record<V2SessionLevel, number | null>;
   /** Most recent setup of the current trading day, in any state */
   setup: V2Setup | null;
   /** Why there is no setup, when there is none */
   note: string;
   /** Per level on the bias side: how far it got */
-  diag: { level: V2LevelName; stage: V2Stage }[];
+  diag: { level: string; stage: V2Stage }[];
 }
 
 // ── Instrument parameters ─────────────────────────────────────────────────────
@@ -161,7 +171,7 @@ export function tradingDay(ts: number): number {
 }
 
 /** Minutes since 18:00 ET (the start of the trading day). */
-function tradingMinute(ts: number): number {
+export function tradingMinute(ts: number): number {
   const m = Math.floor((ts + etOffsetMin(ts) * 60 + 6 * 3600) / 60) % 1440;
   return m < 0 ? m + 1440 : m;
 }
@@ -186,7 +196,7 @@ function emaLast(values: number[], period: number): number | null {
   return e;
 }
 
-function h1Bias(candles: V2Candle[]): V2Bias | null {
+export function h1Bias(candles: V2Candle[]): V2Bias | null {
   const closes: number[] = [];
   let hour = -1;
   for (const c of candles) {
@@ -202,12 +212,83 @@ function h1Bias(candles: V2Candle[]): V2Bias | null {
   return "neutral";
 }
 
+/**
+ * H1 swing structure: the last two confirmed swing highs and lows (two bars
+ * each side). Higher high + higher low is bullish, lower high + lower low is
+ * bearish, anything else is no bias.
+ */
+export function h1StructureBias(candles: V2Candle[]): V2Bias | null {
+  const bars: { h: number; l: number }[] = [];
+  let hour = -1;
+  for (const c of candles) {
+    const h = Math.floor(c.t / 3600);
+    if (h !== hour) { bars.push({ h: c.h, l: c.l }); hour = h; }
+    else { const b = bars[bars.length - 1]; b.h = Math.max(b.h, c.h); b.l = Math.min(b.l, c.l); }
+  }
+  const highs: number[] = [], lows: number[] = [];
+  for (let i = 2; i < bars.length - 2; i++) {
+    const b = bars[i];
+    if (b.h > bars[i - 1].h && b.h > bars[i - 2].h && b.h > bars[i + 1].h && b.h > bars[i + 2].h) highs.push(b.h);
+    if (b.l < bars[i - 1].l && b.l < bars[i - 2].l && b.l < bars[i + 1].l && b.l < bars[i + 2].l) lows.push(b.l);
+  }
+  if (highs.length < 2 || lows.length < 2) return null;
+  const [h1, h2] = highs.slice(-2), [l1, l2] = lows.slice(-2);
+  if (h2 > h1 && l2 > l1) return "bullish";
+  if (h2 < h1 && l2 < l1) return "bearish";
+  return "neutral";
+}
+
+/** 5m pivot indices (strength S) of lows (long) or highs, from `from` to the last confirmed one. */
+function pivots(candles: V2Candle[], from: number, long: boolean, S: number): number[] {
+  const out: number[] = [];
+  for (let i = Math.max(from, S); i < candles.length - S; i++) {
+    const v = long ? candles[i].l : candles[i].h;
+    let ok = true;
+    for (let d = 1; d <= S && ok; d++) {
+      ok = long ? v < candles[i - d].l && v < candles[i + d].l : v > candles[i - d].h && v > candles[i + d].h;
+    }
+    if (ok) out.push(i);
+  }
+  return out;
+}
+
+/**
+ * Where a limit at `entry` stands after the candle at `ready`: waiting, filled
+ * and running, resolved at TP1 or the stop, or expired (price ran to TP1
+ * first, or no fill within fillWindow candles). A fill and a stop in the same
+ * candle count as stopped.
+ */
+export function walkState(
+  candles: V2Candle[], ready: number, long: boolean,
+  entry: number, stopLoss: number, tp1: number, fillWindow: number,
+): { state: V2State; fillTs: number | null; outcome: V2Setup["outcome"] } {
+  let state: V2State = "pending";
+  let fillTs: number | null = null;
+  let outcome: V2Setup["outcome"] = null;
+  for (let i = ready + 1; i < candles.length; i++) {
+    const c = candles[i];
+    if (state === "pending") {
+      if (long ? c.l <= entry : c.h >= entry) {
+        state = "active"; fillTs = c.t;
+        if (long ? c.l <= stopLoss : c.h >= stopLoss) { state = "done"; outcome = "sl"; break; }
+        continue;
+      }
+      if (long ? c.h >= tp1 : c.l <= tp1) { state = "expired"; break; }
+      if (i - ready > fillWindow) { state = "expired"; break; }
+    } else {
+      if (long ? c.l <= stopLoss : c.h >= stopLoss) { state = "done"; outcome = "sl"; break; }
+      if (long ? c.h >= tp1 : c.l <= tp1) { state = "done"; outcome = "tp1"; break; }
+    }
+  }
+  return { state, fillTs, outcome };
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-const LEVEL_NAMES: V2SessionLevel[] = ["Asia High", "Asia Low", "London High", "London Low", "PDH", "PDL", "NY AM High", "NY AM Low"];
+const LEVEL_NAMES: V2SessionLevel[] = ["Asia High", "Asia Low", "London High", "London Low", "PDH", "PDL", "NY AM High", "NY AM Low", "9AM High", "9AM Low", "PWH", "PWL"];
 const NY_AM = [870, 1080] as const;   // 08:30–12:00 ET
 
-function emptyLevels(): Record<V2SessionLevel, number | null> {
+export function emptyLevels(): Record<V2SessionLevel, number | null> {
   return Object.fromEntries(LEVEL_NAMES.map(n => [n, null])) as Record<V2SessionLevel, number | null>;
 }
 
@@ -249,6 +330,17 @@ export function analyzeSessionLiquidity(candles: V2Candle[], p: V2Params): V2Res
   levels.PDH = prevHigh;
   levels.PDL = prevLow;
 
+  // Previous week (weeks start Monday; trading day 0 is a Thursday).
+  if (p.weekLevels) {
+    const week = (d: number) => Math.floor((d + 3) / 7);
+    const thisWeek = week(today);
+    for (const c of candles) {
+      if (week(tradingDay(c.t)) !== thisWeek - 1) continue;
+      levels.PWH = Math.max(levels.PWH ?? -Infinity, c.h);
+      levels.PWL = Math.min(levels.PWL ?? Infinity, c.l);
+    }
+  }
+
   // Session ranges for today.
   for (let i = todayStart; i < n; i++) {
     const c = candles[i];
@@ -269,8 +361,8 @@ export function analyzeSessionLiquidity(candles: V2Candle[], p: V2Params): V2Res
   // Bias.
   let bias: V2Bias;
   let biasSource: V2Result["biasSource"];
-  const fromH1 = h1Bias(candles);
-  if (fromH1 !== null) { bias = fromH1; biasSource = "H1 EMA"; }
+  const fromH1 = p.biasMode === "structure" ? h1StructureBias(candles) : h1Bias(candles);
+  if (fromH1 !== null) { bias = fromH1; biasSource = p.biasMode === "structure" ? "H1 structure" : "H1 EMA"; }
   else if (prevOpen !== null && prevClose !== null && prevClose !== prevOpen) {
     bias = prevClose > prevOpen ? "bullish" : "bearish"; biasSource = "previous day";
   } else { bias = "neutral"; biasSource = "none"; }
@@ -291,6 +383,25 @@ export function analyzeSessionLiquidity(candles: V2Candle[], p: V2Params): V2Res
   if (long) { add("Asia Low", ASIA_END); add("London Low", LONDON_END); add("PDL", 0); }
   else      { add("Asia High", ASIA_END); add("London High", LONDON_END); add("PDH", 0); }
   if (p.nyAmLevels) add(long ? "NY AM Low" : "NY AM High", NY_AM[1]);
+  if (p.weekLevels) add(long ? "PWL" : "PWH", 0);
+
+  // Equal lows (highs): two swings within minFvgGap of each other, at least
+  // half an hour apart, with nothing lower (higher) between them. Stops pile
+  // up beyond both; sweepable once the second is confirmed.
+  if (p.equalLevels) {
+    const piv = pivots(candles, Math.max(0, todayStart - 288), long, 3);
+    for (let a = 0; a < piv.length; a++) {
+      for (let b = a + 1; b < piv.length; b++) {
+        const i = piv[a], j = piv[b];
+        const vi = long ? candles[i].l : candles[i].h, vj = long ? candles[j].l : candles[j].h;
+        if (j - i < 6 || Math.abs(vi - vj) > p.minFvgGap) continue;
+        const edge = long ? Math.min(vi, vj) : Math.max(vi, vj);
+        let clean = true;
+        for (let k = i + 1; k < j && clean; k++) clean = long ? candles[k].l >= edge : candles[k].h <= edge;
+        if (clean && j + 4 > todayStart) targets.push({ name: long ? "EQL" : "EQH", price: edge, fromIdx: Math.max(todayStart, j + 4) });
+      }
+    }
+  }
 
   // Intraday swings: a candle whose low (high) is below (above) the three on
   // each side. Resting stops sit beyond them; sweepable once confirmed.
@@ -355,9 +466,14 @@ function buildSetup(
   const n = candles.length;
   const sc = candles[s];
 
-  // Swing that led into the sweep: its break is the BOS.
+  // Swing that led into the sweep: its break is the BOS. With mssPivot, the
+  // last confirmed 5m swing high (low) before the sweep, as TJR marks the MSS.
   let ref = long ? -Infinity : Infinity;
   for (let i = s - 6; i < s; i++) ref = long ? Math.max(ref, candles[i].h) : Math.min(ref, candles[i].l);
+  if (p.mssPivot) {
+    const piv = pivots(candles.slice(0, s), Math.max(0, s - 48), !long, 2);
+    if (piv.length) ref = long ? candles[piv[piv.length - 1]].h : candles[piv[piv.length - 1]].l;
+  }
 
   let k = -1;
   for (let i = r + 1; i < n && i <= r + p.bosWindow; i++) {
@@ -393,26 +509,7 @@ function buildSetup(
 
   // Walk forward from the candle that completed the imbalance to today's state.
   const ready = j + 2;
-  let state: V2State = "pending";
-  let fillTs: number | null = null;
-  let outcome: V2Setup["outcome"] = null;
-  for (let i = ready + 1; i < n; i++) {
-    const c = candles[i];
-    if (state === "pending") {
-      const filled = long ? c.l <= entry : c.h >= entry;
-      if (filled) {
-        state = "active"; fillTs = c.t;
-        // Same candle through the stop: count it as stopped (the worse case).
-        if (long ? c.l <= stopLoss : c.h >= stopLoss) { state = "done"; outcome = "sl"; break; }
-        continue;
-      }
-      if (long ? c.h >= tp1 : c.l <= tp1) { state = "expired"; break; }   // ran without us
-      if (i - ready > p.fillWindow) { state = "expired"; break; }
-    } else {
-      if (long ? c.l <= stopLoss : c.h >= stopLoss) { state = "done"; outcome = "sl"; break; }
-      if (long ? c.h >= tp1 : c.l <= tp1) { state = "done"; outcome = "tp1"; break; }
-    }
-  }
+  const { state, fillTs, outcome } = walkState(candles, ready, long, entry, stopLoss, tp1, p.fillWindow);
 
   return {
     // One setup per sweep candle and side: a candle through a session level

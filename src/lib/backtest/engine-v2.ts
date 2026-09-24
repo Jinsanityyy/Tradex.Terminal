@@ -13,7 +13,7 @@
  *     trade tracker does). A trade still open after a day is closed at market.
  */
 
-import { analyzeSessionLiquidity, tradingDay, v2ParamsFor, type V2Candle, type V2Params, type V2Setup } from "@/lib/agents/core-v2";
+import { analyzeSessionLiquidity, tradingDay, v2ParamsFor, type V2Candle, type V2Params, type V2Result, type V2Setup } from "@/lib/agents/core-v2";
 
 export interface V2Trade {
   id: string;
@@ -97,16 +97,26 @@ export function runBacktestV2(
   symbol: string,
   candles: V2Candle[],
   tweak: (p: V2Params) => V2Params = p => p,
+  opts: {
+    /** Model to replay (default: the Session Liquidity core) */
+    analyze?: (window: V2Candle[], p: V2Params) => V2Result;
+    /** Candles of history handed to the model at each bar */
+    window?: number;
+    /** Candles a limit may wait for its fill */
+    fillWindow?: number;
+  } = {},
 ): V2Report {
+  const analyze = opts.analyze ?? analyzeSessionLiquidity;
+  const windowSize = opts.window ?? WINDOW;
   const trades: V2Trade[] = [];
   const seen = new Set<string>();
   let setups = 0, missed = 0;
   const funnel = { days: 0, noBias: 0, stages: {} as Record<string, number> };
 
   for (let i = WARMUP; i < candles.length; i++) {
-    const window = candles.slice(Math.max(0, i - WINDOW + 1), i + 1);
+    const window = candles.slice(Math.max(0, i - windowSize + 1), i + 1);
     const params = tweak(v2ParamsFor(symbol, candles[i].c));
-    const res = analyzeSessionLiquidity(window, params);
+    const res = analyze(window, params);
 
     // Last bar of a trading day: record how far each level got.
     const dayEnds = i === candles.length - 1 || tradingDay(candles[i + 1].t) !== tradingDay(candles[i].t);
@@ -124,7 +134,7 @@ export function runBacktestV2(
     if (s.state !== "pending") continue;
     setups++;
 
-    const sim = simulate(candles, i + 1, s, params.fillWindow);
+    const sim = simulate(candles, i + 1, s, opts.fillWindow ?? params.fillWindow);
     if (!sim.filled) { missed++; continue; }
     trades.push({
       id: s.id, direction: s.direction, level: s.level, killZone: s.killZone,
