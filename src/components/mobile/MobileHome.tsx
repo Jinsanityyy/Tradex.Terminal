@@ -17,15 +17,53 @@ import { isAgentSupported, getSymbolLabel, getSymbolShort, SYMBOL_META, getCatal
 import { AssetChip, AssetSelectorSheet } from "@/components/mobile/AssetSelectorSheet";
 import { MobileWidgetSheet, loadWidgetConfig, saveWidgetConfig } from "@/components/mobile/MobileWidgetSheet";
 import type { WidgetConfig } from "@/components/mobile/MobileWidgetSheet";
-import { MTFBiasPanel } from "@/components/shared/MTFBiasPanel";
-import { KeyLevelsCard } from "@/components/shared/KeyLevelsCard";
-import { LotCalculatorWidget } from "@/components/shared/LotCalculatorWidget";
-import { TrumpFeedPanel } from "@/components/shared/TrumpFeedPanel";
+
+
+
+
 import { AgentCardsWidget } from "@/components/brain/AgentCardsWidget";
-import { LiveTVPanel } from "@/components/shared/LiveTVPanel";
+
 import dynamic from "next/dynamic";
+
+// Widgets that ship switched off. A static import made every phone download
+// them on first load even when the widget was never turned on.
+const MTFBiasPanel = dynamic(() => import("@/components/shared/MTFBiasPanel").then(m => m.MTFBiasPanel), { ssr: false });
+const KeyLevelsCard = dynamic(() => import("@/components/shared/KeyLevelsCard").then(m => m.KeyLevelsCard), { ssr: false });
+const LotCalculatorWidget = dynamic(() => import("@/components/shared/LotCalculatorWidget").then(m => m.LotCalculatorWidget), { ssr: false });
+const TrumpFeedPanel = dynamic(() => import("@/components/shared/TrumpFeedPanel").then(m => m.TrumpFeedPanel), { ssr: false });
+const LiveTVPanel = dynamic(() => import("@/components/shared/LiveTVPanel").then(m => m.LiveTVPanel), { ssr: false });
+const InstitutionalConfluence = dynamic(() => import("@/components/shared/InstitutionalConfluence").then(m => m.InstitutionalConfluence), { ssr: false });
 const GlobeClient = dynamic(() => import("@/components/globe/GlobeClient"), { ssr: false });
-import { InstitutionalConfluence } from "@/components/shared/InstitutionalConfluence";
+
+/**
+ * Defers mounting until the child is nearly on screen.
+ *
+ * A `dynamic()` import still fetches its chunk the moment React renders the
+ * component, and every widget in the list renders on page load whether or not
+ * it is scrolled to. For the globe that means pulling three.js and starting a
+ * WebGL canvas on a phone before anyone has looked at it. Gating on
+ * intersection means the cost is paid only by people who actually scroll down.
+ */
+function LazyMount({ minHeight, children }: { minHeight: number; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [shown, setShown] = useState(false);
+
+  useEffect(() => {
+    if (shown) return;
+    const el = ref.current;
+    // No IntersectionObserver (old WebView) — render rather than show nothing.
+    if (!el || typeof IntersectionObserver === "undefined") { setShown(true); return; }
+    const io = new IntersectionObserver(
+      entries => { if (entries.some(e => e.isIntersecting)) { setShown(true); io.disconnect(); } },
+      { rootMargin: "200px" },   // start a screen early so it is ready on arrival
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [shown]);
+
+  return <div ref={ref} style={shown ? undefined : { minHeight }}>{shown ? children : null}</div>;
+}
+
 import { TakeTradeModal } from "@/components/shared/TakeTradeModal";
 import { signalStateLabel } from "@/components/shared/agent-read-labels";
 import { CloseTradeModal } from "@/components/shared/CloseTradeModal";
@@ -1135,7 +1173,9 @@ export function MobileHome() {
               return (
                 <section key="globe">
                   <div className="rounded-[2px] overflow-hidden border border-[#1E1E24]">
-                    <GlobeClient embedded />
+                    <LazyMount minHeight={280}>
+                      <GlobeClient embedded />
+                    </LazyMount>
                   </div>
                 </section>
               );

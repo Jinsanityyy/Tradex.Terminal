@@ -1,17 +1,30 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { Menu, Camera, LogOut, X, Crown } from "lucide-react";
 import { PLANS } from "@/lib/plans";
 import { useSubscription } from "@/hooks/useSubscription";
 import { TradeXLogo } from "@/components/shared/TradeXLogo";
 import { cn } from "@/lib/utils";
 import { MobileHome } from "@/components/mobile/MobileHome";
-import { MobileChart } from "@/components/mobile/MobileChart";
-import { MobileFeed } from "@/components/mobile/MobileFeed";
-import { MobileBrain } from "@/components/mobile/MobileBrain";
 import { MobileFeatureGate } from "@/components/mobile/MobileFeatureGate";
-import { MobileMore } from "@/components/mobile/MobileMore";
+
+// Only Home is in the first load. The other tabs were statically imported and
+// merely rendered conditionally — but a conditional render does not split code,
+// so opening /m shipped Chart (with TradingView), Feed, Brain and More before
+// anyone had tapped them. Home stays static because it is the landing tab and
+// a dynamic import there would cost a blank frame on first paint.
+const TabFallback = () => (
+  <div className="flex h-full items-center justify-center">
+    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/15 border-t-white/50" />
+  </div>
+);
+
+const MobileChart = dynamic(() => import("@/components/mobile/MobileChart").then(m => m.MobileChart), { ssr: false, loading: TabFallback });
+const MobileFeed  = dynamic(() => import("@/components/mobile/MobileFeed").then(m => m.MobileFeed),   { ssr: false, loading: TabFallback });
+const MobileBrain = dynamic(() => import("@/components/mobile/MobileBrain").then(m => m.MobileBrain), { ssr: false, loading: TabFallback });
+const MobileMore  = dynamic(() => import("@/components/mobile/MobileMore").then(m => m.MobileMore),   { ssr: false, loading: TabFallback });
 import { ProAvatar } from "@/components/shared/ProAvatar";
 import { HomeIcon, ChartIcon, FeedIcon, BrainIcon } from "@/components/mobile/NavIcons";
 import { useProPricing } from "@/hooks/useProPricing";

@@ -39,7 +39,10 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig[] = [
   { id: "signal_session", visible: true  },
   { id: "entry_strip",    visible: true  },
   { id: "agents",         visible: true  },
-  { id: "globe",          visible: true  },
+  // Off by default. It is a showcase widget, and it is the one thing on this
+  // screen that pulls three.js and runs a WebGL canvas — a real cost on a phone
+  // on mobile data. Anyone who wants it can switch it on in the widget sheet.
+  { id: "globe",          visible: false },
   { id: "live_prices",    visible: true  },
   { id: "asset_bias",     visible: false },
   { id: "econ_calendar",  visible: true  },
