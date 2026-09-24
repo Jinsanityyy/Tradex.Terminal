@@ -5,6 +5,7 @@ import { cn, formatNumber, formatPercent, getCurrentSession } from "@/lib/utils"
 import { useQuotes } from "@/hooks/useMarketData";
 import { TrendingUp, TrendingDown, Clock, Wifi, WifiOff, LogOut, User, Camera } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { uploadAvatar } from "@/lib/profile/avatar-upload";
 
 const SESSION_WINDOWS = [
   { name: "Asia",     label: "TYO", tz: "Asia/Tokyo",        openUTC: 0,  closeUTC: 9,  color: "#A78BFA" },
@@ -189,29 +190,12 @@ export function UserMenu() {
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const img = new Image();
-      img.onload = async () => {
-        const MAX = 80;
-        const ratio = Math.min(MAX / img.width, MAX / img.height, 1);
-        const canvas = document.createElement("canvas");
-        canvas.width  = Math.round(img.width  * ratio);
-        canvas.height = Math.round(img.height * ratio);
-        canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
-        const b64 = canvas.toDataURL("image/jpeg", 0.85);
-        setAvatar(b64);
-        localStorage.setItem("tradex_avatar", b64);
-        window.dispatchEvent(new StorageEvent("storage", { key: "tradex_avatar", newValue: b64 }));
-        fetch("/api/profile/avatar", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ avatarUrl: b64 }),
-        }).catch(() => {});
-      };
-      img.src = ev.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+    // Reset so picking the same file again still fires onChange.
+    e.target.value = "";
+    void uploadAvatar(file).then(r => {
+      if (r.ok) setAvatar(r.url);
+      else window.alert(r.message);
+    });
   }
 
   async function handleLogout() {
