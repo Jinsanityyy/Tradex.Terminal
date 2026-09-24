@@ -57,16 +57,8 @@ export function UnloggedTakenTrades({ onLogged }: { onLogged: () => void }) {
   }
 
   const missing = trades.filter(t => t.status === "closed" && !isTradeLogged(t.id)).length;
-  const build = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7);
 
-  if (trades.length === 0) {
-    return (
-      <p className="text-[11px] text-[hsl(var(--text-secondary))]">
-        No trades taken with Take Trade in the last 14 days on this device.
-        {build && <span className="opacity-60"> · build {build}</span>}
-      </p>
-    );
-  }
+  if (trades.length === 0) return null;
 
   return (
     <div className={cn(
@@ -132,7 +124,6 @@ export function UnloggedTakenTrades({ onLogged }: { onLogged: () => void }) {
           </div>
         );
       })}
-      {build && <p className="text-[10px] text-[hsl(var(--text-secondary)_/_0.6)]">build {build}</p>}
     </div>
   );
 }
