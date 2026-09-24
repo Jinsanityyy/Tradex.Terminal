@@ -32,8 +32,12 @@ export interface V2Candle { t: number; o: number; h: number; l: number; c: numbe
 
 export type V2Direction = "long" | "short";
 export type V2Bias = "bullish" | "bearish" | "neutral";
-export type V2LevelName = "Asia High" | "Asia Low" | "London High" | "London Low" | "PDH" | "PDL";
-export type V2KillZone = "London" | "New York";
+export type V2LevelName =
+  | "Asia High" | "Asia Low" | "London High" | "London Low" | "PDH" | "PDL"
+  | "NY AM High" | "NY AM Low" | "Swing High" | "Swing Low";
+export type V2KillZone = "London" | "New York" | "NY PM";
+/** Levels with one price per day (swings are many and are not listed) */
+export type V2SessionLevel = Exclude<V2LevelName, "Swing High" | "Swing Low">;
 /** pending: limit not filled yet · active: filled, running · done: hit TP1 or SL · expired: never filled */
 export type V2State = "pending" | "active" | "done" | "expired";
 
@@ -54,7 +58,11 @@ export interface V2Params {
   /** Candles (from the first touch) within which price must close back inside the level; 1 = same candle */
   closeBackBars: number;
   /** Kill zones in minutes since 18:00 ET: [start, end) */
-  killZones: { london: readonly [number, number]; ny: readonly [number, number] };
+  killZones: { london: readonly [number, number]; ny: readonly [number, number]; nyPm?: readonly [number, number] };
+  /** Also treat the NY morning range (08:30–12:00 ET) as a level, swept in the NY PM kill zone */
+  nyAmLevels?: boolean;
+  /** Also treat today's intraday swing highs/lows (7-candle pivots) as levels */
+  swingLevels?: boolean;
 }
 
 /** How far each level got through the model today — for the backtest funnel. */
@@ -90,7 +98,7 @@ export interface V2Setup {
 export interface V2Result {
   bias: V2Bias;
   biasSource: "H1 EMA" | "previous day" | "none";
-  levels: Record<V2LevelName, number | null>;
+  levels: Record<V2SessionLevel, number | null>;
   /** Most recent setup of the current trading day, in any state */
   setup: V2Setup | null;
   /** Why there is no setup, when there is none */
@@ -103,6 +111,8 @@ export interface V2Result {
 
 /** London 02:00–05:00 ET, New York 08:30–11:30 ET (minutes since 18:00 ET) */
 export const KILL_ZONES = { london: [480, 660], ny: [870, 1050] } as const;
+/** NY afternoon kill zone 13:30–15:30 ET, for the extended model */
+export const NY_PM_KZ = [1170, 1290] as const;
 
 const METALS = new Set(["XAUUSD", "XAGUSD", "XPTUSD"]);
 const CRYPTO = new Set(["BTCUSD", "ETHUSD"]);
@@ -162,6 +172,7 @@ function killZoneOf(ts: number, kz: V2Params["killZones"]): V2KillZone | null {
   const m = tradingMinute(ts);
   if (m >= kz.london[0] && m < kz.london[1]) return "London";
   if (m >= kz.ny[0] && m < kz.ny[1]) return "New York";
+  if (kz.nyPm && m >= kz.nyPm[0] && m < kz.nyPm[1]) return "NY PM";
   return null;
 }
 
@@ -193,10 +204,16 @@ function h1Bias(candles: V2Candle[]): V2Bias | null {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-const LEVEL_NAMES: V2LevelName[] = ["Asia High", "Asia Low", "London High", "London Low", "PDH", "PDL"];
+const LEVEL_NAMES: V2SessionLevel[] = ["Asia High", "Asia Low", "London High", "London Low", "PDH", "PDL", "NY AM High", "NY AM Low"];
+const NY_AM = [870, 1080] as const;   // 08:30–12:00 ET
 
-function emptyLevels(): Record<V2LevelName, number | null> {
-  return Object.fromEntries(LEVEL_NAMES.map(n => [n, null])) as Record<V2LevelName, number | null>;
+function emptyLevels(): Record<V2SessionLevel, number | null> {
+  return Object.fromEntries(LEVEL_NAMES.map(n => [n, null])) as Record<V2SessionLevel, number | null>;
+}
+
+/** A read with nothing in it, for when there are no candles to analyse. */
+export function emptyV2Result(note: string): V2Result {
+  return { bias: "neutral", biasSource: "none", levels: emptyLevels(), setup: null, note, diag: [] };
 }
 
 /**
@@ -243,6 +260,10 @@ export function analyzeSessionLiquidity(candles: V2Candle[], p: V2Params): V2Res
       levels["London High"] = Math.max(levels["London High"] ?? -Infinity, c.h);
       levels["London Low"]  = Math.min(levels["London Low"]  ??  Infinity, c.l);
     }
+    if (p.nyAmLevels && m >= NY_AM[0] && m < NY_AM[1]) {
+      levels["NY AM High"] = Math.max(levels["NY AM High"] ?? -Infinity, c.h);
+      levels["NY AM Low"]  = Math.min(levels["NY AM Low"]  ??  Infinity, c.l);
+    }
   }
 
   // Bias.
@@ -256,14 +277,36 @@ export function analyzeSessionLiquidity(candles: V2Candle[], p: V2Params): V2Res
   if (bias === "neutral") return none(bias, biasSource, "No trend bias on H1 — no trade");
 
   const long = bias === "bullish";
-  const targets: { name: V2LevelName; price: number; usableFrom: number }[] = [];
-  const add = (name: V2LevelName, usableFrom: number) => {
+  // Each level becomes sweepable from `fromIdx`: once its range is complete.
+  const targets: { name: V2LevelName; price: number; fromIdx: number }[] = [];
+  const firstIdxAt = (minute: number) => {
+    for (let i = todayStart; i < n; i++) if (tradingMinute(candles[i].t) >= minute) return i;
+    return n;
+  };
+  const add = (name: V2SessionLevel, usableFrom: number) => {
     const price = levels[name];
-    if (price !== null) targets.push({ name, price, usableFrom });
+    if (price !== null) targets.push({ name, price, fromIdx: firstIdxAt(usableFrom) });
   };
   // Only the side the bias trades from: lows for longs, highs for shorts.
   if (long) { add("Asia Low", ASIA_END); add("London Low", LONDON_END); add("PDL", 0); }
   else      { add("Asia High", ASIA_END); add("London High", LONDON_END); add("PDH", 0); }
+  if (p.nyAmLevels) add(long ? "NY AM Low" : "NY AM High", NY_AM[1]);
+
+  // Intraday swings: a candle whose low (high) is below (above) the three on
+  // each side. Resting stops sit beyond them; sweepable once confirmed.
+  if (p.swingLevels) {
+    const S = 3;
+    for (let i = todayStart + S; i < n - S; i++) {
+      const v = long ? candles[i].l : candles[i].h;
+      let pivot = true;
+      for (let d = 1; d <= S && pivot; d++) {
+        pivot = long
+          ? v < candles[i - d].l && v < candles[i + d].l
+          : v > candles[i - d].h && v > candles[i + d].h;
+      }
+      if (pivot) targets.push({ name: long ? "Swing Low" : "Swing High", price: v, fromIdx: i + S + 1 });
+    }
+  }
 
   let latest: V2Setup | null = null;
   let note = `Waiting for a ${long ? "low" : "high"} to be swept in a kill zone`;
@@ -275,11 +318,11 @@ export function analyzeSessionLiquidity(candles: V2Candle[], p: V2Params): V2Res
     // inside; if it does not, or the first touch lands outside a kill zone, the
     // liquidity is gone and the level is done for today.
     let s = -1;
-    for (let i = todayStart; i < n; i++) {
-      if (tradingMinute(candles[i].t) < tgt.usableFrom) continue;
+    for (let i = tgt.fromIdx; i < n; i++) {
       if (long ? candles[i].l < tgt.price : candles[i].h > tgt.price) { s = i; break; }
     }
-    if (s < 6) { diag.push({ level: tgt.name, stage: "untouched" }); continue; }
+    // Swings are many and mostly never revisited: only count them once touched.
+    if (s < 6) { if (!tgt.name.startsWith("Swing")) diag.push({ level: tgt.name, stage: "untouched" }); continue; }
     const kz = killZoneOf(candles[s].t, p.killZones);
     if (!kz) { diag.push({ level: tgt.name, stage: "outside kill zone" }); continue; }
 
@@ -372,7 +415,9 @@ function buildSetup(
   }
 
   return {
-    id: `${sc.t}-${level}`,
+    // One setup per sweep candle and side: a candle through a session level
+    // and a swing at once is one trade, not two.
+    id: `${sc.t}-${long ? "L" : "S"}`,
     direction: long ? "long" : "short",
     level, levelPrice, killZone,
     sweepTs: sc.t, sweepExtreme: extreme,

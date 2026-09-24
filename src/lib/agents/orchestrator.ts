@@ -15,7 +15,7 @@ import type {
 import { weightsForSymbol } from "./schemas";
 import { buildMarketSnapshot, buildMockSnapshot } from "./market-snapshot";
 import { getValidatedCandles, getDailyStructure, getExtendedM5Candles } from "./candles";
-import { analyzeSessionLiquidity, v2ParamsFor, type V2Result } from "./core-v2";
+import { analyzeSessionLiquidity, emptyV2Result, v2ParamsFor, type V2Result } from "./core-v2";
 import { v2ToSmcOutput, v2ToExecutionOutput } from "./core-v2-adapter";
 import { runTrendAgent }     from "./trend-agent";
 import { runPriceActionAgent } from "./price-action-agent";
@@ -358,7 +358,7 @@ export async function runAgentOrchestrator(
     const m5 = await extendedM5Promise;
     v2 = m5
       ? analyzeSessionLiquidity(m5, v2ParamsFor(symbol, snapshot.price.current))
-      : { bias: "neutral", biasSource: "none", levels: { "Asia High": null, "Asia Low": null, "London High": null, "London Low": null, PDH: null, PDL: null }, setup: null, note: "5-minute history unavailable", diag: [] };
+      : emptyV2Result("5-minute history unavailable");
   }
   const v2Started = Date.now();
   const [trend, newsAgent, smc] = await Promise.all([

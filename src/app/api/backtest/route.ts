@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Symbol, Timeframe } from "@/lib/agents/schemas";
 import { runBacktest, type BacktestReport } from "@/lib/backtest/engine";
 import { runBacktestV2, type V2Report } from "@/lib/backtest/engine-v2";
+import { NY_PM_KZ } from "@/lib/agents/core-v2";
 import type { BacktestCandle } from "@/lib/backtest/engine";
 import { requirePro } from "@/lib/auth/entitlement";
 
@@ -190,11 +191,24 @@ export async function GET(req: NextRequest) {
       closeBackBars: 3,
       killZones: { london: [p.killZones.london[0] - 60, p.killZones.london[1] + 60], ny: [p.killZones.ny[0] - 90, p.killZones.ny[1] + 30] },
     }));
+    // The same rules with more liquidity to hunt: the NY morning range swept
+    // in a NY PM kill zone (13:30–15:30 ET), and today's intraday swings.
+    const extended = runBacktestV2(symbolParam, m5, p => ({
+      ...p,
+      nyAmLevels: true,
+      swingLevels: true,
+      killZones: { ...p.killZones, nyPm: NY_PM_KZ },
+    }));
     if (searchParams.get("format") === "text") {
-      const text = [formatV2(report, "STRICT (as designed)"), "", "─".repeat(52), "", formatV2(relaxed, "RELAXED (looser rules, for comparison)")].join("\n");
+      const rule = ["", "─".repeat(52), ""];
+      const text = [
+        formatV2(report, "STRICT (as designed)"), ...rule,
+        formatV2(relaxed, "RELAXED (looser rules, for comparison)"), ...rule,
+        formatV2(extended, "EXTENDED (+ NY AM range, NY PM kill zone, intraday swings)"),
+      ].join("\n");
       return new NextResponse(text, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
     }
-    return NextResponse.json({ ok: true, core: "v2", fetchedBars: m5.length, report, relaxed });
+    return NextResponse.json({ ok: true, core: "v2", fetchedBars: m5.length, report, relaxed, extended });
   }
 
   const interval = YAHOO_INTERVAL[timeframeParam];
