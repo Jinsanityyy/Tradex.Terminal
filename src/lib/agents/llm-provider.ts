@@ -80,6 +80,14 @@ async function geminiCreate(params: LLMParams, timeoutMs: number): Promise<LLMRe
     },
   };
   if (params.system) body.systemInstruction = { parts: [{ text: params.system }] };
+  // News about wars, threats and attacks is routine market input here; the
+  // default filters blocked whole summaries (an empty reply) over a headline
+  // like "Trump warns he could annihilate Iran". Only high-probability harm
+  // is blocked.
+  body.safetySettings = [
+    "HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH",
+    "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT",
+  ].map(category => ({ category, threshold: "BLOCK_ONLY_HIGH" }));
 
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -95,10 +103,16 @@ async function geminiCreate(params: LLMParams, timeoutMs: number): Promise<LLMRe
       throw new Error(`Gemini ${res.status}: ${detail.slice(0, 300)}`);
     }
     const data = (await res.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
+      candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[];
+      promptFeedback?: { blockReason?: string };
     };
     const text =
       data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+    // An empty reply is a failure, not an answer: say why, so callers fall
+    // back instead of parsing "" and logs show the cause.
+    if (!text.trim()) {
+      throw new Error(`Gemini returned no text (${data.promptFeedback?.blockReason ?? data.candidates?.[0]?.finishReason ?? "no candidates"})`);
+    }
     return { content: [{ type: "text", text }] };
   } finally {
     clearTimeout(timer);
@@ -138,7 +152,16 @@ const ADVICE_GUARD =
 export async function llmCreate(params: LLMParams, timeoutMs = 25_000): Promise<LLMResult> {
   params = { ...params, system: params.system ? `${params.system}\n\n${ADVICE_GUARD}` : ADVICE_GUARD };
   const provider = activeProvider();
-  if (provider === "gemini") return geminiCreate(params, timeoutMs);
+  if (provider === "gemini") {
+    try {
+      return await geminiCreate(params, timeoutMs);
+    } catch (err) {
+      // Free-tier quota or a blocked reply: use Anthropic when it is configured.
+      if (!anthropicKey()) throw err;
+      console.warn("[llm] Gemini failed, falling back to Anthropic:", (err as Error)?.message ?? err);
+      return anthropicCreateImpl(params, timeoutMs);
+    }
+  }
   if (provider === "anthropic") return anthropicCreateImpl(params, timeoutMs);
   throw new Error("No LLM provider configured (set GEMINI_API_KEY or ANTHROPIC_API_KEY)");
 }

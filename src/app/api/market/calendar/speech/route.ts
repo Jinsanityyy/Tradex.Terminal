@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
 import { requirePro } from "@/lib/auth/entitlement";
-import { buildSpeechRecap } from "@/lib/calendar/speech";
+import { buildSpeechRecap, SpeechSummaryError } from "@/lib/calendar/speech";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -32,10 +32,23 @@ export async function GET(req: NextRequest) {
   const ageH = (Date.now() - eventMs) / 3_600_000;
   const revalidate = ageH < 6 ? 900 : ageH < 36 ? 3600 : 86_400;
 
-  const recap = await unstable_cache(
-    () => buildSpeechRecap(title, eventMs),
-    ["speech-recap", title, String(eventMs)],
-    { revalidate },
-  )();
-  return NextResponse.json(recap);
+  // Only a finished summary is cached for the full period. A failed summary
+  // throws out of the cache (so it is not stored) and its headlines-only
+  // fallback is kept for five minutes, after which the summary is retried.
+  try {
+    const recap = await unstable_cache(
+      () => buildSpeechRecap(title, eventMs),
+      ["speech-recap-v2", title, String(eventMs)],
+      { revalidate },
+    )();
+    return NextResponse.json(recap);
+  } catch (err) {
+    if (!(err instanceof SpeechSummaryError)) throw err;
+    const fallback = await unstable_cache(
+      async () => err.fallback,
+      ["speech-recap-fallback-v2", title, String(eventMs)],
+      { revalidate: 300 },
+    )();
+    return NextResponse.json(fallback);
+  }
 }

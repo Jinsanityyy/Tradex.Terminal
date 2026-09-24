@@ -127,6 +127,19 @@ Rules:
 - "marketTakeaway": one or two sentences describing what the remarks imply for Gold and the US dollar. Describe, never instruct.
 Return JSON: {"summary": string|null, "keyPoints": string[], "topics": string[], "tone": string|null, "marketTakeaway": string|null}`;
 
+/** Thrown when the summary step fails, so the result is not cached as if final. */
+export class SpeechSummaryError extends Error {
+  constructor(message: string, readonly fallback: SpeechRecap) { super(message); }
+}
+
+/** First {...} block in a model reply (tolerates code fences and stray text). */
+function parseJsonObject(raw: string): Record<string, unknown> {
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start < 0 || end <= start) throw new Error(`No JSON object in reply: ${raw.slice(0, 120)}`);
+  return JSON.parse(raw.slice(start, end + 1));
+}
+
 export async function buildSpeechRecap(title: string, eventMs: number): Promise<SpeechRecap> {
   const { speaker, terms } = speakerOf(title);
   const heads = await coverage(terms, eventMs);
@@ -152,7 +165,7 @@ export async function buildSpeechRecap(title: string, eventMs: number): Promise<
       }],
     });
     const raw = res.content[0]?.text ?? "";
-    const j = JSON.parse(raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim()) as Partial<SpeechRecap>;
+    const j = parseJsonObject(raw) as Partial<SpeechRecap>;
     const tones = ["hawkish", "dovish", "escalation", "de-escalation", "mixed", "neutral"] as const;
     return {
       speaker,
@@ -164,7 +177,8 @@ export async function buildSpeechRecap(title: string, eventMs: number): Promise<
       sources,
       note: j.summary ? undefined : "The coverage found does not say what was said at this event.",
     };
-  } catch {
-    return empty("Summary unavailable right now; the coverage is listed below.");
+  } catch (err) {
+    console.error("[speech-recap] summary failed:", (err as Error)?.message ?? err);
+    throw new SpeechSummaryError(String((err as Error)?.message ?? err), empty("Summary unavailable right now; the coverage is listed below."));
   }
 }

@@ -581,6 +581,18 @@ function useMarketReaction(ev: EconomicEvent, symbol: string): Reaction | null {
   return reaction;
 }
 
+/**
+ * Pip size as retail platforms (MT5) quote it: gold $0.10, silver $0.01,
+ * JPY pairs 0.01, other FX 0.0001. Crypto has no pip convention: dollars.
+ */
+function pipSize(symbol: string): number | null {
+  if (symbol === "XAUUSD") return 0.1;
+  if (symbol === "XAGUSD") return 0.01;
+  if (symbol.endsWith("JPY")) return 0.01;
+  if (/^[A-Z]{6}$/.test(symbol) && !symbol.startsWith("BTC") && !symbol.startsWith("ETH")) return 0.0001;
+  return null;
+}
+
 function MarketReaction({ ev, symbol }: { ev: EconomicEvent; symbol: string }) {
   const r = useMarketReaction(ev, symbol);
   if (!r) return null;
@@ -588,6 +600,8 @@ function MarketReaction({ ev, symbol }: { ev: EconomicEvent; symbol: string }) {
   const diff = r.after - r.before;
   const pct = (diff / r.before) * 100;
   const up = diff > 0;
+  const pip = pipSize(r.symbol);
+  const sign = up ? "+" : diff < 0 ? "−" : "";
   return (
     <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3.5 py-3">
       <p className="text-[9px] font-bold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">
@@ -595,10 +609,13 @@ function MarketReaction({ ev, symbol }: { ev: EconomicEvent; symbol: string }) {
       </p>
       <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className={cn("font-data text-base font-bold tabular-nums", diff === 0 ? "text-zinc-400" : up ? "text-emerald-400" : "text-red-400")}>
-          {up ? "+" : diff < 0 ? "−" : ""}{Math.abs(diff).toFixed(dp)} ({up ? "+" : diff < 0 ? "−" : ""}{Math.abs(pct).toFixed(2)}%)
+          {pip
+            ? `${sign}${Math.round(Math.abs(diff) / pip)} pips`
+            : `${sign}${Math.abs(diff).toFixed(dp)}`}
         </span>
         <span className="font-data text-[11px] tabular-nums text-[hsl(var(--muted-foreground))]">
-          {r.before.toFixed(dp)} → {r.after.toFixed(dp)} · range {r.low.toFixed(dp)}–{r.high.toFixed(dp)}
+          {sign}{Math.abs(pct).toFixed(2)}% · {r.before.toFixed(dp)} → {r.after.toFixed(dp)}
+          {" · range "}{pip ? `${Math.round((r.high - r.low) / pip)} pips` : `${r.low.toFixed(dp)}–${r.high.toFixed(dp)}`}
         </span>
       </div>
     </div>
