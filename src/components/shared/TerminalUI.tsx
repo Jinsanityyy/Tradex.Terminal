@@ -33,7 +33,7 @@ export function TerminalSectionHeader({
           style={{
             ...MONO,
             letterSpacing: "var(--t-section-spacing, 2px)",
-            color: "hsl(var(--muted-foreground))",
+            color: "hsl(var(--text-secondary))",
           }}
         >
           ── {label}
@@ -52,11 +52,11 @@ export function TerminalSectionHeader({
     return (
       <div className={cn("flex items-center justify-between mb-3", className)}>
         <span
-          className="text-[10px] uppercase"
+          className="text-[11px] uppercase"
           style={{
             ...THEME_FONT,
             letterSpacing: "var(--t-label-spacing, 2px)",
-            color: "hsl(var(--muted-foreground))",
+            color: "hsl(var(--text-secondary))",
             fontWeight: "var(--t-label-weight, 400)" as React.CSSProperties["fontWeight"],
           }}
         >
@@ -75,7 +75,7 @@ export function TerminalSectionHeader({
         style={{
           ...THEME_FONT,
           letterSpacing: "var(--t-label-spacing, 0.8px)",
-          color: "hsl(var(--muted-foreground))",
+          color: "hsl(var(--text-secondary))",
           fontWeight: "var(--t-label-weight, 500)" as React.CSSProperties["fontWeight"],
         }}
       >
@@ -101,11 +101,13 @@ type TerminalBadgeVariant =
   | "pending";
 
 const BADGE_COLORS: Record<TerminalBadgeVariant, { border: string; color: string; bg: string }> = {
-  default:   { border: "hsl(var(--border))",                                                               color: "hsl(var(--muted-foreground))",      bg: "transparent" },
+  default:   { border: "hsl(var(--border))",                                                               color: "hsl(var(--text-secondary))",      bg: "transparent" },
   bullish:   { border: "color-mix(in srgb, var(--t-bullish, #00C853) 40%, transparent)",                  color: "var(--t-bullish, #00C853)",          bg: "color-mix(in srgb, var(--t-bullish, #00C853) 10%, transparent)" },
   bearish:   { border: "color-mix(in srgb, var(--t-bearish, #FF3D3D) 40%, transparent)",                  color: "var(--t-bearish, #FF3D3D)",          bg: "color-mix(in srgb, var(--t-bearish, #FF3D3D) 10%, transparent)" },
-  "no-trade":{ border: "var(--t-text-muted2, #3A3A45)",                                                    color: "var(--t-text-muted2, #3A3A45)",      bg: "transparent" },
-  neutral:   { border: "var(--t-text-muted2, #3A3A45)",                                                    color: "hsl(var(--muted-foreground))",        bg: "transparent" },
+  // Low emphasis, still legible: these were #3A3A45 on a #3A3A45 border at
+  // 1.64:1, so NO READ looked like a disabled control rather than a state.
+  "no-trade":{ border: "hsl(var(--border))",                                                               color: "hsl(var(--text-secondary))",        bg: "transparent" },
+  neutral:   { border: "hsl(var(--border))",                                                               color: "hsl(var(--text-secondary))",        bg: "transparent" },
   armed:     { border: "color-mix(in srgb, var(--t-bullish, #00C853) 40%, transparent)",                  color: "var(--t-bullish, #00C853)",          bg: "color-mix(in srgb, var(--t-bullish, #00C853) 10%, transparent)" },
   pending:   { border: "color-mix(in srgb, hsl(var(--primary)) 40%, transparent)",                        color: "hsl(var(--primary))",               bg: "color-mix(in srgb, hsl(var(--primary)) 10%, transparent)" },
 };
@@ -211,28 +213,33 @@ export function TerminalDataRow({
       style={showDivider ? { borderBottom: "1px solid hsl(var(--border))" } : undefined}
     >
       <span
-        className="text-[10px] uppercase"
+        className="text-[11px] uppercase"
         style={{
           fontFamily: isMonoTheme
             ? "var(--font-ibm-plex-mono), 'IBM Plex Mono', monospace"
             : "var(--t-font-label, var(--font-geist-sans), system-ui, sans-serif)",
           letterSpacing: "var(--t-label-spacing, 1.2px)",
-          color: "hsl(var(--muted-foreground))",
-          fontSize: "var(--t-label-size, 10px)",
+          color: "hsl(var(--text-secondary))",
+          fontSize: "var(--t-label-size, 11px)",
           fontWeight: "var(--t-label-weight, 400)" as React.CSSProperties["fontWeight"],
         }}
       >
         {label}
       </span>
+      {/* valueColor is a Tailwind class ("text-[#FF3D3D]"), and every caller
+          passes it that way. It used to be written into style.color, where a
+          class name is not a valid colour, so the browser dropped it and the
+          stop and target always rendered white. It goes on className now; the
+          inline colour is only the fallback when no class is given. */}
       <span
-        className="tabular-nums"
+        className={cn("tabular-nums", valueColor)}
         style={{
           fontFamily: isMonoTheme
             ? "var(--font-ibm-plex-mono), 'IBM Plex Mono', monospace"
             : "var(--t-font-number, var(--font-geist-sans), system-ui, sans-serif)",
-          fontSize: "12px",
-          fontWeight: "var(--t-number-weight, 700)" as React.CSSProperties["fontWeight"],
-          color: valueColor ?? "hsl(var(--foreground))",
+          fontSize: "15px",
+          fontWeight: "var(--t-number-weight, 600)" as React.CSSProperties["fontWeight"],
+          ...(valueColor ? {} : { color: "hsl(var(--foreground))" }),
         }}
       >
         {value}
