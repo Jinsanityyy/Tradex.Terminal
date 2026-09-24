@@ -4,10 +4,9 @@
  * and no daily quota). TwelveData was tried first, but the app's own traffic
  * already uses several times the free plan's 800 daily credits.
  *
- * Loaded one calendar month at a time and cached in the Next data cache:
- * finished months for 30 days, the current month for an hour. A call loads at
- * most MAX_FETCH missing months (each is ~22 daily files) and reports whether
- * the history is complete; calling again continues where it left off.
+ * Loaded one UTC day per request (that is how Dukascopy serves minute data),
+ * gently, and cached per day in the Next data cache, so each call adds to the
+ * history and nothing is fetched twice.
  * Nothing is written to the database.
  */
 
@@ -20,20 +19,23 @@ const DUKAS: Record<string, string> = {
   USDJPY: "usdjpy", BTCUSD: "btcusd", ETHUSD: "ethusd",
 };
 
-const MAX_FETCH = 4;
+/** Wall-clock budget for fetching in one call (the route has 60 s). */
+const FETCH_BUDGET_MS = 40_000;
+/** Pause between requests: Dukascopy answers bursts with 429. */
+const PAUSE_MS = 400;
 
-async function fetchMonth(instrument: string, fromMs: number, toMs: number): Promise<V2Candle[]> {
+async function fetchDay(instrument: string, dayMs: number): Promise<V2Candle[]> {
   const rows = await getHistoricalRates({
     instrument: instrument as Parameters<typeof getHistoricalRates>[0]["instrument"],
-    dates: { from: new Date(fromMs), to: new Date(toMs) },
+    dates: { from: new Date(dayMs), to: new Date(dayMs + 86_400_000) },
     timeframe: "m5",
     format: "array",
     priceType: "bid",
     volumes: false,
     ignoreFlats: true,
-    batchSize: 12,
-    pauseBetweenBatchesMs: 100,
-    retryCount: 2,
+    batchSize: 1,
+    pauseBetweenBatchesMs: 0,
+    retryCount: 0,
     failAfterRetryCount: true,
   });
   return (rows as [number, number, number, number, number][]).map(([t, o, h, l, c]) => ({
@@ -49,37 +51,42 @@ export interface HistoryLoad {
   error?: string;
 }
 
+/**
+ * One UTC day per cache entry (finished days for 30 days, today for an hour),
+ * newest first, one request at a time with a pause, within a time budget.
+ * Saturdays are skipped: spot metals and FX do not trade. A 429 stops the
+ * call; what was loaded stays cached and the next call continues.
+ */
 export async function loadM5History(symbol: string, months: number): Promise<HistoryLoad> {
   const instrument = DUKAS[symbol];
   if (!instrument) return { candles: [], complete: true, chunksLoaded: 0, chunksTotal: 0, error: `No Dukascopy instrument for ${symbol}` };
 
-  const now = new Date();
-  const out: V2Candle[] = [];
-  let loaded = 0, fetched = 0;
-  let error: string | undefined;
+  const started = Date.now();
+  const today = Math.floor(Date.now() / 86_400_000) * 86_400_000;
+  const days: number[] = [];
+  for (let d = 0; d < Math.round(months * 30.4); d++) {
+    const ms = today - d * 86_400_000;
+    if (new Date(ms).getUTCDay() !== 6 || instrument.endsWith("btcusd") || instrument.endsWith("ethusd")) days.push(ms);
+  }
 
-  // Newest month first, so a partial load still covers the recent history.
-  for (let k = 0; k < months; k++) {
-    const from = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - k, 1);
-    const monthEnd = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - k + 1, 1);
-    const current = k === 0;
-    const to = current ? Math.min(monthEnd, now.getTime()) : monthEnd;
-    // Stop once this call has done its share. Months cached by earlier calls
-    // are read without fetching and never count, so each call gets further back.
-    if (fetched >= MAX_FETCH) break;
+  const out: V2Candle[] = [];
+  let loaded = 0;
+  let error: string | undefined;
+  for (const dayMs of days) {
+    if (Date.now() - started > FETCH_BUDGET_MS) break;
     let ran = false;
     const load = unstable_cache(
-      async () => { ran = true; return fetchMonth(instrument, from, to); },
-      ["m5-dukascopy", instrument, String(from), current ? "current" : "closed"],
-      { revalidate: current ? 3600 : 30 * 86_400 },
+      async () => { ran = true; return fetchDay(instrument, dayMs); },
+      ["m5-dukascopy-day", instrument, String(dayMs)],
+      { revalidate: dayMs === today ? 3600 : 30 * 86_400 },
     );
     try {
-      const bars = await load();
-      if (ran) fetched++;
-      out.push(...bars);
+      out.push(...await load());
       loaded++;
+      if (ran) await new Promise(r => setTimeout(r, PAUSE_MS));
     } catch (err) {
-      error = (err as Error).message;
+      const msg = (err as Error).message ?? String(err);
+      error = /429/.test(msg) ? "Dukascopy is rate-limiting requests (429). Wait a minute, then refresh; loaded days are kept." : msg;
       break;
     }
   }
@@ -87,5 +94,5 @@ export async function loadM5History(symbol: string, months: number): Promise<His
   const byT = new Map<number, V2Candle>();
   for (const c of out) byT.set(c.t, c);
   const candles = [...byT.values()].sort((a, b) => a.t - b.t);
-  return { candles, complete: loaded === months, chunksLoaded: loaded, chunksTotal: months, error };
+  return { candles, complete: loaded === days.length, chunksLoaded: loaded, chunksTotal: days.length, error };
 }

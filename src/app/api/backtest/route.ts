@@ -339,12 +339,12 @@ async function silverBulletStudy(symbol: string, months: number): Promise<NextRe
   const head = [
     `Silver Bullet study — ${symbol} 5m (Dukascopy spot, bid), ${months} months requested`,
     hist.candles.length
-      ? `History: ${new Date(hist.candles[0].t * 1000).toISOString().slice(0, 10)} → ${new Date(hist.candles[hist.candles.length - 1].t * 1000).toISOString().slice(0, 10)} · ${hist.candles.length} bars · ${hist.chunksLoaded}/${hist.chunksTotal} months`
+      ? `History: ${new Date(hist.candles[0].t * 1000).toISOString().slice(0, 10)} → ${new Date(hist.candles[hist.candles.length - 1].t * 1000).toISOString().slice(0, 10)} · ${hist.candles.length} bars · ${hist.chunksLoaded}/${hist.chunksTotal} days loaded`
       : "History: none loaded yet",
   ];
   if (hist.error) head.push(`Data source said: ${hist.error}`);
-  if (!hist.complete && !hist.error) {
-    head.push("", "Still loading the history, a few months per request.", "Refresh this page; each refresh loads the next months.");
+  if (!hist.complete) {
+    head.push("", "Still loading the history, about a month per request.", "Refresh this page; each refresh loads the next part and keeps what is loaded.");
     return new NextResponse(head.join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
   }
   if (hist.candles.length < 2000) {
