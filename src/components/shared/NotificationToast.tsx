@@ -4,7 +4,7 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X, Newspaper, Radio, Zap, MessageSquare, TrendingUp, Bell, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
 import { useNotifications, type Notif } from "@/hooks/useNotifications";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { playNotificationPing } from "@/lib/audio";
 
 // ─── Severity → accent ───────────────────────────────────────────────────────
@@ -84,6 +84,13 @@ const PULSE_STYLE = `
 `;
 
 // ─── Main component ───────────────────────────────────────────────────────────
+
+/** Feature pages the phone app can open in place (MobileMore's app ids). */
+const MOBILE_APPS = new Set([
+  "market-bias", "asset-matrix", "session-intelligence", "market-intelligence", "signals",
+  "catalysts", "trump-monitor", "news-flow", "economic-calendar", "pnl-calendar",
+  "candle-analysis", "brain", "live-tv", "knowledge", "settings",
+]);
 
 export function NotificationToast() {
   const [notifs, setNotifs]   = useState<Notif[]>([]);
@@ -221,6 +228,26 @@ function AlertCard({
   const isHigh = notif.severity === "high" || !notif.severity;
   const ago    = useTimeAgo(notif.timestamp);
   const router = useRouter();
+  const pathname = usePathname() ?? "";
+
+  // Alerts link to desktop routes ("/dashboard/signals"). In the phone app the
+  // middleware sends every /dashboard path straight back to /m, so a plain
+  // router.push landed on the screen the user was already on and the button
+  // looked dead. On mobile the route is opened as the matching in-app page
+  // through the same relay the home shortcuts use; "/dashboard" itself is the
+  // home screen they are on. Either way the alert closes, since it was acted on.
+  const openLink = (link: string) => {
+    const onMobile = pathname === "/m" || pathname.startsWith("/m/");
+    if (onMobile) {
+      const appId = link.replace(/^\/dashboard\/?/, "").split(/[/?#]/)[0];
+      if (appId && MOBILE_APPS.has(appId)) {
+        document.dispatchEvent(new CustomEvent("tradex:open-more", { detail: { appId } }));
+      }
+    } else {
+      router.push(link);
+    }
+    onDismiss();
+  };
 
   const ts   = new Date(notif.timestamp);
   const time = ts.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
@@ -398,7 +425,7 @@ function AlertCard({
             {/* View chart button */}
             {notif.chartLink && (
               <button
-                onClick={() => router.push(notif.chartLink!)}
+                onClick={() => openLink(notif.chartLink!)}
                 className="flex items-center gap-2 w-full py-2 px-3 transition-opacity hover:opacity-80"
                 style={{
                   background: `rgba(${getCfg(notif.type).baseRgb},0.08)`,

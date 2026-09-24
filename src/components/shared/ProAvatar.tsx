@@ -6,38 +6,22 @@ import { cn } from "@/lib/utils";
 /**
  * The avatar, wearing its rank.
  *
- * Pro buys more than unlocked features — it should be visible. A Pro account
- * gets a precision-milled metal bezel; everyone else keeps a plain ring, so it
- * reads as a signal rather than decoration.
+ * Pro should be visible, but the photo is the person's, so the mark sits
+ * beside it rather than around it: a small gold seal with a check at the
+ * bottom-right, the way a verified badge works. The earlier milled-metal bezel
+ * read as bronze on the light theme (its glow and dark chamfer turned muddy on
+ * a pale page) and weighed the header down at 36px; a seal stays legible at
+ * that size in every theme.
  *
- * The sheen is a conic gradient, not artwork: it renders as a continuous
- * brushed-metal sweep at any diameter, needs no request, and never blurs. The
- * bevels are layered box-shadows — a light catch at the top, shadow at the
- * bottom — which is what sells a chamfered edge at 36px, where real detail
- * would only turn to noise.
+ * The seal is cut out of the page with a ring of the page's own background, so
+ * it reads as sitting on top of the photo in OLED and Light alike.
  */
 
 const SIZES = { sm: 36, md: 48, lg: 64 } as const;
 export type ProAvatarSize = keyof typeof SIZES | number;
 
-// Deep gold through champagne brass, swept so the highlight lands off-axis the
-// way a milled edge catches light.
-const BEZEL =
-  "conic-gradient(from 212deg at 50% 50%," +
-  " #997D33 0deg, #E6CA65 38deg, #F7ECC6 66deg, #C9A951 104deg," +
-  " #6E5722 150deg, #997D33 196deg, #E6CA65 232deg, #F7ECC6 262deg," +
-  " #997D33 304deg, #6E5722 336deg, #997D33 360deg)";
-
-const OUTER_SHADOW = [
-  "0 1px 2px rgba(0,0,0,0.65)",          // seat it against the surface
-  "0 0 0 0.5px rgba(26,24,19,0.9)",      // dark chamfer line
-  "0 0 12px rgba(230,202,101,0.2)",      // ambient warmth
-].join(", ");
-
-const INNER_BEVEL = [
-  "inset 0 1px 0 rgba(255,255,255,0.28)", // light catch, top
-  "inset 0 -1px 0 rgba(0,0,0,0.55)",      // shadow, bottom
-].join(", ");
+// Champagne through deep gold, lit from the top-left.
+const SEAL_FILL = "linear-gradient(145deg, #F3E3A6 0%, #C9A44A 55%, #9C7B30 100%)";
 
 export function ProAvatar({
   src,
@@ -53,65 +37,76 @@ export function ProAvatar({
   fallback: string;
   isPro: boolean;
   size?: ProAvatarSize;
-  /** Small PRO pill overlapping the bottom-right. Off by default: most places
-   *  already label the tier beside the name, and two labels is one too many. */
+  /** Small PRO pill under the seal. Off by default: the seal already marks
+   *  the tier, and most places label it beside the name as well. */
   showBadge?: boolean;
   className?: string;
   /** Overlay inside the photo circle, e.g. the camera hint. */
   children?: React.ReactNode;
 }) {
   const px = typeof size === "number" ? size : SIZES[size];
-  const ring = px >= 56 ? 2.5 : 2;
 
   const photo = src ? (
     <img src={src} alt="" className="w-full h-full object-cover" />
   ) : (
-    <div className="w-full h-full flex items-center justify-center bg-[#1A1813]">
+    <div className="w-full h-full flex items-center justify-center bg-[hsl(var(--muted))]">
       <span
         className="font-bold leading-none"
-        style={{ fontSize: px * 0.4, color: isPro ? "#E6CA65" : "hsl(var(--primary))" }}
+        style={{ fontSize: px * 0.4, color: isPro ? "#C9A44A" : "hsl(var(--primary))" }}
       >
         {fallback}
       </span>
     </div>
   );
 
+  const circle = (
+    <div
+      className="relative w-full h-full rounded-full overflow-hidden"
+      style={{ boxShadow: "0 0 0 1px hsl(var(--border))" }}
+    >
+      {photo}
+      {children}
+    </div>
+  );
+
   if (!isPro) {
     return (
-      <div
-        className={cn("relative shrink-0 rounded-full overflow-hidden border border-white/10", className)}
-        style={{ width: px, height: px }}
-      >
-        {photo}
-        {children}
+      <div className={cn("relative shrink-0", className)} style={{ width: px, height: px }}>
+        {circle}
       </div>
     );
   }
 
+  const seal  = Math.max(12, Math.round(px * 0.36));
+  const cut   = px >= 56 ? 2 : 1.5;
+  const check = Math.round(seal * 0.56);
+
   return (
     <div className={cn("relative shrink-0", className)} style={{ width: px, height: px }}>
-      <div
-        className="w-full h-full rounded-full"
-        style={{ background: BEZEL, padding: ring, boxShadow: OUTER_SHADOW }}
+      {circle}
+
+      <span
+        role="img"
+        aria-label="Pro member"
+        className="absolute flex items-center justify-center rounded-full"
+        style={{
+          width: seal,
+          height: seal,
+          right: -1,
+          bottom: -1,
+          background: SEAL_FILL,
+          boxShadow: `0 0 0 ${cut}px hsl(var(--background))`,
+        }}
       >
-        <div
-          className="relative w-full h-full rounded-full overflow-hidden bg-[#1A1813]"
-          style={{ boxShadow: INNER_BEVEL }}
-        >
-          {photo}
-          {children}
-        </div>
-      </div>
+        <svg width={check} height={check} viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="M2.5 6.2l2.3 2.3 4.7-5" stroke="#2A2110" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
 
       {showBadge && (
         <span
-          className="absolute -bottom-[3px] -right-[3px] rounded-full px-1.5 py-[1px] text-[9px] font-mono uppercase tracking-widest leading-none"
-          style={{
-            background: "#1A1813",
-            color: "#E6CA65",
-            border: "1px solid #997D33",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.7)",
-          }}
+          className="absolute left-1/2 -translate-x-1/2 -bottom-[14px] rounded-full px-1.5 py-[1px] text-[9px] font-mono uppercase tracking-widest leading-none"
+          style={{ background: "hsl(var(--card))", color: "#C9A44A", border: "1px solid #C9A44A" }}
         >
           Pro
         </span>
