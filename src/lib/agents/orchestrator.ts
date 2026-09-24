@@ -14,7 +14,9 @@ import type {
 } from "./schemas";
 import { weightsForSymbol } from "./schemas";
 import { buildMarketSnapshot, buildMockSnapshot } from "./market-snapshot";
-import { getValidatedCandles, getDailyStructure } from "./candles";
+import { getValidatedCandles, getDailyStructure, getExtendedM5Candles } from "./candles";
+import { analyzeSessionLiquidity, v2ParamsFor, type V2Result } from "./core-v2";
+import { v2ToSmcOutput, v2ToExecutionOutput } from "./core-v2-adapter";
 import { runTrendAgent }     from "./trend-agent";
 import { runPriceActionAgent } from "./price-action-agent";
 import { runNewsAgent }      from "./news-agent";
@@ -304,6 +306,11 @@ export async function runAgentOrchestrator(
   // ── Fetch market data ────────────────────────────────────────────────────
   const { quote, news } = await fetchMarketData(symbol, authHeaders);
 
+  // AGENT_CORE=v2 switches the decision to the Session Liquidity core. Off by
+  // default: the classic multi-agent path is what runs until it is turned on.
+  const coreV2 = process.env.AGENT_CORE === "v2";
+  const extendedM5Promise = coreV2 ? getExtendedM5Candles(symbol).catch(() => null) : Promise.resolve(null);
+
   // ── Build normalized snapshot ────────────────────────────────────────────
   let snapshot;
   let isMockData = false;
@@ -344,11 +351,20 @@ export async function runAgentOrchestrator(
     : undefined;
 
   // ── Phase 1: Independent agents  -  all run with Claude when available ─────
-  // Trend, News, and Price Action all run in parallel
+  // Trend, News, and Price Action all run in parallel. Under the v2 core the
+  // price-action read comes from the Session Liquidity model instead.
+  let v2: V2Result | null = null;
+  if (coreV2 && !isMockData) {
+    const m5 = await extendedM5Promise;
+    v2 = m5
+      ? analyzeSessionLiquidity(m5, v2ParamsFor(symbol, snapshot.price.current))
+      : { bias: "neutral", biasSource: "none", levels: { "Asia High": null, "Asia Low": null, "London High": null, "London Low": null, PDH: null, PDL: null }, setup: null, note: "5-minute history unavailable" };
+  }
+  const v2Started = Date.now();
   const [trend, newsAgent, smc] = await Promise.all([
     runTrendAgent(snapshot, apiKey),
     runNewsAgent(snapshot, apiKey),
-    runPriceActionAgent(snapshot, apiKey),
+    v2 ? Promise.resolve(v2ToSmcOutput(v2, snapshot, v2Started)) : runPriceActionAgent(snapshot, apiKey),
   ]);
 
   // High-impact headlines push to all devices (deduped 6h inside notify) —
@@ -359,7 +375,7 @@ export async function runAgentOrchestrator(
 
   // ── Phase 2a: Execution + Contrarian  -  depend on trend + smc ────────────
   const [execution, contrarian] = await Promise.all([
-    runExecutionAgent(snapshot, smc, newsAgent),
+    v2 ? Promise.resolve(v2ToExecutionOutput(v2, snapshot, newsAgent, Date.now())) : runExecutionAgent(snapshot, smc, newsAgent),
     runContrarianAgent(snapshot, trend, smc, apiKey),
   ]);
 
@@ -385,7 +401,8 @@ export async function runAgentOrchestrator(
   const [debate, master] = await Promise.all([
     debatePromise,
     runMasterAgent(
-      snapshot, trend, smc, newsAgent, risk, execution, contrarian, effectiveWeights, apiKey
+      snapshot, trend, smc, newsAgent, risk, execution, contrarian, effectiveWeights, apiKey,
+      undefined, v2 ? { core: "v2" } : undefined,
     ),
   ]);
 

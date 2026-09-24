@@ -53,6 +53,7 @@ export interface BacktestTrade {
   rrRatio:     number;
   grade:       string;
   setupType:   string;
+  trigger:     string;
   session:     string;
   result:      TradeResult;
   rMultiple:   number;   // -1 = full loss, +1 = TP1, +2.5 = TP2, etc.
@@ -77,6 +78,8 @@ export interface BacktestReport {
   byGrade:        Record<string, { trades: number; wins: number; netR: number }>;
   bySession:      Record<string, { trades: number; wins: number; netR: number }>;
   bySetup:        Record<string, { trades: number; wins: number; netR: number }>;
+  /** Which execution path produced the trade (sweep/FVG vs HTF continuation…) */
+  byTrigger:      Record<string, { trades: number; wins: number; netR: number }>;
   equityCurve:    { time: string; equity: number }[];
   trades:         BacktestTrade[];
   skippedBars:    number;   // bars where agents errored or no signal
@@ -87,6 +90,7 @@ export interface BacktestReport {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MAX_BARS_FORWARD = 96; // max 24h forward on M15
+const FILL_WINDOW = 16;      // bars a pullback entry has to fill
 
 function resolveTrade(
   candles: BacktestCandle[],
@@ -95,35 +99,43 @@ function resolveTrade(
   entry: number,
   sl: number,
   tp1: number,
-  tp2: number | null,
-): { result: TradeResult; rMultiple: number; barsToClose: number; closeTime: string } {
+  _tp2: number | null,
+): { result: TradeResult; rMultiple: number; barsToClose: number; closeTime: string } | null {
   const slDist = Math.abs(entry - sl);
-  if (slDist <= 0) {
-    return { result: "be", rMultiple: 0, barsToClose: 0, closeTime: new Date(candles[entryIdx].t * 1000).toISOString() };
-  }
+  if (slDist <= 0) return null;
+  const long = direction === "long";
 
-  for (let i = entryIdx + 1; i < candles.length && i <= entryIdx + MAX_BARS_FORWARD; i++) {
+  // The entry is a price, not "now": a pullback entry below market has to trade
+  // before there is a position. Price reaching TP1 first, or no fill within
+  // FILL_WINDOW bars, means there was never a trade. (This used to count every
+  // signal as filled on its own bar.)
+  let fillIdx = -1;
+  for (let i = entryIdx; i < candles.length && i <= entryIdx + FILL_WINDOW; i++) {
+    const bar = candles[i];
+    if (bar.l <= entry && bar.h >= entry) { fillIdx = i; break; }
+    if (long ? bar.h >= tp1 : bar.l <= tp1) return null;
+  }
+  if (fillIdx < 0) return null;
+
+  // A win is the real distance to TP1 in R (it used to be booked as +1R flat,
+  // and TP2 as +2.5R, whatever the levels were). The whole position exits at
+  // TP1, as the app's trade tracker does.
+  const winR = parseFloat((Math.abs(tp1 - entry) / slDist).toFixed(2));
+  for (let i = fillIdx; i < candles.length && i <= fillIdx + MAX_BARS_FORWARD; i++) {
     const bar = candles[i];
     const closeTime = new Date(bar.t * 1000).toISOString();
     const bars = i - entryIdx;
-
-    if (direction === "long") {
-      // Check SL first (worse case on same bar)
-      if (bar.l <= sl) return { result: "loss", rMultiple: -1, barsToClose: bars, closeTime };
-      if (tp2 !== null && bar.h >= tp2) return { result: "win", rMultiple: 2.5, barsToClose: bars, closeTime };
-      if (bar.h >= tp1) return { result: "win", rMultiple: 1, barsToClose: bars, closeTime };
-    } else {
-      if (bar.h >= sl) return { result: "loss", rMultiple: -1, barsToClose: bars, closeTime };
-      if (tp2 !== null && bar.l <= tp2) return { result: "win", rMultiple: 2.5, barsToClose: bars, closeTime };
-      if (bar.l <= tp1) return { result: "win", rMultiple: 1, barsToClose: bars, closeTime };
-    }
+    // Stop first on a shared bar (worse case); on the fill bar only the stop counts.
+    if (long ? bar.l <= sl : bar.h >= sl) return { result: "loss", rMultiple: -1, barsToClose: bars, closeTime };
+    if (i > fillIdx && (long ? bar.h >= tp1 : bar.l <= tp1)) return { result: "win", rMultiple: winR, barsToClose: bars, closeTime };
   }
 
-  // Expired: mark open at last bar
-  const lastIdx = Math.min(candles.length - 1, entryIdx + MAX_BARS_FORWARD);
+  // Still open at the horizon: close at market.
+  const lastIdx = Math.min(candles.length - 1, fillIdx + MAX_BARS_FORWARD);
+  const r = (long ? candles[lastIdx].c - entry : entry - candles[lastIdx].c) / slDist;
   return {
     result: "open",
-    rMultiple: 0,
+    rMultiple: parseFloat(r.toFixed(2)),
     barsToClose: lastIdx - entryIdx,
     closeTime: new Date(candles[lastIdx].t * 1000).toISOString(),
   };
@@ -229,6 +241,7 @@ export async function runBacktest(
     const rr    = exec.rrRatio ?? 1;
 
     const resolution = resolveTrade(candles, i, dir, entry, sl, tp1, tp2);
+    if (!resolution) continue;
 
     const trade: BacktestTrade = {
       openTime:    snapshot.timestamp,
@@ -240,6 +253,7 @@ export async function runBacktest(
       rrRatio:     rr,
       grade:       exec.grade,
       setupType:   smc.setupType,
+      trigger:     exec.trigger,
       session:     snapshot.indicators.session,
       result:      resolution.result,
       rMultiple:   resolution.rMultiple,
@@ -277,12 +291,14 @@ export async function runBacktest(
   const byGrade: Record<string, { trades: number; wins: number; netR: number }> = {};
   const bySession: Record<string, { trades: number; wins: number; netR: number }> = {};
   const bySetup: Record<string, { trades: number; wins: number; netR: number }> = {};
+  const byTrigger: Record<string, { trades: number; wins: number; netR: number }> = {};
 
   for (const t of trades) {
     for (const [key, val, map] of [
       [t.grade, t, byGrade],
       [t.session, t, bySession],
       [t.setupType, t, bySetup],
+      [t.trigger, t, byTrigger],
     ] as [string, BacktestTrade, typeof byGrade][]) {
       if (!map[key]) map[key] = { trades: 0, wins: 0, netR: 0 };
       map[key].trades++;
@@ -309,6 +325,7 @@ export async function runBacktest(
     byGrade,
     bySession,
     bySetup,
+    byTrigger,
     equityCurve,
     trades,
     skippedBars,

@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Symbol, Timeframe } from "@/lib/agents/schemas";
 import { runBacktest } from "@/lib/backtest/engine";
+import { runBacktestV2, type V2Report } from "@/lib/backtest/engine-v2";
 import type { BacktestCandle } from "@/lib/backtest/engine";
 import { requirePro } from "@/lib/auth/entitlement";
 
@@ -165,6 +166,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: `No Yahoo Finance mapping for: ${symbolParam}` }, { status: 400 });
   }
 
+  // ?core=v2 runs the Session Liquidity core on 5-minute bars — the same
+  // function the live app uses when AGENT_CORE=v2. ?format=text returns a short
+  // plain-text summary that reads on a phone.
+  if (searchParams.get("core") === "v2") {
+    let m5: BacktestCandle[];
+    try {
+      m5 = await fetchYahooCandles(ticker, "5m", "60d");
+    } catch (err) {
+      return NextResponse.json({ error: `Failed to fetch candles: ${(err as Error).message}` }, { status: 502 });
+    }
+    if (m5.length < 1000) {
+      return NextResponse.json({ error: `Insufficient candle data: got ${m5.length} bars (need ≥ 1000).` }, { status: 422 });
+    }
+    const report = runBacktestV2(symbolParam, m5);
+    if (searchParams.get("format") === "text") {
+      return new NextResponse(formatV2(report), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+    }
+    return NextResponse.json({ ok: true, core: "v2", fetchedBars: m5.length, report });
+  }
+
   const interval = YAHOO_INTERVAL[timeframeParam];
   const range    = YAHOO_RANGE[timeframeParam];
 
@@ -195,4 +216,29 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function formatV2(r: V2Report): string {
+  const line = (k: string, v: string) => `${k.padEnd(18)} ${v}`;
+  const rows = (title: string, m: V2Report["byKillZone"]) => [
+    "", title,
+    ...Object.entries(m).map(([k, b]) =>
+      line(`  ${k}`, `${b.trades} trades · ${b.trades ? Math.round((b.wins / b.trades) * 100) : 0}% win · ${b.netR >= 0 ? "+" : ""}${b.netR}R`)),
+  ];
+  return [
+    `Session Liquidity core (v2) — ${r.symbol} 5m`,
+    line("Period", `${r.startDate.slice(0, 10)} → ${r.endDate.slice(0, 10)}`),
+    line("Setups", `${r.setups} (${r.missed} never filled)`),
+    line("Trades", `${r.trades}  (${r.wins}W / ${r.losses}L / ${r.timeouts} timeout)`),
+    line("Win rate", `${r.winRate}%`),
+    line("Net", `${r.netR >= 0 ? "+" : ""}${r.netR}R  ·  avg ${r.avgR >= 0 ? "+" : ""}${r.avgR}R per trade`),
+    line("Profit factor", String(r.profitFactor)),
+    line("Max drawdown", `${r.maxDrawdownR}R  ·  worst losing streak ${r.longestLosingStreak}`),
+    ...rows("By kill zone", r.byKillZone),
+    ...rows("By level swept", r.byLevel),
+    ...rows("By direction", r.byDirection),
+    ...rows("By month", r.byMonth),
+    "",
+    "Yahoo Finance 5-minute bars (gold = COMEX futures). No commission or slippage included.",
+  ].join("\n");
 }

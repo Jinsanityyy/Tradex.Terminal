@@ -16,6 +16,7 @@
  */
 
 import { runBacktest, type BacktestCandle } from "../src/lib/backtest/engine";
+import { runBacktestV2 } from "../src/lib/backtest/engine-v2";
 import type { Symbol, Timeframe } from "../src/lib/agents/schemas";
 
 // ── Yahoo Finance maps (mirror of src/app/api/backtest/route.ts) ──────────────
@@ -106,6 +107,36 @@ async function main() {
   const timeframe = (pos[1] ?? "M15").toUpperCase() as Timeframe;
   const forceSynthetic = flags.has("--synthetic");
 
+  // --v2: the Session Liquidity core on 5-minute bars (npm run backtest -- XAUUSD --v2)
+  if (flags.has("--v2")) {
+    let m5: BacktestCandle[] = [];
+    let source = "synthetic";
+    const ticker = YAHOO_TICKER[symbol];
+    if (!forceSynthetic && ticker) {
+      try { m5 = await fetchYahoo(ticker, "5m", "60d"); source = "Yahoo Finance (live)"; }
+      catch (err) { console.log(`\x1b[33m⚠ Yahoo unreachable (${(err as Error).message}) — falling back to synthetic data.\x1b[0m`); }
+    }
+    if (m5.length < 1000) { m5 = makeSynthetic(symbol, "M5", 12000); source = forceSynthetic ? "synthetic (forced)" : "synthetic (Yahoo blocked)"; }
+    console.log(`\n\x1b[1mTradeX Backtest — Session Liquidity core (v2)\x1b[0m  ${symbol} 5m  |  ${source}  |  ${m5.length} bars`);
+    const t0 = Date.now();
+    const r = runBacktestV2(symbol, m5);
+    section("RESULTS");
+    bar("Period",        `${r.startDate.slice(0,10)} → ${r.endDate.slice(0,10)}`);
+    bar("Setups",        `${r.setups} (${r.missed} never filled)`);
+    bar("Trades",        `${r.trades}  (${r.wins}W / ${r.losses}L / ${r.timeouts} timeout)`);
+    bar("Win rate",      `${r.winRate}%`);
+    bar("Net R",         fmtR(r.netR));
+    bar("Avg R / trade", fmtR(r.avgR));
+    bar("Profit factor", String(r.profitFactor));
+    bar("Max drawdown",  `${r.maxDrawdownR}R (worst streak ${r.longestLosingStreak})`);
+    for (const [title, m] of [["BY KILL ZONE", r.byKillZone], ["BY LEVEL", r.byLevel], ["BY DIRECTION", r.byDirection], ["BY MONTH", r.byMonth]] as const) {
+      section(title);
+      for (const [k, b] of Object.entries(m)) bar(k, `${b.trades} trades, ${pct(b.wins, b.trades)}% win, ${fmtR(b.netR)}`);
+    }
+    console.log(`\nDone in ${((Date.now()-t0)/1000).toFixed(1)}s.\n`);
+    return;
+  }
+
   console.log(`\n\x1b[1mTradeX Backtest\x1b[0m  —  ${symbol} ${timeframe}  (rule-based, no LLM)`);
 
   let candles: BacktestCandle[] = [];
@@ -150,6 +181,8 @@ async function main() {
     for (const [g, s] of Object.entries(rep.byGrade)) bar(g, `${s.trades} trades, ${pct(s.wins,s.trades)}% win, ${fmtR(s.netR)}`);
     section("BY SETUP");
     for (const [g, s] of Object.entries(rep.bySetup)) bar(g, `${s.trades} trades, ${pct(s.wins,s.trades)}% win, ${fmtR(s.netR)}`);
+    section("BY TRIGGER");
+    for (const [g, s] of Object.entries(rep.byTrigger)) bar(g, `${s.trades} trades, ${pct(s.wins,s.trades)}% win, ${fmtR(s.netR)}`);
     section("BY SESSION");
     for (const [g, s] of Object.entries(rep.bySession)) bar(g, `${s.trades} trades, ${pct(s.wins,s.trades)}% win, ${fmtR(s.netR)}`);
 

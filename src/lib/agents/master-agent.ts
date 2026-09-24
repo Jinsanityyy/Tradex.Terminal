@@ -264,7 +264,8 @@ export async function runMasterAgent(
   contrarian: ContrarianAgentOutput,
   weights: ScoringWeights = DEFAULT_WEIGHTS,
   anthropicApiKey?: string,
-  debate?: DebateEntry[]
+  debate?: DebateEntry[],
+  opts?: { core?: "v2" },
 ): Promise<MasterDecisionOutput> {
   const start = Date.now();
 
@@ -272,6 +273,50 @@ export async function runMasterAgent(
     // ── Compute consensus ────────────────────────────────────────────────
     const { consensusScore, finalBias, confidence, agentConsensus, noTradeReason } =
       computeConsensus(trend, smc, news, risk, execution, contrarian, weights, snapshot.symbol);
+
+    // ── Session Liquidity core: the setup is the decision ─────────────────
+    // No LLM and no vote: a live sweep + BOS + FVG setup that passes the risk
+    // gate is the call, and nothing else is. The consensus is still returned
+    // for the committee display.
+    if (opts?.core === "v2") {
+      const go = execution.hasSetup && risk.valid &&
+        execution.entry !== null && execution.stopLoss !== null && execution.tp1 !== null;
+      const bias = go ? (execution.direction === "long" ? "bullish" : "bearish") : "no-trade";
+      return {
+        agentId: "master",
+        finalBias: bias,
+        confidence: go ? (execution.grade === "A+" ? 75 : 65) : Math.min(40, confidence),
+        consensusScore,
+        tradePlan: go ? {
+          direction: execution.direction === "long" ? "long" : "short",
+          entry: execution.entry!,
+          stopLoss: execution.stopLoss!,
+          tp1: execution.tp1!,
+          tp2: execution.tp2,
+          tp3: execution.tp3,
+          rrRatio: execution.rrRatio ?? 2,
+          grade: execution.grade,
+          confluenceCount: execution.confluenceCount,
+          confluenceFactors: execution.confluenceFactors,
+          maxRiskPercent: risk.maxRiskPercent,
+          trigger: execution.trigger,
+          triggerCondition: execution.triggerCondition,
+          entryZone: execution.entryZone,
+          slZone: execution.slZone,
+          tp1Zone: execution.tp1Zone,
+          tp3Zone: execution.tp3Zone,
+          managementNotes: execution.managementNotes,
+        } : null,
+        supports: buildSupports(trend, smc, news, execution, bias),
+        invalidations: buildInvalidations(trend, smc, risk, contrarian, execution),
+        agentConsensus,
+        noTradeReason: go ? undefined
+          : !risk.valid && execution.hasSetup ? `Risk check failed: ${risk.warnings[0] ?? "conditions outside limits"}`
+          : execution.signalStateReason,
+        strategyMatch: go ? "Session liquidity sweep" : undefined,
+        processingTime: Date.now() - start,
+      };
+    }
 
     // ── LLM synthesis (optional enhancement) ─────────────────────────────
     let llmResult: { finalBias: string; confidence: number; supports: string[]; invalidations: string[]; noTradeReason?: string; strategyMatch?: string } | null = null;

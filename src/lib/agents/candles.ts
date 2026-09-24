@@ -515,7 +515,7 @@ async function fetchFinnhubCandles(symbol: Symbol, timeframe: Timeframe): Promis
   return null;
 }
 
-async function fetchTwelvedataCandles(symbol: Symbol, timeframe: Timeframe): Promise<CandleBar[] | null> {
+async function fetchTwelvedataCandles(symbol: Symbol, timeframe: Timeframe, outputsize = 200): Promise<CandleBar[] | null> {
   const apiKey = process.env.TWELVEDATA_API_KEY;
   const tdSymbol = TWELVEDATA_SYMBOLS[symbol];
   const interval = TWELVEDATA_INTERVAL[timeframe];
@@ -530,7 +530,7 @@ async function fetchTwelvedataCandles(symbol: Symbol, timeframe: Timeframe): Pro
     return null;
   }
 
-  const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(tdSymbol)}&interval=${interval}&outputsize=200&apikey=${apiKey}`;
+  const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(tdSymbol)}&interval=${interval}&outputsize=${outputsize}&timezone=UTC&apikey=${apiKey}`;
 
   logCandleDebug({ symbol, timeframe, endpoint, provider: "twelvedata", tdSymbol, status: "request" });
 
@@ -670,6 +670,16 @@ async function resolveReliableCandles(
   }
 
   return null;
+}
+
+/**
+ * About three and a half trading days of 5-minute bars for the Session
+ * Liquidity core (AGENT_CORE=v2), which needs yesterday's range and an hourly
+ * EMA50. TwelveData only: it serves spot metals, so levels match the quote.
+ */
+export async function getExtendedM5Candles(symbol: Symbol): Promise<CandleBar[] | null> {
+  const candles = await fetchTwelvedataCandles(symbol, "M5", 1000);
+  return candles && candles.length >= 300 ? candles : null;
 }
 
 export async function getValidatedCandles(
