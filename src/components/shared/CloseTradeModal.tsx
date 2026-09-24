@@ -119,6 +119,23 @@ export function CloseTradeModal({ trade, onClose, onClosed }: Props) {
               onChange={e => setExitStr(e.target.value)}
               className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm font-mono text-white outline-none focus:border-[hsl(var(--primary))]/50 placeholder:text-zinc-700"
             />
+            {/* One tap for the two exits a bracket order actually has. */}
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setExitStr(String(trade.tp1))}
+                className="min-h-[44px] rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-[12px] font-semibold text-emerald-400"
+              >
+                Hit TP1 · {fmt(trade.tp1)}
+              </button>
+              <button
+                type="button"
+                onClick={() => setExitStr(String(trade.stopLoss))}
+                className="min-h-[44px] rounded-lg border border-red-500/30 bg-red-500/10 text-[12px] font-semibold text-red-400"
+              >
+                Hit SL · {fmt(trade.stopLoss)}
+              </button>
+            </div>
           </div>
 
           {/* PnL preview */}

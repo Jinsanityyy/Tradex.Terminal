@@ -11,7 +11,7 @@ import { hitFromCandles, hitFromPrice, timeframeFor, type CandleBar, type TradeH
 // Candles cost a TwelveData credit and an entitlement check per symbol; ticks
 // cover the live case, so this only has to catch what happened off-screen.
 const CANDLE_CHECK_MS = 5 * 60_000;
-const RANK = { M5: 0, M15: 1, H1: 2 } as const;
+const RANK = { M1: 0, M5: 1, M15: 2, H1: 3 } as const;
 
 function fmtPrice(n: number): string {
   return n > 100 ? n.toFixed(2) : n.toFixed(4);
@@ -122,7 +122,7 @@ export function useTradeAutoResolve(
       if (open.length === 0) return;
 
       // One fetch per symbol, at the timeframe that reaches its oldest trade.
-      const bySymbol = new Map<string, "M5" | "M15" | "H1">();
+      const bySymbol = new Map<string, keyof typeof RANK>();
       for (const t of open) {
         const tf = timeframeFor(t.takenAt);
         const prev = bySymbol.get(t.symbol);

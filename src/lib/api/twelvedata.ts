@@ -117,7 +117,9 @@ export async function fetchTimeSeries(symbol: string, interval = "1h", outputsiz
   const timer = setTimeout(() => controller.abort(), 8000);
 
   try {
-    const url = `${BASE}/time_series?symbol=${symbol}&interval=${interval}&outputsize=${outputsize}&apikey=${key()}`;
+    // Explicit UTC: every caller parses these timestamps as UTC, and the
+    // default ("Exchange") zone is only UTC by convention.
+    const url = `${BASE}/time_series?symbol=${symbol}&interval=${interval}&outputsize=${outputsize}&timezone=UTC&apikey=${key()}`;
     const res = await fetch(url, { signal: controller.signal, cache: "no-store" });
     if (!res.ok) throw new Error(`TimeSeries: ${res.status}`);
     const data = await res.json();

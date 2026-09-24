@@ -18,8 +18,12 @@ const TD_SYMBOL: Partial<Record<Symbol, string>> = {
   XAUUSD: "XAU/USD", EURUSD: "EUR/USD", GBPUSD: "GBP/USD",
   USDJPY: "USD/JPY", BTCUSD: "BTC/USD", ETHUSD: "ETH/USD",
 };
-const TD_INTERVAL: Record<Timeframe, string> = {
-  M5: "5min", M15: "15min", H1: "1h", H4: "4h",
+// M1 is not an agent timeframe; it exists so a taken trade can be checked
+// minute by minute (a TP hit and reversed inside one 5-minute bar was missed).
+type CandleTf = Timeframe | "M1";
+
+const TD_INTERVAL: Record<CandleTf, string> = {
+  M1: "1min", M5: "5min", M15: "15min", H1: "1h", H4: "4h",
 };
 
 const FH_CFG: Partial<Record<Symbol, { endpoint: "forex" | "crypto"; sym: string }>> = {
@@ -29,17 +33,17 @@ const FH_CFG: Partial<Record<Symbol, { endpoint: "forex" | "crypto"; sym: string
   BTCUSD: { endpoint: "crypto", sym: "BINANCE:BTCUSDT" },
   ETHUSD: { endpoint: "crypto", sym: "BINANCE:ETHUSDT" },
 };
-const FH_RES: Record<Timeframe, string> = { M5: "5", M15: "15", H1: "60", H4: "240" };
+const FH_RES: Record<CandleTf, string> = { M1: "1", M5: "5", M15: "15", H1: "60", H4: "240" };
 
 const YAHOO_DISPLAY: Partial<Record<Symbol, string>> = {
   XAUUSD: "XAU/USD", EURUSD: "EUR/USD", GBPUSD: "GBP/USD", BTCUSD: "BTC/USD",
 };
 
-function tfSecs(tf: Timeframe) {
-  return { M5: 300, M15: 900, H1: 3600, H4: 14400 }[tf];
+function tfSecs(tf: CandleTf) {
+  return { M1: 60, M5: 300, M15: 900, H1: 3600, H4: 14400 }[tf];
 }
 
-async function fromTwelveData(symbol: Symbol, tf: Timeframe): Promise<CandleBar[] | null> {
+async function fromTwelveData(symbol: Symbol, tf: CandleTf): Promise<CandleBar[] | null> {
   const tdSym = TD_SYMBOL[symbol];
   if (!tdSym || !process.env.TWELVEDATA_API_KEY) return null;
   try {
@@ -53,7 +57,7 @@ async function fromTwelveData(symbol: Symbol, tf: Timeframe): Promise<CandleBar[
   } catch (err) { console.error("[candles/twelvedata]", (err as Error)?.message ?? err); return null; }
 }
 
-async function fromFinnhub(symbol: Symbol, tf: Timeframe): Promise<CandleBar[] | null> {
+async function fromFinnhub(symbol: Symbol, tf: CandleTf): Promise<CandleBar[] | null> {
   const cfg    = FH_CFG[symbol];
   const apiKey = process.env.FINNHUB_API_KEY;
   if (!cfg || !apiKey) return null;
@@ -71,9 +75,9 @@ async function fromFinnhub(symbol: Symbol, tf: Timeframe): Promise<CandleBar[] |
   } catch (err) { console.error("[candles/finnhub]", (err as Error)?.message ?? err); return null; }
 }
 
-async function fromYahoo(symbol: Symbol, tf: Timeframe): Promise<CandleBar[] | null> {
+async function fromYahoo(symbol: Symbol, tf: CandleTf): Promise<CandleBar[] | null> {
   const display = YAHOO_DISPLAY[symbol];
-  if (!display) return null;
+  if (!display || tf === "M1") return null;
   try {
     const bars = await fetchYahooCandles(display, tf);
     if (!bars?.length) return null;
@@ -87,7 +91,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const symbol    = (searchParams.get("symbol")    ?? "XAUUSD") as Symbol;
-  const timeframe = (searchParams.get("timeframe") ?? "H1")     as Timeframe;
+  const timeframe = (searchParams.get("timeframe") ?? "H1")     as CandleTf;
 
   const candles =
     await fromTwelveData(symbol, timeframe) ??

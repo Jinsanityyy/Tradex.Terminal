@@ -82,9 +82,14 @@ export function hitFromCandles(
   return null;
 }
 
-/** Finest timeframe whose 500-bar history still reaches back to the trade. */
-export function timeframeFor(takenAt: string): "M5" | "M15" | "H1" {
+/**
+ * Finest timeframe whose 500-bar history still reaches back to the trade.
+ * The bar the trade was taken in is skipped, so the bar size is the blind
+ * spot: on M5 a TP hit and reversed within the first five minutes was missed.
+ */
+export function timeframeFor(takenAt: string): "M1" | "M5" | "M15" | "H1" {
   const hours = (Date.now() - new Date(takenAt).getTime()) / 3_600_000;
+  if (hours < 8)   return "M1";
   if (hours < 40)  return "M5";
   if (hours < 120) return "M15";
   return "H1";
