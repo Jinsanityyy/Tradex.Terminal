@@ -54,6 +54,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/asset-matrix":         "Asset Matrix",
   "/dashboard/session-intelligence": "Session Intelligence",
   "/dashboard/settings":             "Settings",
+  "/m":                              "Mobile App",
 };
 
 async function track(type: string, payload: Record<string, unknown>) {
@@ -140,11 +141,8 @@ export function useAnalytics() {
     scrollDepth.current  = 0;
     pageViewId.current   = null;
 
-    // Start new page view
-    track("pageview_start", { sessionToken: token, page: pathname, pageTitle: title })
-      .then(); // fire and forget
-
-    // Capture returned pageViewId asynchronously
+    // Start new page view. One request  -  this used to fire track() and then a
+    // second raw fetch() just to read the id back, double-counting every view.
     fetch("/api/analytics/track", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -172,4 +170,20 @@ export function useAnalytics() {
   }, [pathname]);
 
   return { trackEvent };
+}
+
+/**
+ * Records a mobile tab change as its own page view.
+ *
+ * The phone app lives entirely at /m, so `usePathname` never changes and the
+ * route-based tracker above sees one page view for a whole session. Without
+ * this there is no way to tell whether anyone opens Chart, Feed or Brain.
+ */
+export function trackMobileTab(tab: string) {
+  if (typeof window === "undefined") return;
+  void track("pageview_start", {
+    sessionToken: getSessionToken(),
+    page:         `/m/${tab}`,
+    pageTitle:    `Mobile ${tab.charAt(0).toUpperCase()}${tab.slice(1)}`,
+  });
 }

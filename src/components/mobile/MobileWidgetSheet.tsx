@@ -3,6 +3,7 @@
 import React from "react";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAnalytics } from "@/hooks/useAnalytics";
 
 // ── Widget registry ───────────────────────────────────────────────────────────
 
@@ -94,9 +95,17 @@ interface MobileWidgetSheetProps {
 }
 
 export function MobileWidgetSheet({ open, onClose, config, onChange }: MobileWidgetSheetProps) {
+  // Called before the early return below  -  hooks cannot sit after a conditional
+  // return, and `if (!open) return null` is the first thing this component does.
+  const { trackEvent } = useAnalytics();
+
   if (!open) return null;
 
   function toggle(id: WidgetId) {
+    const next = !(config.find(w => w.id === id)?.visible ?? false);
+    // Which widgets people actually switch on is the only honest answer to
+    // "is this one worth keeping".
+    trackEvent("widget_toggle", "feature_use", { widget: id, enabled: next });
     onChange(config.map(w => w.id === id ? { ...w, visible: !w.visible } : w));
   }
 

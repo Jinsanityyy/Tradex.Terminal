@@ -33,6 +33,7 @@ import { createClient } from "@/lib/supabase/client";
 import { NotificationToast } from "@/components/shared/NotificationToast";
 import { LoginTransitionOverlay } from "@/components/shared/LoginTransitionOverlay";
 import { useFcmPush } from "@/hooks/useFcmPush";
+import { useAnalytics, trackMobileTab } from "@/hooks/useAnalytics";
 import { TrialExpiryBanner } from "@/components/shared/TrialExpiryBanner";
 
 const TRADER_NAME_KEY = "tradex_trader_name";
@@ -63,6 +64,18 @@ export function MobileLayout() {
   const { subscription } = useSubscription();
   const [active, setActive] = useState<TabId>("home");
   const [mounted, setMounted] = useState<Set<TabId>>(new Set(["home"]));
+
+  // The phone app had no instrumentation at all: seventeen widgets and five
+  // tabs, and no way to tell which of them anyone opened. /m is a single route,
+  // so the route-based tracker sees one page view for a whole session — tab
+  // changes are recorded explicitly below.
+  const { trackEvent } = useAnalytics();
+  const landingLogged = useRef(false);
+  useEffect(() => {
+    if (landingLogged.current) return;
+    landingLogged.current = true;
+    trackMobileTab("home");
+  }, []);
   const [transitioning, setTransitioning] = useState(false);
   const [enterKey, setEnterKey] = useState(0);
   const transitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -79,9 +92,17 @@ export function MobileLayout() {
 
   async function handleUpgrade() {
     setUpgradeError(null);
+    trackEvent("upgrade_start", "click", { surface: "mobile" });
     const r = await startProCheckout("monthly");
-    if (r.ok) window.location.reload();
-    else if (r.message) setUpgradeError(r.message);
+    if (r.ok) {
+      trackEvent("upgrade_success", "feature_use", { surface: "mobile" });
+      window.location.reload();
+    } else {
+      // Every abandoned upgrade carries its reason, so a broken billing path
+      // shows up as a pattern instead of silence.
+      trackEvent("upgrade_failed", "other", { surface: "mobile", reason: r.message ?? "cancelled" });
+      if (r.message) setUpgradeError(r.message);
+    }
   }
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -249,6 +270,10 @@ export function MobileLayout() {
 
   const switchTab = useCallback((id: TabId) => {
     if (id === active) return;
+    // Recorded as its own page view: /m never changes route, so without this a
+    // whole session of tab-hopping looks like one visit to one screen.
+    trackMobileTab(id);
+    trackEvent("mobile_tab", "tab_switch", { from: active, to: id });
     setMounted((prev: Set<TabId>) => new Set([...prev, id]));
     setActive(id);
     setEnterKey((k: number) => k + 1);
@@ -259,7 +284,7 @@ export function MobileLayout() {
       setTimeout(() => window.dispatchEvent(new Event("tradex-home-active")), 50);
     }
     document.dispatchEvent(new CustomEvent("tradex:mobile-tab-change", { detail: { active: id } }));
-  }, [active]);
+  }, [active, trackEvent]);
 
   useEffect(() => {
     const onMorePage = (e: Event) => {
