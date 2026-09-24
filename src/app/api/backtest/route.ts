@@ -14,7 +14,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import type { Symbol, Timeframe } from "@/lib/agents/schemas";
-import { runBacktest } from "@/lib/backtest/engine";
+import { runBacktest, type BacktestReport } from "@/lib/backtest/engine";
 import { runBacktestV2, type V2Report } from "@/lib/backtest/engine-v2";
 import type { BacktestCandle } from "@/lib/backtest/engine";
 import { requirePro } from "@/lib/auth/entitlement";
@@ -209,6 +209,9 @@ export async function GET(req: NextRequest) {
 
   try {
     const report = await runBacktest(symbolParam, timeframeParam, candles);
+    if (searchParams.get("format") === "text") {
+      return new NextResponse(formatClassic(report), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+    }
     return NextResponse.json({ ok: true, fetchedBars: candles.length, report });
   } catch (err) {
     return NextResponse.json(
@@ -240,5 +243,29 @@ function formatV2(r: V2Report): string {
     ...rows("By month", r.byMonth),
     "",
     "Yahoo Finance 5-minute bars (gold = COMEX futures). No commission or slippage included.",
+  ].join("\n");
+}
+
+function formatClassic(r: BacktestReport): string {
+  const line = (k: string, v: string) => `${k.padEnd(18)} ${v}`;
+  const rows = (title: string, m: BacktestReport["byGrade"]) => [
+    "", title,
+    ...Object.entries(m).map(([k, b]) =>
+      line(`  ${k}`, `${b.trades} trades · ${b.trades ? Math.round((b.wins / b.trades) * 100) : 0}% win · ${b.netR >= 0 ? "+" : ""}${b.netR}R`)),
+  ];
+  return [
+    `Classic multi-agent core — ${r.symbol} ${r.timeframe} (rule-based, no LLM)`,
+    line("Period", `${r.startDate.slice(0, 10)} → ${r.endDate.slice(0, 10)}`),
+    line("Trades", `${r.totalTrades}  (${r.wins}W / ${r.losses}L)`),
+    line("Win rate", `${r.winRate}%`),
+    line("Net", `${r.netR >= 0 ? "+" : ""}${r.netR}R  ·  avg ${r.avgRPerTrade >= 0 ? "+" : ""}${r.avgRPerTrade}R per trade`),
+    line("Profit factor", String(r.profitFactor)),
+    line("Max drawdown", `${r.maxDrawdownR}R`),
+    ...rows("By trigger", r.byTrigger),
+    ...rows("By grade", r.byGrade),
+    ...rows("By session", r.bySession),
+    "",
+    "Note: the live classic core also uses a 5m Supertrend, daily-candle bias and an LLM",
+    "that this replay cannot reproduce, so these numbers only approximate it.",
   ].join("\n");
 }
