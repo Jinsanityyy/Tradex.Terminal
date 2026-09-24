@@ -289,7 +289,7 @@ function SidebarPnlWidget() {
 
   const hasSession = !!session;
   const pnlPos  = dailyPnl !== null && dailyPnl >= 0;
-  const pnlVal  = dailyPnl !== null ? `${pnlPos ? "+" : ""}$${Math.abs(dailyPnl).toFixed(2)}` : "—";
+  const pnlVal  = dailyPnl !== null ? `${pnlPos ? "+" : "-"}$${Math.abs(dailyPnl).toFixed(2)}` : "—";
   const pnlClass = dailyPnl === null ? "text-zinc-700" : pnlPos ? "text-emerald-400" : "text-red-400";
 
   return (

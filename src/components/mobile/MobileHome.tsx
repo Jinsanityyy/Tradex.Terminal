@@ -441,6 +441,16 @@ export function MobileHome() {
   const rrRatio   = liveRrRatio  ?? usableDb?.rrRatio  ?? usableCached?.rrRatio  ?? recentTrade?.rrRatio  ?? null;
   const direction = liveDirection ?? usableDb?.direction ?? usableCached?.direction ?? (recentTrade ? (recentTrade.direction === "BUY" ? "long" : "short") : null);
   const trigger   = liveTrigger  ?? cachedSetup?.trigger  ?? null;
+  // TP2 is only known for the live plan. The agent's rrRatio is the blend of a
+  // 50% exit at TP1 and 50% at TP2, so it is shown as such beside both
+  // targets; with TP2 unknown it would sit under TP1 alone and overstate it
+  // (entry 4290.10 / SL 4295.10 / TP1 4284.30 is 1.16:1, not 1.83:1).
+  const tp2 = liveEntry !== null && entry === liveEntry ? (exec?.tp2 ?? tradePlan?.tp2 ?? null) : null;
+  const shownRr = tp2 !== null
+    ? rrRatio
+    : entry && stopLoss && tp1 && Math.abs(entry - stopLoss) > 0
+      ? parseFloat((Math.abs(tp1 - entry) / Math.abs(entry - stopLoss)).toFixed(2))
+      : null;
 
   // Match the DISPLAYED setup to its own tracked signal record (any status) so
   // the card always carries THIS setup's state — tracking, TP/SL hit, expired —
@@ -727,7 +737,12 @@ export function MobileHome() {
                       exec?.signalStateReason && (
                       <p className="text-[11px] text-[hsl(var(--text-secondary))] mt-1 leading-tight line-clamp-3"
                         style={{ fontFamily: "var(--font-dm-sans),system-ui,sans-serif" }}>
-                        {exec.signalStateReason}
+                        {/* The reason's "% away" was measured when the agent ran;
+                            restate it against the price on screen now. */}
+                        {livePrice && entry
+                          ? exec.signalStateReason.replace(/\(\d+(?:\.\d+)?% away\)/,
+                              `(${(Math.abs(livePrice - entry) / entry * 100).toFixed(2)}% away now)`)
+                          : exec.signalStateReason}
                       </p>
                     )}
                   </div>
@@ -854,9 +869,16 @@ export function MobileHome() {
                       value={tp1 ? (tp1 > 100 ? tp1.toFixed(2) : tp1.toFixed(4)) : "—"}
                       valueColor={showWin ? "text-[#00C853] animate-pulse" : "text-[#00C853]"}
                     />
+                    {tp2 !== null && (
+                      <TerminalDataRow
+                        label="TP2"
+                        value={tp2 > 100 ? tp2.toFixed(2) : tp2.toFixed(4)}
+                        valueColor="text-[#00C853]"
+                      />
+                    )}
                     <TerminalDataRow
-                      label="R:R"
-                      value={rrRatio ? `${rrRatio}:1` : "—"}
+                      label={tp2 !== null ? "AVG R:R" : "R:R"}
+                      value={shownRr ? `${shownRr}:1` : "—"}
                       valueColor="text-[hsl(var(--foreground))]"
                     />
                   </div>
@@ -881,7 +903,12 @@ export function MobileHome() {
                     ) : (
                       <p className="text-[13px] text-[hsl(var(--text-secondary))] mt-2 leading-snug"
                         style={{ fontFamily: "var(--font-dm-sans),system-ui,sans-serif" }}>
-                        {exec.signalStateReason}
+                        {/* The reason's "% away" was measured when the agent ran;
+                            restate it against the price on screen now. */}
+                        {livePrice && entry
+                          ? exec.signalStateReason.replace(/\(\d+(?:\.\d+)?% away\)/,
+                              `(${(Math.abs(livePrice - entry) / entry * 100).toFixed(2)}% away now)`)
+                          : exec.signalStateReason}
                       </p>
                     )
                   )}

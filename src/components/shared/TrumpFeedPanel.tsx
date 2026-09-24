@@ -498,7 +498,7 @@ const TRUMP_ANALYSIS: Record<string, { summary: string; bullets: string[] }> = {
     bullets: [
       "Watch EURUSD: EUR weakness on Russia escalation = USD strength = Gold bid in EUR terms",
       "Energy disruption (gas, oil exports) = European inflation = ECB dilemma = EUR weaker",
-      "Peace talks breakthrough = risk-on = Gold selloff; don't hold longs through negotiation headlines",
+      "Peace talks breakthrough = risk-on = Gold selloff; negotiation headlines have caused sharp Gold drops",
       "Gold + EUR inverse relationship in Russia scenarios  -  Gold holds while EUR drops",
       "Sanctions affecting global commodities = broader safe-haven flows into Gold",
     ],

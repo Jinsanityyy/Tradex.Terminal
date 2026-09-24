@@ -150,15 +150,15 @@ function buildFallbackAnalysis(ev: EconomicEvent): AIEventAnalysis {
       : `${title} landed on forecast. With no surprise to reprice, expect a muted reaction and a fast fade of any spike.`,
     goldImpact,
     goldAnalysis: hot
-      ? `${label} = the Fed has no urgency to cut = bearish Gold near-term. Watch the first pullback into resistance for a sell entry.`
+      ? `${label} = the Fed has no urgency to cut = bearish Gold near-term. Rallies into resistance have tended to fade after prints like this.`
       : cold
       ? `${label} = rate-cut bets rise = bullish Gold. Dips toward the nearest support have tended to find buyers faster than the first spike holds.`
       : "On-forecast print — Gold likely consolidates inside its pre-release range. Wait for the next high-impact catalyst.",
     usdImpact,
     usdAnalysis: hot
-      ? "USD bid — DXY should press resistance. Look for continuation longs on USDJPY and USDCHF."
+      ? "USD bid — DXY tends to press resistance, with USDJPY and USDCHF typically firmer."
       : cold
-      ? "USD offered — DXY faces selling pressure. EURUSD and GBPUSD are the cleaner longs."
+      ? "USD offered — DXY faces selling pressure, with EURUSD and GBPUSD typically firmer."
       : "No repricing to trade — DXY likely range-bound. Monitor the next Fed speaker for direction.",
     traderFocus: hot
       ? ["Gold into resistance — a rejection there would confirm the bearish read", "DXY holding its breakout confirms the USD strength theme", "Rate-cut timeline pushed further out — the hawkish theme extends"]
@@ -168,7 +168,7 @@ function buildFallbackAnalysis(ev: EconomicEvent): AIEventAnalysis {
     timeframe: hot
       ? "1-3 sessions of USD strength and Gold weakness. Monitor the next CPI/jobs print for reversal signals."
       : cold
-      ? "1-3 sessions of Gold strength. Hold longs with patience — rate-cut repricing takes time."
+      ? "1-3 sessions of Gold strength have been typical — rate-cut repricing takes time."
       : "Range-bound for 1-2 sessions. Await the next catalyst.",
   };
 }
@@ -404,19 +404,23 @@ function ReleaseHistory({ ev }: { ev: EconomicEvent }) {
   }
 
   const isRate = RATE_TITLE_RE.test(ev.event);
-  const nums = rows.map(r => toNum(r.actual)!);
+  // The table lists the releases BEFORE this one, but the summary has to
+  // include it: a 4.00% hike sat above "Now at 3.75%" because rows[0] was the
+  // previous meeting, not the decision the popup is about.
+  const current = ev.status === "completed" && toNum(ev.actual) !== null ? toNum(ev.actual) : null;
+  const nums = [...(current !== null ? [current] : []), ...rows.map(r => toNum(r.actual)!)];
   const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
   const unit = String(rows[0].actual ?? "").replace(/[-\d.,\s+]/g, "");
   const fmt = (n: number) =>
     `${Math.abs(n) >= 100 || unit === "K" ? n.toFixed(0) : n.toFixed(2).replace(/\.?0+$/, "")}${unit}`;
 
   // Change of each release against the one before it (rows are newest first).
-  const change = (i: number) => (i + 1 < rows.length ? nums[i] - nums[i + 1] : null);
+  const change = (i: number) => (i + 1 < nums.length ? nums[i] - nums[i + 1] : null);
   let summary: string;
   if (isRate) {
-    const moves = rows.map((_, i) => change(i)).filter((c): c is number => c !== null);
+    const moves = nums.map((_, i) => change(i)).filter((c): c is number => c !== null);
     const hikes = moves.filter(c => c > 0).length, cuts = moves.filter(c => c < 0).length;
-    summary = `Last ${moves.length} decisions: ${cuts} cut${cuts === 1 ? "" : "s"}, ${hikes} hike${hikes === 1 ? "" : "s"}, ${moves.length - hikes - cuts} hold${moves.length - hikes - cuts === 1 ? "" : "s"}. Now at ${rows[0].actual}.`;
+    summary = `Last ${moves.length} decisions: ${cuts} cut${cuts === 1 ? "" : "s"}, ${hikes} hike${hikes === 1 ? "" : "s"}, ${moves.length - hikes - cuts} hold${moves.length - hikes - cuts === 1 ? "" : "s"}. Now at ${current !== null ? ev.actual : rows[0].actual}.`;
   } else {
     let streak = 0;
     const dir = Math.sign(change(0) ?? 0);
@@ -441,7 +445,7 @@ function ReleaseHistory({ ev }: { ev: EconomicEvent }) {
           </thead>
           <tbody>
             {rows.map((r, i) => {
-              const c = change(i);
+              const c = change(i + (current !== null ? 1 : 0));
               const fc = toNum(r.forecast);
               return (
                 <tr key={`${r.date}-${i}`} className="border-t border-white/5">

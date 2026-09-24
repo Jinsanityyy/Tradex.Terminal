@@ -195,9 +195,14 @@ function PnlWidget({ micro }: { micro: MicroData }) {
       .catch(() => {});
   }, []);
 
-  // Avg win / avg loss over the last 200 trades from every source (EA, exchanges, manual)
+  // Avg win / avg loss over the same 7 days as the win rate beside it, from
+  // every source (EA, exchanges, manual). This used to span the last 200
+  // trades, so the box could read "0% win rate" next to "2.2× avg W ÷ L" —
+  // two windows under one "7 DAY" header.
   useEffect(() => {
-    fetch(withTz("/api/pnl/trades?limit=200"))
+    const cutoff = new Date(Date.now() - 7 * 86_400_000);
+    const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth()+1).padStart(2,'0')}-${String(cutoff.getDate()).padStart(2,'0')}`;
+    fetch(withTz(`/api/pnl/trades?from=${cutoffStr}`))
       .then(r => r.ok ? r.json() : null)
       .then(json => {
         if (!json) return;
@@ -205,7 +210,7 @@ function PnlWidget({ micro }: { micro: MicroData }) {
         const trades = (json.data ?? []) as TradeRow[];
         const wins   = trades.filter(t => t.pnl > 0).map(t => t.pnl);
         const losses = trades.filter(t => t.pnl < 0).map(t => Math.abs(t.pnl));
-        if (wins.length < 2 || losses.length < 2) return;
+        if (!wins.length || !losses.length) return;
         const avgWin  = wins.reduce((a, b) => a + b, 0) / wins.length;
         const avgLoss = losses.reduce((a, b) => a + b, 0) / losses.length;
         setAvgRR(parseFloat((avgWin / avgLoss).toFixed(1)));
@@ -215,7 +220,7 @@ function PnlWidget({ micro }: { micro: MicroData }) {
 
   const pnlPos   = dailyPnl !== null && dailyPnl >= 0;
   const pnlValue = dailyPnl !== null
-    ? `${pnlPos ? "+" : ""}$${Math.abs(dailyPnl).toFixed(2)}`
+    ? `${pnlPos ? "+" : "-"}$${Math.abs(dailyPnl).toFixed(2)}`
     : "—";
   const pnlClass = dailyPnl === null ? "text-[hsl(var(--text-secondary))]"
     : pnlPos ? "text-[#00C853]" : "text-[#FF3D3D]";

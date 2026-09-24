@@ -67,9 +67,9 @@ export function CloseTradeModal({ trade, onClose, onClosed }: Props) {
       });
 
       if (res.ok) {
-        toast.success(`Trade closed: ${closed.pnlDollar! >= 0 ? "+" : ""}$${Math.abs(closed.pnlDollar!).toFixed(2)} logged to PnL calendar`);
+        toast.success(`Trade closed: ${closed.pnlDollar! >= 0 ? "+" : "-"}$${Math.abs(closed.pnlDollar!).toFixed(2)} logged to PnL calendar`);
       } else {
-        toast.success(`Trade closed: ${closed.pnlDollar! >= 0 ? "+" : ""}$${Math.abs(closed.pnlDollar!).toFixed(2)}`);
+        toast.success(`Trade closed: ${closed.pnlDollar! >= 0 ? "+" : "-"}$${Math.abs(closed.pnlDollar!).toFixed(2)}`);
         toast.warning("Couldn't auto-log to calendar — add manually");
       }
 
@@ -156,7 +156,7 @@ export function CloseTradeModal({ trade, onClose, onClosed }: Props) {
               <div>
                 <p className="text-[9px] text-zinc-500 uppercase tracking-wider mb-0.5">P&L</p>
                 <p className={cn("text-xl font-bold font-mono", previewPnl >= 0 ? "text-emerald-400" : "text-red-400")}>
-                  {previewPnl >= 0 ? "+" : ""}${Math.abs(previewPnl).toFixed(2)}
+                  {previewPnl >= 0 ? "+" : "-"}${Math.abs(previewPnl).toFixed(2)}
                 </p>
               </div>
               {previewR !== null && (

@@ -417,7 +417,7 @@ function analyzeEvent(
         goldReasoning: `Forecast ${forecast} vs prior ${previous}: ${what} expected to rise = labour market cooling = rate-cut bets build = supportive for Gold.`,
         usdImpact: "bearish",
         usdReasoning: `Rising ${what} signals labour weakness, which pressures the Dollar through rate-cut expectations.`,
-        tradeImplication: `A print at or above ${forecast} leans Gold-positive; a big upside surprise (well above forecast) is the stronger buy signal. One week of claims is noisy: the trend over 3-4 weeks matters more.`,
+        tradeImplication: `A print at or above ${forecast} leans Gold-positive; a big upside surprise (well above forecast) is the stronger Gold-positive surprise. One week of claims is noisy: the trend over 3-4 weeks matters more.`,
       };
     }
     if (missing) {
@@ -759,7 +759,7 @@ function generatePreEvent(title: string, forecast: string, previous: string): {
         "Weekly Jobless Claims are the labor market's real-time heartbeat  -  released every Thursday, they give traders the earliest read on whether hiring conditions are deteriorating between major jobs reports. A sustained rise toward 250K or higher signals labor market cracks, raises rate-cut expectations, and is Gold bullish. Conversely, persistently low claims reinforce Fed patience, keeping rates elevated and creating headwinds for Gold. A single week rarely moves markets significantly  -  it's the trend over 3–4 weeks that traders respect.",
       preEventBullets: [
         "Watch the 4-week moving average  -  single-week spikes are often noise from holidays or seasonal factors",
-        "Claims above 250K sustained = early recession warning = Gold buy signal building",
+        "Claims above 250K sustained = early recession warning = Gold-supportive backdrop building",
         "Claims below 200K = labor market remains tight = Fed stays patient = Gold headwind",
         "Continuing claims (ongoing unemployment) matter as much as the headline  -  watch for trend",
         "A single large miss (>30K from consensus) can cause a sharp Gold reaction  -  size positions carefully",
@@ -897,7 +897,7 @@ function generatePostEvent(title: string, forecast: string, previous: string, ac
         "Compare Gold price now vs 1 hour before decision  -  this tells you how the market read it",
         "Check if DXY broke above or below its pre-decision level",
         "If rates held and statement was neutral: expect range-bound for 1–2 sessions before next catalyst",
-        "Rate cut = strong Gold buy signal  -  hold longs for multi-day move",
+        "Rate cut: historically strongly Gold-positive, often over several days",
         "Rate hike (rare): strongly gold-negative, strongly USD-positive across the board",
       ],
     };
@@ -933,9 +933,9 @@ function generatePostEvent(title: string, forecast: string, previous: string, ac
         ? [
             "Cooling inflation = rate cuts getting closer = gold-positive",
             "DXY likely falling  -  USD weakness across the board",
-            "Gold may break above key resistance  -  watch for breakout setup",
+            "Gold may test key resistance  -  a break above would extend the move",
             "EURUSD, GBPUSD should rally vs USD",
-            "This is a multi-session bullish Gold signal  -  hold longs with patience",
+            "Moves like this have tended to run bullish for Gold over several sessions",
           ]
         : [
             "No major surprise  -  avoid overtrading",
@@ -1093,7 +1093,7 @@ function generatePostEvent(title: string, forecast: string, previous: string, ac
           ]
         : [
             "PMI below 50 = contraction = recession risk = gold-positive",
-            "Sustained PMI below 50 for 2+ months = strong Gold buy signal builds",
+            "Sustained PMI below 50 for 2+ months = strongly Gold-supportive backdrop",
             "DXY should weaken  -  USD under pressure from growth concerns",
             "Watch Employment sub-index  -  weakness there compounds the bearish growth narrative",
           ],
