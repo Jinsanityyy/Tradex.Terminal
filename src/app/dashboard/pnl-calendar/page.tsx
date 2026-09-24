@@ -19,6 +19,7 @@ import type { GuardStatus } from "@/lib/trades/risk-guard";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { syncAllClosedTrades } from "@/lib/trades/trade-log";
+import { UnloggedTakenTrades } from "@/components/shared/UnloggedTakenTrades";
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
   try {
@@ -1680,6 +1681,8 @@ export default function PnLCalendarPage() {
           );
         })}
       </div>
+
+      <UnloggedTakenTrades onLogged={() => { void loadData(); }} />
 
       {guard?.level === "breach" && (
         <div className="flex items-start gap-3 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3">

@@ -46,6 +46,17 @@ function getSyncedIds(): Set<string> {
   try { return new Set(JSON.parse(localStorage.getItem(SYNCED_KEY) ?? "[]")); }
   catch { return new Set(); }
 }
+/** True once this trade is on the P&L calendar (or the trader chose to leave it off). */
+export function isTradeLogged(id: string): boolean {
+  return getSyncedIds().has(id);
+}
+
+/** Leave a closed trade off the calendar without writing it. */
+export function markTradeLogged(id: string): void {
+  markSynced(id);
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(TRADES_CHANGED_EVENT));
+}
+
 function markSynced(id: string): void {
   const ids = getSyncedIds();
   ids.add(id);
