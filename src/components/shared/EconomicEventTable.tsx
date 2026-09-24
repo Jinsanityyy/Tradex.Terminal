@@ -39,6 +39,66 @@ const INVERTED_RE   = /jobless claims|initial claims|continuing claims|unemploym
 /** Central-bank rate decisions — no "beat/miss", it's hawkish vs dovish */
 const RATE_DECISION_RE = /federal funds rate|interest rate decision|fed interest rate|rate decision|bank rate|refi rate|deposit facility rate|cash rate|fomc.*rate/i;
 
+/** Events that publish words, not a figure: there is never an "actual" to wait for */
+const SPEECH_RE = /speaks|speech|testif|testimony|press conference|statement|minutes|remarks|hearing|interview/i;
+
+/**
+ * Speeches and statements. The data-release template ("the print has not
+ * reached our feed", "hot or soft") made no sense for them: nothing will ever
+ * print. What moves markets is what was said, so the read is about that.
+ */
+function buildSpeechAnalysis(ev: EconomicEvent): AIEventAnalysis {
+  const t = ev.event.toLowerCase();
+  const trump = t.includes("trump") || t.includes("president");
+  const fed = /powell|fed |fomc|chair|governor|waller|williams|jefferson|bowman|barr|cook|kugler|miran|goolsbee|logan|daly|hammack|musalem|schmid|kashkari|bostic|barkin|harker|collins/.test(t);
+
+  if (trump) {
+    return {
+      outcome: `${ev.event} has no published figure. What moved markets is what was said, and how Gold and the dollar reacted.`,
+      marketReaction: "Gold responds to three themes in his remarks: tariffs and trade, the Fed and interest rates, and geopolitics. New tariffs, trade threats or conflict have tended to lift Gold as a safe haven. Pressure on the Fed to cut has tended to weaken the dollar and support Gold. Deals, truces and de-escalation have tended to take the haven premium out of Gold.",
+      goldImpact: "neutral",
+      goldAnalysis: "How Gold moved in the first hour after the remarks is the market's verdict. The Trump Monitor has the posts and headlines from around that time.",
+      usdImpact: "neutral",
+      usdAnalysis: "Open pressure on the Fed has tended to weigh on the dollar; tariff escalation has had a mixed effect on it.",
+      traderFocus: [
+        "Tariffs or trade threats: safe-haven demand for Gold",
+        "Calls for lower rates or criticism of the Fed: a weaker dollar",
+        "Deals, truces or de-escalation: Gold loses its haven premium",
+      ],
+      timeframe: "Headline-driven moves from remarks often fade within the session unless policy action follows.",
+    };
+  }
+  if (fed) {
+    return {
+      outcome: `${ev.event} has no published figure. The tone is the event.`,
+      marketReaction: "Hawkish language (inflation not yet beaten, rates higher for longer) has tended to weigh on Gold and lift the dollar. Dovish language (progress on inflation, a cooling labour market, cuts getting closer) has tended to lift Gold and weaken the dollar.",
+      goldImpact: "neutral",
+      goldAnalysis: "How Gold moved in the first hour shows how the market read the tone. A sustained move usually means the message changed rate expectations; a spike that fades usually means it did not.",
+      usdImpact: "neutral",
+      usdAnalysis: "The dollar moves opposite to Gold on Fed tone: hawkish lifts it, dovish weighs on it.",
+      traderFocus: [
+        "'More progress needed' and similar phrases lean hawkish",
+        "'Gaining confidence' or concern about jobs leans dovish",
+        "Any hint about the timing of the next move matters more than the rest",
+      ],
+      timeframe: "A change in tone can reprice rate expectations for days; a repeat of the known view usually fades within hours.",
+    };
+  }
+  return {
+    outcome: `${ev.event} has no published figure. The content and the market's reaction are the read.`,
+    marketReaction: "For speeches and statements, the direction comes from whether the message changes expectations for rates, growth or risk. How Gold moved in the first hour is the market's verdict.",
+    goldImpact: "neutral",
+    goldAnalysis: "A sustained move after the event suggests the message was new to the market; a quick fade suggests it was already priced.",
+    usdImpact: "neutral",
+    usdAnalysis: "Check whether the dollar moved opposite to Gold; if it did, the move was about rates or the dollar rather than risk.",
+    traderFocus: [
+      "Whether the message changed rate or growth expectations",
+      "Whether the first move held past the first hour",
+    ],
+    timeframe: "Moves from speeches usually settle within the session.",
+  };
+}
+
 /** Deterministic fallback analysis when AI is unavailable */
 function buildFallbackAnalysis(ev: EconomicEvent): AIEventAnalysis {
   const actNum = toNum(ev.actual);
@@ -77,11 +137,11 @@ function buildFallbackAnalysis(ev: EconomicEvent): AIEventAnalysis {
         ? "Read the decision off the tape rather than the headline number: the rate itself is usually pre-priced, so the move comes from the statement language and the projected path. Gold selling off with DXY bid means the market heard hawkish; Gold rallying with DXY offered means dovish."
         : "Until the number lands, let price do the talking. Compare Gold and DXY against where they traded 15 minutes before the release — that spread is the market's own verdict on whether the print came in hot or soft.",
       goldImpact: "neutral",
-      goldAnalysis: "No confirmed print, so there is no data-driven bias to trade. Wait for the actual to publish or for a clean 15-minute close in one direction before committing.",
+      goldAnalysis: "No confirmed print yet, so there is no data-driven read on Gold. Until it publishes, a clean 15-minute close in one direction is the best sign of how the market took it.",
       usdImpact: "neutral",
-      usdAnalysis: "DXY direction is unconfirmed without the actual. Treat the first spike as noise and wait for the retest.",
+      usdAnalysis: "DXY direction is unconfirmed without the actual. First spikes on releases often retrace before the real move shows.",
       traderFocus: [
-        "Actual not published yet — do not trade a surprise that has not been confirmed",
+        "Actual not published yet — an unconfirmed surprise is not a signal",
         `Compare Gold and DXY now vs 15 minutes before ${title} — the spread is the real signal`,
         isRate
           ? "Statement language and the dot plot matter more than the rate itself"
@@ -183,6 +243,11 @@ function useAfterReleaseAnalysis(ev: EconomicEvent) {
 
   useEffect(() => {
     if (ev.status !== "completed" || fetchedRef.current) return;
+    if (SPEECH_RE.test(ev.event)) {
+      fetchedRef.current = true;
+      setAnalysis(buildSpeechAnalysis(ev));
+      return;
+    }
     if (analysisCache.has(cacheKey)) {
       setAnalysis(analysisCache.get(cacheKey)!);
       return;
@@ -473,6 +538,72 @@ function ReleaseHistory({ ev }: { ev: EconomicEvent }) {
   );
 }
 
+// ── Measured market reaction ──────────────────────────────────────────────────
+// The analyses used to tell the reader to "compare Gold now vs before the
+// release". The app has the candles, so it does that itself: the move from the
+// last close before the event to the end of the first hour after it.
+const REACTION_SYMBOLS = new Set(["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "BTCUSD", "ETHUSD"]);
+
+type Reaction = { symbol: string; before: number; after: number; high: number; low: number; minutes: number };
+
+function useMarketReaction(ev: EconomicEvent, symbol: string): Reaction | null {
+  const [reaction, setReaction] = useState<Reaction | null>(null);
+  useEffect(() => {
+    if (ev.status !== "completed" || !ev.utcTimestamp) return;
+    const eventSec = ev.utcTimestamp / 1000;
+    const ageH = (Date.now() / 1000 - eventSec) / 3600;
+    // Finest bars whose 500-bar history still reaches the event.
+    const [tf, barSec] = ageH < 38 ? ["M5", 300] as const : ageH < 120 ? ["M15", 900] as const : ageH < 480 ? ["H1", 3600] as const : [null, 0] as const;
+    if (!tf) return;
+    const sym = REACTION_SYMBOLS.has(symbol) ? symbol : "XAUUSD";
+    let cancelled = false;
+    fetch(`/api/market/candles?symbol=${sym}&timeframe=${tf}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then((j: { candles?: { t: number; h: number; l: number; c: number }[] } | null) => {
+        const bars = j?.candles ?? [];
+        const prior = bars.filter(b => b.t + barSec <= eventSec);
+        const after = bars.filter(b => b.t >= eventSec && b.t < eventSec + 3600);
+        if (cancelled || prior.length === 0 || after.length === 0) return;
+        const last = after[after.length - 1];
+        setReaction({
+          symbol: sym,
+          before: prior[prior.length - 1].c,
+          after: last.c,
+          high: Math.max(...after.map(b => b.h)),
+          low: Math.min(...after.map(b => b.l)),
+          minutes: Math.min(60, Math.round((last.t + barSec - eventSec) / 60)),
+        });
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [ev.status, ev.utcTimestamp, symbol]);
+  return reaction;
+}
+
+function MarketReaction({ ev, symbol }: { ev: EconomicEvent; symbol: string }) {
+  const r = useMarketReaction(ev, symbol);
+  if (!r) return null;
+  const dp = r.after > 100 ? 2 : 5;
+  const diff = r.after - r.before;
+  const pct = (diff / r.before) * 100;
+  const up = diff > 0;
+  return (
+    <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-3.5 py-3">
+      <p className="text-[9px] font-bold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">
+        Market reaction · {getSymbolShort(r.symbol)} · {r.minutes < 60 ? `first ${r.minutes} min so far` : "first hour"}
+      </p>
+      <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className={cn("font-data text-base font-bold tabular-nums", diff === 0 ? "text-zinc-400" : up ? "text-emerald-400" : "text-red-400")}>
+          {up ? "+" : diff < 0 ? "−" : ""}{Math.abs(diff).toFixed(dp)} ({up ? "+" : diff < 0 ? "−" : ""}{Math.abs(pct).toFixed(2)}%)
+        </span>
+        <span className="font-data text-[11px] tabular-nums text-[hsl(var(--muted-foreground))]">
+          {r.before.toFixed(dp)} → {r.after.toFixed(dp)} · range {r.low.toFixed(dp)}–{r.high.toFixed(dp)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: string }) {
   const isCompleted = ev.status === "completed";
   const { analysis: aiAnalysis, loading: aiLoading, hasActual } = useAfterReleaseAnalysis(ev);
@@ -514,7 +645,7 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
         {[
           { label: "Forecast", value: ev.forecast,        color: "text-blue-400" },
           { label: "Previous", value: ev.previous,        color: "text-zinc-400" },
-          { label: "Actual",   value: ev.actual || " — ", color: ev.actual ? "text-[hsl(var(--primary))]" : "text-zinc-600" },
+          { label: "Actual",   value: SPEECH_RE.test(ev.event) ? "No figure" : ev.actual || " — ", color: ev.actual && !SPEECH_RE.test(ev.event) ? "text-[hsl(var(--primary))]" : "text-zinc-600" },
         ].map(({ label, value, color }) => (
           <div key={label} className="rounded-lg bg-[hsl(var(--secondary))] p-3 text-center">
             <p className="text-[9px] uppercase tracking-widest text-[hsl(var(--muted-foreground))] mb-1.5">{label}</p>
@@ -523,8 +654,13 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
         ))}
       </div>
 
+      {isCompleted && <MarketReaction ev={ev} symbol={symbol} />}
+
       {/* COMPLETED — post-event analysis */}
-      {isCompleted && ev.postEventSummary && (
+      {/* The templated post-event note only when the actual-aware analysis
+          below is unavailable: side by side they repeated each other, and the
+          template read as if the print were known when it was still pending. */}
+      {isCompleted && ev.postEventSummary && !(aiLoading || aiAnalysis) && (
         <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.04] overflow-hidden">
           <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-emerald-500/15">
             <Eye className="h-3.5 w-3.5 text-emerald-400" />
@@ -557,7 +693,7 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
             <Zap className="h-3.5 w-3.5 text-violet-400" />
             <span className="text-[10px] font-bold uppercase tracking-widest text-violet-400">After Release Analysis</span>
             <span className="ml-auto text-[9px] text-violet-400/50 uppercase tracking-wider">
-              {hasActual ? `Actual: ${ev.actual}` : "Actual pending"}
+              {hasActual ? `Actual: ${ev.actual}` : SPEECH_RE.test(ev.event) ? "Speech · no figure" : "Actual pending"}
             </span>
           </div>
 
@@ -689,7 +825,7 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
       )}
 
       {/* Affected assets */}
-      <ReleaseHistory ev={ev} />
+      {!SPEECH_RE.test(ev.event) && <ReleaseHistory ev={ev} />}
 
       {ev.affectedAssets?.length > 0 && (
         <div className="space-y-1.5">

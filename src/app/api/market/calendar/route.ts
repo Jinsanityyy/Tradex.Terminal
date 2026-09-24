@@ -40,11 +40,13 @@ async function fetchBLSActuals(): Promise<Record<string, string>> {
     return blsCache.data;
   }
 
-  const [nfpData, avgHourlyData, unemploymentData, claimsData, cpiData] = await Promise.all([
+  // Jobless claims are not a BLS series (they come from the Labor Department's
+  // ETA and are served by FRED); asking BLS for "ICSA" always failed, which is
+  // why claims never got an actual. They are fetched in fetchFredClaims.
+  const [nfpData, avgHourlyData, unemploymentData, cpiData] = await Promise.all([
     blsFetch("CES0000000001", 2), // Total nonfarm level → M/M change = NFP K
     blsFetch("CES0500000003", 2), // Avg hourly earnings level → M/M %
     blsFetch("LNS14000000",  1),  // Unemployment rate (direct %)
-    blsFetch("ICSA",         1),  // Initial jobless claims (weekly, in thousands)
     blsFetch("CUUR0000SA0",  2),  // CPI All Urban → M/M %
   ]);
 
@@ -66,12 +68,6 @@ async function fetchBLSActuals(): Promise<Record<string, string>> {
   // Unemployment Rate
   if (unemploymentData.length >= 1) results.unemployment = `${unemploymentData[0]}%`;
 
-  // Initial Jobless Claims (BLS ICSA is in thousands)
-  if (claimsData.length >= 1) {
-    const val = Math.round(parseFloat(claimsData[0]));
-    results.claims = `${val}K`;
-  }
-
   // CPI M/M %
   if (cpiData.length >= 2) {
     const curr = parseFloat(cpiData[0]);
@@ -91,8 +87,6 @@ function matchBLSActual(blsData: Record<string, string>, title: string): string 
     return blsData.unemployment;
   if (t.includes("average hourly earnings") && t.includes("m/m"))
     return blsData.avgHourly;
-  if (t.includes("jobless") || t.includes("unemployment claims") || t.includes("initial claims"))
-    return blsData.claims;
   if ((t.includes("cpi") || t.includes("consumer price")) && !t.includes("core"))
     return blsData.cpi;
   return undefined;
@@ -117,7 +111,6 @@ const FRED_SERIES: Record<string, { id: string; type: "level" | "rate" | "index"
   ismMfg:         { id: "NAPM",       type: "index",  unit: ""  },  // ISM Manufacturing PMI
   existingHomes:  { id: "EXHOSLUSM495S", type: "level", unit: "M" },
   ppi:            { id: "PPIACO",     type: "level",  unit: "%" },  // PPI → M/M %
-  continuingClaims:{ id: "CCSA",      type: "rate",   unit: "K" },  // Continuing Claims
   fedFunds:       { id: "DFEDTARU",  type: "rate",   unit: "%", decimals: 2 },  // Fed funds target, upper bound
 };
 
@@ -175,6 +168,53 @@ async function fetchFREDActuals(): Promise<Record<string, string>> {
   return results;
 }
 
+// ── Weekly jobless claims (FRED ICSA / CCSA) ──────────────────────────────────
+// Published Thursdays for the week ending the Saturday before. FRED keeps the
+// latest observation until the new one lands, so the observation date decides
+// whether a value is THIS release or last week's: only a week ending 3–8 days
+// before the release counts. Values are persons; shown in thousands.
+type ClaimsObs = { value: string; date: string };
+let claimsCache: { data: { initial?: ClaimsObs; continuing?: ClaimsObs }; ts: number } = { data: {}, ts: 0 };
+
+async function fetchFredClaims(): Promise<{ initial?: ClaimsObs; continuing?: ClaimsObs }> {
+  const key = process.env.FRED_API_KEY;
+  if (!key) return {};
+  if (claimsCache.ts && Date.now() - claimsCache.ts < FRED_CACHE_TTL) return claimsCache.data;
+  const one = async (id: string): Promise<ClaimsObs | undefined> => {
+    try {
+      const res = await fetch(
+        `https://api.stlouisfed.org/fred/series/observations?series_id=${id}&api_key=${key}&sort_order=desc&limit=1&file_type=json`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) return undefined;
+      const json = await res.json() as { observations?: Array<{ date: string; value: string }> };
+      const o = json.observations?.[0];
+      const n = o ? parseFloat(o.value) : NaN;
+      return o && Number.isFinite(n) ? { value: `${Math.round(n / 1000)}K`, date: o.date } : undefined;
+    } catch { return undefined; }
+  };
+  const [initial, continuing] = await Promise.all([one("ICSA"), one("CCSA")]);
+  claimsCache = { data: { initial, continuing }, ts: Date.now() };
+  return claimsCache.data;
+}
+
+function matchClaimsActual(
+  claims: { initial?: ClaimsObs; continuing?: ClaimsObs },
+  title: string,
+  releasedAt: Date,
+): string | undefined {
+  const t = title.toLowerCase();
+  // Continuing claims are reported one week further back than initial claims.
+  const [obs, minDays, maxDays] = t.includes("continuing claims")
+    ? [claims.continuing, 10, 15] as const
+    : (t.includes("unemployment claims") || t.includes("jobless claims") || t.includes("initial claims"))
+    ? [claims.initial, 3, 8] as const
+    : [undefined, 0, 0] as const;
+  if (!obs) return undefined;
+  const days = (releasedAt.getTime() - new Date(`${obs.date}T00:00:00Z`).getTime()) / 86_400_000;
+  return days >= minDays && days <= maxDays ? obs.value : undefined;
+}
+
 function matchFREDActual(fredData: Record<string, string>, title: string): string | undefined {
   const t = title.toLowerCase();
   // Rate decisions first: these titles carry no forecastable "level", only the target rate.
@@ -193,7 +233,6 @@ function matchFREDActual(fredData: Record<string, string>, title: string): strin
   if (t.includes("ism") && t.includes("manufactur"))              return fredData.ismMfg;
   if (t.includes("existing home"))                                 return fredData.existingHomes;
   if (t.includes("ppi") || t.includes("producer price"))          return fredData.ppi;
-  if (t.includes("continuing claims"))                             return fredData.continuingClaims;
   return undefined;
 }
 
@@ -381,7 +420,7 @@ function analyzeEvent(
       goldReasoning: "CPI is the most important gold driver. Higher CPI = bearish gold (hawkish Fed). Lower CPI = bullish gold (dovish Fed).",
       usdImpact: "neutral",
       usdReasoning: "CPI directly drives Fed rate expectations. Hot = USD up. Cold = USD down.",
-      tradeImplication: "TOP TIER EVENT. Expect 30-80 pip gold move. Wait for data, then trade the breakout direction.",
+      tradeImplication: "TOP TIER EVENT. Gold has typically moved 30-80 pips on the release, with the direction set by the deviation from forecast.",
     };
   }
 
@@ -401,7 +440,7 @@ function analyzeEvent(
       goldReasoning: "Strong NFP = bearish gold. Weak NFP = bullish gold. Wage data also matters (higher wages = hawkish = bearish gold).",
       usdImpact: "neutral",
       usdReasoning: "NFP drives USD via Fed rate expectations. Watch the headline number AND wage growth.",
-      tradeImplication: "MAJOR EVENT. Gold can move $20-50. Wait for release, trade the reaction after initial spike settles.",
+      tradeImplication: "MAJOR EVENT. Gold can move $20-50. The first spike often retraces before the reaction settles.",
     };
   }
 
@@ -446,7 +485,7 @@ function analyzeEvent(
         goldReasoning: `Forecast ${forecast} vs prior ${previous}: ${beating ? "more hiring = economy resilient = less need for cuts = bearish Gold" : "less hiring = labour cooling = rate-cut bets = bullish Gold"}.`,
         usdImpact: beating ? "bullish" : "bearish",
         usdReasoning: beating ? "Stronger hiring supports the Dollar." : "Weaker hiring weighs on the Dollar.",
-        tradeImplication: "A preview of NFP rather than a replacement: trade the deviation, then let NFP confirm.",
+        tradeImplication: "A preview of NFP rather than a replacement: the deviation matters most, and NFP usually confirms or reverses it.",
       };
     }
     return {
@@ -602,7 +641,7 @@ function generatePreEvent(title: string, forecast: string, previous: string): {
   if (t.includes("powell") || (t.includes("fed") && (t.includes("speak") || t.includes("chair") || t.includes("press") || t.includes("member")))) {
     return {
       preEventSummary:
-        "Fed speaker events are high-alert moments for Gold and USD traders. Powell's language, in particular, moves markets more than most economic data releases. The key signal to listen for is whether the tone is hawkish (rates higher for longer, not ready to cut) or dovish (inflation progress made, cuts are getting closer). Words like 'further progress needed' lean hawkish and weigh on Gold; phrases like 'gaining confidence' lean dovish and lift it. Don't pre-position  -  wait for the language, then trade the direction.",
+        "Fed speaker events are high-alert moments for Gold and USD traders. Powell's language, in particular, moves markets more than most economic data releases. The key signal to listen for is whether the tone is hawkish (rates higher for longer, not ready to cut) or dovish (inflation progress made, cuts are getting closer). Words like 'further progress needed' lean hawkish and weigh on Gold; phrases like 'gaining confidence' lean dovish and lift it. The language, not the headline, tends to set the direction.",
       preEventBullets: [
         "Hawkish signal words: 'not yet confident', 'further progress needed', 'labor market still tight'  -  gold-negative",
         "Dovish signal words: 'gaining confidence', 'inflation has eased substantially', 'appropriate to cut'  -  gold-positive",
@@ -698,7 +737,7 @@ function generatePreEvent(title: string, forecast: string, previous: string): {
           ? "Beat expected: gold-negative, USD-positive  -  watch for a DXY break above prior resistance"
           : miss
           ? "Miss expected: gold-positive  -  the initial drop often reverses within 15 minutes as rate-cut bets reprice"
-          : "No clear lean  -  wait for the print, then trade the deviation",
+          : "No clear lean  -  the deviation from forecast will set the direction",
         "Watch USDJPY: rising = USD strength confirmed. Falling = dollar weakness, Gold bid",
         "If both headline AND core beat = strong signal  -  hold the directional trade for the full session",
         "Weak retail sales for 2+ consecutive months = recession setup = sustained bullish bias for Gold",
@@ -719,7 +758,7 @@ function generatePreEvent(title: string, forecast: string, previous: string): {
         "GDP below 1.5% annualized raises recession concerns  -  Gold bullish setup on the miss",
         "GDP above 3% = economy handles high rates = delayed cuts = gold-negative",
         "Also watch the GDP Price Deflator  -  high deflator = persistent inflation = hawkish Fed = bearish Gold",
-        "This is a secondary Gold driver  -  trade only on large deviations (±0.5% from consensus or more)",
+        "This is a secondary Gold driver  -  usually only large deviations (±0.5% from consensus or more) move it",
         "Watch DXY reaction first, then confirm Gold direction  -  both should move in sync",
       ],
     };
@@ -772,7 +811,7 @@ function generatePreEvent(title: string, forecast: string, previous: string): {
   if (t.includes("housing") || t.includes("home") || t.includes("building permit")) {
     return {
       preEventSummary:
-        "Housing data is one of the most rate-sensitive sectors of the economy and serves as a leading indicator of economic momentum. Weak housing starts or existing home sales signal that elevated mortgage rates are biting, which can feed into broader economic slowdown concerns and revive rate-cut bets  -  mildly bullish for Gold. Strong housing data, however, suggests the economy is absorbing high rates, reducing the urgency for Fed cuts and creating headwinds for Gold. The impact on Gold is secondary  -  trade only on a significant deviation from forecast.",
+        "Housing data is one of the most rate-sensitive sectors of the economy and serves as a leading indicator of economic momentum. Weak housing starts or existing home sales signal that elevated mortgage rates are biting, which can feed into broader economic slowdown concerns and revive rate-cut bets  -  mildly bullish for Gold. Strong housing data, however, suggests the economy is absorbing high rates, reducing the urgency for Fed cuts and creating headwinds for Gold. The impact on Gold is secondary  -  typically only a significant deviation from forecast moves it.",
       preEventBullets: [
         "Housing data has indirect Gold impact  -  it works through rate-cut expectations, not direct safe-haven dynamics",
         "Weak housing = rate-sensitive sectors struggling = Fed may need to cut sooner = bullish Gold bias",
@@ -980,7 +1019,7 @@ function generatePostEvent(title: string, forecast: string, previous: string, ac
           ]
         : [
             "Mixed signal — wait for wages and unemployment rate confirmation",
-            "No strong directional bias — trade only on clear chart setup",
+            "No strong directional bias — chart structure matters more than the print",
             "Watch DXY for USD direction cue",
           ],
     };
@@ -1101,14 +1140,16 @@ function generatePostEvent(title: string, forecast: string, previous: string, ac
   }
 
   // ── Default completed event ──
+  // Only used when there is no event-specific read. It must not describe the
+  // outcome: this runs whether or not the actual has been published.
   return {
     postEventSummary:
-      `This event has concluded. The market impact is now priced in. Compare the current price of Gold and DXY against their pre-event levels to gauge the market's interpretation. A significant deviation from forecast typically produces 30–90 minute directional moves that can extend into the next session.`,
+      `${title} has been released. How Gold and DXY moved against their levels just before the release shows how the market read it; a large deviation from forecast has tended to drive 30–90 minute moves that can carry into the next session.`,
     postEventBullets: [
-      "Check Gold price now vs 1 hour before the event",
-      "If Gold moved >$10: a directional trend is confirmed  -  trade in that direction",
-      "If Gold barely moved: event was in-line with expectations  -  wait for next catalyst",
-      "Watch DXY for USD strength/weakness confirmation",
+      "Gold now vs its level just before the release",
+      "A move of $10+ has usually meant the print surprised",
+      "Little movement usually means the print was in line with expectations",
+      "DXY moving the opposite way to Gold confirms a USD-driven move",
     ],
   };
 }
@@ -1219,10 +1260,11 @@ export async function GET(req: Request) {
     const now = new Date();
 
     // Fetch actuals from all sources in parallel
-    const [myfxEvents, blsData, fredData] = await Promise.all([
+    const [myfxEvents, blsData, fredData, claimsData] = await Promise.all([
       fetchMyfxActuals(),
       fetchBLSActuals(),
       fetchFREDActuals(),
+      fetchFredClaims(),
     ]);
 
     // FILTER: HIGH + MEDIUM impact USD events
@@ -1245,12 +1287,13 @@ export async function GET(req: Request) {
 
         // Actual priority: FairFX → BLS.gov → FRED → Myfxbook
         const ffActual   = isPast && e.actual && e.actual !== "" ? e.actual : undefined;
-        const blsActual  = !ffActual && isPast ? matchBLSActual(blsData, e.title) : undefined;
+        const claimsActual = !ffActual && isPast ? matchClaimsActual(claimsData, e.title, eventTime) : undefined;
+        const blsActual  = !ffActual && !claimsActual && isPast ? matchBLSActual(blsData, e.title) : undefined;
         const fredActual = !ffActual && !blsActual && isPast ? matchFREDActual(fredData, e.title) : undefined;
         const myfxActual = !ffActual && !blsActual && !fredActual && isPast
           ? matchMyfxActual(myfxEvents, e.title, eventTime.toISOString().split("T")[0])
           : undefined;
-        const actualValue       = ffActual ?? blsActual ?? fredActual ?? myfxActual;
+        const actualValue       = ffActual ?? claimsActual ?? blsActual ?? fredActual ?? myfxActual;
         const actualForAnalysis = actualValue;
 
         const analysis = analyzeEvent(e.title, e.forecast, e.previous, isPast);
