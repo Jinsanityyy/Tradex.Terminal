@@ -486,7 +486,7 @@ const TRUMP_ANALYSIS: Record<string, { summary: string; bullets: string[] }> = {
   Fed: {
     summary: "Trump's commentary on Federal Reserve independence directly moves markets. Pressure on the Fed to cut rates or criticism of Powell undermines confidence in the Dollar by raising monetary policy credibility concerns. This is bearish for USD and bullish for Gold, which benefits from real yield compression and currency debasement fears. Markets treat central bank independence as a pillar of USD's reserve status.",
     bullets: [
-      "Trump criticizing Powell = USD weakness signal = buy Gold on the headline",
+      "Trump criticizing Powell = USD weakness signal = gold-positive on the headline",
       "Threats to restructure the Fed = Dollar debasement fear = aggressive Gold bid",
       "Watch DXY: falling on Fed pressure headlines = confirms Gold bull signal",
       "Rate cut demands = market pricing Fed dovishness ahead of schedule = Gold bullish",
@@ -510,7 +510,7 @@ const TRUMP_ANALYSIS: Record<string, { summary: string; bullets: string[] }> = {
       "Middle East policy shifts = energy risk premium = oil and Gold rally together",
       "Gold and USD rising simultaneously = extreme fear signal  -  both can co-exist in peak risk-off",
       "Watch VIX: spike above 25 = Gold typically rallies $20+ within the session",
-      "USDJPY falling (yen strengthening) = peak risk-off  -  buy Gold on yen strength signals",
+      "USDJPY falling (yen strengthening) = peak risk-off  -  yen strength has tended to be gold-positive",
     ],
   },
   Economy: {
@@ -550,7 +550,7 @@ const TRUMP_DEFAULT_ANALYSIS = {
     "Watch risk sentiment: equities + Gold direction tells you whether it's broad risk-off or a specific move",
     "Watch DXY for USD confirmation of Gold's direction",
     "Gold spike >$15 in 30 minutes: a significant catalyst is being priced  -  trade in that direction",
-    "Tariff/trade/Iran keywords = buy Gold. Growth/deregulation keywords = fade Gold spike",
+    "Tariff/trade/Iran keywords = gold-positive. Growth/deregulation keywords = Gold spikes have tended to fade",
     "Wait for the 15-min retest after the initial move  -  that's the cleaner, more sustained entry",
   ],
 };

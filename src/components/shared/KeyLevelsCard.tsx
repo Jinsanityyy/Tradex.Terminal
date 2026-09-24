@@ -474,7 +474,7 @@ function AssetRow({ level, defaultOpen, lotSize, aiAnalysis }: {
               {isCounterTrend && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   <span className="text-[9px] px-2 py-0.5 rounded" style={{ background: "#F59E0B10", color: "#F59E0B", border: "1px solid #F59E0B20" }}>
-                    Reduce size to 0.5×
+                    Counter-trend: lower-confidence setup
                   </span>
                   <span className="text-[9px] px-2 py-0.5 rounded" style={{ background: "#F59E0B10", color: "#F59E0B", border: "1px solid #F59E0B20" }}>
                     Tighter stop loss

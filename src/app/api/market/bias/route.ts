@@ -105,7 +105,7 @@ function generateSupportingFactors(
     if (nearHigh52)
       factors.push(`Price near 52-week high sell-side liquidity  -  equal highs and stop clusters above, sweep-and-reverse risk high`);
     if (pos52 < 0.4 && !nearLow52)
-      factors.push(`Lower ${Math.round(pos52 * 100)}% of annual range  -  HTF structural downtrend, sell rallies into OBs`);
+      factors.push(`Lower ${Math.round(pos52 * 100)}% of annual range  -  HTF structural downtrend, rallies into OBs have tended to fade`);
     if (macdHist < 0)
       factors.push(`Negative momentum expansion  -  bearish order flow dominant, no reversal candle structure visible`);
   } else {

@@ -177,17 +177,17 @@ function analyzeMarket(quotes: Record<string, QuoteData>, news: NewsData[]): Ana
   if (hasTariff) cautionFactors.push("Tariff headlines can flip sentiment in seconds");
   if (hasGeo) cautionFactors.push("Geopolitical escalation risk remains elevated");
   if (hasFed) cautionFactors.push("Fed commentary may shift rate expectations abruptly");
-  if (avgVol > 0.8) cautionFactors.push("High volatility  -  wider stops and smaller position sizes recommended");
+  if (avgVol > 0.8) cautionFactors.push("High volatility  -  moves are wider than usual");
   if (Math.abs(goldPct) > 1) cautionFactors.push("Gold extended  -  mean reversion risk building");
   if (Math.abs(btcPct) > 2) cautionFactors.push("Crypto volatility elevated  -  momentum may exhaust quickly");
   cautionFactors.push("Month-end rebalancing flows may distort price action");
   if (cautionFactors.length < 3) cautionFactors.push("Liquidity may thin during session transitions");
 
   const idealMindset = avgVol > 1
-    ? "Patient, selective execution. Focus on high-conviction setups with clear invalidation. Don't chase headline reactions  -  wait for the secondary move. This is a market for prepared traders, not reactive ones."
+    ? "Headline-driven and fast. High-conviction setups with clear invalidation stand out; first reactions to headlines often reverse, and the secondary move tends to be the cleaner one."
     : avgVol > 0.4
-    ? "Balanced approach. Take setups that align with the dominant narrative but keep position sizes moderate. Wait for pullbacks rather than chasing breakouts. Risk management is paramount."
-    : "Patient accumulation mode. Markets are coiling for a directional move. Use this consolidation to build positions at key levels with tight risk. Wait for the catalyst before committing size.";
+    ? "Balanced conditions. Setups aligned with the dominant narrative carry the most weight; pullbacks have tended to hold better than breakouts."
+    : "Quiet and coiling. Markets are compressing ahead of a directional move; key levels matter more than usual, and the next catalyst is likely to set direction.";
 
   const narrative: MarketNarrative = {
     summary,

@@ -605,7 +605,7 @@ function ContrarianAgentDetail({ data }: { data: AgentRunResult }) {
         </p>
         <p className="text-[10px] text-zinc-500 mt-1">
           {a.challengesBias
-            ? "Contrarian signals contradict the majority bias  -  reduce position size."
+            ? "Contrarian signals contradict the majority bias  -  lower-confidence read."
             : "No significant contrarian signals. Majority bias is unchallenged."}
         </p>
       </div>

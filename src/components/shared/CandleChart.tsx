@@ -110,7 +110,7 @@ function buildSessionContext(candleT: number): MacroEvent[] {
         impact: "high",
         goldImpact: "neutral",
         goldReasoning: "US CPI releases typically fall on the 2nd–3rd Tuesday of each month at 12:30 UTC. CPI is the most influential inflation gauge for Fed policy. Hot CPI (above estimate) = hawkish Fed = bearish gold. Soft CPI = dovish = bullish gold.",
-        tradeImplication: "Highest-conviction gold trade of the month. Confirm data direction, then enter on first 15-min pullback after the spike. Typical move: $20–60 in first 30 min.",
+        tradeImplication: "Highest-impact gold release of the month. Direction is set by the data; the first 15-min pullback after the spike is often the cleaner read. Typical move: $20–60 in the first 30 min.",
         status: "completed",
       });
     } else if (dow === 4) {

@@ -125,7 +125,18 @@ async function anthropicCreateImpl(params: LLMParams, timeoutMs: number): Promis
 
 // ── Public entry point ──────────────────────────────────────────────────────────
 
+// Appended to every model call, so no route can forget it. The app is an
+// informational terminal: models describe implications and levels, and must
+// not hand a reader personal trade instructions — the wording the Play
+// financial services policy scrutinises. Hand-written copy follows the same rule.
+const ADVICE_GUARD =
+  "This text is shown in an informational market-analysis app, not given as personal financial advice. " +
+  "Describe market implications (for example 'gold-negative', 'USD-positive', 'bounces have tended to fade'), " +
+  "key levels, and what would confirm or invalidate a read. Never instruct the reader to buy, sell, enter, exit, " +
+  "go long or short, scale in or out, move a stop, or choose a position size.";
+
 export async function llmCreate(params: LLMParams, timeoutMs = 25_000): Promise<LLMResult> {
+  params = { ...params, system: params.system ? `${params.system}\n\n${ADVICE_GUARD}` : ADVICE_GUARD };
   const provider = activeProvider();
   if (provider === "gemini") return geminiCreate(params, timeoutMs);
   if (provider === "anthropic") return anthropicCreateImpl(params, timeoutMs);

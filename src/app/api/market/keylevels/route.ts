@@ -133,7 +133,7 @@ function getSessionNote(session: string, bias: string): string {
     },
     Closed: {
       bullish: "Market transitioning between sessions. Wait for Asia open to confirm directional bias.",
-      bearish: "Market closed. Prepare sell setups at key resistance for Asia/London open.",
+      bearish: "Market closed. Key resistance is the level in focus for the Asia/London open.",
       neutral: "Off-session. Mark key levels and wait for next session open before trading.",
     },
   };
@@ -199,7 +199,7 @@ function computeAlignment(
   return {
     type: "counter-trend",
     phase: ltfBias === "bearish" ? "pullback" : "accumulation",
-    explanation: `LTF ${ltfDir} is a short-term retracement against the HTF ${htfDir}. This is a counter-trend trade  -  reduce position size (0.5× normal), use a tighter stop, and do not move SL to break-even prematurely. The HTF trend is your adversary.`,
+    explanation: `LTF ${ltfDir} is a short-term retracement against the HTF ${htfDir}. This is a counter-trend read with lower confidence: the HTF trend works against it, and retracements like this often resume the larger move.`,
     riskMultiplier: 1.3,
     confidenceAdjustment: -15,
   };

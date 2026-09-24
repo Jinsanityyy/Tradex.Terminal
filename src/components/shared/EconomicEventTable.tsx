@@ -152,7 +152,7 @@ function buildFallbackAnalysis(ev: EconomicEvent): AIEventAnalysis {
     goldAnalysis: hot
       ? `${label} = the Fed has no urgency to cut = bearish Gold near-term. Watch the first pullback into resistance for a sell entry.`
       : cold
-      ? `${label} = rate-cut bets rise = bullish Gold. Buy the dip toward the nearest support rather than chasing the spike.`
+      ? `${label} = rate-cut bets rise = bullish Gold. Dips toward the nearest support have tended to find buyers faster than the first spike holds.`
       : "On-forecast print — Gold likely consolidates inside its pre-release range. Wait for the next high-impact catalyst.",
     usdImpact,
     usdAnalysis: hot
@@ -161,10 +161,10 @@ function buildFallbackAnalysis(ev: EconomicEvent): AIEventAnalysis {
       ? "USD offered — DXY faces selling pressure. EURUSD and GBPUSD are the cleaner longs."
       : "No repricing to trade — DXY likely range-bound. Monitor the next Fed speaker for direction.",
     traderFocus: hot
-      ? ["Gold into resistance — watch for rejection and a sell setup", "DXY holding its breakout confirms the USD strength theme", "Rate-cut timeline pushed further out — the hawkish theme extends"]
+      ? ["Gold into resistance — a rejection there would confirm the bearish read", "DXY holding its breakout confirms the USD strength theme", "Rate-cut timeline pushed further out — the hawkish theme extends"]
       : cold
-      ? ["Buy Gold dips — the first 15-minute spike often retraces for a better entry", "DXY rolling over — EURUSD and GBPUSD long setups building", "Watch for Gold to break above its pre-release high"]
-      : ["On-forecast print — wait for a confirmed breakout in either direction", "No directional edge from this release — reduce size", "The next major catalyst will set the trend"],
+      ? ["Gold-positive — the first 15-minute spike often retraces before the move extends", "DXY rolling over — EURUSD and GBPUSD firming", "Watch for Gold to break above its pre-release high"]
+      : ["On-forecast print — direction likely waits for a confirmed breakout", "No directional edge from this release", "The next major catalyst will set the trend"],
     timeframe: hot
       ? "1-3 sessions of USD strength and Gold weakness. Monitor the next CPI/jobs print for reversal signals."
       : cold

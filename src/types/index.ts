@@ -33,7 +33,7 @@ export interface AssetSnapshot {
 // ── AI Analysis (per asset, from /api/market/ai-analysis) ──────────────────────
 export interface AssetAIAnalysis {
   // Action callout
-  action: string;               // "Look for BUY Setups" | "Look for SELL Setups" | "Wait for Confirmation" | "Avoid Trading"
+  action: string;               // "Bullish setups in focus" | "Bearish setups in focus" | "Awaiting confirmation" | "No clear edge"
   actionSub: string;            // one-line description
   actionIntent: "buy" | "sell" | "wait" | "avoid";
 

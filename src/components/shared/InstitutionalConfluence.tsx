@@ -127,7 +127,7 @@ function cftcBiasNote(s: NonNullable<InstitutionalData["sentiment"]>): string {
 function volBiasNote(oi: NonNullable<InstitutionalData["oi"]>): string {
   if (oi.signal === "bullish") return "Bias implication → confirmed buying pressure. Supports going LONG.";
   if (oi.signal === "bearish") return "Bias implication → confirmed selling pressure. Supports going SHORT.";
-  if (oi.label.includes("covering")) return "Bias implication → weak move up (short covering). Do not chase longs.";
+  if (oi.label.includes("covering")) return "Bias implication → weak move up (short covering), unlikely to carry far.";
   return "Bias implication → sellers running out of steam. Watch for reversal, not shorts.";
 }
 
@@ -239,7 +239,7 @@ function CFTCDetail({ data }: { data: InstitutionalData | null }) {
 
       <Section heading="Trade Implication">
         <BulletList items={[
-          "Extreme long positioning + bullish structure = high-confidence long setups.",
+          "Extreme long positioning + bullish structure = a high-confidence bullish read.",
           "Extreme short + bearish structure = institutional selling pressure, avoid longs.",
           "Use CFTC as a macro backdrop, not a short-term entry trigger.",
         ]} color="text-zinc-400" />
@@ -413,7 +413,7 @@ function VolumeDetail({ data }: { data: InstitutionalData | null }) {
             {
               condition: "Price ↑ + Falling Volume",
               meaning: "Short covering only, no real buyers",
-              action: "Do not chase — wait for volume to re-enter",
+              action: "Move lacks volume — conviction returns when volume does",
               color: "text-[#D4AF37]",
               border: "border-[#D4AF37]/15",
               bg: "bg-[#D4AF37]/[0.03]",
@@ -429,7 +429,7 @@ function VolumeDetail({ data }: { data: InstitutionalData | null }) {
             {
               condition: "Price ↓ + High Volume",
               meaning: "Real selling pressure from institutions",
-              action: "Avoid longs — seek short setup at resistance",
+              action: "Bearish read — resistance is the level in focus",
               color: "text-red-400",
               border: "border-red-500/15",
               bg: "bg-red-500/[0.03]",

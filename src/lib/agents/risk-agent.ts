@@ -99,25 +99,25 @@ export async function runRiskAgent(
     //    ATR that actually triggered the warning, not the day change) ────────
     const volK = volScale(snapshot.symbol);
     if (atrProxy > 2.5 * volK) {
-      warnings.push(`Extreme volatility: ${atrProxy.toFixed(2)}% daily range  -  news/macro shock, avoid new positions`);
+      warnings.push(`Extreme volatility: ${atrProxy.toFixed(2)}% daily range  -  news/macro shock conditions`);
     } else if (atrProxy > 2.0 * volK) {
-      warnings.push(`Very high volatility: ${atrProxy.toFixed(2)}% daily range  -  widen stops 50%, reduce size to 0.5%`);
+      warnings.push(`Very high volatility: ${atrProxy.toFixed(2)}% daily range  -  moves far wider than usual`);
     } else if (atrProxy > 1.5 * volK) {
-      warnings.push(`Elevated volatility: ${atrProxy.toFixed(2)}% daily range  -  active session, use standard stops`);
+      warnings.push(`Elevated volatility: ${atrProxy.toFixed(2)}% daily range  -  active session`);
     } else if (atrProxy > 1.0 * volK) {
       warnings.push(`Moderate-high volatility: ${atrProxy.toFixed(2)}% daily range  -  normal range, standard parameters`);
     }
 
     // ── Session checks ────────────────────────────────────────────────────
     if (session === "Closed") {
-      warnings.push("Between-session low liquidity  -  avoid new positions, spreads widened");
+      warnings.push("Between-session low liquidity  -  spreads widened");
     } else if (session === "Asia") {
       warnings.push("Asia session: accumulation phase  -  lower conviction moves, wait for London open for directional entries");
     }
 
     // ── RSI extremes ──────────────────────────────────────────────────────
     if (rsi > 78) {
-      warnings.push(`RSI ${rsi.toFixed(0)}: deeply overbought  -  distribution risk high, avoid chasing longs`);
+      warnings.push(`RSI ${rsi.toFixed(0)}: deeply overbought  -  distribution risk high, upside stretched`);
     } else if (rsi < 22) {
       warnings.push(`RSI ${rsi.toFixed(0)}: deeply oversold  -  capitulation risk, avoid adding shorts`);
     }
@@ -198,7 +198,7 @@ export async function runRiskAgent(
       warnings.push(
         `Outside Asian Kill Zone (8:00–11:00 AM PHT / 00:00–03:00 UTC). ` +
         `Current UTC: ${nowUTCHour}:${String(nowUTCMin).padStart(2, "0")}. ` +
-        `Asian session outside Tokyo open  -  lower liquidity, avoid new positions.`
+        `Asian session outside Tokyo open  -  lower liquidity.`
       );
     }
 
@@ -231,12 +231,12 @@ export async function runRiskAgent(
       `Session: ${session} (quality score ${sessionScore}/100)  -  ${
         sessionScore >= 80 ? "optimal trading window, institutional liquidity present" :
         sessionScore >= 50 ? "acceptable liquidity, directional moves possible" :
-        "sub-optimal session, reduce size and be selective"
+        "sub-optimal session, thinner liquidity"
       }`,
       `Volatility: ${atrProxy.toFixed(2)}% daily move (score ${volatilityScore}/100)  -  ${
-        volatilityScore >= 75 ? "high  -  widen stops and reduce position size" :
-        volatilityScore >= 40 ? "moderate  -  standard risk parameters apply" :
-        "low  -  tight stops, potentially coiling for a move"
+        volatilityScore >= 75 ? "high  -  moves wider than usual" :
+        volatilityScore >= 40 ? "moderate" :
+        "low  -  potentially coiling for a move"
       }`,
       `Stop distance: ${stopDistance.toFixed(4)} | RR: ${rrEstimate?.toFixed(1) ?? "N/A"}:1${rrEstimate != null ? " (actual)" : " (no setup)"}`,
       `Risk grade: ${grade} | Max risk: ${maxRiskPercent}% of account`,

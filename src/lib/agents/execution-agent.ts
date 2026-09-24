@@ -594,34 +594,42 @@ export async function runExecutionAgent(
     // to signal history as PENDING. hasSetup=true so master can log a tradePlan.
 
     const p = entry > 100 ? 1 : 4;
+    // Trigger and management text describe the setup: its levels, what would
+    // confirm it, and the conditions around it. They never tell the reader to
+    // enter, size, scale out or move a stop. That is personalised trade
+    // instruction — the wording the Play financial services policy scrutinises,
+    // and not what an informational terminal should be saying. The information
+    // (levels, confirmation, session behaviour, risk) is all still here.
+    const dir = isBullish ? "bullish" : "bearish";
+    const Dir = isBullish ? "Bullish" : "Bearish";
     const triggerCondition =
       trigger === "OB retest"
-        ? `Wait for price to return to ${entryZone}, then confirm with ${isBullish ? "bullish" : "bearish"} rejection candle (engulfing, pin bar, or strong close) on M5/M15 before entering`
+        ? `Confirmation: price returning to ${entryZone} and printing a ${dir} rejection candle (engulfing, pin bar or strong close) on M5/M15.`
         : trigger === "Structure Reversal"
-          ? `${isBullish ? "Bullish" : "Bearish"} price action structure confirmed. Enter at ${entry.toFixed(p)} on confirmed ${isBullish ? "bullish" : "bearish"} M15 candle close. SL at ${stopLoss.toFixed(p)}.`
+          ? `${Dir} structure confirmed. Entry level ${entry.toFixed(p)}, stop level ${stopLoss.toFixed(p)}; a ${dir} M15 close strengthens the read.`
           : trigger === "Momentum Shift"
-            ? `${isBullish ? "Bullish" : "Bearish"} momentum shift confirmed. Wait for ${isBullish ? "bullish" : "bearish"} M15 close to confirm direction, then enter at ${entry.toFixed(p)}. SL at ${stopLoss.toFixed(p)}.`
+            ? `${Dir} momentum shift. A ${dir} M15 close would confirm direction. Entry level ${entry.toFixed(p)}, stop level ${stopLoss.toFixed(p)}.`
             : trigger === "Imbalance Fill"
-              ? `Wait for price to fill into the imbalance zone ${entryZone}. Look for ${isBullish ? "bullish" : "bearish"} displacement candle to confirm reversal within the zone`
+              ? `Imbalance zone ${entryZone}. A ${dir} displacement candle inside the zone would confirm the reversal.`
               : trigger === "BOS pullback"
-                ? `Enter on first pullback after structure break. Confirm with ${isBullish ? "bullish" : "bearish"} momentum resumption on M15`
-                : `Market order entry at ${current.toFixed(p)} with structural stop ${stopLoss.toFixed(p)}`;
+                ? `Structure has broken; the first pullback is the level of interest. ${Dir} momentum resuming on M15 would confirm.`
+                : `Price is at the level (${current.toFixed(p)}). Structural stop level ${stopLoss.toFixed(p)}.`;
 
     const managementNotes: string[] = [
-      `Scale out 50% at TP1 (${tp1.toFixed(p)})  -  move SL to breakeven immediately after`,
+      `TP1 ${tp1.toFixed(p)}  -  first target level`,
       timeframe === "H4" && tp3 !== null
-        ? `Trail 25% to TP3 (${tp3.toFixed(1)}) with trailing stop  -  let extended position run`
-        : `Let remaining 50% run to TP2 (${tp2.toFixed(p)}) with trailing stop`,
-      "Exit ALL if candle closes beyond SL level  -  no averaging into losing trades",
-      "Do not re-enter same setup after SL hit  -  wait for next confirmed signal",
+        ? `TP3 ${tp3.toFixed(1)}  -  extended target level`
+        : `TP2 ${tp2.toFixed(p)}  -  second target level`,
+      `A candle close beyond ${stopLoss.toFixed(p)} invalidates the setup`,
+      "Once stopped out, this setup is spent  -  the next read starts fresh",
     ];
 
-    if (session === "Asia")     managementNotes.push("Asia session entry  -  tighter targets, expect ranging until next major session opens");
-    if (session === "London")   managementNotes.push("London session  -  highest-probability window, full position size valid");
-    if (session === "New York") managementNotes.push("New York session  -  monitor prior session highs/lows as potential reversal areas before TP2");
-    if (liquiditySweepDetected) managementNotes.push("Enter only on confirmed M15 candle close in the direction of the setup  -  do not enter mid-candle");
-    if (smc.chochDetected && !liquiditySweepDetected) managementNotes.push("CHoCH detected  -  consider partial entry (50%) until full confirmation");
-    if (news.riskScore > 60) managementNotes.push(`Elevated macro risk (${news.riskScore}/100)  -  reduce position size by 50%`);
+    if (session === "Asia")     managementNotes.push("Asia session  -  ranges tend to stay tighter until the next major session opens");
+    if (session === "London")   managementNotes.push("London session  -  historically the most active window for setups like this");
+    if (session === "New York") managementNotes.push("New York session  -  prior session highs and lows often act as reversal areas before TP2");
+    if (liquiditySweepDetected) managementNotes.push(`Liquidity sweep detected  -  confirmation is an M15 close in the ${dir} direction, not a mid-candle move`);
+    if (smc.chochDetected && !liquiditySweepDetected) managementNotes.push("CHoCH detected  -  structure has shifted, full confirmation still pending");
+    if (news.riskScore > 60) managementNotes.push(`Elevated macro risk (${news.riskScore}/100)  -  expect wider swings than usual`);
 
     const distanceToEntry = Math.abs(current - entry) / entry * 100;
     const pricePastEntry  = isBullish ? current > entry : current < entry;

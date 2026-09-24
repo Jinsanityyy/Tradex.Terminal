@@ -82,7 +82,7 @@ TRADE STATUS:
 
 CRITICAL: Respond with ONLY valid JSON  -  no markdown, no preamble, no code blocks. Return exactly this structure:
 {
-  "action": "Look for BUY Setups" | "Look for SELL Setups" | "Wait for Confirmation" | "Avoid Trading",
+  "action": "Bullish setups in focus" | "Bearish setups in focus" | "Awaiting confirmation" | "No clear edge",
   "actionSub": "one concise SMC-based description",
   "actionIntent": "buy" | "sell" | "wait" | "avoid",
   "marketPhase": "Accumulation" | "Manipulation" | "Expansion" | "Distribution" | "Pullback" | "Range",
@@ -202,7 +202,7 @@ function fallbackAnalysis(htfBias: string, confidence: number, smcContext: strin
   const bias = htfBias as "bullish" | "bearish" | "neutral";
 
   return {
-    action: !isActive ? "Avoid Trading" : isBull ? "Look for BUY Setups" : isBear ? "Look for SELL Setups" : "Wait for Confirmation",
+    action: !isActive ? "No clear edge" : isBull ? "Bullish setups in focus" : isBear ? "Bearish setups in focus" : "Awaiting confirmation",
     actionSub: !isActive ? "No directional edge  -  stand aside" : isBull ? "HTF bullish  -  wait for discount OB/FVG entry" : "HTF bearish  -  wait for premium OB/FVG entry",
     actionIntent: !isActive ? "avoid" : isBull ? "buy" : isBear ? "sell" : "wait",
     marketPhase: confidence >= 70 ? "Expansion" : isActive ? "Pullback" : "Range",

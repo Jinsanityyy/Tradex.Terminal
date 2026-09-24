@@ -67,7 +67,7 @@ const AGENTS_ROW_A: AgentDef[] = [
   {
     id: "risk", label: "RISK", drawerId: "risk", baseStatus: "ALERT", real: true,
     role: "Guard Rail",
-    detail: "Protect position size until conflicting desks settle down.",
+    detail: "Conviction is low until the conflicting desks settle down.",
     look: { skin: "Copper", hairStyle: "Swoop", hairColor: "Black", shirtColor: "Maroon", pantsColor: "Gray", shoesColor: "Black", seatFrame: 2 },
   },
   {

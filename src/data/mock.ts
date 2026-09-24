@@ -472,5 +472,5 @@ export const tradeContext: TradeContext = {
     "Consumer confidence miss may be priced in quickly",
     "Geopolitical escalation risk remains elevated",
   ],
-  idealMindset: "Patient, selective execution. Focus on high-conviction setups with clear invalidation. Don't chase headline reactions  -  wait for the secondary move. This is a market for prepared traders, not reactive ones.",
+  idealMindset: "Headline-driven and fast. High-conviction setups with clear invalidation stand out; first reactions to headlines often reverse, and the secondary move tends to be the cleaner one.",
 };
