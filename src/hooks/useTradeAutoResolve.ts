@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import {
-  closeTrade, loadTradeLog, syncAllClosedTrades, syncClosedTradeToServer, type TakenSignal,
+  closeTrade, getLastSyncError, loadTradeLog, syncAllClosedTrades, syncClosedTradeToServer, type TakenSignal,
 } from "@/lib/trades/trade-log";
 import type { RecentSignal } from "@/hooks/useMarketData";
 import { hitFromCandles, hitFromPrice, timeframeFor, type CandleBar, type TradeHit } from "@/lib/trades/auto-resolve";
@@ -81,7 +81,7 @@ export function useTradeAutoResolve(
       if (hit.kind === "tp1") toast.success(msg); else toast.error(msg);
       onResolvedRef.current();
       void syncClosedTradeToServer(closed).then(ok => {
-        if (!ok) toast.warning("Couldn't reach the PnL calendar — it will be logged next time the app opens");
+        if (!ok) toast.warning(`Couldn't save to the PnL calendar (${getLastSyncError() ?? "unknown error"}). It's listed in P&L Tracker to add again.`);
       });
     }
     inFlight.current.delete(t.id);

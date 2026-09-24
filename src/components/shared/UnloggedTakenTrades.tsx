@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
+  getLastSyncError,
   isTradeLogged,
   loadTradeLog,
   markTradeLogged,
@@ -50,7 +51,7 @@ export function UnloggedTakenTrades({ onLogged }: { onLogged: () => void }) {
       toast.success("Added to your PnL calendar");
       onLogged();
     } else {
-      toast.error("Couldn't reach the PnL calendar. Try again in a moment.");
+      toast.error(`Couldn't save to the PnL calendar (${getLastSyncError() ?? "unknown error"}). Try again in a moment.`);
     }
     reload();
   }

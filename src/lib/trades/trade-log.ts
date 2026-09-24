@@ -35,6 +35,12 @@ export const TRADES_CHANGED_EVENT = "tradex:trades-changed";
 const SYNCED_KEY = "tradex-synced-trade-ids";
 /** Trade ids with a calendar POST in flight. */
 const syncing = new Set<string>();
+let lastSyncError: string | null = null;
+
+/** Why the last calendar write failed, for showing to the trader. */
+export function getLastSyncError(): string | null {
+  return lastSyncError;
+}
 
 function pointValue(symbol: string): number {
   if (symbol === "BTCUSD" || symbol === "ETHUSD") return 1;
@@ -108,12 +114,17 @@ export async function syncClosedTradeToServer(trade: TakenSignal): Promise<boole
         close_time: localTime(closedAt, tz),
       }),
     });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null) as { error?: string } | null;
+      lastSyncError = `${res.status}${body?.error ? ` · ${body.error}` : ""}`;
+    }
     if (res.ok) {
       markSynced(trade.id);
       window.dispatchEvent(new Event(TRADES_CHANGED_EVENT));
     }
     return res.ok;
-  } catch {
+  } catch (err) {
+    lastSyncError = `network · ${(err as Error)?.message ?? err}`;
     return false;
   } finally {
     syncing.delete(trade.id);

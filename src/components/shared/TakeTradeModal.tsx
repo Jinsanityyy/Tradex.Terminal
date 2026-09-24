@@ -4,24 +4,12 @@ import React, { useState, useEffect } from "react";
 import { X, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/contexts/SettingsContext";
-import { toast } from "sonner";
 import { playOrderFilled } from "@/lib/sounds";
 import {
   suggestLotSize,
   takeTrade,
   type TakenSignal,
 } from "@/lib/trades/trade-log";
-
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  try {
-    const { createClient } = await import("@/lib/supabase/client");
-    const supabase = createClient();
-    if (!supabase) return {};
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) return { Authorization: `Bearer ${session.access_token}` };
-  } catch {}
-  return {};
-}
 
 interface Props {
   symbol: string;
@@ -97,28 +85,9 @@ export function TakeTradeModal({
         riskAmount: parseFloat(riskAmount.toFixed(2)),
       });
 
-      // Log to Journal/PNL calendar (Supabase)
-      try {
-        const authHeaders = await getAuthHeaders();
-        const res = await fetch("/api/manual-trades", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...authHeaders },
-          body: JSON.stringify({
-            date: new Date().toISOString().split("T")[0],
-            symbol: symbolDisplay,
-            direction: direction.toLowerCase(),
-            pnl: 0,
-            fees: 0,
-            open_time: new Date().toISOString(),
-            notes: `[TradeX Signal] ${direction} ${symbolDisplay}${grade ? ` · Grade ${grade}` : ""}${timeframe ? ` · ${timeframe}` : ""} | Entry: ${fmt(entry)}  SL: ${fmt(stopLoss)}  TP: ${fmt(tp1)}  R:R: ${rrRatio}:1 | Lot: ${lotSize}  Risk: $${riskAmount.toFixed(2)}`,
-          }),
-        });
-        if (!res.ok) {
-          toast.warning("Trade saved locally — close the trade to record final PnL in Journal");
-        }
-      } catch {
-        toast.warning("Trade saved locally — close the trade to record final PnL in Journal");
-      }
+      // Nothing goes to the PnL calendar until the trade closes. This used to
+      // POST a $0 row on take, which counted as a trade with no win and
+      // dragged the win rate down; the close writes the one real row.
 
       playOrderFilled();
       onTaken(trade);
