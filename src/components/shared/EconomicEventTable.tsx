@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Clock, CheckCircle2, Radio, TrendingUp, TrendingDown, Minus, Target, Shield, ChevronRight, Timer, Eye, Zap, Loader2 } from "lucide-react";
 import type { EconomicEvent } from "@/types";
+import type { SpeechRecap as SpeechRecapData } from "@/lib/calendar/speech";
 import { DetailModal } from "./DetailModal";
 import { getSymbolLabel, getSymbolShort, getEventImpactForSymbol } from "@/lib/assetImpact";
 
@@ -604,6 +605,86 @@ function MarketReaction({ ev, symbol }: { ev: EconomicEvent; symbol: string }) {
   );
 }
 
+// ── What was said (speeches) ──────────────────────────────────────────────────
+const TONE_STYLE: Record<string, string> = {
+  hawkish: "text-red-400 border-red-500/30 bg-red-500/10",
+  escalation: "text-red-400 border-red-500/30 bg-red-500/10",
+  dovish: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10",
+  "de-escalation": "text-emerald-400 border-emerald-500/30 bg-emerald-500/10",
+  mixed: "text-amber-400 border-amber-500/30 bg-amber-500/10",
+  neutral: "text-zinc-400 border-zinc-500/30 bg-zinc-500/10",
+};
+
+function SpeechRecap({ ev }: { ev: EconomicEvent }) {
+  const [data, setData] = useState<SpeechRecapData | null>(null);
+  const [state, setState] = useState<"loading" | "done" | "error">("loading");
+  useEffect(() => {
+    if (!ev.utcTimestamp) { setState("error"); return; }
+    let cancelled = false;
+    fetch(`/api/market/calendar/speech?title=${encodeURIComponent(ev.event)}&ts=${ev.utcTimestamp}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then((d: SpeechRecapData | null) => {
+        if (cancelled) return;
+        setData(d);
+        setState(d ? "done" : "error");
+      })
+      .catch(() => { if (!cancelled) setState("error"); });
+    return () => { cancelled = true; };
+  }, [ev.event, ev.utcTimestamp]);
+
+  if (state === "error") return null;
+  return (
+    <div className="rounded-xl border border-sky-500/25 bg-sky-500/[0.04] overflow-hidden">
+      <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-sky-500/15">
+        <Radio className="h-3.5 w-3.5 text-sky-400" />
+        <span className="text-[10px] font-bold uppercase tracking-widest text-sky-400">What was said</span>
+        {data?.tone && (
+          <span className={cn("ml-auto rounded-md border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider", TONE_STYLE[data.tone])}>
+            {data.tone}
+          </span>
+        )}
+      </div>
+      <div className="px-3.5 py-3 space-y-3">
+        {state === "loading" && (
+          <div className="flex items-center gap-2 text-[11px] text-[hsl(var(--muted-foreground))]">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Reading the coverage…
+          </div>
+        )}
+        {data?.summary && <p className="text-[12px] text-zinc-200 leading-relaxed">{data.summary}</p>}
+        {data && data.keyPoints.length > 0 && (
+          <ul className="space-y-1.5">
+            {data.keyPoints.map((k, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <ChevronRight className="h-3 w-3 text-sky-400/70 mt-0.5 shrink-0" />
+                <span className="text-[11px] text-zinc-300 leading-snug">{k}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {data?.marketTakeaway && (
+          <p className="text-[11px] text-zinc-400 leading-snug"><span className="text-zinc-500">For Gold and USD: </span>{data.marketTakeaway}</p>
+        )}
+        {data?.note && !data.summary && <p className="text-[11px] text-[hsl(var(--muted-foreground))]">{data.note}</p>}
+        {data && data.sources.length > 0 && (
+          <details className="group">
+            <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
+              Sources ({data.sources.length})
+            </summary>
+            <ul className="mt-2 space-y-1.5">
+              {data.sources.map((src, i) => (
+                <li key={i} className="text-[11px] leading-snug">
+                  <a href={src.url} target="_blank" rel="noopener noreferrer" className="text-zinc-300 hover:text-sky-300">{src.title}</a>
+                  <span className="text-zinc-600"> · {src.source} · {new Date(src.publishedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: string }) {
   const isCompleted = ev.status === "completed";
   const { analysis: aiAnalysis, loading: aiLoading, hasActual } = useAfterReleaseAnalysis(ev);
@@ -654,6 +735,7 @@ function EventDetail({ ev, symbol = "XAUUSD" }: { ev: EconomicEvent; symbol?: st
         ))}
       </div>
 
+      {isCompleted && SPEECH_RE.test(ev.event) && <SpeechRecap ev={ev} />}
       {isCompleted && <MarketReaction ev={ev} symbol={symbol} />}
 
       {/* COMPLETED — post-event analysis */}
