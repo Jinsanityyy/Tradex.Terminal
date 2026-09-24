@@ -111,10 +111,14 @@ export async function syncClosedTradeToServer(trade: TakenSignal): Promise<boole
 
 export async function syncAllClosedTrades(): Promise<void> {
   if (typeof window === "undefined") return;
-  // Only closes from this build: older ones may already be on the calendar
-  // through the close dialog's own (now removed) copy, and retrying those
-  // would add them a second time.
-  const closed = loadTradeLog().filter(t => t.status === "closed" && t.syncPending);
+  // Only closes that were ever written by one path: those from this build, and
+  // auto-closes (TP/SL) from any build — they never went through the close
+  // dialog's own (now removed) second POST, so a failed write means the trade
+  // is simply missing. Retrying a hand-closed one from an older build could add
+  // it a second time.
+  const closed = loadTradeLog().filter(
+    t => t.status === "closed" && (t.syncPending || t.notes?.startsWith("Auto-closed:")),
+  );
   await Promise.all(closed.map(syncClosedTradeToServer));
 }
 
