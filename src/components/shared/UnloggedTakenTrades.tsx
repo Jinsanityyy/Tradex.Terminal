@@ -19,24 +19,21 @@ function fmt(n: number): string {
 }
 
 /**
- * Trades taken in TradeX that closed (by hand or at TP/SL) but never reached
- * the P&L calendar — the write failed while offline or while the database was
- * down. They live only on this device, so without this list a missing trade
- * had no trace anywhere the trader could see.
+ * Every trade taken in TradeX over the last two weeks, with where it stands:
+ * open, closed and on the calendar, or closed and missing from it (the write
+ * failed while offline or while the database was down). Taken trades live
+ * only on this device, so this is the one place a trader can see what
+ * happened to one.
  */
 export function UnloggedTakenTrades({ onLogged }: { onLogged: () => void }) {
   const [trades, setTrades] = useState<TakenSignal[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  const [, setTick] = useState(0);
 
   const reload = useCallback(() => {
     const cutoff = Date.now() - WINDOW_MS;
-    setTrades(
-      loadTradeLog().filter(t =>
-        t.status === "closed" &&
-        !isTradeLogged(t.id) &&
-        new Date(t.closedAt ?? t.takenAt).getTime() >= cutoff,
-      ),
-    );
+    setTrades(loadTradeLog().filter(t => new Date(t.closedAt ?? t.takenAt).getTime() >= cutoff));
+    setTick(n => n + 1);   // isTradeLogged() is read at render
   }, []);
 
   useEffect(() => {
@@ -58,55 +55,83 @@ export function UnloggedTakenTrades({ onLogged }: { onLogged: () => void }) {
     reload();
   }
 
-  if (trades.length === 0) return null;
+  const missing = trades.filter(t => t.status === "closed" && !isTradeLogged(t.id)).length;
+  const build = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7);
+
+  if (trades.length === 0) {
+    return (
+      <p className="text-[11px] text-[hsl(var(--text-secondary))]">
+        No trades taken with Take Trade in the last 14 days on this device.
+        {build && <span className="opacity-60"> · build {build}</span>}
+      </p>
+    );
+  }
 
   return (
-    <div className="rounded-xl border border-[hsl(var(--primary)_/_0.35)] bg-[hsl(var(--primary)_/_0.06)] px-4 py-3 space-y-2">
+    <div className={cn(
+      "rounded-xl border px-4 py-3 space-y-2",
+      missing > 0
+        ? "border-[hsl(var(--primary)_/_0.35)] bg-[hsl(var(--primary)_/_0.06)]"
+        : "border-[hsl(var(--border))]",
+    )}>
       <div>
         <p className="text-xs font-bold text-[hsl(var(--foreground))]">
-          {trades.length === 1 ? "1 TradeX trade isn't" : `${trades.length} TradeX trades aren't`} in your calendar yet
+          TradeX trades · last 14 days
         </p>
         <p className="text-[11px] text-[hsl(var(--text-secondary))]">
-          Closed in TradeX, but the save to your calendar didn&apos;t go through.
+          {missing > 0
+            ? `${missing} closed but not in your calendar yet — the save didn't go through.`
+            : "Trades you took with Take Trade, and whether each is on your calendar."}
         </p>
       </div>
       {trades.map(t => {
         const pnl = t.pnlDollar ?? 0;
-        const auto = t.notes?.startsWith("Auto-closed:");
-        const hit = auto ? (t.notes!.includes("TP1 hit") ? "TP1 hit" : t.notes!.includes("SL hit") ? "SL hit" : "Closed") : "Closed";
+        const open = t.status === "open";
+        const logged = !open && isTradeLogged(t.id);
+        const how = t.notes?.startsWith("Auto-closed:")
+          ? (t.notes.includes("TP1 hit") ? "TP1 hit" : t.notes.includes("SL hit") ? "SL hit" : "Closed")
+          : "Closed by hand";
         return (
           <div key={t.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-[hsl(var(--border))] pt-2">
             <div className="min-w-0 flex-1">
               <p className="text-[13px] font-semibold text-[hsl(var(--foreground))]">
-                {t.direction} {t.symbolDisplay} · {hit} @ {t.exitPrice != null ? fmt(t.exitPrice) : "—"}
+                {t.direction} {t.symbolDisplay} @ {fmt(t.entry)}
+                {open ? " · open" : ` · ${how} @ ${t.exitPrice != null ? fmt(t.exitPrice) : "—"}`}
               </p>
               <p className="text-[11px] text-[hsl(var(--text-secondary))]">
-                {new Date(t.closedAt ?? t.takenAt).toLocaleString()}
+                {open
+                  ? `Taken ${new Date(t.takenAt).toLocaleString()} · TP1 ${fmt(t.tp1)} / SL ${fmt(t.stopLoss)}`
+                  : `${new Date(t.closedAt ?? t.takenAt).toLocaleString()} · ${logged ? "in your calendar" : "not in your calendar"}`}
               </p>
             </div>
-            <span className={cn("font-mono text-sm font-bold", pnl >= 0 ? "text-[#00C853]" : "text-[#FF3D3D]")}>
-              {pnl >= 0 ? "+" : "-"}${Math.abs(pnl).toFixed(2)}
-            </span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={busy === t.id}
-                onClick={() => void add(t)}
-                className="min-h-[44px] rounded-lg bg-[hsl(var(--primary))] px-3 text-[12px] font-semibold text-[hsl(var(--primary-foreground))] disabled:opacity-60"
-              >
-                {busy === t.id ? "Adding…" : "Add to calendar"}
-              </button>
-              <button
-                type="button"
-                onClick={() => markTradeLogged(t.id)}
-                className="min-h-[44px] rounded-lg border border-[hsl(var(--border))] px-3 text-[12px] text-[hsl(var(--text-secondary))]"
-              >
-                Hide
-              </button>
-            </div>
+            {!open && (
+              <span className={cn("font-mono text-sm font-bold", pnl >= 0 ? "text-[#00C853]" : "text-[#FF3D3D]")}>
+                {pnl >= 0 ? "+" : "-"}${Math.abs(pnl).toFixed(2)}
+              </span>
+            )}
+            {!open && !logged && (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={busy === t.id}
+                  onClick={() => void add(t)}
+                  className="min-h-[44px] rounded-lg bg-[hsl(var(--primary))] px-3 text-[12px] font-semibold text-[hsl(var(--primary-foreground))] disabled:opacity-60"
+                >
+                  {busy === t.id ? "Adding…" : "Add to calendar"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => markTradeLogged(t.id)}
+                  className="min-h-[44px] rounded-lg border border-[hsl(var(--border))] px-3 text-[12px] text-[hsl(var(--text-secondary))]"
+                >
+                  Hide
+                </button>
+              </div>
+            )}
           </div>
         );
       })}
+      {build && <p className="text-[10px] text-[hsl(var(--text-secondary)_/_0.6)]">build {build}</p>}
     </div>
   );
 }
