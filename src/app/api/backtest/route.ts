@@ -17,6 +17,7 @@ import type { Symbol, Timeframe } from "@/lib/agents/schemas";
 import { runBacktest, type BacktestReport } from "@/lib/backtest/engine";
 import { runBacktestV2, tradeStats, type V2Report } from "@/lib/backtest/engine-v2";
 import { loadM5History } from "@/lib/backtest/history";
+import { runCrt } from "@/lib/backtest/crt";
 import { NY_PM_KZ } from "@/lib/agents/core-v2";
 import { analyzeSilverBullet } from "@/lib/agents/silver-bullet";
 import type { BacktestCandle } from "@/lib/backtest/engine";
@@ -173,6 +174,10 @@ export async function GET(req: NextRequest) {
   // TwelveData spot bars, split at the start of the 60 days already reviewed.
   if (searchParams.get("study") === "silver-bullet") {
     return silverBulletStudy(symbolParam, Math.min(24, Math.max(3, Number(searchParams.get("months")) || 12)));
+  }
+  // ?study=crt&months=12 — Candle Range Theory on the same history.
+  if (searchParams.get("study") === "crt") {
+    return crtStudy(symbolParam, Math.min(24, Math.max(3, Number(searchParams.get("months")) || 12)));
   }
 
   // ?core=v2 runs the Session Liquidity core on 5-minute bars — the same
@@ -376,4 +381,58 @@ async function silverBulletStudy(symbol: string, months: number): Promise<NextRe
     lines.push(name, `  out-of-sample  ${cell(tradeStats(oos))}`, `  in-sample      ${cell(tradeStats(ins))}`, "");
   }
   return new NextResponse(lines.join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+}
+
+/**
+ * CRT on the same Dukascopy history. Variants fixed up front; the split is
+ * the same date as the Silver Bullet study. CRT's reward varies per trade
+ * (the opposite end of the range), so the average winning R is shown too:
+ * a high win rate means little if the wins are small.
+ */
+async function crtStudy(symbol: string, months: number): Promise<NextResponse> {
+  const hist = await loadM5History(symbol, months);
+  const text = (lines: string[]) => new NextResponse(lines.join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+  const head = [
+    `CRT (Candle Range Theory) study — ${symbol}, 4H ranges from 5m bars (Dukascopy spot, bid), ${months} months requested`,
+    hist.candles.length
+      ? `History: ${new Date(hist.candles[0].t * 1000).toISOString().slice(0, 10)} → ${new Date(hist.candles[hist.candles.length - 1].t * 1000).toISOString().slice(0, 10)} · ${hist.candles.length} bars · ${hist.chunksLoaded}/${hist.chunksTotal} days loaded`
+      : "History: none loaded yet",
+  ];
+  if (hist.error) head.push(`Data source said: ${hist.error}`);
+  if (!hist.complete) {
+    head.push("", "Still loading the history, about a month per request.", "Refresh this page; each refresh loads the next part and keeps what is loaded.");
+    return text(head);
+  }
+  if (hist.candles.length < 2000) return text([...head, "", "Not enough history to run the study."]);
+
+  const buffer = symbol === "XAUUSD" ? 0.5 : hist.candles[hist.candles.length - 1].c * 0.0001;
+  const variants: [string, Parameters<typeof runCrt>[1]][] = [
+    ["A  Every 4H candle as a range", { buffer }],
+    ["B  Only the 1 AM and 5 AM ET ranges", { buffer, refs1am5am: true }],
+    ["C  A + daily trend filter", { buffer, dailyTrend: true }],
+    ["D  A + reward at least 1R", { buffer, minOneR: true }],
+  ];
+  const cut = IN_SAMPLE_FROM;
+  const cell = (tr: ReturnType<typeof runCrt>) => {
+    const x = tradeStats(tr);
+    const wins = tr.filter(t => t.r > 0);
+    const avgWin = wins.length ? wins.reduce((a, t) => a + t.r, 0) / wins.length : 0;
+    return `${String(x.trades).padStart(4)} tr · ${x.winRate.toFixed(1).padStart(5)}% win · avg win ${avgWin.toFixed(2)}R · ${(x.netR >= 0 ? "+" : "") + x.netR.toFixed(1)}R · PF ${x.profitFactor.toFixed(2)} · DD ${x.maxDrawdownR.toFixed(1)}R`;
+  };
+  const lines = [
+    ...head, "",
+    `OUT-OF-SAMPLE = before ${cut} · IN-SAMPLE = ${cut} onward`,
+    "Entry at the sweep candle's close, stop beyond its wick, target the range's other end. No commission or slippage.",
+    "",
+  ];
+  for (const [name, opt] of variants) {
+    const all = runCrt(hist.candles, opt);
+    lines.push(
+      name,
+      `  out-of-sample  ${cell(all.filter(t => t.fillAt.slice(0, 10) < cut))}`,
+      `  in-sample      ${cell(all.filter(t => t.fillAt.slice(0, 10) >= cut))}`,
+      "",
+    );
+  }
+  return text(lines);
 }
