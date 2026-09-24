@@ -337,14 +337,14 @@ const IN_SAMPLE_FROM = "2026-07-16";
 async function silverBulletStudy(symbol: string, months: number): Promise<NextResponse> {
   const hist = await loadM5History(symbol, months);
   const head = [
-    `Silver Bullet study — ${symbol} 5m (TwelveData spot), ${months} months requested`,
+    `Silver Bullet study — ${symbol} 5m (Dukascopy spot, bid), ${months} months requested`,
     hist.candles.length
-      ? `History: ${new Date(hist.candles[0].t * 1000).toISOString().slice(0, 10)} → ${new Date(hist.candles[hist.candles.length - 1].t * 1000).toISOString().slice(0, 10)} · ${hist.candles.length} bars · ${hist.chunksLoaded}/${hist.chunksTotal} chunks`
+      ? `History: ${new Date(hist.candles[0].t * 1000).toISOString().slice(0, 10)} → ${new Date(hist.candles[hist.candles.length - 1].t * 1000).toISOString().slice(0, 10)} · ${hist.candles.length} bars · ${hist.chunksLoaded}/${hist.chunksTotal} months`
       : "History: none loaded yet",
   ];
   if (hist.error) head.push(`Data source said: ${hist.error}`);
   if (!hist.complete && !hist.error) {
-    head.push("", "Still loading the history (the free data plan allows 8 requests a minute).", "Refresh this page in about a minute; each refresh loads the next part.");
+    head.push("", "Still loading the history, a few months per request.", "Refresh this page; each refresh loads the next months.");
     return new NextResponse(head.join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
   }
   if (hist.candles.length < 2000) {
