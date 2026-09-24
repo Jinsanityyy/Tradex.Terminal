@@ -2020,7 +2020,7 @@ export default function DashboardPage() {
                     : "var(--t-muted)",
                 }}
               >
-                {signalState === "ARMED" ? "⚡ Armed — Confirm trigger" :
+                {signalState === "ARMED" ? "⚡ Armed — at entry zone" :
                  signalState === "PENDING" ? "⏳ Pending — Waiting for entry" : "Last Setup"}
               </p>
               <div className="grid grid-cols-4 gap-3">

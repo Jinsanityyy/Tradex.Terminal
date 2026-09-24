@@ -626,21 +626,26 @@ export async function runExecutionAgent(
     const distanceToEntry = Math.abs(current - entry) / entry * 100;
     const pricePastEntry  = isBullish ? current > entry : current < entry;
 
+    // Every reason below describes where price sits relative to the level. None
+    // tells the reader to act: these reach the phone card, the desktop panel and
+    // push notifications, and "execute" / "do NOT chase" are personalised trade
+    // instructions  -  the wording the Play financial services policy scrutinises,
+    // and at odds with the informational framing used everywhere else.
     let signalState: SignalState;
     let signalStateReason: string;
 
     if (pricePastEntry && distanceToEntry > 1.0) {
       signalState       = "EXPIRED";
-      signalStateReason = `Price already moved ${distanceToEntry.toFixed(2)}% past entry zone. Do NOT chase  -  wait for the next setup.`;
+      signalStateReason = `Price has moved ${distanceToEntry.toFixed(2)}% past the entry zone. This level is no longer in play.`;
     } else if (distanceToEntry <= 0.25) {
       signalState       = "ARMED";
-      signalStateReason = `${grade} setup  -  price is ${distanceToEntry.toFixed(2)}% from entry. Confirm trigger and execute.`;
+      signalStateReason = `${grade} setup  -  price is at the entry zone (${distanceToEntry.toFixed(2)}% away).`;
     } else if (distanceToEntry <= 1.0) {
       signalState       = "PENDING";
-      signalStateReason = `Price is ${distanceToEntry.toFixed(2)}% from entry zone at ${entry.toFixed(p)}. Wait for price to return before entering.`;
+      signalStateReason = `Price is ${distanceToEntry.toFixed(2)}% from the entry zone at ${entry.toFixed(p)}.`;
     } else {
       signalState       = "PENDING";
-      signalStateReason = `Price is ${distanceToEntry.toFixed(2)}% away from entry at ${entry.toFixed(p)}. Monitor  -  no action yet.`;
+      signalStateReason = `Price is ${distanceToEntry.toFixed(2)}% from the entry level at ${entry.toFixed(p)}.`;
     }
 
     // Override: if price has already moved through the SL level before entry was
@@ -649,7 +654,7 @@ export async function runExecutionAgent(
     const slBreachedBeforeEntry = isBullish ? current <= stopLoss : current >= stopLoss;
     if (slBreachedBeforeEntry) {
       signalState       = "EXPIRED";
-      signalStateReason = `Price (${current.toFixed(p)}) moved through SL (${stopLoss.toFixed(p)}) before entry triggered. Setup invalidated  -  wait for a new setup.`;
+      signalStateReason = `Price (${current.toFixed(p)}) moved through the stop level (${stopLoss.toFixed(p)}) before reaching entry. Setup invalidated.`;
     }
 
     return {

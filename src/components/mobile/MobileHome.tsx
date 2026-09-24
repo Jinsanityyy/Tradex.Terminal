@@ -864,11 +864,26 @@ export function MobileHome() {
                       On a stale LAST SETUP card, the fresh WAIT/EXPIRED reason refers to a
                       DIFFERENT evaluation (different entry) and reads as contradictory —
                       that reason now lives in the Signal card instead. */}
+                  {/* The execution agent's reason is only true while the setup is
+                      live. When master vetoes (no consensus) or the market is shut,
+                      its raw "A+ setup  -  price is at entry" still arrived and sat
+                      directly under a Market Read saying NO READ: two cards on one
+                      screen giving opposite answers. The veto wins, and the card
+                      says the levels are shown for reference only. */}
                   {liveEntry !== null && exec?.signalStateReason && (
-                    <p className="text-[11px] text-[hsl(var(--text-secondary))] mt-2 leading-tight"
-                      style={{ fontFamily: "var(--font-dm-sans),system-ui,sans-serif" }}>
-                      {exec.signalStateReason}
-                    </p>
+                    effectiveSignalState === "NO_TRADE" ? (
+                      <p className="text-[13px] text-[hsl(var(--text-secondary))] mt-2 leading-snug"
+                        style={{ fontFamily: "var(--font-dm-sans),system-ui,sans-serif" }}>
+                        {isWeekend && !isCrypto
+                          ? "Market closed. Levels shown for reference only."
+                          : "On hold. The agents are not in agreement, so this setup is not active. Levels shown for reference only."}
+                      </p>
+                    ) : (
+                      <p className="text-[13px] text-[hsl(var(--text-secondary))] mt-2 leading-snug"
+                        style={{ fontFamily: "var(--font-dm-sans),system-ui,sans-serif" }}>
+                        {exec.signalStateReason}
+                      </p>
+                    )
                   )}
                   {/* Take / Close trade buttons */}
                   {(() => {
