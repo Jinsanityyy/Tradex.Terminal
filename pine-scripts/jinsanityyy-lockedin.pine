@@ -1,0 +1,536 @@
+//@version=5
+// =============================================================================
+//  JINSANITYYY LOCKEDIN
+//  FV = fair value | CONT = continuation | MREV = mean reversion
+//  DISP = displacement candle | MSB = market structure break
+//  A+ = DISP + MSB | A = DISP only
+//
+//  Replayed for backtests by src/lib/backtest/lockedin.ts
+//  (/api/backtest?symbol=XAUUSD&study=lockedin&months=12).
+// =============================================================================
+indicator("Jinsanityyy Lockedin", shorttitle = "LOCKEDIN", overlay = true,
+     max_labels_count = 500, max_boxes_count = 500, max_lines_count = 500)
+
+// --------------------------------------------------------- 1. SESSIONS
+g1 = "1. Sessions"
+tzIn      = input.string("America/New_York", "Timezone", options = ["America/New_York", "America/Chicago", "Exchange"], group = g1)
+useS1     = input.bool(true, "Enable NY AM window", group = g1)
+session1  = input.session("0930-1100", "NY AM", group = g1)
+useS2     = input.bool(true, "Enable NY PM window", group = g1)
+session2  = input.session("1400-1500", "NY PM", group = g1)
+useS3     = input.bool(true, "Enable London window", group = g1)
+session3  = input.session("0300-0430", "London", group = g1,
+     tooltip = "Times are in the timezone above. London open 8:00 BST = 0300 New York = 3:00 PM Manila. For the LBMA AM fix instead, try 0530-0700.")
+contMins  = input.int(15, "CONT phase (minutes)", minval = 1, maxval = 60, group = g1)
+skipOpenM = input.int(3, "Skip first N min after open", minval = 0, maxval = 15, group = g1)
+flatEnd   = input.bool(false, "Close setups at window end", group = g1)
+useTimeStop = input.bool(true, "Close setup after N bars", group = g1)
+maxBars   = input.int(120, "Max bars in trade", minval = 5, maxval = 400, group = g1,
+     tooltip = "120 on a 1-minute chart = 2 hours.")
+
+// --------------------------------------------------------- 2. ENTRY MODEL
+g2 = "2. Entry model (JJ)"
+wickMax   = input.float(20.0, "Max counter-wick % of body", minval = 1, maxval = 60, group = g2)
+bigBody   = input.bool(true, "DISP requires body > previous body", group = g2)
+swingLB   = input.int(5, "Swing pivot lookback (MSB)", minval = 2, group = g2)
+takeAplus = input.bool(true, "Take A+ (DISP + MSB)", group = g2)
+takeA     = input.bool(true, "Take A (DISP only)", group = g2)
+takeCont  = input.bool(true, "Take CONT setups", group = g2)
+takeMrev  = input.bool(true, "Take MREV setups", group = g2)
+maxTrack  = input.int(1, "Max simultaneous tracked setups", minval = 1, maxval = 5, group = g2)
+
+// --------------------------------------------------------- 3. STOP
+g3 = "3. Stop"
+atrLen  = input.int(14, "ATR length", minval = 2, group = g3)
+atrMult = input.float(2.0, "ATR multiple for stop", minval = 0.5, step = 0.1, group = g3)
+rrMult  = input.float(1.5, "Risk : Reward", minval = 0.5, step = 0.1, group = g3)
+
+// --------------------------------------------------------- 4. INSTRUMENT
+g4 = "4. Instrument"
+ptValue = input.float(10, "$ per 1.00 price point", minval = 0.01, group = g4,
+     tooltip = "MGC = 10 | GC = 100 | MNQ = 2 | NQ = 20 | MES = 5 | ES = 50")
+maxCon  = input.int(50, "Contract cap", minval = 1, group = g4)
+
+// --------------------------------------------------------- 5. ACCOUNT
+g5 = "5. Account — update each morning"
+balNow  = input.float(50000, "Current balance ($)", group = g5)
+mllNow  = input.float(48000, "Current MLL ($)", group = g5)
+
+// --------------------------------------------------------- 6. LIMITS
+g6 = "6. Daily limits"
+maxSetups = input.int(3, "Max setups per day", minval = 1, maxval = 20, group = g6)
+useDayPnL = input.bool(false, "Use daily P&L blocks", group = g6)
+dayPnL    = input.float(0, "Realized P&L today ($)", group = g6)
+dayTarget = input.float(600, "Daily profit target ($)", minval = 1, group = g6)
+dayStop   = input.float(500, "Daily loss cap ($)", minval = 1, group = g6)
+
+// --------------------------------------------------------- 7. SIZING
+g7 = "7. Sizing"
+riskUSD   = input.float(200, "Target risk per trade ($)", minval = 1, group = g7)
+maxBufPct = input.float(15, "Max % of MLL buffer per trade", minval = 1, maxval = 50, group = g7)
+minBuffer = input.float(500, "Hard stop if buffer below ($)", minval = 0, group = g7)
+
+// --------------------------------------------------------- 8. PANEL
+g8 = "8. Panel"
+showRisk  = input.bool(true, "Show RISK section", group = g8)
+showStats = input.bool(true, "Show STATS section", group = g8)
+showLeg   = input.bool(true, "Show LEGEND section", group = g8)
+tblSize   = input.string("Small", "Text size", options = ["Tiny", "Small", "Normal"], group = g8)
+
+// --------------------------------------------------------- 9. CHART
+g9 = "9. Chart"
+showLbl  = input.bool(true, "Signal labels", group = g9)
+lblSize  = input.string("Small", "Label size", options = ["Tiny", "Small", "Normal"], group = g9)
+showBox  = input.bool(true, "RR boxes", group = g9)
+minBoxW  = input.int(3, "Minimum box width (bars)", minval = 1, maxval = 20, group = g9)
+showDisp = input.bool(false, "Mark DISP candles", group = g9)
+showMSBm = input.bool(false, "Mark MSB", group = g9)
+showBg   = input.bool(true, "Phase shading", group = g9)
+maxHist  = input.int(20, "Max setups kept drawn", minval = 5, maxval = 60, group = g9)
+
+// --------------------------------------------------------- 10. CANDLE THEME
+gC = "10. Candle theme"
+useTheme = input.bool(true, "Repaint candles (black & grey)", group = gC)
+bodyUp   = input.color(#0E0E0E, "Up body", group = gC)
+bodyDn   = input.color(#0E0E0E, "Down body", group = gC)
+edgeUp   = input.color(#B8B8B8, "Up border / wick", group = gC)
+edgeDn   = input.color(#5A5A5A, "Down border / wick", group = gC)
+dimOut   = input.bool(true, "Dim candles outside session", group = gC)
+dimAmt   = input.int(70, "Dim amount", minval = 0, maxval = 95, group = gC)
+
+// --------------------------------------------------------- 11. RIBBON
+gR2 = "11. Ribbon (visual only)"
+showRib = input.bool(true, "Show ribbon", group = gR2)
+ribFast = input.int(20, "Fast MA", minval = 2, group = gR2)
+ribSlow = input.int(50, "Slow MA", minval = 3, group = gR2)
+ribBase = input.int(200, "Base MA", minval = 5, group = gR2)
+ribCol  = input.color(#B8B8B8, "Ribbon tint", group = gR2)
+ribFade = input.int(88, "Fill transparency", minval = 50, maxval = 98, group = gR2)
+
+// --------------------------------------------------------- 12. NFP CONFLUENCE
+gN = "12. NFP confluence"
+useNFPConf      = input.bool(true, "Track NFP pre-release range as confluence", group = gN)
+nfpPreWindow    = input.session("0825-0830", "Pre-release range window", group = gN)
+nfpPostWindow   = input.session("0830-0900", "Post-release confluence window", group = gN)
+requireNFPBreak = input.bool(false, "Require range break on NFP days (off = confluence tag only)", group = gN)
+
+if timeframe.in_seconds(timeframe.period) > 900
+    runtime.error("Intraday only - 15m or lower.")
+
+tzUse = tzIn == "Exchange" ? syminfo.timezone : tzIn
+szSel = tblSize == "Tiny" ? size.tiny : tblSize == "Normal" ? size.normal : size.small
+lbSel = lblSize == "Tiny" ? size.tiny : lblSize == "Normal" ? size.normal : size.small
+
+cVal  = color.new(color.white, 0)
+cLbl  = color.new(color.white, 52)
+cDim  = color.new(color.white, 72)
+cHdrB = color.new(color.white, 90)
+cHdrT = color.new(color.white, 38)
+cLine = color.new(color.white, 82)
+cBg   = color.new(color.black, 12)
+
+// =============================================================================
+//  SESSION + PHASE
+// =============================================================================
+in1 = useS1 and not na(time(timeframe.period, session1, tzUse))
+in2 = useS2 and not na(time(timeframe.period, session2, tzUse))
+in3 = useS3 and not na(time(timeframe.period, session3, tzUse))
+inSess = in1 or in2 or in3
+
+newSess = (in1 and not nz(in1[1], false)) or (in2 and not nz(in2[1], false)) or (in3 and not nz(in3[1], false))
+sessEnd = (not in1 and nz(in1[1], false)) or (not in2 and nz(in2[1], false)) or (not in3 and nz(in3[1], false))
+
+var int sessStart = na
+if newSess
+    sessStart := time
+minsIn = inSess and not na(sessStart) ? (time - sessStart) / 60000.0 : na
+
+phaseCont = inSess and not na(minsIn) and minsIn <  contMins
+phaseRev  = inSess and not na(minsIn) and minsIn >= contMins
+
+var float fv = na
+if newSess
+    fv := open
+
+// =============================================================================
+//  NFP PRE-RELEASE RANGE (confluence)
+// =============================================================================
+isFirstFriday = dayofweek == dayofweek.friday and dayofmonth <= 7
+inNFPPre  = useNFPConf and isFirstFriday and not na(time(timeframe.period, nfpPreWindow, tzUse))
+inNFPPost = useNFPConf and isFirstFriday and not na(time(timeframe.period, nfpPostWindow, tzUse))
+
+var float nfpPreHigh = na
+var float nfpPreLow  = na
+newNFPPre = inNFPPre and not nz(inNFPPre[1], false)
+if newNFPPre
+    nfpPreHigh := high
+    nfpPreLow  := low
+if inNFPPre
+    nfpPreHigh := math.max(nz(nfpPreHigh, high), high)
+    nfpPreLow  := math.min(nz(nfpPreLow, low), low)
+
+nfpBrokeUp = inNFPPost and not na(nfpPreHigh) and close > nfpPreHigh
+nfpBrokeDn = inNFPPost and not na(nfpPreLow)  and close < nfpPreLow
+
+// =============================================================================
+//  DISP + MSB
+// =============================================================================
+body     = math.abs(close - open)
+prevBody = math.abs(close[1] - open[1])
+bodyOK   = not bigBody or body > prevBody
+dispUp = close > open and body > 0 and ((open - low) / body) * 100 <= wickMax and bodyOK
+dispDn = close < open and body > 0 and ((high - open) / body) * 100 <= wickMax and bodyOK
+isDisp = dispUp or dispDn
+
+ph = ta.pivothigh(high, swingLB, swingLB)
+pl = ta.pivotlow(low,  swingLB, swingLB)
+var float swHi = na
+var float swLo = na
+var bool hiOK = false
+var bool loOK = false
+if not na(ph)
+    swHi := ph
+    hiOK := true
+if not na(pl)
+    swLo := pl
+    loOK := true
+msbUp = not na(swHi) and close > swHi and hiOK
+msbDn = not na(swLo) and close < swLo and loOK
+isMSB = msbUp or msbDn
+if msbUp
+    hiOK := false
+if msbDn
+    loOK := false
+
+// =============================================================================
+//  SETUP
+// =============================================================================
+atrVal = ta.atr(atrLen)
+gate = inSess and (na(minsIn) or minsIn >= skipOpenM) and not na(fv)
+
+nfpGateL = not (useNFPConf and inNFPPost and requireNFPBreak) or nfpBrokeUp
+nfpGateS = not (useNFPConf and inNFPPost and requireNFPBreak) or nfpBrokeDn
+rawL = gate and dispUp and nfpGateL and ((phaseCont and takeCont and close > fv) or (phaseRev and takeMrev and close < fv))
+rawS = gate and dispDn and nfpGateS and ((phaseCont and takeCont and close < fv) or (phaseRev and takeMrev and close > fv))
+gradeL = rawL ? (msbUp ? 2 : 1) : 0
+gradeS = rawS ? (msbDn ? 2 : 1) : 0
+sigL = (gradeL == 2 and takeAplus) or (gradeL == 1 and takeA)
+sigS = (gradeS == 2 and takeAplus) or (gradeS == 1 and takeA)
+
+stopPts  = atrVal * atrMult
+stopLvlL = math.round_to_mintick(close - stopPts)
+stopLvlS = math.round_to_mintick(close + stopPts)
+tgtL     = math.round_to_mintick(close + stopPts * rrMult)
+tgtS     = math.round_to_mintick(close - stopPts * rrMult)
+
+var int setupsToday = 0
+if ta.change(time("D")) != 0
+    setupsToday := 0
+
+// =============================================================================
+//  RISK MATH
+// =============================================================================
+buffer     = balNow - mllNow
+liveBuffer = buffer + (useDayPnL ? dayPnL : 0)
+riskCap    = math.min(riskUSD, liveBuffer * maxBufPct / 100)
+rawQty     = int(math.floor(riskCap / math.max(stopPts * ptValue, 0.0000001)))
+qty        = math.min(maxCon, math.max(rawQty, 0))
+worstCase  = qty * stopPts * ptValue
+
+blkBuffer = liveBuffer < minBuffer
+blkSetups = setupsToday >= maxSetups
+blkLoss   = useDayPnL and dayPnL <= -dayStop
+blkTarget = useDayPnL and dayPnL >= dayTarget
+blkSize   = qty < 1
+blkRisk   = worstCase >= liveBuffer * 0.5
+blocked   = blkBuffer or blkSetups or blkLoss or blkTarget or blkSize or blkRisk
+
+blockTxt = blkBuffer ? "BUFFER THIN"    :
+           blkLoss   ? "DAILY LOSS CAP" :
+           blkTarget ? "TARGET HIT"     :
+           blkSetups ? "SETUP LIMIT"    :
+           blkSize   ? "STOP TOO WIDE"  :
+           blkRisk   ? "RISK vs BUFFER" : "CLEAR"
+
+isToday  = year == year(timenow) and month == month(timenow) and dayofmonth == dayofmonth(timenow)
+blockNow = blocked and isToday
+
+// =============================================================================
+//  TRACKING
+// =============================================================================
+var int[]    kSide  = array.new_int(0)
+var float[]  kEntry = array.new_float(0)
+var float[]  kStop  = array.new_float(0)
+var float[]  kTgt   = array.new_float(0)
+var float[]  kRisk  = array.new_float(0)
+var int[]    kBar   = array.new_int(0)
+var int[]    kGrade = array.new_int(0)
+var string[] kTag   = array.new_string(0)
+var box[]    kRB    = array.new_box(0)
+var box[]    kWB    = array.new_box(0)
+var label[]  kLb    = array.new_label(0)
+
+var int apW = 0
+var int apL = 0
+var int aaW = 0
+var int aaL = 0
+var int cnW = 0
+var int cnL = 0
+var int mrW = 0
+var int mrL = 0
+var int scr = 0
+var float totR = 0.0
+var int consecL = 0
+var int maxConsecL = 0
+
+if array.size(kSide) > 0
+    for i = array.size(kSide) - 1 to 0
+        sd = array.get(kSide, i)
+        eb = array.get(kBar,  i)
+        if bar_index > eb
+            if showBox
+                rEdge = math.max(bar_index, eb + minBoxW)
+                box.set_right(array.get(kRB, i), rEdge)
+                box.set_right(array.get(kWB, i), rEdge)
+            en = array.get(kEntry, i)
+            sp = array.get(kStop,  i)
+            tp = array.get(kTgt,   i)
+            rk = array.get(kRisk,  i)
+            gr = array.get(kGrade, i)
+            tg = array.get(kTag,   i)
+            hitS = sd == 1 ? low  <= sp : high >= sp
+            hitT = sd == 1 ? high >= tp : low  <= tp
+            forced = (flatEnd and sessEnd) or (useTimeStop and bar_index - eb >= maxBars)
+            if hitS or hitT or forced
+                rM = hitS ? -1.0 : hitT ? rrMult : (sd * (close - en)) / rk
+                totR += rM
+                if hitS
+                    consecL += 1
+                    maxConsecL := math.max(maxConsecL, consecL)
+                    if gr == 2
+                        apL += 1
+                    else
+                        aaL += 1
+                    if tg == "CONT"
+                        cnL += 1
+                    else
+                        mrL += 1
+                else if hitT
+                    consecL := 0
+                    if gr == 2
+                        apW += 1
+                    else
+                        aaW += 1
+                    if tg == "CONT"
+                        cnW += 1
+                    else
+                        mrW += 1
+                else
+                    scr += 1
+                bCol = hitT ? color.new(color.white, 15) : hitS ? color.new(color.white, 78) : color.new(color.white, 60)
+                if showBox
+                    box.set_border_color(array.get(kRB, i), bCol)
+                    box.set_border_color(array.get(kWB, i), bCol)
+                if showLbl
+                    lb = array.get(kLb, i)
+                    label.set_text(lb, label.get_text(lb) + "\n" + (rM >= 0 ? "+" : "") + str.tostring(rM, "0.0") + "R")
+                    label.set_color(lb, hitT ? color.new(color.white, 0) : color.new(color.black, 0))
+                    label.set_textcolor(lb, hitT ? color.black : color.white)
+                array.remove(kSide, i)
+                array.remove(kEntry, i)
+                array.remove(kStop, i)
+                array.remove(kTgt, i)
+                array.remove(kRisk, i)
+                array.remove(kBar, i)
+                array.remove(kGrade, i)
+                array.remove(kTag, i)
+                array.remove(kRB, i)
+                array.remove(kWB, i)
+                array.remove(kLb, i)
+
+canTrack = array.size(kSide) < maxTrack
+newL = sigL and canTrack
+newS = sigS and canTrack
+
+entryPx = close
+sdN = newL ? 1 : -1
+spN = newL ? stopLvlL : stopLvlS
+tpN = newL ? tgtL : tgtS
+rkN = newL ? close - stopLvlL : stopLvlS - close
+grN = newL ? gradeL : gradeS
+tgN = phaseCont ? "CONT" : "MREV"
+
+if (newL or newS) and rkN > 0
+    setupsToday += 1
+    gT = grN == 2 ? "A+" : "A"
+    winTag = in1 ? "NY AM" : in2 ? "NY PM" : "LONDON"
+    fullTag = tgN == "MREV" ? "MEAN REVERSION" : "CONTINUATION"
+    txt = (newL ? "▲ BUY " : "▼ SELL ") + gT + "\n" + fullTag + "\n" + winTag + "   RR 1 : " + str.tostring(rrMult, "0.0")
+    useTxt = blockNow ? txt + "\nNO — " + blockTxt : txt
+    lCol = blockNow ? color.new(color.black, 45) : (newL ? color.new(color.white, 0) : color.new(color.black, 0))
+    tCol = blockNow ? color.new(color.white, 40) : (newL ? color.black : color.white)
+    lbN = showLbl ? label.new(bar_index, newL ? low : high, useTxt,
+              style = newL ? label.style_label_up : label.style_label_down,
+              color = lCol, textcolor = tCol, size = lbSel) : na
+    rbN = showBox ? box.new(bar_index, math.max(entryPx, spN), bar_index + minBoxW, math.min(entryPx, spN),
+              bgcolor = color.new(color.white, 96), border_color = color.new(color.white, 70)) : na
+    wbN = showBox ? box.new(bar_index, math.max(entryPx, tpN), bar_index + minBoxW, math.min(entryPx, tpN),
+              bgcolor = color.new(color.white, 92), border_color = color.new(color.white, 45)) : na
+    array.push(kSide, sdN)
+    array.push(kEntry, entryPx)
+    array.push(kStop, spN)
+    array.push(kTgt, tpN)
+    array.push(kRisk, rkN)
+    array.push(kBar, bar_index)
+    array.push(kGrade, grN)
+    array.push(kTag, tgN)
+    array.push(kRB, rbN)
+    array.push(kWB, wbN)
+    array.push(kLb, lbN)
+    if not blockNow
+        alert("LOCKEDIN " + (newL ? "BUY " : "SELL ") + syminfo.ticker + "  " + gT + " " + fullTag + " " + winTag +
+              "  entry " + str.tostring(entryPx, format.mintick) +
+              "  stop " + str.tostring(spN, format.mintick) +
+              "  target " + str.tostring(tpN, format.mintick) +
+              "  size " + str.tostring(qty), alert.freq_once_per_bar_close)
+
+mb = math.max(maxHist, maxTrack + 5) * 2
+if array.size(box.all) > mb
+    for i = 0 to array.size(box.all) - mb - 1
+        box.delete(array.get(box.all, 0))
+ml = math.max(maxHist, maxTrack + 5)
+if array.size(label.all) > ml
+    for i = 0 to array.size(label.all) - ml - 1
+        label.delete(array.get(label.all, 0))
+
+// =============================================================================
+//  CHART MARKERS
+// =============================================================================
+dispLvl = showDisp and isDisp and not (newL or newS) ? (dispUp ? low - atrVal * 0.3 : high + atrVal * 0.3) : na
+plotshape(dispLvl, title = "DISP", location = location.absolute, style = shape.circle,
+     color = color.new(color.white, 62), size = size.tiny)
+
+msbLvl = showMSBm and isMSB ? (msbUp ? high + atrVal * 0.6 : low - atrVal * 0.6) : na
+plotshape(msbLvl, title = "MSB", location = location.absolute, style = shape.xcross,
+     color = color.new(color.white, 45), size = size.tiny, text = "MSB", textcolor = color.new(color.white, 52))
+
+plot(useNFPConf and (inNFPPre or inNFPPost) ? nfpPreHigh : na, title = "NFP pre-range high", color = color.new(color.white, 40), style = plot.style_linebr)
+plot(useNFPConf and (inNFPPre or inNFPPost) ? nfpPreLow  : na, title = "NFP pre-range low",  color = color.new(color.white, 40), style = plot.style_linebr)
+plotshape(inNFPPre and not inNFPPre[1], title = "NFP window start", location = location.abovebar, style = shape.labeldown, color = color.new(color.white, 0), text = "NFP", textcolor = color.black, size = size.small)
+bgcolor((inNFPPre or inNFPPost) ? color.new(color.white, 88) : na, title = "NFP window shading")
+plot(inSess ? fv : na, title = "FAIR VALUE", color = color.new(color.white, 20), style = plot.style_circles, linewidth = 2)
+bgcolor(showBg ? (phaseCont ? color.new(color.white, 95) : phaseRev ? color.new(color.white, 97) : na) : na, title = "Phase")
+bgcolor(showBg and inSess and blockNow ? color.new(color.black, 55) : na, title = "Blocked today")
+
+alertcondition(sigL, title = "LOCKEDIN BUY", message = "LOCKEDIN BUY setup {{ticker}} @ {{close}}")
+alertcondition(sigS, title = "LOCKEDIN SELL", message = "LOCKEDIN SELL setup {{ticker}} @ {{close}}")
+alertcondition(sigL or sigS, title = "LOCKEDIN any setup", message = "LOCKEDIN setup {{ticker}} @ {{close}}")
+
+// =============================================================================
+//  RIBBON
+// =============================================================================
+maF = ta.ema(close, ribFast)
+maS = ta.ema(close, ribSlow)
+maB = ta.sma(close, ribBase)
+pF = plot(showRib ? maF : na, title = "Fast MA", color = color.new(ribCol, 45), linewidth = 1)
+pS = plot(showRib ? maS : na, title = "Slow MA", color = color.new(ribCol, 65), linewidth = 1)
+pB = plot(showRib ? maB : na, title = "Base MA", color = color.new(ribCol, 78), linewidth = 2)
+fill(pF, pS, color = showRib ? color.new(ribCol, ribFade) : na, title = "Inner band")
+fill(pS, pB, color = showRib ? color.new(ribCol, ribFade + 5) : na, title = "Outer band")
+
+// =============================================================================
+//  CANDLE THEME
+// =============================================================================
+isUpBar = close >= open
+inZone  = inSess or not dimOut
+bCol0 = isUpBar ? bodyUp : bodyDn
+wCol0 = isUpBar ? edgeUp : edgeDn
+bFin = inZone ? color.new(bCol0, 0) : color.new(bCol0, dimAmt)
+wFin = inZone ? color.new(wCol0, 0) : color.new(wCol0, dimAmt)
+plotcandle(useTheme ? open : na, useTheme ? high : na, useTheme ? low : na, useTheme ? close : na,
+     title = "Themed candles", color = bFin, wickcolor = wFin, bordercolor = wFin)
+
+// =============================================================================
+//  PANEL
+// =============================================================================
+apT = apW + apL
+aaT = aaW + aaL
+cnT = cnW + cnL
+mrT = mrW + mrL
+allT = apT + aaT
+allW = apW + aaW
+apP = apT > 0 ? apW / apT * 100 : 0.0
+aaP = aaT > 0 ? aaW / aaT * 100 : 0.0
+cnP = cnT > 0 ? cnW / cnT * 100 : 0.0
+mrP = mrT > 0 ? mrW / mrT * 100 : 0.0
+allP = allT > 0 ? allW / allT * 100 : 0.0
+expR = allT > 0 ? totR / allT : 0.0
+beRate = 100 / (1 + rrMult)
+
+var table p = na
+
+prow(r, k, v, bright) =>
+    table.cell(p, 0, r, k, text_color = cLbl, text_size = szSel, text_halign = text.align_left)
+    table.cell(p, 1, r, v, text_color = bright ? cVal : cDim, text_size = szSel, text_halign = text.align_right)
+
+phdr(r, t) =>
+    table.cell(p, 0, r, t, text_color = cHdrT, bgcolor = cHdrB, text_size = szSel, text_halign = text.align_left)
+    table.cell(p, 1, r, "", bgcolor = cHdrB)
+
+if barstate.islast
+    nR = 1 + (showRisk ? 5 : 0) + (showStats ? 7 : 0) + (showLeg ? 7 : 0)
+    p := table.new(position.top_right, 2, nR, border_width = 0,
+         frame_color = cLine, frame_width = 1, bgcolor = cBg)
+    ri = 0
+    table.cell(p, 0, ri, blocked ? "BLOCKED" : "CLEAR",
+         text_color = blocked ? color.black : cVal,
+         bgcolor = blocked ? color.new(color.white, 0) : color.new(color.white, 94), text_size = szSel)
+    table.cell(p, 1, ri, blockTxt,
+         text_color = blocked ? color.black : cDim,
+         bgcolor = blocked ? color.new(color.white, 0) : color.new(color.white, 94),
+         text_size = szSel, text_halign = text.align_right)
+    ri += 1
+
+    if showRisk
+        phdr(ri, "RISK")
+        ri += 1
+        prow(ri, "Buffer to MLL", "$" + str.tostring(liveBuffer, "0"), liveBuffer < minBuffer * 2)
+        ri += 1
+        prow(ri, "Size", str.tostring(qty) + "x   $" + str.tostring(worstCase, "0"), true)
+        ri += 1
+        prow(ri, "Stop", str.tostring(stopPts, format.mintick) + " pts   1 : " + str.tostring(rrMult, "0.0"), false)
+        ri += 1
+        prow(ri, "Setups today", str.tostring(setupsToday) + " / " + str.tostring(maxSetups), blkSetups)
+        ri += 1
+
+    if showStats
+        phdr(ri, "STATS   " + str.tostring(allT) + " resolved")
+        ri += 1
+        prow(ri, "A+", str.tostring(apW) + "-" + str.tostring(apL) + "   " + str.tostring(apP, "0.0") + "%", apP > beRate)
+        ri += 1
+        prow(ri, "A", str.tostring(aaW) + "-" + str.tostring(aaL) + "   " + str.tostring(aaP, "0.0") + "%", aaP > beRate)
+        ri += 1
+        prow(ri, "CONT", str.tostring(cnW) + "-" + str.tostring(cnL) + "   " + str.tostring(cnP, "0.0") + "%", cnP > beRate)
+        ri += 1
+        prow(ri, "MREV", str.tostring(mrW) + "-" + str.tostring(mrL) + "   " + str.tostring(mrP, "0.0") + "%", mrP > beRate)
+        ri += 1
+        prow(ri, "Win rate", str.tostring(allP, "0.0") + "%   be " + str.tostring(beRate, "0.0") + "%", allP > beRate)
+        ri += 1
+        prow(ri, "Expectancy", str.tostring(expR, "0.00") + "R", expR > 0)
+        ri += 1
+
+    if showLeg
+        phdr(ri, "LEGEND")
+        ri += 1
+        prow(ri, "FV", "session open", false)
+        ri += 1
+        prow(ri, "CONT", "first " + str.tostring(contMins) + "m, away from FV", false)
+        ri += 1
+        prow(ri, "MREV", "rest of window, back to FV", false)
+        ri += 1
+        prow(ri, "DISP", "displacement candle", false)
+        ri += 1
+        prow(ri, "MSB", "structure break", false)
+        ri += 1
+        prow(ri, "A+ / A", "with MSB / without", false)
+        ri += 1

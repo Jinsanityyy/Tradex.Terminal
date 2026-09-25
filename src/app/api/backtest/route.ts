@@ -533,10 +533,14 @@ async function lockedinStudy(symbol: string, months: number): Promise<NextRespon
     "",
   );
 
-  // The indicator's own arithmetic on the latest 40 resolved (timeouts left out).
-  const resolved = base.filter(t => t.result !== "timeout").slice(-40);
+  // The indicator's own arithmetic on the latest 40 wins and losses: win rate
+  // over wins + losses, expectancy = every trade's R (time stops included)
+  // divided by wins + losses, as its STATS panel computes them.
+  const decided = base.filter(t => t.result !== "timeout");
+  const resolved = decided.slice(-40);
   const w = resolved.filter(t => t.result === "win").length, l = resolved.length - w;
-  const exp = resolved.length ? (w * 1.5 - l) / resolved.length : 0;
+  const since = resolved.length ? base.indexOf(resolved[0]) : base.length;
+  const exp = resolved.length ? base.slice(since).reduce((a, t) => a + t.r, 0) / resolved.length : 0;
   lines.push(
     "Panel view — latest 40 resolved, counted the way the indicator's STATS panel counts",
     resolved.length
