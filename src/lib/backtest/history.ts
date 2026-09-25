@@ -1,5 +1,5 @@
 /**
- * Long 5-minute history for backtests beyond Yahoo's 60 days, from
+ * Long 5- or 1-minute history for backtests beyond Yahoo's 60 days, from
  * Dukascopy's free historical feed (spot, bid prices, years deep, no API key
  * and no daily quota). TwelveData was tried first, but the app's own traffic
  * already uses several times the free plan's 800 daily credits.
@@ -24,11 +24,13 @@ const FETCH_BUDGET_MS = 40_000;
 /** Pause between requests: Dukascopy answers bursts with 429. */
 const PAUSE_MS = 400;
 
-async function fetchDay(instrument: string, dayMs: number): Promise<V2Candle[]> {
+export type HistoryTf = "m5" | "m1";
+
+async function fetchDay(instrument: string, dayMs: number, tf: HistoryTf): Promise<V2Candle[]> {
   const rows = await getHistoricalRates({
     instrument: instrument as Parameters<typeof getHistoricalRates>[0]["instrument"],
     dates: { from: new Date(dayMs), to: new Date(dayMs + 86_400_000) },
-    timeframe: "m5",
+    timeframe: tf,
     format: "array",
     priceType: "bid",
     volumes: false,
@@ -58,6 +60,11 @@ export interface HistoryLoad {
  * call; what was loaded stays cached and the next call continues.
  */
 export async function loadM5History(symbol: string, months: number): Promise<HistoryLoad> {
+  return loadHistory(symbol, months, "m5");
+}
+
+/** Same as loadM5History, for 5- or 1-minute bars (each cached separately). */
+export async function loadHistory(symbol: string, months: number, tf: HistoryTf): Promise<HistoryLoad> {
   const instrument = DUKAS[symbol];
   if (!instrument) return { candles: [], complete: true, chunksLoaded: 0, chunksTotal: 0, error: `No Dukascopy instrument for ${symbol}` };
 
@@ -76,8 +83,8 @@ export async function loadM5History(symbol: string, months: number): Promise<His
     if (Date.now() - started > FETCH_BUDGET_MS) break;
     let ran = false;
     const load = unstable_cache(
-      async () => { ran = true; return fetchDay(instrument, dayMs); },
-      ["m5-dukascopy-day", instrument, String(dayMs)],
+      async () => { ran = true; return fetchDay(instrument, dayMs, tf); },
+      [`${tf}-dukascopy-day`, instrument, String(dayMs)],
       { revalidate: dayMs === today ? 3600 : 30 * 86_400 },
     );
     try {
