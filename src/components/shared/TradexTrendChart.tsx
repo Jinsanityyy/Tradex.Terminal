@@ -154,6 +154,8 @@ export function TradexTrendChart({
   } | null>(null);
   const fitted = useRef<string>("");
   const liveRef = useRef<Candle | null>(null);
+  // A data problem must show a message here, not take the whole chart down.
+  const [drawError, setDrawError] = useState<string | null>(null);
 
   // Create the chart once
   useEffect(() => {
@@ -193,6 +195,7 @@ export function TradexTrendChart({
   useEffect(() => {
     const s = seriesRef.current;
     if (!s || !snapshot || candles.length === 0) return;
+    try {
     const S = snapshot.series;
 
     liveRef.current = null;
@@ -245,6 +248,11 @@ export function TradexTrendChart({
       const n = candles.length;
       chartRef.current?.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - 140), to: n + 8 });
     }
+      setDrawError(null);
+    } catch (err) {
+      console.error("[TradexTrendChart]", err);
+      setDrawError((err as Error)?.message ?? "draw failed");
+    }
   }, [snapshot, candles, symbol, chartTf]);
 
   // Live price moves the forming candle (display only). Signals, levels and stats
@@ -263,7 +271,12 @@ export function TradexTrendChart({
     }
     cur = { ...cur, high: Math.max(cur.high, livePx), low: Math.min(cur.low, livePx), close: livePx };
     liveRef.current = cur;
-    s.candle.update({ time: t(cur.time), open: cur.open, high: cur.high, low: cur.low, close: cur.close });
+    try {
+      s.candle.update({ time: t(cur.time), open: cur.open, high: cur.high, low: cur.low, close: cur.close });
+    } catch (err) {
+      // e.g. provider timestamps ahead of the local clock: skip the tick, keep the chart.
+      console.error("[TradexTrendChart] live tick skipped", err);
+    }
   }, [livePx, candles, chartTf, spot]);
 
   return (
@@ -328,6 +341,11 @@ export function TradexTrendChart({
           <span className="text-zinc-500">|</span>
           <span title="Time until this candle closes">{TF_LABEL[chartTf]} closes {fmtLeft(secLeft)}</span>
         </div>
+        {drawError && (
+          <div className="absolute inset-x-2 top-8 z-10 rounded border border-red-400/30 bg-red-950/80 px-2 py-1 text-[10px] text-red-200">
+            Chart data problem: {drawError}
+          </div>
+        )}
         {!snapshot && (
           <div className="absolute inset-0 flex items-center justify-center text-[11px] text-zinc-500">
             {error ?? (loading ? "Loading candles…" : "No data")}
