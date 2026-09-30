@@ -5,6 +5,9 @@ import { TradingViewChart } from "@/components/shared/TradingViewChart";
 import { cn } from "@/lib/utils";
 import { RefreshCw } from "lucide-react";
 import { useSettings } from "@/contexts/SettingsContext";
+import { TradexTrendChart } from "@/components/shared/TradexTrendChart";
+import { TRADEX_TREND_ENABLED } from "@/lib/tradexTrend/flag";
+import type { Tf as TrendTf } from "@/lib/tradexTrend";
 
 const TO_TV: Record<string, string> = {
   XAUUSD: "OANDA:XAUUSD",
@@ -57,6 +60,9 @@ export function MobileChart() {
   const { settings, saveSettings } = useSettings();
   const [symbol, setSymbol] = useState(() => TO_TV[settings.selectedSymbol] ?? "OANDA:XAUUSD");
   const [chartKey, setChartKey] = useState(0);
+  // Experimental TradeX Trend chart (XAU/USD only).
+  const [txOn, setTxOn] = useState(false);
+  const [txTf, setTxTf] = useState<TrendTf>("H1");
 
   // Sync chart when home-page asset selector changes
   useEffect(() => {
@@ -99,10 +105,28 @@ export function MobileChart() {
             </button>
           );
         })}
+        {TRADEX_TREND_ENABLED && symbol === "OANDA:XAUUSD" && (
+          <button
+            onClick={() => setTxOn((v) => !v)}
+            className={cn(
+              "shrink-0 ml-auto text-[11px] font-semibold px-2.5 py-[3px] rounded border transition-all",
+              txOn
+                ? "border-[#1de9b6]/50 bg-[#1de9b6]/10 text-[#1de9b6]"
+                : "border-[hsl(var(--border))] text-[hsl(var(--text-secondary))]"
+            )}
+          >
+            TradeX Trend
+          </button>
+        )}
       </div>
 
       {/* Chart — fills all remaining height */}
       <div className="flex-1 overflow-hidden min-h-0">
+        {TRADEX_TREND_ENABLED && txOn && symbol === "OANDA:XAUUSD" ? (
+          <ChartErrorBoundary onReset={() => setChartKey((k) => k + 1)}>
+            <TradexTrendChart chartTf={txTf} onTfChange={setTxTf} />
+          </ChartErrorBoundary>
+        ) : (
         <ChartErrorBoundary onReset={() => setChartKey((k) => k + 1)}>
           <TradingViewChart
             key={`${symbol}-${chartKey}`}
@@ -111,6 +135,7 @@ export function MobileChart() {
             activeCategoryLabel={activeChip?.label}
           />
         </ChartErrorBoundary>
+        )}
       </div>
     </div>
   );

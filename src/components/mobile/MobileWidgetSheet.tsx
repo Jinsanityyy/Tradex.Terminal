@@ -4,6 +4,7 @@ import React from "react";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAnalytics } from "@/hooks/useAnalytics";
+import { TRADEX_TREND_ENABLED } from "@/lib/tradexTrend/flag";
 
 // ── Widget registry ───────────────────────────────────────────────────────────
 
@@ -25,6 +26,8 @@ export const WIDGET_DEFS = [
   { id: "lot_calculator",  label: "Lot Calculator",    desc: "Position size & risk calculator" },
   { id: "pnl_calendar",   label: "PnL Calendar",      desc: "Monthly performance stats & trade history" },
   { id: "institutional",   label: "Institutional Flow",desc: "Retail sentiment, CME open interest & CBOE options flow" },
+  // Experimental; listed only when NEXT_PUBLIC_TRADEX_TREND=1.
+  { id: "tradex_trend",    label: "TradeX Trend (Experimental)", desc: "XAU/USD trend system: signals, MTF, honest win-rate stats" },
 ] as const;
 
 export type WidgetId = typeof WIDGET_DEFS[number]["id"];
@@ -57,6 +60,7 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig[] = [
   { id: "lot_calculator", visible: false },
   { id: "pnl_calendar",  visible: false },
   { id: "institutional",  visible: false },
+  { id: "tradex_trend",   visible: false },
 ];
 
 // v4: decision-first default order (signal/setup above globe) — bumping the key
@@ -148,7 +152,7 @@ export function MobileWidgetSheet({ open, onClose, config, onChange }: MobileWid
         <div className="overflow-y-auto flex-1 px-4 py-3 space-y-2">
           {config.map((w, i) => {
             const def = WIDGET_DEFS.find(d => d.id === w.id);
-            if (!def) return null;
+            if (!def || (w.id === "tradex_trend" && !TRADEX_TREND_ENABLED)) return null;
             return (
               <div
                 key={w.id}
