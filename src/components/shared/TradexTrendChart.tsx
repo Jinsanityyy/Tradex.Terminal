@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   CandlestickSeries, ColorType, LineSeries, LineStyle, createChart, createSeriesMarkers,
   type IChartApi, type IPrimitivePaneRenderer, type ISeriesApi, type ISeriesPrimitive,
@@ -8,6 +8,7 @@ import {
 } from "lightweight-charts";
 import { useTradexTrend } from "@/hooks/useTradexTrend";
 import { useWebSocketPrices } from "@/hooks/useWebSocketPrices";
+import { useQuotes } from "@/hooks/useMarketData";
 import type { Candle, Tf, TrendSnapshot } from "@/lib/tradexTrend";
 import { TF_LABEL } from "@/lib/tradexTrend/tf";
 import { TF_SECONDS } from "@/lib/tradexTrend";
@@ -111,7 +112,29 @@ export function TradexTrendChart({
 }: { chartTf: Tf; onTfChange: (tf: Tf) => void; symbol?: string }) {
   const { snapshot, candles, source, spot, loading, error } = useTradexTrend(symbol, chartTf);
   const { prices, connected } = useWebSocketPrices([symbol]);
-  const livePx = prices.get(symbol) ?? null;
+  // The forex websocket often sends nothing for gold, so fall back to the app's polled
+  // spot quote (same one the rest of the app shows, refreshed every ~15 s).
+  const { quotes } = useQuotes();
+  const wsPx = prices.get(symbol) ?? null;
+  const quotePx = quotes.find((q) => q.symbol === symbol || q.symbol === "XAU/USD")?.price ?? null;
+  const rawPx = wsPx ?? quotePx;
+  const pxKind: "ws" | "poll" | null = wsPx !== null ? "ws" : quotePx !== null ? "poll" : null;
+
+  const lastClose = candles.length ? candles[candles.length - 1].close : null;
+  const livePx = rawPx !== null && lastClose !== null && Math.abs(rawPx - lastClose) / lastClose > 0.015 ? null : rawPx;
+
+  // Countdown to the close of the current candle.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const secLeft = TF_SECONDS[chartTf] - (Math.floor(nowMs / 1000) % TF_SECONDS[chartTf]);
+  const fmtLeft = (n: number) => {
+    const h = Math.floor(n / 3600), m = Math.floor((n % 3600) / 60), sec = n % 60;
+    const mm = String(m).padStart(2, "0"), ss = String(sec).padStart(2, "0");
+    return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+  };
   const host = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<{
@@ -246,14 +269,10 @@ export function TradexTrendChart({
           Experimental
         </span>
         <span
-          className="ml-auto flex items-center gap-1 pl-2 text-[9px] text-zinc-500"
-          title={`Candles: ${source || "?"}. Live price: ${connected ? "connected" : "connecting"}. Signals use closed candles only.`}
+          className="ml-auto hidden pl-2 text-[9px] text-zinc-600 md:inline"
+          title={`Candles: ${source || "?"}. Live price: ${pxKind === "ws" ? "websocket" : pxKind === "poll" ? "polled quote (~15 s)" : "none"}. Signals use closed candles only.`}
         >
-          <span className={`h-1.5 w-1.5 rounded-full ${connected && livePx !== null ? "bg-[#1de9b6]" : "bg-zinc-600"}`} />
-          {livePx !== null ? livePx.toFixed(2) : "--"}
-          <span className="hidden text-zinc-600 md:inline">
-            · candles: {source || "?"} · signals on closed candles only
-          </span>
+          candles: {source || "?"} · signals on closed candles only
         </span>
       </div>
       {!spot && (
@@ -264,6 +283,15 @@ export function TradexTrendChart({
       )}
       <div className="relative min-h-0 flex-1">
         <div ref={host} className="absolute inset-0" />
+        <div className="pointer-events-none absolute left-2 top-1.5 z-10 flex items-center gap-2 rounded bg-black/60 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-zinc-300">
+          <span className={`h-1.5 w-1.5 rounded-full ${livePx !== null ? "bg-[#1de9b6]" : "bg-zinc-600"}`} />
+          <span>{livePx !== null ? livePx.toFixed(2) : "--"}</span>
+          <span className="text-zinc-500">
+            {pxKind === "poll" ? "~15s" : pxKind === "ws" ? "live" : "no feed"}
+          </span>
+          <span className="text-zinc-500">|</span>
+          <span title="Time until this candle closes">{TF_LABEL[chartTf]} closes {fmtLeft(secLeft)}</span>
+        </div>
         {!snapshot && (
           <div className="absolute inset-0 flex items-center justify-center text-[11px] text-zinc-500">
             {error ?? (loading ? "Loading candles…" : "No data")}
