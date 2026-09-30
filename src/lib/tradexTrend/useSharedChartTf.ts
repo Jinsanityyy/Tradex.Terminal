@@ -5,11 +5,11 @@ import { TF_SECONDS, type Tf } from "./types";
 
 /**
  * The TradeX Trend chart timeframe, shared by the chart, the Home widget and the agent
- * cards so they all describe the same setup. Persisted per device.
+ * cards so they all describe the same setup. Opens on 5m; a timeframe you pick is remembered on this device.
  */
-const KEY = "tradex-trend-chart-tf-v1";
+const KEY = "tradex-trend-chart-tf-v2";
 const listeners = new Set<() => void>();
-let current: Tf = "H1";
+let current: Tf = "M5";
 let loaded = false;
 
 function load() {
@@ -28,7 +28,7 @@ function subscribe(cb: () => void) {
 }
 
 export function useSharedChartTf(): [Tf, (tf: Tf) => void] {
-  const tf = useSyncExternalStore(subscribe, () => { load(); return current; }, () => "H1" as Tf);
+  const tf = useSyncExternalStore(subscribe, () => { load(); return current; }, () => "M5" as Tf);
   const set = useCallback((next: Tf) => {
     current = next;
     try { window.localStorage.setItem(KEY, next); } catch { /* ignore */ }

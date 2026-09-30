@@ -43,12 +43,11 @@ import { TrumpImpactPreview } from "@/components/shared/TrumpFeedPanel";
 import { MTFBiasPanel } from "@/components/shared/MTFBiasPanel";
 import { TradexTrendWidget } from "@/components/dashboard/TradexTrendWidget";
 import { TradexTrendChart } from "@/components/shared/TradexTrendChart";
-import type { Tf as TrendTf } from "@/lib/tradexTrend";
 import { TRADEX_TREND_ENABLED } from "@/lib/tradexTrend/flag";
-import { tvIntervalToTf } from "@/lib/tradexTrend/tf";
 import { usePreferTradexChart } from "@/lib/tradexTrend/usePreferTradexChart";
 import { isTrendAsset, trendAsset } from "@/lib/tradexTrend/assets";
 import { tfToAgentTf } from "@/lib/tradexTrend/tf";
+import { useSharedChartTf } from "@/lib/tradexTrend/useSharedChartTf";
 import { KeyLevelsCard } from "@/components/shared/KeyLevelsCard";
 import { InstitutionalConfluence } from "@/components/shared/InstitutionalConfluence";
 import { AgentCardsWidget, AgentCardsFilterButton, ALL_AGENT_IDS } from "@/components/brain/AgentCardsWidget";
@@ -794,9 +793,15 @@ export default function DashboardPage() {
   const [chartInterval, setChartInterval] = useState("60");
   // Experimental TradeX Trend chart: the default chart for XAU/USD; the button switches to TradingView.
   const [txChartOn, setTxChartOn] = usePreferTradexChart();
-  const [txTf, setTxTf] = useState<TrendTf | null>(null);
+  const [txTf, setTxTf] = useSharedChartTf();
   const [txSymbol, setTxSymbol] = useState<string>(() => (isTrendAsset(symbol) ? symbol : "XAUUSD"));
   useEffect(() => { if (isTrendAsset(symbol)) setTxSymbol(symbol); }, [symbol]);
+  // While the TradeX Trend chart is showing, the agents run on its timeframe (when they support it).
+  useEffect(() => {
+    if (!TRADEX_TREND_ENABLED || !txChartOn) return;
+    const a = tfToAgentTf(txTf);
+    if (a) setTimeframe(a);
+  }, [txTf, txChartOn]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [activeOverview, setActiveOverview] = useState<OverviewKey | null>(null);
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
@@ -1590,7 +1595,7 @@ export default function DashboardPage() {
                 // Agents follow the chart symbol when they support it.
                 if (AGENT_VALID.has(id) && id !== settings.selectedSymbol) saveSettings({ ...settings, selectedSymbol: id });
               }}
-              chartTf={txTf ?? tvIntervalToTf(chartInterval)}
+              chartTf={txTf}
               onTfChange={(tf) => {
                 setTxTf(tf);
                 // Agents run on the chart timeframe when they support it.
@@ -1640,7 +1645,7 @@ export default function DashboardPage() {
       ? [{
           id: "tradex-trend",
           title: `TRADEX TREND · ${trendAsset(txSymbol).label}`,
-          content: <TradexTrendWidget symbol={txSymbol} chartTf={txTf ?? tvIntervalToTf(chartInterval)} />,
+          content: <TradexTrendWidget symbol={txSymbol} chartTf={txTf} />,
         }]
       : []),
     {
