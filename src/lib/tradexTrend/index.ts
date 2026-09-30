@@ -163,7 +163,8 @@ export function computeTradexTrend(
 
       const r = atrV[i] * p.slAtrMult;
       const entry = c[i].close;
-      const lotsRaw = r > 0 ? p.riskUsd / (r * p.contractSize) : 0;
+      // P&L per lot = R * contract, in the quote currency; convert to USD when USD is the base.
+      const lotsRaw = r > 0 ? p.riskUsd / (r * p.contractSize * (p.quoteUsd ? 1 : 1 / entry)) : 0;
       open = {
         index: i, time: c[i].time, side, smart,
         entry, sl: entry - dirSign * r,

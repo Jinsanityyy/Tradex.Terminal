@@ -27,7 +27,7 @@ export const WIDGET_DEFS = [
   { id: "pnl_calendar",   label: "PnL Calendar",      desc: "Monthly performance stats & trade history" },
   { id: "institutional",   label: "Institutional Flow",desc: "Retail sentiment, CME open interest & CBOE options flow" },
   // Experimental; listed only when NEXT_PUBLIC_TRADEX_TREND=1.
-  { id: "tradex_trend",    label: "TradeX Trend (Experimental)", desc: "XAU/USD trend system: signals, MTF, honest win-rate stats" },
+  { id: "tradex_trend",    label: "TradeX Trend (Experimental)", desc: "Trend system for your selected asset: signals, MTF, honest win-rate stats" },
 ] as const;
 
 export type WidgetId = typeof WIDGET_DEFS[number]["id"];

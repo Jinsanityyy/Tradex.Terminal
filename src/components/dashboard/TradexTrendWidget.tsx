@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useTradexTrend } from "@/hooks/useTradexTrend";
 import { MTF_TFS, type StatColor, type Tf, type Trend, type WinRate } from "@/lib/tradexTrend";
 import { TF_LABEL } from "@/lib/tradexTrend/tf";
+import { paramsFor, trendAsset } from "@/lib/tradexTrend/assets";
 
 const TEAL = "#1de9b6";
 const PINK = "#ec407a";
@@ -16,7 +17,6 @@ const WHITE = "#e8e9ee";
 const COLOR: Record<StatColor, string> = { green: TEAL, red: PINK, amber: AMBER, gray: MUTE };
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
-const px = (v: number) => v.toFixed(2);
 const arrow = (t: Trend) => (t > 0 ? "▲" : t < 0 ? "▼" : "-");
 const trendColor = (t: Trend) => (t > 0 ? TEAL : t < 0 ? PINK : MUTE);
 const wr = (w: WinRate) => (w.n > 0 ? `${pct(w.winPct ?? 0)} (n=${w.n})` : "-");
@@ -46,7 +46,9 @@ function NHint() {
 }
 
 export function TradexTrendWidget({ symbol = "XAUUSD", chartTf }: { symbol?: string; chartTf: Tf }) {
-  const { snapshot, loading, error } = useTradexTrend(symbol, chartTf);
+  const dp = trendAsset(symbol).decimals;
+  const px = (v: number) => v.toFixed(dp);
+  const { snapshot, loading, error } = useTradexTrend(symbol, chartTf, paramsFor(symbol));
 
   if (!snapshot || !snapshot.latest) {
     return (
@@ -76,7 +78,7 @@ export function TradexTrendWidget({ symbol = "XAUUSD", chartTf }: { symbol?: str
           <span className="rounded border border-amber-400/30 px-1 text-[8px] font-medium uppercase tracking-wider text-amber-300/90">
             Experimental
           </span>
-          <span className="text-[9px] text-zinc-600">{TF_LABEL[snapshot.chartTf]}</span>
+          <span className="text-[9px] text-zinc-600">{trendAsset(symbol).label} · {TF_LABEL[snapshot.chartTf]}</span>
         </div>
         <span
           className="rounded px-2 py-0.5 text-[9px] font-bold tracking-wide text-black"
@@ -91,7 +93,7 @@ export function TradexTrendWidget({ symbol = "XAUUSD", chartTf }: { symbol?: str
           {L.market ?? "-"}{L.adx !== null ? ` (ADX ${Math.round(L.adx)})` : ""}
         </Row>
         <Row k="Volatility" color={L.volRatio !== null && L.volRatio > 1.5 ? AMBER : WHITE}>
-          {L.atr !== null ? `ATR ${L.atr.toFixed(2)}` : "-"}{L.volRatio !== null ? ` (${L.volRatio.toFixed(1)}x avg)` : ""}
+          {L.atr !== null ? `ATR ${L.atr.toFixed(dp)}` : "-"}{L.volRatio !== null ? ` (${L.volRatio.toFixed(1)}x avg)` : ""}
         </Row>
         <Row k="Session (UTC)">{L.session}</Row>
         <Row k="MTF bias" color={L.mtfBias === "Bullish" ? TEAL : L.mtfBias === "Bearish" ? PINK : MUTE}>

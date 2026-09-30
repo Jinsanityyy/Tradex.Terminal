@@ -12,6 +12,7 @@ import { useQuotes } from "@/hooks/useMarketData";
 import type { Candle, Tf, TrendSnapshot } from "@/lib/tradexTrend";
 import { TF_LABEL } from "@/lib/tradexTrend/tf";
 import { TF_SECONDS } from "@/lib/tradexTrend";
+import { TREND_ASSETS, paramsFor, trendAsset } from "@/lib/tradexTrend/assets";
 
 const TEAL = "#1de9b6";
 const PINK = "#ec407a";
@@ -108,15 +109,24 @@ class OverlayPrimitive implements ISeriesPrimitive<Time> {
 }
 
 export function TradexTrendChart({
-  chartTf, onTfChange, symbol = "XAUUSD",
-}: { chartTf: Tf; onTfChange: (tf: Tf) => void; symbol?: string }) {
-  const { snapshot, candles, source, spot, loading, error } = useTradexTrend(symbol, chartTf);
+  chartTf, onTfChange, symbol = "XAUUSD", onSymbolChange,
+}: {
+  chartTf: Tf;
+  onTfChange: (tf: Tf) => void;
+  symbol?: string;
+  /** When given, a symbol picker is shown; otherwise the symbol is fixed by the parent. */
+  onSymbolChange?: (id: string) => void;
+}) {
+  const asset = trendAsset(symbol);
+  const dp = asset.decimals;
+  const assetParams = paramsFor(symbol);
+  const { snapshot, candles, source, spot, loading, error } = useTradexTrend(symbol, chartTf, assetParams);
   const { prices, connected } = useWebSocketPrices([symbol]);
   // The forex websocket often sends nothing for gold, so fall back to the app's polled
   // spot quote (same one the rest of the app shows, refreshed every ~15 s).
   const { quotes } = useQuotes();
   const wsPx = prices.get(symbol) ?? null;
-  const quotePx = quotes.find((q) => q.symbol === symbol || q.symbol === "XAU/USD")?.price ?? null;
+  const quotePx = quotes.find((q) => q.symbol === symbol)?.price ?? null;
   const rawPx = wsPx ?? quotePx;
   const pxKind: "ws" | "poll" | null = wsPx !== null ? "ws" : quotePx !== null ? "poll" : null;
 
@@ -172,6 +182,13 @@ export function TradexTrendChart({
     return () => { chart.remove(); chartRef.current = null; seriesRef.current = null; fitted.current = ""; };
   }, []);
 
+  // Axis / label precision follows the asset (5 decimals for EUR/USD, 2 for gold).
+  useEffect(() => {
+    seriesRef.current?.candle.applyOptions({
+      priceFormat: { type: "price", precision: dp, minMove: 1 / 10 ** dp },
+    });
+  }, [dp, symbol]);
+
   // Push data on every recompute (candle close)
   useEffect(() => {
     const s = seriesRef.current;
@@ -214,7 +231,7 @@ export function TradexTrendChart({
     if (tr) {
       const add = (price: number, title: string, color: string, style: LineStyle) =>
         s.lines.push(s.candle.createPriceLine({ price, title, color, lineStyle: style, lineWidth: 1, axisLabelVisible: true }));
-      add(tr.entry, `Entry ${tr.entry.toFixed(2)} | ${tr.lots.toFixed(2)} lot`, AMBER, LineStyle.Dashed);
+      add(tr.entry, `Entry ${tr.entry.toFixed(dp)} | ${tr.lots.toFixed(2)} lot`, AMBER, LineStyle.Dashed);
       add(tr.sl, "Stop loss", RED, LineStyle.Solid);
       add(tr.tp1, "TP 1", TEAL, LineStyle.Dotted);
       add(tr.tp2, "TP 2", TEAL, LineStyle.Dotted);
@@ -252,7 +269,20 @@ export function TradexTrendChart({
   return (
     <div className="flex h-full w-full flex-col bg-black">
       <div className="flex h-[30px] shrink-0 items-center gap-1 overflow-x-auto whitespace-nowrap border-b border-white/5 px-2.5">
-        <span className="mr-2 text-[10px] font-semibold text-zinc-300">XAU/USD</span>
+        {onSymbolChange ? (
+          <select
+            value={symbol}
+            onChange={(e) => onSymbolChange(e.target.value)}
+            aria-label="Symbol"
+            className="mr-2 rounded border border-white/10 bg-black px-1 py-0.5 text-[10px] font-semibold text-zinc-200 outline-none"
+          >
+            {TREND_ASSETS.map((a) => (
+              <option key={a.id} value={a.id}>{a.label}</option>
+            ))}
+          </select>
+        ) : (
+          <span className="mr-2 text-[10px] font-semibold text-zinc-300">{asset.label}</span>
+        )}
         {TFS.map((tf) => (
           <button
             key={tf}
@@ -277,15 +307,15 @@ export function TradexTrendChart({
       </div>
       {!spot && (
         <div className="shrink-0 border-b border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-[10px] leading-snug text-amber-200">
-          Candles are gold futures ({source}), not spot XAU/USD. Prices, signals and levels will differ from
-          TradingView (OANDA spot), and the live tick is off to avoid mixing the two.
+          Candles are futures ({source}), not spot {asset.label}. Prices, signals and levels will differ from
+          TradingView spot, and the live tick is off to avoid mixing the two.
         </div>
       )}
       <div className="relative min-h-0 flex-1">
         <div ref={host} className="absolute inset-0" />
         <div className="pointer-events-none absolute left-2 top-1.5 z-10 flex items-center gap-2 rounded bg-black/60 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-zinc-300">
           <span className={`h-1.5 w-1.5 rounded-full ${livePx !== null ? "bg-[#1de9b6]" : "bg-zinc-600"}`} />
-          <span>{livePx !== null ? livePx.toFixed(2) : "--"}</span>
+          <span>{livePx !== null ? livePx.toFixed(dp) : "--"}</span>
           <span className="text-zinc-500">
             {pxKind === "poll" ? "~15s" : pxKind === "ws" ? "live" : "no feed"}
           </span>
