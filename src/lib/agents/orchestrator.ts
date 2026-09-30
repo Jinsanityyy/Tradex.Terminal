@@ -367,7 +367,8 @@ export async function runAgentOrchestrator(
   // TradeX Trend core (flag NEXT_PUBLIC_TRADEX_TREND=1): the execution setup comes from the
   // same computation the chart draws; the other agents confirm or veto it. Falls back to the
   // classic execution agent when the candles are not spot or cannot be loaded.
-  const txPromise = TRADEX_TREND_ENABLED && !v2 && !isMockData && isTrendAsset(symbol)
+  // TRADEX_TREND_AGENTS=0 switches only this agent core off (the chart and widget stay on).
+  const txPromise = TRADEX_TREND_ENABLED && process.env.TRADEX_TREND_AGENTS !== "0" && !v2 && !isMockData && isTrendAsset(symbol)
     ? computeServerTrend(symbol, timeframe).catch((err) => {
         console.warn("[orchestrator] TradeX Trend compute failed:", err);
         return null;

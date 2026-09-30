@@ -15,3 +15,10 @@ Deviations from the Pine script (on purpose):
 XAU/USD, XAG/USD, EUR/USD, GBP/USD, AUD/USD, NZD/USD, USD/JPY, USD/CHF, USD/CAD, BTC/USD, ETH/USD, WTI Oil (`src/lib/tradexTrend/assets.ts`). Indices and crosses are not supported by the candle API.
 Lot size assumes: gold 100 oz, silver 5000 oz, FX 100,000 units, oil 1000 bbl, crypto 1 coin per lot; for USD/JPY, USD/CHF, USD/CAD the risk is converted from the quote currency. Check your broker's contract size.
 Gold, silver and oil on the Yahoo fallback are futures, not spot: the chart says so and turns the live tick off.
+
+## Agents (same flag)
+With `NEXT_PUBLIC_TRADEX_TREND=1` the agent pipeline takes the execution setup (entry / SL / TP1-3, signal state) from the same TradeX Trend computation as the chart, on the chart's timeframe
+(`lib/tradexTrend/server.ts`, `lib/agents/tradex-adapter.ts`). The other agents confirm (same side), keep it with lower confidence (neutral), or veto it (opposite side).
+Falls back to the classic execution agent when the candles are futures rather than spot or cannot be loaded. `TRADEX_TREND_AGENTS=0` turns only this agent core off.
+Signal states: ARMED while price is within 0.5R of the entry; EXPIRED once it is further away or the setup closed (TP1 / SL / flip).
+Agent results are cached for about 2.5 minutes, so the dashboard card can lag the chart by that long.
