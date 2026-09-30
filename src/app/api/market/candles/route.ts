@@ -4,6 +4,7 @@ import { fetchYahooCandles } from "@/lib/api/yahoo-finance";
 import type { Symbol, Timeframe } from "@/lib/agents/schemas";
 import { requirePro } from "@/lib/auth/entitlement";
 import { getHistoricalRates } from "dukascopy-node";
+import { unstable_cache } from "next/cache";
 
 export const dynamic = "force-dynamic";
 // Dukascopy fallback (TradeX Trend, ?spot=1) can take a few seconds on a cold call.
@@ -107,30 +108,43 @@ const DUKAS_TF: Record<CandleTf, "m1" | "m5" | "m15" | "m30" | "h1" | "h4" | "d1
   M1: "m1", M5: "m5", M15: "m15", M30: "m30", H1: "h1", H4: "h4", D1: "d1",
 };
 
-async function fromDukascopy(symbol: Symbol, tf: CandleTf, limit: number): Promise<CandleBar[] | null> {
-  const inst = DUKAS[symbol];
-  if (!inst) return null;
-  try {
-    const now = Date.now();
-    // x1.6 covers weekends without flat bars.
-    const from = now - limit * tfSecs(tf) * 1000 * 1.6;
+// Dukascopy answers bursts with 429, so a fetched range is shared for a short while.
+const dukasRange = unstable_cache(
+  async (inst: string, tf: string, fromMs: number, toMs: number) => {
     const rows = await Promise.race([
       getHistoricalRates({
         instrument: inst as Parameters<typeof getHistoricalRates>[0]["instrument"],
-        dates: { from: new Date(from), to: new Date(now) },
-        timeframe: DUKAS_TF[tf],
+        dates: { from: new Date(fromMs), to: new Date(toMs) },
+        timeframe: tf as Parameters<typeof getHistoricalRates>[0]["timeframe"],
         format: "array",
         priceType: "bid",
         volumes: false,
         ignoreFlats: true,
         batchSize: 4,
         pauseBetweenBatchesMs: 150,
-        retryCount: 1,
+        retryCount: 2,
         failAfterRetryCount: true,
       }),
       new Promise<never>((_, rej) => setTimeout(() => rej(new Error("dukascopy timeout")), 12_000)),
     ]);
-    const bars = (rows as [number, number, number, number, number][])
+    // Throw on empty so a failure is not cached.
+    if (!(rows as unknown[]).length) throw new Error("dukascopy empty");
+    return rows as [number, number, number, number, number][];
+  },
+  ["dukascopy-range"],
+  { revalidate: 45 },
+);
+
+async function fromDukascopy(symbol: Symbol, tf: CandleTf, limit: number): Promise<CandleBar[] | null> {
+  const inst = DUKAS[symbol];
+  if (!inst) return null;
+  try {
+    // Round to the minute so concurrent calls share one cache entry.
+    const now = Math.floor(Date.now() / 60_000) * 60_000;
+    // x1.6 covers weekends without flat bars.
+    const from = now - limit * tfSecs(tf) * 1000 * 1.6;
+    const rows = await dukasRange(inst, DUKAS_TF[tf], Math.floor(from / 60_000) * 60_000, now);
+    const bars = rows
       .map(([t, o, h, l, c]) => ({ t: Math.floor(t / 1000), o, h, l, c, v: 0 }))
       .filter(b => Number.isFinite(b.o) && b.o > 0);
     return bars.length ? bars.slice(-limit) : null;

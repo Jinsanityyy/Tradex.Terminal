@@ -120,7 +120,7 @@ export function TradexTrendChart({
   const asset = trendAsset(symbol);
   const dp = asset.decimals;
   const assetParams = paramsFor(symbol);
-  const { snapshot, candles, source, spot, loading, error } = useTradexTrend(symbol, chartTf, assetParams);
+  const { snapshot, candles, source, spot, adjusted, loading, error } = useTradexTrend(symbol, chartTf, assetParams);
   const { prices, connected } = useWebSocketPrices([symbol]);
   // The forex websocket often sends nothing for gold, so fall back to the app's polled
   // spot quote (same one the rest of the app shows, refreshed every ~15 s).
@@ -305,6 +305,12 @@ export function TradexTrendChart({
           candles: {source || "?"} · signals on closed candles only
         </span>
       </div>
+      {spot && adjusted !== null && (
+        <div className="shrink-0 border-b border-white/5 bg-white/[0.03] px-2.5 py-1 text-[10px] leading-snug text-zinc-400">
+          Candles come from futures ({source}) shifted {adjusted >= 0 ? "-" : "+"}{Math.abs(adjusted).toFixed(dp)} to line up with spot.
+          An approximation: signals and levels can differ slightly from TradingView spot.
+        </div>
+      )}
       {!spot && (
         <div className="shrink-0 border-b border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-[10px] leading-snug text-amber-200">
           Candles are futures ({source}), not spot {asset.label}. Prices, signals and levels will differ from
