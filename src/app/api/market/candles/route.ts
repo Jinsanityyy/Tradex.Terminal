@@ -3,8 +3,11 @@ import { fetchTimeSeries } from "@/lib/api/twelvedata";
 import { fetchYahooCandles } from "@/lib/api/yahoo-finance";
 import type { Symbol, Timeframe } from "@/lib/agents/schemas";
 import { requirePro } from "@/lib/auth/entitlement";
+import { getHistoricalRates } from "dukascopy-node";
 
 export const dynamic = "force-dynamic";
+// Dukascopy fallback (TradeX Trend, ?spot=1) can take a few seconds on a cold call.
+export const maxDuration = 30;
 
 export interface CandleBar {
   t: number; // unix seconds
@@ -82,6 +85,45 @@ async function fromFinnhub(symbol: Symbol, tf: CandleTf, limit: number): Promise
   } catch (err) { console.error("[candles/finnhub]", (err as Error)?.message ?? err); return null; }
 }
 
+// Spot (bid) candles from Dukascopy: same kind of price as OANDA / TradingView spot,
+// unlike Yahoo's GC=F, which is gold futures (a few dollars to tens of dollars above spot).
+const DUKAS: Partial<Record<Symbol, string>> = {
+  XAUUSD: "xauusd", EURUSD: "eurusd", GBPUSD: "gbpusd", USDJPY: "usdjpy", BTCUSD: "btcusd", ETHUSD: "ethusd",
+};
+const DUKAS_TF: Record<CandleTf, "m1" | "m5" | "m15" | "m30" | "h1" | "h4" | "d1"> = {
+  M1: "m1", M5: "m5", M15: "m15", M30: "m30", H1: "h1", H4: "h4", D1: "d1",
+};
+
+async function fromDukascopy(symbol: Symbol, tf: CandleTf, limit: number): Promise<CandleBar[] | null> {
+  const inst = DUKAS[symbol];
+  if (!inst) return null;
+  try {
+    const now = Date.now();
+    // x1.6 covers weekends without flat bars.
+    const from = now - limit * tfSecs(tf) * 1000 * 1.6;
+    const rows = await Promise.race([
+      getHistoricalRates({
+        instrument: inst as Parameters<typeof getHistoricalRates>[0]["instrument"],
+        dates: { from: new Date(from), to: new Date(now) },
+        timeframe: DUKAS_TF[tf],
+        format: "array",
+        priceType: "bid",
+        volumes: false,
+        ignoreFlats: true,
+        batchSize: 4,
+        pauseBetweenBatchesMs: 150,
+        retryCount: 1,
+        failAfterRetryCount: true,
+      }),
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error("dukascopy timeout")), 12_000)),
+    ]);
+    const bars = (rows as [number, number, number, number, number][])
+      .map(([t, o, h, l, c]) => ({ t: Math.floor(t / 1000), o, h, l, c, v: 0 }))
+      .filter(b => Number.isFinite(b.o) && b.o > 0);
+    return bars.length ? bars.slice(-limit) : null;
+  } catch (err) { console.error("[candles/dukascopy]", (err as Error)?.message ?? err); return null; }
+}
+
 async function fromYahoo(symbol: Symbol, tf: CandleTf, limit: number): Promise<CandleBar[] | null> {
   const display = YAHOO_DISPLAY[symbol];
   if (!display || tf === "M1" || tf === "M30") return null;
@@ -106,8 +148,11 @@ export async function GET(req: NextRequest) {
   const asked = Math.floor(Number(searchParams.get("limit")));
   const limit = Number.isFinite(asked) && asked > 0 ? Math.min(asked, MAX_LIMIT) : DEFAULT_LIMIT;
 
+  // ?spot=1 (TradeX Trend): prefer true spot prices, and say so when only futures are available.
+  const preferSpot = searchParams.get("spot") === "1";
   let source = "twelvedata";
   let candles = await fromTwelveData(symbol, timeframe, limit);
+  if (!candles && preferSpot) { source = "dukascopy"; candles = await fromDukascopy(symbol, timeframe, limit); }
   if (!candles) { source = "finnhub"; candles = await fromFinnhub(symbol, timeframe, limit); }
   if (!candles) { source = "yahoo"; candles = await fromYahoo(symbol, timeframe, limit); }
 
@@ -115,5 +160,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "No candle data available" }, { status: 503 });
   }
 
-  return NextResponse.json({ candles, symbol, timeframe, source });
+  // Yahoo's gold is the GC=F futures contract, not spot.
+  return NextResponse.json({ candles, symbol, timeframe, source, spot: !(source === "yahoo" && symbol === "XAUUSD") });
 }

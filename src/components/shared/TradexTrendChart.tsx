@@ -109,7 +109,7 @@ class OverlayPrimitive implements ISeriesPrimitive<Time> {
 export function TradexTrendChart({
   chartTf, onTfChange, symbol = "XAUUSD",
 }: { chartTf: Tf; onTfChange: (tf: Tf) => void; symbol?: string }) {
-  const { snapshot, candles, source, loading, error } = useTradexTrend(symbol, chartTf);
+  const { snapshot, candles, source, spot, loading, error } = useTradexTrend(symbol, chartTf);
   const { prices, connected } = useWebSocketPrices([symbol]);
   const livePx = prices.get(symbol) ?? null;
   const host = useRef<HTMLDivElement>(null);
@@ -211,7 +211,7 @@ export function TradexTrendChart({
   // still come from closed candles, so none of this can repaint them.
   useEffect(() => {
     const s = seriesRef.current;
-    if (!s || livePx === null || candles.length === 0) return;
+    if (!s || livePx === null || candles.length === 0 || !spot) return;
     const sec = TF_SECONDS[chartTf];
     const start = Math.floor(Date.now() / 1000 / sec) * sec;
     const last = candles[candles.length - 1];
@@ -224,7 +224,7 @@ export function TradexTrendChart({
     cur = { ...cur, high: Math.max(cur.high, livePx), low: Math.min(cur.low, livePx), close: livePx };
     liveRef.current = cur;
     s.candle.update({ time: t(cur.time), open: cur.open, high: cur.high, low: cur.low, close: cur.close });
-  }, [livePx, candles, chartTf]);
+  }, [livePx, candles, chartTf, spot]);
 
   return (
     <div className="flex h-full w-full flex-col bg-black">
@@ -256,6 +256,12 @@ export function TradexTrendChart({
           </span>
         </span>
       </div>
+      {!spot && (
+        <div className="shrink-0 border-b border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-[10px] leading-snug text-amber-200">
+          Candles are gold futures ({source}), not spot XAU/USD. Prices, signals and levels will differ from
+          TradingView (OANDA spot), and the live tick is off to avoid mixing the two.
+        </div>
+      )}
       <div className="relative min-h-0 flex-1">
         <div ref={host} className="absolute inset-0" />
         {!snapshot && (
