@@ -106,14 +106,14 @@ export async function GET(req: NextRequest) {
   const asked = Math.floor(Number(searchParams.get("limit")));
   const limit = Number.isFinite(asked) && asked > 0 ? Math.min(asked, MAX_LIMIT) : DEFAULT_LIMIT;
 
-  const candles =
-    await fromTwelveData(symbol, timeframe, limit) ??
-    await fromFinnhub(symbol, timeframe, limit)    ??
-    await fromYahoo(symbol, timeframe, limit);
+  let source = "twelvedata";
+  let candles = await fromTwelveData(symbol, timeframe, limit);
+  if (!candles) { source = "finnhub"; candles = await fromFinnhub(symbol, timeframe, limit); }
+  if (!candles) { source = "yahoo"; candles = await fromYahoo(symbol, timeframe, limit); }
 
   if (!candles?.length) {
     return NextResponse.json({ error: "No candle data available" }, { status: 503 });
   }
 
-  return NextResponse.json({ candles, symbol, timeframe });
+  return NextResponse.json({ candles, symbol, timeframe, source });
 }

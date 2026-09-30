@@ -16,6 +16,7 @@ const RETRY_MS = 30_000;
 
 interface Entry {
   candles: Candle[];
+  source: string;
   /** Candle-period bucket the data was fetched in. */
   bucket: number;
   attemptedAt: number;
@@ -29,24 +30,25 @@ const emit = () => listeners.forEach((l) => l());
 
 interface CandleBarWire { t: number; o: number; h: number; l: number; c: number; v?: number }
 
-async function fetchTf(symbol: string, tf: Tf): Promise<Candle[]> {
+async function fetchTf(symbol: string, tf: Tf): Promise<{ candles: Candle[]; source: string }> {
   const res = await fetch(`/api/market/candles?symbol=${symbol}&timeframe=${tf}&limit=${BARS}`);
   if (!res.ok) throw new Error(`candles ${tf}: HTTP ${res.status}`);
-  const json = (await res.json()) as { candles?: CandleBarWire[] };
-  return (json.candles ?? [])
+  const json = (await res.json()) as { candles?: CandleBarWire[]; source?: string };
+  const candles = (json.candles ?? [])
     .map((b) => ({ time: b.t, open: b.o, high: b.h, low: b.l, close: b.c, volume: b.v ?? 0 }))
     .sort((a, b) => a.time - b.time);
+  return { candles, source: json.source ?? "unknown" };
 }
 
 function refresh(symbol: string, tf: Tf, nowSec: number): void {
   const key = `${symbol}|${tf}`;
-  const e = cache.get(key) ?? { candles: [], bucket: -1, attemptedAt: 0, inflight: null };
+  const e = cache.get(key) ?? { candles: [], source: "", bucket: -1, attemptedAt: 0, inflight: null };
   cache.set(key, e);
   if (e.inflight) return;
   e.attemptedAt = Date.now();
   const bucket = bucketOf(tf, nowSec);
   e.inflight = fetchTf(symbol, tf)
-    .then((candles) => { e.candles = candles; e.bucket = bucket; })
+    .then((r) => { e.candles = r.candles; e.source = r.source; e.bucket = bucket; })
     .catch(() => { /* keep the old data, retry after RETRY_MS */ })
     .finally(() => { e.inflight = null; emit(); });
 }
@@ -55,6 +57,8 @@ export interface UseTradexTrend {
   snapshot: TrendSnapshot | null;
   /** Chart-timeframe candles as fetched, including the still-forming one (display only; signals never use it). */
   candles: Candle[];
+  /** Provider that served the chart-timeframe candles. */
+  source: string;
   loading: boolean;
   error: string | null;
   /** Unix ms of the last recompute. */
@@ -100,10 +104,10 @@ export function useTradexTrend(symbol: string, chartTf: Tf, params?: Partial<Tre
     if (!chartData) {
       const failed = cache.get(`${symbol}|${chartTf}`)?.bucket === -1 && !cache.get(`${symbol}|${chartTf}`)?.inflight
         && (cache.get(`${symbol}|${chartTf}`)?.attemptedAt ?? 0) > 0;
-      return { snapshot: null, candles: [], loading: !failed, error: failed ? "No candle data available" : null, updatedAt: null };
+      return { snapshot: null, candles: [], source: "", loading: !failed, error: failed ? "No candle data available" : null, updatedAt: null };
     }
     const snapshot = computeTradexTrend(byTf, chartTf, params ?? {});
-    return { snapshot, candles: chartData, loading: false, error: null, updatedAt: Date.now() };
+    return { snapshot, candles: chartData, source: cache.get(`${symbol}|${chartTf}`)?.source ?? "", loading: false, error: null, updatedAt: Date.now() };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rev, symbol, chartTf, paramsKey]);
 }
