@@ -8,6 +8,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { TradexTrendChart } from "@/components/shared/TradexTrendChart";
 import { TRADEX_TREND_ENABLED } from "@/lib/tradexTrend/flag";
 import type { Tf as TrendTf } from "@/lib/tradexTrend";
+import { usePreferTradexChart } from "@/lib/tradexTrend/usePreferTradexChart";
 
 const TO_TV: Record<string, string> = {
   XAUUSD: "OANDA:XAUUSD",
@@ -60,8 +61,8 @@ export function MobileChart() {
   const { settings, saveSettings } = useSettings();
   const [symbol, setSymbol] = useState(() => TO_TV[settings.selectedSymbol] ?? "OANDA:XAUUSD");
   const [chartKey, setChartKey] = useState(0);
-  // Experimental TradeX Trend chart (XAU/USD only).
-  const [txOn, setTxOn] = useState(false);
+  // Experimental TradeX Trend chart: default for Gold; the chip switches to TradingView.
+  const [txOn, setTxOn] = usePreferTradexChart();
   const [txTf, setTxTf] = useState<TrendTf>("H1");
 
   // Sync chart when home-page asset selector changes
@@ -107,7 +108,7 @@ export function MobileChart() {
         })}
         {TRADEX_TREND_ENABLED && symbol === "OANDA:XAUUSD" && (
           <button
-            onClick={() => setTxOn((v) => !v)}
+            onClick={() => setTxOn(!txOn)}
             className={cn(
               "shrink-0 ml-auto text-[11px] font-semibold px-2.5 py-[3px] rounded border transition-all",
               txOn
