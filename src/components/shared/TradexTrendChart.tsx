@@ -7,8 +7,10 @@ import {
   type SeriesAttachedParameter, type SeriesMarker, type Time, type UTCTimestamp,
 } from "lightweight-charts";
 import { useTradexTrend } from "@/hooks/useTradexTrend";
+import { useWebSocketPrices } from "@/hooks/useWebSocketPrices";
 import type { Candle, Tf, TrendSnapshot } from "@/lib/tradexTrend";
 import { TF_LABEL } from "@/lib/tradexTrend/tf";
+import { TF_SECONDS } from "@/lib/tradexTrend";
 
 const TEAL = "#1de9b6";
 const PINK = "#ec407a";
@@ -107,7 +109,9 @@ class OverlayPrimitive implements ISeriesPrimitive<Time> {
 export function TradexTrendChart({
   chartTf, onTfChange, symbol = "XAUUSD",
 }: { chartTf: Tf; onTfChange: (tf: Tf) => void; symbol?: string }) {
-  const { snapshot, candles, loading, error } = useTradexTrend(symbol, chartTf);
+  const { snapshot, candles, source, loading, error } = useTradexTrend(symbol, chartTf);
+  const { prices, connected } = useWebSocketPrices([symbol]);
+  const livePx = prices.get(symbol) ?? null;
   const host = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<{
@@ -116,6 +120,7 @@ export function TradexTrendChart({
     lines: ReturnType<ISeriesApi<"Candlestick">["createPriceLine"]>[];
   } | null>(null);
   const fitted = useRef<string>("");
+  const liveRef = useRef<Candle | null>(null);
 
   // Create the chart once
   useEffect(() => {
@@ -150,6 +155,7 @@ export function TradexTrendChart({
     if (!s || !snapshot || candles.length === 0) return;
     const S = snapshot.series;
 
+    liveRef.current = null;
     s.candle.setData(candles.map((c: Candle) => ({ time: t(c.time), open: c.open, high: c.high, low: c.low, close: c.close })));
 
     // Trend line, broken at flips: the other colour gets whitespace (time only) on those bars.
@@ -201,6 +207,25 @@ export function TradexTrendChart({
     }
   }, [snapshot, candles, symbol, chartTf]);
 
+  // Live price moves the forming candle (display only). Signals, levels and stats
+  // still come from closed candles, so none of this can repaint them.
+  useEffect(() => {
+    const s = seriesRef.current;
+    if (!s || livePx === null || candles.length === 0) return;
+    const sec = TF_SECONDS[chartTf];
+    const start = Math.floor(Date.now() / 1000 / sec) * sec;
+    const last = candles[candles.length - 1];
+    let cur = liveRef.current;
+    if (!cur || cur.time !== start) {
+      cur = last.time === start
+        ? { ...last }
+        : { time: start, open: last.close, high: livePx, low: livePx, close: livePx, volume: 0 };
+    }
+    cur = { ...cur, high: Math.max(cur.high, livePx), low: Math.min(cur.low, livePx), close: livePx };
+    liveRef.current = cur;
+    s.candle.update({ time: t(cur.time), open: cur.open, high: cur.high, low: cur.low, close: cur.close });
+  }, [livePx, candles, chartTf]);
+
   return (
     <div className="flex h-full w-full flex-col bg-black">
       <div className="flex h-[30px] shrink-0 items-center gap-1 overflow-x-auto whitespace-nowrap border-b border-white/5 px-2.5">
@@ -220,8 +245,15 @@ export function TradexTrendChart({
         <span className="ml-2 rounded border border-amber-400/30 px-1 text-[8px] font-medium uppercase tracking-wider text-amber-300/90">
           Experimental
         </span>
-        <span className="ml-auto hidden text-[9px] text-zinc-600 md:inline">
-          Updates on candle close · signals from closed candles only
+        <span
+          className="ml-auto flex items-center gap-1 pl-2 text-[9px] text-zinc-500"
+          title={`Candles: ${source || "?"}. Live price: ${connected ? "connected" : "connecting"}. Signals use closed candles only.`}
+        >
+          <span className={`h-1.5 w-1.5 rounded-full ${connected && livePx !== null ? "bg-[#1de9b6]" : "bg-zinc-600"}`} />
+          {livePx !== null ? livePx.toFixed(2) : "--"}
+          <span className="hidden text-zinc-600 md:inline">
+            · candles: {source || "?"} · signals on closed candles only
+          </span>
         </span>
       </div>
       <div className="relative min-h-0 flex-1">
