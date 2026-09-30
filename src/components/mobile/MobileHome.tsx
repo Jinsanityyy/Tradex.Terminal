@@ -24,6 +24,8 @@ import type { WidgetConfig } from "@/components/mobile/MobileWidgetSheet";
 import { AgentCardsWidget } from "@/components/brain/AgentCardsWidget";
 
 import dynamic from "next/dynamic";
+import { TRADEX_TREND_ENABLED } from "@/lib/tradexTrend/flag";
+import type { Tf as TrendTf } from "@/lib/tradexTrend";
 
 // Widgets that ship switched off. A static import made every phone download
 // them on first load even when the widget was never turned on.
@@ -33,6 +35,7 @@ const LotCalculatorWidget = dynamic(() => import("@/components/shared/LotCalcula
 const TrumpFeedPanel = dynamic(() => import("@/components/shared/TrumpFeedPanel").then(m => m.TrumpFeedPanel), { ssr: false });
 const LiveTVPanel = dynamic(() => import("@/components/shared/LiveTVPanel").then(m => m.LiveTVPanel), { ssr: false });
 const InstitutionalConfluence = dynamic(() => import("@/components/shared/InstitutionalConfluence").then(m => m.InstitutionalConfluence), { ssr: false });
+const TradexTrendWidget = dynamic(() => import("@/components/dashboard/TradexTrendWidget").then(m => m.TradexTrendWidget), { ssr: false });
 const GlobeClient = dynamic(() => import("@/components/globe/GlobeClient"), { ssr: false });
 
 /**
@@ -250,9 +253,39 @@ const DEFAULT_ASSETS = ["XAUUSD", "BTCUSD", "EURUSD", "USDJPY", "USOIL", "GBPUSD
  * Trump Impact, the agent read and Institutional Confluence are deliberately
  * not in here — those are what Pro sells, so they stay visible as teasers.
  */
+/** Experimental TradeX Trend widget (XAU/USD) with a small timeframe picker. */
+function TradexTrendCard() {
+  const [tf, setTf] = useState<TrendTf>("H1");
+  const tfs: { id: TrendTf; label: string }[] = [
+    { id: "M5", label: "5m" }, { id: "M15", label: "15m" }, { id: "H1", label: "1H" }, { id: "H4", label: "4H" }, { id: "D1", label: "1D" },
+  ];
+  return (
+    <div className="rounded-[2px] border border-[hsl(var(--border))] bg-black overflow-hidden">
+      <div className="flex gap-1 px-3 pt-2">
+        {tfs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTf(t.id)}
+            className={cn(
+              "text-[11px] px-2 py-0.5 rounded border",
+              tf === t.id ? "border-[#1de9b6]/50 text-[#1de9b6]" : "border-transparent text-[hsl(var(--text-secondary))]"
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div className="h-[560px]">
+        <TradexTrendWidget symbol="XAUUSD" chartTf={tf} />
+      </div>
+    </div>
+  );
+}
+
 const PRO_ONLY_WIDGETS = new Set([
   "entry_strip",   // entry / stop / target, straight off the agent run
   "key_levels",    // AI-derived
+  "tradex_trend",  // candle history comes from the Pro-gated candles API
 ]);
 
 /**
@@ -1271,6 +1304,13 @@ export function MobileHome() {
                     : <ProTeaser label="Institutional positioning is part of Pro" />}
                 </section>
               );
+
+            case "tradex_trend":
+              return TRADEX_TREND_ENABLED ? (
+                <section key="tradex_trend">
+                  <TradexTrendCard />
+                </section>
+              ) : null;
 
             default:
               return null;

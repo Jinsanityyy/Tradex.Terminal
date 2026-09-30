@@ -203,7 +203,7 @@ export function TradexTrendChart({
 
   return (
     <div className="flex h-full w-full flex-col bg-black">
-      <div className="flex h-[30px] shrink-0 items-center gap-1 border-b border-white/5 px-2.5">
+      <div className="flex h-[30px] shrink-0 items-center gap-1 overflow-x-auto whitespace-nowrap border-b border-white/5 px-2.5">
         <span className="mr-2 text-[10px] font-semibold text-zinc-300">XAU/USD</span>
         {TFS.map((tf) => (
           <button
@@ -220,7 +220,7 @@ export function TradexTrendChart({
         <span className="ml-2 rounded border border-amber-400/30 px-1 text-[8px] font-medium uppercase tracking-wider text-amber-300/90">
           Experimental
         </span>
-        <span className="ml-auto text-[9px] text-zinc-600">
+        <span className="ml-auto hidden text-[9px] text-zinc-600 md:inline">
           Updates on candle close · signals from closed candles only
         </span>
       </div>
