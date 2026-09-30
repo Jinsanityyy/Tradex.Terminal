@@ -5,6 +5,7 @@
  * and produces the final trade decision + plan.
  */
 
+import { tradexVerdict } from "./tradex-adapter";
 import Anthropic from "@anthropic-ai/sdk";
 import { anthropicCreate } from "./circuit-breaker";
 import type {
@@ -265,7 +266,7 @@ export async function runMasterAgent(
   weights: ScoringWeights = DEFAULT_WEIGHTS,
   anthropicApiKey?: string,
   debate?: DebateEntry[],
-  opts?: { core?: "v2" },
+  opts?: { core?: "v2" | "tradex" },
 ): Promise<MasterDecisionOutput> {
   const start = Date.now();
 
@@ -314,6 +315,44 @@ export async function runMasterAgent(
           : !risk.valid && execution.hasSetup ? `Risk check failed: ${risk.warnings[0] ?? "conditions outside limits"}`
           : execution.signalStateReason,
         strategyMatch: go ? "Session liquidity sweep" : undefined,
+        processingTime: Date.now() - start,
+      };
+    }
+
+    // ── TradeX Trend core: the setup proposes, the other agents confirm or veto ──
+    if (opts?.core === "tradex") {
+      const v = tradexVerdict(execution, risk, finalBias);
+      const go = v.go;
+      return {
+        agentId: "master",
+        finalBias: v.bias,
+        confidence: v.confidence,
+        consensusScore,
+        tradePlan: go ? {
+          direction: execution.direction === "long" ? "long" : "short",
+          entry: execution.entry!,
+          stopLoss: execution.stopLoss!,
+          tp1: execution.tp1!,
+          tp2: execution.tp2,
+          tp3: execution.tp3,
+          rrRatio: execution.rrRatio ?? 1.5,
+          grade: execution.grade,
+          confluenceCount: execution.confluenceCount,
+          confluenceFactors: execution.confluenceFactors,
+          maxRiskPercent: risk.maxRiskPercent,
+          trigger: execution.trigger,
+          triggerCondition: execution.triggerCondition,
+          entryZone: execution.entryZone,
+          slZone: execution.slZone,
+          tp1Zone: execution.tp1Zone,
+          tp3Zone: execution.tp3Zone,
+          managementNotes: execution.managementNotes,
+        } : null,
+        supports: buildSupports(trend, smc, news, execution, v.bias),
+        invalidations: buildInvalidations(trend, smc, risk, contrarian, execution),
+        agentConsensus,
+        noTradeReason: go ? undefined : v.reason,
+        strategyMatch: go ? `TradeX Trend flip (${v.stance} by the other agents)` : undefined,
         processingTime: Date.now() - start,
       };
     }

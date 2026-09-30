@@ -15,3 +15,8 @@ export const TF_LABEL: Record<Tf, string> = {
 
 /** Index of the candle period `nowSec` falls in; changes exactly when a candle closes. */
 export const bucketOf = (tf: Tf, nowSec: number) => Math.floor(nowSec / TF_SECONDS[tf]);
+
+/** Agent pipeline timeframes; the chart also has 1m, 30m and 1D, which agents do not run on. */
+export function tfToAgentTf(tf: Tf): "M5" | "M15" | "H1" | "H4" | null {
+  return tf === "M5" || tf === "M15" || tf === "H1" || tf === "H4" ? tf : null;
+}

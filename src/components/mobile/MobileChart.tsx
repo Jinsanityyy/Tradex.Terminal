@@ -7,9 +7,9 @@ import { RefreshCw } from "lucide-react";
 import { useSettings } from "@/contexts/SettingsContext";
 import { TradexTrendChart } from "@/components/shared/TradexTrendChart";
 import { TRADEX_TREND_ENABLED } from "@/lib/tradexTrend/flag";
-import type { Tf as TrendTf } from "@/lib/tradexTrend";
 import { usePreferTradexChart } from "@/lib/tradexTrend/usePreferTradexChart";
 import { isTrendAsset } from "@/lib/tradexTrend/assets";
+import { useSharedChartTf } from "@/lib/tradexTrend/useSharedChartTf";
 
 const TO_TV: Record<string, string> = {
   XAUUSD: "OANDA:XAUUSD",
@@ -64,7 +64,7 @@ export function MobileChart() {
   const [chartKey, setChartKey] = useState(0);
   // Experimental TradeX Trend chart: default for Gold; the chip switches to TradingView.
   const [txOn, setTxOn] = usePreferTradexChart();
-  const [txTf, setTxTf] = useState<TrendTf>("H1");
+  const [txTf, setTxTf] = useSharedChartTf();
 
   // Sync chart when home-page asset selector changes
   useEffect(() => {

@@ -48,6 +48,7 @@ import { TRADEX_TREND_ENABLED } from "@/lib/tradexTrend/flag";
 import { tvIntervalToTf } from "@/lib/tradexTrend/tf";
 import { usePreferTradexChart } from "@/lib/tradexTrend/usePreferTradexChart";
 import { isTrendAsset, trendAsset } from "@/lib/tradexTrend/assets";
+import { tfToAgentTf } from "@/lib/tradexTrend/tf";
 import { KeyLevelsCard } from "@/components/shared/KeyLevelsCard";
 import { InstitutionalConfluence } from "@/components/shared/InstitutionalConfluence";
 import { AgentCardsWidget, AgentCardsFilterButton, ALL_AGENT_IDS } from "@/components/brain/AgentCardsWidget";
@@ -1584,9 +1585,18 @@ export default function DashboardPage() {
           {TRADEX_TREND_ENABLED && txChartOn ? (
             <TradexTrendChart
               symbol={txSymbol}
-              onSymbolChange={setTxSymbol}
+              onSymbolChange={(id) => {
+                setTxSymbol(id);
+                // Agents follow the chart symbol when they support it.
+                if (AGENT_VALID.has(id) && id !== settings.selectedSymbol) saveSettings({ ...settings, selectedSymbol: id });
+              }}
               chartTf={txTf ?? tvIntervalToTf(chartInterval)}
-              onTfChange={setTxTf}
+              onTfChange={(tf) => {
+                setTxTf(tf);
+                // Agents run on the chart timeframe when they support it.
+                const a = tfToAgentTf(tf);
+                if (a) setTimeframe(a);
+              }}
             />
           ) : (
             <TradingViewChart

@@ -26,6 +26,8 @@ import { AgentCardsWidget } from "@/components/brain/AgentCardsWidget";
 import dynamic from "next/dynamic";
 import { TRADEX_TREND_ENABLED } from "@/lib/tradexTrend/flag";
 import { isTrendAsset } from "@/lib/tradexTrend/assets";
+import { useSharedChartTf } from "@/lib/tradexTrend/useSharedChartTf";
+import { tfToAgentTf } from "@/lib/tradexTrend/tf";
 import type { Tf as TrendTf } from "@/lib/tradexTrend";
 
 // Widgets that ship switched off. A static import made every phone download
@@ -256,7 +258,7 @@ const DEFAULT_ASSETS = ["XAUUSD", "BTCUSD", "EURUSD", "USDJPY", "USOIL", "GBPUSD
  */
 /** Experimental TradeX Trend widget (follows the selected asset) with a small timeframe picker. */
 function TradexTrendCard({ symbol }: { symbol: string }) {
-  const [tf, setTf] = useState<TrendTf>("H1");
+  const [tf, setTf] = useSharedChartTf();
   const tfs: { id: TrendTf; label: string }[] = [
     { id: "M5", label: "5m" }, { id: "M15", label: "15m" }, { id: "H1", label: "1H" }, { id: "H4", label: "4H" }, { id: "D1", label: "1D" },
   ];
@@ -320,6 +322,10 @@ export function MobileHome() {
 
   const { quotes } = useQuotes();
 
+  // With TradeX Trend on, the agents run on the chart's timeframe so the setup cards match the chart.
+  const [sharedTf] = useSharedChartTf();
+  const agentTf = (TRADEX_TREND_ENABLED ? tfToAgentTf(sharedTf) : null) ?? "H1";
+
   const keyAssets = useMemo(
     () => settings.trackedAssets.length > 0 ? settings.trackedAssets : DEFAULT_ASSETS,
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -351,7 +357,7 @@ export function MobileHome() {
   const { levels } = useKeyLevels();
   const { catalysts } = useCatalysts();
   const { narrative, sentiment, generateFresh } = useMarketAnalysis();
-  const { result: agentData, isLoading: agentLoading, error: agentError, refresh: refreshAgent } = useAgentResult(activeSymbol, "H1", 300_000, isPro);
+  const { result: agentData, isLoading: agentLoading, error: agentError, refresh: refreshAgent } = useAgentResult(activeSymbol, agentTf, 300_000, isPro);
   const { sessions } = useSessions();
   const { mtfData, mtfLoading } = useMTFBias(activeSymbol);
   const { posts: trumpPosts } = useTrumpPosts(120_000, isPro);
@@ -898,6 +904,9 @@ export function MobileHome() {
                           label={direction === "long" ? "BULLISH" : "BEARISH"}
                           variant={direction === "long" ? "bullish" : "bearish"}
                         />
+                      )}
+                      {exec?.source === "tradex-trend" && (
+                        <span className="text-[10px] font-semibold tracking-wider text-[#1de9b6]">TRADEX TREND · {agentTf}</span>
                       )}
                     </div>
                     {hitBadge && effectiveSignalState !== "ARMED" && effectiveSignalState !== "PENDING" && (

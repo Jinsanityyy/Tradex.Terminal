@@ -255,6 +255,8 @@ export type SetupGrade = "A+" | "A" | "B+" | "B" | "C";
 
 export interface ExecutionAgentOutput {
   agentId: "execution";
+  /** Which engine produced the setup; absent for the classic execution agent. */
+  source?: "tradex-trend";
   hasSetup: boolean;
   direction: TradeDirection;
   entry: number | null;
