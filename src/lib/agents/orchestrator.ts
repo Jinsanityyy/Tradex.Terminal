@@ -27,6 +27,10 @@ import { runMasterAgent }    from "./master-agent";
 import { logSignal }         from "@/lib/signals/logger";
 import { notifyHighImpactNews } from "@/lib/push/notify";
 import { llmAvailable }      from "./llm-provider";
+import { tradexToExecutionOutput } from "./tradex-adapter";
+import { computeServerTrend } from "@/lib/tradexTrend/server";
+import { isTrendAsset } from "@/lib/tradexTrend/assets";
+import { TRADEX_TREND_ENABLED } from "@/lib/tradexTrend/flag";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cache (Supabase-backed, shared across all serverless instances)
@@ -360,6 +364,15 @@ export async function runAgentOrchestrator(
       ? analyzeSessionLiquidity(m5, v2ParamsFor(symbol, snapshot.price.current))
       : emptyV2Result("5-minute history unavailable");
   }
+  // TradeX Trend core (flag NEXT_PUBLIC_TRADEX_TREND=1): the execution setup comes from the
+  // same computation the chart draws; the other agents confirm or veto it. Falls back to the
+  // classic execution agent when the candles are not spot or cannot be loaded.
+  const txPromise = TRADEX_TREND_ENABLED && !v2 && !isMockData && isTrendAsset(symbol)
+    ? computeServerTrend(symbol, timeframe).catch((err) => {
+        console.warn("[orchestrator] TradeX Trend compute failed:", err);
+        return null;
+      })
+    : Promise.resolve(null);
   const v2Started = Date.now();
   const [trend, newsAgent, smc] = await Promise.all([
     runTrendAgent(snapshot, apiKey),
@@ -374,8 +387,13 @@ export async function runAgentOrchestrator(
   }
 
   // ── Phase 2a: Execution + Contrarian  -  depend on trend + smc ────────────
+  const tx = await txPromise;
+  const useTradex = !!tx && tx.spot;
+  if (tx && !tx.spot) console.warn("[orchestrator] TradeX Trend skipped: candles are not spot", symbol);
   const [execution, contrarian] = await Promise.all([
-    v2 ? Promise.resolve(v2ToExecutionOutput(v2, snapshot, newsAgent, Date.now())) : runExecutionAgent(snapshot, smc, newsAgent),
+    v2 ? Promise.resolve(v2ToExecutionOutput(v2, snapshot, newsAgent, Date.now()))
+      : useTradex ? Promise.resolve(tradexToExecutionOutput(tx!.snapshot, snapshot, newsAgent, Date.now()))
+      : runExecutionAgent(snapshot, smc, newsAgent),
     runContrarianAgent(snapshot, trend, smc, apiKey),
   ]);
 
@@ -402,7 +420,7 @@ export async function runAgentOrchestrator(
     debatePromise,
     runMasterAgent(
       snapshot, trend, smc, newsAgent, risk, execution, contrarian, effectiveWeights, apiKey,
-      undefined, v2 ? { core: "v2" } : undefined,
+      undefined, v2 ? { core: "v2" } : useTradex ? { core: "tradex" } : undefined,
     ),
   ]);
 
