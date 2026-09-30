@@ -7,6 +7,7 @@ import {
   type Candle, type CandlesByTf, type Tf, type TrendParams, type TrendSnapshot,
 } from "@/lib/tradexTrend";
 import { bucketOf } from "@/lib/tradexTrend/tf";
+import { sanitizeCandles } from "@/lib/tradexTrend/sanitize";
 
 /** Bars per timeframe: enough for EMA 200 warmup plus a meaningful trade sample. */
 const BARS = 1500;
@@ -62,9 +63,9 @@ async function fetchTf(symbol: string, tf: Tf): Promise<{ candles: Candle[]; sou
   const res = await fetch(`/api/market/candles?symbol=${symbol}&timeframe=${tf}&limit=${BARS}&spot=1`);
   if (!res.ok) throw new Error(`candles ${tf}: HTTP ${res.status}`);
   const json = (await res.json()) as { candles?: CandleBarWire[]; source?: string; spot?: boolean };
-  const candles = (json.candles ?? [])
-    .map((b) => ({ time: b.t, open: b.o, high: b.h, low: b.l, close: b.c, volume: b.v ?? 0 }))
-    .sort((a, b) => a.time - b.time);
+  const candles = sanitizeCandles(
+    (json.candles ?? []).map((b) => ({ time: b.t, open: b.o, high: b.h, low: b.l, close: b.c, volume: b.v ?? 0 })),
+  );
   return { candles, source: json.source ?? "unknown", spot: json.spot !== false };
 }
 

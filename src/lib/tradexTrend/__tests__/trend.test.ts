@@ -147,3 +147,21 @@ test("lot size: USD-base pairs convert the quote-currency risk to USD", () => {
   const a = usd.trades[0], b = jpy.trades[0];
   assert.ok(Math.abs(b.lots / (a.lots || 1) - b.entry) / b.entry < 0.05 || a.lots === 0);
 });
+
+import { sanitizeCandles } from "../sanitize";
+
+test("sanitizeCandles drops nulls/NaN, dedupes timestamps, sorts and fixes high/low", () => {
+  const c = (time: number, o: number, h: number, l: number, cl: number): Candle => ({ time, open: o, high: h, low: l, close: cl, volume: 1 });
+  const out = sanitizeCandles([
+    c(300, 1.1, 1.2, 1.0, 1.15),
+    c(60, 1, 2, 0.5, 1.5),
+    c(60, 1, 3, 0.5, 1.5),                              // duplicate: later row wins
+    { ...c(120, 1, 1, 1, 1), high: NaN },               // NaN
+    { ...c(180, 1, 1, 1, 1), close: null as unknown as number }, // null from JSON
+    c(240, 1.0, 0.9, 1.1, 1.05),                        // high/low do not cover open/close
+  ]);
+  assert.deepEqual(out.map((x) => x.time), [60, 240, 300]);
+  assert.equal(out[0].high, 3);
+  assert.equal(out[1].high, 1.05 > 1.0 ? 1.05 : 1.0);
+  assert.ok(out[1].low <= 1.0 && out[1].high >= 1.05);
+});
