@@ -53,6 +53,8 @@ function refresh(symbol: string, tf: Tf, nowSec: number): void {
 
 export interface UseTradexTrend {
   snapshot: TrendSnapshot | null;
+  /** Chart-timeframe candles as fetched, including the still-forming one (display only; signals never use it). */
+  candles: Candle[];
   loading: boolean;
   error: string | null;
   /** Unix ms of the last recompute. */
@@ -98,10 +100,10 @@ export function useTradexTrend(symbol: string, chartTf: Tf, params?: Partial<Tre
     if (!chartData) {
       const failed = cache.get(`${symbol}|${chartTf}`)?.bucket === -1 && !cache.get(`${symbol}|${chartTf}`)?.inflight
         && (cache.get(`${symbol}|${chartTf}`)?.attemptedAt ?? 0) > 0;
-      return { snapshot: null, loading: !failed, error: failed ? "No candle data available" : null, updatedAt: null };
+      return { snapshot: null, candles: [], loading: !failed, error: failed ? "No candle data available" : null, updatedAt: null };
     }
     const snapshot = computeTradexTrend(byTf, chartTf, params ?? {});
-    return { snapshot, loading: false, error: null, updatedAt: Date.now() };
+    return { snapshot, candles: chartData, loading: false, error: null, updatedAt: Date.now() };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rev, symbol, chartTf, paramsKey]);
 }

@@ -42,6 +42,8 @@ import { LotCalculatorWidget } from "@/components/shared/LotCalculatorWidget";
 import { TrumpImpactPreview } from "@/components/shared/TrumpFeedPanel";
 import { MTFBiasPanel } from "@/components/shared/MTFBiasPanel";
 import { TradexTrendWidget } from "@/components/dashboard/TradexTrendWidget";
+import { TradexTrendChart } from "@/components/shared/TradexTrendChart";
+import type { Tf as TrendTf } from "@/lib/tradexTrend";
 import { TRADEX_TREND_ENABLED } from "@/lib/tradexTrend/flag";
 import { tvIntervalToTf } from "@/lib/tradexTrend/tf";
 import { KeyLevelsCard } from "@/components/shared/KeyLevelsCard";
@@ -787,6 +789,9 @@ export default function DashboardPage() {
   });
   const [timeframe, setTimeframe] = useState<Timeframe>("H1");
   const [chartInterval, setChartInterval] = useState("60");
+  // Experimental TradeX Trend chart (replaces the TradingView embed while on).
+  const [txChartOn, setTxChartOn] = useState(false);
+  const [txTf, setTxTf] = useState<TrendTf | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [activeOverview, setActiveOverview] = useState<OverviewKey | null>(null);
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
@@ -1536,6 +1541,16 @@ export default function DashboardPage() {
       title: "Terminal",
       headerRight: (
         <>
+          {TRADEX_TREND_ENABLED && (
+            <button
+              type="button"
+              onClick={() => setTxChartOn((v) => !v)}
+              className={cn(widgetActionClass, txChartOn && "border-[#1de9b6]/40 text-[#1de9b6]")}
+              title="Experimental: XAU/USD chart with the TradeX Trend overlay"
+            >
+              TradeX Trend
+            </button>
+          )}
           <button
             type="button"
             onClick={handleRefresh}
@@ -1562,11 +1577,18 @@ export default function DashboardPage() {
       ),
       content: (
         <div className="h-full min-h-0 overflow-hidden">
-          <TradingViewChart
-            symbol={symCfg.tv}
-            heightClass="h-full"
-            onIntervalChange={handleIntervalChange}
-          />
+          {TRADEX_TREND_ENABLED && txChartOn ? (
+            <TradexTrendChart
+              chartTf={txTf ?? tvIntervalToTf(chartInterval)}
+              onTfChange={setTxTf}
+            />
+          ) : (
+            <TradingViewChart
+              symbol={symCfg.tv}
+              heightClass="h-full"
+              onIntervalChange={handleIntervalChange}
+            />
+          )}
         </div>
       ),
     },
