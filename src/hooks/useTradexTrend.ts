@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQuotes } from "@/hooks/useMarketData";
 import {
   computeTradexTrend, MTF_TFS,
   type Candle, type CandlesByTf, type Tf, type TrendParams, type TrendSnapshot,
@@ -25,13 +24,15 @@ interface Entry {
   offset: number | null;
   source: string;
   spot: boolean;
+  /** What the server tried (shown when spot data could not be had). */
+  tried: string;
   /** Candle-period bucket the data was fetched in. */
   bucket: number;
   attemptedAt: number;
   inflight: Promise<void> | null;
 }
 
-/** Latest spot quote per symbol, used to line futures candles up with spot. */
+/** Latest true-spot price per symbol (websocket), used to line futures candles up with spot. */
 const spotRefs = new Map<string, number>();
 /** Shift no more than this fraction of price; beyond it the quote is not trusted. */
 const MAX_SHIFT = 0.03;
@@ -59,14 +60,14 @@ const emit = () => listeners.forEach((l) => l());
 
 interface CandleBarWire { t: number; o: number; h: number; l: number; c: number; v?: number }
 
-async function fetchTf(symbol: string, tf: Tf): Promise<{ candles: Candle[]; source: string; spot: boolean }> {
+async function fetchTf(symbol: string, tf: Tf): Promise<{ candles: Candle[]; source: string; spot: boolean; tried: string }> {
   const res = await fetch(`/api/market/candles?symbol=${symbol}&timeframe=${tf}&limit=${BARS}&spot=1`);
   if (!res.ok) throw new Error(`candles ${tf}: HTTP ${res.status}`);
-  const json = (await res.json()) as { candles?: CandleBarWire[]; source?: string; spot?: boolean };
+  const json = (await res.json()) as { candles?: CandleBarWire[]; source?: string; spot?: boolean; tried?: string[] };
   const candles = sanitizeCandles(
     (json.candles ?? []).map((b) => ({ time: b.t, open: b.o, high: b.h, low: b.l, close: b.c, volume: b.v ?? 0 })),
   );
-  return { candles, source: json.source ?? "unknown", spot: json.spot !== false };
+  return { candles, source: json.source ?? "unknown", spot: json.spot !== false, tried: (json.tried ?? []).join("; ") };
 }
 
 /** Providers (Dukascopy especially) answer bursts with 429, so fetch one timeframe at a time. */
@@ -80,14 +81,14 @@ const enqueue = <T,>(fn: () => Promise<T>): Promise<T> => {
 
 function refresh(symbol: string, tf: Tf, nowSec: number): void {
   const key = `${symbol}|${tf}`;
-  const e = cache.get(key) ?? { candles: [], view: [], offset: null, source: "", spot: true, bucket: -1, attemptedAt: 0, inflight: null };
+  const e = cache.get(key) ?? { candles: [], view: [], offset: null, source: "", spot: true, tried: "", bucket: -1, attemptedAt: 0, inflight: null };
   cache.set(key, e);
   if (e.inflight) return;
   e.attemptedAt = Date.now();
   const bucket = bucketOf(tf, nowSec);
   e.inflight = enqueue(() => fetchTf(symbol, tf))
     .then((r) => {
-      e.candles = r.candles; e.source = r.source; e.spot = r.spot; e.bucket = bucket;
+      e.candles = r.candles; e.source = r.source; e.spot = r.spot; e.tried = r.tried; e.bucket = bucket;
       alignToSpot(e, spotRefs.get(symbol));
     })
     .catch(() => { /* keep the old data, retry after RETRY_MS */ })
@@ -104,6 +105,8 @@ export interface UseTradexTrend {
   spot: boolean;
   /** Futures-to-spot shift applied to the chart-timeframe candles, when there is one. */
   adjusted: number | null;
+  /** Server-side log of which sources were tried (diagnostics). */
+  tried: string;
   loading: boolean;
   error: string | null;
   /** Unix ms of the last recompute. */
@@ -114,17 +117,24 @@ export interface UseTradexTrend {
  * Loads candles for the chart timeframe plus 5m/15m/1H/4H/1D, caches them, and
  * recomputes only when a candle closes (checked every few seconds), never per tick.
  */
-export function useTradexTrend(symbol: string, chartTf: Tf, params?: Partial<TrendParams>): UseTradexTrend {
+export function useTradexTrend(
+  symbol: string,
+  chartTf: Tf,
+  params?: Partial<TrendParams>,
+  /**
+   * A true spot price (the websocket feed) to line futures candles up with. The polled
+   * app quote is NOT suitable: when its spot source fails it falls back to futures.
+   */
+  spotRef?: number | null,
+): UseTradexTrend {
   const [rev, setRev] = useState(0);
   const paramsKey = JSON.stringify(params ?? {});
 
-  // Spot quote to line futures candles up with (shared SWR poll, no extra requests).
-  const { quotes } = useQuotes();
-  const spotPx = quotes.find((q) => q.symbol === symbol)?.price;
+  const spotPx = spotRef ?? undefined;
   useEffect(() => {
     if (!spotPx) return;
     spotRefs.set(symbol, spotPx);
-    // Futures data loaded before the quote arrived: align it now.
+    // Futures data loaded before the spot price arrived: align it now.
     let changed = false;
     for (const tf of new Set<Tf>([chartTf, ...MTF_TFS])) {
       const e = cache.get(`${symbol}|${tf}`);
@@ -164,7 +174,7 @@ export function useTradexTrend(symbol: string, chartTf: Tf, params?: Partial<Tre
     if (!chartData) {
       const failed = cache.get(`${symbol}|${chartTf}`)?.bucket === -1 && !cache.get(`${symbol}|${chartTf}`)?.inflight
         && (cache.get(`${symbol}|${chartTf}`)?.attemptedAt ?? 0) > 0;
-      return { snapshot: null, candles: [], source: "", spot: true, adjusted: null, loading: !failed, error: failed ? "No candle data available" : null, updatedAt: null };
+      return { snapshot: null, candles: [], source: "", spot: true, adjusted: null, tried: "", loading: !failed, error: failed ? "No candle data available" : null, updatedAt: null };
     }
     const snapshot = computeTradexTrend(byTf, chartTf, params ?? {});
     const ce = cache.get(`${symbol}|${chartTf}`);
@@ -172,6 +182,7 @@ export function useTradexTrend(symbol: string, chartTf: Tf, params?: Partial<Tre
       snapshot, candles: chartData, source: ce?.source ?? "",
       spot: (ce?.spot ?? true) || ce?.offset != null,
       adjusted: ce?.offset ?? null,
+      tried: ce?.tried ?? "",
       loading: false, error: null, updatedAt: Date.now(),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

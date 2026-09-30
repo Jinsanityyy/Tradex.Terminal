@@ -120,18 +120,25 @@ export function TradexTrendChart({
   const asset = trendAsset(symbol);
   const dp = asset.decimals;
   const assetParams = paramsFor(symbol);
-  const { snapshot, candles, source, spot, adjusted, loading, error } = useTradexTrend(symbol, chartTf, assetParams);
-  const { prices, connected } = useWebSocketPrices([symbol]);
+  const { prices } = useWebSocketPrices([symbol]);
+  // The websocket is the only true spot price; it also lines futures candles up with spot.
+  const wsPx = prices.get(symbol) ?? null;
+  const { snapshot, candles, source, spot, adjusted, tried, loading, error } = useTradexTrend(symbol, chartTf, assetParams, wsPx);
   // The forex websocket often sends nothing for gold, so fall back to the app's polled
   // spot quote (same one the rest of the app shows, refreshed every ~15 s).
   const { quotes } = useQuotes();
-  const wsPx = prices.get(symbol) ?? null;
   const quotePx = quotes.find((q) => q.symbol === symbol)?.price ?? null;
   const rawPx = wsPx ?? quotePx;
   const pxKind: "ws" | "poll" | null = wsPx !== null ? "ws" : quotePx !== null ? "poll" : null;
 
+  // Ignore a tick that is implausibly far from the last candle: it comes from a different
+  // instrument (e.g. a futures quote against spot candles). A real move that big is rare and,
+  // when it happens, ATR is already large, so the limit grows with it.
   const lastClose = candles.length ? candles[candles.length - 1].close : null;
-  const livePx = rawPx !== null && lastClose !== null && Math.abs(rawPx - lastClose) / lastClose > 0.015 ? null : rawPx;
+  const atrNow = snapshot?.latest?.atr ?? 0;
+  const tickLimit = lastClose !== null ? Math.max(lastClose * 0.002, 8 * atrNow) : Infinity;
+  const feedMismatch = rawPx !== null && lastClose !== null && Math.abs(rawPx - lastClose) > tickLimit;
+  const livePx = feedMismatch ? null : rawPx;
 
   // Countdown to the close of the current candle.
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -308,9 +315,6 @@ export function TradexTrendChart({
             {TF_LABEL[tf]}
           </button>
         ))}
-        <span className="ml-2 rounded border border-amber-400/30 px-1 text-[8px] font-medium uppercase tracking-wider text-amber-300/90">
-          Experimental
-        </span>
         <span
           className="ml-auto hidden pl-2 text-[9px] text-zinc-600 md:inline"
           title={`Candles: ${source || "?"}. Live price: ${pxKind === "ws" ? "websocket" : pxKind === "poll" ? "polled quote (~15 s)" : "none"}. Signals use closed candles only.`}
@@ -318,7 +322,7 @@ export function TradexTrendChart({
           candles: {source || "?"} · signals on closed candles only
         </span>
       </div>
-      {spot && adjusted !== null && (
+      {spot && adjusted !== null && Math.abs(adjusted) >= 1 / 10 ** dp && (
         <div className="shrink-0 border-b border-white/5 bg-white/[0.03] px-2.5 py-1 text-[10px] leading-snug text-zinc-400">
           Candles come from futures ({source}) shifted {adjusted >= 0 ? "-" : "+"}{Math.abs(adjusted).toFixed(dp)} to line up with spot.
           An approximation: signals and levels can differ slightly from TradingView spot.
@@ -328,6 +332,7 @@ export function TradexTrendChart({
         <div className="shrink-0 border-b border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-[10px] leading-snug text-amber-200">
           Candles are futures ({source}), not spot {asset.label}. Prices, signals and levels will differ from
           TradingView spot, and the live tick is off to avoid mixing the two.
+          {tried ? <span className="block text-amber-200/70">Spot sources: {tried}</span> : null}
         </div>
       )}
       <div className="relative min-h-0 flex-1">
@@ -336,7 +341,7 @@ export function TradexTrendChart({
           <span className={`h-1.5 w-1.5 rounded-full ${livePx !== null ? "bg-[#1de9b6]" : "bg-zinc-600"}`} />
           <span>{livePx !== null ? livePx.toFixed(dp) : "--"}</span>
           <span className="text-zinc-500">
-            {pxKind === "poll" ? "~15s" : pxKind === "ws" ? "live" : "no feed"}
+            {feedMismatch ? "price feed mismatch" : pxKind === "poll" ? "~15s" : pxKind === "ws" ? "live" : "no feed"}
           </span>
           <span className="text-zinc-500">|</span>
           <span title="Time until this candle closes">{TF_LABEL[chartTf]} closes {fmtLeft(secLeft)}</span>
