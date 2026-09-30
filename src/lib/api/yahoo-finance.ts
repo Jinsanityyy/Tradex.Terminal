@@ -8,6 +8,14 @@ const YAHOO_TICKER: Record<string, string> = {
   "EUR/USD": "EURUSD=X",
   "GBP/USD": "GBPUSD=X",
   "BTC/USD": "BTC-USD",
+  "ETH/USD": "ETH-USD",
+  "XAG/USD": "SI=F",
+  "USD/JPY": "USDJPY=X",
+  "USD/CHF": "USDCHF=X",
+  "USD/CAD": "USDCAD=X",
+  "AUD/USD": "AUDUSD=X",
+  "NZD/USD": "NZDUSD=X",
+  "WTI/USD": "CL=F",
 };
 
 const YAHOO_INTERVAL: Record<string, string> = {

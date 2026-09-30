@@ -25,6 +25,7 @@ import { AgentCardsWidget } from "@/components/brain/AgentCardsWidget";
 
 import dynamic from "next/dynamic";
 import { TRADEX_TREND_ENABLED } from "@/lib/tradexTrend/flag";
+import { isTrendAsset } from "@/lib/tradexTrend/assets";
 import type { Tf as TrendTf } from "@/lib/tradexTrend";
 
 // Widgets that ship switched off. A static import made every phone download
@@ -253,8 +254,8 @@ const DEFAULT_ASSETS = ["XAUUSD", "BTCUSD", "EURUSD", "USDJPY", "USOIL", "GBPUSD
  * Trump Impact, the agent read and Institutional Confluence are deliberately
  * not in here — those are what Pro sells, so they stay visible as teasers.
  */
-/** Experimental TradeX Trend widget (XAU/USD) with a small timeframe picker. */
-function TradexTrendCard() {
+/** Experimental TradeX Trend widget (follows the selected asset) with a small timeframe picker. */
+function TradexTrendCard({ symbol }: { symbol: string }) {
   const [tf, setTf] = useState<TrendTf>("H1");
   const tfs: { id: TrendTf; label: string }[] = [
     { id: "M5", label: "5m" }, { id: "M15", label: "15m" }, { id: "H1", label: "1H" }, { id: "H4", label: "4H" }, { id: "D1", label: "1D" },
@@ -276,7 +277,7 @@ function TradexTrendCard() {
         ))}
       </div>
       <div className="h-[560px]">
-        <TradexTrendWidget symbol="XAUUSD" chartTf={tf} />
+        <TradexTrendWidget symbol={symbol} chartTf={tf} />
       </div>
     </div>
   );
@@ -1308,7 +1309,7 @@ export function MobileHome() {
             case "tradex_trend":
               return TRADEX_TREND_ENABLED ? (
                 <section key="tradex_trend">
-                  <TradexTrendCard />
+                  <TradexTrendCard symbol={isTrendAsset(settings.selectedSymbol ?? "") ? settings.selectedSymbol : "XAUUSD"} />
                 </section>
               ) : null;
 

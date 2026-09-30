@@ -47,6 +47,7 @@ import type { Tf as TrendTf } from "@/lib/tradexTrend";
 import { TRADEX_TREND_ENABLED } from "@/lib/tradexTrend/flag";
 import { tvIntervalToTf } from "@/lib/tradexTrend/tf";
 import { usePreferTradexChart } from "@/lib/tradexTrend/usePreferTradexChart";
+import { isTrendAsset, trendAsset } from "@/lib/tradexTrend/assets";
 import { KeyLevelsCard } from "@/components/shared/KeyLevelsCard";
 import { InstitutionalConfluence } from "@/components/shared/InstitutionalConfluence";
 import { AgentCardsWidget, AgentCardsFilterButton, ALL_AGENT_IDS } from "@/components/brain/AgentCardsWidget";
@@ -793,6 +794,8 @@ export default function DashboardPage() {
   // Experimental TradeX Trend chart: the default chart for XAU/USD; the button switches to TradingView.
   const [txChartOn, setTxChartOn] = usePreferTradexChart();
   const [txTf, setTxTf] = useState<TrendTf | null>(null);
+  const [txSymbol, setTxSymbol] = useState<string>(() => (isTrendAsset(symbol) ? symbol : "XAUUSD"));
+  useEffect(() => { if (isTrendAsset(symbol)) setTxSymbol(symbol); }, [symbol]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [activeOverview, setActiveOverview] = useState<OverviewKey | null>(null);
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
@@ -1542,12 +1545,12 @@ export default function DashboardPage() {
       title: "Terminal",
       headerRight: (
         <>
-          {TRADEX_TREND_ENABLED && symbol === "XAUUSD" && (
+          {TRADEX_TREND_ENABLED && (
             <button
               type="button"
               onClick={() => setTxChartOn(!txChartOn)}
               className={cn(widgetActionClass, txChartOn && "border-[#1de9b6]/40 text-[#1de9b6]")}
-              title={txChartOn ? "Switch to the TradingView chart" : "Experimental: XAU/USD chart with the TradeX Trend overlay"}
+              title={txChartOn ? "Switch to the TradingView chart" : "Experimental: chart with the TradeX Trend overlay"}
             >
               TradeX Trend
             </button>
@@ -1578,8 +1581,10 @@ export default function DashboardPage() {
       ),
       content: (
         <div className="h-full min-h-0 overflow-hidden">
-          {TRADEX_TREND_ENABLED && txChartOn && symbol === "XAUUSD" ? (
+          {TRADEX_TREND_ENABLED && txChartOn ? (
             <TradexTrendChart
+              symbol={txSymbol}
+              onSymbolChange={setTxSymbol}
               chartTf={txTf ?? tvIntervalToTf(chartInterval)}
               onTfChange={setTxTf}
             />
@@ -1624,8 +1629,8 @@ export default function DashboardPage() {
     ...(TRADEX_TREND_ENABLED
       ? [{
           id: "tradex-trend",
-          title: "TRADEX TREND · XAU/USD",
-          content: <TradexTrendWidget symbol="XAUUSD" chartTf={tvIntervalToTf(chartInterval)} />,
+          title: `TRADEX TREND · ${trendAsset(txSymbol).label}`,
+          content: <TradexTrendWidget symbol={txSymbol} chartTf={txTf ?? tvIntervalToTf(chartInterval)} />,
         }]
       : []),
     {

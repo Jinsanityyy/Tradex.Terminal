@@ -131,3 +131,19 @@ test("compute over 5 x 5000 candles stays cheap enough for the main thread", () 
   const ms = performance.now() - t;
   assert.ok(ms < 500, `took ${ms.toFixed(0)}ms`);
 });
+
+test("lot size: USD-base pairs convert the quote-currency risk to USD", () => {
+  const f = fixture(3000);
+  const asOf = f.m5[f.m5.length - 1].time + 300;
+  const by = { M5: f.m5, M15: f.m15, H1: f.h1, H4: f.h4, D1: f.d1 };
+  const usd = computeTradexTrend(by, "M5", { contractSize: 100_000, quoteUsd: true }, asOf);
+  const jpy = computeTradexTrend(by, "M5", { contractSize: 100_000, quoteUsd: false }, asOf);
+  assert.ok(jpy.trades.length > 0 && jpy.trades.length === usd.trades.length);
+  for (const t of jpy.trades) {
+    const expected = Math.floor((500 / ((t.r * 100_000) / t.entry)) * 100 + 1e-9) / 100;
+    assert.equal(t.lots, expected);
+  }
+  // Same R, so the quote-currency variant differs by exactly the entry price.
+  const a = usd.trades[0], b = jpy.trades[0];
+  assert.ok(Math.abs(b.lots / (a.lots || 1) - b.entry) / b.entry < 0.05 || a.lots === 0);
+});

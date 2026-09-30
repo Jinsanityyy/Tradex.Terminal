@@ -34,6 +34,8 @@ export interface TrendParams {
   riskUsd: number;
   /** oz per 1 lot (gold = 100). */
   contractSize: number;
+  /** True when the quote currency is USD (EUR/USD, XAU/USD). False for USD/JPY, USD/CHF, USD/CAD: P&L is in the quote currency. */
+  quoteUsd: boolean;
   /** Estimated trading cost per trade, in R. */
   costR: number;
   /** Pine "Smart signals only". */
@@ -51,6 +53,7 @@ export const DEFAULT_PARAMS: TrendParams = {
   adxThreshold: 25,
   riskUsd: 500,
   contractSize: 100,
+  quoteUsd: true,
   costR: 0.03,
   smartOnly: false,
 };

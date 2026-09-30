@@ -22,6 +22,8 @@ export interface CandleBar {
 const TD_SYMBOL: Partial<Record<Symbol, string>> = {
   XAUUSD: "XAU/USD", EURUSD: "EUR/USD", GBPUSD: "GBP/USD",
   USDJPY: "USD/JPY", BTCUSD: "BTC/USD", ETHUSD: "ETH/USD",
+  XAGUSD: "XAG/USD", USDCHF: "USD/CHF", USDCAD: "USD/CAD", AUDUSD: "AUD/USD", NZDUSD: "NZD/USD",
+  USOIL: "WTI/USD",
 };
 // M1 is not an agent timeframe; it exists so a taken trade can be checked
 // minute by minute (a TP hit and reversed inside one 5-minute bar was missed).
@@ -41,11 +43,20 @@ const FH_CFG: Partial<Record<Symbol, { endpoint: "forex" | "crypto"; sym: string
   GBPUSD: { endpoint: "forex",  sym: "OANDA:GBP_USD"   },
   BTCUSD: { endpoint: "crypto", sym: "BINANCE:BTCUSDT" },
   ETHUSD: { endpoint: "crypto", sym: "BINANCE:ETHUSDT" },
+  XAGUSD: { endpoint: "forex",  sym: "OANDA:XAG_USD"   },
+  USDJPY: { endpoint: "forex",  sym: "OANDA:USD_JPY"   },
+  USDCHF: { endpoint: "forex",  sym: "OANDA:USD_CHF"   },
+  USDCAD: { endpoint: "forex",  sym: "OANDA:USD_CAD"   },
+  AUDUSD: { endpoint: "forex",  sym: "OANDA:AUD_USD"   },
+  NZDUSD: { endpoint: "forex",  sym: "OANDA:NZD_USD"   },
+  USOIL:  { endpoint: "forex",  sym: "OANDA:WTICO_USD" },
 };
 const FH_RES: Record<CandleTf, string> = { M1: "1", M5: "5", M15: "15", M30: "30", H1: "60", H4: "240", D1: "D" };
 
 const YAHOO_DISPLAY: Partial<Record<Symbol, string>> = {
   XAUUSD: "XAU/USD", EURUSD: "EUR/USD", GBPUSD: "GBP/USD", BTCUSD: "BTC/USD",
+  ETHUSD: "ETH/USD", XAGUSD: "XAG/USD", USDJPY: "USD/JPY", USDCHF: "USD/CHF", USDCAD: "USD/CAD",
+  AUDUSD: "AUD/USD", NZDUSD: "NZD/USD", USOIL: "WTI/USD",
 };
 
 function tfSecs(tf: CandleTf) {
@@ -89,6 +100,8 @@ async function fromFinnhub(symbol: Symbol, tf: CandleTf, limit: number): Promise
 // unlike Yahoo's GC=F, which is gold futures (a few dollars to tens of dollars above spot).
 const DUKAS: Partial<Record<Symbol, string>> = {
   XAUUSD: "xauusd", EURUSD: "eurusd", GBPUSD: "gbpusd", USDJPY: "usdjpy", BTCUSD: "btcusd", ETHUSD: "ethusd",
+  XAGUSD: "xagusd", USDCHF: "usdchf", USDCAD: "usdcad", AUDUSD: "audusd", NZDUSD: "nzdusd",
+  USOIL: "lightcmdusd",
 };
 const DUKAS_TF: Record<CandleTf, "m1" | "m5" | "m15" | "m30" | "h1" | "h4" | "d1"> = {
   M1: "m1", M5: "m5", M15: "m15", M30: "m30", H1: "h1", H4: "h4", D1: "d1",
@@ -160,6 +173,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "No candle data available" }, { status: 503 });
   }
 
-  // Yahoo's gold is the GC=F futures contract, not spot.
-  return NextResponse.json({ candles, symbol, timeframe, source, spot: !(source === "yahoo" && symbol === "XAUUSD") });
+  // Yahoo's gold, silver and oil are futures contracts (GC=F, SI=F, CL=F), not spot.
+  const futuresOnYahoo = source === "yahoo" && (symbol === "XAUUSD" || symbol === "XAGUSD" || symbol === "USOIL");
+  return NextResponse.json({ candles, symbol, timeframe, source, spot: !futuresOnYahoo });
 }

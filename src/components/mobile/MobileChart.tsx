@@ -9,6 +9,7 @@ import { TradexTrendChart } from "@/components/shared/TradexTrendChart";
 import { TRADEX_TREND_ENABLED } from "@/lib/tradexTrend/flag";
 import type { Tf as TrendTf } from "@/lib/tradexTrend";
 import { usePreferTradexChart } from "@/lib/tradexTrend/usePreferTradexChart";
+import { isTrendAsset } from "@/lib/tradexTrend/assets";
 
 const TO_TV: Record<string, string> = {
   XAUUSD: "OANDA:XAUUSD",
@@ -106,7 +107,7 @@ export function MobileChart() {
             </button>
           );
         })}
-        {TRADEX_TREND_ENABLED && symbol === "OANDA:XAUUSD" && (
+        {TRADEX_TREND_ENABLED && isTrendAsset(TO_APP[symbol] ?? "") && (
           <button
             onClick={() => setTxOn(!txOn)}
             className={cn(
@@ -123,9 +124,9 @@ export function MobileChart() {
 
       {/* Chart — fills all remaining height */}
       <div className="flex-1 overflow-hidden min-h-0">
-        {TRADEX_TREND_ENABLED && txOn && symbol === "OANDA:XAUUSD" ? (
+        {TRADEX_TREND_ENABLED && txOn && isTrendAsset(TO_APP[symbol] ?? "") ? (
           <ChartErrorBoundary onReset={() => setChartKey((k) => k + 1)}>
-            <TradexTrendChart chartTf={txTf} onTfChange={setTxTf} />
+            <TradexTrendChart symbol={TO_APP[symbol]} chartTf={txTf} onTfChange={setTxTf} />
           </ChartErrorBoundary>
         ) : (
         <ChartErrorBoundary onReset={() => setChartKey((k) => k + 1)}>
