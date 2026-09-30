@@ -1,0 +1,363 @@
+//@version=6
+indicator("TradeX Trend System v1.7", shorttitle="TradeX Trend", overlay=true, max_lines_count=100, max_labels_count=100, max_boxes_count=20, max_bars_back=500, calc_bars_count=5000)
+
+// =====================================================================
+// TradeX Trend System v1.7 (MTF table back at bottom right, larger)
+// SuperTrend flip signals + EMA "Smart" filter, trend cloud, trend line,
+// Entry / SL / TP1-3 levels with lot size, multi-timeframe table,
+// and HONEST stats (TP1 first vs SL first, SL wins ties).
+// Signals fire only on confirmed (closed) bars: no repaint.
+// =====================================================================
+
+// ---------------------------- Inputs ---------------------------------
+grpS = "Signals"
+stMult    = input.float(4.0, "Sensitivity (SuperTrend factor)", minval=0.5, step=0.5, group=grpS)
+atrLen    = input.int(10, "ATR length", minval=1, group=grpS)
+emaLen    = input.int(200, "Smart filter EMA", minval=1, group=grpS)
+smartOnly = input.bool(false, "Smart signals only", group=grpS)
+showSig   = input.bool(true, "Show Buy / Sell labels", group=grpS)
+
+grpV = "Visuals"
+showCloud = input.bool(true, "Trend cloud", group=grpV)
+cloudLen  = input.int(34, "Cloud length", minval=2, group=grpV)
+cloudMult = input.float(1.5, "Cloud width (x ATR)", minval=0.1, step=0.1, group=grpV)
+showLine  = input.bool(true, "Trend line", group=grpV)
+colorBars = input.bool(true, "Color candles by trend", group=grpV)
+ownCandles = input.bool(true, "Draw own candles (fixes black wicks / borders)", group=grpV)
+showEma   = input.bool(false, "Show Smart filter EMA", group=grpV)
+
+grpR = "Trade levels"
+showLv   = input.bool(true, "Show Entry / SL / TP", group=grpR)
+slMult   = input.float(1.5, "SL distance (x ATR)", minval=0.1, step=0.1, group=grpR)
+riskUsd  = input.float(500.0, "Risk per trade ($)", minval=1.0, group=grpR)
+contract = input.float(100.0, "Contract size (oz per 1 lot, gold = 100)", minval=0.01, group=grpR)
+
+grpT = "Table"
+showTbl = input.bool(true, "Show MTF table (bottom right)", group=grpT)
+useMtf  = input.bool(true, "Multi-timeframe data (heavier, turn off if script is slow)", group=grpT)
+mtfSizeIn = input.string("Normal", "MTF table text size", options=["Small", "Normal", "Large"], group=grpT)
+mSz = mtfSizeIn == "Large" ? size.large : mtfSizeIn == "Small" ? size.small : size.normal
+
+grpB = "Background"
+bgMode     = input.string("Trend ribbon", "Background style", options=["Trend ribbon", "Signal flash", "Session ribbon", "Momentum glow", "Off"], group=grpB)
+bgStrength = input.int(3, "Glow strength (only for Momentum glow, 1 subtle to 10 strong)", minval=1, maxval=10, group=grpB)
+showZones  = input.bool(true, "Trade zone boxes (risk / reward)", group=grpB)
+
+grpQ = "Probability lab"
+showQ  = input.bool(true, "Show setup quality table", group=grpQ)
+costR  = input.float(0.03, "Estimated trading cost per trade (in R)", minval=0.0, step=0.01, group=grpQ)
+
+grpD = "Dashboard"
+showDash  = input.bool(true, "Show dashboard", group=grpD)
+dashPosIn = input.string("Top Right", "Dashboard position", options=["Top Right", "Top Left", "Middle Right", "Bottom Left"], group=grpD)
+dashSize  = input.string("Small", "Dashboard text size", options=["Tiny", "Small", "Normal"], group=grpD)
+dPos = dashPosIn == "Top Left" ? position.top_left : dashPosIn == "Middle Right" ? position.middle_right : dashPosIn == "Bottom Left" ? position.bottom_left : position.top_right
+dSz  = dashSize == "Tiny" ? size.tiny : dashSize == "Normal" ? size.normal : size.small
+
+// ---------------------------- Core -----------------------------------
+[stLine, stDir] = ta.supertrend(stMult, atrLen)
+bullTrend = stDir < 0
+emaF = ta.ema(close, emaLen)
+atrV = ta.atr(atrLen)
+atrAvg = ta.sma(atrV, 100)
+[diP, diM, adxV] = ta.dmi(14, 14)
+
+buyRaw    = ta.change(stDir) < 0
+sellRaw   = ta.change(stDir) > 0
+buySmart  = buyRaw and close > emaF
+sellSmart = sellRaw and close < emaF
+buySig    = barstate.isconfirmed and buyRaw and (not smartOnly or buySmart)
+sellSig   = barstate.isconfirmed and sellRaw and (not smartOnly or sellSmart)
+
+bullCol  = color.new(#1de9b6, 0)
+bearCol  = color.new(#ec407a, 0)
+trendCol = bullTrend ? bullCol : bearCol
+
+// ---------------------------- Visuals --------------------------------
+plot(showLine and bullTrend ? stLine : na, "Trend line up", bullCol, 2, plot.style_linebr)
+plot(showLine and not bullTrend ? stLine : na, "Trend line down", bearCol, 2, plot.style_linebr)
+plot(showEma ? emaF : na, "Smart filter EMA", color.new(color.gray, 30), 1)
+
+basis = ta.ema(hlc3, cloudLen)
+band  = atrV * cloudMult
+cUp   = plot(showCloud ? basis + band : na, "Cloud top", color.new(trendCol, 70), 2)
+cLo   = plot(showCloud ? basis - band : na, "Cloud bottom", color.new(trendCol, 70), 2)
+fill(cUp, cLo, color.new(trendCol, 88), "Cloud")
+
+barcolor(colorBars and not ownCandles ? trendCol : na)
+plotcandle(ownCandles ? open : na, ownCandles ? high : na, ownCandles ? low : na, ownCandles ? close : na, title="TradeX candles", color=trendCol, wickcolor=trendCol, bordercolor=trendCol)
+
+// ------------------------- Background --------------------------------
+// Ribbons are drawn at the edge of the pane, so they look clean on any canvas colour.
+adxF    = math.min(math.max((nz(adxV) - 10.0) / 30.0, 0.0), 1.0)
+hB      = hour(time, "UTC")
+sesBase = hB >= 13 and hB < 16 ? #f6b93b : hB >= 7 and hB < 13 ? #1de9b6 : hB >= 16 and hB < 21 ? #ec407a : #5c6bc0
+bgTr    = 97.0 - bgStrength * (0.5 + 1.5 * adxF)
+bgc     = bgMode == "Momentum glow" ? color.new(trendCol, bgTr) : bgMode == "Signal flash" and (buySig or sellSig) ? color.new(buySig ? bullCol : bearCol, 75) : na
+bgcolor(bgc, title="Background")
+
+ribTr = 70.0 - 55.0 * adxF
+plotshape(bgMode == "Trend ribbon", "Trend ribbon (bottom)", shape.square, location.bottom, color.new(trendCol, ribTr), size=size.tiny)
+plotshape(bgMode == "Session ribbon", "Session ribbon (top)", shape.square, location.top, color.new(sesBase, 30), size=size.tiny)
+
+plotshape(showSig and buySig and not buySmart, "Buy", shape.labelup, location.belowbar, bullCol, text="Buy", textcolor=color.black, size=size.small)
+plotshape(showSig and buySig and buySmart, "Smart Buy", shape.labelup, location.belowbar, bullCol, text="+Smart\nBuy", textcolor=color.black, size=size.small)
+plotshape(showSig and sellSig and not sellSmart, "Sell", shape.labeldown, location.abovebar, bearCol, text="Sell", textcolor=color.white, size=size.small)
+plotshape(showSig and sellSig and sellSmart, "Smart Sell", shape.labeldown, location.abovebar, bearCol, text="+Smart\nSell", textcolor=color.white, size=size.small)
+
+// ------------------- Multi-timeframe data ----------------------------
+f_tr() =>
+    [s, d] = ta.supertrend(stMult, atrLen)
+    d < 0 ? 1 : -1
+
+t5  = useMtf ? request.security(syminfo.tickerid, "5",   f_tr()) : 0
+t15 = useMtf ? request.security(syminfo.tickerid, "15",  f_tr()) : 0
+t60 = useMtf ? request.security(syminfo.tickerid, "60",  f_tr()) : 0
+t4h = useMtf ? request.security(syminfo.tickerid, "240", f_tr()) : 0
+tD  = useMtf ? request.security(syminfo.tickerid, "D",   f_tr()) : 0
+tAvg = nz(t5) + nz(t15) + nz(t60) + nz(t4h) + nz(tD)
+volHigh = volume > ta.sma(volume, 20)
+
+
+// Setup factors, evaluated on every bar; the ones on a signal bar are stored with the trade
+dirNow = bullTrend ? 1 : -1
+qf1 = adxV >= 25
+qf2 = useMtf and ((dirNow == 1 and tAvg >= 3) or (dirNow == -1 and tAvg <= -3))
+qf3 = useMtf and nz(t60) == dirNow and nz(t4h) == dirNow
+qf4 = dirNow == 1 ? close > emaF : close < emaF
+qf5 = hB >= 7 and hB < 21
+qScore = (qf1 ? 1 : 0) + (qf2 ? 1 : 0) + (qf3 ? 1 : 0) + (qf4 ? 1 : 0) + (qf5 ? 1 : 0)
+
+// ------------------- Trade state and honest stats --------------------
+var int   tDir   = 0
+var bool  tOpen  = false
+var float ePx    = na
+var float slPx   = na
+var float tp1    = na
+var float tp2    = na
+var float tp3    = na
+var float lots   = na
+var int   sigBar = na
+var int   nWin  = 0
+var int   nLoss = 0
+var int   nFlip = 0
+var int   lastRes = 0
+var bool  lastSmart = false
+var int   tScore = 0
+var array<int>  fW  = array.new<int>(10, 0)
+var array<int>  fL  = array.new<int>(10, 0)
+var array<int>  sW  = array.new<int>(6, 0)
+var array<int>  sL  = array.new<int>(6, 0)
+var array<bool> qfl = array.new<bool>(5, false)
+
+f_rec(bool win) =>
+    for i = 0 to 4
+        idx = i * 2 + (array.get(qfl, i) ? 1 : 0)
+        if win
+            array.set(fW, idx, array.get(fW, idx) + 1)
+        else
+            array.set(fL, idx, array.get(fL, idx) + 1)
+    if win
+        array.set(sW, tScore, array.get(sW, tScore) + 1)
+    else
+        array.set(sL, tScore, array.get(sL, tScore) + 1)
+
+newSig = buySig or sellSig
+if newSig
+    if tOpen
+        nFlip += 1
+    tDir := buySig ? 1 : -1
+    lastSmart := buySig ? buySmart : sellSmart
+    lastRes := 0
+    tScore := qScore
+    array.set(qfl, 0, qf1)
+    array.set(qfl, 1, qf2)
+    array.set(qfl, 2, qf3)
+    array.set(qfl, 3, qf4)
+    array.set(qfl, 4, qf5)
+    rDist = atrV * slMult
+    ePx  := close
+    slPx := close - tDir * rDist
+    tp1  := close + tDir * rDist
+    tp2  := close + tDir * rDist * 2
+    tp3  := close + tDir * rDist * 3
+    lots := rDist > 0 ? riskUsd / (rDist * contract) : na
+    sigBar := bar_index
+    tOpen := true
+else if tOpen
+    slHit = tDir == 1 ? low <= slPx : high >= slPx
+    tpHit = tDir == 1 ? high >= tp1 : low <= tp1
+    if slHit
+        nLoss += 1
+        lastRes := -1
+        tOpen := false
+        f_rec(false)
+    else if tpHit
+        nWin += 1
+        lastRes := 1
+        tOpen := false
+        f_rec(true)
+
+// ------------------- Entry / SL / TP drawing -------------------------
+var array<line>  lns = array.new<line>()
+var array<label> lbs = array.new<label>()
+var array<box>   bxs = array.new<box>()
+
+f_clear() =>
+    while array.size(lns) > 0
+        line.delete(array.pop(lns))
+    while array.size(lbs) > 0
+        label.delete(array.pop(lbs))
+    while array.size(bxs) > 0
+        box.delete(array.pop(bxs))
+
+f_level(float y, string txt, color c, color tc, string lstyle) =>
+    array.push(lns, line.new(sigBar, y, bar_index + 2, y, xloc.bar_index, extend.none, c, lstyle, 1))
+    array.push(lbs, label.new(bar_index + 3, y, txt, xloc.bar_index, yloc.price, c, label.style_label_left, tc, size.small))
+
+if barstate.islast and showLv and not na(ePx)
+    f_clear()
+    f_level(ePx, "Entry : " + str.tostring(ePx, format.mintick) + "  |  " + str.tostring(lots, "#.##") + " lot", color.new(#f6b93b, 0), color.black, line.style_dashed)
+    f_level(slPx, "Stop loss : " + str.tostring(slPx, format.mintick), color.new(#ef5350, 0), color.white, line.style_solid)
+    f_level(tp1, "TP 1 : " + str.tostring(tp1, format.mintick), color.new(#1de9b6, 0), color.black, line.style_dotted)
+    f_level(tp2, "TP 2 : " + str.tostring(tp2, format.mintick), color.new(#1de9b6, 0), color.black, line.style_dotted)
+    f_level(tp3, "TP 3 : " + str.tostring(tp3, format.mintick), color.new(#1de9b6, 0), color.black, line.style_dotted)
+    if showZones
+        array.push(bxs, box.new(left=sigBar, top=math.max(ePx, slPx), right=bar_index + 2, bottom=math.min(ePx, slPx), border_color=na, bgcolor=color.new(#ef5350, 82), xloc=xloc.bar_index))
+        array.push(bxs, box.new(left=sigBar, top=math.max(ePx, tp3), right=bar_index + 2, bottom=math.min(ePx, tp3), border_color=na, bgcolor=color.new(#1de9b6, 86), xloc=xloc.bar_index))
+
+// ------------------- Multi-timeframe table ---------------------------
+var table tbl = table.new(position.bottom_right, 2, 8, bgcolor=color.new(#0f1117, 10), border_width=1, border_color=color.new(color.gray, 80))
+
+f_row(int r, int t, string tf) =>
+    table.cell(tbl, 0, r, t > 0 ? "Up" : t < 0 ? "Dn" : "--", text_color=color.black, bgcolor=(t > 0 ? bullCol : t < 0 ? bearCol : color.gray), text_size=mSz)
+    table.cell(tbl, 1, r, tf, text_color=color.white, bgcolor=color.new(#0f1117, 10), text_size=mSz)
+
+if barstate.islast and showTbl and useMtf
+    table.cell(tbl, 0, 0, "Trend", text_color=color.white, bgcolor=color.new(#0f1117, 10), text_size=mSz)
+    table.cell(tbl, 1, 0, "TF", text_color=color.white, bgcolor=color.new(#0f1117, 10), text_size=mSz)
+    f_row(1, nz(t5), "5")
+    f_row(2, nz(t15), "15")
+    f_row(3, nz(t60), "1H")
+    f_row(4, nz(t4h), "4H")
+    f_row(5, nz(tD), "1D")
+    f_row(6, tAvg >= 3 ? 1 : tAvg <= -3 ? -1 : 0, "AVG")
+    table.cell(tbl, 0, 7, volHigh ? "High" : "Low", text_color=color.black, bgcolor=(volHigh ? bullCol : color.gray), text_size=mSz)
+    table.cell(tbl, 1, 7, "Vol", text_color=color.white, bgcolor=color.new(#0f1117, 10), text_size=mSz)
+
+// ------------------- Panel (upper right): dashboard + setup quality ---
+hU = hour(timenow, "UTC")
+sesTxt = hU >= 13 and hU < 16 ? "London / NY" : hU >= 7 and hU < 13 ? "London" : hU >= 16 and hU < 21 ? "New York" : hU < 7 ? "Asia" : "Off hours"
+volRatio = atrAvg > 0 ? atrV / atrAvg : 1.0
+totClosed = nWin + nLoss
+winPct  = totClosed > 0 ? nWin * 100.0 / totClosed : na
+edgeR   = totClosed > 0 ? (nWin - nLoss) * 1.0 / totClosed : na
+
+panelRows = showQ ? 20 : 11
+var table panel = table.new(dPos, 4, panelRows, bgcolor=color.new(#0f1117, 6), frame_color=color.new(color.gray, 75), frame_width=1, border_width=0)
+
+f_arrow(int t) => t > 0 ? "▲" : t < 0 ? "▼" : "-"
+
+f_wr(int w, int l) =>
+    n = w + l
+    n > 0 ? str.tostring(w * 100.0 / n, "#") + "%  (n=" + str.tostring(n) + ")" : "-"
+
+f_cmp(int w1, int l1, int w0, int l0) =>
+    n1 = w1 + l1
+    n0 = w0 + l0
+    c = color.new(color.gray, 20)
+    if n1 >= 20 and n0 >= 20
+        dd = w1 * 100.0 / n1 - w0 * 100.0 / n0
+        c := dd >= 10 ? bullCol : dd <= -10 ? bearCol : color.new(#f6b93b, 0)
+    c
+
+f_bcol(int w, int l) =>
+    n = w + l
+    c = color.new(color.gray, 20)
+    if n >= 20 and totClosed >= 20
+        dd = w * 100.0 / n - nz(winPct, 50.0)
+        c := dd >= 10 ? bullCol : dd <= -10 ? bearCol : color.new(#f6b93b, 0)
+    c
+
+f_p(int r, string k, string v, color vc) =>
+    table.cell(panel, 0, r, k, text_color=color.new(color.gray, 10), text_halign=text.align_left, text_size=dSz, bgcolor=color.new(#0f1117, 6))
+    table.cell(panel, 1, r, v, text_color=vc, text_halign=text.align_right, text_size=dSz, bgcolor=color.new(#0f1117, 6))
+    table.merge_cells(panel, 1, r, 3, r)
+
+var array<string> qNames = array.from("Trending (ADX 25+)", "MTF agrees (5m-1D)", "1H + 4H agree", "With EMA 200 (Smart)", "London / NY hours")
+
+if barstate.islast and showDash
+    white = color.new(#e8e9ee, 0)
+    amber = color.new(#f6b93b, 0)
+    mute  = color.new(color.gray, 20)
+    pbg   = color.new(#0f1117, 6)
+
+    table.cell(panel, 0, 0, "TRADEX TREND", text_color=white, text_halign=text.align_left, text_size=dSz, bgcolor=pbg)
+    table.merge_cells(panel, 0, 0, 1, 0)
+    table.cell(panel, 2, 0, bullTrend ? "BULLISH" : "BEARISH", text_color=color.black, text_halign=text.align_center, text_size=dSz, bgcolor=(bullTrend ? bullCol : bearCol))
+    table.merge_cells(panel, 2, 0, 3, 0)
+
+    mktTxt = adxV >= 25 ? "Trending" : adxV >= 15 ? "Ranging" : "Dead"
+    f_p(1, "Market", mktTxt + "  (ADX " + str.tostring(adxV, "#") + ")", adxV >= 25 ? bullCol : adxV >= 15 ? amber : mute)
+    f_p(2, "Volatility", "ATR " + str.tostring(atrV, "#.##") + "  (" + str.tostring(volRatio, "#.#") + "x avg)", volRatio > 1.5 ? amber : white)
+    f_p(3, "Session (UTC)", sesTxt, white)
+
+    biasVal = tAvg >= 3 ? 1 : tAvg <= -3 ? -1 : 0
+    biasWord = biasVal > 0 ? "Bullish" : biasVal < 0 ? "Bearish" : "Mixed"
+    mtfTxt = not useMtf ? "Off" : showTbl ? biasWord : biasWord + "   5" + f_arrow(nz(t5)) + " 15" + f_arrow(nz(t15)) + " 1H" + f_arrow(nz(t60)) + " 4H" + f_arrow(nz(t4h)) + " 1D" + f_arrow(nz(tD))
+    f_p(4, "MTF bias", mtfTxt, not useMtf ? mute : biasVal > 0 ? bullCol : biasVal < 0 ? bearCol : mute)
+
+    sigTxt = na(sigBar) ? "None" : (tDir == 1 ? "Buy" : "Sell") + (lastSmart ? " +Smart" : "") + "  " + str.tostring(bar_index - sigBar) + " bars ago"
+    f_p(5, "Last signal", sigTxt, na(sigBar) ? mute : (tDir == 1 ? bullCol : bearCol))
+
+    tradeTxt = na(sigBar) ? "None" : tOpen ? (tDir == 1 ? "LONG " : "SHORT ") + str.tostring(lots, "#.##") + " lot  ($" + str.tostring(riskUsd, "#") + ")" : (lastRes == 1 ? "TP1 reached" : lastRes == -1 ? "SL hit" : "Closed")
+    f_p(6, "Trade", tradeTxt, tOpen ? (tDir == 1 ? bullCol : bearCol) : mute)
+    f_p(7, "Entry / SL / TP1", na(ePx) ? "-" : str.tostring(ePx, format.mintick) + " / " + str.tostring(slPx, format.mintick) + " / " + str.tostring(tp1, format.mintick), white)
+    f_p(8, "TP1 / SL first", totClosed > 0 ? str.tostring(nWin) + " / " + str.tostring(nLoss) + "  (" + str.tostring(winPct, "#") + "%)" : "-", white)
+    f_p(9, "Edge / trade after cost", totClosed > 0 ? str.tostring(edgeR - costR, "#.##") + "R" + (totClosed < 30 ? "  (few trades)" : "") : "-", totClosed == 0 ? mute : (edgeR - costR) > 0 ? bullCol : bearCol)
+
+    pW  = totClosed > 0 ? nWin * 1.0 / totClosed : 0.5
+    ciH = totClosed > 0 ? 196.0 * math.sqrt(pW * (1.0 - pW) / totClosed) : 0.0
+    loW = pW * 100.0 - ciH
+    hiW = pW * 100.0 + ciH
+    f_p(10, "95% range of win%", totClosed > 0 ? str.tostring(math.max(loW, 0.0), "#") + "% to " + str.tostring(math.min(hiW, 100.0), "#") + "%" + (loW <= 50.0 and hiW >= 50.0 ? "  = coin flip" : "") : "-", totClosed == 0 ? mute : loW > 50.0 ? bullCol : hiW < 50.0 ? bearCol : amber)
+
+    if showQ
+        table.cell(panel, 0, 11, "SETUP QUALITY", text_color=white, text_halign=text.align_left, text_size=dSz, bgcolor=pbg)
+        table.cell(panel, 1, 11, "At signal", text_color=mute, text_halign=text.align_center, text_size=dSz, bgcolor=pbg)
+        table.cell(panel, 2, 11, "Win% with", text_color=mute, text_halign=text.align_center, text_size=dSz, bgcolor=pbg)
+        table.cell(panel, 3, 11, "Win% without", text_color=mute, text_halign=text.align_center, text_size=dSz, bgcolor=pbg)
+
+        for i = 0 to 4
+            rr = 12 + i
+            w1 = array.get(fW, i * 2 + 1)
+            l1 = array.get(fL, i * 2 + 1)
+            w0 = array.get(fW, i * 2)
+            l0 = array.get(fL, i * 2)
+            has = array.get(qfl, i)
+            table.cell(panel, 0, rr, array.get(qNames, i), text_color=color.new(color.gray, 10), text_halign=text.align_left, text_size=dSz, bgcolor=pbg)
+            table.cell(panel, 1, rr, na(sigBar) ? "-" : has ? "Yes" : "No", text_color=(na(sigBar) ? mute : has ? bullCol : bearCol), text_halign=text.align_center, text_size=dSz, bgcolor=pbg)
+            table.cell(panel, 2, rr, f_wr(w1, l1), text_color=f_cmp(w1, l1, w0, l0), text_halign=text.align_center, text_size=dSz, bgcolor=pbg)
+            table.cell(panel, 3, rr, f_wr(w0, l0), text_color=color.new(#e8e9ee, 15), text_halign=text.align_center, text_size=dSz, bgcolor=pbg)
+
+        scoreTxt = na(sigBar) ? "-" : str.tostring(tScore) + "/5  " + (tScore >= 4 ? "A" : tScore == 3 ? "B" : "C")
+        table.cell(panel, 0, 17, "Score at last signal", text_color=white, text_halign=text.align_left, text_size=dSz, bgcolor=pbg)
+        table.cell(panel, 1, 17, scoreTxt, text_color=(na(sigBar) ? mute : tScore >= 4 ? bullCol : tScore == 3 ? amber : bearCol), text_halign=text.align_center, text_size=dSz, bgcolor=pbg)
+
+        aW = array.get(sW, 4) + array.get(sW, 5)
+        aL = array.get(sL, 4) + array.get(sL, 5)
+        bW = array.get(sW, 3)
+        bL = array.get(sL, 3)
+        cW = array.get(sW, 0) + array.get(sW, 1) + array.get(sW, 2)
+        cL = array.get(sL, 0) + array.get(sL, 1) + array.get(sL, 2)
+        table.cell(panel, 0, 18, "Win% by score", text_color=color.new(color.gray, 10), text_halign=text.align_left, text_size=dSz, bgcolor=pbg)
+        table.cell(panel, 1, 18, "A " + f_wr(aW, aL), text_color=f_bcol(aW, aL), text_halign=text.align_center, text_size=dSz, bgcolor=pbg)
+        table.cell(panel, 2, 18, "B " + f_wr(bW, bL), text_color=f_bcol(bW, bL), text_halign=text.align_center, text_size=dSz, bgcolor=pbg)
+        table.cell(panel, 3, 18, "C " + f_wr(cW, cL), text_color=f_bcol(cW, cL), text_halign=text.align_center, text_size=dSz, bgcolor=pbg)
+
+        table.cell(panel, 0, 19, "Green = clearly better, red = worse (10+ pts, n 20+). Small samples lie.", text_color=mute, text_halign=text.align_left, text_size=size.tiny, bgcolor=pbg)
+        table.merge_cells(panel, 0, 19, 3, 19)
+
+// ---------------------------- Alerts ---------------------------------
+alertcondition(buySig, "TradeX Buy", "TradeX BUY {{ticker}} {{close}}")
+alertcondition(sellSig, "TradeX Sell", "TradeX SELL {{ticker}} {{close}}")

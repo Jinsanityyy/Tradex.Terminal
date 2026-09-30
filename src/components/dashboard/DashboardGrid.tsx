@@ -40,6 +40,8 @@ const OPTIONAL_WIDGET_DEFAULTS: Record<string, boolean> = {
   "ai-analysis": true,
   "more-catalysts": true,
   "institutional": true,
+  // Experimental; only registered when NEXT_PUBLIC_TRADEX_TREND=1.
+  "tradex-trend": true,
 };
 
 const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
@@ -59,6 +61,7 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "institutional", x: 10, y: 17, w: 8, h: 7, minW: 8, minH: 6 },
     { i: "pnl-calendar", x: 18, y: 17, w: 6, h: 7, minW: 6, minH: 4 },
     // Hidden by default — fallback slots only.
+    { i: "tradex-trend", x: 0, y: 67, w: 8, h: 17, minW: 6, minH: 10 },
     { i: "mtf", x: 19, y: 4, w: 5, h: 4, minW: 4, minH: 3 },
     { i: "agents", x: 0, y: 24, w: 24, h: 6, minW: 10, minH: 2 },
     { i: "economic-calendar", x: 0, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
@@ -90,6 +93,7 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "ai-analysis", x: 8, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
     { i: "more-catalysts", x: 16, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
     { i: "institutional", x: 0, y: 59, w: 12, h: 8, minW: 8, minH: 6 },
+    { i: "tradex-trend", x: 0, y: 67, w: 8, h: 17, minW: 6, minH: 10 },
   ],
   // "Custom" starts as a copy of "pro"  -  users save over it via "Save Layout"
   custom: [
@@ -112,6 +116,7 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "ai-analysis", x: 8, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
     { i: "more-catalysts", x: 16, y: 53, w: 8, h: 6, minW: 6, minH: 4 },
     { i: "institutional", x: 0, y: 59, w: 12, h: 8, minW: 8, minH: 6 },
+    { i: "tradex-trend", x: 0, y: 67, w: 8, h: 17, minW: 6, minH: 10 },
   ],
 };
 

@@ -41,6 +41,9 @@ import { SessionSummaryCard } from "@/components/shared/SessionSummaryCard";
 import { LotCalculatorWidget } from "@/components/shared/LotCalculatorWidget";
 import { TrumpImpactPreview } from "@/components/shared/TrumpFeedPanel";
 import { MTFBiasPanel } from "@/components/shared/MTFBiasPanel";
+import { TradexTrendWidget } from "@/components/dashboard/TradexTrendWidget";
+import { TRADEX_TREND_ENABLED } from "@/lib/tradexTrend/flag";
+import { tvIntervalToTf } from "@/lib/tradexTrend/tf";
 import { KeyLevelsCard } from "@/components/shared/KeyLevelsCard";
 import { InstitutionalConfluence } from "@/components/shared/InstitutionalConfluence";
 import { AgentCardsWidget, AgentCardsFilterButton, ALL_AGENT_IDS } from "@/components/brain/AgentCardsWidget";
@@ -1595,6 +1598,13 @@ export default function DashboardPage() {
         </div>
       ),
     },
+    ...(TRADEX_TREND_ENABLED
+      ? [{
+          id: "tradex-trend",
+          title: "TRADEX TREND · XAU/USD",
+          content: <TradexTrendWidget symbol="XAUUSD" chartTf={tvIntervalToTf(chartInterval)} />,
+        }]
+      : []),
     {
       id: "mtf",
       title: `MTF bias · ${symCfg.short}`,
