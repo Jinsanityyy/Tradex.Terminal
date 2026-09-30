@@ -135,20 +135,42 @@ const dukasRange = unstable_cache(
   { revalidate: 45 },
 );
 
-async function fromDukascopy(symbol: Symbol, tf: CandleTf, limit: number): Promise<CandleBar[] | null> {
+// Last good Dukascopy rows per instrument/timeframe. If a fresh fetch fails (429, 403,
+// timeout) serve these for a while instead of dropping to futures, so every user keeps
+// getting the same spot series.
+const dukasStale = new Map<string, { rows: [number, number, number, number, number][]; at: number }>();
+const STALE_MS = 15 * 60_000;
+
+async function fromDukascopy(symbol: Symbol, tf: CandleTf, limit: number, diag: string[]): Promise<CandleBar[] | null> {
   const inst = DUKAS[symbol];
   if (!inst) return null;
+  const staleKey = `${inst}|${tf}|${limit}`;
   try {
     // Round to the minute so concurrent calls share one cache entry.
     const now = Math.floor(Date.now() / 60_000) * 60_000;
     // x1.6 covers weekends without flat bars.
     const from = now - limit * tfSecs(tf) * 1000 * 1.6;
-    const rows = await dukasRange(inst, DUKAS_TF[tf], Math.floor(from / 60_000) * 60_000, now);
+    let rows: [number, number, number, number, number][];
+    try {
+      rows = await dukasRange(inst, DUKAS_TF[tf], Math.floor(from / 60_000) * 60_000, now);
+      dukasStale.set(staleKey, { rows, at: Date.now() });
+    } catch (err) {
+      const st = dukasStale.get(staleKey);
+      if (st && Date.now() - st.at < STALE_MS) {
+        rows = st.rows;
+        diag.push(`dukascopy: ${(err as Error)?.message ?? "error"} (served ${Math.round((Date.now() - st.at) / 1000)}s-old spot data)`);
+      } else throw err;
+    }
     const bars = rows
       .map(([t, o, h, l, c]) => ({ t: Math.floor(t / 1000), o, h, l, c, v: 0 }))
       .filter(b => Number.isFinite(b.o) && b.o > 0);
     return bars.length ? bars.slice(-limit) : null;
-  } catch (err) { console.error("[candles/dukascopy]", (err as Error)?.message ?? err); return null; }
+  } catch (err) {
+    const msg = (err as Error)?.message ?? String(err);
+    console.error("[candles/dukascopy]", msg);
+    diag.push(`dukascopy: ${msg}`);
+    return null;
+  }
 }
 
 async function fromYahoo(symbol: Symbol, tf: CandleTf, limit: number): Promise<CandleBar[] | null> {
@@ -177,10 +199,12 @@ export async function GET(req: NextRequest) {
 
   // ?spot=1 (TradeX Trend): prefer true spot prices, and say so when only futures are available.
   const preferSpot = searchParams.get("spot") === "1";
+  const tried: string[] = [];
   let source = "twelvedata";
   let candles = await fromTwelveData(symbol, timeframe, limit);
-  if (!candles && preferSpot) { source = "dukascopy"; candles = await fromDukascopy(symbol, timeframe, limit); }
-  if (!candles) { source = "finnhub"; candles = await fromFinnhub(symbol, timeframe, limit); }
+  if (!candles) tried.push("twelvedata: no data");
+  if (!candles && preferSpot) { source = "dukascopy"; candles = await fromDukascopy(symbol, timeframe, limit, tried); }
+  if (!candles) { source = "finnhub"; candles = await fromFinnhub(symbol, timeframe, limit); if (!candles) tried.push("finnhub: no data"); }
   if (!candles) { source = "yahoo"; candles = await fromYahoo(symbol, timeframe, limit); }
 
   if (!candles?.length) {
@@ -189,5 +213,5 @@ export async function GET(req: NextRequest) {
 
   // Yahoo's gold, silver and oil are futures contracts (GC=F, SI=F, CL=F), not spot.
   const futuresOnYahoo = source === "yahoo" && (symbol === "XAUUSD" || symbol === "XAGUSD" || symbol === "USOIL");
-  return NextResponse.json({ candles, symbol, timeframe, source, spot: !futuresOnYahoo });
+  return NextResponse.json({ candles, symbol, timeframe, source, spot: !futuresOnYahoo, tried });
 }
