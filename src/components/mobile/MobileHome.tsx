@@ -908,6 +908,9 @@ export function MobileHome() {
                       {exec?.source === "tradex-trend" && (
                         <span className="text-[10px] font-semibold tracking-wider text-[#1de9b6]">TRADEX TREND · {agentTf}</span>
                       )}
+                      {exec?.engineNote && (
+                        <span className="text-[10px] leading-tight text-amber-300/90">Classic agents, not the chart setup. {exec.engineNote}.</span>
+                      )}
                     </div>
                     {hitBadge && effectiveSignalState !== "ARMED" && effectiveSignalState !== "PENDING" && (
                       <TerminalBadge

@@ -28,5 +28,5 @@ export async function GET(req: NextRequest) {
   if (!res) {
     return NextResponse.json({ error: "No candle data available" }, { status: 503 });
   }
-  return NextResponse.json({ candles: res.candles, symbol, timeframe, source: res.source, spot: res.spot, tried: res.tried });
+  return NextResponse.json({ candles: res.candles, symbol, timeframe, source: res.source, spot: res.spot, aligned: res.aligned, tried: res.tried });
 }

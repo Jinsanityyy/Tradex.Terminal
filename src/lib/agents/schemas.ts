@@ -257,6 +257,8 @@ export interface ExecutionAgentOutput {
   agentId: "execution";
   /** Which engine produced the setup; absent for the classic execution agent. */
   source?: "tradex-trend";
+  /** Set when TradeX Trend was expected but the classic execution agent was used instead, and why. */
+  engineNote?: string;
   hasSetup: boolean;
   direction: TradeDirection;
   entry: number | null;

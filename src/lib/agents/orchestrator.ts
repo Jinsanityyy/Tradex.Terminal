@@ -390,13 +390,20 @@ export async function runAgentOrchestrator(
   // ── Phase 2a: Execution + Contrarian  -  depend on trend + smc ────────────
   const tx = await txPromise;
   const useTradex = !!tx && tx.spot;
-  if (tx && !tx.spot) console.warn("[orchestrator] TradeX Trend skipped: candles are not spot", symbol);
+  const txEligible = TRADEX_TREND_ENABLED && process.env.TRADEX_TREND_AGENTS !== "0" && !v2 && !isMockData && isTrendAsset(symbol);
+  const txFallbackNote = txEligible && !useTradex
+    ? (tx ? "TradeX Trend unavailable: the candles are futures and could not be lined up with spot"
+          : "TradeX Trend unavailable: candle data could not be loaded")
+    : undefined;
+  if (txFallbackNote) console.warn("[orchestrator]", txFallbackNote, symbol, timeframe);
   const [execution, contrarian] = await Promise.all([
     v2 ? Promise.resolve(v2ToExecutionOutput(v2, snapshot, newsAgent, Date.now()))
       : useTradex ? Promise.resolve(tradexToExecutionOutput(tx!.snapshot, snapshot, newsAgent, Date.now()))
       : runExecutionAgent(snapshot, smc, newsAgent),
     runContrarianAgent(snapshot, trend, smc, apiKey),
   ]);
+
+  if (txFallbackNote) execution.engineNote = txFallbackNote;
 
   // ── Phase 2b: Risk  -  uses actual RR + setup presence from execution ──────
   const risk = await runRiskAgent(snapshot, execution.rrRatio, execution.hasSetup);
