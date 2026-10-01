@@ -4,6 +4,37 @@ import { getAuthUser } from "@/lib/supabase/auth-helper";
 export const dynamic = "force-dynamic";
 
 /**
+ * PATCH /api/exchanges/:id   { label }
+ *   Rename a connection (e.g. "Prop Firm · FivePercent"). Only the display name changes.
+ */
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { user, supabase } = await getAuthUser(req);
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const body = await req.json().catch(() => ({}));
+    const label = typeof body?.label === "string" ? body.label.trim().slice(0, 60) : "";
+    if (!label) return NextResponse.json({ error: "label is required" }, { status: 400 });
+
+    const { data, error } = await supabase
+      .from("exchange_connections")
+      .update({ label })
+      .eq("id", params.id)
+      .eq("user_id", user.id)
+      .select("id, label")
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return NextResponse.json({ error: "Connection not found" }, { status: 404 });
+    return NextResponse.json({ success: true, id: data.id, label: data.label });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+/**
  * DELETE /api/exchanges/:id
  *   ?keepTrades=1  Disconnect: stop syncing and wipe the credentials, but keep
  *                  every trade it journaled. The default the UI offers.

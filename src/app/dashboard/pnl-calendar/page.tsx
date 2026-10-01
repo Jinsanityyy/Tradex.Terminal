@@ -1182,6 +1182,7 @@ export default function PnLCalendarPage() {
   const [showConnect, setShowConnect] = useState(false);
   const [mt5Token, setMt5Token] = useState<Mt5Setup | null>(null);
   const [removing, setRemoving] = useState<Connection | null>(null);
+  const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
   const [guard, setGuard] = useState<GuardStatus | null>(null);
   const [showAddTrade, setShowAddTrade] = useState(false);
   const [connectPreset, setConnectPreset] = useState<ExchangeKey | undefined>(undefined);
@@ -1412,6 +1413,22 @@ export default function PnLCalendarPage() {
     } finally {
       setSyncing(false);
     }
+  }
+
+  /** Rename a connection's display name (for example "Prop Firm · FivePercent"). */
+  async function renameConnection(id: string, label: string) {
+    const next = label.trim();
+    if (!next) { setRenaming(null); return; }
+    const res = await fetch(`/api/exchanges/${id}`, {
+      method: "PATCH",
+      headers: { ...(await getAuthHeaders()), "Content-Type": "application/json" },
+      body: JSON.stringify({ label: next }),
+    });
+    if (!res.ok) { toast.error("Couldn't rename the account"); return; }
+    setConnections(prev => prev.map(c => (c.id === id ? { ...c, label: next.slice(0, 60) } : c)));
+    setRenaming(null);
+    toast.success("Account renamed");
+    await loadData({ silent: true });
   }
 
   /** keepTrades: disconnect but keep its journal. Otherwise the trades go too. */
@@ -1654,7 +1671,31 @@ export default function PnLCalendarPage() {
           return (
             <div key={c.id} className={cn("flex items-center gap-2 rounded-lg border px-2.5 py-1.5", m.bg, c.is_active === false && "opacity-50")}>
               <span className={cn("text-[10px] font-bold", m.color)}>{m.name}</span>
-              <span className="text-[10px] text-[hsl(var(--muted-foreground))]">{c.label}</span>
+              {renaming?.id === c.id ? (
+                <form
+                  className="flex items-center gap-1"
+                  onSubmit={(e) => { e.preventDefault(); void renameConnection(c.id, renaming.value); }}
+                >
+                  <input
+                    autoFocus
+                    value={renaming.value}
+                    maxLength={60}
+                    onChange={(e) => setRenaming({ id: c.id, value: e.target.value })}
+                    placeholder="e.g. Prop Firm · FivePercent"
+                    className="w-44 rounded border border-white/10 bg-black px-1.5 py-0.5 text-[11px] text-zinc-100 outline-none"
+                  />
+                  <button type="submit" className="text-[10px] font-semibold text-emerald-400">Save</button>
+                  <button type="button" onClick={() => setRenaming(null)} className="text-[10px] text-zinc-500">Cancel</button>
+                </form>
+              ) : (
+                <>
+                  <span className="text-[10px] text-[hsl(var(--muted-foreground))]">{c.label}</span>
+                  <button onClick={() => setRenaming({ id: c.id, value: c.label })} title="Rename this account (for example Prop Firm)"
+                    className="text-[hsl(var(--muted-foreground))]/40 hover:text-emerald-400 transition-colors">
+                    <Pencil className="h-2.5 w-2.5" />
+                  </button>
+                </>
+              )}
               {isMt5 && c.mt5_account && (
                 <span className="text-[9px] text-[hsl(var(--muted-foreground))]/60">{c.mt5_account}</span>
               )}
