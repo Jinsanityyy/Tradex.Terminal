@@ -3,6 +3,7 @@ import { fetchYahooCandles } from "@/lib/api/yahoo-finance";
 import type { Symbol, Timeframe } from "@/lib/agents/schemas";
 import { getHistoricalRates } from "dukascopy-node";
 import { unstable_cache } from "next/cache";
+import { basisOf, shiftBars } from "./bars";
 
 /**
  * Candle providers shared by /api/market/candles (the TradeX Trend chart) and the
@@ -186,15 +187,49 @@ async function fromYahoo(symbol: Symbol, tf: CandleTf, limit: number): Promise<C
 export interface CandleResult {
   candles: CandleBar[];
   source: string;
-  /** false when only futures were available for gold, silver or oil. */
+  /** false when only futures were available for gold, silver or oil and they could not be lined up with spot. */
   spot: boolean;
+  /** Futures-to-spot shift already applied to `candles` (null = none). */
+  aligned: number | null;
   /** What was tried and why it failed (diagnostics). */
   tried: string[];
 }
 
+// ── Futures -> spot ────────────────────────────────────────────────────────────
+// Yahoo's gold and silver are futures (GC=F, SI=F), tens of dollars above spot. When no spot
+// candle source answers, shift the futures series by (futures last close - spot reference).
+// SuperTrend, ATR, ADX and the cloud do not change under a constant shift. The shift is
+// computed once per 30 minutes in the shared Next data cache, so the chart and the agents
+// (every device, every instance) see the same series and the levels do not drift.
+async function fetchSpotReference(symbol: Symbol): Promise<number | null> {
+  const code = symbol === "XAUUSD" ? "XAU" : symbol === "XAGUSD" ? "XAG" : null;
+  if (!code) return null;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 6000);
+    const res = await fetch(`https://api.fxratesapi.com/latest?base=USD&currencies=${code}`, { signal: ctrl.signal, cache: "no-store" });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const rate = data?.rates?.[code];
+    return typeof rate === "number" && rate > 0 ? 1 / rate : null;
+  } catch { return null; }
+}
+
+const futuresBasis = unstable_cache(
+  async (symbol: string): Promise<number> => {
+    const [fut, ref] = await Promise.all([fromYahoo(symbol as Symbol, "M5", 5), fetchSpotReference(symbol as Symbol)]);
+    const basis = basisOf(fut?.[fut.length - 1]?.c, ref);
+    if (basis === null) throw new Error("basis unavailable"); // not cached
+    return basis;
+  },
+  ["spot-basis-v1"],
+  { revalidate: 1800 },
+);
+
 /**
- * TwelveData, then (preferSpot) Dukascopy spot, then Finnhub, then Yahoo.
- * Yahoo's gold, silver and oil are futures contracts (GC=F, SI=F, CL=F), not spot.
+ * TwelveData, then (preferSpot) Dukascopy spot, then Finnhub, then Yahoo (futures for gold,
+ * silver and oil; lined up with spot for gold and silver when preferSpot).
  */
 export async function fetchCandles(symbol: Symbol, timeframe: CandleTf, limit: number, preferSpot: boolean): Promise<CandleResult | null> {
   const tried: string[] = [];
@@ -205,6 +240,16 @@ export async function fetchCandles(symbol: Symbol, timeframe: CandleTf, limit: n
   if (!candles) { source = "finnhub"; candles = await fromFinnhub(symbol, timeframe, limit); if (!candles) tried.push("finnhub: no data"); }
   if (!candles) { source = "yahoo"; candles = await fromYahoo(symbol, timeframe, limit); }
   if (!candles?.length) return null;
+
   const futuresOnYahoo = source === "yahoo" && (symbol === "XAUUSD" || symbol === "XAGUSD" || symbol === "USOIL");
-  return { candles, source, spot: !futuresOnYahoo, tried };
+  let aligned: number | null = null;
+  if (futuresOnYahoo && preferSpot && symbol !== "USOIL") {
+    try {
+      aligned = await futuresBasis(symbol);
+      candles = shiftBars(candles, aligned);
+    } catch (err) {
+      tried.push(`futures-to-spot shift: ${(err as Error)?.message ?? "failed"}`);
+    }
+  }
+  return { candles, source, spot: !futuresOnYahoo || aligned !== null, aligned, tried };
 }

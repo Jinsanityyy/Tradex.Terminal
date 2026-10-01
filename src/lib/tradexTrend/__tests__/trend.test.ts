@@ -165,3 +165,17 @@ test("sanitizeCandles drops nulls/NaN, dedupes timestamps, sorts and fixes high/
   assert.equal(out[1].high, 1.05 > 1.0 ? 1.05 : 1.0);
   assert.ok(out[1].low <= 1.0 && out[1].high >= 1.05);
 });
+
+import { basisOf, shiftBars } from "../../api/bars";
+
+test("futures-to-spot: shift keeps shape, basis is validated", () => {
+  const bars = [{ t: 1, o: 4190, h: 4195, l: 4188, c: 4192 }, { t: 2, o: 4192, h: 4194, l: 4189, c: 4190 }];
+  const b = basisOf(4190, 4160)!;
+  assert.equal(b, 30);
+  const out = shiftBars(bars, b);
+  assert.deepEqual(out.map((x) => x.c), [4162, 4160]);
+  assert.equal(out[0].h - out[0].l, bars[0].h - bars[0].l);   // ranges unchanged
+  assert.equal(basisOf(4190, null), null);
+  assert.equal(basisOf(undefined, 4160), null);
+  assert.equal(basisOf(4400, 4160), null);                      // 5.8% apart: not a basis, a bad quote
+});

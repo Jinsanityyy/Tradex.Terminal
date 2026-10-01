@@ -20,8 +20,10 @@ interface Entry {
   candles: Candle[];
   /** What is drawn and computed on: `candles`, or `candles` shifted to spot when the provider gave futures. */
   view: Candle[];
-  /** Futures-to-spot shift that was applied (null = none). */
+  /** Futures-to-spot shift that the client applied (null = none). */
   offset: number | null;
+  /** Futures-to-spot shift the server already applied to `candles` (null = none). */
+  serverShift: number | null;
   source: string;
   spot: boolean;
   /** What the server tried (shown when spot data could not be had). */
@@ -60,14 +62,14 @@ const emit = () => listeners.forEach((l) => l());
 
 interface CandleBarWire { t: number; o: number; h: number; l: number; c: number; v?: number }
 
-async function fetchTf(symbol: string, tf: Tf): Promise<{ candles: Candle[]; source: string; spot: boolean; tried: string }> {
+async function fetchTf(symbol: string, tf: Tf): Promise<{ candles: Candle[]; source: string; spot: boolean; aligned: number | null; tried: string }> {
   const res = await fetch(`/api/market/candles?symbol=${symbol}&timeframe=${tf}&limit=${BARS}&spot=1`);
   if (!res.ok) throw new Error(`candles ${tf}: HTTP ${res.status}`);
-  const json = (await res.json()) as { candles?: CandleBarWire[]; source?: string; spot?: boolean; tried?: string[] };
+  const json = (await res.json()) as { candles?: CandleBarWire[]; source?: string; spot?: boolean; aligned?: number | null; tried?: string[] };
   const candles = sanitizeCandles(
     (json.candles ?? []).map((b) => ({ time: b.t, open: b.o, high: b.h, low: b.l, close: b.c, volume: b.v ?? 0 })),
   );
-  return { candles, source: json.source ?? "unknown", spot: json.spot !== false, tried: (json.tried ?? []).join("; ") };
+  return { candles, source: json.source ?? "unknown", spot: json.spot !== false, aligned: typeof json.aligned === "number" ? json.aligned : null, tried: (json.tried ?? []).join("; ") };
 }
 
 /** Providers (Dukascopy especially) answer bursts with 429, so fetch one timeframe at a time. */
@@ -81,14 +83,14 @@ const enqueue = <T,>(fn: () => Promise<T>): Promise<T> => {
 
 function refresh(symbol: string, tf: Tf, nowSec: number): void {
   const key = `${symbol}|${tf}`;
-  const e = cache.get(key) ?? { candles: [], view: [], offset: null, source: "", spot: true, tried: "", bucket: -1, attemptedAt: 0, inflight: null };
+  const e = cache.get(key) ?? { candles: [], view: [], offset: null, serverShift: null, source: "", spot: true, tried: "", bucket: -1, attemptedAt: 0, inflight: null };
   cache.set(key, e);
   if (e.inflight) return;
   e.attemptedAt = Date.now();
   const bucket = bucketOf(tf, nowSec);
   e.inflight = enqueue(() => fetchTf(symbol, tf))
     .then((r) => {
-      e.candles = r.candles; e.source = r.source; e.spot = r.spot; e.tried = r.tried; e.bucket = bucket;
+      e.candles = r.candles; e.source = r.source; e.spot = r.spot; e.serverShift = r.aligned; e.tried = r.tried; e.bucket = bucket;
       alignToSpot(e, spotRefs.get(symbol));
     })
     .catch(() => { /* keep the old data, retry after RETRY_MS */ })
@@ -181,7 +183,7 @@ export function useTradexTrend(
     return {
       snapshot, candles: chartData, source: ce?.source ?? "",
       spot: (ce?.spot ?? true) || ce?.offset != null,
-      adjusted: ce?.offset ?? null,
+      adjusted: ce?.offset ?? ce?.serverShift ?? null,
       tried: ce?.tried ?? "",
       loading: false, error: null, updatedAt: Date.now(),
     };
