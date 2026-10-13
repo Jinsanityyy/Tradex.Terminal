@@ -206,5 +206,9 @@ export const config = {
   // check would otherwise bounce to /dashboard. .html: the static guides in
   // /public (and their PDFs), which phones would otherwise be redirected away
   // from to /m.
-  matcher: ["/((?!_next/static|_next/image|favicon|.*\\.png|.*\\.svg|.*\\.ico|.*\\.json|.*\\.js\\.map|.*\\.mq5|.*\\.html|.*\\.pdf|sw\\.js|workbox-.*).*)"],
+  // api/: API routes authenticate themselves and the middleware did nothing for
+  // them (see isStatic), but matching them still cost an extra invocation on
+  // every API call. Media/font/text files in /public went through the full
+  // Supabase session check (and phones were redirected away from /sounds/*.mp3).
+  matcher: ["/((?!api/|_next/static|_next/image|favicon|.*\\.png|.*\\.svg|.*\\.ico|.*\\.json|.*\\.js\\.map|.*\\.mq5|.*\\.html|.*\\.pdf|.*\\.mp3|.*\\.wav|.*\\.txt|.*\\.webp|.*\\.jpe?g|.*\\.gif|.*\\.woff2?|sw\\.js|workbox-.*).*)"],
 };

@@ -7,6 +7,7 @@ import {
 } from "@/lib/tradexTrend";
 import { bucketOf } from "@/lib/tradexTrend/tf";
 import { sanitizeCandles } from "@/lib/tradexTrend/sanitize";
+import { isUserActive } from "@/lib/client/activity";
 
 /** Bars per timeframe: enough for EMA 200 warmup plus a meaningful trade sample. */
 const BARS = 1500;
@@ -148,6 +149,9 @@ export function useTradexTrend(
   useEffect(() => {
     const tfs = Array.from(new Set<Tf>([chartTf, ...MTF_TFS]));
     const sync = () => {
+      // No candle fetches while nobody's looking; the next tick after they
+      // return sees the closed candle and catches up.
+      if (!isUserActive()) return;
       const nowMs = Date.now();
       const nowSec = Math.floor(nowMs / 1000);
       for (const tf of tfs) {

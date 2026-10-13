@@ -1,4 +1,5 @@
 ﻿import { NextResponse } from "next/server";
+import { sharedCache } from "@/lib/cache/shared";
 
 export const dynamic = "force-dynamic";
 
@@ -136,11 +137,25 @@ function fmtValue(v: number | null | undefined, unit?: string): string {
 }
 
 // ─── Route ────────────────────────────────────────────────────────────────────
+// Public, ungated data: let Vercel's CDN serve it without invoking the function.
+const CDN_HEADERS = { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=900" };
+const GLOBE_TTL_SEC = 300;
+
 export async function GET() {
   if (cache && Date.now() - cache.ts < CACHE_TTL) {
-    return NextResponse.json(cache.data);
+    return NextResponse.json(cache.data, { headers: CDN_HEADERS });
   }
 
+  // Static-only fallbacks (no live markers) are returned but not shared.
+  const payload = await sharedCache("globe:live", GLOBE_TTL_SEC, buildGlobe, {
+    cacheIf: (p) => p.markers.some((m) => m.isLive),
+  });
+  cache = { data: payload, ts: Date.now() };
+
+  return NextResponse.json(payload, { headers: CDN_HEADERS });
+}
+
+async function buildGlobe(): Promise<GlobePayload> {
   const key = process.env.FINNHUB_API_KEY;
   const markers: LiveMarker[] = [];
 
@@ -281,8 +296,5 @@ export async function GET() {
     markers.push(...STATIC_ECO);
   }
 
-  const payload: GlobePayload = { markers, fetchedAt: new Date().toISOString() };
-  cache = { data: payload, ts: Date.now() };
-
-  return NextResponse.json(payload);
+  return { markers, fetchedAt: new Date().toISOString() };
 }

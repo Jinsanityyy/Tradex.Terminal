@@ -35,7 +35,8 @@ import { TRADEX_TREND_ENABLED } from "@/lib/tradexTrend/flag";
 // ─────────────────────────────────────────────────────────────────────────────
 // Cache (Supabase-backed, shared across all serverless instances)
 // ─────────────────────────────────────────────────────────────────────────────
-import { getAgentCache, setAgentCache } from "./agent-cache-store";
+import { getAgentCache, setAgentCache, FORCE_REFRESH_FLOOR_MS } from "./agent-cache-store";
+import { getMarketNews } from "@/lib/news/feed";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Market Data Fetcher
@@ -50,14 +51,6 @@ const SYMBOL_TO_API: Partial<Record<Symbol, string>> = {
 
 async function fetchMarketData(
   symbol: Symbol,
-  /**
-   * Caller's credentials. /api/market/news is entitlement-gated, so a plain
-   * server-side fetch arrives anonymous and 401s — the catch below would then
-   * silently drop that news source for paying users. Finnhub is fetched
-   * directly and is unaffected, so the failure mode is degraded headlines
-   * rather than none.
-   */
-  authHeaders?: HeadersInit
 ): Promise<{
   quote: Record<string, string | { high: string; low: string }> | null;
   news: Array<{ headline: string; summary: string; datetime: number }>;
@@ -74,8 +67,6 @@ async function fetchMarketData(
     // Fetch news  -  Finnhub + internal fallback run in parallel (3s each), eliminating serial 10s latency
     type RawNewsItem = { headline: string; summary: string; datetime: number };
     const finnhubKey = process.env.FINNHUB_API_KEY;
-    const baseUrl    = process.env.NEXT_PUBLIC_APP_URL
-      ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
     const [finnhubNews, internalNews] = await Promise.all([
       (async (): Promise<RawNewsItem[]> => {
@@ -98,18 +89,19 @@ async function fetchMarketData(
         } catch { clearTimeout(timer); return []; }
       })(),
       (async (): Promise<RawNewsItem[]> => {
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 3000);
+        // Read the shared news feed directly. This used to be an HTTP call to
+        // our own /api/market/news, which cost a second function invocation
+        // (plus its auth gate) on every pipeline run.
+        let timer: ReturnType<typeof setTimeout> | undefined;
         try {
-          const res = await fetch(`${baseUrl}/api/market/news`, {
-            signal: ctrl.signal, cache: "no-store",
-            headers: authHeaders,
-          });
+          const feed = await Promise.race([
+            getMarketNews(),
+            new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), 3000); }),
+          ]);
           clearTimeout(timer);
-          if (!res.ok) return [];
-          const raw = await res.json();
-          const items = Array.isArray(raw) ? raw : (raw.data ?? raw.news ?? []);
-          return (items as Record<string, unknown>[]).slice(0, 20).map(n => ({
+          if (!feed) return [];
+          const items = feed.data as unknown as Record<string, unknown>[];
+          return items.slice(0, 20).map(n => ({
             headline: (n.headline as string) ?? (n.title as string) ?? "",
             summary:  (n.summary  as string) ?? (n.description as string) ?? "",
             datetime: (n.datetime as number | undefined)
@@ -292,8 +284,30 @@ export async function runAgentOrchestrator(
   timeframe: Timeframe,
   weights?: ScoringWeights,
   forceRefresh = false,
-  /** Forwarded to the gated internal news endpoint — see fetchMarketData. */
-  authHeaders?: HeadersInit
+): Promise<AgentRunResult> {
+  // ── Cache check (Supabase-backed, survives serverless restarts) ──────────
+  // A forced refresh still reuses a run that finished under a minute ago.
+  const cached = await getAgentCache(symbol, timeframe, forceRefresh ? FORCE_REFRESH_FLOOR_MS : undefined);
+  if (cached) return cached;
+
+  // Concurrent misses for the same symbol/timeframe on this instance share one
+  // pipeline run instead of each starting their own. Only default-weight runs
+  // are shared; custom weights produce a different result.
+  if (weights) return runAgentPipeline(symbol, timeframe, weights);
+  const key = `${symbol}_${timeframe}`;
+  const running = pipelineRuns.get(key);
+  if (running) return running;
+  const run = runAgentPipeline(symbol, timeframe, undefined).finally(() => pipelineRuns.delete(key));
+  pipelineRuns.set(key, run);
+  return run;
+}
+
+const pipelineRuns = new Map<string, Promise<AgentRunResult>>();
+
+async function runAgentPipeline(
+  symbol: Symbol,
+  timeframe: Timeframe,
+  weights?: ScoringWeights,
 ): Promise<AgentRunResult> {
   const start = Date.now();
 
@@ -301,14 +315,8 @@ export async function runAgentOrchestrator(
   // (price-action + macro emphasized) unless the caller passed explicit weights.
   const effectiveWeights = weights ?? weightsForSymbol(symbol);
 
-  // ── Cache check (Supabase-backed, survives serverless restarts) ──────────
-  if (!forceRefresh) {
-    const cached = await getAgentCache(symbol, timeframe);
-    if (cached) return cached;
-  }
-
   // ── Fetch market data ────────────────────────────────────────────────────
-  const { quote, news } = await fetchMarketData(symbol, authHeaders);
+  const { quote, news } = await fetchMarketData(symbol);
 
   // AGENT_CORE=v2 switches the decision to the Session Liquidity core. Off by
   // default: the classic multi-agent path is what runs until it is turned on.

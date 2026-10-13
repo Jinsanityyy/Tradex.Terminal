@@ -4,6 +4,7 @@ import type { Symbol, Timeframe } from "@/lib/agents/schemas";
 import { getHistoricalRates } from "dukascopy-node";
 import { unstable_cache } from "next/cache";
 import { basisOf, shiftBars } from "./bars";
+import { sharedCache } from "@/lib/cache/shared";
 
 /**
  * Candle providers shared by /api/market/candles (the TradeX Trend chart) and the
@@ -232,14 +233,22 @@ const futuresBasis = unstable_cache(
  * silver and oil; lined up with spot for gold and silver when preferSpot).
  */
 export async function fetchCandles(symbol: Symbol, timeframe: CandleTf, limit: number, preferSpot: boolean): Promise<CandleResult | null> {
-  const tried: string[] = [];
-  let source = "twelvedata";
-  let candles = await fromTwelveData(symbol, timeframe, limit);
-  if (!candles) tried.push("twelvedata: no data");
-  if (!candles && preferSpot) { source = "dukascopy"; candles = await fromDukascopy(symbol, timeframe, limit, tried); }
-  if (!candles) { source = "finnhub"; candles = await fromFinnhub(symbol, timeframe, limit); if (!candles) tried.push("finnhub: no data"); }
-  if (!candles) { source = "yahoo"; candles = await fromYahoo(symbol, timeframe, limit); }
-  if (!candles?.length) return null;
+  // Shared by every user, instance and agent run. The key carries the candle
+  // period, so a new candle close always starts a fresh fetch (the client
+  // refetches exactly then), while every request inside one period reuses it.
+  // The futures-to-spot shift below stays outside: it has its own 30-minute cache.
+  const period = tfSecs(timeframe);
+  const bucket = Math.floor(Date.now() / 1000 / period);
+  const raw = await sharedCache(
+    `candles:${symbol}|${timeframe}|${limit}|${preferSpot ? 1 : 0}|${bucket}`,
+    Math.max(60, Math.min(period, 900)),
+    () => fetchRawCandles(symbol, timeframe, limit, preferSpot),
+    { cacheIf: (r) => !!r?.candles.length },
+  );
+  if (!raw) return null;
+  const tried = [...raw.tried];
+  const { source } = raw;
+  let candles = raw.candles;
 
   const futuresOnYahoo = source === "yahoo" && (symbol === "XAUUSD" || symbol === "XAGUSD" || symbol === "USOIL");
   let aligned: number | null = null;
@@ -252,4 +261,16 @@ export async function fetchCandles(symbol: Symbol, timeframe: CandleTf, limit: n
     }
   }
   return { candles, source, spot: !futuresOnYahoo || aligned !== null, aligned, tried };
+}
+
+async function fetchRawCandles(symbol: Symbol, timeframe: CandleTf, limit: number, preferSpot: boolean): Promise<{ candles: CandleBar[]; source: string; tried: string[] } | null> {
+  const tried: string[] = [];
+  let source = "twelvedata";
+  let candles = await fromTwelveData(symbol, timeframe, limit);
+  if (!candles) tried.push("twelvedata: no data");
+  if (!candles && preferSpot) { source = "dukascopy"; candles = await fromDukascopy(symbol, timeframe, limit, tried); }
+  if (!candles) { source = "finnhub"; candles = await fromFinnhub(symbol, timeframe, limit); if (!candles) tried.push("finnhub: no data"); }
+  if (!candles) { source = "yahoo"; candles = await fromYahoo(symbol, timeframe, limit); }
+  if (!candles?.length) return null;
+  return { candles, source, tried };
 }

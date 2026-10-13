@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requirePro } from "@/lib/auth/entitlement";
+import { sharedCache } from "@/lib/cache/shared";
 
 export const dynamic = "force-dynamic";
 
@@ -341,6 +342,21 @@ export async function GET(req: Request) {
     return NextResponse.json(cached.data);
   }
 
+  // CFTC is weekly and options daily, so the small computed result is shared
+  // across users and instances for an hour. Only whitelisted assets are keyed.
+  const data = Object.prototype.hasOwnProperty.call(ASSET_CONFIGS, asset)
+    ? await sharedCache(`market:institutional:${asset}`, INSTITUTIONAL_TTL_SEC, () => buildInstitutional(cfg), {
+        cacheIf: (d) => d.sentiment !== null || d.oi !== null || d.options !== null,
+      })
+    : await buildInstitutional(cfg);
+
+  cache.set(cacheKey, { data, ts: Date.now() });
+  return NextResponse.json(data);
+}
+
+const INSTITUTIONAL_TTL_SEC = 3600;
+
+async function buildInstitutional(cfg: AssetConfig): Promise<InstitutionalData> {
   const [sentiment, oi, options] = await Promise.all([
     fetchManagedMoney(cfg.cftcCode),
     fetchOI(cfg.stooqTicker, cfg.yahooTicker),
@@ -348,8 +364,5 @@ export async function GET(req: Request) {
   ]);
 
   const { confluence, score } = calcConfluence(sentiment, oi, options);
-  const data: InstitutionalData = { sentiment, oi, options, confluence, score, ts: Date.now() };
-
-  cache.set(cacheKey, { data, ts: Date.now() });
-  return NextResponse.json(data);
+  return { sentiment, oi, options, confluence, score, ts: Date.now() };
 }

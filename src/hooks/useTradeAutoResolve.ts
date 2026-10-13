@@ -6,6 +6,7 @@ import {
   closeTrade, getLastSyncError, loadTradeLog, syncAllClosedTrades, syncClosedTradeToServer, type TakenSignal,
 } from "@/lib/trades/trade-log";
 import type { RecentSignal } from "@/hooks/useMarketData";
+import { isUserActive, onUserReturn } from "@/lib/client/activity";
 import { hitFromCandles, hitFromPrice, timeframeFor, type CandleBar, type TradeHit } from "@/lib/trades/auto-resolve";
 
 // Candles cost a TwelveData credit and an entitlement check per symbol; ticks
@@ -149,7 +150,10 @@ export function useTradeAutoResolve(
     // Closes whose calendar write failed (offline, database down) go out now.
     void syncAllClosedTrades();
     void check().finally(() => { caughtUp.current = true; });
-    const id = setInterval(check, CANDLE_CHECK_MS);
+    // Skipped while nobody's looking: the check reads candles back to the oldest
+    // open trade, so the first pass after they return still catches any hit.
+    const id = setInterval(() => { if (isUserActive()) void check(); }, CANDLE_CHECK_MS);
+    const offReturn = onUserReturn(() => { void check(); });
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
       void syncAllClosedTrades();
@@ -159,6 +163,7 @@ export function useTradeAutoResolve(
     return () => {
       cancelled = true;
       clearInterval(id);
+      offReturn();
       document.removeEventListener("visibilitychange", onVisible);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

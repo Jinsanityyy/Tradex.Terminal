@@ -1,6 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 import type { MarketNarrative, TradeContext, Sentiment } from "@/types";
 import { requireUser } from "@/lib/auth/entitlement";
+import { sharedCache } from "@/lib/cache/shared";
 
 export const dynamic = "force-dynamic";
 
@@ -211,6 +212,13 @@ function analyzeMarket(quotes: Record<string, QuoteData>, news: NewsData[]): Ana
   };
 }
 
+const ANALYSIS_TTL_SEC = 180;
+
+async function buildAnalysis(): Promise<{ result: AnalysisResult; hasQuotes: boolean }> {
+  const [quotes, news] = await Promise.all([fetchQuotes(), fetchNews()]);
+  return { result: analyzeMarket(quotes, news), hasQuotes: Object.keys(quotes).length > 0 };
+}
+
 export async function GET(req: Request) {
   const gate = await requireUser(req);
   if (!gate.ok) return gate.response;
@@ -220,8 +228,11 @@ export async function GET(req: Request) {
   }
 
   try {
-    const [quotes, news] = await Promise.all([fetchQuotes(), fetchNews()]);
-    const result = analyzeMarket(quotes, news);
+    // Built once per TTL for every user and instance; a build with no quotes
+    // is returned but not shared.
+    const { result } = await sharedCache("market:analysis", ANALYSIS_TTL_SEC, buildAnalysis, {
+      cacheIf: (v) => v.hasQuotes,
+    });
 
     cache = { data: result, ts: Date.now() };
 
@@ -259,8 +270,7 @@ export async function POST(req: Request) {
   try {
     // Clear cache to force fresh analysis
     cache = null;
-    const [quotes, news] = await Promise.all([fetchQuotes(), fetchNews()]);
-    const result = analyzeMarket(quotes, news);
+    const { result } = await buildAnalysis();
     cache = { data: result, ts: Date.now() };
     return NextResponse.json({ ...result, fresh: true });
   } catch (error) {

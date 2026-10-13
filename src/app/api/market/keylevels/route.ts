@@ -3,6 +3,7 @@ import { deriveConvictionBias } from "@/lib/api/conviction";
 import { getAIAnalysisCache, getLastAIUpdateTs } from "@/lib/api/ai-analysis-cache";
 import type { AssetAIAnalysis } from "@/types";
 import { requirePro } from "@/lib/auth/entitlement";
+import { sharedCache } from "@/lib/cache/shared";
 
 export const dynamic = "force-dynamic";
 
@@ -767,6 +768,37 @@ export async function GET(req: Request) {
       return NextResponse.json({ data: [], timestamp: Date.now(), error: "No TWELVEDATA_API_KEY" });
     }
 
+    // Read shared AI analysis cache (populated by /api/market/ai-analysis).
+    // Returns null when the AI route has not run yet in this process cycle.
+    // In that case every asset falls back to pure heuristic logic.
+    const aiCache = getAIAnalysisCache();
+
+    // The AI cache is per-instance, so only the AI-free (heuristic) result is
+    // shared across instances; with AI overrides present we compute locally.
+    const levels = aiCache
+      ? await buildKeyLevels(apiKey, aiCache)
+      : await sharedCache("market:keylevels:heuristic", KEYLEVELS_TTL_SEC, () => buildKeyLevels(apiKey, null), {
+          cacheIf: (d) => d.length > 0,
+        });
+
+    if (levels.length > 0) {
+      cache = { data: levels, ts: Date.now() };
+    }
+
+    return NextResponse.json({ data: levels, timestamp: Date.now(), count: levels.length });
+  } catch (error) {
+    console.error("KeyLevels SMC API error:", error);
+    return NextResponse.json({ data: cache.data, timestamp: Date.now(), error: "fetch failed" });
+  }
+}
+
+const KEYLEVELS_TTL_SEC = 300;
+
+async function buildKeyLevels(
+  apiKey: string,
+  aiCache: ReturnType<typeof getAIAnalysisCache>,
+): Promise<KeyLevel[]> {
+  {
     const { ensureCacheWarm, getQuotesForSymbols } = await import("@/lib/api/quotes-cache");
     await ensureCacheWarm();
     const quoteData = getQuotesForSymbols(ASSETS.map(a => a.symbol));
@@ -788,11 +820,6 @@ export async function GET(req: Request) {
         } catch { return 50; }
       })
     );
-
-    // Read shared AI analysis cache (populated by /api/market/ai-analysis).
-    // Returns null when the AI route has not run yet in this process cycle.
-    // In that case every asset falls back to pure heuristic logic.
-    const aiCache = getAIAnalysisCache();
 
     const levels: KeyLevel[] = [];
 
@@ -819,13 +846,6 @@ export async function GET(req: Request) {
       }
     }
 
-    if (levels.length > 0) {
-      cache = { data: levels, ts: Date.now() };
-    }
-
-    return NextResponse.json({ data: levels, timestamp: Date.now(), count: levels.length });
-  } catch (error) {
-    console.error("KeyLevels SMC API error:", error);
-    return NextResponse.json({ data: cache.data, timestamp: Date.now(), error: "fetch failed" });
+    return levels;
   }
 }

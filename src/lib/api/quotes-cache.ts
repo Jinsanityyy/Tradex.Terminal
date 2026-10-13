@@ -1,6 +1,8 @@
 ﻿// Shared in-memory quotes cache
 // The /api/market/quotes route populates this. Other routes read from it.
 
+import { sharedCache } from "@/lib/cache/shared";
+
 export interface CachedQuote {
   symbol: string;
   name: string;
@@ -65,18 +67,26 @@ async function fetchMetalsSpot(): Promise<Record<string, CachedQuote>> {
   return out;
 }
 
-let warming = false;
 export async function ensureCacheWarm(): Promise<void> {
   const now = Date.now();
   // Re-fetch if empty OR if data is older than WARM_TTL (was: never refreshed)
   if (quotesMap.size > 0 && now - lastWarmTs < WARM_TTL) return;
-  if (warming) {
-    await new Promise(r => setTimeout(r, 3000));
-    return;
-  }
 
-  warming = true;
   try {
+    // One upstream fetch shared by every instance (Data Cache) — was per instance.
+    const quotes = await sharedCache("quotes-cache:warm", 60, fetchWarmQuotes, {
+      cacheIf: (q) => Object.keys(q).length > 0,
+    });
+    for (const [sym, quote] of Object.entries(quotes)) quotesMap.set(sym, quote);
+    lastWarmTs = Date.now();
+  } catch (e: any) {
+    console.warn("[quotes-cache] Warm-up failed:", e?.message || e);
+  }
+}
+
+async function fetchWarmQuotes(): Promise<Record<string, CachedQuote>> {
+  const quotesMap = new Map<string, CachedQuote>();
+  {
     const { fetchFinnhubQuoteMap } = await import("@/lib/api/finnhub-market");
 
     // Warm from Finnhub first, then Twelve Data for supplementary symbols
@@ -162,13 +172,9 @@ export async function ensureCacheWarm(): Promise<void> {
       })
     );
 
-    lastWarmTs = Date.now();
     console.log(`[quotes-cache] Refreshed ${quotesMap.size} quotes`);
-  } catch (e: any) {
-    console.warn("[quotes-cache] Warm-up failed:", e?.message || e);
-  } finally {
-    warming = false;
   }
+  return Object.fromEntries(quotesMap);
 }
 
 export function getQuotesForSymbols(twelveSymbols: string[]): Record<string, CachedQuote> {

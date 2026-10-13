@@ -49,7 +49,11 @@ export async function GET(req: NextRequest) {
       .eq("user_id", user.id)
       .eq("is_active", true);
 
-    const since = new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000).toISOString();
+    // ?since=YYYY-MM-DD narrows the window for callers that only need recent days
+    // (the status bar's day P&L), instead of paging through two years of trades.
+    const twoYearsAgo = Date.now() - 2 * 365 * 24 * 60 * 60 * 1000;
+    const sinceParam = Date.parse(searchParams.get("since") ?? "");
+    const since = new Date(Number.isFinite(sinceParam) ? Math.max(sinceParam, twoYearsAgo) : twoYearsAgo).toISOString();
     type TradeRow = { pnl: number; fee: number; closed_at: string; connection_id: string; exchange: string };
     type ManualRow = { pnl: number; fees: number; date: string };
 

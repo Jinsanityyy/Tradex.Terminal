@@ -3,11 +3,13 @@ import type { Catalyst } from "@/types";
 import { llmCreate, llmAvailable } from "@/lib/agents/llm-provider";
 import { requireUser } from "@/lib/auth/entitlement";
 import { deriveSentiment, resolveStance, deriveGoldDirection, derivePolicyStance } from "@/lib/news/sentiment";
+import { createHash } from "node:crypto";
+import { sharedCache } from "@/lib/cache/shared";
 
 export const dynamic = "force-dynamic";
 
 let cache: { data: Catalyst[]; ts: number } = { data: [], ts: 0 };
-const CACHE_TTL = 180_000; // 3 minutes
+const CACHE_TTL = 300_000; // 5 minutes (per-headline analysis is cached separately)
 
 // Keywords that signal high-impact market catalysts
 const HIGH_IMPACT = [
@@ -339,9 +341,16 @@ export async function GET(req: Request) {
       });
     }
 
-    // Generate AI analysis for each catalyst in parallel
+    // Generate AI analysis for each catalyst in parallel. Memoised per headline
+    // across all instances, so only headlines not seen before reach the LLM
+    // (previously all 12 were re-analysed every time the 3-minute cache expired).
     const analysisResults = await Promise.allSettled(
-      raw_catalysts.map(c => generateAnalysis(c.title, c.explanation, c.affectedMarkets, c.importance))
+      raw_catalysts.map(c => sharedCache(
+        `catalysts:analysis:${createHash("sha1").update(`${c.title}|${c.explanation.slice(0, 200)}|${c.affectedMarkets.join(",")}|${c.importance}`).digest("hex")}`,
+        86_400,
+        () => generateAnalysis(c.title, c.explanation, c.affectedMarkets, c.importance),
+        { cacheIf: (v) => v !== null },
+      ))
     );
 
     const catalysts: Catalyst[] = raw_catalysts.map((c, i) => {

@@ -18,6 +18,7 @@ import { RiskGuard } from "./RiskGuard";
 import type { GuardStatus } from "@/lib/trades/risk-guard";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { isUserActive, onUserReturn } from "@/lib/client/activity";
 import { syncAllClosedTrades } from "@/lib/trades/trade-log";
 import { UnloggedTakenTrades } from "@/components/shared/UnloggedTakenTrades";
 
@@ -862,7 +863,8 @@ function Mt5SetupPanel({ setup, onDone }: { setup: Mt5Setup; onDone: () => void 
         }
       } catch { /* keep polling */ }
     };
-    const id = setInterval(check, 3000);
+    // A setup dialog left open would otherwise poll every 3s indefinitely.
+    const id = setInterval(() => { if (isUserActive()) void check(); }, 3000);
     return () => { stopped = true; clearInterval(id); };
   }, [live, setup.connectionId, startedAt]);
 
@@ -1316,16 +1318,39 @@ export default function PnLCalendarPage() {
   }
 
   // MT5 trades are pushed by the EA, not pulled by Sync, so keep the calendar
-  // fresh on its own while an MT5 connection exists and the tab is visible.
+  // fresh on its own while an MT5 connection exists. Supabase Realtime tells us
+  // the moment the EA writes a trade (RLS limits events to this user's rows);
+  // this replaced a 4-request poll every 10s. A slow poll stays as a fallback
+  // in case the realtime channel is down, and both stop while nobody's looking.
   const loadDataRef = useRef(loadData);
   loadDataRef.current = loadData;
   const hasMt5 = connections.some(c => c.exchange === "mt5" && c.is_active !== false);
   useEffect(() => {
     if (!hasMt5) return;
+    let debounce: ReturnType<typeof setTimeout> | undefined;
+    // An EA restart re-sends 30 days of deals as upserts: coalesce the burst.
+    const refreshSoon = () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => loadDataRef.current({ silent: true }), 2_000);
+    };
+
+    const sb = createClient();
+    const channel = sb
+      ?.channel("pnl-trades-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "trades" }, refreshSoon)
+      .subscribe();
+
     const id = setInterval(() => {
-      if (document.visibilityState === "visible") loadDataRef.current({ silent: true });
-    }, 10_000);
-    return () => clearInterval(id);
+      if (isUserActive()) loadDataRef.current({ silent: true });
+    }, 2 * 60_000);
+    const offReturn = onUserReturn(() => loadDataRef.current({ silent: true }));
+
+    return () => {
+      clearTimeout(debounce);
+      clearInterval(id);
+      offReturn();
+      if (sb && channel) void sb.removeChannel(channel);
+    };
   }, [hasMt5]);
 
   // Analytics covers every source, not just hand-logged trades. Refetched when

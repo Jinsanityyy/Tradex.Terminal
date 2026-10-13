@@ -2,9 +2,11 @@
 import type { EconomicEvent } from "@/types";
 import { requireUser } from "@/lib/auth/entitlement";
 import { archiveEvents } from "@/lib/calendar/archive";
+import { sharedCache } from "@/lib/cache/shared";
 
 export const dynamic = "force-dynamic";
 
+// Per-instance copy of the shared calendar (see CALENDAR_TTL_SEC).
 let cache: { data: EconomicEvent[]; ts: number } = { data: [], ts: 0 };
 const CACHE_TTL = 30_000;
 
@@ -1240,6 +1242,26 @@ export async function GET(req: Request) {
   }
 
   try {
+    // Built once per TTL for every user and instance (was: every instance
+    // refetched ~23 upstream URLs and re-upserted the archive every 30s).
+    const final = await sharedCache("market:calendar", CALENDAR_TTL_SEC, buildCalendar, {
+      cacheIf: (d) => d.length > 0,
+    });
+    if (final.length === 0) {
+      return NextResponse.json({ data: cache.data, timestamp: Date.now(), error: "Calendar API returned no events" });
+    }
+    cache = { data: final, ts: Date.now() };
+    return NextResponse.json({ data: final, timestamp: Date.now(), count: final.length });
+  } catch (error: any) {
+    console.error("Calendar error:", error?.message);
+    return NextResponse.json({ data: cache.data, timestamp: Date.now(), error: "fetch failed" });
+  }
+}
+
+const CALENDAR_TTL_SEC = 120;
+
+async function buildCalendar(): Promise<EconomicEvent[]> {
+  {
     // Fetch this week from both CDN endpoints — take whichever has more actual values
     const [nfsThis, cdnThis, nfsNext] = await Promise.all([
       fetchFFWeek("https://nfs.faireconomy.media/ff_calendar_thisweek.json"),
@@ -1254,9 +1276,7 @@ export async function GET(req: Request) {
 
     const events: FFEvent[] = [...thisWeek, ...nextWeek];
 
-    if (events.length === 0) {
-      return NextResponse.json({ data: cache.data, timestamp: Date.now(), error: "Calendar API returned no events" });
-    }
+    if (events.length === 0) return [];
     const now = new Date();
 
     // Fetch actuals from all sources in parallel
@@ -1346,17 +1366,14 @@ export async function GET(req: Request) {
     const final = hasUpcoming ? mapped : [...mapped, ...buildFallbackUpcoming(now)];
 
     if (final.length > 0) {
-      cache = { data: final, ts: Date.now() };
       // Mirror into the archive so these stay reviewable after they scroll out
       // of the feed's two-week window. Deliberately not awaited: the calendar
-      // must render even when the database is unreachable.
+      // must render even when the database is unreachable. Runs once per
+      // shared rebuild, not once per instance per request.
       void archiveEvents(final).catch(() => {});
     }
 
-    return NextResponse.json({ data: final, timestamp: Date.now(), count: final.length });
-  } catch (error: any) {
-    console.error("Calendar error:", error?.message);
-    return NextResponse.json({ data: cache.data, timestamp: Date.now(), error: "fetch failed" });
+    return final;
   }
 }
 

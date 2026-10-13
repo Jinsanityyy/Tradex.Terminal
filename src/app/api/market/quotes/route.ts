@@ -3,6 +3,7 @@ import { TRACKED_ASSETS, twelveQuoteToSnapshot } from "@/lib/api/market-data";
 import { fetchFinnhubQuoteMap } from "@/lib/api/finnhub-market";
 import type { AssetSnapshot } from "@/types";
 import { requireUser } from "@/lib/auth/entitlement";
+import { sharedCache } from "@/lib/cache/shared";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,9 @@ let snapshotCache: AssetSnapshot[] = [];
 let rawCache: Record<string, any> = {};
 let lastFetchTs = 0;
 let cycle = 0;
-const MIN_INTERVAL = 10_000; // 10s  -  SWR polls every 15s; keep server TTL lower
+// Shared across all users/instances. Live ticks come from the Finnhub websocket;
+// this REST snapshot only needs to be roughly current.
+const QUOTES_TTL_SEC = 30;
 
 // ── CoinGecko: real-time crypto (no API key, generous limits) ──
 const COINGECKO_MAP: Record<string, string> = {
@@ -271,23 +274,53 @@ async function fetchTwelveData(symbols: string[], apiKey: string): Promise<Recor
   return results;
 }
 
+interface QuotesPayload {
+  data: AssetSnapshot[];
+  raw: Record<string, any>;
+  timestamp: number;
+}
+
 export async function GET(req: Request) {
   const gate = await requireUser(req);
   if (!gate.ok) return gate.response;
 
-  const now = Date.now();
+  try {
+    // One multi-source fetch per TTL for ALL users and instances (was: every
+    // instance refetched ~13 upstream URLs every 10s).
+    const payload = await sharedCache("market:quotes", QUOTES_TTL_SEC, buildQuotes, {
+      cacheIf: (p) => p.data.length > 0,
+    });
 
-  // Return cache if still fresh
-  if (snapshotCache.length > 0 && now - lastFetchTs < MIN_INTERVAL) {
+    if (payload.data.length > 0) {
+      snapshotCache = payload.data;
+      lastFetchTs = payload.timestamp;
+      // Update shared cache for other routes on this instance
+      try {
+        const { getCachedQuotes } = await import("@/lib/api/quotes-cache");
+        const sharedMap = getCachedQuotes();
+        for (const [sym, quote] of Object.entries(payload.raw)) sharedMap.set(sym, quote);
+      } catch (err) { console.error("[quotes] fetch error:", (err as Error)?.message ?? err); }
+    }
+
     return NextResponse.json({
       data: snapshotCache,
       timestamp: lastFetchTs,
-      cached: true,
+      count: snapshotCache.length,
+      cached: Date.now() - lastFetchTs > 1000,
+    });
+  } catch (error: any) {
+    console.error("[quotes] Error:", error?.message || error);
+    return NextResponse.json({
+      data: snapshotCache,
+      timestamp: lastFetchTs,
+      error: error?.message || "fetch failed",
       count: snapshotCache.length,
     });
   }
+}
 
-  try {
+async function buildQuotes(): Promise<QuotesPayload> {
+  {
     const apiKey = process.env.TWELVEDATA_API_KEY || "";
     cycle++;
 
@@ -355,15 +388,6 @@ export async function GET(req: Request) {
 
     console.log(`[quotes] Got ${newQuotes} new, total cached: ${Object.keys(rawCache).length}`);
 
-    // Update shared cache for other routes
-    try {
-      const { getCachedQuotes } = await import("@/lib/api/quotes-cache");
-      const sharedMap = getCachedQuotes();
-      for (const [sym, quote] of Object.entries(rawCache)) {
-        sharedMap.set(sym, quote);
-      }
-    } catch (err) { console.error("[quotes] fetch error:", (err as Error)?.message ?? err); }
-
     // Build snapshots from all cached raw data
     const snapshots: AssetSnapshot[] = [];
     for (const config of TRACKED_ASSETS) {
@@ -383,24 +407,6 @@ export async function GET(req: Request) {
       }
     }
 
-    if (snapshots.length > 0) {
-      snapshotCache = snapshots;
-      lastFetchTs = Date.now();
-    }
-
-    return NextResponse.json({
-      data: snapshotCache,
-      timestamp: lastFetchTs,
-      count: snapshotCache.length,
-      cycle,
-    });
-  } catch (error: any) {
-    console.error("[quotes] Error:", error?.message || error);
-    return NextResponse.json({
-      data: snapshotCache,
-      timestamp: lastFetchTs,
-      error: error?.message || "fetch failed",
-      count: snapshotCache.length,
-    });
+    return { data: snapshots, raw: { ...rawCache }, timestamp: Date.now() };
   }
 }

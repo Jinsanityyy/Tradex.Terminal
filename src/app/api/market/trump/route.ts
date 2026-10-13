@@ -6,6 +6,8 @@ import { llmCreate, llmAvailable } from "@/lib/agents/llm-provider";
 // HTTP/1.1 GET via node:https  -  handles gzip/deflate decompression + redirects
 import * as zlib from "node:zlib";
 import { requirePro } from "@/lib/auth/entitlement";
+import { createHash } from "node:crypto";
+import { sharedCache } from "@/lib/cache/shared";
 
 function httpsGet(url: string, redirects = 5): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -54,8 +56,9 @@ function httpsGet(url: string, redirects = 5): Promise<string> {
 
 export const dynamic = "force-dynamic";
 
+// Per-instance copy of the composed feed (raw feed + memoised analysis).
 let cache: { data: TrumpPost[]; ts: number } = { data: [], ts: 0 };
-const CACHE_TTL = 120_000; // 2 min
+const CACHE_TTL = 60_000;
 
 // Trump's Truth Social handle
 const TRUTH_SOCIAL_HANDLE = "realDonaldTrump";
@@ -456,6 +459,8 @@ async function fetchFinnhubTrump(): Promise<Omit<TrumpPost, "goldImpact" | "gold
   }
 }
 
+interface RawFeed { rawPosts: RawPost[]; feedSource: string; timestamp: number }
+
 export async function GET(req: Request) {
   const gate = await requirePro(req);
   if (!gate.ok) return gate.response;
@@ -463,11 +468,57 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const forceRefresh = searchParams.get("refresh") === "1";
 
+  // Composed feed already built on this instance from the current shared raw feed.
   if (!forceRefresh && cache.data.length > 0 && Date.now() - cache.ts < CACHE_TTL) {
     const sources = [...new Set(cache.data.map(p => p.source))];
     return NextResponse.json({ data: cache.data, timestamp: cache.ts, cached: true, sources });
   }
 
+  // Stage 1: the RSS/Finnhub fetch + parse, shared by every user and instance.
+  const feed = forceRefresh
+    ? await fetchRawFeed()
+    : await sharedCache("market:trump:raw", RAW_FEED_TTL_SEC, fetchRawFeed, {
+        cacheIf: (f) => f.rawPosts.length > 0,
+      });
+  const { rawPosts, feedSource } = feed;
+
+  if (rawPosts.length === 0) {
+    return NextResponse.json({ data: [], timestamp: Date.now(), empty: true, feedSource: "none" });
+  }
+
+  // Stage 2: Gold/USD analysis, memoised per post. A post is only ever sent to
+  // the LLM once (shared across instances) instead of every post being
+  // re-analysed every time the feed cache expired.
+  const aiResults = await Promise.allSettled(
+    rawPosts.map(p => analyzeGoldUSDCached(p.content, p.policyCategory))
+  );
+
+  const posts: TrumpPost[] = rawPosts.map((p, i) => {
+    const ai = aiResults[i].status === "fulfilled" ? aiResults[i].value : null;
+    return {
+      ...p,
+      goldImpact:    ai?.goldImpact,
+      goldReasoning: ai?.goldReasoning,
+      usdImpact:     ai?.usdImpact,
+      usdReasoning:  ai?.usdReasoning,
+    };
+  });
+
+  cache = { data: posts, ts: Date.now() };
+  const sources = [...new Set(posts.map(p => p.source))];
+  return NextResponse.json({ data: posts, timestamp: Date.now(), count: posts.length, feedSource, sources });
+}
+
+const RAW_FEED_TTL_SEC = 180;
+
+function analyzeGoldUSDCached(content: string, category: string) {
+  const id = createHash("sha1").update(`${category}|${content.slice(0, 400)}`).digest("hex");
+  return sharedCache(`trump:gold-usd:${id}`, 86_400, () => analyzeGoldUSD(content, category), {
+    cacheIf: (v) => v !== null,
+  });
+}
+
+async function fetchRawFeed(): Promise<RawFeed> {
   // Run all free news sources in parallel: Reuters + CNBC + Google News + Finnhub (if key set)
   const [reutersPosts, cnbcPosts, googlePosts, finnhubPosts] = await Promise.all([
     fetchReutersTrump(),
@@ -497,27 +548,5 @@ export async function GET(req: Request) {
 
   console.log(`[trump] merged ${rawPosts.length} posts from: ${feedSource}`);
 
-  if (rawPosts.length === 0) {
-    return NextResponse.json({ data: [], timestamp: Date.now(), empty: true, feedSource: "none" });
-  }
-
-  // Enrich with Claude Gold/USD analysis (parallel, best-effort)
-  const aiResults = await Promise.allSettled(
-    rawPosts.map(p => analyzeGoldUSD(p.content, p.policyCategory))
-  );
-
-  const posts: TrumpPost[] = rawPosts.map((p, i) => {
-    const ai = aiResults[i].status === "fulfilled" ? aiResults[i].value : null;
-    return {
-      ...p,
-      goldImpact:    ai?.goldImpact,
-      goldReasoning: ai?.goldReasoning,
-      usdImpact:     ai?.usdImpact,
-      usdReasoning:  ai?.usdReasoning,
-    };
-  });
-
-  cache = { data: posts, ts: Date.now() };
-  const sources = [...new Set(posts.map(p => p.source))];
-  return NextResponse.json({ data: posts, timestamp: Date.now(), count: posts.length, feedSource, sources });
+  return { rawPosts, feedSource, timestamp: Date.now() };
 }

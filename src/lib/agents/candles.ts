@@ -1,6 +1,7 @@
 ﻿import type { DirectionalBias, Symbol, Timeframe, TimeframeBias } from "./schemas";
 import { fetchYahooCandles } from "@/lib/api/yahoo-finance";
 import { computeATR } from "./indicators";
+import { sharedCache } from "@/lib/cache/shared";
 
 export interface CandleBar {
   t: number;
@@ -605,6 +606,30 @@ async function fetchYahooFallbackCandles(symbol: Symbol, timeframe: Timeframe): 
   }
 }
 
+/**
+ * One pipeline run used to download the same series several times (the chosen
+ * timeframe 3x, M5 2x, across the snapshot, trend and MTF steps), and every
+ * symbol/timeframe run repeated it. Raw provider responses are now shared for up
+ * to a minute within one candle period; the key changes when a candle closes, so
+ * a new bar is always fetched fresh. Validation below still runs on every call
+ * against the caller's current price.
+ */
+function sharedProviderCandles(
+  provider: string,
+  symbol: Symbol,
+  timeframe: Timeframe,
+  fetcher: () => Promise<CandleBar[] | null>,
+): Promise<CandleBar[] | null> {
+  const period = getExpectedCandleSeconds(timeframe);
+  const bucket = Math.floor(Date.now() / 1000 / period);
+  return sharedCache(
+    `agent-candles:${provider}:${symbol}:${timeframe}:${bucket}`,
+    Math.min(period, 60),
+    fetcher,
+    { cacheIf: (c) => hasValidCandles(c ?? []) },
+  );
+}
+
 async function resolveReliableCandles(
   symbol: Symbol,
   timeframe: Timeframe,
@@ -613,9 +638,9 @@ async function resolveReliableCandles(
   const key = cacheKey(symbol, timeframe);
 
   const providers = [
-    { name: "finnhub",     fetcher: () => fetchFinnhubCandles(symbol, timeframe) },
-    { name: "twelvedata",  fetcher: () => fetchTwelvedataCandles(symbol, timeframe) },
-    { name: "yahoo",       fetcher: () => fetchYahooFallbackCandles(symbol, timeframe) },
+    { name: "finnhub",     fetcher: () => sharedProviderCandles("finnhub", symbol, timeframe, () => fetchFinnhubCandles(symbol, timeframe)) },
+    { name: "twelvedata",  fetcher: () => sharedProviderCandles("twelvedata", symbol, timeframe, () => fetchTwelvedataCandles(symbol, timeframe)) },
+    { name: "yahoo",       fetcher: () => sharedProviderCandles("yahoo", symbol, timeframe, () => fetchYahooFallbackCandles(symbol, timeframe)) },
   ];
 
   for (const provider of providers) {

@@ -3,6 +3,7 @@ import type { BiasData } from "@/types";
 import { TRACKED_ASSETS } from "@/lib/api/market-data";
 import { deriveConvictionBias } from "@/lib/api/conviction";
 import { requireUser } from "@/lib/auth/entitlement";
+import { sharedCache } from "@/lib/cache/shared";
 
 export const dynamic = "force-dynamic";
 
@@ -178,6 +179,27 @@ export async function GET(req: Request) {
       return NextResponse.json({ data: [], timestamp: Date.now(), error: "No TWELVEDATA_API_KEY" });
     }
 
+    // Built once per TTL for every user and instance. All-placeholder results
+    // (quotes unavailable) are returned but not shared.
+    const biasResults = await sharedCache("market:bias", BIAS_TTL_SEC, () => buildBias(apiKey), {
+      cacheIf: (d) => d.some((b) => b.keyLevels.resistance > 0),
+    });
+
+    if (biasResults.length > 0) {
+      cache = { data: biasResults, ts: Date.now() };
+    }
+
+    return NextResponse.json({ data: biasResults, timestamp: Date.now(), count: biasResults.length });
+  } catch (error) {
+    console.error("Bias API error:", error);
+    return NextResponse.json({ data: cache.data, timestamp: Date.now(), error: "fetch failed" });
+  }
+}
+
+const BIAS_TTL_SEC = 300;
+
+async function buildBias(apiKey: string): Promise<BiasData[]> {
+  {
     // Ensure shared quotes cache is warm, then read from it
     const { ensureCacheWarm, getQuotesForSymbols } = await import("@/lib/api/quotes-cache");
     await ensureCacheWarm();
@@ -263,13 +285,6 @@ export async function GET(req: Request) {
       };
     });
 
-    if (biasResults.length > 0) {
-      cache = { data: biasResults, ts: Date.now() };
-    }
-
-    return NextResponse.json({ data: biasResults, timestamp: Date.now(), count: biasResults.length });
-  } catch (error) {
-    console.error("Bias API error:", error);
-    return NextResponse.json({ data: cache.data, timestamp: Date.now(), error: "fetch failed" });
+    return biasResults;
   }
 }
