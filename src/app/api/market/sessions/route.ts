@@ -2,6 +2,7 @@
 import type { SessionSummary } from "@/types";
 import { requireUser } from "@/lib/auth/entitlement";
 import { deriveSentiment } from "@/lib/news/sentiment";
+import { sharedCache } from "@/lib/cache/shared";
 
 export const dynamic = "force-dynamic";
 
@@ -262,6 +263,31 @@ export async function GET(req: Request) {
   }
 
   try {
+    // Built once per TTL for every user and instance; a build without live
+    // quotes is returned but not shared.
+    const { sessions, nowHour } = await sharedCache("market:sessions", SESSIONS_TTL_SEC, buildSessions, {
+      cacheIf: (v) => v.sessions.length > 0 && v.hasQuotes,
+    });
+
+    if (sessions.length > 0) {
+      cache = { data: sessions, ts: Date.now() };
+    }
+
+    return NextResponse.json({
+      data: sessions,
+      timestamp: Date.now(),
+      currentHourUTC: nowHour,
+    });
+  } catch (error) {
+    console.error("Sessions API error:", error);
+    return NextResponse.json({ data: cache.data, timestamp: Date.now(), error: "fetch failed" });
+  }
+}
+
+const SESSIONS_TTL_SEC = 120;
+
+async function buildSessions(): Promise<{ sessions: SessionSummary[]; nowHour: number; hasQuotes: boolean }> {
+  {
     const now = new Date();
     const nowHour = now.getUTCHours();
 
@@ -309,17 +335,6 @@ export async function GET(req: Request) {
       };
     });
 
-    if (sessions.length > 0) {
-      cache = { data: sessions, ts: Date.now() };
-    }
-
-    return NextResponse.json({
-      data: sessions,
-      timestamp: Date.now(),
-      currentHourUTC: nowHour,
-    });
-  } catch (error) {
-    console.error("Sessions API error:", error);
-    return NextResponse.json({ data: cache.data, timestamp: Date.now(), error: "fetch failed" });
+    return { sessions, nowHour, hasQuotes: Object.keys(quotes).length > 0 };
   }
 }

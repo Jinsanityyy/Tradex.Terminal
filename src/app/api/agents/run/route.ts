@@ -11,7 +11,6 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Symbol, Timeframe } from "@/lib/agents/schemas";
 import { runAgentOrchestrator } from "@/lib/agents/orchestrator";
 import { requirePro } from "@/lib/auth/entitlement";
-import { forwardAuth } from "@/lib/auth/forward";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 55; // Vercel Pro: 60s max  -  keep 5s buffer for cleanup
@@ -48,7 +47,6 @@ export async function GET(req: NextRequest) {
       validated.timeframe,
       undefined,
       false,
-      forwardAuth(req)
     );
     return NextResponse.json(result);
   } catch (error) {
@@ -90,7 +88,6 @@ export async function POST(req: NextRequest) {
       validated.timeframe,
       undefined,
       wantsForceRefresh,
-      forwardAuth(req)
     );
 
     return NextResponse.json(result);

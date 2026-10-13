@@ -1,4 +1,5 @@
 import { requirePro } from "@/lib/auth/entitlement";
+import { sharedCache } from "@/lib/cache/shared";
 /**
  * Truth Social provider proxy  -  /api/market/trump/ts
  *
@@ -105,8 +106,13 @@ function normalizeItem(item: Record<string, unknown>): MastodonLike | null {
   };
 }
 
-// Fetch Trump's avatar URL from Truth Social account API
-async function fetchTrumpAvatar(): Promise<string | null> {
+// Fetch Trump's avatar URL from Truth Social account API. It rarely changes, so
+// it is shared for 6h instead of being fetched on every request.
+function fetchTrumpAvatar(): Promise<string | null> {
+  return sharedCache("trump:ts:avatar-url", 6 * 3600, fetchTrumpAvatarUncached, { cacheIf: (v) => v !== null });
+}
+
+async function fetchTrumpAvatarUncached(): Promise<string | null> {
   try {
     const res = await fetch(
       `https://truthsocial.com/api/v1/accounts/${process.env.TRUTH_SOCIAL_ACCOUNT_ID ?? "107780257626128497"}`,
@@ -342,26 +348,12 @@ async function fetchViaCnn(): Promise<Response> {
     console.warn("[ts/cnn] Supabase cache miss:", err);
   }
 
-  // Try 2: CNN archive direct fetch (if Supabase is empty or not configured)
-  let res: Response;
-  try {
-    res = await fetch(CNN_ARCHIVE_URL, {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(10_000),
-    });
-  } catch (err) {
-    console.error("[ts/cnn] CNN fetch error:", err);
-    return jsonError(500, `CNN archive fetch failed: ${String(err)}`);
-  }
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    console.error(`[ts/cnn] CNN HTTP ${res.status}: ${body.slice(0, 200)}`);
-    return jsonError(res.status, `CNN archive HTTP ${res.status}`);
-  }
-
-  const raw: CnnPost[] = await res.json().catch(() => []);
-  console.log(`[ts/cnn] CNN archive raw items: ${raw.length}`);
+  // Try 2: CNN archive direct fetch (if Supabase is empty or not configured).
+  // The archive is the full post history (multi-MB); download + parse it at most
+  // once per 2 minutes across all instances and keep only the 20 newest.
+  const archive = await sharedCache("trump:ts:cnn-archive", 120, fetchCnnLatest, { cacheIf: (r) => r.ok });
+  if (!archive.ok) return jsonError(archive.status, archive.error);
+  const raw = archive.posts;
 
   const normalized: MastodonLike[] = raw
     .slice(0, 20)
@@ -383,6 +375,29 @@ async function fetchViaCnn(): Promise<Response> {
   console.log(`[ts/cnn] avatar: ${avatar ? "fetched" : "unavailable (flag fallback)"}`);
 
   return jsonPosts(normalized);
+}
+
+async function fetchCnnLatest(): Promise<{ ok: true; posts: CnnPost[] } | { ok: false; status: number; error: string }> {
+  let res: Response;
+  try {
+    res = await fetch(CNN_ARCHIVE_URL, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch (err) {
+    console.error("[ts/cnn] CNN fetch error:", err);
+    return { ok: false, status: 500, error: `CNN archive fetch failed: ${String(err)}` };
+  }
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error(`[ts/cnn] CNN HTTP ${res.status}: ${body.slice(0, 200)}`);
+    return { ok: false, status: res.status, error: `CNN archive HTTP ${res.status}` };
+  }
+
+  const raw: CnnPost[] = await res.json().catch(() => []);
+  console.log(`[ts/cnn] CNN archive raw items: ${raw.length}`);
+  return { ok: true, posts: raw.slice(0, 20) };
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────

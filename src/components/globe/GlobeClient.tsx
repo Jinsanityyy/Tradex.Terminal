@@ -779,7 +779,7 @@ export default function GlobeClient({ embedded = false, fillContainer = false }:
   const [isLayerPanelOpen, setIsLayerPanelOpen] = useState(false);
   const [globeCollapsed, setGlobeCollapsed] = useState(false);
   const [impactFilter, setImpactFilter] = useState<ImpactFilter>('ALL');
-  const { quotes } = useQuotes(15_000);
+  const { quotes } = useQuotes(30_000);
   const sessionStatus = useSessionClock();
 
   // Persist collapse state

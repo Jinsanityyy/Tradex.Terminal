@@ -36,6 +36,7 @@ import { useFcmPush } from "@/hooks/useFcmPush";
 import { useAnalytics, trackMobileTab } from "@/hooks/useAnalytics";
 import { TrialExpiryBanner } from "@/components/shared/TrialExpiryBanner";
 import { uploadAvatar } from "@/lib/profile/avatar-upload";
+import { isUserActive } from "@/lib/client/activity";
 
 const TRADER_NAME_KEY = "tradex_trader_name";
 
@@ -209,7 +210,10 @@ export function MobileLayout() {
       if (raw) prevIds = new Set(JSON.parse(raw));
     } catch {}
 
+    // Catalysts change every few minutes at most (the server caches them for 5),
+    // and there's no badge to update while the app is backgrounded or idle.
     const poll = setInterval(async () => {
+      if (!isUserActive()) return;
       try {
         const res = await fetch("/api/market/catalysts");
         const { data } = await res.json();
@@ -222,7 +226,7 @@ export function MobileLayout() {
         highItems.forEach((c: { id: string }) => prevIds.add(c.id));
         localStorage.setItem(SEEN_KEY, JSON.stringify([...prevIds].slice(-100)));
       } catch {}
-    }, 60_000);
+    }, 5 * 60_000);
 
     return () => clearInterval(poll);
   }, []);

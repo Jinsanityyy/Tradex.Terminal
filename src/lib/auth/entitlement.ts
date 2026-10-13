@@ -91,14 +91,19 @@ async function safeGetUser(req: Request): Promise<User | null> {
   }
 }
 
-/** Requires a signed-in user. Use for free-tier endpoints that still cost us money. */
-export async function requireUser(req: Request): Promise<Gate> {
+/**
+ * Requires a signed-in user. Use for free-tier endpoints that still cost us money.
+ *
+ * Does NOT look up the plan: no requireUser caller reads `entitlement`, and the
+ * subscriptions query ran on every poll of every free-tier endpoint. Call
+ * getEntitlement(gate.user) if a route ever needs the plan.
+ */
+export async function requireUser(req: Request): Promise<{ ok: true; user: User } | { ok: false; response: NextResponse }> {
   const user = await safeGetUser(req);
   if (!user) {
     return { ok: false, response: deny(401, "Sign in to use this feature.") };
   }
-  const entitlement = await getEntitlement(user);
-  return { ok: true, user, entitlement };
+  return { ok: true, user };
 }
 
 /** Requires an active Pro (or Elite, or owner) entitlement. */

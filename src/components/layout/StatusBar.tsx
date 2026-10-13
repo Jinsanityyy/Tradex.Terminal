@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { getAuthHeaders } from "@/lib/supabase/auth-headers";
 import { withTz, todayLocal } from "@/lib/trades/local-date";
 import { computeGuard, type Level, type TradingRules } from "@/lib/trades/risk-guard";
+import { isUserActive, onUserReturn } from "@/lib/client/activity";
 
 /**
  * Bloomberg-style strip along the bottom of every desktop screen: the four FX
@@ -62,11 +63,15 @@ export function StatusBar() {
   useEffect(() => {
     let stopped = false;
     const load = async () => {
-      if (document.visibilityState !== "visible") return;
+      // Nobody watching (hidden tab or idle): skip; onUserReturn catches up.
+      if (!isUserActive()) return;
       const headers = await getAuthHeaders();
       const today = todayLocal();
+      // Two days back covers today in any time zone; the full two-year
+      // aggregate was fetched every minute just to read one day.
+      const since = new Date(Date.now() - 2 * 86_400_000).toISOString().slice(0, 10);
       const [pnlRes, connRes, rulesRes, tradesRes] = await Promise.allSettled([
-        fetch(withTz("/api/pnl"), { headers }).then(r => r.ok ? r.json() : null),
+        fetch(withTz(`/api/pnl?since=${since}`), { headers }).then(r => r.ok ? r.json() : null),
         fetch("/api/exchanges/list", { headers }).then(r => r.ok ? r.json() : null),
         fetch("/api/rules", { headers }).then(r => r.ok ? r.json() : null),
         fetch(withTz(`/api/pnl/trades?from=${today}`), { headers }).then(r => r.ok ? r.json() : null),
@@ -87,8 +92,9 @@ export function StatusBar() {
       }
     };
     load();
-    const id = setInterval(load, 60_000);
-    return () => { stopped = true; clearInterval(id); };
+    const id = setInterval(load, 3 * 60_000);
+    const offReturn = onUserReturn(load);
+    return () => { stopped = true; clearInterval(id); offReturn(); };
   }, []);
 
   const weekend = fxWeekendClosed(now);

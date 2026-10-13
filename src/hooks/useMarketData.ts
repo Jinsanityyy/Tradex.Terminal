@@ -13,7 +13,9 @@ const fetcher = async (url: string) => {
 };
 
 // ── Live Asset Prices ───────────────────────────────────
-export function useQuotes(refreshInterval = 15_000) {
+// 30s matches the server's shared quotes cache: polling faster only re-read the
+// same snapshot. Tick-by-tick prices come from the websocket feed.
+export function useQuotes(refreshInterval = 30_000) {
   const { data, error, isLoading } = useSWR<{
     data: AssetSnapshot[];
     timestamp: number;

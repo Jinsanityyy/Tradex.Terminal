@@ -2,16 +2,26 @@ import { getServiceClient } from "@/lib/supabase/service";
 import type { AgentRunResult } from "./schemas";
 import type { Symbol, Timeframe } from "./schemas";
 
-const CACHE_TTL_MS = 150_000; // 2.5 minutes — must be < refreshInterval (180s) so SWR always fires after cache expires
+// The result is shared by every user. At 150s (just under the 180s client poll)
+// nearly every poll re-ran the full pipeline; 240s lets one run serve a full
+// poll cycle for everyone while keeping the read under 4 minutes old.
+const CACHE_TTL_MS = 240_000;
+
+/**
+ * A forceRefresh younger than this returns the cached run instead of starting
+ * another one (manual refresh buttons and the mobile auto-refresh both force).
+ */
+export const FORCE_REFRESH_FLOOR_MS = 60_000;
 
 function cacheId(symbol: Symbol, timeframe: Timeframe): string {
   return `${symbol}_${timeframe}`;
 }
 
-/** Returns a cached result if it exists and is < 5 minutes old. Returns null otherwise. */
+/** Returns a cached result if it exists and is younger than `maxAgeMs`. Returns null otherwise. */
 export async function getAgentCache(
   symbol: Symbol,
-  timeframe: Timeframe
+  timeframe: Timeframe,
+  maxAgeMs: number = CACHE_TTL_MS
 ): Promise<AgentRunResult | null> {
   const db = getServiceClient();
   if (!db) return null;
@@ -26,7 +36,7 @@ export async function getAgentCache(
     if (error || !data) return null;
 
     const ageMs = Date.now() - new Date(data.created_at as string).getTime();
-    if (ageMs > CACHE_TTL_MS) return null;
+    if (ageMs > maxAgeMs) return null;
 
     return { ...(data.result as AgentRunResult), cached: true };
   } catch {

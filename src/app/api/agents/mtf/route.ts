@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth/entitlement";
+import { sharedCache } from "@/lib/cache/shared";
 
 export const dynamic = "force-dynamic";
 
@@ -589,6 +590,32 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: `Symbol ${symbol} not supported` }, { status: 400 });
   }
 
+  // Shared across users and instances, keyed only by whitelisted symbols.
+  const allNeutral = (r: MTFResult) =>
+    r.D1.confidence === 0 && r.H4.confidence === 0 && r.H1.confidence === 0 && r.M15.confidence === 0;
+  const result = Object.prototype.hasOwnProperty.call(FINNHUB_SYMBOLS, symbol)
+    ? await sharedCache(`agents:mtf:${symbol}`, MTF_TTL_SEC, () => buildMtf(symbol, cfg), {
+        cacheIf: (r) => !allNeutral(r),
+      })
+    : await buildMtf(symbol, cfg);
+
+  if (cacheHit && allNeutral(result)) {
+    logMtfDebug({
+      symbol,
+      endpoint: "result",
+      provider: "cache",
+      status: "stale_result_fallback",
+    });
+    return NextResponse.json({ ...cacheHit.data, cached: true });
+  }
+
+  cache.set(symbol, { data: result, ts: Date.now() });
+  return NextResponse.json(result);
+}
+
+const MTF_TTL_SEC = 300;
+
+async function buildMtf(symbol: string, cfg: FinnhubSym): Promise<MTFResult> {
   const now = Math.floor(Date.now() / 1000);
   const ranges: Record<MTFResolution, number> = {
     D: now - 400 * 24 * 3600,
@@ -611,29 +638,10 @@ export async function GET(req: Request) {
     M15: analyzeCandles(m15Raw) ?? NEUTRAL,
   };
 
-  if (
-    cacheHit &&
-    results.D1.confidence === 0 &&
-    results.H4.confidence === 0 &&
-    results.H1.confidence === 0 &&
-    results.M15.confidence === 0
-  ) {
-    logMtfDebug({
-      symbol,
-      endpoint: "result",
-      provider: "cache",
-      status: "stale_result_fallback",
-    });
-    return NextResponse.json({ ...cacheHit.data, cached: true });
-  }
-
-  const result: MTFResult = {
+  return {
     symbol,
     ...results,
     summary: buildSummary(results),
     timestamp: Date.now(),
   };
-
-  cache.set(symbol, { data: result, ts: Date.now() });
-  return NextResponse.json(result);
 }

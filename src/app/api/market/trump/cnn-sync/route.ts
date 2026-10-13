@@ -52,9 +52,21 @@ function authorized(req: Request): boolean {
   return req.headers.get("authorization") === `Bearer ${secret}`;
 }
 
+// The CNN archive is the full post history (multi-MB), and parsing it was the
+// most expensive part of every scheduled run. Revalidate it conditionally: when
+// it has not changed since this instance last read it, skip download + parse.
+let cnnValidators: { etag?: string; lastModified?: string } = {};
+
+class CnnNotModified extends Error {
+  constructor() { super("not modified"); }
+}
+
 async function fetchFromCnn(): Promise<CnnPost[]> {
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (cnnValidators.etag) headers["If-None-Match"] = cnnValidators.etag;
+  if (cnnValidators.lastModified) headers["If-Modified-Since"] = cnnValidators.lastModified;
   const res = await fetch(CNN_ARCHIVE_URL, {
-    headers: { Accept: "application/json" },
+    headers,
     // Short, because this runs on a platform with a 10s function budget and
     // there are two more sources behind it. A source that has not answered in
     // four seconds is not answering; letting it hold the budget killed the
@@ -62,9 +74,23 @@ async function fetchFromCnn(): Promise<CnnPost[]> {
     signal: AbortSignal.timeout(4_000),
     cache: "no-store",
   });
+  if (res.status === 304) throw new CnnNotModified();
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();
+  // Only trusted once this sync has stored the posts (see commitCnnValidators),
+  // so a failed insert is retried on the next run instead of being skipped as 304.
+  pendingCnnValidators = {
+    etag: res.headers.get("etag") ?? undefined,
+    lastModified: res.headers.get("last-modified") ?? undefined,
+  };
   return Array.isArray(data) ? data.slice(0, FETCH_LIMIT) : [];
+}
+
+let pendingCnnValidators: typeof cnnValidators | null = null;
+
+function commitCnnValidators(source: string) {
+  if (source === "cnn" && pendingCnnValidators) cnnValidators = pendingCnnValidators;
+  pendingCnnValidators = null;
 }
 
 // Truth Social is a Mastodon fork, so its status objects already carry the
@@ -187,6 +213,11 @@ async function sync() {
       }
       failures.push(`${s.name}: returned 0 items`);
     } catch (err) {
+      // Unchanged since the last sync on this instance, so nothing new to insert.
+      if (err instanceof CnnNotModified) {
+        console.log("[cnn-sync] CNN archive unchanged (304)");
+        return jsonRes({ inserted: 0, message: "No new posts since last sync", source: "cnn" });
+      }
       failures.push(`${s.name}: ${String(err)}`);
     }
   }
@@ -228,6 +259,7 @@ async function sync() {
 
   if (newPosts.length === 0) {
     console.log("[cnn-sync] no new posts");
+    commitCnnValidators(source);
     return jsonRes({ inserted: 0, message: "No new posts since last sync", source });
   }
 
@@ -242,6 +274,7 @@ async function sync() {
   }
 
   console.log(`[cnn-sync] inserted ${newPosts.length} new post(s):`, newPosts.map(p => p.id));
+  commitCnnValidators(source);
 
   // Push alert for market-relevant new posts (max 3 per sync). The DB diff above
   // guarantees each post alerts at most once.

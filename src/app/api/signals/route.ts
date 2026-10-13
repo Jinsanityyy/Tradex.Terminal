@@ -17,10 +17,13 @@ import { isOwnerEmail } from "@/lib/auth/owner";
 import type { Symbol } from "@/lib/agents/schemas";
 import type { SignalStats } from "@/lib/signals/types";
 import { requirePro } from "@/lib/auth/entitlement";
+import { runAtMostEvery } from "@/lib/cache/shared";
 
 export const dynamic = "force-dynamic";
+// revalidate = 0 (plus the PATCH/DELETE handlers) already keeps every fetch here
+// uncached; `fetchCache = "force-no-store"` is not set because it would also
+// disable the shared tracker throttle below.
 export const revalidate = 0;
-export const fetchCache = "force-no-store";
 
 // Owner-only gate. Signal history + mutations are restricted to the account owner.
 // Returns a NextResponse to short-circuit when access is denied, or null to proceed.
@@ -39,10 +42,12 @@ async function requireOwner(req: NextRequest): Promise<NextResponse | null> {
 const VALID_SYMBOLS = new Set<string>(["XAUUSD", "EURUSD", "GBPUSD", "BTCUSD", "ALL"]);
 const VALID_PERIODS = new Set<string>(["24h", "7d", "30d", "all"]);
 
-// Throttle tracking runs to at most once every N seconds per serverless instance.
-// Without this, every signals page load would hammer the price API.
-let lastTrackerRunAt = 0;
-const TRACKER_COOLDOWN_MS = 60_000; // 60 seconds
+// Throttle tracking runs across ALL instances (shared Data Cache marker), not
+// per instance: with several warm instances the per-instance cooldown let the
+// tracker run many times a minute. The owner's 30-day reprocess is far heavier
+// and only needs to catch up occasionally.
+const TRACKER_COOLDOWN_SEC = 60;
+const OWNER_REPROCESS_COOLDOWN_SEC = 15 * 60;
 
 export async function GET(req: NextRequest) {
   const gate = await requirePro(req);
@@ -78,22 +83,23 @@ export async function GET(req: NextRequest) {
       ? Math.min(limitParam, 200)
       : 50;
 
-    // Opportunistic outcome tracking  -  kicks in max once per minute per instance.
+    // Opportunistic outcome tracking  -  kicks in max once per minute across all instances.
     // This replaces the Vercel cron (which hit the Hobby plan limit).
-    const now = Date.now();
-    if (now - lastTrackerRunAt > TRACKER_COOLDOWN_MS) {
-      lastTrackerRunAt = now;
+    // Fire-and-forget  -  don't block the response.
+    void runAtMostEvery("signals-tracker", TRACKER_COOLDOWN_SEC, async () => {
+      await Promise.all([
+        trackOpenSignals(),
+        // Everyone triggers the light 4h pass (keeps the live widgets cheap).
+        reprocessRecentLosses(4),
+        // reprocessIncorrectWins() disabled — was flipping null-direction wins to loss_sl indiscriminately
+      ]);
+    }).catch(err => console.warn("[api/signals] tracker run failed:", err));
+    if (owner) {
       // Owner viewing the full history reprocesses a 30-day window so losses that were
       // mis-tracked against futures candles (before the spot-alignment fix) are
-      // re-evaluated against spot-aligned candles and corrected. Everyone else only
-      // triggers the light 4h pass (keeps the live widgets cheap).
-      const reprocessHours = owner ? 720 : 4;
-      // Fire-and-forget  -  don't block the response.
-      void Promise.all([
-        trackOpenSignals(),
-        reprocessRecentLosses(reprocessHours),
-        // reprocessIncorrectWins() disabled — was flipping null-direction wins to loss_sl indiscriminately
-      ]).catch(err => console.warn("[api/signals] tracker run failed:", err));
+      // re-evaluated against spot-aligned candles and corrected.
+      void runAtMostEvery("signals-owner-reprocess", OWNER_REPROCESS_COOLDOWN_SEC, async () => { await reprocessRecentLosses(720); })
+        .catch(err => console.warn("[api/signals] owner reprocess failed:", err));
     }
 
     const recent = await getRecentSignals(limit);
