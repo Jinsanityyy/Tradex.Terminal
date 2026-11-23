@@ -40,6 +40,7 @@ const OPTIONAL_WIDGET_DEFAULTS: Record<string, boolean> = {
   "ai-analysis": true,
   "more-catalysts": true,
   "institutional": true,
+  "agent-office": true,
   // Experimental; only registered when NEXT_PUBLIC_TRADEX_TREND=1.
   "tradex-trend": true,
 };
@@ -64,6 +65,7 @@ const PRESET_LAYOUTS: Record<BuiltInPresetId, Layout> = {
     { i: "tradex-trend", x: 0, y: 67, w: 8, h: 17, minW: 6, minH: 10 },
     { i: "mtf", x: 19, y: 4, w: 5, h: 4, minW: 4, minH: 3 },
     { i: "agents", x: 0, y: 24, w: 24, h: 6, minW: 10, minH: 2 },
+    { i: "agent-office", x: 0, y: 84, w: 12, h: 12, minW: 8, minH: 8 },
     { i: "economic-calendar", x: 0, y: 36, w: 12, h: 4, minW: 6, minH: 4 },
     { i: "lot-calculator", x: 0, y: 40, w: 8, h: 8, minW: 6, minH: 7 },
     { i: "signal-session", x: 0, y: 48, w: 8, h: 5, minW: 6, minH: 4 },

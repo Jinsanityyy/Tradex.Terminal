@@ -39,6 +39,7 @@ const TrumpFeedPanel = dynamic(() => import("@/components/shared/TrumpFeedPanel"
 const LiveTVPanel = dynamic(() => import("@/components/shared/LiveTVPanel").then(m => m.LiveTVPanel), { ssr: false });
 const InstitutionalConfluence = dynamic(() => import("@/components/shared/InstitutionalConfluence").then(m => m.InstitutionalConfluence), { ssr: false });
 const TradexTrendWidget = dynamic(() => import("@/components/dashboard/TradexTrendWidget").then(m => m.TradexTrendWidget), { ssr: false });
+const AgentOffice3D = dynamic(() => import("@/components/brain/AgentOffice3D").then(m => m.AgentOffice3D), { ssr: false });
 const GlobeClient = dynamic(() => import("@/components/globe/GlobeClient"), { ssr: false });
 
 /**
@@ -1278,6 +1279,26 @@ export function MobileHome() {
                 </section>
               );
             }
+
+            case "agent_office":
+              return (
+                <section key="agent_office">
+                  <TerminalSectionHeader label="AGENT OFFICE" />
+                  {!isPro ? (
+                    <ProTeaser label="The 7-agent read is part of Pro" />
+                  ) : (
+                    <LazyMount minHeight={340}>
+                      <AgentOffice3D
+                        data={agentData ?? undefined}
+                        loading={agentLoading && !agentData}
+                        livePrice={livePrice}
+                        sceneClassName="h-[340px]"
+                        showLog={false}
+                      />
+                    </LazyMount>
+                  )}
+                </section>
+              );
 
             case "globe":
               return (

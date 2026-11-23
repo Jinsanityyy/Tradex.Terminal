@@ -646,9 +646,18 @@ export interface AgentOffice3DProps {
   loading?: boolean;
   livePrice?: number | null;
   onAgentClick?: (agentId: string) => void;
+  /** Height classes for the 3D canvas (ignored when `fill` is set). */
+  sceneClassName?: string;
+  /** Stretch to the height of the parent (dashboard grid widget) instead of a fixed height. */
+  fill?: boolean;
+  /** Show the agent log under the scene. */
+  showLog?: boolean;
 }
 
-export function AgentOffice3D({ data, loading = false, livePrice = null, onAgentClick }: AgentOffice3DProps) {
+export function AgentOffice3D({
+  data, loading = false, livePrice = null, onAgentClick,
+  sceneClassName = "h-[440px] sm:h-[540px]", fill = false, showLog = true,
+}: AgentOffice3DProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const tagRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<OfficeApi | null>(null);
@@ -816,13 +825,13 @@ export function AgentOffice3D({ data, loading = false, livePrice = null, onAgent
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="relative h-[440px] overflow-hidden rounded-xl border border-white/8 bg-[#090c11] sm:h-[540px]">
+    <div className={cn("flex flex-col gap-2", fill && "h-full min-h-0")}>
+      <div className={cn("relative overflow-hidden rounded-xl border border-white/8 bg-[#090c11]", fill ? "min-h-0 flex-1" : sceneClassName)}>
         <div ref={wrapRef} className="absolute inset-0" />
         <div ref={tagRef} className="pointer-events-none absolute inset-0 overflow-hidden" />
         {failed ? (
           <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-[12px] text-zinc-500">
-            This device can’t render the 3D office (WebGL is off). Switch to Command Floor above.
+            This device can’t render the 3D office (WebGL is off). Use the Command Floor view instead.
           </div>
         ) : null}
         <div className="pointer-events-none absolute left-3 top-2.5 text-[11px] font-semibold text-zinc-500">
@@ -850,6 +859,7 @@ export function AgentOffice3D({ data, loading = false, livePrice = null, onAgent
         </div>
       </div>
 
+      {showLog ? (
       <div className="rounded-xl border border-white/8 bg-[hsl(var(--card))] px-3 py-2.5">
         <div className="mb-1 flex items-baseline gap-2">
           <span className="text-[11px] font-bold text-zinc-300">Agent log</span>
@@ -870,6 +880,7 @@ export function AgentOffice3D({ data, loading = false, livePrice = null, onAgent
           )}
         </ol>
       </div>
+      ) : null}
 
       <style jsx global>{`
         .tx-office-tag {

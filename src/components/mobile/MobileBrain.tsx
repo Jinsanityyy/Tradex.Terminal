@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import type { AgentRunResult, Symbol, Timeframe, SignalState } from "@/lib/agents/schemas";
 import { DebateLog } from "@/components/brain/DebateLog";
 import { PixelWarRoom } from "@/components/brain/PixelWarRoom";
+import dynamic from "next/dynamic";
 import { useSettings } from "@/contexts/SettingsContext";
 import { isAgentSupported, getSymbolShort, getSymbolLabel } from "@/lib/assetImpact";
 import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
@@ -343,6 +344,16 @@ function StandAsideCard({ exec, isWait }: {
 
 // ── Main component ────────────────────────────────────────────────────────────────────────────
 
+// WebGL scene: client-only and loaded only when the Floor tab is opened.
+const AgentOffice3D = dynamic(() => import("@/components/brain/AgentOffice3D").then(m => m.AgentOffice3D), {
+  ssr: false,
+  loading: () => <div className="h-[380px] animate-pulse rounded-xl border border-white/8 bg-[#090c11]" />,
+});
+
+type FloorView = "office" | "floor";
+// Same key as the desktop Brain terminal so the choice follows the user.
+const FLOOR_VIEW_KEY = "tradex.brain.floorView";
+
 const BRAIN_VALID = new Set<string>(["XAUUSD", "EURUSD", "GBPUSD", "BTCUSD"]);
 
 export function MobileBrain() {
@@ -497,6 +508,19 @@ export function MobileBrain() {
 
   const [view, setView] = useState<"brain" | "floor">("brain");
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [floorView, setFloorView] = useState<FloorView>("office");
+
+  useEffect(() => {
+    try {
+      const v = window.localStorage.getItem(FLOOR_VIEW_KEY);
+      if (v === "office" || v === "floor") setFloorView(v);
+    } catch {}
+  }, []);
+
+  const changeFloorView = (v: FloorView) => {
+    setFloorView(v);
+    try { window.localStorage.setItem(FLOOR_VIEW_KEY, v); } catch {}
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -524,8 +548,37 @@ export function MobileBrain() {
 
       {/* Floor */}
       {view === "floor" && (
-        <div className="flex-1 overflow-y-auto">
-          <PixelWarRoom />
+        <div className="flex-1 overflow-y-auto pb-24">
+          <div className="px-4 pt-3 pb-2">
+            <div className="flex w-fit items-center gap-1 rounded-lg border border-white/8 bg-white/[0.03] p-1">
+              {([["office", "Agent Office"], ["floor", "Command Floor"]] as const).map(([v, label]) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => changeFloorView(v)}
+                  aria-pressed={floorView === v}
+                  className={cn(
+                    "rounded-md px-2.5 py-1.5 text-[11px] font-bold transition-all",
+                    floorView === v ? "bg-white/10 text-white" : "text-zinc-500"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {floorView === "office" ? (
+            <div className="px-4">
+              <AgentOffice3D
+                data={data}
+                loading={isLoading || refreshing || autoRefreshing}
+                livePrice={livePrice}
+                sceneClassName="h-[380px]"
+              />
+            </div>
+          ) : (
+            <PixelWarRoom />
+          )}
         </div>
       )}
 

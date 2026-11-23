@@ -21,6 +21,7 @@ export const WIDGET_DEFS = [
   { id: "econ_calendar",   label: "Economic Calendar", desc: "Next scheduled releases — CPI, NFP, rate decisions" },
   { id: "trump_feed",      label: "Trump Impact",      desc: "Trump posts with market impact analysis" },
   { id: "agents",          label: "7-Agent Overview",  desc: "All 7 AI agents — trend, SMC, news, risk & more" },
+  { id: "agent_office",    label: "Agent Office (3D)", desc: "Watch the 7 agents act out the latest run in a 3D office" },
   { id: "globe",           label: "TradeX Globe",      desc: "Interactive 3D globe with live market markers" },
   { id: "live_tv",         label: "Live TV",           desc: "Bloomberg, CNBC & Fox Business live streams" },
   { id: "lot_calculator",  label: "Lot Calculator",    desc: "Position size & risk calculator" },
@@ -47,6 +48,8 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig[] = [
   // screen that pulls three.js and runs a WebGL canvas — a real cost on a phone
   // on mobile data. Anyone who wants it can switch it on in the widget sheet.
   { id: "globe",          visible: false },
+  // Off by default for the same reason as the globe: three.js + a WebGL canvas.
+  { id: "agent_office",   visible: false },
   { id: "live_prices",    visible: true  },
   { id: "asset_bias",     visible: false },
   { id: "econ_calendar",  visible: true  },

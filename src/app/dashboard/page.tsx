@@ -73,6 +73,10 @@ import type { AgentRunResult, Symbol, Timeframe } from "@/lib/agents/schemas";
 import type { PnLData } from "@/app/api/pnl/route";
 import type { EconomicEvent } from "@/types";
 
+const AgentOffice3D = dynamic(() => import("@/components/brain/AgentOffice3D").then((m) => m.AgentOffice3D), {
+  ssr: false,
+});
+
 const EmbeddedGlobeClient = dynamic(() => import("@/components/globe/GlobeClient"), {
   ssr: false,
   loading: () => <div className="h-full w-full bg-black" />,
@@ -1702,6 +1706,20 @@ export default function DashboardPage() {
           isLoading={isValidating}
           visibleAgents={visibleAgents}
         />
+      ),
+    },
+    {
+      id: "agent-office",
+      title: "Agent Office (3D)",
+      headerRight: (
+        <Link href="/dashboard/brain" className={widgetActionClass}>
+          Brain
+        </Link>
+      ),
+      content: (
+        <div className="h-full min-h-0 p-1.5">
+          <AgentOffice3D data={data} loading={isValidating && !data} livePrice={livePrice} fill showLog={false} />
+        </div>
       ),
     },
     {
