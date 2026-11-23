@@ -11,6 +11,16 @@ import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
 import { useSubscription } from "@/hooks/useSubscription";
 import { BrainOverviewDrawer } from "./BrainOverviewDrawer";
 import { PixelWarRoom } from "./PixelWarRoom";
+import dynamic from "next/dynamic";
+
+// WebGL scene: client-only, loaded on demand so it never touches SSR
+const AgentOffice3D = dynamic(() => import("./AgentOffice3D").then((m) => m.AgentOffice3D), {
+  ssr: false,
+  loading: () => <div className="h-[440px] animate-pulse rounded-xl border border-white/8 bg-[#090c11] sm:h-[540px]" />,
+});
+
+type FloorView = "office" | "floor";
+const FLOOR_VIEW_KEY = "tradex.brain.floorView";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -219,6 +229,19 @@ export function BrainTerminal() {
   const [highlightId, setHighlightId]  = useState<string | undefined>();
   const [showAgents, setShowAgents]     = useState(true);
   const [nowMs, setNowMs]               = useState(() => Date.now());
+  const [floorView, setFloorView]       = useState<FloorView>("office");
+
+  useEffect(() => {
+    try {
+      const v = window.localStorage.getItem(FLOOR_VIEW_KEY);
+      if (v === "office" || v === "floor") setFloorView(v);
+    } catch {}
+  }, []);
+
+  const changeFloorView = useCallback((v: FloorView) => {
+    setFloorView(v);
+    try { window.localStorage.setItem(FLOOR_VIEW_KEY, v); } catch {}
+  }, []);
 
   const { quotes } = useQuotes(60_000);
   const { subscription } = useSubscription();
@@ -492,7 +515,32 @@ export function BrainTerminal() {
           </button>
 
           {/* ── TradeX Command Floor ─────────────────────────────────────── */}
-          <PixelWarRoom onAgentClick={openDrawer} />
+          <div className="flex w-fit items-center gap-1 rounded-lg border border-white/8 bg-white/[0.03] p-1">
+            {([["office", "Agent Office"], ["floor", "Command Floor"]] as const).map(([v, label]) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => changeFloorView(v)}
+                aria-pressed={floorView === v}
+                className={cn(
+                  "rounded-md px-2.5 py-1.5 text-[11px] font-bold transition-all",
+                  floorView === v ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {floorView === "office" ? (
+            <AgentOffice3D
+              data={data}
+              loading={loading}
+              livePrice={liveQuote?.price ?? null}
+              onAgentClick={openDrawer}
+            />
+          ) : (
+            <PixelWarRoom onAgentClick={openDrawer} />
+          )}
 
           {/* ── Section tab: 7-Agent Overview ─────────────────────────────── */}
           <div className="flex items-center gap-0 border-b border-white/6">
